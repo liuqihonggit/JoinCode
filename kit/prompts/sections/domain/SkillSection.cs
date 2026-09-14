@@ -15,9 +15,9 @@ public static class SkillSection {
 
 /<skill-name>（例如/commit）是用户调用用户可调用技能的简写。
 执行时，技能会扩展为完整提示词。
-使用{SkillToolNameConstants.Skill}工具来执行它们。
+使用{SkillToolNameEnumConstants.Skill}工具来执行它们。
 
-重要提示：仅对{SkillToolNameConstants.Skill}工具的用户可调用技能部分列出的技能使用{SkillToolNameConstants.Skill}——不要猜测或使用内置CLI命令。
+重要提示：仅对{SkillToolNameEnumConstants.Skill}工具的用户可调用技能部分列出的技能使用{SkillToolNameEnumConstants.Skill}——不要猜测或使用内置CLI命令。
 """;
         });
     }

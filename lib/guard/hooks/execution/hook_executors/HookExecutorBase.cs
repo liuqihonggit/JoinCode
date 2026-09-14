@@ -203,7 +203,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
         if (hookDecision.Continue.HasValue)
             preventContinuation = !hookDecision.Continue.Value;
 
-        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorConstants.Block)
+        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorEnumConstants.Block)
         {
             outcome = HookOutcome.Blocking;
             preventContinuation = true;

@@ -60,9 +60,9 @@ public sealed class QueryLoopMiddlewareTests
             .Callback<string, IReadOnlyDictionary<string, JsonElement>, IReadOnlyList<ToolContent>?, CancellationToken>((content, metadata, _, ct) =>
             {
                 callIndex++;
-                var id = metadata.TryGetValue(MessageMetadataKeyConstants.ToolCallId, out var idElem)
+                var id = metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCallId, out var idElem)
                     ? idElem.GetString() : null;
-                var name = metadata.TryGetValue(MessageMetadataKeyConstants.ToolName, out var nameElem)
+                var name = metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolName, out var nameElem)
                     ? nameElem.GetString() : "";
                 toolResultsAdded.Add((content, id, name ?? ""));
 
@@ -231,9 +231,9 @@ public sealed class QueryLoopMiddlewareTests
                 It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, JsonElement>>(), It.IsAny<IReadOnlyList<ToolContent>?>(), It.IsAny<CancellationToken>()))
             .Callback<string, IReadOnlyDictionary<string, JsonElement>, IReadOnlyList<ToolContent>?, CancellationToken>((content, metadata, _, _) =>
             {
-                var id = metadata.TryGetValue(MessageMetadataKeyConstants.ToolCallId, out var idElem)
+                var id = metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCallId, out var idElem)
                     ? idElem.GetString() : null;
-                var name = metadata.TryGetValue(MessageMetadataKeyConstants.ToolName, out var nameElem)
+                var name = metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolName, out var nameElem)
                     ? nameElem.GetString() : "";
                 toolResultsAdded.Add((content, id, name ?? ""));
             })

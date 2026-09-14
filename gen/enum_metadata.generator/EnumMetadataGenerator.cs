@@ -134,7 +134,7 @@ public sealed class EnumMetadataGenerator : IIncrementalGenerator
         sb.AppendLine("    /// <summary>");
         sb.AppendLine($"    /// {enumInfo.Name} 枚举成员的字符串值常量（由源码生成器 EnumMetadataGenerator 生成）");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"public static class {enumInfo.Name}Constants");
+        sb.AppendLine($"public static class {enumInfo.Name}EnumConstants");
         sb.AppendLine("{");
         foreach (var member in enumInfo.Members)
         {

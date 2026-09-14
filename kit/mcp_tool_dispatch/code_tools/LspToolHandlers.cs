@@ -28,7 +28,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 跳转到定义
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspGotoDefinition, "Go to symbol definition location", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspGotoDefinition, "Go to symbol definition location", "lsp")]
     public async Task<ToolResult> LspGotoDefinitionAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
@@ -64,7 +64,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 查找引用
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspFindReferences, "Find all references to a symbol", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspFindReferences, "Find all references to a symbol", "lsp")]
     public async Task<ToolResult> LspFindReferencesAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
@@ -105,7 +105,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 悬停提示
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspHover, "Get hover information", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspHover, "Get hover information", "lsp")]
     public async Task<ToolResult> LspHoverAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
@@ -132,7 +132,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 代码补全
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspCompletion, "Get code completion suggestions", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspCompletion, "Get code completion suggestions", "lsp")]
     public async Task<ToolResult> LspCompletionAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
@@ -180,7 +180,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 文档符号
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspDocumentSymbols, "Get document symbol list", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspDocumentSymbols, "Get document symbol list", "lsp")]
     public async Task<ToolResult> LspDocumentSymbolsAsync(
         [McpToolParameter("File path")] string file_path,
         CancellationToken cancellationToken = default) {
@@ -206,7 +206,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 工作区符号搜索
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspWorkspaceSymbol, "Search symbols in workspace", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspWorkspaceSymbol, "Search symbols in workspace", "lsp")]
     public async Task<ToolResult> LspWorkspaceSymbolAsync(
         [McpToolParameter("Search query")] string query,
         [McpToolParameter("Workspace path (file or directory) to search in. If omitted, uses current working directory.")] string? workspacePath = null,
@@ -257,7 +257,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 跳转到实现
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspGotoImplementation, "Go to symbol implementation location", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspGotoImplementation, "Go to symbol implementation location", "lsp")]
     public async Task<ToolResult> LspGotoImplementationAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
@@ -293,7 +293,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 准备调用层次
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspPrepareCallHierarchy, "Prepare call hierarchy information", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspPrepareCallHierarchy, "Prepare call hierarchy information", "lsp")]
     public async Task<ToolResult> LspPrepareCallHierarchyAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
@@ -331,7 +331,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 传入调用（谁调用了这个符号）
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspIncomingCalls, "Find incoming calls (who calls this symbol)", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspIncomingCalls, "Find incoming calls (who calls this symbol)", "lsp")]
     public async Task<ToolResult> LspIncomingCallsAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,
@@ -383,7 +383,7 @@ public class LspToolHandlers {
     /// <summary>
     /// 传出调用（此符号调用了谁）
     /// </summary>
-    [McpTool(CodeToolNameConstants.LspOutgoingCalls, "Find outgoing calls (symbols called by this symbol)", "lsp")]
+    [McpTool(CodeToolNameEnumConstants.LspOutgoingCalls, "Find outgoing calls (symbols called by this symbol)", "lsp")]
     public async Task<ToolResult> LspOutgoingCallsAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Line number (1-based, consistent with editor)")] int line,

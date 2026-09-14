@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：detect+connect+disconnect+status+open 核心操作
 /// 架构差异：TS 有 React 交互式 IDE 选择器，C# 为命令行交互
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Ide, Description = "IDE 集成管理", Usage = "/ide [detect|connect|disconnect|status|open]", Category = ChatCommandCategory.Platform, ArgumentHint = "detect|connect|disconnect|status|open", IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Ide, Description = "IDE 集成管理", Usage = "/ide [detect|connect|disconnect|status|open]", Category = ChatCommandCategory.Platform, ArgumentHint = "detect|connect|disconnect|status|open", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "IDE 操作", Enum = new[] { "detect", "connect", "disconnect", "status", "open" })]
 [ChatCommandArg("file_path", Type = "string", Description = "open 操作时打开的文件路径（可附 :行号）")]
 public sealed class IdeCommand : ChatCommandBase
@@ -30,22 +30,22 @@ public sealed class IdeCommand : ChatCommandBase
 
         switch (subCommand)
         {
-            case PlatformActionConstants.Detect:
+            case PlatformActionEnumConstants.Detect:
                 HandleDetect(ideService);
                 break;
-            case PlatformActionConstants.Connect:
+            case PlatformActionEnumConstants.Connect:
             case "c":
                 await HandleConnectionAsync(ideService, ToggleAction.On);
                 break;
-            case PlatformActionConstants.Disconnect:
+            case PlatformActionEnumConstants.Disconnect:
             case "d":
                 await HandleConnectionAsync(ideService, ToggleAction.Off);
                 break;
-            case PlatformActionConstants.Open:
+            case PlatformActionEnumConstants.Open:
             case "o":
                 await HandleOpenAsync(ideService, parts.Length > 1 ? parts[1] : "");
                 break;
-            case PlatformActionConstants.Status:
+            case PlatformActionEnumConstants.Status:
             case "s":
             case "":
                 HandleStatus(ideService);

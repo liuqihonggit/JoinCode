@@ -64,7 +64,7 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
         var responseData = new SwarmPermissionResponseData
         {
             RequestId = requestData.RequestId,
-            Behavior = allowed ? PermissionBehaviorConstants.Allow : PermissionBehaviorConstants.Deny,
+            Behavior = allowed ? PermissionBehaviorEnumConstants.Allow : PermissionBehaviorEnumConstants.Deny,
             Feedback = allowed ? null : $"Leader denied: {requestData.ToolName}",
             UpdatedInput = allowed ? (updatedInput ?? []) : [],
             PermissionUpdates = allowed ? (permissionUpdates ?? []) : []
@@ -86,7 +86,7 @@ public sealed partial class SwarmPermissionRequestProcessor : ServiceEntity, ISw
 
         _logger?.LogInformation(
             "权限响应已发送: RequestId={RequestId}, Decision={Decision}, Worker={WorkerId}",
-            requestData.RequestId, allowed ? PermissionBehaviorConstants.Allow : PermissionBehaviorConstants.Deny, requestData.WorkerAgentId);
+            requestData.RequestId, allowed ? PermissionBehaviorEnumConstants.Allow : PermissionBehaviorEnumConstants.Deny, requestData.WorkerAgentId);
     }
 
     private async Task<(bool Allowed, Dictionary<string, JsonElement>? UpdatedInput, List<SwarmPermissionUpdateData>? PermissionUpdates)> EvaluatePermissionAsync(

@@ -29,7 +29,7 @@ public static class ReplModeSection
 - 变量和状态在会话之间保持
 - 可以使用特殊的REPL命令
 
-使用{FileToolNameConstants.FileRead}、{FileToolNameConstants.FileWrite}、{FileToolNameConstants.FileEdit}、{SearchToolNameConstants.Glob}、{SearchToolNameConstants.Grep}、{ShellToolNameConstants.Bash}、{AgentToolNameConstants.Agent}等工具时，请遵循REPL环境的特定用法。
+使用{FileToolNameEnumConstants.FileRead}、{FileToolNameEnumConstants.FileWrite}、{FileToolNameEnumConstants.FileEdit}、{SearchToolNameEnumConstants.Glob}、{SearchToolNameEnumConstants.Grep}、{ShellToolNameEnumConstants.Bash}、{AgentToolNameEnumConstants.Agent}等工具时，请遵循REPL环境的特定用法。
 """;
     }
 

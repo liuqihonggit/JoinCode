@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /effort 命令 — 调整推理力度
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Effort, Description = "调整推理力度", Usage = "/effort [low|medium|high|max|auto|unset]", Category = ChatCommandCategory.Model, ArgumentHint = "[low|medium|high|max|auto|unset]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Effort, Description = "调整推理力度", Usage = "/effort [low|medium|high|max|auto|unset]", Category = ChatCommandCategory.Model, ArgumentHint = "[low|medium|high|max|auto|unset]")]
 [ChatCommandArg("level", Type = "string", Description = "推理力度级别", Enum = new[] { "low", "medium", "high", "max", "auto", "unset" })]
 public sealed class EffortCommand : ChatCommandBase
 {
@@ -24,7 +24,7 @@ public sealed class EffortCommand : ChatCommandBase
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
 
         // 对齐 TS: help/-h/--help 显示详细帮助
-        if (args is "help" or JccCliArgConstants.HelpAlias__h or JccCliArgConstants.Help)
+        if (args is "help" or JccCliArgEnumConstants.HelpAlias__h or JccCliArgEnumConstants.Help)
         {
             ShowHelp();
             return ChatCommandResult.Continue();
@@ -55,7 +55,7 @@ public sealed class EffortCommand : ChatCommandBase
         if (effort is null)
         {
             // 对齐 TS: 无效参数提示
-            TerminalHelper.WriteLine($"{TerminalColors.Error}无效参数: {args}。有效选项: low, medium, high, max, auto{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}无效参数: {args}。有效选项: low, medium, high, max, auto{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -73,7 +73,7 @@ public sealed class EffortCommand : ChatCommandBase
             {
                 // 自动降级为 high — 对齐 TS effortAutoDowngrade
                 UpdateEffort(statusBar, settingsProvider, EffortLevel.High);
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {currentModel} 不支持 max effort，已降级为 high{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {currentModel} 不支持 max effort，已降级为 high{AnsiStyleEnumConstants.Reset}");
                 await PersistEffortAsync(context, EffortLevel.High).ConfigureAwait(false);
                 return ChatCommandResult.Continue();
             }
@@ -141,7 +141,7 @@ public sealed class EffortCommand : ChatCommandBase
         var envValue = Environment.GetEnvironmentVariable("JCC_EFFORT_LEVEL");
         if (string.IsNullOrEmpty(envValue)) return "";
 
-        return $"{TerminalColors.Warning}环境变量 JCC_EFFORT_LEVEL={envValue} 将覆盖本次会话的 effort 设置{AnsiStyleConstants.Reset}";
+        return $"{TerminalColors.Warning}环境变量 JCC_EFFORT_LEVEL={envValue} 将覆盖本次会话的 effort 设置{AnsiStyleEnumConstants.Reset}";
     }
 
     /// <summary>
@@ -160,11 +160,11 @@ public sealed class EffortCommand : ChatCommandBase
 
         if (effort is null or EffortLevel.Auto)
         {
-            await configService.RemoveAsync(ConfigKeyConstants.EffortLevel, context.CancellationToken).ConfigureAwait(false);
+            await configService.RemoveAsync(ConfigKeyEnumConstants.EffortLevel, context.CancellationToken).ConfigureAwait(false);
         }
         else
         {
-            await configService.SetAsync(ConfigKeyConstants.EffortLevel, effort.Value.ToValue(), context.CancellationToken).ConfigureAwait(false);
+            await configService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effort.Value.ToValue(), context.CancellationToken).ConfigureAwait(false);
         }
     }
 

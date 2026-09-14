@@ -29,7 +29,7 @@ public partial class MonitorToolHandlers
     /// <param name="client_id">客户端 ID（可选，用于指定客户端）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.Monitor, "Monitor MCP server status and tool calls", "mcp")]
+    [McpTool(SystemToolNameEnumConstants.Monitor, "Monitor MCP server status and tool calls", "mcp")]
     public async Task<ToolResult> MonitorMcpAsync(
         [McpToolParameter("Monitor type: status/tools/clients/health (default status)", Required = false)] string monitor_type = "status",
         [McpToolParameter("Client ID (optional, for specific client)", Required = false)] string? client_id = null,

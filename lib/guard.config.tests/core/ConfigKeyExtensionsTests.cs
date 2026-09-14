@@ -79,13 +79,13 @@ public sealed class ConfigKeyExtensionsTests
     [Fact]
     public void Constants_Profile_Should_Be_profile()
     {
-        ConfigKeyConstants.Profile.Should().Be("profile");
+        ConfigKeyEnumConstants.Profile.Should().Be("profile");
     }
 
     [Fact]
     public void Constants_Theme_Should_Be_theme()
     {
-        ConfigKeyConstants.Theme.Should().Be("theme");
+        ConfigKeyEnumConstants.Theme.Should().Be("theme");
     }
 
     [Theory]

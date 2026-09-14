@@ -260,7 +260,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             ? null
             : new Dictionary<string, JsonElement>
             {
-                [MessageMetadataKeyConstants.Origin] = JsonElementHelper.FromJson($"{{\"kind\":\"{originKind.Value.ToValue()}\"}}")
+                [MessageMetadataKeyEnumConstants.Origin] = JsonElementHelper.FromJson($"{{\"kind\":\"{originKind.Value.ToValue()}\"}}")
             };
         Log.Append(new ApiMessage(MessageRole.User, content, metadata));
         _logger.LogDebug("已添加用户消息，当前对话数: {Count}", Log.Count);

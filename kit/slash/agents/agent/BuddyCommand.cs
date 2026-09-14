@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /buddy 命令 — 查看当前用户的伙伴精灵信息
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Buddy, Description = "查看你的伙伴精灵", Usage = "/buddy", Category = ChatCommandCategory.Agent, IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Buddy, Description = "查看你的伙伴精灵", Usage = "/buddy", Category = ChatCommandCategory.Agent, IsHidden = true)]
 public sealed class BuddyCommand : ChatCommandBase
 {
     /// <summary>

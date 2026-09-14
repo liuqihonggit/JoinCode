@@ -27,7 +27,7 @@ public sealed partial class EntitlementService : ServiceEntity, IEntitlementServ
         get
         {
             // 对齐 TS: isEnvTruthy(process.env.CLAUDE_CODE_BRIEF)
-            var envValue = Environment.GetEnvironmentVariable(JccEnvVarConstants.Brief);
+            var envValue = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.Brief);
             if (!string.IsNullOrEmpty(envValue))
             {
                 // 环境变量显式设置时遵循其值

@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// PermissionsAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / PermissionsActionConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / PermissionsActionEnumConstants 常量值
 /// 6 个枚举值(add/clear/workspace/dirs/directories/show)
 /// </summary>
 public sealed class PermissionsActionExtensionsTests
@@ -98,12 +98,12 @@ public sealed class PermissionsActionExtensionsTests
     [Fact]
     public void Constants_All_Should_Match_EnumValues()
     {
-        PermissionsActionConstants.Add.Should().Be("add");
-        PermissionsActionConstants.Clear.Should().Be("clear");
-        PermissionsActionConstants.Workspace.Should().Be("workspace");
-        PermissionsActionConstants.Dirs.Should().Be("dirs");
-        PermissionsActionConstants.Directories.Should().Be("directories");
-        PermissionsActionConstants.Show.Should().Be("show");
+        PermissionsActionEnumConstants.Add.Should().Be("add");
+        PermissionsActionEnumConstants.Clear.Should().Be("clear");
+        PermissionsActionEnumConstants.Workspace.Should().Be("workspace");
+        PermissionsActionEnumConstants.Dirs.Should().Be("dirs");
+        PermissionsActionEnumConstants.Directories.Should().Be("directories");
+        PermissionsActionEnumConstants.Show.Should().Be("show");
     }
 
     // ===== 枚举值数量验证 =====

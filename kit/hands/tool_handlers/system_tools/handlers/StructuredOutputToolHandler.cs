@@ -46,7 +46,7 @@ public sealed class StructuredOutputToolHandler
     /// <summary>
     /// 注册JSON Schema用于结构化输出验证
     /// </summary>
-    [McpTool(SystemToolNameConstants.StructuredOutputRegister, "Register JSON Schema for structured output validation", "structured_output")]
+    [McpTool(SystemToolNameEnumConstants.StructuredOutputRegister, "Register JSON Schema for structured output validation", "structured_output")]
     public async Task<ToolResult> RegisterSchemaAsync(
         [McpToolParameter("Schema name")] string schema_name,
         [McpToolParameter("JSON Schema definition (JSON format)")] string schema_json,
@@ -109,7 +109,7 @@ public sealed class StructuredOutputToolHandler
     /// <summary>
     /// 验证内容是否符合已注册的JSON Schema
     /// </summary>
-    [McpTool(SystemToolNameConstants.StructuredOutputValidate, "Validate JSON content against a registered Schema, supports formatted output", "structured_output", ConcurrencySafe = true)]
+    [McpTool(SystemToolNameEnumConstants.StructuredOutputValidate, "Validate JSON content against a registered Schema, supports formatted output", "structured_output", ConcurrencySafe = true)]
     public async Task<ToolResult> ValidateOutputAsync(
         [McpToolParameter("Registered Schema name")] string schema_name,
         [McpToolParameter("JSON content to validate")] string content,

@@ -22,7 +22,7 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
     }
 
     /// <inheritdoc />
-    public override string SupportedType => HookTypeConstants.Prompt;
+    public override string SupportedType => HookTypeEnumConstants.Prompt;
 
     /// <inheritdoc />
     public override async Task<HookResult> ExecuteTypedAsync(
@@ -129,7 +129,7 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
                 return HookResult.Success(message: "LLM validation passed (empty response)");
             }
 
-            var decisionStr = hookDecision.Decision?.ToLowerInvariant() ?? PermissionBehaviorConstants.Allow;
+            var decisionStr = hookDecision.Decision?.ToLowerInvariant() ?? PermissionBehaviorEnumConstants.Allow;
             var decision = PermissionBehaviorExtensions.FromValue(decisionStr) ?? PermissionBehavior.Allow;
             var reason = hookDecision.Reason;
             var shouldContinue = hookDecision.Continue ?? true;

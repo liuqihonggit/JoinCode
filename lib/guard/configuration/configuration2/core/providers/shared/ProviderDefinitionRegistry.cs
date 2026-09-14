@@ -59,11 +59,11 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
                 var profileNode = property.Value;
                 if (profileNode is null) continue;
 
-                var protocol = profileNode["protocol"]?.GetValue<string>() ?? ProtocolKindConstants.OpenAiCompatible;
+                var protocol = profileNode["protocol"]?.GetValue<string>() ?? ProtocolKindEnumConstants.OpenAiCompatible;
                 var apiKeyEnvVar = profileNode["apiKeyEnvVar"]?.GetValue<string>();
                 var anthropicBeta = profileNode["anthropicBeta"]?.GetValue<string>();
 
-                dict[vendorName] = string.Equals(protocol, ProtocolKindConstants.Anthropic, StringComparison.OrdinalIgnoreCase)
+                dict[vendorName] = string.Equals(protocol, ProtocolKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase)
                     ? new AnthropicCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar, anthropicBeta)
                     : new OpenAiCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar);
             }

@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /doctor 命令 — 对齐 TS doctor.tsx + doctorDiagnostic.ts
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：运行时版本+安装路径+工具检查+环境变量+API连接+权限+MCP+搜索工具状态
 /// 架构差异：TS 有 npm/native/package-manager 安装类型检测，C# 为 NativeAOT 单文件发布
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Doctor, Description = "诊断环境配置和依赖", Usage = "/doctor", Category = ChatCommandCategory.Config, Aliases = ["dr"])]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Doctor, Description = "诊断环境配置和依赖", Usage = "/doctor", Category = ChatCommandCategory.Config, Aliases = ["dr"])]
 public sealed class DoctorCommand : ChatCommandBase
 {
     /// <summary>
@@ -37,11 +37,11 @@ public sealed class DoctorCommand : ChatCommandBase
         var gitCheck = await RunCommandAsync("git", ["--version"], context.CancellationToken).ConfigureAwait(false);
         if (gitCheck.success)
         {
-            sb.AppendLine($"{TerminalColors.Success}  {gitCheck.output}{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"{TerminalColors.Success}  {gitCheck.output}{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
-            sb.AppendLine($"{TerminalColors.Error}  Git 未安装或不在 PATH 中{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"{TerminalColors.Error}  Git 未安装或不在 PATH 中{AnsiStyleEnumConstants.Reset}");
         }
 
         sb.AppendLine("\n[常用工具]");
@@ -59,9 +59,9 @@ public sealed class DoctorCommand : ChatCommandBase
         sb.Append(searchResults);
 
         sb.AppendLine("\n[环境变量]");
-        AppendEnvironmentVariable(sb, ProviderEnvVarConstants.OpenAiApiKey, "OpenAI API Key");
-        AppendEnvironmentVariable(sb, ProviderEnvVarConstants.AzureOpenAiApiKey, "Azure OpenAI API Key");
-        AppendEnvironmentVariable(sb, ProviderEnvVarConstants.AnthropicApiKey, "Anthropic API Key");
+        AppendEnvironmentVariable(sb, ProviderEnvVarEnumConstants.OpenAiApiKey, "OpenAI API Key");
+        AppendEnvironmentVariable(sb, ProviderEnvVarEnumConstants.AzureOpenAiApiKey, "Azure OpenAI API Key");
+        AppendEnvironmentVariable(sb, ProviderEnvVarEnumConstants.AnthropicApiKey, "Anthropic API Key");
 
         sb.AppendLine("\n[磁盘空间]");
         var drives = DriveInfo.GetDrives().Where(d => d.IsReady);
@@ -98,7 +98,7 @@ public sealed class DoctorCommand : ChatCommandBase
         var result = await RunCommandAsync(command, args, cancellationToken).ConfigureAwait(false);
         if (result.success)
         {
-            sb.AppendLine($"{TerminalColors.Success}  {name}: {result.output.Trim()}{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"{TerminalColors.Success}  {name}: {result.output.Trim()}{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
@@ -111,7 +111,7 @@ public sealed class DoctorCommand : ChatCommandBase
         var value = Environment.GetEnvironmentVariable(variableName);
         if (!string.IsNullOrEmpty(value))
         {
-            sb.AppendLine($"{TerminalColors.Success}  {displayName}: 已设置{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"{TerminalColors.Success}  {displayName}: 已设置{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
@@ -158,10 +158,10 @@ public sealed class DoctorCommand : ChatCommandBase
         var state = networkService.CurrentState;
         var stateText = state switch
         {
-            NetworkConnectivityState.Online => $"{TerminalColors.Success}在线{AnsiStyleConstants.Reset}",
-            NetworkConnectivityState.OnlineWithVpn => $"{TerminalColors.Success}在线 (VPN){AnsiStyleConstants.Reset}",
-            NetworkConnectivityState.OnlineWithProxy => $"{TerminalColors.Success}在线 (代理){AnsiStyleConstants.Reset}",
-            _ => $"{TerminalColors.Error}离线{AnsiStyleConstants.Reset}",
+            NetworkConnectivityState.Online => $"{TerminalColors.Success}在线{AnsiStyleEnumConstants.Reset}",
+            NetworkConnectivityState.OnlineWithVpn => $"{TerminalColors.Success}在线 (VPN){AnsiStyleEnumConstants.Reset}",
+            NetworkConnectivityState.OnlineWithProxy => $"{TerminalColors.Success}在线 (代理){AnsiStyleEnumConstants.Reset}",
+            _ => $"{TerminalColors.Error}离线{AnsiStyleEnumConstants.Reset}",
         };
         sb.AppendLine($"  状态: {stateText}");
         sb.AppendLine($"  VPN: {(networkService.IsVpnActive() ? "活跃" : "未检测到")}");
@@ -189,21 +189,21 @@ public sealed class DoctorCommand : ChatCommandBase
             return;
         }
 
-        var provider = Environment.GetEnvironmentVariable(JccEnvVarConstants.Vendor)
+        var provider = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.Vendor)
             ?? await configService.GetAsync("profile", context.CancellationToken).ConfigureAwait(false)
             ?? VendorKind.OpenAi.ToValue();
 
-        var endpoint = Environment.GetEnvironmentVariable(JccEnvVarConstants.Endpoint);
+        var endpoint = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.Endpoint);
 
         var apiKey = ResolveProviderDefinition(context, provider)?.ResolveApiKeyFromEnv();
 
         if (string.IsNullOrEmpty(apiKey))
         {
-            sb.AppendLine($"  {TerminalColors.Warning}Provider: {provider} — API Key 未设置{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Warning}Provider: {provider} — API Key 未设置{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        sb.AppendLine($"  Provider: {TerminalColors.Success}{provider}{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"  Provider: {TerminalColors.Success}{provider}{AnsiStyleEnumConstants.Reset}");
 
         if (!string.IsNullOrEmpty(endpoint))
         {
@@ -213,20 +213,20 @@ public sealed class DoctorCommand : ChatCommandBase
                 var response = await http.GetAsync(endpoint, context.CancellationToken).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                 {
-                    sb.AppendLine($"  Endpoint: {TerminalColors.Success}可达 ({(int)response.StatusCode}){AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"  Endpoint: {TerminalColors.Success}可达 ({(int)response.StatusCode}){AnsiStyleEnumConstants.Reset}");
                 }
                 else
                 {
-                    sb.AppendLine($"  Endpoint: {TerminalColors.Warning}响应异常 ({(int)response.StatusCode}){AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"  Endpoint: {TerminalColors.Warning}响应异常 ({(int)response.StatusCode}){AnsiStyleEnumConstants.Reset}");
                 }
             }
             catch (OperationCanceledException)
             {
-                sb.AppendLine($"  Endpoint: {TerminalColors.Error}连接超时{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"  Endpoint: {TerminalColors.Error}连接超时{AnsiStyleEnumConstants.Reset}");
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"  Endpoint: {TerminalColors.Error}{ex.Message}{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"  Endpoint: {TerminalColors.Error}{ex.Message}{AnsiStyleEnumConstants.Reset}");
             }
         }
         else
@@ -234,7 +234,7 @@ public sealed class DoctorCommand : ChatCommandBase
             sb.AppendLine("  Endpoint: 使用默认端点");
         }
 
-        sb.AppendLine($"  API Key: {TerminalColors.Success}已设置{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"  API Key: {TerminalColors.Success}已设置{AnsiStyleEnumConstants.Reset}");
     }
 
     private static void AppendPermissionConfig(StringBuilder sb, ChatCommandContext context)
@@ -249,11 +249,11 @@ public sealed class DoctorCommand : ChatCommandBase
         var cwd = context.GetCommandServices().FileSystem.GetCurrentDirectory();
         if (trustManager.IsTrusted(cwd))
         {
-            sb.AppendLine($"  工作目录: {TerminalColors.Success}已信任 ({cwd}){AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  工作目录: {TerminalColors.Success}已信任 ({cwd}){AnsiStyleEnumConstants.Reset}");
         }
         else
         {
-            sb.AppendLine($"  工作目录: {TerminalColors.Warning}未信任 ({cwd}){AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  工作目录: {TerminalColors.Warning}未信任 ({cwd}){AnsiStyleEnumConstants.Reset}");
             sb.AppendLine("    使用 /trust add 添加信任");
         }
 
@@ -267,7 +267,7 @@ public sealed class DoctorCommand : ChatCommandBase
                 foreach (var dir in dirs)
                 {
                     var trusted = trustManager.IsTrusted(dir);
-                    var status = trusted ? $"{TerminalColors.Success}已信任{AnsiStyleConstants.Reset}" : $"{TerminalColors.Warning}未信任{AnsiStyleConstants.Reset}";
+                    var status = trusted ? $"{TerminalColors.Success}已信任{AnsiStyleEnumConstants.Reset}" : $"{TerminalColors.Warning}未信任{AnsiStyleEnumConstants.Reset}";
                     sb.AppendLine($"    {dir} — {status}");
                 }
             }
@@ -308,8 +308,8 @@ public sealed class DoctorCommand : ChatCommandBase
                 var connected = client.IsConnected;
                 var serverName = client.ServerInfo?.Name ?? clientId;
                 var status = connected
-                    ? $"{TerminalColors.Success}已连接{AnsiStyleConstants.Reset}"
-                    : $"{TerminalColors.Error}断开{AnsiStyleConstants.Reset}";
+                    ? $"{TerminalColors.Success}已连接{AnsiStyleEnumConstants.Reset}"
+                    : $"{TerminalColors.Error}断开{AnsiStyleEnumConstants.Reset}";
 
                 sb.AppendLine($"    {serverName} — {status}");
 
@@ -332,7 +332,7 @@ public sealed class DoctorCommand : ChatCommandBase
         }
         catch (Exception ex)
         {
-            sb.AppendLine($"  {TerminalColors.Error}MCP状态检查失败: {ex.Message}{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Error}MCP状态检查失败: {ex.Message}{AnsiStyleEnumConstants.Reset}");
         }
     }
 }

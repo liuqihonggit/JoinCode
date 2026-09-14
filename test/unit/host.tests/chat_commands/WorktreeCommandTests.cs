@@ -61,7 +61,7 @@ public sealed class WorktreeCommandTests
     [Fact]
     public async Task Execute_WithListSubcommand_Should_Return_Continue()
     {
-        // CrudActionConstants.List("list") → ListWorktreesAsync → 应正常返回
+        // CrudActionEnumConstants.List("list") → ListWorktreesAsync → 应正常返回
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
         var context = CreateContext("list", worktreeService);
@@ -75,7 +75,7 @@ public sealed class WorktreeCommandTests
     [Fact]
     public async Task Execute_WithLsAlias_Should_Return_Continue()
     {
-        // CrudActionConstants.Ls("ls") → ListWorktreesAsync (走 List 相同分支)
+        // CrudActionEnumConstants.Ls("ls") → ListWorktreesAsync (走 List 相同分支)
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
         var context = CreateContext("ls", worktreeService);
@@ -88,7 +88,7 @@ public sealed class WorktreeCommandTests
     [Fact]
     public async Task Execute_WithCreateSubcommand_Should_Return_Continue()
     {
-        // CrudActionConstants.Create("create") → CreateWorktreeAsync
+        // CrudActionEnumConstants.Create("create") → CreateWorktreeAsync
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
         var context = CreateContext("create agent-1", worktreeService);
@@ -101,7 +101,7 @@ public sealed class WorktreeCommandTests
     [Fact]
     public async Task Execute_WithDeleteSubcommand_Should_Return_Continue()
     {
-        // CrudActionConstants.Delete("delete") → RemoveWorktreeAsync
+        // CrudActionEnumConstants.Delete("delete") → RemoveWorktreeAsync
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
         var context = CreateContext("delete agent-1", worktreeService);
@@ -114,7 +114,7 @@ public sealed class WorktreeCommandTests
     [Fact]
     public async Task Execute_WithRmAlias_Should_Return_Continue()
     {
-        // CrudActionConstants.Rm("rm") → RemoveWorktreeAsync (走 Delete 相同分支)
+        // CrudActionEnumConstants.Rm("rm") → RemoveWorktreeAsync (走 Delete 相同分支)
         var worktreeService = CreateMockWorktreeService();
         var cmd = new WorktreeCommand();
         var context = CreateContext("rm agent-1", worktreeService);

@@ -1,14 +1,14 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /proactive 命令 — 主动执行模式切换，控制 LLM 是否在用户未输入时自主推进任务。
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Proactive, Description = "主动执行模式", Usage = "/proactive [on|off|pause|resume|status]", Category = ChatCommandCategory.Task)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Proactive, Description = "主动执行模式", Usage = "/proactive [on|off|pause|resume|status]", Category = ChatCommandCategory.Task)]
 [ChatCommandArg("action", Type = "string", Description = "主动模式动作(别名: on=activate/1, off=deactivate/0, status=s, pause=p, resume=r),省略时等同 status", Default = "status", Enum = new[] { "on", "off", "pause", "resume", "status" })]
 public sealed class ProactiveCommand : ToggleCommandBase
 {
     /// <summary>命令名称。</summary>
-    public override string Name => ChatCommandNameConstants.Proactive;
+    public override string Name => ChatCommandNameEnumConstants.Proactive;
     /// <summary>命令描述。</summary>
     public override string Description => "主动执行模式";
     /// <summary>命令用法提示。</summary>
@@ -79,12 +79,12 @@ public sealed class ProactiveCommand : ToggleCommandBase
         var lower = args.ToLowerInvariant();
         switch (lower)
         {
-            case ResumeLifecycleConstants.Pause:
+            case ResumeLifecycleEnumConstants.Pause:
             case "p":
                 proactiveService.Pause();
                 TerminalHelper.WriteLine("主动模式已暂停");
                 break;
-            case ResumeLifecycleConstants.Resume:
+            case ResumeLifecycleEnumConstants.Resume:
             case "r":
                 proactiveService.Resume();
                 TerminalHelper.WriteLine("主动模式已恢复");

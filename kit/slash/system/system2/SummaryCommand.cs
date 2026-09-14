@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /summary 命令 — 显示当前会话摘要
 /// 输出会话 ID、持续时间、消息统计及最近 6 条对话预览
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Summary, Description = "显示当前会话摘要", Usage = "/summary", Category = ChatCommandCategory.System)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Summary, Description = "显示当前会话摘要", Usage = "/summary", Category = ChatCommandCategory.System)]
 public sealed class SummaryCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
@@ -15,7 +15,7 @@ public sealed class SummaryCommand : ChatCommandBase
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        TerminalHelper.WriteLine($"{TerminalColors.Primary}会话摘要{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Primary}会话摘要{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
         try
@@ -24,14 +24,14 @@ public sealed class SummaryCommand : ChatCommandBase
 
             if (history.Count == 0)
             {
-                TerminalHelper.WriteLine($"  {TerminalColors.Muted}暂无对话记录{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"  {TerminalColors.Muted}暂无对话记录{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Continue();
             }
 
             var userMessages = history.Where(m =>
-                string.Equals(m.Role, MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase)).ToList();
+                string.Equals(m.Role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase)).ToList();
             var assistantMessages = history.Where(m =>
-                string.Equals(m.Role, MessageRoleConstants.Assistant, StringComparison.OrdinalIgnoreCase)).ToList();
+                string.Equals(m.Role, MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase)).ToList();
 
             var duration = _clock.GetUtcNow() - context.SessionStartedAt;
 
@@ -42,13 +42,13 @@ public sealed class SummaryCommand : ChatCommandBase
             TerminalHelper.WriteLine($"  AI回复:   {assistantMessages.Count}");
             TerminalHelper.NewLine();
 
-            TerminalHelper.WriteLine($"{TerminalColors.Accent}最近对话:{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Accent}最近对话:{AnsiStyleEnumConstants.Reset}");
             var recentMessages = history.TakeLast(6);
             foreach (var msg in recentMessages)
             {
-                var roleLabel = string.Equals(msg.Role, MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase)
-                    ? $"{TerminalColors.Primary}你{AnsiStyleConstants.Reset}"
-                    : $"{TerminalColors.Success}AI{AnsiStyleConstants.Reset}";
+                var roleLabel = string.Equals(msg.Role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase)
+                    ? $"{TerminalColors.Primary}你{AnsiStyleEnumConstants.Reset}"
+                    : $"{TerminalColors.Success}AI{AnsiStyleEnumConstants.Reset}";
 
                 var preview = msg.Content;
                 if (preview.Length > 100)
@@ -59,7 +59,7 @@ public sealed class SummaryCommand : ChatCommandBase
 
             if (history.Count > 6)
             {
-                TerminalHelper.WriteLine($"  {TerminalColors.Muted}... 还有 {history.Count - 6} 条消息{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"  {TerminalColors.Muted}... 还有 {history.Count - 6} 条消息{AnsiStyleEnumConstants.Reset}");
             }
         }
         catch (Exception ex)

@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /mcp 命令 — 管理 MCP 服务器，支持 list/status/add/remove/reconnect/enable/disable 操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Mcp, Description = "管理 MCP 服务器", Usage = "/mcp [list|status|add|remove|reconnect|enable|disable] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|status|add|remove|reconnect|enable|disable]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Mcp, Description = "管理 MCP 服务器", Usage = "/mcp [list|status|add|remove|reconnect|enable|disable] [args]", Category = ChatCommandCategory.Tools, ArgumentHint = "[list|status|add|remove|reconnect|enable|disable]")]
 [ChatCommandArg("action", Type = "string", Description = "MCP 管理操作", Enum = new[] { "list", "status", "add", "remove", "reconnect", "enable", "disable" })]
 [ChatCommandArg("args", Type = "string", Description = "操作参数（add/remove 时为服务器名或配置 JSON）")]
 public sealed class McpCommand : ChatCommandBase
@@ -20,33 +20,33 @@ public sealed class McpCommand : ChatCommandBase
 
         switch (actionStr)
         {
-            case CrudActionConstants.List:
-            case CrudActionConstants.Ls:
+            case CrudActionEnumConstants.List:
+            case CrudActionEnumConstants.Ls:
                 await ListServersAsync(context);
                 break;
-            case McpActionConstants.Status:
+            case McpActionEnumConstants.Status:
                 await ShowStatusAsync(context);
                 break;
-            case CrudActionConstants.Create:
-            case CrudActionConstants.New:
+            case CrudActionEnumConstants.Create:
+            case CrudActionEnumConstants.New:
                 await AddServerAsync(context, args);
                 break;
-            case CrudActionConstants.Delete:
-            case CrudActionConstants.Rm:
-            case CrudActionConstants.Remove:
+            case CrudActionEnumConstants.Delete:
+            case CrudActionEnumConstants.Rm:
+            case CrudActionEnumConstants.Remove:
                 await RemoveServerAsync(context, args);
                 break;
-            case McpActionConstants.Reconnect:
+            case McpActionEnumConstants.Reconnect:
                 await ReconnectServerAsync(context, args);
                 break;
-            case McpActionConstants.Enable:
+            case McpActionEnumConstants.Enable:
                 await ToggleServerAsync(context, args, ToggleAction.On);
                 break;
-            case McpActionConstants.Disable:
+            case McpActionEnumConstants.Disable:
                 await ToggleServerAsync(context, args, ToggleAction.Off);
                 break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}未知操作: {actionStr}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}未知操作: {actionStr}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine("可用操作: list, status, add, remove, reconnect, enable, disable");
                 break;
         }
@@ -80,7 +80,7 @@ public sealed class McpCommand : ChatCommandBase
         }
 
         configuredContent.AppendLine();
-        configuredContent.Append($"  {TerminalColors.Muted}使用 /mcp add <name> <command|url> 添加服务器{AnsiStyleConstants.Reset}");
+        configuredContent.Append($"  {TerminalColors.Muted}使用 /mcp add <name> <command|url> 添加服务器{AnsiStyleEnumConstants.Reset}");
 
         // 预收集已连接服务器内容
         var connectedContent = new StringBuilder();
@@ -98,7 +98,7 @@ public sealed class McpCommand : ChatCommandBase
                     var serverName = client.ServerInfo?.Name ?? clientId;
 
                     connectedContent.AppendLine($"  {serverName}");
-                    connectedContent.AppendLine($"{statusColor}    状态: {status}{AnsiStyleConstants.Reset}");
+                    connectedContent.AppendLine($"{statusColor}    状态: {status}{AnsiStyleEnumConstants.Reset}");
 
                     if (client.ServerInfo is not null)
                     {
@@ -132,7 +132,7 @@ public sealed class McpCommand : ChatCommandBase
         }
         else
         {
-            connectedContent.AppendLine($"{TerminalColors.Warning}MCP 工具注册表不可用{AnsiStyleConstants.Reset}");
+            connectedContent.AppendLine($"{TerminalColors.Warning}MCP 工具注册表不可用{AnsiStyleEnumConstants.Reset}");
         }
 
         var panel = new TabPanel(
@@ -182,7 +182,7 @@ public sealed class McpCommand : ChatCommandBase
     {
         if (args.Length < 3)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /mcp add <name> <command|url> [args...] [-t stdio|sse|http] [-s user|project] [-e KEY=VALUE]{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /mcp add <name> <command|url> [args...] [-t stdio|sse|http] [-s user|project] [-e KEY=VALUE]{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("示例:");
             TerminalHelper.WriteLine("  /mcp add myserver npx my-mcp-server");
@@ -226,15 +226,15 @@ public sealed class McpCommand : ChatCommandBase
 
         if (McpTransportTypeExtensions.FromValue(transport) is null)
         {
-            string[] validTransports = [McpTransportTypeConstants.Stdio, McpTransportTypeConstants.Http, McpTransportTypeConstants.WebSocket];
-            TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的传输类型: {transport}，支持: {string.Join(", ", validTransports)}{AnsiStyleConstants.Reset}");
+            string[] validTransports = [McpTransportTypeEnumConstants.Stdio, McpTransportTypeEnumConstants.Http, McpTransportTypeEnumConstants.WebSocket];
+            TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的传输类型: {transport}，支持: {string.Join(", ", validTransports)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         if (AgentMemoryScopeExtensions.FromValue(scope) is null)
         {
-            string[] validScopes = [AgentMemoryScopeConstants.User, AgentMemoryScopeConstants.Project, AgentMemoryScopeConstants.Local];
-            TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的作用域: {scope}，支持: {string.Join(", ", validScopes)}{AnsiStyleConstants.Reset}");
+            string[] validScopes = [AgentMemoryScopeEnumConstants.User, AgentMemoryScopeEnumConstants.Project, AgentMemoryScopeEnumConstants.Local];
+            TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的作用域: {scope}，支持: {string.Join(", ", validScopes)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -259,7 +259,7 @@ public sealed class McpCommand : ChatCommandBase
             var configStore = ResolveConfigStore(context);
             await configStore.AddServerAsync(name, entry, scope, context.CancellationToken).ConfigureAwait(false);
             var configPath = configStore.GetConfigPath(scope);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已添加 {transport.ToUpperInvariant()} MCP 服务器 '{name}' 到 {scope} 配置{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已添加 {transport.ToUpperInvariant()} MCP 服务器 '{name}' 到 {scope} 配置{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"配置文件: {configPath}");
             TerminalHelper.WriteLine("使用 /mcp reconnect " + name + " 连接服务器");
         }
@@ -273,7 +273,7 @@ public sealed class McpCommand : ChatCommandBase
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /mcp remove <name> [-s user|project]{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /mcp remove <name> [-s user|project]{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -293,11 +293,11 @@ public sealed class McpCommand : ChatCommandBase
             var removed = await ResolveConfigStore(context).RemoveServerAsync(name, scope, context.CancellationToken).ConfigureAwait(false);
             if (removed)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已从 {scope} 配置中移除 MCP 服务器 '{name}'{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已从 {scope} 配置中移除 MCP 服务器 '{name}'{AnsiStyleEnumConstants.Reset}");
             }
             else
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}在 {scope} 配置中未找到 MCP 服务器 '{name}'{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}在 {scope} 配置中未找到 MCP 服务器 '{name}'{AnsiStyleEnumConstants.Reset}");
             }
         }
         catch (Exception ex)
@@ -310,7 +310,7 @@ public sealed class McpCommand : ChatCommandBase
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /mcp reconnect <server-name>{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /mcp reconnect <server-name>{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -325,7 +325,7 @@ public sealed class McpCommand : ChatCommandBase
         var client = await mcpRegistry.GetRemoteClientAsync(serverName, context.CancellationToken).ConfigureAwait(false);
         if (client is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}未找到 MCP 服务器: {serverName}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}未找到 MCP 服务器: {serverName}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -337,7 +337,7 @@ public sealed class McpCommand : ChatCommandBase
             }
 
             await client.ConnectAsync(context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已重连 MCP 服务器: {serverName}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已重连 MCP 服务器: {serverName}{AnsiStyleEnumConstants.Reset}");
         }
         catch (Exception ex)
         {
@@ -350,7 +350,7 @@ public sealed class McpCommand : ChatCommandBase
         if (args.Length < 2)
         {
             var actionName = action == ToggleAction.On ? "启用" : "禁用";
-            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /mcp {actionName} <server-name|all>{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /mcp {actionName} <server-name|all>{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -386,14 +386,14 @@ public sealed class McpCommand : ChatCommandBase
                 }
             }
 
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已{(enable ? "启用" : "禁用")}所有 MCP 服务器{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已{(enable ? "启用" : "禁用")}所有 MCP 服务器{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var targetClient = await mcpRegistry.GetRemoteClientAsync(target, context.CancellationToken).ConfigureAwait(false);
         if (targetClient is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}未找到 MCP 服务器: {target}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}未找到 MCP 服务器: {target}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -402,12 +402,12 @@ public sealed class McpCommand : ChatCommandBase
             if (enable && !targetClient.IsConnected)
             {
                 await targetClient.ConnectAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已启用 MCP 服务器: {target}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已启用 MCP 服务器: {target}{AnsiStyleEnumConstants.Reset}");
             }
             else if (!enable && targetClient.IsConnected)
             {
                 await targetClient.DisconnectAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已禁用 MCP 服务器: {target}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已禁用 MCP 服务器: {target}{AnsiStyleEnumConstants.Reset}");
             }
             else
             {

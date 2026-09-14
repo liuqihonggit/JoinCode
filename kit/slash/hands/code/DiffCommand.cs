@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /diff 命令 - 交互式 diff 浏览器 — 对齐 TS DiffDialog
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]", ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]", ExposeToMcp = true)]
 [ChatCommandArg("scope", Type = "string", Description = "差异范围", Enum = new[] { "files", "cached" })]
 public sealed class DiffCommand : ChatCommandBase
 {
@@ -32,13 +32,13 @@ public sealed class DiffCommand : ChatCommandBase
 
             switch (subCommand)
             {
-                case DiffModeConstants.Files:
+                case DiffModeEnumConstants.Files:
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync start");
                     await ShowChangedFilesAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync end");
                     break;
-                case DiffModeConstants.Cached:
-                case DiffModeConstants.Staged:
+                case DiffModeEnumConstants.Cached:
+                case DiffModeEnumConstants.Staged:
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync start");
                     await ShowStagedDiffAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
                     Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync end");
@@ -132,7 +132,7 @@ public sealed class DiffCommand : ChatCommandBase
 
             // 渲染当前状态
             var output = dialogRenderer.Render(state);
-            TerminalHelper.WriteRaw($"{AnsiControlConstants.ClearScreen}{AnsiControlConstants.CursorHome}");
+            TerminalHelper.WriteRaw($"{AnsiControlEnumConstants.ClearScreen}{AnsiControlEnumConstants.CursorHome}");
             TerminalHelper.WriteRaw(output);
 
             // 读取按键（非交互模式检查在方法入口处，此处为 else 分支）
@@ -153,7 +153,7 @@ public sealed class DiffCommand : ChatCommandBase
                     if (escCount >= 2 || state.ViewMode == DiffViewMode.List)
                     {
                         // 退出对话框
-                        TerminalHelper.WriteRaw($"{AnsiControlConstants.ClearScreen}{AnsiControlConstants.CursorHome}");
+                        TerminalHelper.WriteRaw($"{AnsiControlEnumConstants.ClearScreen}{AnsiControlEnumConstants.CursorHome}");
                         return;
                     }
                     // Detail 模式下 Esc 返回 List
@@ -255,7 +255,7 @@ public sealed class DiffCommand : ChatCommandBase
             TerminalHelper.WriteLine("[Modified but not staged]");
             foreach (var file in modified.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}  M {file}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}  M {file}{AnsiStyleEnumConstants.Reset}");
             }
         }
 
@@ -268,7 +268,7 @@ public sealed class DiffCommand : ChatCommandBase
             TerminalHelper.WriteLine("\n[Staged]");
             foreach (var file in staged.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Success}  A {file}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}  A {file}{AnsiStyleEnumConstants.Reset}");
             }
         }
 
@@ -281,7 +281,7 @@ public sealed class DiffCommand : ChatCommandBase
             TerminalHelper.WriteLine("\n[Untracked]");
             foreach (var file in untracked.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}  ? {file}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}  ? {file}{AnsiStyleEnumConstants.Reset}");
             }
         }
 

@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Models.Goal;
+﻿namespace JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 节点健康告警类型
-/// [EnumValue] 由 EnumMetadataGenerator 自动生成 NodeAlertKindConstants + NodeAlertKindExtensions
+/// [EnumValue] 由 EnumMetadataGenerator 自动生成 NodeAlertKindEnumConstants + NodeAlertKindExtensions
 /// </summary>
 public enum NodeAlertKind
 {

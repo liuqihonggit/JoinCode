@@ -1,4 +1,4 @@
-namespace JoinCode.Cli;
+﻿namespace JoinCode.Cli;
 
 /// <summary>
 /// Diff 解析器 — 解析统一 diff 输出
@@ -26,17 +26,17 @@ public sealed class DiffParser
 
             if (line.StartsWith("@@"))
             {
-                sb.AppendLine($"{TerminalColors.Primary}{line}{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"{TerminalColors.Primary}{line}{AnsiStyleEnumConstants.Reset}");
                 continue;
             }
 
             if (line.StartsWith('+'))
             {
-                sb.AppendLine($"{TerminalColors.Success}{line}{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"{TerminalColors.Success}{line}{AnsiStyleEnumConstants.Reset}");
             }
             else if (line.StartsWith('-'))
             {
-                sb.AppendLine($"{TerminalColors.Error}{line}{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"{TerminalColors.Error}{line}{AnsiStyleEnumConstants.Reset}");
             }
             else
             {

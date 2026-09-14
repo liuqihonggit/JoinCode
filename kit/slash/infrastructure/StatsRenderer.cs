@@ -1,4 +1,4 @@
-namespace JoinCode.Cli;
+﻿namespace JoinCode.Cli;
 
 /// <summary>
 /// 统计渲染器 — 纯文本终端输出
@@ -41,7 +41,7 @@ public sealed class StatsRenderer
             range = $" ({data.DateRangeStart.Value:MMM d} - {data.DateRangeEnd.Value:MMM d})";
         }
 
-        sb.AppendLine($"{AnsiStyleConstants.Bold}Stats{range}{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Stats{range}{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
 
         var tabs = new[] { ("Overview", StatsTab.Overview), ("Models", StatsTab.Models), ("Daily", StatsTab.Daily) };
@@ -50,16 +50,16 @@ public sealed class StatsRenderer
         {
             if (t == activeTab)
             {
-                tabParts.Add($"{TerminalColors.Accent}{AnsiStyleConstants.Bold}{label}{AnsiStyleConstants.Reset}");
+                tabParts.Add($"{TerminalColors.Accent}{AnsiStyleEnumConstants.Bold}{label}{AnsiStyleEnumConstants.Reset}");
             }
             else
             {
-                tabParts.Add($"{AnsiStyleConstants.Dim}{label}{AnsiStyleConstants.Reset}");
+                tabParts.Add($"{AnsiStyleEnumConstants.Dim}{label}{AnsiStyleEnumConstants.Reset}");
             }
         }
         sb.Append("  ");
-        sb.AppendLine(string.Join($" {TerminalColors.Muted}│{AnsiStyleConstants.Reset} ", tabParts));
-        sb.Append($"  {TerminalColors.Muted}{new string('─', 40)}{AnsiStyleConstants.Reset}");
+        sb.AppendLine(string.Join($" {TerminalColors.Muted}│{AnsiStyleEnumConstants.Reset} ", tabParts));
+        sb.Append($"  {TerminalColors.Muted}{new string('─', 40)}{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
         sb.AppendLine();
     }
@@ -68,37 +68,37 @@ public sealed class StatsRenderer
     {
         sb.Append(TerminalColors.Muted);
         sb.Append("  Sessions: ");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine($"{data.TotalSessions}");
 
         sb.Append(TerminalColors.Muted);
         sb.Append("  Total Tokens: ");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine($"{NumberFormatter.FormatCompact(data.TotalTokens)}");
 
         sb.Append(TerminalColors.Muted);
         sb.Append("  Input Tokens: ");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine($"{NumberFormatter.FormatCompact(data.TotalInputTokens)}");
 
         sb.Append(TerminalColors.Muted);
         sb.Append("  Output Tokens: ");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine($"{NumberFormatter.FormatCompact(data.TotalOutputTokens)}");
 
         sb.Append(TerminalColors.Muted);
         sb.Append("  Total Cost: ");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine($"${data.TotalCostUsd:F2}");
 
         sb.Append(TerminalColors.Muted);
         sb.Append("  Active Days: ");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine($"{data.ActiveDays}");
 
         sb.Append(TerminalColors.Muted);
         sb.Append("  Longest Session: ");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine($"{data.LongestSessionMinutes}m");
 
         if (data.DailyUsage.Count > 0)
@@ -112,7 +112,7 @@ public sealed class StatsRenderer
     {
         if (data.ModelBreakdown.Count == 0)
         {
-            sb.Append($"  {AnsiStyleConstants.Dim}No model data available{AnsiStyleConstants.Reset}");
+            sb.Append($"  {AnsiStyleEnumConstants.Dim}No model data available{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             return;
         }
@@ -124,7 +124,7 @@ public sealed class StatsRenderer
     {
         if (data.DailyUsage.Count == 0)
         {
-            sb.Append($"  {AnsiStyleConstants.Dim}No daily usage data available{AnsiStyleConstants.Reset}");
+            sb.Append($"  {AnsiStyleEnumConstants.Dim}No daily usage data available{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             return;
         }
@@ -139,17 +139,17 @@ public sealed class StatsRenderer
             var bar = new string('█', filled) + new string('░', barWidth - filled);
             var color = day.TotalTokens > maxTokens * 0.8 ? TerminalColors.Warning : TerminalColors.Primary;
 
-            sb.Append($"  {TerminalColors.Muted}{day.Date:MM/dd}{AnsiStyleConstants.Reset} ");
-            sb.Append($"{color}{bar}{AnsiStyleConstants.Reset} ");
+            sb.Append($"  {TerminalColors.Muted}{day.Date:MM/dd}{AnsiStyleEnumConstants.Reset} ");
+            sb.Append($"{color}{bar}{AnsiStyleEnumConstants.Reset} ");
             sb.Append($"{NumberFormatter.FormatCompact(day.TotalTokens)}");
-            sb.Append($" {TerminalColors.Muted}${day.CostUsd:F2}{AnsiStyleConstants.Reset}");
+            sb.Append($" {TerminalColors.Muted}${day.CostUsd:F2}{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
         }
     }
 
     private static void RenderSparkline(StringBuilder sb, List<DailyUsage> daily)
     {
-        sb.AppendLine($"{AnsiStyleConstants.Bold}Last 14 days{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Last 14 days{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
 
         var recent = daily.TakeLast(14).ToList();
@@ -166,10 +166,10 @@ public sealed class StatsRenderer
             var idx = (int)Math.Round((double)day.TotalTokens / maxTokens * (blocks.Length - 1));
             if (idx < 0) idx = 0;
             if (idx >= blocks.Length) idx = blocks.Length - 1;
-            sb.Append($"{TerminalColors.Primary}{blocks[idx]}{AnsiStyleConstants.Reset}");
+            sb.Append($"{TerminalColors.Primary}{blocks[idx]}{AnsiStyleEnumConstants.Reset}");
         }
         sb.AppendLine();
-        sb.Append($"  {TerminalColors.Muted}{recent[0].Date:MM/dd}{"",30}{recent[^1].Date:MM/dd}{AnsiStyleConstants.Reset}");
+        sb.Append($"  {TerminalColors.Muted}{recent[0].Date:MM/dd}{"",30}{recent[^1].Date:MM/dd}{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
     }
 
@@ -186,16 +186,16 @@ public sealed class StatsRenderer
 
         var separator = new string('─', modelWidth + inputWidth + outputWidth + costWidth + pctWidth + 4);
 
-        sb.AppendLine($"  {TerminalColors.Muted}{separator}{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"  {TerminalColors.Muted}{separator}{AnsiStyleEnumConstants.Reset}");
 
         var headerModel = "Model".PadRight(modelWidth);
         var headerInput = "Input".PadLeft(inputWidth);
         var headerOutput = "Output".PadLeft(outputWidth);
         var headerCost = "Cost".PadLeft(costWidth);
         var headerPct = "%".PadLeft(pctWidth);
-        sb.AppendLine($"  {TerminalColors.Muted}{headerModel}{headerInput}{headerOutput}{headerCost}{headerPct}{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"  {TerminalColors.Muted}{headerModel}{headerInput}{headerOutput}{headerCost}{headerPct}{AnsiStyleEnumConstants.Reset}");
 
-        sb.AppendLine($"  {TerminalColors.Muted}{separator}{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"  {TerminalColors.Muted}{separator}{AnsiStyleEnumConstants.Reset}");
 
         foreach (var model in models)
         {
@@ -213,14 +213,14 @@ public sealed class StatsRenderer
 
             sb.Append(TerminalColors.Primary);
             sb.Append($"  {modelCol}");
-            sb.Append(AnsiStyleConstants.Reset);
+            sb.Append(AnsiStyleEnumConstants.Reset);
             sb.Append($"{inputCol}{outputCol}{costCol}{pctCol}");
             sb.AppendLine();
 
             RenderCostBar(sb, pct);
         }
 
-        sb.AppendLine($"  {TerminalColors.Muted}{separator}{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"  {TerminalColors.Muted}{separator}{AnsiStyleEnumConstants.Reset}");
     }
 
     private static void RenderCostBar(StringBuilder sb, double percentage)
@@ -230,6 +230,6 @@ public sealed class StatsRenderer
         if (filled < 0) filled = 0;
         if (filled > barWidth) filled = barWidth;
         var bar = new string('█', filled) + new string('░', barWidth - filled);
-        sb.AppendLine($"  {TerminalColors.Accent}{bar}{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"  {TerminalColors.Accent}{bar}{AnsiStyleEnumConstants.Reset}");
     }
 }

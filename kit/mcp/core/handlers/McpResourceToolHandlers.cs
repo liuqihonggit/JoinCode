@@ -26,7 +26,7 @@ public class McpResourceToolHandlers
     /// <summary>
     /// 列出所有MCP资源
     /// </summary>
-    [McpTool(McpToolNameConstants.McpRemoteListResources, "List all available MCP remote resources", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpRemoteListResources, "List all available MCP remote resources", "mcp")]
     public async Task<ToolResult> McpRemoteListResourcesAsync(
         [McpToolParameter("Remote client ID (optional, list resources for a specific client)", Required = false)] string? client_id = null,
         CancellationToken cancellationToken = default)
@@ -100,7 +100,7 @@ public class McpResourceToolHandlers
     /// <summary>
     /// 读取MCP资源
     /// </summary>
-    [McpTool(McpToolNameConstants.McpRemoteReadResource, "Read the content of an MCP remote resource by URI", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpRemoteReadResource, "Read the content of an MCP remote resource by URI", "mcp")]
     public async Task<ToolResult> McpRemoteReadResourceAsync(
         [McpToolParameter("Resource URI")] string uri,
         [McpToolParameter("Remote client ID (optional)", Required = false)] string? client_id = null,
@@ -148,7 +148,7 @@ public class McpResourceToolHandlers
     /// <summary>
     /// 列出MCP提示模板
     /// </summary>
-    [McpTool(McpToolNameConstants.McpRemoteListPrompts, "List all available MCP remote prompt templates", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpRemoteListPrompts, "List all available MCP remote prompt templates", "mcp")]
     public async Task<ToolResult> McpRemoteListPromptsAsync(
         [McpToolParameter("Remote client ID (optional)", Required = false)] string? client_id = null,
         CancellationToken cancellationToken = default)
@@ -227,7 +227,7 @@ public class McpResourceToolHandlers
     /// <summary>
     /// 获取MCP提示模板
     /// </summary>
-    [McpTool(McpToolNameConstants.McpGetPrompt, "Get an MCP prompt template by name", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpGetPrompt, "Get an MCP prompt template by name", "mcp")]
     public async Task<ToolResult> McpGetPromptAsync(
         [McpToolParameter("Prompt template name")] string prompt_name,
         [McpToolParameter("Arguments (JSON format)", Required = false)] string? arguments = null,
@@ -290,7 +290,7 @@ public class McpResourceToolHandlers
     /// <summary>
     /// 列出所有已连接的MCP客户端
     /// </summary>
-    [McpTool(McpToolNameConstants.McpListClients, "List all connected MCP remote clients", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpListClients, "List all connected MCP remote clients", "mcp")]
     public async Task<ToolResult> McpListClientsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -419,9 +419,9 @@ public class McpResourceToolHandlers
             {
                 var roleIcon = message.Role switch
                 {
-                    MessageRoleConstants.User => StructureSymbol.Bullet.ToValue(),
-                    MessageRoleConstants.Assistant => ObjectSymbol.Agent.ToValue(),
-                    MessageRoleConstants.System => ObjectSymbol.Gear.ToValue(),
+                    MessageRoleEnumConstants.User => StructureSymbol.Bullet.ToValue(),
+                    MessageRoleEnumConstants.Assistant => ObjectSymbol.Agent.ToValue(),
+                    MessageRoleEnumConstants.System => ObjectSymbol.Gear.ToValue(),
                     _ => StatusSymbol.Circle.ToValue()
                 };
 

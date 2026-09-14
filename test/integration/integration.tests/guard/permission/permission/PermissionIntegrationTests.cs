@@ -71,7 +71,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task ExecuteToolAsync_WithPermissionManager_AutoApprovedTool_ShouldExecuteSuccessfully()
     {
-        var mockHandler = CreateMockToolHandler(FileToolNameConstants.FileRead, "Read file tool");
+        var mockHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileRead, "Read file tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolResult
@@ -82,7 +82,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var result = await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileRead, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync(FileToolNameEnumConstants.FileRead, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
 
         result.IsError.Should().BeFalse();
         result.Content[0].Text.Should().Be("File content");
@@ -179,7 +179,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task ExecuteToolAsync_WithPermissionManager_ShellWithDangerousCommand_ShouldBeRejected()
     {
-        var mockHandler = CreateMockToolHandler(ShellToolNameConstants.Bash, "Shell tool");
+        var mockHandler = CreateMockToolHandler(ShellToolNameEnumConstants.Bash, "Shell tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
         var arguments = new Dictionary<string, JsonElement>
@@ -187,7 +187,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
             ["command"] = JsonDocument.Parse("\"rm -rf /\"").RootElement
         };
 
-        var result = await _permissionExecutor.ExecuteAsync(ShellToolNameConstants.Bash, arguments).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync(ShellToolNameEnumConstants.Bash, arguments).ConfigureAwait(true);
 
         result.IsError.Should().BeTrue();
     }
@@ -195,7 +195,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task ExecuteToolAsync_WithPermissionManager_WriteToSensitivePath_ShouldRequireConfirmation()
     {
-        var mockHandler = CreateMockToolHandler(FileToolNameConstants.FileWrite, "Write file tool");
+        var mockHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileWrite, "Write file tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
         var arguments = new Dictionary<string, JsonElement>
@@ -203,7 +203,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
             ["path"] = JsonSerializer.SerializeToElement("C:\\Windows\\system32\\test.txt")
         };
 
-        var result = await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileWrite, arguments).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync(FileToolNameEnumConstants.FileWrite, arguments).ConfigureAwait(true);
 
         result.IsError.Should().BeTrue();
     }
@@ -251,7 +251,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto).ConfigureAwait(true);
 
-        var mockHandler = CreateMockToolHandler(WebToolNameConstants.WebSearch, "Web search tool");
+        var mockHandler = CreateMockToolHandler(WebToolNameEnumConstants.WebSearch, "Web search tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolResult
@@ -262,7 +262,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var result = await _permissionExecutor.ExecuteAsync(WebToolNameConstants.WebSearch, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync(WebToolNameEnumConstants.WebSearch, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
 
         result.IsError.Should().BeFalse();
     }
@@ -293,10 +293,10 @@ public class PermissionIntegrationTests : IAsyncDisposable
     {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Plan).ConfigureAwait(true);
 
-        var mockHandler = CreateMockToolHandler(FileToolNameConstants.FileWrite, "Write tool");
+        var mockHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileWrite, "Write tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var result = await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileWrite, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var result = await _permissionExecutor.ExecuteAsync(FileToolNameEnumConstants.FileWrite, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
 
         result.IsError.Should().BeTrue();
     }
@@ -304,7 +304,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task EndToEnd_MultipleTools_DifferentPermissions_ShouldHandleCorrectly()
     {
-        var readHandler = CreateMockToolHandler(FileToolNameConstants.FileRead, "Read tool");
+        var readHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileRead, "Read tool");
         readHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolResult
@@ -318,7 +318,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         await _registryWithPermission.RegisterToolAsync(readHandler.Object).ConfigureAwait(true);
         await _registryWithPermission.RegisterToolAsync(deleteHandler.Object).ConfigureAwait(true);
 
-        var readResult = await _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileRead, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
+        var readResult = await _permissionExecutor.ExecuteAsync(FileToolNameEnumConstants.FileRead, new Dictionary<string, JsonElement>()).ConfigureAwait(true);
         readResult.IsError.Should().BeFalse();
 
         var deleteResult = await _permissionExecutor.ExecuteAsync("file_delete", new Dictionary<string, JsonElement>()).ConfigureAwait(true);
@@ -420,7 +420,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     [Fact]
     public async Task EndToEnd_ConcurrentMixedPermissionTools_ShouldHandleCorrectly()
     {
-        var safeHandler = CreateMockToolHandler(FileToolNameConstants.FileRead, "Safe tool");
+        var safeHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileRead, "Safe tool");
         safeHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolResult
@@ -435,7 +435,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         await _registryWithPermission.RegisterToolAsync(dangerousHandler.Object).ConfigureAwait(true);
 
         var safeTasks = Enumerable.Range(0, 25)
-            .Select(_ => _permissionExecutor.ExecuteAsync(FileToolNameConstants.FileRead, new Dictionary<string, JsonElement>()));
+            .Select(_ => _permissionExecutor.ExecuteAsync(FileToolNameEnumConstants.FileRead, new Dictionary<string, JsonElement>()));
 
         var dangerousTasks = Enumerable.Range(0, 25)
             .Select(_ => _permissionExecutor.ExecuteAsync("file_delete", new Dictionary<string, JsonElement>()));

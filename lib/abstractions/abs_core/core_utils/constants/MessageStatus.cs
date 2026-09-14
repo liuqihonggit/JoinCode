@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 消息状态枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 MessageStatusConstants + MessageStatusExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 MessageStatusEnumConstants + MessageStatusExtensions
 /// </summary>
 public enum MessageStatus
 {

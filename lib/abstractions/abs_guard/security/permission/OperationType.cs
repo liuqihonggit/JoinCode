@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Security;
 
 /// <summary>
 /// 工具操作类型枚举 — 替代散布在权限系统中的硬编码字符串
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 OperationTypeConstants + OperationTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 OperationTypeEnumConstants + OperationTypeExtensions
 /// </summary>
 public enum OperationType
 {

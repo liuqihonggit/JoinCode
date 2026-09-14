@@ -24,7 +24,7 @@ public sealed class PermissionManagerTemporaryApprovalTests
     public async Task ApproveToolTemporarily_未批准时返回待确认()
     {
         var manager = CreatePermissionManager();
-        var request = new PermissionRequest(ShellToolNameConstants.Bash);
+        var request = new PermissionRequest(ShellToolNameEnumConstants.Bash);
 
         var result = await manager.CheckPermissionAsync(request);
 
@@ -36,9 +36,9 @@ public sealed class PermissionManagerTemporaryApprovalTests
     public async Task ApproveToolTemporarily_批准后立即授权()
     {
         var manager = CreatePermissionManager();
-        var request = new PermissionRequest(ShellToolNameConstants.Bash);
+        var request = new PermissionRequest(ShellToolNameEnumConstants.Bash);
 
-        manager.ApproveToolTemporarily(ShellToolNameConstants.Bash, TimeSpan.FromMinutes(5));
+        manager.ApproveToolTemporarily(ShellToolNameEnumConstants.Bash, TimeSpan.FromMinutes(5));
 
         var result = await manager.CheckPermissionAsync(request);
 
@@ -51,9 +51,9 @@ public sealed class PermissionManagerTemporaryApprovalTests
     {
         var timeProvider = new FakeTimeProvider();
         var manager = CreatePermissionManager(timeProvider) as PermissionManager;
-        var request = new PermissionRequest(ShellToolNameConstants.Bash);
+        var request = new PermissionRequest(ShellToolNameEnumConstants.Bash);
 
-        manager!.ApproveToolTemporarily(ShellToolNameConstants.Bash, TimeSpan.FromMinutes(1));
+        manager!.ApproveToolTemporarily(ShellToolNameEnumConstants.Bash, TimeSpan.FromMinutes(1));
         var granted = await manager.CheckPermissionAsync(request);
         granted.IsGranted.Should().BeTrue();
 

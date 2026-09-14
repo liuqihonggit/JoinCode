@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /release-notes 命令 — 查看版本发布说明
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.ReleaseNotes, Description = "查看版本发布说明", Usage = "/release-notes [version]", Category = ChatCommandCategory.Info, ArgumentHint = "[version]", IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.ReleaseNotes, Description = "查看版本发布说明", Usage = "/release-notes [version]", Category = ChatCommandCategory.Info, ArgumentHint = "[version]", IsHidden = true)]
 [ChatCommandArg("version", Type = "string", Description = "要查看的版本号,省略则显示最近 5 个版本的发布说明")]
 public sealed class ReleaseNotesCommand : ChatCommandBase
 {

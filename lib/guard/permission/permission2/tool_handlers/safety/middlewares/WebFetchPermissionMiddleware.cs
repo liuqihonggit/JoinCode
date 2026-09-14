@@ -92,7 +92,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     {
         foreach (var rule in rules)
         {
-            if (!string.Equals(rule.ToolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(rule.ToolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
                 continue;
             if (string.IsNullOrEmpty(rule.RuleContent))
                 continue;
@@ -111,7 +111,7 @@ public sealed partial class WebFetchPermissionMiddleware : ServiceEntity, IPermi
     {
         foreach (var rule in rules)
         {
-            if (!string.Equals(rule.ToolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(rule.ToolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
                 continue;
             if (string.IsNullOrEmpty(rule.RuleContent))
                 continue;

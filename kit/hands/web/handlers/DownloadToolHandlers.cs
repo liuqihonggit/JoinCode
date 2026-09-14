@@ -34,7 +34,7 @@ public class DownloadToolHandlers
     /// <param name="resume">是否启用断点续传（默认 true）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>包含下载结果与诊断信息的工具结果。</returns>
-    [McpTool(WebToolNameConstants.DownloadFile, "下载文件到指定路径(支持多线程并发+断点续传)", "web", ConcurrencySafe = true)]
+    [McpTool(WebToolNameEnumConstants.DownloadFile, "下载文件到指定路径(支持多线程并发+断点续传)", "web", ConcurrencySafe = true)]
     public async Task<ToolResult> DownloadFileAsync(
         [McpToolParameter("下载 URL")] string url,
         [McpToolParameter("目标文件保存路径")] string file_path,

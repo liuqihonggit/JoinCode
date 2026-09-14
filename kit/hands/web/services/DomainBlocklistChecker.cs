@@ -40,7 +40,7 @@ public sealed partial class DomainBlocklistChecker : ServiceEntity, IDomainBlock
     public async Task<DomainCheckResult> CheckAsync(string domain, CancellationToken cancellationToken = default)
     {
         // 对齐 TS 版 getSettings_DEPRECATED().skipWebFetchPreflight
-        var skipPreflight = Environment.GetEnvironmentVariable(JccEnvVarConstants.SkipWebFetchPreflight);
+        var skipPreflight = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.SkipWebFetchPreflight);
         if (string.Equals(skipPreflight, "true", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(skipPreflight, "1", StringComparison.OrdinalIgnoreCase))
         {

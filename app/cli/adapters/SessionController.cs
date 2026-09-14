@@ -380,14 +380,14 @@ public sealed class SessionController
 
     private void RecordToolCallForTurnDiff(string toolName, string? resultText, StructuredPatchHunk[]? structuredPatch)
     {
-        var isFileEdit = toolName is FileToolNameConstants.FileWrite or FileToolNameConstants.FileEdit
-            or FileToolNameConstants.FileEditRegex or FileToolNameConstants.FileBatchEdit
-            or FileToolNameConstants.FileInsertLines or FileToolNameConstants.FileDeleteLines;
+        var isFileEdit = toolName is FileToolNameEnumConstants.FileWrite or FileToolNameEnumConstants.FileEdit
+            or FileToolNameEnumConstants.FileEditRegex or FileToolNameEnumConstants.FileBatchEdit
+            or FileToolNameEnumConstants.FileInsertLines or FileToolNameEnumConstants.FileDeleteLines;
         if (!isFileEdit) return;
 
         var filePath = ExtractFilePathFromResult(resultText);
         if (filePath is null) return;
-        var isNewFile = toolName == FileToolNameConstants.FileWrite;
+        var isNewFile = toolName == FileToolNameEnumConstants.FileWrite;
 
         if (structuredPatch is not null && structuredPatch.Length > 0)
             _turnDiffService.RecordFileEditWithPatch(filePath, structuredPatch, isNewFile);

@@ -30,7 +30,7 @@ public partial class TaskOutputToolHandlers
     /// <param name="max_lines">最大输出行数（可选，默认 100）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.TaskOutput, "Get output result of a background task", "task")]
+    [McpTool(SystemToolNameEnumConstants.TaskOutput, "Get output result of a background task", "task")]
     public async Task<ToolResult> GetTaskOutputAsync(
         [McpToolParameter("Task ID")] string task_id,
         [McpToolParameter("Output type: stdout/stderr/all (optional, default all)", Required = false)] string? output_type = "all",

@@ -36,7 +36,7 @@ public partial class WebBrowserToolHandlers
     /// <param name="url">evaluate 操作时的页面上下文 URL（可选）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>包含操作结果与诊断信息的工具结果。</returns>
-    [McpTool(WebToolNameConstants.WebBrowser, "Open a URL in the browser or perform browser actions", "web")]
+    [McpTool(WebToolNameEnumConstants.WebBrowser, "Open a URL in the browser or perform browser actions", "web")]
     public async Task<ToolResult> WebBrowserActionAsync(
         [McpToolParameter("URL to open/screenshot, or JavaScript expression to evaluate")] string target,
         [McpToolParameter("Action type: open/screenshot/evaluate (default open)", Required = false)] string action = "open",

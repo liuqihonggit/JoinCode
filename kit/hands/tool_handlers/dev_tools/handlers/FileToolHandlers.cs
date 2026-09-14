@@ -315,7 +315,7 @@ public partial class FileToolHandlers : IDisposable
         // 对齐 TS: tengu_file_operation — 路径哈希脱敏
         var pathHash = SecurityPatterns.ComputeShortHash(filePath);
         _telemetryService.RecordCount("file.operation",
-            new Dictionary<string, string> { ["operation"] = FileOperationTypeConstants.Read, ["path_hash"] = pathHash },
+            new Dictionary<string, string> { ["operation"] = FileOperationTypeEnumConstants.Read, ["path_hash"] = pathHash },
             description: "File operation with path hash");
     }
 
@@ -636,7 +636,7 @@ public partial class FileToolHandlers : IDisposable
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         RecordPdfReadTelemetry(filePath, result.OriginalSize ?? 0, success: true);
-        RecordFileOperationTelemetry(filePath, FileOperationTypeConstants.Read);
+        RecordFileOperationTelemetry(filePath, FileOperationTypeEnumConstants.Read);
         RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
 
         var pageCountInfo = result.PageCount is not null ? $", {result.PageCount} pages" : string.Empty;
@@ -695,7 +695,7 @@ public partial class FileToolHandlers : IDisposable
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         RecordPdfReadTelemetry(filePath, extractResult.OriginalSize ?? 0, success: true);
-        RecordFileOperationTelemetry(filePath, FileOperationTypeConstants.Read);
+        RecordFileOperationTelemetry(filePath, FileOperationTypeEnumConstants.Read);
 
         // 对齐 TS: extractPDFPages → 读取输出目录中的 .jpg 文件 → maybeResizeAndDownsampleImageBuffer
         var builder = ToolResultBuilder.Success();
@@ -811,7 +811,7 @@ public partial class FileToolHandlers : IDisposable
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         // 对齐 TS: tengu_file_operation — Notebook 遥测
-        RecordFileOperationTelemetry(filePath, FileOperationTypeConstants.Read);
+        RecordFileOperationTelemetry(filePath, FileOperationTypeEnumConstants.Read);
 
         RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
 

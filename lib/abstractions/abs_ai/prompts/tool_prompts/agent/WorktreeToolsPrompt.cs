@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = WorktreeToolName.EnterWorktree, Category = ToolPromptCategory.Agent)]
 public static class EnterWorktreeToolPrompt
 {
-    public const string ToolName = WorktreeToolNameConstants.EnterWorktree;
+    public const string ToolName = WorktreeToolNameEnumConstants.EnterWorktree;
 
     public static string Prompt { get; } = $"""
         仅当用户明确要求在工作区中工作时使用此工具。此工具创建一个隔离的 git 工作区并将当前会话切换到其中。
@@ -45,7 +45,7 @@ public static class EnterWorktreeToolPrompt
 [ToolPrompt(ToolName = WorktreeToolName.ExitWorktree, Category = ToolPromptCategory.Agent)]
 public static class ExitWorktreeToolPrompt
 {
-    public const string ToolName = WorktreeToolNameConstants.ExitWorktree;
+    public const string ToolName = WorktreeToolNameEnumConstants.ExitWorktree;
 
     public const string Prompt = """
         退出由 EnterWorktree 创建的工作区会话，并将会话返回到原始工作目录。

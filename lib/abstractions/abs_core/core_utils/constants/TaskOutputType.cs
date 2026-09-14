@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 任务输出类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 TaskOutputTypeConstants + TaskOutputTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 TaskOutputTypeEnumConstants + TaskOutputTypeExtensions
 /// </summary>
 public enum TaskOutputType
 {

@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /tools 命令 - 显示可用工具列表及参数
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Tools, Description = "显示可用工具列表", Usage = "/tools", Category = ChatCommandCategory.Tools, ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Tools, Description = "显示可用工具列表", Usage = "/tools", Category = ChatCommandCategory.Tools, ExposeToMcp = true)]
 public sealed class ToolsCommand : ChatCommandBase
 {
     /// <summary>

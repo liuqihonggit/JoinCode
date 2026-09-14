@@ -394,7 +394,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable
                             }
                         ]
                     },
-                    FinishReason = OpenAIFinishReasonConstants.ToolCalls
+                    FinishReason = OpenAIFinishReasonEnumConstants.ToolCalls
                 }
             ],
             Usage = new MockUsage
@@ -487,7 +487,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable
                 {
                     Index = 0,
                     Delta = new MockChatDelta(),
-                    FinishReason = OpenAIFinishReasonConstants.ToolCalls
+                    FinishReason = OpenAIFinishReasonEnumConstants.ToolCalls
                 }
             ]
         };
@@ -517,7 +517,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable
                 {
                     Index = 0,
                     Message = new MockApiMessage { Role = "assistant", Content = responseText },
-                    FinishReason = OpenAIFinishReasonConstants.Stop
+                    FinishReason = OpenAIFinishReasonEnumConstants.Stop
                 }
             ],
             Usage = new MockUsage { PromptTokens = 50, CompletionTokens = 20, TotalTokens = 70 }
@@ -602,7 +602,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable
                         Role = "assistant",
                         Content = responseText
                     },
-                    FinishReason = OpenAIFinishReasonConstants.Stop
+                    FinishReason = OpenAIFinishReasonEnumConstants.Stop
                 }
             ],
             Usage = new MockUsage

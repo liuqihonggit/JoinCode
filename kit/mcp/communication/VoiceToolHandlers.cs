@@ -33,7 +33,7 @@ public sealed partial class VoiceToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.VoiceStartRecording, "Start voice recording", "voice")]
+    [McpTool(SystemToolNameEnumConstants.VoiceStartRecording, "Start voice recording", "voice")]
     public async Task<ToolResult> VoiceStartRecordingAsync(
         CancellationToken cancellationToken = default)
     {
@@ -75,7 +75,7 @@ public sealed partial class VoiceToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含录制结果的工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.VoiceStopRecording, "Stop voice recording and return result", "voice")]
+    [McpTool(SystemToolNameEnumConstants.VoiceStopRecording, "Stop voice recording and return result", "voice")]
     public async Task<ToolResult> VoiceStopRecordingAsync(
         CancellationToken cancellationToken = default)
     {
@@ -129,7 +129,7 @@ public sealed partial class VoiceToolHandlers
     /// <param name="language">语言代码（可选，如 zh/en）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含转写文本的工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.VoiceTranscribe, "Transcribe audio file", "voice")]
+    [McpTool(SystemToolNameEnumConstants.VoiceTranscribe, "Transcribe audio file", "voice")]
     public async Task<ToolResult> VoiceTranscribeAsync(
         [McpToolParameter("Audio file path")] string file_path,
         [McpToolParameter("Language code (optional, e.g. zh/en)", Required = false)] string? language = null,
@@ -171,7 +171,7 @@ public sealed partial class VoiceToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含语音服务状态的工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.VoiceStatus, "Get voice service status", "voice")]
+    [McpTool(SystemToolNameEnumConstants.VoiceStatus, "Get voice service status", "voice")]
     public Task<ToolResult> VoiceStatusAsync(
         CancellationToken cancellationToken = default)
     {

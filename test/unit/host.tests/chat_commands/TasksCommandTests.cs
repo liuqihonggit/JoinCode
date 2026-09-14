@@ -49,7 +49,7 @@ public sealed class TasksCommandTests
     [InlineData("new")]
     public async Task Execute_WithCreateVariants_Should_Return_Continue(string subCommand)
     {
-        // CrudActionConstants.Create/New → CreateTaskAsync
+        // CrudActionEnumConstants.Create/New → CreateTaskAsync
         var services = CreateServices(taskService: CreateMockTaskService());
         var cmd = new TasksCommand();
         var context = CreateContext($"{subCommand} new task title", services);
@@ -63,7 +63,7 @@ public sealed class TasksCommandTests
     [Fact]
     public async Task Execute_WithUpdateSubcommand_Should_Return_Continue()
     {
-        // CrudActionConstants.Update → UpdateTaskAsync
+        // CrudActionEnumConstants.Update → UpdateTaskAsync
         var services = CreateServices(taskService: CreateMockTaskService());
         var cmd = new TasksCommand();
         var context = CreateContext("update task-1 --status in_progress", services);
@@ -80,7 +80,7 @@ public sealed class TasksCommandTests
     [InlineData("todo")]
     public async Task Execute_WithTasksActionSubcommand_Should_Return_Continue(string subCommand)
     {
-        // TasksActionConstants.Kill/Detail/Complete/Todo 枚举路由取值范围测试
+        // TasksActionEnumConstants.Kill/Detail/Complete/Todo 枚举路由取值范围测试
         var services = CreateServices(
             taskService: CreateMockTaskService(),
             todoService: CreateMockTodoService());
@@ -164,13 +164,13 @@ public sealed class TasksCommandTests
     }
 
     [Fact]
-    public void TasksActionConstants_Values_Should_Match_Route()
+    public void TasksActionEnumConstants_Values_Should_Match_Route()
     {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
-        TasksActionConstants.Kill.Should().Be("kill");
-        TasksActionConstants.Detail.Should().Be("detail");
-        TasksActionConstants.Complete.Should().Be("complete");
-        TasksActionConstants.Todo.Should().Be("todo");
+        TasksActionEnumConstants.Kill.Should().Be("kill");
+        TasksActionEnumConstants.Detail.Should().Be("detail");
+        TasksActionEnumConstants.Complete.Should().Be("complete");
+        TasksActionEnumConstants.Todo.Should().Be("todo");
     }
 
     private static ChatCommandContext CreateContext(string arguments, CommandServices services)

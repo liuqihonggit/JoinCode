@@ -96,7 +96,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
             HookId = hookId,
             HookName = $"hook-{input.Event}",
             HookEvent = input.Event,
-            Output = hasResult ? AsyncHookProcessStatusConstants.Completed : null,
+            Output = hasResult ? AsyncHookProcessStatusEnumConstants.Completed : null,
             Stdout = null,
             Stderr = null,
             ExitCode = hasResult ? 0 : null,

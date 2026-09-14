@@ -1,4 +1,4 @@
-namespace Sync.Tests.ToolHandlers;
+﻿namespace Sync.Tests.ToolHandlers;
 
 /// <summary>
 /// GitSubCommand 枚举 + GitToolHandlers 参数构建 单元测试
@@ -71,7 +71,7 @@ public sealed class GitToolHandlersTests
         var allValues = Enum.GetValues<GitSubCommand>();
         allValues.Should().NotBeEmpty();
 
-        // 验证每个值都有映射，且与 GitSubCommandConstants 常量一致
+        // 验证每个值都有映射，且与 GitSubCommandEnumConstants 常量一致
         foreach (var value in allValues)
         {
             var mapped = value.ToValue();
@@ -79,11 +79,11 @@ public sealed class GitToolHandlersTests
         }
 
         // 验证关键映射与 Constants 常量一致
-        GitSubCommand.Status.ToValue().Should().Be(GitSubCommandConstants.Status);
-        GitSubCommand.Add.ToValue().Should().Be(GitSubCommandConstants.Add);
-        GitSubCommand.Commit.ToValue().Should().Be(GitSubCommandConstants.Commit);
-        GitSubCommand.Push.ToValue().Should().Be(GitSubCommandConstants.Push);
-        GitSubCommand.Clean.ToValue().Should().Be(GitSubCommandConstants.Clean);
+        GitSubCommand.Status.ToValue().Should().Be(GitSubCommandEnumConstants.Status);
+        GitSubCommand.Add.ToValue().Should().Be(GitSubCommandEnumConstants.Add);
+        GitSubCommand.Commit.ToValue().Should().Be(GitSubCommandEnumConstants.Commit);
+        GitSubCommand.Push.ToValue().Should().Be(GitSubCommandEnumConstants.Push);
+        GitSubCommand.Clean.ToValue().Should().Be(GitSubCommandEnumConstants.Clean);
     }
 
     // === GitToolHandlers 参数验证测试 ===

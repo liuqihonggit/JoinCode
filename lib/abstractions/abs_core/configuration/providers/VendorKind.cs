@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Configuration.Providers;
 /// <summary>
 /// LLM 供应商枚举 — 身份/auth key/模型列表/显示名
 /// 与 ProtocolKind 分离：供应商决定"发给谁"，协议决定"怎么发请求"
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 VendorKindConstants + VendorKindExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 VendorKindEnumConstants + VendorKindExtensions
 /// </summary>
 public enum VendorKind
 {

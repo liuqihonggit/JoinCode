@@ -1,11 +1,11 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /feedback 命令 — 提交用户反馈
 /// 将反馈文本经 FeedbackRedactor 脱敏后保存到 feedback 目录
 /// 支持别名 /bug
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Feedback, Description = "提交反馈", Usage = "/feedback [反馈内容]", Category = ChatCommandCategory.Social, Aliases = ["bug"], ArgumentHint = "[反馈内容]", IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Feedback, Description = "提交反馈", Usage = "/feedback [反馈内容]", Category = ChatCommandCategory.Social, Aliases = ["bug"], ArgumentHint = "[反馈内容]", IsHidden = true)]
 [ChatCommandArg("feedback", Type = "string", Description = "反馈内容文本")]
 public sealed class FeedbackCommand : ChatCommandBase
 {
@@ -51,7 +51,7 @@ public sealed class FeedbackCommand : ChatCommandBase
         };
 
         TerminalHelper.WriteLine(new FeedbackRenderer().Render(state));
-        TerminalHelper.WriteLine($"  {TerminalColors.Muted}已保存到: {filePath}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Muted}已保存到: {filePath}{AnsiStyleEnumConstants.Reset}");
 
         return ChatCommandResult.Continue();
     }

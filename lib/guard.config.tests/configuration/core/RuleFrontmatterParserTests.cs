@@ -155,7 +155,7 @@ public sealed class ExternalRulesLoaderTests
         var rules = new List<RuleFile>
         {
             new() { Name = "always", Content = "a", AlwaysApply = true },
-            new() { Name = SearchToolNameConstants.Glob, Content = "g", Globs = "*.cs" },
+            new() { Name = SearchToolNameEnumConstants.Glob, Content = "g", Globs = "*.cs" },
             new() { Name = "desc", Content = "d", Description = "test" },
             new() { Name = "manual", Content = "m" }
         };

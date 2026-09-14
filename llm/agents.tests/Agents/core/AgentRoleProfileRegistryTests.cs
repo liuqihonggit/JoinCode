@@ -39,7 +39,7 @@ public sealed class AgentRoleProfileRegistryTests
         profile!.Role.Should().Be(AgentRole.Executor);
         profile.Variant.Should().Be(ExecutorVariant.Code);
         profile.AllowedTools.Should().NotBeNull();
-        profile.AllowedTools.Should().Contain(FileToolNameConstants.FileRead);
+        profile.AllowedTools.Should().Contain(FileToolNameEnumConstants.FileRead);
     }
 
     [Fact]
@@ -182,8 +182,8 @@ public sealed class AgentRoleProfileRegistryTests
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.Verification);
 
         profile.Should().NotBeNull();
-        profile!.AllowedTools.Should().Contain(FileToolNameConstants.FileRead);
-        profile.DisallowedTools.Should().Contain(AgentToolNameConstants.Agent);
+        profile!.AllowedTools.Should().Contain(FileToolNameEnumConstants.FileRead);
+        profile.DisallowedTools.Should().Contain(AgentToolNameEnumConstants.Agent);
         profile.SystemPrompt.Should().NotBeNullOrEmpty();
     }
 
@@ -196,8 +196,8 @@ public sealed class AgentRoleProfileRegistryTests
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.JoinCodeGuide);
 
         profile.Should().NotBeNull();
-        profile!.AllowedTools.Should().Contain(FileToolNameConstants.FileRead);
-        profile.DisallowedTools.Should().Contain(ShellToolNameConstants.Bash);
+        profile!.AllowedTools.Should().Contain(FileToolNameEnumConstants.FileRead);
+        profile.DisallowedTools.Should().Contain(ShellToolNameEnumConstants.Bash);
         profile.SystemPrompt.Should().NotBeNullOrEmpty();
     }
 
@@ -210,8 +210,8 @@ public sealed class AgentRoleProfileRegistryTests
         var profile = registry.GetProfile(AgentRole.Executor, ExecutorVariant.ContextCompression);
 
         profile.Should().NotBeNull();
-        profile!.AllowedTools.Should().Contain(FileToolNameConstants.FileRead);
-        profile.DisallowedTools.Should().Contain(FileToolNameConstants.FileEdit);
+        profile!.AllowedTools.Should().Contain(FileToolNameEnumConstants.FileRead);
+        profile.DisallowedTools.Should().Contain(FileToolNameEnumConstants.FileEdit);
         profile.SystemPrompt.Should().NotBeNullOrEmpty();
     }
 }

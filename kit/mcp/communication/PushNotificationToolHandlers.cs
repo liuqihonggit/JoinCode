@@ -33,7 +33,7 @@ public partial class PushNotificationToolHandlers
     /// <param name="persistent">是否持久显示（可选，默认 false）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.PushNotification, "Send push notification to user", "notification")]
+    [McpTool(SystemToolNameEnumConstants.PushNotification, "Send push notification to user", "notification")]
     public async Task<ToolResult> PushNotificationAsync(
         [McpToolParameter("Notification title")] string title,
         [McpToolParameter("Notification message")] string message,

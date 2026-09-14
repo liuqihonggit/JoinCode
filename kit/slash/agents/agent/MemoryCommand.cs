@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /memory 命令 — 编辑和管理记忆文件，支持编辑、打开、添加、搜索、列表、统计、健康检查和清理操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Memory, Description = "编辑记忆文件", Usage = "/memory [edit|open|add|search|db|stats|health|cleanup]", Category = ChatCommandCategory.Agent, Aliases = ["mem"])]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Memory, Description = "编辑记忆文件", Usage = "/memory [edit|open|add|search|db|stats|health|cleanup]", Category = ChatCommandCategory.Agent, Aliases = ["mem"])]
 [ChatCommandArg("action", Type = "string", Description = "记忆操作", Enum = new[] { "edit", "open", "add", "search", "db", "stats", "health", "cleanup" })]
 public sealed class MemoryCommand : ChatCommandBase
 {
@@ -25,32 +25,32 @@ public sealed class MemoryCommand : ChatCommandBase
 
         switch (action)
         {
-            case MemorySubCommandConstants.Edit:
+            case MemorySubCommandEnumConstants.Edit:
                 await EditMemoryFileAsync(args, context).ConfigureAwait(false);
                 break;
-            case MemorySubCommandConstants.Open:
+            case MemorySubCommandEnumConstants.Open:
                 await OpenMemoryDirectoryAsync(context.GetCommandServices().FileSystem, ChatCommandBase.GetService<IProcessService>(context)!).ConfigureAwait(false);
                 break;
-            case MemorySubCommandConstants.Add:
+            case MemorySubCommandEnumConstants.Add:
                 await AddMemoryAsync(context, args).ConfigureAwait(false);
                 break;
-            case MemorySubCommandConstants.Search:
+            case MemorySubCommandEnumConstants.Search:
                 await SearchMemoryAsync(context, args).ConfigureAwait(false);
                 break;
-            case MemorySubCommandConstants.Db:
+            case MemorySubCommandEnumConstants.Db:
                 await ListMemoriesAsync(context, args).ConfigureAwait(false);
                 break;
-            case MemorySubCommandConstants.Stats:
+            case MemorySubCommandEnumConstants.Stats:
                 await ShowStatsAsync(context).ConfigureAwait(false);
                 break;
-            case MemorySubCommandConstants.Health:
+            case MemorySubCommandEnumConstants.Health:
                 await ShowHealthAsync(context).ConfigureAwait(false);
                 break;
-            case MemorySubCommandConstants.Cleanup:
+            case MemorySubCommandEnumConstants.Cleanup:
                 await CleanupAsync(context, args).ConfigureAwait(false);
                 break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemoryUnknownAction, action)}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemoryUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine(L.T(StringKey.HostMemoryAvailableActions, string.Join(", ", Enum.GetValues<MemorySubCommand>().Select(v => v.ToValue()))));
                 break;
         }
@@ -92,7 +92,7 @@ public sealed class MemoryCommand : ChatCommandBase
         }
 
         // 非交互模式回退：纯文本列表
-        TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{L.T(StringKey.HostMemoryFilesHeader)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{L.T(StringKey.HostMemoryFilesHeader)}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
         for (int i = 0; i < files.Count; i++)
@@ -100,13 +100,13 @@ public sealed class MemoryCommand : ChatCommandBase
             var (label, _, desc, exists) = files[i];
             var existsLabel = exists ? "" : " (new)";
             var color = exists ? TerminalColors.Success : TerminalColors.Muted;
-            TerminalHelper.WriteLine($"  {AnsiStyleConstants.Bold}{i + 1}.{AnsiStyleConstants.Reset} {color}{label}{existsLabel}{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine($"     {TerminalColors.Muted}{desc}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {color}{label}{existsLabel}{AnsiStyleEnumConstants.Reset}");
+            TerminalHelper.WriteLine($"     {TerminalColors.Muted}{desc}{AnsiStyleEnumConstants.Reset}");
         }
 
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryEditHint)}{AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryDbHint)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryEditHint)}{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryDbHint)}{AnsiStyleEnumConstants.Reset}");
     }
 
     /// <summary>
@@ -174,14 +174,14 @@ public sealed class MemoryCommand : ChatCommandBase
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Info}{L.T(StringKey.HostMemoryDirLabel, memDir)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Info}{L.T(StringKey.HostMemoryDirLabel, memDir)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         try
         {
             await processService.OpenAsync(memDir).ConfigureAwait(false);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.HostMemoryDirOpened, memDir)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.HostMemoryDirOpened, memDir)}{AnsiStyleEnumConstants.Reset}");
         }
         catch (Exception ex)
         {
@@ -198,7 +198,7 @@ public sealed class MemoryCommand : ChatCommandBase
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Info}{L.T(StringKey.HostMemoryOpenEditorHint, editor, filePath)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Info}{L.T(StringKey.HostMemoryOpenEditorHint, editor, filePath)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -217,7 +217,7 @@ public sealed class MemoryCommand : ChatCommandBase
                     UseShellExecute = true
                 });
             }
-            TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.HostMemoryOpenedInEditor, filePath)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.HostMemoryOpenedInEditor, filePath)}{AnsiStyleEnumConstants.Reset}");
         }
         catch (Exception ex)
         {
@@ -263,14 +263,14 @@ public sealed class MemoryCommand : ChatCommandBase
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemoryAddUsage)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemoryAddUsage)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var memService = context.GetCommandServices().MemoryManagementService;
         if (memService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -298,7 +298,7 @@ public sealed class MemoryCommand : ChatCommandBase
 
         if (string.IsNullOrWhiteSpace(content))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemoryContentEmpty)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemoryContentEmpty)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -306,7 +306,7 @@ public sealed class MemoryCommand : ChatCommandBase
         if (scanResult.RelevantMemories.Count > 0 && scanResult.RelevantMemories[0].RelevanceScore > 5.0)
         {
             var existing = scanResult.RelevantMemories[0];
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemorySimilarFound, existing.Memory.Id)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemorySimilarFound, existing.Memory.Id)}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  {existing.Memory.Content}");
             TerminalHelper.WriteLine(L.T(StringKey.HostMemoryScoreLabel, existing.RelevanceScore));
             return;
@@ -315,7 +315,7 @@ public sealed class MemoryCommand : ChatCommandBase
         try
         {
             var memoryId = await memService.AddMemoryAsync(content, type, tags: tags.Count > 0 ? tags : null, ct: context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.HostMemoryAdded, memoryId)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.HostMemoryAdded, memoryId)}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine(L.T(StringKey.HostMemoryTypeLabel, type.GetName()));
             if (tags.Count > 0)
                 TerminalHelper.WriteLine(L.T(StringKey.HostMemoryTagsLabel, string.Join(", ", tags)));
@@ -331,14 +331,14 @@ public sealed class MemoryCommand : ChatCommandBase
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemorySearchUsage)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostMemorySearchUsage)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var memService = context.GetCommandServices().MemoryManagementService;
         if (memService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -351,7 +351,7 @@ public sealed class MemoryCommand : ChatCommandBase
 
         if (result.RelevantMemories.Count == 0)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryNoResults)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryNoResults)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -367,7 +367,7 @@ public sealed class MemoryCommand : ChatCommandBase
             TerminalHelper.NewLine();
         }
 
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryFoundRelated, result.TotalMemories)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryFoundRelated, result.TotalMemories)}{AnsiStyleEnumConstants.Reset}");
     }
 
     private static async Task ListMemoriesAsync(ChatCommandContext context, string[] args)
@@ -375,7 +375,7 @@ public sealed class MemoryCommand : ChatCommandBase
         var memService = context.GetCommandServices().MemoryManagementService;
         if (memService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -387,7 +387,7 @@ public sealed class MemoryCommand : ChatCommandBase
 
         if (result.RelevantMemories.Count == 0)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryNoMemories)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryNoMemories)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -401,7 +401,7 @@ public sealed class MemoryCommand : ChatCommandBase
             TerminalHelper.NewLine();
         }
 
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryTotal, result.TotalMemories)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostMemoryTotal, result.TotalMemories)}{AnsiStyleEnumConstants.Reset}");
     }
 
     private static async Task ShowStatsAsync(ChatCommandContext context)
@@ -409,7 +409,7 @@ public sealed class MemoryCommand : ChatCommandBase
         var memService = context.GetCommandServices().MemoryManagementService;
         if (memService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -439,7 +439,7 @@ public sealed class MemoryCommand : ChatCommandBase
         var memService = context.GetCommandServices().MemoryManagementService;
         if (memService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -455,11 +455,11 @@ public sealed class MemoryCommand : ChatCommandBase
         var barColor = health.AverageHealthScore >= 70 ? TerminalColors.Success
             : health.AverageHealthScore >= 40 ? TerminalColors.Warning
             : TerminalColors.Error;
-        TerminalHelper.WriteLine($"[{barColor}{healthBar}{AnsiStyleConstants.Reset}]");
+        TerminalHelper.WriteLine($"[{barColor}{healthBar}{AnsiStyleEnumConstants.Reset}]");
 
         if (health.ShouldArchive > 0 || health.ShouldDelete > 0)
         {
-            TerminalHelper.WriteLine($"\n{TerminalColors.Warning}{L.T(StringKey.HostMemorySuggestions)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"\n{TerminalColors.Warning}{L.T(StringKey.HostMemorySuggestions)}{AnsiStyleEnumConstants.Reset}");
             if (health.ShouldArchive > 0)
                 TerminalHelper.WriteLine(L.T(StringKey.HostMemorySuggestArchiveMsg, health.ShouldArchive));
             if (health.ShouldDelete > 0)
@@ -482,7 +482,7 @@ public sealed class MemoryCommand : ChatCommandBase
         var memService = context.GetCommandServices().MemoryManagementService;
         if (memService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostMemoryServiceUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -507,7 +507,7 @@ public sealed class MemoryCommand : ChatCommandBase
 
         var result = await memService.CleanupOldMemoriesAsync(archiveDays, deleteDays, context.CancellationToken).ConfigureAwait(false);
 
-        TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.HostMemoryCleanupDone)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.HostMemoryCleanupDone)}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine(L.T(StringKey.HostMemoryChecked, result.CheckedCount));
         TerminalHelper.WriteLine(L.T(StringKey.HostMemoryArchived, result.ArchivedCount));
         TerminalHelper.WriteLine(L.T(StringKey.HostMemoryDeleted, result.DeletedCount));

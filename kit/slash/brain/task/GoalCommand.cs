@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /goal 命令 — 目标自主循环引擎，支持 GoalSpec 收集模式、生命周期管理（pause/resume/clear）和定时目标模式。
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Goal, Description = "目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）", Usage = "/goal [初始提示] [--constraint '约束'] [--budget <token数>] | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "[初始提示|子命令]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Goal, Description = "目标自主循环引擎 — GoalSpec 收集模式（LLM 询问 6 字段后自主工作）", Usage = "/goal [初始提示] [--constraint '约束'] [--budget <token数>] | /goal pause | /goal resume | /goal clear | /goal --cron <表达式> <描述>", Category = ChatCommandCategory.Task, ArgumentHint = "[初始提示|子命令]")]
 [ChatCommandArg("subcommand", Type = "string", Description = "生命周期子命令,省略时进入 GoalSpec 收集模式或显示状态", Enum = new[] { "pause", "resume", "clear", "stop", "off", "reset", "cancel" })]
 [ChatCommandArg("objective", Type = "string", Description = "目标描述/初始提示,作为自主循环的目标")]
 [ChatCommandArg("constraint", Type = "array", Description = "约束条件,可多次指定 --constraint", ItemsType = "string", ItemsDescription = "单条约束文本")]
@@ -38,7 +38,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         var goalEngine = context.GetCommandServices().GoalEngine;
         if (goalEngine is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}错误: 目标引擎未注册{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}错误: 目标引擎未注册{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -63,25 +63,25 @@ public sealed partial class GoalCommand : ChatCommandBase
 
         switch (subCommand)
         {
-            case ResumeLifecycleConstants.Pause:
+            case ResumeLifecycleEnumConstants.Pause:
                 await goalEngine.PauseAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleEnumConstants.Reset}");
                 break;
 
-            case ResumeLifecycleConstants.Resume:
+            case ResumeLifecycleEnumConstants.Resume:
                 if (goalEngine.CurrentState is null)
                 {
                     await goalEngine.RehydrateAsync(context.CancellationToken).ConfigureAwait(false);
                 }
                 await goalEngine.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleEnumConstants.Reset}");
                 break;
 
-            case ResumeLifecycleConstants.Clear:
-            case ResumeLifecycleConstants.Stop:
-            case ResumeLifecycleConstants.Off:
-            case ResumeLifecycleConstants.Reset:
-            case ResumeLifecycleConstants.Cancel:
+            case ResumeLifecycleEnumConstants.Clear:
+            case ResumeLifecycleEnumConstants.Stop:
+            case ResumeLifecycleEnumConstants.Off:
+            case ResumeLifecycleEnumConstants.Reset:
+            case ResumeLifecycleEnumConstants.Cancel:
                 await goalEngine.ClearAsync(context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine("目标已清除");
                 break;
@@ -130,21 +130,21 @@ public sealed partial class GoalCommand : ChatCommandBase
 
         switch (subCommand)
         {
-            case ResumeLifecycleConstants.Pause:
+            case ResumeLifecycleEnumConstants.Pause:
                 await registry.PauseAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleEnumConstants.Reset}");
                 break;
 
-            case ResumeLifecycleConstants.Resume:
+            case ResumeLifecycleEnumConstants.Resume:
                 await registry.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleEnumConstants.Reset}");
                 break;
 
-            case ResumeLifecycleConstants.Clear:
-            case ResumeLifecycleConstants.Stop:
-            case ResumeLifecycleConstants.Off:
-            case ResumeLifecycleConstants.Reset:
-            case ResumeLifecycleConstants.Cancel:
+            case ResumeLifecycleEnumConstants.Clear:
+            case ResumeLifecycleEnumConstants.Stop:
+            case ResumeLifecycleEnumConstants.Off:
+            case ResumeLifecycleEnumConstants.Reset:
+            case ResumeLifecycleEnumConstants.Cancel:
                 await registry.ClearAsync(context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine("目标已清除");
                 break;
@@ -183,7 +183,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         _logger?.LogInformation("启动 GoalSpec 收集流程 via Registry (初始提示: {Hint}, 预填约束: {Count}, 预算: {Budget})",
             initialHint ?? "无", presetConstraints?.Count ?? 0, tokenBudget?.ToString() ?? "无限制");
 
-        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active — GoalSpec 收集模式{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active — GoalSpec 收集模式{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine("  LLM 将逐个询问目标规格字段，收集完成后开始自主工作。");
 
         if (!string.IsNullOrWhiteSpace(initialHint))
@@ -210,7 +210,7 @@ public sealed partial class GoalCommand : ChatCommandBase
     private static void ShowGoalsList(IReadOnlyList<GoalState> goals)
     {
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ 活跃目标列表 ({goals.Count}){AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ 活跃目标列表 ({goals.Count}){AnsiStyleEnumConstants.Reset}");
         foreach (var state in goals)
         {
             TerminalHelper.WriteLine($"  [{state.GoalId}] {state.Objective} — {FormatStatus(state.Status)}");
@@ -230,7 +230,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         _logger?.LogInformation("启动 GoalSpec 收集流程 (初始提示: {Hint}, 预填约束: {Count}, 预算: {Budget})",
             initialHint ?? "无", presetConstraints?.Count ?? 0, tokenBudget?.ToString() ?? "无限制");
 
-        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active — GoalSpec 收集模式{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active — GoalSpec 收集模式{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine("  LLM 将逐个询问目标规格字段，收集完成后开始自主工作。");
 
         if (!string.IsNullOrWhiteSpace(initialHint))
@@ -266,14 +266,14 @@ public sealed partial class GoalCommand : ChatCommandBase
     {
         if (string.IsNullOrWhiteSpace(parsed.CronExpression))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}错误: 定时模式需要指定 Cron 表达式{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}错误: 定时模式需要指定 Cron 表达式{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var cronTaskStore = context.GetCommandServices().CronTaskStore;
         if (cronTaskStore is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}错误: Cron 任务存储未注册{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}错误: Cron 任务存储未注册{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -286,7 +286,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         };
 
         var cronTask = await cronTaskStore.AddTaskAsync(request, context.CancellationToken).ConfigureAwait(false);
-        TerminalHelper.WriteLine($"{TerminalColors.Success}定时目标已注册{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}定时目标已注册{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine($"  Cron: {parsed.CronExpression}");
         TerminalHelper.WriteLine($"  目标: {parsed.Objective}");
         TerminalHelper.WriteLine($"  任务ID: {cronTask.Id}");
@@ -392,7 +392,7 @@ public sealed partial class GoalCommand : ChatCommandBase
     private static void ShowGoalState(GoalState state)
     {
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal {FormatStatus(state.Status)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal {FormatStatus(state.Status)}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine($"  目标: {state.Objective}");
         TerminalHelper.WriteLine($"  ID: {state.GoalId}");
         TerminalHelper.WriteLine($"  状态: {FormatStatus(state.Status)}");
@@ -408,7 +408,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         if (state.LastEvaluation is not null)
         {
             var evalColor = state.LastEvaluation.IsCompleted ? TerminalColors.Success : TerminalColors.Warning;
-            TerminalHelper.WriteLine($"  评估器: {evalColor}{state.LastEvaluation.Reason}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"  评估器: {evalColor}{state.LastEvaluation.Reason}{AnsiStyleEnumConstants.Reset}");
         }
 
         TerminalHelper.NewLine();
@@ -416,11 +416,11 @@ public sealed partial class GoalCommand : ChatCommandBase
 
     private static string FormatStatus(GoalStatus status) => status switch
     {
-        GoalStatus.Pursuing => $"{TerminalColors.Success}运行中{AnsiStyleConstants.Reset}",
-        GoalStatus.Paused => $"{TerminalColors.Warning}已暂停{AnsiStyleConstants.Reset}",
-        GoalStatus.Achieved => $"{TerminalColors.Success}已完成{AnsiStyleConstants.Reset}",
-        GoalStatus.Unmet => $"{TerminalColors.Error}未完成{AnsiStyleConstants.Reset}",
-        GoalStatus.BudgetLimited => $"{TerminalColors.Warning}预算耗尽{AnsiStyleConstants.Reset}",
+        GoalStatus.Pursuing => $"{TerminalColors.Success}运行中{AnsiStyleEnumConstants.Reset}",
+        GoalStatus.Paused => $"{TerminalColors.Warning}已暂停{AnsiStyleEnumConstants.Reset}",
+        GoalStatus.Achieved => $"{TerminalColors.Success}已完成{AnsiStyleEnumConstants.Reset}",
+        GoalStatus.Unmet => $"{TerminalColors.Error}未完成{AnsiStyleEnumConstants.Reset}",
+        GoalStatus.BudgetLimited => $"{TerminalColors.Warning}预算耗尽{AnsiStyleEnumConstants.Reset}",
         _ => status.ToString()
     };
 }

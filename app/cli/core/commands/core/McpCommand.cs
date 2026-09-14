@@ -1,4 +1,4 @@
-namespace JoinCode.CliCommands;
+﻿namespace JoinCode.CliCommands;
 
 /// <summary>
 /// MCP 工具命令执行器 — 扁平元动词 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve 的共享逻辑。
@@ -60,7 +60,7 @@ public sealed class McpCliCommand
 
                 foreach (var g in grouped)
                 {
-                    TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleConstants.Reset} ({g.Count()} 个):");
+                    TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleEnumConstants.Reset} ({g.Count()} 个):");
                     foreach (var t in g.OrderBy(t => t.Name))
                     {
                         TerminalHelper.WriteLine($"  {t.Name,-40} {t.Description}");
@@ -178,12 +178,12 @@ public sealed class McpCliCommand
         if (awaitSeconds is { } secs && secs > 0)
         {
             serveCts.CancelAfter(TimeSpan.FromSeconds(secs));
-            TerminalHelper.WriteLine($"{TerminalColors.Info}--await {secs}s{AnsiStyleConstants.Reset} 超时计时器已启动");
+            TerminalHelper.WriteLine($"{TerminalColors.Info}--await {secs}s{AnsiStyleEnumConstants.Reset} 超时计时器已启动");
         }
 
         if (string.Equals(transport, "stdio", StringComparison.OrdinalIgnoreCase))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} stdio 模式启动，暴露 {toolCount} 个工具");
+            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleEnumConstants.Reset} stdio 模式启动，暴露 {toolCount} 个工具");
             try
             {
                 await server.RunAsync(serveCts.Token).ConfigureAwait(false);
@@ -206,7 +206,7 @@ public sealed class McpCliCommand
         {
             httpServer = new McpHttpServer(server, prefix, statelessMode: true);
             httpServer.Start();
-            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} HTTP 模式启动(HttpListener): {prefix}，暴露 {toolCount} 个工具");
+            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleEnumConstants.Reset} HTTP 模式启动(HttpListener): {prefix}，暴露 {toolCount} 个工具");
         }
         catch (HttpListenerException)
         {
@@ -215,7 +215,7 @@ public sealed class McpCliCommand
             httpServer = null;
             tcpServer = new McpTcpServer(server, hostName, port, statelessMode: true);
             usedTcp = true;
-            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleConstants.Reset} HTTP 模式启动(TcpListener 降级): http://{hostName}:{port}/mcp/，暴露 {toolCount} 个工具");
+            TerminalHelper.WriteLine($"{TerminalColors.Info}jcc mcp serve{AnsiStyleEnumConstants.Reset} HTTP 模式启动(TcpListener 降级): http://{hostName}:{port}/mcp/，暴露 {toolCount} 个工具");
         }
 
         TerminalHelper.WriteLine("按 Ctrl+C 停止");
@@ -258,7 +258,7 @@ public sealed class McpCliCommand
             ["uptimeSeconds"] = Math.Round(uptime.TotalSeconds, 2)
         };
         var report = CliOutputEnvelope.Success(data).ToString();
-        TerminalHelper.WriteLine($"{TerminalColors.Info}mcp_serve 退出报告{AnsiStyleConstants.Reset}: {report}");
+        TerminalHelper.WriteLine($"{TerminalColors.Info}mcp_serve 退出报告{AnsiStyleEnumConstants.Reset}: {report}");
     }
 
     internal static async Task<int> WithHostAsync(Func<IServiceProvider, Task<int>> action, string? vendor = null, string? model = null, CancellationToken ct = default)

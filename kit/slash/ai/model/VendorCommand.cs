@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /vendor 命令 — 查看或切换 LLM 供应商
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Vendor, Description = "查看或切换 LLM 供应商", Usage = "/vendor [名称|list]", Category = ChatCommandCategory.Model, ArgumentHint = "[openai|anthropic|deepseek|azure|agnes|sensenova|bedrock|list]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Vendor, Description = "查看或切换 LLM 供应商", Usage = "/vendor [名称|list]", Category = ChatCommandCategory.Model, ArgumentHint = "[openai|anthropic|deepseek|azure|agnes|sensenova|bedrock|list]")]
 [ChatCommandArg("name", Type = "string", Description = "供应商名称或 list", Enum = new[] { "openai", "anthropic", "deepseek", "azure", "agnes", "sensenova", "bedrock", "list" })]
 public sealed class VendorCommand : ChatCommandBase
 {
@@ -42,7 +42,7 @@ public sealed class VendorCommand : ChatCommandBase
         var target = VendorKindExtensions.FromValue(args);
         if (target is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}未知供应商: {args}。输入 /vendor 查看可用列表{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}未知供应商: {args}。输入 /vendor 查看可用列表{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -69,7 +69,7 @@ public sealed class VendorCommand : ChatCommandBase
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         if (configService is not null)
         {
-            await configService.SetAsync(ConfigKeyConstants.Profile, targetValue, context.CancellationToken).ConfigureAwait(false);
+            await configService.SetAsync(ConfigKeyEnumConstants.Profile, targetValue, context.CancellationToken).ConfigureAwait(false);
         }
 
         TerminalHelper.WriteLine($"已切换供应商: {currentVendor} → {targetValue}" +

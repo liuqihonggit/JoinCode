@@ -17,7 +17,7 @@ public sealed partial class FunctionHookExecutor : HookExecutorBase<FunctionHook
     }
 
     /// <inheritdoc />
-    public override string SupportedType => HookTypeConstants.Function;
+    public override string SupportedType => HookTypeEnumConstants.Function;
 
     /// <inheritdoc />
     public override async Task<HookResult> ExecuteTypedAsync(
@@ -83,7 +83,7 @@ public sealed partial class CallbackHookExecutor : HookExecutorBase<CallbackHook
     }
 
     /// <inheritdoc />
-    public override string SupportedType => HookTypeConstants.Callback;
+    public override string SupportedType => HookTypeEnumConstants.Callback;
 
     /// <inheritdoc />
     public override async Task<HookResult> ExecuteTypedAsync(
@@ -101,7 +101,7 @@ public sealed partial class CallbackHookExecutor : HookExecutorBase<CallbackHook
             var result = await ExecuteWithTimeoutAsync(
                 ct => hook.Callback(input, ct),
                 context.Timeout,
-                HookTypeConstants.Callback,
+                HookTypeEnumConstants.Callback,
                 cancellationToken).ConfigureAwait(false);
 
             if (result == null)

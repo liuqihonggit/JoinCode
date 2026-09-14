@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /peers 命令 — 列出当前已连接的对等节点
 /// 别名: /remote
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Peers, Description = "列出对等节点", Usage = "/peers", Category = ChatCommandCategory.Bridge, Aliases = ["remote"], IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Peers, Description = "列出对等节点", Usage = "/peers", Category = ChatCommandCategory.Bridge, Aliases = ["remote"], IsHidden = true)]
 public sealed class PeersCommand : ChatCommandBase
 {
     /// <summary>

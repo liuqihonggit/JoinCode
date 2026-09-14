@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 通过 IMobileConnectService 启动/停止连接服务并生成连接 URL
 /// 支持别名 /ios、/android
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Mobile, Description = "移动端连接", Usage = "/mobile [start|stop|url]", Category = ChatCommandCategory.Platform, Aliases = ["ios", "android"], ArgumentHint = "start|stop|url", IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Mobile, Description = "移动端连接", Usage = "/mobile [start|stop|url]", Category = ChatCommandCategory.Platform, Aliases = ["ios", "android"], ArgumentHint = "start|stop|url", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "移动端操作", Enum = new[] { "start", "stop", "url" })]
 public sealed class MobileCommand : ChatCommandBase
 {
@@ -26,15 +26,15 @@ public sealed class MobileCommand : ChatCommandBase
 
         switch (arg)
         {
-            case PlatformActionConstants.Start:
+            case PlatformActionEnumConstants.Start:
             case "s":
                 await HandleStartAsync(mobileService).ConfigureAwait(false);
                 break;
-            case PlatformActionConstants.Stop:
+            case PlatformActionEnumConstants.Stop:
             case "d":
                 HandleStop(mobileService);
                 break;
-            case PlatformActionConstants.Url:
+            case PlatformActionEnumConstants.Url:
             case "u":
                 HandleUrl(mobileService);
                 break;

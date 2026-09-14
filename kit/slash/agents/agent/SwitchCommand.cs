@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /switch 命令 — 切换前台输出显示模式
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// /switch — 显示当前模式和活跃子代理列表
 /// </summary>
 [ChatCommand(
-    Name = ChatCommandNameConstants.Switch,
+    Name = ChatCommandNameEnumConstants.Switch,
     Description = "切换查看指定子代理输出",
     Usage = "/switch [agentName|all]",
     Category = ChatCommandCategory.Agent,
@@ -25,7 +25,7 @@ public sealed class SwitchCommand : ChatCommandBase
         var outputManager = GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>(context);
         if (outputManager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}IAgentOutputChannelManager 服务未初始化{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}IAgentOutputChannelManager 服务未初始化{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -40,14 +40,14 @@ public sealed class SwitchCommand : ChatCommandBase
         if (string.Equals(args, "all", StringComparison.OrdinalIgnoreCase))
         {
             outputManager.SetDisplayMode(null);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已切换到显示全部子代理输出{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已切换到显示全部子代理输出{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var agentService = GetService<JoinCode.Abstractions.Interfaces.IAgentService>(context);
         if (agentService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}IAgentService 服务未初始化{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}IAgentService 服务未初始化{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -55,11 +55,11 @@ public sealed class SwitchCommand : ChatCommandBase
         if (agentId is not null)
         {
             outputManager.SetDisplayMode(agentId);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已切换到只看子代理 {args} 的输出{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已切换到只看子代理 {args} 的输出{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}未找到子代理 {args}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}未找到子代理 {args}{AnsiStyleEnumConstants.Reset}");
             ShowCurrentMode(outputManager);
         }
 

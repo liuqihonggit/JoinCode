@@ -12,7 +12,7 @@ public class HookConditionEvaluatorTests
     public async Task EvaluateAsync_NullCondition_ShouldReturnTrue()
     {
         // Arrange
-        var input = CreateHookInput(HookEvent.PreToolUse, ShellToolNameConstants.Bash);
+        var input = CreateHookInput(HookEvent.PreToolUse, ShellToolNameEnumConstants.Bash);
 
         // Act
         var result = await _evaluator.EvaluateAsync(null, input).ConfigureAwait(true);
@@ -25,7 +25,7 @@ public class HookConditionEvaluatorTests
     public async Task EvaluateAsync_EmptyCondition_ShouldReturnTrue()
     {
         // Arrange
-        var input = CreateHookInput(HookEvent.PreToolUse, ShellToolNameConstants.Bash);
+        var input = CreateHookInput(HookEvent.PreToolUse, ShellToolNameEnumConstants.Bash);
 
         // Act
         var result = await _evaluator.EvaluateAsync("", input).ConfigureAwait(true);
@@ -38,7 +38,7 @@ public class HookConditionEvaluatorTests
     public async Task EvaluateAsync_WhitespaceCondition_ShouldReturnTrue()
     {
         // Arrange
-        var input = CreateHookInput(HookEvent.PreToolUse, ShellToolNameConstants.Bash);
+        var input = CreateHookInput(HookEvent.PreToolUse, ShellToolNameEnumConstants.Bash);
 
         // Act
         var result = await _evaluator.EvaluateAsync("   ", input).ConfigureAwait(true);
@@ -48,8 +48,8 @@ public class HookConditionEvaluatorTests
     }
 
     [Theory]
-    [InlineData(ShellToolNameConstants.Bash, ShellToolNameConstants.Bash, true)]
-    [InlineData(ShellToolNameConstants.Bash, "Git", false)]
+    [InlineData(ShellToolNameEnumConstants.Bash, ShellToolNameEnumConstants.Bash, true)]
+    [InlineData(ShellToolNameEnumConstants.Bash, "Git", false)]
     public async Task EvaluateAsync_ToolNameMatch_ShouldWork(string condition, string toolName, bool expected)
     {
         // Arrange
@@ -63,9 +63,9 @@ public class HookConditionEvaluatorTests
     }
 
     [Theory]
-    [InlineData("Bash(git *)", ShellToolNameConstants.Bash, "git status", true)]
-    [InlineData("Bash(git *)", ShellToolNameConstants.Bash, "git log", true)]
-    [InlineData("Bash(git *)", ShellToolNameConstants.Bash, "ls -la", false)]
+    [InlineData("Bash(git *)", ShellToolNameEnumConstants.Bash, "git status", true)]
+    [InlineData("Bash(git *)", ShellToolNameEnumConstants.Bash, "git log", true)]
+    [InlineData("Bash(git *)", ShellToolNameEnumConstants.Bash, "ls -la", false)]
     [InlineData("Bash(git *)", "Git", "git status", false)] // 工具名不匹配
     public async Task EvaluateAsync_ToolPatternMatch_ShouldWork(string condition, string toolName, string command, bool expected)
     {
@@ -86,7 +86,7 @@ public class HookConditionEvaluatorTests
     public async Task EvaluateAsync_EventMatch_ShouldWork(string condition, HookEvent eventType, bool expected)
     {
         // Arrange
-        var input = CreateHookInput(eventType, ShellToolNameConstants.Bash);
+        var input = CreateHookInput(eventType, ShellToolNameEnumConstants.Bash);
 
         // Act
         var result = await _evaluator.EvaluateAsync(condition, input).ConfigureAwait(true);
@@ -96,12 +96,12 @@ public class HookConditionEvaluatorTests
     }
 
     [Theory]
-    [InlineData("matcher:Bash", ShellToolNameConstants.Bash, true)]
-    [InlineData("matcher:Git", ShellToolNameConstants.Bash, false)]
+    [InlineData("matcher:Bash", ShellToolNameEnumConstants.Bash, true)]
+    [InlineData("matcher:Git", ShellToolNameEnumConstants.Bash, false)]
     public async Task EvaluateAsync_MatcherMatch_ShouldWork(string condition, string matcher, bool expected)
     {
         // Arrange
-        var input = CreateHookInput(HookEvent.PreToolUse, ShellToolNameConstants.Bash, matcher: matcher);
+        var input = CreateHookInput(HookEvent.PreToolUse, ShellToolNameEnumConstants.Bash, matcher: matcher);
 
         // Act
         var result = await _evaluator.EvaluateAsync(condition, input).ConfigureAwait(true);
@@ -111,7 +111,7 @@ public class HookConditionEvaluatorTests
     }
 
     [Theory]
-    [InlineData("Bash && Git", ShellToolNameConstants.Bash, false)]
+    [InlineData("Bash && Git", ShellToolNameEnumConstants.Bash, false)]
     [InlineData("Bash && Git", "Git", false)]
     public async Task EvaluateAsync_AndOperator_ShouldWork(string condition, string toolName, bool expected)
     {
@@ -126,7 +126,7 @@ public class HookConditionEvaluatorTests
     }
 
     [Theory]
-    [InlineData("Bash || Git", ShellToolNameConstants.Bash, true)]
+    [InlineData("Bash || Git", ShellToolNameEnumConstants.Bash, true)]
     [InlineData("Bash || Git", "Git", true)]
     [InlineData("Bash || Git", "Python", false)]
     public async Task EvaluateAsync_OrOperator_ShouldWork(string condition, string toolName, bool expected)
@@ -143,7 +143,7 @@ public class HookConditionEvaluatorTests
 
     [Theory]
     [InlineData("!Bash", "Git", true)]
-    [InlineData("!Bash", ShellToolNameConstants.Bash, false)]
+    [InlineData("!Bash", ShellToolNameEnumConstants.Bash, false)]
     public async Task EvaluateAsync_NotOperator_ShouldWork(string condition, string toolName, bool expected)
     {
         // Arrange
@@ -157,7 +157,7 @@ public class HookConditionEvaluatorTests
     }
 
     [Theory]
-    [InlineData("(Bash)", ShellToolNameConstants.Bash, true)]
+    [InlineData("(Bash)", ShellToolNameEnumConstants.Bash, true)]
     [InlineData("(Bash && Git) || Python", "Python", true)]
     public async Task EvaluateAsync_Parentheses_ShouldWork(string condition, string toolName, bool expected)
     {

@@ -149,7 +149,7 @@ public sealed class PipeJoinCodeProcessFactory
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [nameof(pipeName).ToUpperInvariant()] = pipeName,
-            [ProviderEnvVarConstants.OpenAiApiKey] = effectiveApiKey,
+            [ProviderEnvVarEnumConstants.OpenAiApiKey] = effectiveApiKey,
             ["OPENAI_BASE_URL"] = baseUrl,
             ["JCC_DEBUGLOG"] = "1"
         };

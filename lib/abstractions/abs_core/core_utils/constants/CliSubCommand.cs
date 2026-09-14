@@ -1,7 +1,7 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
-/// CLI 入口级子命令 — 源码生成器自动生成 CliSubCommandConstants + CliSubCommandExtensions + SubCommandHelpText
+/// CLI 入口级子命令 — 源码生成器自动生成 CliSubCommandEnumConstants + CliSubCommandExtensions + SubCommandHelpText
 /// 适用范围: jcc [mcp_call|mcp_list|mcp_schema|mcp_search|mcp_serve|slash_call|slash_list|slash_schema|doctor|schema|remote-control|rc|remote|rg|gh] [子参数]
 ///
 /// 使用示例:

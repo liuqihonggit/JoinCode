@@ -12,7 +12,7 @@ public static class ApiMessageExtensions
     public static string? ExtractToolCallId(this ApiMessage msg)
     {
         if (msg.Metadata is not null
-            && msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ToolCallId, out var idObj)
+            && msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCallId, out var idObj)
             && idObj.ValueKind == JsonValueKind.String)
         {
             return idObj.GetString();
@@ -28,7 +28,7 @@ public static class ApiMessageExtensions
     public static string? ExtractToolName(this ApiMessage msg)
     {
         if (msg.Metadata is not null
-            && msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ToolName, out var nameObj)
+            && msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolName, out var nameObj)
             && nameObj.ValueKind == JsonValueKind.String)
         {
             return nameObj.GetString();
@@ -48,7 +48,7 @@ public static class ApiMessageExtensions
         if (msg.Metadata is null)
             return result;
 
-        if (!msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ToolCalls, out var toolCallsEl)
+        if (!msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCalls, out var toolCallsEl)
             || toolCallsEl.ValueKind != JsonValueKind.Array)
             return result;
 
@@ -77,7 +77,7 @@ public static class ApiMessageExtensions
         if (msg.Metadata is null)
             return null;
 
-        if (msg.Metadata.TryGetValue(MessageMetadataKeyConstants.Timestamp, out var tsObj)
+        if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.Timestamp, out var tsObj)
             && tsObj.ValueKind == JsonValueKind.String
             && DateTime.TryParse(tsObj.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var ts))
         {

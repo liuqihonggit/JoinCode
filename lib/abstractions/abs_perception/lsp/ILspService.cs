@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Interfaces.Lsp;
+﻿namespace JoinCode.Abstractions.Interfaces.Lsp;
 
 /// <summary>
 /// LSP 服务类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 LspServerTypeConstants + LspServerTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 LspServerTypeEnumConstants + LspServerTypeExtensions
 /// </summary>
 public enum LspServerType
 {

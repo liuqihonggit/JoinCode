@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /branch 命令 — 对齐 TS branch/
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式分支树，C# 为命令行操作
 /// 待办：需要 BranchManager 服务实现分支存储和切换
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Branch, Description = "管理对话分支", Usage = "/branch [list|create|switch|delete] [name]", Category = ChatCommandCategory.Session, Aliases = ["branches"], ArgumentHint = "[list|create|switch|delete]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Branch, Description = "管理对话分支", Usage = "/branch [list|create|switch|delete] [name]", Category = ChatCommandCategory.Session, Aliases = ["branches"], ArgumentHint = "[list|create|switch|delete]")]
 [ChatCommandArg("action", Type = "string", Description = "分支操作", Enum = new[] { "list", "create", "switch", "delete" })]
 [ChatCommandArg("name", Type = "string", Description = "分支名称")]
 public sealed class BranchCommand : ChatCommandBase
@@ -24,12 +24,12 @@ public sealed class BranchCommand : ChatCommandBase
 
         switch (action)
         {
-            case CrudActionConstants.List:
-            case CrudActionConstants.Ls:
+            case CrudActionEnumConstants.List:
+            case CrudActionEnumConstants.Ls:
                 ShowBranchList(context);
                 break;
-            case CrudActionConstants.Create:
-            case CrudActionConstants.New:
+            case CrudActionEnumConstants.Create:
+            case CrudActionEnumConstants.New:
                 var createName = args.Length > 1 ? args[1] : null;
                 CreateBranch(context, createName);
                 break;
@@ -37,8 +37,8 @@ public sealed class BranchCommand : ChatCommandBase
                 var switchName = args.Length > 1 ? args[1] : null;
                 SwitchBranch(context, switchName);
                 break;
-            case CrudActionConstants.Delete:
-            case CrudActionConstants.Rm:
+            case CrudActionEnumConstants.Delete:
+            case CrudActionEnumConstants.Rm:
                 var deleteName = args.Length > 1 ? args[1] : null;
                 DeleteBranch(context, deleteName);
                 break;

@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 调试信息 dump 选项位标志枚举 — 启动时用户交互选择要显示的诊断信息类别
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 DebugDumpSectionConstants + DebugDumpSectionExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 DebugDumpSectionEnumConstants + DebugDumpSectionExtensions
 /// 决策: 位标志而非 bool，支持用户选择组合（如 Init+Prompt = 1+16 = 17）
 /// 交互解析支持: 字母(i/e/w/l/p/a)、单词(init/error/warn/log/prompt/all/none)、数字(0/1/2/4/8/16/31)
 /// </summary>

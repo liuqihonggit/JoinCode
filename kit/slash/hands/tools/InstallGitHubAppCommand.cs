@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /install-github-app 命令 — 对齐 TS install-github-app.tsx
 /// 设置 JoinCode GitHub Actions 工作流，包含多步分支交互
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.InstallGitHubApp, Description = "设置 JoinCode GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.InstallGitHubApp, Description = "设置 JoinCode GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
 public sealed class InstallGitHubAppCommand : ChatCommandBase
 {
     private readonly IGitHubCommandRunner? _gitHubRunner;
@@ -60,11 +60,11 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
         // Step 4: 安装 GitHub App（提示用户在浏览器中安装）
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Accent}正在打开浏览器安装 JoinCode GitHub App...{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Accent}正在打开浏览器安装 JoinCode GitHub App...{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"  手动访问: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"  手动访问: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"请为仓库 {TerminalColors.Accent}{repoName}{AnsiStyleConstants.Reset} 安装 App 并授予访问权限。");
+        TerminalHelper.WriteLine($"请为仓库 {TerminalColors.Accent}{repoName}{AnsiStyleEnumConstants.Reset} 安装 App 并授予访问权限。");
 
         var installed = await Confirmation.ConfirmAsync("已安装 GitHub App？", ct).ConfigureAwait(false);
         if (!installed)
@@ -168,7 +168,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     private static void ShowWarnings(List<string> warnings)
     {
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Warning}⚠ 警告:{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Warning}⚠ 警告:{AnsiStyleEnumConstants.Reset}");
         foreach (var warning in warnings)
         {
             TerminalHelper.WriteLine($"  • {warning}");
@@ -265,7 +265,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     {
         var items = new List<(string Display, string SecretName, string AuthType)>
         {
-            ("输入新的 API Key", ProviderEnvVarConstants.AnthropicApiKey, "api_key"),
+            ("输入新的 API Key", ProviderEnvVarEnumConstants.AnthropicApiKey, "api_key"),
             ("使用 OAuth Token", "JCC_OAUTH_TOKEN", "oauth_token"),
         };
 
@@ -274,7 +274,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         if (!string.IsNullOrEmpty(existingKey))
         {
             // 使用 Add + 反转构建顺序，避免 Insert(0, item) 的 O(n) 移动
-            items.Add(("使用本地已有的 API Key", ProviderEnvVarConstants.AnthropicApiKey, "api_key"));
+            items.Add(("使用本地已有的 API Key", ProviderEnvVarEnumConstants.AnthropicApiKey, "api_key"));
             items.Reverse();
         }
 
@@ -300,7 +300,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         if (choice.AuthType == "oauth_token")
         {
             TerminalHelper.NewLine();
-            TerminalHelper.WriteLine($"{TerminalColors.Accent}OAuth 认证流程:{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Accent}OAuth 认证流程:{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine("  1. 浏览器将打开 JoinCode 授权页面");
             TerminalHelper.WriteLine("  2. 授权后复制 Token 粘贴到此处");
             TerminalHelper.NewLine();
@@ -375,7 +375,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         {
             ct.ThrowIfCancellationRequested();
 
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}...{AnsiStyleConstants.Reset} {steps[i]}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}...{AnsiStyleEnumConstants.Reset} {steps[i]}");
 
             var success = i switch
             {
@@ -403,7 +403,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
                 return GitHubSetupResult.Fail($"{steps[i]}失败", "请检查 GitHub CLI 认证状态和仓库权限");
             }
 
-            TerminalHelper.WriteLine($"  {TerminalColors.Success}✓{AnsiStyleConstants.Reset} {steps[i]}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Success}✓{AnsiStyleEnumConstants.Reset} {steps[i]}");
         }
 
         return GitHubSetupResult.Ok();
@@ -600,25 +600,25 @@ jobs:
     private static void ShowSuccess(string repoName, bool hasWorkflow)
     {
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Success}✓ GitHub Actions 设置成功！{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}✓ GitHub Actions 设置成功！{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
         if (hasWorkflow)
         {
             TerminalHelper.WriteLine("后续步骤:");
             TerminalHelper.WriteLine($"  1. 在浏览器中查看并合并 Pull Request");
-            TerminalHelper.WriteLine($"  2. 确保已安装 Claude GitHub App: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"  2. 确保已安装 Claude GitHub App: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  3. 合并 PR 后工作流将自动启用");
         }
         else
         {
             TerminalHelper.WriteLine("后续步骤:");
-            TerminalHelper.WriteLine($"  1. 确保已安装 Claude GitHub App: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"  1. 确保已安装 Claude GitHub App: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  2. API Key 已配置到仓库 Secret");
         }
 
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"仓库: {TerminalColors.Accent}{repoName}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"仓库: {TerminalColors.Accent}{repoName}{AnsiStyleEnumConstants.Reset}");
     }
 
     /// <summary>
@@ -627,13 +627,13 @@ jobs:
     private static void ShowError(string message, string? fixHint)
     {
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Error}✗ 设置失败: {message}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Error}✗ 设置失败: {message}{AnsiStyleEnumConstants.Reset}");
         if (!string.IsNullOrEmpty(fixHint))
         {
             TerminalHelper.WriteLine($"  修复: {fixHint}");
         }
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"手动设置文档: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubDocsUrl}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"手动设置文档: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubDocsUrl}{AnsiStyleEnumConstants.Reset}");
     }
 
     /// <summary>

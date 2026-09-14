@@ -31,7 +31,7 @@ public partial class ReplToolHandlers : LongRunningGroup
     /// <param name="action">操作：execute/enable/disable/status（默认 execute）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含执行结果的工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.Repl, "Execute code in REPL interactive mode", "execution")]
+    [McpTool(SystemToolNameEnumConstants.Repl, "Execute code in REPL interactive mode", "execution")]
     public async Task<ToolResult> ReplAsync(
         [McpToolParameter("REPL language: csharp/powershell/python (default: csharp)", Required = false)] string language = "csharp",
         [McpToolParameter("Code to execute (optional, shows REPL status if not provided)", Required = false)] string? code = null,

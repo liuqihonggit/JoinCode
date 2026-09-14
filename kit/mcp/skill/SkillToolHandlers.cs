@@ -32,7 +32,7 @@ public class SkillToolHandlers
     /// 技能工具 - 统一入口（与TS对齐）
     /// LLM 通过 skill 名称调用技能，args 为可选参数
     /// </summary>
-    [McpTool(SkillToolNameConstants.Skill, "Execute a specified skill. Pass skill name (e.g., commit, review-pr, pdf) and optional arguments", "skill")]
+    [McpTool(SkillToolNameEnumConstants.Skill, "Execute a specified skill. Pass skill name (e.g., commit, review-pr, pdf) and optional arguments", "skill")]
     public async Task<ToolResult> SkillAsync(
         [McpToolParameter("Skill name, e.g., commit, review-pr, pdf")] string skill,
         [McpToolParameter("Skill arguments, optional", Required = false)] string? args = null,
@@ -160,7 +160,7 @@ public class SkillToolHandlers
     /// <summary>
     /// 执行技能
     /// </summary>
-    [McpTool(SkillToolNameConstants.SkillExecute, "Execute a specified skill with name and parameters", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillExecute, "Execute a specified skill with name and parameters", "skill")]
     public async Task<ToolResult> SkillExecuteAsync(
         [McpToolParameter("Skill name")] string skill_name,
         [McpToolParameter("Skill parameters (JSON object), optional", Required = false)] Dictionary<string, JsonElement>? parameters = null,
@@ -213,7 +213,7 @@ public class SkillToolHandlers
     /// <summary>
     /// 列出所有可用技能
     /// </summary>
-    [McpTool(SkillToolNameConstants.SkillList, "List all available skills", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillList, "List all available skills", "skill")]
     public async Task<ToolResult> SkillListAsync(
         CancellationToken cancellationToken = default)
     {

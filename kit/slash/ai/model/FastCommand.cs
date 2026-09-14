@@ -1,15 +1,15 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /fast 命令 — 切换快速模式(使用更小/更快的模型)
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Fast, Description = "切换快速模式（使用更小/更快的模型）", Usage = "/fast [on|off]", Category = ChatCommandCategory.Model)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Fast, Description = "切换快速模式（使用更小/更快的模型）", Usage = "/fast [on|off]", Category = ChatCommandCategory.Model)]
 [ChatCommandArg("state", Type = "string", Description = "开关状态", Enum = new[] { "on", "off" })]
 public sealed class FastCommand : ToggleCommandBase
 {
     /// <summary>命令名称</summary>
-    public override string Name => ChatCommandNameConstants.Fast;
+    public override string Name => ChatCommandNameEnumConstants.Fast;
     /// <summary>命令描述</summary>
     public override string Description => "切换快速模式（使用更小/更快的模型）";
     /// <summary>命令用法</summary>

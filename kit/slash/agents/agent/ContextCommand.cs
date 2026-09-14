@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /context 命令 — 显示当前会话上下文统计信息
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Context, Description = "显示当前会话上下文统计", Usage = "/context", Category = ChatCommandCategory.Info)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Context, Description = "显示当前会话上下文统计", Usage = "/context", Category = ChatCommandCategory.Info)]
 public sealed class ContextCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
@@ -54,10 +54,10 @@ public sealed class ContextCommand : ChatCommandBase
                 tokens,
                 role.ToLower() switch
                 {
-                    MessageRoleConstants.System => 0,
-                    MessageRoleConstants.User => 1,
-                    MessageRoleConstants.Assistant => 2,
-                    MessageRoleConstants.Tool => 3,
+                    MessageRoleEnumConstants.System => 0,
+                    MessageRoleEnumConstants.User => 1,
+                    MessageRoleEnumConstants.Assistant => 2,
+                    MessageRoleEnumConstants.Tool => 3,
                     _ => 4
                 }
             ));
@@ -92,10 +92,10 @@ public sealed class ContextCommand : ChatCommandBase
     {
         var avgCharsPerMessage = role.ToLower() switch
         {
-            MessageRoleConstants.System => 200,
-            MessageRoleConstants.User => 150,
-            MessageRoleConstants.Assistant => 500,
-            MessageRoleConstants.Tool => 300,
+            MessageRoleEnumConstants.System => 200,
+            MessageRoleEnumConstants.User => 150,
+            MessageRoleEnumConstants.Assistant => 500,
+            MessageRoleEnumConstants.Tool => 300,
             _ => 200
         };
         return count * avgCharsPerMessage / 4;

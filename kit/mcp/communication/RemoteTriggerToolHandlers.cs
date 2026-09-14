@@ -30,7 +30,7 @@ public partial class RemoteTriggerToolHandlers
     /// <param name="body">触发器配置（JSON 格式，create/update 时可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.RemoteTrigger, "Manage remote triggers (list/get/create/update/run)", "trigger")]
+    [McpTool(SystemToolNameEnumConstants.RemoteTrigger, "Manage remote triggers (list/get/create/update/run)", "trigger")]
     public async Task<ToolResult> ManageRemoteTriggerAsync(
         [McpToolParameter("Action type: list/get/create/update/run", Required = false)] string action = "list",
         [McpToolParameter("Trigger ID (required for get/update/run)", Required = false)] string? trigger_id = null,

@@ -15,6 +15,6 @@ public sealed class DefaultElicitationHandler : IElicitationHandler
     /// <returns>始终返回 Action 为 Cancel 的 ElicitResult。</returns>
     public Task<ElicitResult> HandleElicitationAsync(string serverName, JsonRpcId requestId, ElicitRequestParams @params, CancellationToken cancellationToken)
     {
-        return Task.FromResult(new ElicitResult { Action = ElicitActionConstants.Cancel });
+        return Task.FromResult(new ElicitResult { Action = ElicitActionEnumConstants.Cancel });
     }
 }

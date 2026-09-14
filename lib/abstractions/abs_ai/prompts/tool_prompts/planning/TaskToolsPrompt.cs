@@ -5,7 +5,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// </summary>
 [ToolPrompt(ToolName = TaskToolName.TaskCreate, Category = ToolPromptCategory.Planning)]
 public static class TaskCreateToolPrompt {
-    public const string ToolName = TaskToolNameConstants.TaskCreate;
+    public const string ToolName = TaskToolNameEnumConstants.TaskCreate;
     public const string Description = "在任务列表中创建新任务";
 
     /// <summary>
@@ -69,7 +69,7 @@ public static class TaskCreateToolPrompt {
 /// </summary>
 [ToolPrompt(ToolName = TaskToolName.TaskGet, Category = ToolPromptCategory.Planning)]
 public static class TaskGetToolPrompt {
-    public const string ToolName = TaskToolNameConstants.TaskGet;
+    public const string ToolName = TaskToolNameEnumConstants.TaskGet;
     public const string Description = "通过 ID 从任务列表获取任务";
 
     public const string Prompt = @"
@@ -102,7 +102,7 @@ public static class TaskGetToolPrompt {
 /// </summary>
 [ToolPrompt(ToolName = TaskToolName.TaskList, Category = ToolPromptCategory.Planning)]
 public static class TaskListToolPrompt {
-    public const string ToolName = TaskToolNameConstants.TaskList;
+    public const string ToolName = TaskToolNameEnumConstants.TaskList;
     public const string Description = "列出任务列表中的所有任务";
 
     /// <summary>
@@ -157,7 +157,7 @@ public static class TaskListToolPrompt {
 /// </summary>
 [ToolPrompt(ToolName = TaskToolName.TaskUpdate, Category = ToolPromptCategory.Planning)]
 public static class TaskUpdateToolPrompt {
-    public const string ToolName = TaskToolNameConstants.TaskUpdate;
+    public const string ToolName = TaskToolNameEnumConstants.TaskUpdate;
     public const string Description = "更新任务列表中的任务";
 
     public const string Prompt = @"
@@ -243,7 +243,7 @@ public static class TaskUpdateToolPrompt {
 /// </summary>
 [ToolPrompt(ToolName = TaskToolName.TaskStop, Category = ToolPromptCategory.Planning)]
 public static class TaskStopToolPrompt {
-    public const string ToolName = TaskToolNameConstants.TaskStop;
+    public const string ToolName = TaskToolNameEnumConstants.TaskStop;
 
     public const string Description = @"
         - 通过其 ID 停止正在运行的后台任务

@@ -29,11 +29,11 @@ public class OpenAIEnumsTests
     }
 
     [Fact]
-    public void OpenAIFinishReasonConstants_MatchEnumValues()
+    public void OpenAIFinishReasonEnumConstants_MatchEnumValues()
     {
-        OpenAIFinishReasonConstants.Stop.Should().Be("stop");
-        OpenAIFinishReasonConstants.Length.Should().Be("length");
-        OpenAIFinishReasonConstants.ToolCalls.Should().Be("tool_calls");
-        OpenAIFinishReasonConstants.ContentFilter.Should().Be("content_filter");
+        OpenAIFinishReasonEnumConstants.Stop.Should().Be("stop");
+        OpenAIFinishReasonEnumConstants.Length.Should().Be("length");
+        OpenAIFinishReasonEnumConstants.ToolCalls.Should().Be("tool_calls");
+        OpenAIFinishReasonEnumConstants.ContentFilter.Should().Be("content_filter");
     }
 }

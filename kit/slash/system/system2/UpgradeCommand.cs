@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /upgrade 命令 — 对齐 TS upgrade.ts + ADR 0064 自动更新
 /// 支持参数: check(默认) / force / download / apply / auto
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Upgrade, Description = "检查并执行自升级", Usage = "/upgrade [check|force|download|apply|auto]", Category = ChatCommandCategory.System, ArgumentHint = "[check|force|download|apply|auto]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Upgrade, Description = "检查并执行自升级", Usage = "/upgrade [check|force|download|apply|auto]", Category = ChatCommandCategory.System, ArgumentHint = "[check|force|download|apply|auto]")]
 [ChatCommandArg("action", Type = "string", Description = "升级操作", Enum = new[] { "check", "force", "download", "apply", "auto" })]
 public sealed class UpgradeCommand : ChatCommandBase
 {

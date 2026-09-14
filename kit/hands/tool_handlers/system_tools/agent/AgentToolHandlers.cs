@@ -102,7 +102,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 创建并启动子代理
     /// </summary>
-    [McpTool(AgentToolNameConstants.Agent, "Create and launch a sub-agent to handle a task", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.Agent, "Create and launch a sub-agent to handle a task", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> CreateAgentAsync(
         [McpToolOptions] AgentCreateOptions options,
         CancellationToken cancellationToken = default)
@@ -308,7 +308,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 列出可用的代理类型
     /// </summary>
-    [McpTool(AgentToolNameConstants.AgentList, "List available agent types", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
+    [McpTool(AgentToolNameEnumConstants.AgentList, "List available agent types", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> ListAgentTypesAsync(
         CancellationToken cancellationToken = default)
     {
@@ -343,7 +343,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 获取代理状态
     /// </summary>
-    [McpTool(AgentToolNameConstants.AgentStatus, "Get agent status", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
+    [McpTool(AgentToolNameEnumConstants.AgentStatus, "Get agent status", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> GetAgentStatusAsync(
         [McpToolParameter("Agent ID or name")] string agent_id,
         CancellationToken cancellationToken = default)
@@ -418,7 +418,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 停止代理
     /// </summary>
-    [McpTool(AgentToolNameConstants.AgentStop, "Stop a running agent", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
+    [McpTool(AgentToolNameEnumConstants.AgentStop, "Stop a running agent", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> StopAgentAsync(
         [McpToolParameter("Agent ID or name")] string agent_id,
         CancellationToken cancellationToken = default)
@@ -464,7 +464,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 列出所有运行中的代理 — 同时包含 dry-run 模式的代理
     /// </summary>
-    [McpTool(AgentToolNameConstants.AgentRunning, "List all running agents", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
+    [McpTool(AgentToolNameEnumConstants.AgentRunning, "List all running agents", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> AgentListAsync(
         CancellationToken cancellationToken = default)
     {
@@ -542,7 +542,7 @@ public partial class AgentToolHandlers
     /// 向运行中的代理发送消息 — 对齐 TS SendMessageTool
     /// 支持: 按名称/ID发送、广播(to="*")、结构化消息(shutdown_request/plan_approval_response)
     /// </summary>
-    [McpTool(AgentToolNameConstants.AgentSendMessage, "Send a message to another agent", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.AgentSendMessage, "Send a message to another agent", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> SendMessageAsync(
         [McpToolParameter("Recipient: teammate name, agent ID, or '*' for broadcast")] string to,
         [McpToolParameter("Message content (plain text or structured JSON)")] string message,
@@ -736,7 +736,7 @@ public partial class AgentToolHandlers
     /// 将用户输入转发给运行中的子代理 — 主代理 LLM 协同决策时调用
     /// 用户在子代理运行期间追加的输入，通过 IAgentInputForwardQueue 入队，子代理每轮 LLM 调用前主动消费
     /// </summary>
-    [McpTool(AgentToolNameConstants.ForwardUserInput, "Forward user input to a running sub-agent", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.ForwardUserInput, "Forward user input to a running sub-agent", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> ForwardUserInputAsync(
         [McpToolParameter("Target sub-agent ID")] string agentId,
         [McpToolParameter("User input to forward")] string userInput,
@@ -794,7 +794,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 获取代理的待处理消息
     /// </summary>
-    [McpTool(AgentToolNameConstants.AgentGetMessages, "Get pending messages for an agent", AgentToolNameConstants.Agent, ConcurrencySafe = true)]
+    [McpTool(AgentToolNameEnumConstants.AgentGetMessages, "Get pending messages for an agent", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> GetMessagesAsync(
         [McpToolParameter("Agent ID")] string agent_id,
         CancellationToken cancellationToken = default)

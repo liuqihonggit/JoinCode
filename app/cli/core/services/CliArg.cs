@@ -2,111 +2,111 @@ namespace JoinCode;
 
 /// <summary>
 /// 命令行参数枚举 — [CliOption] 由 CliOptionGenerator 自动生成 CliArgParser + CliArgParseResult
-/// 参数名引用 JccCliArgConstants（由 JccCliArg 枚举 + [EnumValue] 生成），确保参数名单一数据源
+/// 参数名引用 JccCliArgEnumConstants（由 JccCliArg 枚举 + [EnumValue] 生成），确保参数名单一数据源
 /// </summary>
 public enum CliArg
 {
     /// <summary>显示帮助信息</summary>
-    [CliOption(JccCliArgConstants.Help, "-h", "显示帮助信息", Category = "基础")]
+    [CliOption(JccCliArgEnumConstants.Help, "-h", "显示帮助信息", Category = "基础")]
     Help,
 
     /// <summary>显示版本信息</summary>
-    [CliOption(JccCliArgConstants.Version, "-v", "显示版本信息", Category = "基础")]
+    [CliOption(JccCliArgEnumConstants.Version, "-v", "显示版本信息", Category = "基础")]
     Version,
 
     /// <summary>命名管道通信</summary>
-    [CliOption(JccCliArgConstants.Pipe, "", "命名管道通信", AcceptsValue = true, Category = "基础")]
+    [CliOption(JccCliArgEnumConstants.Pipe, "", "命名管道通信", AcceptsValue = true, Category = "基础")]
     Pipe,
 
     /// <summary>非交互模式提示词</summary>
-    [CliOption(JccCliArgConstants.Prompt, "-p", "非交互模式提示词", AcceptsValue = true, Category = "基础", Example = "jcc -p \"解释这段代码\"")]
+    [CliOption(JccCliArgEnumConstants.Prompt, "-p", "非交互模式提示词", AcceptsValue = true, Category = "基础", Example = "jcc -p \"解释这段代码\"")]
     Prompt,
 
     /// <summary>指定模型</summary>
-    [CliOption(JccCliArgConstants.Model, "-m", "指定模型", AcceptsValue = true, Category = "基础", Example = "jcc -m gpt-4o -p \"hello\"", EnvVar = "JCC_MODEL_ID")]
+    [CliOption(JccCliArgEnumConstants.Model, "-m", "指定模型", AcceptsValue = true, Category = "基础", Example = "jcc -m gpt-4o -p \"hello\"", EnvVar = "JCC_MODEL_ID")]
     Model,
 
     /// <summary>切换供应商（自动匹配 settings.json vendor 预设中的同名配置）</summary>
-    [CliOption(JccCliArgConstants.Vendor, "", "切换供应商（自动匹配 settings.json vendor 预设中的同名配置）", AcceptsValue = true, Category = "基础", Example = "jcc --vendor agnes -p \"hello\"", EnvVar = "JCC_VENDOR")]
+    [CliOption(JccCliArgEnumConstants.Vendor, "", "切换供应商（自动匹配 settings.json vendor 预设中的同名配置）", AcceptsValue = true, Category = "基础", Example = "jcc --vendor agnes -p \"hello\"", EnvVar = "JCC_VENDOR")]
     Vendor,
 
     /// <summary>强制非交互模式</summary>
-    [CliOption(JccCliArgConstants.NonInteractive, "", "强制非交互模式", Category = "输出")]
+    [CliOption(JccCliArgEnumConstants.NonInteractive, "", "强制非交互模式", Category = "输出")]
     NonInteractive,
 
     /// <summary>跳过所有确认提示（AI 驱动用，走交互模式但不弹确认框）</summary>
-    [CliOption(JccCliArgConstants.NoConfirm, "", "跳过所有确认提示（AI 驱动用，走交互模式但不弹确认框）", Category = "权限")]
+    [CliOption(JccCliArgEnumConstants.NoConfirm, "", "跳过所有确认提示（AI 驱动用，走交互模式但不弹确认框）", Category = "权限")]
     NoConfirm,
 
     /// <summary>自动信任工作目录</summary>
-    [CliOption(JccCliArgConstants.Trust, "", "自动信任工作目录", Category = "权限", Example = "jcc --trust -p \"hello\"")]
+    [CliOption(JccCliArgEnumConstants.Trust, "", "自动信任工作目录", Category = "权限", Example = "jcc --trust -p \"hello\"")]
     Trust,
 
     /// <summary>强制交互模式（即使stdin重定向也启用REPL，用于E2E测试）</summary>
-    [CliOption(JccCliArgConstants.ForceInteractive, "", "强制交互模式（即使stdin重定向也启用REPL，用于E2E测试）", Category = "诊断")]
+    [CliOption(JccCliArgEnumConstants.ForceInteractive, "", "强制交互模式（即使stdin重定向也启用REPL，用于E2E测试）", Category = "诊断")]
     ForceInteractive,
 
     /// <summary>超时自动关闭秒数（超时返回 AwaitTimeout=1234，用于测试诊断卡死）</summary>
-    [CliOption(JccCliArgConstants.Await, "", "超时自动关闭秒数（超时返回 AwaitTimeout=1234，用于测试诊断卡死）", AcceptsValue = true, Category = "诊断", Example = "jcc --await 20 -p \"hello\"")]
+    [CliOption(JccCliArgEnumConstants.Await, "", "超时自动关闭秒数（超时返回 AwaitTimeout=1234，用于测试诊断卡死）", AcceptsValue = true, Category = "诊断", Example = "jcc --await 20 -p \"hello\"")]
     Await,
 
     /// <summary>启用调试日志输出（[WIRE] [STEP] [READY] 等，等效于 JCC_DEBUGLOG=1）</summary>
-    [CliOption(JccCliArgConstants.DebugLog, "-d", "启用调试日志输出（[WIRE] [STEP] [READY] 等，等效于 JCC_DEBUGLOG=1）", Category = "诊断", EnvVar = "JCC_DEBUGLOG")]
+    [CliOption(JccCliArgEnumConstants.DebugLog, "-d", "启用调试日志输出（[WIRE] [STEP] [READY] 等，等效于 JCC_DEBUGLOG=1）", Category = "诊断", EnvVar = "JCC_DEBUGLOG")]
     DebugLog,
 
     /// <summary>继续最近的会话（自动选择上次会话）</summary>
-    [CliOption(JccCliArgConstants.Continue, "-c", "继续最近的会话（自动选择上次会话）", Category = "会话", Example = "jcc -c")]
+    [CliOption(JccCliArgEnumConstants.Continue, "-c", "继续最近的会话（自动选择上次会话）", Category = "会话", Example = "jcc -c")]
     Continue,
 
     /// <summary>恢复指定会话（按 session-id 或标题关键字）</summary>
-    [CliOption(JccCliArgConstants.Resume, "-r", "恢复指定会话（按 session-id 或标题关键字）", AcceptsValue = true, Category = "会话", Example = "jcc -r abc123")]
+    [CliOption(JccCliArgEnumConstants.Resume, "-r", "恢复指定会话（按 session-id 或标题关键字）", AcceptsValue = true, Category = "会话", Example = "jcc -r abc123")]
     Resume,
 
     /// <summary>设置权限模式 (plan/auto/ask/bypass)</summary>
-    [CliOption(JccCliArgConstants.PermissionMode, "", "设置权限模式 (plan/auto/ask/bypass)", AcceptsValue = true, Category = "权限", RiskLevel = "write", EnvVar = "JCC_PERMISSION_MODE")]
+    [CliOption(JccCliArgEnumConstants.PermissionMode, "", "设置权限模式 (plan/auto/ask/bypass)", AcceptsValue = true, Category = "权限", RiskLevel = "write", EnvVar = "JCC_PERMISSION_MODE")]
     PermissionMode,
 
     /// <summary>跳过所有权限检查（等价于 --permission-mode bypass，仅在受信任环境使用）</summary>
-    [CliOption(JccCliArgConstants.DangerouslySkipPermissions, "", "跳过所有权限检查（等价于 --permission-mode bypass，仅在受信任环境使用）", Category = "权限", RiskLevel = "dangerous", AliasOf = JccCliArgConstants.PermissionMode, AliasValue = "bypass")]
+    [CliOption(JccCliArgEnumConstants.DangerouslySkipPermissions, "", "跳过所有权限检查（等价于 --permission-mode bypass，仅在受信任环境使用）", Category = "权限", RiskLevel = "dangerous", AliasOf = JccCliArgEnumConstants.PermissionMode, AliasValue = "bypass")]
     DangerouslySkipPermissions,
 
     /// <summary>工具白名单（逗号分隔，如 'Read,Edit,Bash(git:*)'），仅这些工具可用</summary>
-    [CliOption(JccCliArgConstants.AllowedTools, "", "工具白名单（逗号分隔，如 'Read,Edit,Bash(git:*)'），仅这些工具可用", AcceptsValue = true, Category = "权限")]
+    [CliOption(JccCliArgEnumConstants.AllowedTools, "", "工具白名单（逗号分隔，如 'Read,Edit,Bash(git:*)'），仅这些工具可用", AcceptsValue = true, Category = "权限")]
     AllowedTools,
 
     /// <summary>工具黑名单（逗号分隔），这些工具被禁用</summary>
-    [CliOption(JccCliArgConstants.DisallowedTools, "", "工具黑名单（逗号分隔），这些工具被禁用", AcceptsValue = true, Category = "权限")]
+    [CliOption(JccCliArgEnumConstants.DisallowedTools, "", "工具黑名单（逗号分隔），这些工具被禁用", AcceptsValue = true, Category = "权限")]
     DisallowedTools,
 
     /// <summary>替换系统提示词（完全覆盖默认系统提示词）</summary>
-    [CliOption(JccCliArgConstants.SystemPrompt, "", "替换系统提示词（完全覆盖默认系统提示词）", AcceptsValue = true, Category = "提示词")]
+    [CliOption(JccCliArgEnumConstants.SystemPrompt, "", "替换系统提示词（完全覆盖默认系统提示词）", AcceptsValue = true, Category = "提示词")]
     SystemPrompt,
 
     /// <summary>追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）</summary>
-    [CliOption(JccCliArgConstants.AppendSystemPrompt, "", "追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）", AcceptsValue = true, Category = "提示词")]
+    [CliOption(JccCliArgEnumConstants.AppendSystemPrompt, "", "追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）", AcceptsValue = true, Category = "提示词")]
     AppendSystemPrompt,
 
     /// <summary>结构化 JSON 输出模式（子命令和非交互模式生效，交互模式保持彩色输出）</summary>
-    [CliOption(JccCliArgConstants.Json, "", "结构化 JSON 输出模式（子命令和非交互模式生效，交互模式保持彩色输出）", Category = "输出", Example = "jcc mcp_list --json", AliasOf = JccCliArgConstants.Format, AliasValue = "json")]
+    [CliOption(JccCliArgEnumConstants.Json, "", "结构化 JSON 输出模式（子命令和非交互模式生效，交互模式保持彩色输出）", Category = "输出", Example = "jcc mcp_list --json", AliasOf = JccCliArgEnumConstants.Format, AliasValue = "json")]
     Json,
 
     /// <summary>输出格式 (text/json/ndjson)，默认 text</summary>
-    [CliOption(JccCliArgConstants.Format, "", "输出格式 (text/json/ndjson)，默认 text", AcceptsValue = true, Category = "输出")]
+    [CliOption(JccCliArgEnumConstants.Format, "", "输出格式 (text/json/ndjson)，默认 text", AcceptsValue = true, Category = "输出")]
     Format,
 
     /// <summary>试跑模式：只显示将要执行的操作，不实际执行</summary>
-    [CliOption(JccCliArgConstants.DryRun, "", "试跑模式：只显示将要执行的操作，不实际执行", Category = "权限", RiskLevel = "read", Example = "jcc --dry-run -p \"删除文件\"")]
+    [CliOption(JccCliArgEnumConstants.DryRun, "", "试跑模式：只显示将要执行的操作，不实际执行", Category = "权限", RiskLevel = "read", Example = "jcc --dry-run -p \"删除文件\"")]
     DryRun,
 
     /// <summary>跳过所有确认提示（等价于 --no-confirm，对齐架构指南 AX 模式）</summary>
-    [CliOption(JccCliArgConstants.Yes, "-y", "跳过所有确认提示（等价于 --no-confirm，对齐架构指南 AX 模式）", Category = "权限", Example = "jcc -y -p \"hello\"", AliasOf = JccCliArgConstants.NoConfirm)]
+    [CliOption(JccCliArgEnumConstants.Yes, "-y", "跳过所有确认提示（等价于 --no-confirm，对齐架构指南 AX 模式）", Category = "权限", Example = "jcc -y -p \"hello\"", AliasOf = JccCliArgEnumConstants.NoConfirm)]
     Yes,
 
     /// <summary>强制执行：跳过权限检查和确认（等价于 --permission-mode bypass）</summary>
-    [CliOption(JccCliArgConstants.Force, "", "强制执行：跳过权限检查和确认（等价于 --permission-mode bypass）", Category = "权限", RiskLevel = "dangerous", AliasOf = JccCliArgConstants.PermissionMode, AliasValue = "bypass")]
+    [CliOption(JccCliArgEnumConstants.Force, "", "强制执行：跳过权限检查和确认（等价于 --permission-mode bypass）", Category = "权限", RiskLevel = "dangerous", AliasOf = JccCliArgEnumConstants.PermissionMode, AliasValue = "bypass")]
     Force,
 
     /// <summary>静默模式：只输出错误信息，抑制正常输出</summary>
-    [CliOption(JccCliArgConstants.Quiet, "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
+    [CliOption(JccCliArgEnumConstants.Quiet, "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
     Quiet,
 }

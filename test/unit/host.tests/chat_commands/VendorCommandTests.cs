@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// /vendor 供应商切换命令测试 — 运行时切换供应商并写回配置。
@@ -64,7 +64,7 @@ public sealed class VendorCommandTests
     [Fact]
     public void Name_Is_Vendor()
     {
-        new VendorCommand().Name.Should().Be(ChatCommandNameConstants.Vendor);
+        new VendorCommand().Name.Should().Be(ChatCommandNameEnumConstants.Vendor);
     }
 
     [Fact]

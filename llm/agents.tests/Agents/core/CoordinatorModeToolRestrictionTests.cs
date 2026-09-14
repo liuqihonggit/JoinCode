@@ -19,9 +19,9 @@ public sealed class CoordinatorModeToolRestrictionTests
 
             profile.Should().NotBeNull();
             profile!.AllowedTools.Should().NotBeNull();
-            profile.AllowedTools.Should().Contain(AgentToolNameConstants.Agent);
-            profile.AllowedTools.Should().Contain(AgentToolNameConstants.AgentSendMessage);
-            profile.AllowedTools.Should().Contain(TaskToolNameConstants.TaskStop);
+            profile.AllowedTools.Should().Contain(AgentToolNameEnumConstants.Agent);
+            profile.AllowedTools.Should().Contain(AgentToolNameEnumConstants.AgentSendMessage);
+            profile.AllowedTools.Should().Contain(TaskToolNameEnumConstants.TaskStop);
             profile.AllowedTools.Should().HaveCount(3);
         }
         finally

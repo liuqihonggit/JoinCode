@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /color 命令 — 对齐 TS color/color.ts
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：颜色设置+重置+列表
 /// 架构差异：TS 有多智能体颜色管理（AgentColorManager），C# 为终端颜色主题设置
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Color, Description = "设置终端颜色主题或测试颜色支持", Usage = "/color [theme|test|reset]", Category = ChatCommandCategory.Config, ArgumentHint = "[theme|test|reset]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Color, Description = "设置终端颜色主题或测试颜色支持", Usage = "/color [theme|test|reset]", Category = ChatCommandCategory.Config, ArgumentHint = "[theme|test|reset]")]
 [ChatCommandArg("action", Type = "string", Description = "颜色操作: theme=设置主题, test=测试颜色支持, reset=重置默认", Enum = new[] { "theme", "test", "reset" })]
 public sealed class ColorCommand : ChatCommandBase
 {
@@ -46,12 +46,12 @@ public sealed class ColorCommand : ChatCommandBase
 
         // 基础颜色
         TerminalHelper.WriteLine("基础颜色:");
-        TerminalHelper.WriteLine($"  {TerminalColors.Success}绿色(成功){AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  {TerminalColors.Error}红色(错误){AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  {TerminalColors.Warning}黄色(警告){AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  {TerminalColors.Muted}灰色(次要){AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  {TerminalColors.Primary}蓝色(主要){AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  {TerminalColors.Accent}青色(强调){AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Success}绿色(成功){AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Error}红色(错误){AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Warning}黄色(警告){AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Muted}灰色(次要){AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Primary}蓝色(主要){AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Accent}青色(强调){AnsiStyleEnumConstants.Reset}");
 
         TerminalHelper.NewLine();
 

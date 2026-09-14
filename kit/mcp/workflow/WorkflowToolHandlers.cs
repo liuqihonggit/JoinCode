@@ -101,7 +101,7 @@ public class WorkflowToolHandlers
     /// <param name="task">工作流任务描述</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(WorkflowToolNameConstants.McpAiWorkflowWorkflowExecute, "Execute workflow tasks for running and starting various automated workflows", "execution")]
+    [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowExecute, "Execute workflow tasks for running and starting various automated workflows", "execution")]
     public Task<ToolResult> WorkflowExecuteAsync(
         [McpToolParameter("Workflow task description, e.g.: Analyze code performance issues and provide optimization suggestions")] string task,
         CancellationToken cancellationToken = default)
@@ -124,7 +124,7 @@ public class WorkflowToolHandlers
     /// <param name="prompt">用户任务描述，AI 将据此创建并执行计划</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(WorkflowToolNameConstants.McpAiWorkflowPlanCreateAndExecute, "Create and execute plans for complex task planning", "execution")]
+    [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowPlanCreateAndExecute, "Create and execute plans for complex task planning", "execution")]
     public Task<ToolResult> PlanCreateAndExecuteAsync(
         [McpToolParameter("User task description, AI will create and execute a plan based on this, e.g.: Create a REST API project structure")] string prompt,
         CancellationToken cancellationToken = default)
@@ -147,7 +147,7 @@ public class WorkflowToolHandlers
     /// <param name="requirement">代码需求描述</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(WorkflowToolNameConstants.McpAiWorkflowWorkflowGenerateCode, "Generate code for writing programs, implementing features and developing modules", "code")]
+    [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowGenerateCode, "Generate code for writing programs, implementing features and developing modules", "code")]
     public Task<ToolResult> WorkflowGenerateCodeAsync(
         [McpToolParameter("Code requirement description, e.g.: Create a user authentication service with login and registration")] string requirement,
         CancellationToken cancellationToken = default)
@@ -171,7 +171,7 @@ public class WorkflowToolHandlers
     /// <param name="analysisType">分析类型：general/bugs/optimize/security（默认 general）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(WorkflowToolNameConstants.McpAiWorkflowWorkflowAnalyzeCode, "Analyze code for code review, bug detection, optimization suggestions and security audit", "code")]
+    [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowAnalyzeCode, "Analyze code for code review, bug detection, optimization suggestions and security audit", "code")]
     public Task<ToolResult> WorkflowAnalyzeCodeAsync(
         [McpToolParameter("Code to analyze")] string code,
         [McpToolParameter("Analysis type: general, bugs, optimize, security", Required = false, DefaultValue = "general")] string analysisType = "general",
@@ -200,7 +200,7 @@ public class WorkflowToolHandlers
     /// <param name="message">消息内容</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(WorkflowToolNameConstants.McpAiWorkflowWorkflowChat, "Chat with AI for communication and Q&A", "chat")]
+    [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowChat, "Chat with AI for communication and Q&A", "chat")]
     public Task<ToolResult> WorkflowChatAsync(
         [McpToolParameter("Message content")] string message,
         CancellationToken cancellationToken = default)
@@ -211,10 +211,10 @@ public class WorkflowToolHandlers
             async (cmd, ct) =>
             {
                 // 在提示词模式下，也记录对话历史
-                await RecordApiMessageAsync(MessageRoleConstants.User, cmd.Message, ct);
+                await RecordApiMessageAsync(MessageRoleEnumConstants.User, cmd.Message, ct);
                 var prompt = PromptTemplates.Chat(cmd.Message);
                 // 模拟助手回复
-                await RecordApiMessageAsync(MessageRoleConstants.Assistant, L.T(StringKey.WorkflowPromptModeReceivedMessage, cmd.Message), ct);
+                await RecordApiMessageAsync(MessageRoleEnumConstants.Assistant, L.T(StringKey.WorkflowPromptModeReceivedMessage, cmd.Message), ct);
                 return prompt;
             },
             async (cmd, ct) =>
@@ -230,7 +230,7 @@ public class WorkflowToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(WorkflowToolNameConstants.McpAiWorkflowWorkflowClearHistory, "Clear chat history", "chat")]
+    [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowClearHistory, "Clear chat history", "chat")]
     public async Task<ToolResult> WorkflowClearHistoryAsync(CancellationToken cancellationToken = default)
     {
         if (IsPromptOnlyMode())
@@ -254,7 +254,7 @@ public class WorkflowToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含聊天历史的工具执行结果</returns>
-    [McpTool(WorkflowToolNameConstants.McpAiWorkflowWorkflowGetHistory, "Get chat history records", "chat")]
+    [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowGetHistory, "Get chat history records", "chat")]
     public async Task<ToolResult> WorkflowGetHistoryAsync(CancellationToken cancellationToken = default)
     {
         if (IsPromptOnlyMode())

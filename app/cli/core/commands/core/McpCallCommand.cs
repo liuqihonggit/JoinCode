@@ -1,4 +1,4 @@
-namespace JoinCode.CliCommands;
+﻿namespace JoinCode.CliCommands;
 
 /// <summary>
 /// mcp_call 元命令 — 调用 MCP 工具。
@@ -18,10 +18,10 @@ internal static class McpCallCommand
             return 1;
         }
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
-        var argsFile = FlatSubCommandRouter.GetOptionValue(args, ToolCallArgConstants.ArgsFileLongName);
-        var argsStdin = FlatSubCommandRouter.HasFlag(args, ToolCallArgConstants.ArgsStdinLongName);
-        var vendor = FlatSubCommandRouter.GetOptionValue(args, CliArgConstants.VendorLongName);
-        var model = FlatSubCommandRouter.GetOptionValue(args, CliArgConstants.ModelLongName);
+        var argsFile = FlatSubCommandRouter.GetOptionValue(args, ToolCallArgCliOptionConstants.ArgsFileLongName);
+        var argsStdin = FlatSubCommandRouter.HasFlag(args, ToolCallArgCliOptionConstants.ArgsStdinLongName);
+        var vendor = FlatSubCommandRouter.GetOptionValue(args, CliArgCliOptionConstants.VendorLongName);
+        var model = FlatSubCommandRouter.GetOptionValue(args, CliArgCliOptionConstants.ModelLongName);
         string? argsJson = null;
         string[]? kvArgs = null;
         if (!argsStdin && argsFile is null)

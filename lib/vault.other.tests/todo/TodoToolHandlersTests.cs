@@ -38,7 +38,7 @@ public sealed class TodoToolHandlersTests
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
-            new(Content: "  ", Status: TodoStatusConstants.Pending, ActiveForm: "Spacing")
+            new(Content: "  ", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Spacing")
         };
 
         var result = await sut.TodoWriteAsync(todos).ConfigureAwait(true);
@@ -75,7 +75,7 @@ public sealed class TodoToolHandlersTests
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
-            new(Content: "Bad priority", Status: TodoStatusConstants.Pending, Priority: "urgent", ActiveForm: "Prioritizing")
+            new(Content: "Bad priority", Status: TodoStatusEnumConstants.Pending, Priority: "urgent", ActiveForm: "Prioritizing")
         };
 
         var result = await sut.TodoWriteAsync(todos).ConfigureAwait(true);
@@ -94,7 +94,7 @@ public sealed class TodoToolHandlersTests
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
-            new(Content: "Do work", Status: TodoStatusConstants.InProgress, ActiveForm: "Doing work")
+            new(Content: "Do work", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "Doing work")
         };
         _todoServiceMock.Setup(s => s.WriteTodosAsync(It.IsAny<List<TodoItemInput>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoServiceResult(true, 1, 0, 0, new List<TodoItem>()));
@@ -104,7 +104,7 @@ public sealed class TodoToolHandlersTests
         _todoServiceMock.Verify(s => s.WriteTodosAsync(It.Is<List<TodoItemInput>>(list =>
             list.Count == 1 &&
             list[0].Content == "Do work" &&
-            list[0].Priority == TodoPriorityConstants.Medium &&
+            list[0].Priority == TodoPriorityEnumConstants.Medium &&
             !string.IsNullOrEmpty(list[0].Id)), It.IsAny<CancellationToken>()), Times.Once);
         result.IsError.Should().BeFalse();
     }
@@ -115,7 +115,7 @@ public sealed class TodoToolHandlersTests
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
-            new(Content: "Fail", Status: TodoStatusConstants.Pending, ActiveForm: "Failing")
+            new(Content: "Fail", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Failing")
         };
         _todoServiceMock.Setup(s => s.WriteTodosAsync(It.IsAny<List<TodoItemInput>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoServiceResult(false, 0, 0, 0, new List<TodoItem>(), "boom"));
@@ -134,9 +134,9 @@ public sealed class TodoToolHandlersTests
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
-            new(Content: "A", Status: TodoStatusConstants.Completed, ActiveForm: "Completing A"),
-            new(Content: "B", Status: TodoStatusConstants.Completed, ActiveForm: "Completing B"),
-            new(Content: "C", Status: TodoStatusConstants.Completed, ActiveForm: "Completing C")
+            new(Content: "A", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Completing A"),
+            new(Content: "B", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Completing B"),
+            new(Content: "C", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Completing C")
         };
 
         var result = await sut.TodoWriteAsync(todos).ConfigureAwait(true);
@@ -153,8 +153,8 @@ public sealed class TodoToolHandlersTests
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
-            new(Content: "A", Status: TodoStatusConstants.Completed, ActiveForm: "Completing A"),
-            new(Content: "B", Status: TodoStatusConstants.Completed, ActiveForm: "Completing B")
+            new(Content: "A", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Completing A"),
+            new(Content: "B", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Completing B")
         };
 
         var result = await sut.TodoWriteAsync(todos).ConfigureAwait(true);
@@ -168,9 +168,9 @@ public sealed class TodoToolHandlersTests
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
-            new(Content: "verify output", Status: TodoStatusConstants.Completed, ActiveForm: "Verifying output"),
-            new(Content: "B", Status: TodoStatusConstants.Completed, ActiveForm: "Completing B"),
-            new(Content: "C", Status: TodoStatusConstants.Completed, ActiveForm: "Completing C")
+            new(Content: "verify output", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Verifying output"),
+            new(Content: "B", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Completing B"),
+            new(Content: "C", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Completing C")
         };
 
         var result = await sut.TodoWriteAsync(todos).ConfigureAwait(true);
@@ -239,8 +239,8 @@ public sealed class TodoToolHandlersTests
         var sut = CreateSut();
         var items = new List<TodoItem>
         {
-            new("id1", "Task one", TodoStatusConstants.InProgress, TodoPriorityConstants.High, ActiveForm: "Doing task one"),
-            new("id2", "Task two", TodoStatusConstants.Pending, TodoPriorityConstants.Low, ActiveForm: "Doing task two")
+            new("id1", "Task one", TodoStatusEnumConstants.InProgress, TodoPriorityEnumConstants.High, ActiveForm: "Doing task one"),
+            new("id2", "Task two", TodoStatusEnumConstants.Pending, TodoPriorityEnumConstants.Low, ActiveForm: "Doing task two")
         };
         _todoServiceMock.Setup(s => s.ListTodosAsync(null, null, false, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TodoListResult(true, items));
@@ -316,7 +316,7 @@ public sealed class TodoToolHandlersTests
     public async Task TodoUpdateAsync_Success_IncludesSummary()
     {
         var sut = CreateSut();
-        var updated = new TodoItem("id", "New content", TodoStatusConstants.Completed, TodoPriorityConstants.Medium, ActiveForm: "Doing new");
+        var updated = new TodoItem("id", "New content", TodoStatusEnumConstants.Completed, TodoPriorityEnumConstants.Medium, ActiveForm: "Doing new");
         _todoServiceMock.Setup(s => s.UpdateTodoAsync("id", "New content", null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(OperationResult<TodoItem?>.Ok(updated));
 

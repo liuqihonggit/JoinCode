@@ -32,7 +32,7 @@ public class WorktreeToolHandlers
     /// <summary>
     /// 创建代理Worktree
     /// </summary>
-    [McpTool(WorktreeToolNameConstants.WorktreeCreate, "Create a Git Worktree isolated environment for an agent", "worktree")]
+    [McpTool(WorktreeToolNameEnumConstants.WorktreeCreate, "Create a Git Worktree isolated environment for an agent", "worktree")]
     public async Task<ToolResult> WorktreeCreateAsync(
         [McpToolParameter("Agent ID")] string agent_id,
         [McpToolParameter("Git repository root directory (optional, auto-detected)", Required = false)] string? git_root = null,
@@ -78,7 +78,7 @@ public class WorktreeToolHandlers
     /// <summary>
     /// 移除代理Worktree
     /// </summary>
-    [McpTool(WorktreeToolNameConstants.WorktreeRemove, "Remove an agent's Git Worktree", "worktree")]
+    [McpTool(WorktreeToolNameEnumConstants.WorktreeRemove, "Remove an agent's Git Worktree", "worktree")]
     public async Task<ToolResult> WorktreeRemoveAsync(
         [McpToolParameter("Agent ID")] string agent_id,
         [McpToolParameter("Force remove (even with uncommitted changes)", Required = false, DefaultValue = "false")] bool? force = null,
@@ -130,7 +130,7 @@ public class WorktreeToolHandlers
     /// <summary>
     /// 列出所有Worktree会话
     /// </summary>
-    [McpTool(WorktreeToolNameConstants.WorktreeList, "List all active Worktree sessions", "worktree")]
+    [McpTool(WorktreeToolNameEnumConstants.WorktreeList, "List all active Worktree sessions", "worktree")]
     public async Task<ToolResult> WorktreeListAsync(
         CancellationToken cancellationToken = default)
     {
@@ -163,7 +163,7 @@ public class WorktreeToolHandlers
     /// <summary>
     /// 获取Worktree会话详情
     /// </summary>
-    [McpTool(WorktreeToolNameConstants.WorktreeStatus, "Get detailed status of an agent's Worktree", "worktree")]
+    [McpTool(WorktreeToolNameEnumConstants.WorktreeStatus, "Get detailed status of an agent's Worktree", "worktree")]
     public async Task<ToolResult> WorktreeStatusAsync(
         [McpToolParameter("Agent ID")] string agent_id,
         CancellationToken cancellationToken = default)
@@ -208,7 +208,7 @@ public class WorktreeToolHandlers
     /// <summary>
     /// 清理过期Worktree
     /// </summary>
-    [McpTool(WorktreeToolNameConstants.WorktreeCleanup, "Clean up stale Worktree sessions", "worktree")]
+    [McpTool(WorktreeToolNameEnumConstants.WorktreeCleanup, "Clean up stale Worktree sessions", "worktree")]
     public async Task<ToolResult> WorktreeCleanupAsync(
         [McpToolParameter("Stale timeout in hours (default 24)", Required = false)] int? stale_hours = null,
         [McpToolParameter("Confirm execution (enter 'yes' to confirm)")] string? confirm = null,
@@ -240,7 +240,7 @@ public class WorktreeToolHandlers
     /// <summary>
     /// 查找Git仓库根目录
     /// </summary>
-    [McpTool(WorktreeToolNameConstants.WorktreeFindGit, "Find the Git repository root directory for a given path", "worktree")]
+    [McpTool(WorktreeToolNameEnumConstants.WorktreeFindGit, "Find the Git repository root directory for a given path", "worktree")]
     public async Task<ToolResult> WorktreeFindGitAsync(
         [McpToolParameter("Start path (optional, defaults to current directory)", Required = false)] string? start_path = null,
         CancellationToken cancellationToken = default)
@@ -278,7 +278,7 @@ public class WorktreeToolHandlers
     /// <summary>
     /// 列出所有Worktree
     /// </summary>
-    [McpTool(WorktreeToolNameConstants.WorktreeListAll, "List all Worktrees in a Git repository", "worktree")]
+    [McpTool(WorktreeToolNameEnumConstants.WorktreeListAll, "List all Worktrees in a Git repository", "worktree")]
     public async Task<ToolResult> WorktreeListAllAsync(
         [McpToolParameter("Git repository root directory (optional, auto-detected)", Required = false)] string? git_root = null,
         CancellationToken cancellationToken = default)
@@ -316,7 +316,7 @@ public class WorktreeToolHandlers
     /// <param name="strategy">合并策略：fail/ours/theirs/auto_merge（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(WorktreeToolNameConstants.WorktreeMerge, "Merge a source Worktree changes into a target Worktree", "worktree")]
+    [McpTool(WorktreeToolNameEnumConstants.WorktreeMerge, "Merge a source Worktree changes into a target Worktree", "worktree")]
     public async Task<ToolResult> WorktreeMergeAsync(
         [McpToolParameter("Source worktree path (the worktree whose changes will be merged)")] string source_worktree_path,
         [McpToolParameter("Target worktree path (the worktree to merge changes into)")] string target_worktree_path,

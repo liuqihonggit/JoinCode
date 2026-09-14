@@ -9,14 +9,14 @@ public sealed class RealApiCacheTests
         Infrastructure.IO.Configuration.EnvFileLoader.LoadFromDirectory(new IO.FileSystem.PhysicalFileSystem());
     }
 
-    private static bool HasAnthropicKey => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey));
-    private static bool HasOpenAIKey => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey));
+    private static bool HasAnthropicKey => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.AnthropicApiKey));
+    private static bool HasOpenAIKey => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey));
 
     private static HttpClient CreateAnthropicClient()
     {
-        var apiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.AnthropicApiKey);
+        var apiKey = Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.AnthropicApiKey);
         if (string.IsNullOrEmpty(apiKey))
-            throw new InvalidOperationException($"[GEN045] {ProviderEnvVarConstants.AnthropicApiKey} 环境变量未设置");
+            throw new InvalidOperationException($"[GEN045] {ProviderEnvVarEnumConstants.AnthropicApiKey} 环境变量未设置");
 
         var client = new HttpClient
         {
@@ -30,9 +30,9 @@ public sealed class RealApiCacheTests
 
     private static HttpClient CreateOpenAIClient()
     {
-        var apiKey = Environment.GetEnvironmentVariable(ProviderEnvVarConstants.OpenAiApiKey);
+        var apiKey = Environment.GetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey);
         if (string.IsNullOrEmpty(apiKey))
-            throw new InvalidOperationException($"[GEN046] {ProviderEnvVarConstants.OpenAiApiKey} 环境变量未设置");
+            throw new InvalidOperationException($"[GEN046] {ProviderEnvVarEnumConstants.OpenAiApiKey} 环境变量未设置");
 
         var client = new HttpClient
         {

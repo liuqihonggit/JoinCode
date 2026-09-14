@@ -54,7 +54,7 @@ public sealed class IntentReporter : IIntentReporter
             {
                 FromAgentId = workerId,
                 ToAgentId = captainId,
-                MessageType = TeammateMessageTypeConstants.IntentReport,
+                MessageType = TeammateMessageTypeEnumConstants.IntentReport,
                 Content = FormattableString.Invariant($"Worker {workerId} 上报热文件契约修改: {string.Join(", ", distinctFiles)}"),
                 StructuredType = TeammateMessageType.IntentReport
             };

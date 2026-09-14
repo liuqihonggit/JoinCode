@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// McpAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / McpActionConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / McpActionEnumConstants 常量值
 /// 4 个枚举值(status/reconnect/enable/disable)
 /// </summary>
 public sealed class McpActionExtensionsTests
@@ -85,10 +85,10 @@ public sealed class McpActionExtensionsTests
     [Fact]
     public void Constants_All_Should_Match_EnumValues()
     {
-        McpActionConstants.Status.Should().Be("status");
-        McpActionConstants.Reconnect.Should().Be("reconnect");
-        McpActionConstants.Enable.Should().Be("enable");
-        McpActionConstants.Disable.Should().Be("disable");
+        McpActionEnumConstants.Status.Should().Be("status");
+        McpActionEnumConstants.Reconnect.Should().Be("reconnect");
+        McpActionEnumConstants.Enable.Should().Be("enable");
+        McpActionEnumConstants.Disable.Should().Be("disable");
     }
 
     // ===== 枚举值数量验证 =====

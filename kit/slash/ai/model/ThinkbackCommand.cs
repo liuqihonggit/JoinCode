@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /thinkback 命令 — 回放 AI 的思考过程记录
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Thinkback, Description = "回放 AI 的思考过程", Usage = "/thinkback [count]", Category = ChatCommandCategory.Model, ArgumentHint = "[count]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Thinkback, Description = "回放 AI 的思考过程", Usage = "/thinkback [count]", Category = ChatCommandCategory.Model, ArgumentHint = "[count]")]
 [ChatCommandArg("count", Type = "number", Description = "回放最近 N 条思考记录,省略或非法时默认 1", Default = "1")]
 public sealed class ThinkbackCommand : ChatCommandBase
 {
@@ -18,7 +18,7 @@ public sealed class ThinkbackCommand : ChatCommandBase
         var services = context.GetCommandServices();
         if (services.ThinkingStore is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}思考存储不可用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}思考存储不可用{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -56,7 +56,7 @@ public sealed class ThinkbackCommand : ChatCommandBase
                 var lines = entry.Content.Split('\n');
                 foreach (var line in lines)
                 {
-                    TerminalHelper.WriteLine($"{AnsiStyleConstants.Dim}{AnsiStyleConstants.Italic}  {line}{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}{AnsiStyleEnumConstants.Italic}  {line}{AnsiStyleEnumConstants.Reset}");
                 }
 
                 TerminalHelper.NewLine();

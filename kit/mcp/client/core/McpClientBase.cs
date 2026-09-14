@@ -1,4 +1,4 @@
-
+﻿
 namespace McpClient;
 
 /// <summary>
@@ -99,7 +99,7 @@ public abstract class McpClientBase : IMcpClient
     {
         var method = request.Method;
 
-        if (method == McpMethodConstants.ElicitationCreate)
+        if (method == McpMethodEnumConstants.ElicitationCreate)
         {
             await HandleElicitationRequestAsync(request, cancellationToken).ConfigureAwait(false);
             return;
@@ -406,7 +406,7 @@ public abstract class McpClientBase : IMcpClient
                             onProgress(new McpToolProgress
                             {
                                 Type = "mcp_progress",
-                                Status = McpProgressStatusConstants.Progress,
+                                Status = McpProgressStatusEnumConstants.Progress,
                                 Progress = progress,
                                 Total = total,
                                 ProgressMessage = message

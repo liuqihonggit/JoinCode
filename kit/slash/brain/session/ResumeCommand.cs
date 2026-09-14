@@ -1,17 +1,17 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /resume 命令 - 恢复会话
 /// 对齐 TS: src/commands/resume/resume.tsx
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Resume, Description = "恢复之前的会话", Usage = "/resume [session-id]", Aliases = ["continue"], ArgumentHint = "[conversation id or search term]", Category = ChatCommandCategory.Session)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Resume, Description = "恢复之前的会话", Usage = "/resume [session-id]", Aliases = ["continue"], ArgumentHint = "[conversation id or search term]", Category = ChatCommandCategory.Session)]
 [ChatCommandArg("session-id", Type = "string", Description = "会话 ID(UUID 精确匹配)或自定义标题搜索关键词,省略时进入交互式会话列表选择器")]
 public sealed class ResumeCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
     /// <summary>命令名称。</summary>
-    public override string Name => ChatCommandNameConstants.Resume;
+    public override string Name => ChatCommandNameEnumConstants.Resume;
     /// <summary>命令描述。</summary>
     public override string Description => "恢复之前的会话";
     /// <summary>命令用法提示。</summary>
@@ -84,8 +84,8 @@ public sealed class ResumeCommand : ChatCommandBase
         if (titleMatches.Count == 0)
         {
             // 对齐 TS: ResumeResult.sessionNotFound
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeNotFound), searchTerm)}{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostResumeHintList)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeNotFound), searchTerm)}{AnsiStyleEnumConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostResumeHintList)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -98,7 +98,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
         // 多匹配 → 报错提示
         // 对齐 TS: ResumeResult.multipleMatches
-        TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeMultipleMatches), searchTerm)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeMultipleMatches), searchTerm)}{AnsiStyleEnumConstants.Reset}");
         foreach (var match in titleMatches.Take(5))
         {
             var title = string.IsNullOrEmpty(match.CustomTitle) ? match.Id[..Math.Min(8, match.Id.Length)] + "..." : match.CustomTitle;
@@ -110,7 +110,7 @@ public sealed class ResumeCommand : ChatCommandBase
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostResumeMoreMatches), titleMatches.Count - 5));
         }
 
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostResumeRefineSearch)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostResumeRefineSearch)}{AnsiStyleEnumConstants.Reset}");
     }
 
     /// <summary>
@@ -237,7 +237,7 @@ public sealed class ResumeCommand : ChatCommandBase
         for (var i = 0; i < entries.Count; i++)
         {
             var entry = entries[i];
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleConstants.Reset} [{entry.SessionId[..Math.Min(8, entry.SessionId.Length)]}...] {entry.TimeAgo}{projectHint}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} [{entry.SessionId[..Math.Min(8, entry.SessionId.Length)]}...] {entry.TimeAgo}{projectHint}");
             TerminalHelper.WriteLine($"     {entry.Preview}");
         }
 
@@ -285,7 +285,7 @@ public sealed class ResumeCommand : ChatCommandBase
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeInvalidChoice)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeInvalidChoice)}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
@@ -362,20 +362,20 @@ public sealed class ResumeCommand : ChatCommandBase
         var transcriptService = ChatCommandBase.GetService<ITranscriptService>(context, typeof(ITranscriptService));
         if (transcriptService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}ITranscriptService 不可用，无法恢复会话{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}ITranscriptService 不可用，无法恢复会话{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         if (!await transcriptService.TranscriptExistsAsync(sessionId, context.CancellationToken).ConfigureAwait(false))
         {
             // 对齐 TS: ResumeResult.sessionNotFound
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeSessionNotFound), sessionId)}{AnsiStyleConstants.Reset}");
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostResumeHintList)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.HostResumeSessionNotFound), sessionId)}{AnsiStyleEnumConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.HostResumeHintList)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         // L3.5: 记录恢复入口
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}{string.Format(L.T(StringKey.HostResumeEntrypoint), entrypoint.ToValue())}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}{string.Format(L.T(StringKey.HostResumeEntrypoint), entrypoint.ToValue())}{AnsiStyleEnumConstants.Reset}");
 
         try
         {
@@ -387,7 +387,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
             if (messages.Count == 0)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeNoMessages)}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeNoMessages)}{AnsiStyleEnumConstants.Reset}");
                 return;
             }
 
@@ -424,7 +424,7 @@ public sealed class ResumeCommand : ChatCommandBase
 
             var customTitle = await transcriptService.GetCustomTitleAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
             var title = string.IsNullOrEmpty(customTitle) ? sessionId : customTitle;
-            TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.HostResumeRestored), title)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.HostResumeRestored), title)}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.HostResumeMessageCount), messages.Count));
 
             var recentEntries = entries
@@ -434,8 +434,8 @@ public sealed class ResumeCommand : ChatCommandBase
             {
                 var role = msg.Role switch
                 {
-                    MessageRoleConstants.User => "你",
-                    MessageRoleConstants.Assistant => "AI",
+                    MessageRoleEnumConstants.User => "你",
+                    MessageRoleEnumConstants.Assistant => "AI",
                     _ => msg.Role
                 };
 

@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /advisor 命令 — 配置顾问模型，设置或关闭顾问审查模式
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent, ArgumentHint = "[model|off]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Advisor, Description = "配置顾问模型", Usage = "/advisor [model|off]", Category = ChatCommandCategory.Agent, ArgumentHint = "[model|off]")]
 [ChatCommandArg("model", Type = "string", Description = "顾问模型名称,或 off 关闭顾问模式", Enum = new[] { "off" })]
 public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
@@ -46,7 +46,7 @@ public sealed class AdvisorCommand(IModelConfigLoader? modelConfigLoader = null)
             var allModelIds = _modelConfigLoader?.GetAllModelIds() ?? [];
             if (!allModelIds.Any(m => string.Equals(m, args, StringComparison.OrdinalIgnoreCase)))
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostAdvisorModelNotSupported, args)}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostAdvisorModelNotSupported, args)}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine(L.T(StringKey.HostAdvisorSupportedModelsLabel));
                 foreach (var model in allModelIds)
                 {

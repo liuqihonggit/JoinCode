@@ -1,4 +1,4 @@
-namespace Core.Tests.Commands;
+﻿namespace Core.Tests.Commands;
 
 /// <summary>
 /// /?? 需求澄清命令单元测试
@@ -10,7 +10,7 @@ public class AskClarifyCommandTests
     {
         var command = new AskClarifyCommand();
 
-        command.Name.Should().Be(ChatCommandNameConstants.AskClarify);
+        command.Name.Should().Be(ChatCommandNameEnumConstants.AskClarify);
         command.Name.Should().Be("??");
     }
 

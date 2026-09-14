@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /permissions 命令 — 管理权限规则和工作区目录
 /// 支持列出、添加、移除、清除权限规则,以及管理工作区额外目录
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Permissions, Description = "管理权限规则和工作区目录", Usage = "/permissions [list|add|remove|clear|workspace] [args]", Category = ChatCommandCategory.Config, Aliases = ["perm"], ArgumentHint = "[list|add|remove|clear|workspace]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Permissions, Description = "管理权限规则和工作区目录", Usage = "/permissions [list|add|remove|clear|workspace] [args]", Category = ChatCommandCategory.Config, Aliases = ["perm"], ArgumentHint = "[list|add|remove|clear|workspace]")]
 [ChatCommandArg("action", Type = "string", Description = "权限操作", Enum = new[] { "list", "add", "remove", "clear", "workspace" }, Default = "list")]
 [ChatCommandArg("args", Type = "string", Description = "操作特定参数,如 add 的权限规则")]
 public sealed class PermissionsCommand : ChatCommandBase
@@ -18,7 +18,7 @@ public sealed class PermissionsCommand : ChatCommandBase
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetSplitArgs(context);
-        var action = args.Length > 0 ? args[0].ToLowerInvariant() : CrudActionConstants.List;
+        var action = args.Length > 0 ? args[0].ToLowerInvariant() : CrudActionEnumConstants.List;
         var crudAction = CrudActionExtensions.FromValue(action);
         var permAction = PermissionsActionExtensions.FromValue(action);
 
@@ -45,7 +45,7 @@ public sealed class PermissionsCommand : ChatCommandBase
                 await ManageWorkspaceAsync(context, args);
                 break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsUnknownAction, action)}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine(L.T(StringKey.PermissionsAvailableActions));
                 break;
         }
@@ -58,7 +58,7 @@ public sealed class PermissionsCommand : ChatCommandBase
         var manager = context.GetCommandServices().PermissionManager;
         if (manager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -113,7 +113,7 @@ public sealed class PermissionsCommand : ChatCommandBase
         }
 
         sb.AppendLine();
-        sb.Append($"  {TerminalColors.Muted}{L.T(StringKey.PermissionsAddRuleHint)}{AnsiStyleConstants.Reset}");
+        sb.Append($"  {TerminalColors.Muted}{L.T(StringKey.PermissionsAddRuleHint)}{AnsiStyleEnumConstants.Reset}");
         return sb.ToString();
     }
 
@@ -155,9 +155,9 @@ public sealed class PermissionsCommand : ChatCommandBase
         }
 
         sb.AppendLine();
-        sb.Append($"  {TerminalColors.Muted}{L.T(StringKey.PermissionsAddWorkspaceHint)}{AnsiStyleConstants.Reset}");
+        sb.Append($"  {TerminalColors.Muted}{L.T(StringKey.PermissionsAddWorkspaceHint)}{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
-        sb.Append($"  {TerminalColors.Muted}{L.T(StringKey.PermissionsRemoveWorkspaceHint)}{AnsiStyleConstants.Reset}");
+        sb.Append($"  {TerminalColors.Muted}{L.T(StringKey.PermissionsRemoveWorkspaceHint)}{AnsiStyleEnumConstants.Reset}");
 
         await Task.CompletedTask.ConfigureAwait(false);
         return sb.ToString();
@@ -174,7 +174,7 @@ public sealed class PermissionsCommand : ChatCommandBase
             _ => TerminalColors.Muted
         };
 
-        sb.AppendLine($"{modeColor}    {rule.AgentPattern} {string.Format(L.T(StringKey.PermissionsRulePriorityLabel), rule.Priority, rule.Level)}{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{modeColor}    {rule.AgentPattern} {string.Format(L.T(StringKey.PermissionsRulePriorityLabel), rule.Priority, rule.Level)}{AnsiStyleEnumConstants.Reset}");
 
         if (!string.IsNullOrEmpty(rule.Description))
         {
@@ -206,7 +206,7 @@ public sealed class PermissionsCommand : ChatCommandBase
     {
         if (args.Length < 3)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsAddUsage)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsAddUsage)}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine(L.T(StringKey.PermissionsModeHint));
             TerminalHelper.WriteLine(L.T(StringKey.PermissionsAddExample));
             return;
@@ -215,7 +215,7 @@ public sealed class PermissionsCommand : ChatCommandBase
         var manager = context.GetCommandServices().PermissionManager;
         if (manager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -230,7 +230,7 @@ public sealed class PermissionsCommand : ChatCommandBase
 
         if (mode is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.PermissionsUnknownMode), modeStr)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.PermissionsUnknownMode), modeStr)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -245,21 +245,21 @@ public sealed class PermissionsCommand : ChatCommandBase
         };
 
         await manager.AddRuleAsync(rule, context.CancellationToken).ConfigureAwait(false);
-        TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.PermissionsAdded), agentPattern, mode.Value)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.PermissionsAdded), agentPattern, mode.Value)}{AnsiStyleEnumConstants.Reset}");
     }
 
     private static async Task RemoveRuleAsync(ChatCommandContext context, string[] args)
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsRemoveUsage)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsRemoveUsage)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var manager = context.GetCommandServices().PermissionManager;
         if (manager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -268,7 +268,7 @@ public sealed class PermissionsCommand : ChatCommandBase
 
         if (removed)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.PermissionsRemoved), agentPattern)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.PermissionsRemoved), agentPattern)}{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
@@ -281,7 +281,7 @@ public sealed class PermissionsCommand : ChatCommandBase
         var manager = context.GetCommandServices().PermissionManager;
         if (manager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.PermissionsManagerUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -293,12 +293,12 @@ public sealed class PermissionsCommand : ChatCommandBase
         }
 
         await manager.ClearRulesAsync(context.CancellationToken).ConfigureAwait(false);
-        TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.PermissionsCleared)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.PermissionsCleared)}{AnsiStyleEnumConstants.Reset}");
     }
 
     private static async Task ManageWorkspaceAsync(ChatCommandContext context, string[] args)
     {
-        var subAction = args.Length > 1 ? args[1].ToLowerInvariant() : CrudActionConstants.List;
+        var subAction = args.Length > 1 ? args[1].ToLowerInvariant() : CrudActionEnumConstants.List;
         var subCrudAction = CrudActionExtensions.FromValue(subAction);
         var subPermAction = PermissionsActionExtensions.FromValue(subAction);
 
@@ -324,7 +324,7 @@ public sealed class PermissionsCommand : ChatCommandBase
                 await ClearWorkspaceDirectoriesAsync(context);
                 break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.PermissionsUnknownWorkspaceAction), subAction)}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.PermissionsUnknownWorkspaceAction), subAction)}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine(L.T(StringKey.PermissionsWorkspaceAvailableActions));
                 break;
         }
@@ -334,14 +334,14 @@ public sealed class PermissionsCommand : ChatCommandBase
     {
         if (args.Length < 3)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsWorkspaceAddUsage)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsWorkspaceAddUsage)}{AnsiStyleEnumConstants.Reset}");
             return Task.CompletedTask;
         }
 
         var path = args[2];
         if (!context.GetCommandServices().FileSystem.DirectoryExists(path))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.PermissionsDirNotFound), path)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.PermissionsDirNotFound), path)}{AnsiStyleEnumConstants.Reset}");
             return Task.CompletedTask;
         }
 
@@ -360,7 +360,7 @@ public sealed class PermissionsCommand : ChatCommandBase
             var trustManager = ResolveTrustFolderManager(context);
             trustManager?.Trust(fullPath);
 
-            TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.PermissionsWorkspaceDirAdded), fullPath)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.PermissionsWorkspaceDirAdded), fullPath)}{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
@@ -374,7 +374,7 @@ public sealed class PermissionsCommand : ChatCommandBase
     {
         if (args.Length < 3)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsWorkspaceRemoveUsage)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsWorkspaceRemoveUsage)}{AnsiStyleEnumConstants.Reset}");
             return Task.CompletedTask;
         }
 
@@ -390,7 +390,7 @@ public sealed class PermissionsCommand : ChatCommandBase
         var removed = workspaceService.RemoveDirectory(path);
         if (removed)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.PermissionsWorkspaceDirRemoved), path)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.PermissionsWorkspaceDirRemoved), path)}{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
@@ -410,7 +410,7 @@ public sealed class PermissionsCommand : ChatCommandBase
         }
 
         workspaceService.Clear();
-        TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.PermissionsWorkspaceCleared)}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}{L.T(StringKey.PermissionsWorkspaceCleared)}{AnsiStyleEnumConstants.Reset}");
 
         return Task.CompletedTask;
     }

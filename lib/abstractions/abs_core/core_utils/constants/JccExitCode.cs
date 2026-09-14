@@ -1,7 +1,7 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
-/// jcc 退出码枚举 — 源码生成器自动生成 JccExitCodeConstants + JccExitCodeExtensions + JccExitCodeHelpText
+/// jcc 退出码枚举 — 源码生成器自动生成 JccExitCodeEnumConstants + JccExitCodeExtensions + JccExitCodeHelpText
 /// </summary>
 public enum JccExitCode
 {

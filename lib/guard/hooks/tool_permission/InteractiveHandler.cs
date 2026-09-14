@@ -192,7 +192,7 @@ public sealed partial class InteractiveHandler : ServiceEntity
 
             ctx.RemoveFromQueue();
 
-            if (response.Behavior == PermissionBehaviorConstants.Allow)
+            if (response.Behavior == PermissionBehaviorEnumConstants.Allow)
             {
                 // PermissionCallbackUpdate → PermissionUpdate 映射
                 var permissionUpdates = response.UpdatedPermissions?.ConvertAll(u =>

@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：API Key登录+OAuth登录+登录后刷新(成本重置+速率限制重置)
 /// 架构差异：TS 有 trustedDevice/growthbook/policyLimits 等 Anthropic 专有刷新，C# 为多 Provider 架构
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Login, Description = "登录到 AI 服务", Usage = "/login [provider] [--oauth]", Category = ChatCommandCategory.Auth)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Login, Description = "登录到 AI 服务", Usage = "/login [provider] [--oauth]", Category = ChatCommandCategory.Auth)]
 [ChatCommandArg("provider", Type = "string", Description = "AI 服务供应商名称")]
 [ChatCommandArg("oauth", Type = "boolean", Description = "使用 OAuth 登录而非 API Key", Default = "false")]
 public sealed class LoginCommand : ChatCommandBase
@@ -30,7 +30,7 @@ public sealed class LoginCommand : ChatCommandBase
         if (definition is null)
         {
             var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
-            TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的提供商: {providerName}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}不支持的提供商: {providerName}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"支持的提供商: {string.Join(", ", registry?.RegisteredProviders ?? [])}");
             return ChatCommandResult.Continue();
         }
@@ -83,7 +83,7 @@ public sealed class LoginCommand : ChatCommandBase
         var rateLimitTracker = context.GetCommandServices().RateLimitTracker;
         rateLimitTracker?.Clear();
 
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}  已重置成本和速率限制数据{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}  已重置成本和速率限制数据{AnsiStyleEnumConstants.Reset}");
 
         return Task.CompletedTask;
     }
@@ -101,7 +101,7 @@ public sealed class LoginCommand : ChatCommandBase
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}API Key 不能为空{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}API Key 不能为空{AnsiStyleEnumConstants.Reset}");
             return false;
         }
 
@@ -113,7 +113,7 @@ public sealed class LoginCommand : ChatCommandBase
             endpoint = context.Prompt?.Invoke(definition.EndpointPromptText ?? "请输入 Endpoint:");
             if (string.IsNullOrWhiteSpace(endpoint))
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{definition.EndpointRequiredMessage ?? "Endpoint 不能为空"}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{definition.EndpointRequiredMessage ?? "Endpoint 不能为空"}{AnsiStyleEnumConstants.Reset}");
                 return false;
             }
         }
@@ -121,7 +121,7 @@ public sealed class LoginCommand : ChatCommandBase
         var credentials = definition.SerializeAuthCredentials(apiKey, endpoint);
         await SaveAuthAsync(definition.ProviderName, credentials, fs).ConfigureAwait(false);
 
-        TerminalHelper.WriteLine($"{TerminalColors.Success}{definition.DisplayName} 登录成功！{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}{definition.DisplayName} 登录成功！{AnsiStyleEnumConstants.Reset}");
         return true;
     }
 
@@ -130,13 +130,13 @@ public sealed class LoginCommand : ChatCommandBase
         var services = context.GetCommandServices();
         if (services.PkceGenerator is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}PKCE 生成器未初始化，无法使用 OAuth 登录{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}PKCE 生成器未初始化，无法使用 OAuth 登录{AnsiStyleEnumConstants.Reset}");
             return false;
         }
 
         if (services.TokenStorage is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}Token 存储未初始化{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}Token 存储未初始化{AnsiStyleEnumConstants.Reset}");
             return false;
         }
 
@@ -145,7 +145,7 @@ public sealed class LoginCommand : ChatCommandBase
             var config = definition.GetOAuthConfig();
             if (config is null)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{definition.DisplayName} 不支持 OAuth 登录{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{definition.DisplayName} 不支持 OAuth 登录{AnsiStyleEnumConstants.Reset}");
                 return false;
             }
 
@@ -165,7 +165,7 @@ public sealed class LoginCommand : ChatCommandBase
 
             if (string.IsNullOrEmpty(code))
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}授权码不能为空{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}授权码不能为空{AnsiStyleEnumConstants.Reset}");
                 return false;
             }
 
@@ -174,7 +174,7 @@ public sealed class LoginCommand : ChatCommandBase
 
             await services.TokenStorage.SaveTokenAsync(definition.ProviderName, token, context.CancellationToken).ConfigureAwait(false);
 
-            TerminalHelper.WriteLine($"{TerminalColors.Success}{definition.DisplayName} OAuth 登录成功！{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}{definition.DisplayName} OAuth 登录成功！{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"令牌过期时间: {token.ExpiresAt:yyyy-MM-dd HH:mm:ss}");
             return true;
         }

@@ -30,7 +30,7 @@ public class MemoryExtensionToolHandlers
     /// <summary>
     /// 追加条目到助手日志
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryDailyLogAppend, "Append an entry to the assistant daily log", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryDailyLogAppend, "Append an entry to the assistant daily log", "memory")]
     public async Task<ToolResult> MemoryDailyLogAppendAsync(
         [McpToolParameter("Log content")] string content,
         [McpToolParameter("Log category (Action/Observation/Decision/Result, optional)", Required = false)] string? category = null,
@@ -66,7 +66,7 @@ public class MemoryExtensionToolHandlers
     /// <summary>
     /// 获取今日助手日志
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryDailyLogGet, "Get today's assistant daily log", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryDailyLogGet, "Get today's assistant daily log", "memory")]
     public async Task<ToolResult> MemoryDailyLogGetAsync(
         CancellationToken cancellationToken = default)
     {
@@ -88,7 +88,7 @@ public class MemoryExtensionToolHandlers
     /// <summary>
     /// 搜索过往对话记忆
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemorySearchHistory, "Search past conversation memories", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemorySearchHistory, "Search past conversation memories", "memory")]
     public async Task<ToolResult> MemorySearchHistoryAsync(
         [McpToolParameter("Search query")] string query,
         [McpToolParameter("Result count limit", Required = false, DefaultValue = "10")] int? limit = null,
@@ -147,7 +147,7 @@ public class MemoryExtensionToolHandlers
     /// <summary>
     /// 同步团队记忆
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryTeamSync, "Sync team memories", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryTeamSync, "Sync team memories", "memory")]
     public async Task<ToolResult> MemoryTeamSyncAsync(
         [McpToolParameter("Team ID")] string team_id,
         CancellationToken cancellationToken = default)
@@ -206,7 +206,7 @@ public class MemoryExtensionToolHandlers
     /// <summary>
     /// 获取团队同步状态
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryTeamStatus, "Get team sync status", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryTeamStatus, "Get team sync status", "memory")]
     public Task<ToolResult> MemoryTeamStatusAsync(
         [McpToolParameter("Team ID")] string team_id,
         CancellationToken cancellationToken = default)

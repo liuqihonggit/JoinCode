@@ -6,14 +6,14 @@ public sealed class ObjectTypeAndObjectIdManagerTests
     public void ObjectType_Plugin_Exists()
     {
         ((int)ObjectType.Plugin).Should().Be(20);
-        ObjectTypeConstants.Plugin.Should().Be("plugin");
+        ObjectTypeEnumConstants.Plugin.Should().Be("plugin");
     }
 
     [Fact]
     public void ObjectType_Resource_Exists()
     {
         ((int)ObjectType.Resource).Should().Be(21);
-        ObjectTypeConstants.Resource.Should().Be("resource");
+        ObjectTypeEnumConstants.Resource.Should().Be("resource");
     }
 
     [Fact]

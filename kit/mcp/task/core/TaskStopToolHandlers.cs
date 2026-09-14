@@ -33,7 +33,7 @@ public partial class TaskStopToolHandlers
     /// <param name="shell_id">已废弃：请使用 task_id（KillShell 兼容）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(TaskToolNameConstants.TaskStop, "Stop a running background task by ID", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskStop, "Stop a running background task by ID", "task")]
     public async Task<ToolResult> StopTaskAsync(
         [McpToolParameter("The ID of the background task to stop")] string? task_id = null,
         [McpToolParameter("Deprecated: use task_id instead (KillShell compat)", Required = false)] string? shell_id = null,
@@ -98,7 +98,7 @@ public partial class TaskStopToolHandlers
     /// <param name="task_ids">逗号分隔的任务 ID 列表</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(TaskToolNameConstants.TaskStopBatch, "Stop multiple running tasks", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskStopBatch, "Stop multiple running tasks", "task")]
     public async Task<ToolResult> StopTasksBatchAsync(
         [McpToolParameter("Comma-separated task IDs")] string task_ids,
         CancellationToken cancellationToken = default)
@@ -148,7 +148,7 @@ public partial class TaskStopToolHandlers
     /// <param name="type">类型过滤：task/agent/all（默认 all）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(TaskToolNameConstants.TaskListRunning, "List all running tasks", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskListRunning, "List all running tasks", "task")]
     public async Task<ToolResult> ListRunningTasksAsync(
         [McpToolParameter("Filter by type: task/agent/all", Required = false)] string? type = "all",
         CancellationToken cancellationToken = default)
@@ -180,7 +180,7 @@ public partial class TaskStopToolHandlers
             }
         }
 
-        if (type is "all" or AgentToolNameConstants.Agent)
+        if (type is "all" or AgentToolNameEnumConstants.Agent)
         {
             var agents = await _agentCoordinator.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
             var agentList = agents.ToList();

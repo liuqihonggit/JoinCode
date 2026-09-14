@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /config 命令 — 管理配置设置
 /// 支持获取、设置、列出、移除配置项,提供已知配置项的元数据描述
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Config, Description = "管理配置设置", Usage = "/config [get|set|list|remove] [key] [value]", Category = ChatCommandCategory.Config, ArgumentHint = "[get|set|list|remove]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Config, Description = "管理配置设置", Usage = "/config [get|set|list|remove] [key] [value]", Category = ChatCommandCategory.Config, ArgumentHint = "[get|set|list|remove]")]
 [ChatCommandArg("action", Type = "string", Description = "配置操作", Enum = new[] { "get", "set", "list", "remove" })]
 [ChatCommandArg("key", Type = "string", Description = "配置键名")]
 [ChatCommandArg("value", Type = "string", Description = "配置值（set 操作时需要）")]
@@ -51,13 +51,13 @@ public sealed class ConfigCommand : ChatCommandBase
             case "set":
                 await SetConfigAsync(context, args);
                 break;
-            case CrudActionConstants.Remove:
-            case CrudActionConstants.Delete:
-            case CrudActionConstants.Rm:
+            case CrudActionEnumConstants.Remove:
+            case CrudActionEnumConstants.Delete:
+            case CrudActionEnumConstants.Rm:
                 await RemoveConfigAsync(context, args);
                 break;
-            case CrudActionConstants.List:
-            case CrudActionConstants.Ls:
+            case CrudActionEnumConstants.List:
+            case CrudActionEnumConstants.Ls:
             default:
                 await ListConfigAsync(context);
                 break;
@@ -70,7 +70,7 @@ public sealed class ConfigCommand : ChatCommandBase
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config get <key>{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config get <key>{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -91,7 +91,7 @@ public sealed class ConfigCommand : ChatCommandBase
     {
         if (args.Length < 3)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config set <key> <value>{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config set <key> <value>{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -106,14 +106,14 @@ public sealed class ConfigCommand : ChatCommandBase
         var configService = ResolveConfigService(context);
         await configService.SetAsync(key, value, context.CancellationToken).ConfigureAwait(false);
 
-        TerminalHelper.WriteLine($"{TerminalColors.Success}已设置: {key} = {value}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}已设置: {key} = {value}{AnsiStyleEnumConstants.Reset}");
     }
 
     private static async Task RemoveConfigAsync(ChatCommandContext context, string[] args)
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config remove <key>{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config remove <key>{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -122,11 +122,11 @@ public sealed class ConfigCommand : ChatCommandBase
         var removed = await configService.RemoveAsync(key, context.CancellationToken).ConfigureAwait(false);
         if (!removed)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}配置项 '{key}' 不存在{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}配置项 '{key}' 不存在{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        TerminalHelper.WriteLine($"{TerminalColors.Success}已移除: {key}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}已移除: {key}{AnsiStyleEnumConstants.Reset}");
     }
 
     private static async Task ListConfigAsync(ChatCommandContext context)
@@ -163,7 +163,7 @@ public sealed class ConfigCommand : ChatCommandBase
         }
 
         sb.AppendLine();
-        sb.Append($"  {TerminalColors.Muted}使用 /config set <key> <value> 设置配置{AnsiStyleConstants.Reset}");
+        sb.Append($"  {TerminalColors.Muted}使用 /config set <key> <value> 设置配置{AnsiStyleEnumConstants.Reset}");
         return sb.ToString();
     }
 
@@ -174,14 +174,14 @@ public sealed class ConfigCommand : ChatCommandBase
         {
             var keyStr = kvp.Key.ToValue();
             var hasValue = config.ContainsKey(keyStr);
-            var marker = hasValue ? $" {TerminalColors.Success}✓{AnsiStyleConstants.Reset}" : "";
+            var marker = hasValue ? $" {TerminalColors.Success}✓{AnsiStyleEnumConstants.Reset}" : "";
             sb.AppendLine($"  {keyStr}{marker} - {kvp.Value}");
         }
 
         sb.AppendLine();
-        sb.Append($"  {TerminalColors.Muted}使用 /config set <key> <value> 设置配置{AnsiStyleConstants.Reset}");
+        sb.Append($"  {TerminalColors.Muted}使用 /config set <key> <value> 设置配置{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
-        sb.Append($"  {TerminalColors.Muted}使用 /config remove <key> 移除配置{AnsiStyleConstants.Reset}");
+        sb.Append($"  {TerminalColors.Muted}使用 /config remove <key> 移除配置{AnsiStyleEnumConstants.Reset}");
         return sb.ToString();
     }
 

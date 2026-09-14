@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /cost 命令 - 显示成本统计
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model, ArgumentHint = "[today|session|total]", ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Cost, Description = "显示使用成本统计", Usage = "/cost [today|session|total]", Category = ChatCommandCategory.Model, ArgumentHint = "[today|session|total]", ExposeToMcp = true)]
 [ChatCommandArg("scope", Type = "string", Description = "成本统计范围", Enum = new[] { "today", "session", "total" })]
 public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {
@@ -19,7 +19,7 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
         var services = context.GetCommandServices();
         if (services.CostTracker is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}成本追踪器不可用。{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}成本追踪器不可用。{AnsiStyleEnumConstants.Reset}");
             return Task.FromResult(ChatCommandResult.Continue());
         }
 
@@ -30,13 +30,13 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         switch (scope)
         {
-            case CostScopeConstants.Today:
+            case CostScopeEnumConstants.Today:
                 stats = services.CostTracker.GetTodayStatistics();
                 break;
-            case CostScopeConstants.Total:
+            case CostScopeEnumConstants.Total:
                 stats = services.CostTracker.GetTotalStatistics();
                 break;
-            case CostScopeConstants.Session:
+            case CostScopeEnumConstants.Session:
             default:
                 stats = services.CostTracker.GetSessionStatistics(context.SessionId);
                 break;
@@ -72,7 +72,7 @@ public sealed class CostCommand(IModelConfigLoader? modelConfigLoader = null) : 
             sb.AppendLine("Usage:                 0 input, 0 output, 0 cache read, 0 cache write");
         }
 
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         return sb.ToString();
     }
 

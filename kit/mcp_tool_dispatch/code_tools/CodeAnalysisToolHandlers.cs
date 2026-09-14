@@ -23,7 +23,7 @@ public class CodeAnalysisToolHandlers
     /// <summary>
     /// 分析 C# 代码并提供建议
     /// </summary>
-    [McpTool(CodeToolNameConstants.AnalyzeCsharpCode, "Analyze C# code quality and provide improvement suggestions", "code_analysis")]
+    [McpTool(CodeToolNameEnumConstants.AnalyzeCsharpCode, "Analyze C# code quality and provide improvement suggestions", "code_analysis")]
     public async Task<ToolResult> AnalyzeCSharpCodeAsync(
         [McpToolParameter("C# code to analyze")] string code,
         [McpToolParameter("Analysis focus: quality, performance, security, maintainability, all", Required = false, DefaultValue = "all")] string focus = "all",
@@ -64,7 +64,7 @@ public class CodeAnalysisToolHandlers
     /// <summary>
     /// 查找 C# 代码中的错误
     /// </summary>
-    [McpTool(CodeToolNameConstants.FindBugs, "Find potential bugs and issues in C# code", "code_analysis")]
+    [McpTool(CodeToolNameEnumConstants.FindBugs, "Find potential bugs and issues in C# code", "code_analysis")]
     public async Task<ToolResult> FindBugsAsync(
         [McpToolParameter("C# code to check")] string code,
         [McpToolParameter("Bug severity filter: low, medium, high, critical, all", Required = false, DefaultValue = "all")] string severity = "all",
@@ -111,7 +111,7 @@ public class CodeAnalysisToolHandlers
     /// <summary>
     /// 优化 C# 代码
     /// </summary>
-    [McpTool(CodeToolNameConstants.OptimizeCode, "Analyze and optimize C# code performance and readability", "code_analysis")]
+    [McpTool(CodeToolNameEnumConstants.OptimizeCode, "Analyze and optimize C# code performance and readability", "code_analysis")]
     public async Task<ToolResult> OptimizeCodeAsync(
         [McpToolParameter("C# code to optimize")] string code,
         [McpToolParameter("Optimization target: performance, memory, readability, all", Required = false, DefaultValue = "all")] string target = "all",
@@ -158,7 +158,7 @@ public class CodeAnalysisToolHandlers
     /// <summary>
     /// 对 C# 代码执行安全审计
     /// </summary>
-    [McpTool(CodeToolNameConstants.SecurityAudit, "Perform security audit on C# code", "code_analysis")]
+    [McpTool(CodeToolNameEnumConstants.SecurityAudit, "Perform security audit on C# code", "code_analysis")]
     public async Task<ToolResult> SecurityAuditAsync(
         [McpToolParameter("C# code to audit")] string code,
         [McpToolParameter("Audit type: web, api, desktop, general", Required = false, DefaultValue = "general")] string audit_type = "general",

@@ -1,15 +1,15 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /rewind 命令 - 撤回对话历史
 /// 对齐 TS: src/commands/rewind/rewind.ts
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Rewind, Description = "恢复代码和/或对话到之前的状态", Usage = "/rewind [last|<n>|all]", Aliases = ["checkpoint"], Category = ChatCommandCategory.Session)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Rewind, Description = "恢复代码和/或对话到之前的状态", Usage = "/rewind [last|<n>|all]", Aliases = ["checkpoint"], Category = ChatCommandCategory.Session)]
 [ChatCommandArg("target", Type = "string", Description = "撤回目标: last=最后一轮(默认), all=全部历史, <n>=撤回到第 n 条消息索引", Default = "last", Enum = new[] { "last", "all" })]
 public sealed class RewindCommand : ChatCommandBase
 {
     /// <summary>命令名称。</summary>
-    public override string Name => ChatCommandNameConstants.Rewind;
+    public override string Name => ChatCommandNameEnumConstants.Rewind;
     /// <summary>命令描述。</summary>
     public override string Description => "恢复代码和/或对话到之前的状态";
     /// <summary>命令用法提示。</summary>

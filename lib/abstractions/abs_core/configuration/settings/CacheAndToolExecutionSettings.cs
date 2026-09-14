@@ -69,7 +69,7 @@ public class ToolExecutionSettings
     public List<string> DangerousTools { get; set; } = new()
     {
         "shell",
-        FileToolNameConstants.FileWrite,
+        FileToolNameEnumConstants.FileWrite,
         "file_delete"
     };
 

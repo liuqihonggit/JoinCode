@@ -25,9 +25,9 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     /// <inheritdoc />
     public string DisplayName => "Azure OpenAI";
     /// <inheritdoc />
-    public string DefaultModelId => _modelConfigLoader.GetDefaultModelId(VendorKindConstants.OpenAi);
+    public string DefaultModelId => _modelConfigLoader.GetDefaultModelId(VendorKindEnumConstants.OpenAi);
     /// <inheritdoc />
-    public string DefaultFastModelId => _modelConfigLoader.GetDefaultFastModelId(VendorKindConstants.OpenAi);
+    public string DefaultFastModelId => _modelConfigLoader.GetDefaultFastModelId(VendorKindEnumConstants.OpenAi);
     /// <inheritdoc />
     public string? DefaultEndpoint => null;
     /// <inheritdoc />
@@ -71,7 +71,7 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     /// <inheritdoc />
     public OAuthConfig? GetOAuthConfig() => new()
     {
-        Provider = VendorKindConstants.Azure,
+        Provider = VendorKindEnumConstants.Azure,
         ClientId = Environment.GetEnvironmentVariable(JccEnvVar.AzureClientId.ToValue()) ?? "",
         AuthorizationEndpoint = JccEndpointsResolver.AzureOAuthAuthorizeUrl,
         TokenEndpoint = JccEndpointsResolver.AzureOAuthTokenUrl,
@@ -109,19 +109,19 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     }
 
     /// <inheritdoc />
-    public IEnumerable<ModelEntry> AvailableModels => _modelConfigLoader.GetModels(VendorKindConstants.OpenAi);
+    public IEnumerable<ModelEntry> AvailableModels => _modelConfigLoader.GetModels(VendorKindEnumConstants.OpenAi);
     /// <inheritdoc />
-    public string? ResolveAlias(string input) => _modelConfigLoader.ResolveAlias(VendorKindConstants.OpenAi, input);
+    public string? ResolveAlias(string input) => _modelConfigLoader.ResolveAlias(VendorKindEnumConstants.OpenAi, input);
     /// <inheritdoc />
-    public bool SupportsFastMode(string modelId) => _modelConfigLoader.SupportsFastMode(VendorKindConstants.OpenAi, modelId);
+    public bool SupportsFastMode(string modelId) => _modelConfigLoader.SupportsFastMode(VendorKindEnumConstants.OpenAi, modelId);
     /// <inheritdoc />
-    public bool SupportsEffort(string modelId) => _modelConfigLoader.SupportsEffort(VendorKindConstants.OpenAi, modelId);
+    public bool SupportsEffort(string modelId) => _modelConfigLoader.SupportsEffort(VendorKindEnumConstants.OpenAi, modelId);
     /// <inheritdoc />
-    public bool SupportsMaxEffort(string modelId) => _modelConfigLoader.SupportsMaxEffort(VendorKindConstants.OpenAi, modelId);
+    public bool SupportsMaxEffort(string modelId) => _modelConfigLoader.SupportsMaxEffort(VendorKindEnumConstants.OpenAi, modelId);
     /// <inheritdoc />
-    public bool SupportsThinkingMode(string modelId) => _modelConfigLoader.SupportsThinkingMode(VendorKindConstants.OpenAi, modelId);
+    public bool SupportsThinkingMode(string modelId) => _modelConfigLoader.SupportsThinkingMode(VendorKindEnumConstants.OpenAi, modelId);
     /// <inheritdoc />
-    public bool SupportsModality(string modelId, ModelModalityKind modality) => _modelConfigLoader.SupportsModality(VendorKindConstants.OpenAi, modelId, modality);
+    public bool SupportsModality(string modelId, ModelModalityKind modality) => _modelConfigLoader.SupportsModality(VendorKindEnumConstants.OpenAi, modelId, modality);
     /// <inheritdoc />
-    public ModelModalityKind GetModalities(string modelId) => _modelConfigLoader.GetModalities(VendorKindConstants.OpenAi, modelId);
+    public ModelModalityKind GetModalities(string modelId) => _modelConfigLoader.GetModalities(VendorKindEnumConstants.OpenAi, modelId);
 }

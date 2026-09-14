@@ -17,7 +17,7 @@ public sealed class EntitlementServiceTests
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=1 应该允许
-        using var envScope1 = EnvVarScope.Set(JccEnvVarConstants.Brief, "1");
+        using var envScope1 = EnvVarScope.Set(JccEnvVarEnumConstants.Brief, "1");
         Assert.True(service.IsBriefEntitled);
     }
 
@@ -27,7 +27,7 @@ public sealed class EntitlementServiceTests
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=false 应该拒绝
-        using var envScope2 = EnvVarScope.Set(JccEnvVarConstants.Brief, "false");
+        using var envScope2 = EnvVarScope.Set(JccEnvVarEnumConstants.Brief, "false");
         Assert.False(service.IsBriefEntitled);
     }
 
@@ -37,7 +37,7 @@ public sealed class EntitlementServiceTests
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=0 应该拒绝
-        using var envScope3 = EnvVarScope.Set(JccEnvVarConstants.Brief, "0");
+        using var envScope3 = EnvVarScope.Set(JccEnvVarEnumConstants.Brief, "0");
         Assert.False(service.IsBriefEntitled);
     }
 
@@ -64,14 +64,14 @@ public sealed class EntitlementServiceTests
         var service = new EntitlementService(briefMode);
         briefMode.Enable();
 
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.Brief, "false");
+        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Brief, "false");
         try
         {
             Assert.False(service.IsBriefEnabled);
         }
         finally
         {
-            Environment.SetEnvironmentVariable(JccEnvVarConstants.Brief, null);
+            Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Brief, null);
         }
     }
 

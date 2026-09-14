@@ -6,7 +6,7 @@ namespace McpToolDispatch;
 /// <para>语法对齐 ToolSearch：list_groups / map[功能Key] / map[功能Key][vendor] / 关键词</para>
 /// <para>数据源 IModelConfigLoader.Config.Providers → ModelSearchEntry 列表</para>
 /// </summary>
-[McpToolDispatch(SystemToolNameConstants.ModelSearch, Kind = ToolKind.System)]
+[McpToolDispatch(SystemToolNameEnumConstants.ModelSearch, Kind = ToolKind.System)]
 public partial class ModelSearchToolHandlers
 {
     private readonly IModelConfigLoader _modelConfigLoader;
@@ -30,7 +30,7 @@ public partial class ModelSearchToolHandlers
     /// <param name="max_results">最大结果数（可选，默认 20）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.ModelSearch, "按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型", "system")]
+    [McpTool(SystemToolNameEnumConstants.ModelSearch, "按功能→型号渐进式查找模型表，用于模态不匹配时寻找支持目标功能的模型", "system")]
     public Task<ToolResult> SearchModelsAsync(
         [McpToolParameter("查找查询：'list_groups' 列出功能分组；'map[功能Key]' 列出支持该功能的模型（如 map[generateImage]）；'map[功能Key][vendor]' 按 vendor 过滤；关键词模糊搜索模型名/显示名")] string query,
         [McpToolParameter("最大结果数（可选，默认 20）", Required = false)] int? max_results = 20,

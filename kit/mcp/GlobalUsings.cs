@@ -51,7 +51,7 @@ global using IMcpClientFactory = JoinCode.Abstractions.Mcp.Client.IMcpClientFact
 global using IMcpAuthConfigProvider = JoinCode.Abstractions.Mcp.Client.IMcpAuthConfigProvider;
 global using McpProgressCallback = JoinCode.Abstractions.Mcp.Client.McpProgressCallback;
 global using McpProgressStatus = JoinCode.Abstractions.Mcp.Client.McpProgressStatus;
-global using McpProgressStatusConstants = JoinCode.Abstractions.Mcp.Client.McpProgressStatusConstants;
+global using McpProgressStatusEnumConstants = JoinCode.Abstractions.Mcp.Client.McpProgressStatusEnumConstants;
 global using McpToolProgress = JoinCode.Abstractions.Mcp.Client.McpToolProgress;
 global using McpNotificationReceivedEventArgs = JoinCode.Abstractions.Mcp.Client.McpNotificationReceivedEventArgs;
 global using McpConnectionLostEventArgs = JoinCode.Abstractions.Mcp.Client.McpConnectionLostEventArgs;
@@ -74,14 +74,14 @@ global using McpServerConnectionConfig = JoinCode.Abstractions.Mcp.Client.McpSer
 global using McpClientTransportType = JoinCode.Abstractions.Mcp.Client.McpClientTransportType;
 global using McpAuthConfig = JoinCode.Abstractions.Mcp.Client.McpAuthConfig;
 global using McpAuthType = JoinCode.Abstractions.Mcp.Client.McpAuthType;
-global using McpClientTransportTypeConstants = JoinCode.Abstractions.Mcp.Client.McpClientTransportTypeConstants;
-global using McpAuthTypeConstants = JoinCode.Abstractions.Mcp.Client.McpAuthTypeConstants;
+global using McpClientTransportTypeEnumConstants = JoinCode.Abstractions.Mcp.Client.McpClientTransportTypeEnumConstants;
+global using McpAuthTypeEnumConstants = JoinCode.Abstractions.Mcp.Client.McpAuthTypeEnumConstants;
 global using McpClientTransportTypeExtensions = JoinCode.Abstractions.Mcp.Client.McpClientTransportTypeExtensions;
 global using McpAuthTypeExtensions = JoinCode.Abstractions.Mcp.Client.McpAuthTypeExtensions;
 global using ElicitAction = JoinCode.Abstractions.Mcp.Protocol.ElicitAction;
-global using ElicitActionConstants = JoinCode.Abstractions.Mcp.Protocol.ElicitActionConstants;
+global using ElicitActionEnumConstants = JoinCode.Abstractions.Mcp.Protocol.ElicitActionEnumConstants;
 global using ElicitMode = JoinCode.Abstractions.Mcp.Protocol.ElicitMode;
-global using ElicitModeConstants = JoinCode.Abstractions.Mcp.Protocol.ElicitModeConstants;
+global using ElicitModeEnumConstants = JoinCode.Abstractions.Mcp.Protocol.ElicitModeEnumConstants;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;

@@ -16,13 +16,13 @@ public static class AgentToolSection {
         var isCoordinator = PromptConfigSnapshot.Current.IsCoordinatorMode;
         if (isCoordinator)
         {
-            return $"使用 {AgentToolNameConstants.Agent} 工具生成工作者执行任务。工作者自主完成研究、实现和验证。可用代理类型列在对话中的 <system-reminder> 消息中。";
+            return $"使用 {AgentToolNameEnumConstants.Agent} 工具生成工作者执行任务。工作者自主完成研究、实现和验证。可用代理类型列在对话中的 <system-reminder> 消息中。";
         }
 
         return $"""
-# 使用{AgentToolNameConstants.Agent}工具
+# 使用{AgentToolNameEnumConstants.Agent}工具
 
-使用{AgentToolNameConstants.Agent}工具与专门的{AgentToolNameConstants.Agent}配合，当手边的任务与{AgentToolNameConstants.Agent}的描述匹配时。
+使用{AgentToolNameEnumConstants.Agent}工具与专门的{AgentToolNameEnumConstants.Agent}配合，当手边的任务与{AgentToolNameEnumConstants.Agent}的描述匹配时。
 {SubagentUsageGuidance}
 
 可用代理类型列在对话中的 <system-reminder> 消息中。

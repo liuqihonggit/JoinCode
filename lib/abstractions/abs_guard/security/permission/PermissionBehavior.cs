@@ -2,7 +2,7 @@ namespace JoinCode.Abstractions.Security;
 
 /// <summary>
 /// 权限决策行为枚举 — 统一权限检查/Hook决策/Shell安全的决策行为
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 PermissionBehaviorConstants + PermissionBehaviorExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 PermissionBehaviorEnumConstants + PermissionBehaviorExtensions
 /// 合并自: HookDecisionType (Block), ShellSecurityBehavior (Passthrough)
 /// </summary>
 public enum PermissionBehavior

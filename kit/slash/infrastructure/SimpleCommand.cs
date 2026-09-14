@@ -1,13 +1,13 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// 精简模式切换命令 — 启用/禁用 SimpleModeService，简化提示词、减少工具集、最小化 UI、自动确认
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Simple, Description = "切换精简模式", Usage = "/simple", Category = ChatCommandCategory.Other)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Simple, Description = "切换精简模式", Usage = "/simple", Category = ChatCommandCategory.Other)]
 public sealed class SimpleCommand : ToggleCommandBase
 {
     /// <summary>命令名称</summary>
-    public override string Name => ChatCommandNameConstants.Simple;
+    public override string Name => ChatCommandNameEnumConstants.Simple;
     /// <summary>命令描述</summary>
     public override string Description => "切换精简模式";
     /// <summary>命令用法</summary>
@@ -57,7 +57,7 @@ public sealed class SimpleCommand : ToggleCommandBase
         if (service.IsSimpleMode)
         {
             var config = service.GetCurrentConfig();
-            TerminalHelper.WriteLine($"{TerminalColors.Primary}精简模式已启用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Primary}精简模式已启用{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  简化提示词: {(config.UseSimplePrompts ? "是" : "否")}");
             TerminalHelper.WriteLine($"  减少工具集: {(config.ReduceToolSet ? "是" : "否")}");
             TerminalHelper.WriteLine($"  最小化UI:   {(config.MinimalUI ? "是" : "否")}");
@@ -65,7 +65,7 @@ public sealed class SimpleCommand : ToggleCommandBase
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}精简模式已禁用 - 使用完整模式{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}精简模式已禁用 - 使用完整模式{AnsiStyleEnumConstants.Reset}");
         }
 
         return Task.CompletedTask;

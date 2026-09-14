@@ -16,9 +16,9 @@ public sealed class McpToolAttribute : Attribute
     /// <summary>
     /// 工具类型 — 方法级可覆盖类级 Kind
     /// -1 表示未设置（继承类级），0=System, 1=Mcp, 2=OnError
-    /// 使用 ToolKindConstants 常量赋值
+    /// 使用 ToolKindEnumConstants 常量赋值
     /// </summary>
-    public int Kind { get; set; } = ToolKindConstants.Unset;
+    public int Kind { get; set; } = ToolKindEnumConstants.Unset;
 
     /// <summary>
     /// 二级分组名 — 方法级可覆盖类级 GroupName
@@ -37,7 +37,7 @@ public sealed class McpToolAttribute : Attribute
 /// <summary>
 /// McpToolAttribute.Kind 参数常量 — C# 特性不支持 nullable enum，使用 int + 常量
 /// </summary>
-public static class ToolKindConstants
+public static class ToolKindEnumConstants
 {
     /// <summary>未设置 — 继承类级 Kind</summary>
     public const int Unset = -1;

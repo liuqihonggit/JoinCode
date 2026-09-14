@@ -11,25 +11,25 @@ public class CronToolHandlers
 
     private static readonly string[] CommonCronPatterns =
     new[] { 
-        CronPresetConstants.Every5Minutes, CronPresetConstants.Every15Minutes, CronPresetConstants.Every30Minutes,
-        CronPresetConstants.EveryHour, CronPresetConstants.Every6Hours, CronPresetConstants.EveryDayAt9,
-        CronPresetConstants.EveryWeekdayAt9, CronPresetConstants.EveryDayAtMidnight
+        CronPresetEnumConstants.Every5Minutes, CronPresetEnumConstants.Every15Minutes, CronPresetEnumConstants.Every30Minutes,
+        CronPresetEnumConstants.EveryHour, CronPresetEnumConstants.Every6Hours, CronPresetEnumConstants.EveryDayAt9,
+        CronPresetEnumConstants.EveryWeekdayAt9, CronPresetEnumConstants.EveryDayAtMidnight
      };
 
     private static readonly FrozenDictionary<string, string> CronHumanMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        [CronPresetConstants.Every5Minutes] = "every 5 minutes",
-        [CronPresetConstants.Every10Minutes] = "every 10 minutes",
-        [CronPresetConstants.Every15Minutes] = "every 15 minutes",
-        [CronPresetConstants.Every30Minutes] = "every 30 minutes",
-        [CronPresetConstants.EveryHour] = "every hour",
-        [CronPresetConstants.Every2Hours] = "every 2 hours",
-        [CronPresetConstants.Every6Hours] = "every 6 hours",
-        [CronPresetConstants.EveryDayAt9] = "every day at 9:00",
-        [CronPresetConstants.EveryDayAtMidnight] = "every day at midnight",
-        [CronPresetConstants.EveryWeekdayAt9] = "every weekday at 9:00",
-        [CronPresetConstants.EveryMondayAt9] = "every Monday at 9:00",
-        [CronPresetConstants.EveryMonthOnFirst] = "every month on the 1st",
+        [CronPresetEnumConstants.Every5Minutes] = "every 5 minutes",
+        [CronPresetEnumConstants.Every10Minutes] = "every 10 minutes",
+        [CronPresetEnumConstants.Every15Minutes] = "every 15 minutes",
+        [CronPresetEnumConstants.Every30Minutes] = "every 30 minutes",
+        [CronPresetEnumConstants.EveryHour] = "every hour",
+        [CronPresetEnumConstants.Every2Hours] = "every 2 hours",
+        [CronPresetEnumConstants.Every6Hours] = "every 6 hours",
+        [CronPresetEnumConstants.EveryDayAt9] = "every day at 9:00",
+        [CronPresetEnumConstants.EveryDayAtMidnight] = "every day at midnight",
+        [CronPresetEnumConstants.EveryWeekdayAt9] = "every weekday at 9:00",
+        [CronPresetEnumConstants.EveryMondayAt9] = "every Monday at 9:00",
+        [CronPresetEnumConstants.EveryMonthOnFirst] = "every month on the 1st",
     }.ToFrozenDictionary();
 
     private readonly ICronTaskStore _taskStore;
@@ -61,7 +61,7 @@ public class CronToolHandlers
     /// <param name="durable">是否持久化到磁盘（默认 false），会话级任务在会话结束后丢失</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(CronToolNameConstants.CronCreate, "Create a scheduled task that runs at specified intervals using cron syntax", "cron")]
+    [McpTool(CronToolNameEnumConstants.CronCreate, "Create a scheduled task that runs at specified intervals using cron syntax", "cron")]
     public async Task<ToolResult> CreateCronTaskAsync(
         [McpToolParameter("Cron expression (5 fields: minute hour day month weekday, e.g. \"0 9 * * *\" for daily at 9am)")] string cron,
         [McpToolParameter("The prompt/instruction to execute when the task fires")] string prompt,
@@ -158,7 +158,7 @@ public class CronToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(CronToolNameConstants.CronList, "List all scheduled tasks", "cron")]
+    [McpTool(CronToolNameEnumConstants.CronList, "List all scheduled tasks", "cron")]
     public async Task<ToolResult> ListCronTasksAsync(
         CancellationToken cancellationToken = default)
     {
@@ -201,7 +201,7 @@ public class CronToolHandlers
     /// <param name="task_id">要删除的定时任务 ID</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(CronToolNameConstants.CronDelete, "Delete a scheduled task by ID", "cron")]
+    [McpTool(CronToolNameEnumConstants.CronDelete, "Delete a scheduled task by ID", "cron")]
     public async Task<ToolResult> DeleteCronTaskAsync(
         [McpToolParameter("The ID of the scheduled task to delete")] string task_id,
         CancellationToken cancellationToken = default)
@@ -246,7 +246,7 @@ public class CronToolHandlers
     /// <param name="cron">要校验的 cron 表达式</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(CronToolNameConstants.CronValidate, "Validate a cron expression and show its parsed fields", "cron")]
+    [McpTool(CronToolNameEnumConstants.CronValidate, "Validate a cron expression and show its parsed fields", "cron")]
     public Task<ToolResult> ValidateCronExpressionAsync(
         [McpToolParameter("Cron expression to validate")] string cron,
         CancellationToken cancellationToken = default)

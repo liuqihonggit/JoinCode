@@ -41,7 +41,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含检测到的社区列表的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphDetectCommunities, "Detect code communities (modules/subsystems) using label propagation algorithm on the call graph", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphDetectCommunities, "Detect code communities (modules/subsystems) using label propagation algorithm on the call graph", "graph")]
     public async Task<ToolResult> DetectCommunitiesAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
         CancellationToken cancellationToken = default)
@@ -85,7 +85,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含枢纽节点列表的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphGetHubNodes, "Find hub nodes with highest connectivity (in-degree + out-degree) in the call graph", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphGetHubNodes, "Find hub nodes with highest connectivity (in-degree + out-degree) in the call graph", "graph")]
     public async Task<ToolResult> GetHubNodesAsync(
         [McpToolParameter("Number of top hub nodes to return (default 10)")] int top_n = 10,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
@@ -125,7 +125,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含潜在死代码列表的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphDetectDeadCode, "Detect potentially dead code: methods with no callers that are not entry points", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphDetectDeadCode, "Detect potentially dead code: methods with no callers that are not entry points", "graph")]
     public async Task<ToolResult> DetectDeadCodeAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
         CancellationToken cancellationToken = default)
@@ -167,7 +167,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含子图节点和边的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphExtractSubgraph, "Extract a subgraph centered on a symbol with N hops radius", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphExtractSubgraph, "Extract a subgraph centered on a symbol with N hops radius", "graph")]
     public async Task<ToolResult> ExtractSubgraphAsync(
         [McpToolParameter("Center symbol name")] string center_symbol,
         [McpToolParameter("Number of hops (radius, default 2)")] int hops = 2,
@@ -210,7 +210,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含受影响符号、文件和项目列表的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphAnalyzeChangeImpact, "Analyze the blast radius of changes to specified files", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphAnalyzeChangeImpact, "Analyze the blast radius of changes to specified files", "graph")]
     public async Task<ToolResult> AnalyzeChangeImpactAsync(
         [McpToolParameter("Comma-separated list of changed file paths")] string changed_files,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
@@ -264,7 +264,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含保存结果的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphSave, "Save the code index to disk for fast reload on next startup", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphSave, "Save the code index to disk for fast reload on next startup", "graph")]
     public async Task<ToolResult> SaveAsync(
         [McpToolParameter("Directory path to save the index (default: .jcc/graph)")] string directory = ".jcc/graph",
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
@@ -289,7 +289,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含加载结果的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphLoad, "Load a previously saved code index from disk", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphLoad, "Load a previously saved code index from disk", "graph")]
     public async Task<ToolResult> LoadAsync(
         [McpToolParameter("Directory path to load the index from (default: .jcc/graph)")] string directory = ".jcc/graph",
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
@@ -315,7 +315,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含 DOT 格式内容的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphExportDot, "Export the call graph as DOT format for Graphviz visualization", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphExportDot, "Export the call graph as DOT format for Graphviz visualization", "graph")]
     public async Task<ToolResult> ExportDotAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
         CancellationToken cancellationToken = default)
@@ -338,7 +338,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含 HTML 内容的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphExportHtml, "Export the call graph as interactive HTML with D3.js force-directed layout", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphExportHtml, "Export the call graph as interactive HTML with D3.js force-directed layout", "graph")]
     public async Task<ToolResult> ExportHtmlAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
         CancellationToken cancellationToken = default)
@@ -361,7 +361,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含 wiki 内容的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphExportWiki, "Export code architecture as Markdown wiki based on community structure", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphExportWiki, "Export code architecture as Markdown wiki based on community structure", "graph")]
     public async Task<ToolResult> ExportWikiAsync(
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
         CancellationToken cancellationToken = default)
@@ -386,7 +386,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含匹配符号列表的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphQuery, "Query the code graph with natural language to find related symbols and subgraph summaries", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphQuery, "Query the code graph with natural language to find related symbols and subgraph summaries", "graph")]
     public async Task<ToolResult> QueryAsync(
         [McpToolParameter("Natural language query (e.g. 'how does auth work')")] string query,
         [McpToolParameter("Maximum number of results (default 20)")] int max_results = 20,
@@ -430,7 +430,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含路径节点和边的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphPath, "Find the shortest path between two symbols in the call graph", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphPath, "Find the shortest path between two symbols in the call graph", "graph")]
     public async Task<ToolResult> FindPathAsync(
         [McpToolParameter("Starting symbol name")] string from_symbol,
         [McpToolParameter("Target symbol name")] string to_symbol,
@@ -476,7 +476,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">仓库 ID（默认为 default）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含符号角色和关系信息的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphExplain, "Explain a symbol's role and relationships in the codebase (callers, callees, community, same-file)", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphExplain, "Explain a symbol's role and relationships in the codebase (callers, callees, community, same-file)", "graph")]
     public async Task<ToolResult> ExplainAsync(
         [McpToolParameter("Symbol name to explain")] string symbol_name,
         [McpToolParameter("Repository ID (default: default)")] string? repo_id = null,
@@ -553,7 +553,7 @@ public sealed class GraphToolHandlers
     /// <param name="workspace_root">仓库的工作区根路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含注册结果的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphRegister, "Register a repository for multi-repo graph analysis", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphRegister, "Register a repository for multi-repo graph analysis", "graph")]
     public async Task<ToolResult> RegisterRepoAsync(
         [McpToolParameter("Repository identifier (e.g. 'frontend', 'backend')")] string repo_id,
         [McpToolParameter("Workspace root path of the repository")] string workspace_root,
@@ -588,7 +588,7 @@ public sealed class GraphToolHandlers
     /// <param name="repo_id">要移除的仓库标识符</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含注销结果的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphUnregister, "Unregister a repository from multi-repo graph analysis", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphUnregister, "Unregister a repository from multi-repo graph analysis", "graph")]
     public async Task<ToolResult> UnregisterRepoAsync(
         [McpToolParameter("Repository identifier to remove")] string repo_id,
         CancellationToken cancellationToken = default)
@@ -617,7 +617,7 @@ public sealed class GraphToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含已注册仓库列表的工具结果</returns>
-    [McpTool(CodeToolNameConstants.GraphRepos, "List all registered repositories for multi-repo graph analysis", "graph")]
+    [McpTool(CodeToolNameEnumConstants.GraphRepos, "List all registered repositories for multi-repo graph analysis", "graph")]
     public async Task<ToolResult> ListReposAsync(
         CancellationToken cancellationToken = default)
     {

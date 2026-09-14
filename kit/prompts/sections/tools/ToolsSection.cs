@@ -14,23 +14,23 @@ public static class ToolsSection {
         var tools = enabledTools?.ToList() ?? new List<string>();
 
         var items = new List<string> {
-            $"不要滥用{ShellToolNameConstants.Bash}工具来运行命令。使用专用工具可以让用户更好地理解和审查您的工作。这对协助用户至关重要："
+            $"不要滥用{ShellToolNameEnumConstants.Bash}工具来运行命令。使用专用工具可以让用户更好地理解和审查您的工作。这对协助用户至关重要："
         };
 
         var toolGuidance = new List<string> {
-            $"使用{FileToolNameConstants.FileRead}读取文件，而不是cat、head、tail或sed",
-            $"使用{FileToolNameConstants.FileEdit}编辑文件，而不是sed或awk",
-            $"使用{FileToolNameConstants.FileWrite}创建文件，而不是使用heredoc或echo重定向的cat",
-            $"使用{SearchToolNameConstants.Glob}搜索文件，而不是find或ls",
-            $"使用{SearchToolNameConstants.Grep}搜索文件内容，而不是grep或rg",
-            $"将{ShellToolNameConstants.Bash}工具专门用于需要shell执行的系统命令和终端操作。如果您不确定并且有相关的专用工具，请默认使用专用工具，只有在绝对必要时才回退到使用{ShellToolNameConstants.Bash}工具。"
+            $"使用{FileToolNameEnumConstants.FileRead}读取文件，而不是cat、head、tail或sed",
+            $"使用{FileToolNameEnumConstants.FileEdit}编辑文件，而不是sed或awk",
+            $"使用{FileToolNameEnumConstants.FileWrite}创建文件，而不是使用heredoc或echo重定向的cat",
+            $"使用{SearchToolNameEnumConstants.Glob}搜索文件，而不是find或ls",
+            $"使用{SearchToolNameEnumConstants.Grep}搜索文件内容，而不是grep或rg",
+            $"将{ShellToolNameEnumConstants.Bash}工具专门用于需要shell执行的系统命令和终端操作。如果您不确定并且有相关的专用工具，请默认使用专用工具，只有在绝对必要时才回退到使用{ShellToolNameEnumConstants.Bash}工具。"
         };
 
         items.AddRange(toolGuidance);
-        items.Add($"使用{TodoToolNameConstants.TodoWrite}工具分解和管理工作。这些工具有助于规划工作和帮助用户跟踪您的进度。完成任务后立即标记为完成。不要批量完成多个任务后再标记。");
+        items.Add($"使用{TodoToolNameEnumConstants.TodoWrite}工具分解和管理工作。这些工具有助于规划工作和帮助用户跟踪您的进度。完成任务后立即标记为完成。不要批量完成多个任务后再标记。");
         items.Add("您可以在单个响应中调用多个工具。如果您打算调用多个工具并且它们之间没有依赖关系，请并行进行所有独立的工具调用。尽可能最大化并行工具调用的使用以提高效率。但是，如果某些工具调用依赖于先前的调用来通知依赖值，请不要并行调用这些工具，而是顺序调用它们。例如，如果一个操作必须在另一个开始之前完成，请顺序运行这些操作。");
-        items.Add($"MCP 工具采用两阶段加载：首次只展示工具分组和名称（不含完整参数定义）。需要调用某个 MCP 工具时，先使用 {SystemToolNameConstants.ToolSearch} 工具搜索并加载其完整描述，然后根据描述中的参数定义进行调用。核心工具（Read/Write/Edit/Bash/Glob/Grep 等）已完整展示，可直接调用。");
-        items.Add($"使用 {SystemToolNameConstants.ToolSearch} 浏览工具分组时，可用 'list_groups' 列出所有分组，用 'map[主分组]' 下钻查看某分组内所有工具，用 'map[主分组][子分组]' 下钻到子分组，用 'map[主分组][子分组][工具名]' 直达具体工具。");
+        items.Add($"MCP 工具采用两阶段加载：首次只展示工具分组和名称（不含完整参数定义）。需要调用某个 MCP 工具时，先使用 {SystemToolNameEnumConstants.ToolSearch} 工具搜索并加载其完整描述，然后根据描述中的参数定义进行调用。核心工具（Read/Write/Edit/Bash/Glob/Grep 等）已完整展示，可直接调用。");
+        items.Add($"使用 {SystemToolNameEnumConstants.ToolSearch} 浏览工具分组时，可用 'list_groups' 列出所有分组，用 'map[主分组]' 下钻查看某分组内所有工具，用 'map[主分组][子分组]' 下钻到子分组，用 'map[主分组][子分组][工具名]' 直达具体工具。");
 
         var result = new System.Text.StringBuilder();
         result.AppendLine("# 使用您的工具");

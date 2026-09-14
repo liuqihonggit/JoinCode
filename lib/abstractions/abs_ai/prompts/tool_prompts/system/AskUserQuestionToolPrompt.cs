@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = InteractionToolName.AskUserQuestion, Category = ToolPromptCategory.System)]
 public static class AskUserQuestionToolPrompt
 {
-    public const string ToolName = InteractionToolNameConstants.AskUserQuestion;
+    public const string ToolName = InteractionToolNameEnumConstants.AskUserQuestion;
 
     public const string Description = "向用户询问多项选择问题以收集信息、澄清歧义、了解偏好、做出决策或向他们提供选择。";
 

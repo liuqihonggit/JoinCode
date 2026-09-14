@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /rename 命令 — 重命名当前会话，通过 TranscriptService 追加 custom-title 元数据。
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Rename, Description = "重命名当前会话", Usage = "/rename <new-name>", Category = ChatCommandCategory.Session, ArgumentHint = "<new-name>")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Rename, Description = "重命名当前会话", Usage = "/rename <new-name>", Category = ChatCommandCategory.Session, ArgumentHint = "<new-name>")]
 [ChatCommandArg("new_name", Type = "string", Description = "新的会话名称", Required = true)]
 public sealed class RenameCommand : ChatCommandBase
 {
@@ -18,7 +18,7 @@ public sealed class RenameCommand : ChatCommandBase
 
         if (string.IsNullOrEmpty(newName))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}用法: /rename <new-name>{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}用法: /rename <new-name>{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine("为当前会话设置一个新的名称");
             return ChatCommandResult.Continue();
         }
@@ -33,7 +33,7 @@ public sealed class RenameCommand : ChatCommandBase
                 await transcriptService.SaveCustomTitleAsync(context.SessionId, newName, context.CancellationToken).ConfigureAwait(false);
 
                 var fromTitle = string.IsNullOrEmpty(oldTitle) ? context.SessionId : oldTitle;
-                TerminalHelper.WriteLine($"{TerminalColors.Success}会话已重命名: {fromTitle} → {newName}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}会话已重命名: {fromTitle} → {newName}{AnsiStyleEnumConstants.Reset}");
             }
             else
             {
@@ -63,7 +63,7 @@ public sealed class RenameCommand : ChatCommandBase
 
         if (!fs.FileExists(sessionFile))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}会话文件不存在: {context.SessionId}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}会话文件不存在: {context.SessionId}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -76,7 +76,7 @@ public sealed class RenameCommand : ChatCommandBase
 
         if (fs.FileExists(newSessionFile) && !string.Equals(newName, context.SessionId, StringComparison.OrdinalIgnoreCase))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}会话 '{newName}' 已存在{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}会话 '{newName}' 已存在{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -92,6 +92,6 @@ public sealed class RenameCommand : ChatCommandBase
             fs.MoveFile(sessionFile, newSessionFile, overwrite: false);
         }
 
-        TerminalHelper.WriteLine($"{TerminalColors.Success}会话已重命名: {oldName} → {newName}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}会话已重命名: {oldName} → {newName}{AnsiStyleEnumConstants.Reset}");
     }
 }

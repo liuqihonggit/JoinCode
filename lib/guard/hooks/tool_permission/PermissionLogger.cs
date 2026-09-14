@@ -22,9 +22,9 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
 
     private static readonly FrozenSet<string> CodeEditingTools = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
-        FileToolNameConstants.FileEdit,
-        FileToolNameConstants.FileWrite,
-        NotebookToolNameConstants.NotebookEdit);
+        FileToolNameEnumConstants.FileEdit,
+        FileToolNameEnumConstants.FileWrite,
+        NotebookToolNameEnumConstants.NotebookEdit);
 
     /// <inheritdoc />
     public void LogPermissionDecision(PermissionLogContext context, PermissionDecisionArgs args)

@@ -176,7 +176,7 @@ public class ResponsesQueryService : QueryServiceBase
                         }
                         if (reasoningAccumulator.Length > 0)
                         {
-                            metadata[MessageMetadataKeyConstants.ReasoningText] = JsonElementHelper.FromString(reasoningAccumulator.ToString());
+                            metadata[MessageMetadataKeyEnumConstants.ReasoningText] = JsonElementHelper.FromString(reasoningAccumulator.ToString());
                         }
                         yield return new StreamEvent(MessageRole.Assistant, string.Empty, modelId, metadata);
                         yield break;
@@ -329,7 +329,7 @@ public class ResponsesQueryService : QueryServiceBase
 
             if (msg.Role == MessageRole.Assistant && msg.Metadata is not null)
             {
-                if (msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ReasoningText, out var reasoningProp)
+                if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ReasoningText, out var reasoningProp)
                     && reasoningProp.ValueKind == JsonValueKind.String)
                 {
                     AppendItem(inputSb, ref firstInput);
@@ -337,7 +337,7 @@ public class ResponsesQueryService : QueryServiceBase
                         .Append(EscapeJsonString(reasoningProp.GetString() ?? string.Empty)).Append("\"}]}");
                 }
 
-                if (msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ToolCalls, out var toolCallsProp)
+                if (msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCalls, out var toolCallsProp)
                     || msg.Metadata.TryGetValue("AllToolCalls", out toolCallsProp))
                 {
                     if (toolCallsProp.ValueKind == JsonValueKind.Array)
@@ -565,7 +565,7 @@ public class ResponsesQueryService : QueryServiceBase
     private static void AppendFunctionCallOutput(StringBuilder sb, ApiMessage msg, ref bool firstInput)
     {
         var callId = msg.Metadata is not null
-            && msg.Metadata.TryGetValue(MessageMetadataKeyConstants.ToolCallId, out var idProp)
+            && msg.Metadata.TryGetValue(MessageMetadataKeyEnumConstants.ToolCallId, out var idProp)
             && idProp.ValueKind == JsonValueKind.String
             ? idProp.GetString() ?? string.Empty
             : string.Empty;
@@ -659,7 +659,7 @@ public class ResponsesQueryService : QueryServiceBase
 
         if (reasoningContent.Length > 0)
         {
-            metadata[MessageMetadataKeyConstants.ReasoningText] = JsonElementHelper.FromString(reasoningContent.ToString());
+            metadata[MessageMetadataKeyEnumConstants.ReasoningText] = JsonElementHelper.FromString(reasoningContent.ToString());
         }
 
         if (toolCalls.Count > 0)

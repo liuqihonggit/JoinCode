@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = PlanToolName.ExitPlanMode, Category = ToolPromptCategory.Planning)]
 public static class ExitPlanModeToolPrompt
 {
-    public const string ToolName = PlanToolNameConstants.ExitPlanMode;
+    public const string ToolName = PlanToolNameEnumConstants.ExitPlanMode;
 
     /// <summary>
     /// 获取工具提示词

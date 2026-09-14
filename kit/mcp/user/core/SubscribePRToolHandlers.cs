@@ -30,7 +30,7 @@ public partial class SubscribePRToolHandlers
     /// <param name="events">订阅事件类型（可选，默认 all）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.SubscribePR, StringKey.SubscribePRDesc, "github")]
+    [McpTool(SystemToolNameEnumConstants.SubscribePR, StringKey.SubscribePRDesc, "github")]
     public async Task<ToolResult> SubscribePRAsync(
         [McpToolParameter(StringKey.SubscribePRActionDesc, Required = false)] string action = "list",
         [McpToolParameter(StringKey.SubscribePRRefDesc, Required = false)] string? pr_ref = null,

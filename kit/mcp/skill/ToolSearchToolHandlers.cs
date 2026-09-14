@@ -5,7 +5,7 @@ namespace McpToolDispatch;
 /// <summary>
 /// 工具搜索处理器 — 提供按关键词、精确选择、分组下钻等方式搜索可用工具的功能
 /// </summary>
-[McpToolDispatch(SystemToolNameConstants.ToolSearch, Optional = true)]
+[McpToolDispatch(SystemToolNameEnumConstants.ToolSearch, Optional = true)]
 public partial class ToolSearchToolHandlers
 {
     private readonly IMcpToolRegistry _toolRegistry;
@@ -29,7 +29,7 @@ public partial class ToolSearchToolHandlers
     /// <param name="max_results">最大结果数（可选，默认 10）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.ToolSearch, "Search available tools by keyword or exact selection", "system")]
+    [McpTool(SystemToolNameEnumConstants.ToolSearch, "Search available tools by keyword or exact selection", "system")]
     public async Task<ToolResult> SearchToolsAsync(
         [McpToolParameter("Search query: keyword search, 'select:Name1,Name2' for exact selection, '+name' for must-include, 'map[主分组]'/'map[主分组][子分组]'/'map[主分组][子分组][工具名]' to drill into groups, 'list_groups' to list all groups")] string query,
         [McpToolParameter("Maximum number of results (optional, default 10)", Required = false)] int? max_results = 10,

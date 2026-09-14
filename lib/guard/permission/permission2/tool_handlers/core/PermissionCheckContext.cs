@@ -66,9 +66,9 @@ public sealed class PermissionCheckContext
     /// </summary>
     public static bool IsFileReadTool(string toolName)
     {
-        return string.Equals(toolName, FileToolNameConstants.FileRead, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(toolName, SearchToolNameConstants.Grep, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(toolName, SearchToolNameConstants.Glob, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(toolName, FileToolNameEnumConstants.FileRead, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(toolName, SearchToolNameEnumConstants.Grep, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(toolName, SearchToolNameEnumConstants.Glob, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -76,27 +76,27 @@ public sealed class PermissionCheckContext
     /// </summary>
     public static bool IsFileWriteTool(string toolName)
     {
-        return string.Equals(toolName, FileToolNameConstants.FileWrite, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(toolName, FileToolNameConstants.FileEdit, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(toolName, FileToolNameConstants.FileEditRegex, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(toolName, FileToolNameEnumConstants.FileWrite, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(toolName, FileToolNameEnumConstants.FileEdit, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(toolName, FileToolNameEnumConstants.FileEditRegex, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
     /// 检查是否为 WebFetch 工具
     /// </summary>
     public static bool IsWebFetchTool(string toolName)
-        => string.Equals(toolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase);
+        => string.Equals(toolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// 检查是否为 Config GET 操作 — 对齐 TS 版 ConfigTool.checkPermissions
     /// </summary>
     public static bool IsConfigGetOperation(string toolName, Dictionary<string, JsonElement>? arguments)
     {
-        if (string.Equals(toolName, InteractionToolNameConstants.ConfigGet, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(toolName, InteractionToolNameConstants.ConfigList, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(toolName, InteractionToolNameEnumConstants.ConfigGet, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(toolName, InteractionToolNameEnumConstants.ConfigList, StringComparison.OrdinalIgnoreCase))
             return true;
 
-        if (string.Equals(toolName, InteractionToolNameConstants.Config, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(toolName, InteractionToolNameEnumConstants.Config, StringComparison.OrdinalIgnoreCase))
         {
             if (arguments == null || !arguments.TryGetValue("value", out var valueEl))
                 return true;

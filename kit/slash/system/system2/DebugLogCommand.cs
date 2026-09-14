@@ -1,7 +1,7 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
-/// /debuglog 子选项标志枚举 — [EnumValue] 由 EnumMetadataGenerator 自动生成 DebugLogFlagConstants + DebugLogFlagExtensions
+/// /debuglog 子选项标志枚举 — [EnumValue] 由 EnumMetadataGenerator 自动生成 DebugLogFlagEnumConstants + DebugLogFlagExtensions
 /// </summary>
 public enum DebugLogFlag
 {
@@ -60,7 +60,7 @@ public enum DebugLogFlag
 /// /debuglog -l       仅诊断日志
 /// /debuglog -c       清空日志缓冲区
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.DebugLog, Description = "显示运行流程全貌（初始化|警告|错误|日志|系统提示词）",
+[ChatCommand(Name = ChatCommandNameEnumConstants.DebugLog, Description = "显示运行流程全貌（初始化|警告|错误|日志|系统提示词）",
     Usage = "/debuglog [-a|-e|-w|-i|-p|-l|-c]",
     Category = ChatCommandCategory.System, ArgumentHint = "[-a|--all|-e|--error|-w|--warn|-i|--init|-p|--prompt|-l|--log|-c|--clear]")]
 [ChatCommandArg("flags", Type = "string", Description = "显示标志（可组合）", Enum = new[] { "-a", "--all", "-e", "--error", "-w", "--warn", "-i", "--init", "-p", "--prompt", "-l", "--log", "-c", "--clear" })]
@@ -82,7 +82,7 @@ public sealed class DebugLogCommand : ChatCommandBase
             if (buffer is not null)
             {
                 buffer.Clear();
-                TerminalHelper.WriteLine($"{TerminalColors.Success}日志缓冲区已清空{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}日志缓冲区已清空{AnsiStyleEnumConstants.Reset}");
             }
             return ChatCommandResult.Continue();
         }

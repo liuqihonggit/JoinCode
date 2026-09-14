@@ -41,23 +41,23 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
         using var guard = await _queueLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_queueLock.Name}' 等待超时");
         try
         {
-            var mode = @params.Mode == ElicitModeConstants.Url ? ElicitModeConstants.Url : ElicitModeConstants.Form;
+            var mode = @params.Mode == ElicitModeEnumConstants.Url ? ElicitModeEnumConstants.Url : ElicitModeEnumConstants.Form;
 
             _logger?.LogInformation("处理 Elicitation 请求: 服务器={ServerName}, 模式={Mode}", serverName, mode);
 
-            return mode == ElicitModeConstants.Url
+            return mode == ElicitModeEnumConstants.Url
                 ? await HandleUrlModeAsync(serverName, @params, cancellationToken).ConfigureAwait(false)
                 : await HandleFormModeAsync(serverName, @params, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             _logger?.LogDebug("Elicitation 请求被取消: 服务器={ServerName}", serverName);
-            return new ElicitResult { Action = ElicitActionConstants.Cancel };
+            return new ElicitResult { Action = ElicitActionEnumConstants.Cancel };
         }
         catch (Exception ex)
         {
             _logger?.LogError(ex, "处理 Elicitation 请求失败: 服务器={ServerName}", serverName);
-            return new ElicitResult { Action = ElicitActionConstants.Cancel };
+            return new ElicitResult { Action = ElicitActionEnumConstants.Cancel };
         }
 
     }
@@ -75,12 +75,12 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
 
             if (!result.Success || string.IsNullOrEmpty(result.Response))
             {
-                return new ElicitResult { Action = ElicitActionConstants.Decline };
+                return new ElicitResult { Action = ElicitActionEnumConstants.Decline };
             }
 
             return new ElicitResult
             {
-                Action = ElicitActionConstants.Accept,
+                Action = ElicitActionEnumConstants.Accept,
                 Content = new Dictionary<string, JsonElement?>
                 {
                     ["response"] = JsonSerializer.SerializeToElement(result.Response, McpClientJsonContext.Default.String)
@@ -112,14 +112,14 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
             {
                 if (isRequired)
                 {
-                    return new ElicitResult { Action = ElicitActionConstants.Decline };
+                    return new ElicitResult { Action = ElicitActionEnumConstants.Decline };
                 }
                 continue;
             }
 
             if (string.IsNullOrEmpty(fieldResult.Response) && isRequired)
             {
-                return new ElicitResult { Action = ElicitActionConstants.Decline };
+                return new ElicitResult { Action = ElicitActionEnumConstants.Decline };
             }
 
             if (!string.IsNullOrEmpty(fieldResult.Response))
@@ -130,7 +130,7 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
 
         return new ElicitResult
         {
-            Action = ElicitActionConstants.Accept,
+            Action = ElicitActionEnumConstants.Accept,
             Content = content
         };
     }
@@ -147,10 +147,10 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
 
         if (!confirmed)
         {
-            return new ElicitResult { Action = ElicitActionConstants.Decline };
+            return new ElicitResult { Action = ElicitActionEnumConstants.Decline };
         }
 
-        return new ElicitResult { Action = ElicitActionConstants.Accept };
+        return new ElicitResult { Action = ElicitActionEnumConstants.Accept };
     }
 
     private static JsonElement? ConvertFieldValue(string fieldType, string value)

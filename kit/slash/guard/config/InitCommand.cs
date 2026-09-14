@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /init 命令 — AI 驱动初始化项目配置文件
 /// 支持快速模式(骨架配置)和 AI 驱动模式(分析代码库生成详细规则)
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Init, Description = "AI驱动初始化项目配置文件", Usage = "/init [quick]", Category = ChatCommandCategory.Config, ArgumentHint = "[quick]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Init, Description = "AI驱动初始化项目配置文件", Usage = "/init [quick]", Category = ChatCommandCategory.Config, ArgumentHint = "[quick]")]
 [ChatCommandArg("mode", Type = "string", Description = "初始化模式: quick=快速模式", Enum = new[] { "quick" })]
 public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
 {

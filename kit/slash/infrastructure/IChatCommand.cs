@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// 命令服务容器扩展 — 从 ChatCommandContext.Services (IServiceProvider) 获取强类型 CommandServices
@@ -83,7 +83,7 @@ public abstract class ChatCommandBase : IChatCommand
         var service = context.Services.GetService<T>();
         if (service is null && !TerminalHelper.IsInputRedirected)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{typeof(T).Name} 服务未初始化{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{typeof(T).Name} 服务未初始化{AnsiStyleEnumConstants.Reset}");
         }
         return service;
     }
@@ -96,7 +96,7 @@ public abstract class ChatCommandBase : IChatCommand
         var service = context.Services.GetService(serviceType) as T;
         if (service is null && !TerminalHelper.IsInputRedirected)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{serviceType.Name} 服务未初始化{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{serviceType.Name} 服务未初始化{AnsiStyleEnumConstants.Reset}");
         }
         return service;
     }
@@ -106,7 +106,7 @@ public abstract class ChatCommandBase : IChatCommand
     /// </summary>
     internal static void HandleError(string operation, Exception ex)
     {
-        TerminalHelper.WriteLine($"{TerminalColors.Error}{operation}失败: {ex.Message}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Error}{operation}失败: {ex.Message}{AnsiStyleEnumConstants.Reset}");
     }
 
     /// <summary>

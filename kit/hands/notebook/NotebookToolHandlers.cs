@@ -44,7 +44,7 @@ public class NotebookToolHandlers
     /// <param name="edit_mode">编辑模式：replace、insert 或 delete（默认 replace）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookEdit, "Replace the contents of a specific cell in a Jupyter notebook (.ipynb)", "notebook")]
+    [McpTool(NotebookToolNameEnumConstants.NotebookEdit, "Replace the contents of a specific cell in a Jupyter notebook (.ipynb)", "notebook")]
     public async Task<ToolResult> NotebookEditAsync(
         [McpToolParameter("The absolute path to the Jupyter notebook file to edit")] string notebook_path,
         [McpToolParameter("The new source for the cell")] string new_source,
@@ -80,7 +80,7 @@ public class NotebookToolHandlers
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        var modeStr = edit_mode ?? NotebookEditModeConstants.Replace;
+        var modeStr = edit_mode ?? NotebookEditModeEnumConstants.Replace;
         var mode = NotebookEditModeExtensions.FromValue(modeStr) ?? NotebookEditMode.Replace;
         if (!NotebookEditModeExtensions.IsDefined(mode))
         {
@@ -146,7 +146,7 @@ public class NotebookToolHandlers
             return ToolResultBuilder.Error().WithText($"Notebook file does not exist: {notebook_path}")
                 .WithDiagnostic(ToolDiagnostic.Create("FileNotFound", $"Notebook file does not exist: {notebook_path}",
                     [new DiagnosticDetail("filePath", notebook_path)],
-                    [$"检查路径拼写、大小写，或使用 {FileToolNameConstants.FileRead} 工具确认文件是否存在。"])).Build();
+                    [$"检查路径拼写、大小写，或使用 {FileToolNameEnumConstants.FileRead} 工具确认文件是否存在。"])).Build();
 
         var notebook = await _notebookService.LoadAsync(notebook_path, cancellationToken).ConfigureAwait(false);
         if (notebook == null)
@@ -179,7 +179,7 @@ public class NotebookToolHandlers
         if (mode == NotebookEditMode.Replace && cellIndex == notebook.Cells.Count)
         {
             mode = NotebookEditMode.Insert;
-            cell_type ??= NotebookCellTypeConstants.Code;
+            cell_type ??= NotebookCellTypeEnumConstants.Code;
         }
 
         if (mode == NotebookEditMode.Delete)
@@ -310,7 +310,7 @@ public class NotebookToolHandlers
     /// <param name="language">编程语言（如 python，可选）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookCreate, "Create a new Jupyter Notebook file", "notebook")]
+    [McpTool(NotebookToolNameEnumConstants.NotebookCreate, "Create a new Jupyter Notebook file", "notebook")]
     public async Task<ToolResult> NotebookCreateAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Kernel name (e.g. python3)", Required = false)] string? kernel_name = null,
@@ -364,7 +364,7 @@ public class NotebookToolHandlers
     /// <param name="show_content">是否显示各单元格的完整内容（默认 false）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookRead, "Read a Jupyter Notebook file", "notebook", ConcurrencySafe = true)]
+    [McpTool(NotebookToolNameEnumConstants.NotebookRead, "Read a Jupyter Notebook file", "notebook", ConcurrencySafe = true)]
     public async Task<ToolResult> NotebookReadAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Whether to show cell contents", Required = false, DefaultValue = "false")] bool? show_content = null,
@@ -447,7 +447,7 @@ public class NotebookToolHandlers
     /// <param name="index">插入位置索引（可选，默认追加到末尾）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookAddCell, "Add a cell to a notebook", "notebook")]
+    [McpTool(NotebookToolNameEnumConstants.NotebookAddCell, "Add a cell to a notebook", "notebook")]
     public async Task<ToolResult> NotebookAddCellAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Cell type (code/markdown/raw)")] string cell_type,
@@ -511,7 +511,7 @@ public class NotebookToolHandlers
     /// <param name="index">单元格索引。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookDeleteCell, "Delete a cell from a notebook", "notebook")]
+    [McpTool(NotebookToolNameEnumConstants.NotebookDeleteCell, "Delete a cell from a notebook", "notebook")]
     public async Task<ToolResult> NotebookDeleteCellAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Cell index")] int index,
@@ -567,7 +567,7 @@ public class NotebookToolHandlers
     /// <param name="content">新内容。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookEditCell, "Edit a notebook cell's content", "notebook")]
+    [McpTool(NotebookToolNameEnumConstants.NotebookEditCell, "Edit a notebook cell's content", "notebook")]
     public async Task<ToolResult> NotebookEditCellAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Cell index")] int index,
@@ -624,7 +624,7 @@ public class NotebookToolHandlers
     /// <param name="to_index">目标位置索引。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookMoveCell, "Move a notebook cell to a new position", "notebook")]
+    [McpTool(NotebookToolNameEnumConstants.NotebookMoveCell, "Move a notebook cell to a new position", "notebook")]
     public async Task<ToolResult> NotebookMoveCellAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Source position index")] int from_index,
@@ -681,7 +681,7 @@ public class NotebookToolHandlers
     /// <param name="new_type">新类型（code/markdown/raw）。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookChangeCellType, "Change a notebook cell's type", "notebook")]
+    [McpTool(NotebookToolNameEnumConstants.NotebookChangeCellType, "Change a notebook cell's type", "notebook")]
     public async Task<ToolResult> NotebookChangeCellTypeAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Cell index")] int index,
@@ -743,7 +743,7 @@ public class NotebookToolHandlers
     /// <param name="file_path">Notebook 文件路径。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookClearOutputs, "Clear outputs of all notebook cells", "notebook")]
+    [McpTool(NotebookToolNameEnumConstants.NotebookClearOutputs, "Clear outputs of all notebook cells", "notebook")]
     public async Task<ToolResult> NotebookClearOutputsAsync(
         [McpToolParameter("File path")] string file_path,
         CancellationToken cancellationToken = default)
@@ -797,7 +797,7 @@ public class NotebookToolHandlers
     /// <param name="index">单元格索引。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果。</returns>
-    [McpTool(NotebookToolNameConstants.NotebookGetCell, "Get the content of a specific notebook cell", "notebook", ConcurrencySafe = true)]
+    [McpTool(NotebookToolNameEnumConstants.NotebookGetCell, "Get the content of a specific notebook cell", "notebook", ConcurrencySafe = true)]
     public async Task<ToolResult> NotebookGetCellAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Cell index")] int index,
@@ -913,7 +913,7 @@ public class NotebookToolHandlers
             suggestions:
             [
                 "确认文件扩展名为 .ipynb。",
-                $"如需编辑其他文件类型，使用 {FileToolNameConstants.FileEdit} 工具。",
+                $"如需编辑其他文件类型，使用 {FileToolNameEnumConstants.FileEdit} 工具。",
             ]);
     }
 
@@ -1191,7 +1191,7 @@ public class NotebookToolHandlers
             suggestions:
             [
                 "使用不同的文件名创建新的 notebook。",
-                $"如需编辑已有文件，使用 {NotebookToolNameConstants.NotebookEdit} 工具。",
+                $"如需编辑已有文件，使用 {NotebookToolNameEnumConstants.NotebookEdit} 工具。",
             ]);
     }
 

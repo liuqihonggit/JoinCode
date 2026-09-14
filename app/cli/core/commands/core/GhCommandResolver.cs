@@ -1,4 +1,4 @@
-namespace JoinCode.CliCommands;
+﻿namespace JoinCode.CliCommands;
 
 /// <summary>
 /// gh 子命令的参数元信息 — 由 <see cref="GhParamSchemaParser"/> 从 <c>ToolSchema</c> 抽取，
@@ -92,7 +92,7 @@ internal static class GhCommandResolver
         var tail = new List<string>(args.Length - startIndex);
         for (var i = startIndex; i < args.Length; i++)
         {
-            if (jsonStripped && args[i] == CliArgConstants.JsonLongName)
+            if (jsonStripped && args[i] == CliArgCliOptionConstants.JsonLongName)
                 continue;
             tail.Add(args[i]);
         }

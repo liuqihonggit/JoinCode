@@ -8,7 +8,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 查看 PR 详情 — 调 REST API 获取 PR 信息，verbose=true 返回完整 JSON（从缓存读），默认精简输出
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrView, "查看 PR 详情(号/标题/状态/URL/body/变更统计)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhPrView, "查看 PR 详情(号/标题/状态/URL/body/变更统计)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrViewAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
@@ -41,7 +41,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 列出 PR — 支持状态/数量/作者过滤，表格格式输出
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrList, "列出 PR(支持状态/数量/作者过滤)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhPrList, "列出 PR(支持状态/数量/作者过滤)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrListAsync(
         [McpToolParameter("状态(open/closed/merged/all,默认 open)", Required = false)] string? state = null,
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
@@ -66,7 +66,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 查看 PR diff — 调 REST API 获取 PR 的 diff_url 后下载 patch 文本
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrDiff, "查看 PR diff(patch 文本)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhPrDiff, "查看 PR diff(patch 文本)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrDiffAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
@@ -103,7 +103,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 查看 PR 的 CI 检查状态 — 调 REST API 获取 check-runs，正确处理 skipping 语义（非失败）
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrChecks, "查看 PR 的 CI 检查状态(pass/fail/pending/skipping,skipping 非失败)", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhPrChecks, "查看 PR 的 CI 检查状态(pass/fail/pending/skipping,skipping 非失败)", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhPrChecksAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
@@ -162,7 +162,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 合并 PR — 支持 squash/merge/rebase 方式和 auto-merge（CI 通过后自动合并），可选删除分支
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrMerge, "合并 PR(支持 squash/merge/rebase + auto-merge)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrMerge, "合并 PR(支持 squash/merge/rebase + auto-merge)", "github")]
     public async Task<ToolResult> GhPrMergeAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("合并方式(squash/merge/rebase,默认 squash)", Required = false)] string? merge_method = null,
@@ -223,7 +223,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 检出 PR 分支到本地 — 走 git fetch + checkout，分支名格式 pr-{number}
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrCheckout, "检出 PR 分支到本地", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrCheckout, "检出 PR 分支到本地", "github")]
     public async Task<ToolResult> GhPrCheckoutAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
@@ -243,7 +243,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 关闭 PR — 可选附评论，调 REST API PATCH state=closed
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrClose, "关闭 PR(可附评论)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrClose, "关闭 PR(可附评论)", "github")]
     public async Task<ToolResult> GhPrCloseAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("关闭评论(可选)", Required = false)] string? comment = null,
@@ -271,7 +271,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 重新打开 PR — 调 REST API PATCH state=open
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrReopen, "重新打开 PR", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrReopen, "重新打开 PR", "github")]
     public async Task<ToolResult> GhPrReopenAsync(
         [McpToolParameter("PR 编号或 URL", Required = true)] string pr_number,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
@@ -292,7 +292,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 创建 PR — 支持 title/head/base/body/draft，调 REST API POST
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhPrCreate, "创建 PR(支持 title/head/base/body/draft)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhPrCreate, "创建 PR(支持 title/head/base/body/draft)", "github")]
     public async Task<ToolResult> GhPrCreateAsync(
         [McpToolParameter("PR 标题", Required = true)] string title,
         [McpToolParameter("源分支(head)", Required = true)] string head,

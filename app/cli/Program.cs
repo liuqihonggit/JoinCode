@@ -1,4 +1,4 @@
-namespace JoinCode;
+﻿namespace JoinCode;
 
 /// <summary>
 /// 程序入口点 — 显式声明应用启动流程
@@ -42,7 +42,7 @@ class Program
         }
 
         // --quiet / -q: 静默模式 — 抑制 Warning 和 Info 输出(BUG#3)
-        var isQuiet = Array.IndexOf(args, JccCliArgConstants.Quiet) >= 0 || Array.IndexOf(args, "-q") >= 0;
+        var isQuiet = Array.IndexOf(args, JccCliArgEnumConstants.Quiet) >= 0 || Array.IndexOf(args, "-q") >= 0;
         App.ErrorConsole.IsQuiet = isQuiet;
         if (isQuiet)
             Environment.SetEnvironmentVariable("JCC_LOG_LEVEL", "Error");
@@ -266,7 +266,7 @@ class Program
     {
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == JccCliArgConstants.Await)
+            if (args[i] == JccCliArgEnumConstants.Await)
             {
                 var value = args[i + 1];
                 if (!int.TryParse(value, out var seconds))
@@ -290,13 +290,13 @@ class Program
 
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == JccCliArgConstants.PermissionMode)
+            if (args[i] == JccCliArgEnumConstants.PermissionMode)
             {
                 var value = args[i + 1];
                 if (!validPermissionModes.Contains(value, StringComparer.OrdinalIgnoreCase))
                     return $"--permission-mode 的值 '{value}' 无效，有效值为: {string.Join(", ", validPermissionModes)}";
             }
-            if (args[i] == JccCliArgConstants.Format)
+            if (args[i] == JccCliArgEnumConstants.Format)
             {
                 var value = args[i + 1];
                 if (!validFormats.Contains(value, StringComparer.OrdinalIgnoreCase))
@@ -315,7 +315,7 @@ class Program
     {
         for (var i = 0; i < args.Length - 1; i++)
         {
-            if (args[i] == JccCliArgConstants.Await && int.TryParse(args[i + 1], out var seconds) && seconds > 0)
+            if (args[i] == JccCliArgEnumConstants.Await && int.TryParse(args[i + 1], out var seconds) && seconds > 0)
             {
                 Diag.WriteLine($"[MAIN] --await {seconds}s 早期计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
                 return new System.Threading.Timer(

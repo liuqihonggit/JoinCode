@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// 诊断日志渲染器 — 提取自 DebugLogCommand，供启动流程（InitDebugDumpStep）和 /debuglog REPL 命令共用
@@ -78,11 +78,11 @@ public static class DebugLogRenderer
     /// </summary>
     private static async Task AppendInitInfo(StringBuilder sb, IServiceProvider services, CancellationToken cancellationToken)
     {
-        sb.AppendLine($"{TerminalColors.Accent}═══ 初始化状态 ═══{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{TerminalColors.Accent}═══ 初始化状态 ═══{AnsiStyleEnumConstants.Reset}");
 
         var debugLogStatus = Diag.IsDebugLog
-            ? $"{TerminalColors.Success}已启用{AnsiStyleConstants.Reset}"
-            : $"{TerminalColors.Muted}未启用{AnsiStyleConstants.Reset}";
+            ? $"{TerminalColors.Success}已启用{AnsiStyleEnumConstants.Reset}"
+            : $"{TerminalColors.Muted}未启用{AnsiStyleEnumConstants.Reset}";
         sb.AppendLine($"  调试日志: {debugLogStatus}");
 
         var envVars = new[]
@@ -95,39 +95,39 @@ public static class DebugLogRenderer
         {
             var value = Environment.GetEnvironmentVariable(envVar.ToValue());
             var display = value is not null
-                ? $"{TerminalColors.Warning}{envVar.ToValue()}={value}{AnsiStyleConstants.Reset}"
-                : $"{TerminalColors.Muted}{envVar.ToValue()}=(未设置){AnsiStyleConstants.Reset}";
+                ? $"{TerminalColors.Warning}{envVar.ToValue()}={value}{AnsiStyleEnumConstants.Reset}"
+                : $"{TerminalColors.Muted}{envVar.ToValue()}=(未设置){AnsiStyleEnumConstants.Reset}";
             sb.AppendLine($"    {display}");
         }
 
         var crashStore = services.GetService<ICrashSnapshotStore>();
         if (crashStore is not null)
         {
-            sb.AppendLine($"  崩溃快照: {TerminalColors.Muted}{crashStore.TotalCount} 条记录, {crashStore.UnacknowledgedCount} 条未确认{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  崩溃快照: {TerminalColors.Muted}{crashStore.TotalCount} 条记录, {crashStore.UnacknowledgedCount} 条未确认{AnsiStyleEnumConstants.Reset}");
         }
 
         var debugBuffer = services.GetService<IDebugLogBuffer>();
         if (debugBuffer is not null)
         {
-            sb.AppendLine($"  日志缓冲区: {TerminalColors.Muted}{debugBuffer.Count} 条{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  日志缓冲区: {TerminalColors.Muted}{debugBuffer.Count} 条{AnsiStyleEnumConstants.Reset}");
         }
 
         var toolRegistry = services.GetService<IToolRegistry>();
         if (toolRegistry is not null)
         {
             var toolCount = await toolRegistry.GetCountAsync(cancellationToken).ConfigureAwait(false);
-            sb.AppendLine($"  MCP 工具: {TerminalColors.Muted}{toolCount} 个已注册{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  MCP 工具: {TerminalColors.Muted}{toolCount} 个已注册{AnsiStyleEnumConstants.Reset}");
         }
 
         var promptProvider = services.GetService<ISystemPromptProvider>();
         if (promptProvider is not null)
         {
             var sections = promptProvider.GetSections().ToList();
-            sb.AppendLine($"  系统提示词: {TerminalColors.Muted}{sections.Count} 个部分{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  系统提示词: {TerminalColors.Muted}{sections.Count} 个部分{AnsiStyleEnumConstants.Reset}");
             foreach (var section in sections)
             {
                 var cacheTag = section.CacheBreak ? "动态" : "缓存";
-                sb.AppendLine($"    {TerminalColors.Muted}[{cacheTag}]{AnsiStyleConstants.Reset} {section.Name}");
+                sb.AppendLine($"    {TerminalColors.Muted}[{cacheTag}]{AnsiStyleEnumConstants.Reset} {section.Name}");
             }
         }
 
@@ -142,7 +142,7 @@ public static class DebugLogRenderer
         var crashStore = services.GetService<ICrashSnapshotStore>();
         var debugBuffer = services.GetService<IDebugLogBuffer>();
 
-        sb.AppendLine($"{TerminalColors.Accent}═══ 警告与错误 ═══{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{TerminalColors.Accent}═══ 警告与错误 ═══{AnsiStyleEnumConstants.Reset}");
 
         if (crashStore is not null)
         {
@@ -151,7 +151,7 @@ public static class DebugLogRenderer
 
             if (warnings.Count > 0)
             {
-                sb.AppendLine($"  {TerminalColors.Warning}警告 ({warnings.Count}):{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"  {TerminalColors.Warning}警告 ({warnings.Count}):{AnsiStyleEnumConstants.Reset}");
                 foreach (var w in warnings.Take(20))
                 {
                     sb.AppendLine($"    [{w.Severity.ToValue()}] {w.FenceName}: {w.ExceptionType}: {w.ExceptionMessage}");
@@ -160,7 +160,7 @@ public static class DebugLogRenderer
 
             if (errors.Count > 0)
             {
-                sb.AppendLine($"  {TerminalColors.Error}错误 ({errors.Count}):{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"  {TerminalColors.Error}错误 ({errors.Count}):{AnsiStyleEnumConstants.Reset}");
                 foreach (var e in errors.Take(20))
                 {
                     sb.AppendLine($"    [{e.Severity.ToValue()}] {e.FenceName}: {e.ExceptionType}: {e.ExceptionMessage}");
@@ -172,12 +172,12 @@ public static class DebugLogRenderer
 
             if (warnings.Count == 0 && errors.Count == 0)
             {
-                sb.AppendLine($"  {TerminalColors.Success}无警告或错误{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"  {TerminalColors.Success}无警告或错误{AnsiStyleEnumConstants.Reset}");
             }
         }
         else
         {
-            sb.AppendLine($"  {TerminalColors.Muted}CrashSnapshotStore 不可用{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Muted}CrashSnapshotStore 不可用{AnsiStyleEnumConstants.Reset}");
         }
 
         if (debugBuffer is not null)
@@ -185,7 +185,7 @@ public static class DebugLogRenderer
             var errorLogs = debugBuffer.GetByLevel(DebugLogLevel.Error, 30);
             if (errorLogs.Count > 0)
             {
-                sb.AppendLine($"  {TerminalColors.Error}诊断错误日志 ({errorLogs.Count}):{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"  {TerminalColors.Error}诊断错误日志 ({errorLogs.Count}):{AnsiStyleEnumConstants.Reset}");
                 foreach (var entry in errorLogs)
                 {
                     sb.AppendLine($"    {entry.Timestamp:HH:mm:ss.fff} {entry.Message}");
@@ -204,7 +204,7 @@ public static class DebugLogRenderer
         var crashStore = services.GetService<ICrashSnapshotStore>();
         var debugBuffer = services.GetService<IDebugLogBuffer>();
 
-        sb.AppendLine($"{TerminalColors.Error}═══ 错误 ═══{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{TerminalColors.Error}═══ 错误 ═══{AnsiStyleEnumConstants.Reset}");
 
         var hasErrors = false;
 
@@ -244,7 +244,7 @@ public static class DebugLogRenderer
 
         if (!hasErrors)
         {
-            sb.AppendLine($"  {TerminalColors.Success}无错误记录{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Success}无错误记录{AnsiStyleEnumConstants.Reset}");
         }
 
         sb.AppendLine();
@@ -257,11 +257,11 @@ public static class DebugLogRenderer
     {
         var debugBuffer = services.GetService<IDebugLogBuffer>();
 
-        sb.AppendLine($"{TerminalColors.Accent}═══ 诊断日志 ═══{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{TerminalColors.Accent}═══ 诊断日志 ═══{AnsiStyleEnumConstants.Reset}");
 
         if (debugBuffer is null)
         {
-            sb.AppendLine($"  {TerminalColors.Muted}DebugLogBuffer 不可用{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Muted}DebugLogBuffer 不可用{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             return;
         }
@@ -269,7 +269,7 @@ public static class DebugLogRenderer
         var entries = debugBuffer.GetRecent(100);
         if (entries.Count == 0)
         {
-            sb.AppendLine($"  {TerminalColors.Muted}无日志记录（启用 --debuglog 可捕获更多日志）{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Muted}无日志记录（启用 --debuglog 可捕获更多日志）{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             return;
         }
@@ -287,7 +287,7 @@ public static class DebugLogRenderer
                 DebugLogLevel.Warn => TerminalColors.Warning,
                 _ => TerminalColors.Muted,
             };
-            sb.AppendLine($"  {levelColor}{entry.Timestamp:HH:mm:ss.fff} [{entry.Category}]{AnsiStyleConstants.Reset} {Truncate(entry.Message, 200)}");
+            sb.AppendLine($"  {levelColor}{entry.Timestamp:HH:mm:ss.fff} [{entry.Category}]{AnsiStyleEnumConstants.Reset} {Truncate(entry.Message, 200)}");
         }
 
         if (entries.Count > 80)
@@ -303,11 +303,11 @@ public static class DebugLogRenderer
     {
         var promptProvider = services.GetService<ISystemPromptProvider>();
 
-        sb.AppendLine($"{TerminalColors.Accent}═══ 系统提示词 ═══{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{TerminalColors.Accent}═══ 系统提示词 ═══{AnsiStyleEnumConstants.Reset}");
 
         if (promptProvider is null)
         {
-            sb.AppendLine($"  {TerminalColors.Muted}ISystemPromptProvider 不可用{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Muted}ISystemPromptProvider 不可用{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             return;
         }
@@ -315,7 +315,7 @@ public static class DebugLogRenderer
         var sections = promptProvider.GetSections().ToList();
         if (sections.Count == 0)
         {
-            sb.AppendLine($"  {TerminalColors.Muted}无系统提示词部分{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Muted}无系统提示词部分{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             return;
         }
@@ -324,7 +324,7 @@ public static class DebugLogRenderer
         foreach (var section in sections)
         {
             var cacheTag = section.CacheBreak ? "动态" : "缓存";
-            sb.AppendLine($"  {TerminalColors.Primary}[{cacheTag}] {section.Name}{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"  {TerminalColors.Primary}[{cacheTag}] {section.Name}{AnsiStyleEnumConstants.Reset}");
 
             try
             {
@@ -335,16 +335,16 @@ public static class DebugLogRenderer
                     var display = content.Length > 500
                         ? content[..500] + $"... (共 {content.Length} 字符)"
                         : content;
-                    sb.AppendLine($"    {TerminalColors.Muted}{display}{AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"    {TerminalColors.Muted}{display}{AnsiStyleEnumConstants.Reset}");
                 }
                 else
                 {
-                    sb.AppendLine($"    {TerminalColors.Muted}(空){AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"    {TerminalColors.Muted}(空){AnsiStyleEnumConstants.Reset}");
                 }
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"    {TerminalColors.Error}计算失败: {ex.Message}{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"    {TerminalColors.Error}计算失败: {ex.Message}{AnsiStyleEnumConstants.Reset}");
             }
 
             sb.AppendLine();

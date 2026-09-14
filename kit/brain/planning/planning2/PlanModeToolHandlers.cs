@@ -27,7 +27,7 @@ public class PlanModeToolHandlers
     /// <param name="description">计划描述（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果，包含 plan 文件路径和探索指引</returns>
-    [McpTool(PlanToolNameConstants.EnterPlanMode, "Enter plan mode for complex tasks requiring exploration and design", "plan")]
+    [McpTool(PlanToolNameEnumConstants.EnterPlanMode, "Enter plan mode for complex tasks requiring exploration and design", "plan")]
     public async Task<ToolResult> EnterPlanModeAsync(
         [McpToolParameter("Plan description (optional)", Required = false)] string? description = null,
         CancellationToken cancellationToken = default)
@@ -59,7 +59,7 @@ public class PlanModeToolHandlers
         {
             sb.AppendLine($"## Plan File");
             sb.AppendLine($"You should write your plan to: {result.PlanState.PlanFilePath}");
-            sb.AppendLine($"Use the {FileToolNameConstants.FileWrite} to create and update this plan file as you explore.");
+            sb.AppendLine($"Use the {FileToolNameEnumConstants.FileWrite} to create and update this plan file as you explore.");
             sb.AppendLine();
         }
 
@@ -67,9 +67,9 @@ public class PlanModeToolHandlers
         sb.AppendLine("1. Thoroughly explore the codebase to understand existing patterns");
         sb.AppendLine("2. Identify similar features and architectural approaches");
         sb.AppendLine("3. Consider multiple approaches and their trade-offs");
-        sb.AppendLine($"4. Use {InteractionToolNameConstants.AskUserQuestion} if you need to clarify the approach");
+        sb.AppendLine($"4. Use {InteractionToolNameEnumConstants.AskUserQuestion} if you need to clarify the approach");
         sb.AppendLine("5. Design a concrete implementation strategy");
-        sb.AppendLine($"6. When ready, use {PlanToolNameConstants.ExitPlanMode} to present your plan for approval");
+        sb.AppendLine($"6. When ready, use {PlanToolNameEnumConstants.ExitPlanMode} to present your plan for approval");
         sb.AppendLine();
         sb.AppendLine("Remember: DO NOT write or edit any files yet. This is a read-only exploration and planning phase.");
 
@@ -83,7 +83,7 @@ public class PlanModeToolHandlers
     /// <param name="allowed_prompts">退出后注册的语义级 Bash 权限提示</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果，包含审批状态或执行结果</returns>
-    [McpTool(PlanToolNameConstants.ExitPlanMode, "Exit plan mode and present plan for approval", "plan")]
+    [McpTool(PlanToolNameEnumConstants.ExitPlanMode, "Exit plan mode and present plan for approval", "plan")]
     public async Task<ToolResult> ExitPlanModeAsync(
         [McpToolParameter("Whether to execute remaining approved steps", Required = false)] bool? execute_remaining_steps = false,
         [McpToolParameter("Prompt-based permissions needed to implement the plan. Each entry specifies a tool and a semantic description of the action, e.g. {\"tool\":\"Bash\",\"prompt\":\"run tests\"}", Required = false)] Dictionary<string, JsonElement>[]? allowed_prompts = null,
@@ -100,7 +100,7 @@ public class PlanModeToolHandlers
         // 对齐 TS AllowedPrompt: 将 Dictionary[] 转换为结构化 AllowedPrompt[]
         AllowedPrompt[]? typedPrompts = allowed_prompts?.Select(d => new AllowedPrompt
         {
-            Tool = d.TryGetValue("tool", out var toolEl) ? toolEl.GetString() ?? AllowedPromptToolConstants.Bash : AllowedPromptToolConstants.Bash,
+            Tool = d.TryGetValue("tool", out var toolEl) ? toolEl.GetString() ?? AllowedPromptToolEnumConstants.Bash : AllowedPromptToolEnumConstants.Bash,
             Prompt = d.TryGetValue("prompt", out var promptEl) ? promptEl.GetString() ?? "" : ""
         }).ToArray();
 
@@ -167,7 +167,7 @@ public class PlanModeToolHandlers
     /// <summary>
     /// 获取计划状态
     /// </summary>
-    [McpTool(PlanToolNameConstants.GetPlanStatus, "Get current plan status", "plan")]
+    [McpTool(PlanToolNameEnumConstants.GetPlanStatus, "Get current plan status", "plan")]
     public async Task<ToolResult> GetPlanStatusAsync(
         CancellationToken cancellationToken = default)
     {
@@ -185,7 +185,7 @@ public class PlanModeToolHandlers
     /// <summary>
     /// 添加计划步骤
     /// </summary>
-    [McpTool(PlanToolNameConstants.AddPlanStep, "Add a plan step", "plan")]
+    [McpTool(PlanToolNameEnumConstants.AddPlanStep, "Add a plan step", "plan")]
     public async Task<ToolResult> AddPlanStepAsync(
         [McpToolParameter("Step description")] string description,
         [McpToolParameter("Tool name (optional)", Required = false)] string? tool_name = null,
@@ -224,7 +224,7 @@ public class PlanModeToolHandlers
     /// <summary>
     /// 批准计划步骤
     /// </summary>
-    [McpTool(PlanToolNameConstants.ApprovePlanStep, "Approve a plan step", "plan")]
+    [McpTool(PlanToolNameEnumConstants.ApprovePlanStep, "Approve a plan step", "plan")]
     public async Task<ToolResult> ApprovePlanStepAsync(
         [McpToolParameter("Step index (0-based)")] int step_index,
         CancellationToken cancellationToken = default)
@@ -252,7 +252,7 @@ public class PlanModeToolHandlers
     /// <summary>
     /// 拒绝计划步骤
     /// </summary>
-    [McpTool(PlanToolNameConstants.RejectPlanStep, "Reject a plan step", "plan")]
+    [McpTool(PlanToolNameEnumConstants.RejectPlanStep, "Reject a plan step", "plan")]
     public async Task<ToolResult> RejectPlanStepAsync(
         [McpToolParameter("Step index (0-based)")] int step_index,
         [McpToolParameter("Rejection reason (optional)", Required = false)] string? reason = null,
@@ -287,7 +287,7 @@ public class PlanModeToolHandlers
     /// <summary>
     /// 执行计划步骤
     /// </summary>
-    [McpTool(PlanToolNameConstants.ExecutePlanSteps, "Execute approved plan steps", "plan")]
+    [McpTool(PlanToolNameEnumConstants.ExecutePlanSteps, "Execute approved plan steps", "plan")]
     public async Task<ToolResult> ExecutePlanStepsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -322,7 +322,7 @@ public class PlanModeToolHandlers
     /// <summary>
     /// 修改计划步骤
     /// </summary>
-    [McpTool(PlanToolNameConstants.ModifyPlanStep, "Modify a plan step", "plan")]
+    [McpTool(PlanToolNameEnumConstants.ModifyPlanStep, "Modify a plan step", "plan")]
     public async Task<ToolResult> ModifyPlanStepAsync(
         [McpToolParameter("Step index (0-based)")] int step_index,
         [McpToolParameter("New description (optional)", Required = false)] string? new_description = null,
@@ -358,7 +358,7 @@ public class PlanModeToolHandlers
     /// <summary>
     /// 删除计划步骤
     /// </summary>
-    [McpTool(PlanToolNameConstants.RemovePlanStep, "Remove a plan step", "plan")]
+    [McpTool(PlanToolNameEnumConstants.RemovePlanStep, "Remove a plan step", "plan")]
     public async Task<ToolResult> RemovePlanStepAsync(
         [McpToolParameter("Step index (0-based)")] int step_index,
         CancellationToken cancellationToken = default)
@@ -386,7 +386,7 @@ public class PlanModeToolHandlers
     /// <summary>
     /// 获取计划历史
     /// </summary>
-    [McpTool(PlanToolNameConstants.GetPlanHistory, "Get plan history", "plan")]
+    [McpTool(PlanToolNameEnumConstants.GetPlanHistory, "Get plan history", "plan")]
     public async Task<ToolResult> GetPlanHistoryAsync(
         [McpToolParameter("Result count limit (optional, default 10)", Required = false)] int? limit = null,
         CancellationToken cancellationToken = default)

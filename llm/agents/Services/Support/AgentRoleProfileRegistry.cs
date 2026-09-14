@@ -234,12 +234,12 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     {
         var readOnlyDisallowedTools = new List<string>
         {
-            AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, NotebookToolNameConstants.NotebookEdit
+            AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite, NotebookToolNameEnumConstants.NotebookEdit
         };
 
         var subAgentDisallowedTools = new List<string>
         {
-            AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSpawn
+            AgentToolNameEnumConstants.Agent, AgentToolNameEnumConstants.AgentSpawn
         };
 
         return
@@ -250,7 +250,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 WhenToUse = "General tasks with full toolset",
                 Description = "Coordinator agent — manages Goal lifecycle, full toolset",
                 AllowedTools = IsCoordinatorModeEnabledFromEnv()
-                    ? [AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSendMessage, TaskToolNameConstants.TaskStop]
+                    ? [AgentToolNameEnumConstants.Agent, AgentToolNameEnumConstants.AgentSendMessage, TaskToolNameEnumConstants.TaskStop]
                     : [],
                 DisallowedTools = subAgentDisallowedTools,
             },
@@ -260,7 +260,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Variant = ExecutorVariant.Code,
                 WhenToUse = "Code reading, writing, editing and refactoring",
                 Description = "Code agent focused on code reading, writing and editing",
-                AllowedTools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash, SearchToolNameConstants.SearchCodebase],
+                AllowedTools = [FileToolNameEnumConstants.FileRead, FileToolNameEnumConstants.FileWrite, FileToolNameEnumConstants.FileEdit, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, ShellToolNameEnumConstants.Bash, SearchToolNameEnumConstants.SearchCodebase],
                 DisallowedTools = subAgentDisallowedTools,
             },
             new()
@@ -269,8 +269,8 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Variant = ExecutorVariant.Search,
                 WhenToUse = "Code search, navigation and exploration",
                 Description = "Search agent focused on code search and navigation",
-                AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
-                DisallowedTools = [FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, ShellToolNameConstants.Bash],
+                AllowedTools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase],
+                DisallowedTools = [FileToolNameEnumConstants.FileWrite, FileToolNameEnumConstants.FileEdit, ShellToolNameEnumConstants.Bash],
             },
             new()
             {
@@ -278,7 +278,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Variant = ExecutorVariant.Explore,
                 WhenToUse = "Quick codebase exploration agent for file pattern search, keyword search, and codebase Q&A. Supports thoroughness levels: quick/medium/very thorough",
                 Description = "Explore agent — strictly read-only, for searching and understanding code",
-                AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
+                AllowedTools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase, ShellToolNameEnumConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 OmitProjectRules = true,
                 OmitGitStatus = true,
@@ -290,7 +290,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Variant = ExecutorVariant.Plan,
                 WhenToUse = "Software architect agent that designs implementation plans, returns step-by-step plans, key files, and architectural trade-offs",
                 Description = "Plan agent — strictly read-only, for designing implementation plans",
-                AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
+                AllowedTools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase, ShellToolNameEnumConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 OmitProjectRules = true,
                 OmitGitStatus = true,
@@ -302,8 +302,8 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Variant = ExecutorVariant.Doctor,
                 WhenToUse = "自举复盘与修复 — 分析链路日志，发现缺陷，生成修复 patch",
                 Description = "Doctor agent — 自举修复，后台运行，Cron 调度每12h复盘",
-                AllowedTools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash],
-                DisallowedTools = [AgentToolNameConstants.Agent],
+                AllowedTools = [FileToolNameEnumConstants.FileRead, FileToolNameEnumConstants.FileEdit, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, ShellToolNameEnumConstants.Bash],
+                DisallowedTools = [AgentToolNameEnumConstants.Agent],
                 IsBackground = true,
                 PermissionMode = "doctor",
             },
@@ -313,8 +313,8 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Variant = ExecutorVariant.Verification,
                 WhenToUse = "Verify code correctness, quality and security",
                 Description = "Verification agent — checks code for errors, vulnerabilities and best practice violations",
-                AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
-                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite],
+                AllowedTools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase, ShellToolNameEnumConstants.Bash],
+                DisallowedTools = [AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite],
                 SystemPrompt = @"你是一个代码验证助手。你的任务是验证代码的正确性、质量和安全性。
 
 ## 核心职责
@@ -345,8 +345,8 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Variant = ExecutorVariant.JoinCodeGuide,
                 WhenToUse = $"Guide users on how to use {BrandConstants.ProductName} features and best practices",
                 Description = $"{BrandConstants.ProductName} Guide agent — helps users understand and use {BrandConstants.ProductName}",
-                AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
-                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash],
+                AllowedTools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase],
+                DisallowedTools = [AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite, ShellToolNameEnumConstants.Bash],
                 SystemPrompt = $@"你是 {BrandConstants.ProductName} 使用引导助手。你的任务是帮助用户更好地使用 {BrandConstants.ProductName} 工具。
 
 ## 核心职责
@@ -375,8 +375,8 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                 Variant = ExecutorVariant.ContextCompression,
                 WhenToUse = "Intelligently compress and manage conversation context to optimize Token usage",
                 Description = "Context Compression agent — compresses context while preserving key information",
-                AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep],
-                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash],
+                AllowedTools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep],
+                DisallowedTools = [AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite, ShellToolNameEnumConstants.Bash],
                 SystemPrompt = @"你是上下文压缩助手。你的任务是智能地压缩和管理对话上下文，以优化 Token 使用并保留关键信息。
 
 ## 核心职责

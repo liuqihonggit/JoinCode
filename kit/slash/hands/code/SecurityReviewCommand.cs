@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /security-review 命令 — 对当前分支变更进行安全审查
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.SecurityReview, Description = "对当前分支变更进行安全审查", Usage = "/security-review", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.SecurityReview, Description = "对当前分支变更进行安全审查", Usage = "/security-review", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
 public sealed class SecurityReviewCommand : ChatCommandBase
 {
     /// <summary>
@@ -58,7 +58,7 @@ public sealed class SecurityReviewCommand : ChatCommandBase
 
         try
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Primary}正在执行安全审查...{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Primary}正在执行安全审查...{AnsiStyleEnumConstants.Reset}");
             Diag.WriteLifecycle("[DIAG-SEC-REVIEW] SendMessageAsync start (LLM call)");
             var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             Diag.WriteLifecycle($"[DIAG-SEC-REVIEW] SendMessageAsync end, resultLen={result.Length}");

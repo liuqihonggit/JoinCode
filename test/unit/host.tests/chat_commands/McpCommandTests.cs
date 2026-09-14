@@ -72,7 +72,7 @@ public sealed class McpCommandTests
     [Fact]
     public async Task Execute_WithStatus_Should_Return_Continue()
     {
-        // status → McpActionConstants.Status(MCP 专属子命令)
+        // status → McpActionEnumConstants.Status(MCP 专属子命令)
         var cmd = new McpCommand();
         var context = CreateContext("status");
 
@@ -114,7 +114,7 @@ public sealed class McpCommandTests
     [Fact]
     public async Task Execute_WithReconnect_Should_Return_Continue()
     {
-        // reconnect → McpActionConstants.Reconnect(MCP 专属子命令)
+        // reconnect → McpActionEnumConstants.Reconnect(MCP 专属子命令)
         var cmd = new McpCommand();
         var context = CreateContext("reconnect myserver");
 
@@ -126,7 +126,7 @@ public sealed class McpCommandTests
     [Fact]
     public async Task Execute_WithEnable_Should_Return_Continue()
     {
-        // enable → McpActionConstants.Enable → ToggleAction.On
+        // enable → McpActionEnumConstants.Enable → ToggleAction.On
         var cmd = new McpCommand();
         var context = CreateContext("enable myserver");
 
@@ -138,7 +138,7 @@ public sealed class McpCommandTests
     [Fact]
     public async Task Execute_WithDisable_Should_Return_Continue()
     {
-        // disable → McpActionConstants.Disable → ToggleAction.Off
+        // disable → McpActionEnumConstants.Disable → ToggleAction.Off
         var cmd = new McpCommand();
         var context = CreateContext("disable myserver");
 
@@ -195,13 +195,13 @@ public sealed class McpCommandTests
     }
 
     [Fact]
-    public void McpActionConstants_Values_Should_Match_Route()
+    public void McpActionEnumConstants_Values_Should_Match_Route()
     {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
-        McpActionConstants.Status.Should().Be("status");
-        McpActionConstants.Reconnect.Should().Be("reconnect");
-        McpActionConstants.Enable.Should().Be("enable");
-        McpActionConstants.Disable.Should().Be("disable");
+        McpActionEnumConstants.Status.Should().Be("status");
+        McpActionEnumConstants.Reconnect.Should().Be("reconnect");
+        McpActionEnumConstants.Enable.Should().Be("enable");
+        McpActionEnumConstants.Disable.Should().Be("disable");
     }
 
     private static ChatCommandContext CreateContext(string arguments)

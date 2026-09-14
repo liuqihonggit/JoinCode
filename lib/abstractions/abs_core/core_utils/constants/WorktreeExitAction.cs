@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// Worktree退出操作枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 WorktreeExitActionConstants + WorktreeExitActionExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 WorktreeExitActionEnumConstants + WorktreeExitActionExtensions
 /// </summary>
 public enum WorktreeExitAction
 {

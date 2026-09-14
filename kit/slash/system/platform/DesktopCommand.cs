@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /desktop 命令 — 将当前会话转移到桌面应用
 /// 通过 IDesktopHandoffService 把会话状态移交到 jcc-desktop 桌面进程
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Desktop, Description = "将会话转移到桌面应用", Usage = "/desktop", Category = ChatCommandCategory.Platform, Aliases = ["app"], IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Desktop, Description = "将会话转移到桌面应用", Usage = "/desktop", Category = ChatCommandCategory.Platform, Aliases = ["app"], IsHidden = true)]
 public sealed class DesktopCommand : ChatCommandBase
 {
     /// <summary>

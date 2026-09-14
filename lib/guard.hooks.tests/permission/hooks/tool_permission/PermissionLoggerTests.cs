@@ -163,9 +163,9 @@ public class PermissionLoggerTests
     }
 
     [Theory]
-    [InlineData(FileToolNameConstants.FileEdit, "accept", "config", null)]
-    [InlineData(FileToolNameConstants.FileWrite, "reject", "user", "csharp")]
-    [InlineData(NotebookToolNameConstants.NotebookEdit, "accept", "hook", "python")]
+    [InlineData(FileToolNameEnumConstants.FileEdit, "accept", "config", null)]
+    [InlineData(FileToolNameEnumConstants.FileWrite, "reject", "user", "csharp")]
+    [InlineData(NotebookToolNameEnumConstants.NotebookEdit, "accept", "hook", "python")]
     public void LogCodeEditToolDecision_VariousInputs_ShouldNotThrow(
         string toolName, string decision, string source, string? language)
     {

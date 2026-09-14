@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// TasksAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / TasksActionConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / TasksActionEnumConstants 常量值
 /// </summary>
 public sealed class TasksActionExtensionsTests
 {
@@ -97,25 +97,25 @@ public sealed class TasksActionExtensionsTests
     [Fact]
     public void Constants_Kill_Should_Be_kill()
     {
-        TasksActionConstants.Kill.Should().Be("kill");
+        TasksActionEnumConstants.Kill.Should().Be("kill");
     }
 
     [Fact]
     public void Constants_Detail_Should_Be_detail()
     {
-        TasksActionConstants.Detail.Should().Be("detail");
+        TasksActionEnumConstants.Detail.Should().Be("detail");
     }
 
     [Fact]
     public void Constants_Complete_Should_Be_complete()
     {
-        TasksActionConstants.Complete.Should().Be("complete");
+        TasksActionEnumConstants.Complete.Should().Be("complete");
     }
 
     [Fact]
     public void Constants_Todo_Should_Be_todo()
     {
-        TasksActionConstants.Todo.Should().Be("todo");
+        TasksActionEnumConstants.Todo.Should().Be("todo");
     }
 
     // ===== 枚举值数量验证 =====

@@ -126,7 +126,7 @@ public sealed class ThinkingResponseParsingTests
                 Content = "Final answer",
                 ReasoningContent = "My reasoning process..."
             },
-            FinishReason = OpenAIFinishReasonConstants.Stop
+            FinishReason = OpenAIFinishReasonEnumConstants.Stop
         };
 
         var msg = OpenAIQueryService.ConvertToApiMessage(choice, null);

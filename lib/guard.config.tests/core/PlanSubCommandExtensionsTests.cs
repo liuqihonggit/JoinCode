@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// PlanSubCommand 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / PlanSubCommandConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / PlanSubCommandEnumConstants 常量值
 /// </summary>
 public sealed class PlanSubCommandExtensionsTests
 {
@@ -107,18 +107,18 @@ public sealed class PlanSubCommandExtensionsTests
         PlanSubCommandExtensions.IsDefined(value).Should().Be(expected);
     }
 
-    // ===== PlanSubCommandConstants 测试 =====
+    // ===== PlanSubCommandEnumConstants 测试 =====
 
     [Fact]
     public void Constants_Should_Match_EnumValues()
     {
-        PlanSubCommandConstants.On.Should().Be("on");
-        PlanSubCommandConstants.Enter.Should().Be("enter");
-        PlanSubCommandConstants.Off.Should().Be("off");
-        PlanSubCommandConstants.Exit.Should().Be("exit");
-        PlanSubCommandConstants.Status.Should().Be("status");
-        PlanSubCommandConstants.Open.Should().Be("open");
-        PlanSubCommandConstants.Toggle.Should().Be("toggle");
+        PlanSubCommandEnumConstants.On.Should().Be("on");
+        PlanSubCommandEnumConstants.Enter.Should().Be("enter");
+        PlanSubCommandEnumConstants.Off.Should().Be("off");
+        PlanSubCommandEnumConstants.Exit.Should().Be("exit");
+        PlanSubCommandEnumConstants.Status.Should().Be("status");
+        PlanSubCommandEnumConstants.Open.Should().Be("open");
+        PlanSubCommandEnumConstants.Toggle.Should().Be("toggle");
     }
 
     // ===== 往返一致性测试 =====

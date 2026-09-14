@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 支持参数：文件名直接写文件，--clipboard 复制到剪贴板，无参数进入交互选择
 /// 对齐 TS ExportDialog 实现，自动从首条用户消息提取智能文件名
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Export, Description = "导出对话到文件或剪贴板", Usage = "/export [filename|--clipboard]", Category = ChatCommandCategory.System, ArgumentHint = "[filename|--clipboard]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Export, Description = "导出对话到文件或剪贴板", Usage = "/export [filename|--clipboard]", Category = ChatCommandCategory.System, ArgumentHint = "[filename|--clipboard]")]
 [ChatCommandArg("target", Type = "string", Description = "导出目标：文件名或 --clipboard", Enum = new[] { "--clipboard" })]
 public sealed class ExportCommand : ChatCommandBase
 {
@@ -28,11 +28,11 @@ public sealed class ExportCommand : ChatCommandBase
             if (clipboard is not null)
             {
                 await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleEnumConstants.Reset}");
             }
             else
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleEnumConstants.Reset}");
             }
 
             return ChatCommandResult.Continue();
@@ -64,11 +64,11 @@ public sealed class ExportCommand : ChatCommandBase
                 if (clipboard is not null)
                 {
                     await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
-                    TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleEnumConstants.Reset}");
                 }
                 else
                 {
-                    TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleEnumConstants.Reset}");
                 }
                 return ChatCommandResult.Continue();
             }
@@ -100,7 +100,7 @@ public sealed class ExportCommand : ChatCommandBase
         {
             var filePath = Path.GetFullPath(filename);
             await fs.WriteAllTextAsync(filePath, content, ct).ConfigureAwait(false);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已导出到: {filePath}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已导出到: {filePath}{AnsiStyleEnumConstants.Reset}");
         }
         catch (Exception ex)
         {
@@ -123,9 +123,9 @@ public sealed class ExportCommand : ChatCommandBase
 
         foreach (var message in history)
         {
-            var role = message.Role.Equals(MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase) ? "👤 用户"
-                : message.Role.Equals(MessageRoleConstants.Assistant, StringComparison.OrdinalIgnoreCase) ? "🤖 助手"
-                : message.Role.Equals(MessageRoleConstants.System, StringComparison.OrdinalIgnoreCase) ? "⚙️ 系统"
+            var role = message.Role.Equals(MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase) ? "👤 用户"
+                : message.Role.Equals(MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase) ? "🤖 助手"
+                : message.Role.Equals(MessageRoleEnumConstants.System, StringComparison.OrdinalIgnoreCase) ? "⚙️ 系统"
                 : message.Role;
             sb.AppendLine($"## {role}");
             sb.AppendLine(message.Content);
@@ -144,7 +144,7 @@ public sealed class ExportCommand : ChatCommandBase
             return $"conversation-{timestamp}.txt";
 
         var firstUserMessage = history.FirstOrDefault(m =>
-            m.Role.Equals(MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase));
+            m.Role.Equals(MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase));
 
         if (firstUserMessage is null)
             return $"conversation-{timestamp}.txt";

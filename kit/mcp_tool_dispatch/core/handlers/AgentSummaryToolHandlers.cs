@@ -25,7 +25,7 @@ public class AgentSummaryToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.AgentSystemStats, "Get overall agent execution statistics", "analytics")]
+    [McpTool(AgentToolNameEnumConstants.AgentSystemStats, "Get overall agent execution statistics", "analytics")]
     public Task<ToolResult> AgentSystemStatsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -51,7 +51,7 @@ public class AgentSummaryToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.AgentListStats, "List statistics for all agents", "analytics")]
+    [McpTool(AgentToolNameEnumConstants.AgentListStats, "List statistics for all agents", "analytics")]
     public Task<ToolResult> AgentListStatsAsync(
         CancellationToken cancellationToken = default)
     {
@@ -99,7 +99,7 @@ public class AgentSummaryToolHandlers
     /// <param name="agent_name">代理名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.AgentStats, "Get detailed statistics for a specific agent", "analytics")]
+    [McpTool(AgentToolNameEnumConstants.AgentStats, "Get detailed statistics for a specific agent", "analytics")]
     public Task<ToolResult> AgentStatsAsync(
         [McpToolParameter("Agent name")] string agent_name,
         CancellationToken cancellationToken = default)
@@ -141,7 +141,7 @@ public class AgentSummaryToolHandlers
     /// <param name="limit">返回记录数量上限（可选，默认 10）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.AgentHistory, "Get execution history for an agent", "analytics")]
+    [McpTool(AgentToolNameEnumConstants.AgentHistory, "Get execution history for an agent", "analytics")]
     public Task<ToolResult> AgentHistoryAsync(
         [McpToolParameter("Agent name")] string agent_name,
         [McpToolParameter("Result count limit", Required = false, DefaultValue = "10")] int? limit = null,
@@ -205,7 +205,7 @@ public class AgentSummaryToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.AgentRunningStats, "Get currently running agent executions", "analytics")]
+    [McpTool(AgentToolNameEnumConstants.AgentRunningStats, "Get currently running agent executions", "analytics")]
     public Task<ToolResult> AgentRunningAsync(
         CancellationToken cancellationToken = default)
     {
@@ -261,7 +261,7 @@ public class AgentSummaryToolHandlers
     /// <param name="execution_id">执行 ID</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.AgentExecutionDetail, "Get detailed information about a specific execution", "analytics")]
+    [McpTool(AgentToolNameEnumConstants.AgentExecutionDetail, "Get detailed information about a specific execution", "analytics")]
     public Task<ToolResult> AgentExecutionDetailAsync(
         [McpToolParameter("Execution ID")] string execution_id,
         CancellationToken cancellationToken = default)
@@ -339,7 +339,7 @@ public class AgentSummaryToolHandlers
     /// <param name="confirm">确认清除，输入 "yes" 确认</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.AgentClearHistory, "Clear agent execution history", "analytics")]
+    [McpTool(AgentToolNameEnumConstants.AgentClearHistory, "Clear agent execution history", "analytics")]
     public Task<ToolResult> AgentClearHistoryAsync(
         [McpToolParameter("Clear records older than N days (optional)", Required = false)] int? older_than_days = null,
         [McpToolParameter("Confirm clear (enter 'yes' to confirm)")] string? confirm = null,

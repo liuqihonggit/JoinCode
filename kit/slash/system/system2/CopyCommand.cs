@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 支持参数：N=复制第 N 条助手消息（1=最新），code/c=复制最近代码块
 /// 对齐 TS clipboard/ 实现，同时写入临时文件作为 OSC52 回退
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Copy, Description = "复制最近的 AI 回复到剪贴板（/copy N 复制第N条）", Usage = "/copy [N|code]", Category = ChatCommandCategory.System, ArgumentHint = "[N|code]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Copy, Description = "复制最近的 AI 回复到剪贴板（/copy N 复制第N条）", Usage = "/copy [N|code]", Category = ChatCommandCategory.System, ArgumentHint = "[N|code]")]
 [ChatCommandArg("target", Type = "string", Description = "复制目标：N=第N条助手消息(1=最新)，code=最近代码块", Enum = new[] { "code", "c", "1", "2", "3" })]
 public sealed class CopyCommand : ChatCommandBase
 {
@@ -34,7 +34,7 @@ public sealed class CopyCommand : ChatCommandBase
             var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
             // 对齐 TS: 只收集有文本内容的助手消息（跳过纯工具调用轮次）
             var assistantMessages = history.Where(m =>
-                m.Role.Equals(MessageRoleConstants.Assistant, StringComparison.OrdinalIgnoreCase) &&
+                m.Role.Equals(MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase) &&
                 !string.IsNullOrWhiteSpace(m.Content)).ToList();
 
             if (assistantMessages.Count == 0)

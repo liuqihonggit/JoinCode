@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// ToggleAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / ToggleActionConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / ToggleActionEnumConstants 常量值
 /// </summary>
 public sealed class ToggleActionExtensionsTests
 {
@@ -74,14 +74,14 @@ public sealed class ToggleActionExtensionsTests
         ToggleActionExtensions.IsDefined(value).Should().Be(expected);
     }
 
-    // ===== ToggleActionConstants 测试 =====
+    // ===== ToggleActionEnumConstants 测试 =====
 
     [Fact]
     public void Constants_Should_Match_EnumValues()
     {
-        ToggleActionConstants.On.Should().Be("on");
-        ToggleActionConstants.Off.Should().Be("off");
-        ToggleActionConstants.Status.Should().Be("status");
+        ToggleActionEnumConstants.On.Should().Be("on");
+        ToggleActionEnumConstants.Off.Should().Be("off");
+        ToggleActionEnumConstants.Status.Should().Be("status");
     }
 
     // ===== 往返一致性测试 =====

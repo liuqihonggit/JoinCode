@@ -1,11 +1,11 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /diag 命令 — 查看崩溃快照和诊断信息
 /// 通过 ICrashSnapshotStore 查询最近崩溃、按围栏过滤、确认快照、查看详情
 /// 支持子操作：recent、fence、ack、detail、clear
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Diag, Description = "查看崩溃快照和诊断信息", Usage = "/diag [recent|fence <name>|ack <id>|clear]", Category = ChatCommandCategory.System, IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Diag, Description = "查看崩溃快照和诊断信息", Usage = "/diag [recent|fence <name>|ack <id>|clear]", Category = ChatCommandCategory.System, IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "诊断操作", Enum = new[] { "recent", "fence", "ack", "detail", "clear" })]
 [ChatCommandArg("name", Type = "string", Description = "fence 围栏名 / ack|detail 快照 ID")]
 public sealed class DiagCommand : ChatCommandBase

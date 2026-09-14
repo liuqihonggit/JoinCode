@@ -15,7 +15,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 工具名称 — Bash
     /// </summary>
-    public override string ToolName => ShellToolNameConstants.Bash;
+    public override string ToolName => ShellToolNameEnumConstants.Bash;
 
     /// <summary>
     /// 构造 Shell 工具处理器
@@ -44,7 +44,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 执行 Bash 命令
     /// </summary>
-    [McpTool(ShellToolNameConstants.Bash, "Execute a Bash/CMD command. The description parameter briefly describes the command purpose", "execution")]
+    [McpTool(ShellToolNameEnumConstants.Bash, "Execute a Bash/CMD command. The description parameter briefly describes the command purpose", "execution")]
     public async Task<ToolResult> ShellExecuteAsync(
         [McpToolParameter("CMD command to execute. IMPORTANT: For search commands (rg/grep/find/ag), NEVER use --no-ignore/-u flags (bypasses .gitignore, may hang). NEVER search system root paths (C:\\, /, /home, C:\\Users). Always specify a project subdirectory as the search path.")] string command,
         [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,
@@ -122,7 +122,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 获取后台任务状态
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellBackgroundGet, "Get background shell task status", "execution", ConcurrencySafe = true)]
+    [McpTool(ShellToolNameEnumConstants.ShellBackgroundGet, "Get background shell task status", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> ShellBackgroundGetAsync(
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
@@ -174,7 +174,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 列出所有后台任务
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellBackgroundList, "List all background shell tasks", "execution", ConcurrencySafe = true)]
+    [McpTool(ShellToolNameEnumConstants.ShellBackgroundList, "List all background shell tasks", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> ShellBackgroundListAsync(
         CancellationToken cancellationToken = default)
     {
@@ -212,7 +212,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 获取后台任务输出
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellBackgroundOutput, "Get output of a background shell task", "execution", ConcurrencySafe = true)]
+    [McpTool(ShellToolNameEnumConstants.ShellBackgroundOutput, "Get output of a background shell task", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> ShellBackgroundOutputAsync(
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
@@ -241,7 +241,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 取消后台任务
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellBackgroundCancel, "Cancel a background shell task", "execution")]
+    [McpTool(ShellToolNameEnumConstants.ShellBackgroundCancel, "Cancel a background shell task", "execution")]
     public async Task<ToolResult> ShellBackgroundCancelAsync(
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
@@ -273,7 +273,7 @@ public partial class ShellToolHandlers : ShellToolBase
     /// <summary>
     /// 强制杀死所有运行中的后台任务
     /// </summary>
-    [McpTool(ShellToolNameConstants.ShellBackgroundKillAll, "Force kill ALL running background shell tasks and reclaim memory", "execution")]
+    [McpTool(ShellToolNameEnumConstants.ShellBackgroundKillAll, "Force kill ALL running background shell tasks and reclaim memory", "execution")]
     public async Task<ToolResult> ShellBackgroundKillAllAsync(
         CancellationToken cancellationToken = default)
     {

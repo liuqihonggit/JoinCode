@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Models.Agent;
+﻿namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// 延迟邮件标记 — [Flags] 位标志枚举，一封邮件可同时携带多个冲突标记
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 MailMarkerConstants + MailMarkerExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 MailMarkerEnumConstants + MailMarkerExtensions
 /// 用法: mail.Marker.HasFlag(MailMarker.HotFileConflict) 或 mail.Marker = MailMarker.HotFileConflict | MailMarker.TestFileConflict
 /// </summary>
 [Flags]

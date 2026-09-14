@@ -8,9 +8,9 @@ public sealed class AgentToolRestrictionsTests
     private readonly AgentToolRestrictions _restrictions = new();
 
     [Theory]
-    [InlineData(SystemToolNameConstants.TaskOutput, PermissionMode.Auto)]
-    [InlineData(SystemToolNameConstants.TaskOutput, PermissionMode.Plan)]
-    [InlineData(SystemToolNameConstants.TaskOutput, PermissionMode.Ask)]
+    [InlineData(SystemToolNameEnumConstants.TaskOutput, PermissionMode.Auto)]
+    [InlineData(SystemToolNameEnumConstants.TaskOutput, PermissionMode.Plan)]
+    [InlineData(SystemToolNameEnumConstants.TaskOutput, PermissionMode.Ask)]
     public void IsToolAllowedForMode_TaskOutput_ShouldBeAllowed(string toolName, PermissionMode mode)
     {
         // Act
@@ -21,8 +21,8 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Theory]
-    [InlineData(TaskToolNameConstants.TaskList, PermissionMode.Auto)]
-    [InlineData(TaskToolNameConstants.TaskGet, PermissionMode.Auto)]
+    [InlineData(TaskToolNameEnumConstants.TaskList, PermissionMode.Auto)]
+    [InlineData(TaskToolNameEnumConstants.TaskGet, PermissionMode.Auto)]
     public void IsToolAllowedForMode_KnownTaskTools_ShouldBeAllowed(string toolName, PermissionMode mode)
     {
         // Act
@@ -33,8 +33,8 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Theory]
-    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Auto)]
-    [InlineData(ShellToolNameConstants.Powershell, PermissionMode.Auto)]
+    [InlineData(ShellToolNameEnumConstants.Bash, PermissionMode.Auto)]
+    [InlineData(ShellToolNameEnumConstants.Powershell, PermissionMode.Auto)]
     public void IsToolAllowedForMode_SensitiveTools_ShouldBeAllowedInAuto(string toolName, PermissionMode mode)
     {
         // Act
@@ -52,6 +52,6 @@ public sealed class AgentToolRestrictionsTests
         var config = PermissionConfig.CreateDefault();
 
         // Assert — TaskOutput 是只读工具（获取后台任务输出），应在默认 AutoApprovedTools 中
-        Assert.Contains(config.AutoApprovedTools.Values, r => r.ToolName == SystemToolNameConstants.TaskOutput);
+        Assert.Contains(config.AutoApprovedTools.Values, r => r.ToolName == SystemToolNameEnumConstants.TaskOutput);
     }
 }

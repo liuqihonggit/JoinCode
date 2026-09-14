@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /share 命令 — 对齐 TS share/
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：对话导出为 Markdown + 保存到文件
 /// 架构差异：TS 有 React 分享面板+URL分享，C# 为文件导出
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Share, Description = "生成可分享的对话内容", Usage = "/share", Category = ChatCommandCategory.Social)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Share, Description = "生成可分享的对话内容", Usage = "/share", Category = ChatCommandCategory.Social)]
 public sealed class ShareCommand : ChatCommandBase
 {
     /// <summary>
@@ -16,7 +16,7 @@ public sealed class ShareCommand : ChatCommandBase
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
-        TerminalHelper.WriteLine($"{TerminalColors.Primary}生成分享内容...{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Primary}生成分享内容...{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
         try
@@ -25,7 +25,7 @@ public sealed class ShareCommand : ChatCommandBase
 
             if (history.Count == 0)
             {
-                TerminalHelper.WriteLine($"  {TerminalColors.Muted}暂无对话内容可分享{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"  {TerminalColors.Muted}暂无对话内容可分享{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Continue();
             }
 
@@ -38,7 +38,7 @@ public sealed class ShareCommand : ChatCommandBase
 
             foreach (var msg in history)
             {
-                var roleLabel = string.Equals(msg.Role, MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase)
+                var roleLabel = string.Equals(msg.Role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase)
                     ? "👤 User" : "🤖 Assistant";
 
                 sb.AppendLine($"## {roleLabel}");
@@ -48,7 +48,7 @@ public sealed class ShareCommand : ChatCommandBase
 
             var content = sb.ToString();
 
-            TerminalHelper.WriteLine($"{TerminalColors.Success}分享内容已生成{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}分享内容已生成{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  长度: {content.Length:N0} 字符");
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("--- 预览（前500字符）---");
@@ -69,7 +69,7 @@ public sealed class ShareCommand : ChatCommandBase
 
                 await fs.WriteAllTextAsync(sharePath, content, context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.NewLine();
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已保存到: {sharePath}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已保存到: {sharePath}{AnsiStyleEnumConstants.Reset}");
             }
             catch (Exception ex)
             {

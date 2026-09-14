@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// CostScope 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / CostScopeConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / CostScopeEnumConstants 常量值
 /// </summary>
 public sealed class CostScopeExtensionsTests
 {
@@ -74,14 +74,14 @@ public sealed class CostScopeExtensionsTests
         CostScopeExtensions.IsDefined(value).Should().Be(expected);
     }
 
-    // ===== CostScopeConstants 测试 =====
+    // ===== CostScopeEnumConstants 测试 =====
 
     [Fact]
     public void Constants_Should_Match_EnumValues()
     {
-        CostScopeConstants.Today.Should().Be("today");
-        CostScopeConstants.Session.Should().Be("session");
-        CostScopeConstants.Total.Should().Be("total");
+        CostScopeEnumConstants.Today.Should().Be("today");
+        CostScopeEnumConstants.Session.Should().Be("session");
+        CostScopeEnumConstants.Total.Should().Be("total");
     }
 
     // ===== 往返一致性测试 =====

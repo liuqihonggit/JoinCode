@@ -1,16 +1,16 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /compact 命令 - 上下文压缩
 /// 对齐 TS: src/commands/compact/compact.ts
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Compact, Description = "压缩对话上下文以节省 Token，可选自定义摘要指令", Usage = "/compact [自定义摘要指令]", Aliases = ["comp"], ArgumentHint = "<optional custom summarization instructions>", Category = ChatCommandCategory.Session, ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Compact, Description = "压缩对话上下文以节省 Token，可选自定义摘要指令", Usage = "/compact [自定义摘要指令]", Aliases = ["comp"], ArgumentHint = "<optional custom summarization instructions>", Category = ChatCommandCategory.Session, ExposeToMcp = true)]
 [ChatCommandArg("instructions", Type = "string", Description = "自定义压缩摘要指令")]
 public sealed class CompactCommand : ChatCommandBase
 {
     /// <summary>命令名称。</summary>
-    public override string Name => ChatCommandNameConstants.Compact;
+    public override string Name => ChatCommandNameEnumConstants.Compact;
     /// <summary>命令描述。</summary>
     public override string Description => "压缩对话上下文以节省 Token，可选自定义摘要指令";
     /// <summary>命令用法提示。</summary>

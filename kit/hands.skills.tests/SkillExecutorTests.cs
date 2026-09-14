@@ -143,7 +143,7 @@ public class SkillExecutorTests
                 {
                     Id = "step1",
                     Type = SkillStepType.Tool,
-                    Tool = FileToolNameConstants.FileRead,
+                    Tool = FileToolNameEnumConstants.FileRead,
                     Description = "Read a file",
                     Next = "step2"
                 },
@@ -226,7 +226,7 @@ public class SkillExecutorTests
             Author = "Test Author",
             Version = "2.0",
             Tags = new[] { "test", "demo" },
-            Permissions = new[] { FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite },
+            Permissions = new[] { FileToolNameEnumConstants.FileRead, FileToolNameEnumConstants.FileWrite },
             Dependencies = new[] { "dep1", "dep2" },
             Namespace = "test.group"
         };
@@ -236,8 +236,8 @@ public class SkillExecutorTests
         skill.Tags.Should().HaveCount(2);
         skill.Tags.Should().Contain("test");
         skill.Tags.Should().Contain("demo");
-        skill.Permissions.Should().Contain(FileToolNameConstants.FileRead);
-        skill.Permissions.Should().Contain(FileToolNameConstants.FileWrite);
+        skill.Permissions.Should().Contain(FileToolNameEnumConstants.FileRead);
+        skill.Permissions.Should().Contain(FileToolNameEnumConstants.FileWrite);
         skill.Dependencies.Should().Contain("dep1");
         skill.Dependencies.Should().Contain("dep2");
         skill.Namespace.Should().Be("test.group");

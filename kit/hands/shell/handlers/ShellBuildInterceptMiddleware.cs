@@ -136,7 +136,7 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
                 new DiagnosticDetail("build_id", buildId),
                 new DiagnosticDetail("exit_code", exitCode.ToString())
             ],
-            suggestions: ["检查编译输出中的错误信息", $"使用 {SystemToolNameConstants.BuildOutput} 工具查看完整编译日志"]);
+            suggestions: ["检查编译输出中的错误信息", $"使用 {SystemToolNameEnumConstants.BuildOutput} 工具查看完整编译日志"]);
 
     private const int MaxTailLines = 15;
 
@@ -156,7 +156,7 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
 
         var sb = new StringBuilder();
         sb.AppendLine($"[Output truncated: {totalLines} lines total, showing last {MaxTailLines} lines (L{startLine}-L{totalLines})]");
-        sb.AppendLine($"[Use {SystemToolNameConstants.BuildOutput} build_id=\"{buildId}\" start_line=1 end_line={MaxTailLines} to read from the beginning]");
+        sb.AppendLine($"[Use {SystemToolNameEnumConstants.BuildOutput} build_id=\"{buildId}\" start_line=1 end_line={MaxTailLines} to read from the beginning]");
         sb.Append(string.Join('\n', tail));
         return sb.ToString();
     }

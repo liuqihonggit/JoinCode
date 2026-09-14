@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /stickers 命令 — 打开贴纸页面
 /// 通过 IStickerService 在浏览器中打开贴纸获取页面
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Stickers, Description = "获取贴纸", Usage = "/stickers", Category = ChatCommandCategory.Social)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Stickers, Description = "获取贴纸", Usage = "/stickers", Category = ChatCommandCategory.Social)]
 public sealed class StickersCommand : ChatCommandBase
 {
     /// <summary>

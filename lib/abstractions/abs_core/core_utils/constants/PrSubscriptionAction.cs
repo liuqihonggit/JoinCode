@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// PR订阅操作类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 PrSubscriptionActionConstants + PrSubscriptionActionExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 PrSubscriptionActionEnumConstants + PrSubscriptionActionExtensions
 /// </summary>
 public enum PrSubscriptionAction
 {

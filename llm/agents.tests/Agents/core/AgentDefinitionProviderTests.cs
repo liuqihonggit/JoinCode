@@ -20,7 +20,7 @@ public sealed class AgentDefinitionProviderTests
         coordinator.Tools.Should().BeEmpty();
         coordinator.DisallowedTools.Should().NotBeNull();
         coordinator.DisallowedTools.Should().Contain([
-            AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSpawn
+            AgentToolNameEnumConstants.Agent, AgentToolNameEnumConstants.AgentSpawn
         ]);
     }
 
@@ -32,17 +32,17 @@ public sealed class AgentDefinitionProviderTests
 
         codeAgent.Tools.Should().NotBeNull();
         codeAgent.Tools.Should().Contain([
-            FileToolNameConstants.FileRead,
-            FileToolNameConstants.FileWrite,
-            FileToolNameConstants.FileEdit,
-            SearchToolNameConstants.Glob,
-            SearchToolNameConstants.Grep,
-            ShellToolNameConstants.Bash,
-            SearchToolNameConstants.SearchCodebase
+            FileToolNameEnumConstants.FileRead,
+            FileToolNameEnumConstants.FileWrite,
+            FileToolNameEnumConstants.FileEdit,
+            SearchToolNameEnumConstants.Glob,
+            SearchToolNameEnumConstants.Grep,
+            ShellToolNameEnumConstants.Bash,
+            SearchToolNameEnumConstants.SearchCodebase
         ]);
         codeAgent.DisallowedTools.Should().NotBeNull();
         codeAgent.DisallowedTools.Should().Contain([
-            AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSpawn
+            AgentToolNameEnumConstants.Agent, AgentToolNameEnumConstants.AgentSpawn
         ]);
     }
 
@@ -54,17 +54,17 @@ public sealed class AgentDefinitionProviderTests
 
         searchAgent.Tools.Should().NotBeNull();
         searchAgent.Tools.Should().Contain([
-            FileToolNameConstants.FileRead,
-            SearchToolNameConstants.Glob,
-            SearchToolNameConstants.Grep,
-            SearchToolNameConstants.SearchCodebase
+            FileToolNameEnumConstants.FileRead,
+            SearchToolNameEnumConstants.Glob,
+            SearchToolNameEnumConstants.Grep,
+            SearchToolNameEnumConstants.SearchCodebase
         ]);
 
         searchAgent.DisallowedTools.Should().NotBeNull();
         searchAgent.DisallowedTools.Should().Contain([
-            FileToolNameConstants.FileWrite,
-            FileToolNameConstants.FileEdit,
-            ShellToolNameConstants.Bash
+            FileToolNameEnumConstants.FileWrite,
+            FileToolNameEnumConstants.FileEdit,
+            ShellToolNameEnumConstants.Bash
         ]);
     }
 
@@ -76,7 +76,7 @@ public sealed class AgentDefinitionProviderTests
 
         codeAgent.DisallowedTools.Should().NotBeNull();
         codeAgent.DisallowedTools.Should().Contain([
-            AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSpawn
+            AgentToolNameEnumConstants.Agent, AgentToolNameEnumConstants.AgentSpawn
         ]);
     }
 
@@ -87,9 +87,9 @@ public sealed class AgentDefinitionProviderTests
         var searchAgent = definitions.First(d => d.Variant == ExecutorVariant.Search);
 
         searchAgent.DisallowedTools.Should().NotBeNullOrEmpty();
-        searchAgent.DisallowedTools.Should().Contain(FileToolNameConstants.FileWrite);
-        searchAgent.DisallowedTools.Should().Contain(FileToolNameConstants.FileEdit);
-        searchAgent.DisallowedTools.Should().Contain(ShellToolNameConstants.Bash);
+        searchAgent.DisallowedTools.Should().Contain(FileToolNameEnumConstants.FileWrite);
+        searchAgent.DisallowedTools.Should().Contain(FileToolNameEnumConstants.FileEdit);
+        searchAgent.DisallowedTools.Should().Contain(ShellToolNameEnumConstants.Bash);
     }
 
     [Fact]
@@ -99,9 +99,9 @@ public sealed class AgentDefinitionProviderTests
         var exploreAgent = definitions.First(d => d.Variant == ExecutorVariant.Explore);
 
         exploreAgent.Tools.Should().NotBeNull();
-        exploreAgent.Tools.Should().Contain([FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash]);
+        exploreAgent.Tools.Should().Contain([FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase, ShellToolNameEnumConstants.Bash]);
         exploreAgent.DisallowedTools.Should().NotBeNull();
-        exploreAgent.DisallowedTools.Should().Contain([AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite]);
+        exploreAgent.DisallowedTools.Should().Contain([AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite]);
         exploreAgent.IsBackground.Should().BeFalse();
     }
 
@@ -112,9 +112,9 @@ public sealed class AgentDefinitionProviderTests
         var planAgent = definitions.First(d => d.Variant == ExecutorVariant.Plan);
 
         planAgent.Tools.Should().NotBeNull();
-        planAgent.Tools.Should().Contain([FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash]);
+        planAgent.Tools.Should().Contain([FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase, ShellToolNameEnumConstants.Bash]);
         planAgent.DisallowedTools.Should().NotBeNull();
-        planAgent.DisallowedTools.Should().Contain([AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite]);
+        planAgent.DisallowedTools.Should().Contain([AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite]);
         planAgent.IsBackground.Should().BeFalse();
     }
 
@@ -127,8 +127,8 @@ public sealed class AgentDefinitionProviderTests
         doctorAgent.IsBackground.Should().BeTrue();
         doctorAgent.PermissionMode.Should().Be("doctor");
         doctorAgent.Tools.Should().NotBeNull();
-        doctorAgent.Tools.Should().Contain([FileToolNameConstants.FileRead, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash]);
-        doctorAgent.DisallowedTools.Should().Contain(AgentToolNameConstants.Agent);
+        doctorAgent.Tools.Should().Contain([FileToolNameEnumConstants.FileRead, FileToolNameEnumConstants.FileEdit, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, ShellToolNameEnumConstants.Bash]);
+        doctorAgent.DisallowedTools.Should().Contain(AgentToolNameEnumConstants.Agent);
     }
 
     [Fact]
@@ -160,9 +160,9 @@ public sealed class AgentDefinitionProviderTests
         var definitions = AgentDefinitionProvider.GetBuiltInDefinitions();
         var codeAgent = definitions.First(d => d.Variant == ExecutorVariant.Code);
 
-        codeAgent.Tools.Should().Contain(FileToolNameConstants.FileRead, $"code agent should use FileToolNameConstants.FileRead ('{FileToolNameConstants.FileRead}')");
-        codeAgent.Tools.Should().Contain(ShellToolNameConstants.Bash, $"code agent should use ShellToolNameConstants.Bash ('{ShellToolNameConstants.Bash}')");
-        codeAgent.Tools.Should().Contain(SearchToolNameConstants.SearchCodebase, $"code agent should use SearchToolNameConstants.SearchCodebase ('{SearchToolNameConstants.SearchCodebase}')");
+        codeAgent.Tools.Should().Contain(FileToolNameEnumConstants.FileRead, $"code agent should use FileToolNameEnumConstants.FileRead ('{FileToolNameEnumConstants.FileRead}')");
+        codeAgent.Tools.Should().Contain(ShellToolNameEnumConstants.Bash, $"code agent should use ShellToolNameEnumConstants.Bash ('{ShellToolNameEnumConstants.Bash}')");
+        codeAgent.Tools.Should().Contain(SearchToolNameEnumConstants.SearchCodebase, $"code agent should use SearchToolNameEnumConstants.SearchCodebase ('{SearchToolNameEnumConstants.SearchCodebase}')");
     }
 
     [Fact]
@@ -227,7 +227,7 @@ public sealed class AgentDefinitionProviderTests
 
         codeAgent.Should().NotBeNull();
         codeAgent!.DisplayId.Should().Be("executor:code");
-        codeAgent.Tools.Should().Contain(FileToolNameConstants.FileRead);
+        codeAgent.Tools.Should().Contain(FileToolNameEnumConstants.FileRead);
     }
 
     [Fact]

@@ -50,7 +50,7 @@ public sealed partial class MetadataMiddleware : ServiceEntity, IUnifiedSpawnMid
                 Description = agent.Task,
                 WorktreePath = baseAgent.Options.WorktreePath,
                 ModelName = definition?.ModelName ?? baseAgent.Options.ModelName,
-                Status = AgentStatusConstants.Running
+                Status = AgentStatusEnumConstants.Running
             }, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)

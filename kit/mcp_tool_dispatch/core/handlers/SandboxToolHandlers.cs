@@ -30,9 +30,9 @@ public sealed class SandboxToolHandlers
     /// <param name="allowFallback">请求类型不可用时是否允许自动降级到较低隔离级别</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SandboxToolNameConstants.SandboxEnter, "Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).", "sandbox")]
+    [McpTool(SandboxToolNameEnumConstants.SandboxEnter, "Enter a sandbox with the specified isolation type. If the requested type is unavailable, automatically falls back to a lower isolation level. Available types: soft (path redirection), process (OS-level process isolation), docker (container isolation), bubblewrap (Linux namespace isolation).", "sandbox")]
     public async Task<ToolResult> SandboxEnterAsync(
-        [McpToolParameter("Sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeConstants.Soft, SandboxTypeConstants.Process, SandboxTypeConstants.Docker, SandboxTypeConstants.Bubblewrap })] string sandboxType,
+        [McpToolParameter("Sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeEnumConstants.Soft, SandboxTypeEnumConstants.Process, SandboxTypeEnumConstants.Docker, SandboxTypeEnumConstants.Bubblewrap })] string sandboxType,
         [McpToolParameter("Restrict file system access", Required = false, DefaultValue = "true")] string restrictFileSystem,
         [McpToolParameter("Restrict network access", Required = false, DefaultValue = "true")] string restrictNetwork,
         [McpToolParameter("Custom sandbox root path", Required = false)] string? sandboxRoot,
@@ -107,7 +107,7 @@ public sealed class SandboxToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SandboxToolNameConstants.SandboxExit, "Exit the current sandbox and restore normal access.", "sandbox")]
+    [McpTool(SandboxToolNameEnumConstants.SandboxExit, "Exit the current sandbox and restore normal access.", "sandbox")]
     public async Task<ToolResult> SandboxExitAsync(
         CancellationToken cancellationToken = default)
     {
@@ -142,9 +142,9 @@ public sealed class SandboxToolHandlers
     /// <param name="sandboxType">目标沙箱类型：soft、process、docker 或 bubblewrap</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SandboxToolNameConstants.SandboxSwitch, "Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.", "sandbox")]
+    [McpTool(SandboxToolNameEnumConstants.SandboxSwitch, "Switch to a different sandbox type while preserving isolation settings. Useful for escalating or de-escalating isolation level. If the target type is unavailable, automatically falls back.", "sandbox")]
     public async Task<ToolResult> SandboxSwitchAsync(
-        [McpToolParameter("Target sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeConstants.Soft, SandboxTypeConstants.Process, SandboxTypeConstants.Docker, SandboxTypeConstants.Bubblewrap })] string sandboxType,
+        [McpToolParameter("Target sandbox type: soft, process, docker, or bubblewrap", Required = true, EnumValues = new[] { SandboxTypeEnumConstants.Soft, SandboxTypeEnumConstants.Process, SandboxTypeEnumConstants.Docker, SandboxTypeEnumConstants.Bubblewrap })] string sandboxType,
         CancellationToken cancellationToken = default)
     {
         var type = SandboxTypeExtensions.FromValue(sandboxType);
@@ -193,7 +193,7 @@ public sealed class SandboxToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SandboxToolNameConstants.SandboxStatus, "Get the current sandbox status including type, isolation level, available types, and health state.", "sandbox")]
+    [McpTool(SandboxToolNameEnumConstants.SandboxStatus, "Get the current sandbox status including type, isolation level, available types, and health state.", "sandbox")]
     public Task<ToolResult> SandboxStatusAsync(
         CancellationToken cancellationToken = default)
     {
@@ -246,10 +246,10 @@ public sealed class SandboxToolHandlers
     /// <param name="customTimeoutSeconds">自定义超时秒数（仅在 timeout=custom 时生效）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SandboxToolNameConstants.SandboxExec, "Execute a command inside the sandbox with anti-stuck timeout protection. When timeout is reached, the command is NOT interrupted - instead you (LLM) are asked to decide: continue waiting or force stop. Default timeout is 2 minutes.", "sandbox")]
+    [McpTool(SandboxToolNameEnumConstants.SandboxExec, "Execute a command inside the sandbox with anti-stuck timeout protection. When timeout is reached, the command is NOT interrupted - instead you (LLM) are asked to decide: continue waiting or force stop. Default timeout is 2 minutes.", "sandbox")]
     public async Task<ToolResult> SandboxExecAsync(
         [McpToolParameter("Command to execute in the sandbox", Required = true)] string command,
-        [McpToolParameter("Timeout preset: 2min (default), 4min, 8min, or custom", Required = false, DefaultValue = SandboxExecutionTimeoutConstants.TwoMinutes, EnumValues = new[] { SandboxExecutionTimeoutConstants.TwoMinutes, SandboxExecutionTimeoutConstants.FourMinutes, SandboxExecutionTimeoutConstants.EightMinutes, SandboxExecutionTimeoutConstants.Custom })] string timeout,
+        [McpToolParameter("Timeout preset: 2min (default), 4min, 8min, or custom", Required = false, DefaultValue = SandboxExecutionTimeoutEnumConstants.TwoMinutes, EnumValues = new[] { SandboxExecutionTimeoutEnumConstants.TwoMinutes, SandboxExecutionTimeoutEnumConstants.FourMinutes, SandboxExecutionTimeoutEnumConstants.EightMinutes, SandboxExecutionTimeoutEnumConstants.Custom })] string timeout,
         [McpToolParameter("Custom timeout in seconds (only used when timeout=custom)", Required = false, DefaultValue = "0")] string customTimeoutSeconds,
         CancellationToken cancellationToken = default)
     {
@@ -302,10 +302,10 @@ public sealed class SandboxToolHandlers
     /// <param name="action">操作：wait（继续等待一个超时周期）或 stop（强行终止进程）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SandboxToolNameConstants.SandboxExecContinue, "Continue a timed-out sandbox execution. Choose to wait longer or force stop the command.", "sandbox")]
+    [McpTool(SandboxToolNameEnumConstants.SandboxExecContinue, "Continue a timed-out sandbox execution. Choose to wait longer or force stop the command.", "sandbox")]
     public async Task<ToolResult> SandboxExecContinueAsync(
         [McpToolParameter("Execution ID from sandbox_exec timeout response", Required = true)] string executionId,
-        [McpToolParameter("Action: wait (continue waiting for another timeout period) or stop (force kill the process)", Required = true, EnumValues = new[] { SandboxContinueActionConstants.Wait, SandboxContinueActionConstants.Stop })] string action,
+        [McpToolParameter("Action: wait (continue waiting for another timeout period) or stop (force kill the process)", Required = true, EnumValues = new[] { SandboxContinueActionEnumConstants.Wait, SandboxContinueActionEnumConstants.Stop })] string action,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(executionId))

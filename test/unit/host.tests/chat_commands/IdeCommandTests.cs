@@ -134,7 +134,7 @@ public sealed class IdeCommandTests
     [InlineData("status")]
     public async Task Execute_WithPlatformActionSubcommand_Should_Return_Continue(string subCommand)
     {
-        // PlatformActionConstants.Detect/Connect/Disconnect/Open/Status 枚举路由取值范围测试
+        // PlatformActionEnumConstants.Detect/Connect/Disconnect/Open/Status 枚举路由取值范围测试
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.DetectInstalledIdesDetailed())
             .Returns(new List<IdeDetectionDetail>().AsReadOnly());
@@ -204,7 +204,7 @@ public sealed class IdeCommandTests
     [Fact]
     public async Task Execute_WithEmptyArgs_Should_Default_To_Status()
     {
-        // "" → PlatformActionConstants.Status 分支
+        // "" → PlatformActionEnumConstants.Status 分支
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.CurrentConnection).Returns((IdeInfo?)null);
         ideService.Setup(s => s.DetectInstalledIdes())
@@ -316,13 +316,13 @@ public sealed class IdeCommandTests
     }
 
     [Fact]
-    public void PlatformActionConstants_IdeActions_Values_Should_Match_Route()
+    public void PlatformActionEnumConstants_IdeActions_Values_Should_Match_Route()
     {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
-        PlatformActionConstants.Detect.Should().Be("detect");
-        PlatformActionConstants.Connect.Should().Be("connect");
-        PlatformActionConstants.Disconnect.Should().Be("disconnect");
-        PlatformActionConstants.Open.Should().Be("open");
-        PlatformActionConstants.Status.Should().Be("status");
+        PlatformActionEnumConstants.Detect.Should().Be("detect");
+        PlatformActionEnumConstants.Connect.Should().Be("connect");
+        PlatformActionEnumConstants.Disconnect.Should().Be("disconnect");
+        PlatformActionEnumConstants.Open.Should().Be("open");
+        PlatformActionEnumConstants.Status.Should().Be("status");
     }
 }

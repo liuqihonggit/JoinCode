@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /agents 命令 — 查看和管理代理，支持列出代理列表和查看代理详情
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>]")]
 [ChatCommandArg("action", Type = "string", Description = "操作: list=列出代理, info=查看详情", Enum = new[] { "list", "info" }, Default = "list")]
 [ChatCommandArg("name", Type = "string", Description = "代理名称,仅在 action=info 时使用")]
 public sealed class AgentsCommand : ChatCommandBase
@@ -20,15 +20,15 @@ public sealed class AgentsCommand : ChatCommandBase
 
         switch (action)
         {
-            case CrudActionConstants.List:
-            case CrudActionConstants.Ls:
+            case CrudActionEnumConstants.List:
+            case CrudActionEnumConstants.Ls:
                 await ListAgentsAsync(context);
                 break;
             case "info":
                 await ShowAgentInfoAsync(context, args);
                 break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUnknownAction, action)}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine(L.T(StringKey.HostAgentsAvailableActions));
                 break;
         }
@@ -45,7 +45,7 @@ public sealed class AgentsCommand : ChatCommandBase
         var provider = ChatCommandBase.GetService<IAgentDefinitionProvider>(context, typeof(IAgentDefinitionProvider));
         if (provider is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostAgentsProviderUnavailable)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostAgentsProviderUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -151,7 +151,7 @@ public sealed class AgentsCommand : ChatCommandBase
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUsageHint)}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUsageHint)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 

@@ -28,7 +28,7 @@ public partial class ListPeersToolHandlers
     /// <param name="filter">过滤条件（可选，默认 all）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含节点列表的工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.ListPeers, StringKey.ListPeersDesc, "network")]
+    [McpTool(SystemToolNameEnumConstants.ListPeers, StringKey.ListPeersDesc, "network")]
     public async Task<ToolResult> ListPeersAsync(
         [McpToolParameter(StringKey.ListPeersFilterDesc, Required = false)] string filter = "all",
         CancellationToken cancellationToken = default)

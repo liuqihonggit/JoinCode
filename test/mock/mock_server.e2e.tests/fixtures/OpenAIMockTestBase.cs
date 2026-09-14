@@ -283,7 +283,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [nameof(pipeName).ToUpperInvariant()] = pipeName,
-            [ProviderEnvVarConstants.OpenAiApiKey] = apiKey,
+            [ProviderEnvVarEnumConstants.OpenAiApiKey] = apiKey,
             ["OPENAI_BASE_URL"] = "http://localhost:8080/v1",
             ["JCC_DEBUGLOG"] = "1"
         };

@@ -1,16 +1,16 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /assistant 命令 — 长期助手模式开关，支持开启、关闭和查看状态
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Assistant, Description = "长期助手模式", Usage = "/assistant [on|off|status]", Category = ChatCommandCategory.Agent)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Assistant, Description = "长期助手模式", Usage = "/assistant [on|off|status]", Category = ChatCommandCategory.Agent)]
 [ChatCommandArg("action", Type = "string", Description = "助手模式动作", Enum = new[] { "on", "off", "status" }, Default = "status")]
 public sealed class AssistantCommand : ToggleCommandBase
 {
     /// <summary>
     /// 获取命令名称
     /// </summary>
-    public override string Name => ChatCommandNameConstants.Assistant;
+    public override string Name => ChatCommandNameEnumConstants.Assistant;
     /// <summary>
     /// 获取命令描述
     /// </summary>
@@ -56,9 +56,9 @@ public sealed class AssistantCommand : ToggleCommandBase
     /// <returns>完成的任务</returns>
     protected override Task OnEnabledAsync(ChatCommandContext context)
     {
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.AssistantMode, "1");
+        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AssistantMode, "1");
         TerminalHelper.WriteLine(L.T(StringKey.HostAssistantModeEnabled));
-        TerminalHelper.WriteLine(L.T(StringKey.HostAssistantEnvVarSet, JccEnvVarConstants.AssistantMode));
+        TerminalHelper.WriteLine(L.T(StringKey.HostAssistantEnvVarSet, JccEnvVarEnumConstants.AssistantMode));
         TerminalHelper.WriteLine(L.T(StringKey.HostAssistantPersistHint));
         return Task.CompletedTask;
     }
@@ -70,7 +70,7 @@ public sealed class AssistantCommand : ToggleCommandBase
     /// <returns>完成的任务</returns>
     protected override Task OnDisabledAsync(ChatCommandContext context)
     {
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.AssistantMode, "0");
+        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AssistantMode, "0");
         TerminalHelper.WriteLine(L.T(StringKey.HostAssistantModeDisabled));
         return Task.CompletedTask;
     }
@@ -88,7 +88,7 @@ public sealed class AssistantCommand : ToggleCommandBase
         var enabled = assistantService.IsAssistantModeEnabled;
         TerminalHelper.WriteLine(L.T(StringKey.HostAssistantModeStatusHeader));
         TerminalHelper.WriteLine(enabled ? L.T(StringKey.HostAssistantStatusEnabled) : L.T(StringKey.HostAssistantStatusDisabled));
-        TerminalHelper.WriteLine(L.T(StringKey.HostAssistantEnvStatusLabel, JccEnvVarConstants.AssistantMode, Environment.GetEnvironmentVariable(JccEnvVarConstants.AssistantMode) ?? "(未设置)"));
+        TerminalHelper.WriteLine(L.T(StringKey.HostAssistantEnvStatusLabel, JccEnvVarEnumConstants.AssistantMode, Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.AssistantMode) ?? "(未设置)"));
 
         return Task.CompletedTask;
     }

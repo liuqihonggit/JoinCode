@@ -11,7 +11,7 @@ public sealed record AllowedPrompt
     /// 工具名称（当前仅支持 Bash）
     /// 对齐 TS: z.enum(['Bash'])
     /// </summary>
-    public string Tool { get; init; } = AllowedPromptToolConstants.Bash;
+    public string Tool { get; init; } = AllowedPromptToolEnumConstants.Bash;
 
     /// <summary>
     /// 语义描述，如 "run tests"、"install dependencies"

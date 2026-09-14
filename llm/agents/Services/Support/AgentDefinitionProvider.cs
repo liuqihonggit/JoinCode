@@ -118,13 +118,13 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         // 对齐 TS builtInAgents.ts — Explore/Plan 禁止 Agent/FileEdit/FileWrite/NotebookEdit
         var readOnlyDisallowedTools = new List<string>
         {
-            AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, NotebookToolNameConstants.NotebookEdit
+            AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite, NotebookToolNameEnumConstants.NotebookEdit
         };
 
         // 子代理禁止嵌套创建子代理 — 只能通过 SendMessage 向主代理请求创建平行子代理
         var subAgentDisallowedTools = new List<string>
         {
-            AgentToolNameConstants.Agent, AgentToolNameConstants.AgentSpawn
+            AgentToolNameEnumConstants.Agent, AgentToolNameEnumConstants.AgentSpawn
         };
 
         return
@@ -143,7 +143,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Variant = ExecutorVariant.Code,
                 WhenToUse = "Code reading, writing, editing and refactoring",
                 Description = "Code agent focused on code reading, writing and editing",
-                Tools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash, SearchToolNameConstants.SearchCodebase],
+                Tools = [FileToolNameEnumConstants.FileRead, FileToolNameEnumConstants.FileWrite, FileToolNameEnumConstants.FileEdit, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, ShellToolNameEnumConstants.Bash, SearchToolNameEnumConstants.SearchCodebase],
                 DisallowedTools = subAgentDisallowedTools
             },
             new()
@@ -152,8 +152,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Variant = ExecutorVariant.Search,
                 WhenToUse = "Code search, navigation and exploration",
                 Description = "Search agent focused on code search and navigation",
-                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
-                DisallowedTools = [FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit, ShellToolNameConstants.Bash]
+                Tools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase],
+                DisallowedTools = [FileToolNameEnumConstants.FileWrite, FileToolNameEnumConstants.FileEdit, ShellToolNameEnumConstants.Bash]
             },
             new()
             {
@@ -161,7 +161,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Variant = ExecutorVariant.Explore,
                 WhenToUse = "Quick codebase exploration agent for file pattern search, keyword search, and codebase Q&A. Supports thoroughness levels: quick/medium/very thorough",
                 Description = "Explore agent — strictly read-only, for searching and understanding code",
-                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
+                Tools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase, ShellToolNameEnumConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 IsBackground = false,
                 OmitProjectRules = true,
@@ -173,7 +173,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Variant = ExecutorVariant.Plan,
                 WhenToUse = "Software architect agent that designs implementation plans, returns step-by-step plans, key files, and architectural trade-offs",
                 Description = "Plan agent — strictly read-only, for designing implementation plans",
-                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
+                Tools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase, ShellToolNameEnumConstants.Bash],
                 DisallowedTools = readOnlyDisallowedTools,
                 IsBackground = false,
                 OmitProjectRules = true,
@@ -185,8 +185,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Variant = ExecutorVariant.Doctor,
                 WhenToUse = "自举复盘与修复 — 分析链路日志，发现缺陷，生成修复 patch",
                 Description = "Doctor agent — 自举修复，后台运行，Cron 调度每12h复盘",
-                Tools = [FileToolNameConstants.FileRead, FileToolNameConstants.FileEdit, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash],
-                DisallowedTools = [AgentToolNameConstants.Agent],
+                Tools = [FileToolNameEnumConstants.FileRead, FileToolNameEnumConstants.FileEdit, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, ShellToolNameEnumConstants.Bash],
+                DisallowedTools = [AgentToolNameEnumConstants.Agent],
                 IsBackground = true,
                 PermissionMode = "doctor"
             },
@@ -196,8 +196,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Variant = ExecutorVariant.Verification,
                 WhenToUse = "Verify code correctness, quality and security",
                 Description = "Verification agent — checks code for errors, vulnerabilities and best practice violations",
-                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase, ShellToolNameConstants.Bash],
-                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite]
+                Tools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase, ShellToolNameEnumConstants.Bash],
+                DisallowedTools = [AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite]
             },
             new()
             {
@@ -205,8 +205,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Variant = ExecutorVariant.JoinCodeGuide,
                 WhenToUse = $"Guide users on how to use {BrandConstants.ProductName} features and best practices",
                 Description = $"{BrandConstants.ProductName} Guide agent — helps users understand and use {BrandConstants.ProductName}",
-                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, SearchToolNameConstants.SearchCodebase],
-                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash]
+                Tools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.SearchCodebase],
+                DisallowedTools = [AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite, ShellToolNameEnumConstants.Bash]
             },
             new()
             {
@@ -214,8 +214,8 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
                 Variant = ExecutorVariant.ContextCompression,
                 WhenToUse = "Intelligently compress and manage conversation context to optimize Token usage",
                 Description = "Context Compression agent — compresses context while preserving key information",
-                Tools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Glob, SearchToolNameConstants.Grep],
-                DisallowedTools = [AgentToolNameConstants.Agent, FileToolNameConstants.FileEdit, FileToolNameConstants.FileWrite, ShellToolNameConstants.Bash]
+                Tools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep],
+                DisallowedTools = [AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite, ShellToolNameEnumConstants.Bash]
             }
         ];
     }

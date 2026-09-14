@@ -6,8 +6,8 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = SystemToolName.SendUserMessage, Category = ToolPromptCategory.Planning)]
 public static class BriefToolPrompt
 {
-    public const string ToolName = SystemToolNameConstants.SendUserMessage;
-    public const string LegacyToolName = SystemToolNameConstants.Brief;
+    public const string ToolName = SystemToolNameEnumConstants.SendUserMessage;
+    public const string LegacyToolName = SystemToolNameEnumConstants.Brief;
     public const string Description = "向用户发送消息";
 
     public const string BriefToolPromptText = """

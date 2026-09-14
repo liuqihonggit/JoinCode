@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /worktree 命令 — 管理智能体 Git Worktree，支持 list/cleanup/remove/create/status 操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Worktree, Description = "管理智能体 Git Worktree", Usage = "/worktree [list|cleanup|remove|create|status] [options]", Category = ChatCommandCategory.Code)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Worktree, Description = "管理智能体 Git Worktree", Usage = "/worktree [list|cleanup|remove|create|status] [options]", Category = ChatCommandCategory.Code)]
 [ChatCommandArg("action", Type = "string", Description = "Worktree 操作", Enum = new[] { "list", "cleanup", "remove", "create", "status" })]
 [ChatCommandArg("options", Type = "string", Description = "操作特定参数,如 create 的分支名")]
 public sealed class WorktreeCommand : ChatCommandBase
@@ -20,7 +20,7 @@ public sealed class WorktreeCommand : ChatCommandBase
         {
             if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}Worktree 服务未初始化{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}Worktree 服务未初始化{AnsiStyleEnumConstants.Reset}");
             }
             return ChatCommandResult.Continue();
         }
@@ -30,25 +30,25 @@ public sealed class WorktreeCommand : ChatCommandBase
 
         switch (subCommand)
         {
-            case CrudActionConstants.List:
-            case CrudActionConstants.Ls:
+            case CrudActionEnumConstants.List:
+            case CrudActionEnumConstants.Ls:
                 await ListWorktreesAsync(context, worktreeService, args);
                 break;
             case "cleanup" or "clean":
                 await CleanupWorktreesAsync(context, worktreeService, args);
                 break;
-            case CrudActionConstants.Delete:
-            case CrudActionConstants.Rm:
+            case CrudActionEnumConstants.Delete:
+            case CrudActionEnumConstants.Rm:
                 await RemoveWorktreeAsync(context, worktreeService, args);
                 break;
-            case CrudActionConstants.Create:
+            case CrudActionEnumConstants.Create:
                 await CreateWorktreeAsync(context, worktreeService, args);
                 break;
             case "status":
                 await ShowWorktreeStatusAsync(context, worktreeService, args);
                 break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}未知子命令: {subCommand}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}未知子命令: {subCommand}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine($"用法: {Usage}");
                 break;
         }
@@ -87,7 +87,7 @@ public sealed class WorktreeCommand : ChatCommandBase
                 TerminalHelper.WriteLine($"    创建时间: {session.CreatedAt:yyyy-MM-dd HH:mm:ss}");
                 if (session.Existed)
                 {
-                    TerminalHelper.WriteLine($"{TerminalColors.Warning}    [恢复现有]{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Warning}    [恢复现有]{AnsiStyleEnumConstants.Reset}");
                 }
             }
 
@@ -96,7 +96,7 @@ public sealed class WorktreeCommand : ChatCommandBase
                 var hasChanges = await worktreeService.HasUncommittedChangesAsync(worktreePath, context.CancellationToken);
                 if (hasChanges)
                 {
-                    TerminalHelper.WriteLine($"{TerminalColors.Warning}    [有未提交更改]{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Warning}    [有未提交更改]{AnsiStyleEnumConstants.Reset}");
                 }
             }
 
@@ -113,7 +113,7 @@ public sealed class WorktreeCommand : ChatCommandBase
         var gitRoot = await worktreeService.FindGitRootAsync(context.GetCommandServices().FileSystem.GetCurrentDirectory());
         if (string.IsNullOrEmpty(gitRoot))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}未找到 Git 仓库根目录{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}未找到 Git 仓库根目录{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -164,20 +164,20 @@ public sealed class WorktreeCommand : ChatCommandBase
         var options = new WorktreeOptions { StaleTimeout = TimeSpan.FromDays(7) };
         var cleanedCount = await worktreeService.CleanupStaleWorktreesAsync(options, context.CancellationToken);
 
-        TerminalHelper.WriteLine($"{TerminalColors.Success}\n成功清理 {cleanedCount} 个过期 worktree{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}\n成功清理 {cleanedCount} 个过期 worktree{AnsiStyleEnumConstants.Reset}");
     }
 
     private async Task RemoveWorktreeAsync(ChatCommandContext context, IAgentWorktreeService worktreeService, string[] args)
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}请指定要移除的 Agent ID{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}请指定要移除的 Agent ID{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine("用法: /worktree remove <agent-id> [--force]");
             return;
         }
 
         var agentId = args[1];
-        var force = args.Contains(JccCliArgConstants.Force) || args.Contains(JccCliArgConstants.ForceAlias__f);
+        var force = args.Contains(JccCliArgEnumConstants.Force) || args.Contains(JccCliArgEnumConstants.ForceAlias__f);
 
         TerminalHelper.WriteLine("=== 移除 Worktree ===");
         TerminalHelper.WriteLine($"智能体: {agentId}");
@@ -192,19 +192,19 @@ public sealed class WorktreeCommand : ChatCommandBase
                 var worktreePath = AgentWorktreeSession.GenerateWorktreePath(gitRoot, agentId);
                 if (context.GetCommandServices().FileSystem.DirectoryExists(worktreePath))
                 {
-                    TerminalHelper.WriteLine($"{TerminalColors.Warning}找到未记录的 worktree 目录: {worktreePath}{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Warning}找到未记录的 worktree 目录: {worktreePath}{AnsiStyleEnumConstants.Reset}");
                     if (context.Confirm?.Invoke("是否强制移除？") ?? false)
                     {
                         // 兜底清理:session 不存在(未记录的 worktree),直接删除目录。
                         // 注意:可能残留 .git/worktrees/ 元数据和分支引用,建议后续执行 `git worktree prune`。
                         context.GetCommandServices().FileSystem.DeleteDirectory(worktreePath, true);
-                        TerminalHelper.WriteLine($"{TerminalColors.Success}已移除 worktree 目录{AnsiStyleConstants.Reset}");
+                        TerminalHelper.WriteLine($"{TerminalColors.Success}已移除 worktree 目录{AnsiStyleEnumConstants.Reset}");
                         return;
                     }
                 }
             }
 
-            TerminalHelper.WriteLine($"{TerminalColors.Error}未找到智能体 '{agentId}' 的 worktree{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}未找到智能体 '{agentId}' 的 worktree{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -213,7 +213,7 @@ public sealed class WorktreeCommand : ChatCommandBase
             var hasChanges = await worktreeService.HasUncommittedChangesAsync(session.WorktreePath, context.CancellationToken);
             if (hasChanges)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}该 worktree 有未提交的更改{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}该 worktree 有未提交的更改{AnsiStyleEnumConstants.Reset}");
                 if (!(context.Confirm?.Invoke("是否强制移除？") ?? false))
                 {
                     TerminalHelper.WriteLine("已取消移除");
@@ -227,16 +227,16 @@ public sealed class WorktreeCommand : ChatCommandBase
 
         if (result.Success)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Success}成功移除 worktree{(result.Forced ? " (强制)" : "")}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}成功移除 worktree{(result.Forced ? " (强制)" : "")}{AnsiStyleEnumConstants.Reset}");
         }
         else if (!string.IsNullOrEmpty(result.BlockReason))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}无法移除: {result.BlockReason}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}无法移除: {result.BlockReason}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine("使用 --force 强制移除");
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}移除失败: {result.ErrorMessage}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}移除失败: {result.ErrorMessage}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
@@ -244,7 +244,7 @@ public sealed class WorktreeCommand : ChatCommandBase
     {
         if (args.Length < 2)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}请指定 Agent ID{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}请指定 Agent ID{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine("用法: /worktree create <agent-id>");
             return;
         }
@@ -260,11 +260,11 @@ public sealed class WorktreeCommand : ChatCommandBase
         {
             if (result.Existed)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Success}恢复现有 worktree:{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}恢复现有 worktree:{AnsiStyleEnumConstants.Reset}");
             }
             else
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Success}成功创建 worktree:{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}成功创建 worktree:{AnsiStyleEnumConstants.Reset}");
             }
 
             TerminalHelper.WriteLine($"  路径: {result.Session!.WorktreePath}");
@@ -278,7 +278,7 @@ public sealed class WorktreeCommand : ChatCommandBase
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}创建失败: {result.ErrorMessage}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}创建失败: {result.ErrorMessage}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
@@ -293,7 +293,7 @@ public sealed class WorktreeCommand : ChatCommandBase
             var session = await worktreeService.GetSessionAsync(agentId);
             if (session is null)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}未找到智能体 '{agentId}' 的 worktree{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}未找到智能体 '{agentId}' 的 worktree{AnsiStyleEnumConstants.Reset}");
                 return;
             }
 
@@ -334,7 +334,7 @@ public sealed class WorktreeCommand : ChatCommandBase
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}  [目录不存在]{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}  [目录不存在]{AnsiStyleEnumConstants.Reset}");
         }
     }
 }

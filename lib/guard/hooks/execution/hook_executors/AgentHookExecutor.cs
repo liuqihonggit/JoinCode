@@ -25,7 +25,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
     }
 
     /// <inheritdoc />
-    public override string SupportedType => HookTypeConstants.Agent;
+    public override string SupportedType => HookTypeEnumConstants.Agent;
 
     /// <inheritdoc />
     public override async Task<HookResult> ExecuteTypedAsync(
@@ -78,7 +78,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
         var fullPrompt = BuildAgentPrompt(prompt, input);
 
         // 使用小型快速模型（如果未指定）
-        var model = hook.Model ?? _modelConfigLoader.GetDefaultModelId(VendorKindConstants.Anthropic);
+        var model = hook.Model ?? _modelConfigLoader.GetDefaultModelId(VendorKindEnumConstants.Anthropic);
 
         // 调用代理服务 — 未注册时返回非阻塞错误（不阻断 DI 链路）
         if (_agentService is null)
@@ -159,7 +159,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
                 return HookResult.Success(message: "Agent validation passed (empty response)");
             }
 
-            var decisionStr = hookDecision.Decision?.ToLowerInvariant() ?? PermissionBehaviorConstants.Allow;
+            var decisionStr = hookDecision.Decision?.ToLowerInvariant() ?? PermissionBehaviorEnumConstants.Allow;
             var decision = PermissionBehaviorExtensions.FromValue(decisionStr) ?? PermissionBehavior.Allow;
             var reason = hookDecision.Reason;
             var shouldContinue = hookDecision.Continue ?? true;

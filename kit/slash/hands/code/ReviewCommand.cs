@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /review 命令 — 审查 Pull Request 或代码变更
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Review, Description = "审查 Pull Request 或代码变更", Usage = "/review [pr-number]", Category = ChatCommandCategory.Code, ArgumentHint = "[pr-number]", ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Review, Description = "审查 Pull Request 或代码变更", Usage = "/review [pr-number]", Category = ChatCommandCategory.Code, ArgumentHint = "[pr-number]", ExposeToMcp = true)]
 [ChatCommandArg("pr_number", Type = "string", Description = "Pull Request 编号（可选，默认当前分支）")]
 public sealed class ReviewCommand : ChatCommandBase
 {
@@ -49,7 +49,7 @@ public sealed class ReviewCommand : ChatCommandBase
                 return;
             }
 
-            TerminalHelper.WriteLine($"{TerminalColors.Primary}正在审查...{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Primary}正在审查...{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.NewLine();
 
             // 对齐 TS: type='prompt'，结果直接进入对话上下文

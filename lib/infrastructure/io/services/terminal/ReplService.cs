@@ -14,9 +14,9 @@ public sealed partial class ReplService : ServiceEntity, IReplService
 
     private static readonly string[] s_hiddenTools =
     new[] {
-        FileToolNameConstants.FileRead, FileToolNameConstants.FileWrite, FileToolNameConstants.FileEdit,
-        SearchToolNameConstants.Glob, SearchToolNameConstants.Grep, ShellToolNameConstants.Bash,
-        NotebookToolNameConstants.NotebookEdit, AgentToolNameConstants.Agent
+        FileToolNameEnumConstants.FileRead, FileToolNameEnumConstants.FileWrite, FileToolNameEnumConstants.FileEdit,
+        SearchToolNameEnumConstants.Glob, SearchToolNameEnumConstants.Grep, ShellToolNameEnumConstants.Bash,
+        NotebookToolNameEnumConstants.NotebookEdit, AgentToolNameEnumConstants.Agent
      };
 
     private static readonly (string Language, string DisplayName, string Executable, string InstallHint)[] s_languageDefinitions =

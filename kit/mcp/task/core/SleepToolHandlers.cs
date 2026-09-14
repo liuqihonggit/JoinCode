@@ -22,7 +22,7 @@ public partial class SleepToolHandlers
     /// <summary>
     /// 休眠/延迟指定时间
     /// </summary>
-    [McpTool(SystemToolNameConstants.Sleep, "Sleep/delay for a specified duration", MessageRoleConstants.System)]
+    [McpTool(SystemToolNameEnumConstants.Sleep, "Sleep/delay for a specified duration", MessageRoleEnumConstants.System)]
     public async Task<ToolResult> SleepAsync(
         [McpToolParameter("Sleep duration (seconds), max 1800 (30 minutes)")] int duration_seconds,
         [McpToolParameter("Reason for sleep (optional)", Required = false)] string? reason = null,
@@ -132,7 +132,7 @@ public partial class SleepToolHandlers
     /// <summary>
     /// 等待特定时间点
     /// </summary>
-    [McpTool(SystemToolNameConstants.SleepUntil, "Wait until a specific time point", MessageRoleConstants.System)]
+    [McpTool(SystemToolNameEnumConstants.SleepUntil, "Wait until a specific time point", MessageRoleEnumConstants.System)]
     public async Task<ToolResult> SleepUntilAsync(
         [McpToolParameter("Target time (format: HH:mm or yyyy-MM-dd HH:mm:ss)")] string target_time,
         [McpToolParameter("Timezone offset (hours, optional, default local time)", Required = false)] int? timezone_offset_hours = null,

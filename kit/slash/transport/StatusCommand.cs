@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>RenderOverview 渲染上下文 — 封装 12 个参数，消除 JCC1006 违规</summary>
 internal record class RenderOverviewContext(
@@ -10,7 +10,7 @@ internal record class RenderOverviewContext(
 /// /status 命令 — 显示当前会话状态概览与 Token 用量
 /// 渲染包含版本、工作目录、会话信息、Provider、模型、API 密钥、MCP 工具等信息的双标签面板
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Status, Description = "显示版本、模型、账户、API连接和工具状态", Usage = "/status", Category = ChatCommandCategory.Info, ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Status, Description = "显示版本、模型、账户、API连接和工具状态", Usage = "/status", Category = ChatCommandCategory.Info, ExposeToMcp = true)]
 public sealed class StatusCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
@@ -55,9 +55,9 @@ public sealed class StatusCommand : ChatCommandBase
         {
             var history = await services.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
             var userCount = history.Count(m =>
-                string.Equals(m.Role, MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase));
+                string.Equals(m.Role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase));
             var assistantCount = history.Count(m =>
-                string.Equals(m.Role, MessageRoleConstants.Assistant, StringComparison.OrdinalIgnoreCase));
+                string.Equals(m.Role, MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase));
             var lastMsg = history.Count > 0
                 ? $"{history[^1].Timestamp:HH:mm:ss} ({history[^1].Role})"
                 : "无";
@@ -66,7 +66,7 @@ public sealed class StatusCommand : ChatCommandBase
         }
         catch
         {
-            messageInfo = $"  {TerminalColors.Muted}无法获取对话历史{AnsiStyleConstants.Reset}";
+            messageInfo = $"  {TerminalColors.Muted}无法获取对话历史{AnsiStyleEnumConstants.Reset}";
         }
 
         // 获取 Token 用量
@@ -80,12 +80,12 @@ public sealed class StatusCommand : ChatCommandBase
             }
             else
             {
-                tokenInfo = $"  {TerminalColors.Muted}暂无 Token 用量数据{AnsiStyleConstants.Reset}";
+                tokenInfo = $"  {TerminalColors.Muted}暂无 Token 用量数据{AnsiStyleEnumConstants.Reset}";
             }
         }
         else
         {
-            tokenInfo = $"  {TerminalColors.Muted}用量追踪器不可用{AnsiStyleConstants.Reset}";
+            tokenInfo = $"  {TerminalColors.Muted}用量追踪器不可用{AnsiStyleEnumConstants.Reset}";
         }
 
         // 获取费用
@@ -98,8 +98,8 @@ public sealed class StatusCommand : ChatCommandBase
             }
         }
 
-        var apiStatus = string.IsNullOrEmpty(apiKey) ? $"{TerminalColors.Warning}未配置{AnsiStyleConstants.Reset}" : $"{TerminalColors.Success}已配置{AnsiStyleConstants.Reset}";
-        var mcpStatus = hasMcpTools ? $"{TerminalColors.Muted}已注册{AnsiStyleConstants.Reset}" : $"{TerminalColors.Muted}未连接{AnsiStyleConstants.Reset}";
+        var apiStatus = string.IsNullOrEmpty(apiKey) ? $"{TerminalColors.Warning}未配置{AnsiStyleEnumConstants.Reset}" : $"{TerminalColors.Success}已配置{AnsiStyleEnumConstants.Reset}";
+        var mcpStatus = hasMcpTools ? $"{TerminalColors.Muted}已注册{AnsiStyleEnumConstants.Reset}" : $"{TerminalColors.Muted}未连接{AnsiStyleEnumConstants.Reset}";
 
         var panel = new TabPanel(
             ["概览", "Token用量"],
@@ -142,7 +142,7 @@ public sealed class StatusCommand : ChatCommandBase
     private static string RenderTokenUsage(string tokenInfo)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{TerminalColors.Accent}Token 用量{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{TerminalColors.Accent}Token 用量{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
         sb.AppendLine(tokenInfo);
         return sb.ToString();

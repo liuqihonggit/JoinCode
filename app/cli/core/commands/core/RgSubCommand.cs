@@ -79,7 +79,7 @@ internal static class RgSubCommand
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
             {
                 TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
-                return 2;
+                return (int)ExitCode.ToolExecutionTimeout;
             }
 
             return OutputOutcome(outcome, parsed);
@@ -87,7 +87,7 @@ internal static class RgSubCommand
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）— 已硬终止。");
-            return 2;
+            return (int)ExitCode.ToolExecutionTimeout;
         }
     }
 

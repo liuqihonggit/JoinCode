@@ -10,7 +10,7 @@ public sealed class DesktopSceneLookToolHandlersTests
     public async Task Look_ReturnsScreenshotAndSuggestsZoom()
     {
         var captureMock = new Mock<IDesktopSceneCaptureService>();
-        captureMock.Setup(c => c.CaptureWithGridAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        captureMock.Setup(c => c.CaptureWithGridAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneCapture("fake_original", "fake_rendered", 1920, 1080, 2));
         var handler = new DesktopSceneLookToolHandlers(captureMock.Object);
 
@@ -30,7 +30,7 @@ public sealed class DesktopSceneLookToolHandlersTests
     public async Task Look_WithSceneId_ReturnsSameSceneId()
     {
         var captureMock = new Mock<IDesktopSceneCaptureService>();
-        captureMock.Setup(c => c.CaptureWithGridAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+        captureMock.Setup(c => c.CaptureWithGridAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneCapture("fake", "fake", 100, 100, 2));
         var handler = new DesktopSceneLookToolHandlers(captureMock.Object);
 

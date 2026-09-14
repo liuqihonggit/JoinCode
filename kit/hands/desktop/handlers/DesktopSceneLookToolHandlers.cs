@@ -28,10 +28,11 @@ public sealed class DesktopSceneLookToolHandlers
         [McpToolParameter("场景 ID，首次调用可留空自动创建", Required = false)] string? sceneId = null,
         CancellationToken cancellationToken = default)
     {
-        var capture = await _captureService.CaptureWithGridAsync(2, cancellationToken).ConfigureAwait(false);
         var newSceneId = string.IsNullOrEmpty(sceneId)
             ? $"sc_{DateTimeOffset.UtcNow:yyyyMMdd_HHmmss}"
             : sceneId;
+
+        var capture = await _captureService.CaptureWithGridAsync(newSceneId, 2, cancellationToken).ConfigureAwait(false);
 
         var json = $$"""
             {

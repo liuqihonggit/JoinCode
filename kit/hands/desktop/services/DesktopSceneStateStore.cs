@@ -3,13 +3,23 @@ namespace JoinCode.Hands.Desktop;
 /// <summary>
 /// 桌面场景状态存储实现 — JSON 文件持久化，跨 mcp_call 进程通过文件中转
 /// </summary>
-internal sealed class DesktopSceneStateStore : IDesktopSceneStateStore
+[Register(typeof(IDesktopSceneStateStore), ServiceLifetime.Singleton)]
+public sealed class DesktopSceneStateStore : ServiceEntity, IDesktopSceneStateStore
 {
     private readonly string _storeDirectory;
     private readonly IFileSystem _fileSystem;
 
     /// <summary>
-    /// 初始化状态存储
+    /// DI 构造函数 — 默认存储目录 ~/.jcc/scenarios/
+    /// </summary>
+    /// <param name="fileSystem">文件系统抽象</param>
+    public DesktopSceneStateStore(IFileSystem fileSystem)
+        : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jcc", "scenarios"), fileSystem)
+    {
+    }
+
+    /// <summary>
+    /// 测试构造函数 — 指定存储目录
     /// </summary>
     /// <param name="storeDirectory">状态文件存储目录（如 ~/.jcc/scenarios/）</param>
     /// <param name="fileSystem">文件系统抽象</param>

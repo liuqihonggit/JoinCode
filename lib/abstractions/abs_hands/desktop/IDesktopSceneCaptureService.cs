@@ -5,11 +5,12 @@ namespace JoinCode.Abstractions.Interfaces;
 /// </summary>
 public interface IDesktopSceneCaptureService
 {
-    /// <summary>全屏截图并构建四叉树网格叠加渲染图</summary>
+    /// <summary>全屏截图并构建四叉树网格叠加渲染图，同时持久化场景状态（截图存文件 + 状态存 JSON）</summary>
+    /// <param name="sceneId">场景 ID</param>
     /// <param name="depth">四叉树层数（1=4格, 2=16格），默认 2</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>截图 + 渲染图 + 尺寸信息</returns>
-    Task<DesktopSceneCapture> CaptureWithGridAsync(int depth = 2, CancellationToken cancellationToken = default);
+    Task<DesktopSceneCapture> CaptureWithGridAsync(string sceneId, int depth = 2, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

@@ -1,5 +1,8 @@
 # 0097. Workflow 级断点续跑持久化策略
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-09
 - 决策者：AI + 用户确认

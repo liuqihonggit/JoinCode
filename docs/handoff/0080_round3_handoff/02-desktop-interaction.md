@@ -1,5 +1,8 @@
 # 交接文档 02: Desktop 交互工具
 
+> 📍 **导航**: [docs/](../../README.md) › [handoff/](../README.md) › [0080_round3_handoff/](README.md) | **前置**: [ADR 0080](../../adr/0080-manual-exe-testing-guide.md)
+> 🔗 **上游索引**: [handoff/0080_round3_handoff/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 开一个AI窗口处理本文档。逐个执行测试命令，遇到任何不适都修复。
 
 ## 工具列表（12个）

@@ -1,5 +1,8 @@
 # foreach / FirstOrDefault 转字典优化报告（完整版）
 
+> 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 扫描日期：2026-09-14
 > 扫描范围：lib / kit / server / llm / app / gen（排除 .xxx/ 归档、生成代码、测试）
 > 交付方式：先出报告再分批改

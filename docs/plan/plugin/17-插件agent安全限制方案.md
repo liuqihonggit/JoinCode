@@ -1,5 +1,8 @@
 # #17 插件 Agent 安全限制 — 方案设计
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [plugin/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > **创建时间**: 2026-08-17
 > **对齐目标**: TS 原版 `src/utils/plugins/loadPluginAgents.ts`
 > **状态**: 待用户审阅

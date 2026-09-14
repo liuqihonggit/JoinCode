@@ -1,5 +1,8 @@
 # JoinCode Agent 架构差距对比与补齐计划
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [agent/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/agent/](../README.md) — 修改本文档后须同步更新此索引
+
 > **创建时间**: 2026-08-16
 > **调研源码**: `D:\project\claude-code-rust\claude-code-rev-main\src\`
 > **对比目标**: `D:\project\w1\core\ai\Agents\` 等

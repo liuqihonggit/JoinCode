@@ -1,5 +1,8 @@
 # MCP 工具测试计划 03: GitHub
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [mcp/](README.md) | **前置**: [adr/](../../adr/README.md)
+> 🔗 **上游索引**: [plan/mcp/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 第二轮:脚本批量验证 — 快速定位坏点
 
 ## 概述

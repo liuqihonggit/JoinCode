@@ -1,5 +1,8 @@
 # 防御性编程缺陷修复任务清单（第三轮）
 
+> 📍 **导航**: [docs/](../README.md) › [fix/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [fix/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 创建时间: 2026-08-06
 > 目标: 扩大扫描范围到 app/ 与 services/ 层（第二轮覆盖 infrastructure/core/services 其余部分）。
 > 依据: 定向 grep 扫描（app + services 共 ~60 处 Trace.WriteLine 与 fire-and-forget + 逐文件确认）。

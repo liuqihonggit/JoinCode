@@ -1,5 +1,8 @@
 # 0018. 循环检测器状态机风格
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ⚠️ **已被 [0038](0038-state-machine-flags-guard.md) 取代** — 显式枚举无法表达状态组合,[Flags] 位标志 + 守卫可降低状态爆炸
 
 - 状态：superseded by 0038

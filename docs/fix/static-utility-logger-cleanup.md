@@ -1,5 +1,8 @@
 # 静态工具类 Trace.WriteLine → ILogger 清理任务
 
+> 📍 **导航**: [docs/](../README.md) › [fix/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [fix/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 创建时间: 2026-08-06
 > 前置: rebase main + 合并 w2 分支完成，工作区干净
 > 依据: 前四桶完成实例类清理（57 文件）后，剩余的 static 类/方法中 `System.Diagnostics.Trace.WriteLine`（无 listener 不可见）共 34 个 src 文件。

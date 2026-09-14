@@ -1,5 +1,8 @@
 # 全局推广 node/插件 — 从 WriteDefenseService 提取独立 node
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ADR: [0104](../adr/0104-write-defense-extract-public-node.md)（WriteDefenseService 公共对象提取）
 
 ## 目标

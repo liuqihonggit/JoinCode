@@ -1,5 +1,8 @@
 # 前缀缓存 × 上下文压缩：矛盾现状与改造计划
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > 创建时间: 2026-08-06
 > 范围: 只记录现场 + 给出改造蓝图，**未改任何代码**（除本会话已提交的 conversation 序列 hash，见 §0.2）
 

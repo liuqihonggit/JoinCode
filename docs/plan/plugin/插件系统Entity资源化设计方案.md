@@ -1,5 +1,8 @@
 # 插件系统 Entity 资源化设计方案
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [plugin/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > **创建时间**: 2026-08-17
 > **对齐目标**: Entity 统一基类 + 资源引用计数 + 心跳存活 + UI/非托管资源表 + 两阶段协作式卸载
 > **前置**: 插件系统Cordis重新设计方案(已完成)

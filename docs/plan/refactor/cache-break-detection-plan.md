@@ -1,5 +1,8 @@
 # 缓存破坏检测维度补齐计划（对齐 TS promptCacheBreakDetection.ts）
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > 创建时间: 2026-09-02
 > 范围: 补齐 `CacheBreakDetector` 的检测维度与判定阈值，对齐 TS 原版 `promptCacheBreakDetection.ts`（727 行）
 > 前置 ADR: [0056](../../adr/0056-cache-break-detection-enhancement.md)（缓存破坏检测维度补齐,迁移自旧 0055 分析记录）

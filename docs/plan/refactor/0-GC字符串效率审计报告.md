@@ -1,5 +1,8 @@
 # 0-GC 字符串效率审计报告
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > 日期: 2026-08-24
 > 范围: `core/safety/Guard/src` 字符串拼接热路径审计
 > 原则: 识别真正热路径,避免过度优化; .NET 10 插值字符串已由编译器优化为 DefaultInterpolatedStringHandler

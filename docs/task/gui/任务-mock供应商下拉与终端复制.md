@@ -1,5 +1,8 @@
 # 任务：Mock 供应商下拉 + 终端式整块复制
 
+> 📍 **导航**: [docs/](../../README.md) › [task/](../README.md) › [gui/](README.md) | **前置**: [plan/](../../plan/README.md)
+> 🔗 **上游索引**: [task/gui/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 
 用户需求（2026-08-09 演示后反馈）：

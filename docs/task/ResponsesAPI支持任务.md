@@ -1,5 +1,8 @@
 # Responses API 支持任务 + 协议自由切换
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 需求
 1. 每个供应商可自由切换协议(修 Azure 硬编码)
 2. 支持 Responses API(DeepSeek-V4-Flash 原生支持,OpenAI 新协议)

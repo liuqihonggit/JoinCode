@@ -1,5 +1,8 @@
 # 任务：GUI 全面美化（设计语言统一）
 
+> 📍 **导航**: [docs/](../../README.md) › [task/](../README.md) › [gui/](README.md) | **前置**: [plan/](../../plan/README.md)
+> 🔗 **上游索引**: [task/gui/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 
 Slash 补全面板改造完成（a0a2d71e8）后，用户要求"全部做剩下的任务，把 GUI 变得好看"。

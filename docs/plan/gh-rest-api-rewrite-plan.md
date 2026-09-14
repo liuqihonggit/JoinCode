@@ -1,5 +1,8 @@
 # gh_* MCP 工具重写为 REST API 直调 — 执行计划
 
+> 📍 **导航**: [docs/](../README.md) › [plan/](README.md) | **前置**: [adr/](../adr/README.md) + [design/](../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ADR: [0073](adr/0073-gh-rest-api-direct-call.md)
 > 目标：卸载系统 `gh` CLI，jcc 自包含，AI 统一用 `jcc mcp_call gh_*` 操作 GitHub
 

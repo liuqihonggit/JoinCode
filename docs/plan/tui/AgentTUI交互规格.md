@@ -1,5 +1,8 @@
 # Agent TUI 交互规格说明书（补充版）
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [tui/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > 基于多Agent协作的可视化终端界面设计。核心模式：轮询拉取 + 多管道并行 + 队列发送 + 点击穿透 + 分层渲染。
 
 ## 一、核心交互模型

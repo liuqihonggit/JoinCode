@@ -1,5 +1,8 @@
 # 0067. CI 日志结构化逐级展开（Section 级 drill down）
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 - 状态：accepted
 - 日期：2026-09-06
 - 决策者：AI + 用户确认

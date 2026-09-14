@@ -1,5 +1,8 @@
 # 统一韧性架构设计：覆盖全通讯点的纵深防御
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 本文档定义覆盖 jcc 系统所有通讯点的统一韧性架构，替代原先仅覆盖 MCP 传输的 fallback 链设计。
 > 原设计文档 `TransportFallbackChain.md` 保留作为 MCP 传输级 fallback 的详细参考，本设计在其基础上扩展为全系统韧性层。
 

@@ -1,5 +1,8 @@
 # 多Agent代码协作防冲突改造任务
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [agent/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/agent/](../README.md) — 修改本文档后须同步更新此索引
+
 > 基于 PRD v2.1 + jcc 现状调研 + Kimi Code 调研 + 用户逐条对齐决策
 > 产出日期：2026-08-19（逐条对齐后重写）
 > 改造策略：**渐进式、复用优先、TDD 驱动**

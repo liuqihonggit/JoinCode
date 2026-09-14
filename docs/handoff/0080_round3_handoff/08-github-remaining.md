@@ -1,5 +1,8 @@
 # 交接文档 08: GitHub 剩余工具
 
+> 📍 **导航**: [docs/](../../README.md) › [handoff/](../README.md) › [0080_round3_handoff/](README.md) | **前置**: [ADR 0080](../../adr/0080-manual-exe-testing-guide.md)
+> 🔗 **上游索引**: [handoff/0080_round3_handoff/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ✅ 用户已验证全部 GitHub 工具，以下工具全部通过。
 
 ## 工具列表（20个）— 全部已验证 ✅

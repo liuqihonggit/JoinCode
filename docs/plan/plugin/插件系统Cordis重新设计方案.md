@@ -1,5 +1,8 @@
 # 插件系统 Cordis 框架重新设计方案
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [plugin/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > **创建时间**: 2026-08-17
 > **对齐目标**: Cordis 框架 — 可逆效应 + 响应式协效应 + 连带卸载 + 传递依赖
 > **状态**: ✅ 全部实现 (4阶段,5个commit)

@@ -1,5 +1,8 @@
 # 子代理模型 inherit 关键字与 Bedrock 区域前缀补齐计划
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [agent/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/agent/](../README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 
 对齐 TS 原版 `src/utils/model/agent.ts` 的 `getAgentModel` 设计,补齐 w2 项目缺失的两项能力:

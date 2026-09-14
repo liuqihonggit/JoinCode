@@ -1,5 +1,8 @@
 # MCP 无状态改造任务清单
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 最新 MCP 规范 2025-11-25 的 Streamable HTTP transport 中,服务器**可选**分配 `MCP-Session-Id`:
 - 分配 = 有状态(服务器维护会话)

@@ -1,5 +1,8 @@
 # Agent 继承树架构重构设计
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [agent/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/agent/](../README.md) — 修改本文档后须同步更新此索引
+
 > 日期: 2026-08-08
 > 目标: 把 Agent 从 sealed 组合模式改为 abstract 继承树，智能体像树一样生长，压缩能力通过继承传递
 

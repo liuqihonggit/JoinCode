@@ -1,5 +1,8 @@
 # TUI/GUI 双端对齐任务清单
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 生成时间：2026-08-22
 > 目标：丰富 TUI 与 GUI，两边逻辑一致。流程：修 bug → 修 GUI → 修 TUI，每完成一项打勾一项。
 > 架构前提：TUI 走 `IQueryEngine.QueryAsync`（ChunkFormatter 文本流）；GUI 走 `IJccChatSession.StreamAsync`（ChatStreamEvent 门面）。

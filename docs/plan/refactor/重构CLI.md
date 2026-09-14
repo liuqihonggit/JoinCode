@@ -1,3 +1,10 @@
+# 重构 CLI 架构指南
+
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
+---
+
 这是一份关于如何定义一个新的CLI（命令行工具）的完整架构指南，核心内容分为9个部分，最后还给出了CLI的定位总结：
  
 1. 双模体验范式

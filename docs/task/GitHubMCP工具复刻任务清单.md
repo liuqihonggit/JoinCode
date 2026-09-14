@@ -1,5 +1,8 @@
 # GitHub MCP 工具复刻任务清单
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 
 用户需求：复刻 git 的 `gh` CLI 工具到项目 MCP，直接暴露给 LLM 调用，不经过 bash/shell（避免管道超时中断）。尤其要优化下载类操作（Release asset 下载复用项目已有的多线程分片并行下载 `IDownloader`），解决"总是下载失败、用户体验不好"的痛点。AGENTS.md 中 gh CLI 排错避坑指南（坑1-5）全部需要内化为工具逻辑。

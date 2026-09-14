@@ -1,5 +1,8 @@
 # 任务：Slash 补全面板美化 —— 底部升起式设计
 
+> 📍 **导航**: [docs/](../../README.md) › [task/](../README.md) › [gui/](README.md) | **前置**: [plan/](../../plan/README.md)
+> 🔗 **上游索引**: [task/gui/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 
 用户反馈：GUI 命令补全对话框太丑，且不是从底部弹出来的；要求用截图方式验证渲染效果。

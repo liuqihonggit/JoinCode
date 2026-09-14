@@ -1,5 +1,8 @@
 # Actor 模型推广改造任务清单
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 检查日期: 2026-09-12
 > 背景: ADR 0091 已确认 ActorBase 双工改造完成（8 个直接派生+3 个生态类），但项目中仍有大量并发状态未用 Actor 模型
 > 相关 ADR: 0074（监督树）、0091（双工就地升级）、0068（统一持久化管道 Actor）

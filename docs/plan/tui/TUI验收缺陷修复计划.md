@@ -1,5 +1,8 @@
 # TUI 验收缺陷修复计划
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [tui/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > 状态: 草案 v1  
 > 日期: 2026-08-17  
 > 范围: JoinCodeTui（Terminal.Gui v2.4.17）验收检验发现的 P0-P2 缺陷  

@@ -1,5 +1,8 @@
 # GUI 优化任务清单（11 项需求）
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 调研时间：2026-08-26
 > GUI 项目：`app/JoinCodeGui/`（Avalonia + CommunityToolkit.Mvvm）
 > 最近 commit 已完成：走马灯主区替代绿点、双击 ESC 终止、Ctrl+Enter 默认键位、子代理 worktree 右键

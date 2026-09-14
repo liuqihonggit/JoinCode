@@ -1,5 +1,8 @@
 # llm/agents 工程补全 XML 注释任务
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 任务目标
 - 为 `llm/agents` 工程所有 public/internal 成员补全 XML 文档注释
 - csproj 已配置 `GenerateDocumentationFile=true`（Debug 模式，llm/Directory.Build.props）

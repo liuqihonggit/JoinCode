@@ -1,5 +1,8 @@
 # GUI 重构：多 subAgent 运行期显示设计
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 状态：待用户确认架构决策
 > 日期：2026-08-25
 > 范围：`app/JoinCodeGui`（Avalonia GUI）全量重构 + 引擎事件链路补通

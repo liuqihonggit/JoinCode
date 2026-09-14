@@ -1,5 +1,8 @@
 # mmap + PLINQ + Span 优化工作计划
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ADR: [0072](../adr/0072-mmap-plinq-span-proliferation.md)
 > 扫描时间: 2026-09-07
 > 状态: 进行中

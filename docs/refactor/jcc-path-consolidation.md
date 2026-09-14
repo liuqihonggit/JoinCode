@@ -1,5 +1,8 @@
 # ~/.jcc/ 路径统一整理计划
 
+> 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 
 `~/.jcc/` 目录下有 16 个子目录 + 8 个顶层文件,但大量路径硬编码在各个服务类中(`".jcc", "xxx"`),

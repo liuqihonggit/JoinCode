@@ -1,5 +1,8 @@
 # 任务：diff渲染修正 + 斜杠命令前缀树
 
+> 📍 **导航**: [docs/](../../README.md) › [task/](../README.md) › [gui/](README.md) | **前置**: [plan/](../../plan/README.md)
+> 🔗 **上游索引**: [task/gui/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 
 用户对命令补全改造后追加需求（撤回需求已确认暂不做）：

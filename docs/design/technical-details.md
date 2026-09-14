@@ -1,5 +1,8 @@
 # 技术要点
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 此文档从 README 摘出，详细描述 JoinCode 的核心技术实现。
 
 ## 1. 宽容处理

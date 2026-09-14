@@ -1,5 +1,8 @@
 # 双击ESC子代理中断与空闲接手 PRD
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [agent/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/agent/](../README.md) — 修改本文档后须同步更新此索引
+
 > 创建: 2026-08-27
 > 状态: 设计确认中
 > 方案: B-revised（完美对齐 TS 原版 两种设计：forked agent + teammate）

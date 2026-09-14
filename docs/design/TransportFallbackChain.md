@@ -1,5 +1,8 @@
 # 传输层纵深防御 Fallback 链设计（L1-L10 完整层）
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 本文档定义传输层 fallback 链的完整纵深防御体系，覆盖客户端和服务端，含熔断器和遥测。
 
 ---

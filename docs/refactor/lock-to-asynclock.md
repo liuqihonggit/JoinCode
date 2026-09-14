@@ -1,5 +1,8 @@
 # lock → AsyncLock 全量迁移计划
 
+> 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ADR: [0059](../adr/0059-asynclock-reentrancy-detection.md)（不可重入 + 重入检测）
 > 方案：A — 坚持不可重入 + 逐处重构（锁内只操作字段、副作用移锁外）
 

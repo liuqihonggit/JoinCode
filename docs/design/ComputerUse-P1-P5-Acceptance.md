@@ -1,5 +1,8 @@
 # P1-P5 Computer Use 完整能力 — 验收报告
 
+> 📍 **导航**: [docs/](../README.md) › [design/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [design/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > **日期**：2026-08-26
 > **里程碑**：M2-M6（PRD §4 P1-P5）
 > **状态**：✅ 全部通过

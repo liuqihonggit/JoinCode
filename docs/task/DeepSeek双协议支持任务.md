@@ -1,5 +1,8 @@
 # DeepSeek 双协议支持任务
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 目标
 DeepSeek 官方同时支持 OpenAI 兼容协议和 Anthropic 兼容协议。让用户在 settings.json 配什么 `protocol` 就走什么协议,给用户最大操作度。
 

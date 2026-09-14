@@ -1,5 +1,8 @@
 # using 改造工作计划
 
+> 📍 **导航**: [docs/](../README.md) › [plan/](README.md) | **前置**: [adr/](../adr/README.md) + [design/](../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 目标：将 try-finally + Dispose/DisposeAsync 模式统一改为 `using`/`await using` 单行释放
 > 原则：每改一处 → 编译 → 提交，渐进式推进
 > 状态：**全部完成** — 30 处已改 + 5 处保持现状（Win32 Handle 局部变量不违规） + 4056 单元测试通过

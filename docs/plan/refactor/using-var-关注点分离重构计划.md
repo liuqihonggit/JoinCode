@@ -1,5 +1,8 @@
 # 关注点分离重构计划(制造 Dispose + using 封装)
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 ## 背景(用户原话澄清)
 
 > 我根本不是让你调整这些,我让你随机找一个类,然后看看它是否关注点不够分离,然后去制造新类,制作好析构和释放函数,消费端就改成标准的 using 释放功能,也就是那些缺少的行为可以封装的.你把 try 改成 using 没有意义啊.我要的是 前..中间一大串...后,这种不清晰的包裹结构,很好改成 using 那种带 try 的.

@@ -1,5 +1,8 @@
 # 任务：EffortLevel 推理力度对齐 GUI
 
+> 📍 **导航**: [docs/](../../README.md) › [task/](../README.md) › [gui/](README.md) | **前置**: [plan/](../../plan/README.md)
+> 🔗 **上游索引**: [task/gui/README.md](README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 GUI 设置面板已有温度/最大长度/流式/系统提示词，但缺 CLI `/effort`（推理力度）能力。
 CLI `/effort low|medium|high|max|auto|unset` 会：

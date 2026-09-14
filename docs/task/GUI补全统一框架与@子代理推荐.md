@@ -1,5 +1,8 @@
 # GUI 补全统一框架与 @子代理推荐
 
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 调研时间：2026-09-06
 > GUI 项目：`app/JoinCodeGui/`（Avalonia + CommunityToolkit.Mvvm）
 > 关联 ADR：待补（统一补全框架架构决策）

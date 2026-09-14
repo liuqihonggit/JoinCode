@@ -1,5 +1,8 @@
 # TUI 架构与消息管道重构设计
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [tui/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 > 状态: 草案 v1  
 > 日期: 2026-08-16  
 > 范围: 议题 1-6（TUI 线程亲和性 / 统一绘制入口 / 输入队列 / 组件自适应 / 多 Agent 对齐 / 邮箱收敛）  

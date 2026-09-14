@@ -1,5 +1,8 @@
 # 死代码归档记录
 
+> 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
+> 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 本文档记录项目中移除的死配置/死接口/死代码的归档操作,非架构决策,仅保留审计追踪。
 > 迁移自 ADR 0049(归档 MaxConcurrentAgents)和 ADR 0025(归档 IMcpProtocolHandler)。
 

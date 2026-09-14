@@ -1,5 +1,8 @@
 # 任务：Spawn 管道统一 — 主代理/子代理合并为一条创建管道
 
+> 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
+
 ## 背景
 当前 Agent 创建阶段有三条路径，注册的中间件各不相同：
 - **主代理**：直接 `new AgentBase()` / `AgentFactory.Create()`，**不经过任何 Spawn 管道**（`CliSession.cs:141`、`GoalEngine.cs:1073`）

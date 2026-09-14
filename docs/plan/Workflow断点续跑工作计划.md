@@ -1,5 +1,8 @@
 # Workflow 断点续跑工作计划
 
+> 📍 **导航**: [docs/](../README.md) › [plan/](README.md) | **前置**: [adr/](../adr/README.md) + [design/](../design/README.md)
+> 🔗 **上游索引**: [plan/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > 来源规格：`D:\Users\54076\Desktop\1并行工具调用设计 - 副本.txt`（并行工具调用 + DAG依赖 + 断点续跑）
 > 探索报告：w3 已实现规格 90% 能力，唯一硬缺口是 **Workflow 级断点续跑**
 > 关联 ADR：[0013](../adr/0013-hypergraph-vs-dag-separation.md)（DAG/超图分离）、[0068](../adr/0068-unified-persistence-pipeline-actor.md)（统一持久化管道）、[0074](../adr/0074-actor-supervisor-tree.md)（Actor 监督树）

@@ -1,5 +1,8 @@
 # 0034. 命令拦截分层 Guard+Interceptor+Dispatcher
 
+> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
+> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+
 > ⚠️ **已被 [0039](0039-command-interception-state-machine.md) 取代** — 放弃全状态机的理由(状态爆炸)在引入 [Flags] + 守卫后不成立
 
 - 状态：superseded by 0039

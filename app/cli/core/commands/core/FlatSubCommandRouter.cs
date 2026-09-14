@@ -36,8 +36,6 @@ internal static class FlatSubCommandRouter
                 return await ExecuteSlashListAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.SlashSchema:
                 return await ExecuteSlashSchemaAsync(args, ct).ConfigureAwait(false);
-            case CliSubCommand.Doctor:
-                return await ExecuteDoctorAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Rg:
                 return await RgSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
             case CliSubCommand.Gh:
@@ -126,9 +124,6 @@ internal static class FlatSubCommandRouter
 
     private static Task<int?> ExecuteSlashSchemaAsync(string[] args, CancellationToken ct)
         => SlashSchemaExecutor.ExecuteAsync(args, ct);
-
-    private static async Task<int?> ExecuteDoctorAsync(string[] args, CancellationToken ct)
-        => await DoctorSubCommand.ExecuteAsync(args, ct).ConfigureAwait(false);
 
     internal static string? GetPositional(string[] args, int index)
     {

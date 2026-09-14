@@ -74,24 +74,6 @@ public enum JccCliArg
     [EnumValue("--append-system-prompt")]
     AppendSystemPrompt,
 
-    [EnumValue("--doctor")]
-    Doctor,
-
-    [EnumValue("--doctor-server")]
-    DoctorServer,
-
-    [EnumValue("--doctor-endpoint")]
-    DoctorEndpoint,
-
-    [EnumValue("--doctor-port")]
-    DoctorPort,
-
-    [EnumValue("--server")]
-    Server,
-
-    [EnumValue("--endpoint")]
-    Endpoint,
-
     [EnumValue("--json")]
     Json,
 

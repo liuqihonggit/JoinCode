@@ -73,11 +73,6 @@ public enum CliSubCommand
     [SubCommandInfo("斜杠命令参数 schema — 查看命令的参数定义", "斜杠命令", Example = "jcc slash_schema /compact")]
     SlashSchema,
 
-    /// <summary>医生模式 — jcc doctor [--server] [--port &lt;n&gt;]</summary>
-    [EnumValue("doctor")]
-    [SubCommandInfo("医生模式 — 诊断和修复 jcc 运行问题", "诊断", Example = "jcc doctor")]
-    Doctor,
-
     /// <summary>ripgrep 兼容搜索 — jcc rg &lt;pattern&gt; [path...] [--type cs] [-g "!**/tests/**"] [-i] [-n] [-A N] [-B N] [-C N] [--head-limit N] [-U] [-F] [--count] [--files-with-matches] [--content] [--timeout N] [--json]</summary>
     /// <para>ADR: 0070 — 内置 rg 实现，复用 ISearchService.GrepSearchAsync，宽容处理 PowerShell 转义、缺少路径禁止扫盘、超时硬终止。</para>
     [EnumValue("rg")]

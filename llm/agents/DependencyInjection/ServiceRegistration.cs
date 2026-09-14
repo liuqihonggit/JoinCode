@@ -14,7 +14,6 @@ public static partial class ServiceRegistration
     public static IServiceCollection AddAgentServices(this IServiceCollection services)
     {
         services.AddSingleton<Lazy<IWorktreePipelineOperations>>(sp => new Lazy<IWorktreePipelineOperations>(sp.GetRequiredService<IWorktreePipelineOperations>));
-        services.AddSingleton<IReflexionMemory, FileBasedReflexionMemory>();
         return services;
     }
 

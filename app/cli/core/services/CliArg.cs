@@ -86,22 +86,6 @@ public enum CliArg
     [CliOption(JccCliArgConstants.AppendSystemPrompt, "", "追加系统提示词（在默认/已加载系统提示词后附加，不覆盖）", AcceptsValue = true, Category = "提示词")]
     AppendSystemPrompt,
 
-    /// <summary>医生模式：spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题</summary>
-    [CliOption(JccCliArgConstants.Doctor, "", "医生模式：spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题", Category = "医生")]
-    Doctor,
-
-    /// <summary>医生服务器模式：监听病人 SSE 连接，支持 1:N 多病人监控（需配合 --doctor）</summary>
-    [CliOption(JccCliArgConstants.DoctorServer, "", "医生服务器模式：监听病人 SSE 连接，支持 1:N 多病人监控（需配合 --doctor）", Category = "医生")]
-    DoctorServer,
-
-    /// <summary>医生 SSE 端点 URL（病人端使用，连接到医生的 SSE 服务器，如 http://localhost:9902）</summary>
-    [CliOption(JccCliArgConstants.DoctorEndpoint, "", "医生 SSE 端点 URL（病人端使用，连接到医生的 SSE 服务器，如 http://localhost:9902）", AcceptsValue = true, Category = "医生")]
-    DoctorEndpoint,
-
-    /// <summary>医生 SSE 服务器端口（医生端使用，默认 9902）</summary>
-    [CliOption(JccCliArgConstants.DoctorPort, "", "医生 SSE 服务器端口（医生端使用，默认 9902）", AcceptsValue = true, Category = "医生")]
-    DoctorPort,
-
     /// <summary>结构化 JSON 输出模式（子命令和非交互模式生效，交互模式保持彩色输出）</summary>
     [CliOption(JccCliArgConstants.Json, "", "结构化 JSON 输出模式（子命令和非交互模式生效，交互模式保持彩色输出）", Category = "输出", Example = "jcc mcp_list --json", AliasOf = JccCliArgConstants.Format, AliasValue = "json")]
     Json,

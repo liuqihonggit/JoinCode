@@ -138,29 +138,6 @@ public class CommandLineOptions {
     public string? AppendSystemPrompt { get; set; }
 
     /// <summary>
-    /// 医生模式（--doctor 参数）— spawn jcc.exe 子进程作为病人，监控运行状态并自动修复问题
-    /// 医生复用 jcc 全部工具（Read/Edit/Bash/Grep）和护栏（权限/安全/配置）
-    /// </summary>
-    public bool DoctorMode { get; set; }
-
-    /// <summary>
-    /// 医生服务器模式（--doctor-server 参数）— 监听病人 SSE 连接，支持 1:N 多病人监控
-    /// 需配合 --doctor 使用，单独使用无效
-    /// </summary>
-    public bool DoctorServerMode { get; set; }
-
-    /// <summary>
-    /// 医生 SSE 端点 URL（--doctor-endpoint 参数）— 病人端使用，连接到医生的 SSE 服务器
-    /// 例如 http://localhost:9902，病人通过此端点发送遥测事件和接收医生指令
-    /// </summary>
-    public string? DoctorEndpoint { get; set; }
-
-    /// <summary>
-    /// 医生 SSE 服务器端口（--doctor-port 参数）— 医生端使用，默认 9902
-    /// </summary>
-    public int? DoctorPort { get; set; }
-
-    /// <summary>
     /// 是否为非交互模式（用户请求 / 无头环境 / CI 环境 / -p 参数）
     /// </summary>
     public bool IsNonInteractiveMode =>

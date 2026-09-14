@@ -288,9 +288,6 @@ public sealed class ApplicationBuilder
             DisallowedTools = ParseToolList(result.DisallowedTools),
             SystemPrompt = result.SystemPrompt,
             AppendSystemPrompt = result.AppendSystemPrompt,
-            DoctorMode = result.Doctor,
-            DoctorServerMode = result.DoctorServer,
-            DoctorEndpoint = result.DoctorEndpoint,
             JsonOutput = result.Json,
             OutputFormat = result.Format,
             DryRun = result.DryRun,
@@ -303,12 +300,6 @@ public sealed class ApplicationBuilder
         if (!string.IsNullOrWhiteSpace(result.Await) && int.TryParse(result.Await, out var awaitSeconds) && awaitSeconds > 0)
         {
             options.AwaitTimeoutSeconds = awaitSeconds;
-        }
-
-        // --doctor-port N: 医生 SSE 服务器端口
-        if (!string.IsNullOrWhiteSpace(result.DoctorPort) && int.TryParse(result.DoctorPort, out var doctorPort) && doctorPort > 0)
-        {
-            options.DoctorPort = doctorPort;
         }
 
         // 环境变量映射 — 由 CliOptionGenerator 从 [CliOption(EnvVar=...)] 声明自动生成

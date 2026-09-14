@@ -6,19 +6,19 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 public enum HotFixActionType
 {
     /// <summary>无需修复</summary>
-    None,
+    [EnumValue("none")] None,
 
     /// <summary>修改源码 + 重编译 + 重启</summary>
-    SourceCodePatch,
+    [EnumValue("source_code_patch")] SourceCodePatch,
 
     /// <summary>修改配置文件 + 热更新</summary>
-    ConfigChange,
+    [EnumValue("config_change")] ConfigChange,
 
     /// <summary>发送 /compact 指令压缩上下文</summary>
-    CompactContext,
+    [EnumValue("compact_context")] CompactContext,
 
     /// <summary>重启病人进程（不修改代码）</summary>
-    RestartProcess
+    [EnumValue("restart_process")] RestartProcess
 }
 
 /// <summary>
@@ -107,8 +107,8 @@ public sealed record DoctorReport
 /// </summary>
 public enum DoctorReportStatus
 {
-    Running,
-    Completed,
-    Failed,
-    PartiallyFixed
+    [EnumValue("running")] Running,
+    [EnumValue("completed")] Completed,
+    [EnumValue("failed")] Failed,
+    [EnumValue("partially_fixed")] PartiallyFixed
 }

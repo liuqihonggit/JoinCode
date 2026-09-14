@@ -39,13 +39,13 @@ public readonly struct ApprovalRequestId : IEquatable<ApprovalRequestId>
 public enum ApprovalState
 {
     /// <summary>待审批</summary>
-    Pending,
+    [EnumValue("pending")] Pending,
 
     /// <summary>已批准</summary>
-    Approved,
+    [EnumValue("approved")] Approved,
 
     /// <summary>已拒绝</summary>
-    Declined,
+    [EnumValue("declined")] Declined,
 }
 
 /// <summary>

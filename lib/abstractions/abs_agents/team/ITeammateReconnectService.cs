@@ -43,8 +43,8 @@ public sealed class ReconnectResult
 
 public enum ReconnectStatus
 {
-    Success,
-    Failed,
-    MaxRetriesExceeded,
-    Cancelled
+    [EnumValue("success")] Success,
+    [EnumValue("failed")] Failed,
+    [EnumValue("max_retries_exceeded")] MaxRetriesExceeded,
+    [EnumValue("cancelled")] Cancelled
 }

@@ -5,10 +5,10 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// </summary>
 public enum DiagnosticSeverity
 {
-    Info,
-    Warning,
-    Error,
-    Critical
+    [EnumValue("info")] Info,
+    [EnumValue("warning")] Warning,
+    [EnumValue("error")] Error,
+    [EnumValue("critical")] Critical
 }
 
 /// <summary>
@@ -95,22 +95,22 @@ public sealed record DiagnosticReport
 public enum PatientState
 {
     /// <summary>未启动</summary>
-    NotStarted,
+    [EnumValue("not_started")] NotStarted,
 
     /// <summary>运行中</summary>
-    Running,
+    [EnumValue("running")] Running,
 
     /// <summary>正常退出</summary>
-    Completed,
+    [EnumValue("completed")] Completed,
 
     /// <summary>异常退出</summary>
-    Failed,
+    [EnumValue("failed")] Failed,
 
     /// <summary>卡死（超时退出，退出码 1234）</summary>
-    Hung,
+    [EnumValue("hung")] Hung,
 
     /// <summary>被医生终止</summary>
-    Killed
+    [EnumValue("killed")] Killed
 }
 
 /// <summary>

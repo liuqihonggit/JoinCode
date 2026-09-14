@@ -30,13 +30,13 @@ public enum TransportChannel
 public enum TransportState
 {
     /// <summary>已断开</summary>
-    Disconnected,
+    [EnumValue("disconnected")] Disconnected,
     /// <summary>连接中</summary>
-    Connecting,
+    [EnumValue("connecting")] Connecting,
     /// <summary>已连接</summary>
-    Connected,
+    [EnumValue("connected")] Connected,
     /// <summary>连接失败</summary>
-    Failed
+    [EnumValue("failed")] Failed
 }
 
 /// <summary>

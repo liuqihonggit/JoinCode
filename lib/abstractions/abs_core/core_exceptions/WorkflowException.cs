@@ -88,15 +88,15 @@ public class WorkflowException : Exception
 /// </summary>
 public enum ErrorCategory
 {
-    Workflow,
-    Configuration,
-    Api,
-    CodeExecution,
-    Permission,
-    Security,
-    Mcp,
-    Validation,
-    Resource,
-    Scheduling,
-    General
+    [EnumValue("workflow")] Workflow,
+    [EnumValue("configuration")] Configuration,
+    [EnumValue("api")] Api,
+    [EnumValue("code_execution")] CodeExecution,
+    [EnumValue("permission")] Permission,
+    [EnumValue("security")] Security,
+    [EnumValue("mcp")] Mcp,
+    [EnumValue("validation")] Validation,
+    [EnumValue("resource")] Resource,
+    [EnumValue("scheduling")] Scheduling,
+    [EnumValue("general")] General
 }

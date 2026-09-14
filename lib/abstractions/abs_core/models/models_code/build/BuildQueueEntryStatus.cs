@@ -6,20 +6,20 @@ namespace JoinCode.Abstractions.Models.Build;
 public enum BuildQueueEntryStatus
 {
     /// <summary>排队中</summary>
-    Queued,
+    [EnumValue("queued")] Queued,
 
     /// <summary>编译中</summary>
-    Building,
+    [EnumValue("building")] Building,
 
     /// <summary>正在取消（杀进程中）</summary>
-    Cancelling,
+    [EnumValue("cancelling")] Cancelling,
 
     /// <summary>编译完成</summary>
-    Completed,
+    [EnumValue("completed")] Completed,
 
     /// <summary>编译失败</summary>
-    Failed,
+    [EnumValue("failed")] Failed,
 
     /// <summary>已取消</summary>
-    Cancelled
+    [EnumValue("cancelled")] Cancelled
 }

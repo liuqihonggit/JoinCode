@@ -5,13 +5,13 @@ namespace JoinCode.Abstractions.Utils;
 /// </summary>
 public enum TaskType
 {
-    LocalBash,
-    LocalAgent,
-    RemoteAgent,
-    InProcessTeammate,
-    LocalWorkflow,
-    MonitorMcp,
-    Dream
+    [EnumValue("local_bash")] LocalBash,
+    [EnumValue("local_agent")] LocalAgent,
+    [EnumValue("remote_agent")] RemoteAgent,
+    [EnumValue("in_process_teammate")] InProcessTeammate,
+    [EnumValue("local_workflow")] LocalWorkflow,
+    [EnumValue("monitor_mcp")] MonitorMcp,
+    [EnumValue("dream")] Dream
 }
 
 /// <summary>
@@ -19,11 +19,11 @@ public enum TaskType
 /// </summary>
 public enum DreamTaskStatus
 {
-    Pending,
-    Running,
-    Completed,
-    Failed,
-    Killed
+    [EnumValue("pending")] Pending,
+    [EnumValue("running")] Running,
+    [EnumValue("completed")] Completed,
+    [EnumValue("failed")] Failed,
+    [EnumValue("killed")] Killed
 }
 
 /// <summary>
@@ -31,8 +31,8 @@ public enum DreamTaskStatus
 /// </summary>
 public enum DreamPhase
 {
-    Starting,
-    Updating
+    [EnumValue("starting")] Starting,
+    [EnumValue("updating")] Updating
 }
 
 /// <summary>

@@ -92,16 +92,16 @@ public sealed class PluginPackage
 public enum DynamicPluginState
 {
     /// <summary>已定义，未运行</summary>
-    Defined,
+    [EnumValue("defined")] Defined,
 
     /// <summary>运行中</summary>
-    Running,
+    [EnumValue("running")] Running,
 
     /// <summary>已停止（可重新运行）</summary>
-    Stopped,
+    [EnumValue("stopped")] Stopped,
 
     /// <summary>已卸载（永久删除）</summary>
-    Undefined,
+    [EnumValue("undefined")] Undefined,
 }
 
 /// <summary>

@@ -6,8 +6,8 @@ namespace JoinCode.Abstractions.Cmd;
 public enum CmdSource
 {
     /// <summary>斜杠命令（[ChatCommand] 类级注册）</summary>
-    Slash,
+    [EnumValue("slash")] Slash,
 
     /// <summary>MCP 工具（[McpTool] 方法级注册）</summary>
-    Mcp,
+    [EnumValue("mcp")] Mcp,
 }

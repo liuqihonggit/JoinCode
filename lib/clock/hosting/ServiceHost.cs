@@ -32,8 +32,7 @@ public sealed partial class ServiceHost : IAsyncDisposable
     /// </summary>
     public void RegisterService(IWorkflowService service)
     {
-        if (service == null)
-            throw new ArgumentNullException(nameof(service));
+        ArgumentNullException.ThrowIfNull(service);
 
         if (_services.TryAdd(service.ServiceName, service))
         {

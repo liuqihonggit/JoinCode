@@ -109,28 +109,4 @@ public enum CliArg
     /// <summary>静默模式：只输出错误信息，抑制正常输出</summary>
     [CliOption(JccCliArgConstants.Quiet, "-q", "静默模式：只输出错误信息，抑制正常输出", Category = "输出")]
     Quiet,
-
-    /// <summary>从 JSON 文件读取工具参数</summary>
-    [CliOption(JccCliArgConstants.ArgsFile, "", "从 JSON 文件读取工具参数", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_call read_file --args-file args.json")]
-    ArgsFile,
-
-    /// <summary>从 stdin 读取工具参数（JSON）</summary>
-    [CliOption(JccCliArgConstants.ArgsStdin, "", "从 stdin 读取工具参数（JSON）", Category = "子命令", Example = "jcc mcp_call read_file --args-stdin < args.json")]
-    ArgsStdin,
-
-    /// <summary>按分类过滤工具列表</summary>
-    [CliOption(JccCliArgConstants.Category, "", "按分类过滤工具列表", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_list --category Code")]
-    Category,
-
-    /// <summary>MCP 服务端传输协议 (stdio/http)</summary>
-    [CliOption(JccCliArgConstants.Transport, "", "MCP 服务端传输协议 (stdio/http)", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --transport http")]
-    Transport,
-
-    /// <summary>MCP 服务端监听端口</summary>
-    [CliOption(JccCliArgConstants.Port, "", "MCP 服务端监听端口", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --port 9903")]
-    Port,
-
-    /// <summary>MCP 服务端监听主机</summary>
-    [CliOption(JccCliArgConstants.Host, "", "MCP 服务端监听主机", AcceptsValue = true, Category = "子命令", Example = "jcc mcp_serve --host localhost")]
-    Host,
 }

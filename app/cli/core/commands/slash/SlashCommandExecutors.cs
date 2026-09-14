@@ -59,8 +59,8 @@ internal static class SlashCallExecutor
     /// </summary>
     private static async Task<string?> ResolveArgsJsonAsync(string[] args, CancellationToken ct)
     {
-        var argsFile = FlatSubCommandRouter.GetOptionValue(args, CliArgConstants.ArgsFileLongName);
-        var argsStdin = FlatSubCommandRouter.HasFlag(args, CliArgConstants.ArgsStdinLongName);
+        var argsFile = FlatSubCommandRouter.GetOptionValue(args, ToolCallArgConstants.ArgsFileLongName);
+        var argsStdin = FlatSubCommandRouter.HasFlag(args, ToolCallArgConstants.ArgsStdinLongName);
 
         if (argsStdin)
         {

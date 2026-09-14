@@ -403,10 +403,18 @@ foreach 不可转原因分布：
 
 | 批次 | 总数 | 已完成 | 状态 |
 |------|------|--------|------|
-| 批次1 高收益 | 10 | 0 | 进行中（CSharpCallExtractor 6 处已改，编译修复中） |
-| 批次2 中收益 | 11 | 0 | 待开始 |
-| 批次3 低收益 | 9 | 0 | 待开始 |
-| **合计** | **30** | **0** | **进行中** |
+| 批次1 高收益 | 10 | 10 | ✅ 完成 |
+| 批次2 中收益 | 11 | 10 | ✅ 完成（#17 已是字典，无需改） |
+| 批次3 低收益 | 9 | 2 | ⚠️ gen 2 处完成，PsPermissions 4 处+MainViewModel 3 处跳过 |
+| **合计** | **30** | **22** | **22 处已改，8 处评估后跳过** |
+
+### 跳过原因
+
+| 位置 | 原因 |
+|------|------|
+| #17 SlashCommandExecutors.cs:183 | 已是字典查找（生成器已生成 `_entryByName` FrozenDictionary + `GetEntry` O(1)） |
+| #22-25 PsPermissions.cs 4 处 | 改字典会改变规则匹配顺序（foreach 按列表顺序返回首个匹配，字典按哈希不保证顺序），有语义风险；规则列表小（几十条），低收益不值得冒险 |
+| #26-28 MainViewModel.cs 3 处 | UI 层 ObservableCollection 小集合（<10 到 <50），与 UI 双向绑定频繁重建，维护同步字典的复杂度与收益不成正比 |
 
 ### 改造记录
 
@@ -414,7 +422,18 @@ foreach 不可转原因分布：
 
 | 日期 | 位置 | 改造内容 | commit |
 |------|------|----------|--------|
-| 2026-09-14 | CSharpCallExtractor.cs 6 处 | 新建 SymbolIndex 类，封装 TryGetByFqn/GetByName，改造 CollectCallsOptions/ResolveCalleeOptions 签名 | 待提交 |
+| 2026-09-14 | CSharpCallExtractor.cs 6 处 | 新建 SymbolIndex 类，封装 TryGetByFqn/GetByName，改造 CollectCallsOptions/ResolveCalleeOptions 签名 | a387b6762 |
+| 2026-09-14 | ReferenceIndexCompressor.cs | HashSet 替代去重 O(n²)→O(n) | 14434e7ec |
+| 2026-09-14 | WorktreeCommand.cs | ToLookup 替代嵌套查找 O(n×m)→O(n+m) | 14434e7ec |
+| 2026-09-14 | SkillDefinition.cs + SkillExecutor.cs + SkillExecutionMiddleware.cs | BuildStepIndex 封装步骤索引，while 循环 O(n²)→O(n) | 14434e7ec |
+| 2026-09-14 | Dag.cs + ConcurrentDag.cs + TaskService.cs + TaskRuntime.cs | Dag 加 (FromId,ToId) 复合索引 TryGetEdge O(E)→O(1) | 1cdf5dc57 |
+| 2026-09-14 | EnvironmentProbeService.cs | ToLookup by Id 替代 9 次线性查找 | 66c24d443 |
+| 2026-09-14 | CommandRegistrationGenerator.cs | 提取 GetNamedArg/GetNamedArgString 辅助方法，15 次 NamedArguments FirstOrDefault 转字典 | 66c24d443 |
+| 2026-09-14 | CliOptionGenerator.cs | ToLookup by LongName 替代 foreach 内嵌套查找 O(N²)→O(N) | 66c24d443 |
+| 2026-09-14 | ReasoningEngine.cs | ToLookup by SourceUrl 替代 foreach 内全节点扫描 | 2da0dd2c2 |
+| 2026-09-14 | AgentDefinitionProvider.cs | 缓存 _cachedDefinitionMap ILookup，GetAgentDefinitionAsync O(1) 查找 | 2da0dd2c2 |
+| 2026-09-14 | EnumMetadataGenerator.cs | 4 次 NamedArguments FirstOrDefault 转局部字典 | 2c2e4ea4f |
+| 2026-09-14 | ServiceRegistrationGenerator.cs | 2 次 NamedArguments FirstOrDefault 转局部字典 | 2c2e4ea4f |
 
 ---
 

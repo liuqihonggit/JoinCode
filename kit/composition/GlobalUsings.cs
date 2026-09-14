@@ -78,6 +78,7 @@ global using Core.Security.Services;
 global using Core.Skills;
 global using Core.Skills.Search;
 global using Core.Utils;
+global using Core.Agents.Coordinator.Liveness;
 global using Core.Context.Collapse;
 global using Core.Configuration.Remote;
 global using Core.Summary;

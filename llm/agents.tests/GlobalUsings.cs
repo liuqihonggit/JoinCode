@@ -38,6 +38,8 @@ global using JoinCode.Abstractions.State;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using Core.Agents.Coordinator;
+global using Core.Agents.Coordinator.Liveness;
+global using Core.Agents.Coordinator.Pool;
 global using Core.Agents.DualModel;
 global using Core.Agents.Interfaces;
 global using Core.Agents;

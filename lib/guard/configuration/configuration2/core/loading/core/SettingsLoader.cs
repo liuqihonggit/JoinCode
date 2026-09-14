@@ -147,6 +147,18 @@ public static class SettingsLoader
                 "router": { "capacity": 1000, "sendTimeoutSeconds": 10 },
                 "build": { "capacity": 100, "sendTimeoutSeconds": 60 }
               }
+            },
+            "subAgentLiveness": {
+              "agentTimeoutSeconds": 300,
+              "idleThresholdSeconds": 30,
+              "completionCheckThreshold": 0.8,
+              "confirmationWindowSeconds": 5,
+              "scanIntervalSeconds": 10,
+              "chainStallThreshold": 3,
+              "poolMaxSize": 8,
+              "poolIdleTimeoutSeconds": 300,
+              "preemptMinWindowRatio": 0.2,
+              "activationRecoverySeconds": 10
             }
           }
         }

@@ -95,14 +95,13 @@ public sealed class BuildQueueRouter : IBuildQueueService
     }
 
     /// <inheritdoc />
-#pragma warning disable VSTHRD003
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "返回构建完成的TCS.Task给调用方await")]
     public Task<BuildQueueResult> WaitAsync(string buildId, CancellationToken ct)
     {
         if (!_waitHandles.TryGetValue(buildId, out var tcs))
             throw new InvalidOperationException($"Build {buildId} not found");
         return tcs.Task;
     }
-#pragma warning restore VSTHRD003
 
     /// <inheritdoc />
     public Task<bool> CancelAsync(string buildId, CancellationToken ct)

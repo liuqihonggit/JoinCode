@@ -88,7 +88,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     }
 
     /// <inheritdoc />
-#pragma warning disable VSTHRD003
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "返回构建完成的TCS.Task给调用方await")]
     public Task<BuildQueueResult> WaitAsync(string buildId, CancellationToken ct)
     {
         if (!_waitHandles.TryGetValue(buildId, out var tcs))
@@ -96,7 +96,6 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
         return tcs.Task;
     }
-#pragma warning restore VSTHRD003
 
     /// <inheritdoc />
     public Task<bool> CancelAsync(string buildId, CancellationToken ct)
@@ -372,6 +371,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     /// 释放跨进程锁。幂等，多次调用安全。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Dispose中等待后台处理任务退出,安全")]
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -381,9 +381,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
         try
         {
-#pragma warning disable VSTHRD003
             await _processingTask.ConfigureAwait(false);
-#pragma warning restore VSTHRD003
         }
         catch (OperationCanceledException) { }
 

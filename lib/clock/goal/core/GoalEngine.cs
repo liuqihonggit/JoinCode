@@ -985,6 +985,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <summary>
     /// 异步释放 — 取消引擎循环、重置心跳并释放资源
     /// </summary>
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Dispose中等待引擎循环退出,安全")]
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -995,9 +996,7 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
         {
             try
             {
-#pragma warning disable VSTHRD003
                 await _engineLoop.ConfigureAwait(false);
-#pragma warning restore VSTHRD003
             }
             catch (OperationCanceledException)
             {

@@ -45,6 +45,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     /// <summary>
     /// 手动触发设置重新加载 — 投递命令到 Actor 邮箱,等待 Consumer 处理完成。
     /// </summary>
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Actor邮箱TCS,由Consumer线程SetResult")]
     public async Task ApplySettingsChangeAsync(CancellationToken cancellationToken = default)
     {
         var cmd = new ApplySettingsCmd();
@@ -53,9 +54,7 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
             _logger?.LogWarning("SettingsChangeApplier 邮箱已满或已释放,跳过设置变更应用");
             return;
         }
-#pragma warning disable VSTHRD003
         await cmd.Tcs.Task.ConfigureAwait(false);
-#pragma warning restore VSTHRD003
     }
 
     private void OnConfigChanged(object? sender, ConfigChangeEventArgs e)

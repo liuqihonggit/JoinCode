@@ -31,6 +31,7 @@ global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Logging;
 global using Services.Notification;
 global using System.Collections.Frozen;
+global using System.Diagnostics.CodeAnalysis;
 global using System.Collections.Immutable;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;

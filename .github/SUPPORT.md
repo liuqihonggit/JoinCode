@@ -26,7 +26,7 @@ Before opening a new issue, please:
 
 1. Search [existing issues](https://github.com/JoinCode/JoinCode/issues?q=is%3Aissue)
    to avoid duplicates.
-2. Use the `--doctor` flag or `--debuglog` flag to collect diagnostic
+2. Use the `--debuglog` flag to collect diagnostic
    information.
 3. Include the JoinCode version, OS, and .NET SDK version in your report.
 

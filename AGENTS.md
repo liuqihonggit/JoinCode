@@ -459,6 +459,8 @@ public void Dispose() {
 | 环境变量临时设置 | `using var env = EnvVarScope.Set("K","v").Add("K2","v2")` | 手写 `var prev=Get;Set;try{}finally{Set(prev)}` |
 | 工作目录切换 | `using var cwd = CwdScope.Enter(fs, newPath)` | 手写 `var prev=GetCwd;SetCwd;try{}finally{SetCwd(prev)}` |
 | 事件订阅 | `await using var sub = bus.SubscribeAsync(handler)` | `Subscribe` + 手动 `Unsubscribe` try-finally |
+| 后台 PeriodicTimer 循环 Dispose | `volatile bool _stopping` + `_timer?.Dispose()` | `CancellationTokenSource` 字段 + `_cts.Dispose()` 竞态 |
+| 后台循环退出检查 | `while (!_stopping && await _timer.WaitForNextTickAsync(CancellationToken.None))` | `await _timer.WaitForNextTickAsync(_cts.Token)` + CTS Dispose 后 ObjectDisposedException |
 
 ## 🔴 平台专属操作禁令
 

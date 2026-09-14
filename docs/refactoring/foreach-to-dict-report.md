@@ -405,16 +405,15 @@ foreach 不可转原因分布：
 |------|------|--------|------|
 | 批次1 高收益 | 10 | 10 | ✅ 完成 |
 | 批次2 中收益 | 11 | 10 | ✅ 完成（#17 已是字典，无需改） |
-| 批次3 低收益 | 9 | 2 | ⚠️ gen 2 处完成，PsPermissions 4 处+MainViewModel 3 处跳过 |
-| **合计** | **30** | **22** | **22 处已改，8 处评估后跳过** |
+| 批次3 低收益 | 9 | 8 | ✅ 完成（#28 HotkeyItems 极小集合 foreach 最优保留） |
+| **合计** | **30** | **28** | **28 处已改，2 处评估后跳过** |
 
 ### 跳过原因
 
 | 位置 | 原因 |
 |------|------|
 | #17 SlashCommandExecutors.cs:183 | 已是字典查找（生成器已生成 `_entryByName` FrozenDictionary + `GetEntry` O(1)） |
-| #22-25 PsPermissions.cs 4 处 | 改字典会改变规则匹配顺序（foreach 按列表顺序返回首个匹配，字典按哈希不保证顺序），有语义风险；规则列表小（几十条），低收益不值得冒险 |
-| #26-28 MainViewModel.cs 3 处 | UI 层 ObservableCollection 小集合（<10 到 <50），与 UI 双向绑定频繁重建，维护同步字典的复杂度与收益不成正比 |
+| #28 MainViewModel.cs HotkeyItems | 极小集合（~6 项），foreach 是最优解，改字典反优化 |
 
 ### 改造记录
 
@@ -434,6 +433,8 @@ foreach 不可转原因分布：
 | 2026-09-14 | AgentDefinitionProvider.cs | 缓存 _cachedDefinitionMap ILookup，GetAgentDefinitionAsync O(1) 查找 | 2da0dd2c2 |
 | 2026-09-14 | EnumMetadataGenerator.cs | 4 次 NamedArguments FirstOrDefault 转局部字典 | 2c2e4ea4f |
 | 2026-09-14 | ServiceRegistrationGenerator.cs | 2 次 NamedArguments FirstOrDefault 转局部字典 | 2c2e4ea4f |
+| 2026-09-14 | PsPermissions.cs 4 处 | MatchExactRule 预建 byRuleLower/byRuleCanonical 字典；CheckSubCommandRules 用 BuildRuleLowerMap 辅助方法 | c9f4718f2 |
+| 2026-09-14 | MainViewModel.cs 2 处 | _connectionById/_modelById ILookup 字段 + GetConnectionById/GetModelById 辅助方法，RebuildConnectionOptions/RefreshModelOptions 末尾建索引 | c9f4718f2 |
 
 ---
 

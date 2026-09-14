@@ -542,6 +542,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private string _tokenUsageText = string.Empty;
 
+    /// <summary>初始化 MainViewModel 实例</summary>
     public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null)
     {
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();

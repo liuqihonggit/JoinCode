@@ -24,6 +24,7 @@ public sealed class SubAgentRunTracker
         StringComparer.OrdinalIgnoreCase,
         "grep", "glob", "read", "FileRead", "FileSearch", "Search", "LS", "List");
 
+    /// <summary>初始化 SubAgentRunTracker 实例</summary>
     public SubAgentRunTracker(int maxVisibleActivities = 3, int maxExpanded = 3)
     {
         _maxVisibleActivities = maxVisibleActivities;

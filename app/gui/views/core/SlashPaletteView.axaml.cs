@@ -30,6 +30,7 @@ public sealed partial class SlashPaletteView : UserControl
 
     private MainViewModel? _vm;
 
+    /// <summary>初始化 SlashPaletteView 实例</summary>
     public SlashPaletteView()
     {
         InitializeComponent();
@@ -37,6 +38,7 @@ public sealed partial class SlashPaletteView : UserControl
             PaletteList.Tapped += OnPaletteListTapped;
     }
 
+    /// <summary>数据上下文变更时处理</summary>
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
@@ -159,6 +161,7 @@ public sealed partial class SlashPaletteView : UserControl
         RaiseEvent(new RoutedEventArgs(CompletedEvent));
     }
 
+    /// <summary>从视觉树分离时处理</summary>
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _animGeneration++;

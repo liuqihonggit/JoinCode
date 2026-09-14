@@ -8,6 +8,7 @@ public partial class TranscriptWindow : Window
 {
     private readonly SubAgentRun _run;
 
+    /// <summary>初始化 TranscriptWindow 实例</summary>
     public TranscriptWindow()
     {
         // 设计器/无参场景
@@ -15,6 +16,7 @@ public partial class TranscriptWindow : Window
         InitializeComponent();
     }
 
+    /// <summary>以指定子代理运行记录构建回放窗口</summary>
     public TranscriptWindow(SubAgentRun run)
     {
         _run = run ?? throw new ArgumentNullException(nameof(run));

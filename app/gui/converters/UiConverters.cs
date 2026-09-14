@@ -6,6 +6,7 @@ namespace JoinCode.Gui.Converters;
 /// </summary>
 public sealed class MsgBarBrushConverter : IMultiValueConverter
 {
+    /// <summary>转换值</summary>
     public object Convert(IList<object?> values, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
     {
         var s = GuiPalette.Current;
@@ -27,6 +28,7 @@ public sealed class MsgBarBrushConverter : IMultiValueConverter
 /// </summary>
 public sealed class BoolToRoleBrushConverter : IValueConverter
 {
+    /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
     {
         var s = GuiPalette.Current;
@@ -35,6 +37,7 @@ public sealed class BoolToRoleBrushConverter : IValueConverter
             : GuiPalette.ToBrush(s.RoleAssistant);
     }
 
+    /// <summary>转换回原值</summary>
     public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => throw new NotSupportedException();
 }
@@ -44,6 +47,7 @@ public sealed class BoolToRoleBrushConverter : IValueConverter
 /// </summary>
 public sealed class StatusToBrushConverter : IValueConverter
 {
+    /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
     {
         var s = GuiPalette.Current;
@@ -55,6 +59,7 @@ public sealed class StatusToBrushConverter : IValueConverter
         };
     }
 
+    /// <summary>转换回原值</summary>
     public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => throw new NotSupportedException();
 }
@@ -64,6 +69,7 @@ public sealed class StatusToBrushConverter : IValueConverter
 /// </summary>
 public sealed class BoolToWarnBrushConverter : IValueConverter
 {
+    /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
     {
         var s = GuiPalette.Current;
@@ -72,6 +78,7 @@ public sealed class BoolToWarnBrushConverter : IValueConverter
             : GuiPalette.ToBrush(s.MutedText);
     }
 
+    /// <summary>转换回原值</summary>
     public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => throw new NotSupportedException();
 }
@@ -81,9 +88,11 @@ public sealed class BoolToWarnBrushConverter : IValueConverter
 /// </summary>
 public sealed class BoolToThinkingOpacityConverter : IValueConverter
 {
+    /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => value is true ? 0.82 : 1.0;
 
+    /// <summary>转换回原值</summary>
     public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => throw new NotSupportedException();
 }
@@ -93,6 +102,7 @@ public sealed class BoolToThinkingOpacityConverter : IValueConverter
 /// </summary>
 public sealed class BoolToSessionHighlightConverter : IValueConverter
 {
+    /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
     {
         return value is true
@@ -100,6 +110,7 @@ public sealed class BoolToSessionHighlightConverter : IValueConverter
             : Brushes.Transparent;
     }
 
+    /// <summary>转换回原值</summary>
     public object ConvertBack(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => throw new NotSupportedException();
 }

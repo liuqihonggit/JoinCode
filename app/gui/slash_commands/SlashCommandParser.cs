@@ -51,6 +51,7 @@ public readonly record struct SlashParseResult
     /// <summary>不触发的空结果</summary>
     public static SlashParseResult None => new();
 
+    /// <summary>初始化 SlashParseResult 默认实例</summary>
     public SlashParseResult() { }
 }
 

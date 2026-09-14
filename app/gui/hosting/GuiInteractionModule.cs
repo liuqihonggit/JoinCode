@@ -7,12 +7,15 @@ namespace JoinCode.Gui.Hosting;
 [AppModule(Order = 80)]
 public sealed class GuiInteractionModule : IAppModule
 {
+    /// <summary>模块注册顺序（80 与 CliModule 同级，覆盖 Core 层 Mock 注册）</summary>
     public int Order => 80;
 
+    /// <summary>配置服务</summary>
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
         services.AddSingleton<IInteractiveService, AvaloniaInteractiveService>();
     }
 
+    /// <summary>异步配置</summary>
     public Task ConfigureAsync(IServiceProvider services, CancellationToken ct) => Task.CompletedTask;
 }

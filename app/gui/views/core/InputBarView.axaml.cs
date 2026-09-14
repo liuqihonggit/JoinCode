@@ -16,6 +16,7 @@ public sealed partial class InputBarView : UserControl
 
     private MainViewModel? _vm;
 
+    /// <summary>初始化 InputBarView 实例</summary>
     public InputBarView()
     {
         InitializeComponent();
@@ -27,6 +28,7 @@ public sealed partial class InputBarView : UserControl
     /// <summary>当前 MainViewModel（供外部访问）</summary>
     public MainViewModel? ViewModel => _vm;
 
+    /// <summary>数据上下文变更时处理</summary>
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
@@ -150,6 +152,7 @@ public sealed partial class InputBarView : UserControl
         }
     }
 
+    /// <summary>从视觉树分离时处理</summary>
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         _slashDebounceTimer.Stop();

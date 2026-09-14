@@ -73,7 +73,12 @@ public sealed record SubAgentTranscriptItem(DateTime At, string Glyph, string Te
 /// <summary>子代理运行状态机</summary>
 public enum SubAgentRunState
 {
+    /// <summary>运行中</summary>
     Running,
+
+    /// <summary>已完成</summary>
     Completed,
+
+    /// <summary>失败</summary>
     Failed
 }

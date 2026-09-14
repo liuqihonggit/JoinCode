@@ -36,6 +36,7 @@ public sealed partial class MainWindow : Window
         Interval = TimeSpan.FromMilliseconds(500)
     };
 
+    /// <summary>初始化 MainWindow 实例</summary>
     public MainWindow()
     {
         App.LogDiag("[MainWindow] ctor begin");
@@ -118,6 +119,7 @@ public sealed partial class MainWindow : Window
         Closed -= OnWindowClosed;
     }
 
+    /// <summary>数据上下文变更时处理</summary>
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);

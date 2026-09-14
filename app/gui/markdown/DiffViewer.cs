@@ -13,6 +13,7 @@ public sealed class DiffViewer : StackPanel
 
     private static readonly FontFamily MonoFont = new("Consolas");
 
+    /// <summary>初始化 Diff 渲染控件</summary>
     public DiffViewer()
     {
         Spacing = 4;

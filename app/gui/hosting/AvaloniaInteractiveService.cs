@@ -16,11 +16,13 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
     /// </summary>
     public Func<QuestionItem, Task<AskUserQuestionResult>>? ShowDialogCallback { get; set; }
 
+    /// <summary>初始化 AvaloniaInteractiveService 实例</summary>
     public AvaloniaInteractiveService(ILogger<AvaloniaInteractiveService>? logger = null)
     {
         _logger = logger;
     }
 
+    /// <summary>异步询问用户单个问题（通过弹窗呈现选项并等待用户选择）</summary>
     public Task<AskUserQuestionResult> AskUserQuestionAsync(
         string question,
         List<string>? options = null,
@@ -39,6 +41,7 @@ public sealed class AvaloniaInteractiveService : IInteractiveService
         return AskUserQuestionsAsync([questionItem], cancellationToken);
     }
 
+    /// <summary>异步询问用户多个问题（逐个弹窗呈现，最多 4 个问题）</summary>
     public async Task<AskUserQuestionResult> AskUserQuestionsAsync(
         List<QuestionItem> questions,
         CancellationToken cancellationToken = default)

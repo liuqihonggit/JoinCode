@@ -9,50 +9,96 @@ namespace JoinCode.Gui.Theming;
 public static class GuiPalette
 {
     /// <summary>主题变体：Dark（默认）/ Light，可扩展未来主题。</summary>
-    public enum GuiThemeVariant { Dark, Light }
+    public enum GuiThemeVariant
+    {
+        /// <summary>暗色主题（默认）</summary>
+        Dark,
+        /// <summary>亮色主题</summary>
+        Light
+    }
 
     /// <summary>一组语义颜色（单个主题的静态数据）。</summary>
     public sealed class Scheme
     {
+        /// <summary>窗口背景色</summary>
         public string WindowBackground { get; init; } = "#1e1e1e";
+        /// <summary>侧边栏背景色</summary>
         public string SidebarBackground { get; init; } = "#161616";
+        /// <summary>侧边栏标题色</summary>
         public string SidebarTitle { get; init; } = "#eeeeee";
+        /// <summary>顶栏背景色</summary>
         public string TopBarBackground { get; init; } = "#252525";
+        /// <summary>输入栏背景色</summary>
         public string InputBarBackground { get; init; } = "#2a2a2a";
+        /// <summary>状态栏背景色</summary>
         public string StatusBarBackground { get; init; } = "#181818";
+        /// <summary>搜索栏背景色</summary>
         public string SearchBarBackground { get; init; } = "#202020";
+        /// <summary>设置面板背景色</summary>
         public string SettingsBackground { get; init; } = "#1a1a1a";
+        /// <summary>分隔线颜色</summary>
         public string Divider { get; init; } = "#333333";
+        /// <summary>主要文字色</summary>
         public string PrimaryText { get; init; } = "#e0e0e0";
+        /// <summary>次要文字色</summary>
         public string SecondaryText { get; init; } = "#b8b8b8";
+        /// <summary>弱化文字色</summary>
         public string MutedText { get; init; } = "#979797";
+        /// <summary>强调文字色</summary>
         public string AccentText { get; init; } = "#4da6ff";
+        /// <summary>用户角色色</summary>
         public string RoleUser { get; init; } = "#4da6ff";
+        /// <summary>助手角色色</summary>
         public string RoleAssistant { get; init; } = "#9cdcfe";
+        /// <summary>气泡文字色</summary>
         public string BubbleText { get; init; } = "#333333";
+        /// <summary>用户气泡背景色</summary>
         public string BubbleUser { get; init; } = "#2b3a4a";
+        /// <summary>思考气泡背景色</summary>
         public string BubbleThinking { get; init; } = "#26222e";
+        /// <summary>工具调用气泡背景色</summary>
         public string BubbleToolCall { get; init; } = "#1c2836";
+        /// <summary>工具结果气泡背景色</summary>
         public string BubbleToolResult { get; init; } = "#1e2c26";
+        /// <summary>思考标签色</summary>
         public string ThinkingLabel { get; init; } = "#b48fe0";
+        /// <summary>工具标签色</summary>
         public string ToolLabel { get; init; } = "#6ab";
+        /// <summary>工具参数色</summary>
         public string ToolArgument { get; init; } = "#89a";
+        /// <summary>工具结果色</summary>
         public string ToolResult { get; init; } = "#8a9";
+        /// <summary>警告文字色</summary>
         public string WarnText { get; init; } = "#e5484d";
+        /// <summary>错误文字色</summary>
         public string ErrorText { get; init; } = "#e5484d";
+        /// <summary>成功文字色</summary>
         public string SuccessText { get; init; } = "#3dd68c";
+        /// <summary>忙碌文字色</summary>
         public string BusyText { get; init; } = "#ffaa33";
+        /// <summary>会话高亮色</summary>
         public string SessionHighlight { get; init; } = "#3a4a5a";
+        /// <summary>按钮背景色</summary>
         public string ButtonBackground { get; init; } = "#2b2b2b";
+        /// <summary>按钮悬停色</summary>
         public string ButtonHover { get; init; } = "#353535";
+        /// <summary>按钮按下色</summary>
         public string ButtonPressed { get; init; } = "#3d3d3d";
+        /// <summary>按钮边框色</summary>
         public string ButtonBorder { get; init; } = "#3a3a3a";
+        /// <summary>按钮前景色</summary>
         public string ButtonForeground { get; init; } = "#e0e0e0";
+        /// <summary>编辑器前景色</summary>
         public string EditorForeground { get; init; } = "#D4D4D4";
+        /// <summary>成功提示色</summary>
         public string ToastSuccess { get; init; } = "#4a9eff";
+        /// <summary>错误提示色</summary>
         public string ToastError { get; init; } = "#d43a3a";
+        /// <summary>提示阴影色</summary>
         public string ToastShadow { get; init; } = "#90000000";
+        /// <summary>斜杠命令匹配色</summary>
         public string SlashMatched { get; init; } = "#E89A3C";
+        /// <summary>提示前景色</summary>
         public string ToastForeground { get; init; } = "#FFFFFF";
 
         /// <summary>弹层背景（补全面板等浮层）— 比窗口底色略抬升制造层次</summary>

@@ -7,6 +7,7 @@ namespace JoinCode.Gui.Views;
 /// </summary>
 public sealed partial class SettingsPanelView : UserControl
 {
+    /// <summary>初始化 SettingsPanelView 实例</summary>
     public SettingsPanelView()
     {
         InitializeComponent();

@@ -7,11 +7,13 @@ namespace JoinCode.Gui.Views;
 /// </summary>
 public partial class ConfirmDialogWindow : Window
 {
+    /// <summary>初始化 ConfirmDialogWindow 实例</summary>
     public ConfirmDialogWindow()
     {
         InitializeComponent();
     }
 
+    /// <summary>以指定消息文本构建确认对话框</summary>
     public ConfirmDialogWindow(string message) : this()
     {
         MessageText.Text = message;

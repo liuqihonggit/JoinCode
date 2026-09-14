@@ -242,15 +242,14 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <param name="agentId">代理唯一标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>代理执行结果</returns>
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "等待Agent完成的TCS.Task,由别处SetResult触发")]
     public async Task<JoinCode.Abstractions.Interfaces.AgentResult> WaitForAgentAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
 
         if (_completionSources.TryGetValue(agentId, out var tcs))
         {
-#pragma warning disable VSTHRD003
             return await tcs.Task.ConfigureAwait(false);
-#pragma warning restore VSTHRD003
         }
 
         var result = await _lifecycleManager.GetResultAsync(agentId, cancellationToken).ConfigureAwait(false);

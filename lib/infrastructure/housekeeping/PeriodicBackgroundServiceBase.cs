@@ -42,6 +42,7 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
     /// </summary>
     /// <param name="cancellationToken">停止取消令牌</param>
     /// <returns>表示停止完成的任务</returns>
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "IHostedService.StopAsync必须等待循环任务退出,标准模式")]
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         _cts?.Cancel();
@@ -50,9 +51,7 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
         {
             try
             {
-#pragma warning disable VSTHRD003
                 await _loopTask.ConfigureAwait(true);
-#pragma warning restore VSTHRD003
             }
             catch (OperationCanceledException)
             {

@@ -113,7 +113,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <inheritdoc/>
-#pragma warning disable VSTHRD003
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Actor邮箱查询TCS+工具完成TCS集合")]
     public async Task<IReadOnlyList<StreamingToolResult>> GetRemainingResultsAsync()
     {
         if (_discarded) return [];
@@ -129,7 +129,6 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
 
         return await GetCompletedResultsAsync().ConfigureAwait(false);
     }
-#pragma warning restore VSTHRD003
 
     /// <inheritdoc/>
     public void Discard()
@@ -250,7 +249,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         tcs.SetResult(results);
     }
 
-#pragma warning disable VSTHRD003
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "收集未完成工具的CompletionSource.Task列表供调用方WhenAll,不await")]
     private void HandleGetRemaining(TaskCompletionSource<List<Task<StreamingToolResult>>> tcs)
     {
         var pending = _queue
@@ -259,7 +258,6 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
             .ToList();
         tcs.SetResult(pending);
     }
-#pragma warning restore VSTHRD003
 
     /// <summary>调度下一个可执行工具 — Consumer 线程内调用,无锁</summary>
     private void ScheduleNext()

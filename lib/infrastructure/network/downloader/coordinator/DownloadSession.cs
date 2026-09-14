@@ -67,6 +67,7 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Pause中Cancel后等待下载任务退出,安全")]
     public async Task PauseAsync(CancellationToken ct = default)
     {
         var pauseResult = _stateMachine.TryPause();
@@ -76,10 +77,8 @@ internal sealed class DownloadSession : IDownloadSession
         _cts?.Cancel();
         if (_downloadTask is not null)
         {
-#pragma warning disable VSTHRD003
             try { await _downloadTask.ConfigureAwait(false); }
             catch (OperationCanceledException) { }
-#pragma warning restore VSTHRD003
         }
 
         if (_chunks.Count > 0)
@@ -110,6 +109,7 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "对外暴露的等待下载完成接口,await字段任务是必然的")]
     public async Task<DownloadResult> WaitForCompletionAsync(CancellationToken ct = default)
     {
         if (_downloadTask is null)
@@ -117,9 +117,7 @@ internal sealed class DownloadSession : IDownloadSession
 
         try
         {
-#pragma warning disable VSTHRD003
             return await _downloadTask.WaitAsync(ct).ConfigureAwait(false);
-#pragma warning restore VSTHRD003
         }
         catch (OperationCanceledException)
         {
@@ -129,16 +127,15 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <inheritdoc />
+    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Dispose中等待下载任务退出,安全")]
     public async ValueTask DisposeAsync()
     {
         _cts?.Cancel();
         _cts?.Dispose();
         if (_downloadTask is not null)
         {
-#pragma warning disable VSTHRD003
             try { await _downloadTask.ConfigureAwait(false); }
             catch (OperationCanceledException) { }
-#pragma warning restore VSTHRD003
         }
     }
 

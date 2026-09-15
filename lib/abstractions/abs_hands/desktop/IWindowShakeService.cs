@@ -7,18 +7,18 @@ namespace JoinCode.Abstractions.Interfaces;
 public interface IWindowShakeService
 {
     /// <summary>
-    /// 震动当前进程的控制台窗口 — X 轴阻尼偏移动画。
+    /// 震动当前进程窗口 — X 轴阻尼偏移动画。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>表示异步操作的任务。</returns>
-    Task ShakeWindowAsync(CancellationToken cancellationToken = default);
+    /// <returns>震动目标描述（标题+句柄+来源）；空字符串表示无法震动。</returns>
+    Task<string> ShakeWindowAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 闪烁任务栏图标 — 通过 <c>FlashWindowEx</c> 提醒用户。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>表示异步操作的任务。</returns>
-    Task FlashTaskbarAsync(CancellationToken cancellationToken = default);
+    /// <returns>震动目标描述；空字符串表示无法闪烁。</returns>
+    Task<string> FlashTaskbarAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取可震动窗口的诊断信息 — 句柄、标题、矩形、遍历深度。

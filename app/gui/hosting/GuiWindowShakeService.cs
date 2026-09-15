@@ -21,24 +21,24 @@ public sealed class GuiWindowShakeService : IWindowShakeService
     /// 震动 GUI 主窗口 — 通过 <see cref="ShakeAnimationHelper.ShakeWindow"/> 施加 X 轴阻尼动画。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    public Task ShakeWindowAsync(CancellationToken cancellationToken = default)
+    public Task<string> ShakeWindowAsync(CancellationToken cancellationToken = default)
     {
         var window = GetMainWindow();
         if (window is null)
         {
             _logger?.LogWarning("未找到主窗口，无法震动");
-            return Task.CompletedTask;
+            return Task.FromResult("");
         }
 
         ShakeAnimationHelper.ShakeWindow(window, cancellationToken);
-        return Task.CompletedTask;
+        return Task.FromResult($"标题=\"{window.Title}\" 来源=GUI主窗口");
     }
 
     /// <summary>
     /// 闪烁任务栏 — GUI 模式下也用窗口震动代替（GUI 进程无控制台窗口句柄）。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    public Task FlashTaskbarAsync(CancellationToken cancellationToken = default)
+    public Task<string> FlashTaskbarAsync(CancellationToken cancellationToken = default)
         => ShakeWindowAsync(cancellationToken);
 
     /// <summary>

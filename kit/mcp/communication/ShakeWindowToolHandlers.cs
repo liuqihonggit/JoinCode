@@ -57,9 +57,21 @@ public partial class ShakeWindowToolHandlers
         try
         {
             if (_shakeService is not null)
-                await _shakeService.ShakeWindowAsync(cancellationToken).ConfigureAwait(false);
+            {
+                var target = await _shakeService.ShakeWindowAsync(cancellationToken).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(target))
+                    return ToolResultBuilder.Success()
+                        .WithText($"无法震动窗口 — 沙箱中找不到终端窗口（电脑:{machine}, PID:{pid}）")
+                        .Build();
+
+                await BroadcastShakeMessageAsync(machine, pid, reason, cancellationToken).ConfigureAwait(false);
+                _logger?.LogDebug("窗口震动已执行: reason={Reason}, target={Target}", reason, target);
+                return ToolResultBuilder.Success()
+                    .WithText($"已震动窗口 — {target}（电脑:{machine}, PID:{pid}）")
+                    .Build();
+            }
+
             await BroadcastShakeMessageAsync(machine, pid, reason, cancellationToken).ConfigureAwait(false);
-            _logger?.LogDebug("窗口震动已执行: reason={Reason}, machine={Machine}, pid={Pid}", reason, machine, pid);
             return ToolResultBuilder.Success()
                 .WithText($"已震动窗口（电脑:{machine}, PID:{pid}）")
                 .Build();

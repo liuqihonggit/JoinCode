@@ -22,24 +22,26 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
     }
 
     /// <summary>
-    /// 震动当前进程的控制台窗口 — X 轴阻尼偏移动画 + 任务栏闪烁，总时长约 880ms。
+    /// 震动当前进程窗口 — X 轴阻尼偏移动画 + 任务栏闪烁，总时长约 880ms。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    public async Task ShakeWindowAsync(CancellationToken cancellationToken = default)
+    /// <returns>震动目标描述；空字符串表示无法震动。</returns>
+    public async Task<string> ShakeWindowAsync(CancellationToken cancellationToken = default)
     {
-        var hwnd = ResolveShakeableWindow();
+        var (hwnd, source) = ResolveShakeableWindow();
         if (hwnd == IntPtr.Zero)
         {
             _logger?.LogWarning("无法找到可震动的窗口句柄");
-            return;
+            return "";
         }
 
+        var title = GetWindowTitle(hwnd);
         FlashTaskbarCore(hwnd);
 
         if (!User32NativeMethods.GetWindowRect(hwnd, out var rect))
         {
             _logger?.LogWarning("GetWindowRect 失败，无法震动");
-            return;
+            return "";
         }
 
         var width = rect.Right - rect.Left;
@@ -51,36 +53,40 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
             User32NativeMethods.MoveWindow(hwnd, rect.Left + s_offsets[i], rect.Top, width, height, true);
             await Task.Delay(StepMs, cancellationToken).ConfigureAwait(false);
         }
+
+        return $"标题=\"{title}\" 句柄=0x{hwnd.ToInt64():X} 来源={source}";
     }
 
     /// <summary>
     /// 闪烁任务栏图标 — 通过 <c>FlashWindowEx</c> 闪烁 5 次。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    public Task FlashTaskbarAsync(CancellationToken cancellationToken = default)
+    /// <returns>震动目标描述；空字符串表示无法闪烁。</returns>
+    public Task<string> FlashTaskbarAsync(CancellationToken cancellationToken = default)
     {
-        var hwnd = ResolveShakeableWindow();
+        var (hwnd, source) = ResolveShakeableWindow();
         if (hwnd == IntPtr.Zero)
         {
             _logger?.LogWarning("无法找到可闪烁的窗口句柄");
-            return Task.CompletedTask;
+            return Task.FromResult("");
         }
 
         FlashTaskbarCore(hwnd);
-        return Task.CompletedTask;
+        var title = GetWindowTitle(hwnd);
+        return Task.FromResult($"标题=\"{title}\" 句柄=0x{hwnd.ToInt64():X} 来源={source}");
     }
 
     /// <summary>
     /// 解析可震动的窗口句柄 — 沿父进程链向上查找，找到第一个拥有可见顶层窗口的祖先进程。
     /// jcc.exe 作为子进程无控制台窗口，需找到父进程（终端/IDE）的窗口。
     /// </summary>
-    private IntPtr ResolveShakeableWindow()
+    private (IntPtr Hwnd, string Source) ResolveShakeableWindow()
     {
         var consoleHwnd = PulseNativeMethods.GetConsoleWindow();
         if (consoleHwnd != IntPtr.Zero && IsWindowShakeable(consoleHwnd))
         {
             _logger?.LogInformation("使用控制台窗口句柄 {Hwnd}", consoleHwnd);
-            return consoleHwnd;
+            return (consoleHwnd, "控制台窗口");
         }
 
         var currentPid = (uint)Environment.ProcessId;
@@ -97,14 +103,20 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
                     var title = GetWindowTitle(best);
                     _logger?.LogInformation("找到祖先进程 PID={Pid} 的窗口句柄 {Hwnd} 标题=\"{Title}\"", ancestorPid, best, title);
                     User32NativeMethods.SetForegroundWindow(best);
-                    return best;
+                    return (best, $"父进程链(PID={ancestorPid})");
                 }
             }
         }
 
         var fg = User32NativeMethods.GetForegroundWindow();
-        _logger?.LogWarning("未找到祖先进程窗口，回退到前台窗口 {Hwnd}", fg);
-        return fg;
+        if (fg != IntPtr.Zero && IsWindowShakeable(fg))
+        {
+            _logger?.LogWarning("未找到祖先进程窗口，回退到前台窗口 {Hwnd}（沙箱环境，震动的可能不是终端窗口）", fg);
+            return (fg, "前台窗口(沙箱-可能不是终端)");
+        }
+
+        _logger?.LogWarning("无法找到任何可震动窗口");
+        return (IntPtr.Zero, "");
     }
 
     /// <summary>
@@ -213,8 +225,8 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
             }
         }
 
-        var resolved = ResolveShakeableWindow();
-        sb.AppendLine($"最终选用句柄: 0x{resolved.ToInt64():X} 标题=\"{GetWindowTitle(resolved)}\"");
+        var (resolved, source) = ResolveShakeableWindow();
+        sb.AppendLine($"最终选用句柄: 0x{resolved.ToInt64():X} 标题=\"{GetWindowTitle(resolved)}\" 来源={source}");
         return sb.ToString();
     }
 

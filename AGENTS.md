@@ -478,7 +478,7 @@ public void Dispose() {
 
 > ADR: [0089](docs/adr/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单）
 
-**`jcc.exe` 启动后已自带大量工具**（实测：`jcc mcp_list` = **390 个工具 / 43 个分类**）。
+**`jcc.exe` 启动后已自带大量工具**（实测：`jcc mcp_list` = **400 个工具 / 49 个分类**）。
 优先用 jcc/内置工具；**jcc 不可用时直接回退到系统 `gh` / `rg`**：
 
 - 优先在 Bash/PowerShell 里用 `jcc gh` / Agent 内置 `grep` 工具

@@ -75,8 +75,7 @@ public sealed class MeshTransport : ITransportTopology
         ThrowIfDisposed();
         Interlocked.Exchange(ref _started, 1);
         _logger?.LogInformation("MeshTransport: started on pipe {Pipe} (pid={Pid})", MyPipeName, ProcessId);
-        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
-        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(MyPipeName, HandlePeerConnectionAsync, linkedCts.Token), linkedCts.Token);
+        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(MyPipeName, HandlePeerConnectionAsync, _cts.Token), _cts.Token);
     }
 
     /// <inheritdoc/>
@@ -229,7 +228,11 @@ public sealed class MeshTransport : ITransportTopology
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
-        await TaskAwaitHelper.AwaitWithTimeout(_acceptTask, TimeSpan.FromSeconds(2));
+        if (_acceptTask is not null)
+        {
+            try { await _acceptTask.ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+        }
 
         foreach (var conn in _peerConnections.Values)
         {

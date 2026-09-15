@@ -42,7 +42,7 @@ public sealed class HostElectionService : IAsyncDisposable
     private readonly CancellationTokenSource _cts;
     private readonly Channel<HostElectionResult> _electionChannel;
     private readonly Channel<ElectionRequest> _electionCmdChannel;
-    private readonly Task _electionConsumerTask;
+    private Task? _electionConsumerTask;
     private readonly string _processId;
     private HostElectionResult? _currentRole;
     private HostContextSnapshot? _lastSnapshot;
@@ -81,7 +81,6 @@ public sealed class HostElectionService : IAsyncDisposable
             SingleReader = true,
             SingleWriter = false
         });
-        _electionConsumerTask = Task.Run(ElectionConsumerLoopAsync);
     }
 
     /// <summary>当前进程标识 — 使用 PID 或注入的测试值。</summary>
@@ -108,11 +107,22 @@ public sealed class HostElectionService : IAsyncDisposable
     {
         ThrowIfDisposed();
 
+        EnsureConsumerStarted();
+
         var existingHostPid = await TryDetectHostAsync(ct).ConfigureAwait(false);
 
         var tcs = new TaskCompletionSource<HostElectionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         await _electionCmdChannel.Writer.WriteAsync(new ElectionRequest(existingHostPid, tcs), ct).ConfigureAwait(false);
         return await tcs.Task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 确保选举消费者已启动 — 首次调用 ElectAsync 时延迟启动,避免构造即启后台线程。
+    /// </summary>
+    private void EnsureConsumerStarted()
+    {
+        if (_electionConsumerTask is not null) return;
+        Interlocked.CompareExchange(ref _electionConsumerTask, Task.Run(ElectionConsumerLoopAsync), null);
     }
 
     /// <summary>
@@ -203,11 +213,12 @@ public sealed class HostElectionService : IAsyncDisposable
         CancellationToken ct)
     {
         var lastHeartbeat = DateTimeOffset.UtcNow;
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
         try
         {
             while (!_cts.IsCancellationRequested && !ct.IsCancellationRequested)
             {
-                await Task.Delay(_heartbeatInterval, CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct).Token)
+                await Task.Delay(_heartbeatInterval, linkedCts.Token)
                     .ConfigureAwait(false);
 
                 var role = Volatile.Read(ref _currentRole);
@@ -298,8 +309,11 @@ public sealed class HostElectionService : IAsyncDisposable
             try { await _heartbeatTask.ConfigureAwait(false); }
             catch (OperationCanceledException) { }
         }
-        try { await _electionConsumerTask.ConfigureAwait(false); }
-        catch (OperationCanceledException) { }
+        if (_electionConsumerTask is not null)
+        {
+            try { await _electionConsumerTask.ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+        }
         _cts.Dispose();
     }
 }

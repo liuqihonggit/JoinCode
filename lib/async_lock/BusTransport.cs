@@ -150,8 +150,7 @@ public sealed class BusTransport : ITransportTopology
     private async Task StartHostAsync(CancellationToken ct)
     {
         _logger?.LogInformation("BusTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
-        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
-        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, linkedCts.Token), linkedCts.Token);
+        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, _cts.Token), _cts.Token);
     }
 
     private async Task StartSlaveAsync(CancellationToken ct)
@@ -176,8 +175,7 @@ public sealed class BusTransport : ITransportTopology
         _logger?.LogInformation("BusTransport: SLAVE connected to host {Host} (pid={Pid})",
             _role.HostProcessId, ProcessId);
 
-        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
-        _slaveReceiveTask = Task.Run(() => SlaveReceiveLoopAsync(linkedCts.Token), linkedCts.Token);
+        _slaveReceiveTask = Task.Run(() => SlaveReceiveLoopAsync(_cts.Token), _cts.Token);
     }
 
     private async Task HandleBusConnectionAsync(NamedPipeServerStream server, CancellationToken ct)
@@ -283,8 +281,16 @@ public sealed class BusTransport : ITransportTopology
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
-        await TaskAwaitHelper.AwaitWithTimeout(_acceptTask, TimeSpan.FromSeconds(2));
-        await TaskAwaitHelper.AwaitWithTimeout(_slaveReceiveTask, TimeSpan.FromSeconds(2));
+        if (_acceptTask is not null)
+        {
+            try { await _acceptTask.ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+        }
+        if (_slaveReceiveTask is not null)
+        {
+            try { await _slaveReceiveTask.ConfigureAwait(false); }
+            catch (OperationCanceledException) { }
+        }
 
         foreach (var conn in _clientConnections.Values)
         {

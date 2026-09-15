@@ -177,25 +177,34 @@ internal static class PipeAcceptLoop
         Func<NamedPipeServerStream, CancellationToken, Task> handleConnection,
         CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        var connectionTasks = new List<Task>();
+        try
         {
-            var server = NamedPipeFactory.CreateServer(pipeName);
-            try
+            while (!ct.IsCancellationRequested)
             {
-                using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
-                await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
-                reg.Unregister();
-                TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");
-                _ = Task.Run(() => handleConnection(server, ct), ct);
+                var server = NamedPipeFactory.CreateServer(pipeName);
+                try
+                {
+                    using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
+                    await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
+                    reg.Unregister();
+                    TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");
+                    connectionTasks.RemoveAll(t => t.IsCompleted);
+                    connectionTasks.Add(Task.Run(() => handleConnection(server, ct), ct));
+                }
+                catch (OperationCanceledException) { return; }
+                catch (ObjectDisposedException) { return; }
+                catch (Exception ex)
+                {
+                    TransportDiagnostics.Log("PIPE-ACCEPT", () => $"连接错误: {ex.Message}");
+                    try { server.Dispose(); }
+                    catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
+                }
             }
-            catch (OperationCanceledException) { return; }
-            catch (ObjectDisposedException) { return; }
-            catch (Exception ex)
-            {
-                TransportDiagnostics.Log("PIPE-ACCEPT", () => $"连接错误: {ex.Message}");
-                try { server.Dispose(); }
-                catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
-            }
+        }
+        finally
+        {
+            await Task.WhenAll(connectionTasks).ConfigureAwait(false);
         }
     }
 }

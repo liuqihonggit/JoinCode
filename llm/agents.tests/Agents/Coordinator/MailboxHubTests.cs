@@ -121,4 +121,173 @@ public sealed class MailboxHubTests
 
         act.Should().Throw<ArgumentNullException>();
     }
+
+    [Fact]
+    public void RegisterChannel_InProcess_Throws()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object);
+        var act = () => hub.RegisterChannel(MailboxKind.InProcess, new InProcessMailbox());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public void RegisterChannel_File_Throws()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object);
+        var act = () => hub.RegisterChannel(MailboxKind.File, new InProcessMailbox());
+
+        act.Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task RegisterChannel_NamedPipe_ThenSendAsync_RoutesToExtraChannel()
+    {
+        var namedPipeMailbox = new InProcessMailbox();
+        await namedPipeMailbox.RegisterAgentAsync("agent1");
+        var hub = new MailboxHub(_inProcessMock.Object);
+        hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
+
+        var message = CreateMessage();
+        var result = await hub.SendAsync("agent1", message, MailboxKind.NamedPipe);
+
+        result.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SendAsync_UnregisteredNamedPipe_ReturnsFalse()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object);
+        var message = CreateMessage();
+
+        var result = await hub.SendAsync("agent1", message, MailboxKind.NamedPipe);
+
+        result.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsChannelAvailable_ReturnsCorrectAvailability()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
+
+        hub.IsChannelAvailable(MailboxKind.InProcess).Should().BeTrue();
+        hub.IsChannelAvailable(MailboxKind.File).Should().BeTrue();
+        hub.IsChannelAvailable(MailboxKind.NamedPipe).Should().BeFalse();
+        hub.IsChannelAvailable(MailboxKind.Network).Should().BeFalse();
+
+        hub.RegisterChannel(MailboxKind.NamedPipe, new InProcessMailbox());
+        hub.IsChannelAvailable(MailboxKind.NamedPipe).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SendAsync_AutoRoute_DefaultsToInProcess()
+    {
+        _inProcessMock.Setup(m => m.SendAsync("agent1", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var hub = new MailboxHub(_inProcessMock.Object);
+        var message = CreateMessage();
+
+        var result = await hub.SendAsync("agent1", message);
+
+        result.Should().BeTrue();
+        _inProcessMock.Verify(m => m.SendAsync("agent1", message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendAsync_AutoRoute_RoutesToRegisteredKind()
+    {
+        var namedPipeMailbox = new InProcessMailbox();
+        await namedPipeMailbox.RegisterAgentAsync("agent1");
+        var hub = new MailboxHub(_inProcessMock.Object);
+        hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
+        await hub.RegisterAgentAsync("agent1", MailboxKind.NamedPipe);
+
+        var message = CreateMessage();
+        var result = await hub.SendAsync("agent1", message);
+
+        result.Should().BeTrue();
+        _inProcessMock.Verify(m => m.SendAsync("agent1", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BroadcastAsync_CrossChannel_BroadcastsToAllChannels()
+    {
+        _inProcessMock.Setup(m => m.BroadcastAsync(It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _inProcessMock.Setup(m => m.GetRegisteredAgents()).Returns([]);
+
+        var namedPipeMailbox = new InProcessMailbox();
+        await namedPipeMailbox.RegisterAgentAsync("agent1");
+        var networkMailbox = new InProcessMailbox();
+        await networkMailbox.RegisterAgentAsync("agent2");
+
+        var hub = new MailboxHub(_inProcessMock.Object);
+        hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
+        hub.RegisterChannel(MailboxKind.Network, networkMailbox);
+
+        var message = CreateMessage();
+        await hub.BroadcastAsync(message);
+
+        _inProcessMock.Verify(m => m.BroadcastAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegisterAgentAsync_WithKind_StoresChannelPreference()
+    {
+        var namedPipeMailbox = new InProcessMailbox();
+        var hub = new MailboxHub(_inProcessMock.Object);
+        hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
+
+        await hub.RegisterAgentAsync("agent1", MailboxKind.NamedPipe);
+
+        hub.GetAgentChannel("agent1").Should().Be(MailboxKind.NamedPipe);
+    }
+
+    [Fact]
+    public async Task RegisterAgentAsync_InProcess_StoresChannelPreference()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object);
+
+        await hub.RegisterAgentAsync("agent1", MailboxKind.InProcess, "session1");
+
+        hub.GetAgentChannel("agent1").Should().Be(MailboxKind.InProcess);
+        _inProcessMock.Verify(m => m.RegisterAgent("agent1", "session1"), Times.Once);
+    }
+
+    [Fact]
+    public async Task UnregisterAgentAsync_RemovesChannelPreference()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object);
+
+        await hub.RegisterAgentAsync("agent1", MailboxKind.InProcess);
+        hub.GetAgentChannel("agent1").Should().Be(MailboxKind.InProcess);
+
+        await hub.UnregisterAgentAsync("agent1");
+        hub.GetAgentChannel("agent1").Should().Be(MailboxKind.InProcess);
+    }
+
+    [Fact]
+    public async Task ReceiveAsync_FromNamedPipeChannel_ReturnsMessages()
+    {
+        var namedPipeMailbox = new InProcessMailbox();
+        await namedPipeMailbox.RegisterAgentAsync("agent1");
+        var hub = new MailboxHub(_inProcessMock.Object);
+        hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
+        await hub.RegisterAgentAsync("agent1", MailboxKind.NamedPipe);
+
+        var message = CreateMessage(to: "agent1");
+        await namedPipeMailbox.TellAsync("agent1", message);
+        await Task.Delay(100);
+
+        var received = new List<CoordinatorMessage>();
+        await foreach (var msg in hub.ReceiveAsync("agent1", CancellationToken.None))
+        {
+            received.Add(msg);
+            break;
+        }
+
+        received.Should().HaveCount(1);
+        received[0].Content.Should().Be("hello");
+    }
 }

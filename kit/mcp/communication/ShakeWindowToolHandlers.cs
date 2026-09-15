@@ -9,6 +9,7 @@ public partial class ShakeWindowToolHandlers
 {
     private readonly IWindowShakeCoordinator _coordinator;
     private readonly IWindowShakeService? _shakeService;
+    private readonly ITeammateMailboxService? _mailboxService;
     private readonly ILogger<ShakeWindowToolHandlers>? _logger;
 
     /// <summary>
@@ -16,14 +17,17 @@ public partial class ShakeWindowToolHandlers
     /// </summary>
     /// <param name="coordinator">震动去抖协调器</param>
     /// <param name="shakeService">窗口震动服务（可选，未注册时仅返回文字）</param>
+    /// <param name="mailboxService">队友邮箱服务（可选，用于跨进程广播震动消息）</param>
     /// <param name="logger">日志记录器（可选）</param>
     public ShakeWindowToolHandlers(
         IWindowShakeCoordinator coordinator,
         IWindowShakeService? shakeService = null,
+        ITeammateMailboxService? mailboxService = null,
         ILogger<ShakeWindowToolHandlers>? logger = null)
     {
         _coordinator = coordinator;
         _shakeService = shakeService;
+        _mailboxService = mailboxService;
         _logger = logger;
     }
 
@@ -54,6 +58,7 @@ public partial class ShakeWindowToolHandlers
         {
             if (_shakeService is not null)
                 await _shakeService.ShakeWindowAsync(cancellationToken).ConfigureAwait(false);
+            await BroadcastShakeMessageAsync(machine, pid, reason, cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("窗口震动已执行: reason={Reason}, machine={Machine}, pid={Pid}", reason, machine, pid);
             return ToolResultBuilder.Success()
                 .WithText($"已震动窗口（电脑:{machine}, PID:{pid}）")
@@ -124,4 +129,29 @@ public partial class ShakeWindowToolHandlers
 
     private static (string Machine, int Pid) GetProcessInfo()
         => (Environment.MachineName, Environment.ProcessId);
+
+    /// <summary>
+    /// 通过邮箱广播 shake 消息到其他进程 — 跨进程震动通知，ADR 0109。
+    /// 消息类型 <c>"shake"</c>，内容为 <c>"machine:pid"</c>，接收端可识别并执行本地震动。
+    /// </summary>
+    private async Task BroadcastShakeMessageAsync(string machine, int pid, string? reason, CancellationToken cancellationToken)
+    {
+        if (_mailboxService is null)
+            return;
+        try
+        {
+            await _mailboxService.SendAsync(new MailboxSendRequest
+            {
+                FromAgentId = $"bot-{pid}",
+                ToAgentId = "*",
+                MessageType = "shake",
+                Content = $"{machine}:{pid}:{reason ?? ""}",
+                SessionId = "shake-broadcast"
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "广播震动消息失败");
+        }
+    }
 }

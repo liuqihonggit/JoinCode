@@ -156,7 +156,7 @@ public partial class ShakeWindowToolHandlers
             await _mailboxService.SendAsync(new MailboxSendRequest
             {
                 FromAgentId = $"bot-{pid}",
-                ToAgentId = "*",
+                ToAgentId = "all-agents",
                 MessageType = "shake",
                 Content = $"{machine}:{pid}:{reason ?? ""}",
                 SessionId = "shake-broadcast"

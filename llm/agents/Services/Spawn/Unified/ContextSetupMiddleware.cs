@@ -59,7 +59,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
             AdditionalInstructions = context.SpawnOptions.Prompt,
             ModelName = ResolveSubagentModel(context),
             Temperature = context.Definition?.Temperature ?? 0.7f,
-            DisplayName = context.SpawnOptions.Name ?? context.SpawnOptions.Description,
+            DisplayName = context.SpawnOptions.Name ?? context.SpawnOptions.Description ?? BotNameGenerator.Generate(),
             SystemPrompt = context.SystemPrompt,
             AllowedTools = MergeAllowedTools(context.SpawnOptions.AllowedTools, context.Definition?.Tools) ?? [],
             DeniedTools = context.Definition?.DisallowedTools ?? [],

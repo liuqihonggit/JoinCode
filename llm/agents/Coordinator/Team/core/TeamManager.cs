@@ -757,6 +757,26 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         };
     }
 
+    /// <summary>
+    /// 获取聊天室信息 — 团队的聊天室视图，包含房间名和成员显示名列表 — ADR 0109
+    /// </summary>
+    public async Task<ChatRoomInfo?> GetChatRoomInfoAsync(
+        string teamId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_teams.TryGetValue(teamId, out var team))
+            return null;
+
+        var statuses = await GetTeammateStatusesAsync(teamId, cancellationToken).ConfigureAwait(false);
+        var members = statuses.Select(s => s.DisplayName ?? s.AgentId).ToList();
+
+        return new ChatRoomInfo
+        {
+            RoomName = team.TeamName,
+            Members = members
+        };
+    }
+
     /// <summary>释放资源 — 释放团队管理锁</summary>
     protected override void OnDispose() => _lock.Dispose();
 }

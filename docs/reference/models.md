@@ -1,5 +1,8 @@
 # 可用模型列表
 
+> ⚠️ **内容已陈旧** (2026-09-15) — 文档声称settings.json预置6个供应商51个模型，但实际配置文件中没有任何模型配置
+
+
 > 📍 **导航**: [docs/](../README.md) › [reference/](README.md)
 > 🔗 **上游索引**: [reference/README.md](README.md) — 修改本文档后须同步更新此索引
 

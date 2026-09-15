@@ -1,5 +1,8 @@
 # 0041. Fsm 源码生成器 + 特性 + 事件订阅
 
+> ⚠️ **AOT技术限制** (2026-09-15) — 实现路径部分完成，5个已改造类中部分尚未用[FsmStateMachine]特性标注
+
+
 > 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 

@@ -1,5 +1,8 @@
 # ~/.jcc/ 路径统一整理计划
 
+> ⚠️ **内容已陈旧** (2026-09-15) — 硬编码路径已统一到AppDataPaths.cs和AppDataConstants.cs，文档内容已过时
+
+
 > 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
 

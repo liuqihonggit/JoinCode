@@ -1,5 +1,8 @@
 # 交接文档 08: GitHub 剩余工具
 
+> ⚠️ **内容已陈旧** (2026-09-15) — 工具列表包含不存在的工具：gh_workflow_list
+
+
 > 📍 **导航**: [docs/](../../README.md) › [handoff/](../README.md) › [0080_round3_handoff/](README.md) | **前置**: [ADR 0080](../../adr/0080-manual-exe-testing-guide.md)
 > 🔗 **上游索引**: [handoff/0080_round3_handoff/README.md](README.md) — 修改本文档后须同步更新此索引
 

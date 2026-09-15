@@ -1,5 +1,8 @@
 # Actor 模型推广改造任务清单
 
+> ⚠️ **内容已陈旧** (2026-09-15) — DiagnosticLogWatcher类在代码库中不存在，文档记录已Actor化可能为误记或归档
+
+
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 

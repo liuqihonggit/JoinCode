@@ -1,5 +1,8 @@
 # gh_* MCP 工具重写为 REST API 直调 — 执行计划
 
+> ⚠️ **进度待确认** (2026-09-15) — 执行清单进度待确认，T1-T16是否已完成
+
+
 > 📍 **导航**: [docs/](../README.md) › [plan/](README.md) | **前置**: [adr/](../adr/README.md) + [design/](../design/README.md)
 > 🔗 **上游索引**: [plan/README.md](README.md) — 修改本文档后须同步更新此索引
 

@@ -220,6 +220,20 @@ public sealed partial class CurrentSettings
     public bool? IsAntiCharLossConfirm { get; init; }
 
     /// <summary>
+    /// 窗口震动通知开关 — 子代理调用 shake_window 时是否实际震动窗口 — ADR 0109
+    /// </summary>
+    [JsonPropertyName("windowShakeEnabled")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? WindowShakeEnabled { get; init; }
+
+    /// <summary>
+    /// 聊天室模式开关 — 是否启用跨进程子代理聊天室广播 — ADR 0109
+    /// </summary>
+    [JsonPropertyName("chatRoomEnabled")]
+    [SettingsProperty(SettingsMergeStrategy.Override)]
+    public bool? ChatRoomEnabled { get; init; }
+
+    /// <summary>
     /// 权限配置 — 对齐 TS 版 PermissionsSchema
     /// </summary>
     [JsonPropertyName("permissions")]

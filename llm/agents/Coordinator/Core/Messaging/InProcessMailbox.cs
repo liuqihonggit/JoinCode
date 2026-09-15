@@ -1,7 +1,8 @@
 namespace Core.Agents.Coordinator;
 
 /// <summary>
-/// 进程内邮箱实现 — 基于 Channel&lt;CoordinatorMessage&gt; 的内存消息传递，可选持久化到文件邮箱
+/// 进程内邮箱实现 — 基于 Channel&lt;CoordinatorMessage&gt; 的内存消息传递，可选持久化到文件邮箱。
+/// <para>用 MessageId 去重：同一 Agent 的重复消息（相同 MessageId）只投递一次。</para>
 /// </summary>
 [Register(typeof(IMailbox), ServiceLifetime.Singleton)]
 public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
@@ -10,6 +11,7 @@ public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
     private readonly ITeammateMailboxService? _mailboxService;
     private readonly ConcurrentDictionary<string, Channel<CoordinatorMessage>> _messageChannels;
     private readonly ConcurrentDictionary<string, string> _agentSessions;
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _deliveredMessageIds;
 
     /// <summary>
     /// 构造进程内邮箱实例
@@ -22,6 +24,7 @@ public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
         _mailboxService = mailboxService;
         _messageChannels = new ConcurrentDictionary<string, Channel<CoordinatorAgentMessage>>();
         _agentSessions = new ConcurrentDictionary<string, string>();
+        _deliveredMessageIds = new ConcurrentDictionary<string, ConcurrentDictionary<string, byte>>();
     }
 
     /// <summary>
@@ -40,7 +43,7 @@ public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
     }
 
     /// <summary>
-    /// 注销 Agent 邮箱，完成对应 Channel 并移除会话映射
+    /// 注销 Agent 邮箱，完成对应 Channel 并移除会话映射与去重集合
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
     public void UnregisterAgent(string agentId)
@@ -51,17 +54,25 @@ public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
         }
 
         _agentSessions.TryRemove(agentId, out _);
+        _deliveredMessageIds.TryRemove(agentId, out _);
     }
 
     /// <summary>
-    /// 向指定 Agent 投递消息，写入内存 Channel 并尝试持久化到文件邮箱
+    /// 向指定 Agent 投递消息，写入内存 Channel 并尝试持久化到文件邮箱。
+    /// <para>用 MessageId 去重：同一 Agent 的重复消息只投递一次。</para>
     /// </summary>
     /// <param name="agentId">目标 Agent 标识</param>
     /// <param name="message">要投递的消息</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>是否成功写入内存 Channel（未注册 Agent 时返回 false）</returns>
+    /// <returns>是否成功写入内存 Channel（未注册 Agent 或重复消息时返回 false）</returns>
     public async Task<bool> SendAsync(string agentId, CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
     {
+        if (IsDuplicate(agentId, message.MessageId))
+        {
+            _logger?.LogDebug("Duplicate message {MessageId} skipped for {AgentId}", message.MessageId, agentId);
+            return false;
+        }
+
         var channelDelivered = false;
 
         if (_messageChannels.TryGetValue(agentId, out var channel))
@@ -118,6 +129,41 @@ public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
     public string? GetSessionId(string agentId)
     {
         return _agentSessions.GetValueOrDefault(agentId);
+    }
+
+    /// <summary>
+    /// 投递跨进程入站消息 — 只写入内存 Channel，不持久化到文件邮箱。
+    /// <para>由 MailboxMessageSink 调用，断开 Broker→Poller→Broker 循环。</para>
+    /// <para>消息已在文件邮箱中，无需再次持久化。</para>
+    /// <para>用 MessageId 去重：同一 Agent 的重复消息只投递一次。</para>
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="message">要投递的消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    public async Task DeliverInboundAsync(string agentId, CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
+    {
+        if (IsDuplicate(agentId, message.MessageId))
+        {
+            _logger?.LogDebug("Duplicate inbound message {MessageId} skipped for {AgentId}", message.MessageId, agentId);
+            return;
+        }
+
+        if (_messageChannels.TryGetValue(agentId, out var channel))
+        {
+            await channel.Writer.WriteAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// 检查消息是否已投递给指定 Agent — 用 MessageId 去重
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="messageId">消息唯一标识</param>
+    /// <returns>true 表示重复消息（已投递过），false 表示首次投递</returns>
+    private bool IsDuplicate(string agentId, string messageId)
+    {
+        var deliveredSet = _deliveredMessageIds.GetOrAdd(agentId, _ => new ConcurrentDictionary<string, byte>());
+        return !deliveredSet.TryAdd(messageId, 0);
     }
 
     private async Task PersistToMailboxAsync(string agentId, CoordinatorAgentMessage message, CancellationToken cancellationToken)

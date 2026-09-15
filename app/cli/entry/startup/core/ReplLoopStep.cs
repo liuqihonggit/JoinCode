@@ -362,7 +362,6 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             _setProcessing(1);
         }
 
-        [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Dispose中等待alive循环退出,安全")]
         public async ValueTask DisposeAsync()
         {
             if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;

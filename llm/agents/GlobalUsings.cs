@@ -41,6 +41,7 @@ global using JoinCode.Abstractions.Entity;
 global using JoinCode.Abstractions.Utils.Text;
 global using ContractAgentMessage = JoinCode.Abstractions.Models.Agent.AgentMessage;
 global using CoordinatorAgentMessage = JoinCode.Abstractions.Models.Agent.CoordinatorMessage;
+global using MailboxMessage = JoinCode.Abstractions.Models.Agent.CoordinatorMessage;
 global using ContractsErrorMessages = JoinCode.Abstractions.Utils.ErrorMessages;
 global using AgentStateRecord = JoinCode.Abstractions.State.AgentState;
 global using CompressionContentType = JoinCode.Abstractions.Interfaces.Context.ContentType;

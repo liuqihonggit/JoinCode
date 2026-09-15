@@ -82,7 +82,6 @@ public sealed partial class QueryLoopMiddleware : ServiceEntity, IChatMiddleware
     /// 本方法不 await 目标任务：异常（含取消）保留在任务上，由调用方读取
     /// 任务结果时在原有 try/catch 中按原语义抛出。通道经参数显式传入（迭代器内禁用 AsyncLocal）。
     /// </summary>
-    [SuppressMessage("Threading", "VSTHRD003:Awaiting foreign tasks", Justification = "WhenAny轮询外部task完成状态以drain通道,task为方法参数")]
     private async IAsyncEnumerable<ChatStreamEvent> WaitForTaskWithDrainAsync(
         Task task,
         SubAgentEventChannel? channel,

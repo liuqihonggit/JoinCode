@@ -25,6 +25,7 @@ global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.LLM.Execution;
 global using JoinCode.Abstractions.Models;
 global using JoinCode.Abstractions.Models.Agent;
+global using MailboxMessage = JoinCode.Abstractions.Models.Agent.CoordinatorMessage;
 global using JoinCode.Abstractions.Models.Chat;
 global using JoinCode.Abstractions.Models.Build;
 global using JoinCode.Abstractions.Models.Analytics;

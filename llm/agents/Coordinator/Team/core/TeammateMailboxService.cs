@@ -1,6 +1,10 @@
 namespace Core.Agents.Coordinator;
 
-/// <summary>队友邮箱服务 — 管理各队友邮箱目录的读写、消息投递与持久化，实现 IDisposable 释放写锁</summary>
+/// <summary>队友邮箱服务 — 基于 MailboxActor 串行化写操作，无锁防死锁。
+/// <para>crossProcess=true 时，Actor 内部用 FileMailboxLock 跨进程互斥，支持多 jcc.exe 进程并发。</para>
+/// <para>crossProcess=false 时（默认），纯 Actor 串行化，零锁零跨进程开销。</para>
+/// <para>写操作通过 Actor 邮箱消息传递串行化，读操作直接读文件（幂等）。</para>
+/// </summary>
 [Register(typeof(ITeammateMailboxService), ServiceLifetime.Singleton)]
 public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMailboxService, IDisposable
 {
@@ -8,8 +12,8 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     private readonly string _mailboxRoot;
     private readonly ILogger<TeammateMailboxService>? _logger;
     private readonly IClockService _clock;
-    private readonly AsyncLock _writeLock = new();
-    private readonly ConcurrentDictionary<string, AsyncLock> _agentLocks;
+    private readonly bool _crossProcess;
+    private readonly ConcurrentDictionary<string, MailboxActor> _actors;
     private readonly ConcurrentDictionary<string, MailboxReadCursor> _cursors;
     private int _messageCounter;
 
@@ -20,11 +24,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="mailboxRoot">邮箱根目录（默认用户目录下 jcc/mailbox）</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="clock">时钟服务</param>
+    /// <param name="crossProcess">是否启用跨进程锁（多 jcc.exe 进程并发时设为 true）</param>
     public TeammateMailboxService(
         IFileSystem fs,
         string? mailboxRoot = null,
         ILogger<TeammateMailboxService>? logger = null,
-        IClockService? clock = null)
+        IClockService? clock = null,
+        bool crossProcess = false)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _mailboxRoot = mailboxRoot
@@ -34,13 +40,14 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
                 AppDataConstants.MailboxFolderName);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _crossProcess = crossProcess;
 
-        _agentLocks = new ConcurrentDictionary<string, AsyncLock>();
+        _actors = new ConcurrentDictionary<string, MailboxActor>();
         _cursors = new ConcurrentDictionary<string, MailboxReadCursor>();
     }
 
     /// <summary>
-    /// 异步发送邮箱消息到指定智能体，追加写入邮箱文件
+    /// 异步发送邮箱消息到指定智能体 — 通过 Actor 邮箱串行化写入
     /// </summary>
     /// <param name="request">发送请求</param>
     /// <param name="cancellationToken">取消令牌</param>
@@ -62,24 +69,19 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             IsRead = false
         };
 
-        var agentLock = _agentLocks.GetOrAdd(request.ToAgentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
-        using var guard = await agentLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{agentLock.Name}' 等待超时");
+        EnsureMailboxDirectoryExists(request.SessionId, request.ToAgentId);
+        var actor = GetOrCreateActor(request.SessionId, request.ToAgentId);
+        var tcs = new TaskCompletionSource<MailboxMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
-            EnsureMailboxDirectoryExists(request.SessionId, request.ToAgentId);
-            var filePath = GetMailboxFilePath(request.SessionId, request.ToAgentId);
-            var line = JsonSerializer.Serialize(message, MailboxJsonContext.Default.MailboxMessage);
-            await _fs.AppendAllTextAsync(filePath, line + '\n', cancellationToken).ConfigureAwait(false);
+            await actor.SendAsync(new AppendMessageCmd(message, tcs), cancellationToken).ConfigureAwait(false);
+            return await tcs.Task.ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogError(ex, "Failed to send mailbox message to {AgentId}", request.ToAgentId);
+            return message;
         }
-
-        _logger?.LogDebug("Mailbox message sent: {MessageId} from {FromId} to {ToId}",
-            message.MessageId, message.FromAgentId, message.ToAgentId);
-
-        return message;
     }
 
     /// <summary>
@@ -97,7 +99,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     }
 
     /// <summary>
-    /// 异步读取自指定行索引之后的所有消息
+    /// 异步读取自指定行索引之后的所有消息 — 直接读文件，无锁
     /// </summary>
     /// <param name="agentId">智能体标识</param>
     /// <param name="sessionId">会话标识</param>
@@ -113,13 +115,11 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             return Array.Empty<MailboxMessage>();
         }
 
-        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
-        using var guard = await agentLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{agentLock.Name}' 等待超时");
         return await ReadMessagesFromFileAsync(filePath, sinceLineIndex, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 异步将指定消息标记为已读，并更新游标位置
+    /// 异步将指定消息标记为已读 — 通过 Actor 邮箱串行化读-改-写
     /// </summary>
     /// <param name="agentId">智能体标识</param>
     /// <param name="sessionId">会话标识</param>
@@ -139,35 +139,20 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         var idSet = new HashSet<string>(messageIds);
         if (idSet.Count == 0) return;
 
-        var agentLock = _agentLocks.GetOrAdd(agentId, _ => new AsyncLock(nameof(TeammateMailboxService)));
-        using var guard = await agentLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{agentLock.Name}' 等待超时");
-        {
-            var allMessages = await ReadMessagesFromFileAsync(filePath, 0, cancellationToken).ConfigureAwait(false);
-            var modified = false;
+        var actor = GetOrCreateActor(sessionId, agentId);
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await actor.SendAsync(new MarkAsReadCmd(idSet, tcs), cancellationToken).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
 
-            for (var i = 0; i < allMessages.Count; i++)
+        var lines = await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var lastLineIndex = lines.Length;
+        var cursorKey = GetCursorKey(agentId, sessionId);
+        _cursors.AddOrUpdate(cursorKey,
+            _ => new MailboxReadCursor
             {
-                if (idSet.Contains(allMessages[i].MessageId) && !allMessages[i].IsRead)
-                {
-                    allMessages[i].IsRead = true;
-                    modified = true;
-                }
-            }
-
-            if (modified)
-            {
-                await RewriteMailboxFileAsync(filePath, allMessages, cancellationToken).ConfigureAwait(false);
-            }
-
-            var lastLineIndex = allMessages.Count;
-            var cursorKey = GetCursorKey(agentId, sessionId);
-            _cursors.AddOrUpdate(cursorKey,
-                _ => new MailboxReadCursor
-                {
-                    AgentId = agentId, SessionId = sessionId, LastReadLineIndex = lastLineIndex
-                },
-                (_, existing) => existing with { LastReadLineIndex = lastLineIndex });
-        }
+                AgentId = agentId, SessionId = sessionId, LastReadLineIndex = lastLineIndex
+            },
+            (_, existing) => existing with { LastReadLineIndex = lastLineIndex });
     }
 
     /// <summary>
@@ -240,7 +225,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
 
                 try
                 {
-                    var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.MailboxMessage);
+                    var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.CoordinatorMessage);
                     if (msg is not null)
                     {
                         messages.Add(msg);
@@ -261,20 +246,14 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         }
     }
 
-    private async Task RewriteMailboxFileAsync(
-        string filePath, IReadOnlyList<MailboxMessage> messages, CancellationToken cancellationToken)
+    private MailboxActor GetOrCreateActor(string sessionId, string agentId)
     {
-        using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_writeLock.Name}' 等待超时");
-
-        await using var stream = _fs.CreateStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
-        await using var writer = new StreamWriter(stream);
-
-        for (var i = 0; i < messages.Count; i++)
+        var key = GetCursorKey(agentId, sessionId);
+        return _actors.GetOrAdd(key, _ =>
         {
-            var line = JsonSerializer.Serialize(messages[i], MailboxJsonContext.Default.MailboxMessage);
-            await writer.WriteLineAsync(line.AsMemory(), cancellationToken).ConfigureAwait(false);
-        }
-    
+            var filePath = GetMailboxFilePath(sessionId, agentId);
+            return new MailboxActor(_fs, filePath, _crossProcess, _logger);
+        });
     }
 
     private string GetMailboxFilePath(string sessionId, string agentId)
@@ -315,15 +294,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         }
     }
 
-    /// <summary>释放资源 — 释放邮箱写锁</summary>
+    /// <summary>释放资源 — 后台释放所有 MailboxActor</summary>
     protected override void OnDispose()
     {
-        _writeLock.Dispose();
-        foreach (var agentLock in _agentLocks.Values)
+        foreach (var actor in _actors.Values)
         {
-            agentLock.Dispose();
+            _ = Task.Run(async () => await actor.DisposeAsync().ConfigureAwait(false));
         }
-        _agentLocks.Clear();
+        _actors.Clear();
     }
 }
-

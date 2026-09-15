@@ -88,7 +88,6 @@ public sealed class PermissionDialogView : ITuiComponent
     /// <param name="description">工具描述。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>true 表示允许，false 表示拒绝。</returns>
-    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "UI对话框TCS,由按钮事件SetResult,RunContinuationsAsynchronously避免死锁")]
     public Task<bool> ShowAsync(string toolName, string description, CancellationToken cancellationToken = default)
     {
         _pendingResponse = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -115,7 +114,6 @@ public sealed class PermissionDialogView : ITuiComponent
     /// <param name="description">工具描述。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>用户决策：Deny / Allow(临时) / AlwaysAllow(会话级)。</returns>
-    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "UI对话框TCS,由按钮事件SetResult,RunContinuationsAsynchronously避免死锁")]
     public Task<PermissionConfirmAction> ShowWithDecisionAsync(string toolName, string description, CancellationToken cancellationToken = default)
     {
         _pendingDecision = new TaskCompletionSource<PermissionConfirmAction>(TaskCreationOptions.RunContinuationsAsynchronously);

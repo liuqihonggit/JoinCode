@@ -2,24 +2,20 @@
 namespace AsyncFileLock;
 
 /// <summary>
-/// 异步文件锁 — 基于跨进程互斥量实现，内部类不对外暴露
+/// 异步文件锁 — 委托 FileMailboxLock 实现跨进程互斥
 /// </summary>
 internal sealed class FileLock : System.IAsyncDisposable
 {
-    private readonly AsyncCrossProcessMutex _mutex;
-    private AsyncCrossProcessMutex.LockReleaser? _releaser;
-    private readonly ILogger? _logger;
+    private readonly FileMailboxLock _inner;
     private bool _disposed;
 
     /// <summary>已锁定的文件绝对路径</summary>
     public string FilePath { get; }
 
-    private FileLock(string filePath, AsyncCrossProcessMutex mutex, AsyncCrossProcessMutex.LockReleaser releaser, ILogger? logger = null)
+    private FileLock(FileMailboxLock inner)
     {
-        FilePath = filePath;
-        _mutex = mutex;
-        _releaser = releaser;
-        _logger = logger;
+        _inner = inner;
+        FilePath = inner.FilePath;
     }
 
     /// <summary>
@@ -36,43 +32,17 @@ internal sealed class FileLock : System.IAsyncDisposable
         CancellationToken cancellationToken = default,
         ILogger? logger = null)
     {
-        var fullPath = Path.GetFullPath(filePath);
-        var mutexName = GetMutexName(fullPath);
-
-        var mutex = new AsyncCrossProcessMutex(mutexName);
-        try
-        {
-            var releaser = await mutex.TryEnterAsync(timeout).ConfigureAwait(false);
-            if (releaser == null)
-            {
-                mutex.Dispose();
-                throw new TimeoutException(
-                    $"Failed to acquire lock for '{filePath}' within {timeout.TotalSeconds}s");
-            }
-
-            return new FileLock(fullPath, mutex, releaser.Value, logger);
-        }
-        catch
-        {
-            mutex.Dispose();
-            throw;
-        }
+        var inner = await FileMailboxLock.AcquireAsync(filePath, timeout, cancellationToken, logger).ConfigureAwait(false);
+        return new FileLock(inner);
     }
 
     /// <summary>
-    /// 异步释放文件锁，释放跨进程互斥量
+    /// 异步释放文件锁
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
-
-        if (_releaser.HasValue)
-        {
-            try { _releaser.Value.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "FileLock: failed to dispose releaser"); }
-            _releaser = null;
-        }
-
-        try { _mutex.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "FileLock: failed to dispose mutex"); }
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
+        return _inner.DisposeAsync();
     }
 
     /// <summary>
@@ -81,20 +51,6 @@ internal sealed class FileLock : System.IAsyncDisposable
     internal void Release()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
-
-        if (_releaser.HasValue)
-        {
-            try { _releaser.Value.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "FileLock: failed to dispose releaser on release"); }
-            _releaser = null;
-        }
-
-        try { _mutex.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "FileLock: failed to dispose mutex on release"); }
-    }
-
-    private static string GetMutexName(string filePath)
-    {
-        var fullPath = filePath.ToLowerInvariant();
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fullPath)));
-        return $"Global\\AsyncFileLock_{hash}";
+        _inner.Release();
     }
 }

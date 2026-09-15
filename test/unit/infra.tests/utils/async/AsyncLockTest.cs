@@ -1,9 +1,5 @@
 namespace Infra.Tests.Utils.Async;
 
-// VSTHRD003: 测试中 await TaskCompletionSource.Task / Task.WhenAll(...).WaitAsync(...)
-// 是合法的并发协调模式 (与 LinkVerificationTests 约定一致)。
-#pragma warning disable VSTHRD003
-
 /// <summary>
 /// AsyncLock 异步互斥锁单元测试 (SemaphoreSlim(1,1) 包装实现)。
 /// 覆盖: 互斥性、无竞争获取、排队唤醒、取消支持、Dispose 异常、
@@ -391,4 +387,3 @@ public class AsyncLockTest
     }
 }
 
-#pragma warning restore VSTHRD003

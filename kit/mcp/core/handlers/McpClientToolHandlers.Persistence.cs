@@ -131,7 +131,6 @@ public sealed partial class McpClientToolHandlers
     /// 等待启动时连接恢复完成 — 在 GetClientAsync 中调用，确保恢复完成后再查询连接。
     /// 恢复任务为 null（无持久化文件系统）或已完成时立即返回。
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "后台恢复任务在构造函数启动，GetClientAsync 中 await 是安全的，非 UI 线程无 SynchronizationContext")]
     private async Task WaitForRestoreAsync()
     {
         if (_restoreTask is not null)

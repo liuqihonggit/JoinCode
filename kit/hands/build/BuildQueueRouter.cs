@@ -95,7 +95,6 @@ public sealed class BuildQueueRouter : IBuildQueueService
     }
 
     /// <inheritdoc />
-    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "返回构建完成的TCS.Task给调用方await")]
     public Task<BuildQueueResult> WaitAsync(string buildId, CancellationToken ct)
     {
         if (!_waitHandles.TryGetValue(buildId, out var tcs))

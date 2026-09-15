@@ -45,7 +45,6 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     /// <summary>
     /// 手动触发设置重新加载 — 投递命令到 Actor 邮箱,等待 Consumer 处理完成。
     /// </summary>
-    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "Actor邮箱TCS,由Consumer线程SetResult")]
     public async Task ApplySettingsChangeAsync(CancellationToken cancellationToken = default)
     {
         var cmd = new ApplySettingsCmd();

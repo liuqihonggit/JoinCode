@@ -116,7 +116,6 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor
     /// <summary>
     /// 等待所有剩余工具完成并返回结果 — 对齐 TS StreamingToolExecutor.getRemainingResults()
     /// </summary>
-    [SuppressMessage("Threading", "VSTHRD003:Avoid awaiting foreign tasks", Justification = "WhenAll一组工具完成TCS.Task,由各ExecuteToolAsync SetResult触发")]
     public async Task<IReadOnlyList<StreamingToolResult>> GetRemainingResultsAsync()
     {
         if (_discarded) return [];

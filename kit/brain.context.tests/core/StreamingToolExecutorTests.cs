@@ -121,7 +121,6 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-#pragma warning disable VSTHRD003 // TaskCompletionSource 任务由测试控制
     public async Task FindNextExecutable_SafeAfterNonSafe_ShouldNotBeStarved()
     {
         var classifier = new ToolConcurrencyClassifier(
@@ -161,10 +160,8 @@ public sealed class StreamingToolExecutorTests
 
         await executor.DisposeAsync();
     }
-#pragma warning restore VSTHRD003
 
     [Fact]
-#pragma warning disable VSTHRD003 // TaskCompletionSource 任务由测试控制
     public async Task AddTool_PowershellError_ShouldCancelSiblingTools()
     {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
@@ -196,10 +193,8 @@ public sealed class StreamingToolExecutorTests
 
         await executor.DisposeAsync();
     }
-#pragma warning restore VSTHRD003
 
     [Fact]
-#pragma warning disable VSTHRD003 // TaskCompletionSource 任务由测试控制
     public async Task AddTool_PowershellScriptError_ShouldCancelSiblingTools()
     {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
@@ -231,7 +226,6 @@ public sealed class StreamingToolExecutorTests
 
         await executor.DisposeAsync();
     }
-#pragma warning restore VSTHRD003
 
     [Fact]
     public async Task UserCancellationToken_Cancelled_ShouldCancelExecutingTools()
@@ -336,7 +330,6 @@ public sealed class StreamingToolExecutorTests
     /// 修复：TrySetResult 移到锁外。> ADR: 0060
     /// </summary>
     [Fact]
-#pragma warning disable VSTHRD003 // TCS 由 mock 回调设置,测试仅等待完成
     public async Task Discard_DuringGetRemaining_DoesNotDeadlock()
     {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
@@ -363,7 +356,6 @@ public sealed class StreamingToolExecutorTests
 
         await executor.DisposeAsync();
     }
-#pragma warning restore VSTHRD003
 
     private static IToolExecutionHandler CreateToolHandler()
     {

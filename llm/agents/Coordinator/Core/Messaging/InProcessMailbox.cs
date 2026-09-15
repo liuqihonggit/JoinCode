@@ -45,11 +45,14 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
         => _ = RegisterAgentAsync(agentId, sessionId);
 
     /// <summary>
-    /// 注销 Agent 邮箱 — fire-and-forget 异步注销。
+    /// 注销 Agent 邮箱 — 清理去重记录 + fire-and-forget 异步注销。
     /// </summary>
     /// <param name="agentId">Agent 标识</param>
     public void UnregisterAgent(string agentId)
-        => _ = UnregisterAgentAsync(agentId);
+    {
+        _deliveredMessageIds.TryRemove(agentId, out _);
+        _ = UnregisterAgentAsync(agentId, CancellationToken.None);
+    }
 
     /// <summary>
     /// 向指定 Agent 投递消息 — tell 异步，不等待响应。

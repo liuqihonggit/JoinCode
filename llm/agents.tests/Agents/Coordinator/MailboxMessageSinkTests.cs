@@ -10,6 +10,7 @@ public sealed class MailboxMessageSinkTests
     {
         var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
+        await Task.Delay(100);
         var sink = new MailboxMessageSink(mailbox);
         var msg = new AgentMsg { FromAgentId = "sender", ToAgentId = "agent1", MessageType = "text", Content = "hello" };
 

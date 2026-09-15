@@ -79,7 +79,13 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
         var hwnd = PulseNativeMethods.GetConsoleWindow();
         if (hwnd == IntPtr.Zero)
         {
-            _logger?.LogWarning("GetConsoleWindow 返回零句柄");
+            hwnd = User32NativeMethods.GetForegroundWindow();
+            _logger?.LogInformation("GetConsoleWindow 返回零句柄，回退到 GetForegroundWindow: {Hwnd}", hwnd);
+        }
+
+        if (hwnd == IntPtr.Zero)
+        {
+            _logger?.LogWarning("GetConsoleWindow 和 GetForegroundWindow 均返回零句柄");
             return IntPtr.Zero;
         }
 
@@ -113,6 +119,42 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
 
         _logger?.LogWarning("向上遍历父窗口链未找到任何可见窗口，回退到原始控制台窗口句柄 {Hwnd}", hwnd);
         return hwnd;
+    }
+
+    /// <summary>
+    /// 获取可震动窗口的诊断信息 — 句柄、标题、矩形、遍历深度。
+    /// </summary>
+    public string GetWindowInfo()
+    {
+        var consoleHwnd = PulseNativeMethods.GetConsoleWindow();
+        var sb = new StringBuilder();
+        sb.AppendLine($"ConsoleWindow句柄: 0x{consoleHwnd.ToInt64():X}");
+
+        var current = consoleHwnd;
+        for (var i = 0; i < MaxParentTraversal && current != IntPtr.Zero; i++)
+        {
+            var visible = User32NativeMethods.IsWindowVisible(current);
+            var rectOk = User32NativeMethods.GetWindowRect(current, out var rect);
+            var title = GetWindowTitle(current);
+            var canFocus = User32NativeMethods.SetForegroundWindow(current);
+            sb.AppendLine($"  [{i}] 句柄=0x{current.ToInt64():X} 可见={visible} 矩形={rectOk} " +
+                          $"标题=\"{title}\" 能设焦点={canFocus}" +
+                          (rectOk ? $" 位置=({rect.Left},{rect.Top}) 大小={rect.Right - rect.Left}x{rect.Bottom - rect.Top}" : ""));
+            current = User32NativeMethods.GetParent(current);
+        }
+
+        var resolved = ResolveShakeableWindow();
+        sb.AppendLine($"最终选用句柄: 0x{resolved.ToInt64():X} 标题=\"{GetWindowTitle(resolved)}\"");
+        return sb.ToString();
+    }
+
+    private static string GetWindowTitle(IntPtr hwnd)
+    {
+        var len = User32NativeMethods.GetWindowTextLength(hwnd);
+        if (len <= 0) return "";
+        var sb = new StringBuilder(len + 1);
+        User32NativeMethods.GetWindowText(hwnd, sb, sb.Capacity);
+        return sb.ToString();
     }
 
     private static bool IsWindowShakeable(IntPtr hwnd)

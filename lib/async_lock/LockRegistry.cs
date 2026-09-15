@@ -16,10 +16,10 @@ public static class LockRegistry
     private static Timer? _scanTimer;
     private static TimeSpan _scanInterval = TimeSpan.FromSeconds(5);
     private static int _scanStarted;
-    private static int _diagnosticsEnabled = 1;
+    private static int _diagnosticsEnabled = 0;
 
     /// <summary>
-    /// 诊断总开关（默认开启）。设为 0 关闭所有诊断记录与后台扫描，退化为零开销。
+    /// 诊断总开关（默认关闭，需 --debuglog 或 JCC_DEBUGLOG=1 开启）。设为 0 关闭所有诊断记录与后台扫描，退化为零开销。
     /// </summary>
     public static bool DiagnosticsEnabled
     {

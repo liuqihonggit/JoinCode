@@ -122,8 +122,9 @@ public partial class ShakeWindowToolHandlers
     public Task<ToolResult> GetProcessInfoAsync(CancellationToken cancellationToken = default)
     {
         var (machine, pid) = GetProcessInfo();
+        var windowInfo = _shakeService?.GetWindowInfo() ?? "(窗口服务未注册)";
         return Task.FromResult(ToolResultBuilder.Success()
-            .WithText($"电脑名:{machine}, 进程PID:{pid}")
+            .WithText($"电脑名:{machine}, 进程PID:{pid}\n{windowInfo}")
             .Build());
     }
 

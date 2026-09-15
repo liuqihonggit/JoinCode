@@ -41,6 +41,17 @@ public sealed class GuiWindowShakeService : IWindowShakeService
     public Task FlashTaskbarAsync(CancellationToken cancellationToken = default)
         => ShakeWindowAsync(cancellationToken);
 
+    /// <summary>
+    /// 获取 GUI 主窗口诊断信息。
+    /// </summary>
+    public string GetWindowInfo()
+    {
+        var window = GetMainWindow();
+        if (window is null)
+            return "GUI主窗口: 未找到";
+        return $"GUI主窗口: 标题=\"{window.Title}\" 位置=({window.Position.X},{window.Position.Y}) 大小={window.Width}x{window.Height} 可见={window.IsVisible}";
+    }
+
     private static Window? GetMainWindow()
     {
         if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

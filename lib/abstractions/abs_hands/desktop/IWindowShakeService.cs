@@ -19,4 +19,10 @@ public interface IWindowShakeService
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>表示异步操作的任务。</returns>
     Task FlashTaskbarAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取可震动窗口的诊断信息 — 句柄、标题、矩形、遍历深度。
+    /// </summary>
+    /// <returns>窗口诊断信息字符串，供工具返回给用户排查震动不可见问题。</returns>
+    string GetWindowInfo();
 }

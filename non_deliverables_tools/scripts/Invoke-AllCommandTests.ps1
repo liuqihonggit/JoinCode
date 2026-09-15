@@ -219,7 +219,7 @@ function Extract-Steps {
 function Test-McpTools {
     Write-Host "`n=== MCP Tools ===" -ForegroundColor Cyan
 
-    $listResult = Invoke-Jcc -CmdArgs @("mcp_list", "--json", "--brief")
+    $listResult = Invoke-Jcc -CmdArgs @("mcp_list", "--json")
     $listJson = Extract-Json -Text $listResult.stdout
     if (-not $listJson -or -not $listJson.ok) {
         Write-Error "mcp_list failed"
@@ -302,6 +302,7 @@ function Test-McpTools {
             Steps    = $stepSummary
             Reason   = $exitReason
             Content  = $contentText
+            Stderr   = $callResult.stderr
             Duration = $cmdDuration
         }
     }
@@ -374,6 +375,7 @@ function Test-SlashCommands {
             Steps    = $stepSummary
             Reason   = $exitReason
             Content  = $contentText
+            Stderr   = $callResult.stderr
             Duration = $cmdDuration
         }
     }
@@ -441,6 +443,8 @@ if ($crashCount -gt 0 -or $timeoutCount -gt 0) {
         [void]$report.AppendLine("- 参数: $($r.Args)")
         [void]$report.AppendLine("- 原因: $($r.Reason)")
         [void]$report.AppendLine("- 输出: $($r.Content.Substring(0, [Math]::Min(500, $r.Content.Length)))")
+        $stderrText = if ($r.Stderr) { $r.Stderr } else { "" }
+        [void]$report.AppendLine("- stderr: $($stderrText.Substring(0, [Math]::Min(800, $stderrText.Length)))")
         [void]$report.AppendLine()
     }
 }

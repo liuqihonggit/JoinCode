@@ -143,7 +143,7 @@ public sealed class MailboxHubTests
     [Fact]
     public async Task RegisterChannel_NamedPipe_ThenSendAsync_RoutesToExtraChannel()
     {
-        var namedPipeMailbox = new InProcessMailbox();
+        await using var namedPipeMailbox = new InProcessMailbox();
         await namedPipeMailbox.RegisterAgentAsync("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
@@ -166,7 +166,7 @@ public sealed class MailboxHubTests
     }
 
     [Fact]
-    public void IsChannelAvailable_ReturnsCorrectAvailability()
+    public async Task IsChannelAvailable_ReturnsCorrectAvailability()
     {
         var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
 
@@ -175,7 +175,8 @@ public sealed class MailboxHubTests
         hub.IsChannelAvailable(MailboxKind.NamedPipe).Should().BeFalse();
         hub.IsChannelAvailable(MailboxKind.Network).Should().BeFalse();
 
-        hub.RegisterChannel(MailboxKind.NamedPipe, new InProcessMailbox());
+        await using var namedPipeMailbox = new InProcessMailbox();
+        hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
         hub.IsChannelAvailable(MailboxKind.NamedPipe).Should().BeTrue();
     }
 
@@ -197,7 +198,7 @@ public sealed class MailboxHubTests
     [Fact]
     public async Task SendAsync_AutoRoute_RoutesToRegisteredKind()
     {
-        var namedPipeMailbox = new InProcessMailbox();
+        await using var namedPipeMailbox = new InProcessMailbox();
         await namedPipeMailbox.RegisterAgentAsync("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
@@ -217,9 +218,9 @@ public sealed class MailboxHubTests
             .Returns(Task.CompletedTask);
         _inProcessMock.Setup(m => m.GetRegisteredAgents()).Returns([]);
 
-        var namedPipeMailbox = new InProcessMailbox();
+        await using var namedPipeMailbox = new InProcessMailbox();
         await namedPipeMailbox.RegisterAgentAsync("agent1");
-        var networkMailbox = new InProcessMailbox();
+        await using var networkMailbox = new InProcessMailbox();
         await networkMailbox.RegisterAgentAsync("agent2");
 
         var hub = new MailboxHub(_inProcessMock.Object);
@@ -235,7 +236,7 @@ public sealed class MailboxHubTests
     [Fact]
     public async Task RegisterAgentAsync_WithKind_StoresChannelPreference()
     {
-        var namedPipeMailbox = new InProcessMailbox();
+        await using var namedPipeMailbox = new InProcessMailbox();
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);
 
@@ -270,7 +271,7 @@ public sealed class MailboxHubTests
     [Fact]
     public async Task ReceiveAsync_FromNamedPipeChannel_ReturnsMessages()
     {
-        var namedPipeMailbox = new InProcessMailbox();
+        await using var namedPipeMailbox = new InProcessMailbox();
         await namedPipeMailbox.RegisterAgentAsync("agent1");
         var hub = new MailboxHub(_inProcessMock.Object);
         hub.RegisterChannel(MailboxKind.NamedPipe, namedPipeMailbox);

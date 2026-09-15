@@ -17,7 +17,7 @@ public sealed class InProcessMailboxDedupTests
     [Fact]
     public async Task SendAsync_SameMessageId_SecondCallReturnsFalse()
     {
-        var mailbox = new InProcessMailbox();
+        await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
         var msg = CreateMessage("msg-001");
 
@@ -31,7 +31,7 @@ public sealed class InProcessMailboxDedupTests
     [Fact]
     public async Task SendAsync_DifferentMessageId_BothDelivered()
     {
-        var mailbox = new InProcessMailbox();
+        await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
 
         var first = await mailbox.SendAsync("agent1", CreateMessage("msg-001"));
@@ -44,7 +44,7 @@ public sealed class InProcessMailboxDedupTests
     [Fact]
     public async Task DeliverInboundAsync_SameMessageId_SecondCallSkipped()
     {
-        var mailbox = new InProcessMailbox();
+        await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
         var msg = CreateMessage("msg-001");
 
@@ -64,7 +64,7 @@ public sealed class InProcessMailboxDedupTests
     [Fact]
     public async Task SendAsync_DifferentAgent_SameMessageId_BothDelivered()
     {
-        var mailbox = new InProcessMailbox();
+        await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
         mailbox.RegisterAgent("agent2");
         var msg = CreateMessage("msg-001");
@@ -79,7 +79,7 @@ public sealed class InProcessMailboxDedupTests
     [Fact]
     public async Task UnregisterAgent_AfterUnregister_SameMessageId_CanDeliverAgain()
     {
-        var mailbox = new InProcessMailbox();
+        await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
         var msg = CreateMessage("msg-001");
 
@@ -100,7 +100,7 @@ public sealed class InProcessMailboxDedupTests
             .Setup(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MailboxMessage { MessageId = "x", FromAgentId = "a", ToAgentId = "b", MessageType = "t", Content = "c", SessionId = "s" });
 
-        var mailbox = new InProcessMailbox(null, fileMailboxMock.Object);
+        await using var mailbox = new InProcessMailbox(null, fileMailboxMock.Object);
         mailbox.RegisterAgent("agent1", "session1");
         var msg = CreateMessage("msg-001");
 

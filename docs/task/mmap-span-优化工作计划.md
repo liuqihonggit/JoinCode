@@ -60,33 +60,25 @@
 
 ## 待做：类型1 大文件 Split → LineSpanIndexer（收益高）
 
-### T1-高1: GitHubToolHandlers.Run FillMemoryCacheFromRaw — 解析 GitHub Actions 日志【高收益】
+### T1-高1: GitHubToolHandlers.Run FillMemoryCacheFromRaw ✅ 已实现
 
-- **文件**: `services/Mcp/src/GitHub/GitHubToolHandlers.Run.cs:312`
-- **热点**: `rawContent.Split('\n')` — 几万行日志 Split，分配几万个 string[]
-- **优化**: `LineSpanIndexer.BuildLineRanges` 零分配遍历行
-- **收益**: **高** — AGENTS.md 记载"失败日志动辄几万行"，`gh run view` 热路径
+- **文件**: `kit/mcp/git_hub/GitHubToolHandlers.Run.cs:486`
+- **实现**: `LineSpanIndexer.BuildLineRanges` 零分配遍历行，已落地
 
-### T1-高2: DiagnosticLogWatcher — 读取诊断日志文件后 Split【高收益】
+### T1-高2: DiagnosticLogWatcher ❌ 文件不存在（已删除/重命名）
 
-- **文件**: `core/ai/Agents/src/Doctor/DiagnosticLogWatcher.cs:92-95`
-- **热点**: `ReadAllTextAsync` + `Split('\n')` — 持续监控，每次有新内容重新读整个文件 + Split
-- **优化**: `MappedFileReader` + `LineSpanIndexer` 避免 ReadAllTextAsync 大字符串分配
-- **收益**: **高** — Doctor 诊断引擎持续监控路径，日志文件不断增长，高频调用
+- **文件**: `core/ai/Agents/src/Doctor/DiagnosticLogWatcher.cs` — 文件已不存在
+- **状态**: 废案 — 目标文件已被删除或重命名，无需优化
 
-### T1-高3: GitHubToolHandlers TruncateLines — 截断大日志输出【高收益】
+### T1-高3: GitHubToolHandlers TruncateLines ✅ 已实现
 
-- **文件**: `services/Mcp/src/GitHub/GitHubToolHandlers.cs:82`
-- **热点**: `output.Split('\n')` — 几万行 Split 后只取前 N 行，浪费严重
-- **优化**: `LineSpanIndexer` 遍历前 `maxLines` 行，避免分配完整数组
-- **收益**: **高** — 输入是 `gh run view --log` 完整日志（几万行），注释明确"避免大日志撑爆 LLM 上下文"
+- **文件**: `kit/mcp/git_hub/GitHubToolHandlers.cs:91`
+- **实现**: `LineSpanIndexer.BuildLineRanges` 遍历前 `maxLines` 行，已落地
 
-### T1-高4: ContextFoldDecider — 压缩工具结果 Split【高收益】
+### T1-高4: ContextFoldDecider ✅ 已实现
 
-- **文件**: `core/execution/Brain/src/ContextFold/ContextFoldDecider.cs:284`
-- **热点**: `content.Split('\n')` — 工具结果 Split 后 `Take(head)` + `TakeLast(tail)`
-- **优化**: `LineSpanIndexer` 零分配获取头 N 行 + 尾 M 行
-- **收益**: **高** — 工具结果（文件内容/命令输出/搜索结果）可能很大，上下文折叠是对话热路径
+- **文件**: `kit/brain/context_fold/ContextFoldDecider.cs:334`
+- **实现**: `LineSpanIndexer.BuildLineRanges` 零分配获取头 N 行 + 尾 M 行，已落地
 
 ---
 

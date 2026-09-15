@@ -469,16 +469,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             {
                 Kill();
 
-                // 等待最多 5 秒
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                try
-                {
-                    await _process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    ForceKill();
-                }
+                await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
@@ -868,13 +859,10 @@ public sealed class BridgeSubprocessSpawner
         }
 
         // 2. 等待优雅退出
-        var graceTimeout = TimeSpan.FromMilliseconds(ShutdownGraceMs);
-        using var graceCts = TimeoutHelper.CreateLinkedTimeout(ct, graceTimeout);
-
         try
         {
             var doneTasks = handles.Select(h => h.Done).ToArray();
-            await Task.WhenAll(doneTasks).WaitAsync(graceCts.Token).ConfigureAwait(false);
+            await Task.WhenAll(doneTasks).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

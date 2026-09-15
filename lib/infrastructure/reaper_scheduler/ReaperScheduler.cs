@@ -100,7 +100,7 @@ public sealed partial class ReaperScheduler : IDisposable
         _cts.Cancel();
         _signals.CompleteAdding();
         if (_scanThread.IsAlive)
-            _scanThread.Join(TimeSpan.FromSeconds(5));
+            _scanThread.Join();
         _cts.Dispose();
         _signals.Dispose();
     }

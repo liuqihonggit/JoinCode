@@ -388,7 +388,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         _decayTimer?.Dispose();
         try
         {
-            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+            _ = DisposeAsync().AsTask();
         }
         catch (Exception ex)
         {

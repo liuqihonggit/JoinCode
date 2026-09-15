@@ -356,7 +356,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         _autoSaveTimer = null;
         try
         {
-            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+            _ = DisposeAsync().AsTask();
         }
         catch (Exception ex)
         {

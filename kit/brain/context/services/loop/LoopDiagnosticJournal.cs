@@ -128,7 +128,7 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>, ID
     {
         try
         {
-            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+            _ = DisposeAsync().AsTask();
         }
         catch (Exception ex)
         {

@@ -150,7 +150,7 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
         _timer.Dispose();
         try
         {
-            DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+            _ = DisposeAsync().AsTask();
         }
         catch (Exception ex)
         {

@@ -22,6 +22,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     private volatile SubAgentConcurrencyOptions _concurrencyOptions;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
     private readonly GoalStateUpdater _stateUpdater;
+    private readonly RetryHandler _retryHandler;
 
     /// <summary>
     /// 构造 GoalGraphEngine — 注入聊天客户端、评估器、服务提供器及各类可选依赖
@@ -62,6 +63,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         _teamManager = serviceProvider.GetService<ITeamManager>();
         _concurrencyOptions = concurrencyOptions ?? serviceProvider.GetService<SubAgentConcurrencyOptions>() ?? new SubAgentConcurrencyOptions();
         _stateUpdater = new GoalStateUpdater(_clock);
+        _retryHandler = new RetryHandler(_nodeInspector, _logger);
     }
 
     /// <summary>
@@ -259,7 +261,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         {
             context.FailedNodes.TryAdd(nodeId, default);
 
-            var failureOutcome = CheckFailureRateTermination(context);
+            var failureOutcome = _retryHandler.CheckFailureRateTermination(context);
             if (failureOutcome is not null)
                 return failureOutcome.Value;
 
@@ -300,7 +302,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         {
             if (context.CompletedNodes.ContainsKey(nextId))
             {
-                await HandleRetryAsync(nextId, context, ct).ConfigureAwait(false);
+                await _retryHandler.HandleRetryAsync(nextId, context, ct).ConfigureAwait(false);
             }
             else
             {
@@ -316,29 +318,6 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         }
 
         return NodeCompletionOutcome.Continue;
-    }
-
-    /// <summary>
-    /// P1-4: 失败率终止检查 — 至少3个节点完成且失败率>50% 时返回 GoalUnmet。
-    /// 阈值3避免小图误触发（2节点1失败=50%不触发，3节点2失败=66%触发）。
-    /// </summary>
-    private NodeCompletionOutcome? CheckFailureRateTermination(GraphExecutionContext context)
-    {
-        var totalFinished = context.CompletedNodes.Count + context.FailedNodes.Count;
-        if (totalFinished >= 3 && (double)context.FailedNodes.Count / totalFinished > 0.5)
-        {
-            _logger?.LogInformation("[GoalGraph] 失败率过高终止: {Failed}/{Total}",
-                context.FailedNodes.Count, totalFinished);
-            return NodeCompletionOutcome.GoalUnmet;
-        }
-        return null;
-    }
-
-    private enum NodeCompletionOutcome
-    {
-        Continue,
-        GoalAchieved,
-        GoalUnmet,
     }
 
     private async Task ExecuteNodeAsync(string nodeId, DagNode<GoalNodePayload> dagNode, GraphExecutionContext context, CancellationToken ct)
@@ -543,42 +522,6 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         return await fn(nodeContext).ConfigureAwait(false);
     }
 
-    private sealed class GoalGraphMutator : IGoalGraphMutator
-    {
-        private readonly GraphExecutionContext _context;
-        private readonly ILogger? _logger;
-
-        public GoalGraphMutator(GraphExecutionContext context, ILogger? logger)
-        {
-            _context = context;
-            _logger = logger;
-        }
-
-        public void AddNode(string nodeId, GoalNodePayload payload)
-        {
-            _context.Graph.Dag.AddNode(new DagNode<GoalNodePayload> { Id = nodeId, Payload = payload });
-            _logger?.LogInformation("[GoalGraphMutator] 动态添加节点: {NodeId}", nodeId);
-        }
-
-        public void AddEdge(string edgeId, string fromId, string toId, string? label = null)
-        {
-            _context.Graph.Dag.AddEdge(new DagEdge { Id = edgeId, FromId = fromId, ToId = toId, Label = label ?? string.Empty });
-            _logger?.LogInformation("[GoalGraphMutator] 动态添加边: {EdgeId} ({FromId} → {ToId})", edgeId, fromId, toId);
-        }
-
-        public void EnqueueNode(string nodeId)
-        {
-            _context.ReadyQueue.Enqueue(nodeId);
-            _logger?.LogInformation("[GoalGraphMutator] 入队节点: {NodeId}", nodeId);
-        }
-
-        public void AddEndNode(string nodeId)
-        {
-            _context.Graph.AddEndNode(nodeId);
-            _logger?.LogInformation("[GoalGraphMutator] 添加终止节点: {NodeId}", nodeId);
-        }
-    }
-
     private Task<NodeResult> ExecuteJoinNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
     {
         var upstreamOutputs = context.CollectUpstreamOutputs(nodeId);
@@ -616,71 +559,6 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         }
 
         return Task.FromResult(NodeResult.Succeeded(sb.ToString().TrimEnd()));
-    }
-
-    private async Task HandleRetryAsync(string targetNodeId, GraphExecutionContext context, CancellationToken ct)
-    {
-        var retryCount = context.RetryCount.GetValueOrDefault(targetNodeId, 0);
-
-        if (_nodeInspector is not null && context.Graph.Dag.Nodes.TryGetValue(targetNodeId, out var targetNode))
-        {
-            var output = targetNode.Payload.Output ?? string.Empty;
-            if (!string.IsNullOrWhiteSpace(output))
-            {
-                var score = await _nodeInspector.ScoreAsync(output, cancellationToken: ct).ConfigureAwait(false);
-                var decision = GoalRetryPolicy.Decide(score.Overall, retryCount);
-
-                _logger?.LogInformation("[GoalGraph] 分级重试决策: {NodeId} (分数={Score:F2}, 重试={Retries}, 决策={Decision})",
-                    targetNodeId, score.Overall, retryCount, decision);
-
-                switch (decision)
-                {
-                    case RetryDecision.Accept:
-                        return;
-                    case RetryDecision.Abandon:
-                        targetNode.Payload.Status = GoalNodeStatus.Failed;
-                        targetNode.Payload.ErrorMessage = $"质量分数过低放弃重试 (score={score.Overall:F2}, retries={retryCount})";
-                        return;
-                    case RetryDecision.RetryWithPatch:
-                        break;
-                }
-            }
-        }
-
-        if (retryCount >= context.Graph.MaxRetriesPerNode)
-        {
-            _logger?.LogWarning("[GoalGraph] 回退超过最大重试次数: {NodeId} ({Retries}/{Max})",
-                targetNodeId, retryCount, context.Graph.MaxRetriesPerNode);
-
-            if (context.Graph.Dag.Nodes.TryGetValue(targetNodeId, out var node))
-            {
-                node.Payload.Status = GoalNodeStatus.Failed;
-                node.Payload.ErrorMessage = $"Max retries ({context.Graph.MaxRetriesPerNode}) exceeded";
-            }
-            return;
-        }
-
-        var affected = context.Graph.Dag.GetAffectedSubgraph(targetNodeId);
-        foreach (var node in affected)
-        {
-            node.Payload.Status = GoalNodeStatus.Pending;
-            node.Payload.Output = null;
-            node.Payload.Routes = null;
-            node.Payload.ErrorMessage = null;
-            node.Payload.StartedAt = null;
-            node.Payload.CompletedAt = null;
-            node.Payload.TokensUsed = 0;
-            node.Version++;
-            context.CompletedNodes.TryRemove(node.Id, out _);
-            context.FailedNodes.TryRemove(node.Id, out _);
-        }
-
-        context.RetryCount[targetNodeId] = retryCount + 1;
-        context.GlobalLoopIteration++;
-        context.ReadyQueue.Enqueue(targetNodeId);
-
-        _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点, 全局迭代={GlobalIter})",
-            targetNodeId, retryCount + 1, affected.Count(), context.GlobalLoopIteration);
     }
 
     /// <summary>

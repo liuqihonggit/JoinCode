@@ -1,7 +1,7 @@
 
 namespace Core.Tests.Agents.Coordinator;
 
-public class AgentCoordinatorExtendedTests
+public class AgentCoordinatorExtendedTests : IAsyncLifetime
 {
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
@@ -428,6 +428,14 @@ public class AgentCoordinatorExtendedTests
 
         // Assert
         result.Should().BeTrue();
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public Task DisposeAsync()
+    {
+        _coordinator.Dispose();
+        return Task.CompletedTask;
     }
 }
 

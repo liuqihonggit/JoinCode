@@ -10,7 +10,18 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
     private const int StepMs = 80;
     private const int MaxParentTraversal = 16;
 
+    private static IntPtr s_startupWindow = IntPtr.Zero;
+
     private readonly ILogger<Win32WindowShakeService>? _logger;
+
+    /// <summary>
+    /// 在进程启动时捕获前台窗口句柄 — 此时前台窗口最可能是 jcc 自己的终端窗口。
+    /// 应在 Program 入口最早处调用。
+    /// </summary>
+    public static void CaptureStartupWindow()
+    {
+        s_startupWindow = User32NativeMethods.GetForegroundWindow();
+    }
 
     /// <summary>
     /// 构造 Win32 窗口震动服务。
@@ -25,14 +36,14 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
     /// 震动当前进程窗口 — X 轴阻尼偏移动画 + 任务栏闪烁，总时长约 880ms。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>震动目标描述；空字符串表示无法震动。</returns>
-    public async Task<string> ShakeWindowAsync(CancellationToken cancellationToken = default)
+    /// <returns>震动结果；null 表示无法震动。</returns>
+    public async Task<ShakeResult?> ShakeWindowAsync(CancellationToken cancellationToken = default)
     {
         var (hwnd, source) = ResolveShakeableWindow();
         if (hwnd == IntPtr.Zero)
         {
             _logger?.LogWarning("无法找到可震动的窗口句柄");
-            return "";
+            return null;
         }
 
         var title = GetWindowTitle(hwnd);
@@ -41,7 +52,7 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
         if (!User32NativeMethods.GetWindowRect(hwnd, out var rect))
         {
             _logger?.LogWarning("GetWindowRect 失败，无法震动");
-            return "";
+            return null;
         }
 
         var width = rect.Right - rect.Left;
@@ -54,26 +65,26 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
             await Task.Delay(StepMs, cancellationToken).ConfigureAwait(false);
         }
 
-        return $"标题=\"{title}\" 句柄=0x{hwnd.ToInt64():X} 来源={source}";
+        return new ShakeResult(title, $"0x{hwnd.ToInt64():X}", source);
     }
 
     /// <summary>
     /// 闪烁任务栏图标 — 通过 <c>FlashWindowEx</c> 闪烁 5 次。
     /// </summary>
     /// <param name="cancellationToken">取消令牌。</param>
-    /// <returns>震动目标描述；空字符串表示无法闪烁。</returns>
-    public Task<string> FlashTaskbarAsync(CancellationToken cancellationToken = default)
+    /// <returns>震动结果；null 表示无法闪烁。</returns>
+    public Task<ShakeResult?> FlashTaskbarAsync(CancellationToken cancellationToken = default)
     {
         var (hwnd, source) = ResolveShakeableWindow();
         if (hwnd == IntPtr.Zero)
         {
             _logger?.LogWarning("无法找到可闪烁的窗口句柄");
-            return Task.FromResult("");
+            return Task.FromResult<ShakeResult?>(null);
         }
 
         FlashTaskbarCore(hwnd);
         var title = GetWindowTitle(hwnd);
-        return Task.FromResult($"标题=\"{title}\" 句柄=0x{hwnd.ToInt64():X} 来源={source}");
+        return Task.FromResult<ShakeResult?>(new ShakeResult(title, $"0x{hwnd.ToInt64():X}", source));
     }
 
     /// <summary>
@@ -87,6 +98,25 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
         {
             _logger?.LogInformation("使用控制台窗口句柄 {Hwnd}", consoleHwnd);
             return (consoleHwnd, "控制台窗口");
+        }
+
+        var dirName = Path.GetFileName(Environment.CurrentDirectory);
+        if (!string.IsNullOrEmpty(dirName))
+        {
+            var dirHwnd = FindWindowByTitleSubstring(dirName);
+            if (dirHwnd != IntPtr.Zero)
+            {
+                var dirTitle = GetWindowTitle(dirHwnd);
+                _logger?.LogInformation("按目录名\"{DirName}\"找到窗口句柄 {Hwnd} 标题=\"{Title}\"", dirName, dirHwnd, dirTitle);
+                return (dirHwnd, $"目录名匹配(\"{dirName}\")");
+            }
+        }
+
+        if (s_startupWindow != IntPtr.Zero && IsWindowShakeable(s_startupWindow))
+        {
+            var startupTitle = GetWindowTitle(s_startupWindow);
+            _logger?.LogInformation("使用启动时捕获的窗口句柄 {Hwnd} 标题=\"{Title}\"", s_startupWindow, startupTitle);
+            return (s_startupWindow, "启动时前台窗口");
         }
 
         var currentPid = (uint)Environment.ProcessId;
@@ -252,6 +282,50 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
         }
 
         return rect.Right - rect.Left > 0 && rect.Bottom - rect.Top > 0;
+    }
+
+    /// <summary>
+    /// 按标题子串搜索窗口 — 找到标题包含指定子串的可见顶层窗口，多个匹配选面积最大的。
+    /// </summary>
+    private static IntPtr FindWindowByTitleSubstring(string titleSubstring)
+    {
+        var ctx = new TitleSearchContext(titleSubstring);
+        var handle = System.Runtime.InteropServices.GCHandle.Alloc(ctx);
+        try
+        {
+            User32NativeMethods.EnumWindows(static (hwnd, lParam) =>
+            {
+                if (!User32NativeMethods.IsWindowVisible(hwnd))
+                    return true;
+                var title = GetWindowTitle(hwnd);
+                if (string.IsNullOrEmpty(title) || title is "Program Manager")
+                    return true;
+                var c = (TitleSearchContext)System.Runtime.InteropServices.GCHandle.FromIntPtr(lParam).Target!;
+                if (!title.Contains(c.Substring, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                if (!User32NativeMethods.GetWindowRect(hwnd, out var rect))
+                    return true;
+                var area = (rect.Right - rect.Left) * (rect.Bottom - rect.Top);
+                if (area > 0 && area > c.BestArea)
+                {
+                    c.BestHwnd = hwnd;
+                    c.BestArea = area;
+                }
+                return true;
+            }, System.Runtime.InteropServices.GCHandle.ToIntPtr(handle));
+        }
+        finally
+        {
+            handle.Free();
+        }
+        return ctx.BestHwnd;
+    }
+
+    private sealed class TitleSearchContext(string substring)
+    {
+        public readonly string Substring = substring;
+        public IntPtr BestHwnd = IntPtr.Zero;
+        public int BestArea;
     }
 
     /// <summary>

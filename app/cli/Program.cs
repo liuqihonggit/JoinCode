@@ -7,8 +7,11 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
-        // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P-Invoke 之前）
+        // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P/Invoke 之前）
         Entry.Startup.NativeDllBootstrapper.Initialize();
+
+        // 启动时捕获前台窗口 — 此时前台窗口最可能是 jcc 自己的终端窗口
+        Hands.Desktop.Win32WindowShakeService.CaptureStartupWindow();
 
         // 密钥红线检查 — 禁止在命令行参数中传递 API Key
         var secretWarning = Cli.Output.ApiKeyRedLine.CheckArgsForSecrets(args);

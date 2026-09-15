@@ -478,7 +478,7 @@ public sealed partial class BridgeMain
         if (_asyncDisposed == 1) return;
         _loopCts?.Dispose();
         _pointerRefreshTimer?.Dispose();
-        _tokenRefresh?.DisposeAsync().GetAwaiter().GetResult();
+        _ = _tokenRefresh?.DisposeAsync().AsTask();
         _cleanupLock.Dispose();
     }
 

@@ -107,14 +107,10 @@ public sealed partial class MainWindow : Window
         if (_vm is not null)
         {
             _vm.ScrollToBottomRequested -= OnScrollToBottomRequested;
-            try
+            _ = _vm.DisposeAsync().AsTask().ContinueWith(t =>
             {
-                _vm.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3));
-            }
-            catch (Exception ex)
-            {
-                App.LogDiag($"[MainWindow] DisposeAsync failed: {ex.Message}");
-            }
+                if (t.IsFaulted) App.LogDiag($"[MainWindow] DisposeAsync failed: {t.Exception?.Message}");
+            }, TaskScheduler.Default);
         }
         Closed -= OnWindowClosed;
     }

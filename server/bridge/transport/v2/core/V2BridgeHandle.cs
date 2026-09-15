@@ -270,7 +270,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
             ct).ConfigureAwait(false);
 
         // 关闭传输
-        await _transport.CloseAsync(ct).ConfigureAwait(false);
+        await _transport.DisposeAsync().ConfigureAwait(false);
         _disposeCts.Cancel();
 
         _bridgeState = BridgeState.Disconnected;

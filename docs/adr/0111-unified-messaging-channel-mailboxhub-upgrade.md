@@ -1,6 +1,6 @@
 # 0111. 统一消息通道 — MailboxHub 升级为四通道路由 + 聊天室统一表达
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-16
 - 决策者：用户 + AI
 - 前置：ADR 0108（MailboxBase 统一基类）、ADR 0110（IPlatformBotAdapter 适配器）、ADR 0109（聊天室 = 团队 + 广播）

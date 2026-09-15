@@ -76,7 +76,9 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable
                     PipeDirection.InOut,
                     NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous);
+                    PipeOptions.Asynchronous,
+                    inBufferSize: 65536,
+                    outBufferSize: 65536);
 
                 _logger.LogInformation("[MockServer] 等待客户端连接...");
                 await pipeServer.WaitForConnectionAsync(ct).ConfigureAwait(true);

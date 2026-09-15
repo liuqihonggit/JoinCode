@@ -30,9 +30,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        // 守卫：StopAsync 可能卡住，5 秒超时保护
-        using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        try { await _server.StopAsync(stopCts.Token).ConfigureAwait(true); }
+        try { await _server.StopAsync(CancellationToken.None).ConfigureAwait(true); }
         catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose server failed: {ex.Message}"); }
         _cts.Dispose();
     }

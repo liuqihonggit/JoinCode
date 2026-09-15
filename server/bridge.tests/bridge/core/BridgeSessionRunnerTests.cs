@@ -23,15 +23,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        try
-        {
-            await _sut.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"DisposeAsync timed out during test cleanup: {ex.Message}");
-        }
+        await _sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]

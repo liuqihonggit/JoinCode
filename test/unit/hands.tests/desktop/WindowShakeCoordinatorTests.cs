@@ -47,4 +47,32 @@ public sealed class WindowShakeCoordinatorTests
         c1.TryAcquireShakeSlot().Should().BeTrue();
         c2.TryAcquireShakeSlot().Should().BeTrue();
     }
+
+    [Fact]
+    public void IsShakeEnabled_NoProvider_ReturnsTrue()
+    {
+        var coordinator = new WindowShakeCoordinator();
+        coordinator.IsShakeEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsShakeEnabled_ProviderReturnsTrue_ReturnsTrue()
+    {
+        var coordinator = new WindowShakeCoordinator(() => true);
+        coordinator.IsShakeEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsShakeEnabled_ProviderReturnsFalse_ReturnsFalse()
+    {
+        var coordinator = new WindowShakeCoordinator(() => false);
+        coordinator.IsShakeEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsShakeEnabled_ProviderReturnsNull_ReturnsTrue()
+    {
+        var coordinator = new WindowShakeCoordinator(() => null);
+        coordinator.IsShakeEnabled.Should().BeTrue();
+    }
 }

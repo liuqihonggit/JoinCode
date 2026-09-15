@@ -11,4 +11,9 @@ public interface IWindowShakeCoordinator
     /// </summary>
     /// <returns>true 表示获取成功可执行震动；false 表示 1 秒内已震动过，应跳过。</returns>
     bool TryAcquireShakeSlot();
+
+    /// <summary>
+    /// 震动功能是否启用 — 读取用户配置 WindowShakeEnabled，默认 true。
+    /// </summary>
+    bool IsShakeEnabled { get; }
 }

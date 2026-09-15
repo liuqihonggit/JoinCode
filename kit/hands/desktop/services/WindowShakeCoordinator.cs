@@ -18,6 +18,28 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     private const int ShakeIntervalMs = 1000;
 
     /// <summary>
+    /// 配置提供回调 — 返回 WindowShakeEnabled 配置值，null 表示未配置（默认启用）。
+    /// </summary>
+    private readonly Func<bool?>? _shakeEnabledProvider;
+
+    /// <summary>
+    /// 构造窗口震动去抖协调器。
+    /// </summary>
+    /// <param name="shakeEnabledProvider">震动开关配置提供回调（可选）。</param>
+    /// <param name="logger">日志记录器（可选）。</param>
+    public WindowShakeCoordinator(
+        Func<bool?>? shakeEnabledProvider = null,
+        ILogger<WindowShakeCoordinator>? logger = null)
+    {
+        _shakeEnabledProvider = shakeEnabledProvider;
+    }
+
+    /// <summary>
+    /// 震动功能是否启用 — 读取配置，默认 true。
+    /// </summary>
+    public bool IsShakeEnabled => _shakeEnabledProvider?.Invoke() ?? true;
+
+    /// <summary>
     /// 尝试获取震动时间槽。1 秒内只允许一次成功。
     /// </summary>
     /// <returns>true 表示可执行震动；false 表示 1 秒内已震动过。</returns>

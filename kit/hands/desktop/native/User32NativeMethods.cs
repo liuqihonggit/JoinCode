@@ -82,6 +82,9 @@ internal static class User32NativeMethods
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
 
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetParent(IntPtr hWnd);
+
     public const uint FLASHW_STOP = 0x00000000;
     public const uint FLASHW_CAPTION = 0x00000001;
     public const uint FLASHW_TRAY = 0x00000002;

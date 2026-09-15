@@ -117,30 +117,30 @@ jobs:
           path: |
             ${{ github.workspace }}/artifacts/bin
             ${{ github.workspace }}/artifacts/obj
-          key: build-${{ runner.os }}-${{ hashFiles('**/*.cs', '**/*.csproj', 'Directory.Build.props', '**/*.slnx') }}
+          key: build-v2-${{ runner.os }}-${{ hashFiles('**/*.cs', '**/*.csproj', 'Directory.Build.props', '**/*.slnx') }}
           restore-keys: |
-            build-${{ runner.os }}-
+            build-v2-${{ runner.os }}-
 
       - name: Build - ① Generators
-        run: dotnet build build/sln/Generators.slnx -c Debug --nologo -m /p:SkipLocalPack=true
+        run: dotnet build build/sln/Generators.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
 
       - name: Build - ② Foundation
-        run: dotnet build build/sln/Foundation.slnx -c Debug --nologo -m /p:SkipLocalPack=true
+        run: dotnet build build/sln/Foundation.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
 
       - name: Build - ③ Infrastructure
-        run: dotnet build build/sln/Infrastructure.slnx -c Debug --nologo -m /p:SkipLocalPack=true
+        run: dotnet build build/sln/Infrastructure.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
 
       - name: Build - ④ Core
-        run: dotnet build build/sln/Core.slnx -c Debug --nologo -m /p:SkipLocalPack=true
+        run: dotnet build build/sln/Core.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
 
       - name: Build - ⑤ Services
-        run: dotnet build build/sln/Services.slnx -c Debug --nologo -m /p:SkipLocalPack=true
+        run: dotnet build build/sln/Services.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
 
       - name: Build - ⑥ Composition
-        run: dotnet build build/sln/Composition.slnx -c Debug --nologo -m /p:SkipLocalPack=true
+        run: dotnet build build/sln/Composition.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
 
       - name: Build - ⑦ App
-        run: dotnet build build/sln/App.slnx -c Debug --nologo -m /p:SkipLocalPack=true
+        run: dotnet build build/sln/App.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true
 
       - name: Run Stryker
         shell: pwsh

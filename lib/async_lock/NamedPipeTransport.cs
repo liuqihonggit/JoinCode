@@ -193,6 +193,7 @@ public sealed class NamedPipeTransport : ITransportTopology
             await BinaryProtocol.WriteLineRawAsync(server, $"HOST:{ProcessId}", ct).ConfigureAwait(false);
 
             var firstMsg = await BinaryProtocol.ReadAsync(server, ct).ConfigureAwait(false);
+            TransportDiagnostics.Log("NP", () => $"host recv handshake: type={firstMsg.Type}, payload={Encoding.UTF8.GetString(firstMsg.Payload.Span)}");
             if (firstMsg.Type == MessageType.Control)
             {
                 var text = Encoding.UTF8.GetString(firstMsg.Payload.Span);
@@ -215,6 +216,7 @@ public sealed class NamedPipeTransport : ITransportTopology
                 slavePid,
                 Encoding.UTF8.GetBytes($"HOST:{ProcessId}"));
             await server.WriteAsync(handshake, ct).ConfigureAwait(false);
+            TransportDiagnostics.Log("NP", () => $"host sent ACK to slave {slavePid}");
 
             var conn = new PipeConnection(slavePid, server, _logger);
             _connections[slavePid] = conn;
@@ -222,6 +224,7 @@ public sealed class NamedPipeTransport : ITransportTopology
 
             await foreach (var msg in conn.ReadMessagesAsync(ct).ConfigureAwait(false))
             {
+                TransportDiagnostics.Log("NP", () => $"host recv msg: type={msg.Type}, source={msg.SourcePid}, target={msg.TargetPid}, len={msg.Payload.Length}");
                 if (msg.Type == MessageType.Data && msg.TargetPid is not null)
                 {
                     if (_connections.TryGetValue(msg.TargetPid, out var targetConn))
@@ -247,9 +250,10 @@ public sealed class NamedPipeTransport : ITransportTopology
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { TransportDiagnostics.Log("NP", () => $"HandleHostConnection cancelled, slave={slavePid}"); }
         catch (Exception ex)
         {
+            TransportDiagnostics.Log("NP", () => $"HandleHostConnection error: {ex.GetType().Name}: {ex.Message}, slave={slavePid}");
             _logger?.LogError(ex, "NamedPipeTransport: host connection error for slave {Slave}", slavePid);
         }
         finally
@@ -269,6 +273,7 @@ public sealed class NamedPipeTransport : ITransportTopology
         {
             await foreach (var msg in BinaryProtocol.ReadStreamAsync(_slaveClient, ct).ConfigureAwait(false))
             {
+                TransportDiagnostics.Log("NP", () => $"slave recv msg: type={msg.Type}, source={msg.SourcePid}, len={msg.Payload.Length}");
                 if (msg.Type is MessageType.Data or MessageType.Broadcast)
                 {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));

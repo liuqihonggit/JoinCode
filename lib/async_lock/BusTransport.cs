@@ -192,6 +192,7 @@ public sealed class BusTransport : ITransportTopology
             await BinaryProtocol.WriteLineRawAsync(server, $"HOST:{ProcessId}", ct).ConfigureAwait(false);
 
             var firstMsg = await BinaryProtocol.ReadAsync(server, ct).ConfigureAwait(false);
+            TransportDiagnostics.Log("BUS", () => $"host recv handshake: type={firstMsg.Type}, payload={Encoding.UTF8.GetString(firstMsg.Payload.Span)}");
             if (firstMsg.Type == MessageType.Control)
             {
                 var text = Encoding.UTF8.GetString(firstMsg.Payload.Span);
@@ -214,6 +215,7 @@ public sealed class BusTransport : ITransportTopology
                 slavePid,
                 Encoding.UTF8.GetBytes($"BUS_HOST:{ProcessId}"));
             await server.WriteAsync(ack, ct).ConfigureAwait(false);
+            TransportDiagnostics.Log("BUS", () => $"host sent ACK to slave {slavePid}");
 
             var conn = new BusClientConnection(slavePid, server, _logger);
             _clientConnections[slavePid] = conn;
@@ -221,6 +223,7 @@ public sealed class BusTransport : ITransportTopology
 
             await foreach (var msg in conn.ReadMessagesAsync(ct).ConfigureAwait(false))
             {
+                TransportDiagnostics.Log("BUS", () => $"host recv msg: type={msg.Type}, source={msg.SourcePid}, len={msg.Payload.Length}");
                 if (msg.Type is MessageType.Data or MessageType.Broadcast)
                 {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));
@@ -234,9 +237,10 @@ public sealed class BusTransport : ITransportTopology
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { TransportDiagnostics.Log("BUS", () => $"HandleBusConnection cancelled, slave={slavePid}"); }
         catch (Exception ex)
         {
+            TransportDiagnostics.Log("BUS", () => $"HandleBusConnection error: {ex.GetType().Name}: {ex.Message}, slave={slavePid}");
             _logger?.LogError(ex, "BusTransport: connection error for slave {Slave}", slavePid);
         }
         finally
@@ -256,6 +260,7 @@ public sealed class BusTransport : ITransportTopology
         {
             await foreach (var msg in BinaryProtocol.ReadStreamAsync(_slaveClient, ct).ConfigureAwait(false))
             {
+                TransportDiagnostics.Log("BUS", () => $"slave recv msg: type={msg.Type}, source={msg.SourcePid}, len={msg.Payload.Length}");
                 if (msg.Type is MessageType.Data or MessageType.Broadcast)
                 {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));

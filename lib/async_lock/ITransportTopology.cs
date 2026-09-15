@@ -130,6 +130,40 @@ public sealed record BuildQueueState
 }
 
 /// <summary>
+/// 传输层诊断开关 — 一键开启/关闭所有 Transport 路径的 stderr 诊断输出。
+/// <para>调试时在测试开头设 <c>TransportDiagnostics.Enabled = true</c>,结束设 <c>false</c>。</para>
+/// <para>无需再手写临时 <c>Console.Error.WriteLine</c> 诊断代码 — 所有关键路径已埋点,开关控制输出。</para>
+/// <para>生产环境默认 <c>false</c>,零开销(仅一个 bool 读 + lambda 不构造)。</para>
+/// </summary>
+public static class TransportDiagnostics
+{
+    /// <summary>诊断输出开关 — true 时所有 Transport 关键路径打印到 stderr, false 时静默。</summary>
+    public static bool Enabled;
+
+    /// <summary>
+    /// 记录诊断日志 — 仅在 <see cref="Enabled"/> 为 true 时输出到 stderr。
+    /// <para>用 lambda 延迟构造消息字符串,关闭时零分配。</para>
+    /// </summary>
+    /// <param name="tag">日志标签(如 "MESH", "BUS", "PIPE-ACCEPT")</param>
+    /// <param name="messageFactory">消息构造函数(仅开启时调用)</param>
+    public static void Log(string tag, Func<string> messageFactory)
+    {
+        if (Enabled) Console.Error.WriteLine($"[{tag}] {messageFactory()}");
+    }
+
+    /// <summary>
+    /// 记录诊断日志 — 仅在 <see cref="Enabled"/> 为 true 时输出到 stderr。
+    /// <para>用固定字符串消息,适合简单场景。</para>
+    /// </summary>
+    /// <param name="tag">日志标签</param>
+    /// <param name="message">消息内容</param>
+    public static void Log(string tag, string message)
+    {
+        if (Enabled) Console.Error.WriteLine($"[{tag}] {message}");
+    }
+}
+
+/// <summary>
 /// 管道接受循环辅助 — 封装 NamedPipeServerStream 接受连接的循环+协商式取消,
 /// 消除三个 Transport 的重复代码。取消时通过 ct.Register Dispose server 强制中断 WaitForConnectionAsync。
 /// </summary>
@@ -159,15 +193,16 @@ internal static class PipeAcceptLoop
                 using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
                 await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
                 reg.Unregister();
+                TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");
                 _ = Task.Run(() => handleConnection(server, ct), ct);
             }
             catch (OperationCanceledException) { return; }
             catch (ObjectDisposedException) { return; }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[PIPE-ACCEPT] 连接错误: {ex.Message}");
+                TransportDiagnostics.Log("PIPE-ACCEPT", () => $"连接错误: {ex.Message}");
                 try { server.Dispose(); }
-                catch (Exception) { Console.Error.WriteLine("[PIPE-ACCEPT] server Dispose 失败"); }
+                catch (Exception) { TransportDiagnostics.Log("PIPE-ACCEPT", "server Dispose 失败"); }
             }
         }
     }
@@ -185,7 +220,7 @@ internal static class TaskAwaitHelper
     {
         if (task is null) return;
         try { await task.WaitAsync(timeout).ConfigureAwait(false); }
-        catch (TimeoutException) { Console.Error.WriteLine($"[TASK-AWAIT] 等待任务超时 {timeout.TotalSeconds:F1}s,放弃等待"); }
+        catch (TimeoutException) { TransportDiagnostics.Log("TASK-AWAIT", () => $"等待任务超时 {timeout.TotalSeconds:F1}s,放弃等待"); }
         catch (OperationCanceledException) { }
     }
 }

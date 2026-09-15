@@ -183,6 +183,7 @@ public sealed class MeshTransport : ITransportTopology
         try
         {
             var firstMsg = await BinaryProtocol.ReadAsync(server, ct).ConfigureAwait(false);
+            TransportDiagnostics.Log("MESH", () => $"recv handshake: type={firstMsg.Type}, payload={Encoding.UTF8.GetString(firstMsg.Payload.Span)}");
             if (firstMsg.Type == MessageType.Control)
             {
                 var text = Encoding.UTF8.GetString(firstMsg.Payload.Span);
@@ -194,20 +195,23 @@ public sealed class MeshTransport : ITransportTopology
 
             if (peerPid is not null)
             {
+                TransportDiagnostics.Log("MESH", () => $"peer {peerPid} connected, entering read loop");
                 _logger?.LogDebug("MeshTransport: peer {Peer} connected", peerPid);
             }
 
             await foreach (var msg in BinaryProtocol.ReadStreamAsync(server, ct).ConfigureAwait(false))
             {
+                TransportDiagnostics.Log("MESH", () => $"recv msg: type={msg.Type}, source={msg.SourcePid}, len={msg.Payload.Length}");
                 if (msg.Type is MessageType.Data or MessageType.Broadcast)
                 {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));
                 }
             }
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { TransportDiagnostics.Log("MESH", () => $"HandlePeerConnection cancelled, peer={peerPid}"); }
         catch (Exception ex)
         {
+            TransportDiagnostics.Log("MESH", () => $"HandlePeerConnection error: {ex.GetType().Name}: {ex.Message}, peer={peerPid}");
             _logger?.LogError(ex, "MeshTransport: peer connection error for {Peer}", peerPid);
         }
         finally
@@ -280,13 +284,16 @@ internal sealed class MeshPeerConnection : IAsyncDisposable
             await foreach (var data in _writeQueue.Reader.ReadAllAsync().ConfigureAwait(false))
             {
                 if (Volatile.Read(ref _disposed) != 0) return;
+                TransportDiagnostics.Log("MESH-WRITE", () => $"consume: peer={PeerProcessId}, len={data.Length}");
                 try
                 {
                     await _stream.WriteAsync(data).ConfigureAwait(false);
                     await _stream.FlushAsync().ConfigureAwait(false);
+                    TransportDiagnostics.Log("MESH-WRITE", () => $"write ok: peer={PeerProcessId}");
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
+                    TransportDiagnostics.Log("MESH-WRITE", () => $"write fail: peer={PeerProcessId}, {ex.GetType().Name}: {ex.Message}");
                     _logger?.LogWarning(ex, "MeshPeerConnection: write failed for peer {Pid}", PeerProcessId);
                 }
             }

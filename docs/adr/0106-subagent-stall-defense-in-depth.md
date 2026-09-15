@@ -3,6 +3,8 @@
 > 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 
+> ⚠️ **L1预防设计已废弃** (2026-09-15) — 子代理不能加超时限制（AgentTimeoutSeconds接线），应通过L2检测+L3干预+L4恢复实现卡死防护（均已实现）
+
 - 状态：proposed
 - 日期：2026-09-15
 - 决策者：用户 + AI

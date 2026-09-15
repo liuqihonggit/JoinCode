@@ -3,12 +3,12 @@
 > 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> **状态**:accepted(P0,P1,P3-P9 完成; P2拆分完成[5独立类],事件驱动待实现)
+> **状态**:accepted(P0,P1,P2,P3-P9 全部完成)
 > **日期**:2026-09-05
-> **实现日期**:2026-09-05(P0) | 2026-09-05(P3-P8) | 2026-09-05(P9) | 2026-09-16(P1) | 2026-09-16(P2拆分)
-> **范围**:StreamingToolExecutor(P0) / ForkSubAgentManager(P1,✅Actor化) / GoalGraphEngine(P2,✅拆分5独立类,事件驱动待实现) | McpStdioClient / McpClientToolHandlers / McpAuthToolHandlers / McpTransportFallbackChain / McpServerStateManager / ToolInterventionManager(P3-P8) | SandboxIpcClient(P9)
+> **实现日期**:2026-09-05(P0) | 2026-09-05(P3-P8) | 2026-09-05(P9) | 2026-09-16(P1) | 2026-09-16(P2拆分) | 2026-09-16(P2事件驱动)
+> **范围**:StreamingToolExecutor(P0) / ForkSubAgentManager(P1,✅Actor化) / GoalGraphEngine(P2,✅拆分5独立类+✅事件驱动调度器) | McpStdioClient / McpClientToolHandlers / McpAuthToolHandlers / McpTransportFallbackChain / McpServerStateManager / ToolInterventionManager(P3-P8) | SandboxIpcClient(P9)
 > **目标**:将高风险状态锁改为 Actor+Channel 管道通讯,消除死锁与持锁等外部 IO 风险
-> **验证**:P0 1740 单元测试通过 | P1 14 Actor测试+13旧测试通过 | P2 42测试无回归 | P3-P8 172 Mcp 单元测试通过 | P9 135 Guard.Security 测试通过
+> **验证**:P0 1740 单元测试通过 | P1 14 Actor测试+13旧测试通过 | P2 437测试通过(432旧+5新EventDriven行为等价) | P3-P8 172 Mcp 单元测试通过 | P9 135 Guard.Security 测试通过
 
 ---
 

@@ -24,6 +24,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     private readonly GoalStateUpdater _stateUpdater;
     private readonly RetryHandler _retryHandler;
     private readonly NodeExecutorDispatcher _nodeExecutor;
+    private readonly NodeCompletionPipeline _completionPipeline;
 
     /// <summary>
     /// 构造 GoalGraphEngine — 注入聊天客户端、评估器、服务提供器及各类可选依赖
@@ -70,6 +71,12 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             new FunctionNodeExecutor(_functionRegistry, _serviceProvider, _logger),
             new JoinNodeExecutor()
         ]);
+        _completionPipeline = new NodeCompletionPipeline([
+            new MetadataExtractHandler(),
+            new UserInteractionHandler(_userInteraction, _logger),
+            new LoopObservationHandler(_nodeInspector, _logger),
+            new TerminationCheckHandler()
+        ], _logger);
     }
 
     /// <summary>
@@ -291,12 +298,16 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         context.CompletedNodes.TryAdd(nodeId, default);
 
-        ExtractNegReviewMetadata(nodeId, payload, context, _logger);
+        var postCtx = new NodePostCompletionContext
+        {
+            NodeId = nodeId,
+            Payload = payload,
+            Context = context,
+            Ct = ct,
+        };
+        await _completionPipeline.ExecuteAsync(postCtx).ConfigureAwait(false);
 
-        await HandleUserInteractionAsync(nodeId, payload, context, ct).ConfigureAwait(false);
-        await HandleLoopObservationAsync(nodeId, payload, context, ct).ConfigureAwait(false);
-
-        if (ShouldTerminateLoop(nodeId, payload, context, graph))
+        if (postCtx.ShouldTerminateLoop)
         {
             _logger?.LogInformation("[GoalGraph] 循环终止条件满足: {NodeId} (迭代={Iter}, 负评={NegCount}, 协调者终止={CoordTerm})",
                 nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount, context.CoordinatorTerminated);
@@ -387,138 +398,5 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             payload.CompletedAt = _clock.GetUtcNow();
             _logger?.LogError(ex, "[GoalGraph] {NodeId}({Name}): 执行失败", nodeId, payload.Name);
         }
-    }
-
-    /// <summary>
-    /// 负向评价循环中的用户权限询问
-    /// 负评6~10条时，ask_user 询问用户是否继续
-    /// 1分钟超时后协调者自动接管（用户可能睡觉/离开）
-    /// </summary>
-    private async Task HandleUserInteractionAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
-    {
-        if (_userInteraction is null)
-            return;
-
-        if (payload.NegativeReviewCount < 6 || payload.NegativeReviewCount > 10)
-            return;
-
-        var decision = await _userInteraction.AskToContinueAsync(
-            $"负向评价发现 {payload.NegativeReviewCount} 条不足，是否继续循环修复？",
-            payload.NegativeReviewCount,
-            context.GlobalLoopIteration,
-            timeoutSeconds: 60,
-            cancellationToken: ct).ConfigureAwait(false);
-
-        if (decision.CoordinatorTakenOver)
-        {
-            context.CoordinatorTerminated = true;
-            _logger?.LogWarning("[GoalGraph] 协调者接管: {Reason} (节点={NodeId}, 负评={NegCount})",
-                decision.Reason, nodeId, payload.NegativeReviewCount);
-            return;
-        }
-
-        if (!decision.ShouldContinue)
-        {
-            payload.Routes = new[] { "NEG_STOP" };
-            _logger?.LogInformation("[GoalGraph] 用户选择停止循环 (节点={NodeId}, 负评={NegCount})",
-                nodeId, payload.NegativeReviewCount);
-        }
-    }
-
-    /// <summary>
-    /// 协调者窥探 — 观察循环状态，决定是否终止
-    /// </summary>
-    private async Task HandleLoopObservationAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
-    {
-        if (_nodeInspector is null)
-            return;
-
-        if (!nodeId.Equals("neg_review", StringComparison.Ordinal) && !nodeId.Equals("fix_neg", StringComparison.Ordinal))
-            return;
-
-        var observationContext = new LoopObservationContext
-        {
-            GoalId = context.State.GoalId,
-            NodeId = nodeId,
-            LoopIteration = context.GlobalLoopIteration,
-            NegativeReviewCount = payload.NegativeReviewCount,
-            TotalTokensConsumed = context.TotalTokensConsumed,
-            TotalTurnsCompleted = context.State.TurnsCompleted,
-            LastNodeOutput = payload.Output,
-            NegativeReviewTaskId = payload.NegativeReviewTaskId,
-        };
-
-        var shouldTerminate = await _nodeInspector.ObserveLoopAsync(observationContext, ct).ConfigureAwait(false);
-
-        if (shouldTerminate)
-        {
-            context.CoordinatorTerminated = true;
-            _logger?.LogInformation("[GoalGraph] 协调者窥探终止: 节点={NodeId}, 迭代={Iter}, 负评={NegCount}",
-                nodeId, context.GlobalLoopIteration, payload.NegativeReviewCount);
-        }
-    }
-
-    /// <summary>
-    /// 从 neg_review / fix_neg 节点输出中提取 JSON 元数据并写入 payload
-    /// 使用 LlmJsonHelper 统一门控（ExtractJsonBlock + RepairJson + 宽容反序列化）
-    /// </summary>
-    private static void ExtractNegReviewMetadata(string nodeId, GoalNodePayload payload, GraphExecutionContext context, ILogger? logger = null)
-    {
-        if (string.IsNullOrEmpty(payload.Output))
-            return;
-
-        if (nodeId.Equals("neg_review", StringComparison.Ordinal))
-        {
-            var negReview = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.NegReviewOutputJson, out var negRepair, logger);
-            if (negReview is null)
-            {
-                if (!string.IsNullOrEmpty(negRepair))
-                    logger?.LogDebug("[GoalGraph] neg_review 元数据解析失败: {NegRepair}", negRepair);
-                return;
-            }
-
-            payload.NegativeReviewCount = negReview.NegativeReviewCount;
-            payload.NegativeReviewTaskId = negReview.TaskId;
-            if (!string.IsNullOrEmpty(negReview.Route))
-            {
-                payload.Routes = [negReview.Route];
-            }
-        }
-        else if (nodeId.Equals("fix_neg", StringComparison.Ordinal))
-        {
-            var fixNeg = LlmJsonHelper.Deserialize(payload.Output, GoalJsonContext.Default.FixNegOutputJson, out var fixRepair, logger);
-            if (fixNeg is not null && !string.IsNullOrEmpty(fixNeg.Route))
-            {
-                payload.Routes = [fixNeg.Route];
-            }
-            else if (fixNeg is null && !string.IsNullOrEmpty(fixRepair))
-            {
-                logger?.LogDebug("[GoalGraph] fix_neg 元数据解析失败: {FixRepair}", fixRepair);
-            }
-        }
-    }
-
-    /// <summary>
-    /// 判断是否应终止负向评价-修复循环
-    /// 终止条件（纵深防御，任一满足即终止）:
-    /// 1. 协调者终止（窥探或接管）
-    /// 2. 循环迭代达到硬上限（默认16轮）
-    /// 3. token/轮次预算耗尽
-    /// </summary>
-    private static bool ShouldTerminateLoop(string nodeId, GoalNodePayload payload, GraphExecutionContext context, GoalGraph graph)
-    {
-        if (context.CoordinatorTerminated)
-            return true;
-
-        if (context.GlobalLoopIteration >= graph.HardMaxLoopIterations)
-            return true;
-
-        if (context.State.TokenBudget.HasValue && context.TotalTokensConsumed >= context.State.TokenBudget.Value)
-            return true;
-
-        if (context.State.TurnBudget.HasValue && context.GlobalLoopIteration >= context.State.TurnBudget.Value)
-            return true;
-
-        return false;
     }
 }

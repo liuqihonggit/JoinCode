@@ -248,7 +248,6 @@ public sealed class BridgeWorkPollLoop : ServiceEntity
             try
             {
                 await _currentTransport.FlushAsync(ct).ConfigureAwait(false);
-                await _currentTransport.CloseAsync(ct).ConfigureAwait(false);
                 await _currentTransport.DisposeAsync().ConfigureAwait(false);
                 _currentTransport = null;
             }
@@ -295,12 +294,11 @@ public sealed class BridgeWorkPollLoop : ServiceEntity
             try
             {
                 // P1-4: 改用异步关闭+释放，消除 sync 方法中的 sync-over-async 阻塞
-                // P1-4: DisposeAsync 与 CloseAsync 同置于 try/catch 内，防止旧传输释放异常成为未观察异常
+                // P1-4: DisposeAsync 置于 try/catch 内，防止旧传输释放异常成为未观察异常
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        await oldTransport.CloseAsync().ConfigureAwait(false);
                         await oldTransport.DisposeAsync().ConfigureAwait(false);
                     }
                     catch (Exception closeEx) { _logger?.LogWarning(closeEx, "[BridgeWorkPollLoop] 关闭旧传输失败"); }

@@ -123,33 +123,6 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         }
     }
 
-    /// <summary>
-    /// 关闭传输 — 取消心跳、释放上传器和 HTTP 客户端
-    /// </summary>
-    public void Close()
-    {
-        if (Interlocked.Exchange(ref _isClosed, 1) == 1)
-        {
-            return;
-        }
-
-        _logger?.LogDebug("[V2Transport] 关闭传输");
-        _heartbeatCts.Cancel();
-        _eventUploader.Dispose();
-        _deliveryUploader.Dispose();
-        _writeClient.Dispose();
-        _sseClient.Dispose();
-    }
-
-    /// <summary>
-    /// 异步关闭传输 — P1-4: V2 的关闭全为同步操作，直接委托 Close
-    /// </summary>
-    public Task CloseAsync(CancellationToken ct = default)
-    {
-        Close();
-        return Task.CompletedTask;
-    }
-
     /// <summary>获取写就绪状态（非读就绪）</summary>
     public bool IsConnectedStatus()
     {
@@ -209,7 +182,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
             if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
-                HandleEpochMismatch("ReportState");
+                await HandleEpochMismatchAsync("ReportState").ConfigureAwait(false);
                 return;
             }
 
@@ -295,7 +268,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         catch (Exception ex)
         {
             _logger?.LogError(ex, "[V2Transport] CCRClient 初始化失败");
-            Close();
+            await DisposeAsync().ConfigureAwait(false);
             _onCloseCallback?.Invoke(4091); // 4091 = 初始化失败
         }
     }
@@ -452,7 +425,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
                 if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
                 {
-                    HandleEpochMismatch("Heartbeat");
+                    await HandleEpochMismatchAsync("Heartbeat").ConfigureAwait(false);
                     return;
                 }
 
@@ -485,10 +458,10 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// Epoch 不匹配处理 — 对齐 TS 端 onEpochMismatch
     /// 409 Conflict = 当前 worker 被另一个 worker 取代
     /// </summary>
-    private void HandleEpochMismatch(string source)
+    private async Task HandleEpochMismatchAsync(string source)
     {
         _logger?.LogWarning("[V2Transport] Epoch 被取代 (来源: {Source})，关闭传输以触发轮询恢复", source);
-        Close();
+        await DisposeAsync().ConfigureAwait(false);
         _onCloseCallback?.Invoke(4090); // 4090 = epoch 不匹配
     }
 
@@ -518,7 +491,13 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        Close();
+        Interlocked.Exchange(ref _isClosed, 1);
+        _logger?.LogDebug("[V2Transport] 关闭传输");
+        _heartbeatCts.Cancel();
+        _eventUploader.Dispose();
+        _deliveryUploader.Dispose();
+        _writeClient.Dispose();
+        _sseClient.Dispose();
         _heartbeatCts.Dispose();
         _writeLock.Dispose();
         await (_sseReadTask ?? Task.CompletedTask).ConfigureAwait(false);

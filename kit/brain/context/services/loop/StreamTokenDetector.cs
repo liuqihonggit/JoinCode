@@ -210,7 +210,7 @@ public sealed class StreamTokenDetector : IDisposable
             return;
         _disposed = true;
         _cts.Cancel();
-        _detectThread.Join(TimeSpan.FromSeconds(1));
+        _detectThread.Join();
         _cts.Dispose();
     }
 }

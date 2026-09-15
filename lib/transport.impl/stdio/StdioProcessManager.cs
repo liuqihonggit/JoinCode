@@ -167,9 +167,8 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 停止进程
     /// </summary>
-    public async Task StopAsync(TimeSpan? timeout = null)
+    public async Task StopAsync()
     {
-        timeout ??= TimeSpan.FromSeconds(5);
         _logger?.LogInformation("[StdioManager] 停止进程");
 
         _readCts?.Cancel();
@@ -181,8 +180,7 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
             try
             {
                 _process.Kill(entireProcessTree: true);
-                using var killCts = new CancellationTokenSource(timeout.Value);
-                await _process.WaitForExitAsync(killCts.Token).ConfigureAwait(false);
+                await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -195,9 +193,9 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
             var stdoutTask = _stdoutReadTask;
             var stderrTask = _stderrReadTask;
             if (stdoutTask != null)
-                await Task.WhenAny(stdoutTask, Task.Delay(timeout.Value)).ConfigureAwait(false);
+                await stdoutTask.ConfigureAwait(false);
             if (stderrTask != null)
-                await Task.WhenAny(stderrTask, Task.Delay(timeout.Value)).ConfigureAwait(false);
+                await stderrTask.ConfigureAwait(false);
         }
         catch (Exception ex)
         {

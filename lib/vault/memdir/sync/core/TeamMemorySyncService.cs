@@ -430,7 +430,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         _disposeCts.Cancel();
         _syncTimer.Dispose();
         _watcher?.Dispose();
-        DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        _ = DisposeAsync().AsTask();
         _disposeCts.Dispose();
     }
 

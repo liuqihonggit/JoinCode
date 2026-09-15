@@ -168,7 +168,7 @@ public sealed class SandboxIpcClient : IAsyncDisposable
         {
             try
             {
-                await _writeConsumerTask.WaitAsync(TimeSpan.FromSeconds(3), ct).ConfigureAwait(false);
+                await _writeConsumerTask.ConfigureAwait(false);
             }
             catch (Exception ex)
             {

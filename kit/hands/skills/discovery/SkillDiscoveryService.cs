@@ -239,10 +239,14 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
             await ProcessFileChangeAsync(newPath, ct).ConfigureAwait(false);
     }
 
-    /// <summary>同步释放 — IDisposable 接口实现,委托给 DisposeAsync</summary>
+    /// <summary>同步释放 — fire-and-forget DisposeAsync,同步释放 discoveryLock,不阻塞调用方</summary>
     public void Dispose()
     {
-        DisposeAsync().AsTask().GetAwaiter().GetResult();
+        var logger = _logger;
+        _ = DisposeAsync().AsTask().ContinueWith(t =>
+        {
+            if (t.IsFaulted) logger?.LogWarning(t.Exception, "[SkillDiscovery] Dispose 异步释放失败");
+        }, TaskScheduler.Default);
         _discoveryLock.Dispose();
     }
 

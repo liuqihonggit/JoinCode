@@ -213,8 +213,7 @@ public static partial class BridgeRemoteCore
             {
                 state.LastTransportSequenceNum = seq;
             }
-            try { await pollLoop.CurrentTransport.CloseAsync().ConfigureAwait(false); } catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 重连期间关闭传输失败"); }
-            _ = pollLoop.CurrentTransport.DisposeAsync();
+            try { await pollLoop.CurrentTransport.DisposeAsync().ConfigureAwait(false); } catch (Exception ex) { logger?.LogWarning(ex, "[BridgeRemoteCore] 重连期间关闭传输失败"); }
             pollLoop.ClearTransport();
         }
 

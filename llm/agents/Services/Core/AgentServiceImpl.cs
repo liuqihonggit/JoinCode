@@ -877,29 +877,31 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         if (_worktreeManager is not null)
         {
-            try
+            // worktree 清理 — fire-and-forget,不阻塞释放路径
+            var logger = _logger;
+            var worktreeManager = _worktreeManager;
+            _ = Task.Run(async () =>
             {
-                var sessionsTask = _worktreeManager.GetAllWorktreeSessionsAsync(CancellationToken.None);
-                if (sessionsTask.Wait(TimeSpan.FromSeconds(5)))
+                try
                 {
-                    var sessions = sessionsTask.GetAwaiter().GetResult();
+                    var sessions = await worktreeManager.GetAllWorktreeSessionsAsync(CancellationToken.None).ConfigureAwait(false);
                     foreach (var agentId in sessions.Keys)
                     {
                         try
                         {
-                            _worktreeManager.CleanupWorktreeAsync(agentId, CancellationToken.None).Wait(TimeSpan.FromSeconds(5));
+                            await worktreeManager.CleanupWorktreeAsync(agentId, CancellationToken.None).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
-                            _logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", agentId);
+                            logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", agentId);
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug(ex, "OnDispose 获取 worktree sessions 失败");
-            }
+                catch (Exception ex)
+                {
+                    logger?.LogDebug(ex, "OnDispose 获取 worktree sessions 失败");
+                }
+            });
         }
 
         foreach (var kvp in _backgroundCts)

@@ -1,12 +1,24 @@
 namespace Core.Agents.Coordinator;
 
 /// <summary>
+/// Fork 管理器依赖项 — 聚合非管道服务，减少构造函数参数
+/// </summary>
+[Register(typeof(ForkManagerDependencies), ServiceLifetime.Singleton)]
+public sealed record ForkManagerDependencies(
+    IAgentLifecycleManager LifecycleManager,
+    IMailbox MessageBroker,
+    IAgentWorktreeManager? WorktreeManager = null,
+    IMailboxPoller? MailboxPoller = null,
+    ITelemetryService? TelemetryService = null);
+
+/// <summary>
 /// Fork 子代理管理器 Actor 版 — 单消费者 Channel + 命令模式,零锁。
 /// <para>所有可变状态(_entries/_sharedCache)由 Consumer 线程独占访问,无需锁。</para>
 /// <para>慢操作(管道执行/CancelAgent/后台Execute)在 Consumer 外执行,通过命令读写状态(方案B)。</para>
 /// <para>_forkSemaphore 保留:(N,N) 并发限流器,不是状态锁。</para>
-/// <para>特性开关:验证稳定后替换 ForkSubAgentManager 注册。</para>
+/// <para>已接管 IForkSubAgentManager 注册(原 ForkSubAgentManager 已归档至 .xxx/)。</para>
 /// </summary>
+[Register(typeof(IForkSubAgentManager), ServiceLifetime.Singleton)]
 public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentManagerActor.IForkCommand, Unit>, IForkSubAgentManager, IAsyncDisposable, ISubAgentConcurrencyUpdater
 {
     private sealed class ForkEntry

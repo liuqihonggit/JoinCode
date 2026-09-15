@@ -3,7 +3,7 @@ namespace Core.Tests.Plugins;
 public sealed class EffectScopeTests
 {
     private static void DisposeSync(EffectScope scope)
-        => scope.DisposeAsync().GetAwaiter().GetResult();
+        => _ = scope.DisposeAsync().AsTask();
 
     [Fact]
     public void Add_AppliesImmediately()

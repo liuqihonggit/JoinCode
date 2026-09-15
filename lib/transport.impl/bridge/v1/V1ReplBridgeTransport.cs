@@ -156,67 +156,6 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         await _uploader.FlushAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// 异步关闭传输 — P1-4: 消除 Close() 内 sync-over-async 阻塞
-    /// 调用方在 async 上下文应优先 await 此方法
-    /// </summary>
-    public async Task CloseAsync(CancellationToken ct = default)
-    {
-        if (Interlocked.Exchange(ref _isClosed, 1) == 1) return;
-
-        _logger?.LogDebug("[V1Transport] 关闭传输");
-        Interlocked.Exchange(ref _isConnected, 0);
-
-        // 停止 stream_event 缓冲定时器
-        _streamEventTimer?.Dispose();
-        _streamEventTimer = null;
-        _streamEventBuffer.Clear();
-
-        // 停止重连定时器
-        _reconnectTimer?.Dispose();
-        _reconnectTimer = null;
-
-        // 优雅关闭: 给 uploader 3s 排空时间 — 对齐 TS 端 HybridTransport.close()
-        var uploader = _uploader;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                using var cts = new CancellationTokenSource(CloseGraceMs);
-                await uploader.FlushAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                // 优雅关闭超时，忽略
-                _logger?.LogWarning(ex, "[V1Transport] 优雅关闭 flush 超时");
-            }
-            finally
-            {
-                uploader.Close();
-                uploader.Dispose();
-            }
-        });
-
-        // 关闭 WS — P1-4: 改为 await，消除 .GetAwaiter().GetResult() 同步阻塞
-        try
-        {
-            await _wsTransport.StopAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            // 关闭时忽略异常
-            _logger?.LogWarning(ex, "[V1Transport] 关闭时 WS stop 失败");
-        }
-
-        _httpClient.Dispose();
-    }
-
-    /// <summary>
-    /// 关闭传输（同步兼容版）— 已弃用，调用方应改为 await CloseAsync
-    /// </summary>
-    public void Close()
-        => CloseAsync(_disposeCts.Token).GetAwaiter().GetResult();
-
     /// <summary>获取连接状态布尔值</summary>
     public bool IsConnectedStatus() => _isConnected != 0;
 
@@ -273,7 +212,32 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        Close();
+        Interlocked.Exchange(ref _isClosed, 1);
+        Interlocked.Exchange(ref _isConnected, 0);
+        _logger?.LogDebug("[V1Transport] 关闭传输");
+        _streamEventTimer?.Dispose();
+        _streamEventTimer = null;
+        _streamEventBuffer.Clear();
+        _reconnectTimer?.Dispose();
+        _reconnectTimer = null;
+        var uploader = _uploader;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(CloseGraceMs);
+                await uploader.FlushAsync(cts.Token).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[V1Transport] 优雅关闭 flush 超时");
+            }
+            finally
+            {
+                uploader.Close();
+                uploader.Dispose();
+            }
+        });
         _disposeCts.Cancel();
         _disposeCts.Dispose();
         try
@@ -282,9 +246,9 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         }
         catch (Exception ex)
         {
-            // Dispose 时忽略异常
             _logger?.LogWarning(ex, "[V1Transport] Dispose 时 WS stop 失败");
         }
+        _httpClient.Dispose();
     }
 
     #endregion

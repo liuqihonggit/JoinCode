@@ -17,9 +17,7 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await _executor.DisposeAsync().AsTask()
-            .WaitAsync(TimeSpan.FromSeconds(10))
-            .ConfigureAwait(true);
+        await _executor.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]

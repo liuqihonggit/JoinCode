@@ -344,7 +344,7 @@ See [docs/adr/README.md](docs/adr/README.md) for the full ADR index.
 | Generator | Purpose |
 |-----------|---------|
 | `AotSafety.Generator` | AOT safety analysis + code org rules (JCC5002, JCC9006) |
-| `EnumMetadata.Generator` | `[EnumValue]` → `XxxConstants` + `XxxExtensions` |
+| `EnumMetadata.Generator` | `[EnumValue]` → `XxxEnumConstants` + `XxxExtensions` |
 | `McpToolDispatch.Generator` | MCP tool handler registration + `[Register]` DI |
 | `PromptSection.Generator` | Prompt section generation |
 | `PromptTemplate.Generator` | Prompt template generation |

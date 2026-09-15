@@ -21,6 +21,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     private readonly IGoalConflictMessenger? _conflictMessenger = null;
     private volatile SubAgentConcurrencyOptions _concurrencyOptions;
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
+    private readonly GoalStateUpdater _stateUpdater;
 
     /// <summary>
     /// 构造 GoalGraphEngine — 注入聊天客户端、评估器、服务提供器及各类可选依赖
@@ -60,6 +61,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         _dispatchGuard = serviceProvider.GetService<ICaptainDispatchGuard>();
         _teamManager = serviceProvider.GetService<ITeamManager>();
         _concurrencyOptions = concurrencyOptions ?? serviceProvider.GetService<SubAgentConcurrencyOptions>() ?? new SubAgentConcurrencyOptions();
+        _stateUpdater = new GoalStateUpdater(_clock);
     }
 
     /// <summary>
@@ -158,12 +160,12 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             {
                 if (outcome == NodeCompletionOutcome.GoalAchieved)
                 {
-                    await SetGoalStatusAsync(goalState, GoalStatus.Achieved, context, ct).ConfigureAwait(false);
+                    await _stateUpdater.SetGoalStatusAsync(goalState, GoalStatus.Achieved, context, ct).ConfigureAwait(false);
                     return goalState;
                 }
                 if (outcome == NodeCompletionOutcome.GoalUnmet)
                 {
-                    await SetGoalStatusAsync(goalState, GoalStatus.Unmet, context, ct).ConfigureAwait(false);
+                    await _stateUpdater.SetGoalStatusAsync(goalState, GoalStatus.Unmet, context, ct).ConfigureAwait(false);
                     return goalState;
                 }
             }
@@ -251,7 +253,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         var payload = dagNode.Payload;
 
         await ExecuteNodeAsync(nodeId, dagNode, context, ct).ConfigureAwait(false);
-        await UpdateGoalStateAsync(context).ConfigureAwait(false);
+        await _stateUpdater.UpdateGoalStateAsync(context).ConfigureAwait(false);
 
         if (payload.Status == GoalNodeStatus.Failed)
         {
@@ -330,14 +332,6 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             return NodeCompletionOutcome.GoalUnmet;
         }
         return null;
-    }
-
-    private async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct)
-    {
-        var lk = context.StateLock;
-        using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
-        goalState.Status = status;
-        goalState.AchievedAt = _clock.GetUtcNow();
     }
 
     private enum NodeCompletionOutcome
@@ -517,9 +511,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         if (!string.IsNullOrEmpty(lastOutput))
         {
-            var lk = context.StateLock;
-            using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
-            context.ChatHistory.AddAssistantMessage($"[{payload.Name}]: {lastOutput}");
+            await _stateUpdater.AppendChatMessageAsync(context, $"[{payload.Name}]: {lastOutput}", ct).ConfigureAwait(false);
         }
 
         return NodeResult.Succeeded(lastOutput, totalTokens);
@@ -689,23 +681,6 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         _logger?.LogInformation("[GoalGraph] 回退重激活: {NodeId} (第{Retry}次, 影响{Count}个节点, 全局迭代={GlobalIter})",
             targetNodeId, retryCount + 1, affected.Count(), context.GlobalLoopIteration);
-    }
-
-    private async Task UpdateGoalStateAsync(GraphExecutionContext context)
-    {
-        var totalTokens = 0;
-        var totalTurns = 0;
-        foreach (var node in context.Graph.Dag.Nodes.Values)
-        {
-            totalTokens += node.Payload.TokensUsed;
-            if (node.Payload.Status == GoalNodeStatus.Completed)
-                totalTurns++;
-        }
-
-        var lk = context.StateLock;
-        using var guard = await lk.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
-        context.State.TokensUsed = totalTokens;
-        context.State.TurnsCompleted = totalTurns;
     }
 
     /// <summary>

@@ -1,4 +1,6 @@
 global using Core.Utils;
+global using Core.Agents.Coordinator;
+global using JoinCode.Abstractions.Models.Agent;
 global using FluentAssertions;
 global using JoinCode.Abstractions.Configuration.Execution;
 global using System.Collections.Concurrent;

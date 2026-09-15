@@ -99,4 +99,5 @@ global using Infrastructure.Utils.Resilience;
 global using JoinCode.Abstractions.Prompts.ToolPrompts;
 global using System.Net;
 global using System.Net.Http;
+global using System.Net.Http.Headers;
 global using System.Net.Sockets;

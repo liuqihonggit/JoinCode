@@ -527,7 +527,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
                 MessageType = message.MessageType,
                 Content = message.Content,
                 SessionId = sessionId
-            }, cancellationToken));
+            }, cancellationToken).AsTask())
+            .ToArray();
 
         try
         {

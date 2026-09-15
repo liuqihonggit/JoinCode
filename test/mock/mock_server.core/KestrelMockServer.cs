@@ -351,7 +351,7 @@ public sealed class KestrelMockServer : IHttpMockServer
 
         if (_app is not null)
         {
-            try { await _app.DisposeAsync(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"App disposal failed: {ex.Message}"); }
+            await _app.DisposeSafeAsync().ConfigureAwait(false);
         }
 
         if (_runTask is not null)

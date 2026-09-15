@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex.Tests;
+﻿namespace JoinCode.CodeIndex.Tests;
 
 public sealed class TreeCacheTests : IDisposable
 {
@@ -50,27 +50,20 @@ public sealed class TreeCacheTests : IDisposable
     [Fact]
     public void Add_ExceedsMaxEntries_DoesNotCacheNewEntries()
     {
-        var cache = new TreeCache(maxEntries: 3);
-
-        try
+        using var cache =  new TreeCache(maxEntries: 3);
+        for (var i = 0; i < 5; i++)
         {
-            for (var i = 0; i < 5; i++)
-            {
-                var source = $"class Class{i} {{ }}";
-                using var tree = _parser.Parse(source);
-                cache.Add($"file{i}.cs", tree, source);
-            }
+            var source = $"class Class{i} {{ }}";
+            using var tree = _parser.Parse(source);
+            cache.Add($"file{i}.cs", tree, source);
+        }
 
-            Assert.True(cache.TryGet("file0.cs", out _));
-            Assert.True(cache.TryGet("file1.cs", out _));
-            Assert.True(cache.TryGet("file2.cs", out _));
-            Assert.False(cache.TryGet("file3.cs", out _));
-            Assert.False(cache.TryGet("file4.cs", out _));
-        }
-        finally
-        {
-            cache.Dispose();
-        }
+        Assert.True(cache.TryGet("file0.cs", out _));
+        Assert.True(cache.TryGet("file1.cs", out _));
+        Assert.True(cache.TryGet("file2.cs", out _));
+        Assert.False(cache.TryGet("file3.cs", out _));
+        Assert.False(cache.TryGet("file4.cs", out _));
+    
     }
 
     [Fact]

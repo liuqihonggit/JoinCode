@@ -72,28 +72,18 @@ public sealed class IncrementalUpdaterTests : IDisposable
         fs.WriteAllText(Path.Combine(root, "sub", "bin", "E.cs"), "public class E { }");
         fs.WriteAllText(Path.Combine(root, ".x", "F.cs"), "public class F { }");
 
-        var store = new InMemoryIndexStore();
-        var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
-        var updater = new IncrementalUpdater(index, store, fs, () => new CSharpSymbolExtractor());
+        using var store = new InMemoryIndexStore();
+        using var index = new SymbolIndex(store, fs, new CSharpSymbolExtractor());
+        using var updater = new IncrementalUpdater(index, store, fs, () => new CSharpSymbolExtractor());
 
-        try
-        {
-            await updater.UpdateDirectoryAsync(root, CancellationToken.None).ConfigureAwait(true);
+        await updater.UpdateDirectoryAsync(root, CancellationToken.None).ConfigureAwait(true);
 
-            // bin/obj/.x 下的文件不应被索引,仅 A.cs 和 sub/D.cs 应被索引
-            Assert.True(store.FileTracking.ContainsKey(Path.Combine(root, "A.cs")), "A.cs 应被索引");
-            Assert.True(store.FileTracking.ContainsKey(Path.Combine(root, "sub", "D.cs")), "sub/D.cs 应被索引");
-            Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "bin", "B.cs")), "bin/B.cs 不应被索引");
-            Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "obj", "C.cs")), "obj/C.cs 不应被索引");
-            Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "sub", "bin", "E.cs")), "sub/bin/E.cs 不应被索引");
-            Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, ".x", "F.cs")), ".x/F.cs 不应被索引");
-            Assert.Equal(2, store.FileTracking.Count);
-        }
-        finally
-        {
-            updater.Dispose();
-            index.Dispose();
-            store.Dispose();
-        }
+        Assert.True(store.FileTracking.ContainsKey(Path.Combine(root, "A.cs")), "A.cs 应被索引");
+        Assert.True(store.FileTracking.ContainsKey(Path.Combine(root, "sub", "D.cs")), "sub/D.cs 应被索引");
+        Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "bin", "B.cs")), "bin/B.cs 不应被索引");
+        Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "obj", "C.cs")), "obj/C.cs 不应被索引");
+        Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, "sub", "bin", "E.cs")), "sub/bin/E.cs 不应被索引");
+        Assert.False(store.FileTracking.ContainsKey(Path.Combine(root, ".x", "F.cs")), ".x/F.cs 不应被索引");
+        Assert.Equal(2, store.FileTracking.Count);
     }
 }

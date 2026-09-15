@@ -81,14 +81,7 @@ public class WebSocketTransportTest
             _listener.Close();
             foreach (var ws in _sockets)
             {
-                try
-                {
-                    ws.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[WebSocketTestServer] 关闭 WebSocket 失败: {ex.Message}");
-                }
+                ws.DisposeSafe();
             }
             _cts.Dispose();
         }

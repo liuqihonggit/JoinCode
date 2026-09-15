@@ -1,4 +1,4 @@
-namespace Infra.Tests.EntityTests;
+﻿namespace Infra.Tests.EntityTests;
 
 public sealed class ToolExecutionEntityCloneTests
 {
@@ -8,7 +8,7 @@ public sealed class ToolExecutionEntityCloneTests
         var sourceSession = new ObjectId(ObjectType.Session, "source-session");
         var targetSession = new ObjectId(ObjectType.Session, "target-session");
 
-        var source = new ToolExecutionEntity(
+        using var source =  new ToolExecutionEntity(
             "bash",
             toolUseId: "tu_001",
             spanId: "span_001",
@@ -23,30 +23,27 @@ public sealed class ToolExecutionEntityCloneTests
             StartedAt = new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc),
             CompletedAt = new DateTime(2026, 1, 1, 10, 0, 5, DateTimeKind.Utc),
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            context.Map(sourceSession, targetSession);
-            var cloned = (ToolExecutionEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        context.Map(sourceSession, targetSession);
+        var cloned = (ToolExecutionEntity)source.Clone(context);
 
-            cloned.Should().NotBeNull();
-            cloned.Should().NotBeSameAs(source);
-            cloned.ObjectId.Should().NotBe(source.ObjectId);
-            cloned.SessionId.Should().Be(targetSession);
-            cloned.ToolName.Should().Be("bash");
-            cloned.ToolUseId.Should().Be("tu_001");
-            cloned.SpanId.Should().Be("span_001");
-            cloned.DisplayName.Should().Be("bash-exec");
-            cloned.ArgumentsSummary.Should().Be("ls -la");
-            cloned.ResultSummary.Should().Be("total 42");
-            cloned.IsError.Should().BeFalse();
-            cloned.LifecycleState.Should().Be(EntityLifecycle.Completed);
-            cloned.StartedAt.Should().Be(source.StartedAt);
-            cloned.CompletedAt.Should().Be(source.CompletedAt);
-            context.Remap(source.ObjectId).Should().Be(cloned.ObjectId);
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.Should().NotBeNull();
+        cloned.Should().NotBeSameAs(source);
+        cloned.ObjectId.Should().NotBe(source.ObjectId);
+        cloned.SessionId.Should().Be(targetSession);
+        cloned.ToolName.Should().Be("bash");
+        cloned.ToolUseId.Should().Be("tu_001");
+        cloned.SpanId.Should().Be("span_001");
+        cloned.DisplayName.Should().Be("bash-exec");
+        cloned.ArgumentsSummary.Should().Be("ls -la");
+        cloned.ResultSummary.Should().Be("total 42");
+        cloned.IsError.Should().BeFalse();
+        cloned.LifecycleState.Should().Be(EntityLifecycle.Completed);
+        cloned.StartedAt.Should().Be(source.StartedAt);
+        cloned.CompletedAt.Should().Be(source.CompletedAt);
+        context.Remap(source.ObjectId).Should().Be(cloned.ObjectId);
+        cloned.Dispose();
+    
     }
 
     [Fact]
@@ -56,20 +53,17 @@ public sealed class ToolExecutionEntityCloneTests
         var targetSession = new ObjectId(ObjectType.Session, "tgt");
         var mappedSessionObjectId = new ObjectId(ObjectType.Session, "mapped-session");
 
-        var source = new ToolExecutionEntity("read_file", sessionId: sourceSession)
+        using var source =  new ToolExecutionEntity("read_file", sessionId: sourceSession)
         {
             SessionObjectId = sourceSession
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            context.Map(sourceSession, mappedSessionObjectId);
+        var context = new CloneContext(targetSession);
+        context.Map(sourceSession, mappedSessionObjectId);
 
-            var cloned = (ToolExecutionEntity)source.Clone(context);
-            cloned.SessionObjectId.Should().Be(mappedSessionObjectId);
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        var cloned = (ToolExecutionEntity)source.Clone(context);
+        cloned.SessionObjectId.Should().Be(mappedSessionObjectId);
+        cloned.Dispose();
+    
     }
 
     [Fact]
@@ -78,17 +72,14 @@ public sealed class ToolExecutionEntityCloneTests
         var sourceSession = new ObjectId(ObjectType.Session, "src-scope");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-scope");
 
-        var source = new ToolExecutionEntity("grep", sessionId: sourceSession);
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (ToolExecutionEntity)source.Clone(context);
+        using var source =  new ToolExecutionEntity("grep", sessionId: sourceSession);
+        var context = new CloneContext(targetSession);
+        var cloned = (ToolExecutionEntity)source.Clone(context);
 
-            SessionRouter.TryGetScope(targetSession, out var scope).Should().BeTrue();
-            scope!.Resolve<ToolExecutionEntity>(cloned.ObjectId).Should().BeSameAs(cloned);
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        SessionRouter.TryGetScope(targetSession, out var scope).Should().BeTrue();
+        scope!.Resolve<ToolExecutionEntity>(cloned.ObjectId).Should().BeSameAs(cloned);
+        cloned.Dispose();
+    
     }
 
     [Fact]
@@ -97,7 +88,7 @@ public sealed class ToolExecutionEntityCloneTests
         var sourceSession = new ObjectId(ObjectType.Session, "src-bash");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-bash");
 
-        var source = new BashProcessEntity(
+        using var source =  new BashProcessEntity(
             processId: 12345,
             command: "dotnet build",
             workingDirectory: "/home/user/project",
@@ -114,30 +105,27 @@ public sealed class ToolExecutionEntityCloneTests
             LifecycleState = EntityLifecycle.Completed,
             CompletedAt = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc),
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (BashProcessEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (BashProcessEntity)source.Clone(context);
 
-            cloned.Should().NotBeSameAs(source);
-            cloned.SessionId.Should().Be(targetSession);
-            cloned.ProcessId.Should().Be(12345);
-            cloned.Command.Should().Be("dotnet build");
-            cloned.WorkingDirectory.Should().Be("/home/user/project");
-            cloned.ToolUseId.Should().Be("tu_bash_001");
-            cloned.SpanId.Should().Be("span_bash_001");
-            cloned.DisplayName.Should().Be("bash-build");
-            cloned.ExitCode.Should().Be(0);
-            cloned.Status.Should().Be(BashProcessStatus.Exited);
-            cloned.ArgumentsSummary.Should().Be("dotnet build -c Release");
-            cloned.ResultSummary.Should().Be("Build succeeded");
-            cloned.IsError.Should().BeFalse();
-            cloned.LifecycleState.Should().Be(EntityLifecycle.Completed);
-            cloned.ObjectId.Type.Should().Be(ObjectType.ShellCommand);
-            context.Remap(source.ObjectId).Should().Be(cloned.ObjectId);
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.Should().NotBeSameAs(source);
+        cloned.SessionId.Should().Be(targetSession);
+        cloned.ProcessId.Should().Be(12345);
+        cloned.Command.Should().Be("dotnet build");
+        cloned.WorkingDirectory.Should().Be("/home/user/project");
+        cloned.ToolUseId.Should().Be("tu_bash_001");
+        cloned.SpanId.Should().Be("span_bash_001");
+        cloned.DisplayName.Should().Be("bash-build");
+        cloned.ExitCode.Should().Be(0);
+        cloned.Status.Should().Be(BashProcessStatus.Exited);
+        cloned.ArgumentsSummary.Should().Be("dotnet build -c Release");
+        cloned.ResultSummary.Should().Be("Build succeeded");
+        cloned.IsError.Should().BeFalse();
+        cloned.LifecycleState.Should().Be(EntityLifecycle.Completed);
+        cloned.ObjectId.Type.Should().Be(ObjectType.ShellCommand);
+        context.Remap(source.ObjectId).Should().Be(cloned.ObjectId);
+        cloned.Dispose();
+    
     }
 
     [Fact]
@@ -146,7 +134,7 @@ public sealed class ToolExecutionEntityCloneTests
         var sourceSession = new ObjectId(ObjectType.Session, "src-running");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-running");
 
-        var source = new BashProcessEntity(
+        using var source =  new BashProcessEntity(
             processId: 99999,
             command: "long-running-task",
             sessionId: sourceSession)
@@ -154,19 +142,16 @@ public sealed class ToolExecutionEntityCloneTests
             Status = BashProcessStatus.Running,
             LifecycleState = EntityLifecycle.Active,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (BashProcessEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (BashProcessEntity)source.Clone(context);
 
-            cloned.ProcessId.Should().Be(99999);
-            cloned.Command.Should().Be("long-running-task");
-            cloned.Status.Should().Be(BashProcessStatus.Running);
-            cloned.ExitCode.Should().BeNull();
-            cloned.LifecycleState.Should().Be(EntityLifecycle.Active);
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.ProcessId.Should().Be(99999);
+        cloned.Command.Should().Be("long-running-task");
+        cloned.Status.Should().Be(BashProcessStatus.Running);
+        cloned.ExitCode.Should().BeNull();
+        cloned.LifecycleState.Should().Be(EntityLifecycle.Active);
+        cloned.Dispose();
+    
     }
 
     [Fact]
@@ -175,41 +160,35 @@ public sealed class ToolExecutionEntityCloneTests
         var sourceSession = new ObjectId(ObjectType.Session, "src-reg");
         var targetSession = new ObjectId(ObjectType.Session, "tgt-reg");
 
-        var source = new BashProcessEntity(command: "echo hello", sessionId: sourceSession);
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (BashProcessEntity)source.Clone(context);
+        using var source =  new BashProcessEntity(command: "echo hello", sessionId: sourceSession);
+        var context = new CloneContext(targetSession);
+        var cloned = (BashProcessEntity)source.Clone(context);
 
-            ToolExecutionEntity.Registry.Get(cloned.ObjectId).Should().BeSameAs(cloned);
-            cloned.Dispose();
-            ToolExecutionEntity.Registry.Get(cloned.ObjectId).Should().BeNull();
-        }
-        finally { source.Dispose(); }
+        ToolExecutionEntity.Registry.Get(cloned.ObjectId).Should().BeSameAs(cloned);
+        cloned.Dispose();
+        ToolExecutionEntity.Registry.Get(cloned.ObjectId).Should().BeNull();
+    
     }
 
     [Fact]
     public void ToolExecutionEntity_Clone_MinimalFields_OnlyToolName()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-minimal");
-        var source = new ToolExecutionEntity("web_fetch");
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (ToolExecutionEntity)source.Clone(context);
+        using var source =  new ToolExecutionEntity("web_fetch");
+        var context = new CloneContext(targetSession);
+        var cloned = (ToolExecutionEntity)source.Clone(context);
 
-            cloned.ToolName.Should().Be("web_fetch");
-            cloned.ToolUseId.Should().BeNull();
-            cloned.SpanId.Should().BeNull();
-            cloned.ArgumentsSummary.Should().BeNull();
-            cloned.ResultSummary.Should().BeNull();
-            cloned.IsError.Should().BeFalse();
-            cloned.SessionObjectId.Should().BeNull();
-            cloned.SessionId.Should().Be(targetSession);
-            cloned.ObjectId.Should().NotBe(source.ObjectId);
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.ToolName.Should().Be("web_fetch");
+        cloned.ToolUseId.Should().BeNull();
+        cloned.SpanId.Should().BeNull();
+        cloned.ArgumentsSummary.Should().BeNull();
+        cloned.ResultSummary.Should().BeNull();
+        cloned.IsError.Should().BeFalse();
+        cloned.SessionObjectId.Should().BeNull();
+        cloned.SessionId.Should().Be(targetSession);
+        cloned.ObjectId.Should().NotBe(source.ObjectId);
+        cloned.Dispose();
+    
     }
 
     [Fact]
@@ -219,72 +198,60 @@ public sealed class ToolExecutionEntityCloneTests
         var targetSession = new ObjectId(ObjectType.Session, "tgt-unmapped");
         var unmappedSession = new ObjectId(ObjectType.Session, "never-cloned");
 
-        var source = new ToolExecutionEntity("read_file", sessionId: sourceSession)
+        using var source =  new ToolExecutionEntity("read_file", sessionId: sourceSession)
         {
             SessionObjectId = unmappedSession
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
+        var context = new CloneContext(targetSession);
 
-            var act = () => source.Clone(context);
-            act.Should().Throw<InvalidOperationException>()
-                .WithMessage("*跨会话克隆失败*");
+        var act = () => source.Clone(context);
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*跨会话克隆失败*");
 
-            context.Remap(source.ObjectId).Should().Be(ObjectId.Empty);
-        }
-        finally { source.Dispose(); }
+        context.Remap(source.ObjectId).Should().Be(ObjectId.Empty);
+    
     }
 
     [Fact]
     public void ToolExecutionEntity_Clone_PreservesErrorState()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-err");
-        var source = new ToolExecutionEntity("bash", toolUseId: "tu_err")
+        using var source =  new ToolExecutionEntity("bash", toolUseId: "tu_err")
         {
             IsError = true,
             ResultSummary = "Command timed out",
             LifecycleState = EntityLifecycle.Completed,
             CompletedAt = DateTime.UtcNow,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (ToolExecutionEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (ToolExecutionEntity)source.Clone(context);
 
-            cloned.IsError.Should().BeTrue();
-            cloned.ResultSummary.Should().Be("Command timed out");
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.IsError.Should().BeTrue();
+        cloned.ResultSummary.Should().Be("Command timed out");
+        cloned.Dispose();
+    
     }
 
     [Fact]
     public void ToolExecutionEntity_Clone_ModifyingClone_DoesNotAffectSource()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-indep");
-        var source = new ToolExecutionEntity("grep")
+        using var source =  new ToolExecutionEntity("grep")
         {
             ResultSummary = "original",
             IsError = false,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (ToolExecutionEntity)source.Clone(context);
-            try
-            {
-                cloned.ResultSummary = "modified";
-                cloned.IsError = true;
-                cloned.LifecycleState = EntityLifecycle.Active;
+        var context = new CloneContext(targetSession);
+        using var cloned =  (ToolExecutionEntity)source.Clone(context);
+        cloned.ResultSummary = "modified";
+        cloned.IsError = true;
+        cloned.LifecycleState = EntityLifecycle.Active;
 
-                source.ResultSummary.Should().Be("original");
-                source.IsError.Should().BeFalse();
-                source.LifecycleState.Should().Be(EntityLifecycle.Created);
-            }
-            finally { cloned.Dispose(); }
-        }
-        finally { source.Dispose(); }
+        source.ResultSummary.Should().Be("original");
+        source.IsError.Should().BeFalse();
+        source.LifecycleState.Should().Be(EntityLifecycle.Created);
+    
+    
     }
 
     [Fact]
@@ -293,34 +260,25 @@ public sealed class ToolExecutionEntityCloneTests
         var sessionA = new ObjectId(ObjectType.Session, "session-a");
         var sessionB = new ObjectId(ObjectType.Session, "session-b");
 
-        var source = new ToolExecutionEntity("bash", toolUseId: "tu_chain", sessionId: sessionA)
+        using var source =  new ToolExecutionEntity("bash", toolUseId: "tu_chain", sessionId: sessionA)
         {
             ResultSummary = "step1",
         };
-        try
-        {
-            var contextA = new CloneContext(sessionA);
-            var clonedA = (ToolExecutionEntity)source.Clone(contextA);
-            try
-            {
-                contextA.Remap(source.ObjectId).Should().Be(clonedA.ObjectId);
+        var contextA = new CloneContext(sessionA);
+        using var clonedA =  (ToolExecutionEntity)source.Clone(contextA);
+        contextA.Remap(source.ObjectId).Should().Be(clonedA.ObjectId);
 
-                var contextB = new CloneContext(sessionB);
-                var clonedB = (ToolExecutionEntity)clonedA.Clone(contextB);
-                try
-                {
-                    contextB.Remap(clonedA.ObjectId).Should().Be(clonedB.ObjectId);
-                    clonedB.ToolUseId.Should().Be("tu_chain");
-                    clonedB.ResultSummary.Should().Be("step1");
-                    clonedB.SessionId.Should().Be(sessionB);
-                    clonedB.ObjectId.Should().NotBe(clonedA.ObjectId);
-                    clonedB.ObjectId.Should().NotBe(source.ObjectId);
-                }
-                finally { clonedB.Dispose(); }
-            }
-            finally { clonedA.Dispose(); }
-        }
-        finally { source.Dispose(); }
+        var contextB = new CloneContext(sessionB);
+        using var clonedB =  (ToolExecutionEntity)clonedA.Clone(contextB);
+        contextB.Remap(clonedA.ObjectId).Should().Be(clonedB.ObjectId);
+        clonedB.ToolUseId.Should().Be("tu_chain");
+        clonedB.ResultSummary.Should().Be("step1");
+        clonedB.SessionId.Should().Be(sessionB);
+        clonedB.ObjectId.Should().NotBe(clonedA.ObjectId);
+        clonedB.ObjectId.Should().NotBe(source.ObjectId);
+    
+    
+    
     }
 
     [Fact]
@@ -369,29 +327,26 @@ public sealed class ToolExecutionEntityCloneTests
     public void BashProcessEntity_Clone_NullProcessIdAndCommand_PreservesDisplayName()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-null");
-        var source = new BashProcessEntity(displayName: "empty-bash");
-        try
-        {
-            source.DisplayName.Should().Be("empty-bash");
+        using var source =  new BashProcessEntity(displayName: "empty-bash");
+        source.DisplayName.Should().Be("empty-bash");
 
-            var context = new CloneContext(targetSession);
-            var cloned = (BashProcessEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (BashProcessEntity)source.Clone(context);
 
-            cloned.ProcessId.Should().BeNull();
-            cloned.Command.Should().BeNull();
-            cloned.WorkingDirectory.Should().BeNull();
-            cloned.DisplayName.Should().Be("empty-bash");
-            cloned.ToolName.Should().Be("bash");
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.ProcessId.Should().BeNull();
+        cloned.Command.Should().BeNull();
+        cloned.WorkingDirectory.Should().BeNull();
+        cloned.DisplayName.Should().Be("empty-bash");
+        cloned.ToolName.Should().Be("bash");
+        cloned.Dispose();
+    
     }
 
     [Fact]
     public void BashProcessEntity_Clone_TimedOutStatus_Preserved()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-timeout");
-        var source = new BashProcessEntity(
+        using var source =  new BashProcessEntity(
             processId: 77777,
             command: "sleep 999",
             sessionId: new ObjectId(ObjectType.Session, "src-timeout"))
@@ -402,27 +357,24 @@ public sealed class ToolExecutionEntityCloneTests
             ResultSummary = "Process timed out after 30s",
             LifecycleState = EntityLifecycle.Completed,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (BashProcessEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (BashProcessEntity)source.Clone(context);
 
-            cloned.Status.Should().Be(BashProcessStatus.TimedOut);
-            cloned.ExitCode.Should().BeNull();
-            cloned.IsError.Should().BeTrue();
-            cloned.ResultSummary.Should().Be("Process timed out after 30s");
-            cloned.ProcessId.Should().Be(77777);
-            cloned.Command.Should().Be("sleep 999");
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.Status.Should().Be(BashProcessStatus.TimedOut);
+        cloned.ExitCode.Should().BeNull();
+        cloned.IsError.Should().BeTrue();
+        cloned.ResultSummary.Should().Be("Process timed out after 30s");
+        cloned.ProcessId.Should().Be(77777);
+        cloned.Command.Should().Be("sleep 999");
+        cloned.Dispose();
+    
     }
 
     [Fact]
     public void BashProcessEntity_Clone_KilledStatus_WithExitCode_Preserved()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-killed");
-        var source = new BashProcessEntity(
+        using var source =  new BashProcessEntity(
             processId: 55555,
             command: "infinite-loop",
             sessionId: new ObjectId(ObjectType.Session, "src-killed"))
@@ -431,17 +383,14 @@ public sealed class ToolExecutionEntityCloneTests
             ExitCode = 137,
             IsError = true,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (BashProcessEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (BashProcessEntity)source.Clone(context);
 
-            cloned.Status.Should().Be(BashProcessStatus.Killed);
-            cloned.ExitCode.Should().Be(137);
-            cloned.IsError.Should().BeTrue();
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.Status.Should().Be(BashProcessStatus.Killed);
+        cloned.ExitCode.Should().Be(137);
+        cloned.IsError.Should().BeTrue();
+        cloned.Dispose();
+    
     }
 
     [Fact]
@@ -452,18 +401,12 @@ public sealed class ToolExecutionEntityCloneTests
 
         foreach (var state in states)
         {
-            var source = new ToolExecutionEntity("test") { LifecycleState = state };
-            try
-            {
-                var context = new CloneContext(targetSession);
-                var cloned = (ToolExecutionEntity)source.Clone(context);
-                try
-                {
-                    cloned.LifecycleState.Should().Be(state);
-                }
-                finally { cloned.Dispose(); }
-            }
-            finally { source.Dispose(); }
+            using var source =  new ToolExecutionEntity("test") { LifecycleState = state };
+            var context = new CloneContext(targetSession);
+            using var cloned =  (ToolExecutionEntity)source.Clone(context);
+            cloned.LifecycleState.Should().Be(state);
+        
+        
         }
     }
 
@@ -471,7 +414,7 @@ public sealed class ToolExecutionEntityCloneTests
     public void WebFetchEntity_Clone_PreservesUrlAndHttpFields()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-web");
-        var source = new WebFetchEntity(
+        using var source =  new WebFetchEntity(
             url: "https://example.com/api",
             toolUseId: "tu_web_001",
             spanId: "span_web",
@@ -482,28 +425,25 @@ public sealed class ToolExecutionEntityCloneTests
             ResultSummary = "OK",
             LifecycleState = EntityLifecycle.Completed,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (WebFetchEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (WebFetchEntity)source.Clone(context);
 
-            cloned.Url.Should().Be("https://example.com/api");
-            cloned.HttpStatusCode.Should().Be(200);
-            cloned.ContentLength.Should().Be(1024);
-            cloned.ToolName.Should().Be("web_fetch");
-            cloned.ResultSummary.Should().Be("OK");
-            cloned.SessionId.Should().Be(targetSession);
-            cloned.GetType().Should().Be(typeof(WebFetchEntity));
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.Url.Should().Be("https://example.com/api");
+        cloned.HttpStatusCode.Should().Be(200);
+        cloned.ContentLength.Should().Be(1024);
+        cloned.ToolName.Should().Be("web_fetch");
+        cloned.ResultSummary.Should().Be("OK");
+        cloned.SessionId.Should().Be(targetSession);
+        cloned.GetType().Should().Be(typeof(WebFetchEntity));
+        cloned.Dispose();
+    
     }
 
     [Fact]
     public void UserInteractionEntity_Clone_PreservesQuestionAndResponse()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-interact");
-        var source = new UserInteractionEntity(
+        using var source =  new UserInteractionEntity(
             question: "Continue with deployment?",
             toolUseId: "tu_ask_001",
             sessionId: new ObjectId(ObjectType.Session, "src-interact"))
@@ -511,25 +451,22 @@ public sealed class ToolExecutionEntityCloneTests
             Response = "yes",
             LifecycleState = EntityLifecycle.Completed,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (UserInteractionEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (UserInteractionEntity)source.Clone(context);
 
-            cloned.Question.Should().Be("Continue with deployment?");
-            cloned.Response.Should().Be("yes");
-            cloned.ToolName.Should().Be("ask_user");
-            cloned.GetType().Should().Be(typeof(UserInteractionEntity));
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.Question.Should().Be("Continue with deployment?");
+        cloned.Response.Should().Be("yes");
+        cloned.ToolName.Should().Be("ask_user");
+        cloned.GetType().Should().Be(typeof(UserInteractionEntity));
+        cloned.Dispose();
+    
     }
 
     [Fact]
     public void SleepEntity_Clone_PreservesDurationAndProgress()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-sleep");
-        var source = new SleepEntity(
+        using var source =  new SleepEntity(
             durationSeconds: 30,
             reason: "rate-limit-backoff",
             toolUseId: "tu_sleep_001",
@@ -539,27 +476,24 @@ public sealed class ToolExecutionEntityCloneTests
             TickCount = 18,
             LifecycleState = EntityLifecycle.Active,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (SleepEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (SleepEntity)source.Clone(context);
 
-            cloned.DurationSeconds.Should().Be(30);
-            cloned.RemainingSeconds.Should().Be(12);
-            cloned.TickCount.Should().Be(18);
-            cloned.Reason.Should().Be("rate-limit-backoff");
-            cloned.ToolName.Should().Be("sleep");
-            cloned.GetType().Should().Be(typeof(SleepEntity));
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.DurationSeconds.Should().Be(30);
+        cloned.RemainingSeconds.Should().Be(12);
+        cloned.TickCount.Should().Be(18);
+        cloned.Reason.Should().Be("rate-limit-backoff");
+        cloned.ToolName.Should().Be("sleep");
+        cloned.GetType().Should().Be(typeof(SleepEntity));
+        cloned.Dispose();
+    
     }
 
     [Fact]
     public void ReplSessionEntity_Clone_PreservesLanguageAndEnabled()
     {
         var targetSession = new ObjectId(ObjectType.Session, "tgt-repl");
-        var source = new ReplSessionEntity(
+        using var source =  new ReplSessionEntity(
             language: "python",
             toolUseId: "tu_repl_001",
             sessionId: new ObjectId(ObjectType.Session, "src-repl"))
@@ -567,17 +501,14 @@ public sealed class ToolExecutionEntityCloneTests
             IsEnabled = true,
             LifecycleState = EntityLifecycle.Active,
         };
-        try
-        {
-            var context = new CloneContext(targetSession);
-            var cloned = (ReplSessionEntity)source.Clone(context);
+        var context = new CloneContext(targetSession);
+        var cloned = (ReplSessionEntity)source.Clone(context);
 
-            cloned.Language.Should().Be("python");
-            cloned.IsEnabled.Should().BeTrue();
-            cloned.ToolName.Should().Be("repl");
-            cloned.GetType().Should().Be(typeof(ReplSessionEntity));
-            cloned.Dispose();
-        }
-        finally { source.Dispose(); }
+        cloned.Language.Should().Be("python");
+        cloned.IsEnabled.Should().BeTrue();
+        cloned.ToolName.Should().Be("repl");
+        cloned.GetType().Should().Be(typeof(ReplSessionEntity));
+        cloned.Dispose();
+    
     }
 }

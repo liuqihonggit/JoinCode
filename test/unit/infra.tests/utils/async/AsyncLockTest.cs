@@ -1,4 +1,4 @@
-namespace Infra.Tests.Utils.Async;
+﻿namespace Infra.Tests.Utils.Async;
 
 /// <summary>
 /// AsyncLock 异步互斥锁单元测试 (SemaphoreSlim(1,1) 包装实现)。
@@ -75,20 +75,12 @@ public class AsyncLockTest
         var tasks = Enumerable.Range(0, N).Select(async i =>
         {
             await startGate.Task.ConfigureAwait(true);
-            var guard = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
-            try
-            {
-                acquireOrder.Enqueue(i);
-                var c = Interlocked.Increment(ref currentHolders);
-                UpdateMax(ref maxConcurrent, c);
-                await Task.Yield();
-            }
-            finally
-            {
-                Interlocked.Decrement(ref currentHolders);
-                guard.Dispose();
-                Interlocked.Increment(ref completedCount);
-            }
+            using var guard =  asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
+            acquireOrder.Enqueue(i);
+            var c = Interlocked.Increment(ref currentHolders);
+            UpdateMax(ref maxConcurrent, c);
+            await Task.Yield();
+        
         }).ToArray();
 
         startGate.SetResult(true);
@@ -345,20 +337,12 @@ public class AsyncLockTest
         var tasks = Enumerable.Range(0, N).Select(async _ =>
         {
             await startGate.Task.ConfigureAwait(true);
-            var guard = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
-            try
-            {
-                Interlocked.Increment(ref acquireCount);
-                var c = Interlocked.Increment(ref currentHolders);
-                UpdateMax(ref maxConcurrent, c);
-                await Task.Yield();
-            }
-            finally
-            {
-                Interlocked.Decrement(ref currentHolders);
-                guard.Dispose();
-                Interlocked.Increment(ref completedCount);
-            }
+            using var guard =  asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
+            Interlocked.Increment(ref acquireCount);
+            var c = Interlocked.Increment(ref currentHolders);
+            UpdateMax(ref maxConcurrent, c);
+            await Task.Yield();
+        
         }).ToArray();
 
         startGate.SetResult(true);

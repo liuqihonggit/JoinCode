@@ -1,13 +1,12 @@
-namespace Infra.Tests.EntityTests;
+﻿namespace Infra.Tests.EntityTests;
 
 public sealed class ToolExecutionEntityRegistryTests
 {
     [Fact]
     public void Add_And_Get_ByObjectId()
     {
-        var entity = new ToolExecutionEntity("test");
-        try { ToolExecutionEntity.Registry.Get(entity.ObjectId).Should().BeSameAs(entity); }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("test");
+ ToolExecutionEntity.Registry.Get(entity.ObjectId).Should().BeSameAs(entity); 
     }
 
     [Fact]
@@ -29,107 +28,83 @@ public sealed class ToolExecutionEntityRegistryTests
     [Fact]
     public void GetAll_ContainsCreatedEntity()
     {
-        var entity = new ToolExecutionEntity("bash");
-        try { ToolExecutionEntity.Registry.GetAll().Should().Contain(entity); }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("bash");
+ ToolExecutionEntity.Registry.GetAll().Should().Contain(entity); 
     }
 
     [Fact]
     public void GetActive_ReturnsActiveEntity()
     {
-        var entity = new ToolExecutionEntity("bash");
-        entity.LifecycleState = EntityLifecycle.Active;
-        try { ToolExecutionEntity.Registry.GetActive().Should().Contain(entity); }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("bash");
+ ToolExecutionEntity.Registry.GetActive().Should().Contain(entity); 
     }
 
     [Fact]
     public void GetActive_ExcludesCompletedEntity()
     {
-        var entity = new ToolExecutionEntity("bash");
-        entity.LifecycleState = EntityLifecycle.Completed;
-        try { ToolExecutionEntity.Registry.GetActive().Should().NotContain(entity); }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("bash");
+ ToolExecutionEntity.Registry.GetActive().Should().NotContain(entity); 
     }
 
     [Fact]
     public void GetCompleted_ReturnsCompletedEntity()
     {
-        var entity = new ToolExecutionEntity("bash");
-        entity.LifecycleState = EntityLifecycle.Completed;
-        try { ToolExecutionEntity.Registry.GetCompleted().Should().Contain(entity); }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("bash");
+ ToolExecutionEntity.Registry.GetCompleted().Should().Contain(entity); 
     }
 
     [Fact]
     public void GetTimedOut_ReturnsTimedOutEntity()
     {
-        var entity = new ToolExecutionEntity("bash") { TimeoutAt = DateTime.UtcNow.AddSeconds(-1) };
-        try { ToolExecutionEntity.Registry.GetTimedOut().Should().Contain(entity); }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("bash") { TimeoutAt = DateTime.UtcNow.AddSeconds(-1) };
+ ToolExecutionEntity.Registry.GetTimedOut().Should().Contain(entity); 
     }
 
     [Fact]
     public void GetTimedOut_ExcludesNonTimedOutEntity()
     {
-        var entity = new ToolExecutionEntity("read_file");
-        try { ToolExecutionEntity.Registry.GetTimedOut().Should().NotContain(entity); }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("read_file");
+ ToolExecutionEntity.Registry.GetTimedOut().Should().NotContain(entity); 
     }
 
     [Fact]
     public void GetByToolName_FiltersCaseInsensitive()
     {
-        var e1 = new ToolExecutionEntity("bash");
-        var e2 = new ToolExecutionEntity("Bash");
-        try
-        {
-            var result = ToolExecutionEntity.Registry.GetByToolName("bash");
-            result.Should().Contain(e1);
-            result.Should().Contain(e2);
-        }
-        finally { e1.Dispose(); e2.Dispose(); }
+        using var e1 = new ToolExecutionEntity("bash");
+        using var e2 = new ToolExecutionEntity("Bash");
+        var result = ToolExecutionEntity.Registry.GetByToolName("bash");
+        result.Should().Contain(e1);
+        result.Should().Contain(e2);
     }
 
     [Fact]
     public void GetByToolName_ExcludesOtherToolNames()
     {
-        var bash = new ToolExecutionEntity("bash");
-        var grep = new ToolExecutionEntity("grep");
-        try
-        {
-            var result = ToolExecutionEntity.Registry.GetByToolName("bash");
-            result.Should().Contain(bash);
-            result.Should().NotContain(grep);
-        }
-        finally { bash.Dispose(); grep.Dispose(); }
+        using var bash = new ToolExecutionEntity("bash");
+        using var grep = new ToolExecutionEntity("grep");
+        var result2 = ToolExecutionEntity.Registry.GetByToolName("bash");
+        result2.Should().Contain(bash);
+        result2.Should().NotContain(grep);
     }
 
     [Fact]
     public void SubclassEntities_QueryableFromBaseRegistry()
     {
-        var bash = new BashProcessEntity(command: "ls");
-        var web = new WebFetchEntity(url: "https://example.com");
-        var sleep = new SleepEntity(durationSeconds: 10);
-        var repl = new ReplSessionEntity(language: "csharp");
-        var ask = new UserInteractionEntity(question: "Continue?");
-        try
-        {
-            ToolExecutionEntity.Registry.Get(bash.ObjectId).Should().BeSameAs(bash);
-            ToolExecutionEntity.Registry.Get(web.ObjectId).Should().BeSameAs(web);
-            ToolExecutionEntity.Registry.Get(sleep.ObjectId).Should().BeSameAs(sleep);
-            ToolExecutionEntity.Registry.Get(repl.ObjectId).Should().BeSameAs(repl);
-            ToolExecutionEntity.Registry.Get(ask.ObjectId).Should().BeSameAs(ask);
+        using var bash = new BashProcessEntity(command: "ls");
+        using var web = new WebFetchEntity(url: "https://example.com");
+        using var sleep = new SleepEntity(durationSeconds: 10);
+        using var repl = new ReplSessionEntity(language: "csharp");
+        using var ask = new UserInteractionEntity(question: "Continue?");
+        ToolExecutionEntity.Registry.Get(bash.ObjectId).Should().BeSameAs(bash);
+        ToolExecutionEntity.Registry.Get(web.ObjectId).Should().BeSameAs(web);
+        ToolExecutionEntity.Registry.Get(sleep.ObjectId).Should().BeSameAs(sleep);
+        ToolExecutionEntity.Registry.Get(repl.ObjectId).Should().BeSameAs(repl);
+        ToolExecutionEntity.Registry.Get(ask.ObjectId).Should().BeSameAs(ask);
 
-            ToolExecutionEntity.Registry.GetByToolName("bash").Should().Contain(bash);
-            ToolExecutionEntity.Registry.GetByToolName("web_fetch").Should().Contain(web);
-            ToolExecutionEntity.Registry.GetByToolName("sleep").Should().Contain(sleep);
-            ToolExecutionEntity.Registry.GetByToolName("repl").Should().Contain(repl);
-            ToolExecutionEntity.Registry.GetByToolName("ask_user").Should().Contain(ask);
-        }
-        finally
-        {
-            bash.Dispose(); web.Dispose(); sleep.Dispose(); repl.Dispose(); ask.Dispose();
-        }
+        ToolExecutionEntity.Registry.GetByToolName("bash").Should().Contain(bash);
+        ToolExecutionEntity.Registry.GetByToolName("web_fetch").Should().Contain(web);
+        ToolExecutionEntity.Registry.GetByToolName("sleep").Should().Contain(sleep);
+        ToolExecutionEntity.Registry.GetByToolName("repl").Should().Contain(repl);
+        ToolExecutionEntity.Registry.GetByToolName("ask_user").Should().Contain(ask);
     }
 }

@@ -1,4 +1,4 @@
-namespace MockServer.E2E.Tests;
+﻿namespace MockServer.E2E.Tests;
 
 [Trait("Category", "Integration")]
 public sealed class ApiErrorRecoveryE2ETests : CoverageTestBase
@@ -164,23 +164,17 @@ public sealed class AnthropicDeepCoverageE2ETests : IAsyncLifetime
     private async Task RunScriptWithProviderAsync(ConversationScript script, VendorKind provider)
     {
         var sw = Stopwatch.StartNew();
-        var runner = new DualRoleConversationRunner(
+        await using var runner =  new DualRoleConversationRunner(
             _loggerFactory.CreateLogger<DualRoleConversationRunner>());
-        try
-        {
-            var result = await runner.RunAsync(script, provider).ConfigureAwait(true);
-            sw.Stop();
+        var result = await runner.RunAsync(script, provider).ConfigureAwait(true);
+        sw.Stop();
 
-            _output.WriteLine($"[{provider}] 脚本: {result.ScriptName}, 耗时: {sw.Elapsed.TotalMilliseconds:F1}ms");
-            _output.WriteLine($"[{provider}] 断言: {result.AssertResults.Count(a => a.IsPassed)} 通过 / {result.AssertResults.Count(a => !a.IsPassed)} 失败");
+        _output.WriteLine($"[{provider}] 脚本: {result.ScriptName}, 耗时: {sw.Elapsed.TotalMilliseconds:F1}ms");
+        _output.WriteLine($"[{provider}] 断言: {result.AssertResults.Count(a => a.IsPassed)} 通过 / {result.AssertResults.Count(a => !a.IsPassed)} 失败");
 
-            result.AllPassed.Should().BeTrue(
-                $"所有断言应通过。失败: {FormatFailures(result)}");
-        }
-        finally
-        {
-            await runner.DisposeAsync().ConfigureAwait(true);
-        }
+        result.AllPassed.Should().BeTrue(
+            $"所有断言应通过。失败: {FormatFailures(result)}");
+    
     }
 
     private static string FormatFailures(ConversationResult result)

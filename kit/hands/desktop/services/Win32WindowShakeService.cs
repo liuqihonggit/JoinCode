@@ -71,76 +71,146 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
     }
 
     /// <summary>
-    /// 解析可震动的窗口句柄 — 从控制台窗口开始向上遍历父窗口链，
-    /// 找到第一个可见且能设置焦点的顶层窗口。
+    /// 解析可震动的窗口句柄 — 沿父进程链向上查找，找到第一个拥有可见顶层窗口的祖先进程。
+    /// jcc.exe 作为子进程无控制台窗口，需找到父进程（终端/IDE）的窗口。
     /// </summary>
     private IntPtr ResolveShakeableWindow()
     {
-        var hwnd = PulseNativeMethods.GetConsoleWindow();
-        if (hwnd == IntPtr.Zero)
+        var consoleHwnd = PulseNativeMethods.GetConsoleWindow();
+        if (consoleHwnd != IntPtr.Zero && IsWindowShakeable(consoleHwnd))
         {
-            hwnd = User32NativeMethods.GetForegroundWindow();
-            _logger?.LogInformation("GetConsoleWindow 返回零句柄，回退到 GetForegroundWindow: {Hwnd}", hwnd);
+            _logger?.LogInformation("使用控制台窗口句柄 {Hwnd}", consoleHwnd);
+            return consoleHwnd;
         }
 
-        if (hwnd == IntPtr.Zero)
-        {
-            _logger?.LogWarning("GetConsoleWindow 和 GetForegroundWindow 均返回零句柄");
-            return IntPtr.Zero;
-        }
+        var currentPid = (uint)Environment.ProcessId;
+        var ancestorPids = GetAncestorProcessIds(currentPid, maxDepth: 8);
+        var windowsByPid = EnumerateAllWindowsByPid();
 
-        var bestVisible = IntPtr.Zero;
-        var current = hwnd;
-        for (var i = 0; i < MaxParentTraversal && current != IntPtr.Zero; i++)
+        foreach (var ancestorPid in ancestorPids)
         {
-            if (IsWindowShakeable(current))
+            if (windowsByPid.TryGetValue(ancestorPid, out var hwnds))
             {
-                if (User32NativeMethods.SetForegroundWindow(current))
+                var best = SelectBestWindow(hwnds);
+                if (best != IntPtr.Zero)
                 {
-                    _logger?.LogInformation("找到可设置焦点的窗口句柄 {Hwnd}（向上遍历 {Depth} 层）", current, i);
-                    return current;
-                }
-
-                if (bestVisible == IntPtr.Zero)
-                {
-                    bestVisible = current;
+                    var title = GetWindowTitle(best);
+                    _logger?.LogInformation("找到祖先进程 PID={Pid} 的窗口句柄 {Hwnd} 标题=\"{Title}\"", ancestorPid, best, title);
+                    User32NativeMethods.SetForegroundWindow(best);
+                    return best;
                 }
             }
-
-            current = User32NativeMethods.GetParent(current);
         }
 
-        if (bestVisible != IntPtr.Zero)
-        {
-            _logger?.LogInformation("未找到可设置焦点的窗口，使用最顶层可见窗口句柄 {Hwnd}", bestVisible);
-            User32NativeMethods.SetForegroundWindow(bestVisible);
-            return bestVisible;
-        }
-
-        _logger?.LogWarning("向上遍历父窗口链未找到任何可见窗口，回退到原始控制台窗口句柄 {Hwnd}", hwnd);
-        return hwnd;
+        var fg = User32NativeMethods.GetForegroundWindow();
+        _logger?.LogWarning("未找到祖先进程窗口，回退到前台窗口 {Hwnd}", fg);
+        return fg;
     }
 
     /// <summary>
-    /// 获取可震动窗口的诊断信息 — 句柄、标题、矩形、遍历深度。
+    /// 获取父进程链 — 从当前进程的父进程开始，逐级向上收集祖先 PID。
+    /// </summary>
+    private static List<uint> GetAncestorProcessIds(uint currentPid, int maxDepth)
+    {
+        var result = new List<uint>();
+        var snapshot = Kernel32NativeMethods.CreateToolhelp32Snapshot(Kernel32NativeMethods.TH32CS_SNAPPROCESS, 0);
+        if (snapshot == IntPtr.Zero || snapshot == new IntPtr(-1))
+            return result;
+
+        try
+        {
+            var entry = new PROCESSENTRY32 { dwSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<PROCESSENTRY32>() };
+            if (!Kernel32NativeMethods.Process32First(snapshot, ref entry))
+                return result;
+
+            var pidToParent = new Dictionary<uint, uint>();
+            do
+            {
+                pidToParent[entry.th32ProcessID] = entry.th32ParentProcessID;
+            }
+            while (Kernel32NativeMethods.Process32Next(snapshot, ref entry));
+
+            var pid = currentPid;
+            for (var i = 0; i < maxDepth; i++)
+            {
+                if (!pidToParent.TryGetValue(pid, out var parentPid) || parentPid == 0 || parentPid == pid)
+                    break;
+                result.Add(parentPid);
+                pid = parentPid;
+            }
+        }
+        finally
+        {
+            Kernel32NativeMethods.CloseHandle(snapshot);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 枚举所有可见顶层窗口，按进程ID分组。
+    /// </summary>
+    private static Dictionary<uint, List<IntPtr>> EnumerateAllWindowsByPid()
+    {
+        var result = new Dictionary<uint, List<IntPtr>>();
+        var handle = System.Runtime.InteropServices.GCHandle.Alloc(result);
+        try
+        {
+            User32NativeMethods.EnumWindows(static (hwnd, lParam) =>
+            {
+                if (!User32NativeMethods.IsWindowVisible(hwnd))
+                    return true;
+                User32NativeMethods.GetWindowThreadProcessId(hwnd, out var pid);
+                if (pid == 0)
+                    return true;
+                var dict = System.Runtime.InteropServices.GCHandle.FromIntPtr(lParam).Target as Dictionary<uint, List<IntPtr>>;
+                if (dict is null)
+                    return true;
+                if (!dict.TryGetValue(pid, out var list))
+                {
+                    list = [];
+                    dict[pid] = list;
+                }
+                list.Add(hwnd);
+                return true;
+            }, System.Runtime.InteropServices.GCHandle.ToIntPtr(handle));
+        }
+        finally
+        {
+            handle.Free();
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// 获取可震动窗口的诊断信息 — 父进程链 + 每个祖先的窗口。
     /// </summary>
     public string GetWindowInfo()
     {
-        var consoleHwnd = PulseNativeMethods.GetConsoleWindow();
         var sb = new StringBuilder();
-        sb.AppendLine($"ConsoleWindow句柄: 0x{consoleHwnd.ToInt64():X}");
+        var consoleHwnd = PulseNativeMethods.GetConsoleWindow();
+        sb.AppendLine($"当前PID: {Environment.ProcessId}, ConsoleWindow句柄: 0x{consoleHwnd.ToInt64():X}");
 
-        var current = consoleHwnd;
-        for (var i = 0; i < MaxParentTraversal && current != IntPtr.Zero; i++)
+        var currentPid = (uint)Environment.ProcessId;
+        var ancestorPids = GetAncestorProcessIds(currentPid, maxDepth: 8);
+        var windowsByPid = EnumerateAllWindowsByPid();
+
+        sb.AppendLine($"父进程链: {string.Join(" → ", ancestorPids)}");
+        foreach (var ancestorPid in ancestorPids)
         {
-            var visible = User32NativeMethods.IsWindowVisible(current);
-            var rectOk = User32NativeMethods.GetWindowRect(current, out var rect);
-            var title = GetWindowTitle(current);
-            var canFocus = User32NativeMethods.SetForegroundWindow(current);
-            sb.AppendLine($"  [{i}] 句柄=0x{current.ToInt64():X} 可见={visible} 矩形={rectOk} " +
-                          $"标题=\"{title}\" 能设焦点={canFocus}" +
-                          (rectOk ? $" 位置=({rect.Left},{rect.Top}) 大小={rect.Right - rect.Left}x{rect.Bottom - rect.Top}" : ""));
-            current = User32NativeMethods.GetParent(current);
+            if (windowsByPid.TryGetValue(ancestorPid, out var hwnds))
+            {
+                foreach (var hwnd in hwnds)
+                {
+                    var title = GetWindowTitle(hwnd);
+                    var shakeable = IsWindowShakeable(hwnd);
+                    sb.AppendLine($"  PID={ancestorPid} 句柄=0x{hwnd.ToInt64():X} 标题=\"{title}\" 可震动={shakeable}");
+                }
+            }
+            else
+            {
+                sb.AppendLine($"  PID={ancestorPid} 无可见窗口");
+            }
         }
 
         var resolved = ResolveShakeableWindow();
@@ -170,6 +240,48 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
         }
 
         return rect.Right - rect.Left > 0 && rect.Bottom - rect.Top > 0;
+    }
+
+    /// <summary>
+    /// 从同一进程的多个窗口中选择最佳震动目标 — 排除"Program Manager"，优先有标题且面积最大的窗口。
+    /// </summary>
+    private static IntPtr SelectBestWindow(List<IntPtr> hwnds)
+    {
+        IntPtr bestWithTitle = IntPtr.Zero;
+        var bestTitleArea = 0;
+        IntPtr bestAny = IntPtr.Zero;
+        var bestAnyArea = 0;
+
+        foreach (var hwnd in hwnds)
+        {
+            if (!IsWindowShakeable(hwnd))
+                continue;
+
+            var title = GetWindowTitle(hwnd);
+            if (title is "Program Manager" or "")
+                continue;
+
+            if (!User32NativeMethods.GetWindowRect(hwnd, out var rect))
+                continue;
+
+            var area = (rect.Right - rect.Left) * (rect.Bottom - rect.Top);
+            if (area <= 0)
+                continue;
+
+            if (title.Length > 0 && area > bestTitleArea)
+            {
+                bestWithTitle = hwnd;
+                bestTitleArea = area;
+            }
+
+            if (area > bestAnyArea)
+            {
+                bestAny = hwnd;
+                bestAnyArea = area;
+            }
+        }
+
+        return bestWithTitle != IntPtr.Zero ? bestWithTitle : bestAny;
     }
 
     private void FlashTaskbarCore(IntPtr hwnd)

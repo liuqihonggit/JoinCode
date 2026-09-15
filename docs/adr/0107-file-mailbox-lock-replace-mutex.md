@@ -190,3 +190,45 @@ VSTHRD003 是 Visual Studio SDK 的线程分析规则，为 VS 扩展设计。jc
 - `SessionId`（string?）、`IsRead`（bool）为可选字段
 - `MailboxPoller` 直接传递消息对象，不再创建新对象转换
 - 差异字段按需使用，LINQ 投影提取所需子集
+
+## 接收端消息去重
+
+### 问题：跨进程消息重复投递
+
+`MailboxPoller` 轮询文件邮箱时，如果 `MarkAsReadAsync` 失败或游标未更新，同一消息会被重复轮询并投递到 `InProcessMailbox`，导致 Agent 重复处理。
+
+### 决策：InProcessMailbox 用 MessageId 去重
+
+- 维护 `ConcurrentDictionary<string, ConcurrentDictionary<string, byte>>`（agentId → 已投递 MessageId 集合）
+- `SendAsync` 检查 `MessageId`，重复则跳过（不写 Channel、不持久化）
+- `DeliverInboundAsync` 检查 `MessageId`，重复则跳过（不写 Channel）
+- `UnregisterAgent` 清理对应 agent 的去重集合
+- 不同 Agent 的同一 `MessageId` 独立去重（不误判）
+
+## 单元测试覆盖
+
+### 去重逻辑测试（6 个）
+
+`InProcessMailboxDedupTests`：
+- 同一 MessageId 第二次返回 false
+- 不同 MessageId 都能投递
+- 跨进程入站消息去重
+- 不同 Agent 独立去重
+- UnregisterAgent 后清理去重集合
+- 重复消息不持久化
+
+### Agent 发现测试（5 个）
+
+`AgentDiscoveryServiceTests`：
+- 注册后能发现
+- 注销后不能发现
+- 超时 agent 被过滤（30 秒阈值）
+- 按会话过滤
+- 心跳更新最后心跳时间
+
+### 消息槽测试（3 个）
+
+`MailboxMessageSinkTests`：
+- 投递消息到达 Channel
+- 非 InProcessMailbox 抛 InvalidOperationException
+- 异常不传播（吞没非取消异常）

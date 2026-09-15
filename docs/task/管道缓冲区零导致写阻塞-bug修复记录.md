@@ -106,6 +106,12 @@ await foreach (var msg in BinaryProtocol.ReadStreamAsync(server, ct))
 rg "new NamedPipeServerStream" --type cs
 ```
 
+**✅ 全局排查已完成（2026-09-16）**：全项目仅2处 `new NamedPipeServerStream`：
+1. `lib/async_lock/ITransportTopology.cs` — `PipeAcceptLoop.RunAsync`（已修复）
+2. `test/unit/testing.common/mock_server/PipeOpenAIMockServer.cs` — MockServer（已修复）
+
+两处均已补上 `inBufferSize: 65536, outBufferSize: 65536`。
+
 ## 教训
 
 1. **NamedPipeServerStream 5参数构造函数的默认缓冲区大小是0** — 这反直觉，大部分开发者假设有默认缓冲。必须显式指定。

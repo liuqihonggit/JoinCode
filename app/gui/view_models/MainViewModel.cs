@@ -69,6 +69,14 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private bool _isAntiCharLossConfirm = false;
 
+    /// <summary>窗口震动通知开关 — 子代理调用 shake_window 时是否震动窗口 — ADR 0109</summary>
+    [ObservableProperty]
+    private bool _windowShakeEnabled = true;
+
+    /// <summary>聊天室模式开关 — 是否启用跨进程子代理聊天室广播 — ADR 0109</summary>
+    [ObservableProperty]
+    private bool _chatRoomEnabled = true;
+
     /// <summary>输入栏占位提示 — 随发送键位偏好联动</summary>
     public string SendHintText => EnterSends
         ? "输入消息，Enter 发送 / Shift+Enter 换行…"
@@ -930,6 +938,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             HotkeyItems.Add(new HotkeyItemVm("打开设置", "ToggleSettings", prefs.HotkeyToggleSettings));
             NetworkMode = prefs.NetworkMode;
             ProxyUrl = prefs.ProxyUrl;
+            WindowShakeEnabled = prefs.WindowShakeEnabled;
+            ChatRoomEnabled = prefs.ChatRoomEnabled;
             _isPreferencesLoaded = true;
         }
         catch (Exception ex)
@@ -1012,6 +1022,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _persistActions[nameof(DoubleEscStop)] = SavePreferences;
         _persistActions[nameof(IsUnattendedMode)] = SavePreferences;
         _persistActions[nameof(IsAntiCharLossConfirm)] = SavePreferences;
+        _persistActions[nameof(WindowShakeEnabled)] = SavePreferences;
+        _persistActions[nameof(ChatRoomEnabled)] = SavePreferences;
     }
 
     /// <summary>
@@ -1056,7 +1068,9 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 HotkeyClearHistory = GetHotkeyGesture("ClearHistory"),
                 HotkeyToggleSettings = GetHotkeyGesture("ToggleSettings"),
                 NetworkMode = NetworkMode,
-                ProxyUrl = ProxyUrl
+                ProxyUrl = ProxyUrl,
+                WindowShakeEnabled = WindowShakeEnabled,
+                ChatRoomEnabled = ChatRoomEnabled
             });
         }
         catch (Exception ex)

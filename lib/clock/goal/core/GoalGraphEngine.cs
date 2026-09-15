@@ -25,6 +25,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     private readonly RetryHandler _retryHandler;
     private readonly NodeExecutorDispatcher _nodeExecutor;
     private readonly NodeCompletionPipeline _completionPipeline;
+    private readonly IGraphScheduler _graphScheduler;
 
     /// <summary>
     /// 构造 GoalGraphEngine — 注入聊天客户端、评估器、服务提供器及各类可选依赖
@@ -39,6 +40,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     /// <param name="nodeInspector">可选节点检查器</param>
     /// <param name="conflictMessenger">可选冲突消息队列</param>
     /// <param name="concurrencyOptions">可选并发选项，缺省从服务提供器解析或使用默认值</param>
+    /// <param name="graphScheduler">可选图调度器，缺省使用轮询式调度（保持行为等价）</param>
     public GoalGraphEngine(
         IChatClient kernel,
         IGoalEvaluator evaluator,
@@ -49,7 +51,8 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         IGoalUserInteraction? userInteraction = null,
         IGoalNodeInspector? nodeInspector = null,
         IGoalConflictMessenger? conflictMessenger = null,
-        SubAgentConcurrencyOptions? concurrencyOptions = null)
+        SubAgentConcurrencyOptions? concurrencyOptions = null,
+        IGraphScheduler? graphScheduler = null)
     {
         _kernel = kernel;
         _evaluator = evaluator;
@@ -77,6 +80,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             new LoopObservationHandler(_nodeInspector, _logger),
             new TerminationCheckHandler()
         ], _logger);
+        _graphScheduler = graphScheduler ?? new PollingGraphScheduler(_logger);
     }
 
     /// <summary>
@@ -150,121 +154,29 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             ? new AsyncLock(nameof(GoalGraphEngine) + ".Concurrency", concurrencyOptions.MaxConcurrentExecutions, concurrencyOptions.MaxConcurrentExecutions)
             : null;
 
-        while (true)
-        {
-            ct.ThrowIfCancellationRequested();
+        var finalOutcome = await _graphScheduler.RunAsync(
+            graph, context, ProcessNodeCompletionAsync, concurrencyLimiter, ct).ConfigureAwait(false);
 
-            var batch = DrainReadyBatch(graph, context);
-
-            if (batch.Count == 0)
-            {
-                if (context.ReadyQueue.IsEmpty)
-                    break;
-                try
-                {
-                    await context.NodeCompletedSignal.WaitAsync(TimeSpan.FromSeconds(1), ct).ConfigureAwait(false);
-                }
-                catch (TimeoutException) { _logger?.LogDebug("[GoalGraph] 节点完成信号等待超时,继续检查"); }
-                continue;
-            }
-
-            var outcomes = await Task.WhenAll(batch.Select(nodeId =>
-                ExecuteWithSemaphoreAsync(nodeId, graph, context, concurrencyLimiter, ct))).ConfigureAwait(false);
-
-            foreach (var outcome in outcomes)
-            {
-                if (outcome == NodeCompletionOutcome.GoalAchieved)
-                {
-                    await _stateUpdater.SetGoalStatusAsync(goalState, GoalStatus.Achieved, context, ct).ConfigureAwait(false);
-                    return goalState;
-                }
-                if (outcome == NodeCompletionOutcome.GoalUnmet)
-                {
-                    await _stateUpdater.SetGoalStatusAsync(goalState, GoalStatus.Unmet, context, ct).ConfigureAwait(false);
-                    return goalState;
-                }
-            }
-        }
+        if (finalOutcome == NodeCompletionOutcome.GoalAchieved)
+            await _stateUpdater.SetGoalStatusAsync(goalState, GoalStatus.Achieved, context, ct).ConfigureAwait(false);
+        else if (finalOutcome == NodeCompletionOutcome.GoalUnmet)
+            await _stateUpdater.SetGoalStatusAsync(goalState, GoalStatus.Unmet, context, ct).ConfigureAwait(false);
 
         return goalState;
-    }
-
-    /// <summary>
-    /// 从就绪队列批量取出所有上游已完成的节点（同层节点，可并行执行）。
-    /// 未就绪节点重新入队，待下一轮处理。
-    /// </summary>
-    private List<string> DrainReadyBatch(GoalGraph graph, GraphExecutionContext context)
-    {
-        var batch = new List<string>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var deferred = new List<string>();
-
-        while (context.ReadyQueue.TryDequeue(out var nodeId))
-        {
-            if (!seen.Add(nodeId))
-                continue;
-
-            if (context.CompletedNodes.ContainsKey(nodeId))
-                continue;
-
-            if (!context.AreAllUpstreamsCompleted(nodeId))
-            {
-                deferred.Add(nodeId);
-                continue;
-            }
-
-            if (!graph.Dag.Nodes.TryGetValue(nodeId, out var dagNode))
-            {
-                _logger?.LogWarning("[GoalGraph] 节点不存在: {NodeId}", nodeId);
-                continue;
-            }
-
-            if (dagNode.Payload.Status == GoalNodeStatus.Completed)
-                continue;
-
-            batch.Add(nodeId);
-        }
-
-        foreach (var id in deferred)
-            context.ReadyQueue.Enqueue(id);
-
-        return batch;
-    }
-
-    /// <summary>
-    /// 在并发限流器控制下执行单个节点完成处理。
-    /// </summary>
-    private async Task<NodeCompletionOutcome> ExecuteWithSemaphoreAsync(
-        string nodeId,
-        GoalGraph graph,
-        GraphExecutionContext context,
-        AsyncLock? limiter,
-        CancellationToken ct)
-    {
-        IDisposable? releaser = null;
-        if (limiter is not null)
-            releaser = await limiter.TryLockAsync(ct).ConfigureAwait(false)
-                ?? throw new System.TimeoutException($"锁 '{limiter.Name}' 等待超时");
-        using (releaser)
-        {
-            var dagNode = graph.Dag.Nodes[nodeId];
-            var outcome = await ProcessNodeCompletionAsync(nodeId, dagNode, graph, context, ct).ConfigureAwait(false);
-            context.NodeCompletedSignal.Release();
-            return outcome;
-        }
     }
 
     /// <summary>
     /// 处理单个节点执行 + 完成后逻辑（失败回退 / 终止判断 / 后继入队 / EndNode 判断）。
     /// 返回节点完成后的整体目标状态决策。
     /// </summary>
+    /// <remarks>由 <see cref="IGraphScheduler"/> 通过 <see cref="ProcessNodeCompletionAsync"/> 委托回调。</remarks>
     private async Task<NodeCompletionOutcome> ProcessNodeCompletionAsync(
         string nodeId,
         DagNode<GoalNodePayload> dagNode,
-        GoalGraph graph,
         GraphExecutionContext context,
         CancellationToken ct)
     {
+        var graph = context.Graph;
         var payload = dagNode.Payload;
 
         await ExecuteNodeAsync(nodeId, dagNode, context, ct).ConfigureAwait(false);

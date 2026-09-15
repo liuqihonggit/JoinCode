@@ -4,22 +4,32 @@ namespace Core.Goal;
 /// <summary>
 /// Graph 执行的运行时上下文 — 持有可变状态、队列、重试计数
 /// </summary>
-internal sealed class GraphExecutionContext
+/// <remarks>由 <see cref="IGraphScheduler"/> 实现访问，public 以支持自定义调度器。</remarks>
+public sealed class GraphExecutionContext
 {
+    /// <summary>目标图定义</summary>
     public required GoalGraph Graph { get; init; }
+    /// <summary>目标状态</summary>
     public required GoalState State { get; init; }
+    /// <summary>聊天历史</summary>
     public required MessageList ChatHistory { get; init; }
+    /// <summary>状态锁（保护 goalState.Status 写入）</summary>
     public required AsyncLock StateLock { get; init; }
+    /// <summary>时钟服务</summary>
     public required IClockService Clock { get; init; }
 
+    /// <summary>就绪节点队列 — 待执行的节点 ID</summary>
     public ConcurrentQueue<string> ReadyQueue { get; } = new();
 
     /// <summary>
     /// 节点完成信号 — 替代 Task.Delay 轮询。每个节点完成时 Release,循环在 batch 为空时 WaitAsync。
     /// </summary>
     public SemaphoreSlim NodeCompletedSignal { get; } = new(0, int.MaxValue);
+    /// <summary>节点重试计数（按节点 ID 索引）</summary>
     public ConcurrentDictionary<string, int> RetryCount { get; } = new(StringComparer.Ordinal);
+    /// <summary>已完成节点集合</summary>
     public ConcurrentDictionary<string, byte> CompletedNodes { get; } = new(StringComparer.Ordinal);
+    /// <summary>失败节点集合</summary>
     public ConcurrentDictionary<string, byte> FailedNodes { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
@@ -43,6 +53,11 @@ internal sealed class GraphExecutionContext
     /// </summary>
     public string? TeamId { get; set; }
 
+    /// <summary>
+    /// 判断节点的所有上游（无标签边）是否全部完成或失败。
+    /// </summary>
+    /// <param name="nodeId">节点 ID</param>
+    /// <returns>全部上游已完成或失败返回 true；否则 false</returns>
     public bool AreAllUpstreamsCompleted(string nodeId)
     {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
@@ -63,6 +78,11 @@ internal sealed class GraphExecutionContext
         return true;
     }
 
+    /// <summary>
+    /// 统计节点已完成或失败的上游数量。
+    /// </summary>
+    /// <param name="nodeId">节点 ID</param>
+    /// <returns>已完成或失败的上游数</returns>
     public int CountCompletedUpstreams(string nodeId)
     {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
@@ -82,6 +102,11 @@ internal sealed class GraphExecutionContext
         return count;
     }
 
+    /// <summary>
+    /// 统计节点成功完成的上游数量。
+    /// </summary>
+    /// <param name="nodeId">节点 ID</param>
+    /// <returns>成功完成的上游数</returns>
     public int CountSuccessfulUpstreams(string nodeId)
     {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
@@ -101,6 +126,11 @@ internal sealed class GraphExecutionContext
         return count;
     }
 
+    /// <summary>
+    /// 统计节点总上游数量（无标签边）。
+    /// </summary>
+    /// <param name="nodeId">节点 ID</param>
+    /// <returns>总上游数</returns>
     public int CountTotalUpstreams(string nodeId)
     {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
@@ -119,6 +149,11 @@ internal sealed class GraphExecutionContext
         return count;
     }
 
+    /// <summary>
+    /// 收集节点所有上游的输出（按上游节点 ID 索引）。
+    /// </summary>
+    /// <param name="nodeId">节点 ID</param>
+    /// <returns>上游 ID → 输出 的字典</returns>
     public Dictionary<string, string?> CollectUpstreamOutputs(string nodeId)
     {
         var outputs = new Dictionary<string, string?>(StringComparer.Ordinal);
@@ -140,6 +175,13 @@ internal sealed class GraphExecutionContext
         return outputs;
     }
 
+    /// <summary>
+    /// 根据路由匹配模式获取后继节点 ID 列表。
+    /// </summary>
+    /// <param name="fromNodeId">起始节点 ID</param>
+    /// <param name="routes">路由标签数组（null 表示无路由）</param>
+    /// <param name="matchMode">路由匹配模式</param>
+    /// <returns>后继节点 ID 列表</returns>
     public IReadOnlyList<string> GetNextNodeIds(string fromNodeId, string[]? routes, RouteMatchMode matchMode)
     {
         var nextIds = new List<string>();

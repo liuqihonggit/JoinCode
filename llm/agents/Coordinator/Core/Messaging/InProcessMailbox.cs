@@ -120,6 +120,22 @@ public sealed partial class InProcessMailbox : ServiceEntity, IMailbox
         return _agentSessions.GetValueOrDefault(agentId);
     }
 
+    /// <summary>
+    /// 投递跨进程入站消息 — 只写入内存 Channel，不持久化到文件邮箱。
+    /// <para>由 MailboxMessageSink 调用，断开 Broker→Poller→Broker 循环。</para>
+    /// <para>消息已在文件邮箱中，无需再次持久化。</para>
+    /// </summary>
+    /// <param name="agentId">目标 Agent 标识</param>
+    /// <param name="message">要投递的消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    public async Task DeliverInboundAsync(string agentId, CoordinatorAgentMessage message, CancellationToken cancellationToken = default)
+    {
+        if (_messageChannels.TryGetValue(agentId, out var channel))
+        {
+            await channel.Writer.WriteAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private async Task PersistToMailboxAsync(string agentId, CoordinatorAgentMessage message, CancellationToken cancellationToken)
     {
         if (_mailboxService is null) return;

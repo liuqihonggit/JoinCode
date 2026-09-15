@@ -3,6 +3,12 @@
 > 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 
+> ⚠️ **部分内容已陈旧** — 以下内容已被后续 commit 更新/解决：
+> - 第31行 `bash运行在沙箱会抽风` 备注 → 已修复（commit e0765d5c0，CI 初始化 settings.json）
+> - 第163-170行「无法交付项」表格 → 已解决（AI 限流/GitHub 清理/Anthropic 依赖均已处理）
+> - 第171-189行「启动参数系统测试记录」→ BUG#1-10 已修复（commit 496289543 + e0765d5c0）
+> - 核心方法论（手动测试必要性、验收标准、推荐配置）仍有效
+
 - 状态：accepted
 - 日期：2026-09-08
 - 决策者：项目架构组
@@ -177,7 +183,150 @@ C# LSP 服务器从 OmniSharp 切换为 csharp-ls（`dotnet tool install -g csha
 | # | Commit | 修复内容 | 根因 |
 |---|--------|----------|------|
 | 1 | `94df26085` | `--json` ≡ `--format json` 别名统一 | `HasFlag("--json")` 纯字符串匹配,不检查 `--format` 值 |
-| 2 | `626b47b69` | `--brief` 子命令精简 JSON | 子命令路由未检查 `--brief` 标志 |
+| 2 | `626b47b69` | `--brief` 子命令精简 JSON ~~(已删除 --brief CLI flag,见 commit e0765d5c0)~~ | 子命令路由未检查 `--brief` 标志 |
+
+> **替代方案**：`--brief` 删除后，简洁输出通过 MCP 工具 `brief_mode`（`BriefToolHandlers`）启用/禁用。`/compact` 命令是上下文压缩（压缩对话历史），与 `--brief` 的简洁输出是不同功能，请勿混淆。
+
+### brief_mode MCP 工具调用方式
+
+#### 1. 启用/禁用简洁模式
+
+**工具名**：`brief_mode`（`SystemToolName.BriefMode`）
+
+**分类**：`mode`
+
+**参数**：
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| `enabled` | boolean | 是 | true 启用，false 禁用 |
+
+**调用示例**：
+
+```json
+// 启用简洁模式
+{
+  "tool": "brief_mode",
+  "arguments": {
+    "enabled": true
+  }
+}
+
+// 禁用简洁模式
+{
+  "tool": "brief_mode",
+  "arguments": {
+    "enabled": false
+  }
+}
+```
+
+**返回结果**：
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Brief mode enabled"
+    }
+  ],
+  "isError": false
+}
+```
+
+**实现位置**：`kit/mcp/dev/BriefToolHandlers.cs:BriefModeAsync`
+
+**权限要求**：
+- AutoAllowed: true（自动允许）
+- PlanAllowed: false（计划模式不允许）
+- AskAllowed: true（询问模式允许）
+
+**权益检查**：启用时需要 `EntitlementService.IsBriefEntitled`，禁用始终允许。
+
+#### 2. 查询简洁模式状态
+
+**工具名**：`brief_status`（`SystemToolName.BriefStatus`）
+
+**分类**：`mode`
+
+**参数**：无
+
+**调用示例**：
+
+```json
+{
+  "tool": "brief_status",
+  "arguments": {}
+}
+```
+
+**返回结果**：
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Brief mode: enabled\n简要模式已启用 - 将使用精简输出，减少详细信息的显示\nEnabled at: 2026-09-15 09:30:00"
+    }
+  ],
+  "isError": false
+}
+```
+
+**实现位置**：`kit/mcp/dev/BriefToolHandlers.cs:BriefStatusAsync`
+
+#### 3. 向用户发送消息（简洁模式下的回复）
+
+**工具名**：`send_user_message`（`SystemToolName.SendUserMessage`）
+
+**分类**：`messaging`
+
+**参数**：
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| `message` | string | 是 | 发送给用户的消息内容，支持 markdown 格式 |
+| `attachments` | string[] | 否 | 可选的文件附件路径（图片、截图、diff、日志等） |
+| `status` | string | 否 | 消息状态：'proactive' 表示主动更新，'normal' 表示回复 |
+
+**调用示例**：
+
+```json
+{
+  "tool": "send_user_message",
+  "arguments": {
+    "message": "任务已完成！",
+    "attachments": ["/path/to/report.md"],
+    "status": "normal"
+  }
+}
+```
+
+**实现位置**：`kit/mcp/dev/BriefToolHandlers.cs:SendUserMessageAsync`
+
+#### 4. 斜杠命令方式
+
+除了 MCP 工具，还可以通过斜杠命令控制简洁模式：
+
+```
+/brief          — 切换简洁模式状态
+/brief enable   — 启用简洁模式
+/brief disable  — 禁用简洁模式
+```
+
+**实现位置**：`kit/slash/brain/session/BriefCommand.cs`
+
+#### 与 /compact 命令的区别
+
+| 功能 | 工具/命令 | 作用 |
+|------|----------|------|
+| 简洁输出 | `brief_mode` / `/brief` | 控制输出格式，减少详细信息显示 |
+| 上下文压缩 | `/compact` | 压缩对话历史，节省 token |
+
+两者功能不同，请勿混淆。
+
 | 3 | `626b47b69` | `--quiet` 抑制 ILogger 警告 | `--quiet` 仅存 `CommandLineOptions`,未设置 `JCC_LOG_LEVEL` |
 | 4 | `c4d7f6684` | `--await` 无效值返回 exit=3 | 三处解析点静默降级,无 `ArgumentParseError` 路径 |
 | 5 | `cdb6a4da2` | `--permission-mode` 无效值返回 exit=3 | 缺少早期验证 |

@@ -53,7 +53,7 @@
 | # | 长名 | 短名 | 帮助文本 | AcceptsValue | Example |
 |---|------|------|----------|--------------|---------|
 | 7 | `--non-interactive` | — | 强制非交互模式 | 否 | — |
-| 8 | `--brief` | — | 简要模式 | 否 | — |
+| 8 | `--brief` | — | ~~简要模式(已删除,见 commit e0765d5c0)~~ | 否 | — |
 | 9 | `--json` | — | 结构化 JSON 输出模式 | 否 | `jcc mcp_list --json` |
 | 10 | `--format` | — | 输出格式 (text/json/ndjson) | 是 | — |
 | 11 | `--quiet` | `-q` | 静默模式 | 否 | — |
@@ -353,7 +353,7 @@
 | 2 | 子命令参数形态不统一 | 大部分 handler 接收 `string[] args` 整体派发,`McpCliCommand` 内部方法接收已拆解的强类型参数 |
 | 3 | Runner 签名不统一 | `InteractiveModeRunner.RunAsync` 返回 `Task`,`NonInteractiveModeRunner.RunAsync` 返回 `Task<int>`,`DoctorModeRunner.RunAsync` 接收 `IServiceProvider` 而非 `IHost` |
 | 4 | Doctor 模式双路径 | `--doctor` 全局参数(`Program.cs:79-85`)和 `doctor` 子命令(`DoctorSubCommand.cs`)都调用 `DoctorModeRunner.RunAsync` |
-| 5 | `--brief` 参数未消费 | `CommandLineOptions.Brief` 字段存在,`ParseArgs` 会设置,但**未见任何中间件或服务消费此字段** |
+| 5 | `--brief` 参数未消费 ~~(已删除,见 commit e0765d5c0)~~ | `CommandLineOptions.Brief` 字段存在,`ParseArgs` 会设置,但**未见任何中间件或服务消费此字段** |
 | 6 | `--dry-run` CLI 层未消费 | `CommandLineOptions.DryRun` 字段存在,但仅 `AgentToolHandlers.cs:110` 消费,CLI 启动路径未见处理 |
 | 7 | `--yes`/`--force` 别名展开依赖源码生成器 | 别名展开在生成的 `CliArgParser.Parse` 中 |
 | 8 | 子命令分发三层不统一 | `remote-control`/`schema` 在 `ApplicationBuilder` 内联处理,扁平元动词走 `FlatSubCommandRouter`,已废弃命令在 `ApplicationBuilder` 返回错误 |
@@ -409,7 +409,7 @@
 
 ### 6.1 已测试参数(19/37 有 `CliArgParser.Parse` 单元测试)
 
-`--help`、`--version`、`--pipe`、`--prompt`、`--model`、`--trust`、`--non-interactive`、`--brief`、`--force-interactive`、`--await`、`--debuglog`、`--continue`、`--resume`、`--permission-mode`、`--bypass`、`--allowed-tools`、`--disallowed-tools`、`--system-prompt`、`--append-system-prompt`
+`--help`、`--version`、`--pipe`、`--prompt`、`--model`、`--trust`、`--non-interactive`、`--force-interactive`、`--await`、`--debuglog`、`--continue`、`--resume`、`--permission-mode`、`--bypass`、`--allowed-tools`、`--disallowed-tools`、`--system-prompt`、`--append-system-prompt` ~~(--brief 已删除)~~
 
 ### 6.2 未测试参数(18/37 无 `CliArgParser.Parse` 单元测试)
 
@@ -462,7 +462,7 @@
 - 统一子命令 handler 签名为 `Task<int> ExecuteAsync(string[] args, CancellationToken ct)`
 - 统一 Runner 签名
 - 消除 Doctor 模式双路径
-- 消除 `--brief`/`--dry-run` 未消费问题
+- 消除 `--dry-run` 未消费问题 ~~(--brief 已删除)~~
 
 **优点**: 一次到位,彻底统一
 **缺点**: 改动量大(约 20+ 文件),风险高,需充分测试

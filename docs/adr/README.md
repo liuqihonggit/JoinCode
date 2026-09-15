@@ -91,7 +91,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**103** | accepted：**98** | superseded：**5** | proposed：**0**
+- 总数：**105** | accepted：**100** | superseded：**5** | proposed：**0**
 
 ## 完整索引（按编号）
 
@@ -201,6 +201,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0104](0104-write-defense-extract-public-node.md) | 写防御 — 提取公共节点 | accepted | 2026-09-14 |
 | [0105](0105-desktop-scene-orchestration.md) | 桌面情景模式编排层 — 场景菜单+工具链路推荐+状态持久化 | accepted | 2026-09-14 |
 | [0106](0106-subagent-stall-defense-in-depth.md) | 子代理卡死防护纵深防御体系 — L1预防+L2检测+L3干预+L4恢复 | proposed | 2026-09-15 |
+| [0107](0107-file-mailbox-lock-replace-mutex.md) | 文件邮箱锁替代跨进程共享锁 + Actor 邮箱模型 + Agent 发现 | accepted | 2026-09-15 |
 
 ## 主题索引（按议题）
 

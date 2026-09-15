@@ -440,6 +440,32 @@ public void Dispose() {
 
 所有 `Dispose()` 方法禁止再写 `try { x.Dispose(); } catch (ObjectDisposedException)` 样板，统一调 `x.DisposeSafe(_logger)`。
 
+### 规则4：释放函数禁止超时（强制）
+
+所有释放函数（`Dispose`/`DisposeAsync`/`Close`/`StopAsync`/`ShutdownAsync`）体内**禁止任何超时/阻塞等待**。释放是必须完成的操作，超时无意义——无论如何都要释放。
+
+**🚫 禁止模式**：
+- `.GetAwaiter().GetResult()` — 同步阻塞
+- `.Wait(TimeSpan)` / `.Wait()` — 阻塞等待
+- `.WaitAsync(TimeSpan)` — 超时等待
+- `new CancellationTokenSource(timeout)` — 超时令牌
+- `Task.WhenAny(task, Task.Delay(timeout))` — 超时竞赛
+- `Thread.Join(TimeSpan)` — 超时等待线程
+
+**✅ 正确做法**：
+- 直接 `await` 无超时：`await task.ConfigureAwait(false)`
+- 用 `CancellationToken.None`：`await _process.WaitForExitAsync(CancellationToken.None)`
+- fire-and-forget 后台释放：`_ = DisposeAsync().AsTask()`（Dispose 内不能 await 自己）
+- 遇到同步函数无法 await → **全部异步化改造**，关闭即释放，统一到 `DisposeAsync`
+- 用 `await using var` 自动释放，不手动调 Dispose
+
+**处理手法**：
+1. 移除超时参数，直接等待：`StopAsync(TimeSpan? timeout)` → `StopAsync()`
+2. 移除 CTS 超时：`using var cts = new CancellationTokenSource(timeout); await x.WaitAsync(cts.Token)` → `await x.WaitAsync(CancellationToken.None)`
+3. 移除 Task.WhenAny 竞赛：`await Task.WhenAny(task, Task.Delay(timeout))` → `await task`
+4. 同步释放改异步：`Close()` → 逻辑内联到 `DisposeAsync()`，调用方改 `await using`
+5. 弃用方法直接删除，不要任何后向兼容
+
 ### 好代码一键清单（推荐模式速查）
 
 | 场景 | ✅ 推荐 | ❌ 禁止 |
@@ -461,6 +487,7 @@ public void Dispose() {
 | 事件订阅 | `await using var sub = bus.SubscribeAsync(handler)` | `Subscribe` + 手动 `Unsubscribe` try-finally |
 | 后台 PeriodicTimer 循环 Dispose | `volatile bool _stopping` + `_timer?.Dispose()` | `CancellationTokenSource` 字段 + `_cts.Dispose()` 竞态 |
 | 后台循环退出检查 | `while (!_stopping && await _timer.WaitForNextTickAsync(CancellationToken.None))` | `await _timer.WaitForNextTickAsync(_cts.Token)` + CTS Dispose 后 ObjectDisposedException |
+| 释放函数内等待 | `await task.ConfigureAwait(false)` / `CancellationToken.None` | `.GetAwaiter().GetResult()` / `.Wait(TimeSpan)` / `Task.WhenAny+Task.Delay` / CTS超时 |
 
 ## 🔴 平台专属操作禁令
 

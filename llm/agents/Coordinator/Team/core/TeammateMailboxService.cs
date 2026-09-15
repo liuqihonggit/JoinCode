@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>队友邮箱服务 — 基于 MailboxActor 串行化写操作，无锁防死锁。
 /// <para>crossProcess=true 时，Actor 内部用 FileMailboxLock 跨进程互斥，支持多 jcc.exe 进程并发。</para>
@@ -295,12 +295,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     }
 
     /// <summary>释放资源 — 后台释放所有 MailboxActor</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         foreach (var actor in _actors.Values)
         {
             _ = Task.Run(async () => await actor.DisposeAsync().ConfigureAwait(false));
         }
         _actors.Clear();
+            base.Dispose();
     }
 }

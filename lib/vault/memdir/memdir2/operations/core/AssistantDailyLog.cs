@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Memdir;
 
 /// <summary>
@@ -378,6 +378,10 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     /// <summary>
     /// 释放日志写入锁资源。
     /// </summary>
-    protected override void OnDispose() => _writeLock.Dispose();
+    public override void Dispose()
+    {
+        _writeLock.Dispose();
+        base.Dispose();
+    }
 }
 

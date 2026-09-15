@@ -1,4 +1,4 @@
-namespace Services.CodeIndex;
+﻿namespace Services.CodeIndex;
 
 /// <summary>
 /// LSP 集成服务 — 将 LSP 文件同步事件桥接到代码索引增量更新，并提供定义/引用查询
@@ -156,7 +156,7 @@ public sealed partial class LspIntegration : ServiceEntity, IDisposable
     /// <summary>
     /// 释放资源 — 取消更新令牌、取消订阅文件同步事件
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
 
@@ -167,5 +167,6 @@ public sealed partial class LspIntegration : ServiceEntity, IDisposable
         {
             _lspFileSync.DocumentChanged -= OnLspDocumentChanged;
         }
+            base.Dispose();
     }
 }

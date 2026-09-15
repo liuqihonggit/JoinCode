@@ -1,11 +1,11 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class PluginResourceScannerTests
 {
     private sealed class TestEntity : Entity
     {
         public TestEntity(string displayName) : base(ObjectType.Resource, displayName: displayName) { }
-        protected override void OnDispose() { }
+        public override void Dispose() => base.Dispose();
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex.Persistence;
+﻿namespace JoinCode.CodeIndex.Persistence;
 
 /// <summary>
 /// 内存索引存储 — 替代 SQLite 持久化(IndexDbContext + Fts5Schema)
@@ -123,10 +123,11 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// <summary>
     /// 释放内部读写锁资源 — 派生类可重写以追加自定义释放逻辑
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _lock.Dispose();
+            base.Dispose();
     }
 
     private sealed class WriteLockScope : IDisposable

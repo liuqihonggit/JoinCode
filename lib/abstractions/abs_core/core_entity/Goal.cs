@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 目标实体 — 派生自 Entity，与 Agent 同套路
@@ -41,9 +41,10 @@ public sealed class Goal : Entity
     /// <summary>
     /// 惰性释放 — 持久化服务确认数据全部写入后才调用
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         Registry.Remove(ObjectId);
+        base.Dispose();
     }
 
     /// <summary>

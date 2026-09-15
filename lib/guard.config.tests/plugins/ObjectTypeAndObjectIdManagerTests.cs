@@ -1,4 +1,4 @@
-namespace Core.Tests.Plugins;
+﻿namespace Core.Tests.Plugins;
 
 public sealed class ObjectTypeAndObjectIdManagerTests
 {
@@ -44,6 +44,6 @@ public sealed class ObjectTypeAndObjectIdManagerTests
         {
             objectId = ObjectId;
         }
-        protected override void OnDispose() { }
+        public override void Dispose() => base.Dispose();
     }
 }

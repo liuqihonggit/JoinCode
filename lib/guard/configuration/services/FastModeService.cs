@@ -1,4 +1,4 @@
-namespace Core.Configuration;
+﻿namespace Core.Configuration;
 
 /// <summary>
 /// 快速模式服务 — 在主模型与快速模型间切换,带冷却计时器自动回退
@@ -182,11 +182,12 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     }
 
     /// <inheritdoc />
-    protected override void OnDispose()
+    public override void Dispose()
     {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             StopCooldownTimerUnchecked();
         }
+            base.Dispose();
     }
 }

@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -820,5 +820,9 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     }
 
     /// <summary>释放资源 — 释放团队管理锁</summary>
-    protected override void OnDispose() => _lock.Dispose();
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

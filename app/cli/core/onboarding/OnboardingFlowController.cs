@@ -1,4 +1,4 @@
-namespace JoinCode.Cli;
+﻿namespace JoinCode.Cli;
 
 /// <summary>
 /// Onboarding 流程控制器 - 管理步骤导航、状态持久化和完成追踪
@@ -248,8 +248,9 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     /// <summary>
     /// 释放资源 — 释放内部异步锁
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _lock.Dispose();
+        base.Dispose();
     }
 }

@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 定时任务实体 — 派生自 Entity，与 Agent 同套路
@@ -39,9 +39,10 @@ public sealed class CronTaskEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose()
+    public override void Dispose()
     {
         Registry.Remove(ObjectId);
+        base.Dispose();
     }
 
     public bool IsExpired(long nowMs, long maxAgeMs)

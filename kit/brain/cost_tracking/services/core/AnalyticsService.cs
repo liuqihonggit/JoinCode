@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.CostTracking;
 
 /// <summary>
@@ -435,10 +435,11 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <summary>
     /// 释放资源 — 取消内部令牌并释放遥测 span
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _disposeCts.Cancel();
         _disposeCts.Dispose();
+        base.Dispose();
     }
 }

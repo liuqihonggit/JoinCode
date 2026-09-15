@@ -1,4 +1,4 @@
-namespace McpProtocol;
+﻿namespace McpProtocol;
 
 /// <summary>
 /// MCP TCP 服务端 — 用 TcpListener 替代 HttpListener,手动解析 HTTP 请求。
@@ -338,10 +338,11 @@ public sealed class McpTcpServer : ServiceEntity
     }
 
     /// <summary>释放资源 — 停止监听器并释放取消令牌。</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         Stop();
         _cts?.Dispose();
+            base.Dispose();
     }
 }
 

@@ -1,4 +1,4 @@
-namespace McpToolDispatch;
+﻿namespace McpToolDispatch;
 
 /// <summary>
 /// 工具干预管理器 — 读取干预配置，支持运行时添加/移除干预规则
@@ -169,7 +169,11 @@ public sealed class ToolInterventionManager : ServiceEntity
     }
 
     /// <summary>释放资源 — 释放异步锁。</summary>
-    protected override void OnDispose() => _lock.Dispose();
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }
 
 [JsonSerializable(typeof(Dictionary<string, InterventionRule>))]

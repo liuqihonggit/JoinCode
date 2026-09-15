@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -611,10 +611,11 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <summary>
     /// 释放资源时的清理回调 — 释放异步锁
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _lock.Dispose();
+            base.Dispose();
     }
 }
 

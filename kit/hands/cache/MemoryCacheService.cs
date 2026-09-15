@@ -1,4 +1,4 @@
-
+﻿
 namespace Services.Cache;
 
 /// <summary>
@@ -161,8 +161,10 @@ public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposa
     /// <summary>
     /// 释放底层 MemoryCache 资源
     /// </summary>
-    protected override void OnDispose() {
+    public override void Dispose()
+    {
         _cache?.Dispose();
+        base.Dispose();
     }
 
     private void RecordCacheMetrics(string operation, string result)

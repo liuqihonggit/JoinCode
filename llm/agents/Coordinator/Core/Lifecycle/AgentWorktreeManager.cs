@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Agent Worktree 管理器 - 负责 Worktree 的创建和清理
@@ -441,9 +441,10 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     }
 
     /// <summary>释放资源 — 清理 worktree 会话集合并释放锁</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _worktreeSessions.Clear();
         _lifecycleGuards.Clear();
+            base.Dispose();
     }
 }

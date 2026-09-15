@@ -1,4 +1,4 @@
-namespace IO.Services;
+﻿namespace IO.Services;
 
 /// <summary>
 /// Release Notes 服务 — 拉取 GitHub Releases 并提供本地缓存
@@ -117,9 +117,10 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     }
 
     /// <summary>释放资源 — P2-2: 补全 IDisposable 释放 SemaphoreSlim 避免资源累积</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _cacheLock.Dispose();
+            base.Dispose();
     }
 
 }

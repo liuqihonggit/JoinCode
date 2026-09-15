@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 构建实体 — 派生自 Entity，编译队列管理
@@ -21,7 +21,11 @@ public sealed class BuildEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose() => Registry.Remove(ObjectId);
+    public override void Dispose()
+    {
+        Registry.Remove(ObjectId);
+        base.Dispose();
+    }
 }
 
 public sealed class BuildEntityRegistry : MapRegistry<ObjectId, BuildEntity>
@@ -48,7 +52,11 @@ public sealed class SandboxEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose() => Registry.Remove(ObjectId);
+    public override void Dispose()
+    {
+        Registry.Remove(ObjectId);
+        base.Dispose();
+    }
 }
 
 public sealed class SandboxEntityRegistry : MapRegistry<ObjectId, SandboxEntity>
@@ -74,7 +82,11 @@ public sealed class RepoEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose() => Registry.Remove(ObjectId);
+    public override void Dispose()
+    {
+        Registry.Remove(ObjectId);
+        base.Dispose();
+    }
 }
 
 public sealed class RepoEntityRegistry : MapRegistry<ObjectId, RepoEntity>
@@ -103,7 +115,11 @@ public sealed class ShellTaskEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose() => Registry.Remove(ObjectId);
+    public override void Dispose()
+    {
+        Registry.Remove(ObjectId);
+        base.Dispose();
+    }
 }
 
 public sealed class ShellTaskEntityRegistry : MapRegistry<ObjectId, ShellTaskEntity>
@@ -132,7 +148,11 @@ public sealed class PermissionRequestEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose() => Registry.Remove(ObjectId);
+    public override void Dispose()
+    {
+        Registry.Remove(ObjectId);
+        base.Dispose();
+    }
 }
 
 public sealed class PermissionRequestEntityRegistry : MapRegistry<ObjectId, PermissionRequestEntity>
@@ -161,7 +181,11 @@ public sealed class NotificationEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose() => Registry.Remove(ObjectId);
+    public override void Dispose()
+    {
+        Registry.Remove(ObjectId);
+        base.Dispose();
+    }
 }
 
 public sealed class NotificationEntityRegistry : MapRegistry<ObjectId, NotificationEntity>

@@ -1,4 +1,4 @@
-
+﻿
 namespace Services.Api.Vcr;
 
 /// <summary>
@@ -235,9 +235,10 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <summary>
     /// 释放文件锁资源
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _fileLock.Dispose();
+        base.Dispose();
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Memdir;
 
 /// <summary>
@@ -393,10 +393,11 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// <summary>
     /// 取消并释放取消令牌源。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _disposeCts.Cancel();
         _disposeCts.Dispose();
+            base.Dispose();
     }
 }
 

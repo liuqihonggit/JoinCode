@@ -1,4 +1,4 @@
-namespace Infra.Tests.EntityTests;
+﻿namespace Infra.Tests.EntityTests;
 
 public sealed class EntityReaperTests
 {
@@ -12,9 +12,10 @@ public sealed class EntityReaperTests
             Registry.TryAdd(ObjectId, this);
         }
 
-        protected override void OnDispose()
+        public override void Dispose()
         {
             Registry.TryRemove(ObjectId, out _);
+            base.Dispose();
         }
     }
 

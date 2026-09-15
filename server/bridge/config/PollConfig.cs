@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -173,5 +173,9 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// <summary>
     /// 释放资源 — 释放配置锁
     /// </summary>
-    protected override void OnDispose() => _configLock.Dispose();
+    public override void Dispose()
+    {
+        _configLock.Dispose();
+        base.Dispose();
+    }
 }

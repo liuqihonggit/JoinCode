@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Prompts.Services;
 
 /// <summary>
@@ -191,5 +191,9 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// <summary>
     /// 释放信号量资源。
     /// </summary>
-    protected override void OnDispose() => _semaphore.Dispose();
+    public override void Dispose()
+    {
+        _semaphore.Dispose();
+        base.Dispose();
+    }
 }

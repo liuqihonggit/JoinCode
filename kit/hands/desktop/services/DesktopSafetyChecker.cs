@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop;
+﻿namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 桌面操作安全检查器 — 撤销元意识（PRD U-01/U-02/U-04）的生产实现
@@ -96,7 +96,5 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
     private readonly record struct DangerousZone(int X, int Y, int Width, int Height);
 
     /// <summary>释放安全检查器资源 — 无外部资源需释放。</summary>
-    protected override void OnDispose()
-    {
-    }
+    public override void Dispose() => base.Dispose();
 }

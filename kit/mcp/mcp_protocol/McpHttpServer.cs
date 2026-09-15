@@ -1,4 +1,4 @@
-namespace McpProtocol;
+﻿namespace McpProtocol;
 
 /// <summary>
 /// MCP Streamable HTTP 服务端 — 对齐 2025-11-25 规范:单端点 POST/GET/DELETE,
@@ -265,10 +265,11 @@ public sealed class McpHttpServer : ServiceEntity
     }
 
     /// <summary>释放资源 — 停止监听器、释放取消令牌并关闭 HttpListener。</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         Stop();
         _cts?.Dispose();
         _listener.Close();
+            base.Dispose();
     }
 }

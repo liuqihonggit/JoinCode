@@ -1,4 +1,4 @@
-namespace JoinCode.Transport.Bridge;
+﻿namespace JoinCode.Transport.Bridge;
 
 // TransportProtocol, TransportConnectionState 已迁移到 JoinCode.Transport.Bridge 命名空间 (Transport.Contracts)
 
@@ -353,10 +353,11 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 释放托管资源（重连令牌和锁）
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _reconnectCts?.Dispose();
         _stateLock.Dispose();
+            base.Dispose();
     }
 }

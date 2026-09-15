@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// MCP服务器实体 — 派生自 Entity，与 Agent 同套路
@@ -26,9 +26,10 @@ public sealed class McpServerEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose()
+    public override void Dispose()
     {
         Registry.Remove(ObjectId);
+        base.Dispose();
     }
 
     public McpServerState ToMcpServerState() => new()

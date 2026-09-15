@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Security.Shell;
+﻿namespace JoinCode.Abstractions.Security.Shell;
 
 /// <summary>
 /// Bash AST 安全步行器实现 — 基于 TreeSitter 解析 Bash 命令并提取简单命令列表,FAIL-CLOSED 设计
@@ -71,10 +71,11 @@ public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecur
     }
 
     /// <inheritdoc />
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
         _parser.Dispose();
         _language.Dispose();
+            base.Dispose();
     }
 }

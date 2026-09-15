@@ -379,4 +379,140 @@ public class DisposableConsistencyRulesTests
         };
         await test.RunAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task SyncDisposeOnIAsyncDisposable_ReportsJCC9107()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    void Method(AsyncDisposable x)
+                    {
+                        {|#0:x.Dispose()|};
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                    public void Dispose() { }
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC9107", DiagnosticSeverity.Error).WithLocation(0).WithArguments("AsyncDisposable"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task AsyncDisposeOnIAsyncDisposable_NoDiagnostic()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task Method(AsyncDisposable x)
+                    {
+                        await x.DisposeAsync();
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SyncDisposeOnIDisposable_NoDiagnostic()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                class TestClass
+                {
+                    void Method(SyncDisposable x)
+                    {
+                        x.Dispose();
+                    }
+                }
+                class SyncDisposable : IDisposable
+                {
+                    public void Dispose() { }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SyncDisposeOnDualInterface_NoJCC9107()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    void Method(DualDisposable x)
+                    {
+                        x.Dispose();
+                    }
+                }
+                class {|#0:DualDisposable|} : IDisposable, IAsyncDisposable
+                {
+                    public void Dispose() { }
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC9103", DiagnosticSeverity.Error).WithLocation(0).WithArguments("DualDisposable"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SyncDisposeOnIAsyncDisposable_InsideDisposeMethod_NoDiagnostic()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass : IDisposable
+                {
+                    private AsyncDisposable? _inner;
+                    public void Dispose()
+                    {
+                        _inner.Dispose();
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                    public void Dispose() { }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
 }

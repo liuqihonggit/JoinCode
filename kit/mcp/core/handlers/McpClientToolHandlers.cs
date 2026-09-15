@@ -1,4 +1,4 @@
-
+﻿
 
 namespace McpToolDispatch;
 
@@ -664,10 +664,11 @@ public partial class McpClientToolHandlers : ServiceEntity
     }
 
     /// <summary>释放资源 — 在未异步释放时释放客户端锁。</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _clientLock.Dispose();
+            base.Dispose();
     }
 
     /// <summary>

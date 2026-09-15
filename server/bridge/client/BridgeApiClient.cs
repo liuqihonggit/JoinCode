@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 
 #region CCR 数据模型 — 对齐 TS 端 bridgeApi.ts / types.ts
@@ -1306,7 +1306,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// <summary>
     /// 释放资源 — 释放内部 HttpClient
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
         {
@@ -1314,5 +1314,6 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         }
 
         _httpClient.Dispose();
+            base.Dispose();
     }
 }

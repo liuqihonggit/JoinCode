@@ -1,4 +1,4 @@
-namespace State;
+﻿namespace State;
 
 /// <summary>
 /// 配置变更同步服务 — 订阅 IConfigurationService.SettingChanged 事件，将变更同步到 AppState
@@ -65,8 +65,9 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
     /// <summary>
     /// 取消订阅配置变更事件。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _configurationService.SettingChanged -= OnSettingChanged;
+            base.Dispose();
     }
 }

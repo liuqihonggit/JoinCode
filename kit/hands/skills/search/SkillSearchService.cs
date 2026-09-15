@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Skills.Search;
 
 /// <summary>
@@ -354,6 +354,10 @@ public sealed partial class SkillSearchService : ServiceEntity, ISkillSearchServ
     /// <summary>
     /// 释放资源 — 释放索引锁
     /// </summary>
-    protected override void OnDispose() => _indexLock.Dispose();
+    public override void Dispose()
+    {
+        _indexLock.Dispose();
+        base.Dispose();
+    }
 
 }

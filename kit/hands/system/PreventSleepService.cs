@@ -1,4 +1,4 @@
-
+﻿
 namespace Services.SystemPower;
 
 /// <summary>
@@ -106,7 +106,7 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
     /// <summary>
     /// 释放资源 — 若当前处于防睡眠状态,恢复系统默认执行状态并释放锁
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_disposed) return;
 
@@ -118,6 +118,7 @@ public sealed partial class PreventSleepService : ServiceEntity, IPreventSleepSe
 
         _lock.Dispose();
         _disposed = true;
+            base.Dispose();
     }
 
     [global::System.Runtime.InteropServices.DllImport("kernel32.dll")]

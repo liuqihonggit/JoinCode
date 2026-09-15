@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 /// <summary>
 /// 代理定义提供者 — 加载内置、用户、项目及插件代理定义，支持缓存与变更刷新
@@ -724,5 +724,9 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     /// <summary>释放资源 — 释放定义缓存锁</summary>
-    protected override void OnDispose() => _cacheLock.Dispose();
+    public override void Dispose()
+    {
+        _cacheLock.Dispose();
+        base.Dispose();
+    }
 }

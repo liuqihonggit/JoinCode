@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 跨进程 Agent 发现服务 — 基于文件注册表实现本机 agent 注册、心跳、发现
@@ -193,9 +193,10 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
     }
 
     /// <summary>释放资源</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _disposed = true;
+            base.Dispose();
     }
 }
 

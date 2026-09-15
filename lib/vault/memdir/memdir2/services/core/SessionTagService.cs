@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Memdir;
 
 /// <summary>
@@ -152,11 +152,12 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     /// <summary>
     /// 释放取消令牌、保存锁等资源。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _disposeCts.Cancel();
         _disposeCts.Dispose();
         _saveLock.Dispose();
+            base.Dispose();
     }
 }
 

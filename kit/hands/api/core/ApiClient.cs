@@ -1,4 +1,4 @@
-
+﻿
 namespace Services.Api;
 
 /// <summary>
@@ -609,7 +609,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <summary>
     /// 释放 HttpClient 资源并解绑网络状态事件
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (!_disposed)
         {
@@ -620,5 +620,6 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
             _httpClient.Dispose();
             _disposed = true;
         }
+            base.Dispose();
     }
 }

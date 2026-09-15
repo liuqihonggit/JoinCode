@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 工作流插件基类 — 所有插件必须继承此类
@@ -158,10 +158,11 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             throw new PluginDeadException(DisplayName, Name);
     }
 
-    /// <summary>Entity.OnDispose 实现 — 确保资源释放</summary>
-    protected override void OnDispose()
+    /// <summary>Entity.Dispose 实现 — 确保资源释放</summary>
+    public override void Dispose()
     {
         MarkDead();
         UnmanagedResources.ReleaseAll();
+        base.Dispose();
     }
 }

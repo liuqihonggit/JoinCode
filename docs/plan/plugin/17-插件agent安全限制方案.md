@@ -1,5 +1,8 @@
 # #17 插件 Agent 安全限制 — 方案设计
 
+> ⚠️ **内容已陈旧** (2026-09-15) — 待用户审阅状态过时，安全限制方案已在插件系统中实现
+
+
 > 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [plugin/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
 > 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
 

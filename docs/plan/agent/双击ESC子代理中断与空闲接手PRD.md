@@ -1,5 +1,8 @@
 # 双击ESC子代理中断与空闲接手 PRD
 
+> ⚠️ **内容已陈旧** (2026-09-15) — 设计确认中状态过时，方案B-revised已在实施记录中标记完成（8步骤全部完成）
+
+
 > 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [agent/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
 > 🔗 **上游索引**: [plan/agent/](../README.md) — 修改本文档后须同步更新此索引
 

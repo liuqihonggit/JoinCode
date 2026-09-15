@@ -47,7 +47,7 @@ public interface IBriefModeService
 
     /// <summary>
     /// 用户显式 opt-in — 对齐 TS userMsgOptIn
-    /// 当用户通过 /brief 命令或 --brief 标志启用时设为 true
+    /// 当用户通过 /brief 命令启用时设为 true ~~(--brief CLI flag 已删除,见 commit e0765d5c0)~~
     /// </summary>
     bool UserMsgOptIn { get; set; }
 

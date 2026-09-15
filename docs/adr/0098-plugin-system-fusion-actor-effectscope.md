@@ -1,5 +1,8 @@
 # 0098. 插件系统融合:Actor 串行 + EffectScope + 弱引用事件
 
+> ⚠️ **AOT技术限制** (2026-09-15) — 动态插件运行时仅支持已编译程序集加载，不支持源码求值（Roslyn编译器不兼容NativeAOT）
+
+
 > 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 

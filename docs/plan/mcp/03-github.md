@@ -1,5 +1,8 @@
 # MCP 工具测试计划 03: GitHub
 
+> ⚠️ **进度待确认** (2026-09-15) — 测试状态待确认，29个GitHub工具是否全部通过测试
+
+
 > 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [mcp/](README.md) | **前置**: [adr/](../../adr/README.md)
 > 🔗 **上游索引**: [plan/mcp/README.md](README.md) — 修改本文档后须同步更新此索引
 

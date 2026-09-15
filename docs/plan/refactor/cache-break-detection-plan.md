@@ -296,8 +296,8 @@ P1.2（cacheControlHash）⏭️ 跳过 — jcc 不支持三级 cache scope（�
 P1.3（effort+betas+strategy+extraBody）⏭️ 跳过 — Anthropic 专属参数，jcc 多供应商不适用
 P2.1（notifyCacheDeletion）✅ commit 1c5105bf0
 P2.2（sanitizeToolName）✅ commit 4bbf5a18f
-P2.3（feature gate）⏸️ 暂缓 — 默认全开不影响现有行为
-P3.1（diff 输出）⏸️ 暂缓 — 低价值（jcc 无 --debug 查看渠道）
+P2.3（feature gate）❌ 废案 — 默认全开,加配置项无价值
+P3.1（diff 输出）❌ 废案 — jcc 无 --debug 查看渠道,低价值
 P3.2（agent 隔离）✅ commit 4648ad344
 ```
 

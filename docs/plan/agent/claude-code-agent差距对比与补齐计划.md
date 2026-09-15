@@ -1,5 +1,8 @@
 # JoinCode Agent 架构差距对比与补齐计划
 
+> ⚠️ **进度待确认** (2026-09-15) — 缺少最终完成状态汇总，22项缺失清单中多项已实现
+
+
 > 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [agent/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
 > 🔗 **上游索引**: [plan/agent/](../README.md) — 修改本文档后须同步更新此索引
 

@@ -24,69 +24,53 @@
 
 ---
 
-## 待做：类型2 串行 IO 并行化（收益最高，改动小）
+## 待做：类型2 串行 IO 并行化（收益最高，改动小） ✅ 全部已实现
 
 参考已有并行模式：`ProjectRulesLoader` / `AgentDefinitionProvider`（`Task.WhenAll`）
 
-### T2-1: SessionScanner — 串行读多个会话 JSONL 文件【高收益】
+### T2-1: SessionScanner ✅ 已实现
 
-- **文件**: `core/safety/Vault/src/Memdir/Services/SessionScanner.cs:59-76`
-- **热点**: `foreach` + `await ExtractSessionMetaAsync(file, ct)` 串行读几十~几百个会话文件
-- **优化**: `Task.WhenAll` 并行读取，每个 `ExtractSessionMetaAsync` 独立（ReadAllLinesAsync + JSON 解析）
-- **收益**: **高** — 会话历史文件数量可达几十到几百个，用户查看会话列表时的热路径
+- **文件**: `lib/vault/memdir/services/SessionScanner.cs:64-78`
+- **实现**: `Task.WhenAll` 并行读取，已落地
 
-### T2-2: GoalStateStore — 串行读多个目标 JSON 文件【中收益】
+### T2-2: GoalStateStore ✅ 已实现
 
-- **文件**: `composition/Clock/src/Goal/Infrastructure/GoalStateStore.cs:73-87`
-- **热点**: `foreach` + `await _fs.ReadAllTextAsync(file, ct)` 串行读多个目标文件
-- **优化**: `Task.WhenAll` 并行读取
-- **收益**: **中** — 目标文件数量通常较少（几个到十几个），获取未完成目标时触发
+- **文件**: `lib/clock/goal/infrastructure/GoalStateStore.cs:79-95`
+- **实现**: `Task.WhenAll` 并行读取，已落地
 
-### T2-3: ToolTemplateService — 串行读多个模板 JSON 文件【中收益】
+### T2-3: ToolTemplateService ✅ 已实现
 
-- **文件**: `core/execution/McpToolDispatch/src/Core/Execution/ToolTemplateService.cs:42-68`
-- **热点**: `foreach` + `await _fs.ReadAllTextAsync(file, ct)` 串行读模板文件
-- **优化**: `Task.WhenAll` 并行读取
-- **收益**: **中** — 启动时加载，有 `_cache` 字段表明是初始化路径
+- **文件**: `kit/mcp_tool_dispatch/core/execution/ToolTemplateService.cs:47-76`
+- **实现**: `Task.WhenAll` 并行读取，已落地
 
-### T2-4: FileBasedReflexionMemory — 串行读反思记忆 JSON 文件【中收益】
+### T2-4: FileBasedReflexionMemory ❌ 文件不存在（已删除/重命名）
 
-- **文件**: `core/ai/Agents/src/Doctor/Reflexion/FileBasedReflexionMemory.cs:70-85, 119-140`
-- **热点**: 两处 `foreach` + `await _fs.ReadAllTextAsync(file, ct)` 串行读反思记忆
-- **优化**: 两处均改 `Task.WhenAll`；`GetStatisticsAsync` 外层还有目录遍历，可考虑双层并行
-- **收益**: **中** — Doctor 诊断时调用，文件数 = 规则数 × 每规则尝试次数
+- **文件**: `core/ai/Agents/src/Doctor/Reflexion/FileBasedReflexionMemory.cs` — 文件已不存在
+- **状态**: 废案 — 目标文件已被删除或重命名，无需优化
 
 ---
 
 ## 待做：类型1 大文件 Split → LineSpanIndexer（收益高）
 
-### T1-高1: GitHubToolHandlers.Run FillMemoryCacheFromRaw — 解析 GitHub Actions 日志【高收益】
+### T1-高1: GitHubToolHandlers.Run FillMemoryCacheFromRaw ✅ 已实现
 
-- **文件**: `services/Mcp/src/GitHub/GitHubToolHandlers.Run.cs:312`
-- **热点**: `rawContent.Split('\n')` — 几万行日志 Split，分配几万个 string[]
-- **优化**: `LineSpanIndexer.BuildLineRanges` 零分配遍历行
-- **收益**: **高** — AGENTS.md 记载"失败日志动辄几万行"，`gh run view` 热路径
+- **文件**: `kit/mcp/git_hub/GitHubToolHandlers.Run.cs:486`
+- **实现**: `LineSpanIndexer.BuildLineRanges` 零分配遍历行，已落地
 
-### T1-高2: DiagnosticLogWatcher — 读取诊断日志文件后 Split【高收益】
+### T1-高2: DiagnosticLogWatcher ❌ 文件不存在（已删除/重命名）
 
-- **文件**: `core/ai/Agents/src/Doctor/DiagnosticLogWatcher.cs:92-95`
-- **热点**: `ReadAllTextAsync` + `Split('\n')` — 持续监控，每次有新内容重新读整个文件 + Split
-- **优化**: `MappedFileReader` + `LineSpanIndexer` 避免 ReadAllTextAsync 大字符串分配
-- **收益**: **高** — Doctor 诊断引擎持续监控路径，日志文件不断增长，高频调用
+- **文件**: `core/ai/Agents/src/Doctor/DiagnosticLogWatcher.cs` — 文件已不存在
+- **状态**: 废案 — 目标文件已被删除或重命名，无需优化
 
-### T1-高3: GitHubToolHandlers TruncateLines — 截断大日志输出【高收益】
+### T1-高3: GitHubToolHandlers TruncateLines ✅ 已实现
 
-- **文件**: `services/Mcp/src/GitHub/GitHubToolHandlers.cs:82`
-- **热点**: `output.Split('\n')` — 几万行 Split 后只取前 N 行，浪费严重
-- **优化**: `LineSpanIndexer` 遍历前 `maxLines` 行，避免分配完整数组
-- **收益**: **高** — 输入是 `gh run view --log` 完整日志（几万行），注释明确"避免大日志撑爆 LLM 上下文"
+- **文件**: `kit/mcp/git_hub/GitHubToolHandlers.cs:91`
+- **实现**: `LineSpanIndexer.BuildLineRanges` 遍历前 `maxLines` 行，已落地
 
-### T1-高4: ContextFoldDecider — 压缩工具结果 Split【高收益】
+### T1-高4: ContextFoldDecider ✅ 已实现
 
-- **文件**: `core/execution/Brain/src/ContextFold/ContextFoldDecider.cs:284`
-- **热点**: `content.Split('\n')` — 工具结果 Split 后 `Take(head)` + `TakeLast(tail)`
-- **优化**: `LineSpanIndexer` 零分配获取头 N 行 + 尾 M 行
-- **收益**: **高** — 工具结果（文件内容/命令输出/搜索结果）可能很大，上下文折叠是对话热路径
+- **文件**: `kit/brain/context_fold/ContextFoldDecider.cs:334`
+- **实现**: `LineSpanIndexer.BuildLineRanges` 零分配获取头 N 行 + 尾 M 行，已落地
 
 ---
 

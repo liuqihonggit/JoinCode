@@ -1,5 +1,8 @@
 # Agent TUI 交互规格说明书（补充版）
 
+> ⚠️ **内容已陈旧** (2026-09-15) — 缺少实施状态标记，交互规格已在TUI验收中验证实现（134个TUI测试全绿）
+
+
 > 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [tui/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
 > 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
 

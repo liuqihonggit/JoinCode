@@ -374,9 +374,9 @@ d,手动验证,通过设置启动参数,通过bash调用来实际运行,真实�
 
 ### 枚举 + [EnumValue] 使用规范
 
-1. **有限集合的字符串常量必须枚举化** — 凡是有限个可选值的字符串标识（模型名、角色名、状态名等），必须定义枚举 + `[EnumValue]`，利用源码生成器自动生成 `XxxConstants` + `XxxExtensions`
+1. **有限集合的字符串常量必须枚举化** — 凡是有限个可选值的字符串标识（模型名、角色名、状态名等），必须定义枚举 + `[EnumValue]`，利用源码生成器自动生成 `XxxEnumConstants` + `XxxExtensions`
 2. **禁止手动维护 KV 完全相同的映射字典** — 当 Key == Value 时（如 `"gpt-4o" → "gpt-4o"`），直接用 `EnumType[]` + `ToValue()` 遍历匹配，不要写 `(string Key, string Value)[]` 冗余元组
-3. **枚举是唯一数据源** — 字符串值由 `[EnumValue]` 定义一次，所有消费方通过 `ToValue()`/`FromValue()`/`XxxConstants` 获取，禁止在消费方重复硬编码相同字符串
+3. **枚举是唯一数据源** — 字符串值由 `[EnumValue]` 定义一次，所有消费方通过 `ToValue()`/`FromValue()`/`XxxEnumConstants` 获取，禁止在消费方重复硬编码相同字符串
 4. **Contains 匹配场景** — 对需要模糊匹配（如 `modelId.Contains("gpt-4o")`）的场景，用 `EnumType[]` 按优先级排列，遍历时 `model.ToValue()` 获取匹配串，无需额外字典
 5. 一个枚举可以多个特性注释，手动实现字典很蠢啊
 
@@ -478,7 +478,7 @@ public void Dispose() {
 
 > ADR: [0089](docs/adr/0089-jcc-builtin-tools-only-no-system-gh-rg.md) — 详见 ADR 文档（含实测证据、边缘错误提示清单）
 
-**`jcc.exe` 启动后已自带大量工具**（实测：`jcc mcp_list` = **390 个工具 / 43 个分类**）。
+**`jcc.exe` 启动后已自带大量工具**（实测：`jcc mcp_list` = **400 个工具 / 49 个分类**）。
 优先用 jcc/内置工具；**jcc 不可用时直接回退到系统 `gh` / `rg`**：
 
 - 优先在 Bash/PowerShell 里用 `jcc gh` / Agent 内置 `grep` 工具
@@ -661,11 +661,11 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 - **升级条件**：当 ChainOrder 需要支持分支/汇合（如"分析后可走代码生成或测试生成两条路"）时，改用 `Dag<string>` 替代 `string[]`
 - **禁止**：在无实际需求时强行统一两者，造成过度抽象
 
-### 规则2：MCP工具覆盖原则 — 296个工具已覆盖53个Category
+### 规则2：MCP工具覆盖原则 — 338个工具已覆盖55个Category
 
 > ADR: [0014](docs/adr/0014-mcp-tool-coverage-principle.md)
 
-- **现状**：63个Handler类，296个McpTool方法，覆盖53个ToolCategory
+- **现状**：91个Handler类，338个McpTool方法，覆盖55个ToolCategory
 - **新增工具原则**：
   1. 新工具必须归属已有 ToolCategory 枚举值，除非有充分理由新增枚举
   2. 新增 ToolCategory 枚举值需同步更新 `ToolHypergraphPresets`（如有关联工具链）

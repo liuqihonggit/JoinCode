@@ -1,5 +1,8 @@
 # 0012. 双 IToolHandler 接口不合并
 
+> ⚠️ **内容已陈旧** (2026-09-15) — 文档内容已被archive-dead-code.md归档操作取代，IMcpProtocolHandler已归档，IToolHandler成唯一接口
+
+
 > 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
 

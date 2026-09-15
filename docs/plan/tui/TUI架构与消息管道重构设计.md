@@ -1,5 +1,8 @@
 # TUI 架构与消息管道重构设计
 
+> ⚠️ **内容已陈旧** (2026-09-15) — 草案v1状态过时，6个议题设计已在TUI验收中完成（P0-P2全部修复）
+
+
 > 📍 **导航**: [docs/](../../README.md) › [plan/](../README.md) › [tui/](README.md) | **前置**: [adr/](../../adr/README.md) + [design/](../../design/README.md)
 > 🔗 **上游索引**: [plan/README.md](../README.md) — 修改本文档后须同步更新此索引
 

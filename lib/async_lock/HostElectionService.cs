@@ -233,13 +233,19 @@ public sealed class HostElectionService : IAsyncDisposable
 
     /// <summary>
     /// 从管道读取主机 PID — 握手协议：客户端连接后，服务端发送 "HOST:{pid}\n"。
+    /// <para>超时保护：2 秒内未读到数据则返回 null，防止协议不匹配时死锁。</para>
     /// </summary>
-    private static async ValueTask<string?> ReadHostPidAsync(NamedPipeClientStream client, CancellationToken ct)
+    private async ValueTask<string?> ReadHostPidAsync(NamedPipeClientStream client, CancellationToken ct)
     {
-        using var reader = new StreamReader(client, Encoding.UTF8, leaveOpen: true);
-        var line = await reader.ReadLineAsync(ct).ConfigureAwait(false);
-        if (line is null || !line.StartsWith("HOST:", StringComparison.Ordinal)) return null;
-        return line["HOST:".Length..].Trim();
+        try
+        {
+            using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            readCts.CancelAfter(TimeSpan.FromSeconds(2));
+            var line = await BinaryProtocol.ReadLineRawAsync(client, readCts.Token).ConfigureAwait(false);
+            if (line is null || !line.StartsWith("HOST:", StringComparison.Ordinal)) return null;
+            return line["HOST:".Length..].Trim();
+        }
+        catch (OperationCanceledException) { return null; }
     }
 
     private void ThrowIfDisposed()

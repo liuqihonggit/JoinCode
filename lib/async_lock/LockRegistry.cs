@@ -305,7 +305,8 @@ public static class LockRegistry
         var now = DateTimeOffset.UtcNow;
         foreach (var info in _locks.Values)
         {
-            if (info.HoldingThread is not null && info.AcquiredAt.HasValue)
+            var holdingThread = info.HoldingThread;
+            if (holdingThread is not null && info.AcquiredAt.HasValue)
             {
                 var acquiredAt = info.AcquiredAt.Value;
                 var held = now - acquiredAt;
@@ -313,17 +314,18 @@ public static class LockRegistry
                 {
                     Emit(
                         $"[LOCK-SCAN-HOLD] 锁 '{info.Name}' (#{info.Id}) 持有 {held.TotalSeconds:F1}s " +
-                        $"超过阈值(线程 {info.HoldingThread.ManagedThreadId})。\n{info.AcquireStack}");
+                        $"超过阈值(线程 {holdingThread.ManagedThreadId})。\n{info.AcquireStack}");
                 }
             }
-            if (info.WaitingThread is not null && info.WaitStartedAt.HasValue)
+            var waitingThread = info.WaitingThread;
+            if (waitingThread is not null && info.WaitStartedAt.HasValue)
             {
                 var waited = now - info.WaitStartedAt.Value;
                 if (waited > _waitTimeoutThreshold)
                 {
                     Emit(
                         $"[LOCK-SCAN-WAIT] 锁 '{info.Name}' (#{info.Id}) 等待 {waited.TotalSeconds:F1}s " +
-                        $"超过阈值(线程 {info.WaitingThread.ManagedThreadId})。\n{info.WaitStack}");
+                        $"超过阈值(线程 {waitingThread.ManagedThreadId})。\n{info.WaitStack}");
                 }
             }
         }

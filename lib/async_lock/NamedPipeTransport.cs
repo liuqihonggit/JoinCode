@@ -165,6 +165,13 @@ public sealed class NamedPipeTransport : ITransportTopology
 
         await _slaveClient.ConnectAsync(ct).ConfigureAwait(false);
 
+        var hostLine = await BinaryProtocol.ReadLineRawAsync(_slaveClient, ct).ConfigureAwait(false);
+        if (hostLine is not null && hostLine.StartsWith("HOST:", StringComparison.Ordinal))
+        {
+            var detectedHostPid = hostLine["HOST:".Length..].Trim();
+            _logger?.LogDebug("NamedPipeTransport: received host handshake {Line}", hostLine);
+        }
+
         var handshake = BinaryProtocol.Encode(
             MessageType.Control,
             ProcessId,
@@ -207,6 +214,8 @@ public sealed class NamedPipeTransport : ITransportTopology
         string? slavePid = null;
         try
         {
+            await BinaryProtocol.WriteLineRawAsync(server, $"HOST:{ProcessId}", ct).ConfigureAwait(false);
+
             var firstMsg = await BinaryProtocol.ReadAsync(server, ct).ConfigureAwait(false);
             if (firstMsg.Type == MessageType.Control)
             {
@@ -463,6 +472,32 @@ internal static class BinaryProtocol
             if (read == 0) throw new EndOfStreamException();
             offset += read;
         }
+    }
+
+    /// <summary>
+    /// 裸读取一行文本（直到 '\n'）— 不用 StreamReader 避免缓冲污染后续二进制读取。
+    /// <para>用于主机握手 "HOST:{pid}\n"，兼容 <see cref="HostElectionService"/> 探测协议。</para>
+    /// </summary>
+    public static async ValueTask<string?> ReadLineRawAsync(Stream stream, CancellationToken ct)
+    {
+        var sb = new StringBuilder(64);
+        var buf = new byte[1];
+        while (true)
+        {
+            var read = await stream.ReadAsync(buf, ct).ConfigureAwait(false);
+            if (read == 0) return sb.Length > 0 ? sb.ToString() : null;
+            if (buf[0] == '\n') return sb.ToString().TrimEnd('\r');
+            sb.Append((char)buf[0]);
+        }
+    }
+
+    /// <summary>
+    /// 写入一行文本（以 '\n' 结尾）— 用于主机握手 "HOST:{pid}\n"。
+    /// </summary>
+    public static async ValueTask WriteLineRawAsync(Stream stream, string line, CancellationToken ct)
+    {
+        var bytes = Encoding.UTF8.GetBytes(line + "\n");
+        await stream.WriteAsync(bytes, ct).ConfigureAwait(false);
     }
 }
 

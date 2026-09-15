@@ -23,6 +23,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
     private readonly Dictionary<string, Func<NodeContext, Task<NodeResult>>> _functionRegistry = new(StringComparer.Ordinal);
     private readonly GoalStateUpdater _stateUpdater;
     private readonly RetryHandler _retryHandler;
+    private readonly NodeExecutorDispatcher _nodeExecutor;
 
     /// <summary>
     /// 构造 GoalGraphEngine — 注入聊天客户端、评估器、服务提供器及各类可选依赖
@@ -64,6 +65,11 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         _concurrencyOptions = concurrencyOptions ?? serviceProvider.GetService<SubAgentConcurrencyOptions>() ?? new SubAgentConcurrencyOptions();
         _stateUpdater = new GoalStateUpdater(_clock);
         _retryHandler = new RetryHandler(_nodeInspector, _logger);
+        _nodeExecutor = new NodeExecutorDispatcher([
+            new AgentNodeExecutor(_agentService, _dispatchGuard, _teamManager, _stateUpdater, _logger),
+            new FunctionNodeExecutor(_functionRegistry, _serviceProvider, _logger),
+            new JoinNodeExecutor()
+        ]);
     }
 
     /// <summary>
@@ -331,13 +337,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         try
         {
-            NodeResult result = payload.Kind switch
-            {
-                GoalNodeKind.Agent => await ExecuteAgentNodeAsync(nodeId, payload, context, timeoutCts.Token).ConfigureAwait(false),
-                GoalNodeKind.Function => await ExecuteFunctionNodeAsync(nodeId, payload, context, timeoutCts.Token).ConfigureAwait(false),
-                GoalNodeKind.Join => await ExecuteJoinNodeAsync(nodeId, payload, context, timeoutCts.Token).ConfigureAwait(false),
-                _ => NodeResult.Failed($"Unknown node kind: {payload.Kind}")
-            };
+            NodeResult result = await _nodeExecutor.ExecuteAsync(nodeId, payload, context, timeoutCts.Token).ConfigureAwait(false);
 
             payload.Output = result.Output;
             payload.Routes = result.Routes;
@@ -387,178 +387,6 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             payload.CompletedAt = _clock.GetUtcNow();
             _logger?.LogError(ex, "[GoalGraph] {NodeId}({Name}): 执行失败", nodeId, payload.Name);
         }
-    }
-
-    private async Task<NodeResult> ExecuteAgentNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
-    {
-        var agentId = payload.AgentId ?? Core.Agents.Coordinator.AgentBase.GenerateId();
-        payload.AgentId = agentId;
-
-        if (Core.Agents.Coordinator.AgentBase.GetById(new JoinCode.Abstractions.Entity.ObjectId(JoinCode.Abstractions.Entity.ObjectType.Agent, agentId)) is null)
-        {
-            _logger?.LogDebug("[GoalGraph] Agent {AgentId} 未在 SessionScope 中，将由 IAgentService 创建时自动注册", agentId);
-        }
-
-        var instruction = payload.Instruction ?? payload.Name;
-        if (payload.Input is not null)
-        {
-            instruction = $"[上游输入]\n{payload.Input}\n\n[任务指令]\n{instruction}";
-        }
-
-        // === 完整模式：通过 IAgentService 执行（复用基础设施）===
-        if (_agentService is not null)
-        {
-            return await ExecuteViaAgentServiceAsync(nodeId, payload, instruction, context, ct).ConfigureAwait(false);
-        }
-
-        _logger?.LogError("[GoalGraph] {NodeId}({Name}): 无法执行 Agent 节点 — IAgentService 未注入。所有 Agent 节点必须通过 IAgentService 执行", nodeId, payload.Name);
-        return NodeResult.Failed("Agent 节点无法执行: IAgentService 未注入。Goal 模板必须为每个 agent 节点指定 Role/Variant");
-    }
-
-    /// <summary>
-    /// 通过 IAgentService 执行 Agent 节点 — 复用完整基础设施
-    /// （Transcript、MessageBroker、Worktree、Hook、MCP、Pause/Resume/Cancel）
-    /// </summary>
-    private async Task<NodeResult> ExecuteViaAgentServiceAsync(string nodeId, GoalNodePayload payload, string instruction, GraphExecutionContext context, CancellationToken ct)
-    {
-        var spawnOptions = new AgentSpawnOptions
-        {
-            Description = payload.Name,
-            Prompt = instruction,
-            Role = payload.Role,
-            Variant = payload.Variant,
-            IsolationMode = payload.IsolationMode,
-            RunInBackground = false,
-            GoalId = context.State.GoalId,
-            GraphNodeId = nodeId,
-            TokenBudget = payload.TokenBudget,
-            FreshContext = payload.FreshContext,
-            SystemPrompt = payload.SystemPrompt,
-        };
-
-        // T2.2: 派发前查热点表 — 热点文件契约改队长自己揽不派Worker
-        if (_dispatchGuard is not null && payload.OwnedFiles is { Length: > 0 })
-        {
-            var decision = _dispatchGuard.CheckBeforeDispatch(payload.OwnedFiles);
-            if (decision.ShouldCaptainHandle)
-            {
-                _logger?.LogInformation("[GoalGraph] {NodeId}({Name}): 热点文件契约改，队长自己揽 — {Reason}，热点文件: {Files}",
-                    nodeId, payload.Name, decision.Reason, string.Join(", ", decision.HotSpotFiles));
-                spawnOptions = spawnOptions with { Role = AgentRole.Coordinator };
-            }
-        }
-
-        var totalTokens = 0;
-        var totalTurns = 0;
-        var lastOutput = string.Empty;
-        var responseBuilder = new System.Text.StringBuilder();
-        var teamMemberAdded = false;
-
-        await foreach (var chunk in _agentService!.RunAgentStreamAsync(spawnOptions, ct).ConfigureAwait(false))
-        {
-            // T8.3: 首个 chunk 拿到 agentId 后加入团队
-            if (!teamMemberAdded && context.TeamId is not null && !string.IsNullOrEmpty(chunk.AgentId))
-            {
-                teamMemberAdded = true;
-                try
-                {
-                    await _teamManager!.AddTeamMemberAsync(context.TeamId, chunk.AgentId, ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning("[GoalGraph] 加入团队失败: {Message}", ex.Message);
-                }
-            }
-
-            if (chunk.Type == AgentStreamChunkType.Content)
-            {
-                responseBuilder.Append(chunk.Content);
-            }
-            else if (chunk.Type == AgentStreamChunkType.Complete)
-            {
-                totalTurns++;
-                lastOutput = chunk.Content ?? responseBuilder.ToString();
-                if (chunk.ExecutionTimeMs > 0)
-                {
-                    totalTokens += (int)chunk.ExecutionTimeMs;
-                }
-            }
-        }
-
-        payload.TokensUsed = totalTokens;
-        payload.TurnsCompleted = totalTurns;
-
-        if (!string.IsNullOrEmpty(lastOutput))
-        {
-            await _stateUpdater.AppendChatMessageAsync(context, $"[{payload.Name}]: {lastOutput}", ct).ConfigureAwait(false);
-        }
-
-        return NodeResult.Succeeded(lastOutput, totalTokens);
-    }
-
-
-
-
-    private async Task<NodeResult> ExecuteFunctionNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
-    {
-        if (!_functionRegistry.TryGetValue(nodeId, out var fn))
-        {
-            return NodeResult.Failed($"Function not registered: {nodeId}");
-        }
-
-        var upstreamOutputs = context.CollectUpstreamOutputs(nodeId);
-        var mutator = new GoalGraphMutator(context, _logger);
-        var nodeContext = new NodeContext
-        {
-            NodeId = nodeId,
-            CurrentNode = payload,
-            UpstreamOutputs = upstreamOutputs,
-            GlobalState = context.State,
-            Services = _serviceProvider,
-            CancellationToken = ct,
-            GraphMutator = mutator,
-        };
-
-        return await fn(nodeContext).ConfigureAwait(false);
-    }
-
-    private Task<NodeResult> ExecuteJoinNodeAsync(string nodeId, GoalNodePayload payload, GraphExecutionContext context, CancellationToken ct)
-    {
-        var upstreamOutputs = context.CollectUpstreamOutputs(nodeId);
-        var totalUpstreams = context.CountTotalUpstreams(nodeId);
-        var successfulUpstreams = context.CountSuccessfulUpstreams(nodeId);
-
-        var minRequired = payload.MinSuccessfulInputs > 0
-            ? payload.MinSuccessfulInputs
-            : totalUpstreams;
-
-        if (successfulUpstreams < minRequired)
-        {
-            return Task.FromResult(NodeResult.Failed(
-                $"Join precondition not met: {successfulUpstreams}/{minRequired} upstreams succeeded ({totalUpstreams} total)"));
-        }
-
-        var failedUpstreams = totalUpstreams - successfulUpstreams;
-        var sb = new System.Text.StringBuilder();
-
-        foreach (var kvp in upstreamOutputs)
-        {
-            if (kvp.Value is not null)
-            {
-                sb.AppendLine($"[{kvp.Key}]: {kvp.Value}");
-            }
-            else
-            {
-                sb.AppendLine($"[{kvp.Key}]: <failed>");
-            }
-        }
-
-        if (failedUpstreams > 0)
-        {
-            sb.AppendLine($"[warning]: {failedUpstreams} upstream(s) failed but Join proceeded (minRequired={minRequired})");
-        }
-
-        return Task.FromResult(NodeResult.Succeeded(sb.ToString().TrimEnd()));
     }
 
     /// <summary>

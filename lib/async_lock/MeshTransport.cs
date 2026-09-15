@@ -222,25 +222,34 @@ public sealed class MeshTransport : ITransportTopology
     }
 
     /// <inheritdoc/>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
-        if (_acceptTask is not null)
-        {
-            try { await _acceptTask.ConfigureAwait(false); }
-            catch (OperationCanceledException) { }
-        }
-
-        foreach (var conn in _peerConnections.Values)
-        {
-            await conn.DisposeAsync().ConfigureAwait(false);
-        }
+        var conns = _peerConnections.Values.ToArray();
         _peerConnections.Clear();
 
-        _cts.Dispose();
+        if (_acceptTask is null) { Cleanup(conns, _cts); return ValueTask.CompletedTask; }
+        _acceptTask.ContinueWith(
+            static (t, state) =>
+            {
+                var (conns, cts) = ((IAsyncDisposable[], CancellationTokenSource))state!;
+                Cleanup(conns, cts);
+            },
+            (conns, _cts),
+            TaskContinuationOptions.ExecuteSynchronously);
+        return ValueTask.CompletedTask;
+    }
+
+    private static void Cleanup(IAsyncDisposable[] conns, CancellationTokenSource cts)
+    {
+        foreach (var conn in conns)
+        {
+            conn.DisposeAsync().AsTask().Wait();
+        }
+        cts.Dispose();
     }
 }
 
@@ -300,12 +309,14 @@ internal sealed class MeshPeerConnection : IAsyncDisposable
         catch (OperationCanceledException) { }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
         _writeQueue.Writer.TryComplete();
-        try { await _writeLoop.ConfigureAwait(false); }
-        catch (OperationCanceledException) { }
-        await _stream.DisposeAsync().ConfigureAwait(false);
+        _writeLoop.ContinueWith(
+            static (t, state) => ((NamedPipeClientStream)state!).DisposeAsync().AsTask().Wait(),
+            _stream,
+            TaskContinuationOptions.ExecuteSynchronously);
+        return ValueTask.CompletedTask;
     }
 }

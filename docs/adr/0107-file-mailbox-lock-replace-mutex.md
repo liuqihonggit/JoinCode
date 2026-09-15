@@ -173,3 +173,20 @@ VSTHRD003 是 Visual Studio SDK 的线程分析规则，为 VS 扩展设计。jc
 新增 `DeliverInboundAsync` 方法，区分进程内消息和跨进程入站消息：
 - `SendAsync` — 写内存 Channel + 持久化到文件邮箱（进程内消息）
 - `DeliverInboundAsync` — 只写内存 Channel（跨进程入站消息）
+
+## 消息模型统一
+
+### 问题：MailboxMessage 与 CoordinatorMessage 两套定义
+
+文件邮箱层 `MailboxMessage` 和进程内邮箱层 `CoordinatorMessage` 字段大差不差，但维护两套导致不一致：
+- `MailboxMessage` 有 `MessageId`（required），`CoordinatorMessage` 无 `MessageId`
+- `MailboxPoller` 转换消息时 `MessageId` 被丢弃，其他 AI 无法去重
+
+### 决策：归纳为统一 CoordinatorMessage
+
+- `CoordinatorMessage` 吸收 `MailboxMessage` 的所有字段
+- `MailboxMessage` 通过 `global using` 别名指向 `CoordinatorMessage`
+- `MessageId` 默认 `Guid.NewGuid().ToString("N")`，无需 required
+- `SessionId`（string?）、`IsRead`（bool）为可选字段
+- `MailboxPoller` 直接传递消息对象，不再创建新对象转换
+- 差异字段按需使用，LINQ 投影提取所需子集

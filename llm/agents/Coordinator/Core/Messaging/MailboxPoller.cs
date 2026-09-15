@@ -103,21 +103,13 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
                         var mailboxMsg = unreadMessages[i];
                         messageIds.Add(mailboxMsg.MessageId);
 
-                        var brokerMessage = new CoordinatorAgentMessage
-                        {
-                            FromAgentId = mailboxMsg.FromAgentId,
-                            ToAgentId = mailboxMsg.ToAgentId,
-                            MessageType = mailboxMsg.MessageType,
-                            Content = mailboxMsg.Content
-                        };
-
                         if (_messageSink is not null)
                         {
-                            await _messageSink.DeliverAsync(agentId, brokerMessage, cancellationToken).ConfigureAwait(false);
+                            await _messageSink.DeliverAsync(agentId, mailboxMsg, cancellationToken).ConfigureAwait(false);
                         }
                         else
                         {
-                            await _messageBroker.SendAsync(agentId, brokerMessage, cancellationToken).ConfigureAwait(false);
+                            await _messageBroker.SendAsync(agentId, mailboxMsg, cancellationToken).ConfigureAwait(false);
                         }
                     }
 

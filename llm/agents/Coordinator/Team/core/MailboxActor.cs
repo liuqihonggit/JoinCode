@@ -59,7 +59,7 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit>
 
     private async ValueTask AppendMessageCoreAsync(MailboxMessage message, CancellationToken ct)
     {
-        var line = JsonSerializer.Serialize(message, MailboxJsonContext.Default.MailboxMessage);
+        var line = JsonSerializer.Serialize(message, MailboxJsonContext.Default.CoordinatorMessage);
         if (_crossProcess)
         {
             await using var fileLock = await FileMailboxLock.AcquireAsync(_filePath, TimeSpan.FromSeconds(30), ct, _logger).ConfigureAwait(false);
@@ -84,7 +84,7 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit>
             if (string.IsNullOrWhiteSpace(line)) continue;
             try
             {
-                var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.MailboxMessage);
+                var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.CoordinatorMessage);
                 if (msg is null) continue;
                 if (messageIds.Contains(msg.MessageId) && !msg.IsRead)
                 {
@@ -118,7 +118,7 @@ internal sealed class MailboxActor : ActorBase<MailboxCommand, Unit>
         await using var writer = new StreamWriter(stream);
         for (var i = 0; i < messages.Count; i++)
         {
-            var line = JsonSerializer.Serialize(messages[i], MailboxJsonContext.Default.MailboxMessage);
+            var line = JsonSerializer.Serialize(messages[i], MailboxJsonContext.Default.CoordinatorMessage);
             await writer.WriteLineAsync(line.AsMemory(), ct).ConfigureAwait(false);
         }
     }

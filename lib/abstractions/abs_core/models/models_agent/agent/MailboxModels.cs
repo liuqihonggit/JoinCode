@@ -1,16 +1,7 @@
 namespace JoinCode.Abstractions.Models.Agent;
 
-public sealed class MailboxMessage
-{
-    public required string MessageId { get; init; }
-    public required string FromAgentId { get; init; }
-    public required string ToAgentId { get; init; }
-    public required string MessageType { get; init; }
-    public required string Content { get; init; }
-    public required string SessionId { get; init; }
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
-    public bool IsRead { get; set; }
-}
+// MailboxMessage 已归纳到 CoordinatorMessage，统一消息模型。
+// 通过 global using MailboxMessage = CoordinatorMessage 别名保持向后兼容。
 
 public sealed record MailboxReadCursor
 {

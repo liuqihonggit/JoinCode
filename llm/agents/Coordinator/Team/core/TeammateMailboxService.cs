@@ -225,7 +225,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
 
                 try
                 {
-                    var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.MailboxMessage);
+                    var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.CoordinatorMessage);
                     if (msg is not null)
                     {
                         messages.Add(msg);

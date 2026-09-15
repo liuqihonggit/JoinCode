@@ -2,6 +2,7 @@ global using Api;
 global using JoinCode.Llm.DependencyInjection;
 global using AgentInfo = Core.Agents.Coordinator.AgentInfo;
 global using AgentMsg = JoinCode.Abstractions.Models.Agent.CoordinatorMessage;
+global using MailboxMessage = JoinCode.Abstractions.Models.Agent.CoordinatorMessage;
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Brain.Context.Hierarchy;
 global using JoinCode.Abstractions.Brain.Context.Compression;

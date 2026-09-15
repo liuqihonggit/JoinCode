@@ -243,11 +243,7 @@ public sealed class HostElectionService : IAsyncDisposable
     {
         try
         {
-            using var client = new NamedPipeClientStream(
-                ".",
-                _pipeName,
-                PipeDirection.InOut,
-                PipeOptions.Asynchronous);
+            using var client = NamedPipeFactory.CreateClient(_pipeName);
 
             using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             connectCts.CancelAfter(TimeSpan.FromSeconds(2));

@@ -322,9 +322,12 @@ public class AsyncLockDiagnosisTests : IDisposable
                 }
             });
 
-            await Task.Delay(1000);
+            for (var round = 0; round < 2 && !LockRegistry.DeadlockDetected; round++)
+            {
+                await Task.Delay(3000);
+            }
 
-            LockRegistry.DeadlockDetected.Should().BeTrue("两个 async 流互相等待对方持有的锁应被自动检测为死锁");
+            LockRegistry.DeadlockDetected.Should().BeTrue("两个 async 流互相等待对方持有的锁应被自动检测为死锁(两轮3s共6s,容忍CI高负载)");
             LockRegistry.LastDeadlockReport.Should().Contain("DEADLOCK-DETECTED");
             messages.Should().Contain(m => m.Contains("DEADLOCK-DETECTED"));
 

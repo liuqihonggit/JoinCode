@@ -156,11 +156,7 @@ public sealed class NamedPipeTransport : ITransportTopology
 
     private async Task StartSlaveAsync(CancellationToken ct)
     {
-        _slaveClient = new NamedPipeClientStream(
-            ".",
-            _pipeName,
-            PipeDirection.InOut,
-            PipeOptions.Asynchronous);
+        _slaveClient = NamedPipeFactory.CreateClient(_pipeName);
 
         await _slaveClient.ConnectAsync(ct).ConfigureAwait(false);
 

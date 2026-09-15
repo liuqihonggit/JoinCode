@@ -141,11 +141,7 @@ public sealed class MeshTransport : ITransportTopology
         }
 
         var pipeName = GetPeerPipeName(peerPid);
-        var client = new NamedPipeClientStream(
-            ".",
-            pipeName,
-            PipeDirection.InOut,
-            PipeOptions.Asynchronous);
+        var client = NamedPipeFactory.CreateClient(pipeName);
 
         try
         {

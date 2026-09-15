@@ -177,17 +177,9 @@ internal static class PipeAcceptLoop
         Func<NamedPipeServerStream, CancellationToken, Task> handleConnection,
         CancellationToken ct)
     {
-        const int PipeBufferSize = 65536;
         while (!ct.IsCancellationRequested)
         {
-            var server = new NamedPipeServerStream(
-                pipeName,
-                PipeDirection.InOut,
-                NamedPipeServerStream.MaxAllowedServerInstances,
-                PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous,
-                inBufferSize: PipeBufferSize,
-                outBufferSize: PipeBufferSize);
+            var server = NamedPipeFactory.CreateServer(pipeName);
             try
             {
                 using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);

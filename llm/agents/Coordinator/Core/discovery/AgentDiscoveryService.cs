@@ -26,15 +26,33 @@ public sealed partial class AgentDiscoveryService : ServiceEntity, IAgentDiscove
         IFileSystem fs,
         ILogger<AgentDiscoveryService>? logger = null,
         IClockService? clock = null)
+        : this(fs, GetDefaultRegistryPath(), logger, clock)
+    {
+    }
+
+    /// <summary>
+    /// 内部构造函数 — 用于测试注入注册表路径
+    /// </summary>
+    internal AgentDiscoveryService(
+        IFileSystem fs,
+        string registryPath,
+        ILogger<AgentDiscoveryService>? logger = null,
+        IClockService? clock = null)
     {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _registryDir = Path.Combine(
+        _registryPath = registryPath;
+        _registryDir = Path.GetDirectoryName(registryPath) ?? throw new ArgumentException("Invalid registry path", nameof(registryPath));
+    }
+
+    private static string GetDefaultRegistryPath()
+    {
+        var dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             "agents");
-        _registryPath = Path.Combine(_registryDir, "registry.json");
+        return Path.Combine(dir, "registry.json");
     }
 
     /// <summary>

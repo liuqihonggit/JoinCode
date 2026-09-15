@@ -61,6 +61,7 @@ global using JoinCode.Abstractions.Pipeline;
 global using Infrastructure.Pipeline;
 global using Infrastructure.Localization;
 global using IO;
+global using IO.FileSystem;
 global using Microsoft.Extensions.Caching.Memory;
 global using Microsoft.Extensions.DependencyInjection;
 global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;

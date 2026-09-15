@@ -1,4 +1,4 @@
-namespace JoinCode.Cli.Output;
+﻿namespace JoinCode.Cli.Output;
 
 /// <summary>
 /// 命令风险分级 — 对齐架构指南安全设计
@@ -9,11 +9,14 @@ namespace JoinCode.Cli.Output;
 public enum CommandRiskLevel
 {
     /// <summary>只读操作 — 直接执行，无需确认（如 Read/Grep/Glob/List）</summary>
+    [EnumValue("read")]
     Read = 0,
 
     /// <summary>修改操作 — 需用户确认（如 Write/Edit/Bash(git:*)/McpConnect）</summary>
+    [EnumValue("write")]
     Write = 1,
 
     /// <summary>不可逆操作 — 需复核确认（如 Bash(rm)/Bash(format)/Delete）</summary>
+    [EnumValue("dangerous")]
     Dangerous = 2,
 }

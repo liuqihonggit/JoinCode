@@ -32,7 +32,7 @@ public class CodeExecutionToolHandlers
     /// <summary>
     /// 安全地执行 C# 代码并返回结果
     /// </summary>
-    [McpTool(CodeToolNameConstants.ExecuteCsharpCode, "Execute C# code in sandbox environment", "code_execution")]
+    [McpTool(CodeToolNameEnumConstants.ExecuteCsharpCode, "Execute C# code in sandbox environment", "code_execution")]
     public async Task<ToolResult> ExecuteCSharpCodeAsync(
         [McpToolParameter("C# code to execute")] string code,
         [McpToolParameter("Execution timeout in milliseconds, defaults to 30000", Required = false, DefaultValue = "30000")] int timeout_ms = 30000,
@@ -91,7 +91,7 @@ public class CodeExecutionToolHandlers
     /// <summary>
     /// 计算 C# 表达式
     /// </summary>
-    [McpTool(CodeToolNameConstants.EvaluateExpression, "Evaluate a simple C# expression", "code_execution")]
+    [McpTool(CodeToolNameEnumConstants.EvaluateExpression, "Evaluate a simple C# expression", "code_execution")]
     public async Task<ToolResult> EvaluateExpressionAsync(
         [McpToolParameter("C# expression to evaluate, e.g. '1 + 2 * 3' or 'DateTime.Now.ToString()'")] string expression,
         [McpToolParameter("Variable definitions in JSON format (optional)", Required = false)] string? variables = null,
@@ -118,7 +118,7 @@ public class CodeExecutionToolHandlers
     /// <summary>
     /// 使用示例输入测试代码片段
     /// </summary>
-    [McpTool(CodeToolNameConstants.TestCodeSnippet, "Test a code snippet with sample input", "code_execution")]
+    [McpTool(CodeToolNameEnumConstants.TestCodeSnippet, "Test a code snippet with sample input", "code_execution")]
     public async Task<ToolResult> TestCodeSnippetAsync(
         [McpToolParameter("C# code snippet to test")] string code,
         [McpToolParameter("Sample input in JSON format")] string test_input,

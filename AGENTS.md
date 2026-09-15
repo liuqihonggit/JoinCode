@@ -31,7 +31,7 @@
 1. **无后向兼容** — 项目不需要任何后向兼容，遇到相关字样直接删除，大修大改
 2. **JSON 宽容** — 已实现 JSON 宽容解析（RelaxedJsonSerializer），无需重复实现
 3. **Rust 风格报错** — 已实现 Rust 编译器风格报错（带行列指示+代码片段+箭头），面向参数错误必须用此风格
-4. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`lib/abstractions/abs_core/core_utils/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
+4. **BitMask 位掩码工具类** — 已实现 `BitMask` 静态工具类（`lib/abstractions/abs_core/core_utils/core/BitMask.cs`），类似 BitArray/Bitmap，减少 hash 查找、降低内存使用、提高性能。枚举集合优先用 `BitMask.Of()` + `BitMask.Contains()`，替代 `FrozenSet<Enum>`
 5. **字符串处理优先级** — 首选用 `Span<char>`（0-GC）、SIMD、mmap、`AsParallel()` 链式编程风格
 6. **纵深防御按层按名称** — 安全拦截按层（前缀树→结构化解析→专项预处理→五色灯→确认→执行→审计）按名称（每个守卫有明确 `Name` 属性和 `Priority`）组织，统一整齐。新增拦截层必须声明层名和优先级，禁止散落 ad-hoc 检查
 7. **代码风格：链式+有名函数** — 主逻辑用 LINQ 链式语法控制流程，不同部分提取为有名函数，调用处直观可见一切。或用 Actor 模型 / 管道中间件模型组织。禁止内联长 lambda 淹没主流程。**死锁处理用 Actor 邮箱模型**（消息传递替代共享锁），管道用中间件洋葱模型
@@ -434,7 +434,7 @@ public void Dispose() {
 
 ### 规则3：`DisposeSafe` 扩展方法（消除 Dispose 样板）
 
-`lib/abstractions/abs_core` 提供 `DisposeSafeExtensions`：
+`lib/abstractions/abs_core/core_utils/core` 提供 `DisposeSafeExtensions`：
 - `obj.DisposeSafe(logger)` — 吞 `ObjectDisposedException`（幂等），其他异常可选日志
 - `cts.CancelAndDisposeSafe(logger)` — Cancel + Dispose 合并
 
@@ -586,7 +586,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 | **InvariantGlobalization** | `true`，Release 模式 Exe 项目强制 |
 | **全球化策略** | 渐进式双语（中英文），遇到全球化问题时逐步实现，不必一次性处理完 |
 | **IsAotCompatible** | 所有源码项目已标记 |
-| **MCP 协议版本** | `2025-11-25`（Streamable HTTP）— 旧 `2024-11-05` + SseClientTransport/SseTransport 已归档到 `server/mcp/.xxx/`；客户端 `HttpTransport` + 服务端 `McpHttpServer`（HttpListener，无状态/有状态双模式）；`MCP-Protocol-Version` 头握手协商，`MCP-Session-Id` 不分配=无状态 |
+| **MCP 协议版本** | `2025-11-25`（Streamable HTTP）— 客户端 `HttpTransport` + 服务端 `McpHttpServer`（HttpListener，无状态/有状态双模式）；`MCP-Protocol-Version` 头握手协商，`MCP-Session-Id` 不分配=无状态；旧 `2024-11-05` + SseAgentTransport 仍在 `lib/transport.impl/sse/` 供兼容使用 |
 | **Workflow 断点续跑** | DAG 模式每层完成后原子保存快照 `workflow_{id}.state.json`，启动时加载跳过已完成步骤；`IWorkflowStateStore` 可选注入（> ADR: [0097](docs/adr/0097-workflow-checkpoint-resume.md)） |
 
 ### 核心技术选型

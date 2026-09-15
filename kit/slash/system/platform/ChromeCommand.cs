@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：connect+disconnect+install+toggle+status
 /// 架构差异：TS 有 React 交互式浏览器控制面板，C# 为命令行操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Chrome, Description = "Chrome 浏览器集成", Usage = "/chrome [connect|disconnect|install|toggle|status]", Category = ChatCommandCategory.Platform, ArgumentHint = "connect|disconnect|install|toggle|status", IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Chrome, Description = "Chrome 浏览器集成", Usage = "/chrome [connect|disconnect|install|toggle|status]", Category = ChatCommandCategory.Platform, ArgumentHint = "connect|disconnect|install|toggle|status", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "Chrome 操作", Enum = new[] { "connect", "disconnect", "install", "toggle", "status" })]
 public sealed class ChromeCommand : ChatCommandBase
 {
@@ -27,23 +27,23 @@ public sealed class ChromeCommand : ChatCommandBase
 
         switch (arg)
         {
-            case PlatformActionConstants.Connect:
+            case PlatformActionEnumConstants.Connect:
             case "c":
                 await HandleConnectionAsync(chromeService, ToggleAction.On).ConfigureAwait(false);
                 break;
-            case PlatformActionConstants.Disconnect:
+            case PlatformActionEnumConstants.Disconnect:
             case "d":
                 await HandleConnectionAsync(chromeService, ToggleAction.Off).ConfigureAwait(false);
                 break;
-            case PlatformActionConstants.Install:
+            case PlatformActionEnumConstants.Install:
             case "i":
                 await HandleInstallAsync(chromeService).ConfigureAwait(false);
                 break;
-            case PlatformActionConstants.Toggle:
+            case PlatformActionEnumConstants.Toggle:
             case "t":
                 await HandleToggleAsync(chromeService).ConfigureAwait(false);
                 break;
-            case PlatformActionConstants.Status:
+            case PlatformActionEnumConstants.Status:
             case "s":
             case null:
             case "":

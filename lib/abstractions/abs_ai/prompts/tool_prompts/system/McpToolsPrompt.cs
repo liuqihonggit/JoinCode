@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = McpToolName.McpListResources, Category = ToolPromptCategory.System)]
 public static class ListMcpResourcesToolPrompt
 {
-    public const string ToolName = McpToolNameConstants.McpListResources;
+    public const string ToolName = McpToolNameEnumConstants.McpListResources;
 
     public const string Description = """
         列出配置好的 MCP 服务器中可用的资源。
@@ -34,7 +34,7 @@ public static class ListMcpResourcesToolPrompt
 [ToolPrompt(ToolName = McpToolName.McpReadResource, Category = ToolPromptCategory.System)]
 public static class ReadMcpResourceToolPrompt
 {
-    public const string ToolName = McpToolNameConstants.McpReadResource;
+    public const string ToolName = McpToolNameEnumConstants.McpReadResource;
 
     public const string Description = """
         从 MCP 服务器读取特定资源。
@@ -60,7 +60,7 @@ public static class ReadMcpResourceToolPrompt
 [ToolPrompt(ToolName = McpToolName.McpRemoteTrigger, Category = ToolPromptCategory.System)]
 public static class RemoteTriggerToolPrompt
 {
-    public const string ToolName = McpToolNameConstants.McpRemoteTrigger;
+    public const string ToolName = McpToolNameEnumConstants.McpRemoteTrigger;
 
     public const string Description =
         "通过 claude.ai CCR API 管理计划的远程 " + BrandConstants.ProductName + " 代理（触发器）。\n" +
@@ -86,7 +86,7 @@ public static class RemoteTriggerToolPrompt
 [ToolPrompt(ToolName = NotebookToolName.NotebookEdit, Category = ToolPromptCategory.System)]
 public static class NotebookEditToolPrompt
 {
-    public const string ToolName = NotebookToolNameConstants.NotebookEdit;
+    public const string ToolName = NotebookToolNameEnumConstants.NotebookEdit;
 
     public const string Description = "替换 Jupyter notebook 中特定单元格的内容。";
 

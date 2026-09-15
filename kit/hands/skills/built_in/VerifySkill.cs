@@ -25,7 +25,7 @@ public sealed class VerifySkill
             },
             Steps = new List<SkillStep>
             {
-                new() { Id = "read_target", Type = SkillStepType.Tool, Tool = FileToolNameConstants.FileRead, Description = "读取目标内容", Prompt = "读取 {{target}} 的内容", Next = "check_criteria" },
+                new() { Id = "read_target", Type = SkillStepType.Tool, Tool = FileToolNameEnumConstants.FileRead, Description = "读取目标内容", Prompt = "读取 {{target}} 的内容", Next = "check_criteria" },
                 new() { Id = "check_criteria", Type = SkillStepType.Prompt, Description = "根据标准检查目标", Prompt = "根据以下标准验证目标内容：\n\n目标：{{target}}\n标准：{{criteria}}\n\n请逐条检查每个标准，给出通过/不通过的判定和详细说明。", Next = "run_tests" },
                 new() { Id = "run_tests", Type = SkillStepType.Tool, Tool = "shell", Description = "运行相关测试", Prompt = "运行与 {{target}} 相关的测试，验证功能正确性", Next = "check_auto_fix" },
                 new() { Id = "check_auto_fix", Type = SkillStepType.Condition, Condition = "{{autoFix}}", Description = "检查是否需要自动修复", Next = "auto_fix", OnError = "generate_report" },

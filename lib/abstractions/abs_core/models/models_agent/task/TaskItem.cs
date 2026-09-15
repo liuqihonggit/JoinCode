@@ -8,7 +8,7 @@ public sealed record TaskItem
     public required string Id { get; init; }
     public required string Title { get; init; }
     public string? Description { get; init; }
-    public string Status { get; init; } = TaskExecutionStatusConstants.Pending;
+    public string Status { get; init; } = TaskExecutionStatusEnumConstants.Pending;
     public TodoPriority Priority { get; init; } = TodoPriority.Medium;
     public string? Assignee { get; init; }
     public DateTime? DueDate { get; init; }
@@ -70,6 +70,6 @@ public sealed record RunningTaskInfo
 {
     public required string Id { get; init; }
     public required string Description { get; init; }
-    public string Status { get; init; } = TaskExecutionStatusConstants.Running;
+    public string Status { get; init; } = TaskExecutionStatusEnumConstants.Running;
     public DateTime? StartedAt { get; init; }
 }

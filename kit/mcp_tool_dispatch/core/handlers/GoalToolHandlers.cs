@@ -23,7 +23,7 @@ public sealed class GoalToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.GoalGet, "Get the current goal status including objective, progress, and evaluation results. Returns null if no goal is active.", "goal")]
+    [McpTool(SystemToolNameEnumConstants.GoalGet, "Get the current goal status including objective, progress, and evaluation results. Returns null if no goal is active.", "goal")]
     public Task<ToolResult> GetGoalAsync(
         CancellationToken cancellationToken = default)
     {
@@ -66,9 +66,9 @@ public sealed class GoalToolHandlers
     /// <param name="reason">状态变更原因</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.GoalUpdate, "Update the current goal status. The model can mark a goal as achieved or unmet. Only 'achieved' and 'unmet' statuses are allowed via this tool.", "goal")]
+    [McpTool(SystemToolNameEnumConstants.GoalUpdate, "Update the current goal status. The model can mark a goal as achieved or unmet. Only 'achieved' and 'unmet' statuses are allowed via this tool.", "goal")]
     public async Task<ToolResult> UpdateGoalAsync(
-        [McpToolParameter("New status for the goal. Must be 'achieved' or 'unmet'.", Required = true, EnumValues = new[] { GoalStatusConstants.Achieved, GoalStatusConstants.Unmet })] string status,
+        [McpToolParameter("New status for the goal. Must be 'achieved' or 'unmet'.", Required = true, EnumValues = new[] { GoalStatusEnumConstants.Achieved, GoalStatusEnumConstants.Unmet })] string status,
         [McpToolParameter("Reason for the status change", Required = true)] string reason,
         CancellationToken cancellationToken = default)
     {
@@ -128,7 +128,7 @@ public sealed class GoalToolHandlers
     /// <param name="end_node_ids">结束节点 ID，逗号分隔</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.GoalGraphDefine, "Define a goal execution graph with nodes and edges. The coordinator agent uses this after investigating the task to create an optimal execution plan. Each node is an agent loop, edges define execution flow and conditional routing.", "goal")]
+    [McpTool(SystemToolNameEnumConstants.GoalGraphDefine, "Define a goal execution graph with nodes and edges. The coordinator agent uses this after investigating the task to create an optimal execution plan. Each node is an agent loop, edges define execution flow and conditional routing.", "goal")]
     public Task<ToolResult> DefineGraphAsync(
         [McpToolParameter("JSON array of nodes. Each node: {id, kind, name, systemPrompt?, instruction?, freshContext?}. kind: agent/function/join", Required = true)] string nodes,
         [McpToolParameter("JSON array of edges. Each edge: {id?, fromId, toId, label?}. Empty label = unconditional, non-empty = conditional route key", Required = true)] string edges,

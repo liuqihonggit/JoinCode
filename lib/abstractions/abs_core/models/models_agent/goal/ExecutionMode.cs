@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Models.Goal;
+﻿namespace JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 集群执行方案模式
-/// [EnumValue] 由 EnumMetadataGenerator 自动生成 ExecutionModeConstants + ExecutionModeExtensions
+/// [EnumValue] 由 EnumMetadataGenerator 自动生成 ExecutionModeEnumConstants + ExecutionModeExtensions
 /// </summary>
 public enum ExecutionMode
 {

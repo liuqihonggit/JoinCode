@@ -29,7 +29,7 @@ public partial class VerifyPlanExecutionToolHandlers
     /// <param name="criteria">验证标准（可选，描述预期执行结果）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.VerifyPlanExecution, "Verify plan execution results against expectations", "planning")]
+    [McpTool(SystemToolNameEnumConstants.VerifyPlanExecution, "Verify plan execution results against expectations", "planning")]
     public async Task<ToolResult> VerifyPlanExecutionAsync(
         [McpToolParameter("Plan prompt (optional, default empty)", Required = false)] string? plan_prompt = null,
         [McpToolParameter("Verification criteria (optional, describes expected execution results)", Required = false)] string? criteria = null,

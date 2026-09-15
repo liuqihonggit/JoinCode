@@ -34,7 +34,7 @@ public sealed record FileTaskMetadata
     /// 优先级
     /// </summary>
     [JsonPropertyName("priority")]
-    public string Priority { get; init; } = TodoPriorityConstants.Medium;
+    public string Priority { get; init; } = TodoPriorityEnumConstants.Medium;
 
     /// <summary>
     /// 负责人
@@ -144,7 +144,7 @@ public static class TaskStateConverter
     /// <summary>
     /// 将 TaskState 枚举转换为小写字符串
     /// </summary>
-    public static string ToStateString(this TaskState state) => JoinCode.Abstractions.State.TaskExecutionStatusExtensions.ToValue((JoinCode.Abstractions.State.TaskExecutionStatus)state) ?? JoinCode.Abstractions.State.TaskExecutionStatusConstants.Pending;
+    public static string ToStateString(this TaskState state) => JoinCode.Abstractions.State.TaskExecutionStatusExtensions.ToValue((JoinCode.Abstractions.State.TaskExecutionStatus)state) ?? JoinCode.Abstractions.State.TaskExecutionStatusEnumConstants.Pending;
 
     /// <summary>
     /// 将状态字符串转换为 TaskState 枚举

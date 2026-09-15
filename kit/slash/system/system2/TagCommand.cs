@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /tag 命令 — 为当前会话添加或管理标签
 /// 通过 ISessionTagService 执行 add、remove、list 操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Tag, Description = "为当前会话添加或管理标签", Usage = "/tag [add|remove|list] [tag_name]", Category = ChatCommandCategory.System, ArgumentHint = "[add|remove|list] [tag]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Tag, Description = "为当前会话添加或管理标签", Usage = "/tag [add|remove|list] [tag_name]", Category = ChatCommandCategory.System, ArgumentHint = "[add|remove|list] [tag]")]
 [ChatCommandArg("action", Type = "string", Description = "标签操作", Enum = new[] { "add", "remove", "list" })]
 [ChatCommandArg("tag_name", Type = "string", Description = "标签名称")]
 public sealed class TagCommand : ChatCommandBase

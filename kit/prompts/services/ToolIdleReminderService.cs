@@ -108,7 +108,7 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
                 TodoToolName.TodoWrite.ToValue(),
                 turnsSinceUse: 10,
                 turnsBetweenReminders: 10,
-                reminderMessage: $"The {TodoToolNameConstants.TodoWrite} tool hasn't been used recently. If you're business on tasks, would benefit from using the {TodoToolNameConstants.TodoWrite} tool. You consider cleaning up the todo list. Make sure that you NEVER mention this reminder to the user",
+                reminderMessage: $"The {TodoToolNameEnumConstants.TodoWrite} tool hasn't been used recently. If you're business on tasks, would benefit from using the {TodoToolNameEnumConstants.TodoWrite} tool. You consider cleaning up the todo list. Make sure that you NEVER mention this reminder to the user",
                 stateProvider: async ct =>
                 {
                     if (todoService is null) return string.Empty;
@@ -118,10 +118,10 @@ public sealed partial class ToolIdleReminderService : ServiceEntity, IToolIdleRe
                     return $"Here are the existing contents of your todo list:\n\n[{string.Join(", ", items)}]";
                 }),
             new ToolIdleReminderConfig(
-                TaskToolNameConstants.TaskUpdate,
+                TaskToolNameEnumConstants.TaskUpdate,
                 turnsSinceUse: 10,
                 turnsBetweenReminders: 10,
-                reminderMessage: $"The task tools haven't been used recently. If you're business on tasks, would benefit from using {TaskToolNameConstants.TaskCreate} to add new tasks and {TaskToolNameConstants.TaskUpdate} to update task status (set to in_progress when starting, completed and done). Consider cleaning up the task list. Make sure that you NEVER mention this reminder to the user",
+                reminderMessage: $"The task tools haven't been used recently. If you're business on tasks, would benefit from using {TaskToolNameEnumConstants.TaskCreate} to add new tasks and {TaskToolNameEnumConstants.TaskUpdate} to update task status (set to in_progress when starting, completed and done). Consider cleaning up the task list. Make sure that you NEVER mention this reminder to the user",
                 stateProvider: async ct =>
                 {
                     if (taskService is null) return string.Empty;

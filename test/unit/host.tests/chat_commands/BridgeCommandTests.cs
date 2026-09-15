@@ -48,7 +48,7 @@ public sealed class BridgeCommandTests
     [Fact]
     public async Task Execute_WithEmptyArgs_Should_Default_To_Status()
     {
-        // 空 args → 默认 "status" → BridgeActionConstants.Status 分支
+        // 空 args → 默认 "status" → BridgeActionEnumConstants.Status 分支
         var cmd = new BridgeCommand();
         var context = new ChatCommandContext
         {
@@ -70,7 +70,7 @@ public sealed class BridgeCommandTests
     [InlineData("disconnect")]
     public async Task Execute_WithBridgeActionSubcommand_Should_Return_Continue(string subCommand)
     {
-        // BridgeActionConstants.Qr/Sessions/Status/Connect/Disconnect 枚举路由取值范围测试
+        // BridgeActionEnumConstants.Qr/Sessions/Status/Connect/Disconnect 枚举路由取值范围测试
         var cmd = new BridgeCommand();
         var context = new ChatCommandContext
         {
@@ -135,14 +135,14 @@ public sealed class BridgeCommandTests
     }
 
     [Fact]
-    public void BridgeActionConstants_Values_Should_Match_Route()
+    public void BridgeActionEnumConstants_Values_Should_Match_Route()
     {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
-        BridgeActionConstants.Qr.Should().Be("qr");
-        BridgeActionConstants.Sessions.Should().Be("sessions");
-        BridgeActionConstants.Status.Should().Be("status");
-        BridgeActionConstants.Connect.Should().Be("connect");
-        BridgeActionConstants.Disconnect.Should().Be("disconnect");
+        BridgeActionEnumConstants.Qr.Should().Be("qr");
+        BridgeActionEnumConstants.Sessions.Should().Be("sessions");
+        BridgeActionEnumConstants.Status.Should().Be("status");
+        BridgeActionEnumConstants.Connect.Should().Be("connect");
+        BridgeActionEnumConstants.Disconnect.Should().Be("disconnect");
     }
 
     private static CommandServices CreateServices()

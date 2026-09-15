@@ -184,7 +184,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 
     private void RecordAcquireMetrics(IOOperationType operationType, long elapsedMs, bool isSuccess)
     {
-        _telemetryService?.RecordCount("io.throttle.acquire.count", new Dictionary<string, string> { ["operation"] = operationType.ToString(), ["success"] = isSuccess.ToString() }, "count", "IO throttle acquire count");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "io.throttle.acquire.count", operationType.ToString(), isSuccess, "IO throttle acquire count");
         if (isSuccess)
             _telemetryService?.RecordHistogram("io.throttle.acquire.duration", elapsedMs, new Dictionary<string, string> { ["operation"] = operationType.ToString() }, "ms", "IO throttle acquire wait duration");
     }

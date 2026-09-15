@@ -91,7 +91,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 
 ## 统计
 
-- 总数：**101** | accepted：**93** | superseded：**5** | proposed：**3**
+- 总数：**103** | accepted：**98** | superseded：**5** | proposed：**0**
 
 ## 完整索引（按编号）
 
@@ -108,7 +108,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0009](0009-mcp-streamable-http.md) | MCP Streamable HTTP 2025-11-25 | accepted | 2026-08-29 |
 | [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
-| [0012](0012-robocopy-mir-danger-command-interception.md) | robocopy /MIR 与 /PURGE 红色命令拦截 | proposed | 2026-09-13 |
+| [0012](0012-robocopy-mir-danger-command-interception.md) | robocopy /MIR 与 /PURGE 红色命令拦截 | accepted | 2026-09-13 |
 | [0013](0013-hypergraph-vs-dag-separation.md) | 超图与 DAG 分工 | accepted | 2026-08-29 |
 | [0014](0014-mcp-tool-coverage-principle.md) | MCP 工具覆盖原则 | accepted | 2026-08-29 |
 | [0015](0015-config-hotreload-dual-variable.md) | 配置热重载双变量切换 | accepted | 2026-08-29 |
@@ -188,14 +188,14 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0091](0091-actor-duplex-inplace-upgrade.md) | Actor 全双工改造 — 直接改 ActorBase（无后向兼容） | accepted | 2026-09-08 |
 | [0092](0092-worktree-path-inconsistency-fix.md) | Worktree 路径一致性 — 中间件幂等 + Guard 路径锁定 | accepted | 2026-09-08 |
 | [0093](0093-resource-management-exception-style.md) | 资源管理与异常控制风格规范 | accepted | 2026-09-09 |
-| [0094](0094-github-verbose-output.md) | GitHub 工具精简输出 + verbose 完整模式 | proposed | 2026-09-09 |
+| [0094](0094-github-verbose-output.md) | GitHub 工具精简输出 + verbose 完整模式 | accepted | 2026-09-09 |
 | [0095](0095-unified-path-normalizer.md) | 统一路径归一化工具 PathNormalizer | accepted | 2026-09-09 |
 | [0096](0096-shell-path-error-auto-retry.md) | Shell 路径处理策略 — 去掉执行前自动转换 + 执行后失败重试 | accepted | 2026-09-09 |
 | [0097](0097-workflow-checkpoint-resume.md) | Workflow 级断点续跑持久化策略 | accepted | 2026-09-09 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 | [0099](0099-native-dll-plugin-system.md) | Native DLL 插件系统 — NativeLibrary.Load + UnmanagedCallersOnly | accepted | 2026-09-11 |
 | [0100](0100-console-actor-serialize-io.md) | ConsoleActor 串行化 Console I/O 消除并发竞态 | accepted | 2026-09-11 |
-| [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | proposed | 2026-09-12 |
+| [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | accepted | 2026-09-12 |
 | [0102](0102-folder-restructure-functional-driven.md) | 文件夹整理改革 — 从领域驱动到功能驱动 | superseded by 0103 | 2026-09-12 |
 | [0103](0103-folder-restructure-semantic-grouping-flat.md) | 文件夹扁平化重组 — 语义分组 + 组内扁平 | accepted | 2026-09-13 |
 | [0104](0104-write-defense-extract-public-node.md) | 写防御 — 提取公共节点 | accepted | 2026-09-14 |
@@ -221,7 +221,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0009](0009-mcp-streamable-http.md) | MCP Streamable HTTP 2025-11-25 | accepted | 2026-08-29 |
 | [0010](0010-global-usings.md) | GlobalUsings 统一管理 | accepted | 2026-08-29 |
 | [0011](0011-data-container-aot-gc.md) | 数据容器 AOT+GC 选型 | accepted | 2026-08-29 |
-| [0012](0012-robocopy-mir-danger-command-interception.md) | robocopy /MIR 与 /PURGE 红色命令拦截 | proposed | 2026-09-13 |
+| [0012](0012-robocopy-mir-danger-command-interception.md) | robocopy /MIR 与 /PURGE 红色命令拦截 | accepted | 2026-09-13 |
 | [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
 | [0098](0098-plugin-system-fusion-actor-effectscope.md) | 插件系统融合 — Actor+EffectScope+动态拓扑+弱事件+ALC | accepted | 2026-09-10 |
 | [0099](0099-native-dll-plugin-system.md) | Native DLL 插件系统 — NativeLibrary.Load + UnmanagedCallersOnly | accepted | 2026-09-11 |
@@ -356,7 +356,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0068](0068-unified-persistence-pipeline-actor.md) | 统一持久化管道（Actor 模型） | accepted | 2026-09-06 |
 | [0074](0074-actor-supervisor-tree.md) | Actor 监督树 — Router/Gateway/Supervisor/PersistentMailbox 四层扩展 | accepted | 2026-09-08 |
 | [0100](0100-console-actor-serialize-io.md) | ConsoleActor 串行化 Console I/O 消除并发竞态 | accepted | 2026-09-11 |
-| [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | proposed | 2026-09-12 |
+| [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化统一 | accepted | 2026-09-12 |
 
 ### 文件 I/O 与 Span 优化
 
@@ -371,7 +371,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 |------|------|------|------|
 | [0073](0073-gh-rest-api-direct-call.md) | gh_* MCP 工具重写为 GitHub REST API 直调（摆脱系统 gh 依赖） | accepted | 2026-09-07 |
 | [0075](0075-gh-cli-troubleshooting-guide.md) | gh CLI 排错避坑指南 | accepted | 2026-09-08 |
-| [0094](0094-github-verbose-output.md) | GitHub 工具精简输出 + verbose 完整模式 | proposed | 2026-09-09 |
+| [0094](0094-github-verbose-output.md) | GitHub 工具精简输出 + verbose 完整模式 | accepted | 2026-09-09 |
 
 ### 数据与核心选型
 

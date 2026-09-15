@@ -363,7 +363,7 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
 public sealed partial class HttpTransportOptions
 {
     /// <summary>传输名称</summary>
-    public string Name { get; init; } = McpClientTransportTypeConstants.Http;
+    public string Name { get; init; } = McpClientTransportTypeEnumConstants.Http;
 
     /// <summary>端点 URL</summary>
     public string Endpoint { get; init; } = string.Empty;

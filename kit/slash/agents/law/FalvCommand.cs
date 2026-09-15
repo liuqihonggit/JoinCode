@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /falv 命令子选项枚举 — 对应推理引擎的各类操作开关
@@ -45,7 +45,7 @@ public enum FalvSubOption
 /// <summary>
 /// /falv 命令 — 结构化推理（三权分立 + 有限视锥 + 5维客观权重）
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Falv, Description = "结构化推理引擎（假定→验证→事实）", Usage = "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset", Category = ChatCommandCategory.Law, ArgumentHint = "<假定内容|--status|--judge|--evidence|--continue|--budget|--cone|--conflict|--reset>")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Falv, Description = "结构化推理引擎（假定→验证→事实）", Usage = "/falv <假定内容> | /falv --status | /falv --judge | /falv --evidence | /falv --continue [rounds|tokens|both|default] | /falv --budget | /falv --cone | /falv --conflict | /falv --reset", Category = ChatCommandCategory.Law, ArgumentHint = "<假定内容|--status|--judge|--evidence|--continue|--budget|--cone|--conflict|--reset>")]
 [ChatCommandArg("action", Type = "string", Description = "推理操作: 默认为假定内容(自由文本),或 --status/--judge/--evidence/--continue/--budget/--cone/--conflict/--reset 子命令", Enum = new[] { "--status", "--judge", "--evidence", "--continue", "--budget", "--cone", "--conflict", "--reset" })]
 public sealed class FalvCommand : ChatCommandBase
 {
@@ -58,7 +58,7 @@ public sealed class FalvCommand : ChatCommandBase
     {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args) || args is JccCliArgConstants.HelpAlias__h or JccCliArgConstants.Help)
+        if (string.IsNullOrEmpty(args) || args is JccCliArgEnumConstants.HelpAlias__h or JccCliArgEnumConstants.Help)
         {
             ShowHelp();
             return ChatCommandResult.Continue();
@@ -67,13 +67,13 @@ public sealed class FalvCommand : ChatCommandBase
         var engine = ChatCommandBase.GetService<IReasoningEngine>(context, typeof(IReasoningEngine));
         if (engine is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}推理引擎未初始化{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}推理引擎未初始化{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
-        if (args.StartsWith(JccCliArgConstants.Continue))
+        if (args.StartsWith(JccCliArgEnumConstants.Continue))
         {
-            var refillArg = args.Length > JccCliArgConstants.Continue.Length ? args[JccCliArgConstants.Continue.Length..].Trim() : string.Empty;
+            var refillArg = args.Length > JccCliArgEnumConstants.Continue.Length ? args[JccCliArgEnumConstants.Continue.Length..].Trim() : string.Empty;
             await ContinueReasoningAsync(engine, refillArg, context.CancellationToken).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
@@ -123,7 +123,7 @@ public sealed class FalvCommand : ChatCommandBase
         };
 
         await engine.AddAssumptionsAsync([assumption], ct).ConfigureAwait(false);
-        TerminalHelper.WriteLine($"{TerminalColors.Primary}[假定]{AnsiStyleConstants.Reset} {content}");
+        TerminalHelper.WriteLine($"{TerminalColors.Primary}[假定]{AnsiStyleEnumConstants.Reset} {content}");
     }
 
     private static async Task ContinueReasoningAsync(IReasoningEngine engine, string refillArg, CancellationToken ct)
@@ -146,7 +146,7 @@ public sealed class FalvCommand : ChatCommandBase
             _ => "未知原因",
         };
 
-        TerminalHelper.WriteLine($"{TerminalColors.Warning}[预算耗尽]{AnsiStyleConstants.Reset} {causeLabel}");
+        TerminalHelper.WriteLine($"{TerminalColors.Warning}[预算耗尽]{AnsiStyleEnumConstants.Reset} {causeLabel}");
         TerminalHelper.WriteLine($"续费方式: {mode}");
         TerminalHelper.WriteLine("继续推理中...");
 
@@ -174,9 +174,9 @@ public sealed class FalvCommand : ChatCommandBase
 
         var causeLabel = budget.ExhaustionCause switch
         {
-            BudgetExhaustionCause.Rounds => $"{TerminalColors.Warning}轮次预算耗尽{AnsiStyleConstants.Reset}",
-            BudgetExhaustionCause.Tokens => $"{TerminalColors.Warning}Token预算耗尽{AnsiStyleConstants.Reset}",
-            BudgetExhaustionCause.Both => $"{TerminalColors.Error}轮次和Token预算均耗尽{AnsiStyleConstants.Reset}",
+            BudgetExhaustionCause.Rounds => $"{TerminalColors.Warning}轮次预算耗尽{AnsiStyleEnumConstants.Reset}",
+            BudgetExhaustionCause.Tokens => $"{TerminalColors.Warning}Token预算耗尽{AnsiStyleEnumConstants.Reset}",
+            BudgetExhaustionCause.Both => $"{TerminalColors.Error}轮次和Token预算均耗尽{AnsiStyleEnumConstants.Reset}",
             _ => string.Empty,
         };
 
@@ -211,10 +211,10 @@ public sealed class FalvCommand : ChatCommandBase
         {
             var stateLabel = item.State switch
             {
-                DataState.Fact => $"{TerminalColors.Primary}事实{AnsiStyleConstants.Reset}",
+                DataState.Fact => $"{TerminalColors.Primary}事实{AnsiStyleEnumConstants.Reset}",
                 DataState.Verified => "已验证",
-                DataState.Rejected => $"{TerminalColors.Error}被驳斥{AnsiStyleConstants.Reset}",
-                DataState.PendingEvidence => $"{TerminalColors.Warning}待补充{AnsiStyleConstants.Reset}",
+                DataState.Rejected => $"{TerminalColors.Error}被驳斥{AnsiStyleEnumConstants.Reset}",
+                DataState.PendingEvidence => $"{TerminalColors.Warning}待补充{AnsiStyleEnumConstants.Reset}",
                 _ => "假定",
             };
             TerminalHelper.WriteLine($"  [{stateLabel}] {item.Content} (置信度:{item.Confidence}%)");
@@ -229,8 +229,8 @@ public sealed class FalvCommand : ChatCommandBase
         var roundsColor = budget.IsRoundsExhausted ? TerminalColors.Error : TerminalColors.Primary;
         var tokensColor = budget.IsTokensExhausted ? TerminalColors.Error : TerminalColors.Primary;
 
-        TerminalHelper.WriteLine($"  轮次: {roundsColor}{budget.RoundsUsed}/{budget.RoundsBudget}{AnsiStyleConstants.Reset} (剩余 {budget.RoundsRemaining})");
-        TerminalHelper.WriteLine($"  Token: {tokensColor}{budget.TokensUsed}/{budget.TokensBudget}{AnsiStyleConstants.Reset} (剩余 {budget.TokensRemaining})");
+        TerminalHelper.WriteLine($"  轮次: {roundsColor}{budget.RoundsUsed}/{budget.RoundsBudget}{AnsiStyleEnumConstants.Reset} (剩余 {budget.RoundsRemaining})");
+        TerminalHelper.WriteLine($"  Token: {tokensColor}{budget.TokensUsed}/{budget.TokensBudget}{AnsiStyleEnumConstants.Reset} (剩余 {budget.TokensRemaining})");
 
         if (budget.IsAnyExhausted)
         {
@@ -241,7 +241,7 @@ public sealed class FalvCommand : ChatCommandBase
                 BudgetExhaustionCause.Both => "同时触底",
                 _ => string.Empty,
             };
-            TerminalHelper.WriteLine($"  {TerminalColors.Warning}⚠ {cause} — 使用 /falv --continue 续费{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Warning}⚠ {cause} — 使用 /falv --continue 续费{AnsiStyleEnumConstants.Reset}");
         }
     }
 
@@ -282,14 +282,14 @@ public sealed class FalvCommand : ChatCommandBase
         var result = engine.DetectConeConflict(JoinCode.Abstractions.Models.Agent.AgentRole.Prosecutor, JoinCode.Abstractions.Models.Agent.AgentRole.Defender);
         TerminalHelper.WriteLine($"  控方结论: {string.Join(" -> ", result.RoleAConclusions)}");
         TerminalHelper.WriteLine($"  辩方结论: {string.Join(" -> ", result.RoleBConclusions)}");
-        TerminalHelper.WriteLine($"  冲突状态: {(result.HasConflict ? $"{TerminalColors.Warning}存在冲突{AnsiStyleConstants.Reset}" : "无冲突")}");
+        TerminalHelper.WriteLine($"  冲突状态: {(result.HasConflict ? $"{TerminalColors.Warning}存在冲突{AnsiStyleEnumConstants.Reset}" : "无冲突")}");
 
         TerminalHelper.WriteLine();
         var judgeResult = engine.DetectConeConflict(JoinCode.Abstractions.Models.Agent.AgentRole.Prosecutor, JoinCode.Abstractions.Models.Agent.AgentRole.Judge);
-        TerminalHelper.WriteLine($"  控方-法官冲突: {(judgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleConstants.Reset}" : "无")}");
+        TerminalHelper.WriteLine($"  控方-法官冲突: {(judgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleEnumConstants.Reset}" : "无")}");
 
         var defJudgeResult = engine.DetectConeConflict(JoinCode.Abstractions.Models.Agent.AgentRole.Defender, JoinCode.Abstractions.Models.Agent.AgentRole.Judge);
-        TerminalHelper.WriteLine($"  辩方-法官冲突: {(defJudgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleConstants.Reset}" : "无")}");
+        TerminalHelper.WriteLine($"  辩方-法官冲突: {(defJudgeResult.HasConflict ? $"{TerminalColors.Warning}存在{AnsiStyleEnumConstants.Reset}" : "无")}");
     }
 
     private static void ShowVerdicts(IReasoningEngine engine)
@@ -297,19 +297,19 @@ public sealed class FalvCommand : ChatCommandBase
         TerminalHelper.WriteLine("=== 裁决结果 ===");
         foreach (var fact in engine.GetFacts())
         {
-            TerminalHelper.WriteLine($"  {TerminalColors.Primary}事实{AnsiStyleConstants.Reset}: {fact.Content} (置信度:{fact.Confidence}%)");
+            TerminalHelper.WriteLine($"  {TerminalColors.Primary}事实{AnsiStyleEnumConstants.Reset}: {fact.Content} (置信度:{fact.Confidence}%)");
         }
 
         var rejected = engine.GetAllItems().Where(x => x.State == DataState.Rejected);
         foreach (var item in rejected)
         {
-            TerminalHelper.WriteLine($"  {TerminalColors.Error}被驳斥{AnsiStyleConstants.Reset}: {item.Content}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Error}被驳斥{AnsiStyleEnumConstants.Reset}: {item.Content}");
         }
 
         var pending = engine.GetAllItems().Where(x => x.State == DataState.PendingEvidence);
         foreach (var item in pending)
         {
-            TerminalHelper.WriteLine($"  {TerminalColors.Warning}待补充{AnsiStyleConstants.Reset}: {item.Content}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Warning}待补充{AnsiStyleEnumConstants.Reset}: {item.Content}");
         }
 
         var verified = engine.GetAllItems().Where(x => x.State == DataState.Verified);

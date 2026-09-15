@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：qr+sessions+status+connect+disconnect 核心操作
 /// 架构差异：TS 有 React QR 码渲染，C# 使用终端 ASCII QR
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Bridge, Description = "Bridge 远程控制管理", Usage = "/bridge [qr|sessions|status|connect|disconnect]", Category = ChatCommandCategory.Bridge, Aliases = ["rc"])]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Bridge, Description = "Bridge 远程控制管理", Usage = "/bridge [qr|sessions|status|connect|disconnect]", Category = ChatCommandCategory.Bridge, Aliases = ["rc"])]
 [ChatCommandArg("action", Type = "string", Description = "Bridge 操作: qr=显示二维码, sessions=列出会话, status=状态, connect=连接, disconnect=断开", Enum = new[] { "qr", "sessions", "status", "connect", "disconnect" })]
 public sealed class BridgeCommand : ChatCommandBase
 {
@@ -23,23 +23,23 @@ public sealed class BridgeCommand : ChatCommandBase
 
         switch (action)
         {
-            case BridgeActionConstants.Qr:
+            case BridgeActionEnumConstants.Qr:
                 await ShowQrCodeAsync(context);
                 break;
-            case BridgeActionConstants.Sessions:
+            case BridgeActionEnumConstants.Sessions:
                 await ShowSessionsAsync(context);
                 break;
-            case BridgeActionConstants.Status:
+            case BridgeActionEnumConstants.Status:
                 ShowStatus(context);
                 break;
-            case BridgeActionConstants.Connect:
+            case BridgeActionEnumConstants.Connect:
                 await ToggleConnectionAsync(context, ToggleAction.On);
                 break;
-            case BridgeActionConstants.Disconnect:
+            case BridgeActionEnumConstants.Disconnect:
                 await ToggleConnectionAsync(context, ToggleAction.Off);
                 break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}未知操作: {action}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}未知操作: {action}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine("可用操作: qr, sessions, status, connect, disconnect");
                 break;
         }
@@ -52,14 +52,14 @@ public sealed class BridgeCommand : ChatCommandBase
         var serviceProvider = context.Services;
         if (serviceProvider is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}服务提供者不可用，无法生成 QR 码{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}服务提供者不可用，无法生成 QR 码{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var bridgeUIService = serviceProvider.GetService(typeof(Core.Bridge.BridgeUIService)) as Core.Bridge.BridgeUIService;
         if (bridgeUIService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge UI 服务未注册，请确认 Bridge 功能已启用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge UI 服务未注册，请确认 Bridge 功能已启用{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -70,7 +70,7 @@ public sealed class BridgeCommand : ChatCommandBase
         var terminalOutput = bridgeUIService.FormatAsTerminalQR(qrData);
 
         TerminalHelper.WriteLine(terminalOutput);
-        TerminalHelper.WriteLine($"{TerminalColors.Success}使用移动端扫描上方 QR 码以连接 Bridge 会话{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}使用移动端扫描上方 QR 码以连接 Bridge 会话{AnsiStyleEnumConstants.Reset}");
     }
 
     private static async Task ShowSessionsAsync(ChatCommandContext context)
@@ -78,7 +78,7 @@ public sealed class BridgeCommand : ChatCommandBase
         var serviceProvider = context.Services;
         if (serviceProvider is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}服务提供者不可用，无法获取会话列表{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}服务提供者不可用，无法获取会话列表{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -87,7 +87,7 @@ public sealed class BridgeCommand : ChatCommandBase
         var bridgeUIService = serviceProvider.GetService(typeof(Core.Bridge.BridgeUIService)) as Core.Bridge.BridgeUIService;
         if (bridgeUIService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge UI 服务未注册，请确认 Bridge 功能已启用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge UI 服务未注册，请确认 Bridge 功能已启用{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -106,7 +106,7 @@ public sealed class BridgeCommand : ChatCommandBase
                     .ToString("yyyy-MM-dd HH:mm:ss");
                 var statusColor = session.Status == "active" ? TerminalColors.Success : TerminalColors.Warning;
                 TerminalHelper.WriteLine($"  {session.SessionId}");
-                TerminalHelper.WriteLine($"{statusColor}    状态: {session.Status}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{statusColor}    状态: {session.Status}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine($"    客户端: {session.ClientName ?? "未知"}");
                 TerminalHelper.WriteLine($"    连接时间: {connectedTime}");
                 TerminalHelper.NewLine();
@@ -121,7 +121,7 @@ public sealed class BridgeCommand : ChatCommandBase
         var serviceProvider = context.Services;
         if (serviceProvider is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}服务提供者不可用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}服务提供者不可用{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -145,7 +145,7 @@ public sealed class BridgeCommand : ChatCommandBase
         var bridgeClient = context.GetCommandServices().BridgeClient;
         if (bridgeClient is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge 客户端未配置{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge 客户端未配置{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
@@ -161,7 +161,7 @@ public sealed class BridgeCommand : ChatCommandBase
             try
             {
                 await bridgeClient.StartAsync().ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}Bridge 客户端已启动{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}Bridge 客户端已启动{AnsiStyleEnumConstants.Reset}");
             }
             catch (Exception ex)
             {
@@ -179,7 +179,7 @@ public sealed class BridgeCommand : ChatCommandBase
             try
             {
                 await bridgeClient.StopAsync().ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已断开 Bridge 连接{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已断开 Bridge 连接{AnsiStyleEnumConstants.Reset}");
             }
             catch (Exception ex)
             {

@@ -31,11 +31,13 @@ public enum ChannelKind
     /// <summary>
     /// MCP 服务器通道
     /// </summary>
+    [EnumValue("server")]
     Server,
 
     /// <summary>
     /// 插件通道
     /// </summary>
+    [EnumValue("plugin")]
     Plugin,
 }
 

@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator.Liveness;
+﻿namespace Core.Agents.Coordinator.Liveness;
 
 /// <summary>
 /// 压缩级别 — 渐进式 escalation 三级
@@ -6,15 +6,19 @@ namespace Core.Agents.Coordinator.Liveness;
 public enum CompactionLevel
 {
     /// <summary>未压缩</summary>
+    [EnumValue("none")]
     None,
 
     /// <summary>轻度压缩 — 仅剪裁过期大工具结果（FoldNormal）</summary>
+    [EnumValue("light")]
     Light,
 
     /// <summary>激进压缩 — 头部消息摘要化，保留最近 N 轮 + 关键决策点（FoldAggressive）</summary>
+    [EnumValue("aggressive")]
     Aggressive,
 
     /// <summary>退出并输出摘要 — 最后手段（ExitWithSummary）</summary>
+    [EnumValue("exitWithSummary")]
     ExitWithSummary,
 }
 

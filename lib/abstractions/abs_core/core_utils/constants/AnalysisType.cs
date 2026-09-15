@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 代码分析类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 AnalysisTypeConstants + AnalysisTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 AnalysisTypeEnumConstants + AnalysisTypeExtensions
 /// </summary>
 public enum AnalysisType
 {

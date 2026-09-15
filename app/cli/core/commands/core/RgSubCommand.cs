@@ -209,7 +209,7 @@ internal static class RgSubCommand
         {
             TerminalHelper.WriteError("错误: 必须指定搜索路径。禁止无路径搜索（会扫盘卡死）。");
             TerminalHelper.WriteError("用法: jcc rg <pattern> <path> [path...]");
-            TerminalHelper.WriteError("示例: jcc rg \"WorktreeToolNameConstants\" core/ --type cs -l");
+            TerminalHelper.WriteError("示例: jcc rg \"WorktreeToolNameEnumConstants\" core/ --type cs -l");
             TerminalHelper.WriteError("      jcc rg \"class SearchService\" app/JoinCode -n --content");
             return null;
         }

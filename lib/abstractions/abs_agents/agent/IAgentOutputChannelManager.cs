@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Interfaces;
+﻿namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// Agent 输出 chunk — 子代理/主代理的流式输出单元
@@ -24,16 +24,20 @@ public readonly record struct AgentOutputChunk
 public enum AgentOutputChunkType
 {
     /// <summary>正文输出</summary>
+    [EnumValue("text")]
     Text,
 
     /// <summary>思考过程</summary>
+    [EnumValue("thinking")]
     Thinking,
 
     /// <summary>执行完成</summary>
+    [EnumValue("complete")]
     Complete,
 
     /// <summary>错误信息</summary>
-    Error
+    [EnumValue("error")]
+    Error,
 }
 
 /// <summary>

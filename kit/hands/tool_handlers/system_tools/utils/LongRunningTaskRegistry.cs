@@ -1,4 +1,4 @@
-namespace Tools.Handlers;
+﻿namespace Tools.Handlers;
 
 /// <summary>
 /// 长时间任务注册表 — 跟踪超时续期任务，支持 resume/continue/stop 操作
@@ -182,18 +182,25 @@ public sealed class LongRunningTaskRegistry
 public enum LongRunningTaskState
 {
     /// <summary>运行中</summary>
+    [EnumValue("running")]
     Running,
     /// <summary>已完成</summary>
+    [EnumValue("completed")]
     Completed,
     /// <summary>失败</summary>
+    [EnumValue("failed")]
     Failed,
     /// <summary>已超时</summary>
+    [EnumValue("timedOut")]
     TimedOut,
     /// <summary>已停止</summary>
+    [EnumValue("stopped")]
     Stopped,
     /// <summary>任务不存在</summary>
+    [EnumValue("notFound")]
     NotFound,
     /// <summary>已达到最大续期次数</summary>
+    [EnumValue("maxRetriesExceeded")]
     MaxRetriesExceeded,
 }
 

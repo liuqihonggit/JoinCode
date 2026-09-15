@@ -78,7 +78,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <returns>默认模型 ID</returns>
     public string GetDefaultModelForProvider(string provider)
     {
-        return _registry.TryGet(provider)?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId(VendorKindConstants.OpenAi) ?? "gpt-4o";
+        return _registry.TryGet(provider)?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId(VendorKindEnumConstants.OpenAi) ?? "gpt-4o";
     }
 
     /// <summary>
@@ -88,7 +88,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <returns>默认快速模型 ID</returns>
     public string GetDefaultFastModelForProvider(string provider)
     {
-        return _registry.TryGet(provider)?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId(VendorKindConstants.OpenAi) ?? "gpt-4o-mini";
+        return _registry.TryGet(provider)?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId(VendorKindEnumConstants.OpenAi) ?? "gpt-4o-mini";
     }
 
     /// <summary>

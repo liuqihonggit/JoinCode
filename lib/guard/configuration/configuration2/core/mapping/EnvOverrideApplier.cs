@@ -9,7 +9,7 @@ public static class EnvOverrideApplier
 {
     /// <summary>
     /// vendor → 协议推断表 — 仅 anthropic/azure 有专属协议，其余默认 OpenAiCompatible
-    /// 查表替代 if-else 链: O(1) 查找, AOT 零分配, key 用编译期常量 VendorKindConstants
+    /// 查表替代 if-else 链: O(1) 查找, AOT 零分配, key 用编译期常量 VendorKindEnumConstants
     /// 用 FrozenDictionary.Create 显式传 OrdinalIgnoreCase 比较器(ToFrozenDictionary 无参版会丢失比较器)
     /// </summary>
     private static readonly FrozenDictionary<string, ProtocolKind> ProtocolByVendor =
@@ -17,8 +17,8 @@ public static class EnvOverrideApplier
             StringComparer.OrdinalIgnoreCase,
             new KeyValuePair<string, ProtocolKind>[]
             {
-                new(VendorKindConstants.Anthropic, ProtocolKind.Anthropic),
-                new(VendorKindConstants.Azure, ProtocolKind.Azure),
+                new(VendorKindEnumConstants.Anthropic, ProtocolKind.Anthropic),
+                new(VendorKindEnumConstants.Azure, ProtocolKind.Azure),
             });
 
     /// <summary>
@@ -31,12 +31,12 @@ public static class EnvOverrideApplier
             StringComparer.OrdinalIgnoreCase,
             new KeyValuePair<string, string>[]
             {
-                new(VendorKindConstants.OpenAi, ProviderEnvVarConstants.OpenAiApiKey),
-                new(VendorKindConstants.Anthropic, ProviderEnvVarConstants.AnthropicApiKey),
-                new(VendorKindConstants.Azure, ProviderEnvVarConstants.AzureOpenAiApiKey),
-                new(VendorKindConstants.DeepSeek, ProviderEnvVarConstants.DeepSeekApiKey),
-                new(VendorKindConstants.Agnes, ProviderEnvVarConstants.AgnesApiKey),
-                new(VendorKindConstants.Sensenova, ProviderEnvVarConstants.SenseNovaApiKey),
+                new(VendorKindEnumConstants.OpenAi, ProviderEnvVarEnumConstants.OpenAiApiKey),
+                new(VendorKindEnumConstants.Anthropic, ProviderEnvVarEnumConstants.AnthropicApiKey),
+                new(VendorKindEnumConstants.Azure, ProviderEnvVarEnumConstants.AzureOpenAiApiKey),
+                new(VendorKindEnumConstants.DeepSeek, ProviderEnvVarEnumConstants.DeepSeekApiKey),
+                new(VendorKindEnumConstants.Agnes, ProviderEnvVarEnumConstants.AgnesApiKey),
+                new(VendorKindEnumConstants.Sensenova, ProviderEnvVarEnumConstants.SenseNovaApiKey),
             });
 
     /// <summary>

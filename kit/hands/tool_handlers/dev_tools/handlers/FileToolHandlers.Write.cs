@@ -3,7 +3,7 @@ namespace Tools.Handlers;
 public partial class FileToolHandlers
 {
     /// <summary>写入文件到本地文件系统，经过统一写入防御链</summary>
-    [McpTool(FileToolNameConstants.FileWrite, "Write a file to the local filesystem", "file")]
+    [McpTool(FileToolNameEnumConstants.FileWrite, "Write a file to the local filesystem", "file")]
     public async Task<ToolResult> FileWriteAsync(
         [McpToolParameter("The absolute path to the file to write (must be absolute, not relative)")] string file_path,
         [McpToolParameter("The content to write to the file")] string content,
@@ -67,7 +67,7 @@ public partial class FileToolHandlers
         }
 
         // ── 构建成功响应 ──
-        var response = result.Operation == FileOperationTypeConstants.Create
+        var response = result.Operation == FileOperationTypeEnumConstants.Create
             ? $"File created successfully at: {result.FilePath}"
             : $"The file {result.FilePath} has been updated successfully.";
 

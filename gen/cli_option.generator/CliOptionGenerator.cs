@@ -604,7 +604,7 @@ public sealed class CliOptionGenerator : IIncrementalGenerator
     private static void GenerateConstantsClass(StringBuilder sb, CliEnumInfo enumInfo)
     {
         sb.AppendLine($"/// <summary>{enumInfo.Name} 选项名常量定义 — 由 CliOptionGenerator 自动生成</summary>");
-        sb.AppendLine($"public static class {enumInfo.Name}Constants");
+        sb.AppendLine($"public static class {enumInfo.Name}CliOptionConstants");
         sb.AppendLine("{");
 
         foreach (var opt in enumInfo.Options)

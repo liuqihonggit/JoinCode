@@ -16,12 +16,16 @@ public sealed class NetworkRetryBudgetExhaustedException(string message) : Excep
 public enum BackoffStrategy
 {
     /// <summary>固定间隔 — 每次重试等待 BaseDelay</summary>
+    [EnumValue("fixed")]
     Fixed,
     /// <summary>线性退避 — 第 n 次重试等待 BaseDelay * n</summary>
+    [EnumValue("linear")]
     Linear,
     /// <summary>指数退避 — 第 n 次重试等待 BaseDelay * 2^(n-1)</summary>
+    [EnumValue("exponential")]
     Exponential,
     /// <summary>指数退避加抖动 — 在指数退避基础上叠加随机抖动因子（0.75~1.25），避免惊群</summary>
+    [EnumValue("exponential_with_jitter")]
     ExponentialWithJitter
 }
 
@@ -105,10 +109,13 @@ public sealed class HealthCheckConfig
 public enum UnhealthyAction
 {
     /// <summary>仅记录日志，不干预进程</summary>
+    [EnumValue("log_only")]
     LogOnly,
     /// <summary>杀死进程</summary>
+    [EnumValue("kill")]
     Kill,
     /// <summary>杀死进程并重启</summary>
+    [EnumValue("kill_and_restart")]
     KillAndRestart
 }
 

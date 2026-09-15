@@ -63,9 +63,9 @@ public sealed partial class ToolConcurrencyClassifier : ServiceEntity, IToolConc
     /// </summary>
     private static bool IsBashLikeTool(string toolName)
     {
-        return string.Equals(toolName, ShellToolNameConstants.Bash, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(toolName, ShellToolNameConstants.Powershell, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(toolName, ShellToolNameConstants.PowershellScript, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(toolName, ShellToolNameEnumConstants.Bash, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(toolName, ShellToolNameEnumConstants.Powershell, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(toolName, ShellToolNameEnumConstants.PowershellScript, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

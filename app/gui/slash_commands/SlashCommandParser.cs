@@ -1,19 +1,23 @@
-namespace JoinCode.Gui.SlashCommands;
+﻿namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>补全模式 — 命令名/命令参数/文件/工具</summary>
 public enum SlashCompletionMode
 {
     /// <summary>命令名补全（/xxx）</summary>
+    [EnumValue("command")]
     Command,
 
     /// <summary>命令参数补全（/model xxx）</summary>
+    [EnumValue("argument")]
     Argument,
 
     /// <summary>文件补全（#path）</summary>
+    [EnumValue("file")]
     File,
 
     /// <summary>子代理补全（@agent）</summary>
-    Agent
+    [EnumValue("agent")]
+    Agent,
 }
 
 /// <summary>

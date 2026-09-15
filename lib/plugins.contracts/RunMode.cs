@@ -10,16 +10,16 @@ namespace JoinCode.Abstractions.Entity;
 public enum RunMode
 {
     /// <summary>完整工具集</summary>
-    Standard,
+    [EnumValue("standard")] Standard,
 
     /// <summary>SDK 编排</summary>
-    Code,
+    [EnumValue("code")] Code,
 
     /// <summary>双工具（基准测试）</summary>
-    Minimal,
+    [EnumValue("minimal")] Minimal,
 
     /// <summary>自省+插件实验+预设</summary>
-    Creator,
+    [EnumValue("creator")] Creator,
 }
 
 /// <summary>

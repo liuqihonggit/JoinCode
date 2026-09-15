@@ -1,4 +1,4 @@
-namespace JoinCode.Reasoning.Engine;
+﻿namespace JoinCode.Reasoning.Engine;
 
 /// <summary>
 /// 推理预算状态 — 轮次和 token 双预算追踪
@@ -73,20 +73,24 @@ public enum BudgetExhaustionCause
     /// <summary>
     /// 未耗尽
     /// </summary>
+    [EnumValue("none")]
     None,
 
     /// <summary>
     /// 轮次先触底
     /// </summary>
+    [EnumValue("rounds")]
     Rounds,
 
     /// <summary>
     /// Token 先触底
     /// </summary>
+    [EnumValue("tokens")]
     Tokens,
 
     /// <summary>
     /// 同时触底
     /// </summary>
+    [EnumValue("both")]
     Both,
 }

@@ -1,4 +1,4 @@
-namespace JoinCode.CliCommands;
+﻿namespace JoinCode.CliCommands;
 
 /// <summary>
 /// mcp_serve 元命令 — 启动 MCP 服务端。
@@ -11,10 +11,10 @@ internal static class McpServeCommand
     /// </summary>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
     {
-        var transport = FlatSubCommandRouter.GetOptionValue(args, McpServeArgConstants.TransportLongName) ?? "stdio";
-        var port = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, McpServeArgConstants.PortLongName), out var p) ? p : 9903;
-        var host = FlatSubCommandRouter.GetOptionValue(args, McpServeArgConstants.HostLongName) ?? "localhost";
-        var awaitSeconds = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, CliArgConstants.AwaitLongName), out var a) ? a : (int?)null;
+        var transport = FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.TransportLongName) ?? "stdio";
+        var port = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.PortLongName), out var p) ? p : 9903;
+        var host = FlatSubCommandRouter.GetOptionValue(args, McpServeArgCliOptionConstants.HostLongName) ?? "localhost";
+        var awaitSeconds = int.TryParse(FlatSubCommandRouter.GetOptionValue(args, CliArgCliOptionConstants.AwaitLongName), out var a) ? a : (int?)null;
         return await McpCliCommand.ExecuteServeAsync(transport, port, host, ct, awaitSeconds).ConfigureAwait(false);
     }
 }

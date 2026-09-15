@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /model 命令 — 切换或查看模型
 /// 支持通过模型 ID 直接切换、查看当前模型信息、恢复默认模型,无参数时进入交互式选择器
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model, ArgumentHint = "[model-id|default|info]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Model, Description = "切换或查看模型", Usage = "/model [model-id|default|info]", Category = ChatCommandCategory.Model, ArgumentHint = "[model-id|default|info]")]
 [ChatCommandArg("model_id", Type = "string", Description = "模型 ID、default 或 info")]
 public sealed class ModelCommand : ChatCommandBase
 {
@@ -101,7 +101,7 @@ public sealed class ModelCommand : ChatCommandBase
 
                 TerminalHelper.WriteRaw(AnsiEscape.CursorUp(GetRenderLineCount()));
                 TerminalHelper.WriteRaw("\r");
-                TerminalHelper.WriteRaw(AnsiControlConstants.ClearScreenFromCursor);
+                TerminalHelper.WriteRaw(AnsiControlEnumConstants.ClearScreenFromCursor);
 
                 switch (key.Key)
                 {
@@ -125,18 +125,18 @@ public sealed class ModelCommand : ChatCommandBase
                         break;
                     case ConsoleKey.Enter:
                         await ApplyModelSwitchAsync(context, models[selectedIndex].Id).ConfigureAwait(false);
-                        TerminalHelper.WriteLine($"{TerminalColors.Primary}已切换模型: {models[selectedIndex].DisplayName}{AnsiStyleConstants.Reset}");
+                        TerminalHelper.WriteLine($"{TerminalColors.Primary}已切换模型: {models[selectedIndex].DisplayName}{AnsiStyleEnumConstants.Reset}");
                         if (effortLevel != EffortLevel.Auto)
                         {
                             TerminalHelper.WriteLine($"  Effort: {effortLevel.ToValue()}");
                             // 持久化 Picker 中调节的 effort — 对齐 TS resolvePickerEffortPersistence
                             var pickerConfigService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
                             if (pickerConfigService is not null)
-                                await pickerConfigService.SetAsync(ConfigKeyConstants.EffortLevel, effortLevel.ToValue(), context.CancellationToken).ConfigureAwait(false);
+                                await pickerConfigService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), context.CancellationToken).ConfigureAwait(false);
                         }
                         return ChatCommandResult.Continue();
                     case ConsoleKey.Escape:
-                        TerminalHelper.WriteLine($"{TerminalColors.Muted}已取消{AnsiStyleConstants.Reset}");
+                        TerminalHelper.WriteLine($"{TerminalColors.Muted}已取消{AnsiStyleEnumConstants.Reset}");
                         return ChatCommandResult.Continue();
                 }
             }
@@ -171,7 +171,7 @@ public sealed class ModelCommand : ChatCommandBase
         var provider = GetCurrentProvider(context);
         var defaultModel = ResolveModelCatalog(context).GetDefaultModelForProvider(provider);
         await ApplyModelSwitchAsync(context, defaultModel).ConfigureAwait(false);
-        TerminalHelper.WriteLine($"{TerminalColors.Primary}已恢复默认模型: {defaultModel}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Primary}已恢复默认模型: {defaultModel}{AnsiStyleEnumConstants.Reset}");
 
         return ChatCommandResult.Continue();
     }
@@ -182,7 +182,7 @@ public sealed class ModelCommand : ChatCommandBase
         var resolvedModelId = ResolveModelId(context, modelArg, provider);
 
         await ApplyModelSwitchAsync(context, resolvedModelId).ConfigureAwait(false);
-        TerminalHelper.WriteLine($"{TerminalColors.Primary}已切换模型: {resolvedModelId}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Primary}已切换模型: {resolvedModelId}{AnsiStyleEnumConstants.Reset}");
 
         return ChatCommandResult.Continue();
     }
@@ -238,7 +238,7 @@ public sealed class ModelCommand : ChatCommandBase
             if (!ResolveModelCatalog(context).SupportsFastMode(modelId, provider))
             {
                 fastModeService.Deactivate();
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持快速模式，已自动关闭{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持快速模式，已自动关闭{AnsiStyleEnumConstants.Reset}");
             }
         }
 
@@ -253,7 +253,7 @@ public sealed class ModelCommand : ChatCommandBase
                 if (!ResolveModelCatalog(context).SupportsMaxEffort(modelId, provider))
                 {
                     settingsProvider.EffortLevel = EffortLevel.High;
-                    TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持 max effort，已降级为 high{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Warning}模型 {modelId} 不支持 max effort，已降级为 high{AnsiStyleEnumConstants.Reset}");
                 }
             }
         }

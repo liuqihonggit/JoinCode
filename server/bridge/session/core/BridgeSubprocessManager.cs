@@ -539,9 +539,10 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         // 同步 best-effort 清理 — 仅在直接调用 Dispose() 时执行
         try { _readCts.Cancel(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: Cancel 失败"); }
         try { if (!_process.HasExited) Kill(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: Kill 失败"); }
-        try { _readCts.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: CTS.Dispose 失败"); }
-        try { _stdinLock.Dispose(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: stdinLock.Dispose 失败"); }
-        try { _transcriptStream?.Dispose(); _transcriptStream = null; } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: transcript 失败"); }
+        _readCts.DisposeSafe(_logger);
+        _stdinLock.DisposeSafe(_logger);
+        _transcriptStream.DisposeSafe(_logger);
+        _transcriptStream = null;
     }
 }
 

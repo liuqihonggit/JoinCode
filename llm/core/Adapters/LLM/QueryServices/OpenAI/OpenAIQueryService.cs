@@ -69,7 +69,7 @@ public class OpenAIQueryService : QueryServiceBase
                 var usageMetadata = new Dictionary<string, JsonElement>
                 {
                     ["Id"] = JsonElementHelper.FromString(chunk.Id),
-                    ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonConstants.Stop),
+                    ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.Stop),
                     ["Created"] = JsonElementHelper.FromInt64(chunk.Created),
                     ["Usage"] = JsonElementHelper.FromObject(tokenUsage, NativeJsonContext.Default.TokenUsage)
                 };
@@ -103,7 +103,7 @@ public class OpenAIQueryService : QueryServiceBase
                         var um = new Dictionary<string, JsonElement>
                         {
                             ["Id"] = JsonElementHelper.FromString(sc.Id),
-                            ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonConstants.Stop),
+                            ["FinishReason"] = JsonElementHelper.FromString(OpenAIFinishReasonEnumConstants.Stop),
                             ["Created"] = JsonElementHelper.FromInt64(sc.Created),
                             ["Usage"] = JsonElementHelper.FromObject(tu, NativeJsonContext.Default.TokenUsage)
                         };
@@ -143,7 +143,7 @@ public class OpenAIQueryService : QueryServiceBase
                     if (sc2.Delta?.ReasoningContent != null)
                         scMeta["reasoning_content"] = JsonElementHelper.FromBoolean(true);
 
-                    if (sc2.FinishReason == OpenAIFinishReasonConstants.ToolCalls && secondAccumulator.Count > 0)
+                    if (sc2.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && secondAccumulator.Count > 0)
                     {
                         var entries = secondAccumulator
                             .OrderBy(kv => kv.Key)
@@ -204,7 +204,7 @@ public class OpenAIQueryService : QueryServiceBase
                 metadata["reasoning_content"] = JsonElementHelper.FromBoolean(true);
             }
 
-            if (choice.FinishReason == OpenAIFinishReasonConstants.ToolCalls && toolCallAccumulator.Count > 0)
+            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallAccumulator.Count > 0)
             {
                 var entries = toolCallAccumulator
                     .OrderBy(kv => kv.Key)

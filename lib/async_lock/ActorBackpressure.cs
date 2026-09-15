@@ -56,17 +56,17 @@ public sealed record ActorBackpressure(
         SendTimeout: TimeSpan.FromSeconds(60));
 }
 
-/// <summary>背压水位等级</summary>
+/// <summary>背压水位等级 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射</summary>
 public enum WatermarkLevel
 {
     /// <summary>正常(低于高水位线)</summary>
-    Normal,
+    [EnumValue("normal")] Normal,
 
     /// <summary>高水位(达到高水位线,生产者应降速)</summary>
-    High,
+    [EnumValue("high")] High,
 
     /// <summary>危险水位(达到危险水位线,即将满)</summary>
-    Critical
+    [EnumValue("critical")] Critical
 }
 
 /// <summary>背压水位事件参数</summary>

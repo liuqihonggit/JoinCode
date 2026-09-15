@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// ResumeLifecycle 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / ResumeLifecycleConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / ResumeLifecycleEnumConstants 常量值
 /// </summary>
 public sealed class ResumeLifecycleExtensionsTests
 {
@@ -108,18 +108,18 @@ public sealed class ResumeLifecycleExtensionsTests
         ResumeLifecycleExtensions.IsDefined(value).Should().Be(expected);
     }
 
-    // ===== ResumeLifecycleConstants 测试 =====
+    // ===== ResumeLifecycleEnumConstants 测试 =====
 
     [Fact]
     public void Constants_Should_Match_EnumValues()
     {
-        ResumeLifecycleConstants.Pause.Should().Be("pause");
-        ResumeLifecycleConstants.Resume.Should().Be("resume");
-        ResumeLifecycleConstants.Clear.Should().Be("clear");
-        ResumeLifecycleConstants.Stop.Should().Be("stop");
-        ResumeLifecycleConstants.Off.Should().Be("off");
-        ResumeLifecycleConstants.Reset.Should().Be("reset");
-        ResumeLifecycleConstants.Cancel.Should().Be("cancel");
+        ResumeLifecycleEnumConstants.Pause.Should().Be("pause");
+        ResumeLifecycleEnumConstants.Resume.Should().Be("resume");
+        ResumeLifecycleEnumConstants.Clear.Should().Be("clear");
+        ResumeLifecycleEnumConstants.Stop.Should().Be("stop");
+        ResumeLifecycleEnumConstants.Off.Should().Be("off");
+        ResumeLifecycleEnumConstants.Reset.Should().Be("reset");
+        ResumeLifecycleEnumConstants.Cancel.Should().Be("cancel");
     }
 
     // ===== 往返一致性测试 =====

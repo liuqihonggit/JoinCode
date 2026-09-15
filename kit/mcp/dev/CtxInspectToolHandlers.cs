@@ -28,7 +28,7 @@ public partial class CtxInspectToolHandlers
     /// <param name="inspect_type">检查类型：summary/detailed/layers（可选，默认 summary）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.CtxInspect, "Inspect current context window usage", "context")]
+    [McpTool(SystemToolNameEnumConstants.CtxInspect, "Inspect current context window usage", "context")]
     public async Task<ToolResult> InspectContextAsync(
         [McpToolParameter("Inspection type: summary/detailed/layers (optional, default summary)", Required = false)] string? inspect_type = "summary",
         CancellationToken cancellationToken = default)

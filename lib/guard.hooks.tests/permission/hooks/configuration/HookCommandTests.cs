@@ -16,7 +16,7 @@ public class HookCommandTests
         };
 
         // Assert
-        hook.Type.Should().Be(HookTypeConstants.Command);
+        hook.Type.Should().Be(HookTypeEnumConstants.Command);
     }
 
     [Fact]
@@ -56,8 +56,8 @@ public class HookCommandTests
     public void BashCommandHook_IsEqualTo_SameCommand_ShouldReturnTrue()
     {
         // Arrange
-        var hook1 = new BashCommandHook { Command = "git status", Shell = ShellToolNameConstants.Bash };
-        var hook2 = new BashCommandHook { Command = "git status", Shell = ShellToolNameConstants.Bash };
+        var hook1 = new BashCommandHook { Command = "git status", Shell = ShellToolNameEnumConstants.Bash };
+        var hook2 = new BashCommandHook { Command = "git status", Shell = ShellToolNameEnumConstants.Bash };
 
         // Act
         var result = hook1.IsEqualTo(hook2);
@@ -90,7 +90,7 @@ public class HookCommandTests
         };
 
         // Assert
-        hook.Type.Should().Be(HookTypeConstants.Prompt);
+        hook.Type.Should().Be(HookTypeEnumConstants.Prompt);
     }
 
     [Fact]
@@ -103,7 +103,7 @@ public class HookCommandTests
         };
 
         // Assert
-        hook.Type.Should().Be(HookTypeConstants.Agent);
+        hook.Type.Should().Be(HookTypeEnumConstants.Agent);
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class HookCommandTests
         };
 
         // Assert
-        hook.Type.Should().Be(HookTypeConstants.Http);
+        hook.Type.Should().Be(HookTypeEnumConstants.Http);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public class HookCommandTests
         };
 
         // Assert
-        hook.Type.Should().Be(HookTypeConstants.Function);
+        hook.Type.Should().Be(HookTypeEnumConstants.Function);
     }
 
     [Fact]

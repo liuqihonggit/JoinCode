@@ -152,7 +152,7 @@ public sealed class ModelListFetcher : IModelListFetcher
 
     private static void ConfigureAuth(HttpRequestMessage request, string apiKey, string? protocol)
     {
-        if (string.Equals(protocol, ProtocolKindConstants.Anthropic, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(protocol, ProtocolKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase))
         {
             request.Headers.Add("x-api-key", apiKey);
             request.Headers.Add("anthropic-version", "2024-10-22");

@@ -73,47 +73,47 @@ public class PermissionConfig
         {
             AutoApprovedTools = new Dictionary<string, ToolPermissionRule>(StringComparer.OrdinalIgnoreCase)
             {
-                [FileToolNameConstants.FileRead] = new ToolPermissionRule { ToolName = FileToolNameConstants.FileRead, Description = "Read file" },
+                [FileToolNameEnumConstants.FileRead] = new ToolPermissionRule { ToolName = FileToolNameEnumConstants.FileRead, Description = "Read file" },
                 ["file_list"] = new ToolPermissionRule { ToolName = "file_list", Description = "List files" },
-                [FileToolNameConstants.DirectoryList] = new ToolPermissionRule { ToolName = FileToolNameConstants.DirectoryList, Description = "List directory" },
-                [SearchToolNameConstants.Glob] = new ToolPermissionRule { ToolName = SearchToolNameConstants.Glob, Description = "File pattern matching" },
-                [SearchToolNameConstants.Grep] = new ToolPermissionRule { ToolName = SearchToolNameConstants.Grep, Description = "Text search" },
+                [FileToolNameEnumConstants.DirectoryList] = new ToolPermissionRule { ToolName = FileToolNameEnumConstants.DirectoryList, Description = "List directory" },
+                [SearchToolNameEnumConstants.Glob] = new ToolPermissionRule { ToolName = SearchToolNameEnumConstants.Glob, Description = "File pattern matching" },
+                [SearchToolNameEnumConstants.Grep] = new ToolPermissionRule { ToolName = SearchToolNameEnumConstants.Grep, Description = "Text search" },
                 // WebFetch 不在 AutoApprovedTools 中 — 对齐 TS 版: WebFetch 需要域名级权限检查
                 // 预批准域名由 PreapprovedDomains 管理，用户可通过 /allowed-tools 添加域名白名单
                 // WebSearch 只读操作，自动批准
-                [WebToolNameConstants.WebSearch] = new ToolPermissionRule { ToolName = WebToolNameConstants.WebSearch, Description = "Web search" },
-                [TaskToolNameConstants.TaskList] = new ToolPermissionRule { ToolName = TaskToolNameConstants.TaskList, Description = "List tasks" },
-                [TaskToolNameConstants.TaskGet] = new ToolPermissionRule { ToolName = TaskToolNameConstants.TaskGet, Description = "Get task" },
-                [SystemToolNameConstants.TaskOutput] = new ToolPermissionRule { ToolName = SystemToolNameConstants.TaskOutput, Description = "Get task output" }
+                [WebToolNameEnumConstants.WebSearch] = new ToolPermissionRule { ToolName = WebToolNameEnumConstants.WebSearch, Description = "Web search" },
+                [TaskToolNameEnumConstants.TaskList] = new ToolPermissionRule { ToolName = TaskToolNameEnumConstants.TaskList, Description = "List tasks" },
+                [TaskToolNameEnumConstants.TaskGet] = new ToolPermissionRule { ToolName = TaskToolNameEnumConstants.TaskGet, Description = "Get task" },
+                [SystemToolNameEnumConstants.TaskOutput] = new ToolPermissionRule { ToolName = SystemToolNameEnumConstants.TaskOutput, Description = "Get task output" }
             },
             DangerousOperationPatterns =
             [
-                new OperationPattern { Pattern = OperationTypeConstants.Delete, PatternType = PatternType.Contains, Description = "删除操作" },
-                new OperationPattern { Pattern = OperationTypeConstants.Bash, PatternType = PatternType.Contains, Description = "Bash命令" },
-                new OperationPattern { Pattern = OperationTypeConstants.Shell, PatternType = PatternType.Contains, Description = "Shell命令" }
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Delete, PatternType = PatternType.Contains, Description = "删除操作" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Bash, PatternType = PatternType.Contains, Description = "Bash命令" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Shell, PatternType = PatternType.Contains, Description = "Shell命令" }
             ],
             WriteOperationPatterns =
             [
-                new OperationPattern { Pattern = OperationTypeConstants.Write, PatternType = PatternType.Contains, Description = "写入操作" },
-                new OperationPattern { Pattern = OperationTypeConstants.Edit, PatternType = PatternType.Contains, Description = "编辑操作" },
-                new OperationPattern { Pattern = OperationTypeConstants.Create, PatternType = PatternType.Contains, Description = "创建操作" },
-                new OperationPattern { Pattern = OperationTypeConstants.Delete, PatternType = PatternType.Contains, Description = "删除操作" }
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Write, PatternType = PatternType.Contains, Description = "写入操作" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Edit, PatternType = PatternType.Contains, Description = "编辑操作" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Create, PatternType = PatternType.Contains, Description = "创建操作" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Delete, PatternType = PatternType.Contains, Description = "删除操作" }
             ],
             ReadOperationPatterns =
             [
-                new OperationPattern { Pattern = OperationTypeConstants.Read, PatternType = PatternType.Contains, Description = "读取操作" },
-                new OperationPattern { Pattern = OperationTypeConstants.List, PatternType = PatternType.Contains, Description = "列出操作" },
-                new OperationPattern { Pattern = OperationTypeConstants.Get, PatternType = PatternType.Contains, Description = "获取操作" },
-                new OperationPattern { Pattern = OperationTypeConstants.Search, PatternType = PatternType.Contains, Description = "搜索操作" },
-                new OperationPattern { Pattern = OperationTypeConstants.Glob, PatternType = PatternType.Contains, Description = "模式匹配" },
-                new OperationPattern { Pattern = OperationTypeConstants.Grep, PatternType = PatternType.Contains, Description = "文本搜索" }
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Read, PatternType = PatternType.Contains, Description = "读取操作" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.List, PatternType = PatternType.Contains, Description = "列出操作" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Get, PatternType = PatternType.Contains, Description = "获取操作" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Search, PatternType = PatternType.Contains, Description = "搜索操作" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Glob, PatternType = PatternType.Contains, Description = "模式匹配" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Grep, PatternType = PatternType.Contains, Description = "文本搜索" }
             ],
             ShellOperationPatterns =
             [
-                new OperationPattern { Pattern = OperationTypeConstants.Bash, PatternType = PatternType.Contains, Description = "Bash命令" },
-                new OperationPattern { Pattern = OperationTypeConstants.Shell, PatternType = PatternType.Contains, Description = "Shell命令" },
-                new OperationPattern { Pattern = OperationTypeConstants.Execute, PatternType = PatternType.Contains, Description = "执行命令" },
-                new OperationPattern { Pattern = OperationTypeConstants.Run, PatternType = PatternType.Contains, Description = "运行命令" }
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Bash, PatternType = PatternType.Contains, Description = "Bash命令" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Shell, PatternType = PatternType.Contains, Description = "Shell命令" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Execute, PatternType = PatternType.Contains, Description = "执行命令" },
+                new OperationPattern { Pattern = OperationTypeEnumConstants.Run, PatternType = PatternType.Contains, Description = "运行命令" }
             ],
             SensitivePathPatterns =
             [
@@ -376,8 +376,8 @@ public sealed class PermissionConfigBuilder
     /// </summary>
     public PermissionConfigBuilder UsePermissiveMode()
     {
-        _dangerousOperationPatterns.Remove(OperationTypeConstants.Bash);
-        _dangerousOperationPatterns.Remove(OperationTypeConstants.Shell);
+        _dangerousOperationPatterns.Remove(OperationTypeEnumConstants.Bash);
+        _dangerousOperationPatterns.Remove(OperationTypeEnumConstants.Shell);
         _shellOperationPatterns.Clear();
         return this;
     }

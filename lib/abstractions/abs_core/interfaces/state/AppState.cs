@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.Abstractions.State;
 
 /// <summary>
@@ -176,7 +176,7 @@ public sealed record AgentState
 
 /// <summary>
 /// Agent 状态枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 AgentStatusConstants + AgentStatusExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 AgentStatusEnumConstants + AgentStatusExtensions
 /// 合并自 JoinCode.Abstractions.Interfaces.AgentStatus (Pending/Stopped) 和 JoinCode.Abstractions.State.AgentStatus (Idle/Paused)
 /// </summary>
 public enum AgentStatus
@@ -299,7 +299,7 @@ public sealed record TaskState
 
 /// <summary>
 /// 任务执行状态
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 TaskExecutionStatusConstants + TaskExecutionStatusExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 TaskExecutionStatusEnumConstants + TaskExecutionStatusExtensions
 /// 合并自: WorkflowState, AgentExecutionStatus, ShellBackgroundTaskStatus, AgentTaskStatus
 /// </summary>
 public enum TaskExecutionStatus
@@ -486,7 +486,7 @@ public sealed record NotificationState
 
 /// <summary>
 /// 通知类型
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 NotificationTypeConstants + NotificationTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 NotificationTypeEnumConstants + NotificationTypeExtensions
 /// </summary>
 public enum NotificationType
 {
@@ -561,14 +561,14 @@ public sealed record McpServerState
 }
 
 /// <summary>
-/// MCP 连接状态
+/// MCP 连接状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
 /// </summary>
 public enum McpConnectionStatus
 {
-    Disconnected,
-    Connecting,
-    Connected,
-    Error
+    [EnumValue("disconnected")] Disconnected,
+    [EnumValue("connecting")] Connecting,
+    [EnumValue("connected")] Connected,
+    [EnumValue("error")] Error
 }
 
 /// <summary>

@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -200,9 +200,9 @@ internal sealed class LegacyCommandContext : JoinCode.Abstractions.Interfaces.IC
     public JoinCode.Abstractions.Interfaces.IConsoleOutput ConsoleOutput { get; } = new LegacyConsoleOutput();
 
     public void Output(string message) => TerminalHelper.WriteLine(message);
-    public void OutputError(string message) => TerminalHelper.WriteLine($"{TerminalColors.Error}{message}{AnsiStyleConstants.Reset}");
-    public void OutputSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleConstants.Reset}");
-    public void OutputWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleConstants.Reset}");
+    public void OutputError(string message) => TerminalHelper.WriteLine($"{TerminalColors.Error}{message}{AnsiStyleEnumConstants.Reset}");
+    public void OutputSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleEnumConstants.Reset}");
+    public void OutputWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleEnumConstants.Reset}");
     public string? Prompt(string message) => _context.Prompt?.Invoke(message);
     public bool Confirm(string message) => _context.Confirm?.Invoke(message) ?? false;
     public void Output(string message, ConsoleColor color) => TerminalHelper.WriteLine(message);
@@ -212,9 +212,9 @@ internal sealed class LegacyCommandContext : JoinCode.Abstractions.Interfaces.IC
 internal sealed class LegacyConsoleOutput : JoinCode.Abstractions.Interfaces.IConsoleOutput
 {
     public void WriteLine(string message) => TerminalHelper.WriteLine(message);
-    public void WriteError(string message) => TerminalHelper.WriteLine($"{TerminalColors.Error}{message}{AnsiStyleConstants.Reset}");
-    public void WriteSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleConstants.Reset}");
-    public void WriteWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleConstants.Reset}");
+    public void WriteError(string message) => TerminalHelper.WriteLine($"{TerminalColors.Error}{message}{AnsiStyleEnumConstants.Reset}");
+    public void WriteSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleEnumConstants.Reset}");
+    public void WriteWarning(string message) => TerminalHelper.WriteLine($"{TerminalColors.Warning}{message}{AnsiStyleEnumConstants.Reset}");
     public string? Prompt(string message)
     {
         // 非交互模式或测试环境返回 null，避免无限等待

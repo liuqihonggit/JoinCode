@@ -9,7 +9,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 查看仓库详情 — 调 REST API 获取仓库信息，verbose=true 返回完整 JSON（从缓存读），默认精简输出
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhRepoView, "查看仓库详情", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoView, "查看仓库详情", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoViewAsync(
         [McpToolParameter("仓库名(owner/repo,可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
@@ -40,7 +40,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 克隆仓库 — 支持浅克隆（--depth=1），走本地 git 命令（非 API）
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhRepoClone, "克隆仓库(支持浅克隆 --depth=1)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoClone, "克隆仓库(支持浅克隆 --depth=1)", "github")]
     public async Task<ToolResult> GhRepoCloneAsync(
         [McpToolParameter("仓库名(owner/repo 或 URL)", Required = true)] string repo,
         [McpToolParameter("克隆目标目录(可选)", Required = false)] string? dir = null,
@@ -65,7 +65,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 创建仓库 — 支持 public/private/internal 可见性、描述、README 初始化
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhRepoCreate, "创建仓库(public/private/internal)", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoCreate, "创建仓库(public/private/internal)", "github")]
     public async Task<ToolResult> GhRepoCreateAsync(
         [McpToolParameter("仓库名", Required = true)] string name,
         [McpToolParameter("可见性(public/private/internal,默认 private)", Required = false)] string? visibility = null,
@@ -95,7 +95,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// Fork 仓库 — 调 REST API 创建 Fork，可选克隆到本地
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhRepoFork, "Fork 仓库", "github")]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoFork, "Fork 仓库", "github")]
     public async Task<ToolResult> GhRepoForkAsync(
         [McpToolParameter("仓库名(owner/repo)", Required = true)] string repo,
         [McpToolParameter("是否克隆到本地(默认 false)", Required = false)] bool? clone = null,
@@ -123,7 +123,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 列出自己可访问的仓库 — 调 REST API 获取仓库列表，精简输出
     /// </summary>
-    [McpTool(GitHubToolNameConstants.GhRepoList, "列出自己可访问的仓库", "github", ConcurrencySafe = true)]
+    [McpTool(GitHubToolNameEnumConstants.GhRepoList, "列出自己可访问的仓库", "github", ConcurrencySafe = true)]
     public async Task<ToolResult> GhRepoListAsync(
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,

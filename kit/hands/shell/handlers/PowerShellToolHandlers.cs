@@ -20,7 +20,7 @@ public class PowerShellToolHandlers : ShellToolBase
     /// <summary>
     /// 工具名称 — PowerShell
     /// </summary>
-    public override string ToolName => ShellToolNameConstants.Powershell;
+    public override string ToolName => ShellToolNameEnumConstants.Powershell;
 
     /// <summary>
     /// 构造 PowerShell 工具处理器
@@ -62,7 +62,7 @@ public class PowerShellToolHandlers : ShellToolBase
     /// 执行 PowerShell 命令 — 对齐 TS PowerShellTool
     /// 统一走中间件管道：验证 → PS权限检查 → 后台判断 → 执行 → 输出格式化
     /// </summary>
-    [McpTool(ShellToolNameConstants.Powershell, "Execute a PowerShell command. The description parameter briefly describes the command purpose", "execution")]
+    [McpTool(ShellToolNameEnumConstants.Powershell, "Execute a PowerShell command. The description parameter briefly describes the command purpose", "execution")]
     public async Task<ToolResult> PowerShellAsync(
         [McpToolParameter("PowerShell command to execute")] string command,
         [McpToolParameter("Brief description of the command purpose", Required = false)] string? description = null,
@@ -185,7 +185,7 @@ public class PowerShellToolHandlers : ShellToolBase
     /// <summary>
     /// 执行PowerShell脚本文件
     /// </summary>
-    [McpTool(ShellToolNameConstants.PowershellScript, "Execute PowerShell script file (.ps1)", "execution")]
+    [McpTool(ShellToolNameEnumConstants.PowershellScript, "Execute PowerShell script file (.ps1)", "execution")]
     public async Task<ToolResult> PowerShellScriptAsync(
         [McpToolParameter("Script file path")] string script_path,
         [McpToolParameter("Script arguments (optional)", Required = false)] string? arguments = null,
@@ -282,7 +282,7 @@ public class PowerShellToolHandlers : ShellToolBase
     /// <summary>
     /// 获取PowerShell版本信息
     /// </summary>
-    [McpTool(ShellToolNameConstants.PowershellVersion, "Get PowerShell version and runtime information", "execution", ConcurrencySafe = true)]
+    [McpTool(ShellToolNameEnumConstants.PowershellVersion, "Get PowerShell version and runtime information", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> PowerShellVersionAsync(
         CancellationToken cancellationToken = default)
     {
@@ -347,7 +347,7 @@ public class PowerShellToolHandlers : ShellToolBase
     /// <summary>
     /// 获取PowerShell执行策略
     /// </summary>
-    [McpTool(ShellToolNameConstants.PowershellExecutionPolicy, "Get current PowerShell execution policy", "execution", ConcurrencySafe = true)]
+    [McpTool(ShellToolNameEnumConstants.PowershellExecutionPolicy, "Get current PowerShell execution policy", "execution", ConcurrencySafe = true)]
     public async Task<ToolResult> PowerShellExecutionPolicyAsync(
         [McpToolParameter("Scope (e.g. Process, CurrentUser, LocalMachine)", Required = false)] string? scope = null,
         CancellationToken cancellationToken = default)
@@ -406,7 +406,7 @@ public class PowerShellToolHandlers : ShellToolBase
     /// <summary>
     /// 设置PowerShell执行策略
     /// </summary>
-    [McpTool(ShellToolNameConstants.PowershellSetExecutionPolicy, "Set PowerShell execution policy (requires administrator privileges)", "execution")]
+    [McpTool(ShellToolNameEnumConstants.PowershellSetExecutionPolicy, "Set PowerShell execution policy (requires administrator privileges)", "execution")]
     public async Task<ToolResult> PowerShellSetExecutionPolicyAsync(
         [McpToolParameter("Execution policy (e.g. RemoteSigned, Bypass, AllSigned)")] string policy,
         [McpToolParameter("Scope", Required = false, DefaultValue = "Process")] string? scope = null,

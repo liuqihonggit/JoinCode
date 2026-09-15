@@ -5,11 +5,11 @@ namespace JoinCode.Abstractions.Onboarding;
 /// </summary>
 public enum OnboardingStep
 {
-    Welcome,
-    ApiKey,
-    Security,
-    TerminalSetup,
-    Complete
+    [EnumValue("welcome")] Welcome,
+    [EnumValue("api_key")] ApiKey,
+    [EnumValue("security")] Security,
+    [EnumValue("terminal_setup")] TerminalSetup,
+    [EnumValue("complete")] Complete
 }
 
 /// <summary>

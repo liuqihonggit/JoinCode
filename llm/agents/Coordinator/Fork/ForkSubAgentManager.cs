@@ -533,7 +533,7 @@ public sealed partial class ForkSubAgentManager : IForkSubAgentManager, IAsyncDi
     }
 
     private void RecordForkMetrics(string operation, bool isSuccess)
-        => _deps.TelemetryService?.RecordCount("fork.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Fork operation count");
+        => ToolTelemetryHelper.RecordToolCount(_deps.TelemetryService, "fork.operation.count", operation, isSuccess, "Fork operation count");
 
     private int CalculateForkDepth(string parentSessionId)
     {

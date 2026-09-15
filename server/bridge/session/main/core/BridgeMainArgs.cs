@@ -71,7 +71,7 @@ public static class BridgeMainArgsParser
         if (result.SessionTimeout is not null)
         {
             if (!int.TryParse(result.SessionTimeout, out var timeoutSec) || timeoutSec <= 0)
-                error ??= $"{JccCliArgConstants.SessionTimeout} must be a positive integer (seconds)";
+                error ??= $"{JccCliArgEnumConstants.SessionTimeout} must be a positive integer (seconds)";
             else
                 sessionTimeoutMs = timeoutSec * 1000;
         }
@@ -87,27 +87,27 @@ public static class BridgeMainArgsParser
                 _ => null
             };
             if (spawnMode is null)
-                error ??= $"{JccCliArgConstants.Spawn} must be one of: session, same-dir, worktree (got: {result.Spawn})";
+                error ??= $"{JccCliArgEnumConstants.Spawn} must be one of: session, same-dir, worktree (got: {result.Spawn})";
         }
 
         int? capacity = null;
         if (result.Capacity is not null)
         {
             if (!int.TryParse(result.Capacity, out var cap) || cap <= 0)
-                error ??= $"{JccCliArgConstants.Capacity} must be a positive integer";
+                error ??= $"{JccCliArgEnumConstants.Capacity} must be a positive integer";
             else
                 capacity = cap;
         }
 
         if (capacity.HasValue && spawnMode == BridgeSpawnMode.SingleSession)
-            error ??= $"{JccCliArgConstants.Capacity} cannot be used with {JccCliArgConstants.Spawn}=session";
+            error ??= $"{JccCliArgEnumConstants.Capacity} cannot be used with {JccCliArgEnumConstants.Spawn}=session";
 
         if ((result.SessionId is not null || result.Continue) &&
             (spawnMode.HasValue || capacity.HasValue || result.CreateSessionInDir.GetValueOrDefault()))
-            error ??= $"{JccCliArgConstants.SessionId}/{JccCliArgConstants.Continue} cannot be used with {JccCliArgConstants.Spawn}/{JccCliArgConstants.Capacity}/{JccCliArgConstants.CreateSessionInDir}";
+            error ??= $"{JccCliArgEnumConstants.SessionId}/{JccCliArgEnumConstants.Continue} cannot be used with {JccCliArgEnumConstants.Spawn}/{JccCliArgEnumConstants.Capacity}/{JccCliArgEnumConstants.CreateSessionInDir}";
 
         if (result.SessionId is not null && result.Continue)
-            error ??= $"{JccCliArgConstants.SessionId} and {JccCliArgConstants.Continue} are mutually exclusive";
+            error ??= $"{JccCliArgEnumConstants.SessionId} and {JccCliArgEnumConstants.Continue} are mutually exclusive";
 
         return new BridgeMainArgs
         {

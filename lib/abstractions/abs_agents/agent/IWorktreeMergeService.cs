@@ -2,9 +2,13 @@ namespace JoinCode.Abstractions.Interfaces;
 
 public enum WorktreeMergeStrategy
 {
+    [EnumValue("fail")]
     Fail,
+    [EnumValue("ours")]
     Ours,
+    [EnumValue("theirs")]
     Theirs,
+    [EnumValue("auto_merge")]
     AutoMerge
 }
 

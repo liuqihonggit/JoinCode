@@ -121,5 +121,5 @@ public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddle
     }
 
     private void RecordForkMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("fork.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Fork operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "fork.operation.count", operation, isSuccess, "Fork operation count");
 }

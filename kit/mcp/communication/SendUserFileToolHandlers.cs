@@ -35,7 +35,7 @@ public partial class SendUserFileToolHandlers
     /// <param name="generate_link">是否生成下载链接（可选，默认 false）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.SendUserFile, "Send file for user to view or download", "file")]
+    [McpTool(SystemToolNameEnumConstants.SendUserFile, "Send file for user to view or download", "file")]
     public async Task<ToolResult> SendUserFileAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Send description (optional)", Required = false)] string? description = null,

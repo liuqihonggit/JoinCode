@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /exit 命令 - 退出程序
 /// 对齐 TS: 确认退出对话框
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Exit, Description = "退出程序", Usage = "/exit", Category = ChatCommandCategory.Session, Aliases = ["x"])]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Exit, Description = "退出程序", Usage = "/exit", Category = ChatCommandCategory.Session, Aliases = ["x"])]
 public sealed class ExitCommand : ChatCommandBase
 {
     /// <summary>

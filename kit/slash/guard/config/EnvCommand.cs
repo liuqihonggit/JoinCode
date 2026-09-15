@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /env 命令 — 对齐 TS env/index.js
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：环境变量列表+过滤
 /// 架构差异：TS 未实现，C# 扩展实现了过滤和格式化
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Env, Description = "显示环境变量", Usage = "/env [filter]", Category = ChatCommandCategory.Config, ArgumentHint = "[filter]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Env, Description = "显示环境变量", Usage = "/env [filter]", Category = ChatCommandCategory.Config, ArgumentHint = "[filter]")]
 [ChatCommandArg("filter", Type = "string", Description = "环境变量名过滤关键词")]
 public sealed class EnvCommand : ChatCommandBase
 {
@@ -25,14 +25,14 @@ public sealed class EnvCommand : ChatCommandBase
 
         if (string.IsNullOrEmpty(filter))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Primary}环境变量 ({allVars.Count}){AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Primary}环境变量 ({allVars.Count}){AnsiStyleEnumConstants.Reset}");
             TerminalHelper.NewLine();
             filtered = allVars.Cast<System.Collections.DictionaryEntry>()
                 .OrderBy(e => e.Key.ToString(), StringComparer.OrdinalIgnoreCase);
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Primary}环境变量 (过滤: \"{filter}\"){AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Primary}环境变量 (过滤: \"{filter}\"){AnsiStyleEnumConstants.Reset}");
             TerminalHelper.NewLine();
             filtered = allVars.Cast<System.Collections.DictionaryEntry>()
                 .Where(e => e.Key.ToString()?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true
@@ -48,18 +48,18 @@ public sealed class EnvCommand : ChatCommandBase
             if (value.Length > 120)
                 value = value[..117] + "...";
 
-            TerminalHelper.WriteLine($"  {TerminalColors.Accent}{name}{AnsiStyleConstants.Reset}={value}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Accent}{name}{AnsiStyleEnumConstants.Reset}={value}");
             shown++;
         }
 
         if (shown == 0)
         {
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}没有匹配的环境变量{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}没有匹配的环境变量{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
             TerminalHelper.NewLine();
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}共 {shown} 个环境变量{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}共 {shown} 个环境变量{AnsiStyleEnumConstants.Reset}");
         }
 
         return Task.FromResult(ChatCommandResult.Continue());

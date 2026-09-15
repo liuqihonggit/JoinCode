@@ -24,7 +24,7 @@ public class TodoToolHandlers
     /// <param name="todos">待写入的 Todo 列表,缺省时视为空列表。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果,包含成功消息或结构化诊断。</returns>
-    [McpTool(TodoToolNameConstants.TodoWrite, "Update the todo list for the current session. To be used proactively and often to track progress and pending tasks. Make sure that at least one task is in_progress at all times. Always provide both content (imperative) and activeForm (present continuous) for each task. Supports dependsOn (list of todo IDs this task depends on) and ownedFiles (list of file paths this task owns) for DAG-based task planning.", "todo")]
+    [McpTool(TodoToolNameEnumConstants.TodoWrite, "Update the todo list for the current session. To be used proactively and often to track progress and pending tasks. Make sure that at least one task is in_progress at all times. Always provide both content (imperative) and activeForm (present continuous) for each task. Supports dependsOn (list of todo IDs this task depends on) and ownedFiles (list of file paths this task owns) for DAG-based task planning.", "todo")]
     public async Task<ToolResult> TodoWriteAsync(
         [McpToolParameter("The updated todo list. Each item has: content (required), status (pending/in_progress/completed, required), activeForm (required, present tense like 'Implementing feature'), priority (high/medium/low, optional), id (optional, auto-generated if omitted), dependsOn (optional, list of todo IDs this task depends on), ownedFiles (optional, list of file paths this task owns)", Required = false)] List<TodoItemInput>? todos = null,
         CancellationToken cancellationToken = default)
@@ -62,12 +62,12 @@ public class TodoToolHandlers
             }
             if (string.IsNullOrEmpty(todoInputs[i].Priority))
             {
-                todoInputs[i] = todoInputs[i] with { Priority = TodoPriorityConstants.Medium };
+                todoInputs[i] = todoInputs[i] with { Priority = TodoPriorityEnumConstants.Medium };
             }
         }
 
         var allDone = todoInputs.Count > 0 && todoInputs.All(t =>
-            t.Status.Equals(TodoStatusConstants.Completed, StringComparison.OrdinalIgnoreCase));
+            t.Status.Equals(TodoStatusEnumConstants.Completed, StringComparison.OrdinalIgnoreCase));
 
         if (allDone)
         {
@@ -114,7 +114,7 @@ public class TodoToolHandlers
     /// <param name="include_completed">是否包含已完成项,默认 false。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果,包含统计信息与 Todo 列表。</returns>
-    [McpTool(TodoToolNameConstants.TodoList, "List todo items with optional filtering", "todo")]
+    [McpTool(TodoToolNameEnumConstants.TodoList, "List todo items with optional filtering", "todo")]
     public async Task<ToolResult> TodoListAsync(
         [McpToolParameter("Filter by status: pending, in_progress, completed", Required = false)] string? status = null,
         [McpToolParameter("Filter by priority: low, medium, high", Required = false)] string? priority = null,
@@ -179,7 +179,7 @@ public class TodoToolHandlers
     /// <param name="priority">新优先级:low/medium/high(可选)。</param>
     /// <param name="cancellationToken">取消令牌。</param>
     /// <returns>工具执行结果,包含更新后的 Todo 摘要。</returns>
-    [McpTool(TodoToolNameConstants.TodoUpdate, "Update a single todo item", "todo")]
+    [McpTool(TodoToolNameEnumConstants.TodoUpdate, "Update a single todo item", "todo")]
     public async Task<ToolResult> TodoUpdateAsync(
         [McpToolParameter("The ID of the todo item to update")] string todo_id,
         [McpToolParameter("New content (optional)", Required = false)] string? content = null,

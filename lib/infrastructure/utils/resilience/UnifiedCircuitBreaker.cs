@@ -6,10 +6,13 @@ namespace Infrastructure.Utils.Resilience;
 public enum CircuitBreakerPhase
 {
     /// <summary>关闭态 — 正常放行请求</summary>
+    [EnumValue("closed")]
     Closed,
     /// <summary>开启态 — 熔断中,拒绝请求</summary>
+    [EnumValue("open")]
     Open,
     /// <summary>半开态 — 限流放行探针请求以测试下游恢复</summary>
+    [EnumValue("half_open")]
     HalfOpen
 }
 
@@ -19,18 +22,23 @@ public enum CircuitBreakerPhase
 public enum CircuitBreakerEvent
 {
     /// <summary>记录成功 — 任意状态 → Closed</summary>
+    [EnumValue("record_success")]
     RecordSuccess,
 
     /// <summary>记录失败 — Closed → Open(达阈值) 或 HalfOpen → Open</summary>
+    [EnumValue("record_failure")]
     RecordFailure,
 
     /// <summary>探针请求 — HalfOpen 下限流</summary>
+    [EnumValue("try_probe")]
     TryProbe,
 
     /// <summary>Open 超时 → HalfOpen</summary>
+    [EnumValue("open_timeout")]
     OpenTimeout,
 
     /// <summary>重置 → Closed</summary>
+    [EnumValue("reset")]
     Reset,
 }
 

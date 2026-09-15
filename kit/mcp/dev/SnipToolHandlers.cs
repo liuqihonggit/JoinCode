@@ -29,7 +29,7 @@ public partial class SnipToolHandlers
     /// <param name="message_index">消息索引（rewind_to 模式下使用）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.Snip, "Snip old messages from conversation history to free context window space", "context")]
+    [McpTool(SystemToolNameEnumConstants.Snip, "Snip old messages from conversation history to free context window space", "context")]
     public async Task<ToolResult> SnipHistoryAsync(
         [McpToolParameter("Snip mode: rewind/rewind_to/clear (default rewind)", Required = false)] string? mode = "rewind",
         [McpToolParameter("Message index (used in rewind_to mode)", Required = false)] int? message_index = null,

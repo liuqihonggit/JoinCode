@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Attributes;
+﻿namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 标记服务类自动注册到 DI 容器 — 源码生成器据此生成 AddSingleton/AddScoped/AddTransient 注册代码
@@ -28,7 +28,10 @@ public sealed class RegisterAttribute : Attribute
 /// </summary>
 public enum ServiceLifetime
 {
+    [EnumValue("singleton")]
     Singleton = 0,
+    [EnumValue("scoped")]
     Scoped = 1,
-    Transient = 2
+    [EnumValue("transient")]
+    Transient = 2,
 }

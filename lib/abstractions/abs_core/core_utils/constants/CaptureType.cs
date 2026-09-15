@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 终端捕获类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 CaptureTypeConstants + CaptureTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 CaptureTypeEnumConstants + CaptureTypeExtensions
 /// </summary>
 public enum CaptureType
 {

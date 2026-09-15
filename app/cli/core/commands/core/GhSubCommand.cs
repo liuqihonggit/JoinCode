@@ -1,4 +1,4 @@
-namespace JoinCode.CliCommands;
+﻿namespace JoinCode.CliCommands;
 
 /// <summary>
 /// GitHub 子命令 — <c>jcc gh &lt;group&gt; &lt;action&gt; [位置参数...] [--选项 值] [--json]</c>
@@ -16,8 +16,8 @@ internal static class GhSubCommand
     /// <returns>进程退出码：0 成功，1 参数/执行失败。</returns>
     public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
     {
-        if (Array.IndexOf(args, CliArgConstants.HelpLongName) >= 0
-            || Array.IndexOf(args, CliArgConstants.HelpShortName) >= 0)
+        if (Array.IndexOf(args, CliArgCliOptionConstants.HelpLongName) >= 0
+            || Array.IndexOf(args, CliArgCliOptionConstants.HelpShortName) >= 0)
         {
             TerminalHelper.WriteLine(GhCommandResolver.Usage);
             return 0;

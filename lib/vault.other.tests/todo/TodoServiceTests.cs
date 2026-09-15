@@ -33,7 +33,7 @@ public sealed class TodoServiceTests
         var sut = CreateSut(withTaskRuntime: false);
         var todos = new List<TodoItemInput>
         {
-            new(Content: "Implement feature", Status: TodoStatusConstants.InProgress, ActiveForm: "Implementing feature")
+            new(Content: "Implement feature", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "Implementing feature")
         };
 
         var result = await sut.WriteTodosAsync(todos).ConfigureAwait(true);
@@ -52,7 +52,7 @@ public sealed class TodoServiceTests
         var sut = CreateSut();
         var todos = new List<TodoItemInput>
         {
-            new(Content: "Fix bug", Status: TodoStatusConstants.Pending, Priority: TodoPriorityConstants.High, ActiveForm: "Fixing bug")
+            new(Content: "Fix bug", Status: TodoStatusEnumConstants.Pending, Priority: TodoPriorityEnumConstants.High, ActiveForm: "Fixing bug")
         };
 
         var result = await sut.WriteTodosAsync(todos).ConfigureAwait(true);
@@ -73,18 +73,18 @@ public sealed class TodoServiceTests
         var id = "todo_001";
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Id: id, Content: "Initial", Status: TodoStatusConstants.Pending, ActiveForm: "Initialling")
+            new(Id: id, Content: "Initial", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Initialling")
         }).ConfigureAwait(true);
 
         var result = await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Id: id, Content: "Updated", Status: TodoStatusConstants.InProgress, ActiveForm: "Updating")
+            new(Id: id, Content: "Updated", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "Updating")
         }).ConfigureAwait(true);
 
         result.Success.Should().BeTrue();
         result.CreatedCount.Should().Be(0);
         result.UpdatedCount.Should().Be(1);
-        result.CurrentTodos.Should().ContainSingle(t => t.Content == "Updated" && t.Status == TodoStatusConstants.InProgress);
+        result.CurrentTodos.Should().ContainSingle(t => t.Content == "Updated" && t.Status == TodoStatusEnumConstants.InProgress);
         _taskRuntime.Updates.Should().ContainSingle(u => u.TaskId == id);
     }
 
@@ -95,7 +95,7 @@ public sealed class TodoServiceTests
         var id = "todo_del";
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Id: id, Content: "To delete", Status: TodoStatusConstants.Pending, ActiveForm: "Deleting")
+            new(Id: id, Content: "To delete", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Deleting")
         }).ConfigureAwait(true);
 
         var result = await sut.WriteTodosAsync(new List<TodoItemInput>
@@ -144,10 +144,10 @@ public sealed class TodoServiceTests
 
         var result = await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "No priority", Status: TodoStatusConstants.Pending, ActiveForm: "Prioritizing")
+            new(Content: "No priority", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Prioritizing")
         }).ConfigureAwait(true);
 
-        result.CurrentTodos.Single().Priority.Should().Be(TodoPriorityConstants.Medium);
+        result.CurrentTodos.Single().Priority.Should().Be(TodoPriorityEnumConstants.Medium);
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public sealed class TodoServiceTests
 
         var result = await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "Auto id", Status: TodoStatusConstants.Pending, ActiveForm: "Auto iding")
+            new(Content: "Auto id", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Auto iding")
         }).ConfigureAwait(true);
 
         result.CurrentTodos.Single().Id.Should().NotBeNullOrEmpty();
@@ -170,8 +170,8 @@ public sealed class TodoServiceTests
         var sut = CreateSut();
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "T1", Status: TodoStatusConstants.Pending, ActiveForm: "T1ing"),
-            new(Content: "T2", Status: TodoStatusConstants.InProgress, ActiveForm: "T2ing")
+            new(Content: "T1", Status: TodoStatusEnumConstants.Pending, ActiveForm: "T1ing"),
+            new(Content: "T2", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "T2ing")
         }).ConfigureAwait(true);
 
         _telemetry.Counters.Should().Contain(c => c.Name == "todo.operation.count" && c.Tags!["operation"] == "write");
@@ -184,12 +184,12 @@ public sealed class TodoServiceTests
         var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "First", Status: TodoStatusConstants.Pending, ActiveForm: "Firsting")
+            new(Content: "First", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Firsting")
         }).ConfigureAwait(true);
         _clock.Advance(TimeSpan.FromMinutes(1));
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "Second", Status: TodoStatusConstants.InProgress, ActiveForm: "Seconding")
+            new(Content: "Second", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "Seconding")
         }).ConfigureAwait(true);
 
         var result = await sut.ListTodosAsync().ConfigureAwait(true);
@@ -206,8 +206,8 @@ public sealed class TodoServiceTests
         var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "A", Status: TodoStatusConstants.Pending, ActiveForm: "Aing"),
-            new(Content: "B", Status: TodoStatusConstants.InProgress, ActiveForm: "Bing")
+            new(Content: "A", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Aing"),
+            new(Content: "B", Status: TodoStatusEnumConstants.InProgress, ActiveForm: "Bing")
         }).ConfigureAwait(true);
 
         var result = await sut.ListTodosAsync(status: "In_Progress").ConfigureAwait(true);
@@ -221,8 +221,8 @@ public sealed class TodoServiceTests
         var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "High", Status: TodoStatusConstants.Pending, Priority: TodoPriorityConstants.High, ActiveForm: "Highing"),
-            new(Content: "Low", Status: TodoStatusConstants.Pending, Priority: TodoPriorityConstants.Low, ActiveForm: "Lowing")
+            new(Content: "High", Status: TodoStatusEnumConstants.Pending, Priority: TodoPriorityEnumConstants.High, ActiveForm: "Highing"),
+            new(Content: "Low", Status: TodoStatusEnumConstants.Pending, Priority: TodoPriorityEnumConstants.Low, ActiveForm: "Lowing")
         }).ConfigureAwait(true);
 
         var result = await sut.ListTodosAsync(priority: "LOW").ConfigureAwait(true);
@@ -236,8 +236,8 @@ public sealed class TodoServiceTests
         var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "Done", Status: TodoStatusConstants.Completed, ActiveForm: "Doing"),
-            new(Content: "Pending", Status: TodoStatusConstants.Pending, ActiveForm: "Pendinging")
+            new(Content: "Done", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Doing"),
+            new(Content: "Pending", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Pendinging")
         }).ConfigureAwait(true);
 
         var result = await sut.ListTodosAsync().ConfigureAwait(true);
@@ -251,12 +251,12 @@ public sealed class TodoServiceTests
         var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "Done", Status: TodoStatusConstants.Completed, ActiveForm: "Doing")
+            new(Content: "Done", Status: TodoStatusEnumConstants.Completed, ActiveForm: "Doing")
         }).ConfigureAwait(true);
 
         var result = await sut.ListTodosAsync(includeCompleted: true).ConfigureAwait(true);
 
-        result.Todos.Should().ContainSingle(t => t.Status == TodoStatusConstants.Completed);
+        result.Todos.Should().ContainSingle(t => t.Status == TodoStatusEnumConstants.Completed);
     }
 
     [Fact]
@@ -265,18 +265,18 @@ public sealed class TodoServiceTests
         var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Id: "u1", Content: "Old", Status: TodoStatusConstants.Pending, Priority: TodoPriorityConstants.Low, ActiveForm: "Olding")
+            new(Id: "u1", Content: "Old", Status: TodoStatusEnumConstants.Pending, Priority: TodoPriorityEnumConstants.Low, ActiveForm: "Olding")
         }).ConfigureAwait(true);
         _clock.Advance(TimeSpan.FromMinutes(1));
 
-        var result = await sut.UpdateTodoAsync("u1", content: "New", status: TodoStatusConstants.Completed, priority: TodoPriorityConstants.High).ConfigureAwait(true);
+        var result = await sut.UpdateTodoAsync("u1", content: "New", status: TodoStatusEnumConstants.Completed, priority: TodoPriorityEnumConstants.High).ConfigureAwait(true);
 
         result.Success.Should().BeTrue();
         var updated = result.Data;
         updated.Should().NotBeNull();
         updated!.Content.Should().Be("New");
-        updated.Status.Should().Be(TodoStatusConstants.Completed);
-        updated.Priority.Should().Be(TodoPriorityConstants.High);
+        updated.Status.Should().Be(TodoStatusEnumConstants.Completed);
+        updated.Priority.Should().Be(TodoPriorityEnumConstants.High);
         updated.UpdatedAt.Should().BeAfter(updated.CreatedAt ?? DateTime.MinValue);
     }
 
@@ -297,10 +297,10 @@ public sealed class TodoServiceTests
         var sut = CreateSut();
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Id: "u2", Content: "Old", Status: TodoStatusConstants.Pending, ActiveForm: "Olding")
+            new(Id: "u2", Content: "Old", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Olding")
         }).ConfigureAwait(true);
 
-        await sut.UpdateTodoAsync("u2", content: "New", status: TodoStatusConstants.InProgress, priority: TodoPriorityConstants.Medium).ConfigureAwait(true);
+        await sut.UpdateTodoAsync("u2", content: "New", status: TodoStatusEnumConstants.InProgress, priority: TodoPriorityEnumConstants.Medium).ConfigureAwait(true);
 
         _taskRuntime.Updates.Should().ContainSingle(u =>
             u.TaskId == "u2" &&
@@ -325,7 +325,7 @@ public sealed class TodoServiceTests
         var sut = CreateSut(withTaskRuntime: false);
         await sut.WriteTodosAsync(new List<TodoItemInput>
         {
-            new(Content: "A", Status: TodoStatusConstants.Pending, ActiveForm: "Aing")
+            new(Content: "A", Status: TodoStatusEnumConstants.Pending, ActiveForm: "Aing")
         }).ConfigureAwait(true);
 
         await sut.ClearTodosAsync().ConfigureAwait(true);

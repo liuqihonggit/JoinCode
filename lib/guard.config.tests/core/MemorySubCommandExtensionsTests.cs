@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// MemorySubCommand 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / MemorySubCommandConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / MemorySubCommandEnumConstants 常量值
 /// </summary>
 public sealed class MemorySubCommandExtensionsTests
 {
@@ -116,19 +116,19 @@ public sealed class MemorySubCommandExtensionsTests
         MemorySubCommandExtensions.IsDefined(value).Should().Be(expected);
     }
 
-    // ===== MemorySubCommandConstants 测试 =====
+    // ===== MemorySubCommandEnumConstants 测试 =====
 
     [Fact]
     public void Constants_Should_Match_EnumValues()
     {
-        MemorySubCommandConstants.Edit.Should().Be("edit");
-        MemorySubCommandConstants.Open.Should().Be("open");
-        MemorySubCommandConstants.Add.Should().Be("add");
-        MemorySubCommandConstants.Search.Should().Be("search");
-        MemorySubCommandConstants.Db.Should().Be("db");
-        MemorySubCommandConstants.Stats.Should().Be("stats");
-        MemorySubCommandConstants.Health.Should().Be("health");
-        MemorySubCommandConstants.Cleanup.Should().Be("cleanup");
+        MemorySubCommandEnumConstants.Edit.Should().Be("edit");
+        MemorySubCommandEnumConstants.Open.Should().Be("open");
+        MemorySubCommandEnumConstants.Add.Should().Be("add");
+        MemorySubCommandEnumConstants.Search.Should().Be("search");
+        MemorySubCommandEnumConstants.Db.Should().Be("db");
+        MemorySubCommandEnumConstants.Stats.Should().Be("stats");
+        MemorySubCommandEnumConstants.Health.Should().Be("health");
+        MemorySubCommandEnumConstants.Cleanup.Should().Be("cleanup");
     }
 
     // ===== 往返一致性测试 =====

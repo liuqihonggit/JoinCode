@@ -1,4 +1,4 @@
-namespace JoinCode.Entry;
+﻿namespace JoinCode.Entry;
 
 /// <summary>
 /// 启动时询问用户是否打开调试信息 — 放在 WorkspaceTrustStep 之后
@@ -47,13 +47,13 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
     private static DebugDumpSection PromptDebugDumpChoice()
     {
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Accent}是否打开调试信息?{AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  {TerminalColors.Muted}i(1)=初始化  e(2)=错误  w(4)=警告  l(8)=日志  p(16)=提示词{AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"  {TerminalColors.Muted}a(31)=全部  0=跳过{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Accent}是否打开调试信息?{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Muted}i(1)=初始化  e(2)=错误  w(4)=警告  l(8)=日志  p(16)=提示词{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"  {TerminalColors.Muted}a(31)=全部  0=跳过{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteRaw($"> {TerminalColors.Primary}");
 
         var input = TerminalHelper.ReadLine();
-        TerminalHelper.WriteRaw(AnsiStyleConstants.Reset);
+        TerminalHelper.WriteRaw(AnsiStyleEnumConstants.Reset);
 
         return ParseDebugDumpInput(input);
     }

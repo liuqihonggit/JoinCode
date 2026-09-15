@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = CronToolName.CronCreate, Category = ToolPromptCategory.System)]
 public static class CronCreateToolPrompt
 {
-    public const string ToolName = CronToolNameConstants.CronCreate;
+    public const string ToolName = CronToolNameEnumConstants.CronCreate;
 
     /// <summary>
     /// 获取工具描述
@@ -79,7 +79,7 @@ public static class CronCreateToolPrompt
 [ToolPrompt(ToolName = CronToolName.CronDelete, Category = ToolPromptCategory.System)]
 public static class CronDeleteToolPrompt
 {
-    public const string ToolName = CronToolNameConstants.CronDelete;
+    public const string ToolName = CronToolNameEnumConstants.CronDelete;
     public const string Description = "通过 ID 取消计划的 cron 作业";
 
     /// <summary>
@@ -99,7 +99,7 @@ public static class CronDeleteToolPrompt
 [ToolPrompt(ToolName = CronToolName.CronList, Category = ToolPromptCategory.System)]
 public static class CronListToolPrompt
 {
-    public const string ToolName = CronToolNameConstants.CronList;
+    public const string ToolName = CronToolNameEnumConstants.CronList;
     public const string Description = "列出计划的 cron 作业";
 
     /// <summary>

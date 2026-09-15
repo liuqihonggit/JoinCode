@@ -1,4 +1,4 @@
-namespace JoinCode.CliCommands;
+﻿namespace JoinCode.CliCommands;
 
 /// <summary>
 /// 扁平元动词子命令路由器 — 处理 mcp_call/mcp_list/mcp_schema/mcp_search/mcp_serve/slash_call/slash_list/slash_schema/doctor/rg/gh 等元命令。
@@ -92,8 +92,8 @@ internal static class FlatSubCommandRouter
     /// </summary>
     private static bool ShouldConsumeNext(string[] args, int i)
     {
-        if (CliArgConstants.BooleanFlags.Contains(args[i])
-            || ToolCallArgConstants.BooleanFlags.Contains(args[i]))
+        if (CliArgCliOptionConstants.BooleanFlags.Contains(args[i])
+            || ToolCallArgCliOptionConstants.BooleanFlags.Contains(args[i]))
             return false;
         if (i + 1 >= args.Length)
             return false;
@@ -123,7 +123,7 @@ internal static class FlatSubCommandRouter
         {
             if (!args[i].StartsWith("--"))
                 continue;
-            if (CliArgConstants.AllOptionNames.Contains(args[i]))
+            if (CliArgCliOptionConstants.AllOptionNames.Contains(args[i]))
                 continue;
             return CliErrorCatalog.ArgUnknownOption(args[i]).ToRustStyleString(args, i);
         }
@@ -150,7 +150,7 @@ internal static class FlatSubCommandRouter
     /// </summary>
     internal static bool ShouldOutputJson(string[] args)
     {
-        var formatValue = GetOptionValue(args, CliArgConstants.FormatLongName);
+        var formatValue = GetOptionValue(args, CliArgCliOptionConstants.FormatLongName);
         if (string.Equals(formatValue, "text", StringComparison.OrdinalIgnoreCase))
             return false;
         return true;

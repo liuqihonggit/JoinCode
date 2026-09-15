@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /generate 命令 - 生成代码
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Generate, Description = "生成代码", Usage = "/generate <描述>", Category = ChatCommandCategory.Agent)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Generate, Description = "生成代码", Usage = "/generate <描述>", Category = ChatCommandCategory.Agent)]
 [ChatCommandArg("description", Type = "string", Description = "要生成的代码描述", Required = true)]
 public sealed partial class GenerateCommand : ChatCommandBase
 {

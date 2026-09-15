@@ -158,13 +158,13 @@ public interface IJccChatSession : IAsyncDisposable
         => Task.FromResult<IReadOnlyList<SubAgentSummary>>([]);
 
     /// <summary>
-    /// 当前主题 — 从 settings.json 读取（键 ConfigKeyConstants.Theme），对齐 CLI /theme。
+    /// 当前主题 — 从 settings.json 读取（键 ConfigKeyEnumConstants.Theme），对齐 CLI /theme。
     /// 未设置或损坏返回 <see cref="ThemeKind.Auto"/>（对齐 CLI GetCurrentThemeAsync 默认回退）。
     /// </summary>
     Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 设置主题并持久化到 settings.json（键 ConfigKeyConstants.Theme），对齐 CLI ThemeCommand，
+    /// 设置主题并持久化到 settings.json（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand，
     /// 保证 GUI 重启后保留，且 CLI /theme 与 GUI 主题双向联动。
     /// </summary>
     Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default);

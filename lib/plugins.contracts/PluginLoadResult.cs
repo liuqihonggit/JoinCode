@@ -8,19 +8,19 @@ namespace JoinCode.Abstractions.Entity;
 public enum PluginLoadStatus
 {
     /// <summary>加载成功</summary>
-    Success,
+    [EnumValue("success")] Success,
     /// <summary>插件已加载(重复加载)</summary>
-    AlreadyLoaded,
+    [EnumValue("already_loaded")] AlreadyLoaded,
     /// <summary>插件在黑名单中(此前卸载泄漏)</summary>
-    Blacklisted,
+    [EnumValue("blacklisted")] Blacklisted,
     /// <summary>LoadAsync 返回失败</summary>
-    LoadFailed,
+    [EnumValue("load_failed")] LoadFailed,
     /// <summary>InitializeAsync 返回失败</summary>
-    InitializeFailed,
+    [EnumValue("initialize_failed")] InitializeFailed,
     /// <summary>卸载契约校验失败</summary>
-    ContractViolation,
+    [EnumValue("contract_violation")] ContractViolation,
     /// <summary>加载过程抛异常</summary>
-    Exception,
+    [EnumValue("exception")] Exception,
 }
 
 /// <summary>

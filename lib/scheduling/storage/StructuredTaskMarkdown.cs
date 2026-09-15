@@ -43,9 +43,9 @@ public sealed class StructuredTaskMarkdownWriter
             {
                 var statusIcon = task.Status switch
                 {
-                    TaskExecutionStatusConstants.Completed => "[x]",
-                    TaskExecutionStatusConstants.Running => "[>]",
-                    TaskExecutionStatusConstants.Failed => "[!]",
+                    TaskExecutionStatusEnumConstants.Completed => "[x]",
+                    TaskExecutionStatusEnumConstants.Running => "[>]",
+                    TaskExecutionStatusEnumConstants.Failed => "[!]",
                     _ => "[ ]"
                 };
 

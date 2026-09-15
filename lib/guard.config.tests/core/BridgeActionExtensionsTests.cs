@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// BridgeAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / BridgeActionConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / BridgeActionEnumConstants 常量值
 /// 5 个枚举值(qr/sessions/status/connect/disconnect)
 /// </summary>
 public sealed class BridgeActionExtensionsTests
@@ -89,11 +89,11 @@ public sealed class BridgeActionExtensionsTests
     [Fact]
     public void Constants_All_Should_Match_EnumValues()
     {
-        BridgeActionConstants.Qr.Should().Be("qr");
-        BridgeActionConstants.Sessions.Should().Be("sessions");
-        BridgeActionConstants.Status.Should().Be("status");
-        BridgeActionConstants.Connect.Should().Be("connect");
-        BridgeActionConstants.Disconnect.Should().Be("disconnect");
+        BridgeActionEnumConstants.Qr.Should().Be("qr");
+        BridgeActionEnumConstants.Sessions.Should().Be("sessions");
+        BridgeActionEnumConstants.Status.Should().Be("status");
+        BridgeActionEnumConstants.Connect.Should().Be("connect");
+        BridgeActionEnumConstants.Disconnect.Should().Be("disconnect");
     }
 
     // ===== 枚举值数量验证 =====

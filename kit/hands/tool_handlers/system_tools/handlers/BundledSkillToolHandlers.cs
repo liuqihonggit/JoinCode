@@ -40,7 +40,7 @@ public partial class BundledSkillToolHandlers
     /// <summary>
     /// 简化代码 - 分析并提供代码简化建议
     /// </summary>
-    [McpTool(SkillToolNameConstants.SkillSimplify, "Simplify code and provide refactoring suggestions", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillSimplify, "Simplify code and provide refactoring suggestions", "skill")]
     public async Task<ToolResult> SkillSimplifyAsync(
         [McpToolParameter("File path")] string file_path,
         [McpToolParameter("Simplification type (all/readability/performance/complexity)", Required = false, DefaultValue = "all")] string? simplify_type = null,
@@ -99,7 +99,7 @@ public partial class BundledSkillToolHandlers
     /// <summary>
     /// 验证代码 - 检查语法、运行测试
     /// </summary>
-    [McpTool(SkillToolNameConstants.SkillVerify, "Verify code correctness, run tests", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillVerify, "Verify code correctness, run tests", "skill")]
     public async Task<ToolResult> SkillVerifyAsync(
         [McpToolParameter("Project path or file path")] string path,
         [McpToolParameter("Verification type (syntax/build/test/all)", Required = false, DefaultValue = "all")] string? verify_type = null,
@@ -181,7 +181,7 @@ public partial class BundledSkillToolHandlers
     /// <summary>
     /// 调试辅助 - 分析问题并提供诊断建议
     /// </summary>
-    [McpTool(SkillToolNameConstants.SkillDebug, "Debug assistance, problem diagnosis", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillDebug, "Debug assistance, problem diagnosis", "skill")]
     public async Task<ToolResult> SkillDebugAsync(
         [McpToolParameter("Project path or file path")] string path,
         [McpToolParameter("Error message or problem description")] string? error_message = null,
@@ -265,7 +265,7 @@ public partial class BundledSkillToolHandlers
     /// <summary>
     /// 批量处理 - 在多个文件上执行相同操作
     /// </summary>
-    [McpTool(SkillToolNameConstants.SkillBatch, "Batch process files", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillBatch, "Batch process files", "skill")]
     public async Task<ToolResult> SkillBatchAsync(
         [McpToolParameter("File pattern (e.g. *.cs, **/*.txt)")] string pattern,
         [McpToolParameter("Operation type (search/replace/delete/count)")] string operation,
@@ -363,7 +363,7 @@ public partial class BundledSkillToolHandlers
     /// <summary>
     /// 卡住帮助 - 当任务卡住时提供替代方案
     /// </summary>
-    [McpTool(SkillToolNameConstants.SkillStuck, "Provide help and alternatives when stuck", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillStuck, "Provide help and alternatives when stuck", "skill")]
     public Task<ToolResult> SkillStuckAsync(
         [McpToolParameter("Current approach or problem description")] string current_approach,
         [McpToolParameter("Error message or obstacle encountered", Required = false)] string? obstacle = null,

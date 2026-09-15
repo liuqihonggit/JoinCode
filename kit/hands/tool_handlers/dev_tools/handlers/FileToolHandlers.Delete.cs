@@ -3,7 +3,7 @@ namespace Tools.Handlers;
 public partial class FileToolHandlers
 {
     /// <summary>删除指定文件，删除前自动备份以支持恢复</summary>
-    [McpTool(FileToolNameConstants.FileDelete, "Delete the specified file", "file")]
+    [McpTool(FileToolNameEnumConstants.FileDelete, "Delete the specified file", "file")]
     public async Task<ToolResult> FileDeleteAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
         CancellationToken cancellationToken = default)

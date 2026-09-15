@@ -124,12 +124,12 @@ public sealed partial class PathPermissionChecker : ServiceEntity, IPathPermissi
     /// </summary>
     private static PathPermissionToolType? GetToolTypeFromName(string toolName)
     {
-        if (string.Equals(toolName, FileToolNameConstants.FileRead, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(toolName, FileToolNameEnumConstants.FileRead, StringComparison.OrdinalIgnoreCase))
             return PathPermissionToolType.Read;
 
-        if (string.Equals(toolName, FileToolNameConstants.FileWrite, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(toolName, FileToolNameConstants.FileEdit, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(toolName, FileToolNameConstants.FileEditRegex, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(toolName, FileToolNameEnumConstants.FileWrite, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(toolName, FileToolNameEnumConstants.FileEdit, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(toolName, FileToolNameEnumConstants.FileEditRegex, StringComparison.OrdinalIgnoreCase))
             return PathPermissionToolType.Edit;
 
         return null;

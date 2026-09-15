@@ -125,7 +125,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
             var role = entry.Role;
 
             // 助手消息统计
-            if (string.Equals(role, MessageRoleConstants.Assistant, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(role, MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase))
             {
                 assistantMessageCount++;
                 inputTokens += entry.PromptTokens;
@@ -146,18 +146,18 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
                     // 检测特殊工具使用
                     if (toolName.StartsWith("mcp__", StringComparison.OrdinalIgnoreCase))
                         usesMcp = true;
-                    if (string.Equals(toolName, WebToolNameConstants.WebSearch, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(toolName, WebToolNameEnumConstants.WebSearch, StringComparison.OrdinalIgnoreCase))
                         usesWebSearch = true;
-                    if (string.Equals(toolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(toolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
                         usesWebFetch = true;
-                    if (string.Equals(toolName, AgentToolNameConstants.Agent, StringComparison.OrdinalIgnoreCase) ||
+                    if (string.Equals(toolName, AgentToolNameEnumConstants.Agent, StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(toolName, "Task", StringComparison.OrdinalIgnoreCase))
                         usesTaskAgent = true;
                 }
             }
 
             // 用户消息统计
-            if (string.Equals(role, MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase))
             {
                 // 仅统计有人类文本的消息（非 tool_result）
                 var isHumanMessage = !string.IsNullOrWhiteSpace(entry.Content) &&
@@ -182,7 +182,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
             }
 
             // 工具结果中的错误统计
-            if (string.Equals(role, MessageRoleConstants.Tool, StringComparison.OrdinalIgnoreCase) ||
+            if (string.Equals(role, MessageRoleEnumConstants.Tool, StringComparison.OrdinalIgnoreCase) ||
                 entry.Type == "tool_result")
             {
                 if (entry.Content.Contains("is_error\":true", StringComparison.OrdinalIgnoreCase) ||

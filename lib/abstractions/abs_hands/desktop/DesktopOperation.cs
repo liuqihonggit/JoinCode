@@ -6,31 +6,31 @@ namespace JoinCode.Abstractions.Interfaces;
 public enum DesktopOperationKind
 {
     /// <summary>鼠标移动</summary>
-    Move,
+    [EnumValue("move")] Move,
 
     /// <summary>鼠标点击</summary>
-    Click,
+    [EnumValue("click")] Click,
 
     /// <summary>拖拽</summary>
-    Drag,
+    [EnumValue("drag")] Drag,
 
     /// <summary>按键</summary>
-    KeyPress,
+    [EnumValue("key_press")] KeyPress,
 
     /// <summary>文本输入</summary>
-    TypeText,
+    [EnumValue("type_text")] TypeText,
 
     /// <summary>窗口激活</summary>
-    WindowFocus,
+    [EnumValue("window_focus")] WindowFocus,
 
     /// <summary>窗口移动/调整</summary>
-    WindowMove,
+    [EnumValue("window_move")] WindowMove,
 
     /// <summary>窗口关闭</summary>
-    WindowClose,
+    [EnumValue("window_close")] WindowClose,
 
     /// <summary>截图</summary>
-    Screenshot,
+    [EnumValue("screenshot")] Screenshot,
 }
 
 /// <summary>

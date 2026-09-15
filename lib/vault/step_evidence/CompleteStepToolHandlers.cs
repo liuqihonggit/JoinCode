@@ -10,10 +10,10 @@ public class CompleteStepToolHandlers
 {
     private static readonly FrozenSet<string> ValidKinds = FrozenSet.ToFrozenSet(
     [
-        StepEvidenceKindConstants.Verification,
-        StepEvidenceKindConstants.Diff,
-        StepEvidenceKindConstants.Files,
-        StepEvidenceKindConstants.Manual,
+        StepEvidenceKindEnumConstants.Verification,
+        StepEvidenceKindEnumConstants.Diff,
+        StepEvidenceKindEnumConstants.Files,
+        StepEvidenceKindEnumConstants.Manual,
     ], StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -25,7 +25,7 @@ public class CompleteStepToolHandlers
     /// <param name="notes">可选的注意事项、后续跟进或延期说明</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果，包含签收摘要或参数验证失败的诊断信息</returns>
-    [McpTool(CompleteStepToolNameConstants.CompleteStep,
+    [McpTool(CompleteStepToolNameEnumConstants.CompleteStep,
         "Record the evidence-backed completion of ONE step of an approved plan. Call it as you finish each step instead of silently moving on: it signs the step off with PROOF it is done — the verification you ran (command + result), the diff/files you changed, or a manual check. A completion with no evidence is REJECTED, so don't claim a step is done until you can show why. The host advances the task list for you when you sign off — it marks this step completed and moves the next to in_progress, so you don't need a separate TodoWrite to mark completions.",
         "todo")]
     public Task<ToolResult> CompleteStepAsync(
@@ -75,7 +75,7 @@ public class CompleteStepToolHandlers
                     .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
             }
 
-            if (e.Kind.Equals(StepEvidenceKindConstants.Verification, StringComparison.OrdinalIgnoreCase)
+            if (e.Kind.Equals(StepEvidenceKindEnumConstants.Verification, StringComparison.OrdinalIgnoreCase)
                 && string.IsNullOrWhiteSpace(e.Command))
             {
                 var diag = BuildMissingVerificationCommandDiagnostic(i + 1);
@@ -83,8 +83,8 @@ public class CompleteStepToolHandlers
                     .WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
             }
 
-            if ((e.Kind.Equals(StepEvidenceKindConstants.Diff, StringComparison.OrdinalIgnoreCase)
-                 || e.Kind.Equals(StepEvidenceKindConstants.Files, StringComparison.OrdinalIgnoreCase))
+            if ((e.Kind.Equals(StepEvidenceKindEnumConstants.Diff, StringComparison.OrdinalIgnoreCase)
+                 || e.Kind.Equals(StepEvidenceKindEnumConstants.Files, StringComparison.OrdinalIgnoreCase))
                 && (e.Paths is null || e.Paths.Count == 0))
             {
                 var diag = BuildMissingPathsDiagnostic(i + 1, e.Kind);

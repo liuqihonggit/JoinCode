@@ -48,12 +48,12 @@ public class AbsoluteTimeoutMiddlewareTests
         context.Result!.IsError.Should().BeTrue();
         var text = context.Result.GetFirstText();
         text.Should().Contain("超时");
-        text.Should().Contain(SystemToolNameConstants.ResumeTimedOutTask);
+        text.Should().Contain(SystemToolNameEnumConstants.ResumeTimedOutTask);
         text.Should().Contain(context.Command);
         context.Result.Diagnostic.Should().NotBeNull();
         context.Result.Diagnostic!.Reason.Should().Be("命令执行超时");
         context.Result.Diagnostic.Details.Should().Contain(d => d.Key == "command" && d.Value == context.Command);
-        context.Result.Diagnostic.Suggestions.Should().Contain(s => s.Contains(SystemToolNameConstants.ResumeTimedOutTask));
+        context.Result.Diagnostic.Suggestions.Should().Contain(s => s.Contains(SystemToolNameEnumConstants.ResumeTimedOutTask));
     }
 
     [Fact]

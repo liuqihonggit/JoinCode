@@ -29,7 +29,7 @@ public partial class TerminalCaptureToolHandlers
     /// <param name="max_lines">最大行数（可选，默认 50）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含终端内容快照的工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.TerminalCapture, "Capture terminal screen content snapshot", "terminal")]
+    [McpTool(SystemToolNameEnumConstants.TerminalCapture, "Capture terminal screen content snapshot", "terminal")]
     public async Task<ToolResult> CaptureTerminalAsync(
         [McpToolParameter("Capture type: screen/buffer (default: screen)", Required = false)] string? capture_type = "screen",
         [McpToolParameter("Max lines (optional, default: 50)", Required = false)] int? max_lines = 50,

@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator.Liveness;
+﻿namespace Core.Agents.Coordinator.Liveness;
 
 /// <summary>
 /// 子代理卡死事件参数 — 检测器确认卡死时触发
@@ -24,9 +24,11 @@ public sealed class SubAgentStalledEventArgs : EventArgs
 public enum StallKind
 {
     /// <summary>单点卡死 — 单个子代理无输出超时</summary>
+    [EnumValue("single")]
     Single,
 
     /// <summary>链路卡死 — 子孙链所有节点都卡死</summary>
+    [EnumValue("chain")]
     Chain,
 }
 

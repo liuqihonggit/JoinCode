@@ -37,8 +37,12 @@ public sealed record UserInteractionResult(
 /// </summary>
 public enum MessageType
 {
+    [EnumValue("info")]
     Info,
+    [EnumValue("warning")]
     Warning,
+    [EnumValue("error")]
     Error,
+    [EnumValue("success")]
     Success
 }

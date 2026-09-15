@@ -1,4 +1,4 @@
-namespace Host.Tests.ChatCommands;
+﻿namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// /sampling 采样参数命令测试 — 温度/MaxTokens 写回 ExecutionSettingsProvider。
@@ -41,7 +41,7 @@ public sealed class SamplingCommandTests
     public void Name_Is_Sampling()
     {
         var cmd = new SamplingCommand();
-        cmd.Name.Should().Be(ChatCommandNameConstants.Sampling);
+        cmd.Name.Should().Be(ChatCommandNameEnumConstants.Sampling);
     }
 
     [Fact]

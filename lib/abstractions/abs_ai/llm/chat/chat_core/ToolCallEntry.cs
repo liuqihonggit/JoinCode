@@ -61,7 +61,7 @@ public sealed record ToolCallEntry
     {
         return new Dictionary<string, JsonElement>
         {
-            [MessageMetadataKeyConstants.ToolCalls] = ToToolCallsJson(entries)
+            [MessageMetadataKeyEnumConstants.ToolCalls] = ToToolCallsJson(entries)
         };
     }
 
@@ -72,8 +72,8 @@ public sealed record ToolCallEntry
     {
         return new Dictionary<string, JsonElement>
         {
-            [MessageMetadataKeyConstants.ToolCallId] = JsonElementHelper.FromString(toolCallId),
-            [MessageMetadataKeyConstants.ToolName] = JsonElementHelper.FromString(toolName)
+            [MessageMetadataKeyEnumConstants.ToolCallId] = JsonElementHelper.FromString(toolCallId),
+            [MessageMetadataKeyEnumConstants.ToolName] = JsonElementHelper.FromString(toolName)
         };
     }
 }

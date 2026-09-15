@@ -21,7 +21,7 @@ public sealed partial class BashCommandHookExecutor : HookExecutorBase<BashComma
     }
 
     /// <inheritdoc />
-    public override string SupportedType => HookTypeConstants.Command;
+    public override string SupportedType => HookTypeEnumConstants.Command;
 
     /// <inheritdoc />
     public override async Task<HookResult> ExecuteTypedAsync(

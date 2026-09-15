@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /plan 命令 — 计划模式管理，支持进入/退出/查看状态/打开计划文件
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent, ArgumentHint = "[on|off|status|open]", ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent, ArgumentHint = "[on|off|status|open]", ExposeToMcp = true)]
 [ChatCommandArg("action", Type = "string", Description = "计划操作", Enum = new[] { "on", "off", "status", "open" })]
 [ChatCommandArg("description", Type = "string", Description = "计划描述（on/open 时可选）")]
 public sealed class PlanCommand : ChatCommandBase
@@ -21,21 +21,21 @@ public sealed class PlanCommand : ChatCommandBase
 
         switch (subCommand)
         {
-            case PlanSubCommandConstants.On:
-            case PlanSubCommandConstants.Enter:
+            case PlanSubCommandEnumConstants.On:
+            case PlanSubCommandEnumConstants.Enter:
                 await EnterPlanModeAsync(context, parts);
                 break;
-            case PlanSubCommandConstants.Off:
-            case PlanSubCommandConstants.Exit:
+            case PlanSubCommandEnumConstants.Off:
+            case PlanSubCommandEnumConstants.Exit:
                 await ExitPlanModeAsync(context);
                 break;
-            case PlanSubCommandConstants.Status:
+            case PlanSubCommandEnumConstants.Status:
                 await ShowPlanStatusAsync(context);
                 break;
-                case PlanSubCommandConstants.Open:
+                case PlanSubCommandEnumConstants.Open:
                 await OpenPlanFileAsync(context, context.GetCommandServices().FileSystem).ConfigureAwait(false);
                 break;
-            case PlanSubCommandConstants.Toggle:
+            case PlanSubCommandEnumConstants.Toggle:
             default:
                 await TogglePlanModeAsync(context, args);
                 break;
@@ -49,7 +49,7 @@ public sealed class PlanCommand : ChatCommandBase
         var planModeManager = ResolvePlanModeManager(context);
         if (planModeManager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleEnumConstants.Reset}");
             await FallbackExecutePlanAsync(context, args);
             return;
         }
@@ -70,7 +70,7 @@ public sealed class PlanCommand : ChatCommandBase
         var planModeManager = ResolvePlanModeManager(context);
         if (planModeManager is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleEnumConstants.Reset}");
             await FallbackExecutePlanAsync(context, description ?? string.Empty);
             return;
         }
@@ -81,7 +81,7 @@ public sealed class PlanCommand : ChatCommandBase
 
         if (result.Success)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Primary}已进入计划模式{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Primary}已进入计划模式{AnsiStyleEnumConstants.Reset}");
             if (!string.IsNullOrEmpty(description))
             {
                 TerminalHelper.WriteLine($"  目标: {description}");
@@ -89,7 +89,7 @@ public sealed class PlanCommand : ChatCommandBase
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}进入计划模式失败: {result.ErrorMessage ?? "未知错误"}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}进入计划模式失败: {result.ErrorMessage ?? "未知错误"}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
@@ -113,11 +113,11 @@ public sealed class PlanCommand : ChatCommandBase
 
         if (result.Success)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Primary}已退出计划模式{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Primary}已退出计划模式{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}退出计划模式失败: {result.ErrorMessage ?? "未知错误"}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}退出计划模式失败: {result.ErrorMessage ?? "未知错误"}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
@@ -133,7 +133,7 @@ public sealed class PlanCommand : ChatCommandBase
         var planState = await planModeManager.GetPlanStatusAsync(context.CancellationToken).ConfigureAwait(false);
 
         TerminalHelper.WriteLine("=== 计划模式状态 ===");
-        TerminalHelper.WriteLine($"  模式: {(planModeManager.IsInPlanMode ? $"{TerminalColors.Primary}已开启{AnsiStyleConstants.Reset}" : "已关闭")}");
+        TerminalHelper.WriteLine($"  模式: {(planModeManager.IsInPlanMode ? $"{TerminalColors.Primary}已开启{AnsiStyleEnumConstants.Reset}" : "已关闭")}");
 
         if (planState is not null && planModeManager.IsInPlanMode)
         {

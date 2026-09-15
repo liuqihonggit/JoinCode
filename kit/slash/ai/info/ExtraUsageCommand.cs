@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /extra-usage 命令 — 查看额外用量信息(隐藏命令)
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.ExtraUsage, Description = "查看额外用量信息", Usage = "/extra-usage", Category = ChatCommandCategory.Model, IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.ExtraUsage, Description = "查看额外用量信息", Usage = "/extra-usage", Category = ChatCommandCategory.Model, IsHidden = true)]
 public sealed class ExtraUsageCommand : ChatCommandBase
 {
     /// <summary>

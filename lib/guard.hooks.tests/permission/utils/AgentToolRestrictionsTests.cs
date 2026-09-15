@@ -15,13 +15,13 @@ public sealed class AgentToolRestrictionsTests
     {
         var allowed = _sut.GetAllowedTools(PermissionMode.Auto);
 
-        allowed.Should().Contain(FileToolNameConstants.FileRead);
-        allowed.Should().Contain(FileToolNameConstants.FileWrite);
-        allowed.Should().Contain(FileToolNameConstants.FileEdit);
-        allowed.Should().Contain(SearchToolNameConstants.Glob);
-        allowed.Should().Contain(SearchToolNameConstants.Grep);
-        allowed.Should().Contain(WebToolNameConstants.WebFetch);
-        allowed.Should().Contain(CodeToolNameConstants.CodeIndexSearch);
+        allowed.Should().Contain(FileToolNameEnumConstants.FileRead);
+        allowed.Should().Contain(FileToolNameEnumConstants.FileWrite);
+        allowed.Should().Contain(FileToolNameEnumConstants.FileEdit);
+        allowed.Should().Contain(SearchToolNameEnumConstants.Glob);
+        allowed.Should().Contain(SearchToolNameEnumConstants.Grep);
+        allowed.Should().Contain(WebToolNameEnumConstants.WebFetch);
+        allowed.Should().Contain(CodeToolNameEnumConstants.CodeIndexSearch);
     }
 
     /// <summary>
@@ -32,8 +32,8 @@ public sealed class AgentToolRestrictionsTests
     {
         var allowed = _sut.GetAllowedTools(PermissionMode.Auto);
 
-        allowed.Should().Contain(TodoToolNameConstants.TodoWrite);
-        allowed.Should().Contain(TodoToolNameConstants.TodoList);
+        allowed.Should().Contain(TodoToolNameEnumConstants.TodoWrite);
+        allowed.Should().Contain(TodoToolNameEnumConstants.TodoList);
     }
 
     /// <summary>
@@ -44,8 +44,8 @@ public sealed class AgentToolRestrictionsTests
     {
         var allowed = _sut.GetAllowedTools(PermissionMode.Plan);
 
-        allowed.Should().Contain(TodoToolNameConstants.TodoWrite);
-        allowed.Should().Contain(TodoToolNameConstants.TodoList);
+        allowed.Should().Contain(TodoToolNameEnumConstants.TodoWrite);
+        allowed.Should().Contain(TodoToolNameEnumConstants.TodoList);
     }
 
     [Fact]
@@ -53,8 +53,8 @@ public sealed class AgentToolRestrictionsTests
     {
         var allowed = _sut.GetAllowedTools(PermissionMode.Auto);
 
-        allowed.Should().NotContain(ShellToolNameConstants.Bash);
-        allowed.Should().NotContain(ShellToolNameConstants.Powershell);
+        allowed.Should().NotContain(ShellToolNameEnumConstants.Bash);
+        allowed.Should().NotContain(ShellToolNameEnumConstants.Powershell);
     }
 
     [Fact]
@@ -62,10 +62,10 @@ public sealed class AgentToolRestrictionsTests
     {
         var allowed = _sut.GetAllowedTools(PermissionMode.Plan);
 
-        allowed.Should().Contain(FileToolNameConstants.FileRead);
-        allowed.Should().Contain(SearchToolNameConstants.Glob);
-        allowed.Should().Contain(SearchToolNameConstants.Grep);
-        allowed.Should().Contain(WebToolNameConstants.WebFetch);
+        allowed.Should().Contain(FileToolNameEnumConstants.FileRead);
+        allowed.Should().Contain(SearchToolNameEnumConstants.Glob);
+        allowed.Should().Contain(SearchToolNameEnumConstants.Grep);
+        allowed.Should().Contain(WebToolNameEnumConstants.WebFetch);
     }
 
     [Fact]
@@ -73,9 +73,9 @@ public sealed class AgentToolRestrictionsTests
     {
         var allowed = _sut.GetAllowedTools(PermissionMode.Plan);
 
-        allowed.Should().NotContain(FileToolNameConstants.FileWrite);
-        allowed.Should().NotContain(FileToolNameConstants.FileEdit);
-        allowed.Should().NotContain(ShellToolNameConstants.Bash);
+        allowed.Should().NotContain(FileToolNameEnumConstants.FileWrite);
+        allowed.Should().NotContain(FileToolNameEnumConstants.FileEdit);
+        allowed.Should().NotContain(ShellToolNameEnumConstants.Bash);
     }
 
     [Fact]
@@ -83,11 +83,11 @@ public sealed class AgentToolRestrictionsTests
     {
         var allowed = _sut.GetAllowedTools(PermissionMode.Ask);
 
-        allowed.Should().Contain(FileToolNameConstants.FileRead);
-        allowed.Should().Contain(FileToolNameConstants.FileWrite);
-        allowed.Should().Contain(FileToolNameConstants.FileEdit);
-        allowed.Should().Contain(ShellToolNameConstants.Bash);
-        allowed.Should().Contain(ShellToolNameConstants.Powershell);
+        allowed.Should().Contain(FileToolNameEnumConstants.FileRead);
+        allowed.Should().Contain(FileToolNameEnumConstants.FileWrite);
+        allowed.Should().Contain(FileToolNameEnumConstants.FileEdit);
+        allowed.Should().Contain(ShellToolNameEnumConstants.Bash);
+        allowed.Should().Contain(ShellToolNameEnumConstants.Powershell);
     }
 
     [Fact]
@@ -111,11 +111,11 @@ public sealed class AgentToolRestrictionsTests
     {
         var denied = _sut.GetDeniedTools(PermissionMode.Plan);
 
-        denied.Should().Contain(FileToolNameConstants.FileWrite);
-        denied.Should().Contain(FileToolNameConstants.FileEdit);
-        denied.Should().Contain(FileToolNameConstants.FileDelete);
-        denied.Should().Contain(ShellToolNameConstants.Bash);
-        denied.Should().Contain(GitToolNameConstants.GitPush);
+        denied.Should().Contain(FileToolNameEnumConstants.FileWrite);
+        denied.Should().Contain(FileToolNameEnumConstants.FileEdit);
+        denied.Should().Contain(FileToolNameEnumConstants.FileDelete);
+        denied.Should().Contain(ShellToolNameEnumConstants.Bash);
+        denied.Should().Contain(GitToolNameEnumConstants.GitPush);
     }
 
     [Fact]
@@ -127,19 +127,19 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Theory]
-    [InlineData(FileToolNameConstants.FileRead, PermissionMode.Auto, true)]
-    [InlineData(FileToolNameConstants.FileWrite, PermissionMode.Auto, true)]
-    [InlineData(TodoToolNameConstants.TodoWrite, PermissionMode.Auto, true)]
-    [InlineData(TodoToolNameConstants.TodoList, PermissionMode.Auto, true)]
-    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Auto, true)]
-    [InlineData(FileToolNameConstants.FileDelete, PermissionMode.Auto, true)]
-    [InlineData(FileToolNameConstants.FileRead, PermissionMode.Plan, true)]
-    [InlineData(TodoToolNameConstants.TodoWrite, PermissionMode.Plan, true)]
-    [InlineData(FileToolNameConstants.FileWrite, PermissionMode.Plan, false)]
-    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Plan, false)]
-    [InlineData(FileToolNameConstants.FileRead, PermissionMode.Ask, true)]
-    [InlineData(ShellToolNameConstants.Bash, PermissionMode.Ask, true)]
-    [InlineData(FileToolNameConstants.FileWrite, PermissionMode.Ask, true)]
+    [InlineData(FileToolNameEnumConstants.FileRead, PermissionMode.Auto, true)]
+    [InlineData(FileToolNameEnumConstants.FileWrite, PermissionMode.Auto, true)]
+    [InlineData(TodoToolNameEnumConstants.TodoWrite, PermissionMode.Auto, true)]
+    [InlineData(TodoToolNameEnumConstants.TodoList, PermissionMode.Auto, true)]
+    [InlineData(ShellToolNameEnumConstants.Bash, PermissionMode.Auto, true)]
+    [InlineData(FileToolNameEnumConstants.FileDelete, PermissionMode.Auto, true)]
+    [InlineData(FileToolNameEnumConstants.FileRead, PermissionMode.Plan, true)]
+    [InlineData(TodoToolNameEnumConstants.TodoWrite, PermissionMode.Plan, true)]
+    [InlineData(FileToolNameEnumConstants.FileWrite, PermissionMode.Plan, false)]
+    [InlineData(ShellToolNameEnumConstants.Bash, PermissionMode.Plan, false)]
+    [InlineData(FileToolNameEnumConstants.FileRead, PermissionMode.Ask, true)]
+    [InlineData(ShellToolNameEnumConstants.Bash, PermissionMode.Ask, true)]
+    [InlineData(FileToolNameEnumConstants.FileWrite, PermissionMode.Ask, true)]
     public void IsToolAllowedForMode_ShouldReturnExpectedResult(
         string toolName, PermissionMode mode, bool expected)
     {
@@ -164,37 +164,37 @@ public sealed class AgentToolRestrictionsTests
     [InlineData(PermissionMode.Ask)]
     public void IsToolAllowedForMode_CodeIndexSearchComprehensive_ShouldBeAllowedInReadWriteModes(PermissionMode mode)
     {
-        _sut.IsToolAllowedForMode(CodeToolNameConstants.CodeIndexSearchComprehensive, mode).Should().BeTrue();
+        _sut.IsToolAllowedForMode(CodeToolNameEnumConstants.CodeIndexSearchComprehensive, mode).Should().BeTrue();
     }
 
     [Fact]
     public void IsToolAllowedForMode_AutoMode_SensitiveToolsAllowedButNeedConfirmation()
     {
-        _sut.IsToolAllowedForMode(GitToolNameConstants.GitCommit, PermissionMode.Auto).Should().BeTrue();
-        _sut.IsToolAllowedForMode(GitToolNameConstants.GitPush, PermissionMode.Auto).Should().BeTrue();
-        _sut.IsToolAllowedForMode(ShellToolNameConstants.Bash, PermissionMode.Auto).Should().BeTrue();
+        _sut.IsToolAllowedForMode(GitToolNameEnumConstants.GitCommit, PermissionMode.Auto).Should().BeTrue();
+        _sut.IsToolAllowedForMode(GitToolNameEnumConstants.GitPush, PermissionMode.Auto).Should().BeTrue();
+        _sut.IsToolAllowedForMode(ShellToolNameEnumConstants.Bash, PermissionMode.Auto).Should().BeTrue();
     }
 
     [Fact]
     public void IsToolAllowedForMode_PlanMode_ReadOnlyToolShouldBeTrue()
     {
-        _sut.IsToolAllowedForMode(SearchToolNameConstants.Glob, PermissionMode.Plan).Should().BeTrue();
-        _sut.IsToolAllowedForMode(SearchToolNameConstants.SearchCode, PermissionMode.Plan).Should().BeTrue();
-        _sut.IsToolAllowedForMode(WebToolNameConstants.WebSearch, PermissionMode.Plan).Should().BeTrue();
+        _sut.IsToolAllowedForMode(SearchToolNameEnumConstants.Glob, PermissionMode.Plan).Should().BeTrue();
+        _sut.IsToolAllowedForMode(SearchToolNameEnumConstants.SearchCode, PermissionMode.Plan).Should().BeTrue();
+        _sut.IsToolAllowedForMode(WebToolNameEnumConstants.WebSearch, PermissionMode.Plan).Should().BeTrue();
     }
 
     [Fact]
     public void IsToolAllowedForMode_BypassMode_AlwaysTrue()
     {
-        _sut.IsToolAllowedForMode(FileToolNameConstants.FileRead, PermissionMode.Bypass).Should().BeTrue();
+        _sut.IsToolAllowedForMode(FileToolNameEnumConstants.FileRead, PermissionMode.Bypass).Should().BeTrue();
         _sut.IsToolAllowedForMode("safe_tool", PermissionMode.Bypass).Should().BeTrue();
     }
 
     [Fact]
     public void IsToolAllowedForMode_ExactCaseMatch_ShouldWork()
     {
-        _sut.IsToolAllowedForMode(FileToolNameConstants.FileRead, PermissionMode.Auto).Should().BeTrue();
-        _sut.IsToolAllowedForMode(ShellToolNameConstants.Bash, PermissionMode.Auto).Should().BeTrue();
+        _sut.IsToolAllowedForMode(FileToolNameEnumConstants.FileRead, PermissionMode.Auto).Should().BeTrue();
+        _sut.IsToolAllowedForMode(ShellToolNameEnumConstants.Bash, PermissionMode.Auto).Should().BeTrue();
     }
 
     [Theory]

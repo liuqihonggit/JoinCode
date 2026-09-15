@@ -157,14 +157,14 @@ public sealed class ReplServiceTests
         var tools = _service.GetHiddenTools();
 
         Assert.Equal(8, tools.Count);
-        Assert.Contains(FileToolNameConstants.FileRead, tools);
-        Assert.Contains(FileToolNameConstants.FileWrite, tools);
-        Assert.Contains(FileToolNameConstants.FileEdit, tools);
-        Assert.Contains(SearchToolNameConstants.Glob, tools);
-        Assert.Contains(SearchToolNameConstants.Grep, tools);
-        Assert.Contains(ShellToolNameConstants.Bash, tools);
-        Assert.Contains(NotebookToolNameConstants.NotebookEdit, tools);
-        Assert.Contains(AgentToolNameConstants.Agent, tools);
+        Assert.Contains(FileToolNameEnumConstants.FileRead, tools);
+        Assert.Contains(FileToolNameEnumConstants.FileWrite, tools);
+        Assert.Contains(FileToolNameEnumConstants.FileEdit, tools);
+        Assert.Contains(SearchToolNameEnumConstants.Glob, tools);
+        Assert.Contains(SearchToolNameEnumConstants.Grep, tools);
+        Assert.Contains(ShellToolNameEnumConstants.Bash, tools);
+        Assert.Contains(NotebookToolNameEnumConstants.NotebookEdit, tools);
+        Assert.Contains(AgentToolNameEnumConstants.Agent, tools);
     }
 
     [Fact]

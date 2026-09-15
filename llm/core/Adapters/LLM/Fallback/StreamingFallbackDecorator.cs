@@ -1,4 +1,4 @@
-namespace Api.LLM.Fallback;
+﻿namespace Api.LLM.Fallback;
 
 
 /// <summary>
@@ -289,19 +289,24 @@ public sealed class StreamingFallbackDecorator : IQueryService
 public enum FallbackCause
 {
     /// <summary>看门狗超时（流长时间无数据）</summary>
+    [EnumValue("watchdog")]
     Watchdog,
 
     /// <summary>不完整流（无 message_start 或无 content blocks）</summary>
+    [EnumValue("incompleteStream")]
     IncompleteStream,
 
     /// <summary>404 流式端点（网关不支持流式）</summary>
+    [EnumValue("notFound404")]
     NotFound404,
 
     /// <summary>529 过载</summary>
+    [EnumValue("overloaded529")]
     Overloaded529,
 
     /// <summary>其他错误（超时、IO 等）</summary>
-    Other
+    [EnumValue("other")]
+    Other,
 }
 
 /// <summary>

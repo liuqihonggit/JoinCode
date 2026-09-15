@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 浏览器操作类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 BrowserActionConstants + BrowserActionExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 BrowserActionEnumConstants + BrowserActionExtensions
 /// </summary>
 public enum BrowserAction
 {

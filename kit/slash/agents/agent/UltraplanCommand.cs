@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /ultraplan 命令 — 对齐 TS ultraplan.tsx
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式计划面板，C# 为命令行操作
 /// 待办：需要 PlanService 扩展支持多步骤执行器
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Ultraplan, Description = "超级计划模式：深度规划+执行", Usage = "/ultraplan [goal] [--steps N] [--execute]", Category = ChatCommandCategory.Agent, Aliases = ["up"], ArgumentHint = "[goal]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Ultraplan, Description = "超级计划模式：深度规划+执行", Usage = "/ultraplan [goal] [--steps N] [--execute]", Category = ChatCommandCategory.Agent, Aliases = ["up"], ArgumentHint = "[goal]")]
 [ChatCommandArg("goal", Type = "string", Description = "规划目标描述")]
 [ChatCommandArg("steps", Type = "number", Description = "规划步骤数")]
 [ChatCommandArg("execute", Type = "boolean", Description = "是否自动执行计划", Default = "false")]
@@ -54,7 +54,7 @@ public sealed class UltraplanCommand : ChatCommandBase
             return ChatCommandResult.Continue();
         }
 
-        TerminalHelper.WriteLine($"{TerminalColors.Primary}=== 超级计划模式 ==={AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Primary}=== 超级计划模式 ==={AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine($"目标: {goal}");
         TerminalHelper.WriteLine($"最大步骤: {steps}");
         TerminalHelper.WriteLine($"自动执行: {(autoExecute ? "是" : "否")}");
@@ -97,19 +97,19 @@ public sealed class UltraplanCommand : ChatCommandBase
         TerminalHelper.NewLine();
         if (executionResult.Success)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Success}=== 计划执行完成 ==={AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}=== 计划执行完成 ==={AnsiStyleEnumConstants.Reset}");
             if (!string.IsNullOrEmpty(executionResult.Result))
             {
                 TerminalHelper.WriteLine(executionResult.Result);
             }
-            TerminalHelper.WriteLine($"{TerminalColors.Secondary}耗时: {executionResult.ExecutionTimeMs}ms{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Secondary}耗时: {executionResult.ExecutionTimeMs}ms{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}=== 计划执行失败 ==={AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}=== 计划执行失败 ==={AnsiStyleEnumConstants.Reset}");
             if (!string.IsNullOrEmpty(executionResult.Error))
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{executionResult.Error}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}{executionResult.Error}{AnsiStyleEnumConstants.Reset}");
             }
         }
     }

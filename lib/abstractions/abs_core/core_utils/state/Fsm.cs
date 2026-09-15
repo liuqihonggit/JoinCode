@@ -49,13 +49,13 @@ public sealed record TransitionRule<TState>(
 public enum TransitionOutcome
 {
     /// <summary>转换成功</summary>
-    Transitioned,
+    [EnumValue("transitioned")] Transitioned,
 
     /// <summary>转换表无此 (FromState, Event) 组合</summary>
-    NoRule,
+    [EnumValue("no_rule")] NoRule,
 
     /// <summary>守卫检查失败</summary>
-    GuardFailed,
+    [EnumValue("guard_failed")] GuardFailed,
 }
 
 /// <summary>

@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Models.ErrorRecovery;
+﻿namespace JoinCode.Abstractions.Models.ErrorRecovery;
 
 public sealed class CrashSnapshot
 {
@@ -88,9 +88,13 @@ public enum CrashSeverity
 
 public enum CrashSnapshotState
 {
+    [EnumValue("captured")]
     Captured,
+    [EnumValue("acknowledged")]
     Acknowledged,
+    [EnumValue("resolved")]
     Resolved,
+    [EnumValue("suppressed")]
     Suppressed,
 }
 

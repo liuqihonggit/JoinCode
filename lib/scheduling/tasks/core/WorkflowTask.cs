@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Scheduling.Tasks;
 
 /// <summary>
@@ -95,13 +95,18 @@ public enum WorkflowExecutionMode
 public enum WorkflowStepType
 {
     /// <summary>工具调用步骤。</summary>
+    [EnumValue("toolCall")]
     ToolCall,
     /// <summary>Agent 任务步骤。</summary>
+    [EnumValue("agentTask")]
     AgentTask,
     /// <summary>子工作流步骤。</summary>
+    [EnumValue("subWorkflow")]
     SubWorkflow,
     /// <summary>条件判断步骤。</summary>
-    Conditional
+    [EnumValue("conditional")]
+    [EnumValue("conditional")]
+    Conditional,
 }
 
 /// <summary>
@@ -110,13 +115,17 @@ public enum WorkflowStepType
 public enum WorkflowStepOnFailure
 {
     /// <summary>停止 — 失败即终止整个工作流。</summary>
+    [EnumValue("stop")]
     Stop,
     /// <summary>跳过 — 标记为 Skipped 并继续后续步骤。</summary>
+    [EnumValue("skip")]
     Skip,
     /// <summary>重试 — 按指数退避重试,达到上限后停止。</summary>
+    [EnumValue("retry")]
     Retry,
     /// <summary>继续 — 忽略失败,继续执行后续步骤。</summary>
-    Continue
+    [EnumValue("continue")]
+    Continue,
 }
 
 /// <summary>

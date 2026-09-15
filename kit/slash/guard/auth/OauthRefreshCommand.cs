@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /oauth-refresh 命令 — 刷新 OAuth Token
 /// 使用已存储的 Refresh Token 获取新的 Access Token,延长登录会话有效期
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.OauthRefresh, Description = "刷新 OAuth Token", Usage = "/oauth-refresh [provider]", Category = ChatCommandCategory.Auth, ArgumentHint = "[provider]", IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.OauthRefresh, Description = "刷新 OAuth Token", Usage = "/oauth-refresh [provider]", Category = ChatCommandCategory.Auth, ArgumentHint = "[provider]", IsHidden = true)]
 [ChatCommandArg("provider", Type = "string", Description = "要刷新 Token 的供应商名称")]
 public sealed class OauthRefreshCommand : ChatCommandBase
 {
@@ -20,21 +20,21 @@ public sealed class OauthRefreshCommand : ChatCommandBase
         var services = context.GetCommandServices();
         if (services.TokenStorage is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}OAuth Token 存储不可用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}OAuth Token 存储不可用{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var oauthClient = ChatCommandBase.GetService<IOAuthClient>(context, typeof(IOAuthClient));
         if (oauthClient is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}OAuth 客户端不可用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}OAuth 客户端不可用{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var optionsFactory = ChatCommandBase.GetService<IOptions<OAuthOptions>>(context, typeof(IOptions<OAuthOptions>));
         if (optionsFactory?.Value is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}OAuth 配置不可用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}OAuth 配置不可用{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -67,7 +67,7 @@ public sealed class OauthRefreshCommand : ChatCommandBase
 
             if (string.IsNullOrEmpty(existingToken.RefreshToken))
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}Provider '{provider}' 无 Refresh Token，无法刷新{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}Provider '{provider}' 无 Refresh Token，无法刷新{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine("请使用 /login --oauth 重新登录");
                 return ChatCommandResult.Continue();
             }
@@ -79,7 +79,7 @@ public sealed class OauthRefreshCommand : ChatCommandBase
 
             await services.TokenStorage.SaveTokenAsync(provider, newToken, context.CancellationToken).ConfigureAwait(false);
 
-            TerminalHelper.WriteLine($"{TerminalColors.Success}Token 刷新成功{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}Token 刷新成功{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  Provider: {provider}");
             TerminalHelper.WriteLine($"  过期时间: {newToken.ExpiresAt:yyyy-MM-dd HH:mm:ss UTC}");
         }

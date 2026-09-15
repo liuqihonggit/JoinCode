@@ -44,7 +44,7 @@ public static class SkillDescriptionTruncator
     public static int GetCharBudget(int? contextWindowTokens = null)
     {
         // 环境变量覆盖 — 对齐 TS SLASH_COMMAND_TOOL_CHAR_BUDGET
-        var envValue = Environment.GetEnvironmentVariable(JccEnvVarConstants.SkillCharBudget);
+        var envValue = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.SkillCharBudget);
         if (int.TryParse(envValue, out var envBudget) && envBudget > 0)
         {
             return envBudget;

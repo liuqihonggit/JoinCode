@@ -3,24 +3,24 @@ namespace JoinCode.Abstractions.Models.Telemetry;
 
 public enum TelemetrySpanKind
 {
-    Internal,
-    Server,
-    Client,
-    Producer,
-    Consumer
+    [EnumValue("internal")] Internal,
+    [EnumValue("server")] Server,
+    [EnumValue("client")] Client,
+    [EnumValue("producer")] Producer,
+    [EnumValue("consumer")] Consumer
 }
 
 public enum TelemetryStatusCode
 {
-    Unset,
-    Ok,
-    Error
+    [EnumValue("unset")] Unset,
+    [EnumValue("ok")] Ok,
+    [EnumValue("error")] Error
 }
 
 public enum TelemetryExportFormat
 {
-    None,
-    Otlp,
-    Prometheus,
-    Console
+    [EnumValue("none")] None,
+    [EnumValue("otlp")] Otlp,
+    [EnumValue("prometheus")] Prometheus,
+    [EnumValue("console")] Console
 }

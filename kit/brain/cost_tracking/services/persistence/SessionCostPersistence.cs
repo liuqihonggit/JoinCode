@@ -253,5 +253,5 @@ public sealed partial class SessionCostPersistence : ServiceEntity, ISessionCost
     }
 
     private void RecordCostPersistenceMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("cost.persistence.count", new() { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Cost persistence count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "cost.persistence.count", operation, isSuccess, "Cost persistence count");
 }

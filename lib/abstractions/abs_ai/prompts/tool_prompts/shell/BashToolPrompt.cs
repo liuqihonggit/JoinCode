@@ -29,7 +29,7 @@ public static class BashToolPrompt
            - 捕获命令的输出
 
         使用说明：
-          - 如果输出超过 30000 个字符，完整输出将保存到磁盘文件，你将收到预览和文件路径 — 使用 {FileToolNameConstants.FileRead} 工具读取完整输出，不要重新执行命令
+          - 如果输出超过 30000 个字符，完整输出将保存到磁盘文件，你将收到预览和文件路径 — 使用 {FileToolNameEnumConstants.FileRead} 工具读取完整输出，不要重新执行命令
           - 当发出多个命令时：
             - 如果命令是独立的且可以并行运行，在单条消息中进行多个 Bash 工具调用
             - 如果命令相互依赖且必须顺序运行，使用 && 链式执行

@@ -62,7 +62,7 @@ public sealed class MobileCommandTests
     [InlineData("url")]
     public async Task Execute_WithPlatformActionSubcommand_Should_Return_Continue(string subCommand)
     {
-        // PlatformActionConstants.Start/Stop/Url 枚举路由取值范围测试
+        // PlatformActionEnumConstants.Start/Stop/Url 枚举路由取值范围测试
         var services = CreateServices(mobileService: CreateMockMobileService().Object);
         var cmd = new MobileCommand();
         var context = CreateContext(subCommand, services);
@@ -189,12 +189,12 @@ public sealed class MobileCommandTests
     }
 
     [Fact]
-    public void PlatformActionConstants_MobileActions_Values_Should_Match_Route()
+    public void PlatformActionEnumConstants_MobileActions_Values_Should_Match_Route()
     {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
-        PlatformActionConstants.Start.Should().Be("start");
-        PlatformActionConstants.Stop.Should().Be("stop");
-        PlatformActionConstants.Url.Should().Be("url");
+        PlatformActionEnumConstants.Start.Should().Be("start");
+        PlatformActionEnumConstants.Stop.Should().Be("stop");
+        PlatformActionEnumConstants.Url.Should().Be("url");
     }
 
     private static ChatCommandContext CreateContext(string? arguments, CommandServices services)

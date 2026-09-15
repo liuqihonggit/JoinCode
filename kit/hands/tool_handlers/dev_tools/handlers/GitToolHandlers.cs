@@ -58,7 +58,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>查看 Git 仓库状态（git status --porcelain -b）</summary>
-    [McpTool(GitToolNameConstants.GitStatus, "Check Git repository status", "git", ConcurrencySafe = true)]
+    [McpTool(GitToolNameEnumConstants.GitStatus, "Check Git repository status", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitStatusAsync(
         [McpToolParameter("Working directory path (optional, defaults to current directory)", Required = false)] string? working_dir = null,
         CancellationToken cancellationToken = default)
@@ -101,7 +101,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>添加文件到暂存区（git add）</summary>
-    [McpTool(GitToolNameConstants.GitAdd, "Add files to staging area", "git")]
+    [McpTool(GitToolNameEnumConstants.GitAdd, "Add files to staging area", "git")]
     public async Task<ToolResult> GitAddAsync(
         [McpToolParameter("File path (supports wildcards *, use . for all files)")] string path,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
@@ -145,7 +145,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>提交暂存区变更（git commit -m）</summary>
-    [McpTool(GitToolNameConstants.GitCommit, "Commit staged changes", "git")]
+    [McpTool(GitToolNameEnumConstants.GitCommit, "Commit staged changes", "git")]
     public async Task<ToolResult> GitCommitAsync(
         [McpToolParameter("Commit message")] string message,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
@@ -196,7 +196,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>推送到远程仓库（git push）</summary>
-    [McpTool(GitToolNameConstants.GitPush, "Push to remote repository", "git")]
+    [McpTool(GitToolNameEnumConstants.GitPush, "Push to remote repository", "git")]
     public async Task<ToolResult> GitPushAsync(
         [McpToolParameter("Remote name (optional, defaults to origin)", Required = false)] string? remote = "origin",
         [McpToolParameter("Branch name (optional, defaults to current branch)", Required = false)] string? branch = null,
@@ -238,7 +238,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>从远程仓库拉取（git pull）</summary>
-    [McpTool(GitToolNameConstants.GitPull, "Pull from remote repository", "git")]
+    [McpTool(GitToolNameEnumConstants.GitPull, "Pull from remote repository", "git")]
     public async Task<ToolResult> GitPullAsync(
         [McpToolParameter("Remote name (optional, defaults to origin)", Required = false)] string? remote = "origin",
         [McpToolParameter("Branch name (optional, defaults to current branch)", Required = false)] string? branch = null,
@@ -276,7 +276,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>查看提交历史（git log）</summary>
-    [McpTool(GitToolNameConstants.GitLog, "View commit history", "git", ConcurrencySafe = true)]
+    [McpTool(GitToolNameEnumConstants.GitLog, "View commit history", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitLogAsync(
         [McpToolParameter("Number of entries (optional, defaults to 10)", Required = false)] int? count = 10,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
@@ -331,7 +331,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>查看文件差异（git diff）</summary>
-    [McpTool(GitToolNameConstants.GitDiff, "View file differences", "git", ConcurrencySafe = true)]
+    [McpTool(GitToolNameEnumConstants.GitDiff, "View file differences", "git", ConcurrencySafe = true)]
     public async Task<ToolResult> GitDiffAsync(
         [McpToolParameter("File path (optional, defaults to all files)", Required = false)] string? path = null,
         [McpToolParameter("Working directory path (optional)", Required = false)] string? working_dir = null,
@@ -383,7 +383,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>创建或切换分支（git branch/checkout）</summary>
-    [McpTool(GitToolNameConstants.GitBranch, "Create or switch branch", "git")]
+    [McpTool(GitToolNameEnumConstants.GitBranch, "Create or switch branch", "git")]
     public async Task<ToolResult> GitBranchAsync(
         [McpToolParameter("Branch name")] string branch_name,
         [McpToolParameter("Operation: create/switch/delete (optional, defaults to switch)", Required = false)] string? operation = "switch",
@@ -402,7 +402,7 @@ public partial class GitToolHandlers
                     .Build();
             }
 
-            var opStr = operation?.ToLowerInvariant() ?? GitBranchOperationConstants.Switch;
+            var opStr = operation?.ToLowerInvariant() ?? GitBranchOperationEnumConstants.Switch;
             var op = GitBranchOperationExtensions.FromValue(opStr) ?? GitBranchOperation.Switch;
 
             string args;
@@ -456,7 +456,7 @@ public partial class GitToolHandlers
     }
 
     /// <summary>克隆远程仓库（git clone）</summary>
-    [McpTool(GitToolNameConstants.GitClone, "Clone remote repository", "git")]
+    [McpTool(GitToolNameEnumConstants.GitClone, "Clone remote repository", "git")]
     public async Task<ToolResult> GitCloneAsync(
         [McpToolParameter("Repository URL")] string url,
         [McpToolParameter("Local directory name (optional)", Required = false)] string? directory = null,

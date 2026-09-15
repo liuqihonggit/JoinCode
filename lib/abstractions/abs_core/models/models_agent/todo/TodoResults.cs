@@ -20,7 +20,7 @@ public sealed record TodoListResult(
     string? ErrorMessage = null)
 {
     public int TotalCount => Todos?.Count ?? 0;
-    public int PendingCount => Todos?.Count(t => !t.Status.Equals(TodoStatusConstants.Completed, StringComparison.OrdinalIgnoreCase)) ?? 0;
-    public int CompletedCount => Todos?.Count(t => t.Status.Equals(TodoStatusConstants.Completed, StringComparison.OrdinalIgnoreCase)) ?? 0;
+    public int PendingCount => Todos?.Count(t => !t.Status.Equals(TodoStatusEnumConstants.Completed, StringComparison.OrdinalIgnoreCase)) ?? 0;
+    public int CompletedCount => Todos?.Count(t => t.Status.Equals(TodoStatusEnumConstants.Completed, StringComparison.OrdinalIgnoreCase)) ?? 0;
 }
 

@@ -128,7 +128,7 @@ public sealed class AutoRebaseService : IAutoRebaseService
         {
             FromAgentId = request.AgentId,
             ToAgentId = request.CaptainId!,
-            MessageType = TeammateMessageTypeConstants.ForceSync,
+            MessageType = TeammateMessageTypeEnumConstants.ForceSync,
             Content = FormattableString.Invariant($"Worker {request.AgentId} rebase {request.UpstreamBranch} 产生冲突，已 abort。冲突文件:\n{filesText}\n请处理冲突后重新派发任务。"),
             StructuredType = TeammateMessageType.ForceSync,
         };

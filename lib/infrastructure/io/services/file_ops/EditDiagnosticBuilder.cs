@@ -1,4 +1,4 @@
-namespace Infrastructure.IO.Services.FileOps;
+﻿namespace Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// oldString 匹配失败的分类原因。
@@ -6,15 +6,19 @@ namespace Infrastructure.IO.Services.FileOps;
 public enum EditMismatchReason
 {
     /// <summary>oldString 在文件中完全不存在（连首行都找不到）。</summary>
+    [EnumValue("stringNotFound")]
     StringNotFound,
 
     /// <summary>oldString 首行在文件中存在，但后续行从某行开始分叉。</summary>
+    [EnumValue("partialMatch")]
     PartialMatch,
 
     /// <summary>去除所有空白字符后能匹配，说明是空格/制表符/缩进差异。</summary>
+    [EnumValue("whitespaceMismatch")]
     WhitespaceMismatch,
 
     /// <summary>找到高相似度片段（Jaccard 相似度 > 0.3），但非精确匹配。</summary>
+    [EnumValue("similarFound")]
     SimilarFound,
 }
 

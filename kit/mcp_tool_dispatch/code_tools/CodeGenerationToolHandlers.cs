@@ -23,7 +23,7 @@ public class CodeGenerationToolHandlers
     /// <summary>
     /// 根据描述生成 C# 代码
     /// </summary>
-    [McpTool(CodeToolNameConstants.GenerateCsharpCode, "Generate C# code from description", "code_generation")]
+    [McpTool(CodeToolNameEnumConstants.GenerateCsharpCode, "Generate C# code from description", "code_generation")]
     public async Task<ToolResult> GenerateCSharpCodeAsync(
         [McpToolParameter("Code requirement description")] string description,
         [McpToolParameter("Code context or related code snippets", Required = false)] string? context = null,
@@ -78,7 +78,7 @@ public class CodeGenerationToolHandlers
     /// <summary>
     /// 为现有代码生成单元测试
     /// </summary>
-    [McpTool(CodeToolNameConstants.GenerateUnitTest, "Generate unit tests for existing C# code", "code_generation")]
+    [McpTool(CodeToolNameEnumConstants.GenerateUnitTest, "Generate unit tests for existing C# code", "code_generation")]
     public async Task<ToolResult> GenerateUnitTestAsync(
         [McpToolParameter("C# code to test")] string code,
         [McpToolParameter("Test framework, e.g. xunit, nunit, mstest", Required = false, DefaultValue = "xunit")] string test_framework = "xunit",
@@ -126,7 +126,7 @@ public class CodeGenerationToolHandlers
     /// <summary>
     /// 生成 ASP.NET Core API 控制器
     /// </summary>
-    [McpTool(CodeToolNameConstants.GenerateApiController, "Generate ASP.NET Core API controller", "code_generation")]
+    [McpTool(CodeToolNameEnumConstants.GenerateApiController, "Generate ASP.NET Core API controller", "code_generation")]
     public async Task<ToolResult> GenerateApiControllerAsync(
         [McpToolParameter("Controller requirement description")] string description,
         [McpToolParameter("Entity/model class definition", Required = false)] string? model_definition = null,

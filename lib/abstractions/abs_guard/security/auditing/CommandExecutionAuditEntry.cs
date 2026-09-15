@@ -38,9 +38,12 @@ public sealed record FileChangeRecord(
 public enum FileChangeType
 {
     /// <summary>新建文件</summary>
+    [EnumValue("created")]
     Created,
     /// <summary>修改文件</summary>
+    [EnumValue("modified")]
     Modified,
     /// <summary>删除文件</summary>
+    [EnumValue("deleted")]
     Deleted
 }

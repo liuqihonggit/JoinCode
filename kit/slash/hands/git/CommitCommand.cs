@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /commit 命令 - 创建 Git 提交
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Commit, Description = "创建 Git 提交", Usage = "/commit [message]", Category = ChatCommandCategory.Code, ArgumentHint = "[message]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Commit, Description = "创建 Git 提交", Usage = "/commit [message]", Category = ChatCommandCategory.Code, ArgumentHint = "[message]")]
 [ChatCommandArg("message", Type = "string", Description = "提交消息")]
 public sealed class CommitCommand : ChatCommandBase
 {
@@ -37,14 +37,14 @@ public sealed class CommitCommand : ChatCommandBase
             {
                 ShowUsageDisclosure();
                 MarkReadConfirmed(sessionId);
-                TerminalHelper.WriteLine($"{TerminalColors.Muted}\n再次调用 /commit 确认执行(60s 内有效)。{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Muted}\n再次调用 /commit 确认执行(60s 内有效)。{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Continue();
             }
             // 已读确认,清除状态,继续执行
             ReadConfirmedSessions.TryRemove(sessionId, out _);
         }
 
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}正在创建提交...{AnsiStyleEnumConstants.Reset}");
 
         var fs = context.GetCommandServices().FileSystem;
         var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
@@ -66,9 +66,9 @@ public sealed class CommitCommand : ChatCommandBase
 
         if (secretFiles.Count > 0)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}警告: 以下文件可能包含敏感信息:{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}警告: 以下文件可能包含敏感信息:{AnsiStyleEnumConstants.Reset}");
             foreach (var f in secretFiles)
-                TerminalHelper.WriteLine($"  {TerminalColors.Warning}{f}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"  {TerminalColors.Warning}{f}{AnsiStyleEnumConstants.Reset}");
 
             if (!(context.Confirm?.Invoke("确认提交这些文件？") ?? false))
             {
@@ -129,11 +129,11 @@ public sealed class CommitCommand : ChatCommandBase
 
         if (commitResult.Contains("error") || commitResult.Contains("fatal"))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}提交失败: {commitResult}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}提交失败: {commitResult}{AnsiStyleEnumConstants.Reset}");
         }
         else
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Success}提交成功！{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}提交成功！{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine(commitResult);
         }
 
@@ -231,14 +231,14 @@ public sealed class CommitCommand : ChatCommandBase
     /// </summary>
     private static void ShowUsageDisclosure()
     {
-        TerminalHelper.WriteLine($"{TerminalColors.Warning}=== /commit 使用说明(渐进式披露)==={AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Warning}=== /commit 使用说明(渐进式披露)==={AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine("/commit 创建 Git 提交,自动执行:");
         TerminalHelper.WriteLine("  1. 敏感文件检测(.env/credentials/secret/password/apikey/token 禁止提交)");
         TerminalHelper.WriteLine("  2. 提交信息生成(基于 git diff)");
         TerminalHelper.WriteLine("  3. 用户确认");
         TerminalHelper.WriteLine("  4. git add -A + git commit -m \"msg\"");
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Warning}提交信息规范(减法诚实原则):{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Warning}提交信息规范(减法诚实原则):{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine("  - 禁止\"已移除\"括号噪声:用户明确移除某物后,禁止写\"新增 X(无 Y)\"");
         TerminalHelper.WriteLine("  - 只描述实际新增/修改的内容,不提已消失之物");
         TerminalHelper.WriteLine("  - 格式: 类型: 描述(feat/fix/refactor/docs/test/chore)");

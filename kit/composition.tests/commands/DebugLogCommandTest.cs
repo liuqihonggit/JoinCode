@@ -1,4 +1,4 @@
-namespace Composition.Tests.Commands;
+﻿namespace Composition.Tests.Commands;
 
 /// <summary>
 /// DebugLogCommand 单元测试 — 验证参数解析、默认行为、clear 功能
@@ -73,7 +73,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task AllFlag_LongForm_EntersErrorBranch()
     {
-        var context = CreateContext(DebugLogFlagConstants.All);
+        var context = CreateContext(DebugLogFlagEnumConstants.All);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -100,7 +100,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task ErrorFlag_LongForm_ShowsOnlyErrors()
     {
-        var context = CreateContext(DebugLogFlagConstants.Error);
+        var context = CreateContext(DebugLogFlagEnumConstants.Error);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -125,7 +125,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task WarnFlag_LongForm_ShowsWarningsAndErrors()
     {
-        var context = CreateContext(DebugLogFlagConstants.Warn);
+        var context = CreateContext(DebugLogFlagEnumConstants.Warn);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -150,7 +150,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task InitFlag_LongForm_ShowsInitInfo()
     {
-        var context = CreateContext(DebugLogFlagConstants.Init);
+        var context = CreateContext(DebugLogFlagEnumConstants.Init);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -174,7 +174,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task PromptFlag_LongForm_ShowsSystemPrompt()
     {
-        var context = CreateContext(DebugLogFlagConstants.Prompt);
+        var context = CreateContext(DebugLogFlagEnumConstants.Prompt);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -198,7 +198,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task LogFlag_LongForm_ShowsDiagnosticLogs()
     {
-        var context = CreateContext(DebugLogFlagConstants.Log);
+        var context = CreateContext(DebugLogFlagEnumConstants.Log);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();
@@ -222,7 +222,7 @@ public sealed class DebugLogCommandTest
     [Fact]
     public async Task ClearFlag_LongForm_ClearsBuffer()
     {
-        var context = CreateContext(DebugLogFlagConstants.Clear);
+        var context = CreateContext(DebugLogFlagEnumConstants.Clear);
         var result = await _command.ExecuteAsync(context);
 
         result.ShouldContinue.Should().BeTrue();

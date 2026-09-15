@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /rate-limit-options 命令 — 配置速率限制选项
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.RateLimitOptions, Description = "配置速率限制选项", Usage = "/rate-limit-options [show]", Category = ChatCommandCategory.Model, Aliases = ["rate-limit"], ArgumentHint = "[show]", IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.RateLimitOptions, Description = "配置速率限制选项", Usage = "/rate-limit-options [show]", Category = ChatCommandCategory.Model, Aliases = ["rate-limit"], ArgumentHint = "[show]", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "操作类型,目前仅支持 show(显示速率限制快照)", Enum = new[] { "show" }, Default = "show")]
 public sealed class RateLimitCommand : ChatCommandBase
 {

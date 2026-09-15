@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 /// <summary>
 /// 设备信任等级
@@ -6,13 +6,16 @@ namespace Core.Bridge;
 public enum DeviceTrustLevel
 {
     /// <summary>不受信任</summary>
+    [EnumValue("none")]
     None = 0,
 
     /// <summary>基础信任（仅限只读操作）</summary>
+    [EnumValue("basic")]
     Basic = 1,
 
     /// <summary>完全信任（读写操作）</summary>
-    Full = 2
+    [EnumValue("full")]
+    Full = 2,
 }
 
 /// <summary>

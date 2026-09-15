@@ -10,8 +10,8 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
 {
     private static readonly FrozenSet<string> DeleteToolNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        ShellToolNameConstants.Bash,
-        ShellToolNameConstants.Powershell
+        ShellToolNameEnumConstants.Bash,
+        ShellToolNameEnumConstants.Powershell
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     private static readonly FrozenSet<string> DeleteCommandNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)

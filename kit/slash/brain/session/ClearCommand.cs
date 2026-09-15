@@ -1,17 +1,17 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /clear 命令 - 清空聊天历史并清屏
 /// 对齐 TS: src/commands/clear/clear.ts + conversation.ts + caches.ts
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Clear, Description = "清空聊天历史并释放上下文", Usage = "/clear", Aliases = ["reset", "new", "cls"], Category = ChatCommandCategory.Session)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Clear, Description = "清空聊天历史并释放上下文", Usage = "/clear", Aliases = ["reset", "new", "cls"], Category = ChatCommandCategory.Session)]
 public sealed partial class ClearCommand : ChatCommandBase
 {
     private readonly ILogger<ClearCommand>? _logger;
 
     /// <summary>命令名称。</summary>
-    public override string Name => ChatCommandNameConstants.Clear;
+    public override string Name => ChatCommandNameEnumConstants.Clear;
     /// <summary>命令描述。</summary>
     public override string Description => "清空聊天历史并释放上下文";
     /// <summary>命令用法提示。</summary>
@@ -113,7 +113,7 @@ public sealed partial class ClearCommand : ChatCommandBase
             }
         }
 
-        TerminalHelper.WriteLine($"{TerminalColors.Success}聊天历史已清空，上下文已释放{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}聊天历史已清空，上下文已释放{AnsiStyleEnumConstants.Reset}");
 
         return ChatCommandResult.Continue();
     }

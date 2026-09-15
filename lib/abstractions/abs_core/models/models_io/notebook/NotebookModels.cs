@@ -30,10 +30,10 @@ public static class NotebookCellTypeHelper
 /// </summary>
 public enum OutputType
 {
-    ExecuteResult,
-    DisplayData,
-    Stream,
-    Error
+    [EnumValue("execute_result")] ExecuteResult,
+    [EnumValue("display_data")] DisplayData,
+    [EnumValue("stream")] Stream,
+    [EnumValue("error")] Error
 }
 
 /// <summary>

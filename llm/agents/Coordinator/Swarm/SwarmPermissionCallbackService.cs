@@ -254,7 +254,7 @@ public sealed partial class SwarmPermissionCallbackService : ServiceEntity, ISwa
                 return;
             }
 
-            var allowed = data.Behavior == PermissionBehaviorConstants.Allow;
+            var allowed = data.Behavior == PermissionBehaviorEnumConstants.Allow;
 
             var permissionUpdates = data.PermissionUpdates?.ConvertAll(pu =>
                 new PermissionUpdate { ToolName = pu.ToolName, Action = pu.Action.ToValue(), Destination = "session" });

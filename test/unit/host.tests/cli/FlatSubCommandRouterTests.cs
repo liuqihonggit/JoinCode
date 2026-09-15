@@ -1,4 +1,4 @@
-namespace Host.Tests.Cli;
+﻿namespace Host.Tests.Cli;
 
 /// <summary>
 /// FlatSubCommandRouter 参数解析测试 — 验证布尔标志不误吞 key=value 参数
@@ -156,29 +156,29 @@ public sealed class FlatSubCommandRouterTests
     }
 
     /// <summary>
-    /// CliArgConstants.BooleanFlags 应包含 --trust/--json/--debuglog 等全局布尔标志
-    /// ToolCallArgConstants.BooleanFlags 应包含 --args-stdin 子命令布尔标志
+    /// CliArgCliOptionConstants.BooleanFlags 应包含 --trust/--json/--debuglog 等全局布尔标志
+    /// ToolCallArgCliOptionConstants.BooleanFlags 应包含 --args-stdin 子命令布尔标志
     /// </summary>
     [Fact]
     public void CliArgConstants_BooleanFlags_ShouldContainKnownBooleanFlags()
     {
-        CliArgConstants.BooleanFlags.Contains("--trust").Should().BeTrue();
-        CliArgConstants.BooleanFlags.Contains("--json").Should().BeTrue();
-        CliArgConstants.BooleanFlags.Contains("--debuglog").Should().BeTrue();
-        CliArgConstants.BooleanFlags.Contains("-d").Should().BeTrue();
-        ToolCallArgConstants.BooleanFlags.Contains("--args-stdin").Should().BeTrue();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--trust").Should().BeTrue();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--json").Should().BeTrue();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--debuglog").Should().BeTrue();
+        CliArgCliOptionConstants.BooleanFlags.Contains("-d").Should().BeTrue();
+        ToolCallArgCliOptionConstants.BooleanFlags.Contains("--args-stdin").Should().BeTrue();
     }
 
     /// <summary>
-    /// CliArgConstants.BooleanFlags 不应包含带值选项
+    /// CliArgCliOptionConstants.BooleanFlags 不应包含带值选项
     /// </summary>
     [Fact]
     public void CliArgConstants_BooleanFlags_ShouldNotContainValueOptions()
     {
-        CliArgConstants.BooleanFlags.Contains("--model").Should().BeFalse();
-        CliArgConstants.BooleanFlags.Contains("--vendor").Should().BeFalse();
-        CliArgConstants.BooleanFlags.Contains("--args-file").Should().BeFalse();
-        CliArgConstants.BooleanFlags.Contains("--port").Should().BeFalse();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--model").Should().BeFalse();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--vendor").Should().BeFalse();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--args-file").Should().BeFalse();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--port").Should().BeFalse();
     }
 
     /// <summary>
@@ -187,8 +187,8 @@ public sealed class FlatSubCommandRouterTests
     [Fact]
     public void CliArgConstants_BooleanFlags_ShouldBeCaseInsensitive()
     {
-        CliArgConstants.BooleanFlags.Contains("--TRUST").Should().BeTrue();
-        CliArgConstants.BooleanFlags.Contains("--Json").Should().BeTrue();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--TRUST").Should().BeTrue();
+        CliArgCliOptionConstants.BooleanFlags.Contains("--Json").Should().BeTrue();
     }
 
     /// <summary>
@@ -274,11 +274,11 @@ public sealed class FlatSubCommandRouterTests
     [Fact]
     public void CliArgConstants_AllOptionNames_ShouldContainAllKnownOptions()
     {
-        CliArgConstants.AllOptionNames.Contains("--trust").Should().BeTrue();
-        CliArgConstants.AllOptionNames.Contains("--json").Should().BeTrue();
-        CliArgConstants.AllOptionNames.Contains("--model").Should().BeTrue();
-        CliArgConstants.AllOptionNames.Contains("--vendor").Should().BeTrue();
-        CliArgConstants.AllOptionNames.Contains("-m").Should().BeTrue();
-        CliArgConstants.AllOptionNames.Contains("-d").Should().BeTrue();
+        CliArgCliOptionConstants.AllOptionNames.Contains("--trust").Should().BeTrue();
+        CliArgCliOptionConstants.AllOptionNames.Contains("--json").Should().BeTrue();
+        CliArgCliOptionConstants.AllOptionNames.Contains("--model").Should().BeTrue();
+        CliArgCliOptionConstants.AllOptionNames.Contains("--vendor").Should().BeTrue();
+        CliArgCliOptionConstants.AllOptionNames.Contains("-m").Should().BeTrue();
+        CliArgCliOptionConstants.AllOptionNames.Contains("-d").Should().BeTrue();
     }
 }

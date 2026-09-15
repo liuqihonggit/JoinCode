@@ -6,13 +6,13 @@ namespace Core.Utils;
 public enum MessagePriority
 {
     /// <summary>高优先级 — 用户交互,立即处理</summary>
-    High,
+    [EnumValue("high")] High,
 
     /// <summary>普通优先级 — LLM 请求等</summary>
-    Normal,
+    [EnumValue("normal")] Normal,
 
     /// <summary>低优先级 — 后台编译、索引重建等</summary>
-    Low
+    [EnumValue("low")] Low
 }
 
 /// <summary>

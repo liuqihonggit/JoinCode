@@ -88,7 +88,7 @@ public sealed partial class HttpProxyService : ServiceEntity, IHttpProxyService
     }
 
     private void RecordProxyMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("proxy.operation.count", new() { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Proxy operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "proxy.operation.count", operation, isSuccess, "Proxy operation count");
 
     private static ProxyOptions? LoadFromEnvironment()
     {

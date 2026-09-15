@@ -48,7 +48,7 @@ public sealed class ConfigCommandTests
     [InlineData("ls")]
     public async Task Execute_WithListVariants_Should_Return_Continue(string subCommand)
     {
-        // CrudActionConstants.List/Ls → ListConfigAsync
+        // CrudActionEnumConstants.List/Ls → ListConfigAsync
         var configService = CreateMockConfigService();
         var cmd = new ConfigCommand();
         var context = CreateContext(subCommand, configService);
@@ -65,7 +65,7 @@ public sealed class ConfigCommandTests
     [InlineData("remove")]
     public async Task Execute_WithDeleteVariants_Should_Return_Continue(string subCommand)
     {
-        // CrudActionConstants.Delete/Rm/Remove → RemoveConfigAsync
+        // CrudActionEnumConstants.Delete/Rm/Remove → RemoveConfigAsync
         var configService = CreateMockConfigService();
         var cmd = new ConfigCommand();
         var context = CreateContext($"{subCommand} somekey", configService);

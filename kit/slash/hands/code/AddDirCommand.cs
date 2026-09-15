@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /add-dir 命令 — 添加额外的工作目录到当前会话工作区
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.AddDir, Description = "添加额外的工作目录", Usage = "/add-dir <path> [--remember]", Category = ChatCommandCategory.Code, ArgumentHint = "<path> [--remember]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.AddDir, Description = "添加额外的工作目录", Usage = "/add-dir <path> [--remember]", Category = ChatCommandCategory.Code, ArgumentHint = "<path> [--remember]")]
 [ChatCommandArg("path", Type = "string", Description = "要添加的工作目录路径", Required = true)]
 [ChatCommandArg("remember", Type = "boolean", Description = "是否记住此目录供后续会话使用", Default = "false")]
 public sealed class AddDirCommand : ChatCommandBase

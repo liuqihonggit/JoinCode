@@ -1,4 +1,4 @@
-namespace JoinCode.CliCommands;
+﻿namespace JoinCode.CliCommands;
 
 /// <summary>
 /// 斜杠命令直调执行器 — jcc slash_call &lt;cmd&gt; &lt;argsJson&gt;
@@ -59,8 +59,8 @@ internal static class SlashCallExecutor
     /// </summary>
     private static async Task<string?> ResolveArgsJsonAsync(string[] args, CancellationToken ct)
     {
-        var argsFile = FlatSubCommandRouter.GetOptionValue(args, ToolCallArgConstants.ArgsFileLongName);
-        var argsStdin = FlatSubCommandRouter.HasFlag(args, ToolCallArgConstants.ArgsStdinLongName);
+        var argsFile = FlatSubCommandRouter.GetOptionValue(args, ToolCallArgCliOptionConstants.ArgsFileLongName);
+        var argsStdin = FlatSubCommandRouter.HasFlag(args, ToolCallArgCliOptionConstants.ArgsStdinLongName);
 
         if (argsStdin)
         {
@@ -128,7 +128,7 @@ internal static class SlashListExecutor
 {
     public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
     {
-        var category = FlatSubCommandRouter.GetOptionValue(args, JccCliArgConstants.Category);
+        var category = FlatSubCommandRouter.GetOptionValue(args, JccCliArgEnumConstants.Category);
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
         var catalog = new GeneratedSlashCommandCatalog();
@@ -162,7 +162,7 @@ internal static class SlashListExecutor
             {
                 var visible = g.Value.Where(c => !c.IsHidden).OrderBy(c => c.Name).ToList();
                 if (visible.Count == 0) continue;
-                TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleConstants.Reset} ({visible.Count} 个):");
+                TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleEnumConstants.Reset} ({visible.Count} 个):");
                 foreach (var cmd in visible)
                     TerminalHelper.WriteLine($"  {cmd.Name,-30} {cmd.Description}");
                 TerminalHelper.NewLine();

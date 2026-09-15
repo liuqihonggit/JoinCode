@@ -48,17 +48,17 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
             tools.Add(value.ToValue());
 
         // FileRead — 文件读写编辑工具
-        tools.Add(FileToolNameConstants.FileRead);
-        tools.Add(FileToolNameConstants.FileWrite);
-        tools.Add(FileToolNameConstants.FileEdit);
+        tools.Add(FileToolNameEnumConstants.FileRead);
+        tools.Add(FileToolNameEnumConstants.FileWrite);
+        tools.Add(FileToolNameEnumConstants.FileEdit);
 
         // SearchRead — 搜索工具
-        tools.Add(SearchToolNameConstants.Grep);
-        tools.Add(SearchToolNameConstants.Glob);
+        tools.Add(SearchToolNameEnumConstants.Grep);
+        tools.Add(SearchToolNameEnumConstants.Glob);
 
         // WebRead — 网页工具
-        tools.Add(WebToolNameConstants.WebSearch);
-        tools.Add(WebToolNameConstants.WebFetch);
+        tools.Add(WebToolNameEnumConstants.WebSearch);
+        tools.Add(WebToolNameEnumConstants.WebFetch);
 
         return tools;
     }

@@ -6,7 +6,7 @@ namespace JoinCode.Transport;
 public enum TransportMode
 {
     /// <summary>标准输入输出（子进程模式）</summary>
-    Stdio,
+    [EnumValue("stdio")] Stdio,
     /// <summary>SSE 服务端推送（远程模式）</summary>
-    Sse,
+    [EnumValue("sse")] Sse,
 }

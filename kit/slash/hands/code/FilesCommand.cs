@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /files 命令 — 列出当前上下文中已操作的文件
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Files, Description = "列出当前上下文中的文件", Usage = "/files", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Files, Description = "列出当前上下文中的文件", Usage = "/files", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
 public sealed class FilesCommand : ChatCommandBase
 {
     /// <summary>

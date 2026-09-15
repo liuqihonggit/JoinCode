@@ -99,6 +99,53 @@ public sealed partial class BridgeMain
     }
 
     /// <summary>
+    /// 后台刷新 v2 会话 — 对齐 TS 端 reconnectSession 双 ID 尝试
+    /// </summary>
+    private void ReconnectV2SessionFireAndForget(string sessionId)
+    {
+        if (EnvironmentId is null || _deps.ReconnectSession is null) return;
+        _ = Task.Run(async () =>
+        {
+            var infraId = SessionIdCompat.ToInfraSessionId(sessionId);
+            var candidates = infraId == sessionId
+                ? [sessionId]
+                : new[] { sessionId, infraId };
+            foreach (var candidateId in candidates)
+            {
+                try
+                {
+                    await _deps.ReconnectSession(EnvironmentId, candidateId, CancellationToken.None).ConfigureAwait(false);
+                    _logger?.LogDebug("BridgeMain: reconnectSession succeeded for {CandidateId}", candidateId);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug(ex, "BridgeMain: reconnectSession({CandidateId}) failed, trying next", candidateId);
+                }
+            }
+        }, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// 后台更新 v1 会话 OAuth token — best-effort, 失败仅记日志
+    /// </summary>
+    private void UpdateV1SessionTokenFireAndForget(string sessionId, string oauthToken)
+    {
+        if (!_tracker.ActiveSessions.TryGetValue(sessionId, out var handle)) return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await handle.UpdateAccessTokenAsync(oauthToken, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "BridgeMain: updateAccessToken failed for {SessionId} (non-fatal)", sessionId);
+            }
+        }, CancellationToken.None);
+    }
+
+    /// <summary>
     /// ACK 工作项 — 对齐 TS 端 ackWork 闭包
     /// 使用 session_ingress_token 作为 Bearer 认证
     /// </summary>

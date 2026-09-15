@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /trust 命令 — 管理工作区信任目录
 /// 支持添加、移除、列出、清除信任目录,信任的工作区可执行受限操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Trust, Description = "管理工作区信任目录", Usage = "/trust [add|remove|list|clear]", Category = ChatCommandCategory.Auth, ArgumentHint = "[add|remove|list|clear]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Trust, Description = "管理工作区信任目录", Usage = "/trust [add|remove|list|clear]", Category = ChatCommandCategory.Auth, ArgumentHint = "[add|remove|list|clear]")]
 [ChatCommandArg("action", Type = "string", Description = "信任目录操作", Enum = new[] { "add", "remove", "list", "clear" }, Default = "list")]
 public sealed class TrustCommand : ChatCommandBase
 {
@@ -30,7 +30,7 @@ public sealed class TrustCommand : ChatCommandBase
         else if (args.Equals("add", StringComparison.OrdinalIgnoreCase))
         {
             manager.Trust(workspacePath);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已信任当前工作区: {workspacePath}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已信任当前工作区: {workspacePath}{AnsiStyleEnumConstants.Reset}");
         }
         else if (args.Equals("remove", StringComparison.OrdinalIgnoreCase))
         {
@@ -66,7 +66,7 @@ public sealed class TrustCommand : ChatCommandBase
         var isTrusted = manager.IsTrusted(workspacePath);
         if (isTrusted)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Success}当前工作区已信任: {workspacePath}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}当前工作区已信任: {workspacePath}{AnsiStyleEnumConstants.Reset}");
         }
         else
         {

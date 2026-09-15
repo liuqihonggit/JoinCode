@@ -1,11 +1,11 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /stats 命令 — 对齐 TS stats.tsx OverviewTab
 /// TS 是全屏交互式 TUI（React），C# 是终端文本输出
 /// 对齐内容：活动热力图、Streaks、PeakActivity、FunFactoid、FavoriteModel、日期范围
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Stats, Description = "查看会话统计", Usage = "/stats [--today|--total|--7d|--30d|--all|--session]", Category = ChatCommandCategory.Info, Aliases = ["stat"], ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Stats, Description = "查看会话统计", Usage = "/stats [--today|--total|--7d|--30d|--all|--session]", Category = ChatCommandCategory.Info, Aliases = ["stat"], ExposeToMcp = true)]
 [ChatCommandArg("scope", Type = "string", Description = "统计范围: today=今日, total=累计, session=当前会话, 7d=近7天, 30d=近30天, all=全部", Enum = new[] { "today", "total", "7d", "30d", "all", "session" }, Default = "today")]
 public sealed class StatsCommand : ChatCommandBase
 {
@@ -38,7 +38,7 @@ public sealed class StatsCommand : ChatCommandBase
                 ActiveDays = 1,
             };
             TerminalHelper.WriteLine(new StatsRenderer().Render(fallbackData));
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}  (使用量追踪服务不可用，显示默认数据){AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}  (使用量追踪服务不可用，显示默认数据){AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -51,7 +51,7 @@ public sealed class StatsCommand : ChatCommandBase
 
         if (stats is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}  暂无统计数据{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}  暂无统计数据{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -61,7 +61,7 @@ public sealed class StatsCommand : ChatCommandBase
 
         if (stats is not null && (stats.TotalCacheCreationTokens > 0 || stats.TotalCacheReadTokens > 0))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}  缓存创建: {stats.TotalCacheCreationTokens:N0}, 缓存读取: {stats.TotalCacheReadTokens:N0}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}  缓存创建: {stats.TotalCacheCreationTokens:N0}, 缓存读取: {stats.TotalCacheReadTokens:N0}{AnsiStyleEnumConstants.Reset}");
         }
 
         return ChatCommandResult.Continue();
@@ -155,7 +155,7 @@ public sealed class StatsCommand : ChatCommandBase
 
         // 概览 Tab
         var overviewContent = new StringBuilder();
-        overviewContent.AppendLine($"{AnsiStyleConstants.Bold}Stats — {rangeLabel}{AnsiStyleConstants.Reset}");
+        overviewContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Stats — {rangeLabel}{AnsiStyleEnumConstants.Reset}");
         overviewContent.AppendLine();
 
         if (data.DailyActivities.Count > 0)
@@ -169,20 +169,20 @@ public sealed class StatsCommand : ChatCommandBase
         {
             overviewContent.Append(TerminalColors.Muted);
             overviewContent.Append("  Favorite model: ");
-            overviewContent.Append(AnsiStyleConstants.Reset);
+            overviewContent.Append(AnsiStyleEnumConstants.Reset);
             overviewContent.AppendLine(data.FavoriteModel);
         }
 
         overviewContent.Append(TerminalColors.Muted);
         overviewContent.Append("  Sessions: ");
-        overviewContent.Append(AnsiStyleConstants.Reset);
+        overviewContent.Append(AnsiStyleEnumConstants.Reset);
         overviewContent.AppendLine(NumberFormatter.FormatCompact(data.TotalSessions));
 
         if (data.TotalDurationHours > 0)
         {
             overviewContent.Append(TerminalColors.Muted);
             overviewContent.Append("  Total duration: ");
-            overviewContent.Append(AnsiStyleConstants.Reset);
+            overviewContent.Append(AnsiStyleEnumConstants.Reset);
             overviewContent.AppendLine($"{data.TotalDurationHours:F1}h");
         }
 
@@ -195,35 +195,35 @@ public sealed class StatsCommand : ChatCommandBase
 
         overviewContent.Append(TerminalColors.Muted);
         overviewContent.Append("  Active days: ");
-        overviewContent.Append(AnsiStyleConstants.Reset);
+        overviewContent.Append(AnsiStyleEnumConstants.Reset);
         overviewContent.Append(data.DaysActive.ToString());
-        overviewContent.AppendLine($"{TerminalColors.Muted}/{rangeDays}{AnsiStyleConstants.Reset}");
+        overviewContent.AppendLine($"{TerminalColors.Muted}/{rangeDays}{AnsiStyleEnumConstants.Reset}");
 
         overviewContent.Append(TerminalColors.Muted);
         overviewContent.Append("  Longest streak: ");
-        overviewContent.Append(AnsiStyleConstants.Reset);
-        overviewContent.Append($"{AnsiStyleConstants.Bold}{data.LongestStreak}{AnsiStyleConstants.Reset}");
+        overviewContent.Append(AnsiStyleEnumConstants.Reset);
+        overviewContent.Append($"{AnsiStyleEnumConstants.Bold}{data.LongestStreak}{AnsiStyleEnumConstants.Reset}");
         overviewContent.AppendLine(data.LongestStreak == 1 ? " day" : " days");
 
         if (data.PeakActivityDay.HasValue)
         {
             overviewContent.Append(TerminalColors.Muted);
             overviewContent.Append("  Most active day: ");
-            overviewContent.Append(AnsiStyleConstants.Reset);
+            overviewContent.Append(AnsiStyleEnumConstants.Reset);
             overviewContent.AppendLine(data.PeakActivityDay.Value.ToString("MMM dd"));
         }
 
         overviewContent.Append(TerminalColors.Muted);
         overviewContent.Append("  Current streak: ");
-        overviewContent.Append(AnsiStyleConstants.Reset);
-        overviewContent.Append($"{AnsiStyleConstants.Bold}{data.CurrentStreak}{AnsiStyleConstants.Reset}");
+        overviewContent.Append(AnsiStyleEnumConstants.Reset);
+        overviewContent.Append($"{AnsiStyleEnumConstants.Bold}{data.CurrentStreak}{AnsiStyleEnumConstants.Reset}");
         overviewContent.AppendLine(data.CurrentStreak == 1 ? " day" : " days");
 
         if (data.PeakActivityHour > 0)
         {
             overviewContent.Append(TerminalColors.Muted);
             overviewContent.Append("  Peak activity hour: ");
-            overviewContent.Append(AnsiStyleConstants.Reset);
+            overviewContent.Append(AnsiStyleEnumConstants.Reset);
             overviewContent.AppendLine($"{data.PeakActivityHour}:00");
         }
 
@@ -231,63 +231,63 @@ public sealed class StatsCommand : ChatCommandBase
         if (!string.IsNullOrEmpty(factoid))
         {
             overviewContent.AppendLine();
-            overviewContent.AppendLine($"{TerminalColors.Accent}  {factoid}{AnsiStyleConstants.Reset}");
+            overviewContent.AppendLine($"{TerminalColors.Accent}  {factoid}{AnsiStyleEnumConstants.Reset}");
         }
 
         // Token 用量 Tab
         var tokenContent = new StringBuilder();
-        tokenContent.AppendLine($"{AnsiStyleConstants.Bold}Token Usage{AnsiStyleConstants.Reset}");
+        tokenContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Token Usage{AnsiStyleEnumConstants.Reset}");
         tokenContent.AppendLine();
         var totalTokens = data.TotalInputTokens + data.TotalOutputTokens;
         tokenContent.Append(TerminalColors.Muted);
         tokenContent.Append("  Total: ");
-        tokenContent.Append(AnsiStyleConstants.Reset);
+        tokenContent.Append(AnsiStyleEnumConstants.Reset);
         tokenContent.AppendLine(NumberFormatter.FormatCompact(totalTokens));
         tokenContent.Append(TerminalColors.Muted);
         tokenContent.Append("  Input: ");
-        tokenContent.Append(AnsiStyleConstants.Reset);
+        tokenContent.Append(AnsiStyleEnumConstants.Reset);
         tokenContent.AppendLine(NumberFormatter.FormatCompact(data.TotalInputTokens));
         tokenContent.Append(TerminalColors.Muted);
         tokenContent.Append("  Output: ");
-        tokenContent.Append(AnsiStyleConstants.Reset);
+        tokenContent.Append(AnsiStyleEnumConstants.Reset);
         tokenContent.AppendLine(NumberFormatter.FormatCompact(data.TotalOutputTokens));
         if (data.TotalCostUsd > 0)
         {
             tokenContent.Append(TerminalColors.Muted);
             tokenContent.Append("  Estimated cost: ");
-            tokenContent.Append(AnsiStyleConstants.Reset);
+            tokenContent.Append(AnsiStyleEnumConstants.Reset);
             tokenContent.AppendLine($"${data.TotalCostUsd:F4}");
         }
 
         if (data.GitCommits > 0 || data.GitPushes > 0)
         {
             tokenContent.AppendLine();
-            tokenContent.AppendLine($"{AnsiStyleConstants.Bold}Git{AnsiStyleConstants.Reset}");
+            tokenContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Git{AnsiStyleEnumConstants.Reset}");
             tokenContent.Append(TerminalColors.Muted);
             tokenContent.Append("  Commits: ");
-            tokenContent.Append(AnsiStyleConstants.Reset);
+            tokenContent.Append(AnsiStyleEnumConstants.Reset);
             tokenContent.AppendLine(data.GitCommits.ToString());
             tokenContent.Append(TerminalColors.Muted);
             tokenContent.Append("  Pushes: ");
-            tokenContent.Append(AnsiStyleConstants.Reset);
+            tokenContent.Append(AnsiStyleEnumConstants.Reset);
             tokenContent.AppendLine(data.GitPushes.ToString());
         }
 
         if (data.TotalLinesAdded > 0 || data.TotalLinesRemoved > 0)
         {
             tokenContent.AppendLine();
-            tokenContent.AppendLine($"{AnsiStyleConstants.Bold}Code Changes{AnsiStyleConstants.Reset}");
+            tokenContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Code Changes{AnsiStyleEnumConstants.Reset}");
             tokenContent.Append(TerminalColors.Muted);
             tokenContent.Append("  Lines added: ");
-            tokenContent.Append(AnsiStyleConstants.Reset);
+            tokenContent.Append(AnsiStyleEnumConstants.Reset);
             tokenContent.AppendLine(NumberFormatter.FormatCompact(data.TotalLinesAdded));
             tokenContent.Append(TerminalColors.Muted);
             tokenContent.Append("  Lines removed: ");
-            tokenContent.Append(AnsiStyleConstants.Reset);
+            tokenContent.Append(AnsiStyleEnumConstants.Reset);
             tokenContent.AppendLine(NumberFormatter.FormatCompact(data.TotalLinesRemoved));
             tokenContent.Append(TerminalColors.Muted);
             tokenContent.Append("  Files modified: ");
-            tokenContent.Append(AnsiStyleConstants.Reset);
+            tokenContent.Append(AnsiStyleEnumConstants.Reset);
             tokenContent.AppendLine(data.TotalFilesModified.ToString());
         }
 
@@ -300,7 +300,7 @@ public sealed class StatsCommand : ChatCommandBase
 
         if (topTools.Count > 0)
         {
-            toolsContent.AppendLine($"{AnsiStyleConstants.Bold}Top Tools{AnsiStyleConstants.Reset}");
+            toolsContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Top Tools{AnsiStyleEnumConstants.Reset}");
             toolsContent.AppendLine();
             var maxToolCount = topTools.Max(kvp => kvp.Value);
             foreach (var (tool, count) in topTools)
@@ -309,7 +309,7 @@ public sealed class StatsCommand : ChatCommandBase
                 var bar = new string('█', barLength);
                 toolsContent.Append(TerminalColors.Primary);
                 toolsContent.Append($"  {tool,-16} {bar} ");
-                toolsContent.Append(AnsiStyleConstants.Reset);
+                toolsContent.Append(AnsiStyleEnumConstants.Reset);
                 toolsContent.AppendLine(count.ToString());
             }
         }
@@ -319,7 +319,7 @@ public sealed class StatsCommand : ChatCommandBase
         }
 
         toolsContent.AppendLine();
-        toolsContent.Append($"  {TerminalColors.Muted}使用 /insights deep 获取AI生成的深度洞察{AnsiStyleConstants.Reset}");
+        toolsContent.Append($"  {TerminalColors.Muted}使用 /insights deep 获取AI生成的深度洞察{AnsiStyleEnumConstants.Reset}");
 
         var panel = new TabPanel(
             ["概览", "Token用量", "工具使用"],

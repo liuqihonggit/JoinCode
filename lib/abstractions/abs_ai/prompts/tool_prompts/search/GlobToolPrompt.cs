@@ -13,6 +13,6 @@ public static class GlobToolPrompt
         - 支持glob模式，如 "**/*.js" 或 "src/**/*.ts"
         - 返回匹配的文件路径，按修改时间排序
         - 当您需要按名称模式查找文件时使用此工具
-        - 当进行可能需要多轮glob和grep的开放式搜索时，使用{AgentToolNameConstants.Agent}工具代替
+        - 当进行可能需要多轮glob和grep的开放式搜索时，使用{AgentToolNameEnumConstants.Agent}工具代替
         """;
 }

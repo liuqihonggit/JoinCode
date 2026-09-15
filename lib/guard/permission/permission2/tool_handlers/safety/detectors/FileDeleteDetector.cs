@@ -10,7 +10,7 @@ public sealed partial class FileDeleteDetector : ServiceEntity, IDeleteOperation
     /// <inheritdoc />
     public DeleteOperationInfo? Detect(string toolName, Dictionary<string, JsonElement>? arguments)
     {
-        if (!string.Equals(toolName, FileToolNameConstants.FileDelete, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(toolName, FileToolNameEnumConstants.FileDelete, StringComparison.OrdinalIgnoreCase))
             return null;
 
         var filePath = PermissionCheckContext.ExtractPathFromArguments(arguments ?? new());

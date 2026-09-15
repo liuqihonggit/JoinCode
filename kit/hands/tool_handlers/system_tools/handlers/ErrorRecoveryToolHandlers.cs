@@ -30,7 +30,7 @@ public class ErrorRecoveryToolHandlers
     /// GroupName="diagnostic" 表示当任何工具失败时都可推荐此工具
     /// </summary>
     [McpTool("diagnose_error", "分析工具执行失败的错误信息，提供诊断和修复建议", "error_recovery",
-        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = "diagnostic")]
+        Kind = JoinCode.Abstractions.Attributes.ToolKindEnumConstants.OnError, GroupName = "diagnostic")]
     public async Task<ToolResult> DiagnoseErrorAsync(
         [McpToolParameter("失败的错误信息", Required = true)] string errorMessage,
         [McpToolParameter("失败的工具名称", Required = true)] string failedToolName,
@@ -88,7 +88,7 @@ public class ErrorRecoveryToolHandlers
     /// GroupName="Bash" 表示当 Bash 工具失败时精准推荐此工具
     /// </summary>
     [McpTool("fix_shell_error", "分析 Shell 命令执行失败原因，提供替代命令建议", "error_recovery",
-        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = ShellToolNameConstants.Bash)]
+        Kind = JoinCode.Abstractions.Attributes.ToolKindEnumConstants.OnError, GroupName = ShellToolNameEnumConstants.Bash)]
     public Task<ToolResult> FixShellErrorAsync(
         [McpToolParameter("失败的命令", Required = true)] string failedCommand,
         [McpToolParameter("错误输出", Required = true)] string errorOutput,
@@ -132,7 +132,7 @@ public class ErrorRecoveryToolHandlers
     /// GroupName="Read" 表示当 Read 工具失败时精准推荐此工具
     /// </summary>
     [McpTool("fix_file_error", "分析文件操作失败原因，提供修复路径建议", "error_recovery",
-        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = FileToolNameConstants.FileRead)]
+        Kind = JoinCode.Abstractions.Attributes.ToolKindEnumConstants.OnError, GroupName = FileToolNameEnumConstants.FileRead)]
     public Task<ToolResult> FixFileErrorAsync(
         [McpToolParameter("失败的文件路径", Required = true)] string filePath,
         [McpToolParameter("错误信息", Required = true)] string errorMessage,
@@ -191,7 +191,7 @@ public class ErrorRecoveryToolHandlers
     /// GroupName="worktree_merge" 表示当 worktree_merge 工具失败时精准推荐此工具
     /// </summary>
     [McpTool("fix_merge_conflict", "分析 worktree 合并失败原因，检测遗留冲突标记和分支冲突，提供修复建议", "error_recovery",
-        Kind = JoinCode.Abstractions.Attributes.ToolKindConstants.OnError, GroupName = WorktreeToolNameConstants.WorktreeMerge)]
+        Kind = JoinCode.Abstractions.Attributes.ToolKindEnumConstants.OnError, GroupName = WorktreeToolNameEnumConstants.WorktreeMerge)]
     public async Task<ToolResult> FixMergeConflictAsync(
         [McpToolParameter("源 worktree 路径", Required = true)] string source_worktree_path,
         [McpToolParameter("目标 worktree 路径", Required = true)] string target_worktree_path,

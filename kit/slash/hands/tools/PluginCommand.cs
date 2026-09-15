@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：list+install+uninstall+enable+disable 核心操作
 /// 架构差异：TS 有 discover/marketplace/validate/trust-warning 交互式 UI，C# 为命令行操作
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Plugin, Description = "管理插件", Usage = "/plugin [list|install|uninstall|enable|disable] [name]", Category = ChatCommandCategory.Tools, Aliases = ["plugins", "marketplace"], ArgumentHint = "[list|install|uninstall|enable|disable]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Plugin, Description = "管理插件", Usage = "/plugin [list|install|uninstall|enable|disable] [name]", Category = ChatCommandCategory.Tools, Aliases = ["plugins", "marketplace"], ArgumentHint = "[list|install|uninstall|enable|disable]")]
 [ChatCommandArg("action", Type = "string", Description = "插件操作", Enum = new[] { "list", "install", "uninstall", "enable", "disable" })]
 [ChatCommandArg("name", Type = "string", Description = "插件名称")]
 public sealed class PluginCommand : ChatCommandBase
@@ -139,7 +139,7 @@ public sealed class PluginCommand : ChatCommandBase
 
         if (!context.GetCommandServices().FileSystem.FileExists(exePath))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}插件路径不存在: {exePath}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}插件路径不存在: {exePath}{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -148,7 +148,7 @@ public sealed class PluginCommand : ChatCommandBase
         try
         {
             var host = await pluginManager.LoadExternalPluginAsync(exePath, pluginName, context.CancellationToken).ConfigureAwait(false);
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已安装并加载插件: {pluginName}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已安装并加载插件: {pluginName}{AnsiStyleEnumConstants.Reset}");
 
             var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
             if (configService is not null)
@@ -200,7 +200,7 @@ public sealed class PluginCommand : ChatCommandBase
                 {
                     var updatedJson = RelaxedJsonSerializer.Serialize(disabled, CliJsonContext.Default);
                     await configService.SetAsync("plugins.disabledPlugins", updatedJson, context.CancellationToken).ConfigureAwait(false);
-                    TerminalHelper.WriteLine($"{TerminalColors.Success}已启用插件: {name}（重启后生效）{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Success}已启用插件: {name}（重启后生效）{AnsiStyleEnumConstants.Reset}");
                 }
                 else
                 {
@@ -215,7 +215,7 @@ public sealed class PluginCommand : ChatCommandBase
                     disabled.Add(name);
                     var updatedJson = RelaxedJsonSerializer.Serialize(disabled, CliJsonContext.Default);
                     await configService.SetAsync("plugins.disabledPlugins", updatedJson, context.CancellationToken).ConfigureAwait(false);
-                    TerminalHelper.WriteLine($"{TerminalColors.Success}已禁用插件: {name}（重启后生效）{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Success}已禁用插件: {name}（重启后生效）{AnsiStyleEnumConstants.Reset}");
                 }
                 else
                 {

@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Models.Agent;
+﻿namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// 执行者变体 — 不同专长的执行者 Agent
-/// [EnumValue] 由 EnumMetadataGenerator 自动生成 ExecutorVariantConstants + ExecutorVariantExtensions
+/// [EnumValue] 由 EnumMetadataGenerator 自动生成 ExecutorVariantEnumConstants + ExecutorVariantExtensions
 /// </summary>
 public enum ExecutorVariant
 {

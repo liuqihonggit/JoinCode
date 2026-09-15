@@ -62,7 +62,7 @@ public sealed partial class PermissionCheckMiddleware : ServiceEntity, IToolExec
 
             case PermissionDecision.PendingConfirmation:
                 var ruleContent = outcome.RuleContent;
-                if (string.IsNullOrEmpty(ruleContent) && string.Equals(context.ToolName, WebToolNameConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrEmpty(ruleContent) && string.Equals(context.ToolName, WebToolNameEnumConstants.WebFetch, StringComparison.OrdinalIgnoreCase))
                 {
                     ruleContent = ExtractWebFetchRuleContent(context.Arguments);
                 }

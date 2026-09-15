@@ -573,7 +573,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
     void ITeammateRuntime.RecordTeammateMetrics(string operation, bool isSuccess)
     {
-        _telemetryService?.RecordCount("scheduling.teammate.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "In-process teammate execution count");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "scheduling.teammate.count", operation, isSuccess, "In-process teammate execution count");
     }
 
     void ITeammateRuntime.OnTeammateCompleted(TeammateCompletedEventArgs args)

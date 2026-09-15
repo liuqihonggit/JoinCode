@@ -1,18 +1,26 @@
-namespace JoinCode.Abstractions.Attributes;
+﻿namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 提示词模板分类
 /// </summary>
 public enum PromptTemplateCategory
 {
+    [EnumValue("memory")]
     Memory,
+    [EnumValue("agent")]
     Agent,
+    [EnumValue("system")]
     System,
+    [EnumValue("dream")]
     Dream,
+    [EnumValue("mcp")]
     Mcp,
+    [EnumValue("skill")]
     Skill,
+    [EnumValue("plan")]
     Plan,
-    Goal
+    [EnumValue("goal")]
+    Goal,
 }
 
 /// <summary>

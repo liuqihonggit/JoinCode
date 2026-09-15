@@ -6,17 +6,17 @@ namespace Core.Context.Compact.Guard;
 public enum CompactGuardFailureReason
 {
     /// <summary>无失败</summary>
-    None,
+    [EnumValue("none")] None,
     /// <summary>检测到乱码</summary>
-    GibberishDetected,
+    [EnumValue("gibberish_detected")] GibberishDetected,
     /// <summary>检测到重复内容</summary>
-    RepetitionDetected,
+    [EnumValue("repetition_detected")] RepetitionDetected,
     /// <summary>摘要塌缩（过短或仅剩模板）</summary>
-    SummaryCollapsed,
+    [EnumValue("summary_collapsed")] SummaryCollapsed,
     /// <summary>格式错误（如未闭合标签）</summary>
-    FormatInvalid,
+    [EnumValue("format_invalid")] FormatInvalid,
     /// <summary>干预关键词污染</summary>
-    InterventionContamination
+    [EnumValue("intervention_contamination")] InterventionContamination
 }
 
 /// <summary>
@@ -25,15 +25,15 @@ public enum CompactGuardFailureReason
 public enum CompactFallbackLevel
 {
     /// <summary>无需兜底</summary>
-    None = 0,
+    [EnumValue("none")] None = 0,
     /// <summary>清洗摘要（去重/去污染）</summary>
-    Sanitize = 1,
+    [EnumValue("sanitize")] Sanitize = 1,
     /// <summary>降级为微压缩</summary>
-    Microcompact = 2,
+    [EnumValue("microcompact")] Microcompact = 2,
     /// <summary>截断处理</summary>
-    Truncate = 3,
+    [EnumValue("truncate")] Truncate = 3,
     /// <summary>中止压缩</summary>
-    Abort = 4
+    [EnumValue("abort")] Abort = 4
 }
 
 /// <summary>

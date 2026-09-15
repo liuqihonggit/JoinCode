@@ -11,17 +11,17 @@ namespace JoinCode.Abstractions.Entity;
 public enum PluginFiberState
 {
     /// <summary>已声明,依赖未就绪</summary>
-    Pending,
+    [EnumValue("pending")] Pending,
     /// <summary>激活中,Activate 运行中</summary>
-    Activating,
+    [EnumValue("activating")] Activating,
     /// <summary>运行中</summary>
-    Active,
+    [EnumValue("active")] Active,
     /// <summary>激活/运行/卸载失败</summary>
-    Failed,
+    [EnumValue("failed")] Failed,
     /// <summary>卸载中,撤销链执行中</summary>
-    Unloading,
+    [EnumValue("unloading")] Unloading,
     /// <summary>已卸载,资源全部释放</summary>
-    Unloaded,
+    [EnumValue("unloaded")] Unloaded,
 }
 
 /// <summary>

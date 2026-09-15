@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// REPL 操作类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ReplActionConstants + ReplActionExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ReplActionEnumConstants + ReplActionExtensions
 /// </summary>
 public enum ReplAction
 {

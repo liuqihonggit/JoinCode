@@ -39,11 +39,11 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 连接到 MCP 服务器
     /// </summary>
-    [McpTool(McpToolNameConstants.McpConnect, "Connect to MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpConnect, "Connect to MCP server", "mcp")]
     public async Task<ToolResult> McpConnectAsync(
         [McpToolParameter("Connection name for subsequent reference")] string connection_name,
         [McpToolParameter("Server endpoint (command or URL)")] string endpoint,
-        [McpToolParameter("Transport type: stdio, sse, http", Required = false, DefaultValue = McpTransportTypeConstants.Stdio)] string transport_type = McpTransportTypeConstants.Stdio,
+        [McpToolParameter("Transport type: stdio, sse, http", Required = false, DefaultValue = McpTransportTypeEnumConstants.Stdio)] string transport_type = McpTransportTypeEnumConstants.Stdio,
         [McpToolParameter("Whether to use OAuth authentication", Required = false, DefaultValue = "false")] bool use_oauth = false,
         [McpToolParameter("Authentication config name (from mcp_auth_*)", Required = false)] string? auth_name = null,
         CancellationToken cancellationToken = default)
@@ -219,7 +219,7 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 断开 MCP 服务器连接
     /// </summary>
-    [McpTool(McpToolNameConstants.McpDisconnect, "Disconnect from MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpDisconnect, "Disconnect from MCP server", "mcp")]
     public async Task<ToolResult> McpDisconnectAsync(
         [McpToolParameter("Connection name")] string connection_name,
         CancellationToken cancellationToken = default)
@@ -330,7 +330,7 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 列出 MCP 服务器上的工具
     /// </summary>
-    [McpTool(McpToolNameConstants.McpListTools, "List tools on MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpListTools, "List tools on MCP server", "mcp")]
     public async Task<ToolResult> McpListToolsAsync(
         [McpToolParameter("Connection name")] string connection_name,
         CancellationToken cancellationToken = default)
@@ -377,7 +377,7 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 调用 MCP 服务器上的工具
     /// </summary>
-    [McpTool(McpToolNameConstants.McpCallTool, "Call a tool on MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpCallTool, "Call a tool on MCP server", "mcp")]
     public async Task<ToolResult> McpCallToolAsync(
         [McpToolParameter("Connection name")] string connection_name,
         [McpToolParameter("Tool name")] string tool_name,
@@ -448,7 +448,7 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 列出 MCP 服务器上的资源
     /// </summary>
-    [McpTool(McpToolNameConstants.McpListResources, "List resources on MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpListResources, "List resources on MCP server", "mcp")]
     public async Task<ToolResult> McpListResourcesAsync(
         [McpToolParameter("Connection name")] string connection_name,
         CancellationToken cancellationToken = default)
@@ -500,7 +500,7 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 读取 MCP 服务器上的资源
     /// </summary>
-    [McpTool(McpToolNameConstants.McpReadResource, "Read a resource from MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpReadResource, "Read a resource from MCP server", "mcp")]
     public async Task<ToolResult> McpReadResourceAsync(
         [McpToolParameter("Connection name")] string connection_name,
         [McpToolParameter("Resource URI")] string resource_uri,
@@ -575,7 +575,7 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 列出 MCP 服务器上的提示模板
     /// </summary>
-    [McpTool(McpToolNameConstants.McpListPrompts, "List prompt templates on MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpListPrompts, "List prompt templates on MCP server", "mcp")]
     public async Task<ToolResult> McpListPromptsAsync(
         [McpToolParameter("Connection name")] string connection_name,
         CancellationToken cancellationToken = default)
@@ -635,9 +635,9 @@ public partial class McpClientToolHandlers : ServiceEntity
     {
         return transportType.ToLowerInvariant() switch
         {
-            McpTransportTypeConstants.Stdio => McpClientTransportType.Stdio,
-            McpTransportTypeConstants.Http => McpClientTransportType.Http,
-            McpTransportTypeConstants.WebSocket => McpClientTransportType.WebSocket,
+            McpTransportTypeEnumConstants.Stdio => McpClientTransportType.Stdio,
+            McpTransportTypeEnumConstants.Http => McpClientTransportType.Http,
+            McpTransportTypeEnumConstants.WebSocket => McpClientTransportType.WebSocket,
             _ => throw new ArgumentException(L.T(StringKey.UnsupportedTransportType, transportType))
         };
     }

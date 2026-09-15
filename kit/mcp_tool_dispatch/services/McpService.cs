@@ -59,6 +59,6 @@ public sealed partial class McpService : ServiceEntity, IMcpService
         _isInitialized = true;
         _logger?.LogInformation(L.T(StringKey.McpServiceInitializedLog));
 
-        _telemetryService?.RecordCount("mcp.service.count", new Dictionary<string, string> { ["operation"] = "initialize", ["success"] = true.ToString() }, "count", "Mcp service count");
+        ToolTelemetryHelper.RecordToolCount(_telemetryService, "mcp.service.count", "initialize", true, "Mcp service count");
     }
 }

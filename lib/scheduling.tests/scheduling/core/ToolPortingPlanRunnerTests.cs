@@ -329,7 +329,7 @@ public class ToolPortingPlanRunnerTests
         var runner = new ToolPortingPlanRunner(executionEngine, NullLogger<ToolPortingPlanRunner>.Instance);
         var markdown = runner.ExportPlanToMarkdown();
 
-        markdown.Should().ContainAny(PrioritySymbolConstants.Critical, PrioritySymbolConstants.High, PrioritySymbolConstants.Medium, PrioritySymbolConstants.Low);
+        markdown.Should().ContainAny(PrioritySymbolEnumConstants.Critical, PrioritySymbolEnumConstants.High, PrioritySymbolEnumConstants.Medium, PrioritySymbolEnumConstants.Low);
     }
 
     #endregion

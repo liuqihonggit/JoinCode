@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// CrudAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / CrudActionConstants 常量值 / 大小写不敏感
+/// 覆盖:ToValue / FromValue / IsDefined / CrudActionEnumConstants 常量值 / 大小写不敏感
 /// 9 个枚举值 (List/Ls/Create/New/Read/Update/Delete/Rm/Remove) + 别名映射测试
 /// </summary>
 public sealed class CrudActionExtensionsTests
@@ -126,19 +126,19 @@ public sealed class CrudActionExtensionsTests
         CrudActionExtensions.IsDefined(value).Should().Be(expected);
     }
 
-    // ===== CrudActionConstants 测试 =====
+    // ===== CrudActionEnumConstants 测试 =====
 
     [Fact]
     public void Constants_Should_Match_EnumValues()
     {
-        CrudActionConstants.List.Should().Be("list");
-        CrudActionConstants.Ls.Should().Be("ls");
-        CrudActionConstants.Create.Should().Be("create");
-        CrudActionConstants.New.Should().Be("new");
-        CrudActionConstants.Read.Should().Be("read");
-        CrudActionConstants.Update.Should().Be("update");
-        CrudActionConstants.Delete.Should().Be("delete");
-        CrudActionConstants.Rm.Should().Be("rm");
+        CrudActionEnumConstants.List.Should().Be("list");
+        CrudActionEnumConstants.Ls.Should().Be("ls");
+        CrudActionEnumConstants.Create.Should().Be("create");
+        CrudActionEnumConstants.New.Should().Be("new");
+        CrudActionEnumConstants.Read.Should().Be("read");
+        CrudActionEnumConstants.Update.Should().Be("update");
+        CrudActionEnumConstants.Delete.Should().Be("delete");
+        CrudActionEnumConstants.Rm.Should().Be("rm");
     }
 
     // ===== 往返一致性测试 =====

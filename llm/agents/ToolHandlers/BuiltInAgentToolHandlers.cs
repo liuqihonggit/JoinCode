@@ -61,7 +61,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     /// <param name="constraints">约束条件 JSON 数组（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.PlanAgent, "Use Plan Agent to create task execution plan", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.PlanAgent, "Use Plan Agent to create task execution plan", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> PlanAgentAsync(
         [McpToolParameter("Task goal or requirement description")] string goal,
         [McpToolParameter("Context information, optional", Required = false)] string? context = null,
@@ -113,7 +113,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     /// <param name="depth">探索深度 overview/standard/detailed，默认 standard</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.ExploreAgent, "Use Explore Agent to analyze codebase structure", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.ExploreAgent, "Use Explore Agent to analyze codebase structure", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> ExploreAgentAsync(
         [McpToolParameter("Target path or directory to explore")] string target_path,
         [McpToolParameter("Focus area, optional", Required = false)] string? focus_area = null,
@@ -165,7 +165,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     /// <param name="aspect">验证方面 security/performance/maintainability/correctness/style（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.VerificationAgent, "Use Verification Agent to check code correctness", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.VerificationAgent, "Use Verification Agent to check code correctness", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> VerificationAgentAsync(
         [McpToolParameter("Code content")] string code,
         [McpToolParameter("Programming language, optional", Required = false)] string? language = null,
@@ -216,7 +216,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     /// <param name="input">输入内容（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.GeneralAgent, "Use General Agent to handle various tasks", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.GeneralAgent, "Use General Agent to handle various tasks", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> GeneralAgentAsync(
         [McpToolParameter("Task description")] string task,
         [McpToolParameter("Input content, optional", Required = false)] string? input = null,
@@ -266,7 +266,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     /// <param name="feature">功能名称（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(AgentToolNameConstants.GuideAgent, "Use " + BrandConstants.ProductName + " Guide Agent to get usage help", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.GuideAgent, "Use " + BrandConstants.ProductName + " Guide Agent to get usage help", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> GuideAgentAsync(
         [McpToolParameter("Question or help needed")] string question,
         [McpToolParameter("Feature name, optional", Required = false)] string? feature = null,
@@ -323,7 +323,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含所有内置 Agent 列表的工具结果</returns>
-    [McpTool(AgentToolNameConstants.ListAgents, "List all available built-in agents", AgentToolNameConstants.Agent)]
+    [McpTool(AgentToolNameEnumConstants.ListAgents, "List all available built-in agents", AgentToolNameEnumConstants.Agent)]
     public Task<ToolResult> ListAgentsAsync(CancellationToken cancellationToken = default)
     {
         var profiles = _roleRegistry.GetAllProfiles();

@@ -58,7 +58,7 @@ public sealed class ChromeCommandTests
     [InlineData("status")]
     public async Task Execute_WithPlatformActionSubcommand_Should_Return_Continue(string subCommand)
     {
-        // PlatformActionConstants.Connect/Disconnect/Install/Toggle/Status 枚举路由取值范围测试
+        // PlatformActionEnumConstants.Connect/Disconnect/Install/Toggle/Status 枚举路由取值范围测试
         var services = CreateServices(chromeService: CreateMockChromeService().Object);
         var cmd = new ChromeCommand();
         var context = CreateContext(subCommand, services);
@@ -89,7 +89,7 @@ public sealed class ChromeCommandTests
     [Fact]
     public async Task Execute_WithNullOrEmptyArgs_Should_Default_To_Status()
     {
-        // null/"" → PlatformActionConstants.Status 分支
+        // null/"" → PlatformActionEnumConstants.Status 分支
         var services = CreateServices(chromeService: CreateMockChromeService().Object);
         var cmd = new ChromeCommand();
 
@@ -146,14 +146,14 @@ public sealed class ChromeCommandTests
     }
 
     [Fact]
-    public void PlatformActionConstants_ChromeActions_Values_Should_Match_Route()
+    public void PlatformActionEnumConstants_ChromeActions_Values_Should_Match_Route()
     {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
-        PlatformActionConstants.Connect.Should().Be("connect");
-        PlatformActionConstants.Disconnect.Should().Be("disconnect");
-        PlatformActionConstants.Status.Should().Be("status");
-        PlatformActionConstants.Install.Should().Be("install");
-        PlatformActionConstants.Toggle.Should().Be("toggle");
+        PlatformActionEnumConstants.Connect.Should().Be("connect");
+        PlatformActionEnumConstants.Disconnect.Should().Be("disconnect");
+        PlatformActionEnumConstants.Status.Should().Be("status");
+        PlatformActionEnumConstants.Install.Should().Be("install");
+        PlatformActionEnumConstants.Toggle.Should().Be("toggle");
     }
 
     private static ChatCommandContext CreateContext(string? arguments, CommandServices services)

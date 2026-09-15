@@ -2,22 +2,40 @@ namespace JoinCode.Abstractions.CodeIndex;
 
 public enum SymbolKind
 {
+    [EnumValue("class")]
     Class,
+    [EnumValue("struct")]
     Struct,
+    [EnumValue("interface")]
     Interface,
+    [EnumValue("enum")]
     Enum,
+    [EnumValue("method")]
     Method,
+    [EnumValue("property")]
     Property,
+    [EnumValue("field")]
     Field,
+    [EnumValue("event")]
     Event,
+    [EnumValue("delegate")]
     Delegate,
+    [EnumValue("namespace")]
     Namespace,
+    [EnumValue("constant")]
     Constant,
+    [EnumValue("constructor")]
     Constructor,
+    [EnumValue("record")]
     Record,
+    [EnumValue("record_struct")]
     RecordStruct,
+    [EnumValue("operator")]
     Operator,
+    [EnumValue("indexer")]
     Indexer,
+    [EnumValue("destructor")]
     Destructor,
+    [EnumValue("local_function")]
     LocalFunction
 }

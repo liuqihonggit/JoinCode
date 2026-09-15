@@ -27,25 +27,25 @@ public interface IAutoRebaseService
 public enum RebaseSyncState : byte
 {
     /// <summary>初始空闲状态</summary>
-    Idle,
+    [EnumValue("idle")] Idle,
     /// <summary>正在 fetch 远程</summary>
-    Fetching,
+    [EnumValue("fetching")] Fetching,
     /// <summary>正在检查主干有无新提交</summary>
-    CheckingUpstream,
+    [EnumValue("checking_upstream")] CheckingUpstream,
     /// <summary>正在暂存未提交修改</summary>
-    StashingDirty,
+    [EnumValue("stashing_dirty")] StashingDirty,
     /// <summary>正在 rebase</summary>
-    Rebasing,
+    [EnumValue("rebasing")] Rebasing,
     /// <summary>检测到 rebase 冲突</summary>
-    ConflictDetected,
+    [EnumValue("conflict_detected")] ConflictDetected,
     /// <summary>正在 abort rebase</summary>
-    Aborting,
+    [EnumValue("aborting")] Aborting,
     /// <summary>rebase 完成（成功或冲突已 abort + 通知）</summary>
-    Completed,
+    [EnumValue("completed")] Completed,
     /// <summary>跳过（主干无新提交）</summary>
-    Skipped,
+    [EnumValue("skipped")] Skipped,
     /// <summary>失败（fetch/stash/abort 等错误）</summary>
-    Failed,
+    [EnumValue("failed")] Failed,
 }
 
 /// <summary>

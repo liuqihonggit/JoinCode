@@ -175,7 +175,7 @@ public sealed class BridgePermissionCallbackService : IBridgePermissionCallbacks
     {
         return value.ValueKind == JsonValueKind.Object
             && value.TryGetProperty("behavior", out var behavior)
-            && (behavior.ValueEquals(PermissionBehaviorConstants.Allow) || behavior.ValueEquals(PermissionBehaviorConstants.Deny));
+            && (behavior.ValueEquals(PermissionBehaviorEnumConstants.Allow) || behavior.ValueEquals(PermissionBehaviorEnumConstants.Deny));
     }
 
     private static string EscapeJson(string value)

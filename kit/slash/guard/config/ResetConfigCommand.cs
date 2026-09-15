@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /reset-config 命令 — 重置配置文件到默认状态
 /// 支持按范围重置:all(全部)、auth(认证)、settings(设置)、trust(信任)、onboarding(引导)
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.ResetConfig, Description = "重置配置文件到默认状态", Usage = "/reset-config [all|auth|settings|trust|onboarding]", Category = ChatCommandCategory.Config, ArgumentHint = "[all|auth|settings|trust|onboarding]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.ResetConfig, Description = "重置配置文件到默认状态", Usage = "/reset-config [all|auth|settings|trust|onboarding]", Category = ChatCommandCategory.Config, ArgumentHint = "[all|auth|settings|trust|onboarding]")]
 [ChatCommandArg("scope", Type = "string", Description = "重置范围", Enum = new[] { "all", "auth", "settings", "trust", "onboarding" }, Default = "all")]
 public sealed class ResetConfigCommand : ChatCommandBase
 {
@@ -63,7 +63,7 @@ public sealed class ResetConfigCommand : ChatCommandBase
         await ResetOnboardingAsync(jccDir, fs, ct);
 
         TerminalHelper.NewLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Success}✓ 所有配置已重置{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Success}✓ 所有配置已重置{AnsiStyleEnumConstants.Reset}");
     }
 
     private static async Task ResetAuthAsync(string jccDir, IFileSystem fs, CancellationToken ct)

@@ -3,7 +3,7 @@ namespace Tools.Handlers;
 public partial class FileToolHandlers
 {
     /// <summary>从本地文件系统读取文件，支持文本/图像/PDF/Notebook 等格式</summary>
-    [McpTool(FileToolNameConstants.FileRead, "Read a file from the local filesystem", "file", ConcurrencySafe = true)]
+    [McpTool(FileToolNameEnumConstants.FileRead, "Read a file from the local filesystem", "file", ConcurrencySafe = true)]
     public async Task<ToolResult> FileReadAsync(
         [McpToolParameter("The absolute path to the file to read")] string file_path,
         [McpToolParameter("The line number to start reading from (1-based). Only use for large files.", Required = false)] int? offset = null,
@@ -69,7 +69,7 @@ public partial class FileToolHandlers
                 "BinaryExtensionRejected",
                 $"This tool cannot read binary files. The file appears to be a binary {ext} file.",
                 [new DiagnosticDetail("filePath", file_path), new DiagnosticDetail("extension", ext)],
-                [$"使用适当的工具分析二进制文件（如 {FileToolNameConstants.FileRead} 读取图片、{FileToolNameConstants.FileRead} 读取 PDF）。"]);
+                [$"使用适当的工具分析二进制文件（如 {FileToolNameEnumConstants.FileRead} 读取图片、{FileToolNameEnumConstants.FileRead} 读取 PDF）。"]);
             return ToolResultBuilder.Error().WithText(binExtDiagnostic.FormattedMessage).WithDiagnostic(binExtDiagnostic).Build();
         }
 
@@ -171,7 +171,7 @@ public partial class FileToolHandlers
                     new DiagnosticDetail("estimatedTokens", estimatedTokens.ToString()),
                     new DiagnosticDetail("maxTokens", maxTokens.ToString()),
                 ],
-                ["使用 offset 和 limit 参数读取文件的部分内容。", $"使用 {SearchToolNameConstants.Grep} 工具搜索特定内容而非读取整个文件。"]);
+                ["使用 offset 和 limit 参数读取文件的部分内容。", $"使用 {SearchToolNameEnumConstants.Grep} 工具搜索特定内容而非读取整个文件。"]);
             return ToolResultBuilder.Error().WithText(tokenDiagnostic.FormattedMessage).WithDiagnostic(tokenDiagnostic).Build();
         }
 

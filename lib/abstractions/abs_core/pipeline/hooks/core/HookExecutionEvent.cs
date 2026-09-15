@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Hooks;
+﻿namespace JoinCode.Abstractions.Hooks;
 
 /// <summary>
 /// 钩子执行事件类型
@@ -83,11 +83,14 @@ public sealed record HookResponseEvent : HookExecutionEvent
 public enum HookExecutionOutcome
 {
     /// <summary>成功</summary>
+    [EnumValue("success")]
     Success,
 
     /// <summary>错误</summary>
+    [EnumValue("error")]
     Error,
 
     /// <summary>已取消</summary>
-    Cancelled
+    [EnumValue("cancelled")]
+    Cancelled,
 }

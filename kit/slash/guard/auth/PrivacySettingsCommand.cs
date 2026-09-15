@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /privacy-settings 命令 — 管理隐私设置
 /// 支持查看和修改遥测、分析、崩溃报告三项隐私开关
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.PrivacySettings, Description = "管理隐私设置", Usage = "/privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]", Category = ChatCommandCategory.Auth, ArgumentHint = "[show|telemetry|analytics|crash-reports]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.PrivacySettings, Description = "管理隐私设置", Usage = "/privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]", Category = ChatCommandCategory.Auth, ArgumentHint = "[show|telemetry|analytics|crash-reports]")]
 [ChatCommandArg("action", Type = "string", Description = "隐私设置操作", Enum = new[] { "show", "telemetry", "analytics", "crash-reports" }, Default = "show")]
 [ChatCommandArg("value", Type = "string", Description = "设置值 on/off,仅在 action=telemetry/analytics/crash-reports 时使用", Enum = new[] { "on", "off" })]
 public sealed class PrivacySettingsCommand : ChatCommandBase

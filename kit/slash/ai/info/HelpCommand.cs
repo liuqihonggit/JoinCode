@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /help 命令 - 显示所有可用命令帮助
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"], ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Help, Description = "显示可用命令帮助", Usage = "/help", Category = ChatCommandCategory.Info, Aliases = ["?"], ExposeToMcp = true)]
 public sealed class HelpCommand : ChatCommandBase
 {
     /// <summary>
@@ -31,7 +31,7 @@ public sealed class HelpCommand : ChatCommandBase
         {
             var cat = categories[tabIndex];
             var sb = new StringBuilder();
-            sb.AppendLine($"{AnsiStyleConstants.Bold}{cat.Category.ToValue()}{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"{AnsiStyleEnumConstants.Bold}{cat.Category.ToValue()}{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
             foreach (var cmd in cat.Commands)
             {

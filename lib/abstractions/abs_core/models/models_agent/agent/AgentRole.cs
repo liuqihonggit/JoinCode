@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Models.Agent;
+﻿namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// Agent 角色 — 协调者、执行者、推理三权分立角色
-/// [EnumValue] 由 EnumMetadataGenerator 自动生成 AgentRoleConstants + AgentRoleExtensions
+/// [EnumValue] 由 EnumMetadataGenerator 自动生成 AgentRoleEnumConstants + AgentRoleExtensions
 /// </summary>
 public enum AgentRole
 {

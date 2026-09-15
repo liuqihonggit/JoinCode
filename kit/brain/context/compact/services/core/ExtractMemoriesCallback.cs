@@ -67,7 +67,7 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
                 {
                     ParentSessionId = context.SessionId,
                     TaskDescription = "extract_memories",
-                    AllowedTools = [FileToolNameConstants.FileRead, SearchToolNameConstants.Grep, SearchToolNameConstants.Glob, FileToolNameConstants.FileEdit],
+                    AllowedTools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.Glob, FileToolNameEnumConstants.FileEdit],
                     UseExactTools = true,
                     RunInBackground = true,
                     ShareCache = false,

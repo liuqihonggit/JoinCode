@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// DiffMode 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / DiffModeConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / DiffModeEnumConstants 常量值
 /// </summary>
 public sealed class DiffModeExtensionsTests
 {
@@ -74,14 +74,14 @@ public sealed class DiffModeExtensionsTests
         DiffModeExtensions.IsDefined(value).Should().Be(expected);
     }
 
-    // ===== DiffModeConstants 测试 =====
+    // ===== DiffModeEnumConstants 测试 =====
 
     [Fact]
     public void Constants_Should_Match_EnumValues()
     {
-        DiffModeConstants.Files.Should().Be("files");
-        DiffModeConstants.Cached.Should().Be("cached");
-        DiffModeConstants.Staged.Should().Be("staged");
+        DiffModeEnumConstants.Files.Should().Be("files");
+        DiffModeEnumConstants.Cached.Should().Be("cached");
+        DiffModeEnumConstants.Staged.Should().Be("staged");
     }
 
     // ===== 往返一致性测试 =====

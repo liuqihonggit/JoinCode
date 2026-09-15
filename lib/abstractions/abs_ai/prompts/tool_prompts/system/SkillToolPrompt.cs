@@ -7,7 +7,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = SkillToolName.Skill, Category = ToolPromptCategory.System)]
 public static class SkillToolPrompt
 {
-    public const string ToolName = SkillToolNameConstants.Skill;
+    public const string ToolName = SkillToolNameEnumConstants.Skill;
 
     /// <summary>
     /// 获取 Skill 工具提示词
@@ -31,7 +31,7 @@ public static class SkillToolPrompt
 
             重要：
             - 可用技能列在对话中的 system-reminder 消息中
-            - 当技能匹配用户请求时，这是一个阻塞要求：在生成关于任务的任何其他响应之前，先调用相关 {SkillToolNameConstants.Skill} 工具
+            - 当技能匹配用户请求时，这是一个阻塞要求：在生成关于任务的任何其他响应之前，先调用相关 {SkillToolNameEnumConstants.Skill} 工具
             - 永远不要提及技能而不实际调用此工具
             - 不要调用已在运行的技能
             - 不要将此工具用于内置 JoinCode 命令（如 /help、/clear 等）

@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：on+off+format 状态栏控制
 /// 架构差异：TS 有 React 实时渲染，C# 为配置驱动
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Statusline, Description = "切换状态栏显示", Usage = "/statusline [on|off|format]", Category = ChatCommandCategory.System, ArgumentHint = "[on|off|format]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Statusline, Description = "切换状态栏显示", Usage = "/statusline [on|off|format]", Category = ChatCommandCategory.System, ArgumentHint = "[on|off|format]")]
 [ChatCommandArg("action", Type = "string", Description = "状态栏操作", Enum = new[] { "on", "enable", "off", "disable", "format" })]
 [ChatCommandArg("template", Type = "string", Description = "format 操作时的模板（变量: {model} {tokens} {cost} {mode} {time}）")]
 public sealed class StatuslineCommand : ChatCommandBase

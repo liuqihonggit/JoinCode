@@ -29,7 +29,7 @@ public class BriefToolHandlers
     /// <param name="enabled">true 启用，false 禁用</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.BriefMode, "Enable or disable brief mode (compact output)", "mode")]
+    [McpTool(SystemToolNameEnumConstants.BriefMode, "Enable or disable brief mode (compact output)", "mode")]
     public Task<ToolResult> BriefModeAsync(
         [McpToolParameter("true to enable, false to disable")] bool enabled,
         CancellationToken cancellationToken = default)
@@ -63,7 +63,7 @@ public class BriefToolHandlers
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.BriefStatus, "Get current brief mode status", "mode")]
+    [McpTool(SystemToolNameEnumConstants.BriefStatus, "Get current brief mode status", "mode")]
     public Task<ToolResult> BriefStatusAsync(
         CancellationToken cancellationToken = default)
     {
@@ -85,7 +85,7 @@ public class BriefToolHandlers
     /// <param name="status">消息状态：'proactive' 表示主动更新，'normal' 表示回复</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SystemToolNameConstants.SendUserMessage, "Send a message to the user, supports markdown and file attachments", "messaging")]
+    [McpTool(SystemToolNameEnumConstants.SendUserMessage, "Send a message to the user, supports markdown and file attachments", "messaging")]
     public Task<ToolResult> SendUserMessageAsync(
         [McpToolParameter("The message for the user. Supports markdown formatting.")] string message,
         [McpToolParameter("Optional file paths to attach (photos, screenshots, diffs, logs)", Required = false)] string[]? attachments = null,

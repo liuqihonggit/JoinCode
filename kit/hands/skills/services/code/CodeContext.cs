@@ -1,4 +1,4 @@
-namespace Core.Skills;
+﻿namespace Core.Skills;
 
 /// <summary>
 /// 代码操作类型
@@ -8,17 +8,20 @@ public enum CodeOperation
     /// <summary>
     /// 生成代码
     /// </summary>
+    [EnumValue("generate")]
     Generate,
 
     /// <summary>
     /// 分析代码
     /// </summary>
+    [EnumValue("analyze")]
     Analyze,
 
     /// <summary>
     /// 执行代码
     /// </summary>
-    Execute
+    [EnumValue("execute")]
+    Execute,
 }
 
 /// <summary>

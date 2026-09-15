@@ -171,7 +171,7 @@ public sealed class StreamingToolExecutorTests
         var psTcs = new TaskCompletionSource<ToolCallResult>();
 
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync(ShellToolNameConstants.Powershell, It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync(ShellToolNameEnumConstants.Powershell, It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(() => psTcs.Task);
         toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) =>
@@ -182,7 +182,7 @@ public sealed class StreamingToolExecutorTests
 
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = ShellToolNameConstants.Powershell, Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = ShellToolNameEnumConstants.Powershell, Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
         await Task.Delay(100);
@@ -191,7 +191,7 @@ public sealed class StreamingToolExecutorTests
 
         var results = await executor.GetRemainingResultsAsync();
         results.Should().HaveCount(2);
-        results.Should().Contain(r => r.ToolName == ShellToolNameConstants.Powershell && r.Result.IsError);
+        results.Should().Contain(r => r.ToolName == ShellToolNameEnumConstants.Powershell && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError, "PowerShell error should cascade cancel sibling tools like Bash does");
 
         await executor.DisposeAsync();
@@ -206,7 +206,7 @@ public sealed class StreamingToolExecutorTests
         var psTcs = new TaskCompletionSource<ToolCallResult>();
 
         var toolHandler = new Mock<IToolExecutionHandler>();
-        toolHandler.Setup(h => h.ExecuteToolCallAsync(ShellToolNameConstants.PowershellScript, It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
+        toolHandler.Setup(h => h.ExecuteToolCallAsync(ShellToolNameEnumConstants.PowershellScript, It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(() => psTcs.Task);
         toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) =>
@@ -217,7 +217,7 @@ public sealed class StreamingToolExecutorTests
 
         var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
-        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = ShellToolNameConstants.PowershellScript, Arguments = "{}" }, 0);
+        await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = ShellToolNameEnumConstants.PowershellScript, Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
 
         await Task.Delay(100);
@@ -226,7 +226,7 @@ public sealed class StreamingToolExecutorTests
 
         var results = await executor.GetRemainingResultsAsync();
         results.Should().HaveCount(2);
-        results.Should().Contain(r => r.ToolName == ShellToolNameConstants.PowershellScript && r.Result.IsError);
+        results.Should().Contain(r => r.ToolName == ShellToolNameEnumConstants.PowershellScript && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError, "PowerShellScript error should cascade cancel sibling tools like Bash does");
 
         await executor.DisposeAsync();

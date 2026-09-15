@@ -1,4 +1,4 @@
-namespace JoinCode.Gui.Theming;
+﻿namespace JoinCode.Gui.Theming;
 
 /// <summary>
 /// 主程序 UI 语义配色单一数据源。
@@ -12,9 +12,11 @@ public static class GuiPalette
     public enum GuiThemeVariant
     {
         /// <summary>暗色主题（默认）</summary>
+        [EnumValue("dark")]
         Dark,
         /// <summary>亮色主题</summary>
-        Light
+        [EnumValue("light")]
+        Light,
     }
 
     /// <summary>一组语义颜色（单个主题的静态数据）。</summary>

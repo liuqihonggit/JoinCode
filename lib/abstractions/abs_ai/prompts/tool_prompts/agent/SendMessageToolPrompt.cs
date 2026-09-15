@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = AgentToolName.AgentSendMessage, Category = ToolPromptCategory.Agent, HasParameters = true)]
 public static class SendMessageToolPrompt
 {
-    public const string ToolName = AgentToolNameConstants.AgentSendMessage;
+    public const string ToolName = AgentToolNameEnumConstants.AgentSendMessage;
     public const string Description = "向另一个代理发送消息";
 
     /// <summary>

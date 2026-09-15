@@ -27,18 +27,23 @@ public sealed record BootstrapModificationRequest
 public enum BootstrapFixType
 {
     /// <summary>源码修改</summary>
+    [EnumValue("source_code_patch")]
     SourceCodePatch,
 
     /// <summary>配置修改</summary>
+    [EnumValue("config_change")]
     ConfigChange,
 
     /// <summary>提示词调整</summary>
+    [EnumValue("prompt_adjustment")]
     PromptAdjustment,
 
     /// <summary>规则阈值调整</summary>
+    [EnumValue("rule_adjustment")]
     RuleAdjustment,
 
     /// <summary>复合修复</summary>
+    [EnumValue("composite_fix")]
     CompositeFix
 }
 

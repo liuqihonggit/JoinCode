@@ -1,18 +1,18 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /voice 命令 — 切换语音输入模式
 /// 通过 IVoiceService 启动/停止语音录制并识别为文本
 /// 支持 on/off/status/start/stop/record 多种操作别名
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Voice, Description = "切换语音输入模式", Usage = "/voice [on|off|status]", Category = ChatCommandCategory.Social)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Voice, Description = "切换语音输入模式", Usage = "/voice [on|off|status]", Category = ChatCommandCategory.Social)]
 [ChatCommandArg("action", Type = "string", Description = "语音操作", Enum = new[] { "on", "off", "status", "start", "stop", "record" })]
 public sealed class VoiceCommand : ToggleCommandBase
 {
     /// <summary>
     /// 获取命令名称
     /// </summary>
-    public override string Name => ChatCommandNameConstants.Voice;
+    public override string Name => ChatCommandNameEnumConstants.Voice;
     /// <summary>
     /// 获取命令描述
     /// </summary>

@@ -1,4 +1,4 @@
-namespace JoinCode.Cli.Interaction;
+﻿namespace JoinCode.Cli.Interaction;
 
 /// <summary>
 /// 终端交互服务 — 真正的控制台多选交互实现，替代 Core 层的 Mock InteractiveService
@@ -33,7 +33,7 @@ public sealed class TerminalInteractiveService : IInteractiveService
         if (options is null || options.Count == 0)
         {
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{question}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{question}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteRaw("> ");
             var freeInput = TerminalHelper.ReadLine();
             return Task.FromResult(string.IsNullOrWhiteSpace(freeInput)
@@ -80,16 +80,16 @@ public sealed class TerminalInteractiveService : IInteractiveService
                 return Task.FromResult(AskUserQuestionResult.FailureResult($"Question '{q.Question}' has duplicate option labels"));
 
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{q.Header}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{q.Header}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine(q.Question);
             TerminalHelper.WriteLine();
 
             for (int i = 0; i < q.Options.Count; i++)
             {
                 var opt = q.Options[i];
-                TerminalHelper.WriteLine($"  {AnsiStyleConstants.Bold}{i + 1}.{AnsiStyleConstants.Reset} {opt.Label}");
+                TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {opt.Label}");
                 if (!string.IsNullOrWhiteSpace(opt.Description))
-                    TerminalHelper.WriteLine($"     {AnsiStyleConstants.Dim}{opt.Description}{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"     {AnsiStyleEnumConstants.Dim}{opt.Description}{AnsiStyleEnumConstants.Reset}");
             }
 
             TerminalHelper.WriteLine();
@@ -122,12 +122,12 @@ public sealed class TerminalInteractiveService : IInteractiveService
     private static List<string>? DisplayQuestion(string question, List<string> options, bool multiSelect, CancellationToken ct)
     {
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{question}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{question}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine();
 
         for (int i = 0; i < options.Count; i++)
         {
-            TerminalHelper.WriteLine($"  {AnsiStyleConstants.Bold}{i + 1}.{AnsiStyleConstants.Reset} {options[i]}");
+            TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {options[i]}");
         }
 
         TerminalHelper.WriteLine();

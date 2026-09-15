@@ -1,4 +1,4 @@
-namespace JoinCode.Transport;
+﻿namespace JoinCode.Transport;
 
 /// <summary>
 /// 传输健康检查接口 — 检测传输是否可用
@@ -73,14 +73,19 @@ public sealed class TransportHealthResult
 public enum TransportUnavailabilityCategory
 {
     /// <summary>网络不可达</summary>
+    [EnumValue("networkUnreachable")]
     NetworkUnreachable,
     /// <summary>沙箱拦截</summary>
+    [EnumValue("sandboxBlocked")]
     SandboxBlocked,
     /// <summary>配置缺失</summary>
+    [EnumValue("configMissing")]
     ConfigMissing,
     /// <summary>端口冲突</summary>
+    [EnumValue("portConflict")]
     PortConflict,
     /// <summary>依赖缺失</summary>
+    [EnumValue("dependencyMissing")]
     DependencyMissing,
 }
 

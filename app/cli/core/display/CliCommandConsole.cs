@@ -1,4 +1,4 @@
-namespace JoinCode.Cli;
+﻿namespace JoinCode.Cli;
 
 /// <summary>
 /// CLI 命令控制台实现 — 包装 TerminalHelper，通过 CommandTerminal.SetConsole 注入。
@@ -19,9 +19,9 @@ internal sealed class CliCommandConsole : JoinCode.Abstractions.Interfaces.IComm
     public System.IO.TextWriter Error => TerminalHelper.Error;
 
     public void WriteLine(string message) => TerminalHelper.WriteLine(message);
-    public void WriteError(string message) => TerminalHelper.WriteError($"{TerminalColors.Error}{message}{AnsiStyleConstants.Reset}");
-    public void WriteSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleConstants.Reset}");
-    public void WriteWarning(string message) => TerminalHelper.WriteError($"{TerminalColors.Warning}{message}{AnsiStyleConstants.Reset}");
+    public void WriteError(string message) => TerminalHelper.WriteError($"{TerminalColors.Error}{message}{AnsiStyleEnumConstants.Reset}");
+    public void WriteSuccess(string message) => TerminalHelper.WriteLine($"{TerminalColors.Success}{message}{AnsiStyleEnumConstants.Reset}");
+    public void WriteWarning(string message) => TerminalHelper.WriteError($"{TerminalColors.Warning}{message}{AnsiStyleEnumConstants.Reset}");
     public void WriteRaw(string message) => TerminalHelper.WriteRaw(message);
     public void WriteErrorRaw(string message) => TerminalHelper.WriteErrorRaw(message);
     public string? ReadLine() => TerminalHelper.ReadLine();

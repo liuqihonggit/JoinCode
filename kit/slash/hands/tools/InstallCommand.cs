@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /install 命令 — 对齐 TS install.tsx
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：将安装任务描述发送给 ChatService
 /// 架构差异：TS 有 React 交互式确认，C# 为直接发送
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Install, Description = "让 AI 执行安装任务", Usage = "/install <package-or-command>", Category = ChatCommandCategory.Tools, ArgumentHint = "<package-or-command>")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Install, Description = "让 AI 执行安装任务", Usage = "/install <package-or-command>", Category = ChatCommandCategory.Tools, ArgumentHint = "<package-or-command>")]
 [ChatCommandArg("package", Type = "string", Description = "要安装的包名或命令", Required = true)]
 public sealed class InstallCommand : ChatCommandBase
 {
@@ -35,8 +35,8 @@ public sealed class InstallCommand : ChatCommandBase
         // 有参数时：StepFlow 确认 + 执行
         var installFlow = new StepFlow(
         [
-            new Step("确认安装", $"即将安装: {TerminalColors.Accent}{target}{AnsiStyleConstants.Reset}\n\nAI 将自动检测操作系统并使用合适的包管理器。\n按 Enter 确认开始安装。"),
-            new Step("安装中", $"{TerminalColors.Muted}正在请求 AI 安装: {target}{AnsiStyleConstants.Reset}\n\n请等待 AI 完成安装和验证..."),
+            new Step("确认安装", $"即将安装: {TerminalColors.Accent}{target}{AnsiStyleEnumConstants.Reset}\n\nAI 将自动检测操作系统并使用合适的包管理器。\n按 Enter 确认开始安装。"),
+            new Step("安装中", $"{TerminalColors.Muted}正在请求 AI 安装: {target}{AnsiStyleEnumConstants.Reset}\n\n请等待 AI 完成安装和验证..."),
         ]);
 
         var stepResult = await installFlow.ShowAsync(context.CancellationToken).ConfigureAwait(false);

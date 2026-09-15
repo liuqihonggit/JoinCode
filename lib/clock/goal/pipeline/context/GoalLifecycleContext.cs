@@ -1,4 +1,4 @@
-namespace Core.Goal;
+﻿namespace Core.Goal;
 
 
 /// <summary>
@@ -7,17 +7,23 @@ namespace Core.Goal;
 public enum GoalOperation
 {
     /// <summary>启动目标</summary>
+    [EnumValue("start")]
     Start,
     /// <summary>暂停目标</summary>
+    [EnumValue("pause")]
     Pause,
     /// <summary>恢复目标</summary>
+    [EnumValue("resume")]
     Resume,
     /// <summary>清除目标</summary>
+    [EnumValue("clear")]
     Clear,
     /// <summary>标记目标完成</summary>
+    [EnumValue("markCompleted")]
     MarkCompleted,
     /// <summary>标记目标未完成</summary>
-    MarkUnmet
+    [EnumValue("markUnmet")]
+    MarkUnmet,
 }
 
 /// <summary>

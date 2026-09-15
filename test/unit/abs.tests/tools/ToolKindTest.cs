@@ -89,19 +89,19 @@ public sealed class ToolKindTest
     [Fact]
     public void Constants_System_EqualsSystem()
     {
-        ToolKindConstants.System.Should().Be("system");
+        ToolKindEnumConstants.System.Should().Be("system");
     }
 
     [Fact]
     public void Constants_Mcp_EqualsMcp()
     {
-        ToolKindConstants.Mcp.Should().Be("mcp");
+        ToolKindEnumConstants.Mcp.Should().Be("mcp");
     }
 
     [Fact]
     public void Constants_OnError_EqualsOnError()
     {
-        ToolKindConstants.OnError.Should().Be("on_error");
+        ToolKindEnumConstants.OnError.Should().Be("on_error");
     }
 
     // === 往返一致性 ===
@@ -120,8 +120,8 @@ public sealed class ToolKindTest
     [Fact]
     public void RoundTrip_AllConstants_FromValue_ReturnsCorrectEnum()
     {
-        ToolKindExtensions.FromValue(ToolKindConstants.System).Should().Be(ToolKind.System);
-        ToolKindExtensions.FromValue(ToolKindConstants.Mcp).Should().Be(ToolKind.Mcp);
-        ToolKindExtensions.FromValue(ToolKindConstants.OnError).Should().Be(ToolKind.OnError);
+        ToolKindExtensions.FromValue(ToolKindEnumConstants.System).Should().Be(ToolKind.System);
+        ToolKindExtensions.FromValue(ToolKindEnumConstants.Mcp).Should().Be(ToolKind.Mcp);
+        ToolKindExtensions.FromValue(ToolKindEnumConstants.OnError).Should().Be(ToolKind.OnError);
     }
 }

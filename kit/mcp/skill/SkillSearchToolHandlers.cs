@@ -31,7 +31,7 @@ public sealed partial class SkillSearchToolHandlers
     /// <param name="max_results">最大结果数（默认 10）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SkillToolNameConstants.SkillSearch, "Search available skills", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillSearch, "Search available skills", "skill")]
     public async Task<ToolResult> SkillSearchAsync(
         [McpToolParameter("Search keyword", Required = false)] string? keyword = null,
         [McpToolParameter("Tag filter (comma-separated)", Required = false)] string? tags = null,
@@ -89,7 +89,7 @@ public sealed partial class SkillSearchToolHandlers
     /// <param name="max_results">最大结果数（默认 5）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
-    [McpTool(SkillToolNameConstants.SkillRecommend, "Recommend skills based on context", "skill")]
+    [McpTool(SkillToolNameEnumConstants.SkillRecommend, "Recommend skills based on context", "skill")]
     public async Task<ToolResult> SkillRecommendAsync(
         [McpToolParameter("Context description")] string context,
         [McpToolParameter("Maximum number of results", Required = false, DefaultValue = "5")] int max_results = 5,
@@ -140,7 +140,7 @@ public sealed partial class SkillSearchToolHandlers
     /// 基于用户输入/上下文自动发现相关技能
     /// TS 版为内部实验功能(开源stub), C# 版使用本地 SkillSearchService 实现
     /// </summary>
-    [McpTool(SkillToolNameConstants.DiscoverSkills, "Discover relevant skills based on user input or context", "skill")]
+    [McpTool(SkillToolNameEnumConstants.DiscoverSkills, "Discover relevant skills based on user input or context", "skill")]
     public async Task<ToolResult> DiscoverSkillsAsync(
         [McpToolParameter("User input or context to discover skills for")] string context,
         [McpToolParameter("Maximum number of results", Required = false, DefaultValue = "5")] int max_results = 5,

@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /session 命令 — 对齐 TS session/
@@ -7,7 +7,7 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 交互式会话选择器，C# 为命令行操作
 /// 待办：需要 SessionStore 服务实现会话持久化和恢复
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Session, Description = "管理历史会话", Usage = "/session [list|resume|delete] [id]", Category = ChatCommandCategory.Session, Aliases = ["sessions"], ArgumentHint = "[list|resume|delete]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Session, Description = "管理历史会话", Usage = "/session [list|resume|delete] [id]", Category = ChatCommandCategory.Session, Aliases = ["sessions"], ArgumentHint = "[list|resume|delete]")]
 [ChatCommandArg("action", Type = "string", Description = "会话操作", Enum = new[] { "list", "resume", "delete" })]
 [ChatCommandArg("id", Type = "string", Description = "会话 ID（resume/delete 时需要）")]
 public sealed class SessionCommand : ChatCommandBase
@@ -24,16 +24,16 @@ public sealed class SessionCommand : ChatCommandBase
 
         switch (action)
         {
-            case CrudActionConstants.List:
-            case CrudActionConstants.Ls:
+            case CrudActionEnumConstants.List:
+            case CrudActionEnumConstants.Ls:
                 ShowSessionList(context);
                 break;
             case "resume" or "open":
                 var resumeId = args.Length > 1 ? args[1] : null;
                 ResumeSession(context, resumeId);
                 break;
-            case CrudActionConstants.Delete:
-            case CrudActionConstants.Rm:
+            case CrudActionEnumConstants.Delete:
+            case CrudActionEnumConstants.Rm:
                 var deleteId = args.Length > 1 ? args[1] : null;
                 DeleteSession(context, deleteId);
                 break;

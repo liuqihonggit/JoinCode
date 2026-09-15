@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /btw 命令 — 对齐 TS btw.ts
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：侧边提问不影响主对话上下文
 /// 架构差异：TS 有 React 侧边栏渲染，C# 为终端文本输出
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Btw, Description = "快速向 AI 提一个侧边问题", Usage = "/btw <question>", Category = ChatCommandCategory.Social, ArgumentHint = "<question>")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Btw, Description = "快速向 AI 提一个侧边问题", Usage = "/btw <question>", Category = ChatCommandCategory.Social, ArgumentHint = "<question>")]
 [ChatCommandArg("question", Type = "string", Description = "侧边问题内容", Required = true)]
 public sealed class BtwCommand : ChatCommandBase
 {
@@ -38,10 +38,10 @@ Question: {question}
 
         try
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}── 侧边问题 ──{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}── 侧边问题 ──{AnsiStyleEnumConstants.Reset}");
             var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}── 侧边回答结束 ──{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}── 侧边回答结束 ──{AnsiStyleEnumConstants.Reset}");
         }
         catch (Exception ex)
         {

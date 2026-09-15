@@ -173,7 +173,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
 
         // 对齐 TS: replace 模式下支持修改 cell_type
         var resolvedCellType = !string.IsNullOrEmpty(newCellType) ? newCellType : cell.CellType;
-        var isCodeCell = string.Equals(resolvedCellType, NotebookCellTypeConstants.Code, StringComparison.OrdinalIgnoreCase);
+        var isCodeCell = string.Equals(resolvedCellType, NotebookCellTypeEnumConstants.Code, StringComparison.OrdinalIgnoreCase);
 
         // 编辑代码单元格后重置 execution_count 和清空 outputs，防止显示过时的执行结果
         notebook.Cells[index] = cell with
@@ -370,7 +370,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     private void RecordNotebookMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("notebook.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, description: "Notebook operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "notebook.operation.count", operation, isSuccess, "Notebook operation count");
 
     private static List<string> SplitWithNewlines(string content)
     {

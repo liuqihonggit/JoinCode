@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// MCP认证配置类型枚举 — 用于McpAuthToolHandlers持久化标识
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 McpAuthConfigTypeConstants + McpAuthConfigTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 McpAuthConfigTypeEnumConstants + McpAuthConfigTypeExtensions
 /// 注意: 与 McpClient.McpAuthType（客户端选项枚举）不同，本枚举用于Handler层的认证配置持久化
 /// </summary>
 public enum McpAuthConfigType

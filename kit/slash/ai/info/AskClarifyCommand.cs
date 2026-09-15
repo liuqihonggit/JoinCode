@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /?? 命令 (别名 /ask) — 需求澄清模式
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 提示词硬编码在本命令内，不进入 PromptSection 体系
 /// </summary>
 [ChatCommand(
-    Name = ChatCommandNameConstants.AskClarify,
+    Name = ChatCommandNameEnumConstants.AskClarify,
     Description = "需求澄清模式 — AI 多轮提问帮你明确需求",
     Usage = "/?? [需求描述]  或  /ask [需求描述]",
     Category = ChatCommandCategory.Info,
@@ -59,10 +59,10 @@ public sealed class AskClarifyCommand : ChatCommandBase
     private static async Task RunClarifyLoopAsync(IChatService chatService, string initialArgs, CancellationToken ct)
     {
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{TerminalColors.Accent}{AnsiStyleConstants.Bold}╔══ 需求澄清模式 ══╗{AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"{TerminalColors.Accent}║ AI 会多轮提问帮你明确需求  ║{AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"{TerminalColors.Accent}║ 输入 {AnsiStyleConstants.Bold}/end{AnsiStyleConstants.Reset}{TerminalColors.Accent} 退出  需求明确后自动结束 ║{AnsiStyleConstants.Reset}");
-        TerminalHelper.WriteLine($"{TerminalColors.Accent}╚════════════════════╝{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Accent}{AnsiStyleEnumConstants.Bold}╔══ 需求澄清模式 ══╗{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Accent}║ AI 会多轮提问帮你明确需求  ║{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Accent}║ 输入 {AnsiStyleEnumConstants.Bold}/end{AnsiStyleEnumConstants.Reset}{TerminalColors.Accent} 退出  需求明确后自动结束 ║{AnsiStyleEnumConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Accent}╚════════════════════╝{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine();
 
         var isFirstRound = true;
@@ -72,11 +72,11 @@ public sealed class AskClarifyCommand : ChatCommandBase
         {
             if (string.IsNullOrEmpty(currentInput))
             {
-                TerminalHelper.WriteRaw($"{AnsiStyleConstants.Dim}请描述你的需求(或输入 /end 退出): {AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteRaw($"{AnsiStyleEnumConstants.Dim}请描述你的需求(或输入 /end 退出): {AnsiStyleEnumConstants.Reset}");
                 currentInput = TerminalHelper.ReadLine().Trim();
                 if (string.IsNullOrEmpty(currentInput) || IsExitCommand(currentInput))
                 {
-                    TerminalHelper.WriteLine($"{AnsiStyleConstants.Dim}已退出澄清模式。{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}已退出澄清模式。{AnsiStyleEnumConstants.Reset}");
                     return;
                 }
             }
@@ -86,7 +86,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
                 : currentInput;
 
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine($"{AnsiStyleConstants.Dim}━━ AI 分析中 ━━{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}━━ AI 分析中 ━━{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine();
 
             var responseBuilder = new StringBuilder();
@@ -107,12 +107,12 @@ public sealed class AskClarifyCommand : ChatCommandBase
                     onToolStart: (toolName, _, _) =>
                     {
                         TerminalHelper.WriteLine();
-                        TerminalHelper.WriteLine($"{AnsiStyleConstants.Dim}  [工具] {toolName}{AnsiStyleConstants.Reset}");
+                        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}  [工具] {toolName}{AnsiStyleEnumConstants.Reset}");
                     },
                     onToolEnd: (toolName, resultText, _, isToolError, _) =>
                     {
                         if (isToolError)
-                            TerminalHelper.WriteLine($"  {TerminalColors.Error}工具错误: {Truncate(resultText, 200)}{AnsiStyleConstants.Reset}");
+                            TerminalHelper.WriteLine($"  {TerminalColors.Error}工具错误: {Truncate(resultText, 200)}{AnsiStyleEnumConstants.Reset}");
                     },
                     onToolProgress: (_, _, _) => { },
                     onLoopDetected: (_, _, _) => { },
@@ -127,8 +127,8 @@ public sealed class AskClarifyCommand : ChatCommandBase
             {
                 clarifyDone = true;
                 TerminalHelper.WriteLine();
-                TerminalHelper.WriteLine($"{TerminalColors.Accent}{AnsiStyleConstants.Bold}✓ 需求澄清完成{AnsiStyleConstants.Reset}");
-                TerminalHelper.WriteLine($"{AnsiStyleConstants.Dim}以上是明确后的需求总结,可以直接开始开发。{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Accent}{AnsiStyleEnumConstants.Bold}✓ 需求澄清完成{AnsiStyleEnumConstants.Reset}");
+                TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}以上是明确后的需求总结,可以直接开始开发。{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine();
                 return;
             }
@@ -140,7 +140,7 @@ public sealed class AskClarifyCommand : ChatCommandBase
             currentInput = string.Empty;
 
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine($"{AnsiStyleConstants.Dim}AI 还在澄清中,你可以补充信息或直接回车结束: {AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}AI 还在澄清中,你可以补充信息或直接回车结束: {AnsiStyleEnumConstants.Reset}");
         }
     }
 
@@ -174,13 +174,13 @@ internal static class AskClarifyPrompts
     internal static string SystemPrompt = $"""
 【需求澄清模式】
 你是一个专业的编程助手,你需要协助用户提供专业知识,每次回答的时候要附带解释选型的好坏,让用户做选择题而不是问答题.
-如果涉及代码功能设计,按照鱼骨图思路展开,从难点开始分解,每次用 {InteractionToolNameConstants.AskUserQuestion} 工具询问用户选择.
+如果涉及代码功能设计,按照鱼骨图思路展开,从难点开始分解,每次用 {InteractionToolNameEnumConstants.AskUserQuestion} 工具询问用户选择.
 
 请你把用户当成什么都不懂的新手,要求可能很模糊,也可能不准确,甚至会出现一些专业性的错误,你要以产品经理的思维先去理解用户的需求,请你根据自己的判断协助用户完成项目.
 
 【澄清规则】
 1. 你现在处于需求澄清模式,目标是帮助用户明确需求,而不是直接写代码
-2. 每次回应优先使用 {InteractionToolNameConstants.AskUserQuestion} 工具向用户提问,提供2-4个选项让用户选择
+2. 每次回应优先使用 {InteractionToolNameEnumConstants.AskUserQuestion} 工具向用户提问,提供2-4个选项让用户选择
 3. 每个选项必须附带解释选型的好坏,让用户做选择题而非问答题
 4. 涉及代码功能设计时,按鱼骨图思路展开:从主干目标开始,逐层分解到子问题,从难点开始突破
 5. 当你认为需求已经足够明确时,输出"【需求已明确】"标记,然后总结需求清单

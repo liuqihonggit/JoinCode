@@ -130,8 +130,8 @@ public sealed record SkillDefinition
 
 public enum SkillSourceFormat
 {
-    Json,
-    Markdown
+    [EnumValue("json")] Json,
+    [EnumValue("markdown")] Markdown
 }
 
 /// <summary>

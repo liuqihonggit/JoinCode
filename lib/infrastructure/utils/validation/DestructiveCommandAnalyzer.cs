@@ -9,21 +9,25 @@ public enum DangerLevel
     /// <summary>
     /// 低风险 - 一般性警告
     /// </summary>
+    [EnumValue("low")]
     Low,
 
     /// <summary>
     /// 中风险 - 需要确认
     /// </summary>
+    [EnumValue("medium")]
     Medium,
 
     /// <summary>
     /// 高风险 - 强烈警告
     /// </summary>
+    [EnumValue("high")]
     High,
 
     /// <summary>
     /// 严重风险 - 可能破坏数据
     /// </summary>
+    [EnumValue("critical")]
     Critical
 }
 

@@ -62,7 +62,7 @@ public sealed partial class PipeQueryService : IQueryService
             }
 
             // finish_reason = tool_calls 时，输出完整的工具调用信息
-            if (choice.FinishReason == OpenAIFinishReasonConstants.ToolCalls && toolCallName != null)
+            if (choice.FinishReason == OpenAIFinishReasonEnumConstants.ToolCalls && toolCallName != null)
             {
                 yield return new StreamEvent(role, content, chunk.Model,
                     new Dictionary<string, JsonElement>

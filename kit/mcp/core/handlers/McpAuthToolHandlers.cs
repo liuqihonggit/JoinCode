@@ -35,7 +35,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 配置 API 密钥认证
     /// </summary>
-    [McpTool(McpToolNameConstants.McpAuthApiKey, "Configure API key authentication for MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpAuthApiKey, "Configure API key authentication for MCP server", "mcp")]
     public async Task<ToolResult> McpAuthApiKeyAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
         [McpToolParameter("API key")] string api_key,
@@ -71,7 +71,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 配置 Bearer Token 认证
     /// </summary>
-    [McpTool(McpToolNameConstants.McpAuthBearer, "Configure Bearer Token authentication for MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpAuthBearer, "Configure Bearer Token authentication for MCP server", "mcp")]
     public async Task<ToolResult> McpAuthBearerAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
         [McpToolParameter("Bearer Token")] string token,
@@ -106,7 +106,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 配置 Basic 认证
     /// </summary>
-    [McpTool(McpToolNameConstants.McpAuthBasic, "Configure Basic authentication for MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpAuthBasic, "Configure Basic authentication for MCP server", "mcp")]
     public async Task<ToolResult> McpAuthBasicAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
         [McpToolParameter("Username")] string username,
@@ -142,7 +142,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 配置 OAuth2 认证
     /// </summary>
-    [McpTool(McpToolNameConstants.McpAuthOAuth2, "Configure OAuth2 authentication for MCP server", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpAuthOAuth2, "Configure OAuth2 authentication for MCP server", "mcp")]
     public async Task<ToolResult> McpAuthOAuth2Async(
         [McpToolParameter("Authentication config name")] string auth_name,
         [McpToolParameter("Client ID")] string client_id,
@@ -211,7 +211,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 刷新认证令牌
     /// </summary>
-    [McpTool(McpToolNameConstants.McpAuthRefresh, "Refresh MCP authentication token", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpAuthRefresh, "Refresh MCP authentication token", "mcp")]
     public async Task<ToolResult> McpAuthRefreshAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
         CancellationToken cancellationToken = default)
@@ -257,7 +257,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 获取认证状态
     /// </summary>
-    [McpTool(McpToolNameConstants.McpAuthStatus, "Get MCP authentication status", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpAuthStatus, "Get MCP authentication status", "mcp")]
     public Task<ToolResult> McpAuthStatusAsync(
         [McpToolParameter("Authentication config name", Required = false)] string? auth_name = null,
         CancellationToken cancellationToken = default)
@@ -312,7 +312,7 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 删除认证配置
     /// </summary>
-    [McpTool(McpToolNameConstants.McpAuthRemove, "Delete MCP authentication config", "mcp")]
+    [McpTool(McpToolNameEnumConstants.McpAuthRemove, "Delete MCP authentication config", "mcp")]
     public async Task<ToolResult> McpAuthRemoveAsync(
         [McpToolParameter("Authentication config name")] string auth_name,
         CancellationToken cancellationToken = default)

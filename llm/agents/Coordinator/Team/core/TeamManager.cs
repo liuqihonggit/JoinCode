@@ -510,7 +510,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     }
 
     private void RecordTeamMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("team.operation.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Team operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "team.operation.count", operation, isSuccess, "Team operation count");
 
     private async Task PersistTeamMessageToMailboxAsync(string teamId, TeamMessage message, CancellationToken cancellationToken)
     {

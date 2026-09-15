@@ -1,9 +1,9 @@
-
+﻿
 namespace JoinCode.Abstractions.Configuration.Llm;
 
 /// <summary>
 /// 模型模态能力标志 — [Flags] 位标志枚举，通过位运算组合表示多模态能力
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ModelModalityKindConstants + ModelModalityKindExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ModelModalityKindEnumConstants + ModelModalityKindExtensions
 /// 用法: model.Modalities.HasFlag(ModelModalityKind.ReadImage) 或 model.Modalities = ModelModalityKind.Text | ModelModalityKind.ReadImage
 /// </summary>
 [Flags]

@@ -6,17 +6,17 @@ namespace JoinCode.Abstractions.Interfaces;
 public enum UnsafeOperationKind
 {
     /// <summary>安全操作</summary>
-    None,
+    [EnumValue("none")] None,
 
     /// <summary>文件删除</summary>
-    FileDelete,
+    [EnumValue("file_delete")] FileDelete,
 
     /// <summary>关闭窗口（可能丢失未保存数据）</summary>
-    WindowClose,
+    [EnumValue("window_close")] WindowClose,
 
     /// <summary>结束进程</summary>
-    ProcessTerminate,
+    [EnumValue("process_terminate")] ProcessTerminate,
 
     /// <summary>危险坐标点击（如"确定删除"按钮）</summary>
-    DangerousCoordinate,
+    [EnumValue("dangerous_coordinate")] DangerousCoordinate,
 }

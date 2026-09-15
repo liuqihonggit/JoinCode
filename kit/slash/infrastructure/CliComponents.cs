@@ -1,4 +1,4 @@
-namespace JoinCode.Cli;
+﻿namespace JoinCode.Cli;
 
 // ─── Selector ───
 
@@ -45,12 +45,12 @@ public sealed class Selector<T>
         await Task.CompletedTask.ConfigureAwait(false);
 
         TerminalHelper.WriteLineReal();
-        TerminalHelper.WriteLineReal($"{AnsiStyleConstants.Bold}{_title}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLineReal($"{AnsiStyleEnumConstants.Bold}{_title}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLineReal();
 
         for (var i = 0; i < _items.Length; i++)
         {
-            TerminalHelper.WriteLineReal($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleConstants.Reset} {_items[i].DisplayText}");
+            TerminalHelper.WriteLineReal($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {_items[i].DisplayText}");
         }
 
         TerminalHelper.WriteLineReal();
@@ -133,14 +133,14 @@ public sealed class Dialog
         await Task.CompletedTask.ConfigureAwait(false);
 
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{_title}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{_title}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine(_content);
         TerminalHelper.NewLine();
 
         for (var i = 0; i < _buttons.Length; i++)
         {
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleConstants.Reset} {_buttons[i]}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {_buttons[i]}");
         }
 
         TerminalHelper.NewLine();
@@ -308,11 +308,11 @@ public sealed class TabPanel
             if (i > 0)
             {
                 TerminalHelper.WriteLine();
-                TerminalHelper.WriteLine($"{TerminalColors.Divider}{new string('─', 40)}{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Divider}{new string('─', 40)}{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine();
             }
 
-            TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}[{_tabNames[i]}]{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}[{_tabNames[i]}]{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine();
 
             var content = _contentProvider(i);
@@ -360,19 +360,19 @@ public sealed class PaginatedList<T>
         await Task.CompletedTask.ConfigureAwait(false);
 
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{_title}{AnsiStyleConstants.Reset} ({_items.Count} 项)");
+        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{_title}{AnsiStyleEnumConstants.Reset} ({_items.Count} 项)");
         TerminalHelper.NewLine();
 
         var displayCount = Math.Min(_items.Count, _pageSize);
         for (var i = 0; i < displayCount; i++)
         {
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleConstants.Reset} {_displaySelector(_items[i])}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {_displaySelector(_items[i])}");
         }
 
         if (_items.Count > _pageSize)
         {
             TerminalHelper.NewLine();
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}  ... 还有 {_items.Count - _pageSize} 项未显示{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}  ... 还有 {_items.Count - _pageSize} 项未显示{AnsiStyleEnumConstants.Reset}");
         }
     }
 }
@@ -417,7 +417,7 @@ public sealed class StepFlow
         if (_title is not null)
         {
             TerminalHelper.WriteLine();
-            TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{_title}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{_title}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.NewLine();
         }
 
@@ -426,7 +426,7 @@ public sealed class StepFlow
             ct.ThrowIfCancellationRequested();
 
             var step = _steps[i];
-            TerminalHelper.WriteLine($"{TerminalColors.Primary}{AnsiStyleConstants.Bold}步骤 {i + 1}/{_steps.Length}{AnsiStyleConstants.Reset}: {step.Title}");
+            TerminalHelper.WriteLine($"{TerminalColors.Primary}{AnsiStyleEnumConstants.Bold}步骤 {i + 1}/{_steps.Length}{AnsiStyleEnumConstants.Reset}: {step.Title}");
 
             if (!string.IsNullOrEmpty(step.Description))
             {
@@ -502,10 +502,10 @@ public sealed class ProviderPicker
     public static string? Show(string defaultProvider, string title, string hint, IProviderDefinitionRegistry registry)
     {
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}{title}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{title}{AnsiStyleEnumConstants.Reset}");
         if (!string.IsNullOrEmpty(hint))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Muted}{hint}{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Muted}{hint}{AnsiStyleEnumConstants.Reset}");
         }
         TerminalHelper.NewLine();
 
@@ -518,7 +518,7 @@ public sealed class ProviderPicker
         {
             var p = providers[i];
             var marker = p.ProviderName == defaultProvider ? " (默认)" : "";
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleConstants.Reset} {p.DisplayName}{marker}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {p.DisplayName}{marker}");
         }
 
         TerminalHelper.NewLine();
@@ -640,7 +640,7 @@ public sealed class ContextVisualizer
     public string Render(ContextData data)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{AnsiStyleConstants.Bold}Context Window{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Context Window{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine($"  Model: {data.Model}");
         sb.AppendLine($"  Tokens: {data.TotalTokens:N0} / {data.MaxTokens:N0}");
 
@@ -651,7 +651,7 @@ public sealed class ContextVisualizer
             {
                 var percentage = data.MaxTokens > 0 ? (double)cat.TokenCount / data.MaxTokens * 100 : 0;
                 var bar = new string('█', (int)Math.Max(1, percentage / 5));
-                sb.AppendLine($"  {TerminalColors.Primary}{cat.Name,-12}{AnsiStyleConstants.Reset} {bar} {cat.TokenCount:N0} ({percentage:F1}%)");
+                sb.AppendLine($"  {TerminalColors.Primary}{cat.Name,-12}{AnsiStyleEnumConstants.Reset} {bar} {cat.TokenCount:N0} ({percentage:F1}%)");
             }
         }
 
@@ -666,13 +666,13 @@ public sealed class ContextVisualizer
     public static string Render(IReadOnlyList<ContextData> data)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{AnsiStyleConstants.Bold}Context Window{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Context Window{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
 
         foreach (var d in data.OrderByDescending(d => d.TokenCount))
         {
             var bar = new string('█', (int)Math.Max(1, d.Percentage / 5));
-            sb.AppendLine($"  {TerminalColors.Primary}{d.Category,-12}{AnsiStyleConstants.Reset} {bar} {d.TokenCount:N0} ({d.Percentage:F1}%)");
+            sb.AppendLine($"  {TerminalColors.Primary}{d.Category,-12}{AnsiStyleEnumConstants.Reset} {bar} {d.TokenCount:N0} ({d.Percentage:F1}%)");
         }
 
         return sb.ToString();
@@ -710,26 +710,31 @@ public enum FeedbackStep
     /// <summary>
     /// 用户输入阶段
     /// </summary>
+    [EnumValue("userInput")]
     UserInput,
 
     /// <summary>
     /// 评分阶段
     /// </summary>
+    [EnumValue("rating")]
     Rating,
 
     /// <summary>
     /// 评论阶段
     /// </summary>
+    [EnumValue("comment")]
     Comment,
 
     /// <summary>
     /// 确认阶段
     /// </summary>
+    [EnumValue("confirm")]
     Confirm,
 
     /// <summary>
     /// 完成阶段
     /// </summary>
+    [EnumValue("done")]
     Done
 }
 
@@ -750,13 +755,13 @@ public sealed class FeedbackRenderer
         switch (state.Step)
         {
             case FeedbackStep.UserInput:
-                sb.AppendLine($"{AnsiStyleConstants.Bold}反馈{AnsiStyleConstants.Reset}");
+                sb.AppendLine($"{AnsiStyleEnumConstants.Bold}反馈{AnsiStyleEnumConstants.Reset}");
                 sb.AppendLine("请输入您的反馈内容:");
                 break;
             case FeedbackStep.Done:
                 if (state.IsSuccess)
                 {
-                    sb.AppendLine($"{TerminalColors.Success}反馈已提交{AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"{TerminalColors.Success}反馈已提交{AnsiStyleEnumConstants.Reset}");
                     if (!string.IsNullOrEmpty(state.Description))
                     {
                         sb.AppendLine($"  内容: {state.Description}");
@@ -764,7 +769,7 @@ public sealed class FeedbackRenderer
                 }
                 else
                 {
-                    sb.AppendLine($"{TerminalColors.Error}反馈提交失败{AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"{TerminalColors.Error}反馈提交失败{AnsiStyleEnumConstants.Reset}");
                 }
                 break;
             default:
@@ -782,7 +787,7 @@ public sealed class FeedbackRenderer
     public static void ShowRating(int rating)
     {
         var stars = new string('★', rating) + new string('☆', 5 - rating);
-        TerminalHelper.WriteLine($"  评分: {TerminalColors.Warning}{stars}{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"  评分: {TerminalColors.Warning}{stars}{AnsiStyleEnumConstants.Reset}");
     }
 
     /// <summary>
@@ -824,26 +829,31 @@ public enum BridgeConnectionState
     /// <summary>
     /// 空闲状态
     /// </summary>
+    [EnumValue("idle")]
     Idle,
 
     /// <summary>
     /// 未连接
     /// </summary>
+    [EnumValue("disconnected")]
     Disconnected,
 
     /// <summary>
     /// 连接中
     /// </summary>
+    [EnumValue("connecting")]
     Connecting,
 
     /// <summary>
     /// 已连接
     /// </summary>
+    [EnumValue("connected")]
     Connected,
 
     /// <summary>
     /// 错误状态
     /// </summary>
+    [EnumValue("error")]
     Error
 }
 
@@ -866,11 +876,11 @@ public static class BridgeStatusIndicator
     /// <returns>带 ANSI 颜色的状态文本</returns>
     public static string GetStatusText(BridgeConnectionState state) => state switch
     {
-        BridgeConnectionState.Connected => $"{TerminalColors.Success}● 已连接{AnsiStyleConstants.Reset}",
-        BridgeConnectionState.Connecting => $"{TerminalColors.Warning}● 连接中...{AnsiStyleConstants.Reset}",
-        BridgeConnectionState.Disconnected => $"{TerminalColors.Muted}○ 未连接{AnsiStyleConstants.Reset}",
-        BridgeConnectionState.Error => $"{TerminalColors.Error}● 错误{AnsiStyleConstants.Reset}",
-        _ => $"{TerminalColors.Muted}○ 未知{AnsiStyleConstants.Reset}"
+        BridgeConnectionState.Connected => $"{TerminalColors.Success}● 已连接{AnsiStyleEnumConstants.Reset}",
+        BridgeConnectionState.Connecting => $"{TerminalColors.Warning}● 连接中...{AnsiStyleEnumConstants.Reset}",
+        BridgeConnectionState.Disconnected => $"{TerminalColors.Muted}○ 未连接{AnsiStyleEnumConstants.Reset}",
+        BridgeConnectionState.Error => $"{TerminalColors.Error}● 错误{AnsiStyleEnumConstants.Reset}",
+        _ => $"{TerminalColors.Muted}○ 未知{AnsiStyleEnumConstants.Reset}"
     };
 }
 
@@ -884,26 +894,31 @@ public enum DiffViewMode
     /// <summary>
     /// 列表视图
     /// </summary>
+    [EnumValue("list")]
     List,
 
     /// <summary>
     /// 详情视图
     /// </summary>
+    [EnumValue("detail")]
     Detail,
 
     /// <summary>
     /// 统一格式视图
     /// </summary>
+    [EnumValue("unified")]
     Unified,
 
     /// <summary>
     /// 分屏视图
     /// </summary>
+    [EnumValue("split")]
     Split,
 
     /// <summary>
     /// 文件列表视图
     /// </summary>
+    [EnumValue("fileList")]
     FileList
 }
 
@@ -1064,7 +1079,7 @@ public sealed class DiffDialogRenderer
     public string Render(DiffDialogState state)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{AnsiStyleConstants.Bold}Diff{AnsiStyleConstants.Reset} ({state.ViewMode})");
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Diff{AnsiStyleEnumConstants.Reset} ({state.ViewMode})");
 
         if (state.DiffData.Stats is not null)
         {
@@ -1078,7 +1093,7 @@ public sealed class DiffDialogRenderer
             {
                 var file = state.DiffData.Files[i];
                 var marker = i == state.SelectedIndex ? ">" : " ";
-                sb.AppendLine($"  {marker} {TerminalColors.Success}+{file.LinesAdded}{AnsiStyleConstants.Reset} {TerminalColors.Error}-{file.LinesRemoved}{AnsiStyleConstants.Reset} {file.Path}");
+                sb.AppendLine($"  {marker} {TerminalColors.Success}+{file.LinesAdded}{AnsiStyleEnumConstants.Reset} {TerminalColors.Error}-{file.LinesRemoved}{AnsiStyleEnumConstants.Reset} {file.Path}");
             }
         }
 
@@ -1099,10 +1114,10 @@ public sealed class DiffFileListRenderer
     public string Render(DiffData data)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{AnsiStyleConstants.Bold}Changed Files{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Changed Files{AnsiStyleEnumConstants.Reset}");
         foreach (var file in data.Files)
         {
-            sb.AppendLine($"  {TerminalColors.Success}+{file.LinesAdded}{AnsiStyleConstants.Reset} {TerminalColors.Error}-{file.LinesRemoved}{AnsiStyleConstants.Reset} {file.Path}");
+            sb.AppendLine($"  {TerminalColors.Success}+{file.LinesAdded}{AnsiStyleEnumConstants.Reset} {TerminalColors.Error}-{file.LinesRemoved}{AnsiStyleEnumConstants.Reset} {file.Path}");
         }
         return sb.ToString();
     }
@@ -1183,7 +1198,7 @@ public sealed class UsageBar
         var filled = (int)Math.Round(_percentage * _width);
         if (filled < 0) filled = 0;
         if (filled > _width) filled = _width;
-        var bar = $"{_filledColor}{new string('█', filled)}{_emptyColor}{new string('░', _width - filled)}{AnsiStyleConstants.Reset}";
+        var bar = $"{_filledColor}{new string('█', filled)}{_emptyColor}{new string('░', _width - filled)}{AnsiStyleEnumConstants.Reset}";
         return bar;
     }
 
@@ -1200,7 +1215,7 @@ public sealed class UsageBar
         if (filled > width) filled = width;
         var bar = new string('█', filled) + new string('░', width - filled);
         var color = percentage > 80 ? TerminalColors.Warning : TerminalColors.Primary;
-        return $"{color}{bar}{AnsiStyleConstants.Reset} {percentage:F1}%";
+        return $"{color}{bar}{AnsiStyleEnumConstants.Reset} {percentage:F1}%";
     }
 }
 
@@ -1260,7 +1275,7 @@ public sealed class CompactSummaryRenderer
     public string Render(CompactSummaryData data)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{TerminalColors.Primary}上下文已压缩{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{TerminalColors.Primary}上下文已压缩{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine($"  消息: {data.MessagesSummarized} 条已摘要");
         sb.AppendLine($"  Token: {data.OriginalTokens:N0} → {data.CompressedTokens:N0} (节省 {data.OriginalTokens - data.CompressedTokens:N0})");
         return sb.ToString();
@@ -1297,7 +1312,7 @@ public sealed class ModelPicker
     public string Render(ModelEntry[] models, int selectedIndex, string currentModelId, string providerName, EffortLevel effortLevel, bool isFastModeActive)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{AnsiStyleConstants.Bold}模型选择 ({providerName}){AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}模型选择 ({providerName}){AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
 
         for (var i = 0; i < models.Length; i++)
@@ -1310,7 +1325,7 @@ public sealed class ModelPicker
 
         sb.AppendLine();
         sb.AppendLine($"  Effort: {effortLevel.ToValue()} | Fast mode: {(isFastModeActive ? "ON" : "OFF")}");
-        sb.AppendLine($"{TerminalColors.Muted}  ↑↓ 选择 | ←→ Effort | Enter 确认 | Esc 取消{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{TerminalColors.Muted}  ↑↓ 选择 | ←→ Effort | Enter 确认 | Esc 取消{AnsiStyleEnumConstants.Reset}");
 
         return sb.ToString();
     }
@@ -1353,13 +1368,13 @@ public sealed class ModelPicker
 
         var models = catalog.GetModelsForProvider(provider);
         TerminalHelper.WriteLine();
-        TerminalHelper.WriteLine($"{AnsiStyleConstants.Bold}选择模型{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}选择模型{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
         for (var i = 0; i < models.Length; i++)
         {
             var marker = models[i].Id == currentModel ? " *" : "";
-            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleConstants.Reset} {models[i].DisplayName}{marker}");
+            TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {models[i].DisplayName}{marker}");
         }
 
         TerminalHelper.NewLine();
@@ -1450,7 +1465,7 @@ public static class TerminalCharts
         var sb = new StringBuilder();
         if (!string.IsNullOrEmpty(title))
         {
-            sb.AppendLine($"{AnsiStyleConstants.Bold}{title}{AnsiStyleConstants.Reset}");
+            sb.AppendLine($"{AnsiStyleEnumConstants.Bold}{title}{AnsiStyleEnumConstants.Reset}");
             sb.AppendLine();
         }
 
@@ -1467,7 +1482,7 @@ public static class TerminalCharts
             var idx = (int)Math.Round((double)day.MessageCount / maxCount * (blocks.Length - 1));
             if (idx < 0) idx = 0;
             if (idx >= blocks.Length) idx = blocks.Length - 1;
-            sb.Append($"{TerminalColors.Primary}{blocks[idx]}{AnsiStyleConstants.Reset}");
+            sb.Append($"{TerminalColors.Primary}{blocks[idx]}{AnsiStyleEnumConstants.Reset}");
         }
         sb.AppendLine();
 

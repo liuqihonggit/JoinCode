@@ -145,7 +145,7 @@ public sealed class SessionCommandTests
     [InlineData("Rm")]
     public async Task Execute_WithMixedCaseSubcommand_Should_Be_CaseInsensitive(string subCommand)
     {
-        // CrudActionConstants 字典使用 OrdinalIgnoreCase, 大小写不敏感
+        // CrudActionEnumConstants 字典使用 OrdinalIgnoreCase, 大小写不敏感
         var cmd = new SessionCommand();
         var context = CreateContext(subCommand);
 

@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /heapdump 命令 — 生成堆转储用于诊断
 /// 输出当前托管内存、GC 集合次数、线程池、进程内存与句柄数等运行时诊断信息
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Heapdump, Description = "生成堆转储用于诊断", Usage = "/heapdump", Category = ChatCommandCategory.System, IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Heapdump, Description = "生成堆转储用于诊断", Usage = "/heapdump", Category = ChatCommandCategory.System, IsHidden = true)]
 public sealed class HeapdumpCommand : ChatCommandBase
 {
     /// <summary>

@@ -129,20 +129,24 @@ public enum PluginUnloadStatus
     /// <summary>
     /// 卸载成功
     /// </summary>
+    [EnumValue("success")]
     Success,
 
     /// <summary>
     /// 协作式卸载超时（已回退到 ALC 强制卸载）
     /// </summary>
+    [EnumValue("cooperative_timeout")]
     CooperativeTimeout,
 
     /// <summary>
     /// ALC 卸载失败
     /// </summary>
+    [EnumValue("alc_unload_failed")]
     AlcUnloadFailed,
 
     /// <summary>
     /// 插件已卸载（重复卸载）
     /// </summary>
+    [EnumValue("already_unloaded")]
     AlreadyUnloaded
 }

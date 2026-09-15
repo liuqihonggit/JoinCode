@@ -11,19 +11,19 @@ namespace JoinCode.Abstractions.Interfaces;
 public enum EventDispatchMode
 {
     /// <summary>同步触发不等监听器</summary>
-    Emit,
+    [EnumValue("emit")] Emit,
 
     /// <summary>异步并行 await 全部</summary>
-    Parallel,
+    [EnumValue("parallel")] Parallel,
 
     /// <summary>串行依次 await</summary>
-    Serial,
+    [EnumValue("serial")] Serial,
 
     /// <summary>首个 bail 结果即停</summary>
-    Bail,
+    [EnumValue("bail")] Bail,
 
     /// <summary>next() 链，漏调 next() 短路</summary>
-    Waterfall,
+    [EnumValue("waterfall")] Waterfall,
 }
 
 /// <summary>

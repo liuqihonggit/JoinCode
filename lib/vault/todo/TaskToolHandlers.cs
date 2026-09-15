@@ -21,13 +21,13 @@ public class TaskToolHandlers
     /// <summary>
     /// 创建任务
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskCreate, "Create a new task", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskCreate, "Create a new task", "task")]
     public async Task<ToolResult> TaskCreateAsync(
         [McpToolParameter("Task title")] string title,
         [McpToolParameter("Task description (optional)", Required = false)] string? description = null,
         [McpToolParameter("Assignee (optional)", Required = false)] string? assignee = null,
         [McpToolParameter("Due date (optional)", Required = false)] DateTime? due_date = null,
-        [McpToolParameter("Priority: low, medium, high, default medium", Required = false, DefaultValue = TodoPriorityConstants.Medium)] string priority = TodoPriorityConstants.Medium,
+        [McpToolParameter("Priority: low, medium, high, default medium", Required = false, DefaultValue = TodoPriorityEnumConstants.Medium)] string priority = TodoPriorityEnumConstants.Medium,
         [McpToolParameter("Tag list (optional)", Required = false)] List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {
@@ -63,7 +63,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 列出任务
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskList, "List tasks with optional filters", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskList, "List tasks with optional filters", "task")]
     public async Task<ToolResult> TaskListAsync(
         [McpToolParameter("Status filter (optional)", Required = false)] string? status = null,
         [McpToolParameter("Assignee filter (optional)", Required = false)] string? assignee = null,
@@ -107,7 +107,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 更新任务
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskUpdate, "Update task information", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskUpdate, "Update task information", "task")]
     public async Task<ToolResult> TaskUpdateAsync(
         [McpToolOptions] TaskUpdateOptions options,
         CancellationToken cancellationToken = default)
@@ -149,7 +149,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 停止任务
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskStop, "Stop a task", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskStop, "Stop a task", "task")]
     public async Task<ToolResult> TaskStopAsync(
         [McpToolParameter("Task ID")] string task_id,
         [McpToolParameter("Stop reason (optional)", Required = false)] string? reason = null,
@@ -190,7 +190,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 获取任务详情
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskGet, "Get task details", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskGet, "Get task details", "task")]
     public async Task<ToolResult> TaskGetAsync(
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
@@ -220,7 +220,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 设置任务依赖关系
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskSetDependency, "Set a task dependency", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskSetDependency, "Set a task dependency", "task")]
     public async Task<ToolResult> TaskSetDependencyAsync(
         [McpToolParameter("Task ID")] string task_id,
         [McpToolParameter("Depends-on task ID")] string depends_on_task_id,
@@ -263,7 +263,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 移除任务依赖关系
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskRemoveDependency, "Remove a task dependency", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskRemoveDependency, "Remove a task dependency", "task")]
     public async Task<ToolResult> TaskRemoveDependencyAsync(
         [McpToolParameter("Task ID")] string task_id,
         [McpToolParameter("Depends-on task ID")] string depends_on_task_id,
@@ -301,7 +301,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 获取任务依赖列表
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskGetDependencies, "Get task dependency list", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskGetDependencies, "Get task dependency list", "task")]
     public async Task<ToolResult> TaskGetDependenciesAsync(
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)
@@ -337,7 +337,7 @@ public class TaskToolHandlers
     /// <summary>
     /// 检查任务是否可以执行
     /// </summary>
-    [McpTool(TaskToolNameConstants.TaskCanExecute, "Check if a task can execute (dependencies satisfied)", "task")]
+    [McpTool(TaskToolNameEnumConstants.TaskCanExecute, "Check if a task can execute (dependencies satisfied)", "task")]
     public async Task<ToolResult> TaskCanExecuteAsync(
         [McpToolParameter("Task ID")] string task_id,
         CancellationToken cancellationToken = default)

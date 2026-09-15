@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Interfaces.Context;
+﻿namespace JoinCode.Abstractions.Interfaces.Context;
 
 /// <summary>
 /// 上下文压缩器接口 — 通用压缩，支持 code/dialogue/reference_index/text/log 五种内容类型
@@ -55,7 +55,7 @@ public interface IContextCompressor
 
 /// <summary>
 /// 内容类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ContentTypeConstants + ContentTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ContentTypeEnumConstants + ContentTypeExtensions
 /// </summary>
 public enum ContentType
 {

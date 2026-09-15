@@ -50,7 +50,7 @@ public sealed class BridgePermissionCallbacksTests
 
         var response = new PermissionCallbackResponse
         {
-            Behavior = PermissionBehaviorConstants.Allow,
+            Behavior = PermissionBehaviorEnumConstants.Allow,
         };
         await service.HandleResponseAsync("req1", response).ConfigureAwait(true);
 
@@ -71,7 +71,7 @@ public sealed class BridgePermissionCallbacksTests
 
         var response = new PermissionCallbackResponse
         {
-            Behavior = PermissionBehaviorConstants.Allow,
+            Behavior = PermissionBehaviorEnumConstants.Allow,
         };
 
         // 不应抛异常

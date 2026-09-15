@@ -18,13 +18,13 @@ public sealed partial class ApiContextManagementService : ServiceEntity, IApiCon
     /// </summary>
     private static readonly string[] ToolsClearableResults =
     new[] { 
-        ShellToolNameConstants.Bash,  // "Bash"
-        ShellToolNameConstants.Powershell,    // "PowerShell"
-        SearchToolNameConstants.Glob,         // "Glob"
-        SearchToolNameConstants.Grep,         // "Grep"
-        FileToolNameConstants.FileRead,       // "Read"
-        WebToolNameConstants.WebFetch,        // "WebFetch"
-        WebToolNameConstants.WebSearch,       // "WebSearch"
+        ShellToolNameEnumConstants.Bash,  // "Bash"
+        ShellToolNameEnumConstants.Powershell,    // "PowerShell"
+        SearchToolNameEnumConstants.Glob,         // "Glob"
+        SearchToolNameEnumConstants.Grep,         // "Grep"
+        FileToolNameEnumConstants.FileRead,       // "Read"
+        WebToolNameEnumConstants.WebFetch,        // "WebFetch"
+        WebToolNameEnumConstants.WebSearch,       // "WebSearch"
      };
 
     /// <summary>
@@ -33,9 +33,9 @@ public sealed partial class ApiContextManagementService : ServiceEntity, IApiCon
     /// </summary>
     private static readonly string[] ToolsClearableUses =
     new[] { 
-        FileToolNameConstants.FileEdit,       // "Edit"
-        FileToolNameConstants.FileWrite,      // "Write"
-        NotebookToolNameConstants.NotebookEdit, // "NotebookEdit"
+        FileToolNameEnumConstants.FileEdit,       // "Edit"
+        FileToolNameEnumConstants.FileWrite,      // "Write"
+        NotebookToolNameEnumConstants.NotebookEdit, // "NotebookEdit"
      };
 
     /// <summary>

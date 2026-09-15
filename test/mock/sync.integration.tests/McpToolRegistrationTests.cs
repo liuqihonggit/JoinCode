@@ -48,7 +48,7 @@ public class McpToolRegistrationTests
         var toolRegistry = serviceProvider.GetRequiredService<IMcpToolRegistry>();
         var allTools = await toolRegistry.GetAllToolsAsync().ConfigureAwait(true);
 
-        var requiredTools = new[] { FileToolNameConstants.FileRead, ShellToolNameConstants.Bash, SearchToolNameConstants.Glob, "config_get" };
+        var requiredTools = new[] { FileToolNameEnumConstants.FileRead, ShellToolNameEnumConstants.Bash, SearchToolNameEnumConstants.Glob, "config_get" };
         var missingTools = requiredTools.Where(t => !allTools.ContainsKey(t)).ToList();
 
         Assert.Empty(missingTools);
@@ -57,7 +57,7 @@ public class McpToolRegistrationTests
     private static IServiceProvider BuildServiceProvider()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
-        Environment.SetEnvironmentVariable(JccEnvVarConstants.AppDataFolder, tempDir);
+        Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Trace));

@@ -28,7 +28,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
     }
 
     /// <inheritdoc />
-    public override string SupportedType => HookTypeConstants.Http;
+    public override string SupportedType => HookTypeEnumConstants.Http;
 
     /// <inheritdoc />
     public override async Task<HookResult> ExecuteTypedAsync(
@@ -176,7 +176,7 @@ public sealed partial class HttpHookExecutor : HookExecutorBase<HttpHook>
         var preventContinuation = false;
         string? message = null;
 
-        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorConstants.Block)
+        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorEnumConstants.Block)
         {
             outcome = HookOutcome.Blocking;
             preventContinuation = true;

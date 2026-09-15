@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /usage 命令 — 对齐 TS Usage.tsx
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：Current session/Current week 限制条+重置时间+Sonnet-only占位+ExtraUsage占位
 /// 架构差异：TS 从 Anthropic API 获取 utilization，C# 从本地 RateLimitTracker 获取
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Usage, Description = "查看速率限制用量", Usage = "/usage", Category = ChatCommandCategory.Info, Aliases = ["rate-limit"])]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Usage, Description = "查看速率限制用量", Usage = "/usage", Category = ChatCommandCategory.Info, Aliases = ["rate-limit"])]
 public sealed class UsageCommand : ChatCommandBase
 {
     private readonly IClockService _clock = SystemClockService.Instance;
@@ -48,12 +48,12 @@ public sealed class UsageCommand : ChatCommandBase
             }
             else
             {
-                rateLimitsContent = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleConstants.Reset}";
+                rateLimitsContent = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleEnumConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleEnumConstants.Reset}";
             }
         }
         else
         {
-            rateLimitsContent = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleConstants.Reset}";
+            rateLimitsContent = $"  {TerminalColors.Muted}速率限制数据暂不可用{AnsiStyleEnumConstants.Reset}\n  {TerminalColors.Muted}数据将在首次 API 请求后自动填充{AnsiStyleEnumConstants.Reset}";
         }
 
         // 预收集 Token Usage 数据
@@ -64,7 +64,7 @@ public sealed class UsageCommand : ChatCommandBase
             if (stats.TotalTokens > 0)
             {
                 var sb = new StringBuilder();
-                sb.AppendLine($"{AnsiStyleConstants.Bold}Token Usage (Today){AnsiStyleConstants.Reset}");
+                sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Token Usage (Today){AnsiStyleEnumConstants.Reset}");
                 sb.AppendLine();
 
                 RenderTokenBar(sb, "Input", stats.TotalInputTokens, stats.TotalTokens);
@@ -73,33 +73,33 @@ public sealed class UsageCommand : ChatCommandBase
                 sb.Append(TerminalColors.Muted);
                 sb.Append($"  Total: {stats.TotalTokens:N0} tokens");
                 sb.Append($" · Requests: {stats.TotalRequests}");
-                sb.AppendLine(AnsiStyleConstants.Reset);
+                sb.AppendLine(AnsiStyleEnumConstants.Reset);
 
                 if (stats.TotalCacheReadTokens > 0)
                 {
-                    sb.AppendLine($"{TerminalColors.Muted}  Cache read: {stats.TotalCacheReadTokens:N0} tokens{AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"{TerminalColors.Muted}  Cache read: {stats.TotalCacheReadTokens:N0} tokens{AnsiStyleEnumConstants.Reset}");
                 }
 
                 if (stats.TotalCacheCreationTokens > 0)
                 {
-                    sb.AppendLine($"{TerminalColors.Muted}  Cache creation: {stats.TotalCacheCreationTokens:N0} tokens{AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"{TerminalColors.Muted}  Cache creation: {stats.TotalCacheCreationTokens:N0} tokens{AnsiStyleEnumConstants.Reset}");
                 }
 
                 if (stats.TotalCostUsd > 0)
                 {
-                    sb.AppendLine($"{TerminalColors.Muted}  Cost: ${stats.TotalCostUsd:F4} USD{AnsiStyleConstants.Reset}");
+                    sb.AppendLine($"{TerminalColors.Muted}  Cost: ${stats.TotalCostUsd:F4} USD{AnsiStyleEnumConstants.Reset}");
                 }
 
                 tokenUsageContent = sb.ToString();
             }
             else
             {
-                tokenUsageContent = $"  {TerminalColors.Muted}暂无今日 Token 用量数据{AnsiStyleConstants.Reset}";
+                tokenUsageContent = $"  {TerminalColors.Muted}暂无今日 Token 用量数据{AnsiStyleEnumConstants.Reset}";
             }
         }
         else
         {
-            tokenUsageContent = $"  {TerminalColors.Muted}用量追踪器不可用{AnsiStyleConstants.Reset}";
+            tokenUsageContent = $"  {TerminalColors.Muted}用量追踪器不可用{AnsiStyleEnumConstants.Reset}";
         }
 
         var panel = new TabPanel(
@@ -123,9 +123,9 @@ public sealed class UsageCommand : ChatCommandBase
         var color = GetLimitColor(percentage);
         var bar = new UsageBar(percentage / 100.0, 30, color, TerminalColors.Muted);
 
-        sb.Append(AnsiStyleConstants.Bold);
+        sb.Append(AnsiStyleEnumConstants.Bold);
         sb.Append($"  {title}");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.AppendLine();
 
         sb.Append("  ");
@@ -134,7 +134,7 @@ public sealed class UsageCommand : ChatCommandBase
         sb.Append(' ');
         sb.Append(color);
         sb.Append($"{(int)percentage}% used");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
 
         // 重置时间 — 对齐 TS "Resets in X"
         var remaining = resetsAt - clock.GetUtcNow();
@@ -142,7 +142,7 @@ public sealed class UsageCommand : ChatCommandBase
         {
             sb.Append(TerminalColors.Muted);
             sb.Append($" · resets in {FormatRemaining(remaining)}");
-            sb.Append(AnsiStyleConstants.Reset);
+            sb.Append(AnsiStyleEnumConstants.Reset);
         }
 
         sb.AppendLine();
@@ -162,17 +162,17 @@ public sealed class UsageCommand : ChatCommandBase
 
         sb.Append(TerminalColors.Muted);
         sb.Append($"  {label,-8}");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
 
         sb.Append(bar.Render());
 
         sb.Append(' ');
         sb.Append(color);
         sb.Append($"{count,10:N0}");
-        sb.Append(AnsiStyleConstants.Reset);
+        sb.Append(AnsiStyleEnumConstants.Reset);
         sb.Append(TerminalColors.Muted);
         sb.Append($" ({percentage,5:F1}%)");
-        sb.AppendLine(AnsiStyleConstants.Reset);
+        sb.AppendLine(AnsiStyleEnumConstants.Reset);
     }
 
     private static string GetLimitColor(double percentage)

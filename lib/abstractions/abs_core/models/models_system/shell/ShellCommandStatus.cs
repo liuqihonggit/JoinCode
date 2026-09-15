@@ -5,8 +5,8 @@ namespace JoinCode.Abstractions.Models.Shell;
 /// </summary>
 public enum ShellCommandStatus
 {
-    Running,
-    Backgrounded,
-    Completed,
-    Killed
+    [EnumValue("running")] Running,
+    [EnumValue("backgrounded")] Backgrounded,
+    [EnumValue("completed")] Completed,
+    [EnumValue("killed")] Killed
 }

@@ -1,4 +1,4 @@
-namespace JoinCode.Cli;
+﻿namespace JoinCode.Cli;
 
 /// <summary>
 /// 洞察数据聚合器 — CLI 简化版
@@ -86,7 +86,7 @@ public static class InsightDataAggregator
     public static string FormatStatsReport(AggregatedInsightData data)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"{AnsiStyleConstants.Bold}会话统计{AnsiStyleConstants.Reset}");
+        sb.AppendLine($"{AnsiStyleEnumConstants.Bold}会话统计{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine($"  总会话数: {data.TotalSessions}");
         sb.AppendLine($"  总消息数: {data.TotalMessages:N0}");
         sb.AppendLine($"  输入 Token: {data.TotalInputTokens:N0}");

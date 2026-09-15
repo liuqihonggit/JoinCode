@@ -1,4 +1,4 @@
-namespace McpToolRegistry;
+﻿namespace McpToolRegistry;
 
 
 /// <summary>
@@ -7,11 +7,14 @@ namespace McpToolRegistry;
 public enum RemoteSyncOperation
 {
     /// <summary>工具同步</summary>
+    [EnumValue("tools")]
     Tools,
     /// <summary>资源同步</summary>
+    [EnumValue("resources")]
     Resources,
     /// <summary>提示模板同步</summary>
-    Prompts
+    [EnumValue("prompts")]
+    Prompts,
 }
 
 /// <summary>

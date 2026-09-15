@@ -6,7 +6,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 [ToolPrompt(ToolName = SystemToolName.Sleep, Category = ToolPromptCategory.Shell)]
 public static class SleepToolPrompt
 {
-    public const string ToolName = SystemToolNameConstants.Sleep;
+    public const string ToolName = SystemToolNameEnumConstants.Sleep;
     public const string Description = "等待指定持续时间";
 
     public const string SleepToolPromptText = $"""
@@ -18,7 +18,7 @@ public static class SleepToolPrompt
 
         你可以与其他工具并发调用此工具 —— 它不会干扰它们。
 
-        优先使用此工具而不是 `{ShellToolNameConstants.Bash}(sleep ...)` —— 它不会占用 shell 进程。
+        优先使用此工具而不是 `{ShellToolNameEnumConstants.Bash}(sleep ...)` —— 它不会占用 shell 进程。
 
         每次唤醒花费一次 API 调用，但提示词缓存在 5 分钟不活动后过期 —— 相应平衡。
         """;

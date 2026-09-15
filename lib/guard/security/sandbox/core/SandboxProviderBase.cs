@@ -167,7 +167,7 @@ public abstract class SandboxProviderBase : ISandboxProvider
             return parsed.Value;
         }
 
-        Logger?.LogWarning("[Sandbox:{Type}] 无法解析环境变量 {EnvVar}={Value}, 使用默认沙箱类型", SandboxType, JccEnvVarConstants.SandboxMode, envType);
+        Logger?.LogWarning("[Sandbox:{Type}] 无法解析环境变量 {EnvVar}={Value}, 使用默认沙箱类型", SandboxType, JccEnvVarEnumConstants.SandboxMode, envType);
         return SandboxType;
     }
 

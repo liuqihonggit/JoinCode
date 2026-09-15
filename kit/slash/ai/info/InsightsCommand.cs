@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /insights 命令 — AI 生成会话洞察分析
 /// 支持 stats(跨会话统计)、deep(深度洞察)、report(HTML 报告) 三种模式,省略时为 AI 基础洞察
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info, ArgumentHint = "[stats|deep|report]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Insights, Description = "AI生成会话洞察分析", Usage = "/insights [stats|deep|report]", Category = ChatCommandCategory.Info, ArgumentHint = "[stats|deep|report]")]
 [ChatCommandArg("mode", Type = "string", Description = "洞察模式: stats=跨会话统计, deep=深度洞察, report=HTML报告; 省略=AI基础洞察", Enum = new[] { "stats", "deep", "report" })]
 public sealed class InsightsCommand : ChatCommandBase
 {

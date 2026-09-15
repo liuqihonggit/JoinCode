@@ -1,9 +1,9 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /fork 命令 — 创建当前对话的分支，复制主对话消息到新会话 ID。
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Fork, Description = "创建当前对话的分支", Usage = "/fork [name]", Category = ChatCommandCategory.Session, Aliases = ["branch"], ArgumentHint = "[name]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Fork, Description = "创建当前对话的分支", Usage = "/fork [name]", Category = ChatCommandCategory.Session, Aliases = ["branch"], ArgumentHint = "[name]")]
 [ChatCommandArg("name", Type = "string", Description = "分支名称,省略时从首条用户消息推导")]
 public sealed class ForkCommand : ChatCommandBase
 {
@@ -18,14 +18,14 @@ public sealed class ForkCommand : ChatCommandBase
 
         if (transcriptService is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}会话转录服务不可用{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}会话转录服务不可用{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var currentSessionId = context.SessionId;
         if (string.IsNullOrEmpty(currentSessionId))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Error}当前无活跃会话{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Error}当前无活跃会话{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -38,7 +38,7 @@ public sealed class ForkCommand : ChatCommandBase
 
             if (entries.Count == 0)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}当前会话没有消息，无法创建分支{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}当前会话没有消息，无法创建分支{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Continue();
             }
 
@@ -50,7 +50,7 @@ public sealed class ForkCommand : ChatCommandBase
 
             if (mainEntries.Count == 0)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Error}没有可分支的主对话消息{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Error}没有可分支的主对话消息{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Continue();
             }
 
@@ -81,7 +81,7 @@ public sealed class ForkCommand : ChatCommandBase
             var baseName = !string.IsNullOrEmpty(customTitle) ? customTitle : firstPrompt;
             var effectiveTitle = $"{baseName} (Branch)";
 
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已创建对话分支{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已创建对话分支{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  分支 ID: {forkSessionId}");
             TerminalHelper.WriteLine($"  标题: {effectiveTitle}");
             TerminalHelper.WriteLine($"  消息数: {forkEntries.Count}");
@@ -100,7 +100,7 @@ public sealed class ForkCommand : ChatCommandBase
     private static string DeriveFirstPrompt(IReadOnlyList<JoinCode.Abstractions.LLM.Chat.TranscriptEntry> entries)
     {
         var firstUser = entries.FirstOrDefault(e =>
-            e.Role.Equals(MessageRoleConstants.User, StringComparison.OrdinalIgnoreCase));
+            e.Role.Equals(MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase));
 
         if (firstUser is null)
             return "Branched conversation";

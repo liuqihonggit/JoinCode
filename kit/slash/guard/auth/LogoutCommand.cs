@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /logout 命令 — 对齐 TS logout.tsx
@@ -6,7 +6,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐内容：API Key删除+Token清除+认证缓存清除+登出后退出
 /// 架构差异：TS 有 trustedDevice/growthbook/policyLimits 等 Anthropic 专有缓存，C# 为多 Provider 架构
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Logout, Description = "登出 AI 服务", Usage = "/logout [provider]", Category = ChatCommandCategory.Auth)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Logout, Description = "登出 AI 服务", Usage = "/logout [provider]", Category = ChatCommandCategory.Auth)]
 [ChatCommandArg("provider", Type = "string", Description = "要登出的供应商名称,省略则登出当前")]
 public sealed class LogoutCommand : ChatCommandBase
 {
@@ -49,10 +49,10 @@ public sealed class LogoutCommand : ChatCommandBase
                 // 清除认证相关缓存 — 对齐 TS clearAuthRelatedCaches
                 await PostLogoutRefreshAsync(context).ConfigureAwait(false);
 
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已登出所有服务{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已登出所有服务{AnsiStyleEnumConstants.Reset}");
 
                 // 登出后退出 — 对齐 TS gracefulShutdownSync(0, 'logout')
-                TerminalHelper.WriteLine($"{TerminalColors.Muted}登出后将退出应用...{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Muted}登出后将退出应用...{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Exit();
             }
         }
@@ -62,7 +62,7 @@ public sealed class LogoutCommand : ChatCommandBase
             if (services.TokenStorage is not null && await services.TokenStorage.HasTokenAsync(provider, context.CancellationToken).ConfigureAwait(false))
             {
                 await services.TokenStorage.DeleteTokenAsync(provider, context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider} (OAuth){AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider} (OAuth){AnsiStyleEnumConstants.Reset}");
 
                 await PostLogoutRefreshAsync(context).ConfigureAwait(false);
                 return ChatCommandResult.Continue();
@@ -102,7 +102,7 @@ public sealed class LogoutCommand : ChatCommandBase
 
                 if (removed)
                 {
-                    TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider}{AnsiStyleConstants.Reset}");
+                    TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider}{AnsiStyleEnumConstants.Reset}");
                     await PostLogoutRefreshAsync(context).ConfigureAwait(false);
                     return ChatCommandResult.Continue();
                 }
@@ -141,7 +141,7 @@ public sealed class LogoutCommand : ChatCommandBase
         var rateLimitTracker = context.GetCommandServices().RateLimitTracker;
         rateLimitTracker?.Clear();
 
-        TerminalHelper.WriteLine($"{TerminalColors.Muted}  已清除认证相关缓存{AnsiStyleConstants.Reset}");
+        TerminalHelper.WriteLine($"{TerminalColors.Muted}  已清除认证相关缓存{AnsiStyleEnumConstants.Reset}");
 
         return Task.CompletedTask;
     }

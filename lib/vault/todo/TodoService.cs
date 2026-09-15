@@ -43,7 +43,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         foreach (var todoInput in todos)
         {
             var todoId = todoInput.Id ?? $"todo_{Guid.NewGuid():N}";
-            var todoPriority = todoInput.Priority ?? TodoPriorityConstants.Medium;
+            var todoPriority = todoInput.Priority ?? TodoPriorityEnumConstants.Medium;
             var existingNode = _todoDag.Nodes.TryGetValue(todoId, out var n) ? n : null;
             var existingTodo = existingNode?.Payload;
 
@@ -171,7 +171,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
 
         if (!includeCompleted)
         {
-            query = query.Where(t => !t.Status.Equals(TodoStatusConstants.Completed, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(t => !t.Status.Equals(TodoStatusEnumConstants.Completed, StringComparison.OrdinalIgnoreCase));
         }
 
         var result = query.OrderBy(t => t.CreatedAt).ToList();
@@ -247,13 +247,13 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
         await EnsureTodosLoadedAsync(cancellationToken).ConfigureAwait(false);
 
         var completedIds = _todoDag.Nodes.Values
-            .Where(n => n.Payload.Status.Equals(TodoStatusConstants.Completed, StringComparison.OrdinalIgnoreCase))
+            .Where(n => n.Payload.Status.Equals(TodoStatusEnumConstants.Completed, StringComparison.OrdinalIgnoreCase))
             .Select(n => n.Id)
             .ToHashSet(StringComparer.Ordinal);
 
         var ready = _todoDag.Nodes.Values
-            .Where(n => !n.Payload.Status.Equals(TodoStatusConstants.Completed, StringComparison.OrdinalIgnoreCase))
-            .Where(n => !n.Payload.Status.Equals(TodoStatusConstants.Cancelled, StringComparison.OrdinalIgnoreCase))
+            .Where(n => !n.Payload.Status.Equals(TodoStatusEnumConstants.Completed, StringComparison.OrdinalIgnoreCase))
+            .Where(n => !n.Payload.Status.Equals(TodoStatusEnumConstants.Cancelled, StringComparison.OrdinalIgnoreCase))
             .Where(n =>
             {
                 var deps = n.Payload.DependsOn;

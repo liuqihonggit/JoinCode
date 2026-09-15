@@ -215,7 +215,7 @@ public sealed partial class LspFileSync : ServiceEntity, ILspFileSync
     /// 记录文件同步指标
     /// </summary>
     private void RecordFileSyncMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("lsp.filesync.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "LSP file sync operation count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "lsp.filesync.count", operation, isSuccess, "LSP file sync operation count");
 
     private static string ApplyChange(string content, TextDocumentContentChangeEvent change)
     {

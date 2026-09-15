@@ -1,10 +1,10 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /history 命令 - 查看聊天历史
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.History, Description = "查看聊天历史", Usage = "/history", Category = ChatCommandCategory.Session, Aliases = ["hist"], ExposeToMcp = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.History, Description = "查看聊天历史", Usage = "/history", Category = ChatCommandCategory.Session, Aliases = ["hist"], ExposeToMcp = true)]
 public sealed class HistoryCommand : ChatCommandBase
 {
     /// <summary>

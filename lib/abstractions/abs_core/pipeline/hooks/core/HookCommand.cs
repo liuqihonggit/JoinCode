@@ -4,11 +4,11 @@ namespace JoinCode.Abstractions.Hooks;
 /// 钩子命令基类
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "$hook_type")]
-[JsonDerivedType(typeof(BashCommandHook), HookTypeConstants.Command)]
-[JsonDerivedType(typeof(PromptHook), HookTypeConstants.Prompt)]
-[JsonDerivedType(typeof(AgentHook), HookTypeConstants.Agent)]
-[JsonDerivedType(typeof(HttpHook), HookTypeConstants.Http)]
-[JsonDerivedType(typeof(FunctionHook), HookTypeConstants.Function)]
+[JsonDerivedType(typeof(BashCommandHook), HookTypeEnumConstants.Command)]
+[JsonDerivedType(typeof(PromptHook), HookTypeEnumConstants.Prompt)]
+[JsonDerivedType(typeof(AgentHook), HookTypeEnumConstants.Agent)]
+[JsonDerivedType(typeof(HttpHook), HookTypeEnumConstants.Http)]
+[JsonDerivedType(typeof(FunctionHook), HookTypeEnumConstants.Function)]
 public abstract record HookCommand
 {
     /// <summary>
@@ -61,7 +61,7 @@ public abstract record HookCommand
 /// </summary>
 public sealed record BashCommandHook : HookCommand
 {
-    public override string Type => HookTypeConstants.Command;
+    public override string Type => HookTypeEnumConstants.Command;
 
     /// <summary>
     /// 要执行的命令
@@ -103,7 +103,7 @@ public sealed record BashCommandHook : HookCommand
 /// </summary>
 public sealed record PromptHook : HookCommand
 {
-    public override string Type => HookTypeConstants.Prompt;
+    public override string Type => HookTypeEnumConstants.Prompt;
 
     /// <summary>
     /// 提示内容（使用 $ARGUMENTS 占位符）
@@ -134,7 +134,7 @@ public sealed record PromptHook : HookCommand
 /// </summary>
 public sealed record AgentHook : HookCommand
 {
-    public override string Type => HookTypeConstants.Agent;
+    public override string Type => HookTypeEnumConstants.Agent;
 
     /// <summary>
     /// 验证提示（使用 $ARGUMENTS 占位符）
@@ -165,7 +165,7 @@ public sealed record AgentHook : HookCommand
 /// </summary>
 public sealed record HttpHook : HookCommand
 {
-    public override string Type => HookTypeConstants.Http;
+    public override string Type => HookTypeEnumConstants.Http;
 
     /// <summary>
     /// POST URL
@@ -201,7 +201,7 @@ public sealed record HttpHook : HookCommand
 /// </summary>
 public sealed record FunctionHook : HookCommand
 {
-    public override string Type => HookTypeConstants.Function;
+    public override string Type => HookTypeEnumConstants.Function;
 
     /// <summary>
     /// 唯一ID（用于移除）
@@ -236,7 +236,7 @@ public sealed record FunctionHook : HookCommand
 /// </summary>
 public sealed record CallbackHook : HookCommand
 {
-    public override string Type => HookTypeConstants.Callback;
+    public override string Type => HookTypeEnumConstants.Callback;
 
     /// <summary>
     /// 回调函数

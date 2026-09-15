@@ -9,7 +9,7 @@ public sealed class PlanApprovalRequestMessage
     /// <summary>
     /// 消息类型标识
     /// </summary>
-    public string Type { get; init; } = TeammateMessageTypeConstants.PlanApprovalRequest;
+    public string Type { get; init; } = TeammateMessageTypeEnumConstants.PlanApprovalRequest;
 
     /// <summary>
     /// 请求来源 agent 名称
@@ -46,7 +46,7 @@ public sealed class PlanApprovalResponseMessage
     /// <summary>
     /// 消息类型标识
     /// </summary>
-    public string Type { get; init; } = TeammateMessageTypeConstants.PlanApprovalResponse;
+    public string Type { get; init; } = TeammateMessageTypeEnumConstants.PlanApprovalResponse;
 
     /// <summary>
     /// 响应来源（team-lead）

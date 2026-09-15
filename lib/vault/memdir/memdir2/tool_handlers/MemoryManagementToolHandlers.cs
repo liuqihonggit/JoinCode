@@ -21,7 +21,7 @@ public class MemoryManagementToolHandlers
     /// <summary>
     /// 扫描内存，查找相关记忆
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryScan, "Scan memories to find relevant ones", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryScan, "Scan memories to find relevant ones", "memory")]
     public async Task<ToolResult> MemoryScanAsync(
         [McpToolParameter("Search query")] string query,
         [McpToolParameter("Category filter (optional)", Required = false)] string? category = null,
@@ -72,7 +72,7 @@ public class MemoryManagementToolHandlers
     /// <summary>
     /// 获取内存年龄信息
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryAge, "Get memory age and access statistics", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryAge, "Get memory age and access statistics", "memory")]
     public async Task<ToolResult> MemoryAgeAsync(
         [McpToolParameter("Show only memories needing attention", Required = false, DefaultValue = "false")] bool? attention_only = null,
         CancellationToken cancellationToken = default)
@@ -129,7 +129,7 @@ public class MemoryManagementToolHandlers
     /// <summary>
     /// 执行内存清理
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryCleanup, "Clean up old memories (archive or delete)", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryCleanup, "Clean up old memories (archive or delete)", "memory")]
     public async Task<ToolResult> MemoryCleanupAsync(
         [McpToolParameter("Archive threshold in days (default 90)", Required = false)] int? archive_after_days = null,
         [McpToolParameter("Delete threshold in days (default 180)", Required = false)] int? delete_after_days = null,
@@ -179,7 +179,7 @@ public class MemoryManagementToolHandlers
     /// <summary>
     /// 获取内存健康报告
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryHealth, "Get memory health report", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryHealth, "Get memory health report", "memory")]
     public async Task<ToolResult> MemoryHealthAsync(
         CancellationToken cancellationToken = default)
     {
@@ -226,7 +226,7 @@ public class MemoryManagementToolHandlers
     /// <summary>
     /// 添加团队内存路径
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryAddTeamPath, "Add a team shared memory path", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryAddTeamPath, "Add a team shared memory path", "memory")]
     public async Task<ToolResult> MemoryAddTeamPathAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Memory path")] string path,
@@ -270,7 +270,7 @@ public class MemoryManagementToolHandlers
     /// <summary>
     /// 列出团队内存路径
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryListTeamPaths, "List team memory paths", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryListTeamPaths, "List team memory paths", "memory")]
     public async Task<ToolResult> MemoryListTeamPathsAsync(
         [McpToolParameter("Team ID (optional, omit to show all)", Required = false)] string? team_id = null,
         CancellationToken cancellationToken = default)
@@ -321,7 +321,7 @@ public class MemoryManagementToolHandlers
     /// <summary>
     /// 移除团队内存路径
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryRemoveTeamPath, "Remove a team memory path", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryRemoveTeamPath, "Remove a team memory path", "memory")]
     public async Task<ToolResult> MemoryRemoveTeamPathAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Memory path")] string path,
@@ -355,7 +355,7 @@ public class MemoryManagementToolHandlers
     /// <summary>
     /// 扫描团队共享记忆
     /// </summary>
-    [McpTool(MemoryToolNameConstants.MemoryScanTeam, "Scan team shared memories", "memory")]
+    [McpTool(MemoryToolNameEnumConstants.MemoryScanTeam, "Scan team shared memories", "memory")]
     public async Task<ToolResult> MemoryScanTeamAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Search query")] string query,

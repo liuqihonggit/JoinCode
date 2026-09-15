@@ -1,8 +1,8 @@
-namespace JoinCode.Abstractions.Utils;
+﻿namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 上下文检查类型枚举
-/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 InspectTypeConstants + InspectTypeExtensions
+/// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 InspectTypeEnumConstants + InspectTypeExtensions
 /// </summary>
 public enum InspectType
 {

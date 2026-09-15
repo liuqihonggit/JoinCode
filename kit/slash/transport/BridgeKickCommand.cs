@@ -1,10 +1,10 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /bridge-kick 命令 — 断开指定 Bridge 连接
 /// 用法: /bridge-kick &lt;session-id&gt;
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.BridgeKick, Description = "断开指定Bridge连接", Usage = "/bridge-kick [session-id]", Category = ChatCommandCategory.Bridge, ArgumentHint = "[session-id]")]
+[ChatCommand(Name = ChatCommandNameEnumConstants.BridgeKick, Description = "断开指定Bridge连接", Usage = "/bridge-kick [session-id]", Category = ChatCommandCategory.Bridge, ArgumentHint = "[session-id]")]
 [ChatCommandArg("session-id", Type = "string", Description = "要断开的 Bridge 会话 ID", Required = true)]
 public sealed class BridgeKickCommand : ChatCommandBase
 {
@@ -19,7 +19,7 @@ public sealed class BridgeKickCommand : ChatCommandBase
 
         if (string.IsNullOrEmpty(sessionId))
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}用法: /bridge-kick <session-id>{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}用法: /bridge-kick <session-id>{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine("断开指定会话的Bridge连接");
             return ChatCommandResult.Continue();
         }
@@ -27,7 +27,7 @@ public sealed class BridgeKickCommand : ChatCommandBase
         var bridgeClient = context.GetCommandServices().BridgeClient;
         if (bridgeClient is null)
         {
-            TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge客户端未初始化{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}Bridge客户端未初始化{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
@@ -37,13 +37,13 @@ public sealed class BridgeKickCommand : ChatCommandBase
 
             if (state.ConnectionState == TransportConnectionState.Disconnected)
             {
-                TerminalHelper.WriteLine($"{TerminalColors.Muted}Bridge连接已处于断开状态{AnsiStyleConstants.Reset}");
+                TerminalHelper.WriteLine($"{TerminalColors.Muted}Bridge连接已处于断开状态{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Continue();
             }
 
             await bridgeClient.StopAsync(context.CancellationToken);
 
-            TerminalHelper.WriteLine($"{TerminalColors.Success}已断开Bridge连接 [{sessionId}]{AnsiStyleConstants.Reset}");
+            TerminalHelper.WriteLine($"{TerminalColors.Success}已断开Bridge连接 [{sessionId}]{AnsiStyleEnumConstants.Reset}");
         }
         catch (Exception ex)
         {

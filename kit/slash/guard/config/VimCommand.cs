@@ -1,17 +1,17 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /vim 命令 — 切换 Vim 输入模式
 /// 支持显式 on/off 以及无参数时的 toggle 切换
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.Vim, Description = "切换 Vim 输入模式 (无参数时 toggle)", Usage = "/vim [on|off]", Category = ChatCommandCategory.Config)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.Vim, Description = "切换 Vim 输入模式 (无参数时 toggle)", Usage = "/vim [on|off]", Category = ChatCommandCategory.Config)]
 [ChatCommandArg("action", Type = "string", Description = "Vim 模式动作,省略时 toggle", Enum = new[] { "on", "off" })]
 public sealed class VimCommand : ToggleCommandBase
 {
     /// <summary>
     /// 获取命令名称
     /// </summary>
-    public override string Name => ChatCommandNameConstants.Vim;
+    public override string Name => ChatCommandNameEnumConstants.Vim;
 
     /// <summary>
     /// 获取命令描述

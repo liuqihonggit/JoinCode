@@ -29,16 +29,16 @@ public enum EntropyDetectionState : byte
 public enum EntropyEvent : byte
 {
     /// <summary>检测到熵减 — Monitoring→Suspected 或 Confirmed 自循环</summary>
-    Decline,
+    [EnumValue("decline")] Decline,
 
     /// <summary>确认窗口超时 — Suspected→Monitoring</summary>
-    Timeout,
+    [EnumValue("timeout")] Timeout,
 
     /// <summary>窗口内二次确认 — Suspected→Confirmed</summary>
-    Confirm,
+    [EnumValue("confirm")] Confirm,
 
     /// <summary>熵恢复 — Confirmed→Monitoring</summary>
-    Recover,
+    [EnumValue("recover")] Recover,
 }
 
 /// <summary>

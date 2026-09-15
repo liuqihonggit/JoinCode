@@ -25,7 +25,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 创建团队
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamCreate, "Create a new team", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamCreate, "Create a new team", "team")]
     public async Task<ToolResult> TeamCreateAsync(
         [McpToolParameter("Team name")] string team_name,
         [McpToolParameter("Team description (optional)", Required = false)] string? description = null,
@@ -62,7 +62,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 删除团队
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamDelete, "Delete a team", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamDelete, "Delete a team", "team")]
     public async Task<ToolResult> TeamDeleteAsync(
         [McpToolParameter("Team ID")] string team_id,
         CancellationToken cancellationToken = default)
@@ -91,7 +91,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 获取团队信息
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamGet, "Get team information", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamGet, "Get team information", "team")]
     public async Task<ToolResult> TeamGetAsync(
         [McpToolParameter("Team ID")] string team_id,
         CancellationToken cancellationToken = default)
@@ -119,7 +119,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 列出所有团队
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamList, "List all teams", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamList, "List all teams", "team")]
     public async Task<ToolResult> TeamListAsync(
         CancellationToken cancellationToken = default)
     {
@@ -147,7 +147,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 添加团队成员
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamAddMember, "Add team member", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamAddMember, "Add team member", "team")]
     public async Task<ToolResult> TeamAddMemberAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Agent ID")] string agent_id,
@@ -180,7 +180,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 移除团队成员
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamRemoveMember, "Remove team member", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamRemoveMember, "Remove team member", "team")]
     public async Task<ToolResult> TeamRemoveMemberAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Agent ID")] string agent_id,
@@ -213,7 +213,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 发送团队消息
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamSendMessage, "Send team message", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamSendMessage, "Send team message", "team")]
     public async Task<ToolResult> TeamSendMessageAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Sender ID")] string sender_id,
@@ -252,7 +252,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 发送私信
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamSendDirectMessage, "Send direct message to specified agent", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamSendDirectMessage, "Send direct message to specified agent", "team")]
     public async Task<ToolResult> TeamSendDirectMessageAsync(
         [McpToolParameter("Target agent ID")] string target_agent_id,
         [McpToolParameter("Sender ID")] string sender_id,
@@ -289,7 +289,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 广播消息
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamBroadcast, "Broadcast message to team members", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamBroadcast, "Broadcast message to team members", "team")]
     public async Task<ToolResult> TeamBroadcastAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Sender ID")] string sender_id,
@@ -326,7 +326,7 @@ public class TeamToolHandlers
     /// <summary>
     /// 获取团队消息
     /// </summary>
-    [McpTool(TeamToolNameConstants.TeamGetMessages, "Get team message history", "team")]
+    [McpTool(TeamToolNameEnumConstants.TeamGetMessages, "Get team message history", "team")]
     public async Task<ToolResult> TeamGetMessagesAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Message count limit (optional, default 50)", Required = false)] int? limit = null,
@@ -438,7 +438,7 @@ public class TeamToolHandlers
     #region Private Methods
 
     private void RecordTeamMetrics(string operation, string result)
-        => _telemetryService?.RecordCount("team.handler.count", new Dictionary<string, string> { ["operation"] = operation, ["result"] = result }, "count", "Team handler count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "team.handler.count", operation, result, "Team handler count");
 
     private static string? ValidateCommand<TCommand>(TCommand command)
     {

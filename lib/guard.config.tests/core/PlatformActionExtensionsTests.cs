@@ -2,7 +2,7 @@ namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// PlatformAction 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
-/// 覆盖:ToValue / FromValue / IsDefined / PlatformActionConstants 常量值
+/// 覆盖:ToValue / FromValue / IsDefined / PlatformActionEnumConstants 常量值
 /// 10 个枚举值(Chrome+Ide+Mobile 3 个命令的 case 字符串 union)
 /// </summary>
 public sealed class PlatformActionExtensionsTests
@@ -161,61 +161,61 @@ public sealed class PlatformActionExtensionsTests
     [Fact]
     public void Constants_Connect_Should_Be_connect()
     {
-        PlatformActionConstants.Connect.Should().Be("connect");
+        PlatformActionEnumConstants.Connect.Should().Be("connect");
     }
 
     [Fact]
     public void Constants_Disconnect_Should_Be_disconnect()
     {
-        PlatformActionConstants.Disconnect.Should().Be("disconnect");
+        PlatformActionEnumConstants.Disconnect.Should().Be("disconnect");
     }
 
     [Fact]
     public void Constants_Status_Should_Be_status()
     {
-        PlatformActionConstants.Status.Should().Be("status");
+        PlatformActionEnumConstants.Status.Should().Be("status");
     }
 
     [Fact]
     public void Constants_Install_Should_Be_install()
     {
-        PlatformActionConstants.Install.Should().Be("install");
+        PlatformActionEnumConstants.Install.Should().Be("install");
     }
 
     [Fact]
     public void Constants_Toggle_Should_Be_toggle()
     {
-        PlatformActionConstants.Toggle.Should().Be("toggle");
+        PlatformActionEnumConstants.Toggle.Should().Be("toggle");
     }
 
     [Fact]
     public void Constants_Detect_Should_Be_detect()
     {
-        PlatformActionConstants.Detect.Should().Be("detect");
+        PlatformActionEnumConstants.Detect.Should().Be("detect");
     }
 
     [Fact]
     public void Constants_Open_Should_Be_open()
     {
-        PlatformActionConstants.Open.Should().Be("open");
+        PlatformActionEnumConstants.Open.Should().Be("open");
     }
 
     [Fact]
     public void Constants_Start_Should_Be_start()
     {
-        PlatformActionConstants.Start.Should().Be("start");
+        PlatformActionEnumConstants.Start.Should().Be("start");
     }
 
     [Fact]
     public void Constants_Stop_Should_Be_stop()
     {
-        PlatformActionConstants.Stop.Should().Be("stop");
+        PlatformActionEnumConstants.Stop.Should().Be("stop");
     }
 
     [Fact]
     public void Constants_Url_Should_Be_url()
     {
-        PlatformActionConstants.Url.Should().Be("url");
+        PlatformActionEnumConstants.Url.Should().Be("url");
     }
 
     // ===== 枚举值数量验证 =====

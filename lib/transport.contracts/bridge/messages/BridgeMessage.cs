@@ -1,4 +1,4 @@
-namespace JoinCode.Transport.Bridge;
+﻿namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// Bridge 消息类型枚举
@@ -6,35 +6,50 @@ namespace JoinCode.Transport.Bridge;
 public enum BridgeMessageType
 {
     /// <summary>初始化请求</summary>
+    [EnumValue("initialize")]
     Initialize,
     /// <summary>初始化响应</summary>
+    [EnumValue("initializeResponse")]
     InitializeResponse,
     /// <summary>工具列表请求</summary>
+    [EnumValue("toolsList")]
     ToolsList,
     /// <summary>工具列表响应</summary>
+    [EnumValue("toolsListResponse")]
     ToolsListResponse,
     /// <summary>工具调用请求</summary>
+    [EnumValue("toolsCall")]
     ToolsCall,
     /// <summary>工具调用响应</summary>
+    [EnumValue("toolsCallResponse")]
     ToolsCallResponse,
     /// <summary>技能执行请求</summary>
+    [EnumValue("skillExecute")]
     SkillExecute,
     /// <summary>技能执行响应</summary>
+    [EnumValue("skillExecuteResponse")]
     SkillExecuteResponse,
     /// <summary>控制请求</summary>
+    [EnumValue("controlRequest")]
     ControlRequest,
     /// <summary>控制响应</summary>
+    [EnumValue("controlResponse")]
     ControlResponse,
     /// <summary>心跳</summary>
+    [EnumValue("ping")]
     Ping,
     /// <summary>心跳响应</summary>
+    [EnumValue("pong")]
     Pong,
     /// <summary>错误</summary>
+    [EnumValue("error")]
     Error,
     /// <summary>通知</summary>
+    [EnumValue("notification")]
     Notification,
     /// <summary>回显消息（需要过滤）</summary>
-    Echo
+    [EnumValue("echo")]
+    Echo,
 }
 
 /// <summary>

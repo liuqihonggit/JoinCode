@@ -1,11 +1,11 @@
-
+﻿
 namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /sandbox-toggle 命令 — 切换沙箱模式
 /// 支持启用、禁用、查看状态、管理排除路径、切换沙箱类型
 /// </summary>
-[ChatCommand(Name = ChatCommandNameConstants.SandboxToggle, Description = "切换沙箱模式", Usage = "/sandbox-toggle [on|off|status|exclude|switch]", Category = ChatCommandCategory.Config, Aliases = ["sandbox"], ArgumentHint = "[on|off|status|exclude|switch]", IsHidden = true)]
+[ChatCommand(Name = ChatCommandNameEnumConstants.SandboxToggle, Description = "切换沙箱模式", Usage = "/sandbox-toggle [on|off|status|exclude|switch]", Category = ChatCommandCategory.Config, Aliases = ["sandbox"], ArgumentHint = "[on|off|status|exclude|switch]", IsHidden = true)]
 [ChatCommandArg("action", Type = "string", Description = "沙箱操作", Enum = new[] { "on", "off", "status", "exclude", "switch" }, Default = "status")]
 public sealed class SandboxToggleCommand : ChatCommandBase
 {

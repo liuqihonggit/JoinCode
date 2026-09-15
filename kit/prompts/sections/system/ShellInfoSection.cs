@@ -26,7 +26,7 @@ public static class ShellInfoSection
                 {
                     var info = kvp.Value;
                     var line = info.Kind == SystemActuatorKind.Bash && info.Version == "cmd-fallback"
-                        ? $"{ShellToolNameConstants.Bash}: 不可用（未找到 Git Bash，回退到 cmd.exe — 仅支持 CMD 语法）"
+                        ? $"{ShellToolNameEnumConstants.Bash}: 不可用（未找到 Git Bash，回退到 cmd.exe — 仅支持 CMD 语法）"
                         : info.Kind == SystemActuatorKind.PowerShell
                             ? FormatPowerShellEntry(info)
                             : FormatEntry(info);

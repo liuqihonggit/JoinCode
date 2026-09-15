@@ -1,4 +1,4 @@
-namespace JoinCode.ChatCommands;
+﻿namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// 开关命令抽象基类 — 提供 on/off/无参数 三分支执行骨架，子类只需实现 OnEnabledAsync/OnDisabledAsync
@@ -100,7 +100,9 @@ public abstract class ToggleCommandBase : ChatCommandBase
 public enum ToggleNullAction
 {
     /// <summary>切换当前状态</summary>
+    [EnumValue("toggle")]
     Toggle,
     /// <summary>仅显示状态</summary>
+    [EnumValue("status")]
     Status,
 }

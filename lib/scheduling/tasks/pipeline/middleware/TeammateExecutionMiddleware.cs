@@ -76,5 +76,5 @@ public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeamma
     }
 
     private void RecordTeammateMetrics(string operation, bool isSuccess)
-        => _telemetryService?.RecordCount("scheduling.teammate.count", new Dictionary<string, string> { ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "In-process teammate execution count");
+        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "scheduling.teammate.count", operation, isSuccess, "In-process teammate execution count");
 }

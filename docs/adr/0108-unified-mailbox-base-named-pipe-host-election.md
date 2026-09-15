@@ -1,6 +1,6 @@
 # 0108. 统一邮箱基类 MailboxBase + 有名管道邮箱 + 主机选举 + 全局编译队列
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-16
 - 决策者：用户 + AI
 - 前置：ADR 0107（文件邮箱锁替代跨进程共享 Mutex + Actor 邮箱模型）
@@ -162,3 +162,23 @@ ITransportTopology
 7. 全局编译队列 `GlobalBuildQueue`
 8. 主机故障转移（完整上下文同步）
 9. 单元测试 + E2E 测试
+
+## 实现状态（2026-09-16 追加）
+
+### 已落地
+
+| 决策 | 实现提交 | 状态 |
+|------|---------|------|
+| 决策1：MailboxBase 继承 ActorBase | `7ea2e3633` | ✅ 四种邮箱均继承 MailboxBase |
+| 决策2：ITransportTopology 可插拔 | `a8c8523ea` | ✅ 星型/网状/总线三种拓扑 |
+| 决策3：主机选举 | `7ea2e3633` | ✅ HostElectionService 句柄小者胜 |
+| 决策4：全局编译队列 | `7ea2e3633` | ✅ GlobalBuildQueue 跨进程串行 |
+
+### 超出原计划（后续 ADR 收编）
+
+| 实现 | 说明 | 收编 ADR |
+|------|------|---------|
+| NetworkMailbox + IPlatformBotAdapter | 原计划"仅预留接口"，后续完整实现 QQ/飞书适配器 | [0110](0110-platform-bot-adapter-pattern.md) |
+| NamedPipeFactory 统一管道工厂 | 管道缓冲区 65536 只定义一次，全项目改用工厂 | 实现细节（commit `1aa38399a`），非架构决策 |
+| TransportDiagnostics 一键诊断开关 | 所有 Transport 关键路径永久埋点 | 实现细节（commit `a84ac7629`），非架构决策 |
+| 管道缓冲区为 0 导致写阻塞 bug | 5参数构造函数默认 inBufferSize=0 | bug 修复（commit `7e0c40f4e`），非架构决策 |

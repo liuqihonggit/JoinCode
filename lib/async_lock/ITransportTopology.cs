@@ -128,3 +128,64 @@ public sealed record BuildQueueState
     /// <summary>排队中的任务摘要（进程 ID + 任务 ID）。</summary>
     public required IReadOnlyList<string> PendingTasks { get; init; }
 }
+
+/// <summary>
+/// 管道接受循环辅助 — 封装 NamedPipeServerStream 接受连接的循环+协商式取消,
+/// 消除三个 Transport 的重复代码。取消时通过 ct.Register Dispose server 强制中断 WaitForConnectionAsync。
+/// </summary>
+internal static class PipeAcceptLoop
+{
+    /// <summary>
+    /// 循环接受管道连接,每接受一个连接调 handleConnection 处理。取消时优雅退出。
+    /// </summary>
+    public static async Task RunAsync(
+        string pipeName,
+        Func<NamedPipeServerStream, CancellationToken, Task> handleConnection,
+        CancellationToken ct)
+    {
+        const int PipeBufferSize = 65536;
+        while (!ct.IsCancellationRequested)
+        {
+            var server = new NamedPipeServerStream(
+                pipeName,
+                PipeDirection.InOut,
+                NamedPipeServerStream.MaxAllowedServerInstances,
+                PipeTransmissionMode.Byte,
+                PipeOptions.Asynchronous,
+                inBufferSize: PipeBufferSize,
+                outBufferSize: PipeBufferSize);
+            try
+            {
+                using var reg = ct.Register(static s => ((NamedPipeServerStream)s!).Dispose(), server);
+                await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
+                reg.Unregister();
+                _ = Task.Run(() => handleConnection(server, ct), ct);
+            }
+            catch (OperationCanceledException) { return; }
+            catch (ObjectDisposedException) { return; }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[PIPE-ACCEPT] 连接错误: {ex.Message}");
+                try { server.Dispose(); }
+                catch (Exception) { Console.Error.WriteLine("[PIPE-ACCEPT] server Dispose 失败"); }
+            }
+        }
+    }
+}
+
+/// <summary>
+/// 任务等待辅助 — 封装 DisposeAsync 中 await 后台任务带超时的模式,消除重复 try-catch。
+/// </summary>
+internal static class TaskAwaitHelper
+{
+    /// <summary>
+    /// 等待任务完成,超时或取消时静默返回(不抛异常)。
+    /// </summary>
+    public static async ValueTask AwaitWithTimeout(Task? task, TimeSpan timeout)
+    {
+        if (task is null) return;
+        try { await task.WaitAsync(timeout).ConfigureAwait(false); }
+        catch (TimeoutException) { Console.Error.WriteLine($"[TASK-AWAIT] 等待任务超时 {timeout.TotalSeconds:F1}s,放弃等待"); }
+        catch (OperationCanceledException) { }
+    }
+}

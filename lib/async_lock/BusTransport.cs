@@ -17,9 +17,11 @@ public sealed class BusTransport : ITransportTopology
     private readonly ConcurrentDictionary<string, BusClientConnection> _clientConnections;
     private readonly Channel<TransportFrame> _receiveChannel;
     private readonly CancellationTokenSource _cts;
-    private NamedPipeServerStream? _hostServer;
+    private readonly string _processId;
     private NamedPipeClientStream? _slaveClient;
     private HostElectionResult? _role;
+    private Task? _acceptTask;
+    private Task? _slaveReceiveTask;
     private int _disposed;
 
     /// <summary>
@@ -28,13 +30,16 @@ public sealed class BusTransport : ITransportTopology
     /// <param name="pipeName">管道名称（默认 jcc-bus）</param>
     /// <param name="election">主机选举服务</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="processId">进程标识（默认 Environment.ProcessId，测试可注入）</param>
     public BusTransport(
         string pipeName = "jcc-bus",
         HostElectionService? election = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        string? processId = null)
     {
         _pipeName = pipeName;
-        _election = election ?? new HostElectionService(pipeName, logger);
+        _processId = processId ?? Environment.ProcessId.ToString();
+        _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);
         _logger = logger;
         _clientConnections = new ConcurrentDictionary<string, BusClientConnection>();
         _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions
@@ -52,7 +57,7 @@ public sealed class BusTransport : ITransportTopology
     public ProcessRole Role => _role?.Role ?? ProcessRole.Slave;
 
     /// <inheritdoc/>
-    public string ProcessId => Environment.ProcessId.ToString();
+    public string ProcessId => _processId;
 
     /// <inheritdoc/>
     public string HostProcessId => _role?.HostProcessId ?? ProcessId;
@@ -144,15 +149,9 @@ public sealed class BusTransport : ITransportTopology
 
     private async Task StartHostAsync(CancellationToken ct)
     {
-        _hostServer = new NamedPipeServerStream(
-            _pipeName,
-            PipeDirection.InOut,
-            NamedPipeServerStream.MaxAllowedServerInstances,
-            PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
-
         _logger?.LogInformation("BusTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
-        _ = Task.Run(() => AcceptConnectionsLoopAsync(ct), ct);
+        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
+        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, linkedCts.Token), linkedCts.Token);
     }
 
     private async Task StartSlaveAsync(CancellationToken ct)
@@ -181,31 +180,8 @@ public sealed class BusTransport : ITransportTopology
         _logger?.LogInformation("BusTransport: SLAVE connected to host {Host} (pid={Pid})",
             _role.HostProcessId, ProcessId);
 
-        _ = Task.Run(() => SlaveReceiveLoopAsync(ct), ct);
-    }
-
-    private async Task AcceptConnectionsLoopAsync(CancellationToken ct)
-    {
-        while (!_cts.IsCancellationRequested && !ct.IsCancellationRequested)
-        {
-            var server = new NamedPipeServerStream(
-                _pipeName,
-                PipeDirection.InOut,
-                NamedPipeServerStream.MaxAllowedServerInstances,
-                PipeTransmissionMode.Byte,
-                PipeOptions.Asynchronous);
-
-            try
-            {
-                await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
-                _ = Task.Run(() => HandleBusConnectionAsync(server, ct), ct);
-            }
-            catch (OperationCanceledException) { return; }
-            catch (Exception ex)
-            {
-                _logger?.LogError(ex, "BusTransport: accept connection error");
-            }
-        }
+        var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
+        _slaveReceiveTask = Task.Run(() => SlaveReceiveLoopAsync(linkedCts.Token), linkedCts.Token);
     }
 
     private async Task HandleBusConnectionAsync(NamedPipeServerStream server, CancellationToken ct)
@@ -306,25 +282,28 @@ public sealed class BusTransport : ITransportTopology
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
+        await TaskAwaitHelper.AwaitWithTimeout(_acceptTask, TimeSpan.FromSeconds(2));
+        await TaskAwaitHelper.AwaitWithTimeout(_slaveReceiveTask, TimeSpan.FromSeconds(2));
+
         foreach (var conn in _clientConnections.Values)
         {
             await conn.DisposeAsync().ConfigureAwait(false);
         }
         _clientConnections.Clear();
 
-        if (_hostServer is not null) await _hostServer.DisposeAsync().ConfigureAwait(false);
         if (_slaveClient is not null) await _slaveClient.DisposeAsync().ConfigureAwait(false);
         await _election.DisposeAsync().ConfigureAwait(false);
         _cts.Dispose();
     }
 }
 
-/// <summary>总线客户端连接 — 封装主机侧单个从机连接的读写。</summary>
+/// <summary>总线客户端连接 — 封装主机侧单个从机连接的读写，用 Channel 串行化写入（无锁 Actor 模型）。</summary>
 internal sealed class BusClientConnection : IAsyncDisposable
 {
     private readonly NamedPipeServerStream _stream;
     private readonly ILogger? _logger;
-    private readonly AsyncLock _writeLock;
+    private readonly Channel<ReadOnlyMemory<byte>> _writeQueue;
+    private readonly Task _writeLoop;
     private int _disposed;
 
     public string ProcessId { get; }
@@ -334,23 +313,39 @@ internal sealed class BusClientConnection : IAsyncDisposable
         ProcessId = processId;
         _stream = stream;
         _logger = logger;
-        _writeLock = new AsyncLock();
+        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
+        _writeLoop = Task.Run(WriteLoopAsync);
     }
 
-    public async ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
+    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
     {
-        if (Volatile.Read(ref _disposed) != 0) return;
-        using var guard = (await _writeLock.TryLockAsync(ct).ConfigureAwait(false))
-            ?? throw new TimeoutException("BusClientConnection: write lock timeout");
+        if (Volatile.Read(ref _disposed) != 0) return ValueTask.CompletedTask;
+        return _writeQueue.Writer.WriteAsync(data, ct);
+    }
+
+    private async Task WriteLoopAsync()
+    {
         try
         {
-            await _stream.WriteAsync(data, ct).ConfigureAwait(false);
-            await _stream.FlushAsync(ct).ConfigureAwait(false);
+            await foreach (var data in _writeQueue.Reader.ReadAllAsync().ConfigureAwait(false))
+            {
+                if (Volatile.Read(ref _disposed) != 0) return;
+                try
+                {
+                    await _stream.WriteAsync(data).ConfigureAwait(false);
+                    await _stream.FlushAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger?.LogWarning(ex, "BusClientConnection: write failed for {Pid}", ProcessId);
+                }
+            }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger?.LogWarning(ex, "BusClientConnection: write failed for {Pid}", ProcessId);
-        }
+        catch (OperationCanceledException) { }
     }
 
     public async IAsyncEnumerable<DecodedMessage> ReadMessagesAsync(
@@ -365,7 +360,9 @@ internal sealed class BusClientConnection : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        _writeQueue.Writer.TryComplete();
+        try { await _writeLoop.ConfigureAwait(false); }
+        catch (OperationCanceledException) { }
         await _stream.DisposeAsync().ConfigureAwait(false);
-        _writeLock.Dispose();
     }
 }

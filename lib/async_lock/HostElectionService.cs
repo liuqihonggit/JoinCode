@@ -18,6 +18,11 @@ public sealed record HostElectionResult
     public bool IsNewlyElected { get; init; }
 }
 
+/// <summary>选举请求 — 探测结果 + 结果回调，通过 Channel 串行化决策（无锁 Actor 模型）。</summary>
+internal sealed record ElectionRequest(
+    string? ExistingHostPid,
+    TaskCompletionSource<HostElectionResult> Tcs);
+
 /// <summary>
 /// 主机发现与选举服务 — 基于 NamedPipe 探测 + 进程句柄比较实现主从选举。
 /// <para>选举协议：</para>
@@ -32,11 +37,13 @@ public sealed class HostElectionService : IAsyncDisposable
 {
     private readonly string _pipeName;
     private readonly ILogger? _logger;
-    private readonly AsyncLock _electionLock;
     private readonly TimeSpan _heartbeatInterval;
     private readonly TimeSpan _heartbeatTimeout;
     private readonly CancellationTokenSource _cts;
     private readonly Channel<HostElectionResult> _electionChannel;
+    private readonly Channel<ElectionRequest> _electionCmdChannel;
+    private readonly Task _electionConsumerTask;
+    private readonly string _processId;
     private HostElectionResult? _currentRole;
     private HostContextSnapshot? _lastSnapshot;
     private Task? _heartbeatTask;
@@ -49,15 +56,17 @@ public sealed class HostElectionService : IAsyncDisposable
     /// <param name="logger">日志记录器</param>
     /// <param name="heartbeatInterval">心跳间隔（默认 3s）</param>
     /// <param name="heartbeatTimeout">心跳超时（默认 10s，超时判定主机掉线）</param>
+    /// <param name="processId">进程标识（默认 Environment.ProcessId，测试可注入模拟不同进程）</param>
     public HostElectionService(
         string pipeName = "jcc-mailbox-host",
         ILogger? logger = null,
         TimeSpan? heartbeatInterval = null,
-        TimeSpan? heartbeatTimeout = null)
+        TimeSpan? heartbeatTimeout = null,
+        string? processId = null)
     {
         _pipeName = pipeName;
         _logger = logger;
-        _electionLock = new AsyncLock();
+        _processId = processId ?? Environment.ProcessId.ToString();
         _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(3);
         _heartbeatTimeout = heartbeatTimeout ?? TimeSpan.FromSeconds(10);
         _cts = new CancellationTokenSource();
@@ -67,10 +76,16 @@ public sealed class HostElectionService : IAsyncDisposable
             SingleReader = true,
             SingleWriter = false
         });
+        _electionCmdChannel = Channel.CreateUnbounded<ElectionRequest>(new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = false
+        });
+        _electionConsumerTask = Task.Run(ElectionConsumerLoopAsync);
     }
 
-    /// <summary>当前进程标识 — 使用 PID。</summary>
-    public string ProcessId => Environment.ProcessId.ToString();
+    /// <summary>当前进程标识 — 使用 PID 或注入的测试值。</summary>
+    public string ProcessId => _processId;
 
     /// <summary>当前角色（null 表示尚未选举）。</summary>
     public HostElectionResult? CurrentRole => Volatile.Read(ref _currentRole);
@@ -84,6 +99,7 @@ public sealed class HostElectionService : IAsyncDisposable
 
     /// <summary>
     /// 执行主机选举 — 探测有名管道，决定当前进程角色。
+    /// <para>探测并行（不串行化），决策串行（Channel 消费者独占，无锁 Actor 模型）。</para>
     /// <para>调用方：<see cref="ITransportTopology.StartAsync"/> 启动前调用。</para>
     /// </summary>
     /// <param name="ct">取消令牌</param>
@@ -91,55 +107,73 @@ public sealed class HostElectionService : IAsyncDisposable
     public async ValueTask<HostElectionResult> ElectAsync(CancellationToken ct = default)
     {
         ThrowIfDisposed();
-        using var lockGuard = (await _electionLock.TryLockAsync(ct).ConfigureAwait(false))
-            ?? throw new TimeoutException("HostElection: election lock timeout");
 
-        var pid = ProcessId;
         var existingHostPid = await TryDetectHostAsync(ct).ConfigureAwait(false);
+
+        var tcs = new TaskCompletionSource<HostElectionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await _electionCmdChannel.Writer.WriteAsync(new ElectionRequest(existingHostPid, tcs), ct).ConfigureAwait(false);
+        return await tcs.Task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 选举决策消费者 — Channel 串行化，单线程独占决策，无需锁。
+    /// </summary>
+    private async Task ElectionConsumerLoopAsync()
+    {
+        try
+        {
+            await foreach (var req in _electionCmdChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
+            {
+                var result = DecideRole(req.ExistingHostPid);
+                Volatile.Write(ref _currentRole, result);
+                _electionChannel.Writer.TryWrite(result);
+                req.Tcs.SetResult(result);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    /// <summary>
+    /// 根据探测结果决定角色 — 由消费者线程独占调用，无需锁。
+    /// </summary>
+    private HostElectionResult DecideRole(string? existingHostPid)
+    {
+        var pid = _processId;
 
         if (existingHostPid is null)
         {
-            var result = new HostElectionResult
+            _logger?.LogInformation("HostElection: elected as HOST (pid={Pid}, pipe={Pipe})", pid, _pipeName);
+            return new HostElectionResult
             {
                 Role = ProcessRole.Host,
                 ProcessId = pid,
                 HostProcessId = pid,
                 IsNewlyElected = true
             };
-            Volatile.Write(ref _currentRole, result);
-            _logger?.LogInformation("HostElection: elected as HOST (pid={Pid}, pipe={Pipe})", pid, _pipeName);
-            _electionChannel.Writer.TryWrite(result);
-            return result;
         }
 
-        if (int.TryParse(existingHostPid, out var hostPid) && hostPid > Environment.ProcessId)
+        if (int.TryParse(existingHostPid, out var hostPid) && int.TryParse(_processId, out var myPid) && hostPid > myPid)
         {
-            var takeover = new HostElectionResult
-            {
-                Role = ProcessRole.Host,
-                ProcessId = pid,
-                HostProcessId = pid,
-                IsNewlyElected = true
-            };
-            Volatile.Write(ref _currentRole, takeover);
             _logger?.LogInformation(
                 "HostElection: CONFLICT resolved — local pid={Local} < remote pid={Remote}, taking over as HOST",
-                Environment.ProcessId, hostPid);
-            _electionChannel.Writer.TryWrite(takeover);
-            return takeover;
+                _processId, hostPid);
+            return new HostElectionResult
+            {
+                Role = ProcessRole.Host,
+                ProcessId = pid,
+                HostProcessId = pid,
+                IsNewlyElected = true
+            };
         }
 
-        var slave = new HostElectionResult
+        _logger?.LogInformation("HostElection: joined as SLAVE (pid={Pid}, host={Host})", pid, existingHostPid);
+        return new HostElectionResult
         {
             Role = ProcessRole.Slave,
             ProcessId = pid,
             HostProcessId = existingHostPid,
             IsNewlyElected = false
         };
-        Volatile.Write(ref _currentRole, slave);
-        _logger?.LogInformation("HostElection: joined as SLAVE (pid={Pid}, host={Host})", pid, existingHostPid);
-        _electionChannel.Writer.TryWrite(slave);
-        return slave;
     }
 
     /// <summary>
@@ -261,13 +295,15 @@ public sealed class HostElectionService : IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
+        _electionCmdChannel.Writer.TryComplete();
         _electionChannel.Writer.TryComplete();
         if (_heartbeatTask is not null)
         {
             try { await _heartbeatTask.ConfigureAwait(false); }
             catch (OperationCanceledException) { }
         }
+        try { await _electionConsumerTask.ConfigureAwait(false); }
+        catch (OperationCanceledException) { }
         _cts.Dispose();
-        _electionLock.Dispose();
     }
 }

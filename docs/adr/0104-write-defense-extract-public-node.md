@@ -96,7 +96,8 @@ kit/hands/tool_handlers/handlers/dev_tools/
 
 ## 后续推广
 
-- [ ] 通知服务提取为 node
-- [ ] 密钥检测提取为 node
-- [ ] 备份服务提取为 node
-- [ ] 全局工具处理器按 node/插件哲学改造
+- [x] 通知服务提取为 node → `WriteNotifyNode`
+- [x] 密钥检测提取为 node → `SecretGuardNode`
+- [x] 备份服务提取为 node → `FileBackupNode`
+- [x] NotebookToolHandlers 注入 WriteDefenseService 防御链
+- [ ] 全局工具处理器按 node/插件哲学改造（渐进式推广中）

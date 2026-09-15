@@ -3,12 +3,12 @@
 > 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> **状态**:accepted(P0-P9 全部完成)
+> **状态**:accepted(P0,P3-P9 完成; P1/P2 未实现)
 > **日期**:2026-09-05
-> **实现日期**:2026-09-05(P0-P2) | 2026-09-05(P3-P8) | 2026-09-05(P9)
-> **范围**:StreamingToolExecutor / ForkSubAgentManager / GoalGraphEngine(P0-P2) | McpStdioClient / McpClientToolHandlers / McpAuthToolHandlers / McpTransportFallbackChain / McpServerStateManager / ToolInterventionManager(P3-P8) | SandboxIpcClient(P9)
+> **实现日期**:2026-09-05(P0) | 2026-09-05(P3-P8) | 2026-09-05(P9)
+> **范围**:StreamingToolExecutor(P0) / ForkSubAgentManager(P1,未实现) / GoalGraphEngine(P2,未实现) | McpStdioClient / McpClientToolHandlers / McpAuthToolHandlers / McpTransportFallbackChain / McpServerStateManager / ToolInterventionManager(P3-P8) | SandboxIpcClient(P9)
 > **目标**:将高风险状态锁改为 Actor+Channel 管道通讯,消除死锁与持锁等外部 IO 风险
-> **验证**:P0-P2 1740 单元测试通过 | P3-P8 172 Mcp 单元测试通过 | P9 135 Guard.Security 测试通过
+> **验证**:P0 1740 单元测试通过 | P3-P8 172 Mcp 单元测试通过 | P9 135 Guard.Security 测试通过
 
 ---
 

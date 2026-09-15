@@ -1,4 +1,4 @@
-# ADR 0107: 文件邮箱锁替代跨进程共享锁
+# ADR 0107: 文件邮箱锁替代跨进程共享锁 + Actor 邮箱模型 + Agent 发现
 
 ## 状态
 
@@ -118,3 +118,58 @@ VSTHRD003 是 Visual Studio SDK 的线程分析规则，为 VS 扩展设计。jc
 - **写操作**（`SendAsync`/`RewriteMailboxFileAsync`）：`crossProcess=true` 时先获取 `FileMailboxLock` 跨进程互斥，再获取 `AsyncLock` 进程内互斥
 - **读操作**（`ReadSinceAsync`/`ReadUnreadAsync`）：仅 `AsyncLock` 进程内互斥，读是幂等的不需要跨进程锁
 - **接口兼容**：`ITeammateMailboxService` 接口不变，`crossProcess` 是构造函数可选参数
+
+## MailboxActor 替代 AsyncLock
+
+### 设计
+
+用 `ActorBase<MailboxCommand, Unit>` 替代 `AsyncLock`，彻底消除共享锁：
+
+- **MailboxActor** — 每 agent 邮箱一个 Actor，单 Consumer 线程独占访问文件
+- **命令类型**：`AppendMessageCmd`（追加消息）、`MarkAsReadCmd`（标记已读）
+- **写操作**：通过 Actor 邮箱消息传递串行化，无锁防死锁
+- **读操作**：直接读文件（幂等），不经过 Actor
+- **跨进程**：`crossProcess=true` 时 Actor 内部用 `FileMailboxLock`
+
+### 消除的锁
+
+| 移除的锁 | 替代方案 |
+|---------|---------|
+| `_writeLock`（全局写锁） | MailboxActor Consumer 串行化 |
+| `_agentLocks`（每 agent 锁） | 每 agent 一个 MailboxActor |
+
+## 跨进程 Agent 发现
+
+### IAgentDiscovery 接口
+
+- `RegisterAsync` — 注册 agent 到 `~/.jcc/agents/registry.json`
+- `UnregisterAsync` — 注销 agent
+- `HeartbeatAsync` — 更新心跳时间
+- `DiscoverAsync` — 发现所有活跃 agent（心跳未超时30秒）
+- `DiscoverBySessionAsync` — 发现指定会话的活跃 agent
+- `StartHeartbeatLoopAsync` — 启动心跳循环（PeriodicTimer，默认10秒间隔）
+
+### AgentDiscoveryService 实现
+
+- 注册表持久化到 `~/.jcc/agents/registry.json`
+- 用 `FileMailboxLock` 跨进程互斥（无进程内锁）
+- 用 `IFileSystem` 抽象层操作文件
+- 用 `IClockService` 注入时钟，测试可控
+- 心跳循环用 `PeriodicTimer` + `volatile bool _disposed`
+
+## 消息重复修复
+
+### MailboxMessageSink
+
+实现 `IMailboxMessageSink`，断开 Broker→Poller→Broker 循环：
+
+- `MailboxPoller` 投递跨进程消息到 `MailboxMessageSink`
+- `MailboxMessageSink` 调用 `InProcessMailbox.DeliverInboundAsync`
+- `DeliverInboundAsync` 只写入内存 Channel，不持久化到文件邮箱
+- 消息已在文件邮箱中，无需再次持久化
+
+### InProcessMailbox.DeliverInboundAsync
+
+新增 `DeliverInboundAsync` 方法，区分进程内消息和跨进程入站消息：
+- `SendAsync` — 写内存 Channel + 持久化到文件邮箱（进程内消息）
+- `DeliverInboundAsync` — 只写内存 Channel（跨进程入站消息）

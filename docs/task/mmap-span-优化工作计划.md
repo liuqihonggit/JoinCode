@@ -24,37 +24,29 @@
 
 ---
 
-## 待做：类型2 串行 IO 并行化（收益最高，改动小）
+## 待做：类型2 串行 IO 并行化（收益最高，改动小） ✅ 全部已实现
 
 参考已有并行模式：`ProjectRulesLoader` / `AgentDefinitionProvider`（`Task.WhenAll`）
 
-### T2-1: SessionScanner — 串行读多个会话 JSONL 文件【高收益】
+### T2-1: SessionScanner ✅ 已实现
 
-- **文件**: `core/safety/Vault/src/Memdir/Services/SessionScanner.cs:59-76`
-- **热点**: `foreach` + `await ExtractSessionMetaAsync(file, ct)` 串行读几十~几百个会话文件
-- **优化**: `Task.WhenAll` 并行读取，每个 `ExtractSessionMetaAsync` 独立（ReadAllLinesAsync + JSON 解析）
-- **收益**: **高** — 会话历史文件数量可达几十到几百个，用户查看会话列表时的热路径
+- **文件**: `lib/vault/memdir/services/SessionScanner.cs:64-78`
+- **实现**: `Task.WhenAll` 并行读取，已落地
 
-### T2-2: GoalStateStore — 串行读多个目标 JSON 文件【中收益】
+### T2-2: GoalStateStore ✅ 已实现
 
-- **文件**: `composition/Clock/src/Goal/Infrastructure/GoalStateStore.cs:73-87`
-- **热点**: `foreach` + `await _fs.ReadAllTextAsync(file, ct)` 串行读多个目标文件
-- **优化**: `Task.WhenAll` 并行读取
-- **收益**: **中** — 目标文件数量通常较少（几个到十几个），获取未完成目标时触发
+- **文件**: `lib/clock/goal/infrastructure/GoalStateStore.cs:79-95`
+- **实现**: `Task.WhenAll` 并行读取，已落地
 
-### T2-3: ToolTemplateService — 串行读多个模板 JSON 文件【中收益】
+### T2-3: ToolTemplateService ✅ 已实现
 
-- **文件**: `core/execution/McpToolDispatch/src/Core/Execution/ToolTemplateService.cs:42-68`
-- **热点**: `foreach` + `await _fs.ReadAllTextAsync(file, ct)` 串行读模板文件
-- **优化**: `Task.WhenAll` 并行读取
-- **收益**: **中** — 启动时加载，有 `_cache` 字段表明是初始化路径
+- **文件**: `kit/mcp_tool_dispatch/core/execution/ToolTemplateService.cs:47-76`
+- **实现**: `Task.WhenAll` 并行读取，已落地
 
-### T2-4: FileBasedReflexionMemory — 串行读反思记忆 JSON 文件【中收益】
+### T2-4: FileBasedReflexionMemory ❌ 文件不存在（已删除/重命名）
 
-- **文件**: `core/ai/Agents/src/Doctor/Reflexion/FileBasedReflexionMemory.cs:70-85, 119-140`
-- **热点**: 两处 `foreach` + `await _fs.ReadAllTextAsync(file, ct)` 串行读反思记忆
-- **优化**: 两处均改 `Task.WhenAll`；`GetStatisticsAsync` 外层还有目录遍历，可考虑双层并行
-- **收益**: **中** — Doctor 诊断时调用，文件数 = 规则数 × 每规则尝试次数
+- **文件**: `core/ai/Agents/src/Doctor/Reflexion/FileBasedReflexionMemory.cs` — 文件已不存在
+- **状态**: 废案 — 目标文件已被删除或重命名，无需优化
 
 ---
 

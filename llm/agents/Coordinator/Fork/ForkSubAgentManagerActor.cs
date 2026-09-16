@@ -76,7 +76,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     private sealed record GetForkEntrySnapshotQuery(string ForkId, TaskCompletionSource<ForkEntrySnapshot?> Tcs) : IForkCommand;
     private sealed record GetActiveForksQuery(TaskCompletionSource<IReadOnlyList<ForkSubAgent>> Tcs) : IForkCommand;
     private sealed record MergeForkQuery(string ForkId, TaskCompletionSource<ForkResult> Tcs) : IForkCommand;
-    private sealed record CleanupAllCmd(TaskCompletionSource Tcs) : IForkCommand;
+    private sealed record CleanupAllCmd() : IForkCommand;
 
     private readonly MiddlewarePipeline<ForkContext> _pipeline;
     private readonly ForkManagerDependencies _deps;
@@ -346,9 +346,8 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             case MergeForkQuery(var forkId, var tcs):
                 tcs.SetResult(MergeFork(forkId));
                 return ValueTask.CompletedTask;
-            case CleanupAllCmd(var tcs):
+            case CleanupAllCmd:
                 CleanupAll();
-                tcs.SetResult();
                 return ValueTask.CompletedTask;
             default:
                 return ValueTask.CompletedTask;
@@ -668,24 +667,11 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// 异步释放管理器资源，清理所有 Fork 条目与信号量
     /// </summary>
     /// <returns>表示异步操作的任务</returns>
-    public new ValueTask DisposeAsync() => DisposeAsyncCore();
-
-    private async ValueTask DisposeAsyncCore()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-
-        var cleanupTcs = new TaskCompletionSource();
-        try
-        {
-            await SendAsync(new CleanupAllCmd(cleanupTcs), CancellationToken.None).ConfigureAwait(false);
-            await cleanupTcs.Task.ConfigureAwait(false);
-        }
-        catch (ChannelClosedException ex)
-        {
-            _logger?.LogDebug(ex, "[ForkSubAgentManagerActor] Channel already closed during cleanup");
-        }
-
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        TrySend(new CleanupAllCmd());
         _forkSemaphore?.Dispose();
-        await base.DisposeAsync().ConfigureAwait(false);
+        return base.DisposeAsync();
     }
 }

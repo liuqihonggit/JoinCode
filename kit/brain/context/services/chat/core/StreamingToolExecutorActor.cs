@@ -42,6 +42,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     private readonly CancellationTokenSource? _linkedCts;
     private readonly CancellationToken _combinedCt;
     private volatile bool _discarded;
+    private int _disposed;
 
     private readonly List<QueuedTool> _queue = [];
     private readonly List<StreamingToolResult> _completedBuffer = [];
@@ -146,8 +147,9 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <inheritdoc/>
-    public new ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _siblingCts.Cancel();
         _linkedCts?.Dispose();
         _siblingCts.Dispose();

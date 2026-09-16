@@ -47,7 +47,7 @@ public sealed record AutoSaveTickCmd : IAwaySummaryCommand;
 /// 离开摘要服务 — 基于 Actor 模型管理用户离开期间的摘要生成与事件跟踪
 /// </summary>
 [Register(typeof(IAwaySummaryService), ServiceLifetime.Singleton)]
-public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, Unit>, IAwaySummaryService, IDisposable
+public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, Unit>, IAwaySummaryService
 {
     private readonly AwaySummaryOptions _options;
     private readonly ILogger<AwaySummaryService>? _logger;
@@ -347,20 +347,13 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     }
 
     /// <summary>
-    /// 释放本服务持有的资源，包括自动保存定时器与 Actor 异步释放。
+    /// 异步释放本服务持有的资源，包括自动保存定时器与 Actor 异步释放。
     /// </summary>
-    public void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _autoSaveTimer?.Dispose();
         _autoSaveTimer = null;
-        try
-        {
-            _ = DisposeAsync().AsTask();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[AwaySummary] Dispose 超时");
-        }
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

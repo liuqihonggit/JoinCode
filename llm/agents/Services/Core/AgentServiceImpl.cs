@@ -867,8 +867,8 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         };
     }
 
-    /// <summary>释放资源 — 取消活动任务、释放服务锁与依赖句柄</summary>
-    public override void Dispose()
+    /// <summary>异步释放资源 — 取消活动任务、清理 worktree、释放服务锁与依赖句柄</summary>
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
 
@@ -876,31 +876,25 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         if (_worktreeManager is not null)
         {
-            // worktree 清理 — fire-and-forget,不阻塞释放路径
-            var logger = _logger;
-            var worktreeManager = _worktreeManager;
-            _ = Task.Run(async () =>
+            try
             {
-                try
+                var sessions = await _worktreeManager.GetAllWorktreeSessionsAsync(CancellationToken.None).ConfigureAwait(false);
+                foreach (var agentId in sessions.Keys)
                 {
-                    var sessions = await worktreeManager.GetAllWorktreeSessionsAsync(CancellationToken.None).ConfigureAwait(false);
-                    foreach (var agentId in sessions.Keys)
+                    try
                     {
-                        try
-                        {
-                            await worktreeManager.CleanupWorktreeAsync(agentId, CancellationToken.None).ConfigureAwait(false);
-                        }
-                        catch (Exception ex)
-                        {
-                            logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", agentId);
-                        }
+                        await _worktreeManager.CleanupWorktreeAsync(agentId, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogDebug(ex, "OnDispose 清理 worktree {AgentId} 失败", agentId);
                     }
                 }
-                catch (Exception ex)
-                {
-                    logger?.LogDebug(ex, "OnDispose 获取 worktree sessions 失败");
-                }
-            });
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "OnDispose 获取 worktree sessions 失败");
+            }
         }
 
         foreach (var kvp in _backgroundCts)
@@ -909,6 +903,6 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             kvp.Value.Dispose();
         }
         _backgroundCts.Clear();
-            base.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

@@ -262,9 +262,9 @@ public abstract class SupervisedActor<TCommand> : ActorBase<TCommand, Supervisor
     }
 
     /// <summary>Dispose 时级联停止所有子 Actor</summary>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        _ = StopAllChildrenAsync();
-        return base.DisposeAsync();
+        await StopAllChildrenAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

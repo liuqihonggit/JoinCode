@@ -1,6 +1,6 @@
 namespace Core.Tests.Services.Memdir;
 
-public sealed class TeamMemorySyncServiceTests : IDisposable
+public sealed class TeamMemorySyncServiceTests : IAsyncDisposable
 {
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
@@ -21,9 +21,9 @@ public sealed class TeamMemorySyncServiceTests : IDisposable
         _service = new global::Memdir.Sync.TeamMemorySyncService(_fs, _fileOperationServiceMock.Object, options);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _service.Dispose();
+        await _service.DisposeSafeAsync();
     }
 
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, SyncFileEntry> GetLocalEntries(global::Memdir.Sync.TeamMemorySyncService service)

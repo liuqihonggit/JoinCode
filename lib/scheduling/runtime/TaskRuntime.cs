@@ -519,11 +519,11 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
         return $"rtask_{counter:D4}";
     }
 
-    /// <summary>释放资源时回调，释放内部 DAG 并异步释放持久化 Actor。</summary>
-    public override void Dispose()
+    /// <summary>异步释放资源 — 释放内部 DAG 并异步释放持久化 Actor。</summary>
+    public override async ValueTask DisposeAsync()
     {
         _dag.Dispose();
-        _ = _persistActor.DisposeAsync();
-            base.Dispose();
+        await _persistActor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

@@ -7,7 +7,7 @@ public sealed class ShellProcessWatchdogTests
     [Fact]
     public async Task NotifySystemResumed_DeadProcess_TriggersCallback()
     {
-        using var watchdog = new ShellProcessWatchdog();
+        await using var watchdog = new ShellProcessWatchdog();
         var tcs = new TaskCompletionSource<int>();
 
         watchdog.Register(-99999, pid => tcs.TrySetResult(pid));
@@ -15,14 +15,12 @@ public sealed class ShellProcessWatchdogTests
 
         var pid = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
         pid.Should().Be(-99999);
-
-        watchdog.Dispose();
     }
 
     [Fact]
     public async Task Unregister_PreventsCallback()
     {
-        using var watchdog = new ShellProcessWatchdog();
+        await using var watchdog = new ShellProcessWatchdog();
         var triggered = false;
 
         watchdog.Register(-99998, _ => triggered = true);

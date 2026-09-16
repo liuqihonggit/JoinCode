@@ -13,7 +13,7 @@ public sealed record HealthCheckTickCmd : IProcessHealthCommand;
 /// <summary>
 /// 进程健康监控器 — 基于定时器周期性检查交互式进程存活状态，连续失败达阈值时触发 Unhealthy 事件
 /// </summary>
-public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit>, IDisposable
+public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit>
 {
     private readonly IInteractiveProcess _process;
     private readonly HealthCheckConfig _config;
@@ -141,21 +141,14 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
     }
 
     /// <summary>
-    /// 释放监控器 — 停止定时器并等待 Actor 队列排空
+    /// 异步释放监控器 — 停止定时器并等待 Actor 队列排空
     /// </summary>
-    public void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
         _timer.Change(Timeout.Infinite, Timeout.Infinite);
         _timer.Dispose();
-        try
-        {
-            _ = DisposeAsync().AsTask();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[ProcessHealth] Dispose 超时");
-        }
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

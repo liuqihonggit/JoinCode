@@ -379,10 +379,10 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// <summary>
     /// 异步释放资源 — 释放定时器、取消令牌、杀死未退出进程、释放输出收集器与 CWD 追踪器
     /// </summary>
-    /// <returns>已完成的值任务</returns>
-    public ValueTask DisposeAsync()
+    /// <returns>表示异步释放操作的任务</returns>
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
 
         _timeoutTimer?.Dispose();
         _assistantTimer?.Dispose();
@@ -398,8 +398,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
 
         _process.Dispose();
 
-        _ = _outputCollector.DisposeAsync();
-        _ = _cwdTracker.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await _outputCollector.DisposeAsync().ConfigureAwait(false);
+        await _cwdTracker.DisposeAsync().ConfigureAwait(false);
     }
 }

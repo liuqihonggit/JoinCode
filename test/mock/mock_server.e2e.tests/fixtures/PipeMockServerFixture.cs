@@ -72,14 +72,14 @@ public sealed class PipeMockServerFixture : IAsyncLifetime
     /// <summary>
     /// 释放 Fixture - 停止 Mock Server
     /// </summary>
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
         _logger.LogInformation("[{Fixture}] 释放 Fixture", nameof(PipeMockServerFixture));
 
         if (_mockServer != null)
         {
-            _ = _mockServer.StopAsync(CancellationToken.None);
-            _ = _mockServer.DisposeAsync();
+            await _mockServer.StopAsync(CancellationToken.None);
+            await _mockServer.DisposeAsync();
             _mockServer = null;
         }
 
@@ -89,7 +89,6 @@ public sealed class PipeMockServerFixture : IAsyncLifetime
         _loggerFactory.Dispose();
 
         _logger.LogInformation("[{Fixture}] Fixture 已释放", nameof(PipeMockServerFixture));
-        return Task.CompletedTask;
     }
 
     /// <summary>

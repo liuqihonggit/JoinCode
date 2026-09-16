@@ -13,7 +13,7 @@ public sealed class DependencyGraphTests : IDisposable
 
     public void Dispose()
     {
-        _store.Dispose();
+        _store.DisposeSafe();
     }
 
     [Fact]

@@ -137,20 +137,13 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
     }
 
     /// <summary>
-    /// 释放资源 — 停止定时器并等待消费者清理
+    /// 异步释放资源 — 停止定时器并等待 Actor 队列排空
     /// </summary>
-    public void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _timer.Change(Timeout.Infinite, Timeout.Infinite);
         _timer.Dispose();
-        try
-        {
-            _ = DisposeAsync().AsTask();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[ShellWatchdog] Dispose 超时");
-        }
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

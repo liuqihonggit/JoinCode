@@ -440,24 +440,15 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <summary>
     /// 异步释放资源 — 关闭所有 LSP 服务器并清空注册表
     /// </summary>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
 
-        _ = ShutdownAsync(CancellationToken.None);
+        await ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
         var tasks = _servers.Values.Select(s => s.DisposeAsync().AsTask()).ToArray();
         _servers.Clear();
-        Dispose();
-        return new ValueTask(Task.WhenAll(tasks));
-    }
-
-    /// <summary>
-    /// 同步释放钩子 — 异步释放未完成时释放 Actor
-    /// </summary>
-    public override void Dispose()
-    {
-        if (_asyncDisposed == 1) return;
-        _ = _initActor.DisposeAsync();
-            base.Dispose();
+        await _initActor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 }

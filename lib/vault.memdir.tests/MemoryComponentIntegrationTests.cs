@@ -31,7 +31,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        _serviceProvider.Dispose();
+        _serviceProvider.DisposeSafe();
     }
 
     [Fact]

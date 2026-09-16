@@ -1,4 +1,5 @@
 global using Core.Utils;
+global using JoinCode.Abstractions.Utils;
 global using Core.Agents.Coordinator;
 global using JoinCode.Abstractions.Models.Agent;
 global using FluentAssertions;

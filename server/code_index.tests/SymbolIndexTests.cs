@@ -13,8 +13,8 @@ public sealed class SymbolIndexTests : IDisposable
 
     public void Dispose()
     {
-        _index.Dispose();
-        _store.Dispose();
+        _index.DisposeSafe();
+        _store.DisposeSafe();
     }
 
     [Fact]

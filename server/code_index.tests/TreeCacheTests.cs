@@ -13,8 +13,8 @@ public sealed class TreeCacheTests : IDisposable
 
     public void Dispose()
     {
-        _cache.Dispose();
-        _parser.Dispose();
+        _cache.DisposeSafe();
+        _parser.DisposeSafe();
     }
 
     [Fact]

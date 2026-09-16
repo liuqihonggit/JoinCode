@@ -17,7 +17,7 @@ public sealed class CodeIndexerRegistryTests : IDisposable
 
     public void Dispose()
     {
-        _registry.Dispose();
+        _registry.DisposeSafe();
     }
 
     [Fact]

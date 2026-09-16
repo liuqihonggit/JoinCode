@@ -4,7 +4,7 @@ namespace Core.Configuration.Remote;
 /// <summary>
 /// 远程设置服务接口 — 提供远程托管设置的读取、刷新与本地合并能力
 /// </summary>
-public interface IRemoteSettingsService : IDisposable
+public interface IRemoteSettingsService : IAsyncDisposable
 {
     /// <summary>
     /// 异步按键获取设置原始字符串值

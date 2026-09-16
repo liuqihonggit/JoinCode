@@ -188,19 +188,18 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     /// 异步释放资源 — 停止活跃传输、释放切换锁、释放全部传输
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
 
-        _ = StopAsync(CancellationToken.None);
+        await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _switchLock.Dispose();
 
         foreach (var transport in _transports)
         {
-            _ = transport.DisposeAsync();
+            await transport.DisposeAsync().ConfigureAwait(false);
         }
 
         GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
     }
 }

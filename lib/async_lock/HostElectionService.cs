@@ -298,20 +298,14 @@ public sealed class HostElectionService : IAsyncDisposable
     /// <summary>
     /// 释放选举服务 — 取消心跳循环。
     /// </summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
         _electionCmdChannel.Writer.TryComplete();
         _electionChannel.Writer.TryComplete();
-        var tasks = new List<Task>(2);
-        if (_heartbeatTask is not null) tasks.Add(_heartbeatTask);
-        if (_electionConsumerTask is not null) tasks.Add(_electionConsumerTask);
-        if (tasks.Count == 0) { _cts.Dispose(); return ValueTask.CompletedTask; }
-        Task.WhenAll(tasks).ContinueWith(
-            static (t, state) => ((CancellationTokenSource)state!).Dispose(),
-            _cts,
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        if (_heartbeatTask is not null) await _heartbeatTask.ConfigureAwait(false);
+        if (_electionConsumerTask is not null) await _electionConsumerTask.ConfigureAwait(false);
+        _cts.Dispose();
     }
 }

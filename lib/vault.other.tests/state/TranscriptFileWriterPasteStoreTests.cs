@@ -122,7 +122,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
 
     public void Dispose()
     {
-        _writer.Dispose();
+        _writer.DisposeSafe();
     }
 }
 #pragma warning restore JCC51010, JCC3010, JCC3011, JCC3012, JCC9001

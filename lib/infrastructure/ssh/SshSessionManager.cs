@@ -177,15 +177,16 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// 异步释放资源 — 通过 Actor 串行清理所有会话后释放基类
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
         var tcs = CreateTcs();
-        _ = SendAsync(new CleanupSessionsCmd(tcs), CancellationToken.None);
-        return base.DisposeAsync();
+        await SendAsync(new CleanupSessionsCmd(tcs), CancellationToken.None).ConfigureAwait(false);
+        await tcs.Task.ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

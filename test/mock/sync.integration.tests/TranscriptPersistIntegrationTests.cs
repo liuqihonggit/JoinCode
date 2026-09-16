@@ -25,20 +25,19 @@ public sealed class TranscriptPersistIntegrationTests : IAsyncLifetime
         await _mockServer.StartAsync().ConfigureAwait(true);
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
         if (_serviceProvider != null)
         {
-            _ = _serviceProvider.DisposeAsync();
+            await _serviceProvider.DisposeAsync();
             _serviceProvider = null;
         }
 
         if (_mockServer != null)
         {
-            _ = _mockServer.StopAsync(CancellationToken.None);
-            _ = _mockServer.DisposeAsync();
+            await _mockServer.StopAsync(CancellationToken.None);
+            await _mockServer.DisposeAsync();
         }
-        return Task.CompletedTask;
     }
 
     private ServiceProvider CreateServiceProvider()

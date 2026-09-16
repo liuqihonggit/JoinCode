@@ -215,14 +215,13 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     /// <summary>
     /// 异步释放所有监控会话与锁资源。
     /// </summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
-            return ValueTask.CompletedTask;
+            return;
 
-        _ = CleanupSessionsAsync();
+        await CleanupSessionsAsync().ConfigureAwait(false);
         _sessionLock.Dispose();
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>清理所有监控会话（在锁保护下执行）</summary>

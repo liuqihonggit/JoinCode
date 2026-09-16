@@ -75,7 +75,7 @@ public sealed class MeshTransport : ITransportTopology
         ThrowIfDisposed();
         Interlocked.Exchange(ref _started, 1);
         _logger?.LogInformation("MeshTransport: started on pipe {Pipe} (pid={Pid})", MyPipeName, ProcessId);
-        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(MyPipeName, HandlePeerConnectionAsync, _cts.Token), _cts.Token);
+        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(MyPipeName, HandlePeerConnectionAsync, _cts.Token));
     }
 
     /// <inheritdoc/>
@@ -222,25 +222,17 @@ public sealed class MeshTransport : ITransportTopology
     }
 
     /// <inheritdoc/>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
         var conns = _peerConnections.Values.ToArray();
         _peerConnections.Clear();
 
-        if (_acceptTask is null) { Cleanup(conns, _cts); return ValueTask.CompletedTask; }
-        _acceptTask.ContinueWith(
-            static (t, state) =>
-            {
-                var (conns, cts) = ((IAsyncDisposable[], CancellationTokenSource))state!;
-                Cleanup(conns, cts);
-            },
-            (conns, _cts),
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
+        Cleanup(conns, _cts);
     }
 
     private static void Cleanup(IAsyncDisposable[] conns, CancellationTokenSource cts)
@@ -309,14 +301,11 @@ internal sealed class MeshPeerConnection : IAsyncDisposable
         catch (OperationCanceledException) { }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _writeQueue.Writer.TryComplete();
-        _writeLoop.ContinueWith(
-            static (t, state) => ((NamedPipeClientStream)state!).DisposeAsync().AsTask().Wait(),
-            _stream,
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        await _writeLoop.ConfigureAwait(false);
+        await _stream.DisposeAsync().ConfigureAwait(false);
     }
 }

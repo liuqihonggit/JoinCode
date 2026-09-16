@@ -46,12 +46,12 @@ public class PluginManagerTests
     }
 
     [Fact]
-    public void Dispose_ShouldNotThrow_WhenNoPluginsLoaded()
+    public async Task Dispose_ShouldNotThrow_WhenNoPluginsLoaded()
     {
         var serviceProvider = CreateServiceProvider();
         var pluginManager = serviceProvider.GetRequiredService<IPluginManager>();
 
-        var exception = Record.Exception(() => pluginManager.Dispose());
+        var exception = await Record.ExceptionAsync(async () => await pluginManager.DisposeAsync());
 
         Assert.Null(exception);
     }

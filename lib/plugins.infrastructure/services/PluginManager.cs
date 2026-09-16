@@ -5,7 +5,6 @@ namespace Core.Plugins;
 /// 插件管理器 — 基于 Actor 模型串行处理插件加载/卸载，管理工作流插件、外部进程插件和 native DLL 插件的生命周期
 /// </summary>
 [Register(typeof(IPluginManager), ServiceLifetime.Singleton)]
-#pragma warning disable JCC9102 // IPluginManager: IDisposable + ActorBase: IAsyncDisposable 接口冲突
 public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManagerOutput>, IPluginManager
 {
     private readonly ConcurrentDictionary<string, WorkflowPluginHost> _workflowPlugins = new();
@@ -948,21 +947,6 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     private void RecordPluginMetrics(string kind, string operation, bool isSuccess) =>
         _telemetryService?.RecordCount("plugin.operation.count", new Dictionary<string, string> { ["kind"] = kind, ["operation"] = operation, ["success"] = isSuccess.ToString() }, "count", "Plugin operation count");
-
-    /// <summary>
-    /// 同步释放 — 标记已释放,同步清理插件,基类异步释放 fire-and-forget 不阻塞调用方
-    /// </summary>
-    public void Dispose()
-    {
-        if (_isDisposed) return;
-        _isDisposed = true;
-        CleanupAllPlugins();
-        var logger = _logger;
-        _ = base.DisposeAsync().AsTask().ContinueWith(t =>
-        {
-            if (t.IsFaulted) logger?.LogError(t.Exception, "PluginManager 基类异步释放失败");
-        }, TaskScheduler.Default);
-    }
 
     /// <summary>
     /// 异步释放 — 标记已释放，调用基类释放并清理全部插件

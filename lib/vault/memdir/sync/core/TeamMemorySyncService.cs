@@ -422,31 +422,17 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     protected override void OnConsumerError(Exception ex) { }
 
     /// <summary>
-    /// 释放同步服务 — 取消令牌、释放定时器与文件监控器,并等待异步释放完成。
+    /// 异步释放同步服务 — 取消令牌、释放定时器、文件监控器与文件传输器。
     /// </summary>
-    public void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
         _syncTimer.Dispose();
         _watcher?.Dispose();
-        _ = DisposeAsync().AsTask();
+        await _transfer.DisposeAsync().ConfigureAwait(false);
+        await DisposeBaseAsync().ConfigureAwait(false);
         _disposeCts.Dispose();
-    }
-
-    /// <summary>
-    /// 异步释放同步服务 — 取消令牌、释放定时器、文件监控器与文件传输器。
-    /// </summary>
-    public override ValueTask DisposeAsync()
-    {
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return ValueTask.CompletedTask;
-        _disposeCts.Cancel();
-        _syncTimer.Dispose();
-        _watcher?.Dispose();
-        return new ValueTask(_transfer.DisposeAsync().AsTask()
-            .ContinueWith(static (_, self) => ((TeamMemorySyncService)self!).DisposeBaseAsync().AsTask(), this, TaskContinuationOptions.ExecuteSynchronously)
-            .Unwrap()
-            .ContinueWith(static (_, state) => ((CancellationTokenSource)state!).Dispose(), _disposeCts, TaskContinuationOptions.ExecuteSynchronously));
     }
 
     private ValueTask DisposeBaseAsync() => base.DisposeAsync();

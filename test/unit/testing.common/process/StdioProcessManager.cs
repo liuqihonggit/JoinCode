@@ -358,10 +358,9 @@ public sealed class StdioProcessManager : IAsyncDisposable
         }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        _ = StopAsync();
-        return ValueTask.CompletedTask;
+        await StopAsync().ConfigureAwait(false);
     }
     private void SignalOutputChanged()
     {

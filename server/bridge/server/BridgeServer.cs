@@ -735,13 +735,13 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     }
 
     /// <summary>
-    /// 释放资源 — 停止服务器并关闭监听器
+    /// 异步释放资源 — 停止服务器并关闭监听器
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
-        _ = StopAsync(_cts.Token);
+        await StopAsync(_cts.Token).ConfigureAwait(false);
         _httpListener.Close();
         _cts.Dispose();
-            base.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

@@ -4,7 +4,7 @@ namespace JoinCode.Abstractions.Shell;
 /// Shell 进程看护服务 — 检测僵尸进程，通知系统唤醒
 /// 周期性检查所有注册的进程是否存活，不存活的触发回调回收资源
 /// </summary>
-public interface IShellProcessWatchdog : IDisposable
+public interface IShellProcessWatchdog : IAsyncDisposable
 {
     /// <summary>
     /// 注册进程监控 — 进程死亡时触发回调

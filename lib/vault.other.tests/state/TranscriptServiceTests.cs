@@ -267,7 +267,7 @@ public sealed class TranscriptServiceTests : IDisposable
 
     public void Dispose()
     {
-        _service.Dispose();
+        _service.DisposeSafe();
     }
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

@@ -203,17 +203,16 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// <summary>
     /// 异步释放 — 停止并释放心跳定时器，再释放基类资源
     /// </summary>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
         _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
         _heartbeatTimer.Dispose();
 
-        _ = base.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

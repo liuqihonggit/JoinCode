@@ -13,10 +13,9 @@ public sealed class LocalToolRegistryTest : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
-        _ = _registry.DisposeAsync();
-        return Task.CompletedTask;
+        await _registry.DisposeAsync();
     }
 
     // === 辅助方法 ===

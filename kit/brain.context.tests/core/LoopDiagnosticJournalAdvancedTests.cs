@@ -5,7 +5,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     [Fact]
     public async Task ConcurrentRecord_DoesNotCorruptWindow()
     {
-        using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 100);
+        await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 100);
         var tasks = new List<Task>();
 
         for (var i = 0; i < 10; i++)
@@ -30,7 +30,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     [Fact]
     public async Task ConcurrentRecordAndAnomaly_DoesNotCorruptWindow()
     {
-        using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 100);
+        await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 100);
         var tasks = new List<Task>();
 
         for (var i = 0; i < 5; i++)
@@ -56,7 +56,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     [Fact]
     public async Task ChannelFull_DropOldest_DoesNotBlockCaller()
     {
-        using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 10);
+        await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 10);
 
         for (var i = 0; i < 500; i++)
         {
@@ -70,7 +70,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     [Fact]
     public async Task Reset_DuringConsumption_DoesNotDeadlock()
     {
-        using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
+        await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
 
         for (var i = 0; i < 100; i++)
         {
@@ -86,14 +86,12 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     [Fact]
     public async Task Dispose_StopsBackgroundConsumer()
     {
-        var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
+        await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
 
         for (var i = 0; i < 100; i++)
         {
             journal.Record("event", "s1", 1, i);
         }
-
-        journal.Dispose();
 
         Assert.True(true);
     }
@@ -101,7 +99,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     [Fact]
     public async Task OnLoopDetected_MultipleAnomalies_AllRecordedToWindow()
     {
-        using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
+        await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 50);
 
         journal.Record("event", "s1", 1, 0);
         journal.OnLoopDetected("OutputLoop", "s1", 1, 0, 1, "循环1");
@@ -117,7 +115,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     [Fact]
     public async Task Record_WithCustomData_PreservedInEntry()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
 
         var entry = journal.Record("tool_start", "s1", 1, 0, new Dictionary<string, string>
         {
@@ -135,7 +133,7 @@ public sealed class LoopDiagnosticJournalAdvancedTests
     [Fact]
     public async Task OnLoopDetected_WithEntropyAndSnippet_DataPreserved()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
         journal.Record("event", "s1", 1, 0);
 
         var anomaly = journal.OnLoopDetected(

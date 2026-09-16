@@ -297,23 +297,16 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// <summary>
     /// 释放 — 取消 Consumer、完成所有通道、等待 Consumer 退出。
     /// </summary>
-    public virtual ValueTask DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
         _highChannel.Writer.TryComplete();
         _normalChannel.Writer.TryComplete();
         _lowChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
-        _consumerTask.ContinueWith(
-            static (t, state) =>
-            {
-                var (cts, signal) = ((CancellationTokenSource, SemaphoreSlim))state!;
-                cts.Dispose();
-                signal.Dispose();
-            },
-            (_cts, _signal),
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        await _consumerTask.ConfigureAwait(false);
+        _cts.Dispose();
+        _signal.Dispose();
     }
 }

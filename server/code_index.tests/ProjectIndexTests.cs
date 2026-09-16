@@ -15,7 +15,7 @@ public sealed class ProjectIndexTests : IDisposable
 
     public void Dispose()
     {
-        _store.Dispose();
+        _store.DisposeSafe();
     }
 
     [Fact]

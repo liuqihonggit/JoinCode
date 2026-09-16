@@ -28,12 +28,11 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
         catch (Exception ex) { throw new InvalidOperationException($"[UTU005] BridgeServer.Start() failed on port {_port}: {ex.Message}", ex); }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        try { _ = _server.StopAsync(CancellationToken.None); }
+        try { await _server.StopAsync(CancellationToken.None); }
         catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose server failed: {ex.Message}"); }
-        _cts.Dispose();
-        return ValueTask.CompletedTask;
+        _cts.DisposeSafe();
     }
 
     private static Mock<IFileOperationService> CreateFileOpMock()

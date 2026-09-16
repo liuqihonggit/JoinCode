@@ -18,7 +18,7 @@ internal sealed record GetTasksByAgentIdCmd(string AgentId, CancellationToken Ct
 /// 消除 AsyncLock。文件读写由 Consumer 串行执行，不再阻塞其他 Cron 任务操作。
 /// </summary>
 [Register(typeof(ICronTaskStore), ServiceLifetime.Singleton)]
-public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Unit>, ICronTaskStore, IDisposable
+public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Unit>, ICronTaskStore
 {
     private string _filePath;
     private readonly string _baseDir;
@@ -358,12 +358,12 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     }
 
     /// <summary>
-    /// 释放文件 watcher 和 Actor 资源
+    /// 异步释放文件 watcher 和 Actor 资源
     /// </summary>
-    public void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _watcher?.Dispose();
-        _ = DisposeAsync();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

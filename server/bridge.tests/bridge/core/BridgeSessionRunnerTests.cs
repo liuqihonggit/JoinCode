@@ -21,11 +21,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     private BridgeSessionRunner CreateSut(BridgeSessionConfiguration? config = null) =>
         new(_sessionFactory, config, NullLogger.Instance, _fakeTime);
 
-    public ValueTask DisposeAsync()
-    {
-        _ = _sut.DisposeAsync().ConfigureAwait(true);
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask DisposeAsync() => _sut.DisposeAsync();
 
     [Fact]
     public async Task StartSessionAsync_ShouldCreateActiveSession()
@@ -52,15 +48,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     {
         // Arrange
         var config = new BridgeSessionConfiguration { MaxActiveSessions = 1 };
-        try
-        {
-            await _sut.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"DisposeAsync timed out before recreating SUT with new config: {ex.Message}");
-        }
+        await _sut.DisposeAsync().ConfigureAwait(true);
         _sut = CreateSut(config);
 
         await _sut.StartSessionAsync("client-001").ConfigureAwait(true);
@@ -161,15 +149,7 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
             CleanupInterval = TimeSpan.FromMinutes(5), // 后台循环不影响手动清理
             MaxActiveSessions = 100
         };
-        try
-        {
-            await _sut.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"DisposeAsync timed out before recreating SUT with cleanup config: {ex.Message}");
-        }
+        await _sut.DisposeAsync().ConfigureAwait(true);
         _sut = CreateSut(config);
 
         var session = await _sut.StartSessionAsync("client-008").ConfigureAwait(true);

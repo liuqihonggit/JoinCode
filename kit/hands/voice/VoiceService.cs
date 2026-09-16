@@ -316,14 +316,25 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     }
 
     /// <summary>
-    /// 释放录制流和取消令牌等资源。
+    /// 同步释放录制流和取消令牌等资源。Actor 的异步释放由 <see cref="DisposeAsync"/> 负责。
     /// </summary>
     public void Dispose()
     {
         _recordingCts?.Cancel();
         _recordingCts?.Dispose();
         _recordingStream?.Dispose();
-        _ = DisposeAsync();
+    }
+
+    /// <summary>
+    /// 异步释放资源 — 先停 Actor(基类),再释放录制流和取消令牌。
+    /// </summary>
+    /// <returns>表示异步释放操作的任务。</returns>
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync().ConfigureAwait(false);
+        _recordingCts?.Cancel();
+        _recordingCts?.Dispose();
+        _recordingStream?.Dispose();
     }
 
 }

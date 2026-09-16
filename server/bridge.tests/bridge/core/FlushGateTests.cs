@@ -12,17 +12,13 @@ public sealed class FlushGateTests : IAsyncDisposable
     private static FlushGate<string> CreateSut(FlushGateOptions? options = null) =>
         new(options, NullLogger.Instance);
 
-    public ValueTask DisposeAsync()
-    {
-        _ = _sut.DisposeAsync().ConfigureAwait(true);
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask DisposeAsync() => _sut.DisposeAsync();
 
     [Fact]
     public async Task AddAsync_ShouldAddItemToBatch()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
         // Act
         await sut.AddAsync("item-1").ConfigureAwait(true);
@@ -30,15 +26,13 @@ public sealed class FlushGateTests : IAsyncDisposable
         // Assert
         var batchSize = await sut.GetCurrentBatchSizeAsync().ConfigureAwait(true);
         batchSize.Should().Be(1);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task FlushAsync_ShouldRaiseBatchFlushed_WithItems()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.AddAsync("item-a").ConfigureAwait(true);
         await sut.AddAsync("item-b").ConfigureAwait(true);
 
@@ -53,8 +47,6 @@ public sealed class FlushGateTests : IAsyncDisposable
         flushedItems.Should().HaveCount(2);
         flushedItems.Should().Contain("item-a");
         flushedItems.Should().Contain("item-b");
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -78,15 +70,13 @@ public sealed class FlushGateTests : IAsyncDisposable
         // 刷新后批次应清空
         var batchSize = await sut.GetCurrentBatchSizeAsync().ConfigureAwait(true);
         batchSize.Should().Be(0);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task FlushAsync_ShouldClearBatch()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         await sut.AddAsync("item-x").ConfigureAwait(true);
         await sut.AddAsync("item-y").ConfigureAwait(true);
 
@@ -96,15 +86,13 @@ public sealed class FlushGateTests : IAsyncDisposable
         // Assert
         var batchSize = await sut.GetCurrentBatchSizeAsync().ConfigureAwait(true);
         batchSize.Should().Be(0);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task BatchFlushed_ShouldContainAllAddedItems()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var allItems = new List<string>();
         sut.BatchFlushed += (_, args) => allItems.AddRange(args.Items);
 
@@ -122,7 +110,5 @@ public sealed class FlushGateTests : IAsyncDisposable
         {
             allItems.Should().Contain($"item-{i}");
         }
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 }

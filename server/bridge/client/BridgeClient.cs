@@ -609,16 +609,16 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// 异步释放资源 — 停止客户端、释放轮询令牌并调用基类释放
     /// </summary>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
         try
         {
-            _ = StopAsync(CancellationToken.None);
+            await StopAsync(CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -626,8 +626,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         }
 
         _pollingCts?.Dispose();
-        _ = base.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

@@ -7,7 +7,7 @@ public sealed class AwaySummaryServiceTests
     [Fact]
     public async Task MarkAway_SetsIsAwayTrue()
     {
-        using var sut = new AwaySummaryService();
+        await using var sut = new AwaySummaryService();
         sut.IsAway.Should().BeFalse();
 
         await sut.MarkAwayAsync();
@@ -19,7 +19,7 @@ public sealed class AwaySummaryServiceTests
     [Fact]
     public async Task GenerateSummary_WhenNotAway_ReturnsFailure()
     {
-        using var sut = new AwaySummaryService();
+        await using var sut = new AwaySummaryService();
 
         var result = await sut.GenerateSummaryAsync();
 
@@ -30,7 +30,7 @@ public sealed class AwaySummaryServiceTests
     [Fact]
     public async Task TrackEvent_WhenAway_RecordsEvent()
     {
-        using var sut = new AwaySummaryService();
+        await using var sut = new AwaySummaryService();
         await sut.MarkAwayAsync();
 
         await sut.TrackEventAsync(new AwayEvent

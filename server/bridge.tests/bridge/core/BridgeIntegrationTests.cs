@@ -27,11 +27,11 @@ public sealed class BridgeIntegrationTests
             logger: NullLogger<BridgeServer>.Instance);
 
         var config = new BridgeConfig { Enabled = true };
-        var capacityWakeService = new CapacityWakeService(
+        await using var capacityWakeService = new CapacityWakeService(
             new CapacityWakeOptions { CheckIntervalMs = 60000 }, // 长间隔避免实际触发
             NullLogger<CapacityWakeService>.Instance);
 
-        var sut = new BridgeServerHostedService(
+        await using var sut = new BridgeServerHostedService(
             bridgeServer,
             config,
             capacityWakeService,
@@ -45,24 +45,6 @@ public sealed class BridgeIntegrationTests
 
         // Cleanup
         await sut.StopAsync(CancellationToken.None).ConfigureAwait(true);
-        try
-        {
-            await capacityWakeService.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"CapacityWakeService disposal timed out during cleanup: {ex.Message}");
-        }
-        try
-        {
-            await sut.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex2)
-        {
-            System.Diagnostics.Trace.WriteLine($"BridgeServerHostedService disposal timed out during cleanup: {ex2.Message}");
-        }
     }
 
     [Fact]
@@ -76,7 +58,7 @@ public sealed class BridgeIntegrationTests
             logger: NullLogger<BridgeServer>.Instance);
 
         var config = new BridgeConfig { Enabled = true };
-        var sut = new BridgeServerHostedService(
+        await using var sut = new BridgeServerHostedService(
             bridgeServer,
             config,
             capacityWakeService: null,
@@ -85,15 +67,6 @@ public sealed class BridgeIntegrationTests
         // Act & Assert - 不应抛出异常
         await sut.StartAsync(CancellationToken.None).ConfigureAwait(true);
         await sut.StopAsync(CancellationToken.None).ConfigureAwait(true);
-        try
-        {
-            await sut.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"BridgeServerHostedService disposal timed out during cleanup: {ex.Message}");
-        }
     }
 
     #endregion
@@ -246,7 +219,7 @@ public sealed class BridgeIntegrationTests
     public async Task BridgeServer_FlushGateBatchesMessages()
     {
         // Arrange
-        var flushGate = new FlushGate<BridgeServerMessage>(
+        await using var flushGate = new FlushGate<BridgeServerMessage>(
             new FlushGateOptions
             {
                 MaxBatchSize = 3,
@@ -275,24 +248,13 @@ public sealed class BridgeIntegrationTests
         // 满批，应触发刷新
         flushedBatches.Should().HaveCount(1);
         flushedBatches[0].Should().HaveCount(3);
-
-        // Cleanup
-        try
-        {
-            await flushGate.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"FlushGate disposal timed out after batch flush test: {ex.Message}");
-        }
     }
 
     [Fact]
     public async Task BridgeServer_FlushGateManualFlush()
     {
         // Arrange
-        var flushGate = new FlushGate<BridgeServerMessage>(
+        await using var flushGate = new FlushGate<BridgeServerMessage>(
             new FlushGateOptions
             {
                 MaxBatchSize = 100, // 大批次，避免自动触发
@@ -312,17 +274,6 @@ public sealed class BridgeIntegrationTests
         // Assert
         flushedBatches.Should().HaveCount(1);
         flushedBatches[0].Should().HaveCount(1);
-
-        // Cleanup
-        try
-        {
-            await flushGate.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"FlushGate disposal timed out after manual flush test: {ex.Message}");
-        }
     }
 
     [Fact]
@@ -330,7 +281,7 @@ public sealed class BridgeIntegrationTests
     {
         // Arrange - 测试定时刷新路由（BridgeServer 生产环境使用 FlushIntervalMs=100）
         var fakeTime = new FakeTimeProvider();
-        var flushGate = new FlushGate<BridgeServerMessage>(
+        await using var flushGate = new FlushGate<BridgeServerMessage>(
             new FlushGateOptions
             {
                 MaxBatchSize = 100, // 大批次，避免满批触发
@@ -363,17 +314,6 @@ public sealed class BridgeIntegrationTests
         // Assert - 定时器应已触发刷新，所有消息应被批量处理
         flushedBatches.Should().HaveCountGreaterThanOrEqualTo(1);
         flushedBatches.SelectMany(b => b).Should().HaveCount(3);
-
-        // Cleanup
-        try
-        {
-            await flushGate.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"FlushGate disposal timed out after broadcast routing test: {ex.Message}");
-        }
     }
 
     #endregion
@@ -384,7 +324,7 @@ public sealed class BridgeIntegrationTests
     public async Task BridgeServer_RoutesPeerMessages()
     {
         // Arrange
-        var peerSessionManager = new PeerSessionManager(NullLogger<PeerSessionManager>.Instance);
+        await using var peerSessionManager = new PeerSessionManager(NullLogger<PeerSessionManager>.Instance);
 
         // 模拟 BridgeServer 订阅 PeerSessionManager.PeerMessageSent 事件
         List<BridgeServerMessage> routedMessages = new();
@@ -409,24 +349,13 @@ public sealed class BridgeIntegrationTests
         // Assert - 消息应被路由
         routedMessages.Should().HaveCount(1);
         routedMessages[0].Type.Should().Be("peer_message");
-
-        // Cleanup
-        try
-        {
-            await peerSessionManager.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"PeerSessionManager disposal timed out after peer message routing test: {ex.Message}");
-        }
     }
 
     [Fact]
     public async Task BridgeServer_PeerSessionConnectedEvent()
     {
         // Arrange
-        var peerSessionManager = new PeerSessionManager(NullLogger<PeerSessionManager>.Instance);
+        await using var peerSessionManager = new PeerSessionManager(NullLogger<PeerSessionManager>.Instance);
         PeerSession? connectedSession = null;
         peerSessionManager.PeerSessionConnected += (_, e) => connectedSession = e.Session;
 
@@ -438,17 +367,6 @@ public sealed class BridgeIntegrationTests
         connectedSession.Should().NotBeNull();
         connectedSession!.SessionId.Should().Be(session.SessionId);
         connectedSession.Status.Should().Be(PeerSessionStatus.Connected);
-
-        // Cleanup
-        try
-        {
-            await peerSessionManager.DisposeAsync().AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
-        }
-        catch (TimeoutException ex)
-        {
-            System.Diagnostics.Trace.WriteLine($"PeerSessionManager disposal timed out after peer session connected event test: {ex.Message}");
-        }
     }
 
     #endregion
@@ -463,7 +381,7 @@ public sealed class BridgeIntegrationTests
             new HttpResponseMessage(System.Net.HttpStatusCode.OK));
 
         var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
-        var apiClient = new BridgeApiClient(
+        using var apiClient = new BridgeApiClient(
             httpClient,
             new BridgeApiOptions { BaseUrl = "http://localhost:3456" },
             NullLogger<BridgeApiClient>.Instance);
@@ -473,9 +391,6 @@ public sealed class BridgeIntegrationTests
 
         // Assert
         isHealthy.Should().BeTrue();
-
-        // Cleanup
-        apiClient.Dispose();
     }
 
     [Fact]
@@ -484,7 +399,7 @@ public sealed class BridgeIntegrationTests
         // Arrange - 使用抛出异常的模拟 Handler
         var handler = new MockFailingHttpMessageHandler();
         var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
-        var apiClient = new BridgeApiClient(
+        using var apiClient = new BridgeApiClient(
             httpClient,
             new BridgeApiOptions { BaseUrl = "http://localhost:3456" },
             NullLogger<BridgeApiClient>.Instance);
@@ -494,9 +409,6 @@ public sealed class BridgeIntegrationTests
 
         // Assert
         isHealthy.Should().BeFalse();
-
-        // Cleanup
-        apiClient.Dispose();
     }
 
     #endregion

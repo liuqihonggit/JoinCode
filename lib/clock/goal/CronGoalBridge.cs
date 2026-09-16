@@ -144,11 +144,10 @@ public sealed partial class CronGoalBridge : IAsyncDisposable
     /// <summary>
     /// 异步释放 — 释放调度器并标记为未启动
     /// </summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
-        _ = _scheduler.DisposeAsync();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        await _scheduler.DisposeAsync().ConfigureAwait(false);
         IsStarted = false;
-        return ValueTask.CompletedTask;
     }
 }

@@ -15,8 +15,8 @@ public sealed class SymbolSearcherTests : IDisposable
 
     public void Dispose()
     {
-        _index.Dispose();
-        _store.Dispose();
+        _index.DisposeSafe();
+        _store.DisposeSafe();
     }
 
     [Fact]

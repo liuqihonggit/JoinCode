@@ -203,6 +203,10 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0106](0106-subagent-stall-defense-in-depth.md) | 子代理卡死防护纵深防御体系 — L1预防+L2检测+L3干预+L4恢复 | proposed | 2026-09-15 |
 | [0107](0107-file-mailbox-lock-replace-mutex.md) | 文件邮箱锁替代跨进程共享锁 + Actor 邮箱模型 + Agent 发现 | accepted | 2026-09-15 |
 | [0108](0108-dispose-consistency-analyzer-rules.md) | Dispose 一致性分析器规则与 OnDispose 间接层消除 | accepted | 2026-09-16 |
+| [0109](0109-window-shake-notification-and-bot-name.md) | 窗口震动通知与机器人名称 | accepted | 2026-09-16 |
+| [0110](0110-platform-bot-adapter-pattern.md) | 平台机器人适配器模式 | accepted | 2026-09-16 |
+| [0111](0111-unified-messaging-channel-mailboxhub-upgrade.md) | 统一消息通道 MailboxHub 升级 | accepted | 2026-09-16 |
+| [0112](0112-dispose-fire-and-forget-ban-continuewith-to-await.md) | Dispose 体内禁止 fire-and-forget + ContinueWith→await 统一释放规范 | accepted | 2026-09-17 |
 
 ## 主题索引（按议题）
 

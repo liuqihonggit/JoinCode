@@ -15,9 +15,9 @@ public sealed class IncrementalUpdaterTests : IDisposable
 
     public void Dispose()
     {
-        _updater.Dispose();
-        _index.Dispose();
-        _store.Dispose();
+        _updater.DisposeSafe();
+        _index.DisposeSafe();
+        _store.DisposeSafe();
     }
 
     [Fact]

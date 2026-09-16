@@ -153,4 +153,108 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
         notice.Visibility.Should().Be(MessageVisibility.System);
         notice.Content.Should().Be("agent1 加入聊天室");
     }
+
+    [Fact]
+    public async Task PersistTeamMessage_AdminOnly_OnlyDeliversToAdmins()
+    {
+        var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "owner", "admin1", "member1" });
+        var teamId = createResult.Data!.TeamId;
+        SetTeamSession(teamId, "session1");
+
+        await _teamManager.AddTeamMemberAsync(teamId, "admin1");
+        SetMemberRole(teamId, "admin1", "admin");
+        var sentAgents = new List<string>();
+        _mailboxServiceMock
+            .Setup(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<MailboxSendRequest, CancellationToken>((req, _) => sentAgents.Add(req.ToAgentId))
+            .Returns(() => ValueTask.FromResult<CoordinatorMessage>(null!));
+
+        var notice = SystemNoticeFactory.Create(SystemNoticeKind.MemberMuted, teamId, "member1");
+        var msgDictField = typeof(TeamManager).GetField("_teamMessages",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var msgDict = (System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, TeamMessage>>)msgDictField!.GetValue(_teamManager)!;
+        msgDict.GetOrAdd(teamId, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, TeamMessage>()).TryAdd(notice.MessageId, notice);
+
+        var persistMethod = typeof(TeamManager).GetMethod("PersistTeamMessageToMailboxAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        await (Task)persistMethod!.Invoke(_teamManager, new object[] { teamId, notice, CancellationToken.None })!;
+
+        sentAgents.Should().NotContain("member1");
+        sentAgents.Should().Contain("admin1");
+    }
+
+    [Fact]
+    public async Task PersistTeamMessage_Private_OnlyDeliversToToAgentId()
+    {
+        var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "target", "bystander" });
+        var teamId = createResult.Data!.TeamId;
+        SetTeamSession(teamId, "session1");
+
+        var sentAgents = new List<string>();
+        _mailboxServiceMock
+            .Setup(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<MailboxSendRequest, CancellationToken>((req, _) => sentAgents.Add(req.ToAgentId))
+            .Returns(() => ValueTask.FromResult<CoordinatorMessage>(null!));
+
+        var privateMsg = new TeamMessage
+        {
+            MessageId = Guid.NewGuid().ToString("N"),
+            TeamId = teamId,
+            SenderId = "sender",
+            Content = "私信",
+            MessageType = "direct",
+            Visibility = MessageVisibility.Private,
+            ToAgentId = "target",
+        };
+
+        var persistMethod = typeof(TeamManager).GetMethod("PersistTeamMessageToMailboxAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        await (Task)persistMethod!.Invoke(_teamManager, new object[] { teamId, privateMsg, CancellationToken.None })!;
+
+        sentAgents.Should().ContainSingle();
+        sentAgents[0].Should().Be("target");
+    }
+
+    [Fact]
+    public async Task PersistTeamMessage_Hidden_DoesNotDeliver()
+    {
+        var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
+        var teamId = createResult.Data!.TeamId;
+        SetTeamSession(teamId, "session1");
+
+        var hiddenMsg = new TeamMessage
+        {
+            MessageId = Guid.NewGuid().ToString("N"),
+            TeamId = teamId,
+            SenderId = "sender",
+            Content = "已撤回",
+            MessageType = "text",
+            Visibility = MessageVisibility.Hidden,
+        };
+
+        var persistMethod = typeof(TeamManager).GetMethod("PersistTeamMessageToMailboxAsync",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        await (Task)persistMethod!.Invoke(_teamManager, new object[] { teamId, hiddenMsg, CancellationToken.None })!;
+
+        _mailboxServiceMock.Verify(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private void SetTeamSession(string teamId, string sessionId)
+    {
+        var sessionField = typeof(TeamManager).GetField("_teamSessions",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var sessions = (System.Collections.Concurrent.ConcurrentDictionary<string, string>)sessionField!.GetValue(_teamManager)!;
+        sessions[teamId] = sessionId;
+    }
+
+    private void SetMemberRole(string teamId, string agentId, string role)
+    {
+        var detailsField = typeof(TeamManager).GetField("_teamMemberDetails",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var detailsDict = (System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, TeamMemberInfo>>)detailsField!.GetValue(_teamManager)!;
+        if (detailsDict.TryGetValue(teamId, out var details) && details.TryGetValue(agentId, out var info))
+        {
+            details[agentId] = info with { Role = role };
+        }
+    }
 }

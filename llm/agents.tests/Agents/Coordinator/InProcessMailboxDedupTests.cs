@@ -46,6 +46,7 @@ public sealed class InProcessMailboxDedupTests
     {
         await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
+        await WaitForRegistrationAsync(mailbox, "agent1");
         var msg = CreateMessage("msg-001");
 
         await mailbox.DeliverInboundAsync("agent1", msg);
@@ -102,11 +103,23 @@ public sealed class InProcessMailboxDedupTests
 
         await using var mailbox = new InProcessMailbox(null, fileMailboxMock.Object);
         mailbox.RegisterAgent("agent1", "session1");
+        await WaitForRegistrationAsync(mailbox, "agent1");
         var msg = CreateMessage("msg-001");
 
         await mailbox.SendAsync("agent1", msg);
         await mailbox.SendAsync("agent1", msg);
 
         fileMailboxMock.Verify(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private static async Task WaitForRegistrationAsync(InProcessMailbox mailbox, string agentId)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (mailbox.GetRegisteredAgents().Contains(agentId)) return;
+            await Task.Delay(50);
+        }
+        throw new TimeoutException($"Agent {agentId} not registered within 5s");
     }
 }

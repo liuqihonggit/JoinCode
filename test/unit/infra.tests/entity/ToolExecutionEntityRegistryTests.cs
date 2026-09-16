@@ -36,6 +36,7 @@ public sealed class ToolExecutionEntityRegistryTests
     public void GetActive_ReturnsActiveEntity()
     {
         using var entity =  new ToolExecutionEntity("bash");
+        entity.LifecycleState = EntityLifecycle.Active;
  ToolExecutionEntity.Registry.GetActive().Should().Contain(entity); 
     }
 
@@ -50,6 +51,7 @@ public sealed class ToolExecutionEntityRegistryTests
     public void GetCompleted_ReturnsCompletedEntity()
     {
         using var entity =  new ToolExecutionEntity("bash");
+        entity.LifecycleState = EntityLifecycle.Completed;
  ToolExecutionEntity.Registry.GetCompleted().Should().Contain(entity); 
     }
 

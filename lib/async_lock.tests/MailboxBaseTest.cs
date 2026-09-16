@@ -134,6 +134,7 @@ public class MailboxBaseTest
     {
         await using var mailbox = new TestMailbox();
         await mailbox.RegisterAgentAsync("agent-1", "session-123");
+        await WaitForRegistrationAsync(mailbox, "agent-1");
 
         mailbox.GetSessionId("agent-1").Should().Be("session-123");
         mailbox.GetSessionId("unknown").Should().BeNull();

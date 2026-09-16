@@ -75,12 +75,13 @@ public class AsyncLockTest
         var tasks = Enumerable.Range(0, N).Select(async i =>
         {
             await startGate.Task.ConfigureAwait(true);
-            using var guard =  asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
+            using var guard = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
             acquireOrder.Enqueue(i);
             var c = Interlocked.Increment(ref currentHolders);
             UpdateMax(ref maxConcurrent, c);
             await Task.Yield();
-        
+            Interlocked.Decrement(ref currentHolders);
+            Interlocked.Increment(ref completedCount);
         }).ToArray();
 
         startGate.SetResult(true);
@@ -337,12 +338,13 @@ public class AsyncLockTest
         var tasks = Enumerable.Range(0, N).Select(async _ =>
         {
             await startGate.Task.ConfigureAwait(true);
-            using var guard =  asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
+            using var guard = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
             Interlocked.Increment(ref acquireCount);
             var c = Interlocked.Increment(ref currentHolders);
             UpdateMax(ref maxConcurrent, c);
             await Task.Yield();
-        
+            Interlocked.Decrement(ref currentHolders);
+            Interlocked.Increment(ref completedCount);
         }).ToArray();
 
         startGate.SetResult(true);

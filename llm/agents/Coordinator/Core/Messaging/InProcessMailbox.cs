@@ -71,7 +71,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
             return false;
         }
 
-        await TellAsync(agentId, message, cancellationToken).ConfigureAwait(false);
+        DeliverToAgent(agentId, message);
         await PersistToMailboxAsync(agentId, message, cancellationToken).ConfigureAwait(false);
         return true;
     }

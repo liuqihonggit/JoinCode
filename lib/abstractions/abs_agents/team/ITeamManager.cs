@@ -160,4 +160,22 @@ public interface ITeamManager : IDisposable
     Task<ChatRoomInfo?> GetChatRoomInfoAsync(
         string teamId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 撤回团队消息 — 对标 QQ 消息撤回（2 分钟内可撤回）— ADR 0109 决策11。
+    /// <para>权限：发送者本人或管理员/群主可撤回。</para>
+    /// <para>效果：消息 Visibility=Hidden + 广播撤回系统通知。</para>
+    /// </summary>
+    /// <param name="teamId">团队标识</param>
+    /// <param name="messageId">消息标识</param>
+    /// <param name="revokerId">撤回者标识</param>
+    /// <param name="reason">撤回原因（可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>撤回结果（成功包含团队信息）</returns>
+    Task<OperationResult<TeamInfo?>> RevokeMessageAsync(
+        string teamId,
+        string messageId,
+        string revokerId,
+        string? reason = null,
+        CancellationToken cancellationToken = default);
 }

@@ -125,12 +125,16 @@ public abstract class TransportBase : ITransport
     }
 
     /// <inheritdoc/>
-    public virtual async ValueTask DisposeAsync()
+    public virtual ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
 
-        await StopAsync().ConfigureAwait(false);
-        _sendLock.Dispose();
-        GC.SuppressFinalize(this);
+        return new ValueTask(StopAsync().ContinueWith(
+            _ =>
+            {
+                _sendLock.Dispose();
+                GC.SuppressFinalize(this);
+            },
+            TaskContinuationOptions.ExecuteSynchronously));
     }
 }

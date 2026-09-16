@@ -416,12 +416,13 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// 异步释放 LspService 资源
     /// </summary>
     /// <returns>表示异步释放操作的 ValueTask</returns>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return ValueTask.CompletedTask;
 
-        await _lspManager.DisposeAsync().ConfigureAwait(false);
+        var task = _lspManager.DisposeAsync();
         Dispose();
+        return task;
     }
 
     /// <summary>

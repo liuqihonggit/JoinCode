@@ -289,9 +289,10 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
     /// 异步释放资源
     /// </summary>
     /// <returns>表示异步操作的值任务</returns>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await base.DisposeAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        _ = base.DisposeAsync();
+        return ValueTask.CompletedTask;
     }
 }

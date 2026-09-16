@@ -68,9 +68,9 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
     /// <summary>
     /// 释放资源：取消配置变更订阅、取消即发即忘操作
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
 
         if (_configChangeNotifier is not null)
         {
@@ -79,6 +79,7 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
         }
         _disposeCts.Cancel();
         _disposeCts.Dispose();
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+
+        return ValueTask.CompletedTask;
     }
 }

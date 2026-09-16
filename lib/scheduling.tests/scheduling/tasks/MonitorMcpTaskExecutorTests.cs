@@ -15,9 +15,10 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable
             NullLogger<MonitorMcpTaskExecutor>.Instance);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await _executor.DisposeAsync().ConfigureAwait(true);
+        _ = _executor.DisposeAsync().ConfigureAwait(true);
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

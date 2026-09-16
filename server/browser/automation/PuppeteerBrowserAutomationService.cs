@@ -166,21 +166,20 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     /// <summary>
     /// 异步释放 — 关闭浏览器实例并释放锁
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_browser is not null)
         {
-            try
-            {
-                await _browser.DisposeAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to dispose browser");
-            }
+            var browser = _browser;
             _browser = null;
+            return new ValueTask(browser.DisposeAsync().AsTask().ContinueWith(t =>
+            {
+                if (t.IsFaulted) _logger.LogWarning(t.Exception!, "Failed to dispose browser");
+                _initLock.Dispose();
+            }, TaskContinuationOptions.ExecuteSynchronously));
         }
 
         _initLock.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

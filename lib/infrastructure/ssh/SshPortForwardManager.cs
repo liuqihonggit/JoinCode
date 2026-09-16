@@ -114,13 +114,13 @@ public sealed class SshPortForwardManager : IAsyncDisposable
     /// 异步释放资源 — 停止所有端口转发
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await StopAllAsync().ConfigureAwait(false);
+        return new ValueTask(StopAllAsync());
     }
 }

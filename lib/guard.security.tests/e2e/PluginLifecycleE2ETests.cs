@@ -13,9 +13,10 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
         _hookInjector = new PluginHookInjector(_pluginManager.Object, NullLogger<PluginHookInjector>.Instance);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await ValueTask.CompletedTask.ConfigureAwait(true);
+
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

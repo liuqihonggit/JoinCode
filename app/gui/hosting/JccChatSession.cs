@@ -682,12 +682,13 @@ internal sealed class JccChatSession : IJccChatSession
         return list;
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_disposeAsync is not null)
         {
-            await _disposeAsync();
+            _ = _disposeAsync();
         }
+        return ValueTask.CompletedTask;
     }
 
 }

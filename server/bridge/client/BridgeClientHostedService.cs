@@ -85,11 +85,12 @@ public sealed partial class BridgeClientHostedService : IHostedService, IAsyncDi
     /// <summary>
     /// 异步释放资源 — 取消内部令牌并释放 BridgeClient
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await _cts.CancelAsync().ConfigureAwait(false);
-        await _bridgeClient.DisposeAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        _ = _cts.CancelAsync();
+        _ = _bridgeClient.DisposeAsync();
         _cts.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

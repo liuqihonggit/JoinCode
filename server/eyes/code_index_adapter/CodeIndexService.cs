@@ -92,18 +92,15 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
     /// 异步释放资源 — 释放文件监视器、LSP 集成与索引器
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed))
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        if (_watcher is not null)
-        {
-            await _watcher.DisposeAsync().ConfigureAwait(false);
-        }
         _lspIntegration?.Dispose();
         (_indexer as IDisposable)?.Dispose();
+        return _watcher?.DisposeAsync() ?? ValueTask.CompletedTask;
     }
 }

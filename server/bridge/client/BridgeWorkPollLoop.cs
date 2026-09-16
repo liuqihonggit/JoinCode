@@ -677,18 +677,19 @@ public sealed class BridgeWorkPollLoop : ServiceEntity
     /// <summary>
     /// 异步释放资源 — 停止轮询、释放传输和去重集合
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await StopAsync().ConfigureAwait(false);
+        _ = StopAsync(CancellationToken.None);
         _loopCts?.Dispose();
-        await _recentPostedUUIDs.DisposeAsync().ConfigureAwait(false);
-        await _recentInboundUUIDs.DisposeAsync().ConfigureAwait(false);
+        _ = _recentPostedUUIDs.DisposeAsync();
+        _ = _recentInboundUUIDs.DisposeAsync();
         Dispose();
+        return ValueTask.CompletedTask;
     }
 }
 

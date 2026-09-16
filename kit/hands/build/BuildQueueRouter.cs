@@ -213,14 +213,14 @@ public sealed class BuildQueueRouter : IBuildQueueService
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         foreach (var cts in _cancelSources.Values)
             cts.Cancel();
 
-        await _router.DisposeAsync().ConfigureAwait(false);
+        _ = _router.DisposeAsync();
 
         foreach (var tcs in _waitHandles.Values)
             tcs.TrySetCanceled();
@@ -228,6 +228,7 @@ public sealed class BuildQueueRouter : IBuildQueueService
         foreach (var cts in _cancelSources.Values)
             cts.Dispose();
         _cancelSources.Clear();
+        return ValueTask.CompletedTask;
     }
 }
 

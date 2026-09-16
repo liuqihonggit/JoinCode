@@ -145,16 +145,21 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
     /// <summary>
     /// 异步释放轮询器，取消所有活跃轮询任务并清理资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;
 
+        var tasks = new List<Task>();
         foreach (var kvp in _pollingAgents)
         {
-            await kvp.Value.CancelAsync().ConfigureAwait(false);
-            kvp.Value.Dispose();
+            var cts = kvp.Value;
+            tasks.Add(cts.CancelAsync().ContinueWith(
+                static (_, state) => ((CancellationTokenSource)state!).Dispose(),
+                cts,
+                TaskContinuationOptions.ExecuteSynchronously));
         }
 
         _pollingAgents.Clear();
+        return tasks.Count == 0 ? ValueTask.CompletedTask : new ValueTask(Task.WhenAll(tasks));
     }
 }

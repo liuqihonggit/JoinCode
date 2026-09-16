@@ -121,12 +121,12 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
     /// <summary>
     /// 异步释放 — 停止服务并释放取消令牌
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         try
         {
-            await StopAsync().ConfigureAwait(false);
+            _ = StopAsync(CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -134,6 +134,7 @@ public sealed partial class CronSchedulerService : IWorkflowService, IAsyncDispo
         }
 
         _cts?.Dispose();
+        return ValueTask.CompletedTask;
     }
 }
 

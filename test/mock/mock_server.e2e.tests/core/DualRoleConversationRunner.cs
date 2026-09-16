@@ -1325,13 +1325,13 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         _logger.LogInformation("[DualRoleRunner] 已转储轮次 {Turn}: {Path}", turnIndex, filePath);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_processManager is not null)
         {
             try
             {
-                await _processManager.DisposeAsync().ConfigureAwait(true);
+                _ = _processManager.DisposeAsync();
             }
             catch (Exception ex)
             {
@@ -1348,7 +1348,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 {
                     _logger.LogInformation("[DualRoleRunner] 停止 MockServer 进程 (PID={Pid})", _mockServerProcess.Id);
                     _mockServerProcess.Kill(entireProcessTree: true);
-                    await _mockServerProcess.WaitForExitAsync(CancellationToken.None).ConfigureAwait(true);
+                    _ = _mockServerProcess.WaitForExitAsync(CancellationToken.None);
                 }
                 _mockServerProcess.Dispose();
             }
@@ -1367,7 +1367,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
                 {
                     _logger.LogInformation("[DualRoleRunner] 停止 Mcp.MockServer 进程 (PID={Pid})", _mcpMockServerProcess.Id);
                     _mcpMockServerProcess.Kill(entireProcessTree: true);
-                    await _mcpMockServerProcess.WaitForExitAsync(CancellationToken.None).ConfigureAwait(true);
+                    _ = _mcpMockServerProcess.WaitForExitAsync(CancellationToken.None);
                 }
                 _mcpMockServerProcess.Dispose();
             }
@@ -1441,6 +1441,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
         }
 
         _loggerFactory.Dispose();
+        return ValueTask.CompletedTask;
     }
 
 }

@@ -26,11 +26,11 @@ public sealed class BatchLock : IAsyncDisposable
     /// <summary>
     /// 释放所有锁（按相反顺序）
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
 
-        await Task.WhenAll(_locks.Select(l => l.DisposeAsync().AsTask())).ConfigureAwait(false);
+        return new ValueTask(Task.WhenAll(_locks.Select(l => l.DisposeAsync().AsTask())));
     }
 }
 

@@ -21,9 +21,10 @@ public sealed class BridgeSessionRunnerTests : IAsyncDisposable
     private BridgeSessionRunner CreateSut(BridgeSessionConfiguration? config = null) =>
         new(_sessionFactory, config, NullLogger.Instance, _fakeTime);
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await _sut.DisposeAsync().ConfigureAwait(true);
+        _ = _sut.DisposeAsync().ConfigureAwait(true);
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

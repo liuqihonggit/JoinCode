@@ -498,15 +498,26 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <summary>
     /// 异步释放资源，强制移除所有活跃 worktree 会话
     /// </summary>
-    public async ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        var tasks = new List<Task>();
         foreach (var kvp in _sessions)
         {
-            try { await RemoveAgentWorktreeAsync(kvp.Key, force: true).ConfigureAwait(false); }
-            catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 清理 worktree 会话 {AgentId} 失败", kvp.Key); }
+            var agentId = kvp.Key;
+            var logger = _logger;
+            tasks.Add(RemoveAgentWorktreeAsync(agentId, force: true).ContinueWith(
+                static (t, state) =>
+                {
+                    var (l, id) = ((ILogger<AgentWorktreeService>?, string))state!;
+                    if (t.IsFaulted && t.Exception is not null)
+                        l?.LogDebug(t.Exception, "DisposeAsync 清理 worktree 会话 {AgentId} 失败", id);
+                },
+                (logger, agentId),
+                TaskContinuationOptions.ExecuteSynchronously));
         }
         _sessions.Clear();
         _sessionLock.Dispose();
+        return tasks.Count == 0 ? ValueTask.CompletedTask : new ValueTask(Task.WhenAll(tasks));
     }
 
     /// <summary>

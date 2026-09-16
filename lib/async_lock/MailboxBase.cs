@@ -285,7 +285,7 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <summary>
     /// 释放邮箱 — 完成所有 Agent Channel 后释放基类。
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         foreach (var channel in _agentChannels.Values)
         {
@@ -293,6 +293,6 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
         }
         _agentChannels.Clear();
         _agentSessions.Clear();
-        await base.DisposeAsync().ConfigureAwait(false);
+        return base.DisposeAsync();
     }
 }

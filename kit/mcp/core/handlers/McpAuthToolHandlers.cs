@@ -442,14 +442,15 @@ public sealed partial class McpAuthToolHandlers : IAsyncDisposable, IMcpAuthConf
     /// <summary>
     /// 异步释放资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         foreach (var provider in _authProviders.Values.OfType<IAsyncDisposable>())
         {
-            await provider.DisposeAsync();
+            _ = provider.DisposeAsync();
         }
         _authProviders.Clear();
         _authLock.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

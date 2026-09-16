@@ -30,10 +30,11 @@ public sealed class ReferenceResolutionTestFixture : IAsyncLifetime
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
-    public async Task DisposeAsync()
+    public Task DisposeAsync()
     {
         (FileOperationService as IDisposable)?.Dispose();
-        await Task.CompletedTask.ConfigureAwait(true);
+        _ = Task.CompletedTask;
+        return Task.CompletedTask;
     }
 
     private void CreateTestDirectoryStructure()

@@ -349,20 +349,21 @@ public sealed partial class SystemActuatorRegistry : ISystemActuatorRegistry, IA
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         foreach (var entry in _tasks.Values)
         {
             if (entry.Context is not null && BackgroundTaskStateTransitions.CanCancel(entry.Status))
             {
                 try { entry.Context.Kill(); }
                 catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync 时终止后台任务进程失败"); }
-                await entry.Context.DisposeSafeAsync(_logger).ConfigureAwait(false);
+                _ = entry.Context.DisposeSafeAsync(_logger);
             }
         }
 
         _tasks.Clear();
+        return ValueTask.CompletedTask;
     }
 
     #endregion

@@ -985,17 +985,17 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
     /// <summary>
     /// 异步释放 — 取消引擎循环、重置心跳并释放资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _engineCts?.Cancel();
-        await _heartbeat.ResetAsync().ConfigureAwait(false);
+        _ = _heartbeat.ResetAsync();
 
         if (_engineLoop != null)
         {
             try
             {
-                await _engineLoop.ConfigureAwait(false);
+                _ = _engineLoop;
             }
             catch (OperationCanceledException)
             {
@@ -1004,13 +1004,14 @@ public sealed partial class GoalEngine : IGoalEngine, IAgentRunner, IAsyncDispos
 
         if (_savedPermissionMode.HasValue)
         {
-            await RestorePermissionModeAsync(CancellationToken.None).ConfigureAwait(false);
+            _ = RestorePermissionModeAsync(CancellationToken.None);
         }
 
-        await _heartbeat.DisposeAsync().ConfigureAwait(false);
+        _ = _heartbeat.DisposeAsync();
         _stateLock.Dispose();
         _engineCts?.Dispose();
         _completionTcs?.TrySetCanceled();
+        return ValueTask.CompletedTask;
     }
 
     private async Task SwitchToGoalPermissionModeAsync(CancellationToken cancellationToken)

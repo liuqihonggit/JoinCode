@@ -25,9 +25,10 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
         _budgetManager = new UsdBudgetManager(costTracker.Object, config);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await _budgetManager.DisposeAsync().ConfigureAwait(true);
+        _ = _budgetManager.DisposeAsync().ConfigureAwait(true);
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

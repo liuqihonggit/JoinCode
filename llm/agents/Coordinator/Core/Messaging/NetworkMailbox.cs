@@ -124,7 +124,9 @@ public sealed partial class NetworkMailbox : MailboxBase<CoordinatorMessage>
     }
 
     /// <summary>释放资源 — 释放适配器。</summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync() => DisposeAsyncCore();
+
+    private async ValueTask DisposeAsyncCore()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         if (_receiveLoopTask is not null)

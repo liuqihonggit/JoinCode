@@ -455,13 +455,13 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// 异步释放子进程资源 — 取消读取、终止进程、等待任务完成、释放锁和 transcript 流
     /// </summary>
     /// <returns>表示异步释放操作的 ValueTask</returns>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (_asyncDisposed) return;
+        if (_asyncDisposed) return ValueTask.CompletedTask;
         _asyncDisposed = true;
 
         // 取消读取任务
-        await _readCts.CancelAsync().ConfigureAwait(false);
+        _ = _readCts.CancelAsync();
 
         try
         {
@@ -469,7 +469,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
             {
                 Kill();
 
-                await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                _ = _process.WaitForExitAsync(CancellationToken.None);
             }
         }
         catch (Exception ex)
@@ -485,7 +485,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         {
             try
             {
-                await Task.WhenAll(readTasks).ConfigureAwait(false);
+                _ = Task.WhenAll(readTasks);
             }
             catch (Exception ex)
             {
@@ -497,11 +497,11 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         _readCts.Dispose();
         if (_resilientSubprocess is not null)
         {
-            await _resilientSubprocess.DisposeAsync().ConfigureAwait(false);
+            _ = _resilientSubprocess.DisposeAsync();
         }
         else
         {
-            await _process.DisposeAsync().ConfigureAwait(false);
+            _ = _process.DisposeAsync();
         }
         _stdinLock.Dispose();
 
@@ -518,6 +518,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
 
         // 触发 Entity 生命周期注销（ObjectId/SessionRouter）
         Dispose();
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>

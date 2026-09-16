@@ -185,12 +185,12 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// <summary>
     /// 释放协调器资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _logger?.LogInformation("[SubAgentStallDefense] 纵深防御体系停止，清理 {Count} 个激活记录", _activationTimes.Count);
         _scanner.AgentStalled -= OnAgentStalled;
         _scanner.ChainStalled -= OnChainStalled;
-        await _scanner.DisposeAsync().ConfigureAwait(false);
         _activationTimes.Clear();
+        return _scanner.DisposeAsync();
     }
 }

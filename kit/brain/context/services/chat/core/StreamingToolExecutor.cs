@@ -201,14 +201,15 @@ public sealed class StreamingToolExecutor : IStreamingToolExecutor
     /// <summary>
     /// 异步释放资源，取消所有进行中工具并释放信号量
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _siblingCts.Cancel();
         _linkedCts?.Dispose();
         _siblingCts.Dispose();
         _semaphore.Dispose();
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+
+        return ValueTask.CompletedTask;
     }
 
     private async Task ProcessQueueAsync()

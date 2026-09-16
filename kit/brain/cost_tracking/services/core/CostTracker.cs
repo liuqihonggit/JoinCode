@@ -570,7 +570,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// 异步释放资源 — 取消内部令牌并释放预算锁
     /// </summary>
     /// <returns>表示异步操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         var cts = Interlocked.Exchange(ref _disposeCts, null);
         if (cts is not null)
@@ -579,7 +579,8 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             _budgetLock.Dispose();
             cts.Dispose();
         }
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+
+        return ValueTask.CompletedTask;
     }
 }
 

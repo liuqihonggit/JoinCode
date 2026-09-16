@@ -158,11 +158,12 @@ public sealed partial class TransportManager : ITransportManager
     /// 异步释放传输管理器资源
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await _connectionManager.DisposeAsync().ConfigureAwait(false);
-        await _messageRouter.DisposeAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        _ = _connectionManager.DisposeAsync();
+        _ = _messageRouter.DisposeAsync();
+        return ValueTask.CompletedTask;
     }
 }
 

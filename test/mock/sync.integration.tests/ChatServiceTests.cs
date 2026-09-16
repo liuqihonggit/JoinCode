@@ -31,20 +31,21 @@ public class ChatServiceTests : IAsyncLifetime
         await _mockServer.StartAsync().ConfigureAwait(true);
     }
 
-    public async Task DisposeAsync()
+    public Task DisposeAsync()
     {
         if (_serviceProvider != null)
         {
-            await _serviceProvider.DisposeAsync().ConfigureAwait(true);
+            _ = _serviceProvider.DisposeAsync();
             _serviceProvider = null;
-            await Task.Delay(200).ConfigureAwait(true);
+            _ = Task.Delay(200);
         }
 
         if (_mockServer != null)
         {
-            await _mockServer.StopAsync().ConfigureAwait(true);
-            await _mockServer.DisposeAsync().ConfigureAwait(true);
+            _ = _mockServer.StopAsync(CancellationToken.None);
+            _ = _mockServer.DisposeAsync();
         }
+        return Task.CompletedTask;
     }
 
     private async Task<ServiceProvider> CreateServiceProviderAsync()

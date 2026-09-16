@@ -179,7 +179,7 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
     /// 异步释放资源 — 终止 cgroup 内所有进程并删除 cgroup 目录
     /// </summary>
     /// <returns>表示异步操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_cgroupPath is not null && _ownsCgroup)
         {
@@ -201,6 +201,6 @@ public sealed class LinuxCgroupSandbox : IAsyncDisposable
             _ownsCgroup = false;
         }
 
-        await Task.CompletedTask.ConfigureAwait(false);
+        return ValueTask.CompletedTask;
     }
 }

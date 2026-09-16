@@ -148,11 +148,11 @@ public abstract class FileWatcherActorBase : ActorBase<FileWatcherCommand, Unit>
     /// <summary>
     /// 释放 Actor — 先发停止命令让 Consumer 停 watcher,再等待 Consumer 退出,最后 fallback 释放。
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         TrySend(new FileWatcherStopCmd());
-        await base.DisposeAsync().ConfigureAwait(false);
         _watcher?.Dispose();
         _watcher = null;
+        return base.DisposeAsync();
     }
 }

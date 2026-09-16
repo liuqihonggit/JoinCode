@@ -70,8 +70,20 @@ namespace AotSafety.Generator
             "正确做法: 1) 'x.Dispose()' → 'await x.DisposeAsync().ConfigureAwait(false)'; 2) 'using var x = ...' → 'await using var x = ...'; 3) try-finally 中 'x.Dispose()' → 'await x.DisposeAsync()'." +
             "原因: 同步 Dispose 不会调用 DisposeAsync，异步清理逻辑(如 flush buffer、close connection gracefully)被完全跳过，造成句柄泄露/数据丢失.");
 
+        private static readonly DiagnosticDescriptor RuleAwaitInDispose = new(
+            "JCC9200",
+            "Dispose 线程池饥饿: Dispose/DisposeAsync 方法体内禁止 await 后台任务",
+            "Dispose/DisposeAsync 方法体内禁止 await — 并行 Dispose 时线程池饥饿死锁。改用 fire-and-forget: cancel+complete 后用 ContinueWith 在 task 退出后清理资源, DisposeAsync 立即返回不依赖线程池有空闲线程。",
+            "DisposableConsistency",
+            DiagnosticSeverity.Error,
+            true,
+            "Root cause: await _consumerTask makes Dispose completion depend on thread pool having idle threads to run the task's exit. " +
+            "When multiple DisposeAsync run in parallel (e.g. xUnit parallel tests), all threads await their ConsumerTask but no thread runs it → deadlock. " +
+            "Fix: replace 'await _task' with '_task.ContinueWith(cleanup, TaskContinuationOptions.ExecuteSynchronously); return ValueTask.CompletedTask;' " +
+            "This makes DisposeAsync return immediately; the task exits in background and continuation cleans up resources (CTS etc).");
+
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-            ImmutableArray.Create(RuleDualDisposable, RuleTrivialAsyncDispose, RuleSyncUsingOnAsyncDisposable, RuleTryFinallyDispose, RuleDisposeTryCatch, RuleSyncDisposeOnAsyncDisposable);
+            ImmutableArray.Create(RuleDualDisposable, RuleTrivialAsyncDispose, RuleSyncUsingOnAsyncDisposable, RuleTryFinallyDispose, RuleDisposeTryCatch, RuleSyncDisposeOnAsyncDisposable, RuleAwaitInDispose);
 
         public override void Initialize(AnalysisContext context)
         {
@@ -82,6 +94,7 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzeTryFinallyDispose, SyntaxKind.TryStatement);
             context.RegisterSyntaxNodeAction(AnalyzeDisposeMethodTryCatch, SyntaxKind.MethodDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeSyncDisposeOnAsyncDisposable, SyntaxKind.InvocationExpression);
+            context.RegisterSyntaxNodeAction(AnalyzeDisposeMethod, SyntaxKind.MethodDeclaration);
         }
 
         private static void AnalyzeTypeDeclaration(SyntaxNodeAnalysisContext ctx)
@@ -410,6 +423,41 @@ namespace AotSafety.Generator
                     return false;
             }
             return true;
+        }
+
+        private static void AnalyzeDisposeMethod(SyntaxNodeAnalysisContext ctx)
+        {
+            if (ctx.CancellationToken.IsCancellationRequested) return;
+
+            var methodDecl = (MethodDeclarationSyntax)ctx.Node;
+            var methodName = methodDecl.Identifier.ValueText;
+            if (methodName is not ("Dispose" or "DisposeAsync")) return;
+
+            var body = methodDecl.Body;
+            if (body is null) return;
+
+            foreach (var awaitExpr in body.DescendantNodes().OfType<AwaitExpressionSyntax>())
+            {
+                if (IsInsideLambdaOrLocalFunction(awaitExpr, body)) continue;
+
+                ctx.ReportDiagnostic(Diagnostic.Create(
+                    RuleAwaitInDispose,
+                    awaitExpr.AwaitKeyword.GetLocation()));
+            }
+        }
+
+        private static bool IsInsideLambdaOrLocalFunction(SyntaxNode node, BlockSyntax methodBody)
+        {
+            var current = node.Parent;
+            while (current is not null && current != methodBody)
+            {
+                if (current is SimpleLambdaExpressionSyntax or
+                    ParenthesizedLambdaExpressionSyntax or
+                    LocalFunctionStatementSyntax)
+                    return true;
+                current = current.Parent;
+            }
+            return false;
         }
     }
 }

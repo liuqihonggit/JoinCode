@@ -125,15 +125,11 @@ internal sealed class DownloadSession : IDownloadSession
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _cts?.Cancel();
         _cts?.Dispose();
-        if (_downloadTask is not null)
-        {
-            try { await _downloadTask.ConfigureAwait(false); }
-            catch (OperationCanceledException) { }
-        }
+        return ValueTask.CompletedTask;
     }
 
     // === 核心下载逻辑 ===

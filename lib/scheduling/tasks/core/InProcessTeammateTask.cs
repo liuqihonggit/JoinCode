@@ -756,11 +756,11 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         /// </summary>
         public void Detach() => _detached = true;
 
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
 
-            if (_detached) return;
+            if (_detached) return ValueTask.CompletedTask;
 
             if (_registered)
             {
@@ -769,9 +769,9 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
             if (_state is not null)
             {
-                await _owner._cleanupHelper.CleanupTeammateAsync(_teammateId, _state).ConfigureAwait(false);
+                _ = _owner._cleanupHelper.CleanupTeammateAsync(_teammateId, _state);
                 _pendingChannel?.Writer.TryComplete();
-                return;
+                return ValueTask.CompletedTask;
             }
 
             _pendingChannel?.Writer.TryComplete();
@@ -785,13 +785,14 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
             {
                 try
                 {
-                    await _owner._agentLifecycleManager.DisposeAgentAsync(_agent.ObjectId.UniqueId, CancellationToken.None).ConfigureAwait(false);
+                    _ = _owner._agentLifecycleManager.DisposeAgentAsync(_agent.ObjectId.UniqueId, CancellationToken.None);
                 }
                 catch (Exception ex)
                 {
                     _owner._logger?.LogWarning(ex, "清理 Teammate {TeammateId} 半成品 Agent 资源失败", _teammateId);
                 }
             }
+        return ValueTask.CompletedTask;
         }
     }
 }

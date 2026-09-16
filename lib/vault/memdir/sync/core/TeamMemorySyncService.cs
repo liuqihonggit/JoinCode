@@ -437,14 +437,17 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     /// <summary>
     /// 异步释放同步服务 — 取消令牌、释放定时器、文件监控器与文件传输器。
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return ValueTask.CompletedTask;
         _disposeCts.Cancel();
         _syncTimer.Dispose();
         _watcher?.Dispose();
-        await _transfer.DisposeAsync().ConfigureAwait(false);
-        await base.DisposeAsync().ConfigureAwait(false);
-        _disposeCts.Dispose();
+        return new ValueTask(_transfer.DisposeAsync().AsTask()
+            .ContinueWith(static (_, self) => ((TeamMemorySyncService)self!).DisposeBaseAsync().AsTask(), this, TaskContinuationOptions.ExecuteSynchronously)
+            .Unwrap()
+            .ContinueWith(static (_, state) => ((CancellationTokenSource)state!).Dispose(), _disposeCts, TaskContinuationOptions.ExecuteSynchronously));
     }
+
+    private ValueTask DisposeBaseAsync() => base.DisposeAsync();
 }

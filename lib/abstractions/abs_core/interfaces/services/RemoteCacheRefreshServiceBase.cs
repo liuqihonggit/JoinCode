@@ -145,13 +145,14 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         _disposeCts.Dispose();
     }
 
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return ValueTask.CompletedTask;
         _disposeCts.Cancel();
         _refreshTimer.Dispose();
-        await base.DisposeAsync().ConfigureAwait(false);
+        var baseTask = base.DisposeAsync();
         _disposeCts.Dispose();
+        return baseTask;
     }
 }
 

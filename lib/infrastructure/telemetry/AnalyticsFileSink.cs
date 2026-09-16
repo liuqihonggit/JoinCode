@@ -262,27 +262,27 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
         _cts.Cancel();
         if (_flushTask is not null)
         {
-            try
-            {
-                await _flushTask.ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug(ex, "分析事件 flush 任务在 dispose 时异常");
-            }
+            _flushTask.ContinueWith(
+                static (t, state) => ((CancellationTokenSource)state!).Dispose(),
+                _cts,
+                TaskContinuationOptions.ExecuteSynchronously);
+        }
+        else
+        {
+            _cts.Dispose();
         }
 
-        _cts.Dispose();
+        return ValueTask.CompletedTask;
     }
 }
 

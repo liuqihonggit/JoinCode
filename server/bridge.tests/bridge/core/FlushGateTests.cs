@@ -12,9 +12,10 @@ public sealed class FlushGateTests : IAsyncDisposable
     private static FlushGate<string> CreateSut(FlushGateOptions? options = null) =>
         new(options, NullLogger.Instance);
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await _sut.DisposeAsync().ConfigureAwait(true);
+        _ = _sut.DisposeAsync().ConfigureAwait(true);
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

@@ -488,9 +488,9 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// <summary>
     /// 异步释放资源 — 关闭传输、释放心跳和锁
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         Interlocked.Exchange(ref _isClosed, 1);
         _logger?.LogDebug("[V2Transport] 关闭传输");
         _heartbeatCts.Cancel();
@@ -500,7 +500,6 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         _sseClient.Dispose();
         _heartbeatCts.Dispose();
         _writeLock.Dispose();
-        await (_sseReadTask ?? Task.CompletedTask).ConfigureAwait(false);
-        await (_heartbeatTask ?? Task.CompletedTask).ConfigureAwait(false);
+        return new ValueTask(Task.WhenAll(_sseReadTask ?? Task.CompletedTask, _heartbeatTask ?? Task.CompletedTask));
     }
 }

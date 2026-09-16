@@ -232,10 +232,11 @@ public sealed partial class ServiceHost : IAsyncDisposable
     /// <summary>
     /// 异步释放 — 停止所有服务并释放主机取消令牌
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await StopAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        _ = StopAsync(CancellationToken.None);
         _hostCts.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

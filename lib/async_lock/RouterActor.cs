@@ -167,13 +167,12 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     protected IReadOnlyCollection<ChildActorHandle> GetChildren() => _children.Values.ToArray();
 
     /// <summary>Dispose 时级联停止所有子 Actor</summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         foreach (var child in _children.Values)
         {
-            try { await child.StopAsync().ConfigureAwait(false); }
-            catch (Exception ex) { Console.WriteLine($"[RouterActor:{Id}] Stop child {child.Id} 异常忽略: {ex.Message}"); }
+            _ = child.StopAsync();
         }
-        await base.DisposeAsync().ConfigureAwait(false);
+        return base.DisposeAsync();
     }
 }

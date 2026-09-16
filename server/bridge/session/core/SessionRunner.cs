@@ -597,15 +597,16 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     }
 
     /// <inheritdoc />
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await StopAsync().ConfigureAwait(false);
+        _ = StopAsync(CancellationToken.None);
         Dispose();
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>

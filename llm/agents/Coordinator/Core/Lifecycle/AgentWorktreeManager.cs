@@ -427,17 +427,25 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     /// <summary>
     /// 异步释放 — 遍历 guard 字典逐个 DisposeAsync，用构造时锁定的路径删除，从不二次计算。
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
+        var tasks = new List<Task>();
         foreach (var kvp in _lifecycleGuards)
         {
-            try
-            {
-                await kvp.Value.DisposeAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex) { _logger?.LogDebug(ex, "DisposeAsync guard 清理 worktree {AgentId} 失败", kvp.Key); }
+            var agentId = kvp.Key;
+            var logger = _logger;
+            tasks.Add(kvp.Value.DisposeAsync().AsTask().ContinueWith(
+                static (t, state) =>
+                {
+                    var (l, id) = ((ILogger?, string))state!;
+                    if (t.IsFaulted && t.Exception is not null)
+                        l?.LogDebug(t.Exception, "DisposeAsync guard 清理 worktree {AgentId} 失败", id);
+                },
+                (logger, agentId),
+                TaskContinuationOptions.ExecuteSynchronously));
         }
         Dispose();
+        return tasks.Count == 0 ? ValueTask.CompletedTask : new ValueTask(Task.WhenAll(tasks));
     }
 
     /// <summary>释放资源 — 清理 worktree 会话集合并释放锁</summary>

@@ -147,10 +147,11 @@ public sealed partial class StdioAgentTransport : IAgentTransport
     public Task ClearOutputAsync() => _processManager.ClearOutputAsync();
 
     /// <inheritdoc/>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await _processManager.DisposeAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        var task = _processManager.DisposeAsync();
         State = TransportState.Disconnected;
+        return task;
     }
 }

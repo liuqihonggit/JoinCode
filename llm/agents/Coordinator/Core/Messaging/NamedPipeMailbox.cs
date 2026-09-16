@@ -170,7 +170,9 @@ public sealed partial class NamedPipeMailbox : MailboxBase<CoordinatorMessage>
     /// <summary>
     /// 释放邮箱 — 停止接收循环 + 释放传输层。
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync() => DisposeAsyncCore();
+
+    private async ValueTask DisposeAsyncCore()
     {
         _cts.Cancel();
         if (_receiveLoopTask is not null)

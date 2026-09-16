@@ -158,11 +158,12 @@ public sealed partial class McpOAuthService : ServiceEntity
     }
 
     /// <summary>释放资源 — 停止回调监听器、释放认证提供者与状态锁。</summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         StopCallbackListener();
-        await _authProvider.DisposeAsync().ConfigureAwait(false);
+        _ = _authProvider.DisposeAsync();
         _stateLock.Dispose();
-        await base.DisposeAsync().ConfigureAwait(false);
+        _ = base.DisposeAsync();
+        return ValueTask.CompletedTask;
     }
 }

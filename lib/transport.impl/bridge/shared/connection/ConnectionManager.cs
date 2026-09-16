@@ -339,15 +339,16 @@ public sealed partial class ConnectionManager : ServiceEntity, IConnectionManage
     /// <summary>
     /// 异步释放资源，停止连接
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await StopAsync().ConfigureAwait(false);
-        Dispose();
+        return new ValueTask(StopAsync().ContinueWith(
+            _ => Dispose(),
+            TaskContinuationOptions.ExecuteSynchronously));
     }
 
     /// <summary>

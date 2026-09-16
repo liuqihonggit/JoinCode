@@ -14,6 +14,7 @@ public sealed partial class MailboxHub
     private readonly ITeammateMailboxService? _fileMailbox;
     private readonly ConcurrentDictionary<MailboxKind, MailboxBase<CoordinatorMessage>> _extraChannels;
     private readonly ConcurrentDictionary<string, MailboxKind> _agentChannels;
+    private readonly ConcurrentDictionary<string, ChatRoomRole> _agentRoles;
     private readonly ILogger<MailboxHub>? _logger;
 
     /// <summary>
@@ -31,6 +32,7 @@ public sealed partial class MailboxHub
         _fileMailbox = fileMailbox;
         _extraChannels = new ConcurrentDictionary<MailboxKind, MailboxBase<CoordinatorMessage>>();
         _agentChannels = new ConcurrentDictionary<string, MailboxKind>();
+        _agentRoles = new ConcurrentDictionary<string, ChatRoomRole>();
         _logger = logger;
     }
 
@@ -157,6 +159,54 @@ public sealed partial class MailboxHub
     }
 
     /// <summary>
+    /// 按可见性广播消息 — ADR 0111 决策7。
+    /// <para>Public/System → 广播所有已注册通道</para>
+    /// <para>AdminOnly → 仅投递给 Role &lt;= Admin 的 agent</para>
+    /// <para>Private → 仅投递给 ToAgentId</para>
+    /// <para>Hidden → 不投递</para>
+    /// </summary>
+    /// <param name="message">消息内容（Visibility 字段决定投递范围）。</param>
+    /// <param name="visibility">消息可见性（覆盖 message.Visibility，显式控制投递范围）。</param>
+    /// <param name="ct">取消令牌。</param>
+    public async ValueTask BroadcastAsync(CoordinatorMessage message, MessageVisibility visibility, CancellationToken ct = default)
+    {
+        switch (visibility)
+        {
+            case MessageVisibility.Hidden:
+                _logger?.LogDebug("MailboxHub: hidden message {MessageId} not delivered", message.MessageId);
+                return;
+
+            case MessageVisibility.Private:
+                if (string.IsNullOrEmpty(message.ToAgentId))
+                {
+                    _logger?.LogWarning("MailboxHub: private message {MessageId} has no ToAgentId, dropped", message.MessageId);
+                    return;
+                }
+                await SendAsync(message.ToAgentId, message, ct).ConfigureAwait(false);
+                return;
+
+            case MessageVisibility.AdminOnly:
+                foreach (var (agentId, role) in _agentRoles)
+                {
+                    if (role > ChatRoomRole.Admin) continue;
+                    if (agentId == message.FromAgentId) continue;
+                    await SendAsync(agentId, message, ct).ConfigureAwait(false);
+                }
+                return;
+
+            case MessageVisibility.Public:
+            case MessageVisibility.System:
+            default:
+                await BroadcastAsync(message, ct).ConfigureAwait(false);
+                return;
+        }
+    }
+
+    /// <summary>获取 agent 的聊天室角色 — ADR 0111 决策7。</summary>
+    public ChatRoomRole GetAgentRole(string agentId)
+        => _agentRoles.GetValueOrDefault(agentId, ChatRoomRole.Member);
+
+    /// <summary>
     /// 从 agent 所在通道接收消息流。
     /// </summary>
     /// <param name="agentId">接收 agent ID。</param>
@@ -182,10 +232,12 @@ public sealed partial class MailboxHub
     /// <param name="agentId">agent ID。</param>
     /// <param name="kind">通道类型（默认 InProcess）。</param>
     /// <param name="sessionId">会话 ID（文件邮箱需要）。</param>
+    /// <param name="role">聊天室角色（默认 Member）— ADR 0111 决策7，用于 AdminOnly 可见性过滤。</param>
     /// <param name="ct">取消令牌。</param>
-    public async ValueTask RegisterAgentAsync(string agentId, MailboxKind kind = MailboxKind.InProcess, string? sessionId = null, CancellationToken ct = default)
+    public async ValueTask RegisterAgentAsync(string agentId, MailboxKind kind = MailboxKind.InProcess, string? sessionId = null, ChatRoomRole role = ChatRoomRole.Member, CancellationToken ct = default)
     {
         _agentChannels[agentId] = kind;
+        _agentRoles[agentId] = role;
 
         switch (kind)
         {

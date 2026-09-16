@@ -291,4 +291,91 @@ public sealed class MailboxHubTests
         received.Should().HaveCount(1);
         received[0].Content.Should().Be("hello");
     }
+
+    [Fact]
+    public async Task BroadcastAsync_HiddenVisibility_DoesNotDeliver()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
+        var message = CreateMessage();
+
+        await hub.BroadcastAsync(message, MessageVisibility.Hidden);
+
+        _inProcessMock.Verify(m => m.SendAsync(It.IsAny<string>(), It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+        _inProcessMock.Verify(m => m.BroadcastAsync(It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BroadcastAsync_PrivateVisibility_OnlySendsToToAgentId()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
+        var message = CreateMessage(to: "target_agent");
+
+        _inProcessMock.Setup(m => m.SendAsync("target_agent", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        await hub.BroadcastAsync(message, MessageVisibility.Private);
+
+        _inProcessMock.Verify(m => m.SendAsync("target_agent", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        _inProcessMock.Verify(m => m.SendAsync(It.Is<string>(s => s != "target_agent"), It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BroadcastAsync_AdminOnlyVisibility_OnlySendsToAdmins()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
+
+        await hub.RegisterAgentAsync("admin1", MailboxKind.InProcess, role: ChatRoomRole.Admin);
+        await hub.RegisterAgentAsync("admin2", MailboxKind.InProcess, role: ChatRoomRole.Owner);
+        await hub.RegisterAgentAsync("member1", MailboxKind.InProcess, role: ChatRoomRole.Member);
+
+        _inProcessMock.Setup(m => m.SendAsync(It.IsAny<string>(), It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var message = CreateMessage(from: "sender");
+        await hub.BroadcastAsync(message, MessageVisibility.AdminOnly);
+
+        _inProcessMock.Verify(m => m.SendAsync("admin1", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        _inProcessMock.Verify(m => m.SendAsync("admin2", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()), Times.Once);
+        _inProcessMock.Verify(m => m.SendAsync("member1", It.IsAny<CoordinatorMessage>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BroadcastAsync_PublicVisibility_BroadcastsToAll()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
+        var message = CreateMessage();
+
+        await hub.BroadcastAsync(message, MessageVisibility.Public);
+
+        _inProcessMock.Verify(m => m.BroadcastAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task BroadcastAsync_SystemVisibility_BroadcastsToAll()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
+        var message = CreateMessage();
+
+        await hub.BroadcastAsync(message, MessageVisibility.System);
+
+        _inProcessMock.Verify(m => m.BroadcastAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegisterAgentAsync_WithRole_StoresRoleForVisibilityFiltering()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
+
+        await hub.RegisterAgentAsync("agent1", MailboxKind.InProcess, role: ChatRoomRole.Admin);
+
+        hub.GetAgentRole("agent1").Should().Be(ChatRoomRole.Admin);
+    }
+
+    [Fact]
+    public void GetAgentRole_UnregisteredAgent_ReturnsDefaultMember()
+    {
+        var hub = new MailboxHub(_inProcessMock.Object, _fileMailboxMock.Object);
+
+        hub.GetAgentRole("unknown").Should().Be(ChatRoomRole.Member);
+    }
 }

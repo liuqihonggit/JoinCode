@@ -609,7 +609,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
             try
             {
-                await _mailboxHub.BroadcastAsync(coordinatorMsg, cancellationToken).ConfigureAwait(false);
+                await _mailboxHub.BroadcastAsync(coordinatorMsg, message.Visibility, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

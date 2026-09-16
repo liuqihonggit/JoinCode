@@ -252,7 +252,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     {
         var tcs = new TaskCompletionSource<IReadOnlyList<ForkSubAgent>>();
         await SendAsync(new GetActiveForksQuery(tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -265,7 +265,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     {
         var tcs = new TaskCompletionSource<ForkResult>();
         await SendAsync(new MergeForkQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -522,21 +522,21 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     {
         var tcs = new TaskCompletionSource<int>();
         await SendAsync(new CalculateForkDepthQuery(parentSessionId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     private async Task<ForkResult> AskBuildForkResultAsync(string forkId, CancellationToken ct)
     {
         var tcs = new TaskCompletionSource<ForkResult>();
         await SendAsync(new BuildForkResultQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     private async Task<ForkEntrySnapshot?> AskForkEntryAsync(string forkId, CancellationToken ct)
     {
         var tcs = new TaskCompletionSource<ForkEntrySnapshot?>();
         await SendAsync(new GetForkEntrySnapshotQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,

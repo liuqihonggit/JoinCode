@@ -260,6 +260,32 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
+    /// Ask 模式等待回复 — 内置死锁检测(超时抛 <see cref="ActorAskDeadlockException"/>)。
+    /// <para><b>⚠️ Ask vs Tell</b>:Ask = 发消息等回复(阻塞当前线程);Tell = 发消息即走(fire-and-forget)。</para>
+    /// <para><b>死锁风险</b>:Ask 依赖 Consumer 被线程池调度,线程池饥饿时 Consumer 无法运行 → tcs 永不完成 → 死锁。</para>
+    /// <para>此方法加超时守卫,超时抛带诊断信息的异常,避免永久挂死。</para>
+    /// <para><b>规则</b>:Dispose/DisposeAsync 路径禁止用 Ask(改用 Tell/TrySend);查询路径用 Ask 但必须经此方法加超时。</para>
+    /// </summary>
+    /// <typeparam name="T">回复类型</typeparam>
+    /// <param name="tcs">回复源(由调用方创建,命令发送后传入)</param>
+    /// <param name="ct">取消令牌</param>
+    /// <param name="timeoutMs">超时(默认30s,超时抛死锁诊断异常)</param>
+    /// <exception cref="ActorAskDeadlockException">Ask 超时 — 可能线程池饥饿导致 Consumer 无法调度</exception>
+    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 30_000)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        linkedCts.CancelAfter(timeoutMs);
+        try
+        {
+            return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
+        }
+    }
+
+    /// <summary>
     /// 释放 Actor — 取消 Consumer、完成输入输出通道，fire-and-forget Consumer 退出。
     /// <para>不阻塞等待 Consumer 退出 — Consumer 在后台自行退出后由 continuation 清理 <see cref="_cts"/>。</para>
     /// <para>设计理由：Dispose 完成不应依赖线程池有空闲线程运行 ConsumerTask 退出，否则并行 Dispose 时线程池饥饿死锁。</para>
@@ -285,6 +311,36 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             _cts,
             TaskContinuationOptions.ExecuteSynchronously);
         return ValueTask.CompletedTask;
+    }
+}
+
+/// <summary>
+/// Actor Ask 模式死锁异常 — Ask 超时后抛出,带诊断信息指导修复。
+/// </summary>
+/// <remarks>
+/// <para>触发条件:AskAwait 超时(默认30s) — Consumer 未在超时内处理命令并设置 Tcs。</para>
+/// <para>常见根因:线程池饥饿 — 所有线程被阻塞等待,Consumer 任务无法被调度。</para>
+/// <para>修复指导:Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。</para>
+/// </remarks>
+public sealed class ActorAskDeadlockException : TimeoutException
+{
+    /// <summary>Actor 类型名</summary>
+    public string ActorName { get; }
+
+    /// <summary>超时毫秒数</summary>
+    public int TimeoutMs { get; }
+
+    /// <summary>
+    /// 构造 Ask 死锁异常
+    /// </summary>
+    /// <param name="actorName">Actor 类型名</param>
+    /// <param name="timeoutMs">超时毫秒数</param>
+    public ActorAskDeadlockException(string actorName, int timeoutMs)
+        : base($"Actor {actorName} Ask 超时({timeoutMs}ms) — 可能线程池饥饿导致 Consumer 无法调度。" +
+               "Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。")
+    {
+        ActorName = actorName;
+        TimeoutMs = timeoutMs;
     }
 }
 

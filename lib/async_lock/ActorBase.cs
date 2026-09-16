@@ -269,9 +269,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <typeparam name="T">回复类型</typeparam>
     /// <param name="tcs">回复源(由调用方创建,命令发送后传入)</param>
     /// <param name="ct">取消令牌</param>
-    /// <param name="timeoutMs">超时(默认30s,超时抛死锁诊断异常)</param>
+    /// <param name="timeoutMs">超时(默认10s,超时抛死锁诊断异常)</param>
     /// <exception cref="ActorAskDeadlockException">Ask 超时 — 可能线程池饥饿导致 Consumer 无法调度</exception>
-    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 30_000)
+    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
@@ -288,7 +288,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// Ask 模式等待回复(无返回值) — 内置死锁检测,非泛型重载
     /// </summary>
-    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 30_000)
+    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000)
     {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);

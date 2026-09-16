@@ -120,6 +120,7 @@ public class ActorBaseTest
         await WaitUntilAsync(() => actor.ProcessedCommands.Count >= 1, TimeSpan.FromSeconds(5));
 
         await actor.DisposeAsync();
+        await actor.ConsumerTask.WaitAsync(TimeSpan.FromSeconds(5));
         actor.ConsumerTask.IsCompleted.Should().BeTrue();
     }
 

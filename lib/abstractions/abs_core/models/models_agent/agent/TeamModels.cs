@@ -105,6 +105,18 @@ public sealed record TeamMessage
     /// 是否已读
     /// </summary>
     public bool IsRead { get; set; }
+
+    /// <summary>消息可见性 — 控制投递范围，对标 QQ 系统消息/私信/撤回 — ADR 0109 决策8。</summary>
+    public MessageVisibility Visibility { get; init; } = MessageVisibility.Public;
+
+    /// <summary>私信目标 AgentId（仅 Visibility=Private 时有效）</summary>
+    public string? ToAgentId { get; init; }
+
+    /// <summary>撤回原因（仅 Visibility=Hidden 时有效，记录撤回原因供审计）</summary>
+    public string? RevokeReason { get; init; }
+
+    /// <summary>@提及的 AgentId 列表（null 表示无 @提及）— ADR 0109 决策12。</summary>
+    public IReadOnlyList<string>? Mentions { get; init; }
 }
 
 

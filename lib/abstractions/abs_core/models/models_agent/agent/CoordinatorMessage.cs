@@ -33,4 +33,7 @@ public sealed class CoordinatorMessage
 
     /// <summary>是否结构化消息 — StructuredType 非 null 时为 true</summary>
     public bool IsStructured => StructuredType is not null;
+
+    /// <summary>消息可见性 — 控制跨通道路由范围，对标 QQ 系统消息/私信/撤回 — ADR 0111 决策8。</summary>
+    public MessageVisibility Visibility { get; init; } = MessageVisibility.Public;
 }

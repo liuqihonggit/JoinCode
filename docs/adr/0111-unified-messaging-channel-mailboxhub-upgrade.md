@@ -156,3 +156,76 @@ TeamManager
 4. `TeamManager.BroadcastMessageAsync` → 通过 `MailboxHub` 广播，覆盖所有通道
 5. `MailboxHub.SendAsync(agentId, msg)` → 自动路由到 agent 注册的通道
 6. 缺失通道 → 计日志 + 返回 false，不抛异常
+
+---
+
+## 聊天室消息去重 + 系统消息可见性（2026-09-16 追加）
+
+### 问题5：TeamManager 层无去重，跨通道广播重复
+
+`MailboxHub.BroadcastAsync` 逐通道广播（InProcess + File + NamedPipe + Network），各通道邮箱内部已用 `CoordinatorMessage.MessageId` 去重（ADR 0107/0108），但 `TeamManager._teamMessages` 是 `List<TeamMessage>`，同一消息广播多次会重复入列表，导致：
+- 聊天室历史消息重复显示
+- 持久化到文件邮箱的 `MailboxSendRequest` 重复（虽然 `FileMailbox` 去重，但 `TeamManager` 层已重复）
+
+### 问题6：系统通知无可见性控制
+
+`TeamManager.BroadcastMessageAsync` 广播所有消息给所有成员，无区分：
+- "xxx 加入聊天室" → 应所有人可见（系统通知样式）
+- "xxx 被禁言" → 应仅管理员可见（操作日志）
+- "主机切换" → 应系统通知样式，但当前混在普通消息里
+
+### 决策6：TeamManager 层去重 — ConcurrentDictionary 替代 List
+
+`TeamManager._teamMessages` 从 `ConcurrentDictionary<string, List<TeamMessage>>` 改为 `ConcurrentDictionary<string, ConcurrentDictionary<string, TeamMessage>>`（外层 teamId → 内层 messageId → message）。
+
+**双层去重**：
+- 第一层：`TeamManager` 用 `MessageId` 去重（防止重复入历史列表）
+- 第二层：各通道邮箱用 `CoordinatorMessage.MessageId` 去重（防止重复投递到 Agent Channel）
+
+两层独立去重，互不依赖，任一层失效另一层兜底。
+
+### 决策7：MailboxHub 按可见性路由
+
+`MailboxHub` 新增 `SendAsync`/`BroadcastAsync` 重载，接受 `MessageVisibility` 参数：
+
+```csharp
+public ValueTask<bool> SendAsync(string agentId, CoordinatorMessage message, MessageVisibility visibility, CancellationToken ct = default);
+public ValueTask BroadcastAsync(CoordinatorMessage message, MessageVisibility visibility, CancellationToken ct = default);
+```
+
+**路由规则**：
+- `Public`/`System` → 广播所有已注册通道
+- `AdminOnly` → 仅投递给 `Role >= Admin` 的 agent（`MailboxHub` 查 `_agentRoles` 表）
+- `Private` → 仅投递给 `ToAgentId`（单通道路由，不广播）
+- `Hidden` → 不投递（仅 `TeamManager` 持久化）
+
+`MailboxHub` 新增 `_agentRoles: ConcurrentDictionary<string, ChatRoomRole>`（agentId → 角色），`RegisterAgentAsync` 时绑定角色。
+
+### 决策8：CoordinatorMessage 补 Visibility 字段
+
+```csharp
+public sealed class CoordinatorMessage
+{
+    // ... 现有字段
+    public MessageVisibility Visibility { get; init; } = MessageVisibility.Public;
+    public string? ToAgentId { get; init; }  // 已有，Private 时使用
+}
+```
+
+跨进程传输时 `Visibility` 随消息序列化，接收方按可见性过滤投递。
+
+### 实现路线（开心路径优先）
+
+1. `CoordinatorMessage` 补 `Visibility` 字段
+2. `MailboxHub` 补 `_agentRoles` + 按可见性路由重载
+3. `TeamManager._teamMessages` 改 `ConcurrentDictionary<string, ConcurrentDictionary<string, TeamMessage>>`
+4. `TeamManager.BroadcastMessageAsync` 按可见性调 `MailboxHub` 重载
+5. 单元测试 + E2E 测试
+
+### 验证标准（追加）
+
+7. 同一 `MessageId` 跨通道广播两次 → `TeamManager._teamMessages` 只有一条 + 各通道邮箱只投递一次
+8. `Visibility=AdminOnly` → 仅管理员 agent 收到
+9. `Visibility=Private` → 仅 `ToAgentId` 收到
+10. `Visibility=Hidden` → 无人收到，但 `TeamManager._teamMessages` 有记录
+11. `Visibility=System` → 所有人收到，前端可按 `MessageType="system_notice"` 区分样式

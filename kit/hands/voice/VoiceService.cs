@@ -1,4 +1,4 @@
-
+﻿
 namespace Services.Voice;
 
 /// <summary>
@@ -75,35 +75,35 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <inheritdoc/>
-    public async Task StartRecordingAsync(CancellationToken cancellationToken = default)
+    public async Task StartRecordingAsync(CancellationToken ct = default)
     {
         var tcs = CreateTcs();
-        await SendAsync(new StartRecordingCmd(cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new StartRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<VoiceRecordingResult> StopRecordingAsync(CancellationToken cancellationToken = default)
+    public async Task<VoiceRecordingResult> StopRecordingAsync(CancellationToken ct = default)
     {
         var tcs = new TaskCompletionSource<VoiceRecordingResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await SendAsync(new StopRecordingCmd(cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new StopRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<string> TranscribeAsync(byte[] audioData, string? language = null, CancellationToken cancellationToken = default)
+    public async Task<string> TranscribeAsync(byte[] audioData, string? language = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(audioData);
 
         return _options.Backend switch
         {
-            SttBackend.WhisperApi => await TranscribeWithWhisperApiAsync(audioData, language, cancellationToken).ConfigureAwait(false),
+            SttBackend.WhisperApi => await TranscribeWithWhisperApiAsync(audioData, language, ct).ConfigureAwait(false),
             _ => throw new NotSupportedException(L.T(StringKey.VoiceUnsupportedSttBackend, _options.Backend))
         };
     }
 
     /// <inheritdoc/>
-    public async Task<string> TranscribeFileAsync(string filePath, string? language = null, CancellationToken cancellationToken = default)
+    public async Task<string> TranscribeFileAsync(string filePath, string? language = null, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
 
@@ -112,8 +112,8 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
             throw new FileNotFoundException(L.T(StringKey.VoiceAudioFileNotFound), filePath);
         }
 
-        var audioData = await _fs.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
-        return await TranscribeAsync(audioData, language, cancellationToken).ConfigureAwait(false);
+        var audioData = await _fs.ReadAllBytesAsync(filePath, ct).ConfigureAwait(false);
+        return await TranscribeAsync(audioData, language, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -233,7 +233,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         _logger?.LogWarning(ex, "Voice Actor Consumer 命令处理异常");
     }
 
-    private async Task<string> TranscribeWithWhisperApiAsync(byte[] audioData, string? language, CancellationToken cancellationToken)
+    private async Task<string> TranscribeWithWhisperApiAsync(byte[] audioData, string? language, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(_options.WhisperApiKey))
         {
@@ -260,8 +260,8 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.WhisperApiKey);
         }
 
-        var response = await _resilientProvider.SendResilientAsync(request, "Voice.WhisperApi", cancellationToken).ConfigureAwait(false);
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var response = await _resilientProvider.SendResilientAsync(request, "Voice.WhisperApi", ct).ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -273,18 +273,18 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         return result?.Text ?? string.Empty;
     }
 
-    private async Task RecordLoopAsync(CancellationToken cancellationToken)
+    private async Task RecordLoopAsync(CancellationToken ct)
     {
         try
         {
             var buffer = new byte[4096];
-            while (!cancellationToken.IsCancellationRequested)
+            while (!ct.IsCancellationRequested)
             {
                 var tcs = CreateTcs();
-                await SendAsync(new WriteAudioCmd(buffer, tcs), cancellationToken).ConfigureAwait(false);
-                await tcs.Task.ConfigureAwait(false);
+                await SendAsync(new WriteAudioCmd(buffer, tcs), ct).ConfigureAwait(false);
+                await AskAwait(tcs, ct);
 
-                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(100, ct).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)

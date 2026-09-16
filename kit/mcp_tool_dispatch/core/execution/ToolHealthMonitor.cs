@@ -1,4 +1,4 @@
-namespace McpToolDispatch;
+﻿namespace McpToolDispatch;
 
 /// <summary>
 /// 工具健康监控命令 — Actor 消息类型
@@ -197,7 +197,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     {
         var tcs = CreateTcs<ToolHealthRecord>();
         await SendAsync(new RecordSuccessCmd(toolName, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -211,7 +211,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     {
         var tcs = CreateTcs<ToolHealthRecord>();
         await SendAsync(new RecordFailureCmd(toolName, errorMessage, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -246,7 +246,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     {
         var tcs = CreateTcs();
         await SendAsync(new ResetToolCmd(toolName, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>

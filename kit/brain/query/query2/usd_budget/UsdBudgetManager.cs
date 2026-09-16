@@ -1,4 +1,4 @@
-namespace Core.Query.UsdBudget;
+﻿namespace Core.Query.UsdBudget;
 
 /// <summary>
 /// USD 预算管理器接口 — 通过 Actor 模型实现线程安全的预算查询与记录
@@ -173,7 +173,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
         }
         var tcs = CreateTcs<bool>();
         await SendAsync(new IsBudgetExceededCmd(tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -185,7 +185,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
     {
         var tcs = CreateTcs<UsdBudgetStatus>();
         await SendAsync(new GetBudgetStatusCmd(tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -204,7 +204,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
         }
         var tcs = CreateTcs();
         await SendAsync(new RecordCostCmd(costUsd, reason, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>

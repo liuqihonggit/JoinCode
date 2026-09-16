@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Summary;
 
 /// <summary>
@@ -90,38 +90,38 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <summary>
     /// 异步标记用户离开，启动离开期间的事件跟踪与自动保存。
     /// </summary>
-    /// <param name="cancellationToken">取消令牌。</param>
+    /// <param name="ct">取消令牌。</param>
     /// <returns>表示异步操作的任务。</returns>
-    public async Task MarkAwayAsync(CancellationToken cancellationToken = default)
+    public async Task MarkAwayAsync(CancellationToken ct = default)
     {
         var tcs = CreateTcs();
-        await SendAsync(new MarkAwayCmd(tcs), cancellationToken).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new MarkAwayCmd(tcs), ct).ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>
     /// 异步生成离开摘要，汇总离开期间的事件、错误与待处理事项。
     /// </summary>
-    /// <param name="cancellationToken">取消令牌。</param>
+    /// <param name="ct">取消令牌。</param>
     /// <returns>包含汇总结果的 <see cref="AwaySummaryResult"/> 任务。</returns>
-    public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken cancellationToken = default)
+    public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken ct = default)
     {
         var tcs = new TaskCompletionSource<AwaySummaryResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await SendAsync(new GenerateSummaryCmd(tcs), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new GenerateSummaryCmd(tcs), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
     /// 异步跟踪一个离开事件；若用户未处于离开状态则忽略。
     /// </summary>
     /// <param name="awayEvent">要跟踪的离开事件。</param>
-    /// <param name="cancellationToken">取消令牌。</param>
+    /// <param name="ct">取消令牌。</param>
     /// <returns>表示异步操作的任务。</returns>
-    public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken cancellationToken = default)
+    public async Task TrackEventAsync(AwayEvent awayEvent, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(awayEvent);
         if (Volatile.Read(ref _awaySinceTicks) == 0) return;
-        await SendAsync(new TrackEventCmd(awayEvent), cancellationToken).ConfigureAwait(false);
+        await SendAsync(new TrackEventCmd(awayEvent), ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -332,7 +332,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
             .Replace("{PendingItems}", data.PendingText);
     }
 
-    private async Task AutoSaveEventsAsync(CancellationToken cancellationToken)
+    private async Task AutoSaveEventsAsync(CancellationToken ct)
     {
         try
         {

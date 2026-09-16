@@ -1,4 +1,4 @@
-namespace Tools;
+﻿namespace Tools;
 
 /// <summary>
 /// 环境探测 Actor 命令 — Channel 中的消息类型
@@ -39,7 +39,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     {
         var tcs = CreateTcs<EnvironmentReport>();
         await SendAsync(new ProbeEnvCmd(forceRescan, ct, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>

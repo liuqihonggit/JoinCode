@@ -286,6 +286,23 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
+    /// Ask 模式等待回复(无返回值) — 内置死锁检测,非泛型重载
+    /// </summary>
+    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 30_000)
+    {
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        linkedCts.CancelAfter(timeoutMs);
+        try
+        {
+            await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
+        }
+    }
+
+    /// <summary>
     /// 释放 Actor — 取消 Consumer、完成输入输出通道，fire-and-forget Consumer 退出。
     /// <para>不阻塞等待 Consumer 退出 — Consumer 在后台自行退出后由 continuation 清理 <see cref="_cts"/>。</para>
     /// <para>设计理由：Dispose 完成不应依赖线程池有空闲线程运行 ConsumerTask 退出，否则并行 Dispose 时线程池饥饿死锁。</para>

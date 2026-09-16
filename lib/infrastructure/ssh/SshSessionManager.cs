@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Ssh;
 
 /// <summary>
@@ -57,7 +57,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
 
         var tcs = CreateTcs<ISshSession>();
         await SendAsync(new CreateSessionCmd(config, ct, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -94,7 +94,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
 
         var tcs = CreateTcs();
         await SendAsync(new DestroySessionCmd(sessionId, ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     private void RecordSessionMetrics(string operation, bool isSuccess) =>

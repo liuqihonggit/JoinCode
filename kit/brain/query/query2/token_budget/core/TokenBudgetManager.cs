@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Query;
 
 /// <summary>
@@ -82,7 +82,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     {
         var tcs = CreateTcs();
         await SendAsync(new AllocateBudgetCmd(amount, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -97,7 +97,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     {
         var tcs = CreateTcs();
         await SendAsync(new ConsumeTokensCmd(amount, reason, toolName, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -109,7 +109,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     {
         var tcs = CreateTcs<long>();
         await SendAsync(new GetRemainingBudgetCmd(tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
         }
         var tcs = CreateTcs();
         await SendAsync(new SetBudgetAlertThresholdCmd(threshold, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -138,7 +138,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     {
         var tcs = CreateTcs();
         await SendAsync(new ResetBudgetCmd(tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>

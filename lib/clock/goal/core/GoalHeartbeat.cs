@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Goal;
 
 /// <summary>
@@ -92,7 +92,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     {
         var tcs = CreateTcs();
         await SendAsync(new StartActivityCmd(reason, tcs)).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, CancellationToken.None);
     }
 
     /// <inheritdoc />
@@ -100,7 +100,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     {
         var tcs = CreateTcs();
         await SendAsync(new StopActivityCmd(reason, tcs)).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, CancellationToken.None);
     }
 
     /// <inheritdoc />
@@ -108,7 +108,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     {
         var tcs = CreateTcs();
         await SendAsync(new ResetHeartbeatCmd(tcs)).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, CancellationToken.None);
     }
 
     /// <summary>

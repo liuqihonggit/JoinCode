@@ -122,7 +122,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
 
         var tcs = CreateTcs();
         await SendAsync(new StartWatchingCmd(pluginDirectory, ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -137,7 +137,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
 
         var tcs = CreateTcs();
         await SendAsync(new StopWatchingCmd(ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     private void OnFileChanged(object? sender, FileChangedEventArgs e)
@@ -162,7 +162,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     {
         var tcs = CreateTcs();
         await SendAsync(new ReloadPluginAndWaitCmd(pluginName, filePath, reason, tcs), CancellationToken.None).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, CancellationToken.None);
     }
 
     private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);

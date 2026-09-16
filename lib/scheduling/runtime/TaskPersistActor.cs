@@ -1,4 +1,4 @@
-namespace Core.Scheduling.Runtime;
+﻿namespace Core.Scheduling.Runtime;
 
 /// <summary>
 /// TaskRuntime Actor 命令 — Channel 中的消息类型
@@ -30,14 +30,14 @@ internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit>
     {
         var tcs = CreateTcs();
         await SendAsync(new PersistCmd(ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId, CancellationToken ct)
     {
         var tcs = CreateTcs<IReadOnlyList<RuntimeTask>>();
         await SendAsync(new RecoverCmd(goalId, ct, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     protected override async ValueTask HandleAsync(ITaskPersistCommand command, CancellationToken ct)

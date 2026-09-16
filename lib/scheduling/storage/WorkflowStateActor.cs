@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Scheduling;
 
 /// <summary>
@@ -31,14 +31,14 @@ internal sealed class WorkflowStateActor : ActorBase<IWorkflowStateCommand, Unit
     {
         var tcs = CreateTcs();
         await SendAsync(new SaveSnapshotCmd(workflowId, snapshot, ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     public async Task<WorkflowSnapshot?> LoadSnapshotAsync(string workflowId, CancellationToken ct)
     {
         var tcs = CreateTcs<WorkflowSnapshot?>();
         await SendAsync(new LoadSnapshotCmd(workflowId, ct, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     protected override async ValueTask HandleAsync(IWorkflowStateCommand command, CancellationToken ct)

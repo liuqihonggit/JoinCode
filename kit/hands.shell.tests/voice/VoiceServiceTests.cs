@@ -129,7 +129,7 @@ public sealed class VoiceServiceTests : IDisposable
     public async Task TranscribeFileAsync_WithNonExistentFile_ThrowsFileNotFoundException()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var act = () => _service.TranscribeFileAsync("/nonexistent/file.wav", cancellationToken: cts.Token);
+        var act = () => _service.TranscribeFileAsync("/nonexistent/file.wav", ct: cts.Token);
 
         await act.Should().ThrowAsync<FileNotFoundException>().ConfigureAwait(true);
     }

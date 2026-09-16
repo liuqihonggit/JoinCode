@@ -1,4 +1,4 @@
-namespace Core.Context;
+﻿namespace Core.Context;
 
 /// <summary>
 /// 流式工具执行器接口 — StreamingToolExecutor 与 StreamingToolExecutorActor 共同实现。
@@ -110,7 +110,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         if (_discarded) return [];
         var tcs = new TaskCompletionSource<IReadOnlyList<StreamingToolResult>>();
         await SendAsync(new GetCompletedQuery(tcs)).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, CancellationToken.None);
     }
 
     /// <inheritdoc/>
@@ -120,7 +120,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
 
         var remainingTcs = new TaskCompletionSource<List<Task<StreamingToolResult>>>();
         await SendAsync(new GetRemainingQuery(remainingTcs)).ConfigureAwait(false);
-        var pendingTasks = await remainingTcs.Task.ConfigureAwait(false);
+        var pendingTasks = await AskAwait(remainingTcs, CancellationToken.None);
 
         if (pendingTasks.Count > 0)
         {

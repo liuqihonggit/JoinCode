@@ -102,9 +102,10 @@ public sealed class WindowShakeCoordinator : ServiceEntity, IWindowShakeCoordina
     /// <summary>
     /// 释放 — 取消配置变更事件订阅。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_configService is not null)
             _configService.SettingChanged -= OnSettingChanged;
+        base.Dispose();
     }
 }

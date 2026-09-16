@@ -54,10 +54,10 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
         messagesAfterFirst.Should().HaveCount(1);
 
         var firstMsg = messagesAfterFirst[0];
-        var msgDictField = typeof(TeamManager).GetField("_teamMessages",
+        var roomsField = typeof(TeamManager).GetField("_rooms",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var msgDict = (System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, TeamMessage>>)msgDictField!.GetValue(_teamManager)!;
-        var innerDict = msgDict[teamId];
+        var rooms = (System.Collections.Concurrent.ConcurrentDictionary<string, ChatRoomState>)roomsField!.GetValue(_teamManager)!;
+        var innerDict = rooms[teamId].Messages;
 
         var duplicateMsg = firstMsg with { };
         innerDict.TryAdd(firstMsg.MessageId, firstMsg with { Content = "不应插入" });
@@ -170,10 +170,10 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
             .Returns(() => ValueTask.FromResult<CoordinatorMessage>(null!));
 
         var notice = SystemNoticeFactory.Create(SystemNoticeKind.MemberMuted, teamId, "member1");
-        var msgDictField = typeof(TeamManager).GetField("_teamMessages",
+        var roomsField = typeof(TeamManager).GetField("_rooms",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var msgDict = (System.Collections.Concurrent.ConcurrentDictionary<string, System.Collections.Concurrent.ConcurrentDictionary<string, TeamMessage>>)msgDictField!.GetValue(_teamManager)!;
-        msgDict.GetOrAdd(teamId, _ => new System.Collections.Concurrent.ConcurrentDictionary<string, TeamMessage>()).TryAdd(notice.MessageId, notice);
+        var rooms = (System.Collections.Concurrent.ConcurrentDictionary<string, ChatRoomState>)roomsField!.GetValue(_teamManager)!;
+        rooms[teamId].Messages.TryAdd(notice.MessageId, notice);
 
         var persistMethod = typeof(TeamManager).GetMethod("PersistTeamMessageToMailboxAsync",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -241,20 +241,23 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
 
     private void SetTeamSession(string teamId, string sessionId)
     {
-        var sessionField = typeof(TeamManager).GetField("_teamSessions",
+        var roomsField = typeof(TeamManager).GetField("_rooms",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var sessions = (System.Collections.Concurrent.ConcurrentDictionary<string, string>)sessionField!.GetValue(_teamManager)!;
-        sessions[teamId] = sessionId;
+        var rooms = (System.Collections.Concurrent.ConcurrentDictionary<string, ChatRoomState>)roomsField!.GetValue(_teamManager)!;
+        if (rooms.TryGetValue(teamId, out var room))
+        {
+            room.SessionId = sessionId;
+        }
     }
 
     private void SetMemberRole(string teamId, string agentId, string role)
     {
-        var detailsField = typeof(TeamManager).GetField("_teamMemberDetails",
+        var roomsField = typeof(TeamManager).GetField("_rooms",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var detailsDict = (System.Collections.Concurrent.ConcurrentDictionary<string, Dictionary<string, TeamMemberInfo>>)detailsField!.GetValue(_teamManager)!;
-        if (detailsDict.TryGetValue(teamId, out var details) && details.TryGetValue(agentId, out var info))
+        var rooms = (System.Collections.Concurrent.ConcurrentDictionary<string, ChatRoomState>)roomsField!.GetValue(_teamManager)!;
+        if (rooms.TryGetValue(teamId, out var room) && room.MemberDetails.TryGetValue(agentId, out var info))
         {
-            details[agentId] = info with { Role = role };
+            room.MemberDetails[agentId] = info with { Role = role };
         }
     }
 }

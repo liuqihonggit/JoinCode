@@ -8,13 +8,8 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(ITeamManager), ServiceLifetime.Singleton)]
 public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposable
 {
-    private readonly ConcurrentDictionary<string, TeamInfo> _teams = new();
-    private readonly ConcurrentDictionary<string, HashSet<string>> _teamMembers = new();
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, TeamMessage>> _teamMessages = new();
+    private readonly ConcurrentDictionary<string, ChatRoomState> _rooms = new();
     private readonly ConcurrentDictionary<string, string> _agentToTeam = new();
-    private readonly ConcurrentDictionary<string, string> _teamSessions = new();
-    private readonly ConcurrentDictionary<string, Dictionary<string, TeamAllowedPath>> _teamAllowedPaths = new();
-    private readonly ConcurrentDictionary<string, Dictionary<string, TeamMemberInfo>> _teamMemberDetails = new();
     private readonly AsyncLock _lock = new();
     private readonly ITelemetryService? _telemetryService;
     private readonly ITeammateMailboxService? _mailboxService;
@@ -82,7 +77,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var sessionId = _subAgentContextAccessor.Current?.SessionId;
         if (sessionId is not null)
         {
-            var existingTeamForSession = _teamSessions.FirstOrDefault(kvp => kvp.Value == sessionId);
+            var existingTeamForSession = _rooms.FirstOrDefault(kvp => kvp.Value.SessionId == sessionId);
             if (existingTeamForSession.Key is not null)
             {
                 return OperationResult<TeamInfo?>.Fail("已在团队中，请先使用 TeamDelete 删除当前团队");
@@ -90,7 +85,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
 
         // 名称唯一性检查（对齐 TS generateUniqueTeamName）
-        var nameConflict = _teams.Values.FirstOrDefault(t => string.Equals(t.TeamName, teamName, StringComparison.OrdinalIgnoreCase));
+        var nameConflict = _rooms.Values.Select(r => r.Info).FirstOrDefault(t => string.Equals(t.TeamName, teamName, StringComparison.OrdinalIgnoreCase));
         if (nameConflict is not null)
         {
             return OperationResult<TeamInfo?>.Fail($"团队名称 '{teamName}' 已存在，请使用其他名称");
@@ -116,16 +111,19 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             LastActivityAt = _clock.GetUtcNow()
         };
 
-        _teams[teamId] = team;
-        _teamMembers[teamId] = members;
-        _teamMessages[teamId] = new ConcurrentDictionary<string, TeamMessage>();
-        _teamMemberDetails[teamId] = memberDetails;
-        _teamAllowedPaths[teamId] = new Dictionary<string, TeamAllowedPath>();
+        var room = new ChatRoomState
+        {
+            Info = team,
+            Members = members,
+            MemberDetails = memberDetails,
+        };
 
         if (sessionId is not null)
         {
-            _teamSessions[teamId] = sessionId;
+            room.SessionId = sessionId;
         }
+
+        _rooms[teamId] = room;
 
         if (initialMembers != null)
         {
@@ -149,16 +147,17 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             RecordTeamMetrics("delete", false);
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
+        var team = room.Info;
+
         // Active member 安全检查（对齐 TS TeamDeleteTool）
-        if (_teamMemberDetails.TryGetValue(teamId, out var memberDetails))
         {
-            var activeMembers = memberDetails.Values.Where(m => m.IsActive).ToList();
+            var activeMembers = room.MemberDetails.Values.Where(m => m.IsActive).ToList();
             if (activeMembers.Count > 0)
             {
                 var activeNames = string.Join(", ", activeMembers.Select(m => m.AgentId));
@@ -166,17 +165,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             }
         }
 
-        _teams.TryRemove(teamId, out _);
-
-        if (_teamMembers.TryRemove(teamId, out var members))
+        if (_rooms.TryRemove(teamId, out var removedRoom))
         {
-            foreach (var member in members)
+            foreach (var member in removedRoom.Members)
             {
                 _agentToTeam.TryRemove(member, out _);
             }
         }
-
-        _teamMessages.TryRemove(teamId, out _);
 
         RecordTeamMetrics("delete", true);
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
@@ -193,8 +188,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        _teams.TryGetValue(teamId, out var team);
-        return Task.FromResult(team);
+        _rooms.TryGetValue(teamId, out var room);
+        return Task.FromResult(room?.Info);
     }
 
     /// <summary>
@@ -205,7 +200,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     public Task<IReadOnlyList<TeamInfo>> ListTeamsAsync(
         CancellationToken cancellationToken = default)
     {
-        var teams = _teams.Values.ToList();
+        var teams = _rooms.Values.Select(r => r.Info).ToList();
         return Task.FromResult<IReadOnlyList<TeamInfo>>(teams);
     }
 
@@ -221,13 +216,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string agentId,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
-        var members = _teamMembers.GetOrAdd(teamId, _ => new HashSet<string>());
-        var memberDetails = _teamMemberDetails.GetOrAdd(teamId, _ => new Dictionary<string, TeamMemberInfo>());
+        var team = room.Info;
+        var members = room.Members;
+        var memberDetails = room.MemberDetails;
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -240,7 +236,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         memberDetails[agentId] = new TeamMemberInfo { AgentId = agentId, JoinedAt = _clock.GetUtcNow() };
     
 
-        _teams[teamId] = team with
+        room.Info = team with
         {
             Members = members.ToList(),
             MemberDetails = memberDetails.Values.ToList(),
@@ -250,7 +246,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _agentToTeam[agentId] = teamId;
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
     /// <summary>
@@ -265,17 +261,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string agentId,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
-        if (!_teamMembers.TryGetValue(teamId, out var members))
-        {
-            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 没有成员列表");
-        }
-
-        var memberDetails = _teamMemberDetails.GetOrAdd(teamId, _ => new Dictionary<string, TeamMemberInfo>());
+        var team = room.Info;
+        var members = room.Members;
+        var memberDetails = room.MemberDetails;
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -289,7 +282,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         _agentToTeam.TryRemove(agentId, out _);
 
-        _teams[teamId] = team with
+        room.Info = team with
         {
             Members = members.ToList(),
             MemberDetails = memberDetails.Values.ToList(),
@@ -297,7 +290,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         };
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
     /// <summary>
@@ -310,12 +303,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_teamMembers.TryGetValue(teamId, out var members))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
         }
 
-        return Task.FromResult<IReadOnlyList<string>>(members.ToList());
+        return Task.FromResult<IReadOnlyList<string>>(room.Members.ToList());
     }
 
     /// <summary>
@@ -334,10 +327,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
+
+        var team = room.Info;
 
         var message = new TeamMessage
         {
@@ -349,11 +344,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             Timestamp = _clock.GetUtcNow()
         };
 
-        var messages = _teamMessages.GetOrAdd(teamId, _ => new ConcurrentDictionary<string, TeamMessage>());
+        var messages = room.Messages;
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
+        if (!room.Members.Contains(senderId))
         {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
@@ -361,16 +356,16 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         if (!messages.TryAdd(message.MessageId, message))
         {
             _logger?.LogDebug("Duplicate team message {MessageId} skipped in SendMessageAsync", message.MessageId);
-            return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+            return OperationResult<TeamInfo?>.Ok(room.Info);
         }
     
 
-        _teams[teamId] = team with { LastActivityAt = _clock.GetUtcNow() };
+        room.Info = team with { LastActivityAt = _clock.GetUtcNow() };
 
         await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
     /// <summary>
@@ -394,10 +389,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Fail($"代理 {targetAgentId} 不属于任何团队");
         }
 
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
+
+        var team = room.Info;
 
         var message = new TeamMessage
         {
@@ -409,11 +406,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             Timestamp = _clock.GetUtcNow()
         };
 
-        var messages = _teamMessages.GetOrAdd(teamId, _ => new ConcurrentDictionary<string, TeamMessage>());
+        var messages = room.Messages;
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
+        if (!room.Members.Contains(senderId))
         {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
@@ -443,19 +440,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         int limit = 50,
         CancellationToken cancellationToken = default)
     {
-        if (!_teamMessages.TryGetValue(teamId, out var messages))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return Array.Empty<TeamMessage>();
         }
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        return messages
-            .Values
-            .OrderByDescending(m => m.Timestamp)
-            .Take(limit)
-            .ToList();
-    
+        return room.GetMessages(limit);
     }
 
     /// <summary>
@@ -474,10 +466,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
+
+        var team = room.Info;
 
         var message = new TeamMessage
         {
@@ -489,11 +483,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             Timestamp = _clock.GetUtcNow()
         };
 
-        var messages = _teamMessages.GetOrAdd(teamId, _ => new ConcurrentDictionary<string, TeamMessage>());
+        var messages = room.Messages;
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_teamMembers.TryGetValue(teamId, out var members) || !members.Contains(senderId))
+        if (!room.Members.Contains(senderId))
         {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
@@ -501,16 +495,16 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         if (!messages.TryAdd(message.MessageId, message))
         {
             _logger?.LogDebug("Duplicate team message {MessageId} skipped in BroadcastMessageAsync", message.MessageId);
-            return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+            return OperationResult<TeamInfo?>.Ok(room.Info);
         }
     
 
-        _teams[teamId] = team with { LastActivityAt = _clock.GetUtcNow() };
+        room.Info = team with { LastActivityAt = _clock.GetUtcNow() };
 
         await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
     private string GenerateTeamId()
@@ -544,12 +538,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return message.ToAgentId is not null ? new[] { message.ToAgentId } : Array.Empty<string>();
         }
 
-        if (!_teamMembers.TryGetValue(teamId, out var members)) return Array.Empty<string>();
+        if (!_rooms.TryGetValue(teamId, out var room)) return Array.Empty<string>();
+        var members = room.Members;
 
         if (message.Visibility == MessageVisibility.AdminOnly)
         {
-            _teamMemberDetails.TryGetValue(teamId, out var details);
-            _teams.TryGetValue(teamId, out var team);
+            var details = room.MemberDetails;
+            var team = room.Info;
             return members
                 .Where(m => m != message.SenderId && IsAdminOrOwner(m, details, team))
                 .ToList();
@@ -573,7 +568,9 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var targetAgentIds = FilterRecipientsByVisibility(teamId, message);
         if (targetAgentIds.Count == 0) return;
 
-        if (_mailboxService is not null && _teamSessions.TryGetValue(teamId, out var sessionId))
+        var sessionId = _rooms.TryGetValue(teamId, out var room) ? room.SessionId : null;
+
+        if (_mailboxService is not null && sessionId is not null)
         {
             var tasks = targetAgentIds
                 .Select(m => _mailboxService.SendAsync(new MailboxSendRequest
@@ -622,7 +619,9 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string targetAgentId, string senderId, string content, string messageType, string teamId,
         CancellationToken cancellationToken)
     {
-        if (_mailboxService is not null && _teamSessions.TryGetValue(teamId, out var sessionId))
+        var sessionId = _rooms.TryGetValue(teamId, out var room) ? room.SessionId : null;
+
+        if (_mailboxService is not null && sessionId is not null)
         {
             try
             {
@@ -676,12 +675,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
-        var memberDetails = _teamMemberDetails.GetOrAdd(teamId, _ => new Dictionary<string, TeamMemberInfo>());
+        var team = room.Info;
+        var memberDetails = room.MemberDetails;
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -693,14 +693,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         memberDetails[agentId] = existing with { IsActive = isActive };
     
 
-        _teams[teamId] = team with
+        room.Info = team with
         {
             MemberDetails = memberDetails.Values.ToList(),
             LastActivityAt = _clock.GetUtcNow()
         };
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
     /// <summary>
@@ -713,12 +713,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_teamAllowedPaths.TryGetValue(teamId, out var paths))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(Array.Empty<TeamAllowedPath>());
         }
 
-        return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(paths.Values.ToList());
+        return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(room.AllowedPaths.Values.ToList());
     }
 
     /// <summary>
@@ -735,17 +735,19 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         AccessLevel accessLevel = AccessLevel.Read,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
+
+        var team = room.Info;
 
         if (string.IsNullOrWhiteSpace(path))
         {
             return OperationResult<TeamInfo?>.Fail("路径不能为空");
         }
 
-        var paths = _teamAllowedPaths.GetOrAdd(teamId, _ => new Dictionary<string, TeamAllowedPath>());
+        var paths = room.AllowedPaths;
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -759,14 +761,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
     
 
-        _teams[teamId] = team with
+        room.Info = team with
         {
             AllowedPaths = paths.Values.ToList(),
             LastActivityAt = _clock.GetUtcNow()
         };
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
     /// <summary>
@@ -779,15 +781,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return Array.Empty<TeammateStatus>();
         }
 
-        if (!_teamMemberDetails.TryGetValue(teamId, out var memberDetails))
-        {
-            return Array.Empty<TeammateStatus>();
-        }
+        var team = room.Info;
+        var memberDetails = room.MemberDetails;
 
         var runningTeammates = ResolvedTeammateObserver is not null
             ? await ResolvedTeammateObserver.GetRunningTeammatesAsync().ConfigureAwait(false)
@@ -812,14 +812,15 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var runningTeammates = ResolvedTeammateObserver is not null
             ? await ResolvedTeammateObserver.GetRunningTeammatesAsync().ConfigureAwait(false)
             : [];
+
         var runningMap = runningTeammates.ToDictionary(t => t.Id);
 
         var statuses = new List<TeammateStatus>();
 
-        foreach (var kvp in _teams)
+        foreach (var kvp in _rooms)
         {
-            var team = kvp.Value;
-            if (!_teamMemberDetails.TryGetValue(team.TeamId, out var memberDetails)) continue;
+            var team = kvp.Value.Info;
+            var memberDetails = kvp.Value.MemberDetails;
 
             foreach (var md in memberDetails.Values)
             {
@@ -862,8 +863,10 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
             return null;
+
+        var team = room.Info;
 
         var statuses = await GetTeammateStatusesAsync(teamId, cancellationToken).ConfigureAwait(false);
         var members = statuses.Select(s => new ChatRoomMember
@@ -872,14 +875,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             DisplayName = s.DisplayName ?? s.AgentId,
             Role = MapToChatRoomRole(s.Role, s.AgentId, team.LeadAgentId),
             Status = MapToChatRoomMemberStatus(s),
-            JoinedAt = _teamMemberDetails.TryGetValue(teamId, out var details)
-                       && details.TryGetValue(s.AgentId, out var md) ? md.JoinedAt : DateTime.UtcNow,
+            JoinedAt = room.MemberDetails.TryGetValue(s.AgentId, out var md) ? md.JoinedAt : DateTime.UtcNow,
         }).ToList();
 
         var onlineCount = members.Count(m => m.Status == ChatRoomMemberStatus.Online);
-        DateTime? lastMessageAt = _teamMessages.TryGetValue(teamId, out var msgs) && msgs.Count > 0
-            ? msgs.Values.Max(m => m.Timestamp)
-            : null;
+        DateTime? lastMessageAt = room.LastMessageAt;
 
         return new ChatRoomInfo
         {
@@ -921,15 +921,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? reason = null,
         CancellationToken cancellationToken = default)
     {
-        if (!_teams.TryGetValue(teamId, out var team))
+        if (!_rooms.TryGetValue(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
-        if (!_teamMessages.TryGetValue(teamId, out var msgDict))
-        {
-            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 无消息记录");
-        }
+        var team = room.Info;
+        var msgDict = room.Messages;
 
         if (!msgDict.TryGetValue(messageId, out var originalMsg))
         {
@@ -937,8 +935,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
 
         var isSender = originalMsg.SenderId == revokerId;
-        var isAdmin = IsAdminOrOwner(revokerId,
-            _teamMemberDetails.TryGetValue(teamId, out var details) ? details : null, team);
+        var isAdmin = IsAdminOrOwner(revokerId, room.MemberDetails, team);
         if (!isSender && !isAdmin)
         {
             return OperationResult<TeamInfo?>.Fail($"撤回者 {revokerId} 无权限：仅发送者或管理员可撤回");
@@ -963,9 +960,9 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             await PersistTeamMessageToMailboxAsync(teamId, notice, cancellationToken).ConfigureAwait(false);
         }
 
-        _teams[teamId] = team with { LastActivityAt = _clock.GetUtcNow() };
+        room.Info = team with { LastActivityAt = _clock.GetUtcNow() };
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
-        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
     /// <summary>释放资源 — 释放团队管理锁</summary>

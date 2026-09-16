@@ -38,40 +38,30 @@ public sealed partial class TeamManager
             var data = RelaxedJsonSerializer.Deserialize(json, TeamPersistenceJsonContext.Default.TeamStateData);
             if (data is null) return;
 
-            // 恢复团队
+            // 恢复团队 + 成员 + 消息 + 成员详情到 ChatRoomState
             if (data.Teams is not null)
             {
                 foreach (var team in data.Teams)
                 {
-                    _teams[team.TeamId] = team;
-                }
-            }
+                    var room = new ChatRoomState { Info = team };
 
-            // 恢复团队成员
-            if (data.TeamMembers is not null)
-            {
-                foreach (var kvp in data.TeamMembers)
-                {
-                    _teamMembers[kvp.Key] = new HashSet<string>(kvp.Value);
-                }
-            }
+                    if (data.TeamMembers is not null && data.TeamMembers.TryGetValue(team.TeamId, out var memberList))
+                    {
+                        room.Members = new HashSet<string>(memberList);
+                    }
 
-            // 恢复团队消息
-            if (data.TeamMessages is not null)
-            {
-                foreach (var kvp in data.TeamMessages)
-                {
-                    _teamMessages[kvp.Key] = new ConcurrentDictionary<string, TeamMessage>(
-                        kvp.Value.Select(m => new KeyValuePair<string, TeamMessage>(m.MessageId, m)));
-                }
-            }
+                    if (data.TeamMessages is not null && data.TeamMessages.TryGetValue(team.TeamId, out var msgList))
+                    {
+                        room.Messages = new ConcurrentDictionary<string, TeamMessage>(
+                            msgList.Select(m => new KeyValuePair<string, TeamMessage>(m.MessageId, m)));
+                    }
 
-            // 恢复团队成员详情
-            if (data.TeamMemberDetails is not null)
-            {
-                foreach (var kvp in data.TeamMemberDetails)
-                {
-                    _teamMemberDetails[kvp.Key] = kvp.Value.ToDictionary(m => m.AgentId, m => m);
+                    if (data.TeamMemberDetails is not null && data.TeamMemberDetails.TryGetValue(team.TeamId, out var detailList))
+                    {
+                        room.MemberDetails = detailList.ToDictionary(m => m.AgentId, m => m);
+                    }
+
+                    _rooms[team.TeamId] = room;
                 }
             }
 
@@ -88,7 +78,7 @@ public sealed partial class TeamManager
             _teamCounter = Math.Max(_teamCounter, data.TeamCounter);
             _messageCounter = Math.Max(_messageCounter, data.MessageCounter);
 
-            _logger?.LogDebug("团队状态已从 {FilePath} 加载: {TeamCount} 个团队", _stateFilePath, _teams.Count);
+            _logger?.LogDebug("团队状态已从 {FilePath} 加载: {TeamCount} 个团队", _stateFilePath, _rooms.Count);
         }
         catch (Exception ex)
         {
@@ -107,10 +97,10 @@ public sealed partial class TeamManager
         {
             var data = new TeamStateData
             {
-                Teams = _teams.Values.ToList(),
-                TeamMembers = _teamMembers.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList()),
-                TeamMessages = _teamMessages.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Values.ToList()),
-                TeamMemberDetails = _teamMemberDetails.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Values.ToList()),
+                Teams = _rooms.Values.Select(r => r.Info).ToList(),
+                TeamMembers = _rooms.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Members.ToList()),
+                TeamMessages = _rooms.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Messages.Values.ToList()),
+                TeamMemberDetails = _rooms.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.MemberDetails.Values.ToList()),
                 AgentToTeam = new Dictionary<string, string>(_agentToTeam),
                 TeamCounter = _teamCounter,
                 MessageCounter = _messageCounter

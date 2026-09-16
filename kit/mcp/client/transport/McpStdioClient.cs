@@ -408,14 +408,15 @@ public sealed class McpStdioClient : McpClientBase
     /// 异步释放客户端资源 — 断开连接、释放遥测 span 与请求注册表。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        await DisconnectAsync();
+        _ = DisconnectAsync(CancellationToken.None);
         if (_connectionSpan is not null)
         {
-            await _connectionSpan.DisposeAsync().ConfigureAwait(false);
+            _ = _connectionSpan.DisposeAsync();
             _connectionSpan = null;
         }
-        await _requestRegistry.DisposeAsync().ConfigureAwait(false);
+        _ = _requestRegistry.DisposeAsync();
+        return ValueTask.CompletedTask;
     }
 }

@@ -1,4 +1,4 @@
-namespace Core.Security.Sandbox;
+﻿namespace Core.Security.Sandbox;
 
 
 /// <summary>
@@ -766,9 +766,10 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
     }
 
     /// <inheritdoc />
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _ = _lifecycleActor.DisposeAsync();
+            base.Dispose();
     }
 }
 

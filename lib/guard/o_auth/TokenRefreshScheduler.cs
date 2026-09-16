@@ -1,4 +1,4 @@
-
+﻿
 namespace Services.OAuth;
 
 /// <summary>
@@ -156,7 +156,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     }
 
     /// <inheritdoc />
-    protected override void OnDispose()
+    public override void Dispose()
     {
         foreach (var monitor in _monitors.Values)
         {
@@ -165,6 +165,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
         }
 
         _monitors.Clear();
+            base.Dispose();
     }
 }
 

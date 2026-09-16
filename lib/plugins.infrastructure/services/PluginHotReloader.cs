@@ -326,9 +326,10 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     /// <summary>
     /// 异步释放 — 停止监控并释放资源
     /// </summary>
-    public async override ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        await base.DisposeAsync().ConfigureAwait(false);
+        var baseTask = base.DisposeAsync();
         StopWatcherCore();
+        return baseTask;
     }
 }

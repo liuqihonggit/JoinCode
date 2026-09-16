@@ -178,19 +178,18 @@ public sealed partial class TelemetryService : ITelemetryService
     /// <summary>
     /// 异步释放遥测服务 — 关闭所有活动 Span、导出器、监听器、ActivitySource 与 Meter
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
-            return;
+            return ValueTask.CompletedTask;
         }
-
-        await Task.WhenAll(_activeSpans.Values.ToList().Select(span => span.DisposeAsync().AsTask())).ConfigureAwait(false);
 
         _consoleExporter?.Dispose();
         _listener.Dispose();
         _activitySource.Dispose();
         _meter.Dispose();
+        return new ValueTask(Task.WhenAll(_activeSpans.Values.ToList().Select(span => span.DisposeAsync().AsTask())));
     }
 
     private static ActivityKind MapActivityKind(TelemetrySpanKind kind) => kind switch

@@ -1,4 +1,4 @@
-namespace Services.Lsp;
+﻿namespace Services.Lsp;
 
 /// <summary>
 /// LSP 服务 — 封装语言服务器协议操作，提供定义跳转、引用查找、悬停、补全等能力
@@ -416,21 +416,23 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// 异步释放 LspService 资源
     /// </summary>
     /// <returns>表示异步释放操作的 ValueTask</returns>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return ValueTask.CompletedTask;
 
-        await _lspManager.DisposeAsync().ConfigureAwait(false);
+        var task = _lspManager.DisposeAsync();
         Dispose();
+        return task;
     }
 
     /// <summary>
     /// 同步释放资源 — 释放初始化锁
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _initLock.Dispose();
+            base.Dispose();
     }
 
     #region Private Methods

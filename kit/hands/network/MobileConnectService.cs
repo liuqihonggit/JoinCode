@@ -1,4 +1,4 @@
-namespace IO.Services;
+﻿namespace IO.Services;
 
 /// <summary>移动端连接服务 — 在本机开启 TCP 监听，接受移动端发起的连接握手并返回连接确认响应。</summary>
 [Register(typeof(IMobileConnectService), ServiceLifetime.Singleton)]
@@ -135,11 +135,12 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
     }
 
     /// <summary>释放移动端连接服务资源 — P1-10: 补全 IDisposable 避免资源累积</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         StopConnectServer();
         _cts?.Dispose();
         _cts = null;
         _tcpListener = null;
+            base.Dispose();
     }
 }

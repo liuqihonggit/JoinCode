@@ -8,8 +8,9 @@ public sealed class MailboxMessageSinkTests
     [Fact]
     public async Task DeliverAsync_CallsDeliverInboundAsync_MessageReachesChannel()
     {
-        var mailbox = new InProcessMailbox();
+        await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
+        await Task.Delay(100);
         var sink = new MailboxMessageSink(mailbox);
         var msg = new AgentMsg { FromAgentId = "sender", ToAgentId = "agent1", MessageType = "text", Content = "hello" };
 
@@ -38,7 +39,7 @@ public sealed class MailboxMessageSinkTests
     [Fact]
     public async Task DeliverAsync_ExceptionInMailbox_DoesNotPropagate()
     {
-        var mailbox = new InProcessMailbox();
+        await using var mailbox = new InProcessMailbox();
         var sink = new MailboxMessageSink(mailbox);
         var msg = new AgentMsg { FromAgentId = "sender", ToAgentId = "agent1", MessageType = "text", Content = "hello" };
 

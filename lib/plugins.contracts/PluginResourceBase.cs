@@ -107,11 +107,12 @@ public abstract class PluginResourceBase : Entity, IPluginHeartbeat
     protected virtual void OnResourceDispose() { }
 
     /// <summary>
-    /// Entity.OnDispose 实现 — 标记死亡 + 子类清理
+    /// Entity.Dispose 实现 — 标记死亡 + 子类清理
     /// </summary>
-    protected sealed override void OnDispose()
+    public sealed override void Dispose()
     {
         MarkDead();
         OnResourceDispose();
+        base.Dispose();
     }
 }

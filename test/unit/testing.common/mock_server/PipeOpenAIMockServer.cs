@@ -71,12 +71,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable
         {
             while (!ct.IsCancellationRequested)
             {
-                using var pipeServer = new NamedPipeServerStream(
-                    _options.PipeName,
-                    PipeDirection.InOut,
-                    NamedPipeServerStream.MaxAllowedServerInstances,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous);
+                using var pipeServer = NamedPipeFactory.CreateServer(_options.PipeName);
 
                 _logger.LogInformation("[MockServer] 等待客户端连接...");
                 await pipeServer.WaitForConnectionAsync(ct).ConfigureAwait(true);

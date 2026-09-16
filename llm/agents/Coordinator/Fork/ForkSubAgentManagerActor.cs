@@ -668,7 +668,9 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// 异步释放管理器资源，清理所有 Fork 条目与信号量
     /// </summary>
     /// <returns>表示异步操作的任务</returns>
-    public new async ValueTask DisposeAsync()
+    public new ValueTask DisposeAsync() => DisposeAsyncCore();
+
+    private async ValueTask DisposeAsyncCore()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 

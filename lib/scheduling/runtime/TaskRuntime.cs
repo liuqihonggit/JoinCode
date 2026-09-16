@@ -1,4 +1,4 @@
-namespace Core.Scheduling.Runtime;
+﻿namespace Core.Scheduling.Runtime;
 
 
 /// <summary>
@@ -520,9 +520,10 @@ public sealed partial class TaskRuntime : ServiceEntity, ITaskRuntime, IDisposab
     }
 
     /// <summary>释放资源时回调，释放内部 DAG 并异步释放持久化 Actor。</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _dag.Dispose();
         _ = _persistActor.DisposeAsync();
+            base.Dispose();
     }
 }

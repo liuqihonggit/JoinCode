@@ -1,4 +1,4 @@
-namespace Core.Prompts.Utils;
+﻿namespace Core.Prompts.Utils;
 
 /// <summary>
 /// 动态关键词词表服务 — 从 ~/.jcc/keyword-sections.json 加载关键词配置，支持文件监控热加载
@@ -119,13 +119,14 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     /// <summary>
     /// 释放托管资源，停止文件监听并清理配置缓存。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
 
         _watcher?.Dispose();
         _reloadLock.Dispose();
+            base.Dispose();
     }
 }
 

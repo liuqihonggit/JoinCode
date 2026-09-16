@@ -160,13 +160,23 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         var messages = new ConcurrentQueue<string>();
         LockRegistry.DiagnosticSink = messages.Enqueue;
+        var originalThreshold = LockRegistry.HoldTooLongThreshold;
         LockRegistry.HoldTooLongThreshold = TimeSpan.FromMilliseconds(50);
         LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(30));
-        using var lk = new AsyncLock("scan-test");
-        using var holder = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
-        await Task.Delay(200);
-        messages.Should().Contain(m => m.Contains("LOCK-SCAN-HOLD") && m.Contains("scan-test"),
-            "后台扫描应检测到持有过长的锁并告警");
+        try
+        {
+            using var lk = new AsyncLock("scan-test");
+            using var holder = await lk.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
+            await Task.Delay(200);
+            messages.Should().Contain(m => m.Contains("LOCK-SCAN-HOLD") && m.Contains("scan-test"),
+                "后台扫描应检测到持有过长的锁并告警");
+        }
+        finally
+        {
+            LockRegistry.StopBackgroundScan();
+            LockRegistry.HoldTooLongThreshold = originalThreshold;
+            LockRegistry.DiagnosticSink = null;
+        }
     }
 
     [Fact]
@@ -254,6 +264,9 @@ public class AsyncLockDiagnosisTests : IDisposable
 
         t1Done.Wait(5000);
         t2Done.Wait(5000);
+
+        LockRegistry.StopBackgroundScan();
+        LockRegistry.DiagnosticSink = null;
     }
 
     [Fact]
@@ -276,43 +289,56 @@ public class AsyncLockDiagnosisTests : IDisposable
     {
         var messages = new ConcurrentQueue<string>();
         LockRegistry.DiagnosticSink = messages.Enqueue;
-        using var lockA = new AsyncLock("async-deadlock-A", TimeSpan.FromSeconds(2));
-        using var lockB = new AsyncLock("async-deadlock-B", TimeSpan.FromSeconds(2));
-
-        var t1Ready = new TaskCompletionSource();
-        var t2Ready = new TaskCompletionSource();
-
-        var t1 = Task.Run(async () =>
+        var originalWaitThreshold = LockRegistry.WaitTimeoutThreshold;
+        LockRegistry.WaitTimeoutThreshold = TimeSpan.FromMilliseconds(100);
+        LockRegistry.StartBackgroundScan(TimeSpan.FromMilliseconds(50));
+        try
         {
-            using (await lockA.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lockA.Name}' 等待超时"))
-            {
-                t1Ready.SetResult();
-                await t2Ready.Task;
-                using var g = await lockB.TryLockAsync();
-                if (g is null) Console.WriteLine("async t1 lockB 超时");
-            }
-        });
+            using var lockA = new AsyncLock("async-deadlock-A", TimeSpan.FromSeconds(2));
+            using var lockB = new AsyncLock("async-deadlock-B", TimeSpan.FromSeconds(2));
 
-        var t2 = Task.Run(async () =>
+            var t1Ready = new TaskCompletionSource();
+            var t2Ready = new TaskCompletionSource();
+
+            var t1 = Task.Run(async () =>
+            {
+                using (await lockA.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lockA.Name}' 等待超时"))
+                {
+                    t1Ready.SetResult();
+                    await t2Ready.Task;
+                    using var g = await lockB.TryLockAsync();
+                    if (g is null) Console.WriteLine("async t1 lockB 超时");
+                }
+            });
+
+            var t2 = Task.Run(async () =>
+            {
+                using (await lockB.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lockB.Name}' 等待超时"))
+                {
+                    t2Ready.SetResult();
+                    await t1Ready.Task;
+                    using var g = await lockA.TryLockAsync();
+                    if (g is null) Console.WriteLine("async t2 lockA 超时");
+                }
+            });
+
+            for (var round = 0; round < 2 && !LockRegistry.DeadlockDetected; round++)
+            {
+                await Task.Delay(3000);
+            }
+
+            LockRegistry.DeadlockDetected.Should().BeTrue("两个 async 流互相等待对方持有的锁应被自动检测为死锁(两轮3s共6s,容忍CI高负载)");
+            LockRegistry.LastDeadlockReport.Should().Contain("DEADLOCK-DETECTED");
+            messages.Should().Contain(m => m.Contains("DEADLOCK-DETECTED"));
+
+            await Task.WhenAll(t1, t2);
+        }
+        finally
         {
-            using (await lockB.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lockB.Name}' 等待超时"))
-            {
-                t2Ready.SetResult();
-                await t1Ready.Task;
-                using var g = await lockA.TryLockAsync();
-                if (g is null) Console.WriteLine("async t2 lockA 超时");
-            }
-        });
-
-        await Task.Delay(1000);
-
-        // async 下线程池复用导致 ThreadId 不可靠(ADR-0060),DetectDeadlock 可能误判自环(假阳性)
-        // 而非 A-B 环。只验证死锁被检测到,不验证报告包含具体锁名。
-        LockRegistry.DeadlockDetected.Should().BeTrue("两个 async 流互相等待对方持有的锁应被自动检测为死锁");
-        LockRegistry.LastDeadlockReport.Should().Contain("DEADLOCK-DETECTED");
-        messages.Should().Contain(m => m.Contains("DEADLOCK-DETECTED"));
-
-        await Task.WhenAll(t1, t2);
+            LockRegistry.StopBackgroundScan();
+            LockRegistry.WaitTimeoutThreshold = originalWaitThreshold;
+            LockRegistry.DiagnosticSink = null;
+        }
     }
 
     // ===== 重入检测 — 同步场景下同线程重入会超时返回 null (ThreadId 在 async 下不可靠,不做重入抛异常) =====

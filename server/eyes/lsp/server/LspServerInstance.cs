@@ -435,19 +435,14 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// <summary>
     /// 异步释放 — 停止服务器并释放底层客户端资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;
 
-        try
-        {
-            await StopAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "LSP server instance 释放期间停止失败");
-        }
-
-        await _client.DisposeAsync().ConfigureAwait(false);
+        _ = StopAsync().ContinueWith(
+            static (t, state) => { if (t.IsFaulted) ((ILogger)state!).LogWarning(t.Exception!, "LSP server instance 释放期间停止失败"); },
+            _logger,
+            TaskContinuationOptions.ExecuteSynchronously);
+        return _client.DisposeAsync();
     }
 }

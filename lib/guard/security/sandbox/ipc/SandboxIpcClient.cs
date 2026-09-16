@@ -308,12 +308,18 @@ public sealed class SandboxIpcClient : IAsyncDisposable
     /// <summary>
     /// 异步释放客户端,关闭卫星进程并释放所有资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await ShutdownAsync().ConfigureAwait(false);
-        _startLock.Dispose();
-        _readCts?.Dispose();
-        _writeCts?.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        return new ValueTask(ShutdownAsync().ContinueWith(
+            static (_, state) =>
+            {
+                var self = (SandboxIpcClient)state!;
+                self._startLock.Dispose();
+                self._readCts?.Dispose();
+                self._writeCts?.Dispose();
+            },
+            this,
+            TaskContinuationOptions.ExecuteSynchronously));
     }
 }

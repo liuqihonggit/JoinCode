@@ -684,7 +684,11 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
     }
 
     /// <summary>释放资源时回调，释放状态锁。</summary>
-    protected override void OnDispose() => _stateLock.Dispose();
+    public override void Dispose()
+    {
+        _stateLock.Dispose();
+        base.Dispose();
+    }
 
 }
 

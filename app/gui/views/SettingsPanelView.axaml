@@ -165,6 +165,29 @@
           </StackPanel>
         </Border>
 
+        <!-- 通知 — ADR 0109 -->
+        <Border Classes="settingsCard">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="cardTitle" Text="通知" />
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="窗口震动通知" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="子代理调用 shake_window 时震动窗口提醒用户" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding WindowShakeEnabled}" MinHeight="0" Padding="0" />
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <StackPanel Spacing="2">
+                <TextBlock Text="聊天室模式" FontSize="11.5" Foreground="{DynamicResource GuiPrimaryText}" />
+                <TextBlock Text="启用跨进程子代理聊天室广播" FontSize="10.5"
+                           Foreground="{DynamicResource GuiMutedText}" TextWrapping="Wrap" />
+              </StackPanel>
+              <ToggleSwitch Grid.Column="1" IsChecked="{Binding ChatRoomEnabled}" MinHeight="0" Padding="0" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
         <!-- 网络切换（需求7） — Local=直连 / Proxy=走代理 / Auto=自动检测 -->
         <Border Classes="settingsCard">
           <StackPanel Spacing="8">

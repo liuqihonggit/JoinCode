@@ -17,10 +17,11 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable
         _watcherRegistry = new FileWatcherIntegrationRegistry(_registry, _fs);
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await _watcherRegistry.DisposeAsync();
+        _ = _watcherRegistry.DisposeAsync();
         _registry.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

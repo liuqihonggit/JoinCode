@@ -708,9 +708,9 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 释放资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         foreach (var cts in _reconnectCtsMap.Values)
         {
             cts.Cancel();
@@ -718,9 +718,10 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         }
         _reconnectCtsMap.Clear();
 
-        await Task.WhenAll(_remoteClients.Values
+        _ = Task.WhenAll(_remoteClients.Values
             .Select(entry => entry.Client.DisposeAsync().AsTask()));
         _remoteClients.Clear();
         _lastKnownToolSpecs.Clear();
+        return ValueTask.CompletedTask;
     }
 }

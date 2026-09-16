@@ -153,4 +153,11 @@ public interface ITeamManager : IDisposable
     /// </summary>
     Task<IReadOnlyList<TeammateStatus>> GetAllTeammateStatusesAsync(
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取聊天室信息 — 团队的聊天室视图，包含房间名和成员显示名列表 — ADR 0109
+    /// </summary>
+    Task<ChatRoomInfo?> GetChatRoomInfoAsync(
+        string teamId,
+        CancellationToken cancellationToken = default);
 }

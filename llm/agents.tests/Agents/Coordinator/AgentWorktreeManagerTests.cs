@@ -1,6 +1,6 @@
 namespace Core.Tests.Agents.Coordinator;
 
-public class AgentWorktreeManagerTests
+public class AgentWorktreeManagerTests : IAsyncLifetime
 {
     private readonly Mock<IAgentWorktreeService> _worktreeServiceMock;
     private readonly Mock<IHookOrchestrator> _hookOrchestratorMock;
@@ -404,5 +404,13 @@ public class AgentWorktreeManagerTests
             await Task.Yield();
             yield return item;
         }
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public Task DisposeAsync()
+    {
+        _manager.Dispose();
+        return Task.CompletedTask;
     }
 }

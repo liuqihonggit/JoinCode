@@ -1,4 +1,4 @@
-namespace McpClient;
+﻿namespace McpClient;
 
 /// <summary>
 /// 交互式 Elicitation 处理器 — 通过用户交互服务（IUserInteractionService）将服务器的 elicitation 请求转发给终端用户,
@@ -166,5 +166,9 @@ public sealed partial class InteractiveElicitationHandler : ServiceEntity, IElic
     }
 
     /// <summary>释放资源 — 释放请求队列锁。</summary>
-    protected override void OnDispose() => _queueLock.Dispose();
+    public override void Dispose()
+    {
+        _queueLock.Dispose();
+        base.Dispose();
+    }
 }

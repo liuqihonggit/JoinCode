@@ -1,4 +1,4 @@
-namespace Core.Skills;
+﻿namespace Core.Skills;
 
 /// <summary>
 /// 技能服务配置选项
@@ -475,5 +475,9 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// <summary>
     /// 释放资源 — 释放重载锁
     /// </summary>
-    protected override void OnDispose() => _reloadLock.Dispose();
+    public override void Dispose()
+    {
+        _reloadLock.Dispose();
+        base.Dispose();
+    }
 }

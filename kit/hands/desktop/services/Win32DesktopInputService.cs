@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop;
+﻿namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 桌面输入模拟服务 — Win32 SendInput/SetCursorPos 封装
@@ -144,9 +144,7 @@ public sealed partial class Win32DesktopInputService : ServiceEntity, IDesktopIn
     }
 
     /// <summary>释放桌面输入服务资源 — 无外部资源需释放。</summary>
-    protected override void OnDispose()
-    {
-    }
+    public override void Dispose() => base.Dispose();
 
     // ---------- 可测试的 internal static 纯方法 ----------
 

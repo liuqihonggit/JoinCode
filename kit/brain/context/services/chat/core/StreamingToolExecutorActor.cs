@@ -146,12 +146,13 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <inheritdoc/>
-    public new async ValueTask DisposeAsync()
+    public new ValueTask DisposeAsync()
     {
         _siblingCts.Cancel();
         _linkedCts?.Dispose();
         _siblingCts.Dispose();
-        await base.DisposeAsync().ConfigureAwait(false);
+        _ = base.DisposeAsync();
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>Consumer 命令处理 — 串行访问所有可变状态,无锁</summary>

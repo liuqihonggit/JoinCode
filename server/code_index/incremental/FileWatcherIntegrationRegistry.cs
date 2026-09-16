@@ -115,9 +115,9 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
     /// 异步释放资源 — 解除事件订阅、停止并释放所有 watcher、释放锁
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         _registry.RepoRegistered -= OnRepoRegistered;
         _registry.RepoUnregistered -= OnRepoUnregistered;
@@ -129,6 +129,11 @@ public sealed class FileWatcherIntegrationRegistry : IAsyncDisposable
             _watchers.Clear();
         }
 
+        return new ValueTask(DisposeWatchersAsync(watchers));
+    }
+
+    private async Task DisposeWatchersAsync(List<FileWatcherIntegration> watchers)
+    {
         foreach (var watcher in watchers)
         {
             try

@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex;
+﻿namespace JoinCode.CodeIndex;
 
 /// <summary>
 /// 代码索引器 — 统一管理符号索引、调用图、依赖图、项目索引和增量更新
@@ -670,7 +670,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 释放资源 — 释放增量更新器和符号索引
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed))
         {
@@ -679,5 +679,6 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         _updater.Dispose();
         _symbolIndex.Dispose();
+            base.Dispose();
     }
 }

@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex.Tests;
+﻿namespace JoinCode.CodeIndex.Tests;
 
 public sealed class GraphPersistenceTests : IDisposable
 {
@@ -77,40 +77,34 @@ public sealed class GraphPersistenceTests : IDisposable
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        var loadStore = new InMemoryIndexStore();
-        try
-        {
-            var loadPersistence = new GraphPersistence(loadStore, _fs);
-            var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
-            Assert.True(loaded, "LoadAsync 应返回 true 表示成功加载");
+        using var loadStore =  new InMemoryIndexStore();
+        var loadPersistence = new GraphPersistence(loadStore, _fs);
+        var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
+        Assert.True(loaded, "LoadAsync 应返回 true 表示成功加载");
 
-            using var scope = loadStore.EnterReadLock();
-            Assert.Single(loadStore.SymbolsByFqn);
-            Assert.True(loadStore.SymbolsByFqn.ContainsKey("A.B.C"));
-            Assert.Equal("C", loadStore.SymbolsByFqn["A.B.C"].Name);
+        using var scope = loadStore.EnterReadLock();
+        Assert.Single(loadStore.SymbolsByFqn);
+        Assert.True(loadStore.SymbolsByFqn.ContainsKey("A.B.C"));
+        Assert.Equal("C", loadStore.SymbolsByFqn["A.B.C"].Name);
 
-            Assert.Single(loadStore.CallEdges);
-            Assert.Equal("A.B.D", loadStore.CallEdges[0].CalleeSymbol);
-            Assert.Equal(CallKind.Direct, loadStore.CallEdges[0].CallKind);
+        Assert.Single(loadStore.CallEdges);
+        Assert.Equal("A.B.D", loadStore.CallEdges[0].CalleeSymbol);
+        Assert.Equal(CallKind.Direct, loadStore.CallEdges[0].CallKind);
 
-            Assert.Single(loadStore.DepEdges);
-            Assert.Equal(DependencyKind.Inherits, loadStore.DepEdges[0].DependencyKind);
+        Assert.Single(loadStore.DepEdges);
+        Assert.Equal(DependencyKind.Inherits, loadStore.DepEdges[0].DependencyKind);
 
-            Assert.Single(loadStore.Projects);
-            Assert.True(loadStore.Projects.ContainsKey("P.csproj"));
-            Assert.Equal("net10.0", loadStore.Projects["P.csproj"].TargetFramework);
+        Assert.Single(loadStore.Projects);
+        Assert.True(loadStore.Projects.ContainsKey("P.csproj"));
+        Assert.Equal("net10.0", loadStore.Projects["P.csproj"].TargetFramework);
 
-            Assert.Single(loadStore.ProjectRefs["P.csproj"]);
-            Assert.Equal("Q.csproj", loadStore.ProjectRefs["P.csproj"][0].TargetProjectPath);
+        Assert.Single(loadStore.ProjectRefs["P.csproj"]);
+        Assert.Equal("Q.csproj", loadStore.ProjectRefs["P.csproj"][0].TargetProjectPath);
 
-            Assert.Single(loadStore.NuGetRefs["P.csproj"]);
-            Assert.Equal("Newtonsoft.Json", loadStore.NuGetRefs["P.csproj"][0].PackageName);
-            Assert.Equal("13.0.1", loadStore.NuGetRefs["P.csproj"][0].Version);
-        }
-        finally
-        {
-            loadStore.Dispose();
-        }
+        Assert.Single(loadStore.NuGetRefs["P.csproj"]);
+        Assert.Equal("Newtonsoft.Json", loadStore.NuGetRefs["P.csproj"][0].PackageName);
+        Assert.Equal("13.0.1", loadStore.NuGetRefs["P.csproj"][0].Version);
+    
     }
 
     /// <summary>

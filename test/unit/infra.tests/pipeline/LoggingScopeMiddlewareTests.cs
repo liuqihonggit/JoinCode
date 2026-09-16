@@ -1,4 +1,4 @@
-namespace Infrastructure.Pipeline.Tests;
+﻿namespace Infrastructure.Pipeline.Tests;
 
 
 /// <summary>
@@ -219,7 +219,7 @@ public sealed class LoggingScopeMiddlewareTests
 
     private sealed class TestEntity(ObjectType type, string? displayName = null) : Entity(type, displayName: displayName)
     {
-        protected override void OnDispose() { }
+        public override void Dispose() => base.Dispose();
     }
 
     private sealed class TestContextWithObjectId(ObjectId objectId)

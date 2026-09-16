@@ -59,9 +59,8 @@ public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisp
     /// <returns>表示异步释放操作的任务</returns>
     public ValueTask DisposeAsync()
     {
-        _disposeCts.Cancel();
+        _disposeCts.CancelAndDisposeSafe(_logger);
         _heartbeatService.Stop();
-        _disposeCts.Dispose();
         return ValueTask.CompletedTask;
     }
 }

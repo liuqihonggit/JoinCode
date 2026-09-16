@@ -215,14 +215,14 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     /// <summary>
     /// 异步释放所有监控会话与锁资源。
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        // 防止重复释放 — ServiceProvider 清理时可能多次调用 DisposeAsync
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
-            return;
+            return ValueTask.CompletedTask;
 
-        await CleanupSessionsAsync().ConfigureAwait(false);
+        _ = CleanupSessionsAsync();
         _sessionLock.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>清理所有监控会话（在锁保护下执行）</summary>
@@ -453,11 +453,11 @@ internal sealed partial class MonitorSession : IAsyncDisposable
         };
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         Cts.Cancel();
         Cts.Dispose();
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        return ValueTask.CompletedTask;
     }
 }

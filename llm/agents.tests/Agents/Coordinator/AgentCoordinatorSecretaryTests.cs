@@ -1,7 +1,7 @@
 
 namespace Core.Tests.Agents.Coordinator;
 
-public class AgentCoordinatorSecretaryTests
+public class AgentCoordinatorSecretaryTests : IAsyncLifetime
 {
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
@@ -125,6 +125,14 @@ public class AgentCoordinatorSecretaryTests
 
         var spawnedId = await _coordinator.EnsureSecretaryAsync("captain-1");
         _coordinator.GetSecretaryId("captain-1").Should().Be(spawnedId);
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public Task DisposeAsync()
+    {
+        _coordinator.Dispose();
+        return Task.CompletedTask;
     }
 }
 

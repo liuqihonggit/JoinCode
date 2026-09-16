@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 /// <summary>
 /// 工作密钥生命周期状态 — 归纳 IsRevoked/IsRotated 两个 bool 的隐式约束
@@ -324,8 +324,9 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     /// <summary>
     /// 释放资源 — 清零加密密钥
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         Array.Clear(_encryptionKey);
+            base.Dispose();
     }
 }

@@ -139,13 +139,15 @@ public abstract class SandboxProviderBase : ISandboxProvider
     /// <summary>
     /// 异步释放提供器,销毁所有活跃沙箱
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        var tasks = new List<Task>(_sandboxes.Count);
         foreach (var sandboxId in _sandboxes.Keys)
         {
-            await DestroySandboxAsync(sandboxId).ConfigureAwait(false);
+            tasks.Add(DestroySandboxAsync(sandboxId));
         }
+        return new ValueTask(Task.WhenAll(tasks));
     }
 
     private protected virtual SandboxType DetermineEffectiveType(SandboxType requestedType)

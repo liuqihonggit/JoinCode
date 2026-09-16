@@ -209,9 +209,9 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     /// <summary>
     /// 异步释放资源，关闭传输
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         Interlocked.Exchange(ref _isClosed, 1);
         Interlocked.Exchange(ref _isConnected, 0);
         _logger?.LogDebug("[V1Transport] 关闭传输");
@@ -221,25 +221,31 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         _reconnectTimer?.Dispose();
         _reconnectTimer = null;
         var uploader = _uploader;
-        _ = Task.Run(async () =>
+        _ = Task.Run(() => FlushAndCloseUploaderAsync(uploader));
+        _disposeCts.CancelAndDisposeSafe(_logger);
+        return new ValueTask(StopWsAndCloseHttpClientAsync());
+    }
+
+    private async Task FlushAndCloseUploaderAsync(SerialBatchEventUploader uploader)
+    {
+        try
         {
-            try
-            {
-                using var cts = new CancellationTokenSource(CloseGraceMs);
-                await uploader.FlushAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "[V1Transport] 优雅关闭 flush 超时");
-            }
-            finally
-            {
-                uploader.Close();
-                uploader.Dispose();
-            }
-        });
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+            using var cts = new CancellationTokenSource(CloseGraceMs);
+            await uploader.FlushAsync(cts.Token).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "[V1Transport] 优雅关闭 flush 超时");
+        }
+        finally
+        {
+            uploader.Close();
+            uploader.Dispose();
+        }
+    }
+
+    private async Task StopWsAndCloseHttpClientAsync()
+    {
         try
         {
             await _wsTransport.StopAsync(_disposeCts.Token).ConfigureAwait(false);

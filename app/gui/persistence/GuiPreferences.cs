@@ -52,4 +52,10 @@ public sealed class GuiPreferences
 
     /// <summary>代理地址（NetworkMode=Proxy 时使用，如 http://127.0.0.1:7890）</summary>
     public string? ProxyUrl { get; set; }
+
+    /// <summary>窗口震动通知开关 — 子代理调用 shake_window 时是否震动窗口 — ADR 0109</summary>
+    public bool WindowShakeEnabled { get; set; } = true;
+
+    /// <summary>聊天室模式开关 — 是否启用跨进程子代理聊天室广播 — ADR 0109</summary>
+    public bool ChatRoomEnabled { get; set; } = true;
 }

@@ -254,24 +254,31 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// 释放 Actor — 取消 Consumer、完成输入通道、等待 Consumer 退出。
+    /// 释放 Actor — 取消 Consumer、完成输入输出通道，fire-and-forget Consumer 退出。
+    /// <para>不阻塞等待 Consumer 退出 — Consumer 在后台自行退出后由 continuation 清理 <see cref="_cts"/>。</para>
+    /// <para>设计理由：Dispose 完成不应依赖线程池有空闲线程运行 ConsumerTask 退出，否则并行 Dispose 时线程池饥饿死锁。</para>
     /// </summary>
-    public virtual async ValueTask DisposeAsync()
+    public virtual ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
-        try
-        {
-            await _consumerTask.ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            OnConsumerError(ex);
-        }
-        _cts.Dispose();
+        _consumerTask.ContinueWith(
+            static (t, state) =>
+            {
+                if (t.IsFaulted && t.Exception is { } ex)
+                {
+                    foreach (var inner in ex.InnerExceptions)
+                    {
+                        if (inner is OperationCanceledException) continue;
+                    }
+                }
+                ((CancellationTokenSource)state!).Dispose();
+            },
+            _cts,
+            TaskContinuationOptions.ExecuteSynchronously);
+        return ValueTask.CompletedTask;
     }
 }
 

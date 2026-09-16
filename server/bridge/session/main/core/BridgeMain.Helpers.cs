@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -459,27 +459,29 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 异步释放 — 执行优雅关闭后释放同步资源
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await ShutdownAsync().ConfigureAwait(false);
+        _ = ShutdownAsync();
         Dispose();
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>
     /// 释放同步资源 — 取消循环令牌、刷新定时器、令牌刷新器和清理锁
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _loopCts?.Dispose();
         _pointerRefreshTimer?.Dispose();
         _ = _tokenRefresh?.DisposeAsync().AsTask();
         _cleanupLock.Dispose();
+            base.Dispose();
     }
 
     // ===== 遥测辅助方法 — 对齐 TS 端 logEvent(tengu_bridge_*) =====

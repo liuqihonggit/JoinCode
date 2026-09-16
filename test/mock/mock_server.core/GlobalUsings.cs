@@ -1,4 +1,5 @@
 global using System.Collections.Concurrent;
+global using JoinCode.Abstractions.Utils;
 global using Core.Utils;
 global using System.Net;
 global using System.Net.Sockets;

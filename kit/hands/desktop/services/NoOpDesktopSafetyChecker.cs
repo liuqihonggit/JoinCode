@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop;
+﻿namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 桌面操作安全检查器 — NoOp 占位实现，总返回安全（测试用；生产用 DesktopSafetyChecker）
@@ -14,7 +14,5 @@ public sealed partial class NoOpDesktopSafetyChecker : ServiceEntity, IDesktopSa
         => Task.FromResult(UnsafeOperationKind.None);
 
     /// <summary>释放 NoOp 安全检查器资源 — 无外部资源需释放。</summary>
-    protected override void OnDispose()
-    {
-    }
+    public override void Dispose() => base.Dispose();
 }

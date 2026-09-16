@@ -1,4 +1,4 @@
-namespace Core.Agents;
+﻿namespace Core.Agents;
 
 /// <summary>
 /// AgentServiceImpl 可选依赖聚合 — 4 个可选服务封装为单个参数
@@ -868,12 +868,11 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     }
 
     /// <summary>释放资源 — 取消活动任务、释放服务锁与依赖句柄</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
 
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
 
         if (_worktreeManager is not null)
         {
@@ -910,5 +909,6 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             kvp.Value.Dispose();
         }
         _backgroundCts.Clear();
+            base.Dispose();
     }
 }

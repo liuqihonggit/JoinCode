@@ -1,4 +1,4 @@
-namespace McpToolDispatch.Tests.Execution;
+﻿namespace McpToolDispatch.Tests.Execution;
 
 /// <summary>
 /// ToolHealthMonitor 单元测试 — 验证评分增减、提示词阈值、时间衰减、重置、黑名单、降权
@@ -220,17 +220,11 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
         await _monitor.RecordSuccessAsync("tool_a");
         _monitor.Dispose();
 
-        var monitor2 = new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
-        try
-        {
-            var record = await monitor2.GetRecordAsync("tool_a");
-            record.Should().NotBeNull();
-            record!.Score.Should().Be(1);
-        }
-        finally
-        {
-            monitor2.Dispose();
-        }
+        using var monitor2 =  new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
+        var record = await monitor2.GetRecordAsync("tool_a");
+        record.Should().NotBeNull();
+        record!.Score.Should().Be(1);
+    
     }
 
     // === SuccessRate ===

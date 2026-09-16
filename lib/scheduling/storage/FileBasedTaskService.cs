@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Scheduling;
 
 /// <summary>
@@ -487,5 +487,9 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     }
 
     /// <summary>释放资源时回调，释放初始化锁。</summary>
-    protected override void OnDispose() => _initLock.Dispose();
+    public override void Dispose()
+    {
+        _initLock.Dispose();
+        base.Dispose();
+    }
 }

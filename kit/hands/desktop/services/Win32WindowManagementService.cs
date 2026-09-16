@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop;
+﻿namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 窗口管理服务 — Win32 EnumWindows/SetForegroundWindow/MoveWindow/PostMessage 封装
@@ -89,9 +89,7 @@ public sealed partial class Win32WindowManagementService : ServiceEntity, IWindo
     }
 
     /// <summary>释放窗口管理服务资源 — 无外部资源需释放。</summary>
-    protected override void OnDispose()
-    {
-    }
+    public override void Dispose() => base.Dispose();
 
     // ---------- 可测试的 internal static 纯方法 ----------
 

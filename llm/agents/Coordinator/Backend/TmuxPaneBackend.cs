@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// tmux 终端面板后端 — 通过 tmux CLI 创建并管理队友面板，支持在 tmux 会话内嵌套或外部独立会话两种模式
@@ -268,5 +268,9 @@ public sealed partial class TmuxPaneBackend : ServiceEntity, JoinCode.Abstractio
     }
 
     /// <summary>释放资源 — 释放 tmux 会话创建锁</summary>
-    protected override void OnDispose() => _creationLock.Dispose();
+    public override void Dispose()
+    {
+        _creationLock.Dispose();
+        base.Dispose();
+    }
 }

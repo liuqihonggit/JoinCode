@@ -1,4 +1,4 @@
-namespace Infra.Tests.EntityTests;
+﻿namespace Infra.Tests.EntityTests;
 
 public sealed class ServiceEntityTests
 {
@@ -11,9 +11,10 @@ public sealed class ServiceEntityTests
     {
         public bool OnDisposeCalled { get; private set; }
 
-        protected override void OnDispose()
+        public override void Dispose()
         {
             OnDisposeCalled = true;
+            base.Dispose();
         }
     }
 

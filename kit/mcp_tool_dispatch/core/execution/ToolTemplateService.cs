@@ -1,4 +1,4 @@
-namespace McpToolDispatch;
+﻿namespace McpToolDispatch;
 
 /// <summary>
 /// 工具模板服务 — 从 ~/.jcc/tool-templates/ 加载模板，动态创建并注册工具
@@ -282,10 +282,10 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// <summary>
     /// 释放取消令牌资源。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
+            base.Dispose();
     }
 }
 

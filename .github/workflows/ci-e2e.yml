@@ -406,7 +406,7 @@ jobs:
 
             $psi = [System.Diagnostics.ProcessStartInfo]::new()
             $psi.FileName = Resolve-Path $jccExe
-            $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
+            $psi.Arguments = "--trust --debuglog -p `"hello`" --await $awaitSec"
             $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$port"
             $psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-ci-key"
             $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
@@ -447,6 +447,14 @@ jobs:
               exit 1
             }
             if ($exitCode -ne 0) {
+              $errorLogPath = Join-Path $stateDir "runtime" "jcc_error.log"
+              if (Test-Path $errorLogPath) {
+                Write-Host "=== jcc_error.log (full) ===" -ForegroundColor Yellow
+                Get-Content $errorLogPath | ForEach-Object { Write-Host "  $_" }
+                Write-Host "=== end jcc_error.log ===" -ForegroundColor Yellow
+              } else {
+                Write-Host "jcc_error.log not found at $errorLogPath" -ForegroundColor Yellow
+              }
               Write-Host "FAIL: jcc.exe exited with code $exitCode" -ForegroundColor Red
               exit 1
             }
@@ -514,7 +522,7 @@ jobs:
 
             $psi = [System.Diagnostics.ProcessStartInfo]::new()
             $psi.FileName = Resolve-Path $jccExe
-            $psi.Arguments = "--trust -p `"hello`" --await $awaitSec"
+            $psi.Arguments = "--trust --debuglog -p `"hello`" --await $awaitSec"
             $psi.EnvironmentVariables["JCC_ENDPOINT"] = "http://localhost:$port"
             $psi.EnvironmentVariables["OPENAI_API_KEY"] = "sk-test-ci-key"
             $psi.EnvironmentVariables["JCC_VENDOR"] = "openai"
@@ -557,6 +565,14 @@ jobs:
               exit 1
             }
             if ($exitCode -ne 0) {
+              $errorLogPath = Join-Path $stateDir "runtime" "jcc_error.log"
+              if (Test-Path $errorLogPath) {
+                Write-Host "=== jcc_error.log (full) ===" -ForegroundColor Yellow
+                Get-Content $errorLogPath | ForEach-Object { Write-Host "  $_" }
+                Write-Host "=== end jcc_error.log ===" -ForegroundColor Yellow
+              } else {
+                Write-Host "jcc_error.log not found at $errorLogPath" -ForegroundColor Yellow
+              }
               Write-Host "FAIL: jcc.exe exited with code $exitCode" -ForegroundColor Red
               exit 1
             }

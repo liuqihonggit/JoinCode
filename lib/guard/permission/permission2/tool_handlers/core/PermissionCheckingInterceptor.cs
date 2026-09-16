@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Permission;
 
 /// <summary>
@@ -145,7 +145,7 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
     }
 
     /// <inheritdoc />
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_disposed)
         {
@@ -154,6 +154,7 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
 
         _disposed = true;
         GC.SuppressFinalize(this);
+            base.Dispose();
     }
 }
 

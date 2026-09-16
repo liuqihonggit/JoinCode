@@ -232,11 +232,11 @@ public sealed partial class ParallelExecutionEngine : IAsyncDisposable
     /// <summary>
     /// 异步释放资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (_disposed)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
         _disposed = true;
@@ -252,7 +252,7 @@ public sealed partial class ParallelExecutionEngine : IAsyncDisposable
             GC.SuppressFinalize(this);
         }
 
-        await ValueTask.CompletedTask.ConfigureAwait(false);
+        return ValueTask.CompletedTask;
     }
 }
 

@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// Shell 命令进程实体 — 派生自 ToolExecutionEntity，追踪 Shell 命令进程生命周期
@@ -27,10 +27,7 @@ public sealed class BashProcessEntity : ToolExecutionEntity
         WorkingDirectory = workingDirectory;
     }
 
-    protected override void OnDispose()
-    {
-        base.OnDispose();
-    }
+    public override void Dispose() => base.Dispose();
 
     /// <summary>
     /// 回收判定 — Shell 命令进程已完成（有 ExitCode）且已持久化

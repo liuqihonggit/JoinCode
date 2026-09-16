@@ -1,4 +1,4 @@
-namespace JoinCode.CodeIndex;
+﻿namespace JoinCode.CodeIndex;
 
 /// <summary>
 /// 代码索引仓库注册表实现 — 管理多个仓库的 ICodeIndexer 实例
@@ -153,7 +153,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// <summary>
     /// 释放资源 — 释放所有仓库的索引器和存储，并释放锁
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
@@ -168,6 +168,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         }
 
         _lock.Dispose();
+            base.Dispose();
     }
 
     private sealed record RegisteredRepo(RepoRegistration Registration, InMemoryIndexStore Store, CodeIndexer Indexer);

@@ -1,4 +1,4 @@
-
+﻿
 namespace State;
 
 /// <summary>
@@ -181,5 +181,9 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     /// <summary>
     /// 清空回退存储中的所有会话状态。
     /// </summary>
-    protected override void OnDispose() => _fallbackStorage.Clear();
+    public override void Dispose()
+    {
+        _fallbackStorage.Clear();
+        base.Dispose();
+    }
 }

@@ -2,17 +2,17 @@ namespace JoinCode.Abstractions.Interfaces;
 
 public interface ITeammateMailboxService
 {
-    Task<MailboxMessage> SendAsync(MailboxSendRequest request, CancellationToken cancellationToken = default);
+    ValueTask<MailboxMessage> SendAsync(MailboxSendRequest request, CancellationToken ct = default);
 
-    Task<IReadOnlyList<MailboxMessage>> ReadUnreadAsync(string agentId, string sessionId, CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<MailboxMessage>> ReadUnreadAsync(string agentId, string sessionId, CancellationToken ct = default);
 
-    Task<IReadOnlyList<MailboxMessage>> ReadSinceAsync(string agentId, string sessionId, int sinceLineIndex, CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<MailboxMessage>> ReadSinceAsync(string agentId, string sessionId, int sinceLineIndex, CancellationToken ct = default);
 
-    Task MarkAsReadAsync(string agentId, string sessionId, IEnumerable<string> messageIds, CancellationToken cancellationToken = default);
+    ValueTask MarkAsReadAsync(string agentId, string sessionId, IEnumerable<string> messageIds, CancellationToken ct = default);
 
-    Task<int> GetUnreadCountAsync(string agentId, string sessionId, CancellationToken cancellationToken = default);
+    ValueTask<int> GetUnreadCountAsync(string agentId, string sessionId, CancellationToken ct = default);
 
-    Task<MailboxReadCursor> GetOrCreateCursorAsync(string agentId, string sessionId, CancellationToken cancellationToken = default);
+    ValueTask<MailboxReadCursor> GetOrCreateCursorAsync(string agentId, string sessionId, CancellationToken ct = default);
 
-    Task<IReadOnlyList<MailboxMessage>> ReadAllAsync(string agentId, string sessionId, CancellationToken cancellationToken = default);
+    ValueTask<IReadOnlyList<MailboxMessage>> ReadAllAsync(string agentId, string sessionId, CancellationToken ct = default);
 }

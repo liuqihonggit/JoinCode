@@ -1,4 +1,4 @@
-namespace IO.Services;
+﻿namespace IO.Services;
 
 /// <summary>
 /// Chrome 集成服务 — 检测 Chrome 扩展、管理连接状态与默认启用开关
@@ -156,8 +156,9 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// <summary>
     /// 释放资源 — 释放初始化锁
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _initLock.Dispose();
+            base.Dispose();
     }
 }

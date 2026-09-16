@@ -967,13 +967,14 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>
     /// 异步释放 — 标记已释放，调用基类释放并清理全部插件
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (_isDisposed) return;
+        if (_isDisposed) return ValueTask.CompletedTask;
         _isDisposed = true;
 
-        await base.DisposeAsync().ConfigureAwait(false);
+        var baseTask = base.DisposeAsync();
         CleanupAllPlugins();
+        return baseTask;
     }
 
     private void CleanupAllPlugins()

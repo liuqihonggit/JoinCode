@@ -59,12 +59,15 @@ public sealed class EffectScope : IAsyncDisposable
     /// 异步释放 — 先逆序 await 异步撤销链,再逆序执行同步撤销链
     /// <para>幂等:已释放时立即返回</para>
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (_disposed) return;
+        if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
-        await DisposeAsyncChainAsync().ConfigureAwait(false);
-        DisposeSyncChain();
+        DisposeAsyncChainAsync().AsTask().ContinueWith(
+            static (t, state) => ((Action)state!)(),
+            (Action)DisposeSyncChain,
+            TaskContinuationOptions.ExecuteSynchronously);
+        return ValueTask.CompletedTask;
     }
 
     private async ValueTask DisposeAsyncChainAsync()

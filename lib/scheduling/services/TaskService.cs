@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Scheduling;
 
 /// <summary>
@@ -349,8 +349,9 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     }
 
     /// <summary>释放资源时回调，释放内部 DAG。</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _dag.Dispose();
+            base.Dispose();
     }
 }

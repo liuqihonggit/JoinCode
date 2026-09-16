@@ -96,9 +96,9 @@ public sealed partial class SettingsChangeApplier : ActorBase<SettingsChangeAppl
     }
 
     /// <inheritdoc />
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         _configChangeNotifier.ConfigChanged -= OnConfigChanged;
-        await base.DisposeAsync().ConfigureAwait(false);
+        return base.DisposeAsync();
     }
 }

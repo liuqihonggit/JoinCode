@@ -353,11 +353,12 @@ internal sealed class TeammateLoopRunner
         /// <summary>注册 workCts 到 state,供 InterruptTeammateAsync 读取并 cancel</summary>
         public Task EnterAsync(CancellationToken lifecycleCt) => _runtime.SetCurrentWorkCtsAsync(_teammateId, _workCts, lifecycleCt);
 
-        public async ValueTask DisposeAsync()
+        public ValueTask DisposeAsync()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
-            await _runtime.ClearCurrentWorkCtsAsync(_teammateId).ConfigureAwait(false);
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
+            var task = _runtime.ClearCurrentWorkCtsAsync(_teammateId);
             _workCts.Dispose();
+            return new ValueTask(task);
         }
     }
 }

@@ -5,7 +5,7 @@ namespace Sync.Tests.Agents.Coordinator;
 /// ForkSubAgentManagerActor 单元测试 — 验证 Actor 版与旧版行为等价。
 /// 所有测试用例对齐 ForkSubAgentManagerTests，仅替换 Manager 实例为 Actor 版。
 /// </summary>
-public class ForkSubAgentManagerActorTests
+public class ForkSubAgentManagerActorTests : IAsyncLifetime
 {
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly Mock<IMailbox> _messageBrokerMock;
@@ -407,5 +407,13 @@ public class ForkSubAgentManagerActorTests
         var results = await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
         results.Should().HaveCount(100);
         results.All(r => r.State == ForkState.Completed).Should().BeTrue();
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public Task DisposeAsync()
+    {
+        _ = _manager.DisposeAsync();
+        return Task.CompletedTask;
     }
 }

@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -239,10 +239,11 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// <summary>
     /// 释放托管资源
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _stateLock.Dispose();
+            base.Dispose();
     }
 }
 

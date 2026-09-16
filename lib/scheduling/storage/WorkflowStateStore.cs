@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Scheduling;
 
 /// <summary>
@@ -122,8 +122,9 @@ public sealed partial class WorkflowStateStore : ServiceEntity, IWorkflowStateSt
     }
 
     /// <summary>释放资源时回调，异步释放内部 Actor。</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _ = _actor.DisposeAsync();
+            base.Dispose();
     }
 }

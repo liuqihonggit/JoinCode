@@ -64,18 +64,19 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// <summary>
     /// 测试释放 - 停止 JoinCode 进程
     /// </summary>
-    public virtual async Task DisposeAsync()
+    public virtual Task DisposeAsync()
     {
         _output.WriteLine($"[{nameof(OpenAIMockTestBase)}] 测试释放 - 停止 JoinCode 进程");
 
         if (_cliProcess != null)
         {
-            await _cliProcess.StopAsync().ConfigureAwait(true);
-            await _cliProcess.DisposeAsync().ConfigureAwait(true);
+            _ = _cliProcess.StopAsync();
+            _ = _cliProcess.DisposeAsync();
             _cliProcess = null;
         }
 
         _loggerFactory.Dispose();
+        return Task.CompletedTask;
     }
 
     /// <summary>

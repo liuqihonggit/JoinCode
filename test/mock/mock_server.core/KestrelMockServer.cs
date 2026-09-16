@@ -345,13 +345,17 @@ public sealed class KestrelMockServer : IHttpMockServer
         _cacheSimulator.ResetCache();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _cts.Cancel();
+        return new ValueTask(DisposeCoreAsync());
+    }
 
+    private async Task DisposeCoreAsync()
+    {
         if (_app is not null)
         {
-            try { await _app.DisposeAsync(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"App disposal failed: {ex.Message}"); }
+            await _app.DisposeSafeAsync().ConfigureAwait(false);
         }
 
         if (_runTask is not null)

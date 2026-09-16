@@ -16,10 +16,10 @@ public static class LockRegistry
     private static Timer? _scanTimer;
     private static TimeSpan _scanInterval = TimeSpan.FromSeconds(5);
     private static int _scanStarted;
-    private static int _diagnosticsEnabled = 1;
+    private static int _diagnosticsEnabled = 0;
 
     /// <summary>
-    /// 诊断总开关（默认开启）。设为 0 关闭所有诊断记录与后台扫描，退化为零开销。
+    /// 诊断总开关（默认关闭，需 --debuglog 或 JCC_DEBUGLOG=1 开启）。设为 0 关闭所有诊断记录与后台扫描，退化为零开销。
     /// </summary>
     public static bool DiagnosticsEnabled
     {
@@ -66,6 +66,8 @@ public static class LockRegistry
         var id = Interlocked.Increment(ref _nextId);
         _locks[id] = new LockInfo { Id = id, Name = name };
         EnsureScanStarted();
+        if (IsEnabled)
+            Emit($"[LOCK-CREATED] 锁 '{name}' (#{id}) 创建。");
         return id;
     }
 
@@ -74,19 +76,24 @@ public static class LockRegistry
     /// </summary>
     internal static void Unregister(int id)
     {
-        if (_locks.TryRemove(id, out var info) && info.HoldingThread is not null)
+        if (_locks.TryRemove(id, out var info))
         {
-            var acquiredAt = info.AcquiredAt;
-            var heldFor = acquiredAt.HasValue
-                ? DateTimeOffset.UtcNow - acquiredAt.Value
-                : TimeSpan.Zero;
-            if (heldFor > _holdTooLongThreshold)
+            if (info.HoldingThread is not null)
             {
-                Emit(
-                    $"[LOCK-HOLD-TOO-LONG] 锁 '{info.Name}' (#{id}) 释放时已持有 " +
-                    $"{heldFor.TotalSeconds:F1}s 超过阈值 {_holdTooLongThreshold.TotalSeconds:F1}s。" +
-                    $"持有线程: {info.HoldingThread.ManagedThreadId}");
+                var acquiredAt = info.AcquiredAt;
+                var heldFor = acquiredAt.HasValue
+                    ? DateTimeOffset.UtcNow - acquiredAt.Value
+                    : TimeSpan.Zero;
+                if (heldFor > _holdTooLongThreshold)
+                {
+                    Emit(
+                        $"[LOCK-HOLD-TOO-LONG] 锁 '{info.Name}' (#{id}) 释放时已持有 " +
+                        $"{heldFor.TotalSeconds:F1}s 超过阈值 {_holdTooLongThreshold.TotalSeconds:F1}s。" +
+                        $"持有线程: {info.HoldingThread.ManagedThreadId}");
+                }
             }
+            if (IsEnabled)
+                Emit($"[LOCK-DISPOSED] 锁 '{info.Name}' (#{id}) 注销。");
         }
     }
 
@@ -101,6 +108,16 @@ public static class LockRegistry
             info.WaitingThread = Thread.CurrentThread;
             info.WaitStartedAt = DateTimeOffset.UtcNow;
             info.WaitStack = CaptureStackTrace(skipFrames: 3);
+            Emit($"[LOCK-WAIT-START] 锁 '{name}' (#{id}) 线程 {Thread.CurrentThread.ManagedThreadId} 开始等待。");
+            var currentThread = Thread.CurrentThread;
+            foreach (var other in _locks.Values)
+            {
+                if (other.HoldingThread == currentThread && other.Id > id)
+                    Emit(
+                        $"[LOCK-ORDER-VIOLATION] 锁顺序违反: 线程 {currentThread.ManagedThreadId} " +
+                        $"已持有锁 #{other.Id} '{other.Name}', 现在获取锁 #{id} '{name}' (ID 更小)。" +
+                        $"按锁 ID 升序获取可避免死锁。");
+            }
         }
     }
 
@@ -156,6 +173,9 @@ public static class LockRegistry
                     $"才获取成功(超过阈值 {_waitTimeoutThreshold.TotalSeconds:F1}s)。" +
                     $"获取线程: {Thread.CurrentThread.ManagedThreadId}");
             }
+            Emit(
+                $"[LOCK-ACQUIRED] 锁 '{name}' (#{id}) 线程 {Thread.CurrentThread.ManagedThreadId} " +
+                $"获取成功,等待 {waited.TotalSeconds:F3}s。");
             info.HoldingThread = Thread.CurrentThread;
             info.AcquiredAt = DateTimeOffset.UtcNow;
             info.AcquireStack = CaptureStackTrace(skipFrames: 3);
@@ -183,6 +203,10 @@ public static class LockRegistry
                     $"超过阈值 {_holdTooLongThreshold.TotalSeconds:F1}s。" +
                     $"持有线程: {info.HoldingThread?.ManagedThreadId}");
             }
+            if (IsEnabled)
+                Emit(
+                    $"[LOCK-RELEASED] 锁 '{name}' (#{id}) 线程 {Thread.CurrentThread.ManagedThreadId} " +
+                    $"释放,持有 {heldFor.TotalSeconds:F3}s。");
             info.HoldingThread = null;
             info.AcquiredAt = null;
             info.AcquireStack = null;
@@ -197,7 +221,7 @@ public static class LockRegistry
     {
         var sink = _diagnosticSink;
         if (sink is null) return;
-        try { sink(msg); }
+        try { sink($"[{DateTimeOffset.UtcNow:HH:mm:ss.fff}] {msg}"); }
         catch (Exception ex) { Volatile.Write(ref _lastSinkError, ex); }
     }
 
@@ -278,6 +302,8 @@ public static class LockRegistry
         _scanTimer?.Dispose();
         _scanTimer = new Timer(static _ => ScanHolds(), null, _scanInterval, _scanInterval);
         Interlocked.Exchange(ref _scanStarted, 1);
+        if (IsEnabled)
+            Emit($"[LOCK-SCAN-START] 后台扫描启动,间隔 {_scanInterval.TotalSeconds:F1}s。");
     }
 
     /// <summary>
@@ -288,6 +314,8 @@ public static class LockRegistry
         _scanTimer?.Dispose();
         _scanTimer = null;
         Interlocked.Exchange(ref _scanStarted, 0);
+        if (IsEnabled)
+            Emit($"[LOCK-SCAN-STOP] 后台扫描停止。");
     }
 
     private static void EnsureScanStarted()
@@ -305,7 +333,8 @@ public static class LockRegistry
         var now = DateTimeOffset.UtcNow;
         foreach (var info in _locks.Values)
         {
-            if (info.HoldingThread is not null && info.AcquiredAt.HasValue)
+            var holdingThread = info.HoldingThread;
+            if (holdingThread is not null && info.AcquiredAt.HasValue)
             {
                 var acquiredAt = info.AcquiredAt.Value;
                 var held = now - acquiredAt;
@@ -313,17 +342,18 @@ public static class LockRegistry
                 {
                     Emit(
                         $"[LOCK-SCAN-HOLD] 锁 '{info.Name}' (#{info.Id}) 持有 {held.TotalSeconds:F1}s " +
-                        $"超过阈值(线程 {info.HoldingThread.ManagedThreadId})。\n{info.AcquireStack}");
+                        $"超过阈值(线程 {holdingThread.ManagedThreadId})。\n{info.AcquireStack}");
                 }
             }
-            if (info.WaitingThread is not null && info.WaitStartedAt.HasValue)
+            var waitingThread = info.WaitingThread;
+            if (waitingThread is not null && info.WaitStartedAt.HasValue)
             {
                 var waited = now - info.WaitStartedAt.Value;
                 if (waited > _waitTimeoutThreshold)
                 {
                     Emit(
                         $"[LOCK-SCAN-WAIT] 锁 '{info.Name}' (#{info.Id}) 等待 {waited.TotalSeconds:F1}s " +
-                        $"超过阈值(线程 {info.WaitingThread.ManagedThreadId})。\n{info.WaitStack}");
+                        $"超过阈值(线程 {waitingThread.ManagedThreadId})。\n{info.WaitStack}");
                 }
             }
         }
@@ -351,6 +381,7 @@ public static class LockRegistry
             waitEdges[waitingThread.ManagedThreadId] = (holdingThread.ManagedThreadId, info);
         }
         if (waitEdges.Count == 0) return;
+        Emit($"[LOCK-DEADLOCK-SCAN] 检查 {waitEdges.Count} 条等待边: {string.Join(", ", waitEdges.Select(e => $"T{e.Key}→T{e.Value.holderThreadId}(#{e.Value.lk.Id})"))}");
         foreach (var startId in waitEdges.Keys)
         {
             var chain = new List<(int threadId, LockInfo lk)>();
@@ -373,7 +404,7 @@ public static class LockRegistry
     private static void EmitDeadlockReport(List<(int threadId, LockInfo lk)> chain)
     {
         var sb = new StringBuilder(512);
-        sb.Append($"[DEADLOCK-DETECTED] 检测到死锁环（{chain.Count} 把锁），时间 {DateTimeOffset.UtcNow:HH:mm:ss.fff}\n");
+        sb.Append($"[DEADLOCK-DETECTED] 检测到死锁环（{chain.Count} 把锁）\n");
         for (var i = 0; i < chain.Count; i++)
         {
             var (threadId, lk) = chain[i];

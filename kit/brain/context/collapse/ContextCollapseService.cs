@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Context.Collapse;
 
 /// <summary>
@@ -519,7 +519,11 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     /// <summary>
     /// 释放资源
     /// </summary>
-    protected override void OnDispose() => _collapseLock.Dispose();
+    public override void Dispose()
+    {
+        _collapseLock.Dispose();
+        base.Dispose();
+    }
 
     private sealed class PatternRange
     {

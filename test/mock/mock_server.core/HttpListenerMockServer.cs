@@ -238,7 +238,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
         _cacheSimulator.ResetCache();
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _cts.Cancel();
         try { _listener.Stop(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Listener stop failed: {ex.Message}"); }
@@ -246,15 +246,17 @@ public sealed class HttpListenerMockServer : IHttpMockServer
 
         if (_listenTask is not null)
         {
-            try { 
-                await _listenTask.ConfigureAwait(true); 
-            } 
-            catch (Exception ex) { 
-                System.Diagnostics.Trace.WriteLine($"Listen task failed during disposal: {ex.Message}"); 
-                }
+            var listenTask = _listenTask;
+            return new ValueTask(listenTask.ContinueWith(t =>
+            {
+                if (t.IsFaulted) System.Diagnostics.Trace.WriteLine($"Listen task failed during disposal: {t.Exception!.Message}");
+                _cts.Dispose();
+                _lock.Dispose();
+            }, TaskContinuationOptions.ExecuteSynchronously));
         }
 
         _cts.Dispose();
         _lock.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

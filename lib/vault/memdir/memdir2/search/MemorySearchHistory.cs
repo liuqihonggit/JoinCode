@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Memdir;
 
 /// <summary>
@@ -350,5 +350,5 @@ public sealed partial class MemorySearchHistoryService : ServiceEntity, IMemoryS
     /// <summary>
     /// 释放资源 — 搜索历史为内存不可变快照,无需显式释放。
     /// </summary>
-    protected override void OnDispose() { }
+    public override void Dispose() => base.Dispose();
 }

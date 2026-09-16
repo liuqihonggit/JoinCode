@@ -314,15 +314,16 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// 异步释放资源 — 停止监控并释放锁与唤醒信号
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await StopMonitoringAsync().ConfigureAwait(false);
+        _ = StopMonitoringAsync(CancellationToken.None);
         _stateLock.Dispose();
         _wakeSignal.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

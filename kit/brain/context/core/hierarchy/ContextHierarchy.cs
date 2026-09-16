@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Context;
 
 /// <summary>
@@ -325,5 +325,9 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// <summary>
     /// 释放内部异步锁
     /// </summary>
-    protected override void OnDispose() => _lock.Dispose();
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

@@ -69,10 +69,10 @@ public sealed partial class StringMessageRouter : IMessageRouter
     /// <summary>
     /// 异步释放资源
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await _processedMessageIds.DisposeAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        return _processedMessageIds.DisposeAsync();
     }
 }
 

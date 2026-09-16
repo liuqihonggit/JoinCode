@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -308,5 +308,9 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     }
 
     /// <summary>释放资源 — 释放权限同步锁</summary>
-    protected override void OnDispose() => _lock.Dispose();
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

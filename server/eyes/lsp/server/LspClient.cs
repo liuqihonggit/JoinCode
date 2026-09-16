@@ -1062,14 +1062,14 @@ public sealed partial class LspClient : ILspClient
     /// <summary>
     /// 异步释放 LSP 客户端，断开连接
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await DisconnectAsync().ConfigureAwait(false);
+        return new ValueTask(DisconnectAsync());
     }
 
     #endregion

@@ -11,9 +11,10 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
 
     private static PeerSessionManager CreateSut() => new(NullLogger<PeerSessionManager>.Instance);
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        await _sut.DisposeAsync().ConfigureAwait(true);
+        _ = _sut.DisposeAsync().ConfigureAwait(true);
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

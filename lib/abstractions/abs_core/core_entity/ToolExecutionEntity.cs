@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 工具执行实体 — 每次工具调用都创建一个实例
@@ -68,7 +68,11 @@ public class ToolExecutionEntity : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose() => Registry.Remove(ObjectId);
+    public override void Dispose()
+    {
+        Registry.Remove(ObjectId);
+        base.Dispose();
+    }
 
     /// <summary>
     /// 将基类字段拷贝到克隆体 — 子类 Clone 调用此方法避免重复代码

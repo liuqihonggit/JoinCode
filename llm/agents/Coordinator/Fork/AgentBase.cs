@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -187,10 +187,11 @@ public class AgentBase : Entity, IAgent
     /// <summary>
     /// 惰性释放 — 持久化服务确认消息全部写入后才调用
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _cts.Dispose();
         _pauseLock.Dispose();
+            base.Dispose();
     }
 
     /// <summary>

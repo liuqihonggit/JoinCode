@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -597,24 +597,26 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     }
 
     /// <inheritdoc />
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await StopAsync().ConfigureAwait(false);
+        _ = StopAsync(CancellationToken.None);
         Dispose();
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>
     /// 释放资源时的清理回调 — 释放异步锁
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _lock.Dispose();
+            base.Dispose();
     }
 }
 

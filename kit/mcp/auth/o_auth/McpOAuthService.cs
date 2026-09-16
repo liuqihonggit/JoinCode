@@ -1,4 +1,4 @@
-namespace McpClient;
+﻿namespace McpClient;
 
 /// <summary>
 /// MCP OAuth 认证服务 — 编排 PKCE 授权完整流程：生成授权 URL → 监听回调 → 交换授权码
@@ -158,10 +158,12 @@ public sealed partial class McpOAuthService : ServiceEntity
     }
 
     /// <summary>释放资源 — 停止回调监听器、释放认证提供者与状态锁。</summary>
-    protected override void OnDispose()
+    public override ValueTask DisposeAsync()
     {
         StopCallbackListener();
-        _authProvider.Dispose();
+        _ = _authProvider.DisposeAsync();
         _stateLock.Dispose();
+        _ = base.DisposeAsync();
+        return ValueTask.CompletedTask;
     }
 }

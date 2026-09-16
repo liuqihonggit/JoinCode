@@ -146,14 +146,14 @@ public sealed class SshForwardedPort : ISshForwardedPort
     /// 异步释放资源 — 停止转发并销毁底层 ssh 子进程
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
-        await StopAsync().ConfigureAwait(false);
         _forwardProcess?.Dispose();
+        return new ValueTask(StopAsync());
     }
 }

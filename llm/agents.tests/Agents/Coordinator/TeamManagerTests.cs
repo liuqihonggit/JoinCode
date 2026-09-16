@@ -2,7 +2,7 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Core.Tests.Agents.Coordinator;
 
-public class TeamManagerTests
+public class TeamManagerTests : IAsyncLifetime
 {
     private readonly ITeamManager _teamManager;
 
@@ -383,6 +383,14 @@ public class TeamManagerTests
         team!.TeamName.Should().Be("Development Team");
         members.Should().HaveCount(3);
         messages.Should().HaveCount(3);
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public Task DisposeAsync()
+    {
+        _teamManager.Dispose();
+        return Task.CompletedTask;
     }
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

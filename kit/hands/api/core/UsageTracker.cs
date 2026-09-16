@@ -1,4 +1,4 @@
-namespace Services.Api;
+﻿namespace Services.Api;
 
 /// <summary>
 /// Token 使用记录
@@ -425,9 +425,9 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <summary>
     /// 释放资源（ConcurrentBag 无需显式释放，仅满足接口契约）
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
-        // ConcurrentBag 不需要显式释放，Dispose 仅为接口契约
         GC.SuppressFinalize(this);
+        base.Dispose();
     }
 }

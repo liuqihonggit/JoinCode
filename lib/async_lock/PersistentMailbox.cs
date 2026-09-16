@@ -121,9 +121,9 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable
             throw new ObjectDisposedException(nameof(PersistentMailbox<TCommand, TOut>));
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
-        await _actor.DisposeAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        return _actor.DisposeAsync();
     }
 }

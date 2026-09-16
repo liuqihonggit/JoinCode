@@ -283,15 +283,15 @@ public sealed class SshSession : ISshSession
     /// 异步释放资源 — 停止保活、释放端口转发管理器并终止 ssh 子进程
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
         StopKeepAlive();
-        await _portForwardManager.DisposeAsync().ConfigureAwait(false);
+        var portTask = _portForwardManager.DisposeAsync();
 
         if (_sshProcess != null && !_sshProcess.HasExited)
         {
@@ -305,6 +305,7 @@ public sealed class SshSession : ISshSession
         }
 
         _stateLock.Dispose();
+        return portTask;
     }
 
     private void OnStateChanged(object? sender, StateChangedEventArgs<SshConnectionState> e)

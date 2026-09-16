@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 
 // BridgeServerMessage, BridgeConnectedData, BridgeHealthData, BridgeClientsData,
@@ -737,10 +737,11 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     /// <summary>
     /// 释放资源 — 停止服务器并关闭监听器
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _ = StopAsync(_cts.Token);
         _httpListener.Close();
         _cts.Dispose();
+            base.Dispose();
     }
 }

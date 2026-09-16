@@ -1,4 +1,4 @@
-namespace Services.Todo;
+﻿namespace Services.Todo;
 
 /// <summary>
 /// Todo 服务实现 — 基于 DAG 维护 Todo 项的依赖关系,支持持久化、加载、拓扑排序与就绪项查询。
@@ -355,8 +355,9 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
     /// <summary>
     /// 释放 Todo DAG 资源。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _todoDag.Dispose();
+            base.Dispose();
     }
 }

@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Memdir;
 
 #region Memory Management Models
@@ -1010,8 +1010,9 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     /// <summary>
     /// 释放内存管理 Actor 资源。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _ = _mgmtActor.DisposeAsync();
+            base.Dispose();
     }
 }

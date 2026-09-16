@@ -1,7 +1,7 @@
 
 namespace Sync.Tests.Agents.Coordinator;
 
-public class SwarmPermissionBridgeTests
+public class SwarmPermissionBridgeTests : IAsyncLifetime
 {
     private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly Mock<IAgentPermissionManager> _permissionManagerMock;
@@ -181,5 +181,13 @@ public class SwarmPermissionBridgeTests
         var act = () => new SwarmPermissionBridge(_messageBrokerMock.Object, null!);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("permissionManager");
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public Task DisposeAsync()
+    {
+        _bridge.Dispose();
+        return Task.CompletedTask;
     }
 }

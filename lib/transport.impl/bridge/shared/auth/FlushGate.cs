@@ -237,16 +237,21 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     /// <summary>
     /// 异步释放资源，停止定时器并刷新剩余条目
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
         {
-            return;
+            return ValueTask.CompletedTask;
         }
 
         _flushTimer.Change(Timeout.Infinite, Timeout.Infinite);
         _flushTimer.Dispose();
 
+        return new ValueTask(TeardownCoreAsync());
+    }
+
+    private async Task TeardownCoreAsync()
+    {
         try
         {
             await StopAsync().ConfigureAwait(false);

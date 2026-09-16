@@ -200,10 +200,11 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        await base.DisposeAsync().ConfigureAwait(false);
+        _ = base.DisposeAsync();
         _ws?.Dispose();
         _receiveLock.Dispose();
+        return ValueTask.CompletedTask;
     }
 }

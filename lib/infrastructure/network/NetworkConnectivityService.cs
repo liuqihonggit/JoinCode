@@ -1,4 +1,4 @@
-namespace Infrastructure.Network;
+﻿namespace Infrastructure.Network;
 
 /// <summary>
 /// 网络连接性服务 — 基于 NetworkInterface + NetworkChange 事件的实时多流网络感知
@@ -175,10 +175,10 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     private void OnNetworkAddressChanged(object? sender, EventArgs e) => OnNetworkChanged("network address changed");
 
     /// <inheritdoc/>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         UnsubscribeNetworkChange();
-        base.OnDispose();
+        base.Dispose();
     }
 
     private static IReadOnlyList<NetworkInterfaceInfo> DiscoverInterfaces()

@@ -1,4 +1,4 @@
-namespace JoinCode.Hands.Desktop;
+﻿namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 屏幕截图服务 — GDI BitBlt + GetDIBits + ImageSharp PNG 编码，返回 base64
@@ -36,9 +36,7 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
     }
 
     /// <summary>释放屏幕截图服务资源 — 无外部资源需释放。</summary>
-    protected override void OnDispose()
-    {
-    }
+    public override void Dispose() => base.Dispose();
 
     private string CaptureRegionCore(int x, int y, int width, int height)
     {

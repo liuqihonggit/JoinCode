@@ -1,4 +1,4 @@
-namespace Services.Web;
+﻿namespace Services.Web;
 
 /// <summary>
 /// WebFetch专用LRU缓存，15分钟TTL，50MB大小上限
@@ -105,9 +105,10 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
     /// <summary>
     /// 释放 URL 缓存与域名预检缓存资源。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _urlCache.Dispose();
         _domainCheckCache.Dispose();
+            base.Dispose();
     }
 }

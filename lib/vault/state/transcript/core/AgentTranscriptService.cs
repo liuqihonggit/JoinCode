@@ -1,4 +1,4 @@
-namespace State;
+﻿namespace State;
 
 /// <summary>
 /// Agent 转录服务 — 管理子 Agent 的转录条目与元数据的追加式读写
@@ -175,10 +175,11 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     }
 
     /// <inheritdoc/>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _writer.Dispose();
         _metaLock.Dispose();
+            base.Dispose();
     }
 }
 

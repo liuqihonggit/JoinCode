@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>队友邮箱服务 — 基于 MailboxActor 串行化写操作，无锁防死锁。
 /// <para>crossProcess=true 时，Actor 内部用 FileMailboxLock 跨进程互斥，支持多 jcc.exe 进程并发。</para>
@@ -50,9 +50,9 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// 异步发送邮箱消息到指定智能体 — 通过 Actor 邮箱串行化写入
     /// </summary>
     /// <param name="request">发送请求</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>已发送的邮箱消息</returns>
-    public async Task<MailboxMessage> SendAsync(MailboxSendRequest request, CancellationToken cancellationToken = default)
+    public async ValueTask<MailboxMessage> SendAsync(MailboxSendRequest request, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ToAgentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.SessionId);
@@ -74,7 +74,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         var tcs = new TaskCompletionSource<MailboxMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
-            await actor.SendAsync(new AppendMessageCmd(message, tcs), cancellationToken).ConfigureAwait(false);
+            await actor.SendAsync(new AppendMessageCmd(message, tcs), ct).ConfigureAwait(false);
             return await tcs.Task.ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -89,13 +89,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// </summary>
     /// <param name="agentId">智能体标识</param>
     /// <param name="sessionId">会话标识</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>未读消息只读列表</returns>
-    public async Task<IReadOnlyList<MailboxMessage>> ReadUnreadAsync(
-        string agentId, string sessionId, CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyList<MailboxMessage>> ReadUnreadAsync(
+        string agentId, string sessionId, CancellationToken ct = default)
     {
-        var cursor = await GetOrCreateCursorAsync(agentId, sessionId, cancellationToken).ConfigureAwait(false);
-        return await ReadSinceAsync(agentId, sessionId, cursor.LastReadLineIndex, cancellationToken).ConfigureAwait(false);
+        var cursor = await GetOrCreateCursorAsync(agentId, sessionId, ct).ConfigureAwait(false);
+        return await ReadSinceAsync(agentId, sessionId, cursor.LastReadLineIndex, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -104,10 +104,10 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="agentId">智能体标识</param>
     /// <param name="sessionId">会话标识</param>
     /// <param name="sinceLineIndex">起始行索引</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>消息只读列表</returns>
-    public async Task<IReadOnlyList<MailboxMessage>> ReadSinceAsync(
-        string agentId, string sessionId, int sinceLineIndex, CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyList<MailboxMessage>> ReadSinceAsync(
+        string agentId, string sessionId, int sinceLineIndex, CancellationToken ct = default)
     {
         var filePath = GetMailboxFilePath(sessionId, agentId);
         if (!_fs.FileExists(filePath))
@@ -115,7 +115,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
             return Array.Empty<MailboxMessage>();
         }
 
-        return await ReadMessagesFromFileAsync(filePath, sinceLineIndex, cancellationToken).ConfigureAwait(false);
+        return await ReadMessagesFromFileAsync(filePath, sinceLineIndex, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -124,11 +124,11 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="agentId">智能体标识</param>
     /// <param name="sessionId">会话标识</param>
     /// <param name="messageIds">需标记为已读的消息标识集合</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task MarkAsReadAsync(
+    public async ValueTask MarkAsReadAsync(
         string agentId, string sessionId, IEnumerable<string> messageIds,
-        CancellationToken cancellationToken = default)
+        CancellationToken ct = default)
     {
         var filePath = GetMailboxFilePath(sessionId, agentId);
         if (!_fs.FileExists(filePath))
@@ -141,10 +141,10 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
 
         var actor = GetOrCreateActor(sessionId, agentId);
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await actor.SendAsync(new MarkAsReadCmd(idSet, tcs), cancellationToken).ConfigureAwait(false);
+        await actor.SendAsync(new MarkAsReadCmd(idSet, tcs), ct).ConfigureAwait(false);
         await tcs.Task.ConfigureAwait(false);
 
-        var lines = await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+        var lines = await _fs.ReadAllLinesAsync(filePath, ct).ConfigureAwait(false);
         var lastLineIndex = lines.Length;
         var cursorKey = GetCursorKey(agentId, sessionId);
         _cursors.AddOrUpdate(cursorKey,
@@ -160,12 +160,12 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// </summary>
     /// <param name="agentId">智能体标识</param>
     /// <param name="sessionId">会话标识</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>未读消息数量</returns>
-    public async Task<int> GetUnreadCountAsync(
-        string agentId, string sessionId, CancellationToken cancellationToken = default)
+    public async ValueTask<int> GetUnreadCountAsync(
+        string agentId, string sessionId, CancellationToken ct = default)
     {
-        var messages = await ReadUnreadAsync(agentId, sessionId, cancellationToken).ConfigureAwait(false);
+        var messages = await ReadUnreadAsync(agentId, sessionId, ct).ConfigureAwait(false);
         return messages.Count(m => !m.IsRead);
     }
 
@@ -174,16 +174,16 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// </summary>
     /// <param name="agentId">智能体标识</param>
     /// <param name="sessionId">会话标识</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>邮箱读取游标</returns>
-    public Task<MailboxReadCursor> GetOrCreateCursorAsync(
-        string agentId, string sessionId, CancellationToken cancellationToken = default)
+    public ValueTask<MailboxReadCursor> GetOrCreateCursorAsync(
+        string agentId, string sessionId, CancellationToken ct = default)
     {
         var cursorKey = GetCursorKey(agentId, sessionId);
 
         if (_cursors.TryGetValue(cursorKey, out var cursor))
         {
-            return Task.FromResult(cursor);
+            return ValueTask.FromResult(cursor);
         }
 
         cursor = new MailboxReadCursor
@@ -194,7 +194,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         };
 
         _cursors[cursorKey] = cursor;
-        return Task.FromResult(cursor);
+        return ValueTask.FromResult(cursor);
     }
 
     /// <summary>
@@ -202,20 +202,20 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// </summary>
     /// <param name="agentId">智能体标识</param>
     /// <param name="sessionId">会话标识</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>消息只读列表</returns>
-    public async Task<IReadOnlyList<MailboxMessage>> ReadAllAsync(
-        string agentId, string sessionId, CancellationToken cancellationToken = default)
+    public async ValueTask<IReadOnlyList<MailboxMessage>> ReadAllAsync(
+        string agentId, string sessionId, CancellationToken ct = default)
     {
-        return await ReadSinceAsync(agentId, sessionId, 0, cancellationToken).ConfigureAwait(false);
+        return await ReadSinceAsync(agentId, sessionId, 0, ct).ConfigureAwait(false);
     }
 
     private async Task<IReadOnlyList<MailboxMessage>> ReadMessagesFromFileAsync(
-        string filePath, int sinceLineIndex, CancellationToken cancellationToken)
+        string filePath, int sinceLineIndex, CancellationToken ct)
     {
         try
         {
-            var lines = await _fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
+            var lines = await _fs.ReadAllLinesAsync(filePath, ct).ConfigureAwait(false);
             var messages = new List<MailboxMessage>();
 
             for (var i = sinceLineIndex; i < lines.Length; i++)
@@ -295,12 +295,13 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     }
 
     /// <summary>释放资源 — 后台释放所有 MailboxActor</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         foreach (var actor in _actors.Values)
         {
             _ = Task.Run(async () => await actor.DisposeAsync().ConfigureAwait(false));
         }
         _actors.Clear();
+            base.Dispose();
     }
 }

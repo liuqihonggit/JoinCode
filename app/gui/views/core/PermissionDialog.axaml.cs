@@ -64,29 +64,11 @@ public sealed partial class PermissionDialog : Window
     }
 
     /// <summary>
-    /// X 轴阻尼震动动画 — 左右快速偏移逐步衰减（-8→+8→-6→+6→-4→+4→-2→+2→0），
-    /// 每步 50ms，总时长 ~450ms。黄灯(未知命令)/红灯(不可撤回)触发以引起用户警觉。
+    /// X 轴阻尼震动动画 — 委托给 <see cref="ShakeAnimationHelper.Shake"/>。
+    /// 黄灯(未知命令)/红灯(不可撤回)触发以引起用户警觉。
     /// </summary>
     private void StartShakeAnimation()
     {
-        var shakeTransform = new TranslateTransform();
-        RootBorder.RenderTransform = shakeTransform;
-
-        var offsets = new double[] { -8, 8, -6, 6, -4, 4, -2, 2, 0 };
-        var stepMs = 50;
-        var stepIndex = 0;
-
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(stepMs) };
-        timer.Tick += (_, _) =>
-        {
-            if (stepIndex >= offsets.Length)
-            {
-                timer.Stop();
-                return;
-            }
-            shakeTransform.X = offsets[stepIndex];
-            stepIndex++;
-        };
-        timer.Start();
+        ShakeAnimationHelper.Shake(RootBorder);
     }
 }

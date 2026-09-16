@@ -1,4 +1,4 @@
-
+﻿
 
 namespace McpToolDispatch;
 
@@ -646,28 +646,30 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// 异步释放所有 MCP 客户端连接和恢复任务资源
     /// </summary>
     /// <returns>表示异步释放操作的值任务</returns>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return ValueTask.CompletedTask;
 
         _restoreCts?.Cancel();
         if (_restoreTask is not null)
         {
-            try { await _restoreTask.ConfigureAwait(false); }
+            try { _ = _restoreTask; }
             catch (Exception ex) when (ex is not OperationCanceledException) { _logger?.LogWarning(ex, "等待 MCP 连接恢复任务结束时异常"); }
         }
 
         var tasks = _clients.Values.Select(client => client.DisposeAsync().AsTask());
-        await Task.WhenAll(tasks).ConfigureAwait(false);
+        _ = Task.WhenAll(tasks);
         _clients.Clear();
         Dispose();
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>释放资源 — 在未异步释放时释放客户端锁。</summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _clientLock.Dispose();
+            base.Dispose();
     }
 
     /// <summary>

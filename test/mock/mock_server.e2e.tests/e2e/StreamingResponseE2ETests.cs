@@ -19,10 +19,11 @@ public sealed partial class StreamingResponseE2ETests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public async Task DisposeAsync()
+    public Task DisposeAsync()
     {
-        await KillProcessAsync(_jccProcess).ConfigureAwait(true);
-        await KillProcessAsync(_mockServerProcess).ConfigureAwait(true);
+        _ = KillProcessAsync(_jccProcess);
+        _ = KillProcessAsync(_mockServerProcess);
+        return Task.CompletedTask;
     }
 
     /// <summary>

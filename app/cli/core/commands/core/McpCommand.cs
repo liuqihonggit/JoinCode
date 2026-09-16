@@ -46,7 +46,7 @@ public sealed class McpCliCommand
                     .ToList();
                 var count = filtered.Count;
                 var items = filtered
-                    .Select(t => new Cli.Output.CliToolListItem(t.Name, t.Description, t.Category, t.GroupName, t.Kind.ToString()))
+                    .Select(t => new Cli.Output.CliToolListItem(t.Name, "", t.Category, null, ""))
                     .ToList();
                 var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = count });
                 System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, JsonCtx));
@@ -60,14 +60,10 @@ public sealed class McpCliCommand
 
                 foreach (var g in grouped)
                 {
-                    TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleEnumConstants.Reset} ({g.Count()} 个):");
-                    foreach (var t in g.OrderBy(t => t.Name))
-                    {
-                        TerminalHelper.WriteLine($"  {t.Name,-40} {t.Description}");
-                    }
-                    TerminalHelper.NewLine();
+                    TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleEnumConstants.Reset} ({g.Count()}): {string.Join(", ", g.OrderBy(t => t.Name).Select(t => t.Name))}");
                 }
-                TerminalHelper.WriteLine($"总计: {tools.Count} 个工具");
+                TerminalHelper.NewLine();
+                TerminalHelper.WriteLine($"总计: {tools.Count} 个工具（用 jcc mcp_schema <工具名> 查看参数详情）");
             }
             return 0;
         }, ct: ct);

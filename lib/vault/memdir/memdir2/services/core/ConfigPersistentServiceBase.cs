@@ -122,8 +122,7 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
         _initLock.Dispose();
     }
 }

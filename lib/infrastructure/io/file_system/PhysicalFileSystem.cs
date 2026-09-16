@@ -1,4 +1,4 @@
-namespace IO.FileSystem;
+﻿namespace IO.FileSystem;
 
 /// <summary>
 /// 物理文件系统实现 — 直接委托给 System.IO.File / System.IO.Directory
@@ -21,12 +21,12 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
 
     /// <inheritdoc />
-    protected override void OnDispose()
+    public override void Dispose()
     {
         foreach (var kvp in _editLocks)
             kvp.Value.Dispose();
         _editLocks.Clear();
-        base.OnDispose();
+        base.Dispose();
     }
 
     /// <inheritdoc />

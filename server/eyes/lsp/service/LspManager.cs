@@ -1,4 +1,4 @@
-namespace Services.Lsp.Internal;
+﻿namespace Services.Lsp.Internal;
 
 /// <summary>
 /// LSP 管理器接口 — 统一管理多个 LSP 服务器实例的生命周期和文件操作
@@ -440,25 +440,24 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <summary>
     /// 异步释放资源 — 关闭所有 LSP 服务器并清空注册表
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return ValueTask.CompletedTask;
 
-        await ShutdownAsync().ConfigureAwait(false);
-
-        var tasks = _servers.Values.Select(s => s.DisposeAsync().AsTask());
-        await Task.WhenAll(tasks).ConfigureAwait(false);
-
+        _ = ShutdownAsync(CancellationToken.None);
+        var tasks = _servers.Values.Select(s => s.DisposeAsync().AsTask()).ToArray();
         _servers.Clear();
         Dispose();
+        return new ValueTask(Task.WhenAll(tasks));
     }
 
     /// <summary>
     /// 同步释放钩子 — 异步释放未完成时释放 Actor
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_asyncDisposed == 1) return;
         _ = _initActor.DisposeAsync();
+            base.Dispose();
     }
 }

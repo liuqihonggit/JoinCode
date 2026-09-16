@@ -166,24 +166,17 @@ public sealed class ResilientSubprocess : IAsyncDisposable
     /// 异步释放资源 — 取消内部令牌、销毁健康监控、释放通道与底层进程
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
 
         _disposeCts.Cancel();
         _healthMonitor?.Dispose();
         _inputChannel.Dispose();
         _outputChannel.Dispose();
 
-        try
-        {
-            await _process.DisposeAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[ResilientSubprocess] 释放进程资源失败");
-        }
-
+        _ = _process.DisposeAsync();
         GC.SuppressFinalize(this);
+        return ValueTask.CompletedTask;
     }
 }

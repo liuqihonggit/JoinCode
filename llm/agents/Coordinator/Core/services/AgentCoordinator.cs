@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Agent协调器 - 提供高级协调功能，包括重试策略、断路器模式、资源清理等
@@ -98,10 +98,10 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     /// <summary>
     /// 释放 spawn 信号量等内核资源
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         _spawnSemaphore.Dispose();
-        base.OnDispose();
+        base.Dispose();
     }
 
     /// <summary>

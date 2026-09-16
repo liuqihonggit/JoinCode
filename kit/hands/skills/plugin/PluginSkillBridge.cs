@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Skills.Plugin;
 
 /// <summary>
@@ -165,7 +165,7 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
     /// <summary>
     /// 释放资源 — 注销所有插件技能并清空映射
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
         if (_isDisposed)
         {
@@ -191,6 +191,7 @@ public sealed partial class PluginSkillBridge : ServiceEntity, IPluginSkillBridg
         }
 
         _pluginSkillMap.Clear();
+            base.Dispose();
     }
 
     private List<SkillDefinition> ExtractPluginSkills(string pluginName)

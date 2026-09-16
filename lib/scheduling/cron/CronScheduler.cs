@@ -344,12 +344,13 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
     }
 
     /// <inheritdoc/>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         _timer.Change(Timeout.Infinite, Timeout.Infinite);
-        await base.DisposeAsync().ConfigureAwait(false);
+        var task = base.DisposeAsync();
         _timer.Dispose();
+        return task;
     }
 }

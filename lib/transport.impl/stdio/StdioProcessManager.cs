@@ -269,10 +269,10 @@ public sealed partial class StdioProcessManager : IAsyncDisposable
     /// <summary>
     /// 异步释放资源，停止进程
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        await StopAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        return new ValueTask(StopAsync());
     }
 }
 

@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Agents.Coordinator;
 
 /// <summary>
@@ -18,6 +18,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private readonly AsyncLock _lock = new();
     private readonly ITelemetryService? _telemetryService;
     private readonly ITeammateMailboxService? _mailboxService;
+    private readonly MailboxHub? _mailboxHub;
     private readonly IServiceProvider? _serviceProvider;
     private readonly IClockService _clock;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
@@ -37,17 +38,19 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// </summary>
     /// <param name="clock">时钟服务</param>
     /// <param name="telemetryService">遥测服务</param>
-    /// <param name="mailboxService">邮箱服务</param>
+    /// <param name="mailboxService">邮箱服务（文件通道遗留路由）</param>
+    /// <param name="mailboxHub">邮箱中枢（跨通道广播 NamedPipe/Network — ADR 0111）</param>
     /// <param name="serviceProvider">服务提供者（用于延迟解析 ITeammateObserver）</param>
     /// <param name="subAgentContextAccessor">子智能体上下文访问器</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="fileSystem">文件系统（提供则启用持久化）</param>
-    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null, IFileSystem? fileSystem = null)
+    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, MailboxHub? mailboxHub = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null, IFileSystem? fileSystem = null)
     {
 
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _telemetryService = telemetryService;
         _mailboxService = mailboxService;
+        _mailboxHub = mailboxHub;
         _serviceProvider = serviceProvider;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _logger = logger;
@@ -514,28 +517,48 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
     private async Task PersistTeamMessageToMailboxAsync(string teamId, TeamMessage message, CancellationToken cancellationToken)
     {
-        if (_mailboxService is null) return;
-        if (!_teamMembers.TryGetValue(teamId, out var members)) return;
-        if (!_teamSessions.TryGetValue(teamId, out var sessionId)) return;
+        if (_mailboxService is not null && _teamMembers.TryGetValue(teamId, out var members) && _teamSessions.TryGetValue(teamId, out var sessionId))
+        {
+            var tasks = members
+                .Where(m => m != message.SenderId)
+                .Select(m => _mailboxService.SendAsync(new MailboxSendRequest
+                {
+                    FromAgentId = message.SenderId,
+                    ToAgentId = m,
+                    MessageType = message.MessageType,
+                    Content = message.Content,
+                    SessionId = sessionId
+                }, cancellationToken).AsTask())
+                .ToArray();
 
-        var tasks = members
-            .Where(m => m != message.SenderId)
-            .Select(m => _mailboxService.SendAsync(new MailboxSendRequest
+            try
+            {
+                await Task.WhenAll(tasks).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger?.LogWarning(ex, "广播团队消息到文件邮箱失败");
+            }
+        }
+
+        if (_mailboxHub is not null)
+        {
+            var coordinatorMsg = new CoordinatorMessage
             {
                 FromAgentId = message.SenderId,
-                ToAgentId = m,
+                ToAgentId = "broadcast",
                 MessageType = message.MessageType,
                 Content = message.Content,
-                SessionId = sessionId
-            }, cancellationToken));
+            };
 
-        try
-        {
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger?.LogWarning(ex, "广播团队消息失败");
+            try
+            {
+                await _mailboxHub.BroadcastAsync(coordinatorMsg, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger?.LogWarning(ex, "广播团队消息到 MailboxHub 跨通道失败");
+            }
         }
     }
 
@@ -543,23 +566,43 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string targetAgentId, string senderId, string content, string messageType, string teamId,
         CancellationToken cancellationToken)
     {
-        if (_mailboxService is null) return;
-        if (!_teamSessions.TryGetValue(teamId, out var sessionId)) return;
-
-        try
+        if (_mailboxService is not null && _teamSessions.TryGetValue(teamId, out var sessionId))
         {
-            await _mailboxService.SendAsync(new MailboxSendRequest
+            try
+            {
+                await _mailboxService.SendAsync(new MailboxSendRequest
+                {
+                    FromAgentId = senderId,
+                    ToAgentId = targetAgentId,
+                    MessageType = messageType,
+                    Content = content,
+                    SessionId = sessionId
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex2) when (ex2 is not OperationCanceledException)
+            {
+                _logger?.LogWarning(ex2, "持久化直发消息到文件邮箱失败");
+            }
+        }
+
+        if (_mailboxHub is not null)
+        {
+            var coordinatorMsg = new CoordinatorMessage
             {
                 FromAgentId = senderId,
                 ToAgentId = targetAgentId,
                 MessageType = messageType,
                 Content = content,
-                SessionId = sessionId
-            }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex2) when (ex2 is not OperationCanceledException)
-        {
-            _logger?.LogWarning(ex2, "持久化直发消息到邮箱失败");
+            };
+
+            try
+            {
+                await _mailboxHub.SendAsync(targetAgentId, coordinatorMsg, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex2) when (ex2 is not OperationCanceledException)
+            {
+                _logger?.LogWarning(ex2, "直发消息到 MailboxHub 失败");
+            }
         }
     }
 
@@ -756,6 +799,30 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         };
     }
 
+    /// <summary>
+    /// 获取聊天室信息 — 团队的聊天室视图，包含房间名和成员显示名列表 — ADR 0109
+    /// </summary>
+    public async Task<ChatRoomInfo?> GetChatRoomInfoAsync(
+        string teamId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_teams.TryGetValue(teamId, out var team))
+            return null;
+
+        var statuses = await GetTeammateStatusesAsync(teamId, cancellationToken).ConfigureAwait(false);
+        var members = statuses.Select(s => s.DisplayName ?? s.AgentId).ToList();
+
+        return new ChatRoomInfo
+        {
+            RoomName = team.TeamName,
+            Members = members
+        };
+    }
+
     /// <summary>释放资源 — 释放团队管理锁</summary>
-    protected override void OnDispose() => _lock.Dispose();
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

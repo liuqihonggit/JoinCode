@@ -19,10 +19,11 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public async Task DisposeAsync()
+    public Task DisposeAsync()
     {
-        await KillProcessAsync(_jccProcess).ConfigureAwait(true);
-        await KillProcessAsync(_mockServerProcess).ConfigureAwait(true);
+        _ = KillProcessAsync(_jccProcess);
+        _ = KillProcessAsync(_mockServerProcess);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -119,7 +120,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         Directory.CreateDirectory(stateDir);
         E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
 
-        var args = $"--trust --await {awaitSeconds} -p \"{prompt}\"";
+        var args = $"--trust --debuglog --await {awaitSeconds} -p \"{prompt}\"";
 
         var psi = new ProcessStartInfo
         {
@@ -182,13 +183,37 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
 
             await Task.Delay(500, CancellationToken.None).ConfigureAwait(true);
 
+            DumpJccErrorLog(code, stateDir);
             return (code, sw.Elapsed, stdoutBuilder.ToString(), stderrBuilder.ToString());
         }
         catch (OperationCanceledException)
         {
             sw.Stop();
             _output.WriteLine("[ClusterE2E] jcc.exe 超时，强制终止");
+            DumpJccErrorLog(-1, stateDir);
             return (-1, sw.Elapsed, stdoutBuilder.ToString(), stderrBuilder.ToString());
+        }
+    }
+
+    /// <summary>
+    /// jcc 退出码非 0 时，读取并打印 jcc_error.log 全文到测试输出（含完整 StackTrace）。
+    /// 路径: {stateDir}/runtime/jcc_error.log（JCC_APP_DATA_FOLDER=stateDir 时）。
+    /// </summary>
+    private void DumpJccErrorLog(int exitCode, string stateDir)
+    {
+        if (exitCode == 0) return;
+        var errorLogPath = Path.Combine(stateDir, "runtime", "jcc_error.log");
+        try
+        {
+            if (!File.Exists(errorLogPath)) return;
+            var content = File.ReadAllText(errorLogPath);
+            _output.WriteLine($"[ClusterE2E] jcc_error.log (exit={exitCode}, {content.Length} chars):");
+            foreach (var line in content.Split('\n'))
+                _output.WriteLine($"[ClusterE2E:errorlog] {line.TrimEnd('\r')}");
+        }
+        catch (Exception ex)
+        {
+            _output.WriteLine($"[ClusterE2E] 读取 jcc_error.log 失败: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

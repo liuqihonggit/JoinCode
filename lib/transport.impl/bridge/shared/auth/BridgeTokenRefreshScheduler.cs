@@ -235,11 +235,11 @@ public sealed class BridgeTokenRefreshScheduler : ActorBase<IBridgeTokenRefreshC
     /// <summary>
     /// 异步释放资源，取消所有刷新定时器
     /// </summary>
-    public override async ValueTask DisposeAsync()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         CancelAll();
-        await base.DisposeAsync().ConfigureAwait(false);
+        return base.DisposeAsync();
     }
 }
 

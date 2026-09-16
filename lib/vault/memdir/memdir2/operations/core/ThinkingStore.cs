@@ -1,4 +1,4 @@
-namespace Core.Memdir;
+﻿namespace Core.Memdir;
 
 /// <summary>
 /// 思考记录存储实现 — 按会话 ID 维护思考条目列表,支持加载、保存、查询最近/最新条目与清空操作。
@@ -152,11 +152,11 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     /// <summary>
     /// 释放取消令牌、保存锁等资源。
     /// </summary>
-    protected override void OnDispose()
+    public override void Dispose()
     {
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
         _saveLock.Dispose();
+        base.Dispose();
     }
 
     private string GetFilePath() => Path.Combine(_storagePath, "thinking_store.json");

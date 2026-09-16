@@ -1,4 +1,4 @@
-namespace JoinCode.Abstractions.Entity;
+﻿namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 缓存项实体 — 泛型 CacheEntryEntity&lt;T&gt;, Value 类型安全, AOT 友好
@@ -43,7 +43,11 @@ public sealed class CacheEntryEntity<T> : Entity
         Registry.Add(ObjectId, this);
     }
 
-    protected override void OnDispose() => Registry.Remove(ObjectId);
+    public override void Dispose()
+    {
+        Registry.Remove(ObjectId);
+        base.Dispose();
+    }
 
     /// <summary>
     /// 回收判定 — 已过期 或 已持久化

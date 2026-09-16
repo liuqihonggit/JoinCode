@@ -1,4 +1,4 @@
-namespace McpToolRegistry.Tests;
+﻿namespace McpToolRegistry.Tests;
 
 public sealed class PermissionAwareToolExecutorEntityTests
 {
@@ -73,172 +73,151 @@ public sealed class PermissionAwareToolExecutorEntityTests
     [Fact]
     public void ToolExecutionEntity_RegisteredInGlobalRegistry()
     {
-        var entity = new ToolExecutionEntity("web_fetch");
-        try
-        {
-            ToolExecutionEntity.Registry.Get(entity.ObjectId).Should().BeSameAs(entity);
-            ToolExecutionEntity.Registry.GetByToolName("web_fetch").Should().Contain(entity);
-        }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("web_fetch");
+        ToolExecutionEntity.Registry.Get(entity.ObjectId).Should().BeSameAs(entity);
+        ToolExecutionEntity.Registry.GetByToolName("web_fetch").Should().Contain(entity);
+    
     }
 
     [Fact]
     public void ToolExecutionEntity_SpanId_LinkedToTelemetry()
     {
-        var entity = new ToolExecutionEntity("bash", spanId: "span_abc123");
-        try
-        {
-            entity.SpanId.Should().Be("span_abc123");
-        }
-        finally { entity.Dispose(); }
+        using var entity =  new ToolExecutionEntity("bash", spanId: "span_abc123");
+        entity.SpanId.Should().Be("span_abc123");
+    
     }
 
     [Fact]
     public void BackfillEntityMetadata_BashProcessEntity_SetsExitCode()
     {
-        var bash = new BashProcessEntity(command: "ls");
-        try
+        using var bash =  new BashProcessEntity(command: "ls");
+        var result = new ToolResult
         {
-            var result = new ToolResult
-            {
-                Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
-                IsError = false,
-                EntityMetadata = [EntityMetadataEntry.Int("exit_code", 0)],
-            };
+            Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
+            IsError = false,
+            EntityMetadata = [EntityMetadataEntry.Int("exit_code", 0)],
+        };
 
-            var context = new ToolExecutionContext
-            {
-                ToolName = "bash",
-                Arguments = [],
-                ExecutionEntity = bash,
-                Result = result,
-            };
+        var context = new ToolExecutionContext
+        {
+            ToolName = "bash",
+            Arguments = [],
+            ExecutionEntity = bash,
+            Result = result,
+        };
 
-            CompleteAndBackfill(context);
+        CompleteAndBackfill(context);
 
-            bash.ExitCode.Should().Be(0);
-            bash.Status.Should().Be(BashProcessStatus.Exited);
-        }
-        finally { bash.Dispose(); }
+        bash.ExitCode.Should().Be(0);
+        bash.Status.Should().Be(BashProcessStatus.Exited);
+    
     }
 
     [Fact]
     public void BackfillEntityMetadata_BashProcessEntity_Interrupted_SetsTimedOut()
     {
-        var bash = new BashProcessEntity(command: "sleep 999");
-        try
+        using var bash =  new BashProcessEntity(command: "sleep 999");
+        var result = new ToolResult
         {
-            var result = new ToolResult
-            {
-                Content = [new ToolContent { Type = ToolContentType.Text, Text = "timeout" }],
-                IsError = true,
-                EntityMetadata =
-                [
-                    EntityMetadataEntry.Int("exit_code", -1),
-                    EntityMetadataEntry.Bool("interrupted", true),
-                ],
-            };
+            Content = [new ToolContent { Type = ToolContentType.Text, Text = "timeout" }],
+            IsError = true,
+            EntityMetadata =
+            [
+                EntityMetadataEntry.Int("exit_code", -1),
+                EntityMetadataEntry.Bool("interrupted", true),
+            ],
+        };
 
-            var context = new ToolExecutionContext
-            {
-                ToolName = "bash",
-                Arguments = [],
-                ExecutionEntity = bash,
-                Result = result,
-            };
+        var context = new ToolExecutionContext
+        {
+            ToolName = "bash",
+            Arguments = [],
+            ExecutionEntity = bash,
+            Result = result,
+        };
 
-            CompleteAndBackfill(context);
+        CompleteAndBackfill(context);
 
-            bash.ExitCode.Should().Be(-1);
-            bash.Status.Should().Be(BashProcessStatus.TimedOut);
-        }
-        finally { bash.Dispose(); }
+        bash.ExitCode.Should().Be(-1);
+        bash.Status.Should().Be(BashProcessStatus.TimedOut);
+    
     }
 
     [Fact]
     public void BackfillEntityMetadata_WebFetchEntity_SetsHttpStatusCode()
     {
-        var web = new WebFetchEntity(url: "https://example.com");
-        try
+        using var web =  new WebFetchEntity(url: "https://example.com");
+        var result = new ToolResult
         {
-            var result = new ToolResult
-            {
-                Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
-                IsError = false,
-                EntityMetadata =
-                [
-                    EntityMetadataEntry.Int("http_status_code", 200),
-                    EntityMetadataEntry.Long("content_length", 12345L),
-                ],
-            };
+            Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
+            IsError = false,
+            EntityMetadata =
+            [
+                EntityMetadataEntry.Int("http_status_code", 200),
+                EntityMetadataEntry.Long("content_length", 12345L),
+            ],
+        };
 
-            var context = new ToolExecutionContext
-            {
-                ToolName = "web_fetch",
-                Arguments = [],
-                ExecutionEntity = web,
-                Result = result,
-            };
+        var context = new ToolExecutionContext
+        {
+            ToolName = "web_fetch",
+            Arguments = [],
+            ExecutionEntity = web,
+            Result = result,
+        };
 
-            CompleteAndBackfill(context);
+        CompleteAndBackfill(context);
 
-            web.HttpStatusCode.Should().Be(200);
-            web.ContentLength.Should().Be(12345L);
-        }
-        finally { web.Dispose(); }
+        web.HttpStatusCode.Should().Be(200);
+        web.ContentLength.Should().Be(12345L);
+    
     }
 
     [Fact]
     public void BackfillEntityMetadata_NoMetadata_DoesNotThrow()
     {
-        var entity = new ToolExecutionEntity("read_file");
-        try
+        using var entity =  new ToolExecutionEntity("read_file");
+        var result = new ToolResult
         {
-            var result = new ToolResult
-            {
-                Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
-                IsError = false,
-            };
+            Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
+            IsError = false,
+        };
 
-            var context = new ToolExecutionContext
-            {
-                ToolName = "read_file",
-                Arguments = [],
-                ExecutionEntity = entity,
-                Result = result,
-            };
+        var context = new ToolExecutionContext
+        {
+            ToolName = "read_file",
+            Arguments = [],
+            ExecutionEntity = entity,
+            Result = result,
+        };
 
-            var act = () => CompleteAndBackfill(context);
-            act.Should().NotThrow();
-        }
-        finally { entity.Dispose(); }
+        var act = () => CompleteAndBackfill(context);
+        act.Should().NotThrow();
+    
     }
 
     [Fact]
     public void BackfillEntityMetadata_EmptyMetadata_DoesNotThrow()
     {
-        var entity = new ToolExecutionEntity("read_file");
-        try
+        using var entity =  new ToolExecutionEntity("read_file");
+        var result = new ToolResult
         {
-            var result = new ToolResult
-            {
-                Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
-                IsError = false,
-                EntityMetadata = [],
-            };
+            Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
+            IsError = false,
+            EntityMetadata = [],
+        };
 
-            var context = new ToolExecutionContext
-            {
-                ToolName = "read_file",
-                Arguments = [],
-                ExecutionEntity = entity,
-                Result = result,
-            };
+        var context = new ToolExecutionContext
+        {
+            ToolName = "read_file",
+            Arguments = [],
+            ExecutionEntity = entity,
+            Result = result,
+        };
 
-            var act = () => CompleteAndBackfill(context);
-            act.Should().NotThrow();
-        }
-        finally { entity.Dispose(); }
+        var act = () => CompleteAndBackfill(context);
+        act.Should().NotThrow();
+    
     }
 
     [Fact]

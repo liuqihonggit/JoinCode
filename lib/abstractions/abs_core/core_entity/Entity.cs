@@ -62,13 +62,13 @@ public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
     /// <summary>
     /// 惰性释放 — 只有持久化服务确认消息全部写入后才调用
     /// 任务完成不释放，持久化完消息后才 Dispose
+    /// <para>子类覆写时先释放自己的资源，再调 base.Dispose() 完成生命周期注销</para>
     /// </summary>
-    public void Dispose()
+    public virtual void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         LifecycleState = EntityLifecycle.Disposed;
-        OnDispose();
         ObjectIdManager.Unregister(ObjectId);
         if (SessionRouter.TryGetScope(SessionId, out var scope))
             scope.Unregister(ObjectId);
@@ -77,18 +77,13 @@ public abstract class Entity : IDisposable, IAsyncDisposable, ICloneableEntity
 
     /// <summary>
     /// 异步释放 — 默认委托给 Dispose()，需要真正异步清理的子类覆写此方法
-    /// <para>子类覆写时应在异步清理完成后调用 Dispose() 以完成 Entity 生命周期注销</para>
+    /// <para>子类覆写时先 await 异步释放自己的资源，再调 await base.DisposeAsync() 完成生命周期注销</para>
     /// </summary>
     public virtual ValueTask DisposeAsync()
     {
         Dispose();
         return ValueTask.CompletedTask;
     }
-
-    /// <summary>
-    /// 子类覆写：从各自 Registry 移除、释放资源等
-    /// </summary>
-    protected abstract void OnDispose();
 
     /// <summary>
     /// 回收判定 — 默认: LifecycleState==Persisted 且 CompletedAt!=null

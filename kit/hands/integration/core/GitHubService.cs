@@ -1,4 +1,4 @@
-namespace IO.Services;
+﻿namespace IO.Services;
 
 /// <summary>
 /// GitHub 服务 — 管理 PR 订阅列表，支持加载、订阅、取消订阅并持久化到配置
@@ -131,6 +131,10 @@ public sealed partial class GitHubService : ServiceEntity, IGitHubService
     /// <summary>
     /// 释放资源 — 释放异步锁
     /// </summary>
-    protected override void OnDispose() => _lock.Dispose();
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }
 

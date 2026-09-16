@@ -14,6 +14,7 @@ public sealed class GuiInteractionModule : IAppModule
     public void ConfigureServices(IServiceCollection services, AppModuleContext context)
     {
         services.AddSingleton<IInteractiveService, AvaloniaInteractiveService>();
+        services.AddSingleton<IWindowShakeService, GuiWindowShakeService>();
     }
 
     /// <summary>异步配置</summary>

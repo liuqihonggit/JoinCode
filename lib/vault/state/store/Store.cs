@@ -212,8 +212,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
 
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
 
         ImmutableInterlocked.Update(ref _subscribers, _ => ImmutableHashSet<StateChangedHandler<TState>>.Empty);
     }

@@ -395,9 +395,8 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// </summary>
     public override void Dispose()
     {
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
-            base.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
+        base.Dispose();
     }
 }
 

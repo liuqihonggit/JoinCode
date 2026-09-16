@@ -154,10 +154,9 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     /// </summary>
     public override void Dispose()
     {
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
         _saveLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }
 

@@ -284,8 +284,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// </summary>
     public override void Dispose()
     {
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
             base.Dispose();
     }
 }

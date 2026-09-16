@@ -77,8 +77,7 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
             _configChangeNotifier.ConfigChanged -= OnConfigChanged;
             _configChangeNotifier.StopMonitoring();
         }
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
 
         return ValueTask.CompletedTask;
     }

@@ -438,8 +438,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     public override void Dispose()
     {
         if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
         base.Dispose();
     }
 }

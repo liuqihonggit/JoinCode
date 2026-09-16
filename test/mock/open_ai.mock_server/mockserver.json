@@ -7,7 +7,7 @@
       "tool_calls": [
         {
           "tool_name": "bash",
-          "arguments": "{\"command\":\"pwd\",\"working_directory\":\"d:////project////w3/"}",
+          "arguments": "{\"command\":\"pwd\",\"working_directory\":\"d:////project////w3\"}",
           "tool_call_id": "call_pathgate_001"
         }
       ]

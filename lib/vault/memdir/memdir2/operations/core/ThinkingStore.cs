@@ -154,10 +154,9 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     /// </summary>
     public override void Dispose()
     {
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
         _saveLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 
     private string GetFilePath() => Path.Combine(_storagePath, "thinking_store.json");

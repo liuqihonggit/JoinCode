@@ -222,8 +222,7 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         _reconnectTimer = null;
         var uploader = _uploader;
         _ = Task.Run(() => FlushAndCloseUploaderAsync(uploader));
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
         return new ValueTask(StopWsAndCloseHttpClientAsync());
     }
 

@@ -872,8 +872,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
 
-        _disposeCts.Cancel();
-        _disposeCts.Dispose();
+        _disposeCts.CancelAndDisposeSafe(_logger);
 
         if (_worktreeManager is not null)
         {

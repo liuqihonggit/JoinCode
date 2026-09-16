@@ -7,7 +7,7 @@
       "tool_calls": [
         {
           "tool_name": "read",
-          "arguments": "{\"file_path\":\"README.md/"}"
+          "arguments": "{\"file_path\":\"README.md\"}"
         }
       ],
       "text_response": null,

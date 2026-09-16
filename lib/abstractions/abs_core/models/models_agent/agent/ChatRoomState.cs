@@ -9,22 +9,22 @@ namespace JoinCode.Abstractions.Models.Agent;
 public sealed class ChatRoomState
 {
     /// <summary>团队/聊天室信息</summary>
-    public required TeamInfo Info { get; init; }
+    public TeamInfo Info { get; set; } = null!;
 
     /// <summary>成员 ID 集合</summary>
-    public HashSet<string> Members { get; init; } = new();
+    public HashSet<string> Members { get; set; } = new();
 
     /// <summary>消息字典（MessageId → Message），用 MessageId 去重 — ADR 0109 决策10。</summary>
-    public ConcurrentDictionary<string, TeamMessage> Messages { get; init; } = new();
+    public ConcurrentDictionary<string, TeamMessage> Messages { get; set; } = new();
 
     /// <summary>会话 ID（文件邮箱需要）</summary>
     public string? SessionId { get; set; }
 
     /// <summary>团队级允许路径</summary>
-    public Dictionary<string, TeamAllowedPath> AllowedPaths { get; init; } = new();
+    public Dictionary<string, TeamAllowedPath> AllowedPaths { get; set; } = new();
 
     /// <summary>成员详情（AgentId → TeamMemberInfo）</summary>
-    public Dictionary<string, TeamMemberInfo> MemberDetails { get; init; } = new();
+    public Dictionary<string, TeamMemberInfo> MemberDetails { get; set; } = new();
 
     /// <summary>最大消息保留数（默认 1000，对标 QQ 本地缓存）— ADR 0109 决策13。</summary>
     public int MaxMessageCount { get; init; } = 1000;

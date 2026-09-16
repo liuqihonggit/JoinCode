@@ -10,7 +10,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 {
     private readonly ConcurrentDictionary<string, TeamInfo> _teams = new();
     private readonly ConcurrentDictionary<string, HashSet<string>> _teamMembers = new();
-    private readonly ConcurrentDictionary<string, List<TeamMessage>> _teamMessages = new();
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, TeamMessage>> _teamMessages = new();
     private readonly ConcurrentDictionary<string, string> _agentToTeam = new();
     private readonly ConcurrentDictionary<string, string> _teamSessions = new();
     private readonly ConcurrentDictionary<string, Dictionary<string, TeamAllowedPath>> _teamAllowedPaths = new();
@@ -118,7 +118,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         _teams[teamId] = team;
         _teamMembers[teamId] = members;
-        _teamMessages[teamId] = new List<TeamMessage>();
+        _teamMessages[teamId] = new ConcurrentDictionary<string, TeamMessage>();
         _teamMemberDetails[teamId] = memberDetails;
         _teamAllowedPaths[teamId] = new Dictionary<string, TeamAllowedPath>();
 
@@ -349,7 +349,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             Timestamp = _clock.GetUtcNow()
         };
 
-        var messages = _teamMessages.GetOrAdd(teamId, _ => new List<TeamMessage>());
+        var messages = _teamMessages.GetOrAdd(teamId, _ => new ConcurrentDictionary<string, TeamMessage>());
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -358,7 +358,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
 
-        messages.Add(message);
+        if (!messages.TryAdd(message.MessageId, message))
+        {
+            _logger?.LogDebug("Duplicate team message {MessageId} skipped in SendMessageAsync", message.MessageId);
+            return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        }
     
 
         _teams[teamId] = team with { LastActivityAt = _clock.GetUtcNow() };
@@ -405,7 +409,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             Timestamp = _clock.GetUtcNow()
         };
 
-        var messages = _teamMessages.GetOrAdd(teamId, _ => new List<TeamMessage>());
+        var messages = _teamMessages.GetOrAdd(teamId, _ => new ConcurrentDictionary<string, TeamMessage>());
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -414,7 +418,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
 
-        messages.Add(message);
+        if (!messages.TryAdd(message.MessageId, message))
+        {
+            _logger?.LogDebug("Duplicate team message {MessageId} skipped in SendMessageToAgentAsync", message.MessageId);
+            return OperationResult<TeamInfo?>.Ok(team);
+        }
     
 
         await PersistDirectMessageToMailboxAsync(targetAgentId, senderId, content, messageType ?? "direct", teamId, cancellationToken).ConfigureAwait(false);
@@ -443,6 +451,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return messages
+            .Values
             .OrderByDescending(m => m.Timestamp)
             .Take(limit)
             .ToList();
@@ -480,7 +489,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             Timestamp = _clock.GetUtcNow()
         };
 
-        var messages = _teamMessages.GetOrAdd(teamId, _ => new List<TeamMessage>());
+        var messages = _teamMessages.GetOrAdd(teamId, _ => new ConcurrentDictionary<string, TeamMessage>());
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
@@ -489,7 +498,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
 
-        messages.Add(message);
+        if (!messages.TryAdd(message.MessageId, message))
+        {
+            _logger?.LogDebug("Duplicate team message {MessageId} skipped in BroadcastMessageAsync", message.MessageId);
+            return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
+        }
     
 
         _teams[teamId] = team with { LastActivityAt = _clock.GetUtcNow() };
@@ -515,12 +528,54 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private void RecordTeamMetrics(string operation, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "team.operation.count", operation, isSuccess, "Team operation count");
 
+    /// <summary>
+    /// 按消息可见性过滤投递目标 — ADR 0109 决策8。
+    /// <para>Public/System → 所有成员（排除发送者）</para>
+    /// <para>AdminOnly → 仅管理员/群主（排除发送者）</para>
+    /// <para>Private → 仅 ToAgentId</para>
+    /// <para>Hidden → 空列表（仅持久化不投递）</para>
+    /// </summary>
+    private IReadOnlyList<string> FilterRecipientsByVisibility(string teamId, TeamMessage message)
+    {
+        if (message.Visibility == MessageVisibility.Hidden) return Array.Empty<string>();
+
+        if (message.Visibility == MessageVisibility.Private)
+        {
+            return message.ToAgentId is not null ? new[] { message.ToAgentId } : Array.Empty<string>();
+        }
+
+        if (!_teamMembers.TryGetValue(teamId, out var members)) return Array.Empty<string>();
+
+        if (message.Visibility == MessageVisibility.AdminOnly)
+        {
+            _teamMemberDetails.TryGetValue(teamId, out var details);
+            _teams.TryGetValue(teamId, out var team);
+            return members
+                .Where(m => m != message.SenderId && IsAdminOrOwner(m, details, team))
+                .ToList();
+        }
+
+        return members.Where(m => m != message.SenderId).ToList();
+    }
+
+    private static bool IsAdminOrOwner(string agentId, Dictionary<string, TeamMemberInfo>? details, TeamInfo? team)
+    {
+        if (agentId == team?.LeadAgentId) return true;
+        if (details is not null && details.TryGetValue(agentId, out var md))
+        {
+            return md.Role is "admin" or "owner";
+        }
+        return false;
+    }
+
     private async Task PersistTeamMessageToMailboxAsync(string teamId, TeamMessage message, CancellationToken cancellationToken)
     {
-        if (_mailboxService is not null && _teamMembers.TryGetValue(teamId, out var members) && _teamSessions.TryGetValue(teamId, out var sessionId))
+        var targetAgentIds = FilterRecipientsByVisibility(teamId, message);
+        if (targetAgentIds.Count == 0) return;
+
+        if (_mailboxService is not null && _teamSessions.TryGetValue(teamId, out var sessionId))
         {
-            var tasks = members
-                .Where(m => m != message.SenderId)
+            var tasks = targetAgentIds
                 .Select(m => _mailboxService.SendAsync(new MailboxSendRequest
                 {
                     FromAgentId = message.SenderId,
@@ -546,9 +601,10 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             var coordinatorMsg = new CoordinatorMessage
             {
                 FromAgentId = message.SenderId,
-                ToAgentId = "broadcast",
+                ToAgentId = message.Visibility == MessageVisibility.Private ? message.ToAgentId ?? "" : "broadcast",
                 MessageType = message.MessageType,
                 Content = message.Content,
+                Visibility = message.Visibility,
             };
 
             try
@@ -822,7 +878,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var onlineCount = members.Count(m => m.Status == ChatRoomMemberStatus.Online);
         DateTime? lastMessageAt = _teamMessages.TryGetValue(teamId, out var msgs) && msgs.Count > 0
-            ? msgs.Max(m => m.Timestamp)
+            ? msgs.Values.Max(m => m.Timestamp)
             : null;
 
         return new ChatRoomInfo
@@ -853,6 +909,63 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             AgentStatus.Running => ChatRoomMemberStatus.Online,
             _ => ChatRoomMemberStatus.Offline,
         };
+    }
+
+    /// <summary>
+    /// 撤回团队消息 — 对标 QQ 消息撤回（2 分钟内可撤回）— ADR 0109 决策11。
+    /// </summary>
+    public async Task<OperationResult<TeamInfo?>> RevokeMessageAsync(
+        string teamId,
+        string messageId,
+        string revokerId,
+        string? reason = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_teams.TryGetValue(teamId, out var team))
+        {
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
+        }
+
+        if (!_teamMessages.TryGetValue(teamId, out var msgDict))
+        {
+            return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 无消息记录");
+        }
+
+        if (!msgDict.TryGetValue(messageId, out var originalMsg))
+        {
+            return OperationResult<TeamInfo?>.Fail($"消息 {messageId} 不存在");
+        }
+
+        var isSender = originalMsg.SenderId == revokerId;
+        var isAdmin = IsAdminOrOwner(revokerId,
+            _teamMemberDetails.TryGetValue(teamId, out var details) ? details : null, team);
+        if (!isSender && !isAdmin)
+        {
+            return OperationResult<TeamInfo?>.Fail($"撤回者 {revokerId} 无权限：仅发送者或管理员可撤回");
+        }
+
+        var revokeTimeLimit = TimeSpan.FromMinutes(2);
+        if (!isAdmin && _clock.GetUtcNow() - originalMsg.Timestamp > revokeTimeLimit)
+        {
+            return OperationResult<TeamInfo?>.Fail("消息发送超过 2 分钟，非管理员无法撤回");
+        }
+
+        var revokedMsg = originalMsg with
+        {
+            Visibility = MessageVisibility.Hidden,
+            RevokeReason = reason ?? "撤回",
+        };
+        msgDict[messageId] = revokedMsg;
+
+        var notice = SystemNoticeFactory.Create(SystemNoticeKind.MessageRevoked, teamId, revokerId);
+        if (msgDict.TryAdd(notice.MessageId, notice))
+        {
+            await PersistTeamMessageToMailboxAsync(teamId, notice, cancellationToken).ConfigureAwait(false);
+        }
+
+        _teams[teamId] = team with { LastActivityAt = _clock.GetUtcNow() };
+        await SaveStateAsync(cancellationToken).ConfigureAwait(false);
+        return OperationResult<TeamInfo?>.Ok(_teams[teamId]);
     }
 
     /// <summary>释放资源 — 释放团队管理锁</summary>

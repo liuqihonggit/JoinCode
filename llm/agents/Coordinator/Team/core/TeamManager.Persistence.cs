@@ -61,7 +61,8 @@ public sealed partial class TeamManager
             {
                 foreach (var kvp in data.TeamMessages)
                 {
-                    _teamMessages[kvp.Key] = kvp.Value;
+                    _teamMessages[kvp.Key] = new ConcurrentDictionary<string, TeamMessage>(
+                        kvp.Value.Select(m => new KeyValuePair<string, TeamMessage>(m.MessageId, m)));
                 }
             }
 
@@ -108,7 +109,7 @@ public sealed partial class TeamManager
             {
                 Teams = _teams.Values.ToList(),
                 TeamMembers = _teamMembers.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList()),
-                TeamMessages = _teamMessages.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToList()),
+                TeamMessages = _teamMessages.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Values.ToList()),
                 TeamMemberDetails = _teamMemberDetails.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Values.ToList()),
                 AgentToTeam = new Dictionary<string, string>(_agentToTeam),
                 TeamCounter = _teamCounter,

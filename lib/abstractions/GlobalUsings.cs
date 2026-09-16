@@ -98,4 +98,5 @@ global using System.Text.Json.Serialization;
 global using System.Collections.Concurrent;
 global using System.Net.Http.Headers;
 global using System.Threading;
+global using Task = System.Threading.Tasks.Task;
 global using ValidationResult = Structura.Primitives.ValidationResult;

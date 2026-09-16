@@ -308,3 +308,81 @@ public async Task<OperationResult<TeamInfo?>> RevokeMessageAsync(
 9. `SystemNoticeKind.MemberJoined` → 所有成员收到
 10. `RevokeMessageAsync` → 消息 `Visibility=Hidden` + 撤回通知广播
 11. `@全体` → 所有成员收到 + 被@成员高亮
+
+### 决策13：ChatRoomState 数据合并 + 内存控制 + 按需加载（2026-09-16 追加）
+
+#### 问题：TeamManager 6 个字典 key 相同，数据分散
+
+```
+TeamManager 内部 6 个 ConcurrentDictionary<string, ...>，key 都是 teamId：
+  _teams            : teamId → TeamInfo
+  _teamMembers      : teamId → HashSet<string>
+  _teamMessages     : teamId → ConcurrentDictionary<string, TeamMessage>
+  _teamSessions     : teamId → string
+  _teamAllowedPaths : teamId → Dictionary<string, TeamAllowedPath>
+  _teamMemberDetails: teamId → Dictionary<string, TeamMemberInfo>
+```
+
+数据分散导致：
+- 同一团队的 6 份数据可能不一致（部分字典有 teamId，部分没有）
+- 查询需要跨 6 个字典，代码冗余
+- 持久化/恢复需要同步 6 个字典
+- 无法实现按需加载（必须一次性载入全部字典）
+
+#### 决策：合并为 ChatRoomState 类
+
+```csharp
+public sealed class ChatRoomState
+{
+    public required TeamInfo Info { get; init; }
+    public HashSet<string> Members { get; init; } = new();
+    public ConcurrentDictionary<string, TeamMessage> Messages { get; init; } = new();
+    public string? SessionId { get; set; }
+    public Dictionary<string, TeamAllowedPath> AllowedPaths { get; init; } = new();
+    public Dictionary<string, TeamMemberInfo> MemberDetails { get; init; } = new();
+    public int MaxMessageCount { get; init; } = 1000;  // 内存控制
+    public bool NeedsCleanup => Messages.Count > MaxMessageCount;
+}
+```
+
+`TeamManager` 用 `ConcurrentDictionary<string, ChatRoomState>` 替代 6 个字典，`_agentToTeam` 保留（反向映射，key 是 agentId）。
+
+#### 内存控制：数量限制 + 提示清理
+
+- `MaxMessageCount`（默认 1000）：每个聊天室最多保留 1000 条消息
+- 超过限制时**不强制删除**，仅标记 `NeedsCleanup = true`
+- 用户主动调 `CleanupOldMessages()` 清理旧消息
+- 系统通过 `IChatRoomStore.GetRoomsNeedingCleanupAsync()` 获取需要清理的房间列表，提示用户
+
+对标 QQ：本地缓存有限（最近 1000 条），历史消息云端分页加载，群消息有保留期限。
+
+#### 按需加载：IChatRoomStore 接口
+
+```csharp
+public interface IChatRoomStore
+{
+    Task<ChatRoomState?> LoadAsync(string teamId, CancellationToken ct);  // 按需加载
+    Task SaveAsync(string teamId, ChatRoomState state, CancellationToken ct);
+    Task<IReadOnlyList<string>> ListRoomIdsAsync(CancellationToken ct);  // 仅 ID 列表
+    Task DeleteAsync(string teamId, CancellationToken ct);
+    Task<IReadOnlyList<(string, int, int)>> GetRoomsNeedingCleanupAsync(CancellationToken ct);
+}
+```
+
+默认不载入全部房间，仅当访问特定房间时调 `LoadAsync(teamId)` 按需加载。对标 QQ 云端存档：本地只缓存活跃房间，历史房间按需从存储加载。
+
+#### 实现路线（渐进式迁移）
+
+1. 创建 `ChatRoomState` 类 + `IChatRoomStore` 接口
+2. 逐步迁移 TeamManager 的 6 个字典到 `ConcurrentDictionary<string, ChatRoomState>`
+3. 实现 `IChatRoomStore`（基于现有 `TeamManager.Persistence.cs`）
+4. 添加 `NeedsCleanup` 提示 + `CleanupOldMessages` 方法
+5. 单元测试 + 集成测试
+
+#### 验证标准（追加）
+
+12. `ChatRoomState` 合并 6 个字典，单一 `ConcurrentDictionary<string, ChatRoomState>` 替代
+13. 消息数超过 `MaxMessageCount` → `NeedsCleanup = true`
+14. `CleanupOldMessages()` → 删除最旧消息，返回清理数
+15. `IChatRoomStore.LoadAsync` → 按需加载，不一次性载入全部房间
+16. `GetRoomsNeedingCleanupAsync` → 返回需要清理的房间列表

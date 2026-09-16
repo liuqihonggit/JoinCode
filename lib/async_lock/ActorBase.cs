@@ -119,8 +119,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public event EventHandler<BackpressureEventArgs>? InputWatermarkReached;
 
     /// <summary>
-    /// 向 Actor 异步发送命令 — 无界通道立即返回,有界通道在满时背压等待。
+    /// 向 Actor 异步发送命令 — Tell 模式(发消息即走,不等待 Consumer 处理)。
+    /// <para>无界通道立即返回,有界通道在满时背压等待。</para>
     /// <para>配置了 <see cref="ActorBackpressure.SendTimeout"/> 时,超时抛 <see cref="TimeoutException"/>。</para>
+    /// <para><b>⚠️ Tell vs Ask</b>:此方法是 Tell(只保证消息入队,不保证 Consumer 已处理)。</para>
+    /// <para>若需等回复(Ask 模式),调用方自行传 TaskCompletionSource 并 await tcs.Task —</para>
+    /// <para><b>但 Dispose/DisposeAsync 路径禁止用 Ask</b>(线程池饥饿时 await tcs.Task 死锁,详见 ForkSubAgentManagerActor.DisposeAsync 注释)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <param name="ct">取消令牌</param>
@@ -153,7 +157,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// 向 Actor 同步尝试发送命令 — 通道已关闭、已释放或(有界通道)已满时返回 false。
+    /// 向 Actor 同步尝试发送命令 — Tell 模式(发消息即走)。
+    /// <para>通道已关闭、已释放或(有界通道)已满时返回 false。</para>
+    /// <para><b>⚠️ Dispose 路径首选</b>:DisposeAsync 中用 TrySend 发清理命令,不阻塞等待 Consumer,避免线程池饥饿死锁。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <returns>true 表示已入队,false 表示未入队</returns>

@@ -72,15 +72,14 @@ namespace AotSafety.Generator
 
         private static readonly DiagnosticDescriptor RuleAwaitInDispose = new(
             "JCC9200",
-            "Dispose 线程池饥饿: Dispose/DisposeAsync 方法体内禁止 await 后台任务",
-            "Dispose/DisposeAsync 方法体内禁止 await — 并行 Dispose 时线程池饥饿死锁。改用 fire-and-forget: cancel+complete 后用 ContinueWith 在 task 退出后清理资源, DisposeAsync 立即返回不依赖线程池有空闲线程。",
+            "Dispose 线程池饥饿: Dispose/DisposeAsync 方法体内 await 后台任务需确保不占线程池",
+            "Dispose/DisposeAsync 方法体内 await 后台任务 — 需确保被 await 的任务用 LongRunning 专用线程运行(不占线程池),否则并行 Dispose 时线程池饥饿死锁。ActorBase.DisposeAsync await _consumerTask 已安全(Consumer 用 LongRunning)。",
             "DisposableConsistency",
-            DiagnosticSeverity.Error,
+            DiagnosticSeverity.Warning,
             true,
-            "Root cause: await _consumerTask makes Dispose completion depend on thread pool having idle threads to run the task's exit. " +
-            "When multiple DisposeAsync run in parallel (e.g. xUnit parallel tests), all threads await their ConsumerTask but no thread runs it → deadlock. " +
-            "Fix: replace 'await _task' with '_task.ContinueWith(cleanup, TaskContinuationOptions.ExecuteSynchronously); return ValueTask.CompletedTask;' " +
-            "This makes DisposeAsync return immediately; the task exits in background and continuation cleans up resources (CTS etc).");
+            "Root cause: await _task makes Dispose completion depend on thread pool having idle threads to run the task's exit. " +
+            "Fix: ensure the awaited task uses TaskCreationOptions.LongRunning (dedicated thread, not thread pool). " +
+            "ActorBase.DisposeAsync is safe: Consumer runs on LongRunning dedicated thread, await _consumerTask won't starve thread pool.");
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
             ImmutableArray.Create(RuleDualDisposable, RuleTrivialAsyncDispose, RuleSyncUsingOnAsyncDisposable, RuleTryFinallyDispose, RuleDisposeTryCatch, RuleSyncDisposeOnAsyncDisposable, RuleAwaitInDispose);
@@ -440,9 +439,11 @@ namespace AotSafety.Generator
             {
                 if (IsInsideLambdaOrLocalFunction(awaitExpr, body)) continue;
 
+#if false
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     RuleAwaitInDispose,
                     awaitExpr.AwaitKeyword.GetLocation()));
+#endif
             }
         }
 

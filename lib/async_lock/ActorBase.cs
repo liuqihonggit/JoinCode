@@ -24,6 +24,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _outputCount;
 
     /// <summary>
+    /// Actor 层级 — 用于锁排序预防循环 Ask 死锁(类型2)。
+    /// <para>规则: Ask 只允许高 Layer → 低 Layer,禁止反向(低 → 高)。</para>
+    /// <para>外部调用方(非 Actor)Layer = int.MaxValue,可 Ask 任何 Actor。</para>
+    /// <para>子类 override 设置层级,如: 基础服务=10, 协调器=20, 顶层=30。</para>
+    /// </summary>
+    public virtual int Layer => 0;
+
+    /// <summary>
     /// 构造 Actor — 无界输入通道，无界输出通道。
     /// </summary>
     protected ActorBase()
@@ -52,7 +60,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         _backpressure = backpressure;
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity);
-        _consumerTask = Task.Run(ConsumeLoopAsync);
+        _consumerTask = Task.Factory.StartNew(
+            ConsumeLoopAsync,
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+            TaskScheduler.Default).Unwrap();
     }
 
     private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure)
@@ -260,19 +272,24 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// Ask 模式等待回复 — 内置死锁检测(超时抛 <see cref="ActorAskDeadlockException"/>)。
+    /// Ask 模式等待回复 — 内置死锁检测(超时抛 <see cref="ActorAskDeadlockException"/>) + 锁排序检查(防循环 Ask 死锁)。
     /// <para><b>⚠️ Ask vs Tell</b>:Ask = 发消息等回复(阻塞当前线程);Tell = 发消息即走(fire-and-forget)。</para>
-    /// <para><b>死锁风险</b>:Ask 依赖 Consumer 被线程池调度,线程池饥饿时 Consumer 无法运行 → tcs 永不完成 → 死锁。</para>
+    /// <para><b>死锁风险</b>:Ask 依赖 Consumer 被调度,Consumer 无法运行 → tcs 永不完成 → 死锁。</para>
     /// <para>此方法加超时守卫,超时抛带诊断信息的异常,避免永久挂死。</para>
+    /// <para><b>锁排序</b>:callerLayer 必须 > Layer(高 → 低),否则抛 <see cref="ActorLockOrderViolationException"/>。</para>
     /// <para><b>规则</b>:Dispose/DisposeAsync 路径禁止用 Ask(改用 Tell/TrySend);查询路径用 Ask 但必须经此方法加超时。</para>
     /// </summary>
     /// <typeparam name="T">回复类型</typeparam>
     /// <param name="tcs">回复源(由调用方创建,命令发送后传入)</param>
     /// <param name="ct">取消令牌</param>
     /// <param name="timeoutMs">超时(默认10s,超时抛死锁诊断异常)</param>
+    /// <param name="callerLayer">调用方 Layer(默认 int.MaxValue=外部调用,Actor 间调用传 this.Layer)</param>
     /// <exception cref="ActorAskDeadlockException">Ask 超时 — 可能线程池饥饿导致 Consumer 无法调度</exception>
-    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000)
+    /// <exception cref="ActorLockOrderViolationException">锁排序违规 — 低 Layer 试图 Ask 高 Layer(防循环 Ask 死锁)</exception>
+    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000, int callerLayer = int.MaxValue)
     {
+        if (callerLayer <= Layer)
+            throw new ActorLockOrderViolationException(callerLayer, Layer, GetType().Name);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
         try
@@ -286,10 +303,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// Ask 模式等待回复(无返回值) — 内置死锁检测,非泛型重载
+    /// Ask 模式等待回复(无返回值) — 内置死锁检测 + 锁排序检查,非泛型重载
     /// </summary>
-    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000)
+    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000, int callerLayer = int.MaxValue)
     {
+        if (callerLayer <= Layer)
+            throw new ActorLockOrderViolationException(callerLayer, Layer, GetType().Name);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
         try
@@ -303,31 +322,22 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// 释放 Actor — 取消 Consumer、完成输入输出通道，fire-and-forget Consumer 退出。
-    /// <para>不阻塞等待 Consumer 退出 — Consumer 在后台自行退出后由 continuation 清理 <see cref="_cts"/>。</para>
-    /// <para>设计理由：Dispose 完成不应依赖线程池有空闲线程运行 ConsumerTask 退出，否则并行 Dispose 时线程池饥饿死锁。</para>
+    /// 释放 Actor — 取消 Consumer、完成通道,等待 Consumer 真正退出后释放 CTS。
+    /// <para>Consumer 用 LongRunning 专用线程运行(不占线程池),Dispose await 不会导致线程池饥饿死锁。</para>
+    /// <para>设计理由:fire-and-forget 会掩盖 Consumer 未完成清理的问题,改回 await 确保资源真正释放。</para>
     /// </summary>
-    public virtual ValueTask DisposeAsync()
+    public virtual async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
-        _consumerTask.ContinueWith(
-            static (t, state) =>
-            {
-                if (t.IsFaulted && t.Exception is { } ex)
-                {
-                    foreach (var inner in ex.InnerExceptions)
-                    {
-                        if (inner is OperationCanceledException) continue;
-                    }
-                }
-                ((CancellationTokenSource)state!).Dispose();
-            },
-            _cts,
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        try
+        {
+            await _consumerTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
+        _cts.Dispose();
     }
 }
 
@@ -335,7 +345,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 /// Actor Ask 模式死锁异常 — Ask 超时后抛出,带诊断信息指导修复。
 /// </summary>
 /// <remarks>
-/// <para>触发条件:AskAwait 超时(默认30s) — Consumer 未在超时内处理命令并设置 Tcs。</para>
+/// <para>触发条件:AskAwait 超时(默认10s) — Consumer 未在超时内处理命令并设置 Tcs。</para>
 /// <para>常见根因:线程池饥饿 — 所有线程被阻塞等待,Consumer 任务无法被调度。</para>
 /// <para>修复指导:Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。</para>
 /// </remarks>
@@ -358,6 +368,43 @@ public sealed class ActorAskDeadlockException : TimeoutException
     {
         ActorName = actorName;
         TimeoutMs = timeoutMs;
+    }
+}
+
+/// <summary>
+/// Actor 锁排序违规异常 — 低 Layer 试图 Ask 高 Layer 时抛出,预防循环 Ask 死锁(类型2)。
+/// </summary>
+/// <remarks>
+/// <para>触发条件:AskAwait 的 callerLayer &lt;= target Layer — 低优先级 Actor 试图 Ask 高优先级 Actor。</para>
+/// <para>死锁预防:如果 A(Layer=10) Ask B(Layer=20),B Ask A,形成循环等待 → 死锁。</para>
+/// <para>锁排序禁止反向 Ask(低→高),消除循环等待 → 预防死锁。</para>
+/// <para>修复指导:调整 Actor 的 Layer 属性,确保 Ask 方向一致(高→低);或改用 Tell(不等回复)。</para>
+/// </remarks>
+public sealed class ActorLockOrderViolationException : InvalidOperationException
+{
+    /// <summary>调用方 Layer</summary>
+    public int CallerLayer { get; }
+
+    /// <summary>目标 Actor Layer</summary>
+    public int TargetLayer { get; }
+
+    /// <summary>目标 Actor 类型名</summary>
+    public string ActorName { get; }
+
+    /// <summary>
+    /// 构造锁排序违规异常
+    /// </summary>
+    /// <param name="callerLayer">调用方 Layer</param>
+    /// <param name="targetLayer">目标 Actor Layer</param>
+    /// <param name="actorName">目标 Actor 类型名</param>
+    public ActorLockOrderViolationException(int callerLayer, int targetLayer, string actorName)
+        : base($"锁排序违规: Layer {callerLayer} 试图 Ask Layer {targetLayer}({actorName})。" +
+               "Ask 只允许高 Layer → 低 Layer,禁止反向(防循环 Ask 死锁)。" +
+               "修复:调整 Actor.Layer 确保 Ask 方向一致,或改用 Tell(TrySend)。")
+    {
+        CallerLayer = callerLayer;
+        TargetLayer = targetLayer;
+        ActorName = actorName;
     }
 }
 

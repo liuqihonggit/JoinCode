@@ -1,4 +1,4 @@
-namespace Core.Security.Sandbox;
+﻿namespace Core.Security.Sandbox;
 
 /// <summary>
 /// 沙箱生命周期 Actor 命令 — Channel 中的消息类型
@@ -54,7 +54,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     {
         var tcs = CreateTcs<SandboxInfo>();
         await SendAsync(new EnterSandboxCmd(options, ct, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -64,7 +64,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     {
         var tcs = CreateTcs();
         await SendAsync(new ExitSandboxCmd(ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -74,7 +74,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     {
         var tcs = CreateTcs();
         await SendAsync(new SwitchProviderCmd(type, ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     protected override async ValueTask HandleAsync(ISandboxCommand command, CancellationToken ct)

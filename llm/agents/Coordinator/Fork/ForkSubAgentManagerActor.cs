@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// Fork 管理器依赖项 — 聚合非管道服务，减少构造函数参数
@@ -76,7 +76,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     private sealed record GetForkEntrySnapshotQuery(string ForkId, TaskCompletionSource<ForkEntrySnapshot?> Tcs) : IForkCommand;
     private sealed record GetActiveForksQuery(TaskCompletionSource<IReadOnlyList<ForkSubAgent>> Tcs) : IForkCommand;
     private sealed record MergeForkQuery(string ForkId, TaskCompletionSource<ForkResult> Tcs) : IForkCommand;
-    private sealed record CleanupAllCmd(TaskCompletionSource Tcs) : IForkCommand;
+    private sealed record CleanupAllCmd() : IForkCommand;
 
     private readonly MiddlewarePipeline<ForkContext> _pipeline;
     private readonly ForkManagerDependencies _deps;
@@ -146,7 +146,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         var semaphoreTransferredToBackground = false;
         try
         {
-            var forkDepth = await QueryForkDepthAsync(options.ParentSessionId, ct).ConfigureAwait(false);
+            var forkDepth = await AskForkDepthAsync(options.ParentSessionId, ct).ConfigureAwait(false);
 
             var forkId = $"fork-{Guid.NewGuid():N}";
             var createdAt = _clock.GetUtcNow();
@@ -174,7 +174,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
                 await FireForkCompletedAsync(forkId, options.TaskDescription, ct).ConfigureAwait(false);
 
-                return await QueryBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
+                return await AskBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -184,7 +184,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
                 await FireForkCompletedAsync(forkId, options.TaskDescription, ct).ConfigureAwait(false);
 
-                return await QueryBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
+                return await AskBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
             }
 
             if (!context.IsValidated)
@@ -232,7 +232,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
             await FireForkCompletedAsync(forkId, options.TaskDescription, ct).ConfigureAwait(false);
 
-            return await QueryBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
+            return await AskBuildForkResultAsync(forkId, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -252,7 +252,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     {
         var tcs = new TaskCompletionSource<IReadOnlyList<ForkSubAgent>>();
         await SendAsync(new GetActiveForksQuery(tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -265,7 +265,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     {
         var tcs = new TaskCompletionSource<ForkResult>();
         await SendAsync(new MergeForkQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -277,7 +277,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     /// <returns>表示异步操作的任务</returns>
     public async Task CancelForkAsync(string forkId, CancellationToken ct = default)
     {
-        var snapshot = await QueryForkEntryAsync(forkId, ct).ConfigureAwait(false);
+        var snapshot = await AskForkEntryAsync(forkId, ct).ConfigureAwait(false);
         if (snapshot is null || snapshot.State != ForkState.Running)
             return;
 
@@ -346,9 +346,8 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             case MergeForkQuery(var forkId, var tcs):
                 tcs.SetResult(MergeFork(forkId));
                 return ValueTask.CompletedTask;
-            case CleanupAllCmd(var tcs):
+            case CleanupAllCmd:
                 CleanupAll();
-                tcs.SetResult();
                 return ValueTask.CompletedTask;
             default:
                 return ValueTask.CompletedTask;
@@ -519,25 +518,25 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         _sharedCache.Clear();
     }
 
-    private async Task<int> QueryForkDepthAsync(string parentSessionId, CancellationToken ct)
+    private async Task<int> AskForkDepthAsync(string parentSessionId, CancellationToken ct)
     {
         var tcs = new TaskCompletionSource<int>();
         await SendAsync(new CalculateForkDepthQuery(parentSessionId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
-    private async Task<ForkResult> QueryBuildForkResultAsync(string forkId, CancellationToken ct)
+    private async Task<ForkResult> AskBuildForkResultAsync(string forkId, CancellationToken ct)
     {
         var tcs = new TaskCompletionSource<ForkResult>();
         await SendAsync(new BuildForkResultQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
-    private async Task<ForkEntrySnapshot?> QueryForkEntryAsync(string forkId, CancellationToken ct)
+    private async Task<ForkEntrySnapshot?> AskForkEntryAsync(string forkId, CancellationToken ct)
     {
         var tcs = new TaskCompletionSource<ForkEntrySnapshot?>();
         await SendAsync(new GetForkEntrySnapshotQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,
@@ -547,7 +546,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         {
             if (eventChannel is null)
                 return;
-            var snapshot = await QueryForkEntryAsync(forkId, CancellationToken.None).ConfigureAwait(false);
+            var snapshot = await AskForkEntryAsync(forkId, CancellationToken.None).ConfigureAwait(false);
             eventChannel.Emit(JoinCode.Abstractions.LLM.Chat.ChatStreamEvent.AgentFinished(
                 snapshot?.AgentId ?? forkId,
                 success: success,
@@ -602,7 +601,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     {
         try
         {
-            var snapshot = await QueryForkEntryAsync(forkId, ct).ConfigureAwait(false);
+            var snapshot = await AskForkEntryAsync(forkId, ct).ConfigureAwait(false);
             if (snapshot is null) return;
 
             string? worktreePath = null;
@@ -665,27 +664,22 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     }
 
     /// <summary>
-    /// 异步释放管理器资源，清理所有 Fork 条目与信号量
+    /// 异步释放管理器资源 — Tell 模式(发消息即走,不等待 Consumer 处理)
     /// </summary>
+    /// <remarks>
+    /// <para>⚠️ 死锁教训(2026-09-16):此方法曾用 Ask 模式(SendAsync + await cleanupTcs.Task 阻塞等待 Consumer 回复)。</para>
+    /// <para>线程池饥饿时 Consumer 无法调度 → cleanupTcs.SetResult() 永不调用 → 永久阻塞死锁。</para>
+    /// <para><b>根因</b>:Dispose 路径禁止用 Ask 模式(await tcs.Task),必须用 Tell 模式(TrySend 发消息即走)。</para>
+    /// <para><b>Actor 模型原则</b>:Tell(发消息即走,fire-and-forget) vs Ask(发消息等回复,阻塞当前线程)。</para>
+    /// <para>Dispose 是单向通知,不需要回复 — Consumer 会在退出前按 FIFO 处理完 channel 内剩余命令(含 CleanupAllCmd)。</para>
+    /// <para><b>规则</b>:Dispose/DisposeAsync 路径禁止出现 await tcs.Task / await xxx.Task.ConfigureAwait,违者由分析器锁死。</para>
+    /// </remarks>
     /// <returns>表示异步操作的任务</returns>
-    public new ValueTask DisposeAsync() => DisposeAsyncCore();
-
-    private async ValueTask DisposeAsyncCore()
+    public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-
-        var cleanupTcs = new TaskCompletionSource();
-        try
-        {
-            await SendAsync(new CleanupAllCmd(cleanupTcs), CancellationToken.None).ConfigureAwait(false);
-            await cleanupTcs.Task.ConfigureAwait(false);
-        }
-        catch (ChannelClosedException ex)
-        {
-            _logger?.LogDebug(ex, "[ForkSubAgentManagerActor] Channel already closed during cleanup");
-        }
-
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        TrySend(new CleanupAllCmd());
         _forkSemaphore?.Dispose();
-        await base.DisposeAsync().ConfigureAwait(false);
+        return base.DisposeAsync();
     }
 }

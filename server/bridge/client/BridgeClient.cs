@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 /// <summary>
 /// BridgeClient Actor 命令 — Channel 中的消息类型
@@ -56,7 +56,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     {
         var tcs = CreateTcs<BridgeClientState>();
         await SendAsync(new GetStateCmd(ct, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>接收到原始消息事件（去重/Echo 过滤前）</summary>
@@ -115,11 +115,11 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// 启动 Bridge 客户端 — 发命令到 Consumer，由 Consumer 线程串行执行。
     /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync(CancellationToken ct = default)
     {
         var tcs = CreateTcs();
-        await SendAsync(new StartCmd(cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new StartCmd(ct, tcs), ct).ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>标记客户端为已停止（原子操作，无需锁）</summary>
@@ -131,32 +131,32 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// 停止 Bridge 客户端 — 发命令到 Consumer，由 Consumer 线程串行执行。
     /// </summary>
-    public async Task StopAsync(CancellationToken cancellationToken = default)
+    public async Task StopAsync(CancellationToken ct = default)
     {
         var tcs = CreateTcs();
-        await SendAsync(new StopCmd(cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new StopCmd(ct, tcs), ct).ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>
     /// 发送消息到服务器
     /// </summary>
-    public async Task SendMessageAsync(BridgeMessage message, CancellationToken cancellationToken = default)
+    public async Task SendMessageAsync(BridgeMessage message, CancellationToken ct = default)
     {
-        await _transportManager.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
+        await _transportManager.SendMessageAsync(message, ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 通过 API 客户端检查远程健康状态
     /// </summary>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>是否健康，无 API 客户端时返回 false</returns>
-    public async Task<bool> CheckRemoteHealthAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> CheckRemoteHealthAsync(CancellationToken ct = default)
     {
         if (_apiClient == null) return false;
         try
         {
-            return await _apiClient.HealthCheckAsync(cancellationToken).ConfigureAwait(false);
+            return await _apiClient.HealthCheckAsync(ct).ConfigureAwait(false);
         }
         catch
         {
@@ -167,9 +167,9 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// 发送请求并等待响应
     /// </summary>
-    public async Task<BridgeMessage?> SendRequestAsync(BridgeMessage request, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    public async Task<BridgeMessage?> SendRequestAsync(BridgeMessage request, TimeSpan? timeout = null, CancellationToken ct = default)
     {
-        using var scope = new BridgeRequestScope(this, request.Id, timeout ?? _options.DefaultRequestTimeout, cancellationToken);
+        using var scope = new BridgeRequestScope(this, request.Id, timeout ?? _options.DefaultRequestTimeout, ct);
         await SendMessageAsync(request, scope.Token).ConfigureAwait(false);
         return await scope.ResponseTask.WaitAsync(scope.Token).ConfigureAwait(false);
     }
@@ -201,11 +201,11 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         /// <param name="client">所属 BridgeClient</param>
         /// <param name="requestId">请求标识，用于匹配响应</param>
         /// <param name="timeout">请求超时</param>
-        /// <param name="cancellationToken">外部取消令牌</param>
-        public BridgeRequestScope(BridgeClient client, string requestId, TimeSpan timeout, CancellationToken cancellationToken)
+        /// <param name="ct">外部取消令牌</param>
+        public BridgeRequestScope(BridgeClient client, string requestId, TimeSpan timeout, CancellationToken ct)
         {
             _client = client;
-            _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             _timeoutCts = new CancellationTokenSource(timeout);
             _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, _timeoutCts.Token);
             _tcs = new TaskCompletionSource<BridgeMessage?>();
@@ -239,13 +239,13 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// 消息轮询循环 - 参考 TS 原版 的 pollForWork
     /// </summary>
-    private async Task RunPollingLoopAsync(CancellationToken cancellationToken)
+    private async Task RunPollingLoopAsync(CancellationToken ct)
     {
         _logger?.LogDebug("[BridgeClient] 消息轮询循环已启动");
 
-        while (!cancellationToken.IsCancellationRequested && IsRunning)
+        while (!ct.IsCancellationRequested && IsRunning)
         {
-            if (await ExecutePollCycleAsync(cancellationToken).ConfigureAwait(false))
+            if (await ExecutePollCycleAsync(ct).ConfigureAwait(false))
                 break;
         }
 
@@ -255,7 +255,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// 执行单次轮询周期 — 返回 true 表示应退出循环(取消),false 表示继续
     /// </summary>
-    private async Task<bool> ExecutePollCycleAsync(CancellationToken cancellationToken)
+    private async Task<bool> ExecutePollCycleAsync(CancellationToken ct)
     {
         try
         {
@@ -265,19 +265,19 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
                 var waitInterval = _pollConfigManager != null
                     ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: false).ConfigureAwait(false)
                     : _options.PollingIntervalMs;
-                await Task.Delay(waitInterval, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(waitInterval, ct).ConfigureAwait(false);
                 return false;
             }
 
             if (ShouldSendHeartbeat())
             {
-                await SendHeartbeatAsync(cancellationToken).ConfigureAwait(false);
+                await SendHeartbeatAsync(ct).ConfigureAwait(false);
             }
 
             var pollInterval = _pollConfigManager != null
                 ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: false).ConfigureAwait(false)
                 : _options.PollingIntervalMs;
-            await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(pollInterval, ct).ConfigureAwait(false);
             return false;
         }
         catch (OperationCanceledException)
@@ -289,21 +289,21 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
             _logger?.LogError(ex, "[BridgeClient] 轮询循环错误");
             ErrorOccurred?.Invoke(this, new BridgeClientErrorEventArgs(ex, "轮询循环错误"));
 
-            await CheckApiHealthSafelyAsync(cancellationToken).ConfigureAwait(false);
+            await CheckApiHealthSafelyAsync(ct).ConfigureAwait(false);
 
-            return await WaitForRetryOrCancelAsync(cancellationToken).ConfigureAwait(false);
+            return await WaitForRetryOrCancelAsync(ct).ConfigureAwait(false);
         }
     }
 
     /// <summary>
     /// 安全执行 API 健康检查 — 失败仅记录调试日志
     /// </summary>
-    private async Task CheckApiHealthSafelyAsync(CancellationToken cancellationToken)
+    private async Task CheckApiHealthSafelyAsync(CancellationToken ct)
     {
         if (_apiClient is null) return;
         try
         {
-            var apiHealthy = await _apiClient.HealthCheckAsync(cancellationToken).ConfigureAwait(false);
+            var apiHealthy = await _apiClient.HealthCheckAsync(ct).ConfigureAwait(false);
             _logger?.LogDebug("[BridgeClient] API 健康检查: {Status}", apiHealthy ? "正常" : "异常");
         }
         catch (Exception healthEx)
@@ -315,14 +315,14 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>
     /// 等待重试延迟 — 取消时返回 true(应退出),否则 false(继续)
     /// </summary>
-    private async Task<bool> WaitForRetryOrCancelAsync(CancellationToken cancellationToken)
+    private async Task<bool> WaitForRetryOrCancelAsync(CancellationToken ct)
     {
         try
         {
             var retryDelay = _pollConfigManager != null
                 ? await _pollConfigManager.CalculateNextIntervalAsync(hasError: true).ConfigureAwait(false)
                 : _options.ErrorRetryDelayMs;
-            await Task.Delay(retryDelay, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(retryDelay, ct).ConfigureAwait(false);
             return false;
         }
         catch (OperationCanceledException)
@@ -421,12 +421,12 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         return (_clock.GetUtcNow() - _lastHeartbeatTime).TotalMilliseconds > _options.HeartbeatIntervalMs;
     }
 
-    private async Task SendHeartbeatAsync(CancellationToken cancellationToken)
+    private async Task SendHeartbeatAsync(CancellationToken ct)
     {
         try
         {
             var ping = new PingMessage();
-            await SendMessageAsync(ping, cancellationToken).ConfigureAwait(false);
+            await SendMessageAsync(ping, ct).ConfigureAwait(false);
 
             // Refresh JWT token if approaching refresh window
             if (_jwtService != null && _authToken != null)

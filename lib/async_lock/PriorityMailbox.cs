@@ -74,7 +74,11 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
             SingleReader = true,
             SingleWriter = true
         });
-        _consumerTask = Task.Run(ConsumeLoopAsync);
+        _consumerTask = Task.Factory.StartNew(
+            ConsumeLoopAsync,
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+            TaskScheduler.Default).Unwrap();
     }
 
     private static Channel<TCommand> CreateChannel(ActorBackpressure? bp)

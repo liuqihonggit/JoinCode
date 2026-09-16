@@ -1,4 +1,4 @@
-namespace Core.Scheduling.Cron;
+﻿namespace Core.Scheduling.Cron;
 
 
 /// <summary>
@@ -103,16 +103,16 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<CronTask>> GetAllTasksAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CronTask>> GetAllTasksAsync(CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = CreateTcs<IReadOnlyList<CronTask>>();
-        await SendAsync(new GetAllTasksCmd(cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new GetAllTasksCmd(ct, tcs), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<CronTask> AddTaskAsync(CreateCronTaskRequest request, CancellationToken cancellationToken = default)
+    public async Task<CronTask> AddTaskAsync(CreateCronTaskRequest request, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
@@ -120,50 +120,50 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
             throw new ArgumentException("Invalid cron expression", nameof(request));
 
         var tcs = CreateTcs<CronTask>();
-        await SendAsync(new AddTaskCmd(request, cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new AddTaskCmd(request, ct, tcs), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task RemoveTasksAsync(IEnumerable<string> ids, CancellationToken cancellationToken = default)
+    public async Task RemoveTasksAsync(IEnumerable<string> ids, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var idSet = new HashSet<string>(ids);
         if (idSet.Count == 0) return;
 
         var tcs = CreateTcs();
-        await SendAsync(new RemoveTasksCmd(idSet, cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new RemoveTasksCmd(idSet, ct, tcs), ct).ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task MarkTasksFiredAsync(IEnumerable<string> ids, long firedAt, CancellationToken cancellationToken = default)
+    public async Task MarkTasksFiredAsync(IEnumerable<string> ids, long firedAt, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var idSet = new HashSet<string>(ids);
         if (idSet.Count == 0) return;
 
         var tcs = CreateTcs();
-        await SendAsync(new MarkTasksFiredCmd(idSet, firedAt, cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new MarkTasksFiredCmd(idSet, firedAt, ct, tcs), ct).ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<CronTask?> GetTaskByIdAsync(string id, CancellationToken cancellationToken = default)
+    public async Task<CronTask?> GetTaskByIdAsync(string id, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = CreateTcs<CronTask?>();
-        await SendAsync(new GetTaskByIdCmd(id, cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new GetTaskByIdCmd(id, ct, tcs), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = CreateTcs<IReadOnlyList<CronTask>>();
-        await SendAsync(new GetTasksByAgentIdCmd(agentId, cancellationToken, tcs), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new GetTasksByAgentIdCmd(agentId, ct, tcs), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -302,9 +302,9 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         Diag.WriteLine($"[FileCronTaskStore] Actor Consumer 异常: {ex.Message}");
     }
 
-    private async Task<IReadOnlyList<CronTask>> ReadFileTasksAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<CronTask>> ReadFileTasksAsync(CancellationToken ct)
     {
-        var result = await _fileOperationService.ReadFileAsync(_filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
+        var result = await _fileOperationService.ReadFileAsync(_filePath, cancellationToken: ct).ConfigureAwait(false);
         if (!result.Success)
             return Array.Empty<CronTask>();
 
@@ -333,7 +333,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         return RelaxedJsonSerializer.Serialize(file, SchedulingIndentedJsonContext.Default);
     }
 
-    private async Task WriteJsonAsync(string json, CancellationToken cancellationToken)
+    private async Task WriteJsonAsync(string json, CancellationToken ct)
     {
         var directory = Path.GetDirectoryName(_filePath);
         if (!string.IsNullOrEmpty(directory))
@@ -341,7 +341,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
             _fs.CreateDirectory(directory);
         }
 
-        await _fileOperationService.WriteFileAsync(_filePath, json, cancellationToken).ConfigureAwait(false);
+        await _fileOperationService.WriteFileAsync(_filePath, json, ct).ConfigureAwait(false);
     }
 
     private static bool ValidateTask(CronTask task)

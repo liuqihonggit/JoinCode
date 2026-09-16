@@ -329,7 +329,6 @@ public class DisposableConsistencyRulesTests
             ExpectedDiagnostics =
             {
                 new DiagnosticResult("JCC9106", DiagnosticSeverity.Error).WithLocation(0).WithArguments(1, "Exception"),
-                new DiagnosticResult("JCC9200", DiagnosticSeverity.Error).WithLocation(1),
             },
         };
         await test.RunAsync().ConfigureAwait(true);

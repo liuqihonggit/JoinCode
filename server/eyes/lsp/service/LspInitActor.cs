@@ -1,4 +1,4 @@
-namespace Services.Lsp.Internal;
+﻿namespace Services.Lsp.Internal;
 
 /// <summary>
 /// LspManager Actor 命令 — Channel 中的消息类型
@@ -42,7 +42,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     {
         var tcs = CreateTcs();
         await SendAsync(new InitializeCmd(configs, ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -53,7 +53,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     {
         var tcs = CreateTcs();
         await SendAsync(new ShutdownCmd(ct, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <summary>

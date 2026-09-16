@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>编译请求 — 全局编译队列的工作单元。</summary>
 public sealed record GlobalBuildRequest
@@ -120,7 +120,7 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
 
         await SendAsync(new EnqueueGlobalBuildCmd(request, tcs), ct).ConfigureAwait(false);
 
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>

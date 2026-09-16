@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 网关配置 — 限流/重试/熔断参数。
@@ -105,7 +105,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
     {
         var tcs = new TaskCompletionSource<TResponse>();
         await SendAsync(new CallCommand(request, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>Consumer 线程内处理调用命令</summary>

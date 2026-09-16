@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Plugins;
 
 /// <summary>
@@ -116,17 +116,17 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// 加载编译时已知的内部工作流插件（AOT兼容）— 通过 Actor mailbox 串行处理
     /// </summary>
     /// <typeparam name="TPlugin">工作流插件类型（须有无参构造）</typeparam>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>工作流插件宿主</returns>
-    public async Task<WorkflowPluginHost> LoadWorkflowPluginAsync<TPlugin>(CancellationToken cancellationToken = default) where TPlugin : class, IWorkflowPlugin, new()
+    public async Task<WorkflowPluginHost> LoadWorkflowPluginAsync<TPlugin>(CancellationToken ct = default) where TPlugin : class, IWorkflowPlugin, new()
     {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<WorkflowPluginHost>();
-        await SendAsync(new LoadWorkflowCmd(() => new TPlugin(), tcs, cancellationToken), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new LoadWorkflowCmd(() => new TPlugin(), tcs, ct), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
-    private async Task<WorkflowPluginHost> LoadWorkflowPluginCoreAsync(IWorkflowPlugin plugin, CancellationToken cancellationToken)
+    private async Task<WorkflowPluginHost> LoadWorkflowPluginCoreAsync(IWorkflowPlugin plugin, CancellationToken ct)
     {
         var pluginName = plugin.Name;
 
@@ -155,7 +155,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
             var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger, _serviceProvider);
 
-            var loadResult = await host.LoadAsync(cancellationToken).ConfigureAwait(false);
+            var loadResult = await host.LoadAsync(ct).ConfigureAwait(false);
             if (!loadResult.Success)
             {
                 if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
@@ -164,7 +164,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 throw new InvalidOperationException(PluginErrors.LoadFailed(pluginName, loadResult.ErrorMessage ?? "未知"));
             }
 
-            var initResult = await host.InitializeAsync(cancellationToken).ConfigureAwait(false);
+            var initResult = await host.InitializeAsync(ct).ConfigureAwait(false);
             if (!initResult.Success)
             {
                 if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
@@ -275,17 +275,17 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// </summary>
     /// <param name="exePath">可执行文件路径</param>
     /// <param name="pluginName">插件名称</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>外部插件宿主</returns>
     public async Task<ExternalPluginHost> LoadExternalPluginAsync(
         string exePath,
         string pluginName,
-        CancellationToken cancellationToken = default)
+        CancellationToken ct = default)
     {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<ExternalPluginHost>();
-        await SendAsync(new LoadExternalCmd(exePath, pluginName, tcs, cancellationToken), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new LoadExternalCmd(exePath, pluginName, tcs, ct), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     #region Native DLL Plugin (AOT Compatible, ADR 0099)
@@ -297,19 +297,19 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         string dllPath,
         string pluginName,
         string? configJson = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken ct = default)
     {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<NativePluginHost>();
-        await SendAsync(new LoadNativeCmd(dllPath, pluginName, configJson, tcs, cancellationToken), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new LoadNativeCmd(dllPath, pluginName, configJson, tcs, ct), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     private async Task<NativePluginHost> LoadNativePluginCoreAsync(
         string dllPath,
         string pluginName,
         string? configJson,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         await using var span = _telemetryService?.StartSpan("plugin.load.native", TelemetrySpanKind.Server);
         span?.SetTag("plugin", pluginName);
@@ -371,7 +371,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private async Task<ExternalPluginHost> LoadExternalPluginCoreAsync(
         string exePath,
         string pluginName,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         await using var span = _telemetryService?.StartSpan("plugin.load.external", TelemetrySpanKind.Server);
         span?.SetTag("plugin", pluginName);
@@ -485,22 +485,22 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// 卸载指定插件 — 使用给定的取消令牌控制协作卸载
     /// </summary>
     /// <param name="pluginName">插件名称</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>卸载结果</returns>
-    public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, CancellationToken cancellationToken)
+    public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, CancellationToken ct)
     {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<PluginUnloadResult>();
-        await SendAsync(new UnloadCmd(pluginName, tcs, cancellationToken), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new UnloadCmd(pluginName, tcs, ct), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
-    private async Task<PluginUnloadResult> UnloadPluginCoreAsync(string pluginName, CancellationToken cancellationToken)
+    private async Task<PluginUnloadResult> UnloadPluginCoreAsync(string pluginName, CancellationToken ct)
     {
 
         if (_externalPlugins.TryRemove(pluginName, out var externalHost))
         {
-            await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
+            await CleanupPluginServicesAsync(pluginName, ct).ConfigureAwait(false);
             var result = externalHost.Unload();
             externalHost.Dispose();
             if (externalHost.WasForceKilled)
@@ -514,23 +514,23 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
         if (_nativePlugins.TryRemove(pluginName, out var nativeHost))
         {
-            await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
+            await CleanupPluginServicesAsync(pluginName, ct).ConfigureAwait(false);
             nativeHost.Unload();
             nativeHost.Dispose();
             RecordPluginMetrics("native", "unload", true);
             return PluginUnloadResult.Success(pluginName, TimeSpan.Zero);
         }
 
-        await CascadeUnloadDependentsAsync(pluginName, cancellationToken).ConfigureAwait(false);
+        await CascadeUnloadDependentsAsync(pluginName, ct).ConfigureAwait(false);
 
-        var prepareResult = await PrepareUnloadAsync(pluginName, cancellationToken).ConfigureAwait(false);
+        var prepareResult = await PrepareUnloadAsync(pluginName, ct).ConfigureAwait(false);
         if (!prepareResult) return PluginUnloadResult.CooperativeTimeout(pluginName, TimeSpan.Zero);
 
         if (_workflowPlugins.TryRemove(pluginName, out var workflowHost))
         {
-            await ExecutePluginAsyncUndoChainAsync(pluginName, cancellationToken).ConfigureAwait(false);
+            await ExecutePluginAsyncUndoChainAsync(pluginName, ct).ConfigureAwait(false);
             ExecutePluginUndoChain(pluginName);
-            await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
+            await CleanupPluginServicesAsync(pluginName, ct).ConfigureAwait(false);
             var result = UnloadWorkflowPlugin(workflowHost);
             RecordPluginMetrics("workflow", "unload", result.IsSuccess);
 
@@ -548,17 +548,17 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// 卸载全部已加载插件 — 通过 Actor mailbox 串行处理
     /// </summary>
     /// <param name="options">卸载选项，null 使用默认</param>
-    /// <param name="cancellationToken">取消令牌</param>
+    /// <param name="ct">取消令牌</param>
     /// <returns>每个插件的卸载结果列表</returns>
-    public async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsAsync(PluginUnloadOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsAsync(PluginUnloadOptions? options = null, CancellationToken ct = default)
     {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<IReadOnlyList<PluginUnloadResult>>();
-        await SendAsync(new UnloadAllCmd(tcs, cancellationToken), cancellationToken).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new UnloadAllCmd(tcs, ct), ct).ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
-    private async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsCoreAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsCoreAsync(CancellationToken ct)
     {
         var results = new List<PluginUnloadResult>();
 
@@ -589,9 +589,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         {
             if (_workflowPlugins.TryRemove(pluginName, out var host))
             {
-                await ExecutePluginAsyncUndoChainAsync(pluginName, cancellationToken).ConfigureAwait(false);
+                await ExecutePluginAsyncUndoChainAsync(pluginName, ct).ConfigureAwait(false);
                 ExecutePluginUndoChain(pluginName);
-                await CleanupPluginServicesAsync(pluginName, cancellationToken).ConfigureAwait(false);
+                await CleanupPluginServicesAsync(pluginName, ct).ConfigureAwait(false);
                 results.Add(UnloadWorkflowPlugin(host));
             }
         }
@@ -665,7 +665,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// 连带卸载依赖方 — 对齐 Cordis Theorem 63:
     /// 卸载插件 A 时,先找到所有声明依赖 A 的插件 B,递归卸载 B,最后卸载 A
     /// </summary>
-    private async Task CascadeUnloadDependentsAsync(string pluginName, CancellationToken cancellationToken)
+    private async Task CascadeUnloadDependentsAsync(string pluginName, CancellationToken ct)
     {
         var dependents = _dependencyGraph.GetDependents(pluginName);
         foreach (var dependent in dependents)
@@ -673,7 +673,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             if (_workflowPlugins.ContainsKey(dependent))
             {
                 _logger?.LogInformation("连带卸载依赖插件: {Dependent} (依赖 {Plugin})", dependent, pluginName);
-                await UnloadPluginCoreAsync(dependent, cancellationToken).ConfigureAwait(false);
+                await UnloadPluginCoreAsync(dependent, ct).ConfigureAwait(false);
             }
         }
     }
@@ -706,7 +706,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <para>通过 IResourceReferenceGraph.GetConsumers 找引用方,通知放弃引用</para>
     /// <para>等待引用计数归零(带超时),超时则返回 false 回退强制卸载</para>
     /// </summary>
-    private async Task<bool> PrepareUnloadAsync(string pluginName, CancellationToken cancellationToken)
+    private async Task<bool> PrepareUnloadAsync(string pluginName, CancellationToken ct)
     {
         var graph = ReferenceGraph;
         if (graph is null) return true;
@@ -731,7 +731,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         {
             var refCounts = graph.GetReferenceCounts(pluginName);
             if (refCounts.Values.All(c => c == 0)) return true;
-            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(100, ct).ConfigureAwait(false);
         }
 
         _logger?.LogWarning("插件 {Plugin} Prepare 阶段超时,引用计数未归零,回退强制卸载", pluginName);

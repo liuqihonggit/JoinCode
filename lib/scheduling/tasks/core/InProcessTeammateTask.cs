@@ -1,4 +1,4 @@
-namespace Core.Scheduling.Tasks;
+﻿namespace Core.Scheduling.Tasks;
 
 /// <summary>
 /// 进程内 Teammate 任务执行器接口 — 提供 teammate 的执行、消息通信、状态查询、停止/终止/中断能力。
@@ -416,7 +416,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     {
         var tcs = CreateTcs();
         await SendAsync(new StopTeammateCmd(teammateId, tcs), ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
@@ -455,7 +455,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         await SendAsync(new InterruptTeammateCmd(teammateId, tcs), ct).ConfigureAwait(false);
-        return await tcs.Task.ConfigureAwait(false);
+        return await AskAwait(tcs, ct);
     }
 
     /// <summary>
@@ -543,7 +543,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     {
         var tcs = CreateTcs();
         await SendAsync(new SetWorkCtsCmd(teammateId, workCts, tcs), lifecycleCt).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await AskAwait(tcs, lifecycleCt);
     }
 
     async Task ITeammateRuntime.ClearCurrentWorkCtsAsync(string teammateId)
@@ -557,7 +557,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         {
             var tcs = CreateTcs();
             await SendAsync(new TryCleanupTeammateCmd(teammateId, tcs), CancellationToken.None).ConfigureAwait(false);
-            await tcs.Task.ConfigureAwait(false);
+            await AskAwait(tcs, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -747,7 +747,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
             var registerTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             await _owner.SendAsync(new RegisterTeammateCmd(_teammateId, _state, _pendingChannel, registerTcs), _externalCt).ConfigureAwait(false);
-            await registerTcs.Task.ConfigureAwait(false);
+            await _owner.AskAwait(registerTcs, _externalCt);
             _registered = true;
         }
 

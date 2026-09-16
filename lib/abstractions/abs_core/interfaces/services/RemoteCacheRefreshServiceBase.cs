@@ -1,4 +1,4 @@
-
+﻿
 namespace JoinCode.Abstractions.Services;
 
 public interface IRemoteCacheRefreshCommand;
@@ -54,7 +54,7 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         }
     }
 
-    public virtual async Task RefreshAsync(CancellationToken cancellationToken = default)
+    public virtual async Task RefreshAsync(CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(RefreshOptions.ApiEndpoint))
         {
@@ -63,8 +63,8 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         }
 
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await SendAsync(new RefreshCacheCmd(tcs), cancellationToken).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
+        await SendAsync(new RefreshCacheCmd(tcs), ct).ConfigureAwait(false);
+        await AskAwait(tcs, ct);
     }
 
     protected async Task EnsureCacheAsync(CancellationToken cancellationToken)

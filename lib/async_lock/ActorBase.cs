@@ -23,6 +23,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _inputCount;
     private int _outputCount;
 
+    private static readonly ConcurrentDictionary<int, string> _consumerThreadIdToActorId = new();
+    private static readonly ConcurrentDictionary<string, string> _askWaitGraph = new();
+
     /// <summary>
     /// 构造 Actor — 无界输入通道，无界输出通道。
     /// </summary>
@@ -52,7 +55,11 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         _backpressure = backpressure;
         _inputChannel = CreateInputChannel(backpressure);
         _outputChannel = CreateOutputChannel(outputCapacity);
-        _consumerTask = Task.Run(ConsumeLoopAsync);
+        _consumerTask = Task.Factory.StartNew(
+            ConsumeLoopAsync,
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+            TaskScheduler.Default).Unwrap();
     }
 
     private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure)
@@ -119,8 +126,12 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     public event EventHandler<BackpressureEventArgs>? InputWatermarkReached;
 
     /// <summary>
-    /// 向 Actor 异步发送命令 — 无界通道立即返回,有界通道在满时背压等待。
+    /// 向 Actor 异步发送命令 — Tell 模式(发消息即走,不等待 Consumer 处理)。
+    /// <para>无界通道立即返回,有界通道在满时背压等待。</para>
     /// <para>配置了 <see cref="ActorBackpressure.SendTimeout"/> 时,超时抛 <see cref="TimeoutException"/>。</para>
+    /// <para><b>⚠️ Tell vs Ask</b>:此方法是 Tell(只保证消息入队,不保证 Consumer 已处理)。</para>
+    /// <para>若需等回复(Ask 模式),调用方自行传 TaskCompletionSource 并 await tcs.Task —</para>
+    /// <para><b>但 Dispose/DisposeAsync 路径禁止用 Ask</b>(线程池饥饿时 await tcs.Task 死锁,详见 ForkSubAgentManagerActor.DisposeAsync 注释)。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <param name="ct">取消令牌</param>
@@ -153,7 +164,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// 向 Actor 同步尝试发送命令 — 通道已关闭、已释放或(有界通道)已满时返回 false。
+    /// 向 Actor 同步尝试发送命令 — Tell 模式(发消息即走)。
+    /// <para>通道已关闭、已释放或(有界通道)已满时返回 false。</para>
+    /// <para><b>⚠️ Dispose 路径首选</b>:DisposeAsync 中用 TrySend 发清理命令,不阻塞等待 Consumer,避免线程池饥饿死锁。</para>
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <returns>true 表示已入队,false 表示未入队</returns>
@@ -225,6 +238,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     private async Task ConsumeLoopAsync()
     {
+        _consumerThreadIdToActorId[Environment.CurrentManagedThreadId] = Id;
         try
         {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
@@ -254,31 +268,152 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// 释放 Actor — 取消 Consumer、完成输入输出通道，fire-and-forget Consumer 退出。
-    /// <para>不阻塞等待 Consumer 退出 — Consumer 在后台自行退出后由 continuation 清理 <see cref="_cts"/>。</para>
-    /// <para>设计理由：Dispose 完成不应依赖线程池有空闲线程运行 ConsumerTask 退出，否则并行 Dispose 时线程池饥饿死锁。</para>
+    /// Ask 模式等待回复 — 内置死锁检测(超时抛 <see cref="ActorAskDeadlockException"/>) + 等待图环检测(防循环 Ask 死锁)。
+    /// <para><b>⚠️ Ask vs Tell</b>:Ask = 发消息等回复(阻塞当前线程);Tell = 发消息即走(fire-and-forget)。</para>
+    /// <para><b>死锁风险</b>:Ask 依赖 Consumer 被调度,Consumer 无法运行 → tcs 永不完成 → 死锁。</para>
+    /// <para>此方法加超时守卫,超时抛带诊断信息的异常,避免永久挂死。</para>
+    /// <para><b>等待图环检测</b>:通过线程ID自动识别调用方Actor,记入等待图,检测到环(A等B且B等A)抛 <see cref="ActorCyclicAskException"/>。</para>
+    /// <para><b>规则</b>:Dispose/DisposeAsync 路径禁止用 Ask(改用 Tell/TrySend);查询路径用 Ask 但必须经此方法加超时。</para>
     /// </summary>
-    public virtual ValueTask DisposeAsync()
+    /// <typeparam name="T">回复类型</typeparam>
+    /// <param name="tcs">回复源(由调用方创建,命令发送后传入)</param>
+    /// <param name="ct">取消令牌</param>
+    /// <param name="timeoutMs">超时(默认10s,超时抛死锁诊断异常)</param>
+    /// <exception cref="ActorAskDeadlockException">Ask 超时 — 可能线程池饥饿导致 Consumer 无法调度</exception>
+    /// <exception cref="ActorCyclicAskException">等待图检测到环 — 循环 Ask 死锁</exception>
+    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000)
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        var callerId = TryGetCallerActorId();
+        if (callerId is not null && callerId != Id)
+        {
+            _askWaitGraph[callerId] = Id;
+            if (_askWaitGraph.TryGetValue(Id, out var target) && target == callerId)
+                throw new ActorCyclicAskException(callerId, Id);
+        }
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        linkedCts.CancelAfter(timeoutMs);
+        try
+        {
+            return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
+        }
+        finally
+        {
+            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
+        }
+    }
+
+    /// <summary>
+    /// Ask 模式等待回复(无返回值) — 内置死锁检测 + 等待图环检测,非泛型重载
+    /// </summary>
+    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000)
+    {
+        var callerId = TryGetCallerActorId();
+        if (callerId is not null && callerId != Id)
+        {
+            _askWaitGraph[callerId] = Id;
+            if (_askWaitGraph.TryGetValue(Id, out var target) && target == callerId)
+                throw new ActorCyclicAskException(callerId, Id);
+        }
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        linkedCts.CancelAfter(timeoutMs);
+        try
+        {
+            await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
+        }
+        finally
+        {
+            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
+        }
+    }
+
+    private string? TryGetCallerActorId()
+        => _consumerThreadIdToActorId.TryGetValue(Environment.CurrentManagedThreadId, out var id) ? id : null;
+
+    /// <summary>
+    /// 释放 Actor — 取消 Consumer、完成通道,等待 Consumer 真正退出后释放 CTS。
+    /// <para>Consumer 用 LongRunning 专用线程运行(不占线程池),Dispose await 不会导致线程池饥饿死锁。</para>
+    /// <para>设计理由:fire-and-forget 会掩盖 Consumer 未完成清理的问题,改回 await 确保资源真正释放。</para>
+    /// </summary>
+    public virtual async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
-        _consumerTask.ContinueWith(
-            static (t, state) =>
-            {
-                if (t.IsFaulted && t.Exception is { } ex)
-                {
-                    foreach (var inner in ex.InnerExceptions)
-                    {
-                        if (inner is OperationCanceledException) continue;
-                    }
-                }
-                ((CancellationTokenSource)state!).Dispose();
-            },
-            _cts,
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        try
+        {
+            await _consumerTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { }
+        _cts.Dispose();
+    }
+}
+
+/// <summary>
+/// Actor Ask 模式死锁异常 — Ask 超时后抛出,带诊断信息指导修复。
+/// </summary>
+/// <remarks>
+/// <para>触发条件:AskAwait 超时(默认10s) — Consumer 未在超时内处理命令并设置 Tcs。</para>
+/// <para>常见根因:线程池饥饿 — 所有线程被阻塞等待,Consumer 任务无法被调度。</para>
+/// <para>修复指导:Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。</para>
+/// </remarks>
+public sealed class ActorAskDeadlockException : TimeoutException
+{
+    /// <summary>Actor 类型名</summary>
+    public string ActorName { get; }
+
+    /// <summary>超时毫秒数</summary>
+    public int TimeoutMs { get; }
+
+    /// <summary>
+    /// 构造 Ask 死锁异常
+    /// </summary>
+    /// <param name="actorName">Actor 类型名</param>
+    /// <param name="timeoutMs">超时毫秒数</param>
+    public ActorAskDeadlockException(string actorName, int timeoutMs)
+        : base($"Actor {actorName} Ask 超时({timeoutMs}ms) — 可能线程池饥饿导致 Consumer 无法调度。" +
+               "Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。")
+    {
+        ActorName = actorName;
+        TimeoutMs = timeoutMs;
+    }
+}
+
+/// <summary>
+/// Actor 循环 Ask 异常 — 等待图检测到环时抛出,预防循环 Ask 死锁(类型2)。
+/// </summary>
+/// <remarks>
+/// <para>触发条件:AskAwait 检测到等待图环 — Actor A 等 B 回复,同时 B 等 A 回复。</para>
+/// <para>检测机制:静态等待图(wait-for graph),通过线程ID自动识别调用方Actor,记入等待边,检测到环即抛异常。</para>
+/// <para>修复指导:打破循环 — 其中一方改用 Tell(不等回复),或重构调用链消除循环依赖。</para>
+/// </remarks>
+public sealed class ActorCyclicAskException : InvalidOperationException
+{
+    /// <summary>调用方 Actor ID</summary>
+    public string CallerActorId { get; }
+
+    /// <summary>目标 Actor ID</summary>
+    public string TargetActorId { get; }
+
+    /// <summary>
+    /// 构造循环 Ask 异常
+    /// </summary>
+    /// <param name="callerActorId">调用方 Actor ID</param>
+    /// <param name="targetActorId">目标 Actor ID</param>
+    public ActorCyclicAskException(string callerActorId, string targetActorId)
+        : base($"循环 Ask 检测: Actor {callerActorId} 等 {targetActorId} 回复,同时 {targetActorId} 等 {callerActorId} 回复 → 等待图环 → 死锁。" +
+               "修复:其中一方改用 Tell(TrySend,不等回复),或重构调用链消除循环依赖。")
+    {
+        CallerActorId = callerActorId;
+        TargetActorId = targetActorId;
     }
 }
 

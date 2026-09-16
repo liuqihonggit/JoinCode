@@ -23,13 +23,8 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _inputCount;
     private int _outputCount;
 
-    /// <summary>
-    /// Actor 层级 — 用于锁排序预防循环 Ask 死锁(类型2)。
-    /// <para>规则: Ask 只允许高 Layer → 低 Layer,禁止反向(低 → 高)。</para>
-    /// <para>外部调用方(非 Actor)Layer = int.MaxValue,可 Ask 任何 Actor。</para>
-    /// <para>子类 override 设置层级,如: 基础服务=10, 协调器=20, 顶层=30。</para>
-    /// </summary>
-    public virtual int Layer => 0;
+    private static readonly ConcurrentDictionary<int, string> _consumerThreadIdToActorId = new();
+    private static readonly ConcurrentDictionary<string, string> _askWaitGraph = new();
 
     /// <summary>
     /// 构造 Actor — 无界输入通道，无界输出通道。
@@ -243,6 +238,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     private async Task ConsumeLoopAsync()
     {
+        _consumerThreadIdToActorId[Environment.CurrentManagedThreadId] = Id;
         try
         {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
@@ -272,24 +268,28 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     }
 
     /// <summary>
-    /// Ask 模式等待回复 — 内置死锁检测(超时抛 <see cref="ActorAskDeadlockException"/>) + 锁排序检查(防循环 Ask 死锁)。
+    /// Ask 模式等待回复 — 内置死锁检测(超时抛 <see cref="ActorAskDeadlockException"/>) + 等待图环检测(防循环 Ask 死锁)。
     /// <para><b>⚠️ Ask vs Tell</b>:Ask = 发消息等回复(阻塞当前线程);Tell = 发消息即走(fire-and-forget)。</para>
     /// <para><b>死锁风险</b>:Ask 依赖 Consumer 被调度,Consumer 无法运行 → tcs 永不完成 → 死锁。</para>
     /// <para>此方法加超时守卫,超时抛带诊断信息的异常,避免永久挂死。</para>
-    /// <para><b>锁排序</b>:callerLayer 必须 > Layer(高 → 低),否则抛 <see cref="ActorLockOrderViolationException"/>。</para>
+    /// <para><b>等待图环检测</b>:通过线程ID自动识别调用方Actor,记入等待图,检测到环(A等B且B等A)抛 <see cref="ActorCyclicAskException"/>。</para>
     /// <para><b>规则</b>:Dispose/DisposeAsync 路径禁止用 Ask(改用 Tell/TrySend);查询路径用 Ask 但必须经此方法加超时。</para>
     /// </summary>
     /// <typeparam name="T">回复类型</typeparam>
     /// <param name="tcs">回复源(由调用方创建,命令发送后传入)</param>
     /// <param name="ct">取消令牌</param>
     /// <param name="timeoutMs">超时(默认10s,超时抛死锁诊断异常)</param>
-    /// <param name="callerLayer">调用方 Layer(默认 int.MaxValue=外部调用,Actor 间调用传 this.Layer)</param>
     /// <exception cref="ActorAskDeadlockException">Ask 超时 — 可能线程池饥饿导致 Consumer 无法调度</exception>
-    /// <exception cref="ActorLockOrderViolationException">锁排序违规 — 低 Layer 试图 Ask 高 Layer(防循环 Ask 死锁)</exception>
-    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000, int callerLayer = int.MaxValue)
+    /// <exception cref="ActorCyclicAskException">等待图检测到环 — 循环 Ask 死锁</exception>
+    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000)
     {
-        if (callerLayer <= Layer)
-            throw new ActorLockOrderViolationException(callerLayer, Layer, GetType().Name);
+        var callerId = TryGetCallerActorId();
+        if (callerId is not null && callerId != Id)
+        {
+            _askWaitGraph[callerId] = Id;
+            if (_askWaitGraph.TryGetValue(Id, out var target) && target == callerId)
+                throw new ActorCyclicAskException(callerId, Id);
+        }
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
         try
@@ -300,15 +300,24 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         {
             throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
         }
+        finally
+        {
+            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
+        }
     }
 
     /// <summary>
-    /// Ask 模式等待回复(无返回值) — 内置死锁检测 + 锁排序检查,非泛型重载
+    /// Ask 模式等待回复(无返回值) — 内置死锁检测 + 等待图环检测,非泛型重载
     /// </summary>
-    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000, int callerLayer = int.MaxValue)
+    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000)
     {
-        if (callerLayer <= Layer)
-            throw new ActorLockOrderViolationException(callerLayer, Layer, GetType().Name);
+        var callerId = TryGetCallerActorId();
+        if (callerId is not null && callerId != Id)
+        {
+            _askWaitGraph[callerId] = Id;
+            if (_askWaitGraph.TryGetValue(Id, out var target) && target == callerId)
+                throw new ActorCyclicAskException(callerId, Id);
+        }
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
         try
@@ -319,7 +328,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         {
             throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
         }
+        finally
+        {
+            if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
+        }
     }
+
+    private string? TryGetCallerActorId()
+        => _consumerThreadIdToActorId.TryGetValue(Environment.CurrentManagedThreadId, out var id) ? id : null;
 
     /// <summary>
     /// 释放 Actor — 取消 Consumer、完成通道,等待 Consumer 真正退出后释放 CTS。
@@ -372,39 +388,32 @@ public sealed class ActorAskDeadlockException : TimeoutException
 }
 
 /// <summary>
-/// Actor 锁排序违规异常 — 低 Layer 试图 Ask 高 Layer 时抛出,预防循环 Ask 死锁(类型2)。
+/// Actor 循环 Ask 异常 — 等待图检测到环时抛出,预防循环 Ask 死锁(类型2)。
 /// </summary>
 /// <remarks>
-/// <para>触发条件:AskAwait 的 callerLayer &lt;= target Layer — 低优先级 Actor 试图 Ask 高优先级 Actor。</para>
-/// <para>死锁预防:如果 A(Layer=10) Ask B(Layer=20),B Ask A,形成循环等待 → 死锁。</para>
-/// <para>锁排序禁止反向 Ask(低→高),消除循环等待 → 预防死锁。</para>
-/// <para>修复指导:调整 Actor 的 Layer 属性,确保 Ask 方向一致(高→低);或改用 Tell(不等回复)。</para>
+/// <para>触发条件:AskAwait 检测到等待图环 — Actor A 等 B 回复,同时 B 等 A 回复。</para>
+/// <para>检测机制:静态等待图(wait-for graph),通过线程ID自动识别调用方Actor,记入等待边,检测到环即抛异常。</para>
+/// <para>修复指导:打破循环 — 其中一方改用 Tell(不等回复),或重构调用链消除循环依赖。</para>
 /// </remarks>
-public sealed class ActorLockOrderViolationException : InvalidOperationException
+public sealed class ActorCyclicAskException : InvalidOperationException
 {
-    /// <summary>调用方 Layer</summary>
-    public int CallerLayer { get; }
+    /// <summary>调用方 Actor ID</summary>
+    public string CallerActorId { get; }
 
-    /// <summary>目标 Actor Layer</summary>
-    public int TargetLayer { get; }
-
-    /// <summary>目标 Actor 类型名</summary>
-    public string ActorName { get; }
+    /// <summary>目标 Actor ID</summary>
+    public string TargetActorId { get; }
 
     /// <summary>
-    /// 构造锁排序违规异常
+    /// 构造循环 Ask 异常
     /// </summary>
-    /// <param name="callerLayer">调用方 Layer</param>
-    /// <param name="targetLayer">目标 Actor Layer</param>
-    /// <param name="actorName">目标 Actor 类型名</param>
-    public ActorLockOrderViolationException(int callerLayer, int targetLayer, string actorName)
-        : base($"锁排序违规: Layer {callerLayer} 试图 Ask Layer {targetLayer}({actorName})。" +
-               "Ask 只允许高 Layer → 低 Layer,禁止反向(防循环 Ask 死锁)。" +
-               "修复:调整 Actor.Layer 确保 Ask 方向一致,或改用 Tell(TrySend)。")
+    /// <param name="callerActorId">调用方 Actor ID</param>
+    /// <param name="targetActorId">目标 Actor ID</param>
+    public ActorCyclicAskException(string callerActorId, string targetActorId)
+        : base($"循环 Ask 检测: Actor {callerActorId} 等 {targetActorId} 回复,同时 {targetActorId} 等 {callerActorId} 回复 → 等待图环 → 死锁。" +
+               "修复:其中一方改用 Tell(TrySend,不等回复),或重构调用链消除循环依赖。")
     {
-        CallerLayer = callerLayer;
-        TargetLayer = targetLayer;
-        ActorName = actorName;
+        CallerActorId = callerActorId;
+        TargetActorId = targetActorId;
     }
 }
 

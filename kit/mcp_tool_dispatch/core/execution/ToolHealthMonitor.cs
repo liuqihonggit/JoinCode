@@ -380,20 +380,23 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     }
 
     /// <summary>
-    /// 释放监控器资源 — 停止衰减定时器并等待异步释放完成（最多 5 秒）
+    /// 同步释放 — 释放衰减定时器。Actor 的异步释放由 <see cref="DisposeAsync"/> 负责。
     /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _decayTimer?.Dispose();
-        try
-        {
-            _ = DisposeAsync().AsTask();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[ToolHealthMonitor] Dispose 超时");
-        }
+    }
+
+    /// <summary>
+    /// 异步释放资源 — 释放衰减定时器并停止 Actor(基类)。幂等，多次调用安全。
+    /// </summary>
+    /// <returns>表示异步释放操作的任务。</returns>
+    public override async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        _decayTimer?.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

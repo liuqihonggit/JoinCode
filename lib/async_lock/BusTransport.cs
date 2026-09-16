@@ -150,7 +150,7 @@ public sealed class BusTransport : ITransportTopology
     private async Task StartHostAsync(CancellationToken ct)
     {
         _logger?.LogInformation("BusTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
-        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, _cts.Token), _cts.Token);
+        _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleBusConnectionAsync, _cts.Token));
     }
 
     private async Task StartSlaveAsync(CancellationToken ct)
@@ -275,29 +275,19 @@ public sealed class BusTransport : ITransportTopology
     }
 
     /// <inheritdoc/>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
         var conns = _clientConnections.Values.ToArray();
         _clientConnections.Clear();
         var slaveClient = _slaveClient;
-        var tasks = new List<Task>(2);
-        if (_acceptTask is not null) tasks.Add(_acceptTask);
-        if (_slaveReceiveTask is not null) tasks.Add(_slaveReceiveTask);
 
-        if (tasks.Count == 0) { Cleanup(conns, slaveClient, _election, _cts); return ValueTask.CompletedTask; }
-        Task.WhenAll(tasks).ContinueWith(
-            static (t, state) =>
-            {
-                var (conns, slaveClient, election, cts) = ((IAsyncDisposable[], NamedPipeClientStream?, HostElectionService, CancellationTokenSource))state!;
-                Cleanup(conns, slaveClient, election, cts);
-            },
-            (conns, slaveClient, _election, _cts),
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
+        if (_slaveReceiveTask is not null) await _slaveReceiveTask.ConfigureAwait(false);
+        Cleanup(conns, slaveClient, _election, _cts);
     }
 
     private static void Cleanup(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts)
@@ -369,14 +359,11 @@ internal sealed class BusClientConnection : IAsyncDisposable
         }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _writeQueue.Writer.TryComplete();
-        _writeLoop.ContinueWith(
-            static (t, state) => ((NamedPipeServerStream)state!).DisposeAsync().AsTask().Wait(),
-            _stream,
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        await _writeLoop.ConfigureAwait(false);
+        await _stream.DisposeAsync().ConfigureAwait(false);
     }
 }

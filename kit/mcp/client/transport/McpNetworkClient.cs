@@ -160,16 +160,15 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
     }
 
     /// <summary>
-    /// 异步释放客户端资源 — 断开连接、解绑传输事件并释放传输层与请求注册表。
+    /// 异步释放客户端资源 — 异步断开连接、解绑传输事件并异步释放传输层与请求注册表。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        _ = DisconnectAsync(CancellationToken.None);
+        await DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
         _transport.MessageReceived -= OnTransportMessageReceived;
         _transport.ErrorOccurred -= OnTransportError;
-        _ = _transport.DisposeAsync();
-        _ = _requestRegistry.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await _transport.DisposeAsync().ConfigureAwait(false);
+        await _requestRegistry.DisposeAsync().ConfigureAwait(false);
     }
 }

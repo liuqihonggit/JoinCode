@@ -147,14 +147,13 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <inheritdoc/>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _siblingCts.Cancel();
         _linkedCts?.Dispose();
         _siblingCts.Dispose();
-        _ = base.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <summary>Consumer 命令处理 — 串行访问所有可变状态,无锁</summary>

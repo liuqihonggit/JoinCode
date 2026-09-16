@@ -515,4 +515,90 @@ public class DisposableConsistencyRulesTests
         };
         await test.RunAsync().ConfigureAwait(true);
     }
+
+    [Fact]
+    public async Task FireAndForget_Discard_InDisposeAsync_ReportsJCC9200()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass : IAsyncDisposable
+                {
+                    private AsyncDisposable? _inner;
+                    public async ValueTask DisposeAsync()
+                    {
+                        {|#0:_ = _inner.DisposeAsync()|};
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC9200", DiagnosticSeverity.Error).WithLocation(0).WithArguments("DisposeAsync", 8),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task FireAndForget_BareCall_InDisposeAsync_ReportsJCC9200()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass : IAsyncDisposable
+                {
+                    private AsyncDisposable? _inner;
+                    public async ValueTask DisposeAsync()
+                    {
+                        {|#0:_inner.DisposeAsync()|};
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC9200", DiagnosticSeverity.Error).WithLocation(0).WithArguments("DisposeAsync", 8),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task Await_InDisposeAsync_NoJCC9200()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass : IAsyncDisposable
+                {
+                    private AsyncDisposable? _inner;
+                    public async ValueTask DisposeAsync()
+                    {
+                        await _inner.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                class AsyncDisposable : IAsyncDisposable
+                {
+                    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
 }

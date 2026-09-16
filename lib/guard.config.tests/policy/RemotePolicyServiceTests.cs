@@ -1,6 +1,6 @@
 namespace Core.Tests.Services.Policy;
 
-public sealed class RemotePolicyServiceTests : IDisposable
+public sealed class RemotePolicyServiceTests : IAsyncDisposable
 {
     private readonly RemotePolicyService _service;
     private readonly HttpClient _httpClient;
@@ -15,10 +15,10 @@ public sealed class RemotePolicyServiceTests : IDisposable
         _service = new RemotePolicyService(_httpClient, options);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _service.Dispose();
-        _httpClient.Dispose();
+        await _service.DisposeSafeAsync();
+        _httpClient.DisposeSafe();
     }
 
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, PolicyRule> GetRules(RemotePolicyService service)

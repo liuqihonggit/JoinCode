@@ -14,7 +14,7 @@ public sealed class CallGraphTests : IDisposable
 
     public void Dispose()
     {
-        _store.Dispose();
+        _store.DisposeSafe();
     }
 
     [Fact]

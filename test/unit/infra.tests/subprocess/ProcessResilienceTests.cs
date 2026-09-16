@@ -3,15 +3,13 @@ namespace Infra.Tests.Subprocess;
 public sealed class ProcessHealthMonitorTests
 {
     [Fact]
-    public void InitialState_IsHealthy()
+    public async Task InitialState_IsHealthy()
     {
         var process = CreateMockProcess(false);
-        var monitor = new ProcessHealthMonitor(process, new HealthCheckConfig { Interval = TimeSpan.FromHours(1) });
+        await using var monitor = new ProcessHealthMonitor(process, new HealthCheckConfig { Interval = TimeSpan.FromHours(1) });
 
         monitor.IsHealthy.Should().BeTrue();
         monitor.ConsecutiveFailures.Should().Be(0);
-
-        monitor.Dispose();
     }
 
     [Fact]
@@ -24,7 +22,7 @@ public sealed class ProcessHealthMonitorTests
             FailureThreshold = 1,
         };
 
-        using var monitor = new ProcessHealthMonitor(process, config);
+        await using var monitor = new ProcessHealthMonitor(process, config);
         var unhealthyEvent = new TaskCompletionSource<ProcessUnhealthyEventArgs>();
 
         monitor.Unhealthy += (_, e) => unhealthyEvent.TrySetResult(e);
@@ -45,7 +43,7 @@ public sealed class ProcessHealthMonitorTests
             Interval = TimeSpan.FromMilliseconds(50),
         };
 
-        using var monitor = new ProcessHealthMonitor(process, config);
+        await using var monitor = new ProcessHealthMonitor(process, config);
 
         await Task.Delay(200);
 

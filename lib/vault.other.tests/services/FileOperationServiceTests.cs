@@ -15,7 +15,7 @@ public sealed class FileOperationServiceTests : IDisposable
 
     public void Dispose()
     {
-        _service.Dispose();
+        _service.DisposeSafe();
     }
 
     [Fact]

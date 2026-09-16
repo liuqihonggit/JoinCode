@@ -370,9 +370,9 @@ public sealed partial class BuildQueueService : IBuildQueueService
     /// 释放跨进程锁。幂等，多次调用安全。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _shutdownCts.Cancel();
         _queue.Writer.TryComplete();
@@ -388,8 +388,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
         _shutdownCts.Dispose();
         _currentBuildCts?.Dispose();
-        _ = _crossProcessLock.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await _crossProcessLock.DisposeAsync().ConfigureAwait(false);
     }
 
     private sealed class BuildExecutionScope : IAsyncDisposable

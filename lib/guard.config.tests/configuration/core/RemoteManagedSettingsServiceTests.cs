@@ -1,6 +1,6 @@
 namespace Core.Tests.Services.Configuration;
 
-public sealed class RemoteManagedSettingsServiceTests : IDisposable
+public sealed class RemoteManagedSettingsServiceTests : IAsyncDisposable
 {
     private readonly RemoteManagedSettingsService _service;
     private readonly HttpClient _httpClient;
@@ -15,10 +15,10 @@ public sealed class RemoteManagedSettingsServiceTests : IDisposable
         _service = new RemoteManagedSettingsService(_httpClient, options);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _service.Dispose();
-        _httpClient.Dispose();
+        await _service.DisposeSafeAsync();
+        _httpClient.DisposeSafe();
     }
 
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, ManagedSetting> GetSettings(RemoteManagedSettingsService service)

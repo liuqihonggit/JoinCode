@@ -72,14 +72,14 @@ namespace AotSafety.Generator
 
         private static readonly DiagnosticDescriptor RuleAwaitInDispose = new(
             "JCC9200",
-            "Dispose 线程池饥饿: Dispose/DisposeAsync 方法体内 await 后台任务需确保不占线程池",
-            "Dispose/DisposeAsync 方法体内 await 后台任务 — 需确保被 await 的任务用 LongRunning 专用线程运行(不占线程池),否则并行 Dispose 时线程池饥饿死锁。ActorBase.DisposeAsync await _consumerTask 已安全(Consumer 用 LongRunning)。",
+            "Dispose 释放完整性: Dispose/DisposeAsync 方法体内禁止 fire-and-forget 异步调用",
+            "Dispose/DisposeAsync 方法体内 fire-and-forget 调用 '{0}'(第 {1} 行) — 释放路径射后不理会掩盖真实错误(异步清理未完成即返回)。必须改为 await 调用,确保释放完整完成。",
             "DisposableConsistency",
-            DiagnosticSeverity.Warning,
+            DiagnosticSeverity.Error,
             true,
-            "Root cause: await _task makes Dispose completion depend on thread pool having idle threads to run the task's exit. " +
-            "Fix: ensure the awaited task uses TaskCreationOptions.LongRunning (dedicated thread, not thread pool). " +
-            "ActorBase.DisposeAsync is safe: Consumer runs on LongRunning dedicated thread, await _consumerTask won't starve thread pool.");
+            "Root cause: fire-and-forget (_ = xxxAsync() or bare xxxAsync() without await) makes Dispose return before async cleanup completes, masking real errors." +
+            "Fix: change '_ = xxxAsync()' to 'await xxxAsync().ConfigureAwait(false)'; in sync Dispose, remove the line (cannot await)." +
+            "See CronSchedulerService.DisposeAsync and ActorBase.DisposeAsync for past deadlock incidents.");
 
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
             ImmutableArray.Create(RuleDualDisposable, RuleTrivialAsyncDispose, RuleSyncUsingOnAsyncDisposable, RuleTryFinallyDispose, RuleDisposeTryCatch, RuleSyncDisposeOnAsyncDisposable, RuleAwaitInDispose);
@@ -435,16 +435,55 @@ namespace AotSafety.Generator
             var body = methodDecl.Body;
             if (body is null) return;
 
-            foreach (var awaitExpr in body.DescendantNodes().OfType<AwaitExpressionSyntax>())
+            foreach (var stmt in body.DescendantNodes().OfType<ExpressionStatementSyntax>())
             {
-                if (IsInsideLambdaOrLocalFunction(awaitExpr, body)) continue;
+                if (IsInsideLambdaOrLocalFunction(stmt, body)) continue;
 
-#if false
-                ctx.ReportDiagnostic(Diagnostic.Create(
-                    RuleAwaitInDispose,
-                    awaitExpr.AwaitKeyword.GetLocation()));
-#endif
+                var expr = stmt.Expression;
+                string? fireAndForgetMethodName = null;
+
+                if (expr is AssignmentExpressionSyntax assign && assign.Left is IdentifierNameSyntax { Identifier.ValueText: "_" })
+                {
+                    var invoked = assign.Right;
+                    if (invoked is InvocationExpressionSyntax inv)
+                        fireAndForgetMethodName = GetInvocationName(inv);
+                }
+                else if (expr is InvocationExpressionSyntax inv)
+                {
+                    fireAndForgetMethodName = GetInvocationName(inv);
+                }
+
+                if (fireAndForgetMethodName is null) continue;
+
+                var typeInfo = ctx.SemanticModel.GetTypeInfo(expr);
+                if (IsTaskType(typeInfo.Type))
+                {
+                    var line = stmt.SyntaxTree.GetLineSpan(stmt.Span).StartLinePosition.Line + 1;
+                    ctx.ReportDiagnostic(Diagnostic.Create(
+                        RuleAwaitInDispose,
+                        stmt.Expression.GetLocation(),
+                        fireAndForgetMethodName,
+                        line));
+                }
             }
+        }
+
+        private static string? GetInvocationName(InvocationExpressionSyntax inv)
+        {
+            return inv.Expression switch
+            {
+                MemberAccessExpressionSyntax ma => ma.Name.Identifier.ValueText,
+                IdentifierNameSyntax id => id.Identifier.ValueText,
+                _ => null
+            };
+        }
+
+        private static bool IsTaskType(ITypeSymbol? type)
+        {
+            if (type is null) return false;
+            var name = type.OriginalDefinition.ToDisplayString();
+            return name is "System.Threading.Tasks.Task" or "System.Threading.Tasks.ValueTask"
+                or "System.Threading.Tasks.Task<T>" or "System.Threading.Tasks.ValueTask<T>";
         }
 
         private static bool IsInsideLambdaOrLocalFunction(SyntaxNode node, BlockSyntax methodBody)

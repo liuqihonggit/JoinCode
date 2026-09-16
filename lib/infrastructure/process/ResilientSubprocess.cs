@@ -113,7 +113,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable
         }
 
         var oldMonitor = _healthMonitor;
-        oldMonitor?.Dispose();
+        if (oldMonitor is not null) await oldMonitor.DisposeAsync().ConfigureAwait(false);
 
         var newProcess = await _restartManager.RestartAsync(_process, _spawnFunc, ct).ConfigureAwait(false);
 
@@ -166,17 +166,16 @@ public sealed class ResilientSubprocess : IAsyncDisposable
     /// 异步释放资源 — 取消内部令牌、销毁健康监控、释放通道与底层进程
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
 
         _disposeCts.Cancel();
-        _healthMonitor?.Dispose();
+        if (_healthMonitor is not null) await _healthMonitor.DisposeAsync().ConfigureAwait(false);
         _inputChannel.Dispose();
         _outputChannel.Dispose();
 
-        _ = _process.DisposeAsync();
+        await _process.DisposeAsync().ConfigureAwait(false);
         GC.SuppressFinalize(this);
-        return ValueTask.CompletedTask;
     }
 }

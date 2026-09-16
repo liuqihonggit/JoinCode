@@ -185,14 +185,13 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     /// <summary>
     /// 异步释放 — 停止应用、解绑事件并释放服务主机与消息总线
     /// </summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
-        _ = StopAsync(CancellationToken.None);
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _serviceHost.ServiceStatusChanged -= OnServiceStatusChanged;
-        _ = _serviceHost.DisposeAsync();
+        await _serviceHost.DisposeAsync().ConfigureAwait(false);
         _messageBus.Dispose();
-        return ValueTask.CompletedTask;
     }
 }
 

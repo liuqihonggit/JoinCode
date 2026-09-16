@@ -20,10 +20,9 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
-        _ = _registry.DisposeAsync();
-        return Task.CompletedTask;
+        await _registry.DisposeAsync();
     }
 
     [Fact]

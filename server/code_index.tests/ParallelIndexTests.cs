@@ -11,7 +11,7 @@ public sealed class ParallelIndexTests : IDisposable
 
     public void Dispose()
     {
-        _store.Dispose();
+        _store.DisposeSafe();
     }
 
     [Fact]

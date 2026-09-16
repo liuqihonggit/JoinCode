@@ -452,89 +452,57 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     }
 
     /// <summary>
-    /// 异步释放子进程资源 — 取消读取、终止进程、等待任务完成、释放锁和 transcript 流
+    /// 异步释放子进程资源 — 唯一释放入口：取消读取、终止进程、等待任务完成、释放锁和 transcript 流
     /// </summary>
     /// <returns>表示异步释放操作的 ValueTask</returns>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (_asyncDisposed) return ValueTask.CompletedTask;
+        if (_asyncDisposed) return;
         _asyncDisposed = true;
 
-        // 取消读取任务
-        _ = _readCts.CancelAsync();
+        // 1. 取消读取 + 释放 CTS（Cancel+Dispose 合并，幂等吞 ObjectDisposedException）
+        _readCts.CancelAndDisposeSafe(_logger);
 
+        // 2. 终止进程并等待退出
+        await TerminateProcessAsync().ConfigureAwait(false);
+
+        // 3. 等待 stdout 读取任务完成（不分配 List，直接 await 单个 task）
+        if (_stdoutReadTask is not null)
+        {
+            try { await _stdoutReadTask.ConfigureAwait(false); }
+            catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] Dispose 时读取任务异常"); }
+        }
+
+        // 4. 释放进程/韧性子进程
+        if (_resilientSubprocess is not null)
+            await _resilientSubprocess.DisposeSafeAsync(_logger).ConfigureAwait(false);
+        else
+            await _process.DisposeSafeAsync(_logger).ConfigureAwait(false);
+
+        // 5. 释放锁 + transcript 流
+        _stdinLock.DisposeSafe(_logger);
+        _transcriptStream.DisposeSafe(_logger);
+        _transcriptStream = null;
+
+        // 6. 触发 Entity 生命周期注销（ObjectId/SessionRouter）— 异步入口
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>终止进程并等待退出 — 提取保持 DisposeAsync 主体清晰</summary>
+    private async Task TerminateProcessAsync()
+    {
         try
         {
             if (!_process.HasExited)
             {
                 Kill();
-
-                _ = _process.WaitForExitAsync(CancellationToken.None);
+                await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
-            // Dispose 时忽略异常
-            _logger?.LogWarning(ex, "[BridgeSubprocessManager] Dispose 时等待进程退出失败");
+            _logger?.LogWarning(ex, "[BridgeSubprocessHandle] Dispose 时等待进程退出失败");
         }
-
-        // 等待读取任务完成
-        var readTasks = new List<Task>(1);
-        if (_stdoutReadTask is not null) readTasks.Add(_stdoutReadTask);
-        if (readTasks.Count > 0)
-        {
-            try
-            {
-                _ = Task.WhenAll(readTasks);
-            }
-            catch (Exception ex)
-            {
-                // 忽略读取任务异常
-                _logger?.LogWarning(ex, "[BridgeSubprocessManager] Dispose 时读取任务异常");
-            }
-        }
-
-        _readCts.Dispose();
-        if (_resilientSubprocess is not null)
-        {
-            _ = _resilientSubprocess.DisposeAsync();
-        }
-        else
-        {
-            _ = _process.DisposeAsync();
-        }
-        _stdinLock.Dispose();
-
-        // 关闭 transcript 流，避免资源泄漏
-        try
-        {
-            _transcriptStream?.Dispose();
-            _transcriptStream = null;
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[BridgeSubprocessManager] transcript 流释放失败");
-        }
-
-        // 触发 Entity 生命周期注销（ObjectId/SessionRouter）
-        Dispose();
-        return ValueTask.CompletedTask;
-    }
-
-    /// <summary>
-    /// 同步释放资源 — best-effort 清理：取消读取、终止进程、释放锁和 transcript 流
-    /// </summary>
-    protected override void OnResourceDispose()
-    {
-        if (_asyncDisposed) return; // 异步释放已完成，跳过同步清理
-
-        // 同步 best-effort 清理 — 仅在直接调用 Dispose() 时执行
-        try { _readCts.Cancel(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: Cancel 失败"); }
-        try { if (!_process.HasExited) Kill(); } catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] 同步释放: Kill 失败"); }
-        _readCts.DisposeSafe(_logger);
-        _stdinLock.DisposeSafe(_logger);
-        _transcriptStream.DisposeSafe(_logger);
-        _transcriptStream = null;
     }
 }
 

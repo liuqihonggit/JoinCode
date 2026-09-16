@@ -30,7 +30,7 @@ public sealed record JournalResetCommand() : IJournalCommand;
 ///
 /// Actor 化：继承 ActorBase&lt;IJournalCommand, Unit&gt;，Consumer 线程独占滑动窗口，消除 AsyncLock。
 /// </summary>
-public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>, IDisposable
+public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
 {
     private readonly int _traceWindowCapacity;
     private readonly LinkedList<JournalEntry> _traceWindow = [];
@@ -120,21 +120,6 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>, ID
     /// 当前窗口内追踪条目数（近似值，后台线程更新）
     /// </summary>
     public int WindowCount => Volatile.Read(ref _windowCount);
-
-    /// <summary>
-    /// 同步释放 — 保留 IDisposable 兼容现有 using 调用方。内部调 DisposeAsync 并等待 Consumer 退出。
-    /// </summary>
-    public void Dispose()
-    {
-        try
-        {
-            _ = DisposeAsync().AsTask();
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[LoopDiagnosticJournal] Dispose 超时");
-        }
-    }
 
     /// <summary>
     /// 处理日志簿命令 — Consumer 线程独占，按命令类型分派到对应处理逻辑

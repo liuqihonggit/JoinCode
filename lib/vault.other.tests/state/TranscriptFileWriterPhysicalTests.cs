@@ -177,7 +177,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
 
     public void Dispose()
     {
-        _writer.Dispose();
+        _writer.DisposeSafe();
         try
         {
             _fs.DeleteDirectory(_tempDir, recursive: true);

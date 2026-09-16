@@ -15,7 +15,7 @@ public sealed class StateServiceTests : IDisposable
 
     public void Dispose()
     {
-        _stateService.Dispose();
+        _stateService.DisposeSafe();
     }
 
     [Fact]

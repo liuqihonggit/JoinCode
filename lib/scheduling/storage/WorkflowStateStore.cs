@@ -121,10 +121,10 @@ public sealed partial class WorkflowStateStore : ServiceEntity, IWorkflowStateSt
         }
     }
 
-    /// <summary>释放资源时回调，异步释放内部 Actor。</summary>
-    public override void Dispose()
+    /// <summary>异步释放资源 — 异步释放内部 Actor。</summary>
+    public override async ValueTask DisposeAsync()
     {
-        _ = _actor.DisposeAsync();
-            base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

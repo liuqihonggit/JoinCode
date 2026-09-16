@@ -411,9 +411,8 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync()
+    public async Task DisposeAsync()
     {
-        _ = _manager.DisposeAsync();
-        return Task.CompletedTask;
+        await _manager.DisposeAsync();
     }
 }

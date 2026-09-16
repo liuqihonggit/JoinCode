@@ -73,7 +73,7 @@ public sealed class PluginCascadeUnloadE2ETests
         Assert.False(pm.IsWorkflowPluginLoaded("ConsumerPlugin"),
             "ConsumerPlugin 应被连带卸载");
 
-        pm.Dispose();
+        await pm.DisposeAsync();
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class PluginCascadeUnloadE2ETests
             "ProviderPlugin 不应被连带卸载(只有被依赖者卸载才连带)");
 
         await pm.UnloadPluginAsync("ProviderPlugin");
-        pm.Dispose();
+        await pm.DisposeAsync();
     }
 
     [Fact]
@@ -111,6 +111,6 @@ public sealed class PluginCascadeUnloadE2ETests
         Assert.True(pm.IsWorkflowPluginLoaded("ProviderPlugin"));
 
         await pm.UnloadPluginAsync("ProviderPlugin");
-        pm.Dispose();
+        await pm.DisposeAsync();
     }
 }

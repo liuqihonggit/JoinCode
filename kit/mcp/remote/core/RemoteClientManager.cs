@@ -706,11 +706,11 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     }
 
     /// <summary>
-    /// 释放资源
+    /// 异步释放资源 — 释放所有远程客户端及重连令牌
     /// </summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         foreach (var cts in _reconnectCtsMap.Values)
         {
             cts.Cancel();
@@ -718,10 +718,9 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         }
         _reconnectCtsMap.Clear();
 
-        _ = Task.WhenAll(_remoteClients.Values
-            .Select(entry => entry.Client.DisposeAsync().AsTask()));
+        await Task.WhenAll(_remoteClients.Values
+            .Select(entry => entry.Client.DisposeAsync().AsTask())).ConfigureAwait(false);
         _remoteClients.Clear();
         _lastKnownToolSpecs.Clear();
-        return ValueTask.CompletedTask;
     }
 }

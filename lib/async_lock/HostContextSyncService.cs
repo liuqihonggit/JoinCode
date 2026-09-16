@@ -205,15 +205,11 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// <summary>
     /// 释放同步服务。
     /// </summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
         _cts.Cancel();
-        if (_syncTask is null) { _cts.Dispose(); return ValueTask.CompletedTask; }
-        _syncTask.ContinueWith(
-            static (t, state) => ((CancellationTokenSource)state!).Dispose(),
-            _cts,
-            TaskContinuationOptions.ExecuteSynchronously);
-        return ValueTask.CompletedTask;
+        if (_syncTask is not null) await _syncTask.ConfigureAwait(false);
+        _cts.Dispose();
     }
 }

@@ -9,10 +9,7 @@ public sealed class TimeoutLockTests : IDisposable
         _lock = new TimeoutLock("TestLock", TimeSpan.FromSeconds(1));
     }
 
-    public void Dispose()
-    {
-        _lock.Dispose();
-    }
+    public void Dispose() => _lock.DisposeSafe();
 
     [Fact]
     public async Task AcquireAsync_ReleasedByDisposal_ReleasesLock()
@@ -86,7 +83,7 @@ public sealed class TimeoutLockTests : IDisposable
     public async Task AcquireAsync_LogsMessages_WhenLoggerProvided()
     {
         var messages = new List<string>();
-        var l = new TimeoutLock("LoggedLock", TimeSpan.FromSeconds(5), messages.Add);
+        using var l = new TimeoutLock("LoggedLock", TimeSpan.FromSeconds(5), messages.Add);
 
         using (await l.AcquireAsync(CancellationToken.None).ConfigureAwait(true))
         {
@@ -95,6 +92,5 @@ public sealed class TimeoutLockTests : IDisposable
         Assert.Contains(messages, m => m.Contains("Acquiring"));
         Assert.Contains(messages, m => m.Contains("Acquired"));
         Assert.Contains(messages, m => m.Contains("Released"));
-        l.Dispose();
     }
 }

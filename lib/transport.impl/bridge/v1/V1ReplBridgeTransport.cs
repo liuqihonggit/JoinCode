@@ -209,9 +209,9 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
     /// <summary>
     /// 异步释放资源，关闭传输
     /// </summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         Interlocked.Exchange(ref _isClosed, 1);
         Interlocked.Exchange(ref _isConnected, 0);
         _logger?.LogDebug("[V1Transport] 关闭传输");
@@ -221,9 +221,9 @@ public sealed class V1ReplBridgeTransport : IReplBridgeTransport
         _reconnectTimer?.Dispose();
         _reconnectTimer = null;
         var uploader = _uploader;
-        _ = Task.Run(() => FlushAndCloseUploaderAsync(uploader));
+        await Task.Run(() => FlushAndCloseUploaderAsync(uploader)).ConfigureAwait(false);
         _disposeCts.CancelAndDisposeSafe(_logger);
-        return new ValueTask(StopWsAndCloseHttpClientAsync());
+        await StopWsAndCloseHttpClientAsync().ConfigureAwait(false);
     }
 
     private async Task FlushAndCloseUploaderAsync(SerialBatchEventUploader uploader)

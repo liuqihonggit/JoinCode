@@ -11,7 +11,7 @@ public sealed class ConcurrencySafetyTests : IDisposable
 
     public void Dispose()
     {
-        _store.Dispose();
+        _store.DisposeSafe();
     }
 
     /// <summary>

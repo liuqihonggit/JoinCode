@@ -32,7 +32,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        _fileOperationService.DisposeSafe();
     }
 
     [Fact]

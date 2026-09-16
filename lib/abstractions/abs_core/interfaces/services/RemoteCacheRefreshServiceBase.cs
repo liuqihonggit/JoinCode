@@ -5,7 +5,7 @@ public interface IRemoteCacheRefreshCommand;
 
 public sealed record RefreshCacheCmd(TaskCompletionSource? Tcs) : IRemoteCacheRefreshCommand;
 
-public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCacheRefreshCommand, Unit>, IDisposable
+public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCacheRefreshCommand, Unit>
 {
     private readonly HttpClient _httpClient;
     private readonly ITelemetryService? _telemetryService;
@@ -136,23 +136,13 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
     {
     }
 
-    public void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
         _refreshTimer.Dispose();
-        _ = DisposeAsync().AsTask();
+        await base.DisposeAsync().ConfigureAwait(false);
         _disposeCts.Dispose();
-    }
-
-    public override ValueTask DisposeAsync()
-    {
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return ValueTask.CompletedTask;
-        _disposeCts.Cancel();
-        _refreshTimer.Dispose();
-        var baseTask = base.DisposeAsync();
-        _disposeCts.Dispose();
-        return baseTask;
     }
 }
 

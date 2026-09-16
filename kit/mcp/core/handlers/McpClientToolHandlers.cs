@@ -645,10 +645,9 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// <summary>
     /// 异步释放所有 MCP 客户端连接和恢复任务资源
     /// </summary>
-    /// <returns>表示异步释放操作的值任务</returns>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
 
         _restoreCts?.Cancel();
         if (_restoreTask is not null)
@@ -658,10 +657,9 @@ public partial class McpClientToolHandlers : ServiceEntity
         }
 
         var tasks = _clients.Values.Select(client => client.DisposeAsync().AsTask());
-        _ = Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
         _clients.Clear();
         Dispose();
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>释放资源 — 在未异步释放时释放客户端锁。</summary>

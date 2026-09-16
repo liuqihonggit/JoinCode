@@ -239,9 +239,8 @@ public sealed partial class StdioTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        _ = base.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

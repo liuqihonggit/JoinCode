@@ -48,7 +48,7 @@ public sealed class PluginManagerE2ETests
         var result = await pm.UnloadPluginAsync("TestPlugin");
         Assert.True(result.IsSuccess);
         Assert.False(pm.IsWorkflowPluginLoaded("TestPlugin"));
-        pm.Dispose();
+        await pm.DisposeAsync();
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public sealed class PluginManagerE2ETests
             }));
         }
         await Task.WhenAll(tasks);
-        pm.Dispose();
+        await pm.DisposeAsync();
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public sealed class PluginManagerE2ETests
         var pm = CreatePluginManager();
         var results = await pm.UnloadAllPluginsAsync();
         Assert.Empty(results);
-        pm.Dispose();
+        await pm.DisposeAsync();
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public sealed class PluginManagerE2ETests
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             pm.LoadWorkflowPluginAsync<TestPlugin>());
         await pm.UnloadPluginAsync("TestPlugin");
-        pm.Dispose();
+        await pm.DisposeAsync();
     }
 
     [Fact]
@@ -97,6 +97,6 @@ public sealed class PluginManagerE2ETests
         Assert.NotNull(host);
         Assert.Equal("TestPlugin", host!.PluginName);
         await pm.UnloadPluginAsync("TestPlugin");
-        pm.Dispose();
+        await pm.DisposeAsync();
     }
 }

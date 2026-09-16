@@ -459,16 +459,15 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 异步释放 — 执行优雅关闭后释放同步资源
     /// </summary>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
-        _ = ShutdownAsync();
+        await ShutdownAsync().ConfigureAwait(false);
         Dispose();
-        return ValueTask.CompletedTask;
     }
 
     /// <summary>

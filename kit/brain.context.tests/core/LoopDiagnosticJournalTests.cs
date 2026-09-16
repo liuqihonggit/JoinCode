@@ -3,9 +3,9 @@ namespace Core.Context;
 public sealed class LoopDiagnosticJournalTests
 {
     [Fact]
-    public void Record_ReturnsEntryWithTraceId()
+    public async Task Record_ReturnsEntryWithTraceId()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
         var entry = journal.Record("tool_start", "session1", 1, 0);
 
         Assert.NotNull(entry.TraceId);
@@ -17,7 +17,7 @@ public sealed class LoopDiagnosticJournalTests
     [Fact]
     public async Task Record_WindowCountUpdated_AfterBackgroundConsumes()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
 
         journal.Record("tool_start", "s1", 1, 0);
         journal.Record("tool_end", "s1", 1, 1);
@@ -30,7 +30,7 @@ public sealed class LoopDiagnosticJournalTests
     [Fact]
     public async Task Record_WindowSliding_CapacityExceeded()
     {
-        using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 5);
+        await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 5);
 
         for (var i = 0; i < 10; i++)
             journal.Record("event", "s1", 1, i);
@@ -41,9 +41,9 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public void OnLoopDetected_ReturnsAnomalyRecord()
+    public async Task OnLoopDetected_ReturnsAnomalyRecord()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
 
         journal.Record("tool_start", "s1", 3, 5);
         journal.Record("tool_end", "s1", 3, 6);
@@ -67,7 +67,7 @@ public sealed class LoopDiagnosticJournalTests
     [Fact]
     public async Task OnLoopDetected_TraceChainPopulated_AfterBackgroundConsumes()
     {
-        using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 10);
+        await using var journal = new LoopDiagnosticJournal(traceWindowCapacity: 10);
 
         journal.Record("tool_start", "s1", 1, 0);
         journal.Record("tool_end", "s1", 1, 1);
@@ -83,9 +83,9 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public void OnLoopDetected_ToDiagnosticData_ContainsAllFields()
+    public async Task OnLoopDetected_ToDiagnosticData_ContainsAllFields()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
         journal.Record("event", "s1", 1, 0);
 
         var anomaly = journal.OnLoopDetected(
@@ -107,9 +107,9 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public void OnLoopDetected_TextSnippet_TruncatedWhenTooLong()
+    public async Task OnLoopDetected_TextSnippet_TruncatedWhenTooLong()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
         journal.Record("event", "s1", 1, 0);
 
         var longText = new string('A', 300);
@@ -122,9 +122,9 @@ public sealed class LoopDiagnosticJournalTests
     }
 
     [Fact]
-    public void OnLoopDetected_NullEntropy_NotIncludedInData()
+    public async Task OnLoopDetected_NullEntropy_NotIncludedInData()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
         journal.Record("event", "s1", 1, 0);
 
         var anomaly = journal.OnLoopDetected(
@@ -137,7 +137,7 @@ public sealed class LoopDiagnosticJournalTests
     [Fact]
     public async Task Reset_ClearsWindow()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
 
         journal.Record("event", "s1", 1, 0);
         journal.Record("event", "s1", 2, 1);
@@ -152,7 +152,7 @@ public sealed class LoopDiagnosticJournalTests
     [Fact]
     public async Task OnLoopDetected_AddsAnomalyToWindow()
     {
-        using var journal = new LoopDiagnosticJournal();
+        await using var journal = new LoopDiagnosticJournal();
 
         journal.Record("event", "s1", 1, 0);
         journal.OnLoopDetected("OutputLoop", "s1", 1, 0, 1, "循环");

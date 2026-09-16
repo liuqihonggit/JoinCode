@@ -189,11 +189,11 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
     /// 异步释放资源 — 释放所有 MCP 客户端并清空缓存
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_isDisposed)
         {
-            return ValueTask.CompletedTask;
+            return;
         }
 
         _isDisposed = true;
@@ -202,7 +202,7 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
         {
             try
             {
-                _ = client.DisposeAsync();
+                await client.DisposeAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -214,7 +214,6 @@ public sealed partial class McpSkillProvider : IMcpSkillProvider
         _mcpSkills.Clear();
         _adapters.Clear();
         _refreshLock.Dispose();
-        return ValueTask.CompletedTask;
     }
 
     private McpSkillAdapter? FindAdapterForSkill(SkillDefinition skill)

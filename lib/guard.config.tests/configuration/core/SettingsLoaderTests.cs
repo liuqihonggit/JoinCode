@@ -49,7 +49,7 @@ public class SettingsLoaderTests : IDisposable
     public void Dispose()
     {
         // 还原全局 AppDataConstants,避免污染后续测试
-        _envScope.Dispose();
+        _envScope.DisposeSafe();
         AppDataConstants.Paths = AppDataPaths.FromEnvironment(); // 恢复 Paths 实例
     }
 

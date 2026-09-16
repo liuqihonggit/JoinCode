@@ -15,7 +15,7 @@ public sealed class StoreSelectorTests : IDisposable
 
     public void Dispose()
     {
-        _store.Dispose();
+        _store.DisposeSafe();
     }
 
     [Fact]

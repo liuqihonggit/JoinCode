@@ -19,7 +19,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        _fileOperationService.DisposeSafe();
     }
 
     private WorkflowTaskExecutor CreateExecutor() => new(

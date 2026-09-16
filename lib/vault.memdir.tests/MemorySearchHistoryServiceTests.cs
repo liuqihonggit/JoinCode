@@ -120,6 +120,6 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
 
     public void Dispose()
     {
-        _fileOpService.Dispose();
+        _fileOpService.DisposeSafe();
     }
 }

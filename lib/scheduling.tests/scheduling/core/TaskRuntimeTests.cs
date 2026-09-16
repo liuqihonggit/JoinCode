@@ -12,7 +12,7 @@ public class TaskRuntimeTests : IDisposable
 
     public void Dispose()
     {
-        _runtime.Dispose();
+        _runtime.DisposeSafe();
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        _fileOperationService.DisposeSafe();
     }
 
     private TaskRuntime CreateRuntime()

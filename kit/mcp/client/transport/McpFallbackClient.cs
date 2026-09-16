@@ -159,17 +159,16 @@ public sealed class McpFallbackClient : McpClientBase
     }
 
     /// <summary>
-    /// 异步释放客户端资源 — 断开连接、解绑回退链事件并释放回退链与请求注册表。
+    /// 异步释放客户端资源 — 异步断开连接、解绑回退链事件并异步释放回退链与请求注册表。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public override ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
-        _ = DisconnectAsync(CancellationToken.None);
+        await DisconnectAsync(CancellationToken.None).ConfigureAwait(false);
         _chain.MessageReceived -= OnChainMessageReceived;
         _chain.ErrorOccurred -= OnChainError;
         _chain.FallbackOccurred -= OnChainFallback;
-        _ = _chain.DisposeAsync();
-        _ = _requestRegistry.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await _chain.DisposeAsync().ConfigureAwait(false);
+        await _requestRegistry.DisposeAsync().ConfigureAwait(false);
     }
 }

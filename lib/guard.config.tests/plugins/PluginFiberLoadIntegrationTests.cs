@@ -18,7 +18,7 @@ public sealed class PluginFiberLoadIntegrationTests
     [Fact]
     public async Task LoadWorkflowPluginAsync_Success_FiberTransitionsToActive()
     {
-        var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
         var host = await pm.LoadWorkflowPluginAsync<FiberActiveTestPlugin>().ConfigureAwait(true);
@@ -26,56 +26,48 @@ public sealed class PluginFiberLoadIntegrationTests
         var plugin = (FiberActiveTestPlugin)host.Plugin;
         plugin.Fiber.State.Should().Be(PluginFiberState.Active);
 
-        await pm.UnloadPluginAsync(plugin.Name).ConfigureAwait(true);
-        sp.Dispose();
-    }
+        await pm.UnloadPluginAsync(plugin.Name).ConfigureAwait(true);    }
 
     [Fact]
     public async Task LoadWorkflowPluginAsync_LoadFails_ThrowsInf032()
     {
-        var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
         var act = async () => await pm.LoadWorkflowPluginAsync<FiberLoadFailTestPlugin>().ConfigureAwait(true);
 
         (await act.Should().ThrowAsync<InvalidOperationException>().ConfigureAwait(true))
             .WithMessage("[INF032]*");
-
-        sp.Dispose();
     }
 
     [Fact]
     public async Task LoadWorkflowPluginAsync_InitializeFails_ThrowsInf033()
     {
-        var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
         var act = async () => await pm.LoadWorkflowPluginAsync<FiberInitFailTestPlugin>().ConfigureAwait(true);
 
         (await act.Should().ThrowAsync<InvalidOperationException>().ConfigureAwait(true))
             .WithMessage("[INF033]*");
-
-        sp.Dispose();
     }
 
     [Fact]
     public async Task LoadWorkflowPluginAsync_ContractViolation_ThrowsContractError()
     {
-        var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
         var act = async () => await pm.LoadWorkflowPluginAsync<FiberContractFailTestPlugin>().ConfigureAwait(true);
 
         (await act.Should().ThrowAsync<InvalidOperationException>().ConfigureAwait(true))
             .WithMessage("[INF-PLUGIN-CONTRACT]*");
-
-        sp.Dispose();
     }
 
     [Fact]
     public async Task UnloadPluginAsync_AfterSuccessfulLoad_FiberTransitionsToUnloaded()
     {
-        var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
         var host = await pm.LoadWorkflowPluginAsync<FiberActiveTestPlugin2>().ConfigureAwait(true);
@@ -83,9 +75,7 @@ public sealed class PluginFiberLoadIntegrationTests
         plugin.Fiber.State.Should().Be(PluginFiberState.Active);
 
         await pm.UnloadPluginAsync(plugin.Name).ConfigureAwait(true);
-        plugin.Fiber.State.Should().Be(PluginFiberState.Unloaded);
-        sp.Dispose();
-    }
+        plugin.Fiber.State.Should().Be(PluginFiberState.Unloaded);    }
 
     #region Test Plugins
 

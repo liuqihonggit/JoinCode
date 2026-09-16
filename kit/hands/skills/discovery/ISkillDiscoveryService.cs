@@ -4,7 +4,7 @@ namespace Core.Skills.Discovery;
 /// <summary>
 /// 技能发现服务接口 — 扫描技能目录、加载技能定义、监控文件变更
 /// </summary>
-public interface ISkillDiscoveryService : IDisposable
+public interface ISkillDiscoveryService : IAsyncDisposable
 {
     /// <summary>
     /// 异步发现所有技能

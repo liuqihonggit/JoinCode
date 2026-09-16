@@ -63,10 +63,9 @@ public sealed class BridgeFaultInjectionTests
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
-        var client = new FaultInjectionBridgeApiClient(inner);
+        using var client = new FaultInjectionBridgeApiClient(inner);
 
         Assert.NotNull(client);
-        client.Dispose();
     }
 
     [Fact]
@@ -75,7 +74,7 @@ public sealed class BridgeFaultInjectionTests
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
-        var client = new FaultInjectionBridgeApiClient(inner);
+        using var client = new FaultInjectionBridgeApiClient(inner);
 
         BridgeDebugController.InjectFault(new BridgeFault
         {
@@ -90,7 +89,6 @@ public sealed class BridgeFaultInjectionTests
             client.PollForWorkAsync("env1", CancellationToken.None)).ConfigureAwait(true);
 
         BridgeDebugController.ClearHandle();
-        client.Dispose();
     }
 
     [Fact]
@@ -99,7 +97,7 @@ public sealed class BridgeFaultInjectionTests
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         var options = new BridgeApiOptions { BaseUrl = "http://localhost:12345" };
         var inner = new BridgeApiClient(http, options);
-        var client = new FaultInjectionBridgeApiClient(inner);
+        using var client = new FaultInjectionBridgeApiClient(inner);
 
         BridgeDebugController.InjectFault(new BridgeFault
         {
@@ -113,7 +111,6 @@ public sealed class BridgeFaultInjectionTests
             client.PollForWorkAsync("env1", CancellationToken.None)).ConfigureAwait(true);
 
         BridgeDebugController.ClearHandle();
-        client.Dispose();
     }
 
     private sealed class MockDebugHandle : IBridgeDebugHandle

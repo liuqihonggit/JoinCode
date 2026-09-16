@@ -294,14 +294,14 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         }
     }
 
-    /// <summary>释放资源 — 后台释放所有 MailboxActor</summary>
-    public override void Dispose()
+    /// <summary>异步释放资源 — 释放所有 MailboxActor</summary>
+    public override async ValueTask DisposeAsync()
     {
         foreach (var actor in _actors.Values)
         {
-            _ = Task.Run(async () => await actor.DisposeAsync().ConfigureAwait(false));
+            await actor.DisposeAsync().ConfigureAwait(false);
         }
         _actors.Clear();
-            base.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

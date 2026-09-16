@@ -362,21 +362,20 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
             _setProcessing(1);
         }
 
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
+            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
             _setProcessing(0);
             Console.CancelKeyPress -= _onCancelKeyPress;
             _aliveCts.Cancel();
             try { _ = _aliveTask; } catch (OperationCanceledException) { }
-            _ = Console.Out.FlushAsync();
+            await Console.Out.FlushAsync().ConfigureAwait(false);
             Cli.TerminalHelper.WriteLine();
             Diag.WriteLifecycle("[AI对话结束]");
             using (Cli.TerminalHelper.SetColor(ConsoleColor.DarkGray))
                 Cli.TerminalHelper.WriteLine(new string('─', Cli.TerminalHelper.GetWidth()));
             _stepCts.Dispose();
             _aliveCts.Dispose();
-        return ValueTask.CompletedTask;
         }
     }
 }

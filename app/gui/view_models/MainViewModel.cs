@@ -1834,8 +1834,9 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     /// <summary>
     /// 释放引擎资源 — 窗口关闭时由 MainWindow.OnWindowClosed 调用。
     /// 避免 HTTP 连接池/FileSystemWatcher/后台任务泄漏导致进程不退（孤儿进程 + 文件锁）。
+    /// 异步等待真实/模拟会话释放完成，避免 fire-and-forget 丢失异常与释放顺序竞态。
     /// </summary>
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         _modelConfigWatcher?.Dispose();
         _modelConfigWatcher = null;
@@ -1843,9 +1844,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _sendCts?.Dispose();
         _sendCts = null;
         if (_realSession is not null)
-            _ = _realSession.DisposeAsync();
+            await _realSession.DisposeAsync().ConfigureAwait(false);
         if (_mockSession is not null)
-            _ = _mockSession.DisposeAsync();
-        return ValueTask.CompletedTask;
+            await _mockSession.DisposeAsync().ConfigureAwait(false);
     }
 }

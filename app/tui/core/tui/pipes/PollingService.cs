@@ -113,12 +113,11 @@ public sealed class PollingService : IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        if (_disposed) return ValueTask.CompletedTask;
+        if (_disposed) return;
         _disposed = true;
-        _ = StopAsync();
+        await StopAsync().ConfigureAwait(false);
         _semaphore.Dispose();
-        return ValueTask.CompletedTask;
     }
 }

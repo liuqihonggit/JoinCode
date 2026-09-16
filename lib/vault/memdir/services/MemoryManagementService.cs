@@ -171,7 +171,7 @@ public sealed partial class MemoryCleanupResult
 /// <summary>
 /// 内存管理服务接口
 /// </summary>
-public interface IMemoryManagementService : IDisposable
+public interface IMemoryManagementService : IAsyncDisposable
 {
     #region Async Methods (Recommended)
 
@@ -315,7 +315,7 @@ public sealed record MemoryHealthReport
 /// 内存管理服务实现
 /// </summary>
 [Register(typeof(IMemoryManagementService), ServiceLifetime.Singleton)]
-public sealed partial class MemoryManagementService : ServiceEntity, IMemoryManagementService, IDisposable
+public sealed partial class MemoryManagementService : ServiceEntity, IMemoryManagementService
 {
     private readonly MemoryStore _memoryStore;
     private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
@@ -1008,11 +1008,11 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     #endregion
 
     /// <summary>
-    /// 释放内存管理 Actor 资源。
+    /// 异步释放内存管理 Actor 资源。
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
-        _ = _mgmtActor.DisposeAsync();
-            base.Dispose();
+        await _mgmtActor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

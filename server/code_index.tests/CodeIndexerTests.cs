@@ -15,8 +15,8 @@ public sealed class CodeIndexerTests : IDisposable
 
     public void Dispose()
     {
-        _indexer.Dispose();
-        _store.Dispose();
+        _indexer.DisposeSafe();
+        _store.DisposeSafe();
     }
 
     [Fact]

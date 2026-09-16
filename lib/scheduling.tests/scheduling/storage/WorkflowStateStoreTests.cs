@@ -13,7 +13,7 @@ public sealed class WorkflowStateStoreTests : IDisposable
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        _fileOperationService.DisposeSafe();
     }
 
     private WorkflowStateStore CreateStore() => new(_fileOperationService, PersistDir);

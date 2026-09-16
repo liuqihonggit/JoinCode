@@ -59,12 +59,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
         yield return new ToolExecutionMiddleware(NullLogger<ToolExecutionMiddleware>.Instance);
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        _ = _permissionManager.DisposeAsync();
-        _ = _registryWithPermission.DisposeAsync();
-        _ = _registryWithoutPermission.DisposeAsync();
-        return ValueTask.CompletedTask;
+        await _permissionManager.DisposeAsync();
+        await _registryWithPermission.DisposeAsync();
+        await _registryWithoutPermission.DisposeAsync();
     }
 
     #region McpToolRegistry Integration Tests

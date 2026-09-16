@@ -17,7 +17,7 @@ public sealed class PluginExternalBlacklistTests
     [Fact]
     public async Task LoadExternalPluginAsync_BlacklistedPlugin_ThrowsInfPluginBl()
     {
-        var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         var pm = (PluginManager)sp.GetRequiredService<IPluginManager>();
 
         pm.AddToBlacklistForTest("blacklisted-external");
@@ -26,18 +26,16 @@ public sealed class PluginExternalBlacklistTests
 
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("[INF-PLUGIN-BL]*").ConfigureAwait(true);
-        sp.Dispose();
     }
 
     [Fact]
     public async Task LoadExternalPluginAsync_NonExistentFile_ThrowsInf036()
     {
-        var sp = CreateServiceProvider();
+        await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
         var act = async () => await pm.LoadExternalPluginAsync("dummy.exe", "nonexistent-plugin").ConfigureAwait(true);
 
         await act.Should().ThrowAsync<FileNotFoundException>().ConfigureAwait(true);
-        sp.Dispose();
     }
 }

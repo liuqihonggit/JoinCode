@@ -1,6 +1,6 @@
 namespace Core.Tests.Services.FeatureFlags;
 
-public sealed class FeatureFlagServiceTests : IDisposable
+public sealed class FeatureFlagServiceTests : IAsyncDisposable
 {
     private readonly FeatureFlagService _service;
     private readonly HttpClient _httpClient;
@@ -15,9 +15,9 @@ public sealed class FeatureFlagServiceTests : IDisposable
         _service = new FeatureFlagService(_httpClient, options);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _service.Dispose();
+        await _service.DisposeAsync();
         _httpClient.Dispose();
     }
 
@@ -110,12 +110,12 @@ public sealed class FeatureFlagServiceTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_WithNullOptions_UsesDefaultOptions()
+    public async Task Constructor_WithNullOptions_UsesDefaultOptions()
     {
         var service = new FeatureFlagService(_httpClient, null);
 
         service.Should().NotBeNull();
-        service.Dispose();
+        await service.DisposeAsync();
     }
 
     [Fact]

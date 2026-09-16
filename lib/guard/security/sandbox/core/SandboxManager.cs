@@ -765,11 +765,11 @@ public sealed partial class SandboxManager : ServiceEntity, ISandboxManager, IDi
         execution.Stopwatch.Stop();
     }
 
-    /// <inheritdoc />
-    public override void Dispose()
+    /// <summary>异步释放资源 — 异步释放生命周期 Actor 并完成基类异步释放。</summary>
+    public override async ValueTask DisposeAsync()
     {
-        _ = _lifecycleActor.DisposeAsync();
-            base.Dispose();
+        await _lifecycleActor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

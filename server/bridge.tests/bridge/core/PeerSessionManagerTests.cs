@@ -11,17 +11,13 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
 
     private static PeerSessionManager CreateSut() => new(NullLogger<PeerSessionManager>.Instance);
 
-    public ValueTask DisposeAsync()
-    {
-        _ = _sut.DisposeAsync().ConfigureAwait(true);
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask DisposeAsync() => _sut.DisposeAsync();
 
     [Fact]
     public async Task CreatePeerSessionAsync_ShouldCreateSession_WithConnectingStatus()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var localPeerId = "peer-local-001";
         var remotePeerId = "peer-remote-001";
 
@@ -35,15 +31,13 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
         session.RemotePeerId.Should().Be(remotePeerId);
         session.Status.Should().Be(PeerSessionStatus.Connecting);
         session.CreatedAt.Should().BeGreaterThan(0);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task MarkConnectedAsync_ShouldUpdateStatus_ToConnected()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-002", "remote-002").ConfigureAwait(true);
 
         // Act
@@ -53,15 +47,13 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
         var retrieved = sut.GetPeerSession(session.SessionId);
         retrieved.Should().NotBeNull();
         retrieved!.Status.Should().Be(PeerSessionStatus.Connected);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task ClosePeerSessionAsync_ShouldUpdateStatus_ToDisconnected()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-003", "remote-003").ConfigureAwait(true);
         await sut.MarkConnectedAsync(session.SessionId).ConfigureAwait(true);
 
@@ -72,15 +64,13 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
         // ClosePeerSessionAsync 会从字典中移除会话，因此 GetPeerSession 返回 null
         var retrieved = sut.GetPeerSession(session.SessionId);
         retrieved.Should().BeNull();
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task GetPeerSession_ShouldReturnSession_WhenExists()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-004", "remote-004").ConfigureAwait(true);
 
         // Act
@@ -89,30 +79,26 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
         // Assert
         result.Should().NotBeNull();
         result!.SessionId.Should().Be(session.SessionId);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task GetPeerSession_ShouldReturnNull_WhenNotExists()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
         // Act
         var result = sut.GetPeerSession("non-existent-session");
 
         // Assert
         result.Should().BeNull();
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task GetActivePeerSessions_ShouldReturnOnlyConnectedSessions()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var session1 = await sut.CreatePeerSessionAsync("local-005a", "remote-005a").ConfigureAwait(true);
         var session2 = await sut.CreatePeerSessionAsync("local-005b", "remote-005b").ConfigureAwait(true);
 
@@ -125,15 +111,13 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
         // Assert
         activeSessions.Should().HaveCount(1);
         activeSessions.First().SessionId.Should().Be(session1.SessionId);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task PeerSessionConnected_ShouldFire_WhenMarkedConnected()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-006", "remote-006").ConfigureAwait(true);
 
         PeerSessionEventArgs? capturedArgs = null;
@@ -146,15 +130,13 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
         capturedArgs.Should().NotBeNull();
         capturedArgs!.Session.SessionId.Should().Be(session.SessionId);
         capturedArgs.Session.Status.Should().Be(PeerSessionStatus.Connected);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task PeerSessionDisconnected_ShouldFire_WhenClosed()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-007", "remote-007").ConfigureAwait(true);
         await sut.MarkConnectedAsync(session.SessionId).ConfigureAwait(true);
 
@@ -168,15 +150,13 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
         capturedArgs.Should().NotBeNull();
         capturedArgs!.Session.SessionId.Should().Be(session.SessionId);
         capturedArgs.Session.Status.Should().Be(PeerSessionStatus.Disconnected);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task MarkConnectedAsync_OnAlreadyConnected_ShouldBeIdempotent_NoDuplicateEvent()
     {
         // Arrange
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-008", "remote-008").ConfigureAwait(true);
         await sut.MarkConnectedAsync(session.SessionId).ConfigureAwait(true);
 
@@ -189,8 +169,6 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
         // Assert
         eventCount.Should().Be(0);
         session.Status.Should().Be(PeerSessionStatus.Connected);
-
-        await sut.DisposeAsync().ConfigureAwait(true);
     }
 }
 

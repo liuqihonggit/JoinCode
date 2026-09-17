@@ -12,7 +12,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
 {
     private readonly ILogger? _logger;
     private readonly ITeammateMailboxService? _mailboxService;
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _deliveredMessageIds;
+    private readonly MessageDedupTracker _dedup = new();
 
     /// <summary>
     /// 构造进程内邮箱实例
@@ -33,7 +33,6 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     {
         _logger = logger;
         _mailboxService = mailboxService;
-        _deliveredMessageIds = new ConcurrentDictionary<string, ConcurrentDictionary<string, byte>>();
     }
 
     /// <summary>
@@ -50,7 +49,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// <param name="agentId">Agent 标识</param>
     public void UnregisterAgent(string agentId)
     {
-        _deliveredMessageIds.TryRemove(agentId, out _);
+        _dedup.Clear(agentId);
         _ = UnregisterAgentAsync(agentId, CancellationToken.None);
     }
 
@@ -113,10 +112,7 @@ public sealed partial class InProcessMailbox : MailboxBase<CoordinatorMessage>, 
     /// 检查消息是否已投递给指定 Agent — 用 MessageId 去重。
     /// </summary>
     private bool IsDuplicate(string agentId, string messageId)
-    {
-        var deliveredSet = _deliveredMessageIds.GetOrAdd(agentId, _ => new ConcurrentDictionary<string, byte>());
-        return !deliveredSet.TryAdd(messageId, 0);
-    }
+        => _dedup.IsDuplicate(agentId, messageId);
 
     /// <summary>
     /// 持久化消息到文件邮箱 — 可选，配置了 mailboxService 时生效。

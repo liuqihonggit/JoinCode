@@ -14,15 +14,12 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     private readonly IFileOperationService _fileOperationService;
     private readonly ITelemetryService? _telemetryService;
     private readonly AsyncLock _budgetLock = new();
-    private readonly IClockService _clock;
     private readonly ModelPricingTable _pricingTable;
+    private readonly CostSessionStats _stats;
     private CancellationTokenSource? _disposeCts = new();
 
     private BudgetConfig? _budgetConfig;
     private readonly HashSet<double> _triggeredThresholds = [];
-    private int _totalLinesAdded;
-    private int _totalLinesRemoved;
-    private DateTime _sessionStartTime;
 
     /// <summary>
     /// 构造成本跟踪器实例 — 加载默认模型定价并异步加载历史用量记录
@@ -41,9 +38,8 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         _logger = logger;
         _budgetConfig = budgetConfig;
         _telemetryService = telemetryService;
-        _clock = clock ?? SystemClockService.Instance;
+        _stats = new CostSessionStats(clock ?? SystemClockService.Instance);
         _pricingTable = new ModelPricingTable(modelConfigLoader ?? new ModelConfigLoader());
-        _sessionStartTime = _clock.GetUtcNow();
         _modelCosts = new ConcurrentDictionary<string, ModelCostInfo>(StringComparer.OrdinalIgnoreCase);
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
         _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
@@ -109,7 +105,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     {
         var record = new TokenUsageRecord
         {
-            Timestamp = _clock.GetUtcNow(),
+            Timestamp = _stats.CurrentTime,
             Model = model,
             PromptTokens = promptTokens,
             CompletionTokens = completionTokens,
@@ -174,7 +170,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <returns>今日成本统计信息</returns>
     public CostStatistics GetTodayStatistics()
     {
-        var today = _clock.GetUtcNow().Date;
+        var today = _stats.CurrentTime.Date;
         var records = _usageRecords.Where(r => r.Timestamp.Date == today).ToList();
         return CalculateStatistics(records);
     }
@@ -207,8 +203,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="removed">删除行数</param>
     public void RecordLinesChanged(int added, int removed)
     {
-        Interlocked.Add(ref _totalLinesAdded, added);
-        Interlocked.Add(ref _totalLinesRemoved, removed);
+        _stats.RecordLinesChanged(added, removed);
     }
 
     /// <summary>
@@ -371,7 +366,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 
     private decimal CalculateDailyCost()
     {
-        var today = _clock.GetUtcNow().Date;
+        var today = _stats.CurrentTime.Date;
         return _usageRecords
             .Where(r => r.Timestamp.Date == today)
             .Sum(r => r.CostUsd);
@@ -379,7 +374,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 
     private decimal CalculateMonthlyCost()
     {
-        var now = _clock.GetUtcNow();
+        var now = _stats.CurrentTime;
         var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         return _usageRecords
             .Where(r => r.Timestamp >= startOfMonth)
@@ -457,8 +452,8 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             ModelBreakdown = modelBreakdown,
             ApiDuration = TimeSpan.FromMilliseconds(apiDurationMs),
             WallDuration = wallDuration,
-            LinesAdded = Volatile.Read(ref _totalLinesAdded),
-            LinesRemoved = Volatile.Read(ref _totalLinesRemoved),
+            LinesAdded = _stats.TotalLinesAdded,
+            LinesRemoved = _stats.TotalLinesRemoved,
             HasUnknownModelCost = hasUnknownModel
         };
     }
@@ -560,9 +555,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         while (_usageRecords.TryTake(out _)) { }
         _sessionIndex.Clear();
         _triggeredThresholds.Clear();
-        Interlocked.Exchange(ref _totalLinesAdded, 0);
-        Interlocked.Exchange(ref _totalLinesRemoved, 0);
-        _sessionStartTime = _clock.GetUtcNow();
+        _stats.Reset();
         _logger?.LogInformation("[CostTracker] 用量记录已重置");
     }
 

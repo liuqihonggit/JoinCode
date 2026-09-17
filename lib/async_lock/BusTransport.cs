@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 总线拓扑传输 — 共享服务器，多客户端连同一管道，主机中继广播所有消息。
@@ -277,7 +277,7 @@ public sealed class BusTransport : ITransportTopology
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
@@ -361,7 +361,7 @@ internal sealed class BusClientConnection : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeQueue.Writer.TryComplete();
         await _writeLoop.ConfigureAwait(false);
         await _stream.DisposeAsync().ConfigureAwait(false);

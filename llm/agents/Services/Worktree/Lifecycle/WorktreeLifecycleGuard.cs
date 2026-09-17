@@ -1,4 +1,4 @@
-namespace Core.Agents.Worktree;
+﻿namespace Core.Agents.Worktree;
 
 /// <summary>
 /// Worktree 生命周期守卫 — 构造时锁定 worktree 路径，Dispose 时用同一路径删除，从不二次计算。
@@ -84,7 +84,7 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         var logger = _logger;
         var path = _worktreePath;
         return new ValueTask(ReleaseCoreAsync(force: true, CancellationToken.None).ContinueWith(

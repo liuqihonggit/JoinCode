@@ -1,4 +1,4 @@
-namespace JoinCode.Transport;
+﻿namespace JoinCode.Transport;
 
 /// <summary>
 /// 通用传输基类 — 提供生命周期管理、发送锁、事件触发的标准实现
@@ -127,7 +127,7 @@ public abstract class TransportBase : ITransport
     /// <inheritdoc/>
     public virtual ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         return new ValueTask(StopAsync().ContinueWith(
             _ =>

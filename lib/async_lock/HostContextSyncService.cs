@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 上下文快照提供者委托 — 主机调用以收集当前上下文快照。
@@ -207,7 +207,7 @@ public sealed class HostContextSyncService : IAsyncDisposable
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         if (_syncTask is not null) await _syncTask.ConfigureAwait(false);
         _cts.Dispose();

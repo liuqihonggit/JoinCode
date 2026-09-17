@@ -1,4 +1,4 @@
-namespace Services.SystemActuator;
+﻿namespace Services.SystemActuator;
 
 internal sealed class ProcessOutputCollector : IAsyncDisposable
 {
@@ -103,7 +103,7 @@ internal sealed class ProcessOutputCollector : IAsyncDisposable
     /// <returns>已完成的值任务</returns>
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return ValueTask.CompletedTask;
 
         if (_spillFilePath is not null)
         {

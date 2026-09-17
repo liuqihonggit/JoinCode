@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 网络邮箱 — 通过 <see cref="IPlatformBotAdapter"/> 接入 QQ/飞书等外部消息平台。
@@ -128,7 +128,7 @@ public sealed partial class NetworkMailbox : MailboxBase<CoordinatorMessage>
 
     private async ValueTask DisposeAsyncCore()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         if (_receiveLoopTask is not null)
         {
             try { await _receiveLoopTask.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false); }

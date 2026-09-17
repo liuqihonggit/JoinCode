@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 有名管道邮箱 — 基于 <see cref="NamedPipeTransport"/> 星型拓扑的跨进程双工邮箱。
@@ -54,7 +54,7 @@ public sealed partial class NamedPipeMailbox : MailboxBase<CoordinatorMessage>
     /// <param name="ct">取消令牌</param>
     public async Task StartAsync(CancellationToken ct = default)
     {
-        if (Interlocked.Exchange(ref _started, 1) == 1) return;
+        if (Interlocked.Exchange(ref _started, 1) != 0) return;
         await _transport.StartAsync(ct).ConfigureAwait(false);
         _receiveLoopTask = Task.Run(() => ReceiveLoopAsync(_cts.Token), ct);
         _logger?.LogInformation("NamedPipeMailbox started (role={Role}, pid={Pid})",

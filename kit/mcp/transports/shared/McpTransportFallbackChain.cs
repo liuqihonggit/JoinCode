@@ -1,4 +1,4 @@
-namespace McpClient.Transports;
+﻿namespace McpClient.Transports;
 
 /// <summary>
 /// MCP 客户端传输降级链 — 按优先级依次尝试多个传输,运行时错误自动切换到下一个可用传输。
@@ -328,7 +328,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _switchLock.Dispose();

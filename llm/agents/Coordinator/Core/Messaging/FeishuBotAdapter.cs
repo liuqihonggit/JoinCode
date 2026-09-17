@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 飞书机器人适配器 — 通过飞书开放平台 Bot API 发送/接收消息。
@@ -44,7 +44,7 @@ public sealed class FeishuBotAdapter : IPlatformBotAdapter
     /// <inheritdoc/>
     public async ValueTask StartAsync(CancellationToken ct = default)
     {
-        if (Interlocked.Exchange(ref _started, 1) == 1) return;
+        if (Interlocked.Exchange(ref _started, 1) != 0) return;
         _tenantAccessToken = await GetTenantAccessTokenAsync(ct).ConfigureAwait(false);
         _logger?.LogInformation("FeishuBotAdapter: started, token acquired (len={Len})", _tenantAccessToken?.Length ?? 0);
     }
@@ -113,7 +113,7 @@ public sealed class FeishuBotAdapter : IPlatformBotAdapter
     /// <inheritdoc/>
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _receiveChannel.Writer.TryComplete();
         return ValueTask.CompletedTask;
     }

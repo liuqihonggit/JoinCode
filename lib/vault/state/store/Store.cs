@@ -1,4 +1,4 @@
-
+﻿
 namespace State;
 
 /// <summary>
@@ -210,7 +210,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     /// </summary>
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _disposeCts.CancelAndDisposeSafe(_logger);
 
@@ -234,7 +234,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
 
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _store.Unsubscribe(_handler);
         }
     }

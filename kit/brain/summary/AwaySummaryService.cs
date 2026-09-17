@@ -351,7 +351,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _autoSaveTimer?.Dispose();
         _autoSaveTimer = null;
         await base.DisposeAsync().ConfigureAwait(false);

@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 主机选举结果 — 探测有名管道后得出的角色决策。
@@ -300,7 +300,7 @@ public sealed class HostElectionService : IAsyncDisposable
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _electionCmdChannel.Writer.TryComplete();
         _electionChannel.Writer.TryComplete();

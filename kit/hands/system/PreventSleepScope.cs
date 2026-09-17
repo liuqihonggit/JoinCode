@@ -48,7 +48,7 @@ public sealed class PreventSleepScope : IAsyncDisposable
     /// <returns>表示异步释放操作的 ValueTask</returns>
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _detached, 1) == 1) return default;
+        if (Interlocked.Exchange(ref _detached, 1) != 0) return default;
         return DisposeAsyncCore();
     }
 

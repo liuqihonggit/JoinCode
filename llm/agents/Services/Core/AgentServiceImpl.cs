@@ -870,7 +870,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     /// <summary>异步释放资源 — 取消活动任务、清理 worktree、释放服务锁与依赖句柄</summary>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _disposeCts.CancelAndDisposeSafe(_logger);
 

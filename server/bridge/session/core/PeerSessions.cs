@@ -220,7 +220,7 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// <returns>表示异步释放操作的任务</returns>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0)
         {
             return;
         }

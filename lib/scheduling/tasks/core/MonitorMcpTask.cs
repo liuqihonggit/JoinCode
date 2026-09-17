@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Scheduling.Tasks;
 
 /// <summary>
@@ -217,7 +217,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
         await CleanupSessionsAsync().ConfigureAwait(false);

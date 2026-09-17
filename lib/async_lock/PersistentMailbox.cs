@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 持久化存储接口 — 横切关注点,可替换实现(文件/Redis/数据库)。
@@ -123,7 +123,7 @@ public sealed class PersistentMailbox<TCommand, TOut> : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         return _actor.DisposeAsync();
     }
 }

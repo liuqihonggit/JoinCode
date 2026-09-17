@@ -1,4 +1,4 @@
-namespace Services.Lsp.Internal;
+﻿namespace Services.Lsp.Internal;
 
 /// <summary>
 /// LSP 服务器状态 — 与 Clock 组件的 ServiceStatus 结构相似，
@@ -437,7 +437,7 @@ public sealed partial class LspServerInstance : ILspServerInstance
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
 
         await StopAsync().ConfigureAwait(false);
         await _client.DisposeAsync().ConfigureAwait(false);

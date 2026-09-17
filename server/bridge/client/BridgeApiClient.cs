@@ -1308,7 +1308,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     public override void Dispose()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return;
         }

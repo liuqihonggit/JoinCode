@@ -1,4 +1,4 @@
-namespace Infrastructure.Subprocess;
+﻿namespace Infrastructure.Subprocess;
 
 /// <summary>
 /// 进程健康监控命令 — Actor 消息类型
@@ -145,7 +145,7 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
         _timer.Change(Timeout.Infinite, Timeout.Infinite);
         _timer.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);

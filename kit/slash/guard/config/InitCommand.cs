@@ -153,7 +153,7 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     private static void EnsureJccDirectory(string cwd, IFileSystem fs)
     {
         var jccDir = Path.Combine(cwd, AppDataConstants.AppDataFolder);
-        if (fs.DirectoryExists(jccDir))
+        if (!fs.DirectoryExists(jccDir))
         {
             DirectoryHelper.EnsureDirectoryExists(fs, jccDir);
             TerminalHelper.WriteLine("  ✓ 创建 .jcc/ 目录");

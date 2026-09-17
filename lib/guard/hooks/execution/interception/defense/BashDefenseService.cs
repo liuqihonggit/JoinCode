@@ -23,16 +23,22 @@ public sealed class BashDefenseService
 {
     private readonly RetainedDeviceNode _retainedDeviceNode;
     private readonly ArgvHashNode _argvHashNode;
+    private readonly RedirectWhitelistNode _redirectWhitelistNode;
 
     /// <summary>
     /// 构造 Bash 防御服务
     /// </summary>
     /// <param name="retainedDeviceNode">保留设备名检测 node</param>
     /// <param name="argvHashNode">argv hash 校验 node</param>
-    public BashDefenseService(RetainedDeviceNode retainedDeviceNode, ArgvHashNode argvHashNode)
+    /// <param name="redirectWhitelistNode">重定向白名单 node</param>
+    public BashDefenseService(
+        RetainedDeviceNode retainedDeviceNode,
+        ArgvHashNode argvHashNode,
+        RedirectWhitelistNode redirectWhitelistNode)
     {
         _retainedDeviceNode = retainedDeviceNode ?? throw new ArgumentNullException(nameof(retainedDeviceNode));
         _argvHashNode = argvHashNode ?? throw new ArgumentNullException(nameof(argvHashNode));
+        _redirectWhitelistNode = redirectWhitelistNode ?? throw new ArgumentNullException(nameof(redirectWhitelistNode));
     }
 
     /// <summary>
@@ -114,6 +120,27 @@ public sealed class BashDefenseService
         return ValueTask.FromResult<ToolResult?>(null);
     }
 
+    /// <summary>
+    /// 重定向白名单检测 — 委托 <see cref="RedirectWhitelistNode"/>，重定向目标必须在工作区内或 /dev/null。
+    /// <para>
+    /// MTP 扰动纵深防御约束第3条：重定向走白名单，不枚举危险名。
+    /// 约束第8条：路径白名单在规范化之后判定。
+    /// </para>
+    /// </summary>
+    /// <param name="ctx">Bash 防御上下文</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>拒绝诊断；通过时返回 null</returns>
+    public ValueTask<ToolResult?> CheckRedirectWhitelist(BashDefenseContext ctx, CancellationToken ct)
+    {
+        var result = _redirectWhitelistNode.CheckWhitelist(ctx.CurrentCommand, ctx.WorkingDirectory);
+        if (result.IsWhitelisted)
+            return ValueTask.FromResult<ToolResult?>(null);
+
+        var diag = BuildRedirectWhitelistRejectedDiagnostic(result.ViolatingTarget!, result.NormalizedTarget, ctx.WorkingDirectory);
+        return ValueTask.FromResult<ToolResult?>(
+            ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+    }
+
     // ════════════════════════════════════════════════════════════════════
     //  诊断模板构建（封死替代路径 + MTP 扰动提示）
     // ════════════════════════════════════════════════════════════════════
@@ -186,4 +213,20 @@ public sealed class BashDefenseService
             "确认码不匹配，建议完整重新生成命令。");
         return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
     }
+
+    /// <summary>
+    /// 构建重定向白名单拒绝诊断 — 封死替代路径 + 提示 MTP 扰动重生成。
+    /// </summary>
+    private static ToolDiagnostic BuildRedirectWhitelistRejectedDiagnostic(
+        string violatingTarget, string? normalizedTarget, string workingDirectory)
+        => ToolDiagnostic.Create(
+            "JCC9009",
+            $"重定向目标 '{violatingTarget}' 不在白名单内 — 只允许工作区路径或 /dev/null。" +
+            (normalizedTarget is not null ? $"\n规范化后路径：{normalizedTarget}" : "") +
+            $"\n工作目录：{workingDirectory}" +
+            $"\n\n✅ 推荐写法：> /dev/null（丢弃输出）或 > ./output.txt（工作区内文件）" +
+            $"\n❌ 禁止尝试：>../../etc/passwd / >$HOME/.bashrc / >nul —— 全部会被拦截" +
+            $"\n⚠️ 疑似 MTP 扰动：建议丢弃当前命令，完整重新生成，不要在错误字符串上局部修补",
+            "重定向目标", violatingTarget,
+            "重定向目标必须在工作区内或 /dev/null。禁止重定向到工作区外路径或保留设备名。");
 }

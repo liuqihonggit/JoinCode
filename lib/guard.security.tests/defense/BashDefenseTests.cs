@@ -11,11 +11,13 @@ public class BashDefenseTests
 {
     private readonly RetainedDeviceNode _retainedDeviceNode = new();
     private readonly ArgvHashNode _argvHashNode = new();
+    private readonly RedirectWhitelistNode _redirectWhitelistNode = new();
+    private readonly MtpPerturbationNode _mtpPerturbationNode = new();
     private readonly BashDefenseService _bashDefenseService;
 
     public BashDefenseTests()
     {
-        _bashDefenseService = new BashDefenseService(_retainedDeviceNode, _argvHashNode);
+        _bashDefenseService = new BashDefenseService(_retainedDeviceNode, _argvHashNode, _redirectWhitelistNode);
     }
 
     #region BashDefense 链式构建器基本功能
@@ -290,6 +292,105 @@ public class BashDefenseTests
 
         rejection.Should().NotBeNull();
         rejection!.GetFirstText().Should().Contain("不匹配", "命令不匹配应拒绝");
+    }
+
+    #endregion
+
+    #region RedirectWhitelistNode 重定向白名单
+
+    private static readonly string WorkDir = AppContext.BaseDirectory;
+
+    [Theory]
+    [InlineData("cmd >/dev/null")]
+    [InlineData("cmd >/dev/stderr")]
+    [InlineData("cmd > output.txt")]
+    [InlineData("cmd >> output.txt")]
+    [InlineData("cmd 2>error.txt")]
+    [InlineData("cmd >/dev/null 2>&1")]
+    public void CheckWhitelist_SafeTargets_ShouldPass(string command)
+    {
+        var result = _redirectWhitelistNode.CheckWhitelist(command, WorkDir);
+        result.IsWhitelisted.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("cmd > ../../etc/passwd")]
+    [InlineData("cmd > /etc/passwd")]
+    public void CheckWhitelist_OutsideWorkspace_ShouldReject(string command)
+    {
+        var result = _redirectWhitelistNode.CheckWhitelist(command, WorkDir);
+        result.IsWhitelisted.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CheckWhitelist_NoRedirect_ShouldPass()
+    {
+        var result = _redirectWhitelistNode.CheckWhitelist("echo hello", WorkDir);
+        result.IsWhitelisted.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CheckRedirectWhitelist_ViolatingTarget_ShouldRejectWithMessage()
+    {
+        var (_, rejection) = await _bashDefenseService
+            .Begin("cmd > ../../etc/passwd", WorkDir, SystemActuatorKind.Bash)
+            .Then(_bashDefenseService.CheckRedirectWhitelist)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().NotBeNull();
+        rejection!.GetFirstText().Should().Contain("/dev/null", "应给出正确写法");
+        rejection.GetFirstText().Should().Contain("MTP", "应提示 MTP 扰动");
+    }
+
+    #endregion
+
+    #region MtpPerturbationNode 扰动统计
+
+    [Fact]
+    public void Record_SuccessCommand_ShouldNotTriggerAdaptive()
+    {
+        var report = _mtpPerturbationNode.Record("echo hello", 0, null);
+        report.ShouldTriggerAdaptive.Should().BeFalse();
+        report.TotalRecords.Should().Be(1);
+    }
+
+    [Fact]
+    public void Record_SingleAnomaly_ShouldNotTriggerAdaptive()
+    {
+        _mtpPerturbationNode.Record("cmd >nul", 1, "The system cannot find the file specified");
+        var report = _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
+
+        report.ShouldTriggerAdaptive.Should().BeFalse("单次异常不触发，需连续3次");
+        report.ConsecutiveAnomalies.Should().Be(2);
+    }
+
+    [Fact]
+    public void Record_ThreeConsecutiveAnomalies_ShouldTriggerAdaptive()
+    {
+        _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
+        _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
+        var report = _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
+
+        report.ShouldTriggerAdaptive.Should().BeTrue("连续3次异常应触发自适应开关");
+        report.ConsecutiveAnomalies.Should().Be(3);
+    }
+
+    [Fact]
+    public void Record_SuccessAfterAnomaly_ShouldResetCounter()
+    {
+        _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
+        _mtpPerturbationNode.Record("cmd >nul", 1, "not found");
+        var report = _mtpPerturbationNode.Record("echo hello", 0, null);
+
+        report.ShouldTriggerAdaptive.Should().BeFalse();
+        report.ConsecutiveAnomalies.Should().Be(0, "成功调用应重置连续异常计数");
+    }
+
+    [Fact]
+    public void Record_PathErrorInStderr_ShouldBeAnomaly()
+    {
+        var report = _mtpPerturbationNode.Record("cat ./buld/file", 1, "No such file or directory");
+        report.ConsecutiveAnomalies.Should().Be(1, "stderr 包含路径错误应为异常");
     }
 
     #endregion

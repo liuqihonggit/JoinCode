@@ -351,6 +351,7 @@ public static class SettingsLoader
         catch (Exception ex)
         {
             Diag.WriteLine($"[SL] EXCEPTION: {path} {ex.GetType().Name}: {ex.Message}");
+            Diag.WriteLifecycle($"[WARN] 配置文件解析失败，使用默认值: {path} | 错误: {ex.Message}");
             logger?.LogWarning(ex, "SettingsLoader: Failed to load {Path}", path);
             return null;
         }
@@ -371,6 +372,7 @@ public static class SettingsLoader
         }
         catch (Exception ex)
         {
+            Diag.WriteLifecycle($"[WARN] 配置文件解析失败，使用默认值: {path} | 错误: {ex.Message}");
             logger?.LogWarning(ex, "SettingsLoader: Failed to load {Path}", path);
             return null;
         }

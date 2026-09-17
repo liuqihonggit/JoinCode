@@ -95,9 +95,12 @@ public sealed partial class SettingsMapper : ServiceEntity
                 // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
                 if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
                 {
-                    config.Provider.ModelId ??= newDefinition.DefaultModelId
-                        ?? throw new ConfigurationException(
+                    config.Provider.ModelId ??= newDefinition.DefaultModelId;
+                    if (config.Provider.ModelId is null && !SkipProviderValidation)
+                    {
+                        throw new ConfigurationException(
                             $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
+                    }
                 }
             }
             else
@@ -211,9 +214,12 @@ public sealed partial class SettingsMapper : ServiceEntity
         }
         else if (definition is not null)
         {
-            config.Provider.ModelId = definition.DefaultModelId
-                ?? throw new ConfigurationException(
+            config.Provider.ModelId = definition.DefaultModelId;
+            if (config.Provider.ModelId is null && !SkipProviderValidation)
+            {
+                throw new ConfigurationException(
                     $"Provider '{definition.ProviderName}' 没有定义默认模型，请通过 vendor[current.profile].model 或 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
+            }
         }
         else if (SkipProviderValidation)
         {

@@ -174,8 +174,9 @@ public class ConfigLoader {
             var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         }
-        catch
+        catch (Exception ex)
         {
+            Diag.WriteLifecycle($"[WARN] 全局配置文件解析失败，使用默认值: {settingsPath} | 错误: {ex.Message}");
             return null;
         }
     }
@@ -283,8 +284,9 @@ public class ConfigLoader {
             var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
         }
-        catch
+        catch (Exception ex)
         {
+            Diag.WriteLifecycle($"[WARN] auth.json 解析失败: {authPath} | 错误: {ex.Message}");
             return null;
         }
     }
@@ -642,6 +644,13 @@ public class ConfigLoader {
         // 注意: EnvOverrideApplier.Apply 合并 ProfileSettings 时可能将 Models 置 null
         if ((profileSettings.Models is null || profileSettings.Models.Count == 0) && settings.AutoFetchModels)
             return;
+
+        // 元命令模式跳过模型注册检查 — slash_call/mcp_list 等不需要 LLM 服务
+        if (SkipProviderValidation)
+        {
+            Diag.WriteLifecycle($"[WARN] 跳过模型注册检查 — 模型 '{modelId}' 未在 vendor.{profile}.models 中注册。元命令模式降级运行。");
+            return;
+        }
 
         throw new ConfigurationException(
             $"[GRD016] 模型 '{modelId}' 未在 settings.json 的 vendor.{profile}.models 列表中注册。" +

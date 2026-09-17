@@ -39,12 +39,12 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
     private sealed class SessionPlanState
     {
-        public string? CurrentSessionSlug;
-        public PermissionMode? PrePlanMode;
-        public int StrippedRuleCount;
-        public bool HasExitedPlanMode;
-        public bool NeedsPlanModeExitAttachment;
-        public string? CurrentPlanId;
+        public string? CurrentSessionSlug { get; set; }
+        public PermissionMode? PrePlanMode { get; set; }
+        public int StrippedRuleCount { get; set; }
+        public bool HasExitedPlanMode { get; set; }
+        public bool NeedsPlanModeExitAttachment { get; set; }
+        public string? CurrentPlanId { get; set; }
     }
 
     /// <summary>

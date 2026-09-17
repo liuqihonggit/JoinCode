@@ -21,6 +21,7 @@ namespace Core.Hooks.Execution.Interception.Defense;
 [Register(typeof(BashDefenseService), ServiceLifetime.Singleton)]
 public sealed class BashDefenseService
 {
+    private readonly DangerousCommandNode _dangerousCommandNode;
     private readonly RetainedDeviceNode _retainedDeviceNode;
     private readonly ArgvHashNode _argvHashNode;
     private readonly RedirectWhitelistNode _redirectWhitelistNode;
@@ -29,16 +30,19 @@ public sealed class BashDefenseService
     /// <summary>
     /// 构造 Bash 防御服务
     /// </summary>
+    /// <param name="dangerousCommandNode">危险命令检测 node</param>
     /// <param name="retainedDeviceNode">保留设备名检测 node</param>
     /// <param name="argvHashNode">argv hash 校验 node</param>
     /// <param name="redirectWhitelistNode">重定向白名单 node</param>
     /// <param name="strictParseNode">严格解析检测 node</param>
     public BashDefenseService(
+        DangerousCommandNode dangerousCommandNode,
         RetainedDeviceNode retainedDeviceNode,
         ArgvHashNode argvHashNode,
         RedirectWhitelistNode redirectWhitelistNode,
         StrictParseNode strictParseNode)
     {
+        _dangerousCommandNode = dangerousCommandNode ?? throw new ArgumentNullException(nameof(dangerousCommandNode));
         _retainedDeviceNode = retainedDeviceNode ?? throw new ArgumentNullException(nameof(retainedDeviceNode));
         _argvHashNode = argvHashNode ?? throw new ArgumentNullException(nameof(argvHashNode));
         _redirectWhitelistNode = redirectWhitelistNode ?? throw new ArgumentNullException(nameof(redirectWhitelistNode));
@@ -67,6 +71,27 @@ public sealed class BashDefenseService
     // ════════════════════════════════════════════════════════════════════
     //  防御步骤（委托各 node，适配 ToolResult）— 有名函数，非 lambda
     // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 危险命令检测 — 委托 <see cref="DangerousCommandNode"/>，分类命令危险等级，Dangerous 级直接拒绝。
+    /// <para>
+    /// MTP 扰动纵深防御约束第4条：Dangerous 级直接拒绝。
+    /// 补 CommandInterceptionDispatcher 缺失：直接 git -c / git --exec-path 等命令在 Dispatcher 内被跳过。
+    /// </para>
+    /// </summary>
+    /// <param name="ctx">Bash 防御上下文</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>拒绝诊断；通过时返回 null</returns>
+    public ValueTask<ToolResult?> CheckDangerousCommand(BashDefenseContext ctx, CancellationToken ct)
+    {
+        var classification = _dangerousCommandNode.ClassifyDangerous(ctx.CurrentCommand);
+        if (classification is null)
+            return ValueTask.FromResult<ToolResult?>(null);
+
+        var diag = BuildDangerousCommandRejectedDiagnostic(classification, ctx.CurrentCommand);
+        return ValueTask.FromResult<ToolResult?>(
+            ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+    }
 
     /// <summary>
     /// 严格解析检测 — 委托 <see cref="StrictParseNode"/>，检测未闭合引号。
@@ -168,6 +193,24 @@ public sealed class BashDefenseService
     // ════════════════════════════════════════════════════════════════════
     //  诊断模板构建（封死替代路径 + MTP 扰动提示）
     // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 构建危险命令拒绝诊断 — Dangerous 级直接拒绝 + 封死替代路径 + 提示 MTP 扰动重生成。
+    /// </summary>
+    /// <param name="classification">危险分类结果</param>
+    /// <param name="command">原始命令</param>
+    /// <returns>拒绝诊断</returns>
+    private static ToolDiagnostic BuildDangerousCommandRejectedDiagnostic(
+        DangerClassificationResult classification, string command)
+        => ToolDiagnostic.Create(
+            "JCC9011",
+            $"命令被分类为 Dangerous 级（直接拒绝）— {classification.Details ?? classification.RiskType.ToString()}" +
+            $"\n\n原始命令：{command}" +
+            $"\n\n✅ 推荐写法：移除危险参数，使用安全的等价命令" +
+            $"\n❌ 禁止尝试：换用变体绕过 —— 全部会被拦截" +
+            $"\n⚠️ 疑似 MTP 扰动：建议丢弃当前命令，完整重新生成，不要在错误字符串上局部修补",
+            "风险类型", classification.RiskType.ToString(),
+            "命令被分类为 Dangerous 级，直接拒绝。请移除危险参数或使用安全等价命令。");
 
     /// <summary>
     /// 构建保留设备名拒绝诊断 — 封死替代路径 + 提示 MTP 扰动重生成。

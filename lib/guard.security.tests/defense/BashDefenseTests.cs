@@ -14,11 +14,13 @@ public class BashDefenseTests
     private readonly RedirectWhitelistNode _redirectWhitelistNode = new();
     private readonly StrictParseNode _strictParseNode = new();
     private readonly MtpPerturbationNode _mtpPerturbationNode = new();
+    private readonly DangerousCommandNode _dangerousCommandNode;
     private readonly BashDefenseService _bashDefenseService;
 
     public BashDefenseTests()
     {
-        _bashDefenseService = new BashDefenseService(_retainedDeviceNode, _argvHashNode, _redirectWhitelistNode, _strictParseNode);
+        _dangerousCommandNode = new DangerousCommandNode(new CommandDangerClassifier());
+        _bashDefenseService = new BashDefenseService(_dangerousCommandNode, _retainedDeviceNode, _argvHashNode, _redirectWhitelistNode, _strictParseNode);
     }
 
     #region BashDefense 链式构建器基本功能
@@ -444,6 +446,101 @@ public class BashDefenseTests
             .ExecuteAsync(CancellationToken.None);
 
         rejection.Should().BeNull();
+    }
+
+    #endregion
+
+    #region DangerousCommandNode — 危险命令检测
+
+    [Fact]
+    public void DangerousCommandNode_GitGlobalParamC_ShouldClassifyAsDangerous()
+    {
+        var result = _dangerousCommandNode.ClassifyDangerous("git -c core.sshCommand=rm status");
+        result.Should().NotBeNull();
+        result!.IsDangerous.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DangerousCommandNode_GitExecPath_ShouldClassifyAsDangerous()
+    {
+        var result = _dangerousCommandNode.ClassifyDangerous("git --exec-path=/tmp/evil status");
+        result.Should().NotBeNull();
+        result!.IsDangerous.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DangerousCommandNode_GitConfigEnv_ShouldClassifyAsDangerous()
+    {
+        var result = _dangerousCommandNode.ClassifyDangerous("git --config-env=foo=bar status");
+        result.Should().NotBeNull();
+        result!.IsDangerous.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DangerousCommandNode_NormalGitStatus_ShouldReturnNull()
+    {
+        var result = _dangerousCommandNode.ClassifyDangerous("git status");
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public void DangerousCommandNode_NormalEcho_ShouldReturnNull()
+    {
+        var result = _dangerousCommandNode.ClassifyDangerous("echo hello");
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CheckDangerousCommand_GitC_ShouldReject()
+    {
+        var workDir = AppContext.BaseDirectory;
+        var (_, rejection) = await _bashDefenseService
+            .Begin("git -c core.sshCommand=rm status", workDir, SystemActuatorKind.Bash)
+            .Then(_bashDefenseService.CheckDangerousCommand)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().NotBeNull();
+        rejection!.GetFirstText().Should().Contain("Dangerous");
+        rejection.GetFirstText().Should().Contain("MTP");
+    }
+
+    [Fact]
+    public async Task CheckDangerousCommand_GitExecPath_ShouldReject()
+    {
+        var workDir = AppContext.BaseDirectory;
+        var (_, rejection) = await _bashDefenseService
+            .Begin("git --exec-path=/tmp/evil log", workDir, SystemActuatorKind.Bash)
+            .Then(_bashDefenseService.CheckDangerousCommand)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().NotBeNull();
+        rejection!.GetFirstText().Should().Contain("Dangerous");
+    }
+
+    [Fact]
+    public async Task CheckDangerousCommand_NormalGit_ShouldPass()
+    {
+        var workDir = AppContext.BaseDirectory;
+        var (_, rejection) = await _bashDefenseService
+            .Begin("git status", workDir, SystemActuatorKind.Bash)
+            .Then(_bashDefenseService.CheckDangerousCommand)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task CheckDangerousCommand_InChain_ShouldShortCircuitBeforeRetainedDevice()
+    {
+        var workDir = AppContext.BaseDirectory;
+        var (_, rejection) = await _bashDefenseService
+            .Begin("git -c x=y status >nul", workDir, SystemActuatorKind.Bash)
+            .Then(_bashDefenseService.CheckDangerousCommand)
+            .Then(_bashDefenseService.CheckRetainedDevice)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().NotBeNull();
+        rejection!.GetFirstText().Should().Contain("Dangerous");
     }
 
     #endregion

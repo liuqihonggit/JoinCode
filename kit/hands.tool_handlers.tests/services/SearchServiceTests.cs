@@ -21,7 +21,7 @@ public sealed class SearchServiceTests : IDisposable
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        _fileOperationService.DisposeSafe();
     }
 
     [Fact]

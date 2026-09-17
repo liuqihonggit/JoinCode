@@ -17,8 +17,8 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await _service.DisposeAsync();
-        _httpClient.Dispose();
+        await _service.DisposeSafeAsync();
+        _httpClient.DisposeSafe();
     }
 
     private static global::System.Collections.Concurrent.ConcurrentDictionary<string, FeatureFlag> GetCache(FeatureFlagService service)
@@ -112,10 +112,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     [Fact]
     public async Task Constructor_WithNullOptions_UsesDefaultOptions()
     {
-        var service = new FeatureFlagService(_httpClient, null);
+        await using var service = new FeatureFlagService(_httpClient, null);
 
         service.Should().NotBeNull();
-        await service.DisposeAsync();
     }
 
     [Fact]

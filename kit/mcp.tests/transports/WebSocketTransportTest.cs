@@ -83,7 +83,7 @@ public class WebSocketTransportTest
             {
                 ws.DisposeSafe();
             }
-            _cts.Dispose();
+            _cts.DisposeSafe();
         }
     }
 

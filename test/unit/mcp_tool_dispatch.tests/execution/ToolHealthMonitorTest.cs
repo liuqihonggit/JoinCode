@@ -30,8 +30,8 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        _monitor.Dispose();
-        _monitorWithBlacklist.Dispose();
+        _monitor.DisposeSafe();
+        _monitorWithBlacklist.DisposeSafe();
         return Task.CompletedTask;
     }
 
@@ -218,7 +218,7 @@ public sealed class ToolHealthMonitorTest : IAsyncLifetime
     public async Task RecordSuccessAsync_PersistsToDisk()
     {
         await _monitor.RecordSuccessAsync("tool_a");
-        _monitor.Dispose();
+        _monitor.DisposeSafe();
 
         using var monitor2 =  new ToolHealthMonitor(_fs, config: new ToolScoreConfig());
         var record = await monitor2.GetRecordAsync("tool_a");

@@ -131,11 +131,9 @@ public sealed class AnalyticsFileSinkTests
     public async Task DisposeAsync_StopsFlushLoopCleanly()
     {
         var fs = new TestInMemFs();
-        var sink = new AnalyticsFileSink(fs, flushInterval: TimeSpan.FromMilliseconds(100));
+        await using var sink = new AnalyticsFileSink(fs, flushInterval: TimeSpan.FromMilliseconds(100));
 
         sink.LogEvent("test.event");
-
-        await sink.DisposeAsync();
     }
 
     [Fact]

@@ -44,8 +44,7 @@ public class AsyncLockTest
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
 
         // SemaphoreSlim 包装不保证无竞争时同步完成, 仅验证锁可获取
-        var guard = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
-        guard.Dispose();
+        using var guard = asyncLock.TryLock() ?? throw new System.TimeoutException($"锁 '{asyncLock.Name}' 等待超时");
     }
 
     [Fact(Timeout = 10000)]
@@ -230,8 +229,7 @@ public class AsyncLockTest
     [InlineData(4, 8)]
     public async Task Constructor_ValidConcurrencyArgs_CreatesSuccessfully(int initial, int max)
     {
-        var asyncLock = new AsyncLock("test-concurrency", initial, max);
-        asyncLock.Dispose();
+        using var asyncLock = new AsyncLock("test-concurrency", initial, max);
         await Task.CompletedTask;
     }
 

@@ -17,7 +17,7 @@ public class MemoryCacheServiceTests : IDisposable {
     public void Dispose() {
         // 清理快速测试模式设置
         TestConfiguration.IsFastTestMode = false;
-        _cacheService.Dispose();
+        _cacheService.DisposeSafe();
     }
 
     [Fact]

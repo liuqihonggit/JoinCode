@@ -11,7 +11,7 @@ public sealed class PreventSleepServiceTests : IDisposable
 
     public void Dispose()
     {
-        _service.Dispose();
+        _service.DisposeSafe();
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class PreventSleepServiceTests : IDisposable
     {
         await _service.PreventSleepAsync(SleepPreventionType.Continuous).ConfigureAwait(true);
 
-        _service.Dispose();
+        _service.DisposeSafe();
 
         _service.IsSleepPrevented.Should().BeFalse();
     }

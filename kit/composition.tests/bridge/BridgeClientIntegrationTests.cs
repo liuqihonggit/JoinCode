@@ -32,7 +32,7 @@ public class BridgeClientIntegrationTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        _loggerFactory.Dispose();
+        _loggerFactory.DisposeSafe();
     }
 
     #region MCP 客户端完整流程测试

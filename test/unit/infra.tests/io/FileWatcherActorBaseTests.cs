@@ -11,7 +11,7 @@ public class FileWatcherActorBaseTests
         var fs = new InMemoryFileSystem();
         var dir = "/test";
         fs.CreateDirectory(dir);
-        var actor = new TestFileWatcherActor(fs);
+        await using var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
@@ -20,7 +20,6 @@ public class FileWatcherActorBaseTests
             () => actor.GetChanges().Any(c => c.FilePath.EndsWith("a.txt")),
             TimeSpan.FromSeconds(3)).ConfigureAwait(true);
         found.Should().BeTrue("a.txt 变更事件应在 3s 内被捕获");
-        await actor.DisposeAsync();
     }
 
     [Fact]
@@ -29,7 +28,7 @@ public class FileWatcherActorBaseTests
         var fs = new InMemoryFileSystem();
         var dir = "/test";
         fs.CreateDirectory(dir);
-        var actor = new TestFileWatcherActor(fs);
+        await using var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
 
@@ -39,21 +38,19 @@ public class FileWatcherActorBaseTests
 
         var changes = actor.GetChanges();
         changes.Any(c => c.FilePath.EndsWith("b.txt")).Should().BeFalse();
-        await actor.DisposeAsync();
     }
 
     [Fact]
     public async Task CustomCommand_HandleCustomCommandAsyncInvoked()
     {
         var fs = new InMemoryFileSystem();
-        var actor = new TestFileWatcherActor(fs);
+        await using var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new TestCustomCmd("test-data"));
 
         var found = await WaitForAsync(
             () => actor.CustomCommands.Contains("test-data"),
             TimeSpan.FromSeconds(3)).ConfigureAwait(true);
         found.Should().BeTrue("自定义命令应在 3s 内被处理");
-        await actor.DisposeAsync();
     }
 
     [Fact]
@@ -62,7 +59,7 @@ public class FileWatcherActorBaseTests
         var fs = new InMemoryFileSystem();
         var dir = "/test";
         fs.CreateDirectory(dir);
-        var actor = new TestFileWatcherActor(fs);
+        await using var actor = new TestFileWatcherActor(fs);
         await actor.SendAsync(new FileWatcherStartCmd(dir, "*.txt", TimeSpan.FromMilliseconds(50)));
         await WaitForActorReadyAsync(actor).ConfigureAwait(true);
         await actor.SendAsync(new FileWatcherStopCmd());
@@ -73,7 +70,6 @@ public class FileWatcherActorBaseTests
 
         var changes = actor.GetChanges();
         changes.Any(c => c.FilePath.EndsWith("c.txt")).Should().BeFalse();
-        await actor.DisposeAsync();
     }
 
     private static async Task WaitForActorReadyAsync(TestFileWatcherActor actor)

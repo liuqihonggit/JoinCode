@@ -22,7 +22,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _registry.DisposeAsync();
+        await _registry.DisposeSafeAsync();
     }
 
     [Fact]

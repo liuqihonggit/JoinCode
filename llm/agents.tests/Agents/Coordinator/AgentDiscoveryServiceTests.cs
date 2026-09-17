@@ -107,7 +107,7 @@ public sealed class AgentDiscoveryServiceTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        _service.Dispose();
+        _service.DisposeSafe();
         return ValueTask.CompletedTask;
     }
 }

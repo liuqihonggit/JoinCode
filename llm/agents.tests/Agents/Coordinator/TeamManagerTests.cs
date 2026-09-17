@@ -389,7 +389,7 @@ public class TeamManagerTests : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        _teamManager.Dispose();
+        _teamManager.DisposeSafe();
         return Task.CompletedTask;
     }
 }

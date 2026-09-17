@@ -20,7 +20,7 @@ public class ReferenceResolverTests : IDisposable
 
     public void Dispose()
     {
-        _fileOpService.Dispose();
+        _fileOpService.DisposeSafe();
     }
 
     #region ResolveCodeReferenceAsync Tests

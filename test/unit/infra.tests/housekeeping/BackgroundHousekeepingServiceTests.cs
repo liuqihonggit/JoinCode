@@ -45,9 +45,7 @@ public sealed class BackgroundHousekeepingServiceTests
         var housekeeping = new Mock<IHousekeepingService>();
         var fs = new TestInMemFs();
         var clock = new FakeClockService();
-        var sut = new BackgroundHousekeepingService(housekeeping.Object, fs, clock);
-
-        await sut.DisposeAsync();
+        await using var sut = new BackgroundHousekeepingService(housekeeping.Object, fs, clock);
     }
 
     [Fact]

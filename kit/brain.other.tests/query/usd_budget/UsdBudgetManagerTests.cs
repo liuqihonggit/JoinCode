@@ -180,9 +180,8 @@ public class UsdBudgetManagerTests : IAsyncDisposable
         status.IsExceeded.Should().BeTrue();
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        _ = _manager.DisposeAsync().ConfigureAwait(true);
-        return ValueTask.CompletedTask;
+        await _manager.DisposeSafeAsync();
     }
 }

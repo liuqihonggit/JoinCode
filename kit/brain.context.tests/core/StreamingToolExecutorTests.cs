@@ -8,7 +8,7 @@ public sealed class StreamingToolExecutorTests
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
-        var executor = new StreamingToolExecutor(toolHandler, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
 
@@ -16,8 +16,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().ContainSingle();
         results[0].ToolName.Should().Be("read");
         results[0].Result.IsError.Should().BeFalse();
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -35,7 +33,7 @@ public sealed class StreamingToolExecutorTests
             .Callback(() => executionOrder.Add("grep"))
             .ReturnsAsync(new ToolCallResult { ResultText = "grep-result", IsError = false });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "grep", Arguments = "{}" }, 1);
@@ -44,8 +42,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().HaveCount(2);
         executionOrder.Should().Contain("read");
         executionOrder.Should().Contain("grep");
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -62,7 +58,7 @@ public sealed class StreamingToolExecutorTests
             .Callback(() => executionOrder.Add("Write2"))
             .ReturnsAsync(new ToolCallResult { ResultText = "write2-result", IsError = false });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Write", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Write2", Arguments = "{}" }, 1);
@@ -71,8 +67,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().HaveCount(2);
         executionOrder[0].Should().Be("Write");
         executionOrder[1].Should().Be("Write2");
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -86,7 +80,7 @@ public sealed class StreamingToolExecutorTests
         toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "cancelled", IsError = true });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "bash", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
@@ -96,8 +90,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().HaveCount(2);
         results.Should().Contain(r => r.ToolName == "bash" && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError);
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -106,7 +98,7 @@ public sealed class StreamingToolExecutorTests
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var toolHandler = CreateToolHandler();
-        var executor = new StreamingToolExecutor(toolHandler, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "grep", Arguments = "{}" }, 2);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 0);
@@ -116,8 +108,6 @@ public sealed class StreamingToolExecutorTests
         results[0].OriginalIndex.Should().Be(0);
         results[1].OriginalIndex.Should().Be(1);
         results[2].OriginalIndex.Should().Be(2);
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -139,7 +129,7 @@ public sealed class StreamingToolExecutorTests
             .Callback(() => executionOrder.Add("grep"))
             .ReturnsAsync(new ToolCallResult { ResultText = "grep-result", IsError = false });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Write", Arguments = "{}" }, 1);
@@ -157,8 +147,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().Contain(r => r.ToolName == "read");
         results.Should().Contain(r => r.ToolName == "Write");
         results.Should().Contain(r => r.ToolName == "grep");
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -177,7 +165,7 @@ public sealed class StreamingToolExecutorTests
                 return new ToolCallResult { ResultText = "read-result", IsError = false };
             });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = ShellToolNameEnumConstants.Powershell, Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
@@ -190,8 +178,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().HaveCount(2);
         results.Should().Contain(r => r.ToolName == ShellToolNameEnumConstants.Powershell && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError, "PowerShell error should cascade cancel sibling tools like Bash does");
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -210,7 +196,7 @@ public sealed class StreamingToolExecutorTests
                 return new ToolCallResult { ResultText = "read-result", IsError = false };
             });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = ShellToolNameEnumConstants.PowershellScript, Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
@@ -223,8 +209,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().HaveCount(2);
         results.Should().Contain(r => r.ToolName == ShellToolNameEnumConstants.PowershellScript && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError, "PowerShellScript error should cascade cancel sibling tools like Bash does");
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -244,7 +228,7 @@ public sealed class StreamingToolExecutorTests
                 return new ToolCallResult { ResultText = "read-result", IsError = false };
             });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext(), userCancellationToken: userCts.Token);
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext(), userCancellationToken: userCts.Token);
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
 
@@ -255,8 +239,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().ContainSingle();
         results[0].Result.IsError.Should().BeTrue("user cancellation should cause tool to be cancelled");
         results[0].Result.ResultText.Should().Contain("cancelled");
-
-        await executor.DisposeAsync();
     }
 
     /// <summary>
@@ -275,7 +257,7 @@ public sealed class StreamingToolExecutorTests
         toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "ok", IsError = false });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "bash", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
@@ -286,8 +268,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().HaveCount(2, "both tools must complete even after cascade cancel");
         results.Should().Contain(r => r.ToolName == "bash" && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "read");
-
-        await executor.DisposeAsync();
     }
 
     /// <summary>
@@ -307,7 +287,7 @@ public sealed class StreamingToolExecutorTests
             .Callback(() => readHandlerInvoked = true)
             .ReturnsAsync(new ToolCallResult { ResultText = "should-not-run", IsError = false });
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "bash", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
@@ -319,8 +299,6 @@ public sealed class StreamingToolExecutorTests
         results.Should().Contain(r => r.ToolName == "bash" && r.Result.IsError);
         results.Should().Contain(r => r.ToolName == "read" && r.Result.IsError, "queued tool should get synthetic cancelled error, not handler result");
         readHandlerInvoked.Should().BeFalse("handler should NOT be invoked for queued tool after cascade cancel — align TS collectResults getAbortReason() early check");
-
-        await executor.DisposeAsync();
     }
 
     /// <summary>
@@ -340,7 +318,7 @@ public sealed class StreamingToolExecutorTests
             .Callback(() => mockInvoked.TrySetResult(true))
             .Returns(() => slowTcs.Task);
 
-        var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Write", Arguments = "{}" }, 0);
 
@@ -353,8 +331,6 @@ public sealed class StreamingToolExecutorTests
 
         var results = await remainingTask.WaitAsync(TimeSpan.FromSeconds(5));
         results.Should().NotBeNull("remainingTask 在 5s 内完成说明 Discard 未死锁");
-
-        await executor.DisposeAsync();
     }
 
     private static IToolExecutionHandler CreateToolHandler()

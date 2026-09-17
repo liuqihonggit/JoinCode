@@ -22,7 +22,7 @@ public sealed class VcrServiceTests : IDisposable
 
     public void Dispose()
     {
-        _service.Dispose();
+        _service.DisposeSafe();
         try
         {
             if (TestFileSystem.Current.DirectoryExists(_tempDir))

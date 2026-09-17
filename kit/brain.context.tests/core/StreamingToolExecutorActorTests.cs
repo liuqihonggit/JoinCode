@@ -11,7 +11,7 @@ public sealed class StreamingToolExecutorActorTests
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
-        var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
 
@@ -19,8 +19,6 @@ public sealed class StreamingToolExecutorActorTests
         results.Should().ContainSingle();
         results[0].ToolName.Should().Be("read");
         results[0].Result.IsError.Should().BeFalse();
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -38,7 +36,7 @@ public sealed class StreamingToolExecutorActorTests
             .Callback(() => executionOrder.Add("grep"))
             .ReturnsAsync(new ToolCallResult { ResultText = "grep-result", IsError = false });
 
-        var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "grep", Arguments = "{}" }, 1);
@@ -47,8 +45,6 @@ public sealed class StreamingToolExecutorActorTests
         results.Should().HaveCount(2);
         executionOrder.Should().Contain("read");
         executionOrder.Should().Contain("grep");
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -65,7 +61,7 @@ public sealed class StreamingToolExecutorActorTests
             .Callback(() => executionOrder.Add("Write2"))
             .ReturnsAsync(new ToolCallResult { ResultText = "write2-result", IsError = false });
 
-        var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Write", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "Write2", Arguments = "{}" }, 1);
@@ -75,8 +71,6 @@ public sealed class StreamingToolExecutorActorTests
         executionOrder.Should().HaveCount(2);
         executionOrder[0].Should().Be("Write");
         executionOrder[1].Should().Be("Write2");
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -85,7 +79,7 @@ public sealed class StreamingToolExecutorActorTests
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
-        var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "read", Arguments = "{}" }, 0);
         await executor.AddToolAsync(new ToolCallEntry { Id = "2", Name = "read", Arguments = "{}" }, 1);
@@ -95,8 +89,6 @@ public sealed class StreamingToolExecutorActorTests
         completed.Should().HaveCount(2);
         completed[0].OriginalIndex.Should().Be(0);
         completed[1].OriginalIndex.Should().Be(1);
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -110,7 +102,7 @@ public sealed class StreamingToolExecutorActorTests
             .Callback(() => mockInvoked.TrySetResult(true))
             .Returns(() => slowTcs.Task);
 
-        var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "Write", Arguments = "{}" }, 0);
 
@@ -121,8 +113,6 @@ public sealed class StreamingToolExecutorActorTests
         executor.IsDiscarded.Should().BeTrue();
 
         slowTcs.SetResult(new ToolCallResult { ResultText = "ok", IsError = false });
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -133,14 +123,12 @@ public sealed class StreamingToolExecutorActorTests
         toolHandler.Setup(h => h.ExecuteToolCallAsync("bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "error", IsError = true });
 
-        var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutorActor(toolHandler.Object, classifier, CreateContext());
 
         await executor.AddToolAsync(new ToolCallEntry { Id = "1", Name = "bash", Arguments = "{}" }, 0);
         await executor.GetRemainingResultsAsync();
 
         executor.CombinedCancellationToken.IsCancellationRequested.Should().BeTrue();
-
-        await executor.DisposeAsync();
     }
 
     [Fact]
@@ -149,7 +137,7 @@ public sealed class StreamingToolExecutorActorTests
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
-        var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
+        await using var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
 
         const int count = 50;
         var addTasks = Enumerable.Range(0, count).Select(async i =>
@@ -160,8 +148,6 @@ public sealed class StreamingToolExecutorActorTests
         await Task.WhenAll(addTasks);
         var results = await executor.GetRemainingResultsAsync().WaitAsync(TimeSpan.FromSeconds(10));
         results.Should().HaveCount(count);
-
-        await executor.DisposeAsync();
     }
 
     private static IToolExecutionHandler CreateToolHandler()

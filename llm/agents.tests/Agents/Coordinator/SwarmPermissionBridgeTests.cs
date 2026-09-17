@@ -187,7 +187,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        _bridge.Dispose();
+        _bridge.DisposeSafe();
         return Task.CompletedTask;
     }
 }

@@ -31,6 +31,7 @@
   </Folder>
   <Folder Name="/core/execution/">
     <Project Path="../../kit/brain/Brain.csproj" />
+    <Project Path="../../kit/prompts/Prompts.csproj" />
     <Project Path="../../kit/brain.context.tests/Brain.Context.Tests.csproj" />
     <Project Path="../../kit/brain.other.tests/Brain.Other.Tests.csproj" />
     <Project Path="../../kit/brain.prompts.tests/Brain.Prompts.Tests.csproj" />

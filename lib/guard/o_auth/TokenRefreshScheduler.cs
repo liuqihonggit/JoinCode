@@ -59,6 +59,7 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, TokenMonitor> _monitors = new();
     private readonly TimeSpan _refreshBuffer;
+    private bool _disposed;
 
     /// <summary>
     /// Token 即将过期事件
@@ -158,6 +159,9 @@ public sealed partial class TokenRefreshScheduler : ServiceEntity, ITokenRefresh
     /// <inheritdoc />
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         foreach (var monitor in _monitors.Values)
         {
             monitor.Timer.Stop();

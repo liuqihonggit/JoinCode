@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 消息优先级 — 多通道优先级邮箱用。
@@ -299,7 +299,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// </summary>
     public virtual async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _highChannel.Writer.TryComplete();
         _normalChannel.Writer.TryComplete();

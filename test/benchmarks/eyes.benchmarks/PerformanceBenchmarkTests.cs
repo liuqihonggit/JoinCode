@@ -5,6 +5,7 @@ public sealed class PerformanceBenchmarkTests : IDisposable
 {
     private readonly string _workspaceRoot;
     private readonly IFileSystem _fs = new IO.FileSystem.PhysicalFileSystem();
+    private bool _disposed;
 
     public PerformanceBenchmarkTests()
     {
@@ -14,6 +15,8 @@ public sealed class PerformanceBenchmarkTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); }
         catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
     }

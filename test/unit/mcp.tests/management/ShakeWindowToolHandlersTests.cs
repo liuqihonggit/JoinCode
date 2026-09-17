@@ -28,6 +28,7 @@ public sealed class ShakeWindowToolHandlersTests
     {
         var coordinator = CreateCoordinator(enabled: true, canShake: true);
         var shakeService = new Mock<IWindowShakeService>();
+        shakeService.Setup(x => x.ShakeWindowAsync(default)).ReturnsAsync(new ShakeResult("test", "test", "test"));
         var handler = new ShakeWindowToolHandlers(coordinator.Object, shakeService.Object);
         var result = await handler.ShakeWindowAsync("test", default);
         result.IsError.Should().BeFalse();

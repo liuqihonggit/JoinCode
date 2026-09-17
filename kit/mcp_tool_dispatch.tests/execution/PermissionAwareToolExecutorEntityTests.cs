@@ -32,7 +32,7 @@ public sealed class PermissionAwareToolExecutorEntityTests
     [Fact]
     public void ToolExecutionEntity_LifecycleFlow_MirrorsExecutorFlow()
     {
-        var entity = new ToolExecutionEntity("bash");
+        using var entity = new ToolExecutionEntity("bash");
 
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
 
@@ -47,14 +47,12 @@ public sealed class PermissionAwareToolExecutorEntityTests
         entity.LifecycleState.Should().Be(EntityLifecycle.Completed);
         entity.IsError.Should().BeFalse();
         entity.ResultSummary.Should().Be("command executed");
-
-        entity.Dispose();
     }
 
     [Fact]
     public void ToolExecutionEntity_ErrorFlow_SetsIsError()
     {
-        var entity = new ToolExecutionEntity("grep");
+        using var entity = new ToolExecutionEntity("grep");
 
         entity.LifecycleState = EntityLifecycle.Active;
         entity.StartedAt = DateTime.UtcNow;
@@ -66,8 +64,6 @@ public sealed class PermissionAwareToolExecutorEntityTests
 
         entity.IsError.Should().BeTrue();
         entity.ResultSummary.Should().Be("pattern not found");
-
-        entity.Dispose();
     }
 
     [Fact]

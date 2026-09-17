@@ -38,14 +38,13 @@ public sealed class SessionRouterTests
     {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal = new Goal("测试目标");
+        using var goal = new Goal("测试目标");
         scope.Register(goal);
 
         var resolved = SessionRouter.Resolve<Goal>(sessionId, goal.ObjectId);
         resolved.Should().BeSameAs(goal);
 
         SessionRouter.Clear();
-        goal.Dispose();
     }
 
     [Fact]
@@ -56,7 +55,7 @@ public sealed class SessionRouterTests
         var scopeA = SessionRouter.GetOrCreateScope(sessionIdA);
         var scopeB = SessionRouter.GetOrCreateScope(sessionIdB);
 
-        var goalA = new Goal("会话A的目标");
+        using var goalA = new Goal("会话A的目标");
         scopeA.Register(goalA);
 
         // 会话B 无法通过 goalA 的 ObjectId 获取到它
@@ -66,7 +65,6 @@ public sealed class SessionRouterTests
         SessionRouter.Resolve<Goal>(sessionIdA, goalA.ObjectId).Should().BeSameAs(goalA);
 
         SessionRouter.Clear();
-        goalA.Dispose();
     }
 
     [Fact]

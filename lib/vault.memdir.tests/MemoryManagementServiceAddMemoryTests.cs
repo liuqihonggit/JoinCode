@@ -7,6 +7,7 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable
     private readonly MemoryStore _store;
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
     private readonly MemoryManagementService _sut;
+    private bool _disposed;
 
     public MemoryManagementServiceAddMemoryTests()
     {
@@ -18,6 +19,8 @@ public class MemoryManagementServiceAddMemoryTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     [Fact]

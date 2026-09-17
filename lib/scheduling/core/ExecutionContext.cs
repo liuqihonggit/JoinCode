@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Scheduling;
 
 /// <summary>
@@ -88,7 +88,7 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// </summary>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return;
         }

@@ -15,17 +15,15 @@ public sealed class TreeSitterParserPoolTests
     [Fact]
     public async Task AcquireSharedAsync_ReturnsReleaserThatCanBeDisposed()
     {
-        var releaser = await TreeSitterParserPool.AcquireSharedAsync(CancellationToken.None).ConfigureAwait(true);
+        using var releaser = await TreeSitterParserPool.AcquireSharedAsync(CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(releaser);
-        releaser.Dispose();
     }
 
     [Fact]
     public void AcquireShared_ReturnsReleaserThatCanBeDisposed()
     {
-        var releaser = TreeSitterParserPool.AcquireShared();
+        using var releaser = TreeSitterParserPool.AcquireShared();
         Assert.NotNull(releaser);
-        releaser.Dispose();
     }
 
     [Fact]

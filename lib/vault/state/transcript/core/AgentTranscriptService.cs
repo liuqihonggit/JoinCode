@@ -11,6 +11,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     private readonly TranscriptFileWriter _writer;
     private readonly AsyncLock _metaLock = new();
     private readonly IFileSystem _fs;
+    private bool _disposed;
 
     /// <summary>
     /// 构造 Agent 转录服务
@@ -177,6 +178,8 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     /// <inheritdoc/>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _writer.Dispose();
         _metaLock.Dispose();
             base.Dispose();

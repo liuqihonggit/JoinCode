@@ -74,9 +74,7 @@ public class StreamIdleWatchdogTests
     [Fact]
     public void Dispose_PreventsFurtherAborts()
     {
-        var watchdog = new StreamIdleWatchdog(1, CancellationToken.None);
-
-        watchdog.Dispose();
+        using var watchdog = new StreamIdleWatchdog(1, CancellationToken.None);
 
         watchdog.WasIdleAborted.Should().BeFalse();
     }

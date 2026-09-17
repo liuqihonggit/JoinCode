@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace Services.SystemPower;
 
 /// <summary>
@@ -47,13 +48,13 @@ public sealed class PreventSleepScope : IAsyncDisposable
     /// <returns>表示异步释放操作的 ValueTask</returns>
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _detached, 1) == 1) return default;
+        if (Interlocked.Exchange(ref _detached, 1) != 0) return default;
         return DisposeAsyncCore();
     }
 
     private async ValueTask DisposeAsyncCore()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         if (_service is not null)
             await _service.AllowSleepAsync().ConfigureAwait(false);
     }

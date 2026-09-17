@@ -28,7 +28,9 @@ public sealed class McpClientToolHandlersPersistenceTests
     [Fact]
     public async Task McpConnectAsync_WithFileSystem_PersistsConnections()
     {
-        var (handler, fs) = CreateHandlerWithFileSystem();
+        var created = CreateHandlerWithFileSystem();
+        await using var handler = created.handler;
+        var fs = created.fs;
         var filePath = GetConnectionsFilePath();
 
         var result = await handler.McpConnectAsync("testconn", "http://localhost:18090/mcp", "http", cancellationToken: CancellationToken.None);
@@ -40,14 +42,14 @@ public sealed class McpClientToolHandlersPersistenceTests
         json.Should().Contain("testconn", "持久化内容应包含连接名");
         json.Should().Contain("http://localhost:18090/mcp", "持久化内容应包含 endpoint");
         json.Should().Contain("http", "持久化内容应包含 transport_type");
-
-        await handler.DisposeAsync();
     }
 
     [Fact]
     public async Task McpDisconnectAsync_WithFileSystem_RemovesConnection()
     {
-        var (handler, fs) = CreateHandlerWithFileSystem();
+        var created = CreateHandlerWithFileSystem();
+        await using var handler = created.handler;
+        var fs = created.fs;
         var filePath = GetConnectionsFilePath();
 
         await handler.McpConnectAsync("testconn", "http://localhost:18090/mcp", "http", cancellationToken: CancellationToken.None);
@@ -58,8 +60,6 @@ public sealed class McpClientToolHandlersPersistenceTests
         result.IsError.Should().BeFalse("断开应成功");
         var json = fs.ReadAllText(filePath);
         json.Should().NotContain("testconn", "断开后 connections.json 应移除该连接");
-
-        await handler.DisposeAsync();
     }
 
     [Fact]
@@ -76,13 +76,11 @@ public sealed class McpClientToolHandlersPersistenceTests
         var registry = new FakeMcpToolRegistry();
         var deps = new McpClientToolDeps(ToolRegistry: registry, ClientFactory: factory);
 
-        var handler = new McpClientToolHandlers(deps, NullLogger<McpClientToolHandlers>.Instance, fs);
+        await using var handler = new McpClientToolHandlers(deps, NullLogger<McpClientToolHandlers>.Instance, fs);
 
         await Task.Delay(500);
         var listResult = await handler.McpListToolsAsync("restored", CancellationToken.None);
         listResult.IsError.Should().BeFalse("恢复的连接应可列出工具");
-
-        await handler.DisposeAsync();
     }
 
     private sealed class FakeMcpClient : IMcpClient

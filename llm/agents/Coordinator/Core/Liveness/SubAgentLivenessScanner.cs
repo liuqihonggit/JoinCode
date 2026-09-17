@@ -56,6 +56,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     private volatile bool _stopping;
     private volatile bool _milestoneScanTriggered;
     private Task? _scanLoop;
+    private bool _disposed;
 
     /// <summary>子代理卡死事件 — 检测器确认卡死时触发，由集成层订阅处理 L3 激活</summary>
     public event EventHandler<SubAgentStalledEventArgs>? AgentStalled;
@@ -263,6 +264,8 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
         _logger?.LogInformation("[SubAgentLivenessScanner] 停止，清理 {Count} 个检测器", _detectors.Count);
         _stateMachine.StateChanged -= OnStateChanged;
         _stopping = true;

@@ -5,6 +5,7 @@ public sealed class GraphVisualizationWikiTests : IDisposable
 {
     private readonly InMemoryIndexStore _store;
     private readonly GraphVisualization _viz;
+    private bool _disposed;
 
     public GraphVisualizationWikiTests()
     {
@@ -14,6 +15,8 @@ public sealed class GraphVisualizationWikiTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _store.DisposeSafe();
     }
 

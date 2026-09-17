@@ -1,3 +1,4 @@
+﻿using System.Threading;
 
 namespace IO.Services;
 
@@ -17,6 +18,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     private readonly AsyncLock _deleteSemaphore;
 
     private readonly TokenBucket _tokenBucket;
+    private bool _disposed;
 
     private int _currentConcurrentOperations;
 
@@ -194,6 +196,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         _readSemaphore.Dispose();
         _writeSemaphore.Dispose();
         _deleteSemaphore.Dispose();
@@ -208,7 +211,7 @@ internal sealed class IOExecutionLease : IIOExecutionLease
 {
     private readonly IOThrottleService _service;
     private readonly IDisposable? _releaser;
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>获取许可的时间戳</summary>
     public DateTime AcquiredAt { get; }
@@ -235,7 +238,7 @@ internal sealed class IOExecutionLease : IIOExecutionLease
     /// </summary>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _releaser?.Dispose();
         _service.Release(OperationType);
     }

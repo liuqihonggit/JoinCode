@@ -7,6 +7,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
     private readonly MemoryStore _memoryStore;
     private readonly Mock<IMemoryPaths> _memoryPathsMock;
     private readonly string _tempBasePath;
+    private bool _disposed;
 
     public AssistantDailyLogServiceTests()
     {
@@ -118,6 +119,8 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOpService.DisposeSafe();
     }
 }

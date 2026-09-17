@@ -72,7 +72,7 @@ public sealed class StorePersistenceTests
     {
         // Arrange
         var persistence = new MockPersistence();
-        var store = new Store<string>("initial", persistence);
+        using var store = new Store<string>("initial", persistence);
 
         // Act
         store.SetState(s => s + "-updated");
@@ -81,8 +81,6 @@ public sealed class StorePersistenceTests
         // Assert
         Assert.Equal(1, persistence.SaveCallCount);
         Assert.Equal("initial-updated", store.GetState());
-
-        store.Dispose();
     }
 
     [Fact(Timeout = 5000)]
@@ -90,7 +88,7 @@ public sealed class StorePersistenceTests
     {
         // Arrange
         var persistence = new MockPersistence();
-        var store = new Store<string>("initial", persistence);
+        using var store = new Store<string>("initial", persistence);
 
         // Act
         await store.SetStateAsync(s => Task.FromResult(s + "-async"), CancellationToken.None).ConfigureAwait(true);
@@ -99,8 +97,6 @@ public sealed class StorePersistenceTests
         // Assert
         Assert.Equal(1, persistence.SaveCallCount);
         Assert.Equal("initial-async", store.GetState());
-
-        store.Dispose();
     }
 
     [Fact(Timeout = 5000)]
@@ -129,7 +125,7 @@ public sealed class StorePersistenceTests
     {
         // Arrange
         var persistence = new ThrowingPersistence();
-        var store = new Store<string>("initial", persistence);
+        using var store = new Store<string>("initial", persistence);
 
         // Act — SaveAsync 抛异常，但 Store 不应崩溃
         store.SetState(s => s + "-updated");
@@ -144,8 +140,6 @@ public sealed class StorePersistenceTests
         store.SetState(s => s + "-again");
         await persistence.WaitEnteredAsync(TimeSpan.FromSeconds(3)).ConfigureAwait(true);
         Assert.Equal("initial-updated-again", store.GetState());
-
-        store.Dispose();
     }
 
     [Fact(Timeout = 5000)]

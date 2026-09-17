@@ -1,3 +1,4 @@
+﻿using System.Threading;
 
 namespace Core.Ssh;
 
@@ -56,7 +57,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
     /// <returns>表示异步启动操作的任务</returns>
     public Task StartAsync(CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         var args = new List<string>
         {
@@ -126,7 +127,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
     /// <returns>表示异步停止操作的任务</returns>
     public Task StopAsync(CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         if (_forwardProcess != null && !_forwardProcess.HasExited)
         {
@@ -148,7 +149,7 @@ public sealed class SshForwardedPort : ISshForwardedPort
     /// <returns>表示异步释放操作的任务</returns>
     public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return ValueTask.CompletedTask;
         }

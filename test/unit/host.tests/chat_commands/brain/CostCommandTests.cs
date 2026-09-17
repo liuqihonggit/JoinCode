@@ -6,6 +6,7 @@ public class CostCommandTests : IDisposable
     private readonly CostCommand _command;
     private readonly CostTracker _costTracker;
     private readonly string _tempStoragePath;
+    private bool _disposed;
 
     public CostCommandTests()
     {
@@ -16,6 +17,8 @@ public class CostCommandTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     private ChatCommandContext CreateContext(string arguments, string sessionId = "test-session")

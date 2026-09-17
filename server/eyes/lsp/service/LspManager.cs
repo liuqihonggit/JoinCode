@@ -442,7 +442,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) return;
 
         await ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
         var tasks = _servers.Values.Select(s => s.DisposeAsync().AsTask()).ToArray();

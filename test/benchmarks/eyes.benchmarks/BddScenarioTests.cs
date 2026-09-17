@@ -6,6 +6,7 @@ public sealed class BddScenarioTests : IDisposable
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs = new IO.FileSystem.PhysicalFileSystem();
+    private bool _disposed;
 
     public BddScenarioTests()
     {
@@ -17,6 +18,8 @@ public sealed class BddScenarioTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         try { _indexer.Dispose(); }
         finally { _store.Dispose(); }
 

@@ -29,7 +29,7 @@ public sealed class PluginResourceScannerTests
     {
         var scanner = new PluginResourceScanner();
         var e1 = new TestEntity("res1");
-        var e2 = new TestEntity("res2");
+        using var e2 = new TestEntity("res2");
         var ids = new[] { e1.ObjectId, e2.ObjectId };
         e1.Dispose();
 
@@ -38,7 +38,6 @@ public sealed class PluginResourceScannerTests
         report.HasLeaks.Should().BeTrue();
         report.LeakedResourceIds.Should().HaveCount(1);
         report.LeakedResourceIds.Should().Contain(e2.ObjectId);
-        e2.Dispose();
     }
 
     [Fact]

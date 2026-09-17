@@ -398,7 +398,7 @@ public sealed class ContentReplacementServiceTests
 
     /// <summary>
     /// 测试: MaybePersistLargeToolResult 内容在阈值内返回 null
-    /// 对齐 TS: content.Length <= threshold → 不持久化
+    /// 对齐 TS: content.Length &lt;= threshold → 不持久化
     /// </summary>
     [Fact]
     public void MaybePersistLargeToolResult_BelowThreshold_ReturnsNull()

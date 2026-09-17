@@ -6,6 +6,7 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable
 {
     private readonly Mock<IMcpToolRegistry> _mcpToolRegistryMock;
     private readonly MonitorMcpTaskExecutor _executor;
+    private bool _disposed;
 
     public MonitorMcpTaskExecutorTests()
     {
@@ -17,6 +18,8 @@ public class MonitorMcpTaskExecutorTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
         _ = _executor.DisposeSafeAsync().ConfigureAwait(true);
         return ValueTask.CompletedTask;
     }

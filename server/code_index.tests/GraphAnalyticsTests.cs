@@ -5,6 +5,7 @@ public sealed class GraphAnalyticsTests : IDisposable
 {
     private readonly InMemoryIndexStore _store;
     private readonly GraphAnalytics _analytics;
+    private bool _disposed;
 
     public GraphAnalyticsTests()
     {
@@ -14,6 +15,8 @@ public sealed class GraphAnalyticsTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _store.DisposeSafe();
     }
 

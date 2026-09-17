@@ -9,6 +9,7 @@ public sealed class SearchServiceTests : IDisposable
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly SearchService _service;
     private readonly string _testDir;
+    private bool _disposed;
 
     public SearchServiceTests()
     {
@@ -21,7 +22,9 @@ public sealed class SearchServiceTests : IDisposable
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        _fileOperationService.DisposeSafe();
     }
 
     [Fact]

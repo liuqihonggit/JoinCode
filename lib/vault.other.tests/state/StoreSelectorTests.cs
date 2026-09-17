@@ -7,6 +7,7 @@ namespace Core.Tests.State;
 public sealed class StoreSelectorTests : IDisposable
 {
     private readonly Store<int> _store;
+    private bool _disposed;
 
     public StoreSelectorTests()
     {
@@ -15,27 +16,28 @@ public sealed class StoreSelectorTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _store.DisposeSafe();
     }
 
     [Fact]
     public void Constructor_InitializesCurrentValue()
     {
-        var selector = new StoreSelector<int, int>(_store, x => x * 2);
+        using var selector = new StoreSelector<int, int>(_store, x => x * 2);
 
         selector.CurrentValue.Should().Be(0);
-        selector.Dispose();
     }
 
     [Fact]
     public void CurrentValue_AfterStateChange_UpdatesValue()
     {
-        var selector = new StoreSelector<int, int>(_store, x => x * 2);
+        using var selector = new StoreSelector<int, int>(_store, x => x * 2);
 
         _store.SetState(x => x + 3);
 
         selector.CurrentValue.Should().Be(6);
-        selector.Dispose();
     }
 
     [Fact]
@@ -120,7 +122,7 @@ public sealed class StoreSelectorTests : IDisposable
     [Fact]
     public void SubscriptionDispose_StopsReceivingUpdates()
     {
-        var selector = new StoreSelector<int, int>(_store, x => x * 2);
+        using var selector = new StoreSelector<int, int>(_store, x => x * 2);
         var received = new List<int>();
 
         var subscription = selector.Subscribe(received.Add);
@@ -129,7 +131,6 @@ public sealed class StoreSelectorTests : IDisposable
         _store.SetState(x => x + 1);
 
         received.Should().ContainSingle();
-        selector.Dispose();
     }
 
     [Fact]
@@ -172,21 +173,19 @@ public sealed class StoreSelectorTests : IDisposable
     public void SelectorProperty_ReturnsSelectorFunction()
     {
         Func<int, int> selectorFunc = x => x + 1;
-        var selector = new StoreSelector<int, int>(_store, selectorFunc);
+        using var selector = new StoreSelector<int, int>(_store, selectorFunc);
 
         selector.Selector.Should().BeSameAs(selectorFunc);
-        selector.Dispose();
     }
 
     [Fact]
     public void CurrentValue_WithCustomComparer_UsesComparer()
     {
-        var selector = new StoreSelector<int, string>(_store, x => x.ToString(), StringComparer.OrdinalIgnoreCase);
+        using var selector = new StoreSelector<int, string>(_store, x => x.ToString(), StringComparer.OrdinalIgnoreCase);
 
         _store.SetState(x => x + 1);
 
         selector.CurrentValue.Should().Be("1");
-        selector.Dispose();
     }
 
     [Fact]

@@ -12,6 +12,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
     private readonly int _port;
     private readonly BridgeServer _server;
     private readonly CancellationTokenSource _cts = new(TimeSpan.FromSeconds(10));
+    private bool _disposed;
 
     public BridgeServerWebSocketTests()
     {
@@ -30,6 +31,8 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         try { await _server.StopAsync(CancellationToken.None); }
         catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose server failed: {ex.Message}"); }
         _cts.DisposeSafe();

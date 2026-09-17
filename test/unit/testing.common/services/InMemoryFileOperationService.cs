@@ -9,6 +9,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
     private readonly InMemoryFileSystem _fileSystem;
     private readonly ILogger<InMemoryFileOperationService>? _logger;
     private string _currentDirectory = "/test";
+    private bool _disposed;
 
     public InMemoryFileOperationService(InMemoryFileSystem? fileSystem = null, ILogger<InMemoryFileOperationService>? logger = null)
     {
@@ -408,6 +409,9 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _fileSystem.Clear();
     }
 }

@@ -12,6 +12,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     private readonly LocalToolRegistry _registryWithPermission;
     private readonly LocalToolRegistry _registryWithoutPermission;
     private readonly PermissionAwareToolExecutor _permissionExecutor;
+    private bool _disposed;
 
     public PermissionIntegrationTests()
     {
@@ -61,6 +62,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return; _disposed = true;
         await _permissionManager.DisposeAsync();
         await _registryWithPermission.DisposeAsync();
         await _registryWithoutPermission.DisposeAsync();

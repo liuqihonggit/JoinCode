@@ -410,7 +410,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        _manager.Dispose();
+        _manager.DisposeSafe();
         return Task.CompletedTask;
     }
 }

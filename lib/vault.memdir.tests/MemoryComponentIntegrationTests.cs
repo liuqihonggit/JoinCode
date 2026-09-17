@@ -9,6 +9,7 @@ namespace Core.Tests.Memdir;
 public sealed class MemoryComponentIntegrationTests : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
+    private bool _disposed;
 
     public MemoryComponentIntegrationTests()
     {
@@ -31,6 +32,8 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _serviceProvider.DisposeSafe();
     }
 

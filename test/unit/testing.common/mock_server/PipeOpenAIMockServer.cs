@@ -8,6 +8,7 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable
     private readonly RequestRecorder? _requestRecorder;
     private CancellationTokenSource? _cts;
     private Task? _processingTask;
+    private bool _disposed;
 
     private const int ReadBufferSize = 8192;
 
@@ -761,6 +762,9 @@ public sealed class PipeOpenAIMockServer : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = null;

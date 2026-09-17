@@ -1,4 +1,4 @@
-namespace Core.DependencyInjection;
+﻿namespace Core.DependencyInjection;
 
 /// <summary>
 /// 系统执行器初始化器 — 应用启动时调用一次
@@ -14,7 +14,7 @@ public static class SystemActuatorInitializer
     /// </summary>
     public static void Initialize(IFileSystem fs, ILogger? logger = null)
     {
-        if (Interlocked.Exchange(ref _initialized, 1) == 1) return;
+        if (Interlocked.Exchange(ref _initialized, 1) != 0) return;
 
         BashSystemActuator.CreateCapability(fs, logger);
         PowerShellSystemActuator.CreateCapability(fs, logger);

@@ -48,6 +48,7 @@ public sealed class ServiceMessageBus : IDisposable
     private readonly ConcurrentDictionary<string, ImmutableList<Func<ServiceMessage, Task>>> _subscribers = new();
     private readonly ConcurrentDictionary<string, ImmutableList<ServiceMessage>> _messageHistory = new();
     private readonly int _maxHistoryPerChannel;
+    private bool _disposed;
 
     /// <summary>
     /// 构造 ServiceMessageBus — 指定每通道最大历史记录数
@@ -161,6 +162,8 @@ public sealed class ServiceMessageBus : IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _subscribers.Clear();
         _messageHistory.Clear();
     }

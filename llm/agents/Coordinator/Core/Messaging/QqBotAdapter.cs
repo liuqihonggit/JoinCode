@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// QQ 频道机器人适配器 — 通过 QQ Bot API 发送/接收消息。
@@ -44,7 +44,7 @@ public sealed class QqBotAdapter : IPlatformBotAdapter
     /// <inheritdoc/>
     public async ValueTask StartAsync(CancellationToken ct = default)
     {
-        if (Interlocked.Exchange(ref _started, 1) == 1) return;
+        if (Interlocked.Exchange(ref _started, 1) != 0) return;
         _accessToken = await GetAccessTokenAsync(ct).ConfigureAwait(false);
         _logger?.LogInformation("QqBotAdapter: started, token acquired (len={Len})", _accessToken?.Length ?? 0);
     }
@@ -115,7 +115,7 @@ public sealed class QqBotAdapter : IPlatformBotAdapter
     /// <inheritdoc/>
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         _receiveChannel.Writer.TryComplete();
         return ValueTask.CompletedTask;
     }

@@ -3,6 +3,7 @@ namespace JoinCode.CodeIndex.Tests;
 public sealed class CsprojParserTests : IDisposable
 {
     private readonly IO.FileSystem.InMemoryFileSystem _fs;
+    private bool _disposed;
 
     public CsprojParserTests()
     {
@@ -11,6 +12,8 @@ public sealed class CsprojParserTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fs.Clear();
     }
 

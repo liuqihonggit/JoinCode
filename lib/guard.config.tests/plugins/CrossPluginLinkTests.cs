@@ -44,8 +44,8 @@ public sealed class CrossPluginLinkTests
     [Fact]
     public void AddReference_CrossPlugin_RefCountIncremented()
     {
-        var pluginA = new PluginA();
-        var pluginB = new PluginB();
+        using var pluginA = new PluginA();
+        using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
 
         var handle = cmdA.AddReference(pluginB.Name);
@@ -54,16 +54,13 @@ public sealed class CrossPluginLinkTests
 
         handle.Dispose();
         cmdA.ReferenceCount.Should().Be(0);
-
-        pluginA.Dispose();
-        pluginB.Dispose();
     }
 
     [Fact]
     public void EnsureAlive_CrossPlugin_DetectsProviderDeath()
     {
-        var pluginA = new PluginA();
-        var pluginB = new PluginB();
+        using var pluginA = new PluginA();
+        using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
         var handle = cmdA.AddReference(pluginB.Name);
 
@@ -77,16 +74,14 @@ public sealed class CrossPluginLinkTests
         act2.Should().Throw<PluginDeadException>().WithMessage("*cmdA*pluginA*");
 
         handle.Dispose();
-        pluginA.Dispose();
-        pluginB.Dispose();
     }
 
     [Fact]
     public void PrepareUnload_ReferenceGraph_ConsumersNotified()
     {
         var graph = new ResourceReferenceGraph();
-        var pluginA = new PluginA();
-        var pluginB = new PluginB();
+        using var pluginA = new PluginA();
+        using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
         var cmdB = new CommandResourceA(pluginB.Name, "cmdB");
         pluginB.RegisterResource(cmdB);
@@ -111,9 +106,6 @@ public sealed class CrossPluginLinkTests
 
         graph.GetConsumers(pluginA.Name).Should().BeEmpty();
         cmdA.ReferenceCount.Should().Be(0);
-
-        pluginA.Dispose();
-        pluginB.Dispose();
     }
 
     [Fact]
@@ -136,8 +128,8 @@ public sealed class CrossPluginLinkTests
     [Fact]
     public void PluginDeath_CascadesToDependents()
     {
-        var pluginA = new PluginA();
-        var pluginB = new PluginB();
+        using var pluginA = new PluginA();
+        using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
         var handle = cmdA.AddReference(pluginB.Name);
 
@@ -156,15 +148,13 @@ public sealed class CrossPluginLinkTests
         pluginB.IsAlive.Should().BeFalse();
 
         handle.Dispose();
-        pluginA.Dispose();
-        pluginB.Dispose();
     }
 
     [Fact]
     public void ResourceReferenceHandle_UsingPattern_AutoRelease()
     {
-        var pluginA = new PluginA();
-        var pluginB = new PluginB();
+        using var pluginA = new PluginA();
+        using var pluginB = new PluginB();
         var cmdA = pluginA.CreateCommandResource();
 
         using (cmdA.AddReference(pluginB.Name))
@@ -173,8 +163,5 @@ public sealed class CrossPluginLinkTests
         }
 
         cmdA.ReferenceCount.Should().Be(0);
-
-        pluginA.Dispose();
-        pluginB.Dispose();
     }
 }

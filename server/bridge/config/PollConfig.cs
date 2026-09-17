@@ -52,6 +52,7 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     private readonly AsyncLock _configLock = new();
     private PollConfig _currentConfig;
     private int _consecutiveErrors;
+    private bool _disposed;
 
     /// <summary>
     /// 构造轮询配置管理器
@@ -175,6 +176,8 @@ public sealed partial class PollConfigManager : ServiceEntity, IDisposable
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _configLock.Dispose();
         base.Dispose();
     }

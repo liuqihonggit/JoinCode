@@ -6,6 +6,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     private string _tempStoragePath = null!;
     private Core.CostTracking.CostTracker _costTracker = null!;
     private Mock<IFileOperationService> _fileOperationServiceMock = null!;
+    private bool _disposed;
 
     public Task InitializeAsync()
     {
@@ -17,10 +18,14 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     public Task DisposeAsync()
     {
+        if (_disposed) return Task.CompletedTask;
+        _disposed = true;
         return Task.CompletedTask;
     }
 

@@ -47,6 +47,7 @@ public static class PerfTap
     {
         private readonly string _label;
         private readonly long _start;
+        private bool _disposed;
 
         /// <summary>初始化 PerfScope 实例并记录起始时间戳</summary>
         public PerfScope(string label)
@@ -58,6 +59,8 @@ public static class PerfTap
         /// <summary>释放作用域并记录耗时（超阈值时输出慢日志）</summary>
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             var elapsedMs = System.Diagnostics.Stopwatch.GetElapsedTime(_start).TotalMilliseconds;
             LogIfSlow(_label, (long)elapsedMs);
         }

@@ -8,6 +8,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable
 {
     private nint _jobHandle;
     private readonly ILogger? _logger;
+    private bool _disposed;
 
     /// <summary>
     /// 构造 JobObject 沙箱
@@ -168,6 +169,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable
     /// <summary>释放沙箱 — 关闭 JobObject 句柄,所有子进程将被 KILL_ON_JOB_CLOSE 终止</summary>
     public void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         CloseHandle();
     }
 }

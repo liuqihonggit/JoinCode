@@ -20,6 +20,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private readonly ILogger<TeamManager>? _logger;
     private int _teamCounter;
     private int _messageCounter;
+    private bool _disposed;
 
     /// <summary>
     /// 延迟解析 ITeammateObserver，打破循环依赖：
@@ -968,6 +969,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <summary>释放资源 — 释放团队管理锁</summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _lock.Dispose();
         base.Dispose();
     }

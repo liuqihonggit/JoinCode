@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace JoinCode.ChatCommands.Bridge;
 
 /// <summary>
@@ -379,7 +380,7 @@ public sealed class BridgeMainCommand
 
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             System.Console.CancelKeyPress -= _handler;
             _cts.Dispose();
         }

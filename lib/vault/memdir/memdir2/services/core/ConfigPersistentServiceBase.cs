@@ -1,4 +1,4 @@
-namespace Core.Memdir;
+﻿namespace Core.Memdir;
 
 /// <summary>
 /// 配置持久化服务基类 — 提供从配置服务加载/保存值的通用机制，子类通过重写抽象成员定义序列化行为
@@ -121,7 +121,7 @@ public abstract class ConfigPersistentServiceBase<TValue> : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _disposeCts.CancelAndDisposeSafe(_logger);
         _initLock.Dispose();
     }

@@ -1,4 +1,4 @@
-namespace JoinCode.Transport.Bridge;
+﻿namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// 可重试错误 — 对齐 TS 端 SerialBatchEventUploader.RetryableError
@@ -157,7 +157,7 @@ public sealed class SerialBatchEventUploader : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
         Close();
         _drainLock.Dispose();
         _sleepCts?.Dispose();

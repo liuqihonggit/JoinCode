@@ -13,6 +13,7 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     private readonly IClockService _clock;
     private readonly IFileOperationService _fileOperationService;
     private readonly CancellationTokenSource _disposeCts = new();
+    private bool _disposed;
 
     /// <summary>
     /// 创建内存存储实例
@@ -395,6 +396,9 @@ public sealed partial class MemoryStore : ServiceEntity, IDisposable
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _disposeCts.CancelAndDisposeSafe(_logger);
         base.Dispose();
     }

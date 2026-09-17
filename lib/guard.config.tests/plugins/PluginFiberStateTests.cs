@@ -53,9 +53,8 @@ public sealed class PluginFiberStateTests
     [Fact]
     public void WorkflowPluginBase_Fiber_InitialStatePending()
     {
-        var plugin = new FiberTestPlugin();
+        using var plugin = new FiberTestPlugin();
         Assert.Equal(PluginFiberState.Pending, plugin.Fiber.State);
-        plugin.Dispose();
     }
 
     [Fact]

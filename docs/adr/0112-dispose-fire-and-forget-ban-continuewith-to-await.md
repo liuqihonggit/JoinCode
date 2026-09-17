@@ -165,9 +165,10 @@ public async ValueTask DisposeAsync()
 
 ## 后续待办
 
-### 待办1：删掉 DisposableHelper，全部内联为 Interlocked
+### 待办1：删掉 DisposableHelper，全部内联为 Interlocked（✅ 已完成 2026-09-17）
 
-`lib/async_lock/DisposableHelper.cs` 是多余间接层，且 `ref bool` 重载有非原子竞态 bug。
+`lib/async_lock/DisposableHelper.cs` 已移走到 `.xxx/`，全部调用方内联为 `Interlocked.Exchange`/`Volatile.Read`。
+Interlocked 守卫格式统一为 `!= 0`（消除 `== 1`/`== 0`/`!= 0` 三种混用）。
 
 | 方法 | 内联替换 |
 |------|----------|

@@ -30,20 +30,18 @@ public sealed class WorkflowPluginBaseTests
     [Fact]
     public void WorkflowPluginBase_HasObjectIdWithTypePlugin()
     {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
         plugin.ObjectId.Type.Should().Be(ObjectType.Plugin);
-        plugin.Dispose();
     }
 
     [Fact]
     public void RegisterResource_AddsToResourcesCollection()
     {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
         var resource = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
 
         plugin.Resources.Should().Contain(resource);
         plugin.Resources.Should().HaveCount(1);
-        plugin.Dispose();
     }
 
     [Fact]
@@ -102,68 +100,62 @@ public sealed class WorkflowPluginBaseTests
     [Fact]
     public void Touch_UpdatesHeartbeat()
     {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
 
         plugin.Touch();
         plugin.LastHeartbeatAt.Should().BeOnOrAfter(plugin.CreatedAt);
         plugin.LastActivityAt.Should().Be(plugin.LastHeartbeatAt);
-        plugin.Dispose();
     }
 
     [Fact]
     public void MarkDead_TriggersOnDeathEvent()
     {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
         var deathCount = 0;
         plugin.OnDeath += (_, _) => deathCount++;
 
         plugin.MarkDead();
         deathCount.Should().Be(1);
-        plugin.Dispose();
     }
 
     [Fact]
     public void MarkDead_IsIdempotent()
     {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
         var deathCount = 0;
         plugin.OnDeath += (_, _) => deathCount++;
 
         plugin.MarkDead();
         plugin.MarkDead();
         deathCount.Should().Be(1);
-        plugin.Dispose();
     }
 
     [Fact]
     public void EnsureAlive_WhenDead_Throws()
     {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
         plugin.MarkDead();
 
         var act = () => plugin.EnsureAlive();
         act.Should().Throw<PluginDeadException>();
-        plugin.Dispose();
     }
 
     [Fact]
     public void EnsureAlive_WhenAlive_DoesNotThrow()
     {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
 
         var act = () => plugin.EnsureAlive();
         act.Should().NotThrow();
-        plugin.Dispose();
     }
 
     [Fact]
     public void UiResources_Available()
     {
-        var plugin = new TestPlugin();
+        using var plugin = new TestPlugin();
         plugin.UiResources.Register("toolbar.test", new UiResourceEntry("toolbar.test", UiResourceKind.ToolbarButton, "Test", null));
 
         plugin.UiResources.Count.Should().Be(1);
-        plugin.Dispose();
     }
 
     private sealed class TestSafeHandle : SafeHandleZeroOrMinusOneIsInvalid

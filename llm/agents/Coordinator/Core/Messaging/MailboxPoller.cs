@@ -1,4 +1,4 @@
-namespace Core.Agents.Coordinator;
+﻿namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 邮箱轮询器 — 周期性从文件邮箱拉取未读消息并投递到进程内邮箱或消息接收器
@@ -147,7 +147,7 @@ public sealed partial class MailboxPoller : IMailboxPoller, IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return ValueTask.CompletedTask;
 
         var tasks = new List<Task>();
         foreach (var kvp in _pollingAgents)

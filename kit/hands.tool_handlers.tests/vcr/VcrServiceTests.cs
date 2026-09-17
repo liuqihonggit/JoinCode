@@ -7,6 +7,7 @@ public sealed class VcrServiceTests : IDisposable
     private readonly VcrService _service;
     private readonly VcrOptions _options;
     private readonly string _tempDir;
+    private bool _disposed;
 
     public VcrServiceTests()
     {
@@ -22,7 +23,9 @@ public sealed class VcrServiceTests : IDisposable
 
     public void Dispose()
     {
-        _service.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        _service.DisposeSafe();
         try
         {
             if (TestFileSystem.Current.DirectoryExists(_tempDir))

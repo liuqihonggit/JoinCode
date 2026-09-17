@@ -17,9 +17,8 @@ public sealed class TimeoutLockTests : IDisposable
         var releaser = await _lock.AcquireAsync(CancellationToken.None).ConfigureAwait(true);
         releaser.Dispose();
 
-        var second = await _lock.AcquireAsync(CancellationToken.None).ConfigureAwait(true);
+        using var second = await _lock.AcquireAsync(CancellationToken.None).ConfigureAwait(true);
         Assert.NotNull(second);
-        second.Dispose();
     }
 
     [Fact]
@@ -39,9 +38,8 @@ public sealed class TimeoutLockTests : IDisposable
         var releaser = _lock.Acquire();
         releaser.Dispose();
 
-        var second = _lock.Acquire();
+        using var second = _lock.Acquire();
         Assert.NotNull(second);
-        second.Dispose();
     }
 
     [Fact]

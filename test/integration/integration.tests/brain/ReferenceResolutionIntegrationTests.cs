@@ -15,6 +15,7 @@ public sealed class ReferenceResolutionCollection : ICollectionFixture<Reference
 /// </summary>
 public sealed class ReferenceResolutionTestFixture : IAsyncLifetime
 {
+    private bool _disposed;
     public string TestDir { get; private set; } = "C:\\testroot";
     public Testing.Common.Services.InMemoryFileSystem FileSystem { get; private set; } = null!;
     public IFileOperationService FileOperationService { get; private set; } = null!;
@@ -32,6 +33,8 @@ public sealed class ReferenceResolutionTestFixture : IAsyncLifetime
 
     public Task DisposeAsync()
     {
+        if (_disposed) return Task.CompletedTask;
+        _disposed = true;
         (FileOperationService as IDisposable)?.Dispose();
         _ = Task.CompletedTask;
         return Task.CompletedTask;
@@ -71,12 +74,15 @@ public sealed class ReferenceResolutionTestFixture : IAsyncLifetime
 [Trait("Category", "Integration")]
 public sealed class ReferenceResolutionIntegrationTests(ReferenceResolutionTestFixture fixture, ITestOutputHelper output) : IDisposable
 {
+    private bool _disposed;
     private readonly ITestOutputHelper _output = output;
     private readonly ILogger<ReferenceResolver> _logger = new Testing.Common.Logging.TestOutputLogger<ReferenceResolver>(output);
     private readonly ReferenceResolutionTestFixture _fixture = fixture;
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         // 清理由 fixture 处理
     }
 

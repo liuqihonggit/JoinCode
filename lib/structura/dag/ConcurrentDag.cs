@@ -7,6 +7,7 @@ public sealed class ConcurrentDag<T> : IDisposable
 {
     private readonly Dag<T> _inner = new();
     private readonly AsyncLock _lock = new();
+    private bool _disposed;
 
     /// <summary>所有节点的只读快照(无锁,反映当前内部状态)</summary>
     public IReadOnlyDictionary<string, DagNode<T>> Nodes => _inner.Nodes;
@@ -193,6 +194,7 @@ public sealed class ConcurrentDag<T> : IDisposable
     /// <summary>释放内部锁资源</summary>
     public void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         _lock.Dispose();
     }
 }

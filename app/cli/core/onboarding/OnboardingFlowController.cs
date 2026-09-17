@@ -18,6 +18,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
 
     private readonly OnboardingStatePersistence _persistence;
     private readonly AsyncLock _lock = new();
+    private bool _disposed;
     private OnboardingStep _currentStep = OnboardingStep.Welcome;
     private int _currentStepIndex;
     private int _selectedIndex;
@@ -250,6 +251,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         _lock.Dispose();
         base.Dispose();
     }

@@ -8,6 +8,7 @@ public sealed class GitHubApiClientTest : IDisposable
     private readonly FakeHandler _handler = new();
     private readonly GitHubApiClient _client;
     private readonly EnvVarScope _envScope;
+    private bool _disposed;
 
     public GitHubApiClientTest()
     {
@@ -17,7 +18,9 @@ public sealed class GitHubApiClientTest : IDisposable
 
     public void Dispose()
     {
-        _envScope.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        _envScope.DisposeSafe();
         Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
     }
 

@@ -32,7 +32,7 @@ public sealed class DisposeSafeExtensionsTest
         var act = () => obj.DisposeSafe();
 
         act.Should().NotThrow();
-        obj.DisposeCallCount.Should().Be(2);
+        obj.DisposeCallCount.Should().Be(1);
     }
 
     [Fact]
@@ -121,10 +121,13 @@ public sealed class DisposeSafeExtensionsTest
 
     private sealed class TrackableDisposable : IDisposable
     {
+        private bool _disposed;
         public int DisposeCallCount;
         public bool IsDisposed;
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             DisposeCallCount++;
             IsDisposed = true;
         }
@@ -137,9 +140,12 @@ public sealed class DisposeSafeExtensionsTest
 
     private sealed class TrackableAsyncDisposable : IAsyncDisposable
     {
+        private bool _disposed;
         public bool IsDisposed;
         public ValueTask DisposeAsync()
         {
+            if (_disposed) return ValueTask.CompletedTask;
+            _disposed = true;
             IsDisposed = true;
             return ValueTask.CompletedTask;
         }

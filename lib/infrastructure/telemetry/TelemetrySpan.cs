@@ -1,3 +1,4 @@
+﻿using System.Threading;
 
 namespace Core.Telemetry;
 
@@ -30,7 +31,7 @@ public sealed class TelemetrySpan : ITelemetrySpan
     /// <summary>状态描述</summary>
     public string? StatusDescription { get; private set; }
     /// <summary>是否仍在记录</summary>
-    public bool IsRecording => !DisposableHelper.IsDisposed(ref _isDisposed) && _activity.IsAllDataRequested;
+    public bool IsRecording => Volatile.Read(ref _isDisposed) == 0 && _activity.IsAllDataRequested;
 
     /// <summary>
     /// 内部构造 — 由 TelemetryService.StartSpan 工厂调用
@@ -140,7 +141,7 @@ public sealed class TelemetrySpan : ITelemetrySpan
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return ValueTask.CompletedTask;
         }

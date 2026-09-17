@@ -4,6 +4,7 @@ public sealed class RemotePolicyServiceTests : IAsyncDisposable
 {
     private readonly RemotePolicyService _service;
     private readonly HttpClient _httpClient;
+    private bool _disposed;
 
     public RemotePolicyServiceTests()
     {
@@ -17,6 +18,8 @@ public sealed class RemotePolicyServiceTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         await _service.DisposeSafeAsync();
         _httpClient.DisposeSafe();
     }

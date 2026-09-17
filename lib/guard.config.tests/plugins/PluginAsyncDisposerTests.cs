@@ -40,9 +40,12 @@ public sealed class PluginAsyncDisposerTests
     private sealed class AsyncDisposable : IAsyncDisposable
     {
         private readonly Action _onDispose;
+        private bool _disposed;
         public AsyncDisposable(Action onDispose) => _onDispose = onDispose;
         public ValueTask DisposeAsync()
         {
+            if (_disposed) return ValueTask.CompletedTask;
+            _disposed = true;
             _onDispose();
             return ValueTask.CompletedTask;
         }

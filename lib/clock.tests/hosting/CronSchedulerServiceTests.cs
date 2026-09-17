@@ -36,28 +36,24 @@ public sealed class CronSchedulerServiceTests
     [Fact]
     public async Task StartAsync_WhenStopped_StartsService()
     {
-        var (_, _, service) = CreateService();
+        await using var service = CreateService().service;
 
         Assert.Equal(ServiceStatus.Stopped, service.Status);
 
         await service.StartAsync().ConfigureAwait(true);
 
         Assert.Equal(ServiceStatus.Running, service.Status);
-
-        await service.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task StartAsync_WhenAlreadyRunning_DoesNothing()
     {
-        var (_, _, service) = CreateService();
+        await using var service = CreateService().service;
 
         await service.StartAsync().ConfigureAwait(true);
         await service.StartAsync().ConfigureAwait(true);
 
         Assert.Equal(ServiceStatus.Running, service.Status);
-
-        await service.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -84,7 +80,10 @@ public sealed class CronSchedulerServiceTests
     [Fact]
     public async Task StartAsync_PublishesCronTaskFiredMessage()
     {
-        var (taskStore, messageBus, service) = CreateService();
+        var ctx = CreateService();
+        var taskStore = ctx.taskStore;
+        var messageBus = ctx.messageBus;
+        await using var service = ctx.service;
         ServiceMessage? received = null;
 
         var tcs = new TaskCompletionSource();
@@ -114,8 +113,6 @@ public sealed class CronSchedulerServiceTests
 
         Assert.NotNull(received);
         Assert.Equal(ServiceMessageType.CronTaskFired.ToValue(), received.MessageType);
-
-        await service.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -124,7 +121,9 @@ public sealed class CronSchedulerServiceTests
         var notificationService = new Mock<INotificationService>();
         notificationService.Setup(n => n.NotifyAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
 
-        var (taskStore, _, service) = CreateService(notificationService.Object);
+        var ctx = CreateService(notificationService.Object);
+        var taskStore = ctx.taskStore;
+        await using var service = ctx.service;
 
         var tcs = new TaskCompletionSource();
         taskStore.Setup(t => t.GetAllTasksAsync(It.IsAny<CancellationToken>())).ReturnsAsync(new List<CronTask>
@@ -146,8 +145,6 @@ public sealed class CronSchedulerServiceTests
         await Task.Delay(500).ConfigureAwait(true);
 
         notificationService.Verify(n => n.NotifyAsync(It.IsAny<string>(), It.Is<string>(s => s.Contains("t1"))), Times.AtLeastOnce);
-
-        await service.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]

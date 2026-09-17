@@ -20,6 +20,7 @@ public class ConfigLoaderTests : IDisposable {
     private readonly string _tempAppDataDir;
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly ConfigLoader _loader;
+    private bool _disposed;
 
     public ConfigLoaderTests() {
         _originalAppDataFolder = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder);
@@ -52,6 +53,8 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     public void Dispose() {
+        if (_disposed) return;
+        _disposed = true;
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, _originalAppDataFolder);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Vendor, _originalProvider);
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.ModelId, _originalModelId);

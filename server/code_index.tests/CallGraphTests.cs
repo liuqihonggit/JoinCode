@@ -5,6 +5,7 @@ public sealed class CallGraphTests : IDisposable
 {
     private readonly InMemoryIndexStore _store;
     private readonly CallGraph _callGraph;
+    private bool _disposed;
 
     public CallGraphTests()
     {
@@ -14,6 +15,8 @@ public sealed class CallGraphTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _store.DisposeSafe();
     }
 

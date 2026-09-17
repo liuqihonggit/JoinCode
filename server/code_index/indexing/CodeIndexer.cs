@@ -1,4 +1,5 @@
-﻿namespace JoinCode.CodeIndex;
+﻿using System.Threading;
+namespace JoinCode.CodeIndex;
 
 /// <summary>
 /// 代码索引器 — 统一管理符号索引、调用图、依赖图、项目索引和增量更新
@@ -672,7 +673,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// </summary>
     public override void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed))
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return;
         }

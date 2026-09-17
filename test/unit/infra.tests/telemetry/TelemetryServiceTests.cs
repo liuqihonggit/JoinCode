@@ -135,14 +135,11 @@ public sealed class TelemetryServiceTests
     public async Task GetActiveSpans_ReturnsActiveSpans()
     {
         await using var service = new TelemetryService(_config);
-        var span1 = service.StartSpan("op1");
-        var span2 = service.StartSpan("op2");
+        await using var span1 = service.StartSpan("op1");
+        await using var span2 = service.StartSpan("op2");
 
         var active = service.GetActiveSpans();
         Assert.True(active.Count() >= 2);
-
-        await span1.DisposeAsync();
-        await span2.DisposeAsync();
     }
 
     [Fact]
@@ -159,8 +156,7 @@ public sealed class TelemetryServiceTests
     [Fact]
     public async Task DisposeAsync_CleansUp()
     {
-        var service = new TelemetryService(_config);
-        await service.DisposeAsync().ConfigureAwait(true);
+        await using var service = new TelemetryService(_config);
     }
 
     [Fact]

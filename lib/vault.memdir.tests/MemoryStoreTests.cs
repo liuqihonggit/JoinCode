@@ -6,6 +6,7 @@ public class MemoryStoreTests : IDisposable
     private readonly string _tempStoragePath;
     private readonly MemoryStore _store;
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
+    private bool _disposed;
 
     public MemoryStoreTests()
     {
@@ -16,6 +17,8 @@ public class MemoryStoreTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     [Fact]

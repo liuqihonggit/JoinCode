@@ -4,6 +4,7 @@ public sealed class NotebookServiceTests : IDisposable
 {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly NotebookService _service;
+    private bool _disposed;
 
     public NotebookServiceTests()
     {
@@ -13,7 +14,10 @@ public sealed class NotebookServiceTests : IDisposable
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+
+        _fileOperationService.DisposeSafe();
     }
 
     [Fact]

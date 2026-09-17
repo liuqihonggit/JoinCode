@@ -1,4 +1,4 @@
-
+﻿
 namespace State;
 
 /// <summary>
@@ -129,7 +129,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     /// </summary>
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _storeSubscription?.Dispose();
         ImmutableInterlocked.Update(ref _subscribers, _ => ImmutableList<Action<TSelected>>.Empty);
@@ -160,7 +160,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         /// </summary>
         public void Dispose()
         {
-            if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _selector.Unsubscribe(_handler);
         }
     }

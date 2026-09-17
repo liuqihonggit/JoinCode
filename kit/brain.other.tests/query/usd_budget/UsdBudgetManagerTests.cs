@@ -5,6 +5,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     private readonly Mock<JoinCode.Abstractions.Interfaces.ICostTracker> _costTrackerMock = new();
     private readonly QueryEngineConfig _config = new() { MaxUsdBudget = 10.0m, UsdAlertThreshold = 0.8 };
     private readonly UsdBudgetManager _manager;
+    private bool _disposed;
 
     public UsdBudgetManagerTests()
     {
@@ -180,9 +181,10 @@ public class UsdBudgetManagerTests : IAsyncDisposable
         status.IsExceeded.Should().BeTrue();
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        _ = _manager.DisposeAsync().ConfigureAwait(true);
-        return ValueTask.CompletedTask;
+        if (_disposed) return;
+        _disposed = true;
+        await _manager.DisposeSafeAsync();
     }
 }

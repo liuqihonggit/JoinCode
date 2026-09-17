@@ -3,6 +3,7 @@ namespace JoinCode.CodeIndex.Tests;
 public sealed class ConcurrencySafetyTests : IDisposable
 {
     private readonly InMemoryIndexStore _store;
+    private bool _disposed;
 
     public ConcurrencySafetyTests()
     {
@@ -11,6 +12,8 @@ public sealed class ConcurrencySafetyTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _store.DisposeSafe();
     }
 

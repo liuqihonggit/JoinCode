@@ -180,6 +180,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     private readonly ILogger<AssistantDailyLogService>? _logger;
     private readonly IClockService _clock;
     private readonly AsyncLock _writeLock = new();
+    private bool _disposed;
 
     /// <summary>
     /// 构造助手日志服务
@@ -380,6 +381,9 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _writeLock.Dispose();
         base.Dispose();
     }

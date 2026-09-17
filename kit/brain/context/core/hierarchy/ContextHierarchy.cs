@@ -14,6 +14,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     private readonly AsyncLock _lock = new();
     private readonly ILogger<ContextHierarchy>? _logger;
     private readonly ContextHierarchyOptions _options;
+    private bool _disposed;
 
     /// <inheritdoc />
     public int TokenThreshold { get; set; }
@@ -327,6 +328,9 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _lock.Dispose();
         base.Dispose();
     }

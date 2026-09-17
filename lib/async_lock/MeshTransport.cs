@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 网状拓扑传输 — 点对点直连，每进程一个独立管道，无中心转发。
@@ -224,7 +224,7 @@ public sealed class MeshTransport : ITransportTopology
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
 
@@ -303,7 +303,7 @@ internal sealed class MeshPeerConnection : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeQueue.Writer.TryComplete();
         await _writeLoop.ConfigureAwait(false);
         await _stream.DisposeAsync().ConfigureAwait(false);

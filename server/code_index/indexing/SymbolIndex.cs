@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace JoinCode.CodeIndex;
 
 /// <summary>
@@ -449,7 +450,7 @@ public sealed class SymbolIndex : ISymbolIndex, IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed))
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return;
         }

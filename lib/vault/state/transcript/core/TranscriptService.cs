@@ -11,6 +11,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     private readonly IClockService _clock;
     private readonly TranscriptFileWriter _writer;
     private readonly IFileSystem _fs;
+    private bool _disposed;
 
     /// <summary>
     /// 构造函数 — 注入文件系统、会话目录、日志、时钟与粘贴存储等依赖。
@@ -398,6 +399,8 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _writer.Dispose();
         base.Dispose();
     }

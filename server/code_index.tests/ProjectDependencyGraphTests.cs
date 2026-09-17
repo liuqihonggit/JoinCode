@@ -4,6 +4,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
 {
     private readonly InMemoryIndexStore _store;
     private readonly ProjectDependencyGraph _graph;
+    private bool _disposed;
 
     public ProjectDependencyGraphTests()
     {
@@ -13,6 +14,8 @@ public sealed class ProjectDependencyGraphTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _store.DisposeSafe();
     }
 

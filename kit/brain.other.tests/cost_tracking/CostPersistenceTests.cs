@@ -9,6 +9,7 @@ public class CostPersistenceTests : IDisposable
 {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly string _storageDir;
+    private bool _disposed;
 
     public CostPersistenceTests()
     {
@@ -19,7 +20,9 @@ public class CostPersistenceTests : IDisposable
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        _fileOperationService.DisposeSafe();
     }
 
     [Fact]
@@ -29,7 +32,7 @@ public class CostPersistenceTests : IDisposable
         var storagePath = $"{_storageDir}/usage.json";
 
         // Act - 创建第一个tracker并记录用量
-        var tracker1 = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker1 = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
         tracker1.RecordUsage("model-a", 1000, 500, "session-1");
         tracker1.RecordUsage("model-b", 2000, 1000, "session-1");
 
@@ -38,8 +41,6 @@ public class CostPersistenceTests : IDisposable
         stats1.RequestCount.Should().Be(2);
         stats1.PromptTokens.Should().Be(3000);
         stats1.CompletionTokens.Should().Be(1500);
-
-        await tracker1.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -50,15 +51,13 @@ public class CostPersistenceTests : IDisposable
         var sessionId = "test-session-abc";
 
         // Act
-        var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
         tracker.RecordUsage("model-a", 1000, 500, sessionId);
 
         // Assert - 直接验证内存中的会话统计
         var sessionStats = tracker.GetSessionStatistics(sessionId);
         sessionStats.RequestCount.Should().Be(1);
         sessionStats.PromptTokens.Should().Be(1000);
-
-        await tracker.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -68,14 +67,12 @@ public class CostPersistenceTests : IDisposable
         var storagePath = $"{_storageDir}/new_file_{Guid.NewGuid():N}.json";
 
         // Act
-        var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
 
         // Assert
         var stats = tracker.GetTotalStatistics();
         stats.RequestCount.Should().Be(0);
         _fileOperationService.FileExists(storagePath).Should().BeFalse();
-
-        await tracker.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -85,7 +82,7 @@ public class CostPersistenceTests : IDisposable
         var storagePath = $"{_storageDir}/append_test.json";
 
         // Act - 在同一个 tracker 中记录多条
-        var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
         tracker.RecordUsage("model-a", 1000, 500);
         tracker.RecordUsage("model-a", 2000, 1000);
 
@@ -93,8 +90,6 @@ public class CostPersistenceTests : IDisposable
         var stats = tracker.GetTotalStatistics();
         stats.RequestCount.Should().Be(2);
         stats.PromptTokens.Should().Be(3000);
-
-        await tracker.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -105,13 +100,11 @@ public class CostPersistenceTests : IDisposable
         await _fileOperationService.WriteFileAsync(storagePath, "invalid json content").ConfigureAwait(true);
 
         // Act - 不应该抛出异常
-        var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
 
         // Assert - 新创建的 tracker 应该为空，无需等待加载
         var stats = tracker.GetTotalStatistics();
         stats.RequestCount.Should().Be(0);
-
-        await tracker.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -122,13 +115,11 @@ public class CostPersistenceTests : IDisposable
         await _fileOperationService.WriteFileAsync(storagePath, "").ConfigureAwait(true);
 
         // Act
-        var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
 
         // Assert - 空文件应该被优雅处理
         var stats = tracker.GetTotalStatistics();
         stats.RequestCount.Should().Be(0);
-
-        await tracker.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -139,7 +130,7 @@ public class CostPersistenceTests : IDisposable
         var storagePath = $"{nestedDir}/usage.json";
 
         // Act
-        var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
         tracker.RecordUsage("model-a", 1000, 500);
 
         // 等待异步保存完成 - 使用 SpinWait 替代 Task.Delay 反模式
@@ -147,8 +138,6 @@ public class CostPersistenceTests : IDisposable
 
         // Assert
         _fileOperationService.DirectoryExists(nestedDir).Should().BeTrue();
-
-        await tracker.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -183,7 +172,7 @@ public class CostPersistenceTests : IDisposable
     {
         // Arrange
         var storagePath = $"{_storageDir}/concurrent.json";
-        var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
 
         // Act - 并发记录
         var tasks = Enumerable.Range(0, 10)
@@ -195,8 +184,6 @@ public class CostPersistenceTests : IDisposable
         // Assert - ConcurrentBag 是线程安全的，直接验证
         var stats = tracker.GetTotalStatistics();
         stats.RequestCount.Should().Be(10);
-
-        await tracker.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -257,15 +244,13 @@ public class CostPersistenceTests : IDisposable
         var beforeTime = DateTime.UtcNow;
 
         // Act
-        var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
+        await using var tracker = new CostTracker(_fileOperationService, storagePath: storagePath, NullLogger<CostTracker>.Instance);
         tracker.RecordUsage("model-a", 1000, 500);
         var afterTime = DateTime.UtcNow;
 
         // Assert - 直接验证内存中的记录
         var stats = tracker.GetTotalStatistics();
         stats.RequestCount.Should().Be(1);
-
-        await tracker.DisposeAsync().ConfigureAwait(true);
     }
 }
 #pragma warning restore JCC3010, JCC3011, JCC3012

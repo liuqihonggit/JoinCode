@@ -217,6 +217,7 @@ public sealed class GitWorkspaceResolverTests
     {
         private readonly PhysicalFileSystem _fs;
         public string Path { get; }
+        private bool _disposed;
 
         public TempDir(PhysicalFileSystem fs, string? parent = null)
         {
@@ -227,6 +228,8 @@ public sealed class GitWorkspaceResolverTests
 
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             try { _fs.DeleteDirectory(Path, recursive: true); }
             catch (IOException ex) { Console.WriteLine($"TempDir cleanup failed: {ex.Message}"); }
         }

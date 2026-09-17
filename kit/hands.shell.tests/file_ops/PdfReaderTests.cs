@@ -3,10 +3,14 @@ namespace Core.Tests.FileOps;
 public sealed class PdfReaderTests : IDisposable
 {
     private readonly InMemoryFileOperationService _fileOperationService = new();
+    private bool _disposed;
 
     public void Dispose()
     {
-        _fileOperationService.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+
+        _fileOperationService.DisposeSafe();
     }
 
     [Fact]

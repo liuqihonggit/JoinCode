@@ -28,6 +28,7 @@ public class WebSocketTransportTest
         private readonly HttpListener _listener;
         private readonly CancellationTokenSource _cts = new();
         private readonly ConcurrentBag<WebSocket> _sockets = new();
+        private bool _disposed;
 
         public WebSocketTestServer(int port)
         {
@@ -77,13 +78,15 @@ public class WebSocketTransportTest
 
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             _cts.Cancel();
             _listener.Close();
             foreach (var ws in _sockets)
             {
                 ws.DisposeSafe();
             }
-            _cts.Dispose();
+            _cts.DisposeSafe();
         }
     }
 

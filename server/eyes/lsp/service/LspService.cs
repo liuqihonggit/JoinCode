@@ -418,7 +418,7 @@ public sealed partial class LspService : ServiceEntity, ILspService
     /// <returns>表示异步释放操作的 ValueTask</returns>
     public override ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) return ValueTask.CompletedTask;
 
         var task = _lspManager.DisposeAsync();
         Dispose();

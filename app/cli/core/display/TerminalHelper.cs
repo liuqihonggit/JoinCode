@@ -304,6 +304,7 @@ public static class TerminalHelper
     {
         private readonly ConsoleColor _prev;
         private readonly ConsoleActor? _actor;
+        private bool _disposed;
 
         public ColorScope(ConsoleColor color, ConsoleActor? actor)
         {
@@ -319,6 +320,7 @@ public static class TerminalHelper
 
         public void Dispose()
         {
+            if (_disposed) return; _disposed = true;
             if (_actor is not null)
                 _actor.ResetColor();
             else

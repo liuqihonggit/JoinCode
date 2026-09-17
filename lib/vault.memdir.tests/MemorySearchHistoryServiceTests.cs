@@ -6,6 +6,7 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
     private readonly InMemoryFileOperationService _fileOpService;
     private readonly MemoryStore _memoryStore;
     private readonly string _tempBasePath;
+    private bool _disposed;
 
     public MemorySearchHistoryServiceTests()
     {
@@ -120,6 +121,8 @@ public sealed class MemorySearchHistoryServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOpService.DisposeSafe();
     }
 }

@@ -1,3 +1,4 @@
+﻿using System.Threading;
 
 namespace Core.Telemetry;
 
@@ -34,7 +35,7 @@ public sealed class ConsoleTelemetryExporter : IDisposable
 
     private void OnActivityStopped(Activity activity)
     {
-        if (DisposableHelper.IsDisposed(ref _isDisposed)) return;
+        if (Volatile.Read(ref _isDisposed) != 0) return;
 
         var status = activity.Status switch
         {
@@ -89,7 +90,7 @@ public sealed class ConsoleTelemetryExporter : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
         _listener.Dispose();
     }
 }

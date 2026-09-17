@@ -1,4 +1,5 @@
-﻿namespace Core.Scheduling.Tasks;
+﻿using System.Threading;
+namespace Core.Scheduling.Tasks;
 
 /// <summary>
 /// 进程内 Teammate 任务执行器接口 — 提供 teammate 的执行、消息通信、状态查询、停止/终止/中断能力。
@@ -758,7 +759,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
         public async ValueTask DisposeAsync()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
             if (_detached) return;
 

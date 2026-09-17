@@ -17,7 +17,7 @@ public sealed class ToolTemplateServiceTest : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        _service.Dispose();
+        _service.DisposeSafe();
         return Task.CompletedTask;
     }
 

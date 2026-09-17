@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace JoinCode.CodeIndex.Threading;
 
 /// <summary>
@@ -83,7 +84,7 @@ internal sealed class TimeoutLock : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _semaphore.Dispose();
     }
 
@@ -115,7 +116,7 @@ internal sealed class TimeoutLock : IDisposable
         /// </summary>
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _guard.Dispose();
             _log?.Invoke($"[TimeoutLock:{_name}] Released");
         }

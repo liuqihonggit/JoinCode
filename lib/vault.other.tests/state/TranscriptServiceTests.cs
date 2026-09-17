@@ -5,6 +5,7 @@ public sealed class TranscriptServiceTests : IDisposable
 {
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly TranscriptService _service;
+    private bool _disposed;
 
     public TranscriptServiceTests()
     {
@@ -267,6 +268,9 @@ public sealed class TranscriptServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _service.DisposeSafe();
     }
 }

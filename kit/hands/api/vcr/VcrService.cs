@@ -15,6 +15,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     private readonly ConcurrentDictionary<string, VcrCassette> _cassetteCache = new(StringComparer.OrdinalIgnoreCase);
 
     private VcrMode _currentMode;
+    private bool _disposed;
 
     /// <summary>
     /// 当前 VCR 模式
@@ -237,6 +238,8 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileLock.Dispose();
         base.Dispose();
     }

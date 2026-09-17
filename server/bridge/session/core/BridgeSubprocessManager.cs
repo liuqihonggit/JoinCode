@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 // BridgeSubprocessStatus 已迁移到 JoinCode.Transport 命名空间 (Transport.Contracts)
@@ -253,7 +253,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// </summary>
     public void ForceKill()
     {
-        if (Interlocked.Exchange(ref _sigkillSent, 1) == 1)
+        if (Interlocked.Exchange(ref _sigkillSent, 1) != 0)
         {
             return;
         }

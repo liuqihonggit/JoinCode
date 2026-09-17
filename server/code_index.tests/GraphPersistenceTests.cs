@@ -6,6 +6,7 @@ public sealed class GraphPersistenceTests : IDisposable
     private readonly SymbolIndex _index;
     private readonly IFileSystem _fs;
     private readonly GraphPersistence _persistence;
+    private bool _disposed;
 
     public GraphPersistenceTests()
     {
@@ -17,6 +18,8 @@ public sealed class GraphPersistenceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _index.DisposeSafe();
         _store.DisposeSafe();
     }

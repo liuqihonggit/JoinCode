@@ -12,14 +12,13 @@ public sealed class SessionScopeTests
     {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal = new Goal("测试目标");
+        using var goal = new Goal("测试目标");
 
         scope.Register(goal);
         scope.Count.Should().Be(1);
         scope.Resolve<Goal>(goal.ObjectId).Should().BeSameAs(goal);
 
         SessionRouter.Clear();
-        goal.Dispose();
     }
 
     [Fact]
@@ -27,7 +26,7 @@ public sealed class SessionScopeTests
     {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal = new Goal("测试目标");
+        using var goal = new Goal("测试目标");
 
         scope.Register(goal);
         scope.Unregister(goal.ObjectId).Should().BeTrue();
@@ -35,7 +34,6 @@ public sealed class SessionScopeTests
         scope.Resolve<Goal>(goal.ObjectId).Should().BeNull();
 
         SessionRouter.Clear();
-        goal.Dispose();
     }
 
     [Fact]
@@ -43,13 +41,12 @@ public sealed class SessionScopeTests
     {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal = new Goal("测试目标");
+        using var goal = new Goal("测试目标");
 
         scope.Register(goal);
         scope.Resolve<Session>(goal.ObjectId).Should().BeNull();
 
         SessionRouter.Clear();
-        goal.Dispose();
     }
 
     [Fact]
@@ -57,9 +54,9 @@ public sealed class SessionScopeTests
     {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal1 = new Goal("目标1");
-        var goal2 = new Goal("目标2");
-        var session = new Session();
+        using var goal1 = new Goal("目标1");
+        using var goal2 = new Goal("目标2");
+        using var session = new Session();
 
         scope.Register(goal1);
         scope.Register(goal2);
@@ -70,9 +67,6 @@ public sealed class SessionScopeTests
         scope.GetAll(ObjectType.Agent).Should().BeEmpty();
 
         SessionRouter.Clear();
-        goal1.Dispose();
-        goal2.Dispose();
-        session.Dispose();
     }
 
     [Fact]
@@ -80,8 +74,8 @@ public sealed class SessionScopeTests
     {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal1 = new Goal("目标1");
-        var goal2 = new Goal("目标2");
+        using var goal1 = new Goal("目标1");
+        using var goal2 = new Goal("目标2");
 
         scope.Register(goal1);
         scope.Register(goal2);
@@ -92,8 +86,6 @@ public sealed class SessionScopeTests
         goals.Should().Contain(goal2);
 
         SessionRouter.Clear();
-        goal1.Dispose();
-        goal2.Dispose();
     }
 
     [Fact]
@@ -101,7 +93,7 @@ public sealed class SessionScopeTests
     {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
-        var goal = new Goal("测试目标");
+        using var goal = new Goal("测试目标");
 
         scope.Register(goal);
         scope.Contains(goal.ObjectId).Should().BeTrue();
@@ -109,7 +101,6 @@ public sealed class SessionScopeTests
         scope.Contains(goal.ObjectId).Should().BeFalse();
 
         SessionRouter.Clear();
-        goal.Dispose();
     }
 
     [Fact]

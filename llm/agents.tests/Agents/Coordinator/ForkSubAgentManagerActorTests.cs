@@ -315,7 +315,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
             .Setup(x => x.ExecuteAsync(syncAgent, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SubAgentResult { AgentId = "sync-agent", IsSuccess = true, Output = "Sync done" });
 
-        var manager = new ForkSubAgentManagerActor(
+        await using var manager = new ForkSubAgentManagerActor(
             CreatePipeline(),
             new ForkManagerDependencies(_lifecycleManagerMock.Object, _messageBrokerMock.Object),
             NullLogger<ForkSubAgentManagerActor>.Instance,
@@ -348,8 +348,6 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
         var completedSecond = await secondForkTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
         secondForkCompleted.Should().BeTrue("后台 fork 完成释放信号量后，第二个 fork 应能执行");
         completedSecond.State.Should().Be(ForkState.Completed);
-
-        await manager.DisposeAsync().ConfigureAwait(true);
     }
 
     /// <summary>
@@ -413,6 +411,6 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _manager.DisposeAsync();
+        await _manager.DisposeSafeAsync();
     }
 }

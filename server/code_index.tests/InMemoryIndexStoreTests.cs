@@ -3,6 +3,7 @@ namespace JoinCode.CodeIndex.Tests;
 public sealed class InMemoryIndexStoreTests : IDisposable
 {
     private readonly InMemoryIndexStore _store;
+    private bool _disposed;
 
     public InMemoryIndexStoreTests()
     {
@@ -11,6 +12,8 @@ public sealed class InMemoryIndexStoreTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _store.DisposeSafe();
     }
 

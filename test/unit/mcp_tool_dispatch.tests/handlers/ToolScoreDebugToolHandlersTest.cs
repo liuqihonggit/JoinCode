@@ -29,8 +29,8 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        _scorer.Dispose();
-        _monitor.Dispose();
+        _scorer.DisposeSafe();
+        _monitor.DisposeSafe();
         return Task.CompletedTask;
     }
 

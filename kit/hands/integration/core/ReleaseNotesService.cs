@@ -17,6 +17,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     private bool _releasesCached;
     private DateTimeOffset _cacheTimestamp;
     private readonly AsyncLock _cacheLock = new();
+    private bool _disposed;
 
     /// <summary>
     /// 构造 Release Notes 服务实例
@@ -119,6 +120,8 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     /// <summary>释放资源 — P2-2: 补全 IDisposable 释放 SemaphoreSlim 避免资源累积</summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _cacheLock.Dispose();
             base.Dispose();
     }

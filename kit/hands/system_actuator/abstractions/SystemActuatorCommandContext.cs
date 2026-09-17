@@ -1,4 +1,4 @@
-namespace Services.SystemActuator;
+﻿namespace Services.SystemActuator;
 
 /// <summary>
 /// 系统执行器命令上下文 — 封装单次命令执行的全生命周期：进程启动、输出收集、超时/后台化/中断/杀死、CWD 追踪与异步释放
@@ -382,7 +382,7 @@ public sealed class SystemActuatorCommandContext : ISystemActuatorCommandContext
     /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
 
         _timeoutTimer?.Dispose();
         _assistantTimer?.Dispose();

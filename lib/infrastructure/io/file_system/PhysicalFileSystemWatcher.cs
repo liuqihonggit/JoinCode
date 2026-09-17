@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace IO.FileSystem;
 
 /// <summary>
@@ -7,7 +8,7 @@ public sealed class PhysicalFileSystemWatcher : IFileSystemWatcher
 {
     private readonly FileSystemWatcher _inner;
     private readonly DebounceTracker _debounce = new();
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>
     /// 构造物理文件系统监视器
@@ -146,7 +147,7 @@ public sealed class PhysicalFileSystemWatcher : IFileSystemWatcher
     /// </summary>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _inner.Changed -= OnChanged;
         _inner.Created -= OnCreated;

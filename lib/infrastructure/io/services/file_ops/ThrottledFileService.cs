@@ -11,6 +11,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     private readonly IIOThrottleService _throttleService;
     private readonly ILogger<ThrottledFileService>? _logger;
     private readonly ITelemetryService? _telemetryService;
+    private bool _disposed;
 
     /// <summary>
     /// 构造限流文件服务
@@ -639,6 +640,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         // ThrottledFileService 不拥有 ThrottleService 的生命周期
     }
 }

@@ -190,7 +190,7 @@ internal static class PipeAcceptLoop
                     reg.Unregister();
                     TransportDiagnostics.Log("PIPE-ACCEPT", () => $"accepted connection on {pipeName}");
                     connectionTasks.RemoveAll(t => t.IsCompleted);
-                    connectionTasks.Add(Task.Run(() => handleConnection(server, ct), ct));
+                    connectionTasks.Add(Task.Run(() => handleConnection(server, ct)));
                 }
                 catch (OperationCanceledException) { return; }
                 catch (ObjectDisposedException) { return; }

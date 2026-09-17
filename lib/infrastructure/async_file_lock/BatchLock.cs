@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace AsyncFileLock;
 
 /// <summary>
@@ -6,7 +7,7 @@ namespace AsyncFileLock;
 public sealed class BatchLock : IAsyncDisposable
 {
     private readonly IReadOnlyList<FileLock> _locks;
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>
     /// 已锁定的文件路径列表
@@ -28,7 +29,7 @@ public sealed class BatchLock : IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         return new ValueTask(Task.WhenAll(_locks.Select(l => l.DisposeAsync().AsTask())));
     }

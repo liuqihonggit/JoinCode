@@ -20,6 +20,7 @@ public class SettingsLoaderTests : IDisposable
     private readonly string? _originalSettingsFileName;
     private readonly EnvVarScope _envScope;
     private readonly IFileSystem _fs = TestFileSystem.Current;
+    private bool _disposed;
 
     public SettingsLoaderTests()
     {
@@ -48,6 +49,8 @@ public class SettingsLoaderTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         // 还原全局 AppDataConstants,避免污染后续测试
         _envScope.DisposeSafe();
         AppDataConstants.Paths = AppDataPaths.FromEnvironment(); // 恢复 Paths 实例

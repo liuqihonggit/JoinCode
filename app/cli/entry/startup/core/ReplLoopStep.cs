@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace JoinCode.Entry;
 
 /// <summary>
@@ -364,7 +365,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
 
         public async ValueTask DisposeAsync()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _setProcessing(0);
             Console.CancelKeyPress -= _onCancelKeyPress;
             _aliveCts.Cancel();

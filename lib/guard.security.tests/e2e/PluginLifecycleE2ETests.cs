@@ -5,6 +5,7 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
     private readonly PluginCommandRegistry _commandRegistry;
     private readonly PluginHookInjector _hookInjector;
     private readonly Mock<IPluginManager> _pluginManager;
+    private bool _disposed;
 
     public PluginLifecycleE2ETests()
     {
@@ -15,6 +16,8 @@ public sealed class PluginLifecycleE2ETests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
 
         return ValueTask.CompletedTask;
     }

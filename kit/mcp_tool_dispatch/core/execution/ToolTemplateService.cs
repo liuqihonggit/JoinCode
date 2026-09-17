@@ -12,6 +12,7 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     private readonly string _templatesDir;
     private readonly CancellationTokenSource _disposeCts = new();
     private volatile List<ToolTemplate> _cache = [];
+    private bool _disposed;
 
     /// <summary>
     /// 构造工具模板服务 — 确保模板目录存在并异步加载已有模板
@@ -284,6 +285,8 @@ public sealed class ToolTemplateService : ServiceEntity, IToolTemplateService, I
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _disposeCts.CancelAndDisposeSafe(_logger);
             base.Dispose();
     }

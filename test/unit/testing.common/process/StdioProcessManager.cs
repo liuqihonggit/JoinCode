@@ -19,6 +19,7 @@ public sealed class StdioProcessManager : IAsyncDisposable
     private Task? _stderrReadTask;
 
     private string _pidTag = "";
+    private bool _disposed;
 
     private TaskCompletionSource _outputChangedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private TaskCompletionSource _errorChangedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -360,6 +361,9 @@ public sealed class StdioProcessManager : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         await StopAsync().ConfigureAwait(false);
     }
     private void SignalOutputChanged()

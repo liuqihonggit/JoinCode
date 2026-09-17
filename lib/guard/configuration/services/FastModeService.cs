@@ -13,6 +13,7 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     private Timer? _cooldownTimer;
     private readonly TimeSpan _cooldownDuration;
     private readonly ILogger<FastModeService>? _logger;
+    private bool _disposed;
 
     /// <summary>快速模式是否当前激活</summary>
     public bool IsFastModeActive
@@ -184,6 +185,9 @@ public sealed partial class FastModeService : ServiceEntity, IFastModeService, I
     /// <inheritdoc />
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
         {
             StopCooldownTimerUnchecked();

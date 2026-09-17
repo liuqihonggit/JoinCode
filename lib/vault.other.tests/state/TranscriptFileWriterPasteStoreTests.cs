@@ -8,6 +8,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
     private readonly string _tempDir;
     private readonly Mock<IPasteStore> _pasteStore = new();
     private readonly TranscriptFileWriter _writer;
+    private bool _disposed;
 
     public TranscriptFileWriterPasteStoreTests()
     {
@@ -98,7 +99,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
     [Fact]
     public async Task AppendEntryAsync_WithoutPasteStore_ShouldStoreInlineRegardlessOfSize()
     {
-        var writerNoPaste = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, pasteStore: null);
+        using var writerNoPaste = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, pasteStore: null);
         var largeContent = new string('y', 2000);
 
         var filePath = Path.Combine(_tempDir, "nopaste.json");
@@ -116,12 +117,13 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
         loaded.Should().HaveCount(1);
         loaded[0].Content.Should().Be(largeContent);
         loaded[0].ContentHash.Should().BeNull();
-
-        writerNoPaste.Dispose();
     }
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _writer.DisposeSafe();
     }
 }

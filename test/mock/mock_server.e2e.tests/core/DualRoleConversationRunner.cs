@@ -17,6 +17,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
     private VendorKind _activeProvider = VendorKind.OpenAi;
     private Process? _mcpMockServerProcess;
     private int _mcpMockServerPort;
+    private bool _disposed;
 
     public DualRoleConversationRunner(ILogger<DualRoleConversationRunner> logger, IFileSystem? fs = null)
     {
@@ -1327,6 +1328,9 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         if (_processManager is not null)
         {
             await _processManager.DisposeSafeAsync(_logger);

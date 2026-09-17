@@ -205,7 +205,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1)
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return;
         }

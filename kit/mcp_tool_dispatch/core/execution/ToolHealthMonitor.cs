@@ -384,7 +384,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// </summary>
     public void Dispose()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _decayTimer?.Dispose();
     }
 
@@ -394,7 +394,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <returns>表示异步释放操作的任务。</returns>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _decayTimer?.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);
     }

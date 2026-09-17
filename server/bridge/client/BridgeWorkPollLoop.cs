@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 /// <summary>
 /// Bridge 工作轮询循环 — 对齐 TS 端 startWorkPollLoop
@@ -679,7 +679,7 @@ public sealed class BridgeWorkPollLoop : ServiceEntity
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0)
         {
             return;
         }

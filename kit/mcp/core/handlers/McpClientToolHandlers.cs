@@ -647,7 +647,7 @@ public partial class McpClientToolHandlers : ServiceEntity
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) return;
 
         _restoreCts?.Cancel();
         if (_restoreTask is not null)

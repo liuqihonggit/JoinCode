@@ -1,4 +1,4 @@
-namespace Core.Utils;
+﻿namespace Core.Utils;
 
 /// <summary>
 /// 全双工 Actor 基类 — 输入 Channel + 输出 Channel。
@@ -344,7 +344,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     public virtual async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();

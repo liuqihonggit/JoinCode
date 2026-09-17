@@ -1,4 +1,4 @@
-namespace Core.Bridge;
+﻿namespace Core.Bridge;
 
 
 /// <summary>
@@ -316,7 +316,7 @@ public sealed partial class CapacityWakeService : IAsyncDisposable
     /// <returns>表示异步释放操作的任务</returns>
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _isDisposed, 1) == 1)
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return;
         }

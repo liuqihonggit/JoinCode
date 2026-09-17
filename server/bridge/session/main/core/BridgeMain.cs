@@ -1,4 +1,4 @@
-
+﻿
 namespace Core.Bridge;
 
 /// <summary>
@@ -757,7 +757,7 @@ public sealed partial class BridgeMain : ServiceEntity
     /// </summary>
     public async Task ShutdownAsync()
     {
-        if (Interlocked.Exchange(ref _isShuttingDown, 1) == 1)
+        if (Interlocked.Exchange(ref _isShuttingDown, 1) != 0)
         {
             return; // 防重入
         }
@@ -804,7 +804,7 @@ public sealed partial class BridgeMain : ServiceEntity
 
     private async Task ShutdownDirectAsync()
     {
-        if (Interlocked.Exchange(ref _isShuttingDown, 1) == 1)
+        if (Interlocked.Exchange(ref _isShuttingDown, 1) != 0)
         {
             return; // 防重入
         }

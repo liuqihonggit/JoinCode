@@ -434,7 +434,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
 
     public Task DisposeAsync()
     {
-        _coordinator.Dispose();
+        _coordinator.DisposeSafe();
         return Task.CompletedTask;
     }
 }

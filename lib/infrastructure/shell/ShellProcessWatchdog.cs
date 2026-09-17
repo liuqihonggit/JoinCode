@@ -1,4 +1,4 @@
-namespace Infrastructure.Shell;
+﻿namespace Infrastructure.Shell;
 
 /// <summary>
 /// Shell 进程看护命令 — Actor 消息类型
@@ -141,7 +141,7 @@ public sealed class ShellProcessWatchdog : ActorBase<IShellWatchdogCommand, Unit
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _timer.Change(Timeout.Infinite, Timeout.Infinite);
         _timer.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);

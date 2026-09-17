@@ -337,7 +337,7 @@ public static class SettingsLoader
     {
         if (!fs.FileExists(path))
         {
-            Diag.WriteLine($"[SL] FileExists=False: {path}");
+            logger?.LogDebug("SL FileExists=False: {Path}", path);
             return null;
         }
 
@@ -345,13 +345,11 @@ public static class SettingsLoader
         {
             var json = await fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
             var result = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-            Diag.WriteLine($"[SL] OK: {path} len={json.Length} profile={result?.Current?.Profile}");
+            logger?.LogDebug("SL OK: {Path} len={Len} profile={Profile}", path, json.Length, result?.Current?.Profile);
             return result;
         }
         catch (Exception ex)
         {
-            Diag.WriteLine($"[SL] EXCEPTION: {path} {ex.GetType().Name}: {ex.Message}");
-            Diag.WriteLifecycle($"[WARN] 配置文件解析失败，使用默认值: {path} | 错误: {ex.Message}");
             logger?.LogWarning(ex, "SettingsLoader: Failed to load {Path}", path);
             return null;
         }

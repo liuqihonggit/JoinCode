@@ -38,24 +38,24 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
     private static void ApplyVendorFromSettings(Dictionary<string, IProviderDefinition> dict, IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger)
     {
         var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
-        Diag.WriteLine($"[PDR] settingsPath={settingsPath} JccDirectory={AppDataConstants.Paths.JccDirectory} UserProfile={Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}");
+        logger?.LogDebug("PDR settingsPath={Path} JccDirectory={Dir} UserProfile={Profile}", settingsPath, AppDataConstants.Paths.JccDirectory, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
 
         var fileSystem = fs ?? new IO.FileSystem.PhysicalFileSystem();
         if (!fileSystem.FileExists(settingsPath))
         {
-            Diag.WriteLine($"[PDR] FileExists=False → empty registry");
+            logger?.LogDebug("PDR FileExists=False → empty registry");
             return;
         }
 
         try
         {
             var json = fileSystem.ReadAllText(settingsPath);
-            Diag.WriteLine($"[PDR] ReadAllText OK, len={json.Length}");
+            logger?.LogDebug("PDR ReadAllText OK, len={Len}", json.Length);
             var node = System.Text.Json.Nodes.JsonNode.Parse(json);
             var vendorNode = node?["vendor"];
             if (vendorNode is null)
             {
-                Diag.WriteLine($"[PDR] vendorNode is null → empty registry");
+                logger?.LogDebug("PDR vendorNode is null → empty registry");
                 return;
             }
 
@@ -78,11 +78,10 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
                     _ => new OpenAiCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar),
                 };
             }
-            Diag.WriteLine($"[PDR] Registered {dict.Count} vendors: {string.Join(", ", dict.Keys)}");
+            logger?.LogDebug("PDR Registered {Count} vendors: {Vendors}", dict.Count, string.Join(", ", dict.Keys));
         }
         catch (System.Exception ex)
         {
-            Diag.WriteLine($"[PDR] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
             logger?.LogWarning(ex, "ProviderDefinitionRegistry: settings.json 读取失败");
         }
     }

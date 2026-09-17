@@ -133,7 +133,7 @@ public sealed class NotebookServiceTests : IDisposable
         var result = _service.DeleteCell(doc, 0);
 
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("无效的坕元格索引");
+        result.ErrorMessage.Should().Contain("无效的单元格索引");
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public sealed class NotebookServiceTests : IDisposable
         var result = _service.MoveCell(doc, 0, 0);
 
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("无效的溝索引");
+        result.ErrorMessage.Should().Contain("无效的源索引");
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public sealed class NotebookServiceTests : IDisposable
         var result = _service.ExecuteCell(doc, 0);
 
         result.Success.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("坪有代砝坕元格坯以执行");
+        result.ErrorMessage.Should().Contain("只有代码单元格可以执行");
     }
 
     [Fact]

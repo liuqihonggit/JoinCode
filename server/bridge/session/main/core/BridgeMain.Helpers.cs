@@ -12,7 +12,7 @@ public sealed partial class BridgeMain
     /// 获取兼容 ID — 对齐 TS 端 sessionCompatIds.get(sessionId) ?? sessionId
     /// cse_* → session_* 转换，用于 logger/archive/title 等客户端兼容 API
     /// </summary>
-    private string GetCompatId(string sessionId) => _tracker.GetCompatId(sessionId);
+    private string GetCompatId(string sessionId) => _tracker.Sessions.GetCompatId(sessionId);
 
     /// <summary>
     /// 从 gitRepoUrl 提取仓库名 — 对齐 TS 端 parseGitHubRepository + basename 回退
@@ -65,23 +65,25 @@ public sealed partial class BridgeMain
             if (_deps.BridgeLogger is null) return;
 
             // 推送会话计数
-            _deps.BridgeLogger.UpdateSessionCount(_tracker.ActiveSessions.Count, config.MaxSessions, config.SpawnMode);
+            _deps.BridgeLogger.UpdateSessionCount(_tracker.Sessions.Count, config.MaxSessions, config.SpawnMode);
 
             // 推送每个会话的状态
-            if (_tracker.ActiveSessions.Count == 0)
+            if (_tracker.Sessions.Count == 0)
             {
                 _deps.BridgeLogger.UpdateIdleStatus();
                 return;
             }
 
             // 对齐 TS 端: 只显示最近一个会话的详细状态
-            var lastSession = _tracker.ActiveSessions.Last();
-            var sessionId = lastSession.Key;
+            var lastSession = _tracker.Sessions.GetLastSession();
+            if (lastSession is null) return;
+            var sessionId = lastSession.Value.Key;
             var compatId = GetCompatId(sessionId);
 
-            if (_tracker.SessionStartTimes.TryGetValue(sessionId, out var startTime))
+            var state = _tracker.Sessions.GetState(sessionId);
+            if (state is not null)
             {
-                var elapsed = (_clock.GetUtcNow() - startTime).ToString(@"hh\:mm\:ss");
+                var elapsed = (_clock.GetUtcNow() - state.StartTime).ToString(@"hh\:mm\:ss");
                 // 使用默认活动状态 — 实际活动由 OnActivity 回调驱动
                 _deps.BridgeLogger.UpdateSessionStatus(compatId, elapsed,
                     BridgeSessionActivity.Idle, Array.Empty<string>());
@@ -131,7 +133,8 @@ public sealed partial class BridgeMain
     /// </summary>
     private void UpdateV1SessionTokenFireAndForget(string sessionId, string oauthToken)
     {
-        if (!_tracker.ActiveSessions.TryGetValue(sessionId, out var handle)) return;
+        var handle = _tracker.Sessions.GetHandle(sessionId);
+        if (handle is null) return;
         _ = Task.Run(async () =>
         {
             try
@@ -381,9 +384,9 @@ public sealed partial class BridgeMain
     {
         // 对齐 TS 端: if (titledSessions.has(compatSessionId)) return
         var compatId = GetCompatId(sessionId);
-        if (_tracker.TitledSessions.ContainsKey(compatId)) return;
+        if (_tracker.Titles.Has(compatId)) return;
 
-        _tracker.TitledSessions.TryAdd(compatId, 0);
+        _tracker.Titles.Mark(compatId);
         var title = DeriveSessionTitle(text);
         _deps.BridgeLogger?.SetSessionTitle(compatId, title);
         _logger?.LogDebug("BridgeMain: derived title for {SessionId}: {Title}", sessionId, title);
@@ -426,10 +429,10 @@ public sealed partial class BridgeMain
                     sessionId, CancellationToken.None).ConfigureAwait(false);
             }
 
-            if (title is not null && _tracker.ActiveSessions.ContainsKey(sessionId))
+            if (title is not null && _tracker.Sessions.Has(sessionId))
             {
                 var compatId = GetCompatId(sessionId);
-                _tracker.TitledSessions.TryAdd(compatId, 0);
+                _tracker.Titles.Mark(compatId);
                 _deps.BridgeLogger?.SetSessionTitle(compatId, title);
                 _logger?.LogDebug("BridgeMain: server title for {SessionId}: {Title}", sessionId, title);
             }

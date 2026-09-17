@@ -21,11 +21,8 @@ public sealed class ShutdownContext : IPipelineContext
     /// <summary>恢复指针目录路径</summary>
     public string? ResumePointerDir { get; init; }
 
-    /// <summary>活跃会话句柄表（会话 ID → 子进程句柄）</summary>
-    internal ConcurrentDictionary<string, BridgeSubprocessHandle> ActiveSessions { get; set; } = new();
-
-    /// <summary>会话兼容 ID 映射表（内部 ID → 兼容 ID）</summary>
-    internal ConcurrentDictionary<string, string> SessionCompatIds { get; set; } = new();
+    /// <summary>会话注册表 — 管理所有以 sessionId 为 key 的会话状态</summary>
+    internal BridgeSessionRegistry Sessions { get; set; } = new();
 
     /// <summary>子进程派生器</summary>
     internal BridgeSubprocessSpawner? Spawner { get; set; }

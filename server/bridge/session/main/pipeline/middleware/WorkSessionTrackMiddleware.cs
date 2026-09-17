@@ -33,31 +33,26 @@ public sealed partial class WorkSessionTrackMiddleware : ServiceEntity, IHandleW
         var work = ctx.Work;
         var handle = ctx.Handle ?? throw new InvalidOperationException("Handle is not set. Ensure SpawnSubprocessMiddleware runs before WorkSessionTrackMiddleware.");
 
-        ctx.ActiveSessions[work.SessionId] = handle;
-        ctx.SessionStartTimes[work.SessionId] = _clock.GetUtcNow();
-        ctx.SessionWorkIds[work.SessionId] = work.WorkId;
-
-        if (ctx.SessionIngressToken is not null)
-        {
-            ctx.SessionIngressTokens[work.SessionId] = ctx.SessionIngressToken;
-        }
-
-        if (ctx.UseCcrV2)
-        {
-            ctx.V2Sessions.TryAdd(work.SessionId, 0);
-        }
-
         var compatId = SessionIdCompat.ToCompatSessionId(work.SessionId);
-        ctx.SessionCompatIds[work.SessionId] = compatId;
+        ctx.Sessions.Register(work.SessionId, new BridgeSessionState
+        {
+            Handle = handle,
+            StartTime = _clock.GetUtcNow(),
+            WorkId = work.WorkId,
+            IngressToken = ctx.SessionIngressToken,
+            WorktreePath = ctx.CreatedWorktreePath,
+            CompatId = compatId,
+            IsV2 = ctx.UseCcrV2,
+        });
 
         _logger?.LogInformation("BridgeMain: session {SessionId} started, active={Active}/{Max}, ccrV2={CcrV2}",
-            work.SessionId, ctx.ActiveSessions.Count, ctx.Config.MaxSessions, ctx.UseCcrV2);
+            work.SessionId, ctx.Sessions.Count, ctx.Config.MaxSessions, ctx.UseCcrV2);
 
         ctx.TelemetryCount?.Invoke("tengu_bridge_session_started", new Dictionary<string, string>
         {
-            ["active_sessions"] = ctx.ActiveSessions.Count.ToString(),
+            ["active_sessions"] = ctx.Sessions.Count.ToString(),
             ["spawn_mode"] = ctx.Config.SpawnMode.ToValue(),
-            ["in_worktree"] = ctx.SessionWorktrees.ContainsKey(work.SessionId).ToString(),
+            ["in_worktree"] = (ctx.CreatedWorktreePath is not null).ToString(),
         });
 
         ctx.CapacityWake?.Invoke();

@@ -69,9 +69,9 @@
 - **状态**:✅ 全部完成
 
 ### [P2-4] static 字段合并·6 组规则集
-- EnvOverrideApplier/NetworkConnectivityService/HotFileDetector/StructuredTaskMarkdown/BackgroundHousekeepingService/ShellDeleteDetector
-- 各自合并为 `XxxRules`/`XxxConfig` record struct
-- **状态**:⏳ 待做
+- EnvOverrideApplier: 合并 ProtocolByVendor+ApiKeyEnvVarByVendor 为单字典+VendorInference record ✅ `2c87334f6`
+- 其余5个: 字段和方法不多,不需要组合根拆分,跳过
+- **状态**:✅ 1/6 完成(仅 EnvOverrideApplier 有 key 相同的字典值得合并)
 
 ### [P2-5] 字段混乱·CostTracker 16 字段 + FileToolHandlers 20 字段
 - CostTracker 拆 `UsageStore`/`BudgetGuard`/`SessionStats`

@@ -223,6 +223,9 @@ function Test-McpTools {
     $listJson = Extract-Json -Text $listResult.stdout
     if (-not $listJson -or -not $listJson.ok) {
         Write-Error "mcp_list failed"
+        Write-Host "  stdout: $($listResult.stdout.Substring(0, [Math]::Min(500, $listResult.stdout.Length)))" -ForegroundColor Red
+        Write-Host "  stderr: $($listResult.stderr.Substring(0, [Math]::Min(500, $listResult.stderr.Length)))" -ForegroundColor Red
+        Write-Host "  exitCode: $($listResult.exitCode)" -ForegroundColor Red
         return @()
     }
 

@@ -15,9 +15,7 @@ public sealed partial class TelemetryService : ITelemetryService
     private readonly ActivityListener _listener;
     private ConsoleTelemetryExporter? _consoleExporter;
     private readonly IAnalyticsFileSink? _analyticsSink;
-    private readonly ConcurrentDictionary<string, ITelemetryCounter> _counters = new();
-    private readonly ConcurrentDictionary<string, ITelemetryHistogram> _histograms = new();
-    private readonly ConcurrentDictionary<string, ITelemetryGauge> _gauges = new();
+    private readonly ConcurrentDictionary<string, ITelemetryMetric> _metrics = new();
     private readonly ConcurrentDictionary<string, TelemetrySpan> _activeSpans = new();
     private int _isDisposed;
 
@@ -108,7 +106,7 @@ public sealed partial class TelemetryService : ITelemetryService
     /// <inheritdoc/>
     public ITelemetryCounter GetCounter(string name, string? unit = null, string? description = null)
     {
-        return _counters.GetOrAdd(name, n =>
+        var metric = _metrics.GetOrAdd(name, n =>
         {
             if (!_config.MetricsEnabled)
             {
@@ -118,12 +116,16 @@ public sealed partial class TelemetryService : ITelemetryService
             var counter = _meter.CreateCounter<double>(n, unit, description);
             return new TelemetryCounter(n, counter, _analyticsSink);
         });
+        return metric is ITelemetryCounter counter
+            ? counter
+            : throw new InvalidOperationException(
+                $"指标 '{name}' 已注册为 {metric.GetType().Name},不能作为 Counter 获取。请使用与注册时一致的指标类型访问。");
     }
 
     /// <inheritdoc/>
     public ITelemetryHistogram GetHistogram(string name, string? unit = null, string? description = null)
     {
-        return _histograms.GetOrAdd(name, n =>
+        var metric = _metrics.GetOrAdd(name, n =>
         {
             if (!_config.MetricsEnabled)
             {
@@ -133,12 +135,16 @@ public sealed partial class TelemetryService : ITelemetryService
             var histogram = _meter.CreateHistogram<double>(n, unit, description);
             return new TelemetryHistogram(n, histogram);
         });
+        return metric is ITelemetryHistogram histogram
+            ? histogram
+            : throw new InvalidOperationException(
+                $"指标 '{name}' 已注册为 {metric.GetType().Name},不能作为 Histogram 获取。请使用与注册时一致的指标类型访问。");
     }
 
     /// <inheritdoc/>
     public ITelemetryGauge GetGauge(string name, string? unit = null, string? description = null)
     {
-        return _gauges.GetOrAdd(name, n =>
+        var metric = _metrics.GetOrAdd(name, n =>
         {
             if (!_config.MetricsEnabled)
             {
@@ -148,6 +154,10 @@ public sealed partial class TelemetryService : ITelemetryService
             var gauge = _meter.CreateGauge<double>(n, unit, description);
             return new TelemetryGauge(n, gauge);
         });
+        return metric is ITelemetryGauge gauge
+            ? gauge
+            : throw new InvalidOperationException(
+                $"指标 '{name}' 已注册为 {metric.GetType().Name},不能作为 Gauge 获取。请使用与注册时一致的指标类型访问。");
     }
 
     /// <inheritdoc/>
@@ -160,11 +170,7 @@ public sealed partial class TelemetryService : ITelemetryService
     /// <inheritdoc/>
     public IEnumerable<string> GetRegisteredMetrics()
     {
-        var names = new List<string>();
-        names.AddRange(_counters.Keys);
-        names.AddRange(_histograms.Keys);
-        names.AddRange(_gauges.Keys);
-        return names;
+        return _metrics.Keys;
     }
 
     /// <summary>

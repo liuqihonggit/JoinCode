@@ -117,9 +117,9 @@ jobs:
           path: |
             ${{ github.workspace }}/artifacts/bin
             ${{ github.workspace }}/artifacts/obj
-          key: build-v2-${{ runner.os }}-${{ hashFiles('**/*.cs', '**/*.csproj', 'Directory.Build.props', '**/*.slnx') }}
+          key: build-v3-${{ runner.os }}-${{ hashFiles('**/*.cs', '**/*.csproj', 'Directory.Build.props', '**/*.slnx', '.github/workflows/mutation-testing.yml') }}
           restore-keys: |
-            build-v2-${{ runner.os }}-
+            build-v3-${{ runner.os }}-
 
       - name: Build - ① Generators
         run: dotnet build build/sln/Generators.slnx -c Debug --nologo -m /p:SkipLocalPack=true /p:ProduceReferenceAssembly=true

@@ -48,25 +48,25 @@
 ## 🟢 P2 中优先级(后续推进)
 
 ### [P2-1] Dictionary 重复·5 组完全重复
-- BuildQueueService + BuildQueueRouter(`_entries`+`_waitHandles`)→ `BuildQueueEntryStore`
-- InProcessMailbox + FileMailbox(`_deliveredMessageIds`+`IsDuplicate`)→ 上提到 MailboxBase 或 `MessageDedupTracker`
-- UsageTracker + CostTracker(`_usageRecords`+`_sessionIndex`)→ `TokenUsageStore`
+- BuildQueueService + BuildQueueRouter(`_entries`+`_waitHandles`)→ `BuildQueueEntryStore` ✅ `44533ba5b`
+- InProcessMailbox + FileMailbox(`_deliveredMessageIds`+`IsDuplicate`)→ `MessageDedupTracker` ✅ `28db751c7`
+- UsageTracker + CostTracker(`_usageRecords`+`_sessionIndex`)→ `TokenUsageStore` ⏭️ 跳过:两处 TokenUsageRecord 是不同类型(字段名不同 InputTokens/PromptTokens),泛型提取引入 Func 参数+放置位置困难(Hands/Brain 无共享工具项目),属巧合相似非本质重复
 - McpTcpServer + McpHttpServer(`_sessions`)→ `McpSessionRegistry`
-- InMemoryFileSystem + PhysicalFileSystem(`_editLocks`+`GetOrAdd`)→ `EditLockRegistry`
-- **状态**:⏳ 待做
+- InMemoryFileSystem + PhysicalFileSystem(`_editLocks`+`GetOrAdd`)→ `EditLockRegistry` ✅ `4de0884d9`
+- **状态**:✅ 4/5 组已完成(UsageTracker+CostTracker 跳过,原因见上)
 
 ### [P2-2] InMemoryIndexStore 重复锁 Scope — 3 个私有类
 - **文件**:`server/code_index/indexing/InMemoryIndexStore.cs:134-168`
 - **重构**:删除 3 个私有嵌套类,改用已有 `LockScope.cs` 扩展方法
-- **状态**:⏳ 待做
+- **状态**:✅ `b00d7ceae`
 
 ### [P2-3] 字段混乱·4 个类各 11-13 字段
-- LspClient(13)→ `LspProcessChannel` + `LspMessageRouter`
-- BridgeSubprocessHandle(13)→ `SubprocessIoChannels` + `SubprocessState`
-- TeamManager(13)→ `TeamRegistry`
-- LspManager(11)→ `LspServerRegistry` + 字段位置统一
+- LspClient(13)→ `LspProcessChannel` + `LspMessageRouter` ✅ `fC` `508aa627b`+`f6f331c29`+`be498a5e0`(组合根+重复片段消除+字典合并)
+- BridgeSubprocessHandle(13)→ `SubprocessIoChannels` + `SubprocessState` ✅ `c087516fc`(含 Kill/ForceKill 重复消除)
+- TeamManager(13)→ `TeamRegistry` ✅ `4538d5db6`+`c72f7cdfa`(Rooms 优化)
+- LspManager(11)→ `LspServerRegistry` + 字段位置统一 ✅ `76f00a14d`(含 DisposeAsync 顺序修复)
 - 附带修复 `_disposed` 类型不一致(bool vs int+Interlocked)
-- **状态**:⏳ 待做
+- **状态**:✅ 全部完成
 
 ### [P2-4] static 字段合并·6 组规则集
 - EnvOverrideApplier/NetworkConnectivityService/HotFileDetector/StructuredTaskMarkdown/BackgroundHousekeepingService/ShellDeleteDetector

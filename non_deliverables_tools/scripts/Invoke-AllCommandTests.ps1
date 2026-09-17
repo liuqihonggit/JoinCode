@@ -358,6 +358,14 @@ function Test-SlashCommands {
     }
 
     $cmds = $listJson.data | ForEach-Object { $_.name.TrimStart('/') }
+
+    $globalStateMods = @("reset-config")
+    $excluded = $cmds | Where-Object { $globalStateMods -contains $_ }
+    if ($excluded) {
+        $cmds = $cmds | Where-Object { $globalStateMods -notcontains $_ }
+        Write-Host "Excluded global-state-modifying commands: $($excluded -join ', ')"
+    }
+
     Write-Host "Found $($cmds.Count) slash commands"
 
     if ($Limit -gt 0 -and $Limit -lt $cmds.Count) {

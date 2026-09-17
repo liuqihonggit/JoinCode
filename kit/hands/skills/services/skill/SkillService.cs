@@ -54,6 +54,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     private readonly Core.Skills.Discovery.ISkillDiscoveryService? _discoveryService;
     private readonly ILogger<SkillService>? _logger;
     private DateTime _lastReloadTime = DateTime.MinValue;
+    private bool _disposed;
 
     /// <summary>
     /// 创建技能服务
@@ -477,6 +478,8 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _reloadLock.Dispose();
         base.Dispose();
     }

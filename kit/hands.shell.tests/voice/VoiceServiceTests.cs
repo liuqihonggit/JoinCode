@@ -4,6 +4,7 @@ public sealed class VoiceServiceTests : IDisposable
 {
     private readonly VoiceService _service;
     private readonly VoiceOptions _options;
+    private bool _disposed;
 
     public VoiceServiceTests()
     {
@@ -24,6 +25,9 @@ public sealed class VoiceServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _service.DisposeSafe();
     }
 

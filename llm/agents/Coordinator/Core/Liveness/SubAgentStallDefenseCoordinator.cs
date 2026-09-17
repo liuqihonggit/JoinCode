@@ -20,6 +20,7 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     private readonly ILogger? _logger;
     private readonly Func<DateTimeOffset> _clock;
     private readonly ConcurrentDictionary<string, DateTimeOffset> _activationTimes = new();
+    private bool _disposed;
 
     /// <summary>
     /// 构造子代理卡死防护协调器
@@ -187,6 +188,8 @@ public sealed partial class SubAgentStallDefenseCoordinator : IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
         _logger?.LogInformation("[SubAgentStallDefense] 纵深防御体系停止，清理 {Count} 个激活记录", _activationTimes.Count);
         _scanner.AgentStalled -= OnAgentStalled;
         _scanner.ChainStalled -= OnChainStalled;

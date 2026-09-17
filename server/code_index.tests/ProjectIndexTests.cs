@@ -5,6 +5,7 @@ public sealed class ProjectIndexTests : IDisposable
     private readonly InMemoryIndexStore _store;
     private readonly ProjectIndex _projectIndex;
     private readonly IO.FileSystem.InMemoryFileSystem _fs;
+    private bool _disposed;
 
     public ProjectIndexTests()
     {
@@ -15,6 +16,8 @@ public sealed class ProjectIndexTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _store.DisposeSafe();
     }
 

@@ -3,6 +3,7 @@ namespace Core.Tests.Services.SystemPower;
 public sealed class PreventSleepServiceTests : IDisposable
 {
     private readonly PreventSleepService _service;
+    private bool _disposed;
 
     public PreventSleepServiceTests()
     {
@@ -11,6 +12,8 @@ public sealed class PreventSleepServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _service.DisposeSafe();
     }
 

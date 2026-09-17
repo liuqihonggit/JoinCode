@@ -4,6 +4,7 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
 {
     private readonly FeatureFlagService _service;
     private readonly HttpClient _httpClient;
+    private bool _disposed;
 
     public FeatureFlagServiceTests()
     {
@@ -17,6 +18,8 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         await _service.DisposeSafeAsync();
         _httpClient.DisposeSafe();
     }

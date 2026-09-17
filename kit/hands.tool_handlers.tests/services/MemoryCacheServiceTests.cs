@@ -6,6 +6,7 @@ namespace Core.Tests.Services;
 /// </summary>
 public class MemoryCacheServiceTests : IDisposable {
     private readonly MemoryCacheService _cacheService;
+    private bool _disposed;
 
     public MemoryCacheServiceTests() {
         _cacheService = new MemoryCacheService();
@@ -15,6 +16,9 @@ public class MemoryCacheServiceTests : IDisposable {
     }
 
     public void Dispose() {
+        if (_disposed) return;
+        _disposed = true;
+
         // 清理快速测试模式设置
         TestConfiguration.IsFastTestMode = false;
         _cacheService.DisposeSafe();

@@ -7,6 +7,7 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
     private readonly DiminishingReturnsDetector _diminishingReturns;
     private readonly UsdBudgetManager _budgetManager;
     private readonly HistorySnipService _snipService;
+    private bool _disposed;
 
     public QueryLifecycleE2ETests()
     {
@@ -27,6 +28,8 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         await _budgetManager.DisposeSafeAsync();
     }
 

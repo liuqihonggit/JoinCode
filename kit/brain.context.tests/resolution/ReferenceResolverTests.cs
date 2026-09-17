@@ -8,6 +8,7 @@ public class ReferenceResolverTests : IDisposable
     private readonly InMemoryFileOperationService _fileOpService;
     private readonly ReferenceResolver _resolver;
     private const string ProjectRoot = "C:\\testroot";
+    private bool _disposed;
 
     public ReferenceResolverTests()
     {
@@ -20,6 +21,8 @@ public class ReferenceResolverTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOpService.DisposeSafe();
     }
 

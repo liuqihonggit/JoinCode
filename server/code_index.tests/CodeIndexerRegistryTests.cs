@@ -6,6 +6,7 @@ public sealed class CodeIndexerRegistryTests : IDisposable
     private readonly CodeIndexer _defaultIndexer;
     private readonly IFileSystem _fs;
     private readonly CodeIndexerRegistry _registry;
+    private bool _disposed;
 
     public CodeIndexerRegistryTests()
     {
@@ -17,6 +18,8 @@ public sealed class CodeIndexerRegistryTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _registry.DisposeSafe();
     }
 

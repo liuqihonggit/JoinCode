@@ -9,6 +9,7 @@ public class CostPersistenceTests : IDisposable
 {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly string _storageDir;
+    private bool _disposed;
 
     public CostPersistenceTests()
     {
@@ -19,6 +20,8 @@ public class CostPersistenceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 

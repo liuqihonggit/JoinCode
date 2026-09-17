@@ -45,6 +45,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     private readonly string _baseStorageDir;
     private readonly ILogger<JsonFileDreamTaskPersistence>? _logger;
     private readonly IFileOperationService _fileOperationService;
+    private bool _disposed;
 
     /// <summary>
     /// 构造 JSON 文件持久化实现
@@ -196,6 +197,7 @@ public sealed partial class JsonFileDreamTaskPersistence : IDreamTaskPersistence
     /// <returns>表示异步释放操作的任务</returns>
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask; _disposed = true;
         return ValueTask.CompletedTask;
     }
 }

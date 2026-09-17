@@ -12,6 +12,7 @@ public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposa
     private readonly ILogger<MemoryCacheService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly MemoryCacheEntryOptions _defaultEntryOptions;
+    private bool _disposed;
 
     /// <summary>
     /// 初始化内存缓存服务实例 — 配置容量上限、压缩比例与过期扫描频率
@@ -163,6 +164,8 @@ public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposa
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _cache?.Dispose();
         base.Dispose();
     }

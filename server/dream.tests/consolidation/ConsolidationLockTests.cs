@@ -10,6 +10,7 @@ public sealed class ConsolidationLockTests : IDisposable
     private readonly InMemoryDreamTaskRegistry _taskRegistry;
     private readonly DefaultSessionScanner _sessionScanner;
     private readonly AutoDreamConfig _config;
+    private bool _disposed;
 
     public ConsolidationLockTests()
     {
@@ -29,6 +30,8 @@ public sealed class ConsolidationLockTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     [Fact]

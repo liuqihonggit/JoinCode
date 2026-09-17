@@ -8,6 +8,7 @@ public sealed class FastModeServiceTests : IDisposable
     private static readonly string DefaultFastModelId = Loader.GetDefaultFastModelId("openai");
 
     private readonly FastModeService _service;
+    private bool _disposed;
 
     public FastModeServiceTests()
     {
@@ -178,6 +179,8 @@ public sealed class FastModeServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _service.DisposeSafe();
     }
 }

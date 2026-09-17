@@ -9,6 +9,7 @@ public sealed class FileChatRoomStoreTests : IDisposable
     private readonly PhysicalFileSystem _fs;
     private readonly FileChatRoomStore _store;
     private static int _testCounter;
+    private bool _disposed;
 
     public FileChatRoomStoreTests()
     {
@@ -130,6 +131,8 @@ public sealed class FileChatRoomStoreTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         if (_fs.DirectoryExists(_tempDir))
         {
             _fs.DeleteDirectory(_tempDir, recursive: true);

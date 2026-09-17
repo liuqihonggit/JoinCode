@@ -15,6 +15,7 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
     private readonly MemoryCache _urlCache;
     private readonly MemoryCache _domainCheckCache;
     private readonly ILogger<WebFetchCache>? _logger;
+    private bool _disposed;
 
     /// <summary>
     /// 初始化 <see cref="WebFetchCache"/> 实例，创建 URL 缓存与域名预检缓存。
@@ -107,6 +108,8 @@ public sealed partial class WebFetchCache : ServiceEntity, IWebFetchCache, IDisp
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _urlCache.Dispose();
         _domainCheckCache.Dispose();
             base.Dispose();

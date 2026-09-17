@@ -21,6 +21,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
     private readonly string _tempDir;
     private readonly IO.FileSystem.PhysicalFileSystem _fs;
     private readonly TranscriptFileWriter _writer;
+    private bool _disposed;
 
     public TranscriptFileWriterPhysicalTests()
     {
@@ -177,6 +178,9 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _writer.DisposeSafe();
         try
         {

@@ -8,6 +8,7 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
     private readonly ILogger<MobileConnectService>? _logger;
     private int _runningPort;
     private CancellationTokenSource? _cts;
+    private bool _disposed;
 
     /// <summary>构造移动端连接服务实例。</summary>
     /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
@@ -137,6 +138,8 @@ public sealed partial class MobileConnectService : ServiceEntity, IMobileConnect
     /// <summary>释放移动端连接服务资源 — P1-10: 补全 IDisposable 避免资源累积</summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         StopConnectServer();
         _cts?.Dispose();
         _cts = null;

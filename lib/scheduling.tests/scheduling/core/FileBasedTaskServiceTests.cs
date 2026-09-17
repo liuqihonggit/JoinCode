@@ -10,6 +10,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     private readonly IFileSystem _fs;
     private readonly FileBasedTaskService _service;
     private readonly ITestOutputHelper _output;
+    private bool _disposed;
 
     public FileBasedTaskServiceTests(ITestOutputHelper output)
     {
@@ -32,6 +33,8 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 

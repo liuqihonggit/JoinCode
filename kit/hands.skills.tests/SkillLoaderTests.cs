@@ -7,6 +7,7 @@ public class SkillServiceTests : IDisposable
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IToolExecutionGateway> _toolExecutionGatewayMock;
+    private bool _disposed;
 
     public SkillServiceTests()
     {
@@ -53,6 +54,8 @@ public class SkillServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     [Fact]

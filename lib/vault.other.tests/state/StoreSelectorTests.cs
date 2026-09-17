@@ -7,6 +7,7 @@ namespace Core.Tests.State;
 public sealed class StoreSelectorTests : IDisposable
 {
     private readonly Store<int> _store;
+    private bool _disposed;
 
     public StoreSelectorTests()
     {
@@ -15,6 +16,9 @@ public sealed class StoreSelectorTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _store.DisposeSafe();
     }
 

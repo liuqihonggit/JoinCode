@@ -4,6 +4,7 @@ public sealed class TreeCacheTests : IDisposable
 {
     private readonly TreeCache _cache;
     private readonly TreeSitterParser _parser;
+    private bool _disposed;
 
     public TreeCacheTests()
     {
@@ -13,6 +14,8 @@ public sealed class TreeCacheTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _cache.DisposeSafe();
         _parser.DisposeSafe();
     }

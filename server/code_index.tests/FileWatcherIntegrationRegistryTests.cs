@@ -7,6 +7,7 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable
     private readonly IO.FileSystem.InMemoryFileSystem _fs;
     private readonly CodeIndexerRegistry _registry;
     private readonly FileWatcherIntegrationRegistry _watcherRegistry;
+    private bool _disposed;
 
     public FileWatcherIntegrationRegistryTests()
     {
@@ -19,6 +20,8 @@ public sealed class FileWatcherIntegrationRegistryTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         await _watcherRegistry.DisposeSafeAsync();
         _registry.DisposeSafe();
     }

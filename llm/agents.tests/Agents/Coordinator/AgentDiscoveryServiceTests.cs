@@ -10,6 +10,7 @@ public sealed class AgentDiscoveryServiceTests : IAsyncDisposable
     private readonly Mock<IClockService> _clockMock;
     private readonly AgentDiscoveryService _service;
     private static int _testCounter;
+    private bool _disposed;
 
     public AgentDiscoveryServiceTests()
     {
@@ -107,6 +108,8 @@ public sealed class AgentDiscoveryServiceTests : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
         _service.DisposeSafe();
         return ValueTask.CompletedTask;
     }

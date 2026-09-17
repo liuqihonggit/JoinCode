@@ -13,6 +13,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     private readonly IClockService _clock;
     private readonly ILogger<StateService>? _logger;
     private const string StateKey = "state";
+    private bool _disposed;
 
     private static ISessionCache? GetCurrentCache()
     {
@@ -183,6 +184,9 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _fallbackStorage.Clear();
         base.Dispose();
     }

@@ -16,6 +16,7 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     private readonly IFileOperationService _fileOperationService;
     private readonly AsyncLock _initLock = new();
     private bool _initialized;
+    private bool _disposed;
 
     /// <summary>
     /// 基于文件系统的任务服务构造函数
@@ -489,6 +490,8 @@ public sealed partial class FileBasedTaskService : ServiceEntity, ITaskService, 
     /// <summary>释放资源时回调，释放初始化锁。</summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _initLock.Dispose();
         base.Dispose();
     }

@@ -13,6 +13,7 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     private bool _initialized;
     private bool _initializing;
     private readonly AsyncLock _initLock = new();
+    private bool _disposed;
 
     /// <summary>
     /// 构造 Puppeteer 浏览器自动化服务
@@ -168,6 +169,7 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     /// </summary>
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask; _disposed = true;
         if (_browser is not null)
         {
             var browser = _browser;

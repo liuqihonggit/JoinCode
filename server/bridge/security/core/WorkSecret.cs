@@ -97,6 +97,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     private readonly ILogger<WorkSecretStore>? _logger;
     private readonly IClockService _clock;
     private readonly byte[] _encryptionKey;
+    private bool _disposed;
 
     // AES-GCM 常量
     private const int NonceSizeBytes = 12;
@@ -326,6 +327,7 @@ public sealed partial class WorkSecretStore : ServiceEntity, IWorkSecretStore, I
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         Array.Clear(_encryptionKey);
             base.Dispose();
     }

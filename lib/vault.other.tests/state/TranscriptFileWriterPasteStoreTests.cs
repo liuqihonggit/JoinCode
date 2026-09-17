@@ -8,6 +8,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
     private readonly string _tempDir;
     private readonly Mock<IPasteStore> _pasteStore = new();
     private readonly TranscriptFileWriter _writer;
+    private bool _disposed;
 
     public TranscriptFileWriterPasteStoreTests()
     {
@@ -120,6 +121,9 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _writer.DisposeSafe();
     }
 }

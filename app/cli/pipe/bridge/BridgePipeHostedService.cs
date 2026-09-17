@@ -8,6 +8,7 @@ public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisp
     private readonly Core.Bridge.BridgeServer? _bridgeServer;
     private readonly ILogger<BridgePipeHostedService>? _logger;
     private readonly CancellationTokenSource _disposeCts = new();
+    private bool _disposed;
 
     /// <summary>构造 Bridge Pipe 宿主服务</summary>
     /// <param name="heartbeatService">心跳检测服务</param>
@@ -59,6 +60,7 @@ public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisp
     /// <returns>表示异步释放操作的任务</returns>
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask; _disposed = true;
         _disposeCts.CancelAndDisposeSafe(_logger);
         _heartbeatService.Stop();
         return ValueTask.CompletedTask;

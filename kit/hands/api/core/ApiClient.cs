@@ -611,15 +611,12 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// </summary>
     public override void Dispose()
     {
-        if (!_disposed)
+        if (_disposed) return; _disposed = true;
+        if (_networkService is not null)
         {
-            if (_networkService is not null)
-            {
-                _networkService.StateChanged -= OnNetworkStateChanged;
-            }
-            _httpClient.Dispose();
-            _disposed = true;
+            _networkService.StateChanged -= OnNetworkStateChanged;
         }
-            base.Dispose();
+        _httpClient.Dispose();
+        base.Dispose();
     }
 }

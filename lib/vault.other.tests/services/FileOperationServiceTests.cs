@@ -7,6 +7,7 @@ namespace Core.Tests.Services;
 public sealed class FileOperationServiceTests : IDisposable
 {
     private readonly InMemoryFileOperationService _service;
+    private bool _disposed;
 
     public FileOperationServiceTests()
     {
@@ -15,6 +16,9 @@ public sealed class FileOperationServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _service.DisposeSafe();
     }
 

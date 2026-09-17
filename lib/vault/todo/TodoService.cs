@@ -29,6 +29,7 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
     private int _todosLoaded;
     private static readonly string TodosSubDir = Path.Combine(AppDataConstants.AppDataFolder, "todo");
     private const string TodosFileName = "todos.json";
+    private bool _disposed;
 
     /// <inheritdoc />
     public async Task<TodoServiceResult> WriteTodosAsync(List<TodoItemInput> todos, CancellationToken cancellationToken = default)
@@ -357,6 +358,8 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _todoDag.Dispose();
             base.Dispose();
     }

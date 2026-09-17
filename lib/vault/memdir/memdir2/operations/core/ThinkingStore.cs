@@ -14,6 +14,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     private readonly IClockService _clock;
     private readonly AsyncLock _saveLock = new();
     private readonly CancellationTokenSource _disposeCts = new();
+    private bool _disposed;
 
     /// <summary>
     /// 构造函数 — 注入存储路径选项、文件操作服务、文件系统、日志与时钟等依赖。
@@ -154,6 +155,9 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _disposeCts.CancelAndDisposeSafe(_logger);
         _saveLock.Dispose();
         base.Dispose();

@@ -13,6 +13,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     private readonly ILogger<SessionTagService>? _logger;
     private readonly AsyncLock _saveLock = new();
     private readonly CancellationTokenSource _disposeCts = new();
+    private bool _disposed;
 
     /// <summary>
     /// 创建会话标签服务实例
@@ -154,6 +155,9 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _disposeCts.CancelAndDisposeSafe(_logger);
         _saveLock.Dispose();
         base.Dispose();

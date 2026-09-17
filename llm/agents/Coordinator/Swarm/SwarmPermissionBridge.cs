@@ -133,6 +133,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     private readonly ITelemetryService? _telemetryService;
     private readonly ConcurrentDictionary<string, PermissionSyncState> _permissionStates;
     private readonly AsyncLock _lock = new();
+    private bool _disposed;
 
     /// <summary>
     /// 权限变更事件
@@ -310,6 +311,8 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     /// <summary>释放资源 — 释放权限同步锁</summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _lock.Dispose();
         base.Dispose();
     }

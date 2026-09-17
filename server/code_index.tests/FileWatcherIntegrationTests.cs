@@ -4,6 +4,7 @@ public sealed class FileWatcherIntegrationTests : IDisposable
 {
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
+    private bool _disposed;
 
     public FileWatcherIntegrationTests()
     {
@@ -13,6 +14,8 @@ public sealed class FileWatcherIntegrationTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _indexer.DisposeSafe();
         _store.DisposeSafe();
     }

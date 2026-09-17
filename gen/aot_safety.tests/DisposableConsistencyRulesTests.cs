@@ -285,9 +285,11 @@ public class DisposableConsistencyRulesTests
                 using System;
                 class TestClass : IDisposable
                 {
+                    private bool _disposed;
                     private IDisposable? _inner;
                     public void Dispose()
                     {
+                        if (_disposed) return; _disposed = true;
                         {|#0:try|}
                         {
                             _inner.Dispose();
@@ -315,9 +317,11 @@ public class DisposableConsistencyRulesTests
                 using System.Threading.Tasks;
                 class TestClass : IAsyncDisposable
                 {
+                    private bool _disposed;
                     private IAsyncDisposable? _inner;
                     public async ValueTask DisposeAsync()
                     {
+                        if (_disposed) return; _disposed = true;
                         {|#0:try|}
                         {
                             {|#1:await|} _inner.DisposeAsync();
@@ -344,9 +348,11 @@ public class DisposableConsistencyRulesTests
                 using System;
                 class TestClass : IDisposable
                 {
+                    private bool _disposed;
                     private IDisposable? _inner;
                     public void Dispose()
                     {
+                        if (_disposed) return; _disposed = true;
                         _inner?.Dispose();
                     }
                 }
@@ -500,9 +506,11 @@ public class DisposableConsistencyRulesTests
                 using System.Threading.Tasks;
                 class TestClass : IDisposable
                 {
+                    private bool _disposed;
                     private AsyncDisposable? _inner;
                     public void Dispose()
                     {
+                        if (_disposed) return; _disposed = true;
                         _inner.Dispose();
                     }
                 }
@@ -527,9 +535,11 @@ public class DisposableConsistencyRulesTests
                 using System.Threading.Tasks;
                 class TestClass : IAsyncDisposable
                 {
+                    private bool _disposed;
                     private AsyncDisposable? _inner;
                     public async ValueTask DisposeAsync()
                     {
+                        if (_disposed) return; _disposed = true;
                         {|#0:_ = _inner.DisposeAsync()|};
                     }
                 }
@@ -540,7 +550,7 @@ public class DisposableConsistencyRulesTests
                 """,
             ExpectedDiagnostics =
             {
-                new DiagnosticResult("JCC9200", DiagnosticSeverity.Error).WithLocation(0).WithArguments("DisposeAsync", 8),
+                new DiagnosticResult("JCC9200", DiagnosticSeverity.Error).WithLocation(0).WithArguments("DisposeAsync", 10),
             },
         };
         await test.RunAsync().ConfigureAwait(true);
@@ -557,9 +567,11 @@ public class DisposableConsistencyRulesTests
                 using System.Threading.Tasks;
                 class TestClass : IAsyncDisposable
                 {
+                    private bool _disposed;
                     private AsyncDisposable? _inner;
                     public async ValueTask DisposeAsync()
                     {
+                        if (_disposed) return; _disposed = true;
                         {|#0:_inner.DisposeAsync()|};
                     }
                 }
@@ -570,7 +582,7 @@ public class DisposableConsistencyRulesTests
                 """,
             ExpectedDiagnostics =
             {
-                new DiagnosticResult("JCC9200", DiagnosticSeverity.Error).WithLocation(0).WithArguments("DisposeAsync", 8),
+                new DiagnosticResult("JCC9200", DiagnosticSeverity.Error).WithLocation(0).WithArguments("DisposeAsync", 10),
             },
         };
         await test.RunAsync().ConfigureAwait(true);
@@ -587,15 +599,160 @@ public class DisposableConsistencyRulesTests
                 using System.Threading.Tasks;
                 class TestClass : IAsyncDisposable
                 {
+                    private bool _disposed;
                     private AsyncDisposable? _inner;
                     public async ValueTask DisposeAsync()
                     {
+                        if (_disposed) return; _disposed = true;
                         await _inner.DisposeAsync().ConfigureAwait(false);
                     }
                 }
                 class AsyncDisposable : IAsyncDisposable
                 {
                     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task Dispose_NoGuard_ReportsJCC9201()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                class TestClass : IDisposable
+                {
+                    private int _disposed;
+                    public void {|#0:Dispose|}()
+                    {
+                        _disposed = 1;
+                    }
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC9201", DiagnosticSeverity.Error).WithLocation(0).WithArguments("TestClass"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task Dispose_WithInterlockedGuard_NoReport()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                class TestClass : IDisposable
+                {
+                    private int _disposed;
+                    public void Dispose()
+                    {
+                        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task Dispose_WithIfReturnGuard_NoReport()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                class TestClass : IDisposable
+                {
+                    private bool _disposed;
+                    public void Dispose()
+                    {
+                        if (_disposed) return;
+                        _disposed = true;
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_NoGuard_ReportsJCC9202()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+                class TestClass : IAsyncDisposable
+                {
+                    private int _disposed;
+                    public async ValueTask {|#0:DisposeAsync|}()
+                    {
+                        _disposed = 1;
+                    }
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC9202", DiagnosticSeverity.Error).WithLocation(0).WithArguments("TestClass"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WithInterlockedGuard_NoReport()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+                class TestClass : IAsyncDisposable
+                {
+                    private int _disposed;
+                    public async ValueTask DisposeAsync()
+                    {
+                        if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WithIfReturnGuard_NoReport()
+    {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
+        {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading.Tasks;
+                class TestClass : IAsyncDisposable
+                {
+                    private bool _disposed;
+                    public async ValueTask DisposeAsync()
+                    {
+                        if (_disposed) return;
+                        _disposed = true;
+                    }
                 }
                 """,
         };

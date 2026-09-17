@@ -6,6 +6,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IToolExecutionGateway> _toolExecutionGatewayMock;
+    private bool _disposed;
 
     public SkillServiceAlignmentTests()
     {
@@ -36,7 +37,11 @@ public sealed class SkillServiceAlignmentTests : IDisposable
         return new SkillService(options, _fileOperationServiceMock.Object, pipeline);
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+    }
 
     [Fact]
     public async Task Constructor_ShouldLoadAllBuiltInSkills()

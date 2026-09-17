@@ -8,6 +8,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly WorkflowStateStore _stateStore;
     private const string PersistDir = "/test/workflow-checkpoint";
+    private bool _disposed;
 
     public WorkflowTaskExecutorCheckpointTests()
     {
@@ -19,6 +20,8 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 

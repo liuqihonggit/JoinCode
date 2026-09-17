@@ -219,6 +219,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     private readonly ILogger<UsageTracker>? _logger;
     private readonly ICostTracker? _costTracker;
     private readonly IModelConfigLoader _modelConfigLoader;
+    private bool _disposed;
 
     /// <summary>
     /// 构造 UsageTracker
@@ -427,6 +428,8 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         GC.SuppressFinalize(this);
         base.Dispose();
     }

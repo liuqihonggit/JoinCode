@@ -13,6 +13,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     private readonly IProcessService _processService;
     private readonly ILogger<ChromeIntegrationService>? _logger;
     private readonly IConfigurationService? _configService;
+    private bool _disposed;
 
     /// <summary>
     /// 构造 Chrome 集成服务实例
@@ -158,6 +159,8 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _initLock.Dispose();
             base.Dispose();
     }

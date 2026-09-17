@@ -4,6 +4,7 @@ namespace Core.Tests.Scheduling;
 public class TaskRuntimeTests : IDisposable
 {
     private readonly TaskRuntime _runtime;
+    private bool _disposed;
 
     public TaskRuntimeTests()
     {
@@ -12,6 +13,8 @@ public class TaskRuntimeTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _runtime.DisposeSafe();
     }
 
@@ -246,6 +249,7 @@ public class TaskRuntimeTests : IDisposable
 public sealed class TaskRuntimeRecoveryTests : IDisposable
 {
     private readonly InMemoryFileOperationService _fileOperationService;
+    private bool _disposed;
 
     public TaskRuntimeRecoveryTests()
     {
@@ -254,6 +258,8 @@ public sealed class TaskRuntimeRecoveryTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 

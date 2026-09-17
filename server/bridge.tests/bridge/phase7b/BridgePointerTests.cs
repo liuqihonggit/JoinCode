@@ -6,6 +6,7 @@ namespace Bridge.Tests.Phase7B;
 public sealed class BridgePointerTests : IDisposable
 {
     private readonly BridgePointerService _service;
+    private bool _disposed;
 
     public BridgePointerTests()
     {
@@ -14,6 +15,8 @@ public sealed class BridgePointerTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
     }
 
     [Fact]

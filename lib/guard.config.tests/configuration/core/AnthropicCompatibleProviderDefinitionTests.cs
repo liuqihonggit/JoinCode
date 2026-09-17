@@ -13,6 +13,7 @@ namespace Guard.Tests.Configuration;
 public class AnthropicCompatibleProviderDefinitionTests : IDisposable
 {
     private readonly ModelConfigLoader _modelConfigLoader;
+    private bool _disposed;
 
     public AnthropicCompatibleProviderDefinitionTests()
     {
@@ -58,6 +59,8 @@ public class AnthropicCompatibleProviderDefinitionTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         GC.SuppressFinalize(this);
     }
 

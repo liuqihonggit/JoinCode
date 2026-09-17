@@ -19,6 +19,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private bool _isApplyingExternalTheme;
     private IFileSystemWatcher? _modelConfigWatcher;
     private readonly IFileSystem _fileSystem;
+    private bool _disposed;
 
     /// <summary>异步操作硬超时（防止命令续体在单线程上下文死锁）</summary>
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
@@ -1838,6 +1839,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     /// </summary>
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         _modelConfigWatcher?.Dispose();
         _modelConfigWatcher = null;
         _sendCts?.Cancel();

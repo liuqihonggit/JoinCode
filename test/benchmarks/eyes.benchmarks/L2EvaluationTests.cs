@@ -7,6 +7,7 @@ public sealed class L2EvaluationTests : IDisposable
     private readonly CodeIndexer _indexer;
     private readonly EvaluationEngine _engine;
     private readonly IFileSystem _fs = new IO.FileSystem.PhysicalFileSystem();
+    private bool _disposed;
 
     public L2EvaluationTests()
     {
@@ -20,6 +21,8 @@ public sealed class L2EvaluationTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         try { _indexer.Dispose(); }
         finally { _store.Dispose(); }
 

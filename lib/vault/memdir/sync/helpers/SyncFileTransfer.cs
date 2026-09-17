@@ -10,6 +10,7 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
     private readonly ConcurrentDictionary<string, SyncFileEntry> _localEntries;
     private readonly ConcurrentDictionary<string, SyncFileEntry> _remoteEntries;
     private readonly SyncEventLog _eventLog;
+    private bool _disposed;
 
     private static readonly TeamMemorySyncJsonContext JsonContext = TeamMemorySyncJsonContext.Default;
 
@@ -138,6 +139,9 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
+
         return ValueTask.CompletedTask;
     }
 }

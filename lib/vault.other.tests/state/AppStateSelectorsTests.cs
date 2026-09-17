@@ -9,6 +9,7 @@ public sealed class AppStateSelectorsTests : IDisposable
     private readonly Store<AppState> _store;
     private readonly FakeTelemetryService _telemetry;
     private readonly AppStateSelectors _selectors;
+    private bool _disposed;
 
     public AppStateSelectorsTests()
     {
@@ -19,6 +20,9 @@ public sealed class AppStateSelectorsTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _store.DisposeSafe();
     }
 

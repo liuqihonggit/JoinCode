@@ -10,6 +10,7 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
     private readonly IConfigurationService _configurationService;
     private readonly IStore<AppState> _store;
     private readonly ILogger<AppStateSettingSyncService>? _logger;
+    private bool _disposed;
 
     /// <summary>
     /// AppStateKey 到 AppState 字段的映射
@@ -67,6 +68,9 @@ public sealed partial class AppStateSettingSyncService : ServiceEntity, IDisposa
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _configurationService.SettingChanged -= OnSettingChanged;
             base.Dispose();
     }

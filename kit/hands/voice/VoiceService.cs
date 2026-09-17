@@ -30,6 +30,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     private MemoryStream? _recordingStream;
     private CancellationTokenSource? _recordingCts;
     private DateTime _recordingStartTime;
+    private bool _disposed;
 
     /// <summary>
     /// 获取当前是否正在录制音频。
@@ -320,6 +321,8 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _recordingCts?.Cancel();
         _recordingCts?.Dispose();
         _recordingStream?.Dispose();
@@ -331,6 +334,8 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     /// <returns>表示异步释放操作的任务。</returns>
     public override async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
         await base.DisposeAsync().ConfigureAwait(false);
         _recordingCts?.Cancel();
         _recordingCts?.Dispose();

@@ -4,6 +4,7 @@ public sealed class SymbolIndexTests : IDisposable
 {
     private readonly InMemoryIndexStore _store;
     private readonly SymbolIndex _index;
+    private bool _disposed;
 
     public SymbolIndexTests()
     {
@@ -13,6 +14,8 @@ public sealed class SymbolIndexTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _index.DisposeSafe();
         _store.DisposeSafe();
     }

@@ -6,6 +6,7 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
     private readonly global::Memdir.Sync.TeamMemorySyncService _service;
     private readonly string _tempDir = "/test/memdir_sync/";
+    private bool _disposed;
 
     public TeamMemorySyncServiceTests()
     {
@@ -23,6 +24,9 @@ public sealed class TeamMemorySyncServiceTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         await _service.DisposeSafeAsync();
     }
 

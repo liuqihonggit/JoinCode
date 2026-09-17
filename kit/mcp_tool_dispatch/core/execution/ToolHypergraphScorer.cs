@@ -12,6 +12,7 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     private readonly IToolHealthMonitor? _monitor;
     private ToolHypergraph _graph;
     private readonly Timer? _syncTimer;
+    private bool _disposed;
 
     /// <summary>
     /// 构造超图评分器 — 从预设加载超边并构建工具到超边的映射，若提供监控器则启动每小时共享评分同步定时器
@@ -186,6 +187,8 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// </summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _syncTimer?.Dispose();
             base.Dispose();
     }

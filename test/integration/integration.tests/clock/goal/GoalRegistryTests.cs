@@ -12,6 +12,7 @@ public sealed class GoalRegistryTests : IDisposable
     private readonly ServiceProvider _serviceProvider;
     private readonly GoalStateStore _store;
     private const string SessionId = "test-session-registry";
+    private bool _disposed;
 
     public GoalRegistryTests()
     {
@@ -153,6 +154,7 @@ public sealed class GoalRegistryTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         _serviceProvider.Dispose();
         if (_fs.DirectoryExists(_tempDir)) _fs.DeleteDirectory(_tempDir, true);
     }

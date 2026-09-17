@@ -5,6 +5,7 @@ public sealed class WorkflowStateStoreTests : IDisposable
 {
     private readonly InMemoryFileOperationService _fileOperationService;
     private const string PersistDir = "/test/workflow-states";
+    private bool _disposed;
 
     public WorkflowStateStoreTests()
     {
@@ -13,6 +14,8 @@ public sealed class WorkflowStateStoreTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 

@@ -10,6 +10,7 @@ public partial class FileToolHandlers : IDisposable
 {
     private static readonly FrozenSet<string> BlockedDevicePaths = CreateBlockedDevicePathSet();
     private readonly CancellationTokenSource _disposeCts = new();
+    private bool _disposed;
 
     /// <summary>
     /// LSP 通知完成信号量 — 测试中用于等待 fire-and-forget 操作完成，替代 Task.Delay
@@ -184,6 +185,8 @@ public partial class FileToolHandlers : IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _disposeCts.CancelAndDisposeSafe(_logger);
         _lspNotificationCompleted.DisposeSafe(_logger);
     }

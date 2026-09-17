@@ -17,6 +17,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     private readonly AsyncLock _deleteSemaphore;
 
     private readonly TokenBucket _tokenBucket;
+    private bool _disposed;
 
     private int _currentConcurrentOperations;
 
@@ -194,6 +195,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         _readSemaphore.Dispose();
         _writeSemaphore.Dispose();
         _deleteSemaphore.Dispose();

@@ -10,6 +10,7 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly string _authPath = "/test/auth.json";
     private readonly string? _originalEnvToken;
+    private bool _disposed;
 
     public BridgeDeviceTokenServiceTests()
     {
@@ -22,6 +23,8 @@ public sealed class BridgeDeviceTokenServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         Environment.SetEnvironmentVariable(JccEnvVar.TrustedDeviceToken.ToValue(), _originalEnvToken);
     }
 

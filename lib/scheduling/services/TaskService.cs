@@ -22,6 +22,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     private readonly ConcurrentDag<string> _dag = new();
     private readonly ITelemetryService? _telemetryService;
     private int _taskCounter;
+    private bool _disposed;
 
     /// <inheritdoc/>
     public Task<OperationResult<TaskItem?>> CreateTaskAsync(
@@ -351,6 +352,8 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     /// <summary>释放资源时回调，释放内部 DAG。</summary>
     public override void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _dag.Dispose();
             base.Dispose();
     }

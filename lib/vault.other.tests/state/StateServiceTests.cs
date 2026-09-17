@@ -7,6 +7,7 @@ namespace Core.Tests.Services;
 public sealed class StateServiceTests : IDisposable
 {
     private readonly StateService _stateService;
+    private bool _disposed;
 
     public StateServiceTests()
     {
@@ -15,6 +16,9 @@ public sealed class StateServiceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         _stateService.DisposeSafe();
     }
 

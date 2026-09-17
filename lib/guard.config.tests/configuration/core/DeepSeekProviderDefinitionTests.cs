@@ -13,6 +13,7 @@ public class DeepSeekProviderDefinitionTests : IDisposable
 {
     private readonly ModelConfigLoader _modelConfigLoader;
     private readonly IProviderDefinition _definition;
+    private bool _disposed;
 
     public DeepSeekProviderDefinitionTests()
     {
@@ -52,6 +53,8 @@ public class DeepSeekProviderDefinitionTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         GC.SuppressFinalize(this);
     }
 

@@ -5,6 +5,7 @@ public sealed class IncrementalUpdaterTests : IDisposable
     private readonly InMemoryIndexStore _store;
     private readonly SymbolIndex _index;
     private readonly IncrementalUpdater _updater;
+    private bool _disposed;
 
     public IncrementalUpdaterTests()
     {
@@ -15,6 +16,8 @@ public sealed class IncrementalUpdaterTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _updater.DisposeSafe();
         _index.DisposeSafe();
         _store.DisposeSafe();

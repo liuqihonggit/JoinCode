@@ -5,6 +5,7 @@ public sealed class CodeIndexerTests : IDisposable
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs;
+    private bool _disposed;
 
     public CodeIndexerTests()
     {
@@ -15,6 +16,8 @@ public sealed class CodeIndexerTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _indexer.DisposeSafe();
         _store.DisposeSafe();
     }

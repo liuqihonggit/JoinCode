@@ -8,12 +8,15 @@ namespace Bridge.Tests;
 public sealed class WorkSecretStoreTests : IDisposable
 {
     private readonly BridgeConfig _config = new() { EncryptionKeyBase64 = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)) };
+    private bool _disposed;
 
     private WorkSecretStore CreateSut() =>
         new(_config, logger: null);
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         GC.SuppressFinalize(this);
     }
 

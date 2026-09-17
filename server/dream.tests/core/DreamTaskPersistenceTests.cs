@@ -8,6 +8,7 @@ public sealed class DreamTaskPersistenceTests : IDisposable
 {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly JsonFileDreamTaskPersistence _persistence;
+    private bool _disposed;
 
     public DreamTaskPersistenceTests()
     {
@@ -20,6 +21,8 @@ public sealed class DreamTaskPersistenceTests : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 

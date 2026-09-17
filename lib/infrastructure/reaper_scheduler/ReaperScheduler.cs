@@ -14,6 +14,7 @@ public sealed partial class ReaperScheduler : IDisposable
     private readonly Thread _scanThread;
     private readonly ILogger<ReaperScheduler>? _logger;
     private int _totalScans;
+    private bool _disposed;
 
     /// <summary>累计扫描次数</summary>
     public int TotalScans => _totalScans;
@@ -97,6 +98,7 @@ public sealed partial class ReaperScheduler : IDisposable
     /// </summary>
     public void Dispose()
     {
+        if (_disposed) return; _disposed = true;
         _cts.Cancel();
         _signals.CompleteAdding();
         if (_scanThread.IsAlive)

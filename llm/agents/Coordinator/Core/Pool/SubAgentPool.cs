@@ -26,6 +26,7 @@ public sealed partial class SubAgentPool : IAsyncDisposable
     private readonly PeriodicTimer? _cleanupTimer;
     private volatile bool _stopping;
     private Task? _cleanupLoop;
+    private bool _disposed;
 
     /// <summary>
     /// 构造子代理代理池
@@ -204,6 +205,8 @@ public sealed partial class SubAgentPool : IAsyncDisposable
     /// </summary>
     public ValueTask DisposeAsync()
     {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
         _logger?.LogInformation("[SubAgentPool] 释放，Dispose 池中 {Count} 个代理", _pool.Count);
         _stopping = true;
         _cleanupTimer?.Dispose();

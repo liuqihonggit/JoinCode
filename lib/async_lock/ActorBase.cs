@@ -259,6 +259,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             }
         }
         catch (OperationCanceledException) { }
+        finally
+        {
+            _currentActorId.Value = null;
+        }
     }
 
     private void ThrowIfDisposed()

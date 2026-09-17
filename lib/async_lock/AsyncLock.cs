@@ -18,11 +18,7 @@ public sealed class AsyncLock : IDisposable
     /// 惰性注册当前 async 逻辑流的 FlowId — 首次获取锁时若未注册则自动分配。
     /// AsyncLocal 跨 await 自动流转,同一 async 流后续获取锁复用同一 FlowId,死锁检测正确构建 wait-for graph。
     /// </summary>
-    private static void EnsureFlowRegistered()
-    {
-        if (LockRegistry.CurrentFlowId == 0)
-            LockRegistry.RegisterFlow();
-    }
+    private static void EnsureFlowRegistered() => LockRegistry.EnsureFlowRegistered();
 
     private readonly SemaphoreSlim _semaphore;
     private readonly string _name;

@@ -36,6 +36,19 @@ public static class LockRegistry
         return id;
     }
 
+    /// <summary>
+    /// 确保当前 async 逻辑流已注册 FlowId — 若未注册则分配新 ID。
+    /// 返回当前 FlowId(保证非 0)。在 async 流入口(如 Task.Run/Actor 启动/PlanMode 创建)调用,
+    /// 后续所有 await 后续自动继承此 FlowId,用于死锁检测正确构建 wait-for graph。
+    /// </summary>
+    public static int EnsureFlowRegistered()
+    {
+        var id = CurrentFlowId;
+        if (id == 0)
+            id = RegisterFlow();
+        return id;
+    }
+
     private static int ResolveFlowId() => AsyncFlowIdentity.CurrentFlowId;
 
     /// <summary>

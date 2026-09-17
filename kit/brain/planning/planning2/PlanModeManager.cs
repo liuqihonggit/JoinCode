@@ -147,9 +147,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         }).ToList() ?? new List<PlanStep>();
 
         // 对齐 TS getPlanSlug(): 同一 session 内缓存 slug，保证覆盖同一文件
+        // 用 AsyncFlowIdentity.FlowId 替代 Environment.CurrentManagedThreadId — async 流跨 await 自动流转,不随线程池调度变化
         var sessionState = CurrentSessionState();
+        var flowId = LockRegistry.EnsureFlowRegistered();
         sessionState.CurrentSessionSlug ??= PlanSlugGenerator.GetOrCreateSlug(
-            $"session_{Environment.CurrentManagedThreadId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs, _logger);
+            $"session_{flowId}_{_clock.GetUtcNow():yyyyMMddHHmmss}", _fs, _logger);
 
         var plan = new PlanState
         {

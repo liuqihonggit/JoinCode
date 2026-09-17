@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace AsyncFileLock;
 
 /// <summary>
@@ -14,7 +15,7 @@ public sealed class FileMailboxLock : IAsyncDisposable
     private readonly Stream _lockStream;
     private readonly string _lockFilePath;
     private readonly ILogger? _logger;
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>已锁定的文件绝对路径</summary>
     public string FilePath { get; }
@@ -113,7 +114,7 @@ public sealed class FileMailboxLock : IAsyncDisposable
     /// </summary>
     internal void Release()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         try
         {

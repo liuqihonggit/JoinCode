@@ -1,4 +1,5 @@
-﻿
+﻿using System.Threading;
+
 namespace Core.Ssh;
 
 /// <summary>
@@ -52,7 +53,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
         SshSessionConfig config,
         CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
         ArgumentNullException.ThrowIfNull(config);
 
         var tcs = CreateTcs<ISshSession>();
@@ -90,7 +91,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
         string sessionId,
         CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         var tcs = CreateTcs();
         await SendAsync(new DestroySessionCmd(sessionId, ct, tcs), ct).ConfigureAwait(false);
@@ -179,7 +180,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// <returns>表示异步释放操作的任务</returns>
     public override async ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return;
         }

@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace Services.SystemPower;
 
 /// <summary>
@@ -53,7 +54,7 @@ public sealed class PreventSleepScope : IAsyncDisposable
 
     private async ValueTask DisposeAsyncCore()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         if (_service is not null)
             await _service.AllowSleepAsync().ConfigureAwait(false);
     }

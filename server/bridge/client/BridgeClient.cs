@@ -1,4 +1,5 @@
-﻿namespace Core.Bridge;
+﻿using System.Threading;
+namespace Core.Bridge;
 
 /// <summary>
 /// BridgeClient Actor 命令 — Channel 中的消息类型
@@ -224,7 +225,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
         /// </summary>
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _client.MessageProcessed -= _onMessageReceived;
             _cts.Dispose();
             _timeoutCts.Dispose();

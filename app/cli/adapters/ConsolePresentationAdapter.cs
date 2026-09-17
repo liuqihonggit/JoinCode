@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace JoinCode.Adapters;
 
 /// <summary>
@@ -7,7 +8,7 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
 {
     private readonly IConsoleOutput _output;
     private string _streamingContent = string.Empty;
-    private bool _isDisposed;
+    private int _isDisposed;
 
     /// <summary>是否正在运行</summary>
     public bool IsRunning { get; private set; }
@@ -122,7 +123,7 @@ public sealed class ConsolePresentationAdapter : IPresentationAdapter, IStreamin
     /// <summary>释放资源 — 标记已释放并停止表示层</summary>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed)) return;
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
         Stop();
     }
 }

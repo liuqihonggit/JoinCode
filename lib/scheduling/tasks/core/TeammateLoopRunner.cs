@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace Core.Scheduling.Tasks;
 
 /// <summary>
@@ -355,7 +356,7 @@ internal sealed class TeammateLoopRunner
 
         public ValueTask DisposeAsync()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
             var task = _runtime.ClearCurrentWorkCtsAsync(_teammateId);
             _workCts.Dispose();
             return new ValueTask(task);

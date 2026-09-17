@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace Core.Context;
 
 /// <summary>
@@ -70,7 +71,7 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return ValueTask.CompletedTask;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         if (_configChangeNotifier is not null)
         {

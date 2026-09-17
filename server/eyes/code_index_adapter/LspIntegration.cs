@@ -1,4 +1,5 @@
-﻿namespace Services.CodeIndex;
+﻿using System.Threading;
+namespace Services.CodeIndex;
 
 /// <summary>
 /// LSP 集成服务 — 将 LSP 文件同步事件桥接到代码索引增量更新，并提供定义/引用查询
@@ -158,7 +159,7 @@ public sealed partial class LspIntegration : ServiceEntity, IDisposable
     /// </summary>
     public override void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _updateCts.Cancel();
         _updateCts.Dispose();

@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace IO.FileSystem;
 
 /// <summary>
@@ -7,7 +8,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
 {
     private readonly InMemoryFileSystem _fs;
     private readonly DebounceTracker _debounce = new();
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>
     /// 构造内存文件系统监视器
@@ -79,7 +80,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// <param name="changeType">变更类型</param>
     internal void OnFileChanged(string fullPath, WatcherChangeTypes changeType)
     {
-        if (!EnableRaisingEvents || _disposed) return;
+        if (!EnableRaisingEvents || _disposed != 0) return;
         if (!MatchesWatch(fullPath)) return;
         if (_debounce.ConsumeInternalWrite(fullPath)) return;
 
@@ -110,7 +111,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// <param name="newFullPath">新文件完整路径</param>
     internal void OnFileRenamed(string oldFullPath, string newFullPath)
     {
-        if (!EnableRaisingEvents || _disposed) return;
+        if (!EnableRaisingEvents || _disposed != 0) return;
         if (!MatchesWatch(newFullPath)) return;
         if (_debounce.ConsumeInternalWrite(newFullPath)) return;
 
@@ -174,7 +175,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// </summary>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _debounce.Dispose();
         _fs.UnregisterWatcher(this);

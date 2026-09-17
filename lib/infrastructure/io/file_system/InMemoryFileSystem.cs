@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace IO.FileSystem;
 
 /// <summary>
@@ -690,7 +691,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         private readonly InMemoryFileSystem _fs;
         private readonly string _path;
         private readonly MemoryStream _inner;
-        private bool _disposed;
+        private int _disposed;
 
         public InMemoryFileStream(InMemoryFileSystem fs, string path, FileMode mode, bool exists)
         {
@@ -739,7 +740,7 @@ public sealed class InMemoryFileSystem : IFileSystem
 
         protected override void Dispose(bool disposing)
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             var data = _inner.ToArray();
             _fs.WriteAllBytes(_path.Replace('/', '\\'), data);
             _inner.Dispose();

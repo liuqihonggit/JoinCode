@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace JoinCode.CodeIndex.Threading;
 
 /// <summary>
@@ -22,7 +23,7 @@ public static class ReaderWriterLockSlimScope
         public WriteScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterWriteLock(); }
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitWriteLock();
         }
     }
@@ -34,7 +35,7 @@ public static class ReaderWriterLockSlimScope
         public ReadScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterReadLock(); }
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitReadLock();
         }
     }
@@ -46,7 +47,7 @@ public static class ReaderWriterLockSlimScope
         public UpgradeableReadScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterUpgradeableReadLock(); }
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitUpgradeableReadLock();
         }
     }

@@ -1,3 +1,4 @@
+﻿using System.Threading;
 
 namespace Core.Ssh;
 
@@ -116,7 +117,7 @@ public sealed class SshPortForwardManager : IAsyncDisposable
     /// <returns>表示异步释放操作的任务</returns>
     public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return ValueTask.CompletedTask;
         }

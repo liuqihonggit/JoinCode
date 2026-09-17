@@ -1,4 +1,5 @@
-﻿namespace JoinCode.CodeIndex.Persistence;
+﻿using System.Threading;
+namespace JoinCode.CodeIndex.Persistence;
 
 /// <summary>
 /// 内存索引存储 — 替代 SQLite 持久化(IndexDbContext + Fts5Schema)
@@ -125,7 +126,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     /// </summary>
     public override void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _lock.Dispose();
             base.Dispose();
     }
@@ -137,7 +138,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
         public WriteLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterWriteLock(); }
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitWriteLock();
         }
     }
@@ -149,7 +150,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
         public ReadLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterReadLock(); }
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitReadLock();
         }
     }
@@ -161,7 +162,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
         public UpgradeableReadLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterUpgradeableReadLock(); }
         public void Dispose()
         {
-            if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _lock.ExitUpgradeableReadLock();
         }
     }

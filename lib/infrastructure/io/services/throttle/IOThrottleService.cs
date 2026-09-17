@@ -1,3 +1,4 @@
+﻿using System.Threading;
 
 namespace IO.Services;
 
@@ -210,7 +211,7 @@ internal sealed class IOExecutionLease : IIOExecutionLease
 {
     private readonly IOThrottleService _service;
     private readonly IDisposable? _releaser;
-    private bool _disposed;
+    private int _disposed;
 
     /// <summary>获取许可的时间戳</summary>
     public DateTime AcquiredAt { get; }
@@ -237,7 +238,7 @@ internal sealed class IOExecutionLease : IIOExecutionLease
     /// </summary>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _releaser?.Dispose();
         _service.Release(OperationType);
     }

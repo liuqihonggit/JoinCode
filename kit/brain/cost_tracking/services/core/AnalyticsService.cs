@@ -1,4 +1,5 @@
-﻿
+﻿using System.Threading;
+
 namespace Core.CostTracking;
 
 /// <summary>
@@ -437,7 +438,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// </summary>
     public override void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _disposeCts.CancelAndDisposeSafe(_logger);
         base.Dispose();
     }

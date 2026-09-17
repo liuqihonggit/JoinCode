@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace Services.CodeIndex;
 
 /// <summary>
@@ -94,7 +95,7 @@ public sealed partial class CodeIndexService : IHostedService, IAsyncDisposable
     /// <returns>表示异步释放操作的任务</returns>
     public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed))
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
         {
             return ValueTask.CompletedTask;
         }

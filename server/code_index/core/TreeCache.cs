@@ -1,3 +1,4 @@
+﻿using System.Threading;
 namespace JoinCode.CodeIndex.Ast;
 
 /// <summary>
@@ -137,7 +138,7 @@ public sealed class TreeCache : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _disposed)) return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         foreach (var entry in _entries.Values)
         {

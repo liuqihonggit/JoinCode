@@ -1,3 +1,4 @@
+﻿using System.Threading;
 
 namespace Core.Telemetry;
 
@@ -180,7 +181,7 @@ public sealed partial class TelemetryService : ITelemetryService
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return ValueTask.CompletedTask;
         }

@@ -1,3 +1,4 @@
+﻿using System.Threading;
 
 namespace Core.Ssh;
 
@@ -52,7 +53,7 @@ public sealed class SshSession : ISshSession
     /// <returns>表示异步连接操作的任务</returns>
     public async Task ConnectAsync(CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
         try
@@ -108,7 +109,7 @@ public sealed class SshSession : ISshSession
     /// <returns>表示异步断开操作的任务</returns>
     public async Task DisconnectAsync(CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
 
@@ -135,7 +136,7 @@ public sealed class SshSession : ISshSession
     /// <returns>表示异步重连操作的任务</returns>
     public async Task ReconnectAsync(CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         await DisconnectAsync(ct).ConfigureAwait(false);
         _reconnectAttempts = 0;
@@ -175,7 +176,7 @@ public sealed class SshSession : ISshSession
         string command,
         CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
         ArgumentException.ThrowIfNullOrEmpty(command);
 
         if (_stateMachine.CurrentState != SshConnectionState.Connected)
@@ -233,7 +234,7 @@ public sealed class SshSession : ISshSession
         int remotePort,
         CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         if (_stateMachine.CurrentState != SshConnectionState.Connected)
         {
@@ -259,7 +260,7 @@ public sealed class SshSession : ISshSession
         int localPort,
         CancellationToken ct = default)
     {
-        DisposableHelper.ThrowIfDisposed(ref _isDisposed, this);
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         if (_stateMachine.CurrentState != SshConnectionState.Connected)
         {
@@ -285,7 +286,7 @@ public sealed class SshSession : ISshSession
     /// <returns>表示异步释放操作的任务</returns>
     public ValueTask DisposeAsync()
     {
-        if (!DisposableHelper.TryMarkDisposed(ref _isDisposed))
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
         {
             return ValueTask.CompletedTask;
         }

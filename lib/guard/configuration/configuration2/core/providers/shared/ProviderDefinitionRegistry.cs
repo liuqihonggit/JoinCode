@@ -13,11 +13,11 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
     /// <summary>
     /// 构造供应商定义注册表 — 从 settings.json 的 vendor 节点构建，并始终保留 Azure 供应商
     /// </summary>
-    public ProviderDefinitionRegistry(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null)
+    public ProviderDefinitionRegistry(IModelConfigLoader modelConfigLoader, IFileSystem? fs = null, ILogger? logger = null)
     {
         var dict = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase);
 
-        ApplyVendorFromSettings(dict, modelConfigLoader, fs);
+        ApplyVendorFromSettings(dict, modelConfigLoader, fs, logger);
 
         _definitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
@@ -35,20 +35,29 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
     /// </summary>
     public IReadOnlyCollection<string> RegisteredProviders => _definitions.Keys;
 
-    private static void ApplyVendorFromSettings(Dictionary<string, IProviderDefinition> dict, IModelConfigLoader modelConfigLoader, IFileSystem? fs)
+    private static void ApplyVendorFromSettings(Dictionary<string, IProviderDefinition> dict, IModelConfigLoader modelConfigLoader, IFileSystem? fs, ILogger? logger)
     {
         var settingsPath = Path.Combine(AppDataConstants.Paths.JccDirectory, AppDataConstants.SettingsFileName);
+        Diag.WriteLifecycle($"[PDR] settingsPath={settingsPath} JccDirectory={AppDataConstants.Paths.JccDirectory} UserProfile={Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}");
 
         var fileSystem = fs ?? new IO.FileSystem.PhysicalFileSystem();
         if (!fileSystem.FileExists(settingsPath))
+        {
+            Diag.WriteLifecycle($"[PDR] FileExists=False → empty registry");
             return;
+        }
 
         try
         {
             var json = fileSystem.ReadAllText(settingsPath);
+            Diag.WriteLifecycle($"[PDR] ReadAllText OK, len={json.Length}");
             var node = System.Text.Json.Nodes.JsonNode.Parse(json);
             var vendorNode = node?["vendor"];
-            if (vendorNode is null) return;
+            if (vendorNode is null)
+            {
+                Diag.WriteLifecycle($"[PDR] vendorNode is null → empty registry");
+                return;
+            }
 
             foreach (var property in vendorNode.AsObject())
             {
@@ -69,10 +78,12 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
                     _ => new OpenAiCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar),
                 };
             }
+            Diag.WriteLifecycle($"[PDR] Registered {dict.Count} vendors: {string.Join(", ", dict.Keys)}");
         }
         catch (System.Exception ex)
         {
-            System.Diagnostics.Trace.WriteLine($"ProviderDefinitionRegistry: settings.json 读取失败: {ex.Message}");
+            Diag.WriteLifecycle($"[PDR] EXCEPTION: {ex.GetType().Name}: {ex.Message}");
+            logger?.LogWarning(ex, "ProviderDefinitionRegistry: settings.json 读取失败");
         }
     }
 }

@@ -521,6 +521,21 @@ if ($crashCount -gt 0 -or $timeoutCount -gt 0) {
     }
 }
 
+$okForDebug = $allResults | Where-Object { $_.Status -eq "OK" } | Select-Object -First 5
+if ($okForDebug) {
+    [void]$report.AppendLine()
+    [void]$report.AppendLine("## OK 调试详情(前5个)")
+    [void]$report.AppendLine()
+    foreach ($r in $okForDebug) {
+        [void]$report.AppendLine("### $($r.Category) $($r.Name)")
+        [void]$report.AppendLine("- 状态: $($r.Status)")
+        [void]$report.AppendLine("- 耗时: $($r.Duration)s")
+        $stderrText = if ($r.Stderr) { $r.Stderr } else { "" }
+        [void]$report.AppendLine("- stderr: $($stderrText.Substring(0, [Math]::Min(800, $stderrText.Length)))")
+        [void]$report.AppendLine()
+    }
+}
+
 $reportText = $report.ToString()
 $reportText | Out-File -FilePath $ReportPath -Encoding UTF8
 

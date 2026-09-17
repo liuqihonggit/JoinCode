@@ -8,6 +8,7 @@ public class ConfigLoader {
     private readonly IProviderDefinitionRegistry _registry;
     private readonly SettingsMapper _settingsMapper;
     private readonly IModelConfigLoader? _modelConfigLoader;
+    private readonly ILogger? _logger;
 
     /// <summary>
     /// 跳过 Provider API Key 验证 — 元命令模式（mcp_list/slash_call 等）不需要 LLM 服务，CI 环境无 API Key 时也能运行
@@ -24,7 +25,8 @@ public class ConfigLoader {
     /// <param name="modelConfigLoader">模型配置加载器(可选),用于灌入 vendor 模型数据</param>
     public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)
     {
-        _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader());
+        _logger = loggerFactory?.CreateLogger<ConfigLoader>();
+        _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
         _modelConfigLoader = modelConfigLoader;
         if (middlewares is not null && loggerFactory is not null)
@@ -90,7 +92,8 @@ public class ConfigLoader {
             var settingsTask = SettingsLoader.LoadAllSourcesAsync(
                 fs,
                 projectDir: projectDir,
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken,
+                logger: _logger);
             var rulesLoader = new ProjectRulesLoader(fs);
             var projectRulesTask = rulesLoader.LoadRulesAsync(projectDir, cancellationToken);
             var externalRulesLoader = new ExternalRulesLoader(fs);

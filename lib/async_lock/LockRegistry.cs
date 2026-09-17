@@ -140,12 +140,12 @@ public static class LockRegistry
             info.WaitStartedAt = DateTimeOffset.UtcNow;
             info.WaitStack = CaptureStackTrace(skipFrames: 3);
             Emit($"[LOCK-WAIT-START] 锁 '{name}' (#{id}) 线程 {Thread.CurrentThread.ManagedThreadId} 开始等待。");
-            var currentThread = Thread.CurrentThread;
+            var currentFlowId = ResolveFlowId();
             foreach (var other in _locks.Values)
             {
-                if (other.HoldingThread == currentThread && other.Id > id)
+                if (other.HoldingFlowId == currentFlowId && other.Id > id)
                     Emit(
-                        $"[LOCK-ORDER-VIOLATION] 锁顺序违反: 线程 {currentThread.ManagedThreadId} " +
+                        $"[LOCK-ORDER-VIOLATION] 锁顺序违反: 流 {currentFlowId} " +
                         $"已持有锁 #{other.Id} '{other.Name}', 现在获取锁 #{id} '{name}' (ID 更小)。" +
                         $"按锁 ID 升序获取可避免死锁。");
             }

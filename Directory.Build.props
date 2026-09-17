@@ -27,6 +27,7 @@
     <Copyright>Copyright © JoinCode 2025</Copyright>
     <VersionPrefix>1.0.0</VersionPrefix>
     <VersionSuffix Condition="'$(CI_BUILD)' == 'true'">ci-$(BUILD_NUMBER)</VersionSuffix>
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <OutputPath>$(MSBuildThisFileDirectory)artifacts\bin\$(MSBuildProjectName)\$(Configuration)\</OutputPath>
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)artifacts\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)\</IntermediateOutputPath>

@@ -79,6 +79,13 @@ public static partial class DangerousCommandCatalog
             // === Dangerous（直接拒绝）— 长路径前缀绕过 Win32 解析 — ADR 0012 ===
             new(["del", "\\?\\"], CommandRisk.FileDeletion, CommandDangerLevel.Dangerous, "长路径前缀+del，绕过Win32路径解析删除保留名文件"),
             new(["remove-item", "\\?\\"], CommandRisk.FileDeletion, CommandDangerLevel.Dangerous, "长路径前缀+Remove-Item，绕过Win32路径解析删除保留名文件"),
+
+            // === Dangerous（直接拒绝）— git 全局参数注入 — MTP 扰动防御 ===
+            // git -c/--exec-path/--config-env 可改变 git 执行语义，注入任意命令
+            // 典型攻击：git -c core.sshCommand="rm -rf ~" fetch / git --exec-path=/tmp/malicious log
+            new(["git", "-c"], CommandRisk.SystemModification, CommandDangerLevel.Dangerous, "git -c 全局参数注入 — 可改变 git 执行语义，直接拒绝"),
+            new(["git", "--exec-path"], CommandRisk.SystemModification, CommandDangerLevel.Dangerous, "git --exec-path 替换 git 子程序 — 可执行任意代码，直接拒绝"),
+            new(["git", "--config-env"], CommandRisk.SystemModification, CommandDangerLevel.Dangerous, "git --config-env 环境变量注入配置 — 可改变 git 行为，直接拒绝"),
         };
 
         var pipeToInterpreters = InterpreterCommands

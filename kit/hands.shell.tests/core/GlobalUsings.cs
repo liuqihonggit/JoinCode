@@ -37,6 +37,8 @@ global using Core.Configuration;
 global using Core.Context;
 global using Core.CostTracking;
 global using Core.Hooks.Configuration;
+global using Core.Hooks.Execution.Interception;
+global using Core.Hooks.Execution.Interception.Defense;
 global using Core.Hooks.Lifecycle;
 global using Core.Plugins;
 global using Core.Prompts;

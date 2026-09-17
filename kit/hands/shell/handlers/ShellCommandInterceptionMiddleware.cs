@@ -18,18 +18,30 @@ namespace Tools.Shell;
 public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, IShellMiddleware
 {
     private readonly CommandInterceptionDispatcher _dispatcher;
+    private readonly BashDefenseService _bashDefenseService;
+    private readonly MtpPerturbationNode _perturbationNode;
+    private readonly WorkflowConfig _config;
     private readonly ILogger<ShellCommandInterceptionMiddleware>? _logger;
 
     /// <summary>
     /// 构造命令拦截中间件
     /// </summary>
     /// <param name="dispatcher">命令拦截调度器</param>
+    /// <param name="bashDefenseService">Bash 防御服务（MTP 扰动纵深防御链）</param>
+    /// <param name="perturbationNode">MTP 扰动检测 node（读取自适应触发状态）</param>
+    /// <param name="configOptions">工作流配置（读取 IsAntiCharLossConfirm 确认模式）</param>
     /// <param name="logger">日志器(可选)</param>
     public ShellCommandInterceptionMiddleware(
         CommandInterceptionDispatcher dispatcher,
+        BashDefenseService bashDefenseService,
+        MtpPerturbationNode perturbationNode,
+        IOptions<WorkflowConfig> configOptions,
         ILogger<ShellCommandInterceptionMiddleware>? logger = null)
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _bashDefenseService = bashDefenseService ?? throw new ArgumentNullException(nameof(bashDefenseService));
+        _perturbationNode = perturbationNode ?? throw new ArgumentNullException(nameof(perturbationNode));
+        _config = configOptions?.Value ?? throw new ArgumentNullException(nameof(configOptions));
         _logger = logger;
     }
 
@@ -45,9 +57,14 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
             return;
         }
 
+        var confirmMode = (_config.ShellExecution.IsAntiCharLossConfirm || _perturbationNode.IsAdaptiveTriggered)
+            ? GuardConfirmMode.AntiCharLossConfirm
+            : GuardConfirmMode.None;
+
         var dispatchContext = new GuardContext(
             context.Provider.Kind,
-            context.WorkingDirectory ?? string.Empty);
+            context.WorkingDirectory ?? string.Empty,
+            confirmMode);
 
         var outcome = await _dispatcher.DispatchAsync(context.Command, dispatchContext, ct).ConfigureAwait(false);
 
@@ -68,6 +85,41 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
             context.Command = outcome.FinalCommand;
         }
 
+        var defenseRejection = await EvaluateBashDefenseAsync(context, ct).ConfigureAwait(false);
+        if (defenseRejection is not null)
+        {
+            _logger?.LogInformation("命令被 BashDefense 链拒绝: {Command}", context.Command);
+            context.Result = defenseRejection;
+            return;
+        }
+
         await next(context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 执行 BashDefense 链 — MTP 扰动纵深防御（危险命令 + 严格解析 + 重定向白名单 + 保留设备名检测 + argv hash 二次确认）。
+    /// <para>
+    /// 在 CommandInterceptionDispatcher 之后执行，补充 Dispatcher 未覆盖的 MTP 扰动防御。
+    /// 当前组装：CheckDangerousCommand + StrictParse + CheckRetainedDevice + CheckRedirectWhitelist + RequireArgvHash。
+    /// CheckDangerousCommand 在首位：Dangerous 级直接拒绝（补 Dispatcher 对直接命令不消费分类的 gap）。
+    /// RequireArgvHash 仅在 ConfirmMode == AntiCharLossConfirm 时生效（从配置读取）。
+    /// </para>
+    /// </summary>
+    private async ValueTask<ToolResult?> EvaluateBashDefenseAsync(ShellPipelineContext context, CancellationToken ct)
+    {
+        var workDir = context.WorkingDirectory ?? string.Empty;
+        var confirmMode = (_config.ShellExecution.IsAntiCharLossConfirm || _perturbationNode.IsAdaptiveTriggered)
+            ? GuardConfirmMode.AntiCharLossConfirm
+            : GuardConfirmMode.None;
+        var (_, rejection) = await _bashDefenseService
+            .Begin(context.Command, workDir, context.Provider.Kind, confirmMode, context.ConfirmedCommand, context.ArgvHash)
+            .Then(_bashDefenseService.CheckDangerousCommand)
+            .Then(_bashDefenseService.StrictParse)
+            .Then(_bashDefenseService.CheckRetainedDevice)
+            .Then(_bashDefenseService.CheckRedirectWhitelist)
+            .Then(_bashDefenseService.RequireArgvHash)
+            .ExecuteAsync(ct)
+            .ConfigureAwait(false);
+        return rejection;
     }
 }

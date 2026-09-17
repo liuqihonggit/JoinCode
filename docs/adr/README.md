@@ -417,3 +417,4 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 | 必须先在单文件验证 → 才能推广到全部位置 |
 | [0088](0088-test-execution-rules.md) | 测试执行 | 子智能体禁止全量测试，编译+冒烟后由主智能体执行 |
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 工具统一入口 | ⛔ 禁止系统/宿主 gh/rg，统一用 `jcc rg` / `jcc mcp_call gh_*` / `jcc gh` |
+| [0113](0113-mtp-perturbation-bash-defense.md) | MTP 扰动防御 | Agent 层 BashDefense node 链兜住 MTP 单字符扰动，不依赖供应商关 MTP |

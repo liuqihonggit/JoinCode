@@ -8,13 +8,6 @@ namespace Core.Security.DangerClassification;
 public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDangerClassifier
 {
     /// <summary>
-    /// AC 自动机 — 展平所有危险组合模式，一次扫描命中全部模式串
-    /// </summary>
-    private static readonly AhoCorasick<string> CombinationPatternAc = AhoCorasick.Create(
-        DangerousCommandCatalog.Combinations.SelectMany(static c => c.LowerPatterns).Distinct(),
-        ignoreCase: false);
-
-    /// <summary>
     /// 分类信号 — 单个检查层产出的危险等级+风险类型+详情
     /// </summary>
     private readonly record struct Signal(CommandDangerLevel Level, CommandRisk Risk, string Detail);
@@ -109,19 +102,52 @@ public sealed partial class CommandDangerClassifier : ServiceEntity, ICommandDan
     }
 
     /// <summary>
-    /// 危险组合匹配 — AC 自动机一次扫描命中所有模式,再检查组合条件
+    /// 危险组合匹配 — 分位置检查：命令名匹配首个模式，参数匹配剩余模式。
+    /// <para>
+    /// MTP 扰动纵深防御约束第4条：AC 分位置作用，argv[0] 匹配命令名，argv[1..n] 匹配参数。
+    /// 管道组合（首模式为 "|"）仍用 AC 扫描原始串，因为管道是 shell 语法结构。
+    /// </para>
     /// </summary>
     private static IEnumerable<Signal> ClassifyByCombinations(ShellCommand command)
     {
+        var commandNameLower = command.CommandName.ToLowerInvariant();
+        var argsLower = command.Arguments.Select(static a => a.ToLowerInvariant()).ToList();
         var rawLower = command.RawCommand.ToLowerInvariant();
-        var hitPatterns = new HashSet<string>(
-            CombinationPatternAc.FindAll(rawLower.AsSpan()).Select(static m => m.Value),
-            StringComparer.Ordinal);
 
         return DangerousCommandCatalog.Combinations
-            .Where(c => c.LowerPatterns.All(p => hitPatterns.Contains(p)))
+            .Where(c => IsCombinationHit(c, commandNameLower, argsLower, rawLower))
             .Select(c => new Signal(c.Level, c.RiskType, $"危险组合: {c.Description}"));
     }
+
+    /// <summary>
+    /// 判断危险组合是否命中 — 分位置匹配。
+    /// <para>
+    /// 管道组合（首模式为 "|"）扫描原始串；命令组合检查 CommandName + Arguments。
+    /// </para>
+    /// </summary>
+    private static bool IsCombinationHit(
+        DangerousCommandCatalog.CombinationEntry combo,
+        string commandNameLower,
+        IReadOnlyList<string> argsLower,
+        string rawLower)
+    {
+        var patterns = combo.LowerPatterns;
+
+        if (patterns[0] == "|")
+            return patterns.All(p => rawLower.Contains(p, StringComparison.Ordinal));
+
+        if (!CommandNameMatches(commandNameLower, patterns[0]))
+            return false;
+
+        return patterns[1..].All(p => argsLower.Any(a => a.Contains(p, StringComparison.Ordinal)));
+    }
+
+    /// <summary>
+    /// 命令名匹配 — 精确匹配或前缀匹配（如 mkfs → mkfs.ext4）。
+    /// </summary>
+    private static bool CommandNameMatches(string commandNameLower, string pattern)
+        => commandNameLower.Equals(pattern, StringComparison.Ordinal)
+           || commandNameLower.StartsWith(pattern + ".", StringComparison.Ordinal);
 
     /// <summary>
     /// 递归+强制组合检查 — Remove-Item/rm/del/erase 的 -Recurse -Force 组合

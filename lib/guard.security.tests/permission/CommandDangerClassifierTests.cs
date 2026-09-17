@@ -20,6 +20,9 @@ public class CommandDangerClassifierTests
     [InlineData("wipe /home/user/secret")]
     [InlineData("dd if=/dev/zero of=/dev/sda")]
     [InlineData("diskpart clean")]
+    [InlineData("git -c core.sshCommand=rm fetch")]
+    [InlineData("git --exec-path=/tmp/malicious log")]
+    [InlineData("git --config-env=core.sshCommand=SSH log")]
     public void Dangerous_Commands_Should_Return_Dangerous(string command)
     {
         var result = _classifier.Classify(command);
@@ -339,6 +342,40 @@ public class CommandDangerClassifierTests
     public void ParseLevelFromPrompt_Null_Should_Return_Null()
     {
         DangerLevelPromptParser.ParseLevelFromPrompt(null).Should().BeNull();
+    }
+
+    #endregion
+
+    #region AC 分位置匹配测试 — 引号内危险子串不应误杀（D7）
+
+    [Theory]
+    [InlineData("echo \"rm -rf /\"")]
+    [InlineData("echo \"format c:\"")]
+    [InlineData("echo \"dd of=/dev/sda\"")]
+    [InlineData("echo \"git reset --hard\"")]
+    [InlineData("echo \"chmod 777\"")]
+    [InlineData("printf \"%s\" \"rm -rf /\"")]
+    public void QuotedDangerousSubstring_ShouldNotTriggerCombination(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().Be(CommandDangerLevel.Safe,
+            "引号内的危险子串是 echo/printf 的参数，不是实际危险命令");
+    }
+
+    [Theory]
+    [InlineData("rm -rf /")]
+    [InlineData("rm -rf src/")]
+    [InlineData("format c:")]
+    [InlineData("dd of=/dev/sda")]
+    [InlineData("git reset --hard")]
+    [InlineData("chmod 777 /tmp")]
+    public void RealDangerousCommand_ShouldStillTrigger(string command)
+    {
+        var result = _classifier.Classify(command);
+
+        result.Level.Should().NotBe(CommandDangerLevel.Safe,
+            "真实危险命令应仍然触发");
     }
 
     #endregion

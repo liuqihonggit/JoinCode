@@ -18,17 +18,12 @@ public static class LockRegistry
     private static int _scanStarted;
     private static int _diagnosticsEnabled = 0;
     private static int _nextFlowId;
-    private static readonly AsyncLocal<int> _currentFlowId = new();
 
     /// <summary>
     /// 当前 async 逻辑流的 FlowId — 在 async 流中自动流转,不随 await 线程切换变化。
     /// 用于死锁检测构建 wait-for graph,替代不可靠的 Thread.CurrentThread。
     /// </summary>
-    public static int CurrentFlowId
-    {
-        get => _currentFlowId.Value;
-        set => _currentFlowId.Value = value;
-    }
+    public static int CurrentFlowId => AsyncFlowIdentity.CurrentFlowId;
 
     /// <summary>
     /// 注册新的逻辑流并分配唯一 FlowId — 在 async 流入口(如 Task.Run/Actor 启动)调用,
@@ -37,16 +32,11 @@ public static class LockRegistry
     public static int RegisterFlow()
     {
         var id = Interlocked.Increment(ref _nextFlowId);
-        _currentFlowId.Value = id;
+        AsyncFlowIdentity.SetFlowId(id);
         return id;
     }
 
-    private static int ResolveFlowId()
-    {
-        var flowId = _currentFlowId.Value;
-        if (flowId != 0) return flowId;
-        return -(Thread.CurrentThread.ManagedThreadId + 1);
-    }
+    private static int ResolveFlowId() => AsyncFlowIdentity.CurrentFlowId;
 
     /// <summary>
     /// 诊断总开关（默认关闭，需 --debuglog 或 JCC_DEBUGLOG=1 开启）。设为 0 关闭所有诊断记录与后台扫描，退化为零开销。
@@ -108,7 +98,7 @@ public static class LockRegistry
     {
         if (_locks.TryRemove(id, out var info))
         {
-            if (info.HoldingThread is not null)
+            if (info.HoldingFlowId != 0)
             {
                 var acquiredAt = info.AcquiredAt;
                 var heldFor = acquiredAt.HasValue
@@ -119,7 +109,7 @@ public static class LockRegistry
                     Emit(
                         $"[LOCK-HOLD-TOO-LONG] 锁 '{info.Name}' (#{id}) 释放时已持有 " +
                         $"{heldFor.TotalSeconds:F1}s 超过阈值 {_holdTooLongThreshold.TotalSeconds:F1}s。" +
-                        $"持有线程: {info.HoldingThread.ManagedThreadId}");
+                        $"持有流: {info.HoldingFlowId}");
                 }
             }
             if (IsEnabled)
@@ -135,11 +125,10 @@ public static class LockRegistry
         if (!IsEnabled) return;
         if (_locks.TryGetValue(id, out var info))
         {
-            info.WaitingThread = Thread.CurrentThread;
             info.WaitingFlowId = ResolveFlowId();
             info.WaitStartedAt = DateTimeOffset.UtcNow;
             info.WaitStack = CaptureStackTrace(skipFrames: 3);
-            Emit($"[LOCK-WAIT-START] 锁 '{name}' (#{id}) 线程 {Thread.CurrentThread.ManagedThreadId} 开始等待。");
+            Emit($"[LOCK-WAIT-START] 锁 '{name}' (#{id}) 流 {ResolveFlowId()} 开始等待。");
             var currentFlowId = ResolveFlowId();
             foreach (var other in _locks.Values)
             {
@@ -166,9 +155,8 @@ public static class LockRegistry
             {
                 Emit(
                     $"[LOCK-WAIT-ABORT] 锁 '{name}' (#{id}) 等待 {waited.TotalSeconds:F1}s 后未获取(超时/取消)。" +
-                    $"线程: {Thread.CurrentThread.ManagedThreadId}");
+                    $"流: {ResolveFlowId()}");
             }
-            info.WaitingThread = null;
             info.WaitingFlowId = 0;
             info.WaitStartedAt = null;
             info.WaitStack = null;
@@ -184,7 +172,7 @@ public static class LockRegistry
         if (!IsEnabled) return;
         Emit(
             $"[LOCK-TIMEOUT] 锁 '{name}' 等待 {timeout.TotalSeconds:F1}s 超时,返回 null。" +
-            $"线程: {Thread.CurrentThread.ManagedThreadId}");
+            $"流: {ResolveFlowId()}");
     }
 
     /// <summary>
@@ -203,16 +191,14 @@ public static class LockRegistry
                 Emit(
                     $"[LOCK-WAIT-SLOW] 锁 '{name}' (#{id}) 等待 {waited.TotalSeconds:F1}s " +
                     $"才获取成功(超过阈值 {_waitTimeoutThreshold.TotalSeconds:F1}s)。" +
-                    $"获取线程: {Thread.CurrentThread.ManagedThreadId}");
+                    $"获取流: {ResolveFlowId()}");
             }
             Emit(
-                $"[LOCK-ACQUIRED] 锁 '{name}' (#{id}) 线程 {Thread.CurrentThread.ManagedThreadId} " +
+                $"[LOCK-ACQUIRED] 锁 '{name}' (#{id}) 流 {ResolveFlowId()} " +
                 $"获取成功,等待 {waited.TotalSeconds:F3}s。");
-            info.HoldingThread = Thread.CurrentThread;
             info.HoldingFlowId = ResolveFlowId();
             info.AcquiredAt = DateTimeOffset.UtcNow;
             info.AcquireStack = CaptureStackTrace(skipFrames: 3);
-            info.WaitingThread = null;
             info.WaitingFlowId = 0;
             info.WaitStartedAt = null;
             info.WaitStack = null;
@@ -235,13 +221,12 @@ public static class LockRegistry
                 Emit(
                     $"[LOCK-HOLD-TOO-LONG] 锁 '{name}' (#{id}) 持有 {heldFor.TotalSeconds:F1}s " +
                     $"超过阈值 {_holdTooLongThreshold.TotalSeconds:F1}s。" +
-                    $"持有线程: {info.HoldingThread?.ManagedThreadId}");
+                    $"持有流: {info.HoldingFlowId}");
             }
             if (IsEnabled)
                 Emit(
-                    $"[LOCK-RELEASED] 锁 '{name}' (#{id}) 线程 {Thread.CurrentThread.ManagedThreadId} " +
+                    $"[LOCK-RELEASED] 锁 '{name}' (#{id}) 流 {ResolveFlowId()} " +
                     $"释放,持有 {heldFor.TotalSeconds:F3}s。");
-            info.HoldingThread = null;
             info.HoldingFlowId = 0;
             info.AcquiredAt = null;
             info.AcquireStack = null;
@@ -300,28 +285,28 @@ public static class LockRegistry
         foreach (var info in _locks.Values.OrderBy(x => x.Id))
         {
             string status;
-            if (info.HoldingThread is not null)
+            if (info.HoldingFlowId != 0)
             {
                 var acquiredAt = info.AcquiredAt;
                 var held = acquiredAt.HasValue ? now - acquiredAt.Value : TimeSpan.Zero;
-                status = $"持有中(线程 {info.HoldingThread.ManagedThreadId}, 已持有 {held.TotalSeconds:F1}s)";
+                status = $"持有中(流 {info.HoldingFlowId}, 已持有 {held.TotalSeconds:F1}s)";
             }
-            else if (info.WaitingThread is not null)
+            else if (info.WaitingFlowId != 0)
             {
                 var waitStartedAt = info.WaitStartedAt;
                 var waited = waitStartedAt.HasValue ? now - waitStartedAt.Value : TimeSpan.Zero;
-                status = $"等待中(线程 {info.WaitingThread.ManagedThreadId}, 已等 {waited.TotalSeconds:F1}s)";
+                status = $"等待中(流 {info.WaitingFlowId}, 已等 {waited.TotalSeconds:F1}s)";
             }
             else
             {
                 status = "空闲";
             }
             sb.Append($"  #{info.Id} '{info.Name}' — {status}\n");
-            if (info.WaitingThread is not null)
+            if (info.WaitingFlowId != 0)
                 sb.Append($"    (等待中)\n");
-            if (info.HoldingThread is not null && info.AcquireStack is { Length: > 0 })
+            if (info.HoldingFlowId != 0 && info.AcquireStack is { Length: > 0 })
                 sb.Append("    获取调用栈:\n").Append(info.AcquireStack);
-            if (info.WaitingThread is not null && info.WaitStack is { Length: > 0 })
+            if (info.WaitingFlowId != 0 && info.WaitStack is { Length: > 0 })
                 sb.Append("    等待调用栈:\n").Append(info.WaitStack);
         }
         return sb.ToString();
@@ -368,8 +353,8 @@ public static class LockRegistry
         var now = DateTimeOffset.UtcNow;
         foreach (var info in _locks.Values)
         {
-            var holdingThread = info.HoldingThread;
-            if (holdingThread is not null && info.AcquiredAt.HasValue)
+            var holdingFlowId = info.HoldingFlowId;
+            if (holdingFlowId != 0 && info.AcquiredAt.HasValue)
             {
                 var acquiredAt = info.AcquiredAt.Value;
                 var held = now - acquiredAt;
@@ -377,18 +362,18 @@ public static class LockRegistry
                 {
                     Emit(
                         $"[LOCK-SCAN-HOLD] 锁 '{info.Name}' (#{info.Id}) 持有 {held.TotalSeconds:F1}s " +
-                        $"超过阈值(线程 {holdingThread.ManagedThreadId})。\n{info.AcquireStack}");
+                        $"超过阈值(流 {holdingFlowId})。\n{info.AcquireStack}");
                 }
             }
-            var waitingThread = info.WaitingThread;
-            if (waitingThread is not null && info.WaitStartedAt.HasValue)
+            var waitingFlowId = info.WaitingFlowId;
+            if (waitingFlowId != 0 && info.WaitStartedAt.HasValue)
             {
                 var waited = now - info.WaitStartedAt.Value;
                 if (waited > _waitTimeoutThreshold)
                 {
                     Emit(
                         $"[LOCK-SCAN-WAIT] 锁 '{info.Name}' (#{info.Id}) 等待 {waited.TotalSeconds:F1}s " +
-                        $"超过阈值(线程 {waitingThread.ManagedThreadId})。\n{info.WaitStack}");
+                        $"超过阈值(流 {waitingFlowId})。\n{info.WaitStack}");
                 }
             }
         }
@@ -397,7 +382,7 @@ public static class LockRegistry
 
     /// <summary>
     /// 检测死锁环（wait-for graph DFS）。每个线程最多等一把锁，出度≤1，沿等待边走回到起点即死锁。
-    /// 只考虑等待超过 <see cref="_waitTimeoutThreshold"/> 的锁，避免线程池线程复用下 HoldingThread stale 误报。
+    /// 只考虑等待超过 <see cref="_waitTimeoutThreshold"/> 的锁，避免 FlowId 复用下 stale 误报。
     /// 检测到死锁时自动通过 DiagnosticSink 输出完整诊断（锁链+线程+调用栈），无需手动调用。
     /// </summary>
     internal static void DetectDeadlock()
@@ -467,6 +452,7 @@ public static class LockRegistry
         Interlocked.Exchange(ref _nextFlowId, 0);
         Interlocked.Exchange(ref _deadlockDetected, 0);
         Volatile.Write(ref _lastDeadlockReport, null);
+        AsyncFlowIdentity.Clear();
     }
 
     /// <summary>
@@ -493,11 +479,9 @@ internal sealed class LockInfo
 {
     public int Id;
     public string Name = "";
-    public Thread? HoldingThread;
     public int HoldingFlowId;
     public DateTimeOffset? AcquiredAt;
     public string? AcquireStack;
-    public Thread? WaitingThread;
     public int WaitingFlowId;
     public DateTimeOffset? WaitStartedAt;
     public string? WaitStack;

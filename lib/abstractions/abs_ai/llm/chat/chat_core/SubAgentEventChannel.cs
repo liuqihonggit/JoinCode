@@ -21,12 +21,7 @@ public sealed class SubAgentEventChannel
     /// 进入通道作用域 — 作用域内的异步流（含工具执行、子代理管道）共享此通道；
     /// 嵌套子代理的 QueryLoop 会创建自己的内层作用域，事件不会跨层泄漏
     /// </summary>
-    public IDisposable EnterScope()
-    {
-        var previous = CurrentAccessor.Value;
-        CurrentAccessor.Value = this;
-        return new ScopeRestore(previous);
-    }
+    public IDisposable EnterScope() => AsyncLocalScope<SubAgentEventChannel?>.Enter(CurrentAccessor, this);
 
     /// <summary>
     /// 发射事件到本通道 — 完成后再发射静默丢弃（不抛异常，进度类事件允许有损）；
@@ -85,10 +80,5 @@ public sealed class SubAgentEventChannel
             _completed = true;
             _buffer.Clear();
         }
-    }
-
-    private sealed class ScopeRestore(SubAgentEventChannel? previous) : IDisposable
-    {
-        public void Dispose() => CurrentAccessor.Value = previous;
     }
 }

@@ -15,12 +15,7 @@ public sealed class TeammateContext
     public bool IsInProcess { get; init; } = true;
     public string? TeamId { get; init; }
 
-    public IDisposable EnterScope()
-    {
-        var previous = _current.Value;
-        _current.Value = this;
-        return new ScopeRestore(previous);
-    }
+    public IDisposable EnterScope() => AsyncLocalScope<TeammateContext?>.Enter(_current, this);
 
     public Dictionary<string, string> ToEnvironmentVariables()
     {
@@ -45,10 +40,5 @@ public sealed class TeammateContext
             env[JccEnvVar.TeammateInProcess.ToValue()] = "1";
 
         return env;
-    }
-
-    private sealed class ScopeRestore(TeammateContext? previous) : IDisposable
-    {
-        public void Dispose() => _current.Value = previous;
     }
 }

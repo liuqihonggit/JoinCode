@@ -3,15 +3,8 @@ namespace JoinCode.Abstractions.Interfaces;
 public sealed class SubAgentContext
 {
     private static readonly AsyncLocal<SubAgentContext?> _current = new();
-    private static readonly AsyncLocal<string?> _cwdOverride = new();
 
     public static SubAgentContext? Current => _current.Value;
-
-    public static string? CwdOverride
-    {
-        get => _cwdOverride.Value;
-        set => _cwdOverride.Value = value;
-    }
 
     public required string AgentId { get; init; }
     public required AgentRole Role { get; init; }
@@ -20,6 +13,7 @@ public sealed class SubAgentContext
     public string? ParentAgentId { get; set; }
     public string? SessionId { get; set; }
     public string? WorktreePath { get; set; }
+    public string? CwdOverride { get; set; }
     public string? TeamId { get; set; }
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public DateTime? StartedAt { get; set; }
@@ -54,38 +48,16 @@ public sealed class SubAgentContext
         return id;
     }
 
-    public IDisposable EnterScope()
-    {
-        var previous = _current.Value;
-        _current.Value = this;
-        return new ScopeRestore(previous);
-    }
+    public IDisposable EnterScope() => AsyncLocalScope<SubAgentContext?>.Enter(_current, this);
 
     public IDisposable EnterScopeWithCwd(string? cwd)
     {
-        var previousContext = _current.Value;
-        var previousCwd = _cwdOverride.Value;
-        _current.Value = this;
-        _cwdOverride.Value = cwd;
-        return new DualScopeRestore(previousContext, previousCwd);
+        CwdOverride = cwd;
+        return AsyncLocalScope<SubAgentContext?>.Enter(_current, this);
     }
 
     public static string GetEffectiveCwd(string? fallbackCwd = null)
     {
-        return _cwdOverride.Value ?? fallbackCwd ?? Environment.CurrentDirectory;
-    }
-
-    private sealed class ScopeRestore(SubAgentContext? previous) : IDisposable
-    {
-        public void Dispose() => _current.Value = previous;
-    }
-
-    private sealed class DualScopeRestore(SubAgentContext? previousContext, string? previousCwd) : IDisposable
-    {
-        public void Dispose()
-        {
-            _current.Value = previousContext;
-            _cwdOverride.Value = previousCwd;
-        }
+        return _current.Value?.CwdOverride ?? fallbackCwd ?? Environment.CurrentDirectory;
     }
 }

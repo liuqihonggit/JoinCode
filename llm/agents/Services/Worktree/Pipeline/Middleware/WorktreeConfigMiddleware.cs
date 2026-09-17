@@ -123,7 +123,7 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
                     continue;
                 }
 
-                if (patterns.Any(p => MatchesWorktreeIncludePattern(trimmed, p.TrimStart('/'))))
+                if (patterns.Any(p => WorktreeIncludePatternMatcher.Matches(trimmed, p.TrimStart('/'))))
                 {
                     files.Add(trimmed);
                 }
@@ -135,7 +135,7 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
                 {
                     var dirNoSlash = dir[..^1];
                     if (patterns.Any(p => PatternTargetsCollapsedDir(p, dir))) return true;
-                    if (patterns.Any(p => MatchesWorktreeIncludePattern(dirNoSlash, p.TrimStart('/')))) return true;
+                    if (patterns.Any(p => WorktreeIncludePatternMatcher.Matches(dirNoSlash, p.TrimStart('/')))) return true;
                     return false;
                 }).ToList();
 
@@ -151,7 +151,7 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
                         foreach (var f in expandedResult.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
                         {
                             var trimmed = f.Trim();
-                            if (patterns.Any(p => MatchesWorktreeIncludePattern(trimmed, p.TrimStart('/'))))
+                            if (patterns.Any(p => WorktreeIncludePatternMatcher.Matches(trimmed, p.TrimStart('/'))))
                             {
                                 files.Add(trimmed);
                             }
@@ -275,24 +275,4 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
         }
     }
 
-    private static readonly ConcurrentDictionary<string, Regex> WorktreePatternCache = new(StringComparer.Ordinal);
-
-    private static bool MatchesWorktreeIncludePattern(string filePath, string pattern)
-    {
-        if (pattern.Contains('*'))
-        {
-            var regexStr = "^" + Regex.Escape(pattern).Replace("\\*\\*", ".*").Replace("\\*", "[^/]*") + "$";
-            var regex = WorktreePatternCache.GetOrAdd(regexStr, static r => new Regex(r, RegexOptions.IgnoreCase | RegexOptions.Compiled));
-            try
-            {
-                return regex.IsMatch(filePath);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-        return filePath.StartsWith(pattern, StringComparison.OrdinalIgnoreCase) ||
-               filePath.Equals(pattern, StringComparison.OrdinalIgnoreCase);
-    }
 }

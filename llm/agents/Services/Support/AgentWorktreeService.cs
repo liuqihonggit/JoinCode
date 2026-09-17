@@ -711,7 +711,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 var trimmed = entry.Trim();
                 if (trimmed.EndsWith('/')) continue;
 
-                var matches = patterns.Any(p => MatchesWorktreeIncludePattern(trimmed, p.TrimStart('/')));
+                var matches = patterns.Any(p => WorktreeIncludePatternMatcher.Matches(trimmed, p.TrimStart('/')));
                 if (!matches) continue;
 
                 var srcPath = _fileOperationService.CombinePath(gitRoot, trimmed);
@@ -737,22 +737,6 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "处理 .worktreeinclude 时出错");
         }
-    }
-
-    private static readonly ConcurrentDictionary<string, Regex> WorktreePatternCache = new(StringComparer.Ordinal);
-
-    private static bool MatchesWorktreeIncludePattern(string filePath, string pattern) {
-        if (pattern.Contains('*')) {
-            var regexStr = "^" + Regex.Escape(pattern).Replace("\\*\\*", ".*").Replace("\\*", "[^/]*") + "$";
-            var regex = WorktreePatternCache.GetOrAdd(regexStr, static r => new Regex(r, RegexOptions.IgnoreCase | RegexOptions.Compiled));
-            try {
-                return regex.IsMatch(filePath);
-            } catch {
-                return false;
-            }
-        }
-        return filePath.StartsWith(pattern, StringComparison.OrdinalIgnoreCase) ||
-               filePath.Equals(pattern, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task ConfigureWorktreeHooksPathAsync(string gitRoot, string worktreePath, CancellationToken cancellationToken) {

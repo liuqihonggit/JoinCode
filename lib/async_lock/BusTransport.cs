@@ -285,8 +285,8 @@ public sealed class BusTransport : ITransportTopology
         _clientConnections.Clear();
         var slaveClient = _slaveClient;
 
-        if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
-        if (_slaveReceiveTask is not null) await _slaveReceiveTask.ConfigureAwait(false);
+        await _acceptTask.AwaitBackgroundTaskSafe();
+        await _slaveReceiveTask.AwaitBackgroundTaskSafe();
         Cleanup(conns, slaveClient, _election, _cts);
     }
 

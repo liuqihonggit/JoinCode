@@ -4,7 +4,7 @@ namespace Core.Plugins;
 /// <summary>
 /// 工作流插件宿主 - 管理 IWorkflowPlugin 的生命周期和服务容器
 /// </summary>
-public sealed class WorkflowPluginHost : PluginResourceBase
+public sealed class WorkflowPluginHost : PluginResourceBase, IPluginHost
 {
     private readonly IServiceCollection _pluginServices;
     private ServiceProvider? _pluginServiceProvider;
@@ -19,6 +19,8 @@ public sealed class WorkflowPluginHost : PluginResourceBase
     public string Version => _plugin.Version;
     /// <summary>工作流插件实例</summary>
     public IWorkflowPlugin Plugin => _plugin;
+    /// <summary>插件类型 — 工作流插件</summary>
+    public PluginKind PluginType => PluginKind.Workflow;
 
     /// <summary>LoadAsync 构造的 PluginContext — PluginManager 用于收集异步撤销链</summary>
     internal PluginContext? Context { get; private set; }

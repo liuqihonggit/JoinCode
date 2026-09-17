@@ -5,7 +5,7 @@ namespace Services.Build;
 /// 防睡眠、取消与状态查询能力。通过 Channel 实现单消费者串行执行。
 /// </summary>
 [Register(typeof(IBuildQueueService), ServiceLifetime.Singleton)]
-public sealed partial class BuildQueueService : IBuildQueueService
+public sealed partial class BuildQueueService : BuildQueueBase
 {
     private readonly ISystemActuatorRegistry _actuatorRegistry;
     private readonly IFileSystem _fs;
@@ -13,17 +13,14 @@ public sealed partial class BuildQueueService : IBuildQueueService
     private readonly ILogger<BuildQueueService>? _logger;
 
     private readonly Channel<BuildQueueEntry> _queue = Channel.CreateUnbounded<BuildQueueEntry>();
-    private readonly BuildQueueEntryStore _store = new();
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly Task _processingTask;
 
     private readonly CrossProcessBuildLock _crossProcessLock;
     private readonly BuildResultBuffer _resultBuffer;
 
-    private int _buildCounter;
     private BuildQueueEntry? _currentBuild;
     private CancellationTokenSource? _currentBuildCts;
-    private int _disposed;
 
     /// <summary>
     /// 构造编译队列服务，启动后台串行处理任务。
@@ -58,7 +55,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     /// <param name="request">编译请求。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>构建 ID。</returns>
-    public Task<string> SubmitAsync(BuildRequest request, CancellationToken ct)
+    public override Task<string> SubmitAsync(BuildRequest request, CancellationToken ct)
     {
         var bufferKey = BuildResultBuffer.BuildBufferKey(request.Command, request.WorkingDirectory);
 
@@ -69,15 +66,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
             return Task.FromResult(buildId);
         }
 
-        var newEntry = new BuildQueueEntry
-        {
-            BuildId = $"b-{Interlocked.Increment(ref _buildCounter):D4}",
-            Request = request,
-            Status = BuildQueueEntryStatus.Queued,
-            QueuePosition = _store.Count
-        };
-
-        _store.Add(newEntry.BuildId, newEntry, new TaskCompletionSource<BuildQueueResult>());
+        var (newEntry, _) = CreateQueuedEntry(request);
         _queue.Writer.TryWrite(newEntry);
 
         _logger?.LogInformation("Build submitted: {BuildId}, command: {Command}", newEntry.BuildId, request.Command);
@@ -86,16 +75,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     }
 
     /// <inheritdoc />
-    public Task<BuildQueueResult> WaitAsync(string buildId, CancellationToken ct)
-    {
-        if (!_store.TryGetTcs(buildId, out var tcs))
-            throw new InvalidOperationException($"Build {buildId} not found");
-
-        return tcs.Task;
-    }
-
-    /// <inheritdoc />
-    public Task<bool> CancelAsync(string buildId, CancellationToken ct)
+    public override Task<bool> CancelAsync(string buildId, CancellationToken ct)
     {
         if (!_store.TryGetEntry(buildId, out var entry))
             return Task.FromResult(false);
@@ -121,13 +101,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     }
 
     /// <inheritdoc />
-    public BuildQueueEntry? GetBuild(string buildId)
-    {
-        return _store.TryGetEntry(buildId, out var entry) ? entry : null;
-    }
-
-    /// <inheritdoc />
-    public BuildQueueStatus GetStatus()
+    public override BuildQueueStatus GetStatus()
     {
         var pendingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued);
         var isBuilding = _currentBuild is not null && _currentBuild.Status == BuildQueueEntryStatus.Building;
@@ -146,39 +120,15 @@ public sealed partial class BuildQueueService : IBuildQueueService
     }
 
     /// <inheritdoc />
-    public Task ClearCacheAsync(CancellationToken ct)
+    public override Task ClearCacheAsync(CancellationToken ct)
     {
         _resultBuffer.Clear();
         return Task.CompletedTask;
     }
 
-    /// <inheritdoc />
-    public string GetOutputRange(string buildId, int startLine, int endLine)
-    {
-        var entry = _store.TryGetEntry(buildId, out var e) ? e : null;
-        if (entry?.Result is null)
-            return $"Build {buildId} not found or has no result";
-
-        var output = entry.Result.ExitCode == 0
-            ? entry.Result.Output
-            : $"{entry.Result.ErrorOutput}\n{entry.Result.Output}";
-
-        var lines = output.Split('\n');
-        if (endLine <= 0) endLine = lines.Length;
-
-        startLine = Math.Max(1, startLine);
-        endLine = Math.Min(lines.Length, endLine);
-
-        if (startLine > endLine)
-            return $"Invalid range: start={startLine}, end={endLine}, total={lines.Length}";
-
-        var selected = lines[(startLine - 1)..endLine];
-        return string.Join('\n', selected);
-    }
-
     private string CreateCompletedEntry(BuildRequest request, BuildQueueResult result)
     {
-        var buildId = $"b-{Interlocked.Increment(ref _buildCounter):D4}";
+        var buildId = NextBuildId();
         var entry = new BuildQueueEntry
         {
             BuildId = buildId,
@@ -272,13 +222,12 @@ public sealed partial class BuildQueueService : IBuildQueueService
 
     private async Task<BuildQueueResult> ExecuteBuildAsync(BuildQueueEntry entry, CancellationToken ct)
     {
-        await using var sleepScope = await PreventSleepScope.CreateAsync(_preventSleepService, cancellationToken: CancellationToken.None).ConfigureAwait(false);
         await using var scope = new BuildExecutionScope(this, ct);
         var buildCt = scope.Token;
 
         if (buildCt.IsCancellationRequested)
         {
-            return CancelledResult(entry, "Build cancelled while waiting for build lock");
+            return BuildQueueBase.CreateCancelledResult(entry, "Build cancelled while waiting for build lock");
         }
 
         try
@@ -289,78 +238,12 @@ public sealed partial class BuildQueueService : IBuildQueueService
         }
         catch (OperationCanceledException)
         {
-            return CancelledResult(entry, "Build cancelled while waiting for build lock");
+            return BuildQueueBase.CreateCancelledResult(entry, "Build cancelled while waiting for build lock");
         }
 
-        var sw = Stopwatch.StartNew();
-        var wallStart = DateTimeOffset.UtcNow;
-
-        var result = await _actuatorRegistry.Get(SystemActuatorKind.Bash).ExecuteAsync(
-            entry.Request.Command,
-            workingDirectory: entry.Request.WorkingDirectory,
-            cancellationToken: buildCt).ConfigureAwait(false);
-
-        sw.Stop();
-        var wallElapsed = DateTimeOffset.UtcNow - wallStart;
-
-        var sleepDetected = wallElapsed > sw.Elapsed + TimeSpan.FromSeconds(30);
-        if (sleepDetected)
-        {
-            _logger?.LogWarning(
-                "Sleep detected during build {BuildId}: wall={Wall}, cpu={Cpu}",
-                entry.BuildId, wallElapsed, sw.Elapsed);
-        }
-
-        return new BuildQueueResult
-        {
-            BuildId = entry.BuildId,
-            ExitCode = result.ExitCode ?? -1,
-            Output = result.Stdout ?? string.Empty,
-            ErrorOutput = result.Stderr ?? string.Empty,
-            WaitDuration = entry.StartedAt.HasValue
-                ? entry.StartedAt.Value - entry.Request.SubmittedAt
-                : TimeSpan.Zero,
-            BuildDuration = sw.Elapsed,
-            QueuePosition = entry.QueuePosition,
-            SleepDetected = sleepDetected,
-            Cancelled = buildCt.IsCancellationRequested
-        };
-    }
-
-    private static BuildQueueResult CancelledResult(BuildQueueEntry entry, string message)
-    {
-        return new BuildQueueResult
-        {
-            BuildId = entry.BuildId,
-            ExitCode = -1,
-            Output = string.Empty,
-            ErrorOutput = message,
-            WaitDuration = TimeSpan.Zero,
-            BuildDuration = TimeSpan.Zero,
-            QueuePosition = entry.QueuePosition,
-            Cancelled = true,
-        };
-    }
-
-    private void CompleteWithCancellation(string buildId, BuildQueueEntry entry)
-    {
-        var result = new BuildQueueResult
-        {
-            BuildId = buildId,
-            ExitCode = -1,
-            Output = string.Empty,
-            ErrorOutput = "Build was cancelled",
-            WaitDuration = entry.StartedAt.HasValue
-                ? entry.StartedAt.Value - entry.Request.SubmittedAt
-                : TimeSpan.Zero,
-            BuildDuration = TimeSpan.Zero,
-            QueuePosition = entry.QueuePosition,
-            Cancelled = true
-        };
-        entry.Result = result;
-
-        _store.TryGetTcs(buildId, out var tcs);
-        tcs?.TrySetResult(result);
+        return await BuildQueueBase.ExecuteBuildCoreAsync(
+            entry, _actuatorRegistry, _preventSleepService, _logger, buildCt,
+            preferResultExecutionTime: false).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -368,7 +251,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     /// 释放跨进程锁。幂等，多次调用安全。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 

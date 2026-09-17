@@ -123,6 +123,7 @@ public class ConfigLoader {
             EnsureEnvModelInConfig(settings);
 
             // Step 3: SettingsJson → WorkflowConfig（JSON 反序列化映射）
+            _settingsMapper.SkipProviderValidation = SkipProviderValidation;
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）

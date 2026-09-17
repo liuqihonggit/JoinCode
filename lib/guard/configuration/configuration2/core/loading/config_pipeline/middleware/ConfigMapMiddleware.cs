@@ -22,6 +22,7 @@ public sealed partial class ConfigMapMiddleware : ServiceEntity, IConfigLoadMidd
     /// <inheritdoc/>
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
+        _mapper.SkipProviderValidation = context.SkipProviderValidation;
         context.Config = _mapper.ToWorkflowConfig(context.Settings);
 
         return next(context, ct);

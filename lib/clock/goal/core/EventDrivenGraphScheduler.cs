@@ -97,7 +97,7 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler
             if (!seen.Add(nodeId))
                 continue;
 
-            if (context.CompletedNodes.ContainsKey(nodeId))
+            if (context.IsNodeCompleted(nodeId))
                 continue;
 
             if (!context.AreAllUpstreamsCompleted(nodeId))

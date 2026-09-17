@@ -1,5 +1,32 @@
 namespace Core.Goal;
 
+/// <summary>
+/// 节点执行状态枚举
+/// </summary>
+public enum NodeStatus
+{
+    /// <summary>待执行（含重试中）</summary>
+    [EnumValue("pending")]
+    Pending,
+    /// <summary>已完成</summary>
+    [EnumValue("completed")]
+    Completed,
+    /// <summary>失败</summary>
+    [EnumValue("failed")]
+    Failed,
+}
+
+/// <summary>
+/// 节点执行状态 — 合并重试计数与完成/失败标记
+/// </summary>
+public sealed record NodeExecutionState
+{
+    /// <summary>节点状态</summary>
+    public NodeStatus Status { get; init; } = NodeStatus.Pending;
+    /// <summary>重试次数</summary>
+    public int RetryCount { get; init; }
+}
+
 
 /// <summary>
 /// Graph 执行的运行时上下文 — 持有可变状态、队列、重试计数
@@ -25,12 +52,58 @@ public sealed class GraphExecutionContext
     /// 节点完成信号 — 替代 Task.Delay 轮询。每个节点完成时 Release,循环在 batch 为空时 WaitAsync。
     /// </summary>
     public SemaphoreSlim NodeCompletedSignal { get; } = new(0, int.MaxValue);
-    /// <summary>节点重试计数（按节点 ID 索引）</summary>
-    public ConcurrentDictionary<string, int> RetryCount { get; } = new(StringComparer.Ordinal);
-    /// <summary>已完成节点集合</summary>
-    public ConcurrentDictionary<string, byte> CompletedNodes { get; } = new(StringComparer.Ordinal);
-    /// <summary>失败节点集合</summary>
-    public ConcurrentDictionary<string, byte> FailedNodes { get; } = new(StringComparer.Ordinal);
+    /// <summary>节点执行状态（按节点 ID 索引，合并重试计数与完成/失败标记）</summary>
+    public ConcurrentDictionary<string, NodeExecutionState> NodeStates { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>判断节点是否已完成</summary>
+    public bool IsNodeCompleted(string nodeId) =>
+        NodeStates.TryGetValue(nodeId, out var state) && state.Status == NodeStatus.Completed;
+
+    /// <summary>判断节点是否已失败</summary>
+    public bool IsNodeFailed(string nodeId) =>
+        NodeStates.TryGetValue(nodeId, out var state) && state.Status == NodeStatus.Failed;
+
+    /// <summary>判断节点是否已结束（完成或失败）</summary>
+    public bool IsNodeFinished(string nodeId) =>
+        NodeStates.TryGetValue(nodeId, out var state) && state.Status is NodeStatus.Completed or NodeStatus.Failed;
+
+    /// <summary>获取节点重试次数（不存在返回 0）</summary>
+    public int GetRetryCount(string nodeId) =>
+        NodeStates.TryGetValue(nodeId, out var state) ? state.RetryCount : 0;
+
+    /// <summary>已完成节点数量</summary>
+    public int CompletedCount => NodeStates.Count(static kvp => kvp.Value.Status == NodeStatus.Completed);
+
+    /// <summary>失败节点数量</summary>
+    public int FailedCount => NodeStates.Count(static kvp => kvp.Value.Status == NodeStatus.Failed);
+
+    /// <summary>标记节点完成（保留已有重试计数）</summary>
+    public void MarkNodeCompleted(string nodeId)
+    {
+        NodeStates.AddOrUpdate(nodeId,
+            new NodeExecutionState { Status = NodeStatus.Completed },
+            (_, existing) => existing with { Status = NodeStatus.Completed });
+    }
+
+    /// <summary>标记节点失败（保留已有重试计数）</summary>
+    public void MarkNodeFailed(string nodeId)
+    {
+        NodeStates.AddOrUpdate(nodeId,
+            new NodeExecutionState { Status = NodeStatus.Failed },
+            (_, existing) => existing with { Status = NodeStatus.Failed });
+    }
+
+    /// <summary>重置节点状态（移除记录，回到初始）</summary>
+    public void ResetNodeState(string nodeId)
+    {
+        NodeStates.TryRemove(nodeId, out _);
+    }
+
+    /// <summary>设置节点重试次数（状态置为 Pending）</summary>
+    public void SetRetryCount(string nodeId, int count)
+    {
+        NodeStates[nodeId] = new NodeExecutionState { Status = NodeStatus.Pending, RetryCount = count };
+    }
 
     /// <summary>
     /// 全局循环迭代计数（负向评价-修复循环）
@@ -71,7 +144,7 @@ public sealed class GraphExecutionContext
             if (edge.Label.Length > 0)
                 continue;
 
-            if (!CompletedNodes.ContainsKey(edge.FromId) && !FailedNodes.ContainsKey(edge.FromId))
+            if (!IsNodeFinished(edge.FromId))
                 return false;
         }
 
@@ -95,7 +168,7 @@ public sealed class GraphExecutionContext
                 continue;
             if (edge.Label.Length > 0)
                 continue;
-            if (CompletedNodes.ContainsKey(edge.FromId) || FailedNodes.ContainsKey(edge.FromId))
+            if (IsNodeFinished(edge.FromId))
                 count++;
         }
 
@@ -119,7 +192,7 @@ public sealed class GraphExecutionContext
                 continue;
             if (edge.Label.Length > 0)
                 continue;
-            if (CompletedNodes.ContainsKey(edge.FromId))
+            if (IsNodeCompleted(edge.FromId))
                 count++;
         }
 

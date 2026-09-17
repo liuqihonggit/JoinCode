@@ -22,6 +22,7 @@ global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.Utils;
 global using Core.Goal;
+global using Core.Hosting;
 global using JoinCode.Clock.DependencyInjection;
 global using Core.Scheduling.Cron;
 global using Core.Utils;

@@ -1,6 +1,17 @@
 namespace Core.Utils;
 
 /// <summary>
+/// Agent 邮箱条目 — 合并 Agent 的 Channel 与 SessionId 为单一数据结构，按 agentId 索引。
+/// <para>消除 <c>MailboxBase</c> 中两个并行字典（<c>_agentChannels</c> + <c>_agentSessions</c>）的同步开销与一致性风险。</para>
+/// </summary>
+/// <typeparam name="TMessage">消息类型</typeparam>
+/// <param name="Channel">Agent 的有界消息通道。</param>
+/// <param name="SessionId">可选会话 ID（跨进程邮箱用于路由），null 表示未关联会话。</param>
+public sealed record AgentMailboxEntry<TMessage>(
+    Channel<TMessage> Channel,
+    string? SessionId = null);
+
+/// <summary>
 /// 邮箱命令基类 — 由 MailboxBase 的 Consumer 线程串行处理，路由表无需锁。
 /// </summary>
 /// <typeparam name="TMessage">消息类型</typeparam>
@@ -50,8 +61,7 @@ public sealed record AgentUnregisteredEvt<TMessage>(string AgentId) : MailboxEvt
 /// <typeparam name="TMessage">消息类型 — 建议用 sealed class 或 record</typeparam>
 public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, MailboxEvt<TMessage>>
 {
-    private readonly ConcurrentDictionary<string, Channel<TMessage>> _agentChannels;
-    private readonly ConcurrentDictionary<string, string> _agentSessions;
+    private readonly ConcurrentDictionary<string, AgentMailboxEntry<TMessage>> _agentMailboxes;
     private readonly ActorBackpressure _agentBackpressure;
 
     /// <summary>
@@ -66,8 +76,7 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
         int? outputCapacity = null)
         : base(commandBackpressure, outputCapacity)
     {
-        _agentChannels = new ConcurrentDictionary<string, Channel<TMessage>>();
-        _agentSessions = new ConcurrentDictionary<string, string>();
+        _agentMailboxes = new ConcurrentDictionary<string, AgentMailboxEntry<TMessage>>();
         _agentBackpressure = agentBackpressure ?? DefaultAgentBackpressure;
     }
 
@@ -125,36 +134,36 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <returns>消息异步枚举流</returns>
     public IAsyncEnumerable<TMessage> ReceiveAsync(string agentId, CancellationToken ct = default)
     {
-        if (_agentChannels.TryGetValue(agentId, out var channel))
+        if (_agentMailboxes.TryGetValue(agentId, out var entry))
         {
-            return channel.Reader.ReadAllAsync(ct);
+            return entry.Channel.Reader.ReadAllAsync(ct);
         }
         return AsyncEnumerable.Empty<TMessage>();
     }
 
     /// <summary>获取所有已注册 Agent 标识 — 零拷贝键视图。</summary>
-    public IEnumerable<string> GetRegisteredAgents() => _agentChannels.Keys;
+    public IEnumerable<string> GetRegisteredAgents() => _agentMailboxes.Keys;
 
     /// <summary>获取指定 Agent 关联的会话 ID。</summary>
     /// <param name="agentId">Agent 标识</param>
     /// <returns>会话 ID；未关联时返回 null</returns>
-    public string? GetSessionId(string agentId) => _agentSessions.GetValueOrDefault(agentId);
+    public string? GetSessionId(string agentId) => _agentMailboxes.GetValueOrDefault(agentId)?.SessionId;
 
     /// <summary>获取指定 Agent 通道的当前消息数（无界通道返回 0）。</summary>
     public int GetAgentMessageCount(string agentId)
-        => _agentChannels.TryGetValue(agentId, out var ch) && ch.Reader.CanCount ? ch.Reader.Count : 0;
+        => _agentMailboxes.TryGetValue(agentId, out var e) && e.Channel.Reader.CanCount ? e.Channel.Reader.Count : 0;
 
     /// <summary>指定 Agent 是否达到高水位线（生产方应限速）。</summary>
     public bool IsAgentHighWatermark(string agentId)
-        => _agentChannels.TryGetValue(agentId, out var ch)
-           && ch.Reader.CanCount
-           && ch.Reader.Count >= _agentBackpressure.EffectiveHighWatermark;
+        => _agentMailboxes.TryGetValue(agentId, out var e)
+           && e.Channel.Reader.CanCount
+           && e.Channel.Reader.Count >= _agentBackpressure.EffectiveHighWatermark;
 
     /// <summary>指定 Agent 是否达到危险水位线（即将满）。</summary>
     public bool IsAgentCriticalWatermark(string agentId)
-        => _agentChannels.TryGetValue(agentId, out var ch)
-           && ch.Reader.CanCount
-           && ch.Reader.Count >= _agentBackpressure.EffectiveCriticalWatermark;
+        => _agentMailboxes.TryGetValue(agentId, out var e)
+           && e.Channel.Reader.CanCount
+           && e.Channel.Reader.Count >= _agentBackpressure.EffectiveCriticalWatermark;
 
     /// <summary>Agent 通道背压配置 — 子类和外部可读取用于监控。</summary>
     public ActorBackpressure AgentBackpressure => _agentBackpressure;
@@ -207,7 +216,7 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <param name="ct">取消令牌</param>
     protected virtual ValueTask HandleBroadcastAsync(TMessage message, string? excludeAgentId, CancellationToken ct)
     {
-        foreach (var kvp in _agentChannels)
+        foreach (var kvp in _agentMailboxes)
         {
             if (kvp.Key != excludeAgentId)
             {
@@ -225,22 +234,22 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// <param name="message">消息</param>
     protected void DeliverToAgent(string agentId, TMessage message)
     {
-        if (_agentChannels.TryGetValue(agentId, out var channel))
+        if (_agentMailboxes.TryGetValue(agentId, out var entry))
         {
-            if (channel.Writer.TryWrite(message))
+            if (entry.Channel.Writer.TryWrite(message))
             {
-                CheckAgentWatermark(agentId, channel);
+                CheckAgentWatermark(agentId, entry.Channel);
             }
         }
     }
 
     /// <summary>获取或创建 Agent Channel — 子类可用于直接访问通道。</summary>
     protected Channel<TMessage>? GetAgentChannel(string agentId)
-        => _agentChannels.GetValueOrDefault(agentId);
+        => _agentMailboxes.GetValueOrDefault(agentId)?.Channel;
 
     private void HandleRegisterAgent(string agentId, string? sessionId)
     {
-        if (_agentChannels.ContainsKey(agentId)) return;
+        if (_agentMailboxes.ContainsKey(agentId)) return;
 
         var channel = Channel.CreateBounded<TMessage>(new BoundedChannelOptions(_agentBackpressure.Capacity)
         {
@@ -249,24 +258,18 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
             SingleWriter = false
         });
 
-        _agentChannels[agentId] = channel;
-
-        if (sessionId is not null)
-        {
-            _agentSessions[agentId] = sessionId;
-        }
+        _agentMailboxes[agentId] = new AgentMailboxEntry<TMessage>(channel, sessionId);
 
         TryPublish(new AgentRegisteredEvt<TMessage>(agentId));
     }
 
     private void HandleUnregisterAgent(string agentId)
     {
-        if (_agentChannels.TryRemove(agentId, out var channel))
+        if (_agentMailboxes.TryRemove(agentId, out var entry))
         {
-            channel.Writer.TryComplete();
+            entry.Channel.Writer.TryComplete();
             TryPublish(new AgentUnregisteredEvt<TMessage>(agentId));
         }
-        _agentSessions.TryRemove(agentId, out _);
     }
 
     private void CheckAgentWatermark(string agentId, Channel<TMessage> channel)
@@ -287,12 +290,11 @@ public abstract class MailboxBase<TMessage> : ActorBase<MailboxCmd<TMessage>, Ma
     /// </summary>
     public override ValueTask DisposeAsync()
     {
-        foreach (var channel in _agentChannels.Values)
+        foreach (var entry in _agentMailboxes.Values)
         {
-            channel.Writer.TryComplete();
+            entry.Channel.Writer.TryComplete();
         }
-        _agentChannels.Clear();
-        _agentSessions.Clear();
+        _agentMailboxes.Clear();
         return base.DisposeAsync();
     }
 }

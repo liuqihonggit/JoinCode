@@ -184,7 +184,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         if (payload.Status == GoalNodeStatus.Failed)
         {
-            context.FailedNodes.TryAdd(nodeId, default);
+            context.MarkNodeFailed(nodeId);
 
             var failureOutcome = _retryHandler.CheckFailureRateTermination(context);
             if (failureOutcome is not null)
@@ -196,7 +196,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
                     continue;
                 if (edge.Label.Length > 0)
                     continue;
-                if (!context.CompletedNodes.ContainsKey(edge.ToId) && !context.FailedNodes.ContainsKey(edge.ToId))
+                if (!context.IsNodeFinished(edge.ToId))
                 {
                     context.ReadyQueue.Enqueue(edge.ToId);
                 }
@@ -208,7 +208,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
             return NodeCompletionOutcome.Continue;
         }
 
-        context.CompletedNodes.TryAdd(nodeId, default);
+        context.MarkNodeCompleted(nodeId);
 
         var postCtx = new NodePostCompletionContext
         {
@@ -229,7 +229,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         var nextIds = context.GetNextNodeIds(nodeId, payload.Routes, payload.RouteMatchMode);
         foreach (var nextId in nextIds)
         {
-            if (context.CompletedNodes.ContainsKey(nextId))
+            if (context.IsNodeCompleted(nextId))
             {
                 await _retryHandler.HandleRetryAsync(nextId, context, ct).ConfigureAwait(false);
             }
@@ -241,7 +241,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
 
         if (graph.IsEndNode(nodeId) && payload.Status == GoalNodeStatus.Completed)
         {
-            var allEndsDone = graph.EndNodeIds.All(end => context.CompletedNodes.ContainsKey(end) || end == nodeId);
+            var allEndsDone = graph.EndNodeIds.All(end => context.IsNodeCompleted(end) || end == nodeId);
             if (allEndsDone)
                 return NodeCompletionOutcome.GoalAchieved;
         }

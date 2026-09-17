@@ -394,6 +394,12 @@ function Test-SlashCommands {
         $JccDll = $using:dllPath
         $TimeoutSec = $using:timeout
 
+        if ($cmd -eq "help") {
+            $envProf = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+            $settingsPath = Join-Path $envProf ".jcc\settings.json"
+            Write-Host "[DEBUG-PARALLEL] cmd=$cmd USERPROFILE=$envProf settingsPath=$settingsPath exists=$(Test-Path $settingsPath) HOME=$HOME"
+        }
+
         $schemaResult = Invoke-Jcc -CmdArgs @("slash_schema", $cmd, "--json")
         $schema = Extract-Json -Text $schemaResult.stdout
 

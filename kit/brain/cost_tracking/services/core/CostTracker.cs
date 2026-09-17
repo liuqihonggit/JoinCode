@@ -13,13 +13,10 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     private readonly ILogger<CostTracker>? _logger;
     private readonly IFileOperationService _fileOperationService;
     private readonly ITelemetryService? _telemetryService;
-    private readonly AsyncLock _budgetLock = new();
     private readonly ModelPricingTable _pricingTable;
     private readonly CostSessionStats _stats;
+    private readonly BudgetGuard _budget;
     private CancellationTokenSource? _disposeCts = new();
-
-    private BudgetConfig? _budgetConfig;
-    private readonly HashSet<double> _triggeredThresholds = [];
 
     /// <summary>
     /// 构造成本跟踪器实例 — 加载默认模型定价并异步加载历史用量记录
@@ -36,20 +33,19 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         _storagePath = storagePath ?? AppDataConstants.Paths.CostTrackingFilePath;
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
-        _budgetConfig = budgetConfig;
         _telemetryService = telemetryService;
+        _budget = new BudgetGuard(logger, budgetConfig);
         _stats = new CostSessionStats(clock ?? SystemClockService.Instance);
         _pricingTable = new ModelPricingTable(modelConfigLoader ?? new ModelConfigLoader());
         _modelCosts = new ConcurrentDictionary<string, ModelCostInfo>(StringComparer.OrdinalIgnoreCase);
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
         _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
 
-
-        if (_budgetConfig != null)
+        if (budgetConfig != null)
         {
-            _budgetConfig.ValidateOrThrow();
+            budgetConfig.ValidateOrThrow();
             _logger?.LogInformation("[CostTracker] 预算管理已启用 - 日限额: ${Daily}, 月限额: ${Monthly}, 总限额: ${Total}",
-                _budgetConfig.DailyLimit, _budgetConfig.MonthlyLimit, _budgetConfig.TotalLimit);
+                budgetConfig.DailyLimit, budgetConfig.MonthlyLimit, budgetConfig.TotalLimit);
         }
 
         LoadDefaultModelCosts();
@@ -60,10 +56,12 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         }
     }
 
-    /// <summary>
-    /// 成本告警触发事件 — 当预算使用率超过阈值时触发
-    /// </summary>
-    public event EventHandler<CostAlertEventArgs>? CostAlertTriggered;
+    /// <summary>成本告警触发事件 — 委托到 BudgetGuard</summary>
+    public event EventHandler<CostAlertEventArgs>? CostAlertTriggered
+    {
+        add => _budget.CostAlertTriggered += value;
+        remove => _budget.CostAlertTriggered -= value;
+    }
 
     /// <summary>
     /// 记录 Token 用量（不含缓存 Token）
@@ -143,9 +141,9 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             _ = Task.Run(() => SaveUsageHistoryAsync(cts.Token)).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
         }
 
-        if (_budgetConfig?.Enabled == true && cts is not null)
+        if (_budget.IsEnabled && cts is not null)
         {
-            _ = CheckBudgetAlertAsync(cts.Token).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
+            _ = _budget.CheckAlertsAsync(GetCostSnapshot, cts.Token).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
         }
     }
 
@@ -248,45 +246,13 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// 判断是否超出预算限制
     /// </summary>
     /// <returns>若预算管理启用且超出日或月预算则返回 true，否则返回 false</returns>
-    public bool IsBudgetExceeded()
-    {
-        if (_budgetConfig?.Enabled != true)
-        {
-            return false;
-        }
-
-        var status = GetBudgetStatus();
-        return status.IsAnyBudgetExceeded();
-    }
+    public bool IsBudgetExceeded() => _budget.IsExceeded(GetCostSnapshot);
 
     /// <summary>
     /// 获取当前预算状态 — 包含日、月已用金额与限额
     /// </summary>
     /// <returns>预算状态实例</returns>
-    public BudgetStatus GetBudgetStatus()
-    {
-        if (_budgetConfig == null)
-        {
-            return new BudgetStatus
-            {
-                DailyUsed = 0,
-                DailyLimit = 0,
-                MonthlyUsed = 0,
-                MonthlyLimit = 0
-            };
-        }
-
-        var dailyCost = CalculateDailyCost();
-        var monthlyCost = CalculateMonthlyCost();
-
-        return new BudgetStatus
-        {
-            DailyUsed = dailyCost,
-            DailyLimit = _budgetConfig.DailyLimit,
-            MonthlyUsed = monthlyCost,
-            MonthlyLimit = _budgetConfig.MonthlyLimit
-        };
-    }
+    public BudgetStatus GetBudgetStatus() => _budget.GetStatus(GetCostSnapshot);
 
     /// <summary>
     /// 异步更新预算配置 — 加锁保护，重置已触发阈值集合
@@ -294,75 +260,9 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="config">新的预算配置</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task SetBudgetAsync(BudgetConfig config, CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(config);
-        config.ValidateOrThrow();
+    public Task SetBudgetAsync(BudgetConfig config, CancellationToken ct = default) => _budget.SetAsync(config, ct);
 
-        using var guard = await _budgetLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_budgetLock.Name}' 等待超时");
-
-        _budgetConfig = config;
-        _triggeredThresholds.Clear();
-    
-
-        _logger?.LogInformation("[CostTracker] 预算配置已更新 - 日限额: ${Daily}, 月限额: ${Monthly}, 总限额: ${Total}",
-            config.DailyLimit, config.MonthlyLimit, config.TotalLimit);
-    }
-
-    private async Task CheckBudgetAlertAsync(CancellationToken ct = default)
-    {
-        if (_budgetConfig?.Enabled != true || _budgetConfig.AlertThresholds.Count == 0)
-        {
-            return;
-        }
-
-        using var guard = await _budgetLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_budgetLock.Name}' 等待超时");
-
-        var dailyCost = CalculateDailyCost();
-        var monthlyCost = CalculateMonthlyCost();
-        var totalCost = _usageRecords.Sum(r => r.CostUsd);
-
-        CheckThresholdAlert(dailyCost, _budgetConfig.DailyLimit, BudgetType.Daily);
-        CheckThresholdAlert(monthlyCost, _budgetConfig.MonthlyLimit, BudgetType.Monthly);
-        CheckThresholdAlert(totalCost, _budgetConfig.TotalLimit, BudgetType.Total);
-    
-    }
-
-    private void CheckThresholdAlert(decimal currentCost, decimal budgetLimit, BudgetType budgetType)
-    {
-        if (budgetLimit <= 0)
-        {
-            return;
-        }
-
-        var budgetConfig = _budgetConfig ?? throw new InvalidOperationException("BudgetConfig not available.");
-        var percentageUsed = (double)(currentCost / budgetLimit);
-
-        foreach (var threshold in budgetConfig.AlertThresholds)
-        {
-            if (percentageUsed >= threshold && !_triggeredThresholds.Contains(threshold))
-            {
-                _triggeredThresholds.Add(threshold);
-
-                var level = threshold switch
-                {
-                    >= 1.0 => CostAlertLevel.Critical,
-                    >= 0.8 => CostAlertLevel.Warning,
-                    _ => CostAlertLevel.Info
-                };
-
-                var message = $"{budgetType}预算告警: 已使用 {percentageUsed:P1} (限额: ${budgetLimit:F2})";
-
-                var alert = CostAlert.Create(level, message, currentCost, budgetLimit);
-                var args = CostAlertEventArgs.Create(alert);
-
-                _logger?.LogWarning("[CostTracker] {Message}", message);
-                CostAlertTriggered?.Invoke(this, args);
-
-                break;
-            }
-        }
-    }
+    private CostSnapshot GetCostSnapshot() => new(CalculateDailyCost(), CalculateMonthlyCost(), _usageRecords.Sum(r => r.CostUsd));
 
     private decimal CalculateDailyCost()
     {
@@ -554,7 +454,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     {
         while (_usageRecords.TryTake(out _)) { }
         _sessionIndex.Clear();
-        _triggeredThresholds.Clear();
+        _budget.Reset();
         _stats.Reset();
         _logger?.LogInformation("[CostTracker] 用量记录已重置");
     }
@@ -569,7 +469,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         if (cts is not null)
         {
             cts.Cancel();
-            _budgetLock.Dispose();
+            _budget.Dispose();
             cts.Dispose();
         }
 

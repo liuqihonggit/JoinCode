@@ -9,8 +9,7 @@ namespace Services.Build;
 public sealed class BuildQueueRouter : IBuildQueueService
 {
     private readonly BuildQueueRouterActor _router;
-    private readonly ConcurrentDictionary<string, BuildQueueEntry> _entries = new();
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<BuildQueueResult>> _waitHandles = new();
+    private readonly BuildQueueEntryStore _store = new();
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancelSources = new();
     private readonly ILogger<BuildQueueRouter>? _logger;
     private int _buildCounter;
@@ -58,13 +57,11 @@ public sealed class BuildQueueRouter : IBuildQueueService
             BuildId = $"b-{Interlocked.Increment(ref _buildCounter):D4}",
             Request = request,
             Status = BuildQueueEntryStatus.Queued,
-            QueuePosition = _entries.Count
+            QueuePosition = _store.Count
         };
 
-        _entries[entry.BuildId] = entry;
-
         var tcs = new TaskCompletionSource<BuildQueueResult>();
-        _waitHandles[entry.BuildId] = tcs;
+        _store.Add(entry.BuildId, entry, tcs);
 
         var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _cancelSources[entry.BuildId] = cts;
@@ -81,7 +78,7 @@ public sealed class BuildQueueRouter : IBuildQueueService
         }
         catch
         {
-            _waitHandles.TryRemove(entry.BuildId, out var failedTcs);
+            _store.TryRemoveTcs(entry.BuildId, out var failedTcs);
             failedTcs?.TrySetCanceled();
             _cancelSources.TryRemove(entry.BuildId, out var failedCts);
             failedCts?.Dispose();
@@ -97,7 +94,7 @@ public sealed class BuildQueueRouter : IBuildQueueService
     /// <inheritdoc />
     public Task<BuildQueueResult> WaitAsync(string buildId, CancellationToken ct)
     {
-        if (!_waitHandles.TryGetValue(buildId, out var tcs))
+        if (!_store.TryGetTcs(buildId, out var tcs))
             throw new InvalidOperationException($"Build {buildId} not found");
         return tcs.Task;
     }
@@ -105,7 +102,7 @@ public sealed class BuildQueueRouter : IBuildQueueService
     /// <inheritdoc />
     public Task<bool> CancelAsync(string buildId, CancellationToken ct)
     {
-        if (!_entries.TryGetValue(buildId, out var entry))
+        if (!_store.TryGetEntry(buildId, out var entry))
             return Task.FromResult(false);
 
         switch (entry.Status)
@@ -132,15 +129,15 @@ public sealed class BuildQueueRouter : IBuildQueueService
     /// <inheritdoc />
     public BuildQueueEntry? GetBuild(string buildId)
     {
-        return _entries.TryGetValue(buildId, out var entry) ? entry : null;
+        return _store.TryGetEntry(buildId, out var entry) ? entry : null;
     }
 
     /// <inheritdoc />
     public BuildQueueStatus GetStatus()
     {
-        var pendingCount = _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Queued);
-        var buildingCount = _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Building);
-        var currentBuild = _entries.Values.FirstOrDefault(e => e.Status == BuildQueueEntryStatus.Building);
+        var pendingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued);
+        var buildingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Building);
+        var currentBuild = _store.Entries.FirstOrDefault(e => e.Status == BuildQueueEntryStatus.Building);
 
         return new BuildQueueStatus
         {
@@ -148,7 +145,7 @@ public sealed class BuildQueueRouter : IBuildQueueService
             IsBuilding = buildingCount > 0,
             CurrentBuildId = currentBuild?.BuildId,
             CurrentBuildAgentId = currentBuild?.Request.AgentId,
-            RecentBuilds = _entries.Values
+            RecentBuilds = _store.Entries
                 .OrderByDescending(e => e.Request.SubmittedAt)
                 .Take(10)
                 .ToList()
@@ -164,7 +161,7 @@ public sealed class BuildQueueRouter : IBuildQueueService
     /// <inheritdoc />
     public string GetOutputRange(string buildId, int startLine, int endLine)
     {
-        var entry = _entries.TryGetValue(buildId, out var e) ? e : null;
+        var entry = _store.TryGetEntry(buildId, out var e) ? e : null;
         if (entry?.Result is null)
             return $"Build {buildId} not found or has no result";
 
@@ -202,7 +199,7 @@ public sealed class BuildQueueRouter : IBuildQueueService
         };
         entry.Result = result;
 
-        _waitHandles.TryGetValue(buildId, out var tcs);
+        _store.TryGetTcs(buildId, out var tcs);
         tcs?.TrySetResult(result);
     }
 
@@ -222,8 +219,7 @@ public sealed class BuildQueueRouter : IBuildQueueService
 
         await _router.DisposeAsync().ConfigureAwait(false);
 
-        foreach (var tcs in _waitHandles.Values)
-            tcs.TrySetCanceled();
+        _store.CancelAll();
 
         foreach (var cts in _cancelSources.Values)
             cts.Dispose();

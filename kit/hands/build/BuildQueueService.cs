@@ -13,8 +13,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     private readonly ILogger<BuildQueueService>? _logger;
 
     private readonly Channel<BuildQueueEntry> _queue = Channel.CreateUnbounded<BuildQueueEntry>();
-    private readonly ConcurrentDictionary<string, BuildQueueEntry> _entries = new();
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<BuildQueueResult>> _waitHandles = new();
+    private readonly BuildQueueEntryStore _store = new();
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly Task _processingTask;
 
@@ -75,11 +74,10 @@ public sealed partial class BuildQueueService : IBuildQueueService
             BuildId = $"b-{Interlocked.Increment(ref _buildCounter):D4}",
             Request = request,
             Status = BuildQueueEntryStatus.Queued,
-            QueuePosition = _entries.Count
+            QueuePosition = _store.Count
         };
 
-        _entries[newEntry.BuildId] = newEntry;
-        _waitHandles[newEntry.BuildId] = new TaskCompletionSource<BuildQueueResult>();
+        _store.Add(newEntry.BuildId, newEntry, new TaskCompletionSource<BuildQueueResult>());
         _queue.Writer.TryWrite(newEntry);
 
         _logger?.LogInformation("Build submitted: {BuildId}, command: {Command}", newEntry.BuildId, request.Command);
@@ -90,7 +88,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     /// <inheritdoc />
     public Task<BuildQueueResult> WaitAsync(string buildId, CancellationToken ct)
     {
-        if (!_waitHandles.TryGetValue(buildId, out var tcs))
+        if (!_store.TryGetTcs(buildId, out var tcs))
             throw new InvalidOperationException($"Build {buildId} not found");
 
         return tcs.Task;
@@ -99,7 +97,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     /// <inheritdoc />
     public Task<bool> CancelAsync(string buildId, CancellationToken ct)
     {
-        if (!_entries.TryGetValue(buildId, out var entry))
+        if (!_store.TryGetEntry(buildId, out var entry))
             return Task.FromResult(false);
 
         switch (entry.Status)
@@ -125,13 +123,13 @@ public sealed partial class BuildQueueService : IBuildQueueService
     /// <inheritdoc />
     public BuildQueueEntry? GetBuild(string buildId)
     {
-        return _entries.TryGetValue(buildId, out var entry) ? entry : null;
+        return _store.TryGetEntry(buildId, out var entry) ? entry : null;
     }
 
     /// <inheritdoc />
     public BuildQueueStatus GetStatus()
     {
-        var pendingCount = _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Queued);
+        var pendingCount = _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued);
         var isBuilding = _currentBuild is not null && _currentBuild.Status == BuildQueueEntryStatus.Building;
 
         return new BuildQueueStatus
@@ -140,7 +138,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
             IsBuilding = isBuilding,
             CurrentBuildId = _currentBuild?.BuildId,
             CurrentBuildAgentId = _currentBuild?.Request.AgentId,
-            RecentBuilds = _entries.Values
+            RecentBuilds = _store.Entries
                 .OrderByDescending(e => e.Request.SubmittedAt)
                 .Take(10)
                 .ToList()
@@ -157,7 +155,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
     /// <inheritdoc />
     public string GetOutputRange(string buildId, int startLine, int endLine)
     {
-        var entry = _entries.TryGetValue(buildId, out var e) ? e : null;
+        var entry = _store.TryGetEntry(buildId, out var e) ? e : null;
         if (entry?.Result is null)
             return $"Build {buildId} not found or has no result";
 
@@ -189,9 +187,9 @@ public sealed partial class BuildQueueService : IBuildQueueService
             Result = result with { BuildId = buildId },
             CompletedAt = DateTimeOffset.UtcNow,
         };
-        _entries[buildId] = entry;
-        _waitHandles[buildId] = new TaskCompletionSource<BuildQueueResult>();
-        _waitHandles[buildId].TrySetResult(entry.Result ?? throw new InvalidOperationException("Build result not set."));
+        var tcs = new TaskCompletionSource<BuildQueueResult>();
+        tcs.TrySetResult(result with { BuildId = buildId });
+        _store.Add(buildId, entry, tcs);
         return buildId;
     }
 
@@ -206,7 +204,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
             entry.StartedAt = DateTimeOffset.UtcNow;
 
             _logger?.LogInformation("Build {BuildId} started (checkpoint): queuePos={QueuePos}, pending={Pending}",
-                entry.BuildId, entry.QueuePosition, _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Queued));
+                entry.BuildId, entry.QueuePosition, _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued));
 
             var waitStart = DateTimeOffset.UtcNow;
 
@@ -225,7 +223,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
                 var bufferKey = BuildResultBuffer.BuildBufferKey(entry.Request.Command, entry.Request.WorkingDirectory);
                 _resultBuffer.Add(bufferKey, result, entry.Request.WorkingDirectory);
 
-                _waitHandles.TryGetValue(entry.BuildId, out var tcs);
+                _store.TryGetTcs(entry.BuildId, out var tcs);
                 tcs?.TrySetResult(result);
 
                 _logger?.LogInformation("Build {BuildId} completed: {Status}, exit={ExitCode}",
@@ -255,7 +253,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
                 };
                 entry.Result = failResult;
 
-                _waitHandles.TryGetValue(entry.BuildId, out var tcs);
+                _store.TryGetTcs(entry.BuildId, out var tcs);
                 tcs?.TrySetResult(failResult);
 
                 _logger?.LogError(ex, "Build {BuildId} failed with exception", entry.BuildId);
@@ -267,7 +265,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
                 _currentBuildCts = null;
 
                 _logger?.LogDebug("Build {BuildId} checkpoint: status={Status}, remaining={Remaining}",
-                    entry.BuildId, entry.Status, _entries.Values.Count(e => e.Status == BuildQueueEntryStatus.Queued));
+                    entry.BuildId, entry.Status, _store.Entries.Count(e => e.Status == BuildQueueEntryStatus.Queued));
             }
         }
     }
@@ -361,7 +359,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
         };
         entry.Result = result;
 
-        _waitHandles.TryGetValue(buildId, out var tcs);
+        _store.TryGetTcs(buildId, out var tcs);
         tcs?.TrySetResult(result);
     }
 
@@ -383,8 +381,7 @@ public sealed partial class BuildQueueService : IBuildQueueService
         }
         catch (OperationCanceledException) { }
 
-        foreach (var tcs in _waitHandles.Values)
-            tcs.TrySetCanceled();
+        _store.CancelAll();
 
         _shutdownCts.Dispose();
         _currentBuildCts?.Dispose();

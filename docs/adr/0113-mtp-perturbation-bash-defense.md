@@ -59,6 +59,31 @@ ShellCommandInterceptionMiddleware
 | 3 | MTP 扰动检测器（MtpPerturbationNode + PostToolUse 审计中间件） | ✅ |
 | 4 | 严格解析检测（StrictParseNode）+ 分位置 AC 匹配修复 | ✅ |
 
+### 手动验证记录（ADR 0080 格式，2026-09-17）
+
+> exe 路径：`artifacts/bin/JoinCode/Debug/net10.0/jcc.exe`（全量 `--no-incremental` 构建，时间戳 22:21）
+> 调用方式：`jcc.exe mcp_call bash '{"command":"...","working_directory":"D:\\project\\w2"}'`
+> 工作目录：`D:\project\w2`
+
+| # | 场景 | 命令 | 预期 | 实际 | 结果 |
+|---|------|------|------|------|------|
+| 1 | 保留设备名 `>nul` | `echo test >nul` | JCC9005 拦截 | JCC9005 拦截 + 封死替代路径 | ✅ |
+| 2 | 未闭合双引号 | `echo "hello world` | JCC9010 拦截 | JCC9010 拦截 + MTP 提示 | ✅ |
+| 3 | 重定向到 `/etc/passwd` | `echo test > /etc/passwd` | JCC9009 拦截 | JCC9009 拦截 + 规范化路径展示 | ✅ |
+| 4 | 重定向到 `/dev/null` | `echo test >/dev/null` | 通过 exit 0 | exit 0, 329ms | ✅ |
+| 5 | 引号内危险子串 | `echo "rm -rf /"` | 通过（不误杀） | exit 0, 输出 `rm -rf /` | ✅ |
+| 6 | 简单 echo | `echo hello` | 通过 exit 0 | exit 0, 输出 `hello` | ✅ |
+| 7 | 大写 `>NUL` | `echo test >NUL` | JCC9005 拦截 | JCC9005 拦截 | ✅ |
+| 8 | 保留设备名 `>con` | `echo test >con` | JCC9005 拦截 | JCC9005 拦截 | ✅ |
+| 9 | 工作区内重定向 | `echo test > ./tmp_output.txt` | 通过 exit 0 | exit 0, 309ms | ✅ |
+| 10 | 未闭合单引号 | `echo 'hello world` | JCC9010 拦截 | JCC9010 拦截 | ✅ |
+| 11 | 嵌套引号 | `echo "it's a test"` | 通过 exit 0 | exit 0, 输出 `it's a test` | ✅ |
+| 12 | 父目录重定向 | `echo test > ../outside.txt` | JCC9009 拦截 | JCC9009 拦截 + 规范化 `D:\project\outside.txt` | ✅ |
+
+**12/12 通过**。覆盖：保留设备名（3 变体）、未闭合引号（单/双）、重定向白名单（工作区内/外/父目录/`/dev/null`）、AC 分位置不误杀、嵌套引号正常通过。
+
+测试产物 `tmp_output.txt` 已归档到 `.xxx/tmp_output.txt.20260917.del`。
+
 ## 替代方案
 
 1. **关掉 MTP** — 放弃推理吞吐，不可行。MTP 是供应商侧优化，Agent 无法控制

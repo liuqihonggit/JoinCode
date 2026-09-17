@@ -2,6 +2,7 @@ global using JoinCode.Abstractions.Entity;
 global using System.Security.Cryptography;
 global using JoinCode.Abstractions.Attributes;
 global using Core.Hooks.Execution.Interception;
+global using Core.Hooks.Execution.Interception.Defense;
 global using JoinCode.Abstractions.Shell;
 global using JoinCode.Hands.DependencyInjection;
 global using JoinCode.Abstractions.Clock;

@@ -18,18 +18,22 @@ namespace Tools.Shell;
 public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, IShellMiddleware
 {
     private readonly CommandInterceptionDispatcher _dispatcher;
+    private readonly BashDefenseService _bashDefenseService;
     private readonly ILogger<ShellCommandInterceptionMiddleware>? _logger;
 
     /// <summary>
     /// 构造命令拦截中间件
     /// </summary>
     /// <param name="dispatcher">命令拦截调度器</param>
+    /// <param name="bashDefenseService">Bash 防御服务（MTP 扰动纵深防御链）</param>
     /// <param name="logger">日志器(可选)</param>
     public ShellCommandInterceptionMiddleware(
         CommandInterceptionDispatcher dispatcher,
+        BashDefenseService bashDefenseService,
         ILogger<ShellCommandInterceptionMiddleware>? logger = null)
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _bashDefenseService = bashDefenseService ?? throw new ArgumentNullException(nameof(bashDefenseService));
         _logger = logger;
     }
 
@@ -68,6 +72,34 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
             context.Command = outcome.FinalCommand;
         }
 
+        var defenseRejection = await EvaluateBashDefenseAsync(context, ct).ConfigureAwait(false);
+        if (defenseRejection is not null)
+        {
+            _logger?.LogInformation("命令被 BashDefense 链拒绝: {Command}", context.Command);
+            context.Result = defenseRejection;
+            return;
+        }
+
         await next(context, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 执行 BashDefense 链 — MTP 扰动纵深防御（重定向白名单 + 保留设备名检测）。
+    /// <para>
+    /// 在 CommandInterceptionDispatcher 之后执行，补充 Dispatcher 未覆盖的 MTP 扰动防御。
+    /// 当前组装：CheckRetainedDevice + CheckRedirectWhitelist。
+    /// RequireArgvHash 需要确认模式支持，后续从配置读取 ConfirmMode 后接入。
+    /// </para>
+    /// </summary>
+    private async ValueTask<ToolResult?> EvaluateBashDefenseAsync(ShellPipelineContext context, CancellationToken ct)
+    {
+        var workDir = context.WorkingDirectory ?? string.Empty;
+        var (_, rejection) = await _bashDefenseService
+            .Begin(context.Command, workDir, context.Provider.Kind)
+            .Then(_bashDefenseService.CheckRetainedDevice)
+            .Then(_bashDefenseService.CheckRedirectWhitelist)
+            .ExecuteAsync(ct)
+            .ConfigureAwait(false);
+        return rejection;
     }
 }

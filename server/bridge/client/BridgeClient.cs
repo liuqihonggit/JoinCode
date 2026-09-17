@@ -45,8 +45,6 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <summary>客户端是否正在运行（原子读取）</summary>
     public bool IsRunning => Interlocked.CompareExchange(ref _isRunning, 0, 0) != 0;
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 获取客户端当前状态快照（发命令到 Actor Consumer 串行执行）
@@ -55,7 +53,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// <returns>客户端状态快照</returns>
     public async ValueTask<BridgeClientState> GetStateAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs<BridgeClientState>();
+        var tcs = TcsFactory.Create<BridgeClientState>();
         await SendAsync(new GetStateCmd(ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -118,7 +116,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// </summary>
     public async Task StartAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StartCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -134,7 +132,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     /// </summary>
     public async Task StopAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StopCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }

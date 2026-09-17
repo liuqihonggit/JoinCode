@@ -40,8 +40,6 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// <summary>子会话连接状态变更时触发，参数携带会话标识与状态信息</summary>
     public event EventHandler<SshSessionStateChangedEventArgs>? SessionStateChanged;
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 创建新的 SSH 会话 — 通过 Actor 串行处理，订阅其状态变更事件
@@ -56,7 +54,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
         ArgumentNullException.ThrowIfNull(config);
 
-        var tcs = CreateTcs<ISshSession>();
+        var tcs = TcsFactory.Create<ISshSession>();
         await SendAsync(new CreateSessionCmd(config, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -93,7 +91,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new DestroySessionCmd(sessionId, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -185,7 +183,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
             return;
         }
 
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new CleanupSessionsCmd(tcs), CancellationToken.None).ConfigureAwait(false);
         await tcs.Task.ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);

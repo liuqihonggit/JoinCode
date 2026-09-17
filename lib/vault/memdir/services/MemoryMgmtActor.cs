@@ -28,47 +28,45 @@ internal sealed class MemoryMgmtActor : ActorBase<IMemoryMgmtCommand, Unit>
         _logger = logger;
     }
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public async Task<MemoryScanResult> ScanMemoriesAsync(string query, string? category, int limit, CancellationToken ct)
     {
-        var tcs = CreateTcs<MemoryScanResult>();
+        var tcs = TcsFactory.Create<MemoryScanResult>();
         await SendAsync(new ScanMemoriesCmd(query, category, limit, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
     public async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoAsync(CancellationToken ct)
     {
-        var tcs = CreateTcs<List<MemoryAgeInfo>>();
+        var tcs = TcsFactory.Create<List<MemoryAgeInfo>>();
         await SendAsync(new GetMemoryAgeInfoCmd(ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
     public async Task AddTeamMemoryPathAsync(string teamId, string path, bool isShared, List<string>? allowedAgents, CancellationToken ct)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new AddTeamMemoryPathCmd(teamId, path, isShared, allowedAgents, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
 
     public async Task<List<TeamMemoryPath>> GetTeamMemoryPathsAsync(string? teamId, CancellationToken ct)
     {
-        var tcs = CreateTcs<List<TeamMemoryPath>>();
+        var tcs = TcsFactory.Create<List<TeamMemoryPath>>();
         await SendAsync(new GetTeamMemoryPathsCmd(teamId, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
     public async Task<bool> RemoveTeamMemoryPathAsync(string teamId, string path, CancellationToken ct)
     {
-        var tcs = CreateTcs<bool>();
+        var tcs = TcsFactory.Create<bool>();
         await SendAsync(new RemoveTeamMemoryPathCmd(teamId, path, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
     public async Task<MemoryScanResult> ScanTeamMemoriesAsync(string teamId, string query, int limit, CancellationToken ct)
     {
-        var tcs = CreateTcs<MemoryScanResult>();
+        var tcs = TcsFactory.Create<MemoryScanResult>();
         await SendAsync(new ScanTeamMemoriesCmd(teamId, query, limit, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }

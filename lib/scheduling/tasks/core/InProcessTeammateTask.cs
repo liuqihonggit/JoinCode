@@ -297,7 +297,6 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         }
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <inheritdoc/>
     public async Task<AgentTaskResult> ExecuteTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default)
@@ -415,7 +414,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     /// <inheritdoc/>
     public async Task StopTeammateAsync(string teammateId, CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StopTeammateCmd(teammateId, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -542,7 +541,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
     async Task ITeammateRuntime.SetCurrentWorkCtsAsync(string teammateId, CancellationTokenSource workCts, CancellationToken lifecycleCt)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new SetWorkCtsCmd(teammateId, workCts, tcs), lifecycleCt).ConfigureAwait(false);
         await AskAwait(tcs, lifecycleCt);
     }
@@ -556,7 +555,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     {
         try
         {
-            var tcs = CreateTcs();
+            var tcs = TcsFactory.Create();
             await SendAsync(new TryCleanupTeammateCmd(teammateId, tcs), CancellationToken.None).ConfigureAwait(false);
             await AskAwait(tcs, CancellationToken.None);
         }

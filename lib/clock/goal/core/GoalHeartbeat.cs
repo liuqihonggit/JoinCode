@@ -78,7 +78,6 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
         _heartbeatTimer = new Timer(_ => TrySend(new HeartbeatTickCmd()), null, Timeout.Infinite, Timeout.Infinite);
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <inheritdoc />
     public void RegisterCallback(Func<CancellationToken, ValueTask> callback)
@@ -90,7 +89,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// <inheritdoc />
     public async Task StartActivityAsync(SessionActivityReason reason)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StartActivityCmd(reason, tcs)).ConfigureAwait(false);
         await AskAwait(tcs, CancellationToken.None);
     }
@@ -98,7 +97,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// <inheritdoc />
     public async Task StopActivityAsync(SessionActivityReason reason)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StopActivityCmd(reason, tcs)).ConfigureAwait(false);
         await AskAwait(tcs, CancellationToken.None);
     }
@@ -106,7 +105,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// <inheritdoc />
     public async Task ResetAsync()
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new ResetHeartbeatCmd(tcs)).ConfigureAwait(false);
         await AskAwait(tcs, CancellationToken.None);
     }

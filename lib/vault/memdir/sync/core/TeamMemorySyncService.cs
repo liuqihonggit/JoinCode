@@ -59,8 +59,6 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     private int _disposed;
     private readonly CancellationTokenSource _disposeCts = new();
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 构造函数 — 注入文件系统、文件操作服务、同步选项、日志、遥测、启动中间件链与时钟等依赖。
@@ -108,7 +106,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StartSyncCmd(tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -116,7 +114,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     /// <inheritdoc />
     public async Task StopAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StopSyncCmd(tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -124,7 +122,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     /// <inheritdoc />
     public async Task SyncAsync(string? filePath = null, CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new SyncCmd(filePath, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -137,7 +135,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     public async Task<SyncConflictResolution> ResolveConflictAsync(string filePath, SyncConflictResolution resolution, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
-        var tcs = CreateTcs<SyncConflictResolution>();
+        var tcs = TcsFactory.Create<SyncConflictResolution>();
         await SendAsync(new ResolveConflictCmd(filePath, resolution, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }

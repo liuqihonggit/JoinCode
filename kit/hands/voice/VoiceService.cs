@@ -73,12 +73,11 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
         _clock = clock ?? SystemClockService.Instance;
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <inheritdoc/>
     public async Task StartRecordingAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StartRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -281,7 +280,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
             var buffer = new byte[4096];
             while (!ct.IsCancellationRequested)
             {
-                var tcs = CreateTcs();
+                var tcs = TcsFactory.Create();
                 await SendAsync(new WriteAudioCmd(buffer, tcs), ct).ConfigureAwait(false);
                 await AskAwait(tcs, ct);
 

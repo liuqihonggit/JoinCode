@@ -44,15 +44,13 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     /// </summary>
     public void SetHealthState(SandboxHealthState state) => _healthState = state;
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 发送 Enter 命令并等待完成
     /// </summary>
     public async Task<SandboxInfo> EnterAsync(SandboxOptions options, CancellationToken ct)
     {
-        var tcs = CreateTcs<SandboxInfo>();
+        var tcs = TcsFactory.Create<SandboxInfo>();
         await SendAsync(new EnterSandboxCmd(options, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -62,7 +60,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     /// </summary>
     public async Task ExitAsync(CancellationToken ct)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new ExitSandboxCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -72,7 +70,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     /// </summary>
     public async Task SwitchAsync(SandboxType type, CancellationToken ct)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new SwitchProviderCmd(type, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }

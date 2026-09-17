@@ -85,7 +85,6 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
         _clock = clock ?? SystemClockService.Instance;
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 异步标记用户离开，启动离开期间的事件跟踪与自动保存。
@@ -94,7 +93,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     /// <returns>表示异步操作的任务。</returns>
     public async Task MarkAwayAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new MarkAwayCmd(tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }

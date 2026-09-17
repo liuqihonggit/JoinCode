@@ -88,7 +88,6 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
         _flushTimer = new Timer(_ => TrySend(new FlushTickCmd<T>()), null, Timeout.Infinite, Timeout.Infinite);
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 当前批次中的条目数量
@@ -106,7 +105,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     public async Task StartAsync(CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new FlushStartCmd<T>(tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -116,7 +115,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     /// </summary>
     public async Task StopAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new FlushStopCmd<T>(tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -128,7 +127,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     public async Task AddAsync(T item, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new FlushAddCmd<T>(item, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -138,7 +137,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     /// </summary>
     public async Task FlushAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new FlushManualCmd<T>(tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }

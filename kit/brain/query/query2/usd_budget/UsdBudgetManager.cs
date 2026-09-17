@@ -157,8 +157,6 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
         _alertTriggered = false;
     }
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 检查 USD 预算是否已超限
@@ -171,7 +169,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
         {
             return false;
         }
-        var tcs = CreateTcs<bool>();
+        var tcs = TcsFactory.Create<bool>();
         await SendAsync(new IsBudgetExceededCmd(tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -183,7 +181,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
     /// <returns>预算状态</returns>
     public async Task<UsdBudgetStatus> GetBudgetStatusAsync(CancellationToken ct = default)
     {
-        var tcs = CreateTcs<UsdBudgetStatus>();
+        var tcs = TcsFactory.Create<UsdBudgetStatus>();
         await SendAsync(new GetBudgetStatusCmd(tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -202,7 +200,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
         {
             return;
         }
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new RecordCostCmd(costUsd, reason, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }

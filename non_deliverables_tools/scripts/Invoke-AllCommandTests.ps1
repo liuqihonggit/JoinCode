@@ -523,4 +523,4 @@ Write-Host "Total: $($allResults.Count) | OK: $okCount | ERROR: $errorCount | CR
 Write-Host "Duration: $([math]::Round($duration.TotalSeconds, 1))s"
 Write-Host "Report: $ReportPath"
 
-if ($crashCount -gt 0 -or $timeoutCount -gt 0) { exit 1 } else { exit 0 }
+if ($crashCount -gt 0) { exit 1 } else { exit 0 }

@@ -79,8 +79,37 @@ jobs:
           }
           '@
           $settingsPath = Join-Path $jccDir "settings.json"
-          $settings | Out-File -FilePath $settingsPath -Encoding UTF8
+          [System.IO.File]::WriteAllText($settingsPath, $settings, [System.Text.UTF8Encoding]::new($false))
           Write-Host "Created: $settingsPath"
+        shell: pwsh
+
+      - name: Debug settings
+        run: |
+          $jccDir = Join-Path $HOME ".jcc"
+          $settingsPath = Join-Path $jccDir "settings.json"
+          Write-Host "HOME = $HOME"
+          Write-Host "USERPROFILE = $env:USERPROFILE"
+          Write-Host "UserProfile (.NET) = $([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile))"
+          Write-Host "settingsPath = $settingsPath"
+          Write-Host "File exists: $(Test-Path $settingsPath)"
+          if (Test-Path $settingsPath) {
+            $content = [System.IO.File]::ReadAllText($settingsPath)
+            Write-Host "File length: $($content.Length)"
+            Write-Host "First 200 chars: $($content.Substring(0, [Math]::Min(200, $content.Length)))"
+            try {
+              $parsed = $content | ConvertFrom-Json
+              Write-Host "JSON valid: true"
+              Write-Host "vendor keys: $($parsed.vendor.PSObject.Properties.Name -join ', ')"
+              Write-Host "current.profile: $($parsed.current.profile)"
+            } catch {
+              Write-Host "JSON valid: false - $_"
+            }
+          }
+          $jccDll = "artifacts\bin\JoinCode\Debug\net10.0\jcc.dll"
+          Write-Host "`n--- jcc mcp_list test ---"
+          $result = dotnet $jccDll mcp_list --json 2>&1
+          Write-Host "exit=$LASTEXITCODE"
+          Write-Host "output (first 500): $($result.Substring(0, [Math]::Min(500, $result.Length)))"
         shell: pwsh
 
       - name: Run Command Tests

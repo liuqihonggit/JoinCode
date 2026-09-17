@@ -533,14 +533,14 @@ public class PlanModeManagerTests
         var state1 = _planModeManager.GetType()
             .GetMethod("CurrentSessionState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .Invoke(_planModeManager, null);
-        var slug1 = state1?.GetType().GetField("CurrentSessionSlug")!.GetValue(state1) as string;
+        var slug1 = state1?.GetType().GetProperty("CurrentSessionSlug")?.GetValue(state1) as string;
 
         _planModeManager.ClearPlanSlug();
 
         var state2 = _planModeManager.GetType()
             .GetMethod("CurrentSessionState", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
             .Invoke(_planModeManager, null);
-        var slug2 = state2?.GetType().GetField("CurrentSessionSlug")!.GetValue(state2) as string;
+        var slug2 = state2?.GetType().GetProperty("CurrentSessionSlug")?.GetValue(state2) as string;
 
         slug2.Should().BeNull("ClearPlanSlug 应清除 slug 缓存");
     }

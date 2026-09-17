@@ -507,6 +507,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
         if (!_plugins.TryGetValue(pluginName, out var host))
         {
+            await PrepareUnloadAsync(pluginName, ct).ConfigureAwait(false);
             return PluginUnloadResult.AlreadyUnloaded(pluginName);
         }
 

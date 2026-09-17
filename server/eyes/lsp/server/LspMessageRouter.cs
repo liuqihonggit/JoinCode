@@ -8,8 +8,7 @@ internal sealed class LspMessageRouter
 {
     private int _requestId;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonNode?>> _pendingRequests = new();
-    private readonly Dictionary<string, Func<JsonNode?, CancellationToken, ValueTask>> _notificationHandlers = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>>> _requestHandlers = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, LspMethodHandler> _handlers = new(StringComparer.Ordinal);
 
     /// <summary>收到通知时触发，参数为 (方法名, 参数)</summary>
     public event EventHandler<(string Method, JsonNode? Params)>? NotificationReceived;
@@ -17,13 +16,13 @@ internal sealed class LspMessageRouter
     /// <summary>注册通知处理程序</summary>
     public void OnNotification(string method, Func<JsonNode?, CancellationToken, ValueTask> handler)
     {
-        _notificationHandlers[method] = handler;
+        _handlers[method] = new LspMethodHandler(Notification: handler);
     }
 
     /// <summary>注册请求处理程序（服务器向客户端发起的请求）</summary>
     public void OnRequest(string method, Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>> handler)
     {
-        _requestHandlers[method] = handler;
+        _handlers[method] = new LspMethodHandler(Request: handler);
     }
 
     /// <summary>创建 JSON-RPC 请求 — 生成ID + 注册 pending + 序列化</summary>
@@ -73,11 +72,11 @@ internal sealed class LspMessageRouter
                     var method = methodNode.GetValue<string>();
                     var @params = obj.TryGetPropertyValue("params", out var p) ? p : null;
 
-                    if (_requestHandlers.TryGetValue(method, out var handler))
+                    if (_handlers.TryGetValue(method, out var entry) && entry.Request is not null)
                     {
                         try
                         {
-                            var result = await handler(id, @params, cancellationToken).ConfigureAwait(false);
+                            var result = await entry.Request(id, @params, cancellationToken).ConfigureAwait(false);
                             await SendResponseAsync(id, result, null, cancellationToken, sendJsonAsync).ConfigureAwait(false);
                         }
                         catch (Exception ex)
@@ -121,9 +120,9 @@ internal sealed class LspMessageRouter
 
                 NotificationReceived?.Invoke(this, (method, @params));
 
-                if (_notificationHandlers.TryGetValue(method, out var handler))
+                if (_handlers.TryGetValue(method, out var entry) && entry.Notification is not null)
                 {
-                    await handler(@params, cancellationToken).ConfigureAwait(false);
+                    await entry.Notification(@params, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -161,3 +160,12 @@ internal sealed class LspMessageRouter
         return doc.RootElement.Clone();
     }
 }
+
+/// <summary>
+/// LSP 方法处理器 — 聚合通知处理器和请求处理器,按方法名索引
+/// LSP 协议中一个方法名要么是通知要么是请求,不会两者都是
+/// </summary>
+internal sealed record LspMethodHandler(
+    Func<JsonNode?, CancellationToken, ValueTask>? Notification = null,
+    Func<string, JsonNode?, CancellationToken, ValueTask<JsonNode?>>? Request = null
+);

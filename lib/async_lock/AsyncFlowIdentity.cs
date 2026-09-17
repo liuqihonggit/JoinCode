@@ -1,0 +1,48 @@
+namespace Core.Utils;
+
+/// <summary>
+/// 异步流身份 — 统一传递 FlowId(死锁检测) + ActorId(循环 Ask 检测)。
+/// <para>
+/// 用单个 AsyncLocal 传递,减少 AsyncLocal 数量。FlowId 和 ActorId 独立设置互不影响:
+/// SetFlowId 保留当前 ActorId,SetActorId 保留当前 FlowId。
+/// </para>
+/// <para>
+/// FlowId 在 AsyncLock 入口惰性注册(EnsureFlowRegistered),ActorId 在 ActorBase.ConsumeLoopAsync 入口设置。
+/// </para>
+/// </summary>
+public sealed class AsyncFlowIdentity
+{
+    public int FlowId { get; init; }
+    public string? ActorId { get; init; }
+
+    private static readonly AsyncLocal<AsyncFlowIdentity?> _current = new();
+
+    /// <summary>当前异步流身份(null 表示未设置)</summary>
+    public static AsyncFlowIdentity? Current => _current.Value;
+
+    /// <summary>当前 FlowId(0 表示未注册)</summary>
+    public static int CurrentFlowId => _current.Value?.FlowId ?? 0;
+
+    /// <summary>当前 ActorId(null 表示非 Actor 上下文)</summary>
+    public static string? CurrentActorId => _current.Value?.ActorId;
+
+    /// <summary>仅设置 FlowId,保留当前 ActorId</summary>
+    public static void SetFlowId(int flowId)
+    {
+        var prev = _current.Value;
+        _current.Value = new AsyncFlowIdentity { FlowId = flowId, ActorId = prev?.ActorId };
+    }
+
+    /// <summary>仅设置 ActorId,保留当前 FlowId</summary>
+    public static void SetActorId(string? actorId)
+    {
+        var prev = _current.Value;
+        _current.Value = new AsyncFlowIdentity { FlowId = prev?.FlowId ?? 0, ActorId = actorId };
+    }
+
+    /// <summary>清除 ActorId(保留 FlowId)— Actor Consumer 退出时调用</summary>
+    public static void ClearActorId() => SetActorId(null);
+
+    /// <summary>清除全部 — 测试用</summary>
+    public static void Clear() => _current.Value = null;
+}

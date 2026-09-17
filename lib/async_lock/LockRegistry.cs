@@ -18,17 +18,12 @@ public static class LockRegistry
     private static int _scanStarted;
     private static int _diagnosticsEnabled = 0;
     private static int _nextFlowId;
-    private static readonly AsyncLocal<int> _currentFlowId = new();
 
     /// <summary>
     /// 当前 async 逻辑流的 FlowId — 在 async 流中自动流转,不随 await 线程切换变化。
     /// 用于死锁检测构建 wait-for graph,替代不可靠的 Thread.CurrentThread。
     /// </summary>
-    public static int CurrentFlowId
-    {
-        get => _currentFlowId.Value;
-        set => _currentFlowId.Value = value;
-    }
+    public static int CurrentFlowId => AsyncFlowIdentity.CurrentFlowId;
 
     /// <summary>
     /// 注册新的逻辑流并分配唯一 FlowId — 在 async 流入口(如 Task.Run/Actor 启动)调用,
@@ -37,11 +32,11 @@ public static class LockRegistry
     public static int RegisterFlow()
     {
         var id = Interlocked.Increment(ref _nextFlowId);
-        _currentFlowId.Value = id;
+        AsyncFlowIdentity.SetFlowId(id);
         return id;
     }
 
-    private static int ResolveFlowId() => _currentFlowId.Value;
+    private static int ResolveFlowId() => AsyncFlowIdentity.CurrentFlowId;
 
     /// <summary>
     /// 诊断总开关（默认关闭，需 --debuglog 或 JCC_DEBUGLOG=1 开启）。设为 0 关闭所有诊断记录与后台扫描，退化为零开销。
@@ -457,6 +452,7 @@ public static class LockRegistry
         Interlocked.Exchange(ref _nextFlowId, 0);
         Interlocked.Exchange(ref _deadlockDetected, 0);
         Volatile.Write(ref _lastDeadlockReport, null);
+        AsyncFlowIdentity.Clear();
     }
 
     /// <summary>

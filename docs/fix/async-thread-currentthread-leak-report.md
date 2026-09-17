@@ -112,12 +112,17 @@ AsyncLocal 拘留(LongRunning 线程复用场景)。
 - 2026-09-18:文档记录根因、影响、修复方案,待决策
 - 2026-09-18:用户决策全部修复,实施 Bug1(锁顺序检测改 FlowId)+ Bug2(ActorBase 改 AsyncLocal<string>)
 - 2026-09-18:初版验证通过(commit `519e33ea0`),但保留 ThreadID fallback + 字典冗余,不够彻底
-- 2026-09-18:重构(commit `54ac13d2e` + `16de25e23`)— 完全消除 ThreadID:
+- 2026-09-18:重构一(commit `54ac13d2e` + `16de25e23`)— 完全消除 ThreadID:
   - LockRegistry 删除 `HoldingThread`/`WaitingThread`,只用 `HoldingFlowId`/`WaitingFlowId`
   - `ResolveFlowId()` 不回退 ThreadID,纯 AsyncLocal
   - `AsyncLock.EnsureFlowRegistered()` 惰性注册,调用方无需手动 `RegisterFlow()`
   - ActorBase 删除 `_consumerThreadIdToActorId` 字典,只用 `_currentActorId` AsyncLocal
   - ConsumeLoopAsync finally 清除 `_currentActorId` 防御拘留
+- 2026-09-18:重构二(commit `f8534d1b2` + `a1fb3efd7` + `10908543d` + `080b0cf92`)— 合并 AsyncLocal + 提取工具类:
+  - 新增 `AsyncFlowIdentity` — 单个 AsyncLocal 合并 FlowId+ActorId,SetFlowId/SetActorId 独立设置互不影响
+  - LockRegistry/ActorBase 委托 AsyncFlowIdentity,删除 `_currentFlowId` + `_currentActorId`
+  - 新增 `AsyncLocalScope<T>` 工具类 — `using var scope = AsyncLocalScope.Enter(store, value)` 消除 4 处 ScopeRestore 样板
+  - SubAgentContext._cwdOverride 改实例属性,GetSections 迭代器 finally 清除 PromptConfigSnapshot
 - 2026-09-18:重构验证通过 — AsyncLock.Tests 183/183 + E2E - Cluster 本地 20/20 + CI 9/9
 - 2026-09-18:E2E - Cluster 关联确认 — 集群 `GoalGraphEngine`/`GoalHeartbeat` 依赖 AsyncLock/ActorBase,
   Thread.CurrentThread 漏报导致集群偶发死锁无法检测 → 60s 超时 → 测试失败。修复后消除。

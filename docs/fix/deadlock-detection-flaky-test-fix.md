@@ -112,7 +112,7 @@ DFS: 1→2→1 → 环! 检测到死锁 ✓
 - `ResolveFlowId()` 在 `FlowId==0` 时回退负数 ThreadID(`-(ThreadId)`)
 - 测试需手动调 `LockRegistry.RegisterFlow()`
 
-#### 3.2.2 最终重构(commit `54ac13d2e` + `16de25e23`,当前)
+#### 3.2.2 重构一:消除 ThreadID(commit `54ac13d2e` + `16de25e23`)
 
 **完全消除 ThreadID,统一用 AsyncLocal FlowId**:
 
@@ -135,6 +135,29 @@ DFS: 1→2→1 → 环! 检测到死锁 ✓
 **测试代码(`lib/async_lock.tests/AsyncLockDiagnosisTests.cs`)**:
 11. 撤销手动 `RegisterFlow()` 调用(`EnsureFlowRegistered` 已惰性注册)
 12. 撤销 LongRunning 改动(回归原始 `Task.Run`)
+
+#### 3.2.3 重构二:合并 AsyncLocal + 提取工具类(commit `f8534d1b2` + `a1fb3efd7` + `10908543d` + `080b0cf92`)
+
+重构一仍有 2 个独立 AsyncLocal(`_currentFlowId` + `_currentActorId`),且项目有 4 处重复的
+ScopeRestore 样板。重构二进一步统一:
+
+**`lib/async_lock/AsyncFlowIdentity.cs`(新增)**:
+- 单个 `AsyncLocal<AsyncFlowIdentity?>` 合并 FlowId + ActorId
+- `SetFlowId` 保留当前 ActorId,`SetActorId` 保留当前 FlowId — 独立设置互不影响
+- `ClearActorId` 保留 FlowId(Actor Consumer 退出时调用)
+- `LockRegistry` 委托:`CurrentFlowId => AsyncFlowIdentity.CurrentFlowId`,`ResolveFlowId() => AsyncFlowIdentity.CurrentFlowId`
+- `ActorBase` 委托:`SetActorId(Id)` / `ClearActorId()` / `TryGetCallerActorId() => AsyncFlowIdentity.CurrentActorId`
+- 删除 `_currentFlowId` + `_currentActorId` 两个 AsyncLocal,合并为 1 个
+
+**`lib/abstractions/abs_core/core_utils/core/AsyncLocalScope.cs`(新增)**:
+- 泛型工具类 `AsyncLocalScope<T> : IDisposable`
+- `Enter(store, value)` 设置值返回 scope,`Dispose()` 恢复原值(幂等)
+- `using var scope = AsyncLocalScope.Enter(_current, value);` 替代手写 prev/try/finally 样板
+- 消除 4 处重复 ScopeRestore(SessionContext/TeammateContext/SubAgentEventChannel/SubAgentContext)
+
+**其他**:
+- `SubAgentContext._cwdOverride` 改为实例属性 `CwdOverride`,删除 AsyncLocal + DualScopeRestore
+- `GetSections` 迭代器 finally 清除 `PromptConfigSnapshot` 防 AsyncLocal 拘留
 
 ### 3.3 验证结果
 
@@ -195,5 +218,6 @@ CI + 本地共 29 次全通过,偶发失败已消除。
 - 2026-09-18:真根因定位为 async 下 Thread.CurrentThread 不可靠导致 wait-for graph 拆碎
 - 2026-09-18:修复方案选 AsyncLocal<int> FlowId 替换 Thread.CurrentThread
 - 2026-09-18:初版实施(commit `519e33ea0`)— 保留 ThreadID fallback,不够彻底
-- 2026-09-18:重构(commit `54ac13d2e` + `16de25e23`)— 完全消除 ThreadID,统一 AsyncLocal FlowId + EnsureFlowRegistered 惰性注册
+- 2026-09-18:重构一(commit `54ac13d2e` + `16de25e23`)— 完全消除 ThreadID,统一 AsyncLocal FlowId + EnsureFlowRegistered 惰性注册
+- 2026-09-18:重构二(commit `f8534d1b2` + `a1fb3efd7` + `10908543d` + `080b0cf92`)— 合并 2 个 AsyncLocal 为 AsyncFlowIdentity + 提取 AsyncLocalScope<T> 工具类消除 4 处 ScopeRestore 样板
 - 2026-09-18:验证通过 — AsyncLock.Tests 183/183 + E2E - Cluster 本地 20/20 + CI 9/9

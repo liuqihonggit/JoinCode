@@ -1,7 +1,8 @@
 # 死锁检测测试偶发失败修复
 
-> 状态:✅ 已修复,10次全量压测 183/183 全通过
+> 状态:✅ 已修复并重构,完全消除 ThreadID,统一用 AsyncLocal FlowId
 > 关联测试:`AsyncLockDiagnosisTests.死锁检测_async两个流互相等待时自动检测`
+> 关联排查:E2E - Cluster 偶发失败同源(集群依赖 AsyncLock/ActorBase),详见第 6 节
 > 发现日期:2026-09-18
 
 ## 1. 问题现象
@@ -104,34 +105,95 @@ DFS: 1→2→1 → 环! 检测到死锁 ✓
 
 ### 3.2 改动点
 
-**生产代码(`lib/async_lock/LockRegistry.cs`)**:
-1. `LockInfo` 加 `int FlowId` 字段(替代/补充 `WaitingThread`/`HoldingThread`)
-2. `OnWaitStart`/`OnAcquired` 记录 `AsyncLocal<int>` 的值作为 FlowId
-3. `DetectDeadlock()` 用 FlowId 构建 waitEdges 而非 `Thread.ManagedThreadId`
-4. 加 `static AsyncLocal<int> CurrentFlowId`,提供 `RegisterFlow()` 返回唯一 ID
+#### 3.2.1 初版修复(commit `519e33ea0`,已废弃)
+
+初版保留了 ThreadID fallback,不够彻底:
+- `LockInfo` 同时保留 `HoldingThread`/`WaitingThread` + 新增 `HoldingFlowId`/`WaitingFlowId`
+- `ResolveFlowId()` 在 `FlowId==0` 时回退负数 ThreadID(`-(ThreadId)`)
+- 测试需手动调 `LockRegistry.RegisterFlow()`
+
+#### 3.2.2 最终重构(commit `54ac13d2e` + `16de25e23`,当前)
+
+**完全消除 ThreadID,统一用 AsyncLocal FlowId**:
+
+**`lib/async_lock/LockRegistry.cs`**:
+1. `LockInfo` 删除 `HoldingThread`/`WaitingThread` 字段,只用 `HoldingFlowId`/`WaitingFlowId`
+2. `ResolveFlowId()` 直接返回 `_currentFlowId.Value`,**不回退 ThreadID**
+3. `OnWaitStart`/`OnAcquired` 记录 `ResolveFlowId()` 到 `WaitingFlowId`/`HoldingFlowId`
+4. `DetectDeadlock()` 用 `FlowId` 构建 `waitEdges` 并 DFS 找环
+5. 锁顺序违反检测用 `HoldingFlowId == currentFlowId` 比较
+
+**`lib/async_lock/AsyncLock.cs`**:
+6. 新增 `EnsureFlowRegistered()` — 锁入口惰性注册:若 `CurrentFlowId == 0` 则 `RegisterFlow()`
+7. `TryLock`/`TryLockAsync` 入口调 `EnsureFlowRegistered()`,调用方无需手动注册
+
+**`lib/async_lock/ActorBase.cs`**:
+8. 删除 `_consumerThreadIdToActorId` 字典,新增 `static AsyncLocal<string?> _currentActorId`
+9. `ConsumeLoopAsync` 入口设 `_currentActorId.Value = Id`,finally 清除 `= null`(防御 AsyncLocal 拘留)
+10. `TryGetCallerActorId()` 直接返回 `_currentActorId.Value`
 
 **测试代码(`lib/async_lock.tests/AsyncLockDiagnosisTests.cs`)**:
-1. `死锁检测_async两个流互相等待时自动检测` 的 t1/t2 启动时设 `CurrentFlowId`
-2. 撤销 LongRunning 改动(回归原始 Task.Run,因为 AsyncLocal 修复后不需要)
+11. 撤销手动 `RegisterFlow()` 调用(`EnsureFlowRegistered` 已惰性注册)
+12. 撤销 LongRunning 改动(回归原始 `Task.Run`)
 
-### 3.3 验证计划
+### 3.3 验证结果
 
-1. 保留当前 LongRunning 改动(80% 失败率)
-2. 实施 AsyncLocal FlowId 修复
-3. 压测 20 次,确认从 80% 降到 0%
-4. 撤销 LongRunning 改动,压测 20 次确认 0%
-5. 全量测试通过
+| 验证项 | 结果 |
+|--------|------|
+| AsyncLock 编译 | 0 警告 0 错误 |
+| AsyncLock.Tests 全量 | 183/183 通过 |
+| E2E - Cluster 本地压测 | 20/20 通过(详见第 6 节) |
+| CI runs(9 个) | 9/9 全通过 |
 
-## 4. 新设计占位(待用户补充)
+## 4. 为什么初版不够彻底(重构动机)
 
-> 用户表示要在此基础上加入新设计。以下为占位区,待用户明确后补充。
+初版(commit `519e33ea0`)保留了 ThreadID fallback(`ResolveFlowId` 在 `FlowId==0` 时回退负数 ThreadId),原因
+是担心纯同步场景没有 FlowId。但这导致:
 
-<!-- 新设计内容待补充 -->
+- `LockInfo` 同时有 `HoldingThread`/`WaitingThread` + `HoldingFlowId`/`WaitingFlowId`,字段冗余
+- `ResolveFlowId()` 有两条路径(AsyncLocal → ThreadID),维护复杂
+- `ActorBase` 保留 `_consumerThreadIdToActorId` 字典 + 新增 `_currentActorId` AsyncLocal,两套机制并存
+- 测试需手动调 `RegisterFlow()`,易遗漏
 
-## 5. 决策记录
+**重构后**:`EnsureFlowRegistered()` 在锁入口惰性注册,保证 `FlowId != 0`,无需 ThreadID fallback。全部删除
+Thread 相关字段/字典,统一用 AsyncLocal,更简洁更彻底。
+
+## 5. E2E - Cluster 偶发失败关联排查
+
+### 5.1 关联链
+
+集群流程 `cluster_analyze → expand → worker → gather → merge → review` 通过 `GoalGraphEngine` 执行,
+直接依赖 AsyncLock + ActorBase:
+
+| 位置 | 用途 |
+|------|------|
+| `lib/clock/goal/core/GoalGraphEngine.cs:124,154` | `AsyncLock` 状态锁 + 并发限制器 |
+| `lib/clock/goal/core/EventDrivenGraphScheduler.cs:34,132` | `AsyncLock` 并发限制器 |
+| `lib/clock/goal/core/GoalHeartbeat.cs:43` | 继承 `ActorBase` |
+| `lib/clock/goal/core/GoalEngine.cs:16` | `AsyncLock _stateLock` |
+
+### 5.2 偶发失败根因
+
+`Thread.CurrentThread` async 漏报导致:
+1. 集群 `GoalGraphEngine` 的 `AsyncLock _stateLock` 死锁时,检测器无法检测 → 集群卡死
+2. `GoalHeartbeat : ActorBase` 若 worker 循环 Ask 主进程,检测器漏报 → 卡死
+3. 集群卡死 → jcc.exe 60s 超时 → `exitCode=-1` → `ClusterE2ETests` 断言 `exitCode.Should().Be(0)` 失败
+
+### 5.3 验证
+
+| 验证项 | 结果 |
+|--------|------|
+| CI/CD workflow(9 runs) | 0 失败 |
+| PR #252 `e2e / E2E - Cluster` check | SUCCESS |
+| 本地压测 E2E - Cluster(20 次) | 20/20 通过,每次 11-16s |
+
+CI + 本地共 29 次全通过,偶发失败已消除。
+
+## 6. 决策记录
 
 - 2026-09-18:初始误判为线程池饥饿,改 LongRunning 后失败率从15%升到80%,暴露真根因
 - 2026-09-18:真根因定位为 async 下 Thread.CurrentThread 不可靠导致 wait-for graph 拆碎
 - 2026-09-18:修复方案选 AsyncLocal<int> FlowId 替换 Thread.CurrentThread
-- 2026-09-18:实施修复 + 加 ResolveFlowId fallback(同步场景 FlowId==0 时用负数 ThreadId 避免冲突)
-- 2026-09-18:验证通过,10次全量压测 183/183 全通过(此前死锁检测 15% 失败率)
+- 2026-09-18:初版实施(commit `519e33ea0`)— 保留 ThreadID fallback,不够彻底
+- 2026-09-18:重构(commit `54ac13d2e` + `16de25e23`)— 完全消除 ThreadID,统一 AsyncLocal FlowId + EnsureFlowRegistered 惰性注册
+- 2026-09-18:验证通过 — AsyncLock.Tests 183/183 + E2E - Cluster 本地 20/20 + CI 9/9

@@ -346,8 +346,6 @@ public sealed partial class LspClient : ILspClient
     private readonly IFileSystem _fs;
     private readonly IProcessService _processService;
     private IInteractiveProcess? _process;
-    private StreamWriter? _writer;
-    private StreamReader? _reader;
     private int _requestId;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonNode?>> _pendingRequests = new();
     private readonly Dictionary<string, Func<JsonNode?, CancellationToken, ValueTask>> _notificationHandlers = new(StringComparer.Ordinal);
@@ -415,9 +413,6 @@ public sealed partial class LspClient : ILspClient
 
             _process = await _processService.StartInteractiveAsync(options, cancellationToken).ConfigureAwait(false);
 
-            _writer = _process.StandardInput;
-            _reader = _process.StandardOutput;
-
             _readCts = new CancellationTokenSource();
             var readToken = _readCts.Token;
             _ = Task.Run(async () =>
@@ -479,8 +474,6 @@ public sealed partial class LspClient : ILspClient
         }
 
         if (_process is not null) await _process.DisposeAsync().ConfigureAwait(false);
-        _writer?.Dispose();
-        _reader?.Dispose();
 
         _pendingRequests.Clear();
     }
@@ -525,17 +518,9 @@ public sealed partial class LspClient : ILspClient
     /// <returns>定义位置列表</returns>
     public async Task<List<LspLocation>> GotoDefinitionAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspLocation>();
+        if (!IsConnected) return [];
 
-        var uri = new Uri(filePath).ToString();
-
-        var positionParams = new LspTextDocumentPositionParams
-        {
-            TextDocument = new LspTextDocumentIdentifier { Uri = uri },
-            Position = new LspPosition { Line = line, Character = character }
-        };
-
-        var result = await SendRequestCoreAsync(LspMethod.TextDocumentDefinition.ToValue(), JsonSerializer.SerializeToNode(positionParams, LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
+        var result = await SendRequestCoreAsync(LspMethod.TextDocumentDefinition.ToValue(), JsonSerializer.SerializeToNode(CreatePositionParams(filePath, line, character), LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
 
         return DeserializeLocations(result);
     }
@@ -603,10 +588,9 @@ public sealed partial class LspClient : ILspClient
     /// <returns>引用位置列表</returns>
     public async Task<List<LspLocation>> FindReferencesAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspLocation>();
+        if (!IsConnected) return [];
 
         var uri = new Uri(filePath).ToString();
-
         var referenceParams = new LspReferenceParams
         {
             TextDocument = new LspTextDocumentIdentifier { Uri = uri },
@@ -616,12 +600,7 @@ public sealed partial class LspClient : ILspClient
 
         var result = await SendRequestCoreAsync(LspMethod.TextDocumentReferences.ToValue(), JsonSerializer.SerializeToNode(referenceParams, LspJsonContext.Default.LspReferenceParams), cancellationToken).ConfigureAwait(false);
 
-        if (result is JsonArray)
-        {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspLocation) ?? new List<LspLocation>();
-        }
-
-        return new List<LspLocation>();
+        return DeserializeListResult(result, LspJsonContext.Default.ListLspLocation);
     }
 
     /// <summary>
@@ -636,15 +615,7 @@ public sealed partial class LspClient : ILspClient
     {
         if (!IsConnected) return null;
 
-        var uri = new Uri(filePath).ToString();
-
-        var positionParams = new LspTextDocumentPositionParams
-        {
-            TextDocument = new LspTextDocumentIdentifier { Uri = uri },
-            Position = new LspPosition { Line = line, Character = character }
-        };
-
-        var result = await SendRequestCoreAsync(LspMethod.TextDocumentHover.ToValue(), JsonSerializer.SerializeToNode(positionParams, LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
+        var result = await SendRequestCoreAsync(LspMethod.TextDocumentHover.ToValue(), JsonSerializer.SerializeToNode(CreatePositionParams(filePath, line, character), LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
 
         if (result is null)
             return null;
@@ -662,17 +633,9 @@ public sealed partial class LspClient : ILspClient
     /// <returns>补全项列表</returns>
     public async Task<List<LspCompletionItem>> GetCompletionsAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspCompletionItem>();
+        if (!IsConnected) return [];
 
-        var uri = new Uri(filePath).ToString();
-
-        var positionParams = new LspTextDocumentPositionParams
-        {
-            TextDocument = new LspTextDocumentIdentifier { Uri = uri },
-            Position = new LspPosition { Line = line, Character = character }
-        };
-
-        var result = await SendRequestCoreAsync(LspMethod.TextDocumentCompletion.ToValue(), JsonSerializer.SerializeToNode(positionParams, LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
+        var result = await SendRequestCoreAsync(LspMethod.TextDocumentCompletion.ToValue(), JsonSerializer.SerializeToNode(CreatePositionParams(filePath, line, character), LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
 
         if (result is null)
             return new List<LspCompletionItem>();
@@ -698,24 +661,11 @@ public sealed partial class LspClient : ILspClient
     /// <returns>文档符号列表</returns>
     public async Task<List<LspDocumentSymbol>> GetDocumentSymbolsAsync(string filePath, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspDocumentSymbol>();
+        if (!IsConnected) return [];
 
-        var uri = new Uri(filePath).ToString();
+        var result = await SendRequestCoreAsync(LspMethod.TextDocumentDocumentSymbol.ToValue(), JsonSerializer.SerializeToNode(CreatePositionParams(filePath, 0, 0), LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
 
-        var docParams = new LspTextDocumentPositionParams
-        {
-            TextDocument = new LspTextDocumentIdentifier { Uri = uri },
-            Position = new LspPosition()
-        };
-
-        var result = await SendRequestCoreAsync(LspMethod.TextDocumentDocumentSymbol.ToValue(), JsonSerializer.SerializeToNode(docParams, LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
-
-        if (result is JsonArray)
-        {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspDocumentSymbol) ?? new List<LspDocumentSymbol>();
-        }
-
-        return new List<LspDocumentSymbol>();
+        return DeserializeListResult(result, LspJsonContext.Default.ListLspDocumentSymbol);
     }
 
     /// <summary>
@@ -728,18 +678,13 @@ public sealed partial class LspClient : ILspClient
     /// <returns>符号信息列表</returns>
     public async Task<List<LspSymbolInformation>> SearchWorkspaceSymbolsAsync(string query, string? workspacePath = null, string? serverName = null, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspSymbolInformation>();
+        if (!IsConnected) return [];
 
         var symbolParams = new LspWorkspaceSymbolParams { Query = query };
 
         var result = await SendRequestCoreAsync(LspMethod.WorkspaceSymbol.ToValue(), JsonSerializer.SerializeToNode(symbolParams, LspJsonContext.Default.LspWorkspaceSymbolParams), cancellationToken).ConfigureAwait(false);
 
-        if (result is JsonArray)
-        {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspSymbolInformation) ?? new List<LspSymbolInformation>();
-        }
-
-        return new List<LspSymbolInformation>();
+        return DeserializeListResult(result, LspJsonContext.Default.ListLspSymbolInformation);
     }
 
     /// <summary>
@@ -752,17 +697,9 @@ public sealed partial class LspClient : ILspClient
     /// <returns>实现位置列表</returns>
     public async Task<List<LspLocation>> GotoImplementationAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspLocation>();
+        if (!IsConnected) return [];
 
-        var uri = new Uri(filePath).ToString();
-
-        var positionParams = new LspTextDocumentPositionParams
-        {
-            TextDocument = new LspTextDocumentIdentifier { Uri = uri },
-            Position = new LspPosition { Line = line, Character = character }
-        };
-
-        var result = await SendRequestCoreAsync(LspMethod.TextDocumentImplementation.ToValue(), JsonSerializer.SerializeToNode(positionParams, LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
+        var result = await SendRequestCoreAsync(LspMethod.TextDocumentImplementation.ToValue(), JsonSerializer.SerializeToNode(CreatePositionParams(filePath, line, character), LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
 
         return DeserializeLocations(result);
     }
@@ -777,24 +714,11 @@ public sealed partial class LspClient : ILspClient
     /// <returns>调用层次项列表</returns>
     public async Task<List<LspCallHierarchyItem>> PrepareCallHierarchyAsync(string filePath, int line, int character, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspCallHierarchyItem>();
+        if (!IsConnected) return [];
 
-        var uri = new Uri(filePath).ToString();
+        var result = await SendRequestCoreAsync(LspMethod.TextDocumentPrepareCallHierarchy.ToValue(), JsonSerializer.SerializeToNode(CreatePositionParams(filePath, line, character), LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
 
-        var positionParams = new LspTextDocumentPositionParams
-        {
-            TextDocument = new LspTextDocumentIdentifier { Uri = uri },
-            Position = new LspPosition { Line = line, Character = character }
-        };
-
-        var result = await SendRequestCoreAsync(LspMethod.TextDocumentPrepareCallHierarchy.ToValue(), JsonSerializer.SerializeToNode(positionParams, LspJsonContext.Default.LspTextDocumentPositionParams), cancellationToken).ConfigureAwait(false);
-
-        if (result is JsonArray)
-        {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyItem) ?? new List<LspCallHierarchyItem>();
-        }
-
-        return new List<LspCallHierarchyItem>();
+        return DeserializeListResult(result, LspJsonContext.Default.ListLspCallHierarchyItem);
     }
 
     /// <summary>
@@ -805,18 +729,13 @@ public sealed partial class LspClient : ILspClient
     /// <returns>入边调用列表</returns>
     public async Task<List<LspCallHierarchyIncomingCall>> CallHierarchyIncomingCallsAsync(LspCallHierarchyItem item, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspCallHierarchyIncomingCall>();
+        if (!IsConnected) return [];
 
         var paramObj = new LspCallHierarchyItemParam { Item = item };
         var paramNode = JsonSerializer.SerializeToNode(paramObj, LspJsonContext.Default.LspCallHierarchyItemParam);
         var result = await SendRequestCoreAsync(LspMethod.CallHierarchyIncomingCalls.ToValue(), paramNode, cancellationToken).ConfigureAwait(false);
 
-        if (result is JsonArray)
-        {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyIncomingCall) ?? new List<LspCallHierarchyIncomingCall>();
-        }
-
-        return new List<LspCallHierarchyIncomingCall>();
+        return DeserializeListResult(result, LspJsonContext.Default.ListLspCallHierarchyIncomingCall);
     }
 
     /// <summary>
@@ -827,21 +746,36 @@ public sealed partial class LspClient : ILspClient
     /// <returns>出边调用列表</returns>
     public async Task<List<LspCallHierarchyOutgoingCall>> CallHierarchyOutgoingCallsAsync(LspCallHierarchyItem item, CancellationToken cancellationToken = default)
     {
-        if (!IsConnected) return new List<LspCallHierarchyOutgoingCall>();
+        if (!IsConnected) return [];
 
         var paramObj = new LspCallHierarchyItemParam { Item = item };
         var paramNode = JsonSerializer.SerializeToNode(paramObj, LspJsonContext.Default.LspCallHierarchyItemParam);
         var result = await SendRequestCoreAsync(LspMethod.CallHierarchyOutgoingCalls.ToValue(), paramNode, cancellationToken).ConfigureAwait(false);
 
-        if (result is JsonArray)
-        {
-            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), LspJsonContext.Default.ListLspCallHierarchyOutgoingCall) ?? new List<LspCallHierarchyOutgoingCall>();
-        }
-
-        return new List<LspCallHierarchyOutgoingCall>();
+        return DeserializeListResult(result, LspJsonContext.Default.ListLspCallHierarchyOutgoingCall);
     }
 
     #region Private Methods
+
+    /// <summary>构建文本位置参数 — 消除6处重复的 Uri+Position 构造</summary>
+    private static LspTextDocumentPositionParams CreatePositionParams(string filePath, int line, int character)
+    {
+        return new LspTextDocumentPositionParams
+        {
+            TextDocument = new LspTextDocumentIdentifier { Uri = new Uri(filePath).ToString() },
+            Position = new LspPosition { Line = line, Character = character }
+        };
+    }
+
+    /// <summary>反序列化 JsonArray 结果为列表 — 消除7处重复的 if(result is JsonArray) return Deserialize ?? new() 模式</summary>
+    private static List<T> DeserializeListResult<T>(JsonNode? result, JsonTypeInfo<List<T>> jsonInfo)
+    {
+        if (result is JsonArray)
+        {
+            return RelaxedJsonSerializer.Deserialize(result.ToJsonString(), jsonInfo) ?? new List<T>();
+        }
+        return new List<T>();
+    }
 
     /// <summary>
     /// 发送 JSON-RPC 请求并等待响应（核心方法）
@@ -921,9 +855,10 @@ public sealed partial class LspClient : ILspClient
     {
         try
         {
-            while (!cancellationToken.IsCancellationRequested && _reader != null)
+            while (!cancellationToken.IsCancellationRequested && _process != null)
             {
-                var headerLine = await _reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                var reader = _process.StandardOutput;
+                var headerLine = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                 if (headerLine == null) break;
 
                 if (!headerLine.StartsWith("Content-Length: "))
@@ -931,13 +866,13 @@ public sealed partial class LspClient : ILspClient
 
                 var contentLength = int.Parse(headerLine["Content-Length: ".Length..]);
 
-                await _reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+                await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
 
                 var buffer = new char[contentLength];
                 var read = 0;
                 while (read < contentLength)
                 {
-                    var n = await _reader.ReadAsync(buffer, read, contentLength - read).ConfigureAwait(false);
+                    var n = await reader.ReadAsync(buffer, read, contentLength - read).ConfigureAwait(false);
                     if (n == 0) break;
                     read += n;
                 }

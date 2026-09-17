@@ -237,7 +237,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     private async Task ConsumeLoopAsync()
     {
-        AsyncFlowIdentity.SetActorId(Id);
+        using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
         try
         {
             await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
@@ -258,10 +258,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             }
         }
         catch (OperationCanceledException) { }
-        finally
-        {
-            AsyncFlowIdentity.ClearActorId();
-        }
     }
 
     private void ThrowIfDisposed()

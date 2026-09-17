@@ -43,6 +43,23 @@ public sealed class AsyncFlowIdentity
     /// <summary>清除 ActorId(保留 FlowId)— Actor Consumer 退出时调用</summary>
     public static void ClearActorId() => SetActorId(null);
 
+    /// <summary>
+    /// 进入 Actor 作用域 — 设置 ActorId(保留当前 FlowId),返回 scope(Dispose 时恢复原值)。
+    /// 比 SetActorId+try-finally+ClearActorId 更安全:正确处理嵌套 Actor(恢复外层 ActorId 而非置空)。
+    /// </summary>
+    public static IDisposable EnterActorScope(string actorId)
+    {
+        var prev = _current.Value;
+        _current.Value = new AsyncFlowIdentity { FlowId = prev?.FlowId ?? 0, ActorId = actorId };
+        return new ActorScope(_current, prev);
+    }
+
+    /// <summary>Actor 作用域 — Dispose 时恢复原 AsyncFlowIdentity(正确处理嵌套 Actor)</summary>
+    private sealed class ActorScope(AsyncLocal<AsyncFlowIdentity?> store, AsyncFlowIdentity? previous) : IDisposable
+    {
+        public void Dispose() => store.Value = previous;
+    }
+
     /// <summary>清除全部 — 测试用</summary>
     public static void Clear() => _current.Value = null;
 }

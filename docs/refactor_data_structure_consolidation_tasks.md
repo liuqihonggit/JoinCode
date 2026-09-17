@@ -27,11 +27,11 @@
 - **理由**:async 流跨线程切换时 ManagedThreadId 会变,导致 slug 漂移;FlowId 基于 AsyncLocal 跨 await 流转
 - **状态**:✅ 已完成
 
-### [P3-2] ActorBase.SetActorId/ClearActorId 手动 try-finally
+### [P3-2] ActorBase.SetActorId/ClearActorId 手动 try-finally ✅ 已完成
 - **文件**:`lib/async_lock/ActorBase.cs:240-263`
-- **当前**:`SetActorId + try-finally + ClearActorId`
-- **重构**:⚠️ 不能直接套 `AsyncLocalScope<T>`,需专用 `ActorScope`(ClearActorId 语义是保留 FlowId+置空 ActorId,非恢复整个 previous)
-- **状态**:⏳ 待做
+- **重构**:提取 `AsyncFlowIdentity.EnterActorScope` + 私有 `ActorScope`(因循环依赖不能复用 AsyncLocalScope,在 AsyncFlowIdentity 内定义)
+- **收益**:消除手动 try-finally,恢复 previous 比 ClearActorId 更正确(嵌套 Actor 保留外层 ActorId)
+- **状态**:✅ 已完成
 
 ### [P3-3] public 字段→属性(SessionPlanState + EntropyFsmContext)
 - **文件**:`kit/brain/planning/planning2/PlanModeManager.cs:40-48` + `kit/brain/context/services/loop/ShannonEntropyDetector.cs:47-54`
@@ -166,7 +166,8 @@
 
 | 日期 | 任务 | 提交 | 验证 |
 |------|------|------|------|
-| 2026-09-18 | [P3-1] PlanModeManager ManagedThreadId → FlowId | 待提交 | 待编译测试 |
+| 2026-09-18 | [P3-1] PlanModeManager ManagedThreadId → FlowId | b058d792a | AsyncLock 183 + Brain.Other 295 测试通过 |
+| 2026-09-18 | [P3-2] ActorBase EnterActorScope | 待提交 | AsyncLock 183 + Brain.Other 295 测试通过 |
 
 ---
 

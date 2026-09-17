@@ -3,7 +3,18 @@ namespace JoinCode.Entry.Tests;
 public sealed class ProviderDefinitionPolymorphismTests
 {
     private static readonly JoinCode.Abstractions.Configuration.Llm.ModelConfigLoader ModelConfigLoader = new();
-    private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = new(ModelConfigLoader);
+
+    private static Core.Configuration.Providers.ProviderDefinitionRegistry CreateRegistry()
+    {
+        var fs = new Testing.Common.Services.InMemoryFileSystem();
+        var settingsPath = System.IO.Path.Combine(
+            JoinCode.Abstractions.Configuration.AppData.AppDataConstants.Paths.JccDirectory,
+            JoinCode.Abstractions.Configuration.AppData.AppDataConstants.SettingsFileName);
+        fs.WriteAllText(settingsPath, """{"vendor":{"azure":{"protocol":"azure"}}}""");
+        return new Core.Configuration.Providers.ProviderDefinitionRegistry(ModelConfigLoader, fs);
+    }
+
+    private static readonly Core.Configuration.Providers.ProviderDefinitionRegistry Registry = CreateRegistry();
 
     [Fact]
     public void OpenAI_RequiresInteractiveEndpoint_ShouldBeFalse()

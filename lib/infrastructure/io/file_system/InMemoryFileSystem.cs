@@ -10,7 +10,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     private readonly ConcurrentDictionary<string, InMemoryDirectoryEntry> _directories = new();
     private readonly List<InMemoryFileSystemWatcher> _watchers = [];
     private readonly AsyncLock _watchersLock = new("InMemoryFileSystem");
-    private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
+    private readonly EditLockRegistry _editLocks = new();
     private string _currentDirectory = "/test";
 
     /// <summary>
@@ -233,7 +233,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
     {
         var normalizedPath = NormalizePath(path);
-        var editLock = _editLocks.GetOrAdd(normalizedPath, p => new AsyncLock($"EditFile:{p}"));
+        var editLock = _editLocks.GetOrAdd(normalizedPath);
         var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(false);
         if (releaser is null)
             throw new TimeoutException($"编辑文件锁超时: {path}");

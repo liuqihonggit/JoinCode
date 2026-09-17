@@ -100,6 +100,30 @@ ShellCommandInterceptionMiddleware
 
 9 个单元测试 + 466 全量测试通过。commit `8490c02a0`。
 
+### ArgvHash 两轮确认链路打通 + MtpPerturbation 自适应触发生效（2026-09-17）
+
+手动验证发现 3 个 gap 并全部修复：
+
+| Gap | 根因 | 修复 | commit |
+|-----|------|------|--------|
+| 1. 两轮链路断裂 | bash MCP 工具无 confirmed_command/argv_hash 参数，中间件 Begin() 恒传 null | 加 MCP 参数 → ShellPipelineContext → 中间件 | `7f9b57718` |
+| 2. 确认码 # 前缀不匹配 | ComputeArgvHash 返回无 #，显示带 #，ValidateArgvHash 直接比较 | TrimStart('#') 剥离前缀 | `7f9b57718` |
+| 3. 自适应触发不生效 | ShouldTriggerAdaptive=true 时只 log 不 action | MtpPerturbationNode 加 IsAdaptiveTriggered 标志，中间件读取 | `7f9b57718` |
+
+**exe 手动验证（IsAntiCharLossConfirm=true）**：
+
+| # | 场景 | 结果 |
+|---|------|------|
+| 18 | 第一轮 echo hello → 拒绝+确认码 #6D9387 | ✅ JCC9006 |
+| 19 | 第二轮 echo hello + 正确 hash → 通过 | ✅ exit 0 |
+| 20 | 错误 hash → 拒绝 | ✅ JCC9008 |
+| 21 | 错误 confirmed_command → 拒绝 | ✅ JCC9007 |
+| 22 | hash 无 # 前缀 → 通过 | ✅ TrimStart 生效 |
+
+**MtpPerturbation 自适应触发**：单元测试验证连续3次异常触发 IsAdaptiveTriggered=true。CLI 模式下状态不跨进程持久化（单次进程），MCP server 长运行模式下有效。
+
+466 + 259 测试全部通过。
+
 ## 替代方案
 
 1. **关掉 MTP** — 放弃推理吞吐，不可行。MTP 是供应商侧优化，Agent 无法控制

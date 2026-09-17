@@ -12,12 +12,13 @@ public class BashDefenseTests
     private readonly RetainedDeviceNode _retainedDeviceNode = new();
     private readonly ArgvHashNode _argvHashNode = new();
     private readonly RedirectWhitelistNode _redirectWhitelistNode = new();
+    private readonly StrictParseNode _strictParseNode = new();
     private readonly MtpPerturbationNode _mtpPerturbationNode = new();
     private readonly BashDefenseService _bashDefenseService;
 
     public BashDefenseTests()
     {
-        _bashDefenseService = new BashDefenseService(_retainedDeviceNode, _argvHashNode, _redirectWhitelistNode);
+        _bashDefenseService = new BashDefenseService(_retainedDeviceNode, _argvHashNode, _redirectWhitelistNode, _strictParseNode);
     }
 
     #region BashDefense 链式构建器基本功能
@@ -391,6 +392,58 @@ public class BashDefenseTests
     {
         var report = _mtpPerturbationNode.Record("cat ./buld/file", 1, "No such file or directory");
         report.ConsecutiveAnomalies.Should().Be(1, "stderr 包含路径错误应为异常");
+    }
+
+    #endregion
+
+    #region StrictParseNode 严格解析检测
+
+    [Theory]
+    [InlineData("echo \"hello", '"')]
+    [InlineData("echo 'hello", '\'')]
+    [InlineData("echo \"hello >nul", '"')]
+    public void FindUnmatchedQuote_UnclosedQuote_ShouldReturnQuoteChar(string command, char expected)
+    {
+        var result = _strictParseNode.FindUnmatchedQuote(command.AsSpan());
+        result.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("echo hello")]
+    [InlineData("echo \"hello\"")]
+    [InlineData("echo 'hello'")]
+    [InlineData("echo \"hello 'world'\"")]
+    [InlineData("echo 'hello \"world\"'")]
+    public void FindUnmatchedQuote_MatchedQuotes_ShouldReturnNull(string command)
+    {
+        var result = _strictParseNode.FindUnmatchedQuote(command.AsSpan());
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task StrictParse_UnclosedDoubleQuote_ShouldReject()
+    {
+        var workDir = AppContext.BaseDirectory;
+        var (_, rejection) = await _bashDefenseService
+            .Begin("echo \"hello >nul", workDir, SystemActuatorKind.Bash)
+            .Then(_bashDefenseService.StrictParse)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().NotBeNull();
+        rejection!.GetFirstText().Should().Contain("未闭合");
+        rejection.GetFirstText().Should().Contain("MTP");
+    }
+
+    [Fact]
+    public async Task StrictParse_MatchedQuotes_ShouldPass()
+    {
+        var workDir = AppContext.BaseDirectory;
+        var (_, rejection) = await _bashDefenseService
+            .Begin("echo \"hello world\"", workDir, SystemActuatorKind.Bash)
+            .Then(_bashDefenseService.StrictParse)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().BeNull();
     }
 
     #endregion

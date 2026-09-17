@@ -24,6 +24,7 @@ public sealed class BashDefenseService
     private readonly RetainedDeviceNode _retainedDeviceNode;
     private readonly ArgvHashNode _argvHashNode;
     private readonly RedirectWhitelistNode _redirectWhitelistNode;
+    private readonly StrictParseNode _strictParseNode;
 
     /// <summary>
     /// 构造 Bash 防御服务
@@ -31,14 +32,17 @@ public sealed class BashDefenseService
     /// <param name="retainedDeviceNode">保留设备名检测 node</param>
     /// <param name="argvHashNode">argv hash 校验 node</param>
     /// <param name="redirectWhitelistNode">重定向白名单 node</param>
+    /// <param name="strictParseNode">严格解析检测 node</param>
     public BashDefenseService(
         RetainedDeviceNode retainedDeviceNode,
         ArgvHashNode argvHashNode,
-        RedirectWhitelistNode redirectWhitelistNode)
+        RedirectWhitelistNode redirectWhitelistNode,
+        StrictParseNode strictParseNode)
     {
         _retainedDeviceNode = retainedDeviceNode ?? throw new ArgumentNullException(nameof(retainedDeviceNode));
         _argvHashNode = argvHashNode ?? throw new ArgumentNullException(nameof(argvHashNode));
         _redirectWhitelistNode = redirectWhitelistNode ?? throw new ArgumentNullException(nameof(redirectWhitelistNode));
+        _strictParseNode = strictParseNode ?? throw new ArgumentNullException(nameof(strictParseNode));
     }
 
     /// <summary>
@@ -63,6 +67,26 @@ public sealed class BashDefenseService
     // ════════════════════════════════════════════════════════════════════
     //  防御步骤（委托各 node，适配 ToolResult）— 有名函数，非 lambda
     // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 严格解析检测 — 委托 <see cref="StrictParseNode"/>，检测未闭合引号。
+    /// <para>
+    /// MTP 扰动纵深防御约束第2条：结构化解析是承重墙，引号不配对直接拒绝。
+    /// </para>
+    /// </summary>
+    /// <param name="ctx">Bash 防御上下文</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>拒绝诊断；通过时返回 null</returns>
+    public ValueTask<ToolResult?> StrictParse(BashDefenseContext ctx, CancellationToken ct)
+    {
+        var unmatchedQuote = _strictParseNode.FindUnmatchedQuote(ctx.CurrentCommand.AsSpan());
+        if (unmatchedQuote is null)
+            return ValueTask.FromResult<ToolResult?>(null);
+
+        var diag = BuildUnmatchedQuoteDiagnostic(unmatchedQuote.Value, ctx.CurrentCommand);
+        return ValueTask.FromResult<ToolResult?>(
+            ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
+    }
 
     /// <summary>
     /// 保留设备名检测 — 委托 <see cref="RetainedDeviceNode"/>，检测到重定向到保留设备名构建拒绝诊断。
@@ -229,4 +253,21 @@ public sealed class BashDefenseService
             $"\n⚠️ 疑似 MTP 扰动：建议丢弃当前命令，完整重新生成，不要在错误字符串上局部修补",
             "重定向目标", violatingTarget,
             "重定向目标必须在工作区内或 /dev/null。禁止重定向到工作区外路径或保留设备名。");
+
+    /// <summary>
+    /// 构建未闭合引号拒绝诊断 — 封死替代路径 + 提示 MTP 扰动重生成。
+    /// </summary>
+    /// <param name="quoteChar">未闭合的引号字符</param>
+    /// <param name="command">原始命令</param>
+    /// <returns>拒绝诊断</returns>
+    private static ToolDiagnostic BuildUnmatchedQuoteDiagnostic(char quoteChar, string command)
+        => ToolDiagnostic.Create(
+            "JCC9010",
+            $"检测到未闭合的引号 '{quoteChar}' — 命令解析失败，不进入下游执行。" +
+            $"\n\n原始命令：{command}" +
+            $"\n\n✅ 推荐写法：确保引号配对，如 echo \"hello\" 或 echo 'hello'" +
+            $"\n❌ 禁止尝试：忽略引号不配对直接执行 —— 会导致参数解析错误" +
+            $"\n⚠️ 疑似 MTP 扰动：建议丢弃当前命令，完整重新生成，不要在错误字符串上局部修补",
+            "引号", quoteChar.ToString(),
+            "请确保引号配对后重新执行。疑似 MTP 扰动时建议完整重新生成命令。");
 }

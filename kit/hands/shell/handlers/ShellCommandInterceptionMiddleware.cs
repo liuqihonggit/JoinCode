@@ -93,10 +93,10 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
     }
 
     /// <summary>
-    /// 执行 BashDefense 链 — MTP 扰动纵深防御（重定向白名单 + 保留设备名检测 + argv hash 二次确认）。
+    /// 执行 BashDefense 链 — MTP 扰动纵深防御（严格解析 + 重定向白名单 + 保留设备名检测 + argv hash 二次确认）。
     /// <para>
     /// 在 CommandInterceptionDispatcher 之后执行，补充 Dispatcher 未覆盖的 MTP 扰动防御。
-    /// 当前组装：CheckRetainedDevice + CheckRedirectWhitelist + RequireArgvHash。
+    /// 当前组装：StrictParse + CheckRetainedDevice + CheckRedirectWhitelist + RequireArgvHash。
     /// RequireArgvHash 仅在 ConfirmMode == AntiCharLossConfirm 时生效（从配置读取）。
     /// </para>
     /// </summary>
@@ -108,6 +108,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
             : GuardConfirmMode.None;
         var (_, rejection) = await _bashDefenseService
             .Begin(context.Command, workDir, context.Provider.Kind, confirmMode)
+            .Then(_bashDefenseService.StrictParse)
             .Then(_bashDefenseService.CheckRetainedDevice)
             .Then(_bashDefenseService.CheckRedirectWhitelist)
             .Then(_bashDefenseService.RequireArgvHash)

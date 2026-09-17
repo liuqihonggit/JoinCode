@@ -99,9 +99,9 @@ public sealed class McpToolSmokeTests
     }
 
     /// <summary>
-    /// 有真实 git/文件系统副作用的工具 — 冒烟测试跳过，避免污染测试环境
+    /// 有真实 git 副作用的工具 — 冒烟测试跳过，避免污染测试环境（创建/删除真实 git worktree）
     /// </summary>
-    private static readonly FrozenSet<string> ToolsWithRealSideEffects = FrozenSet.Create(
+    private static readonly FrozenSet<string> ToolsWithGitSideEffects = FrozenSet.Create(
         StringComparer.Ordinal,
         [
             "worktree_create",
@@ -112,6 +112,13 @@ public sealed class McpToolSmokeTests
             "exit_worktree"
         ]
     );
+
+    /// <summary>
+    /// 判断工具是否有真实副作用（桌面 Win32 SendInput / git worktree 操作），冒烟测试应跳过
+    /// </summary>
+    private static bool HasRealSideEffects(ToolInfo tool) =>
+        string.Equals(tool.Category, "desktop", StringComparison.OrdinalIgnoreCase)
+        || ToolsWithGitSideEffects.Contains(tool.Name);
 
     [Fact]
     public async Task All_Registered_Tools_Can_Be_Called_Without_Crash()
@@ -126,7 +133,7 @@ public sealed class McpToolSmokeTests
 
         foreach (var tool in allTools.OrderBy(t => t.Name))
         {
-            if (ToolsWithRealSideEffects.Contains(tool.Name))
+            if (HasRealSideEffects(tool))
             {
                 skipped.Add(tool.Name);
                 results.Add((tool.Name, false, "SKIPPED: 有真实副作用"));

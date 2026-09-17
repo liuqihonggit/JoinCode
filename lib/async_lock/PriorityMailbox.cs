@@ -48,9 +48,10 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     private readonly ActorBackpressure? _normalBackpressure;
     private readonly ActorBackpressure? _lowBackpressure;
     private readonly SemaphoreSlim _signal = new(0, int.MaxValue);
-    private readonly Task _consumerTask;
     private readonly CancellationTokenSource _cts = new();
+    private Task? _consumerTask;
     private int _disposed;
+    private int _consumingStarted;
 
     /// <summary>
     /// 构造优先级邮箱 — 每个优先级独立背压配置(null=无界通道)。
@@ -58,10 +59,12 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
     /// <param name="highBackpressure">高优先级背压(用户交互)</param>
     /// <param name="normalBackpressure">普通优先级背压(LLM 请求)</param>
     /// <param name="lowBackpressure">低优先级背压(后台编译)</param>
+    /// <param name="startConsuming">是否在构造时立即启动 Consumer 循环(默认 true,生产行为;测试传 false 后显式调 <see cref="StartConsuming"/> 控制启动时机,以验证贪心优先级排序)</param>
     protected PriorityMailbox(
         ActorBackpressure? highBackpressure = null,
         ActorBackpressure? normalBackpressure = null,
-        ActorBackpressure? lowBackpressure = null)
+        ActorBackpressure? lowBackpressure = null,
+        bool startConsuming = true)
     {
         _highBackpressure = highBackpressure;
         _normalBackpressure = normalBackpressure;
@@ -74,6 +77,16 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
             SingleReader = true,
             SingleWriter = true
         });
+        if (startConsuming) StartConsuming();
+    }
+
+    /// <summary>
+    /// 显式启动 Consumer 循环 — 用于构造时传 <c>startConsuming: false</c> 的场景(如测试需先批量入队再启动消费,以验证贪心优先级排序)。
+    /// <para>幂等:多次调用只启动一次。</para>
+    /// </summary>
+    protected void StartConsuming()
+    {
+        if (Interlocked.Exchange(ref _consumingStarted, 1) != 0) return;
         _consumerTask = Task.Factory.StartNew(
             ConsumeLoopAsync,
             CancellationToken.None,
@@ -99,8 +112,8 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
         });
     }
 
-    /// <summary>Consumer 任务 — 用于等待 Consumer 退出</summary>
-    protected internal Task ConsumerTask => _consumerTask;
+    /// <summary>Consumer 任务 — 用于等待 Consumer 退出;未启动时返回 <see cref="Task.CompletedTask"/></summary>
+    protected internal Task ConsumerTask => _consumerTask ?? Task.CompletedTask;
 
     /// <summary>所有优先级通道的总消息数(无界通道返回 0)</summary>
     public int MailboxCount => SafeCount(_highChannel) + SafeCount(_normalChannel) + SafeCount(_lowChannel);
@@ -305,7 +318,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
         _normalChannel.Writer.TryComplete();
         _lowChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
-        await _consumerTask.ConfigureAwait(false);
+        if (_consumerTask is { } task) await task.ConfigureAwait(false);
         _cts.Dispose();
         _signal.Dispose();
     }

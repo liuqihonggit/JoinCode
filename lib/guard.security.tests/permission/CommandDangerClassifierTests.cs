@@ -20,6 +20,9 @@ public class CommandDangerClassifierTests
     [InlineData("wipe /home/user/secret")]
     [InlineData("dd if=/dev/zero of=/dev/sda")]
     [InlineData("diskpart clean")]
+    [InlineData("git -c core.sshCommand=rm fetch")]
+    [InlineData("git --exec-path=/tmp/malicious log")]
+    [InlineData("git --config-env=core.sshCommand=SSH log")]
     public void Dangerous_Commands_Should_Return_Dangerous(string command)
     {
         var result = _classifier.Classify(command);

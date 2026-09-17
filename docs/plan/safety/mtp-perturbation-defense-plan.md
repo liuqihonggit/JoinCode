@@ -148,6 +148,8 @@ if (rejection is not null) return rejection;
 
 ## 五、实施阶段（渐进式，每步编译+测试+commit）
 
+> ⬜ **待办：接入执行管道** — `BashDefense` 链已就位但未接入 bash 执行管道。计划在所有 Node 完成后一次性接入（在 `ShellCommandInterceptionMiddleware` 中 `CommandInterceptionDispatcher` 之后调用 `BashDefense` 链）。接入时同步移走 `GlobalTwoPhaseConfirmGuard` 到 `.xxx/`。
+
 ### 阶段 1：增强现有守卫（低风险，改现有文件）
 
 > 目标：补齐 D1、D2、D8，不新增组件，只增强现有守卫

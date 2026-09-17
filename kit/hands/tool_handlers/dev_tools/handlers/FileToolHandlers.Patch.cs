@@ -9,7 +9,7 @@ public partial class FileToolHandlers
         [McpToolParameter("Preview changes without writing (default: false)", Required = false)] bool dry_run = false,
         CancellationToken cancellationToken = default)
     {
-        if (_applyPatchLogic is null)
+        if (_ctx.ApplyPatchLogic is null)
         {
             var notAvailDiag = BuildApplyPatchNotAvailableDiagnostic();
             return ToolResultBuilder.Error().WithText(notAvailDiag.FormattedMessage).WithDiagnostic(notAvailDiag).Build();
@@ -52,7 +52,7 @@ public partial class FileToolHandlers
         }
 
         // ── 应用 patch ──
-        var result = await _applyPatchLogic.ApplyAsync(patch, dry_run, workingDirectory: null, cancellationToken).ConfigureAwait(false);
+        var result = await _ctx.ApplyPatchLogic.ApplyAsync(patch, dry_run, workingDirectory: null, cancellationToken).ConfigureAwait(false);
 
         if (!result.Success)
         {

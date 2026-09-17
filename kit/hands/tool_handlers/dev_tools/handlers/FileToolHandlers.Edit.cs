@@ -103,7 +103,7 @@ public partial class FileToolHandlers
         [McpToolParameter("Replace all matches, default true", Required = false, DefaultValue = "true")] bool replace_all = true,
         CancellationToken cancellationToken = default)
     {
-        if (_fileEditLogic == null)
+        if (_ctx.FileEditLogic == null)
         {
             var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
@@ -138,7 +138,7 @@ public partial class FileToolHandlers
         FileEditResult result;
         try
         {
-            result = await _fileEditLogic.EditWithRegexAsync(file_path, pattern, replacement, replace_all, cancellationToken).ConfigureAwait(false);
+            result = await _ctx.FileEditLogic.EditWithRegexAsync(file_path, pattern, replacement, replace_all, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -185,7 +185,7 @@ public partial class FileToolHandlers
         [McpToolParameter("New content to insert")] string new_content,
         CancellationToken cancellationToken = default)
     {
-        if (_fileEditLogic == null)
+        if (_ctx.FileEditLogic == null)
         {
             var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
@@ -221,7 +221,7 @@ public partial class FileToolHandlers
         FileLineEditResult result;
         try
         {
-            result = await _fileEditLogic.InsertLinesAfterAsync(file_path, after_line, new_content, cancellationToken).ConfigureAwait(false);
+            result = await _ctx.FileEditLogic.InsertLinesAfterAsync(file_path, after_line, new_content, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -268,7 +268,7 @@ public partial class FileToolHandlers
         [McpToolParameter("End line number (1-based)")] int end_line,
         CancellationToken cancellationToken = default)
     {
-        if (_fileEditLogic == null)
+        if (_ctx.FileEditLogic == null)
         {
             var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
@@ -303,7 +303,7 @@ public partial class FileToolHandlers
         FileLineEditResult result;
         try
         {
-            result = await _fileEditLogic.DeleteLinesAsync(file_path, start_line, end_line, cancellationToken).ConfigureAwait(false);
+            result = await _ctx.FileEditLogic.DeleteLinesAsync(file_path, start_line, end_line, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -359,7 +359,7 @@ public partial class FileToolHandlers
         [McpToolParameter("Replace all matches, default true", Required = false, DefaultValue = "true")] bool replace_all = true,
         CancellationToken cancellationToken = default)
     {
-        if (_fileEditLogic == null)
+        if (_ctx.FileEditLogic == null)
         {
             var notInitDiag = BuildFileEditServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
@@ -413,7 +413,7 @@ public partial class FileToolHandlers
         {
             try
             {
-                results = [.. await _fileEditLogic.BatchEditAsync(resolvedPaths, old_string, new_string, replace_all, cancellationToken).ConfigureAwait(false)];
+                results = [.. await _ctx.FileEditLogic.BatchEditAsync(resolvedPaths, old_string, new_string, replace_all, cancellationToken).ConfigureAwait(false)];
             }
             catch (OperationCanceledException)
             {

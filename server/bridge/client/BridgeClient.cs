@@ -11,6 +11,38 @@ internal sealed record StopCmd(CancellationToken Ct, TaskCompletionSource Tcs) :
 internal sealed record GetStateCmd(CancellationToken Ct, TaskCompletionSource<BridgeClientState> Tcs) : IBridgeCommand;
 
 /// <summary>
+/// Bridge 客户端消息统计 — 5 个字段的聚合,用 <see cref="Interlocked"/> 保持线程安全
+/// </summary>
+/// <remarks>
+/// 4 个 long 计数器在传输层事件回调线程递增,用 <see cref="Interlocked"/> 原子操作;
+/// <see cref="StartedAt"/> 仅在 Actor Consumer 线程读写,无需原子。
+/// </remarks>
+internal struct BridgeClientStats
+{
+    /// <summary>累计接收消息数</summary>
+    public long Received;
+    /// <summary>累计处理消息数</summary>
+    public long Processed;
+    /// <summary>累计过滤 Echo 消息数</summary>
+    public long EchoFiltered;
+    /// <summary>累计过滤重复消息数</summary>
+    public long DuplicatesFiltered;
+    /// <summary>启动时间(Actor Consumer 线程独占)</summary>
+    public DateTime StartedAt;
+
+    /// <summary>记录接收到一条消息(线程安全)</summary>
+    public void RecordReceived() => Interlocked.Increment(ref Received);
+    /// <summary>记录处理完成一条消息(线程安全)</summary>
+    public void RecordProcessed() => Interlocked.Increment(ref Processed);
+    /// <summary>记录过滤一条 Echo 消息(线程安全)</summary>
+    public void RecordEchoFiltered() => Interlocked.Increment(ref EchoFiltered);
+    /// <summary>记录过滤一条重复消息(线程安全)</summary>
+    public void RecordDuplicatesFiltered() => Interlocked.Increment(ref DuplicatesFiltered);
+    /// <summary>设置启动时间(Actor Consumer 线程独占,无需原子)</summary>
+    public void MarkStarted(DateTime now) => StartedAt = now;
+}
+
+/// <summary>
 /// Bridge 客户端 - 参考 TS 原版 的 replBridge.ts 架构
 /// 实现消息轮询循环、消息去重、Echo 过滤和重连逻辑
 /// Actor 化：继承 ActorBase，Start/Stop/GetState 发命令串行执行，消除 AsyncLock 锁内长 await（StopAsync >5s）。
@@ -35,12 +67,8 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     private volatile int _isRunning;
     private int _isDisposed;
 
-    // 统计信息
-    private long _totalMessagesReceived;
-    private long _totalMessagesProcessed;
-    private long _totalEchoFiltered;
-    private long _totalDuplicatesFiltered;
-    private DateTime _startedAt;
+    // 统计信息(5 字段聚合为 BridgeClientStats,用 Interlocked 保持线程安全)
+    private BridgeClientStats _stats;
 
     /// <summary>客户端是否正在运行（原子读取）</summary>
     public bool IsRunning => Interlocked.CompareExchange(ref _isRunning, 0, 0) != 0;
@@ -344,7 +372,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
 
     private async Task ProcessReceivedMessageAsync(BridgeMessage message)
     {
-        Interlocked.Increment(ref _totalMessagesReceived);
+        _stats.RecordReceived();
 
         _logger?.LogDebug("[BridgeClient] 收到消息: {MessageType} (ID: {MessageId})", message.Type, message.Id);
 
@@ -367,7 +395,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
             // 1. 消息去重检查
             if (!await _processedMessageIds.AddAsync(message.Id).ConfigureAwait(false))
             {
-                Interlocked.Increment(ref _totalDuplicatesFiltered);
+                _stats.RecordDuplicatesFiltered();
                 _logger?.LogDebug("[BridgeClient] 忽略重复消息: {MessageId}", message.Id);
                 return;
             }
@@ -375,7 +403,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
             // 2. Echo 消息过滤
             if (message is EchoMessage)
             {
-                Interlocked.Increment(ref _totalEchoFiltered);
+                _stats.RecordEchoFiltered();
                 _logger?.LogDebug("[BridgeClient] 过滤 Echo 消息: {MessageId}", message.Id);
                 return;
             }
@@ -383,7 +411,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
             // 3. 处理消息
             var response = await _messageHandler.HandleAsync(message).ConfigureAwait(false);
 
-            Interlocked.Increment(ref _totalMessagesProcessed);
+            _stats.RecordProcessed();
             stopwatch.Stop();
 
             // 4. 发送响应（如果有）
@@ -483,7 +511,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     #endregion
 
     /// <summary>
-    /// Actor Consumer — 线程独占 _pollingCts/_pollingTask/_authToken/_startedAt，串行处理命令，无需锁。
+    /// Actor Consumer — 线程独占 _pollingCts/_pollingTask/_authToken/_stats.StartedAt，串行处理命令，无需锁。
     /// </summary>
     protected override async ValueTask HandleAsync(IBridgeCommand command, CancellationToken ct)
     {
@@ -503,7 +531,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
                     _logger?.LogInformation("[BridgeClient] 启动客户端...");
 
                     Interlocked.Exchange(ref _isRunning, 1);
-                    _startedAt = _clock.GetUtcNow();
+                    _stats.MarkStarted(_clock.GetUtcNow());
 
                     await _transportManager.StartAsync(cmd.Ct).ConfigureAwait(false);
 
@@ -582,11 +610,11 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
                 {
                     IsRunning = IsRunning,
                     ConnectionState = _transportManager.ConnectionState,
-                    TotalMessagesReceived = _totalMessagesReceived,
-                    TotalMessagesProcessed = _totalMessagesProcessed,
-                    TotalEchoFiltered = _totalEchoFiltered,
-                    TotalDuplicatesFiltered = _totalDuplicatesFiltered,
-                    Uptime = _clock.GetUtcNow() - _startedAt,
+                    TotalMessagesReceived = _stats.Received,
+                    TotalMessagesProcessed = _stats.Processed,
+                    TotalEchoFiltered = _stats.EchoFiltered,
+                    TotalDuplicatesFiltered = _stats.DuplicatesFiltered,
+                    Uptime = _clock.GetUtcNow() - _stats.StartedAt,
                     HasJwtToken = _authToken != null,
                     HasActiveSession = _sessionRunner?.GetActiveSessions().Count > 0,
                 };

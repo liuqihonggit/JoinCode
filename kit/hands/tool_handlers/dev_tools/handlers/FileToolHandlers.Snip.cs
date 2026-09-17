@@ -10,7 +10,7 @@ public partial class FileToolHandlers
         [McpToolParameter("Line count limit", Required = false, DefaultValue = "100")] int line_count = 100,
         CancellationToken cancellationToken = default)
     {
-        if (_snipLogic == null)
+        if (_ctx.SnipLogic == null)
         {
             var notInitDiag = BuildFileChunkingServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
@@ -31,7 +31,7 @@ public partial class FileToolHandlers
         string content;
         try
         {
-            content = await _snipLogic.SnipLinesAsync(file_path, start_line, line_count, cancellationToken).ConfigureAwait(false);
+            content = await _ctx.SnipLogic.SnipLinesAsync(file_path, start_line, line_count, cancellationToken).ConfigureAwait(false);
         }
         catch (FileNotFoundException)
         {
@@ -73,7 +73,7 @@ public partial class FileToolHandlers
         [McpToolParameter("Max preview lines", Required = false, DefaultValue = "20")] int max_preview_lines = 20,
         CancellationToken cancellationToken = default)
     {
-        if (_snipLogic == null)
+        if (_ctx.SnipLogic == null)
         {
             var notInitDiag = BuildFileChunkingServiceNotInitializedDiagnostic();
             return ToolResultBuilder.Error().WithText(notInitDiag.FormattedMessage).WithDiagnostic(notInitDiag).Build();
@@ -93,7 +93,7 @@ public partial class FileToolHandlers
         SnipPreview preview;
         try
         {
-            preview = await _snipLogic.GetPreviewAsync(file_path, max_preview_lines, cancellationToken).ConfigureAwait(false);
+            preview = await _ctx.SnipLogic.GetPreviewAsync(file_path, max_preview_lines, cancellationToken).ConfigureAwait(false);
         }
         catch (FileNotFoundException)
         {

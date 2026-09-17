@@ -77,7 +77,7 @@ public partial class FileToolHandlers
 
         // 对齐 TS: readFileState dedup — 检查文件是否已读取且未修改
         // 约 18% 的 Read 调用是同文件碰撞，去重可节省 cache_creation token
-        var existingState = _fileStateCache?.GetReadState(file_path);
+        var existingState = _ctx.FileStateCache?.GetReadState(file_path);
         if (existingState is not null && !existingState.IsPartialView && existingState.Offset.HasValue)
         {
             var rangeMatch = existingState.Offset == (offset.HasValue ? offset.Value - 1 : (int?)null)
@@ -156,8 +156,9 @@ public partial class FileToolHandlers
 
         // Token limit check (matches TS: validateContentTokens)
         // Prevents reading files that would consume too much context
-        var maxTokens = _fileOperationConfig.MaxReadTokens > 0
-            ? _fileOperationConfig.MaxReadTokens
+        var fileConfig = _ctx.FileOperationConfig!;
+        var maxTokens = fileConfig.MaxReadTokens > 0
+            ? fileConfig.MaxReadTokens
             : DefaultMaxReadTokens;
         var estimatedTokens = EstimateTokenCount(result.Content, file_path);
         if (estimatedTokens > maxTokens)
@@ -175,7 +176,7 @@ public partial class FileToolHandlers
             return ToolResultBuilder.Error().WithText(tokenDiagnostic.FormattedMessage).WithDiagnostic(tokenDiagnostic).Build();
         }
 
-        var numberedContent = AddLineNumbers(result.Content, result.StartLine, _fileOperationConfig.CompactLinePrefix);
+        var numberedContent = AddLineNumbers(result.Content, result.StartLine, _ctx.FileOperationConfig!.CompactLinePrefix);
 
         var response = new StringBuilder(256);
         response.Append(numberedContent);
@@ -204,7 +205,7 @@ public partial class FileToolHandlers
         {
             recordTimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         }
-        _fileStateCache?.RecordRead(
+        _ctx.FileStateCache?.RecordRead(
             result.FilePath,
             result.Content,
             recordTimestampMs,
@@ -213,7 +214,7 @@ public partial class FileToolHandlers
 
         // 对齐 TS: FileReadTool — 通知文件读取监听器
         // 仅在文本文件读取成功后触发，PDF/Notebook/图像等特殊文件不触发
-        _fileReadListenerRegistry?.Notify(new FileReadEventArgs
+        _ctx.FileReadListenerRegistry?.Notify(new FileReadEventArgs
         {
             FilePath = result.FilePath,
             Content = result.Content,

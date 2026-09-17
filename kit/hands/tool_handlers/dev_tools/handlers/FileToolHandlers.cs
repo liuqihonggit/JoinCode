@@ -33,21 +33,8 @@ public partial class FileToolHandlers : IDisposable
         """;
 
     private readonly IFileOperationService _fileOperationService;
-    private readonly ISandboxManager? _sandboxManager;
-    private readonly ITelemetryService? _telemetryService;
-    private readonly FileEditLogic? _fileEditLogic;
-    private readonly SnipLogic? _snipLogic;
-    private readonly IFileStateCache? _fileStateCache;
-    private readonly IFileHistoryService? _fileHistoryService;
-    private readonly ILspFileSync? _lspFileSync;
-    private readonly FileOperationConfig _fileOperationConfig;
-    private readonly ITeamMemSecretGuard? _teamMemSecretGuard;
-    private readonly IFileReadListenerRegistry? _fileReadListenerRegistry;
-    private readonly IFileWriteListenerRegistry? _fileWriteListenerRegistry;
-    private readonly ILspDiagnosticProvider? _lspDiagnosticProvider;
     private readonly IFileSystem _fs;
-    private readonly ApplyPatchLogic? _applyPatchLogic;
-    private readonly ISubAgentContextAccessor? _subAgentContextAccessor;
+    private readonly FileToolHandlersContext _ctx;
     private readonly WriteDefenseService _writeDefense;
     private readonly ILogger<FileToolHandlers>? _logger;
 
@@ -72,31 +59,21 @@ public partial class FileToolHandlers : IDisposable
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
-        _sandboxManager = context?.SandboxManager;
-        _telemetryService = context?.TelemetryService;
-        _fileEditLogic = context?.FileEditLogic;
-        _snipLogic = context?.SnipLogic;
-        _fileStateCache = context?.FileStateCache;
-        _fileHistoryService = context?.FileHistoryService;
-        _lspFileSync = context?.LspFileSync;
-        _fileOperationConfig = context?.FileOperationConfig ?? new FileOperationConfig();
-        _teamMemSecretGuard = context?.TeamMemSecretGuard;
-        _fileReadListenerRegistry = context?.FileReadListenerRegistry;
-        _fileWriteListenerRegistry = context?.FileWriteListenerRegistry;
-        _lspDiagnosticProvider = context?.LspDiagnosticProvider;
-        _applyPatchLogic = context?.ApplyPatchLogic;
-        _subAgentContextAccessor = context?.SubAgentContextAccessor;
+        _ctx = context ?? new FileToolHandlersContext();
+        // FileOperationConfig fallback: 保证 _ctx.FileOperationConfig 非 null（对齐原 _ctx.FileOperationConfig = context?.FileOperationConfig ?? new()）
+        if (_ctx.FileOperationConfig is null)
+            _ctx = _ctx with { FileOperationConfig = new FileOperationConfig() };
         // WriteDefenseService — 优先从 DI 获取，否则用当前依赖现场构造 node 再注入（测试场景）
-        _writeDefense = context?.WriteDefenseService
+        _writeDefense = _ctx.WriteDefenseService
             ?? new WriteDefenseService(
-                new SecretGuardNode(_teamMemSecretGuard),
-                new FileBackupNode(_fs, _fileHistoryService),
-                new WriteNotifyNode(_fs, _lspFileSync, _lspDiagnosticProvider, _telemetryService,
-                    _fileWriteListenerRegistry, _subAgentContextAccessor),
-                new SandboxGuardNode(_sandboxManager),
-                new FileStateGuardNode(_fs, _fileStateCache),
-                new FormatValidatorNode(_fs, _subAgentContextAccessor),
-                _telemetryService);
+                new SecretGuardNode(_ctx.TeamMemSecretGuard),
+                new FileBackupNode(_fs, _ctx.FileHistoryService),
+                new WriteNotifyNode(_fs, _ctx.LspFileSync, _ctx.LspDiagnosticProvider, _ctx.TelemetryService,
+                    _ctx.FileWriteListenerRegistry, _ctx.SubAgentContextAccessor),
+                new SandboxGuardNode(_ctx.SandboxManager),
+                new FileStateGuardNode(_fs, _ctx.FileStateCache),
+                new FormatValidatorNode(_fs, _ctx.SubAgentContextAccessor),
+                _ctx.TelemetryService);
     }
 
     /// <summary>
@@ -104,11 +81,11 @@ public partial class FileToolHandlers : IDisposable
     /// </summary>
     private void NotifyFileWrite(string filePath, string operation)
     {
-        if (_fileWriteListenerRegistry is null) return;
-        var agentId = _subAgentContextAccessor?.Current?.AgentId ?? "main";
+        if (_ctx.FileWriteListenerRegistry is null) return;
+        var agentId = _ctx.SubAgentContextAccessor?.Current?.AgentId ?? "main";
         try
         {
-            _fileWriteListenerRegistry.Notify(new FileWriteEventArgs { FilePath = filePath, Operation = operation, AgentId = agentId });
+            _ctx.FileWriteListenerRegistry.Notify(new FileWriteEventArgs { FilePath = filePath, Operation = operation, AgentId = agentId });
         }
         catch (Exception ex)
         {
@@ -127,7 +104,7 @@ public partial class FileToolHandlers : IDisposable
     /// </param>
     private void NotifyLspFileChange(string filePath, string? content)
     {
-        if (_lspFileSync is null)
+        if (_ctx.LspFileSync is null)
         {
             // LspFileSync 为 null 时立即释放信号量，避免测试等待超时
             _lspNotificationCompleted.Release();
@@ -150,13 +127,13 @@ public partial class FileToolHandlers : IDisposable
                     changeContent = await _fs.ReadAllTextAsync(filePath, encoding).ConfigureAwait(false);
                 }
 
-                await _lspFileSync.ChangeDocumentAsync(
+                await _ctx.LspFileSync.ChangeDocumentAsync(
                     filePath,
                     [new TextDocumentContentChangeEvent { Text = changeContent }],
                     ct).WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
 
                 // 对齐 TS: lspManager.saveFile(path)
-                await _lspFileSync.SaveDocumentAsync(filePath, ct)
+                await _ctx.LspFileSync.SaveDocumentAsync(filePath, ct)
                     .WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -166,7 +143,7 @@ public partial class FileToolHandlers : IDisposable
             catch (Exception ex)
             {
                 // 对齐 TS: .catch() 处理错误，不阻塞主流程
-                _telemetryService?.RecordCount("file.lsp_notify.error", new Dictionary<string, string>
+                _ctx.TelemetryService?.RecordCount("file.lsp_notify.error", new Dictionary<string, string>
                 {
                     ["operation"] = "change_and_save",
                     ["error"] = ex.GetType().Name
@@ -269,7 +246,7 @@ public partial class FileToolHandlers : IDisposable
     }
 
     private void RecordFileMetrics(FileOperationType operation, FileOperationResult result)
-        => ToolTelemetryHelper.RecordToolCount(_telemetryService, "file.operation.count", new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() });
+        => ToolTelemetryHelper.RecordToolCount(_ctx.TelemetryService, "file.operation.count", new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() });
 
     /// <summary>
     /// 记录文件读取详细遥测。
@@ -280,7 +257,7 @@ public partial class FileToolHandlers : IDisposable
         string filePath, string content, int totalLines, int readLines,
         int? offset, int? limit)
     {
-        if (_telemetryService is null) return;
+        if (_ctx.TelemetryService is null) return;
 
         // 对齐 TS: getFileExtensionForAnalytics — 脱敏扩展名（超过10字符替换为"other"）
         var ext = Path.GetExtension(filePath).TrimStart('.');
@@ -313,11 +290,11 @@ public partial class FileToolHandlers : IDisposable
             tags["ext"] = analyticsExt;
         }
 
-        _telemetryService.RecordCount("file.read.detail", tags, description: "File read detail telemetry");
+        _ctx.TelemetryService.RecordCount("file.read.detail", tags, description: "File read detail telemetry");
 
         // 对齐 TS: tengu_file_operation — 路径哈希脱敏
         var pathHash = SecurityPatterns.ComputeShortHash(filePath);
-        _telemetryService.RecordCount("file.operation",
+        _ctx.TelemetryService.RecordCount("file.operation",
             new Dictionary<string, string> { ["operation"] = FileOperationTypeEnumConstants.Read, ["path_hash"] = pathHash },
             description: "File operation with path hash");
     }
@@ -328,7 +305,7 @@ public partial class FileToolHandlers : IDisposable
     /// </summary>
     private void RecordPdfReadTelemetry(string filePath, long fileSize, bool success)
     {
-        if (_telemetryService is null) return;
+        if (_ctx.TelemetryService is null) return;
 
         var tags = new Dictionary<string, string>
         {
@@ -336,7 +313,7 @@ public partial class FileToolHandlers : IDisposable
             ["file_size"] = fileSize.ToString(CultureInfo.InvariantCulture),
         };
 
-        _telemetryService.RecordCount("file.read.pdf", tags, description: "PDF read telemetry");
+        _ctx.TelemetryService.RecordCount("file.read.pdf", tags, description: "PDF read telemetry");
     }
 
     /// <summary>
@@ -345,29 +322,29 @@ public partial class FileToolHandlers : IDisposable
     /// </summary>
     private void RecordFileOperationTelemetry(string filePath, string operation)
     {
-        if (_telemetryService is null) return;
+        if (_ctx.TelemetryService is null) return;
 
         var pathHash = SecurityPatterns.ComputeShortHash(filePath);
-        _telemetryService.RecordCount("file.operation.hash",
+        _ctx.TelemetryService.RecordCount("file.operation.hash",
             new Dictionary<string, string> { ["operation"] = operation, ["path_hash"] = pathHash },
             description: "File operation with path hash");
     }
 
     private async Task<string> ResolveSandboxPathAsync(string path, CancellationToken cancellationToken)
     {
-        if (_sandboxManager == null || !_sandboxManager.IsInSandbox)
+        if (_ctx.SandboxManager == null || !_ctx.SandboxManager.IsInSandbox)
         {
             return path;
         }
 
-        var sandboxId = _sandboxManager.CurrentSandboxId;
+        var sandboxId = _ctx.SandboxManager.CurrentSandboxId;
         if (sandboxId is null)
         {
             return path;
         }
 
-        var resolvedPath = _sandboxManager.ResolvePath(path, sandboxId);
-        var isInSandbox = await _sandboxManager.ActiveProvider!.IsPathInSandboxAsync(resolvedPath, sandboxId, cancellationToken).ConfigureAwait(false);
+        var resolvedPath = _ctx.SandboxManager.ResolvePath(path, sandboxId);
+        var isInSandbox = await _ctx.SandboxManager.ActiveProvider!.IsPathInSandboxAsync(resolvedPath, sandboxId, cancellationToken).ConfigureAwait(false);
         if (!isInSandbox)
         {
             throw new UnauthorizedAccessException($"Path '{path}' is outside the sandbox scope");
@@ -492,8 +469,9 @@ public partial class FileToolHandlers : IDisposable
 
         // Token 预算检查（对齐 TS: base64.length * 0.125）
         var estimatedTokens = EstimateImageTokenCount(base64Data.Length);
-        var maxTokens = _fileOperationConfig.MaxReadTokens > 0
-            ? _fileOperationConfig.MaxReadTokens
+        var fileConfig = _ctx.FileOperationConfig!;
+        var maxTokens = fileConfig.MaxReadTokens > 0
+            ? fileConfig.MaxReadTokens
             : DefaultMaxReadTokens;
         if (estimatedTokens > maxTokens)
         {
@@ -521,7 +499,7 @@ public partial class FileToolHandlers : IDisposable
         var dimensionInfo = resizeResult.OriginalWidth is not null
             ? $" [{resizeResult.OriginalWidth}x{resizeResult.OriginalHeight} → {resizeResult.DisplayWidth}x{resizeResult.DisplayHeight}]"
             : string.Empty;
-        _fileStateCache?.RecordRead(
+        _ctx.FileStateCache?.RecordRead(
             filePath,
             $"[image:{resizeResult.MediaType}:{originalSize}{dimensionInfo}]",
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
@@ -633,7 +611,7 @@ public partial class FileToolHandlers : IDisposable
 
         // 对齐 TS: 决策3b — 文件较小，直接发送 base64 PDF
         // 记录读取状态
-        _fileStateCache?.RecordRead(
+        _ctx.FileStateCache?.RecordRead(
             filePath,
             $"[pdf:{result.OriginalSize}bytes]",
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
@@ -692,7 +670,7 @@ public partial class FileToolHandlers : IDisposable
         }
 
         // 记录读取状态
-        _fileStateCache?.RecordRead(
+        _ctx.FileStateCache?.RecordRead(
             filePath,
             $"[pdf-extract:{extractResult.GetPages().Count()}pages]",
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
@@ -773,7 +751,7 @@ public partial class FileToolHandlers : IDisposable
         filePath = await ResolveSandboxPathAsync(filePath, cancellationToken).ConfigureAwait(false);
 
         // 对齐 TS: readFileState dedup — Notebook 也需要去重检查
-        var existingState = _fileStateCache?.GetReadState(filePath);
+        var existingState = _ctx.FileStateCache?.GetReadState(filePath);
         if (existingState is not null && !existingState.IsPartialView)
         {
             try
@@ -808,7 +786,7 @@ public partial class FileToolHandlers : IDisposable
         }
 
         // 记录读取状态
-        _fileStateCache?.RecordRead(
+        _ctx.FileStateCache?.RecordRead(
             filePath,
             $"[notebook:{result.Text?.Length ?? 0}chars]",
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());

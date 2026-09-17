@@ -176,7 +176,7 @@ public sealed class NamedPipeTransport : ITransportTopology
         _logger?.LogInformation("NamedPipeTransport: SLAVE connected to host {Host} (pid={Pid})",
             _role.HostProcessId, ProcessId);
 
-        _slaveReceiveTask = Task.Run(() => SlaveReceiveLoopAsync(_cts.Token), _cts.Token);
+        _slaveReceiveTask = Task.Run(() => SlaveReceiveLoopAsync(_cts.Token));
     }
 
     private async Task HandleHostConnectionAsync(NamedPipeServerStream server, CancellationToken ct)
@@ -303,8 +303,8 @@ public sealed class NamedPipeTransport : ITransportTopology
         _connections.Clear();
         var slaveClient = _slaveClient;
 
-        await _acceptTask.AwaitBackgroundTaskSafe();
-        await _slaveReceiveTask.AwaitBackgroundTaskSafe();
+        if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
+        if (_slaveReceiveTask is not null) await _slaveReceiveTask.ConfigureAwait(false);
         Cleanup(conns, slaveClient, _election, _cts);
     }
 

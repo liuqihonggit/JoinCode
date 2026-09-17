@@ -231,7 +231,7 @@ public sealed class MeshTransport : ITransportTopology
         var conns = _peerConnections.Values.ToArray();
         _peerConnections.Clear();
 
-        await _acceptTask.AwaitBackgroundTaskSafe();
+        if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
         Cleanup(conns, _cts);
     }
 

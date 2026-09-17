@@ -23,7 +23,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     private int _inputCount;
     private int _outputCount;
 
-    private static readonly ConcurrentDictionary<int, string> _consumerThreadIdToActorId = new();
     private static readonly AsyncLocal<string?> _currentActorId = new();
     private static readonly ConcurrentDictionary<string, string> _askWaitGraph = new();
 
@@ -239,7 +238,6 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 
     private async Task ConsumeLoopAsync()
     {
-        _consumerThreadIdToActorId[Environment.CurrentManagedThreadId] = Id;
         _currentActorId.Value = Id;
         try
         {
@@ -336,9 +334,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
         }
     }
 
-    private string? TryGetCallerActorId()
-        => _currentActorId.Value
-           ?? (_consumerThreadIdToActorId.TryGetValue(Environment.CurrentManagedThreadId, out var id) ? id : null);
+    private string? TryGetCallerActorId() => _currentActorId.Value;
 
     /// <summary>
     /// 释放 Actor — 取消 Consumer、完成通道,等待 Consumer 真正退出后释放 CTS。

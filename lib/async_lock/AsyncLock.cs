@@ -14,6 +14,16 @@ public sealed class AsyncLock : IDisposable
     /// </summary>
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// 惰性注册当前 async 逻辑流的 FlowId — 首次获取锁时若未注册则自动分配。
+    /// AsyncLocal 跨 await 自动流转,同一 async 流后续获取锁复用同一 FlowId,死锁检测正确构建 wait-for graph。
+    /// </summary>
+    private static void EnsureFlowRegistered()
+    {
+        if (LockRegistry.CurrentFlowId == 0)
+            LockRegistry.RegisterFlow();
+    }
+
     private readonly SemaphoreSlim _semaphore;
     private readonly string _name;
     private readonly TimeSpan _timeout;
@@ -122,6 +132,7 @@ public sealed class AsyncLock : IDisposable
     public IDisposable? TryLock(TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfDisposed();
+        EnsureFlowRegistered();
         LockRegistry.OnWaitStart(_registryId, _name);
         bool acquired;
         try
@@ -158,6 +169,7 @@ public sealed class AsyncLock : IDisposable
     public async ValueTask<IDisposable?> TryLockAsync(TimeSpan timeout, CancellationToken ct = default)
     {
         ThrowIfDisposed();
+        EnsureFlowRegistered();
         LockRegistry.OnWaitStart(_registryId, _name);
         bool acquired;
         try

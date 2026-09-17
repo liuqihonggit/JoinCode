@@ -817,10 +817,10 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var statuses = new List<TeammateStatus>();
 
-        foreach (var kvp in _registry.SnapshotRooms())
+        foreach (var room in _registry.Rooms)
         {
-            var team = kvp.Value.Info;
-            var memberDetails = kvp.Value.MemberDetails;
+            var team = room.Info;
+            var memberDetails = room.MemberDetails;
 
             foreach (var md in memberDetails.Values)
             {

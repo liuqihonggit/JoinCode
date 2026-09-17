@@ -8,7 +8,7 @@ public class PriorityMailboxTest
     [Fact]
     public async Task HighPriority_ProcessedBeforeLowPriority()
     {
-        await using var actor = new PriorityTestActor();
+        await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
@@ -16,6 +16,7 @@ public class PriorityMailboxTest
         await actor.SendAsync(2, MessagePriority.High);
         await actor.SendAsync(3, MessagePriority.Low);
 
+        actor.StartConsumer();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
 
@@ -25,7 +26,7 @@ public class PriorityMailboxTest
     [Fact]
     public async Task NormalPriority_ProcessedBeforeLowPriority()
     {
-        await using var actor = new PriorityTestActor();
+        await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
@@ -33,6 +34,7 @@ public class PriorityMailboxTest
         await actor.SendAsync(2, MessagePriority.Normal);
         await actor.SendAsync(3, MessagePriority.Low);
 
+        actor.StartConsumer();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
 
@@ -42,7 +44,7 @@ public class PriorityMailboxTest
     [Fact]
     public async Task HighPriority_ProcessedBeforeNormalPriority()
     {
-        await using var actor = new PriorityTestActor();
+        await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
@@ -50,6 +52,7 @@ public class PriorityMailboxTest
         await actor.SendAsync(2, MessagePriority.High);
         await actor.SendAsync(3, MessagePriority.Normal);
 
+        actor.StartConsumer();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 3, TimeSpan.FromSeconds(5));
 
@@ -59,7 +62,7 @@ public class PriorityMailboxTest
     [Fact]
     public async Task SamePriority_FifoOrder()
     {
-        await using var actor = new PriorityTestActor();
+        await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
@@ -68,6 +71,7 @@ public class PriorityMailboxTest
             await actor.SendAsync(i, MessagePriority.Normal);
         }
 
+        actor.StartConsumer();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 5, TimeSpan.FromSeconds(5));
 
@@ -77,7 +81,7 @@ public class PriorityMailboxTest
     [Fact]
     public async Task MixedPriority_HighAlwaysFirst()
     {
-        await using var actor = new PriorityTestActor();
+        await using var actor = new PriorityTestActor(startConsuming: false);
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
@@ -88,6 +92,7 @@ public class PriorityMailboxTest
         await actor.SendAsync(21, MessagePriority.Normal);
         await actor.SendAsync(31, MessagePriority.High);
 
+        actor.StartConsumer();
         gateTcs.SetResult();
         await WaitUntilAsync(() => actor.ProcessedOrder.Count >= 6, TimeSpan.FromSeconds(5));
 
@@ -299,10 +304,13 @@ internal sealed class PriorityTestActor : PriorityMailbox<int>
     public PriorityTestActor(
         ActorBackpressure? highBackpressure = null,
         ActorBackpressure? normalBackpressure = null,
-        ActorBackpressure? lowBackpressure = null)
-        : base(highBackpressure, normalBackpressure, lowBackpressure)
+        ActorBackpressure? lowBackpressure = null,
+        bool startConsuming = true)
+        : base(highBackpressure, normalBackpressure, lowBackpressure, startConsuming)
     {
     }
+
+    public void StartConsumer() => StartConsuming();
 
     public void SetGate(TaskCompletionSource gate) => _gate = gate;
 

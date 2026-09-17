@@ -40,7 +40,7 @@ public sealed class PluginManagerE2ETests
     [Fact]
     public async Task LoadAndUnload_LifecycleWorks()
     {
-        var pm = CreatePluginManager();
+        await using var pm = CreatePluginManager();
         var host = await pm.LoadWorkflowPluginAsync<TestPlugin>();
         Assert.Equal("TestPlugin", host.PluginName);
         Assert.True(pm.IsWorkflowPluginLoaded("TestPlugin"));
@@ -48,13 +48,12 @@ public sealed class PluginManagerE2ETests
         var result = await pm.UnloadPluginAsync("TestPlugin");
         Assert.True(result.IsSuccess);
         Assert.False(pm.IsWorkflowPluginLoaded("TestPlugin"));
-        await pm.DisposeAsync();
     }
 
     [Fact]
     public async Task ActorSerializes_ConcurrentLoads()
     {
-        var pm = CreatePluginManager();
+        await using var pm = CreatePluginManager();
         var tasks = new List<Task>();
         for (int i = 0; i < 5; i++)
         {
@@ -65,38 +64,34 @@ public sealed class PluginManagerE2ETests
             }));
         }
         await Task.WhenAll(tasks);
-        await pm.DisposeAsync();
     }
 
     [Fact]
     public async Task UnloadAll_WhenEmpty_ReturnsEmptyList()
     {
-        var pm = CreatePluginManager();
+        await using var pm = CreatePluginManager();
         var results = await pm.UnloadAllPluginsAsync();
         Assert.Empty(results);
-        await pm.DisposeAsync();
     }
 
     [Fact]
     public async Task LoadSamePlugin_Twice_Throws()
     {
-        var pm = CreatePluginManager();
+        await using var pm = CreatePluginManager();
         await pm.LoadWorkflowPluginAsync<TestPlugin>();
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             pm.LoadWorkflowPluginAsync<TestPlugin>());
         await pm.UnloadPluginAsync("TestPlugin");
-        await pm.DisposeAsync();
     }
 
     [Fact]
     public async Task GetWorkflowPlugin_ReturnsLoadedPlugin()
     {
-        var pm = CreatePluginManager();
+        await using var pm = CreatePluginManager();
         await pm.LoadWorkflowPluginAsync<TestPlugin>();
         var host = pm.GetWorkflowPlugin("TestPlugin");
         Assert.NotNull(host);
         Assert.Equal("TestPlugin", host!.PluginName);
         await pm.UnloadPluginAsync("TestPlugin");
-        await pm.DisposeAsync();
     }
 }

@@ -61,7 +61,7 @@ public sealed class AdvisorServicePersistenceTests
         // 注意: 当前实现中 Dispose 后访问 _disposeCts.Token 会抛 ObjectDisposedException
         // 这是已知的设计缺陷——Dispose 后不应再调用 SetAdvisorModel
         // 此处验证 Dispose 前的 SetAdvisorModel 不崩溃
-        var service2 = new AdvisorService(configMock.Object);
+        using var service2 = new AdvisorService(configMock.Object);
         service2.SetAdvisorModel("another-model");
 
         // 等待 fire-and-forget 任务完成（信号量在 SetAsync 调用时释放）
@@ -72,8 +72,6 @@ public sealed class AdvisorServicePersistenceTests
         configMock.Verify(
             c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Once);
-
-        service2.Dispose();
     }
 
     [Fact]

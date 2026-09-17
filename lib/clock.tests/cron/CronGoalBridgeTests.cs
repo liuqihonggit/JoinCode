@@ -28,28 +28,24 @@ public sealed class CronGoalBridgeTests
     [Fact]
     public async Task StartAsync_WhenNotStarted_StartsScheduler()
     {
-        var (_, _, bridge) = CreateBridge();
+        await using var bridge = CreateBridge().bridge;
 
         Assert.False(bridge.IsStarted);
 
         await bridge.StartAsync().ConfigureAwait(true);
 
         Assert.True(bridge.IsStarted);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task StartAsync_WhenAlreadyStarted_DoesNothing()
     {
-        var (_, _, bridge) = CreateBridge();
+        await using var bridge = CreateBridge().bridge;
 
         await bridge.StartAsync().ConfigureAwait(true);
         await bridge.StartAsync().ConfigureAwait(true);
 
         Assert.True(bridge.IsStarted);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -87,7 +83,9 @@ public sealed class CronGoalBridgeTests
     [Fact]
     public async Task HandleCronFireAsync_WhenGoalEngineRunning_Skips()
     {
-        var (_, goalEngine, bridge) = CreateBridge();
+        var ctx = CreateBridge();
+        var goalEngine = ctx.goalEngine;
+        await using var bridge = ctx.bridge;
         goalEngine.Setup(g => g.IsRunning).Returns(true);
 
         await bridge.HandleCronFireAsync(new CronTask
@@ -99,14 +97,14 @@ public sealed class CronGoalBridgeTests
         }).ConfigureAwait(true);
 
         goalEngine.Verify(g => g.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task HandleCronFireAsync_WhenNotRunning_StartsGoal()
     {
-        var (_, goalEngine, bridge) = CreateBridge();
+        var ctx = CreateBridge();
+        var goalEngine = ctx.goalEngine;
+        await using var bridge = ctx.bridge;
         goalEngine.Setup(g => g.IsRunning).Returns(false);
         goalEngine.Setup(g => g.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new GoalState());
 
@@ -119,15 +117,15 @@ public sealed class CronGoalBridgeTests
         }).ConfigureAwait(true);
 
         goalEngine.Verify(g => g.StartAsync("run task", null, null, null, It.IsAny<CancellationToken>()), Times.Once);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task HandleCronFireAsync_WhenStartThrowsInvalidOperation_LogsAndContinues()
     {
         var logger = new Mock<ILogger<CronGoalBridge>>();
-        var (_, goalEngine, bridge) = CreateBridge(logger: logger.Object);
+        var ctx = CreateBridge(logger: logger.Object);
+        var goalEngine = ctx.goalEngine;
+        await using var bridge = ctx.bridge;
         goalEngine.Setup(g => g.IsRunning).Returns(false);
         goalEngine.Setup(g => g.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("已有目标正在运行"));
@@ -141,15 +139,15 @@ public sealed class CronGoalBridgeTests
         }).ConfigureAwait(true);
 
         goalEngine.Verify(g => g.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task HandleCronFireAsync_WhenStartThrowsException_LogsAndContinues()
     {
         var logger = new Mock<ILogger<CronGoalBridge>>();
-        var (_, goalEngine, bridge) = CreateBridge(logger: logger.Object);
+        var ctx = CreateBridge(logger: logger.Object);
+        var goalEngine = ctx.goalEngine;
+        await using var bridge = ctx.bridge;
         goalEngine.Setup(g => g.IsRunning).Returns(false);
         goalEngine.Setup(g => g.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("boom"));
@@ -161,20 +159,18 @@ public sealed class CronGoalBridgeTests
             Prompt = "run task",
             CreatedAt = 0
         }).ConfigureAwait(true);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task RegisterBackgroundAgentCronTasksAsync_WhenNoProvider_DoesNothing()
     {
-        var (taskStore, _, bridge) = CreateBridge();
+        var ctx = CreateBridge();
+        var taskStore = ctx.taskStore;
+        await using var bridge = ctx.bridge;
 
         await bridge.StartAsync().ConfigureAwait(true);
 
         taskStore.Verify(t => t.AddTaskAsync(It.IsAny<CreateCronTaskRequest>(), It.IsAny<CancellationToken>()), Times.Never);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -200,13 +196,11 @@ public sealed class CronGoalBridgeTests
             });
 
         var goalEngine = new Mock<IGoalEngine>();
-        var bridge = new CronGoalBridge(taskStore.Object, goalEngine.Object, agentProvider.Object);
+        await using var bridge = new CronGoalBridge(taskStore.Object, goalEngine.Object, agentProvider.Object);
 
         await bridge.StartAsync().ConfigureAwait(true);
 
         taskStore.Verify(t => t.AddTaskAsync(It.Is<CreateCronTaskRequest>(r => r.CronExpression == "0 */12 * * *" && r.IsRecurring && r.IsDurable), It.IsAny<CancellationToken>()), Times.Once);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -225,13 +219,11 @@ public sealed class CronGoalBridgeTests
         });
 
         var goalEngine = new Mock<IGoalEngine>();
-        var bridge = new CronGoalBridge(taskStore.Object, goalEngine.Object, agentProvider.Object);
+        await using var bridge = new CronGoalBridge(taskStore.Object, goalEngine.Object, agentProvider.Object);
 
         await bridge.StartAsync().ConfigureAwait(true);
 
         taskStore.Verify(t => t.AddTaskAsync(It.IsAny<CreateCronTaskRequest>(), It.IsAny<CancellationToken>()), Times.Never);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -241,12 +233,10 @@ public sealed class CronGoalBridgeTests
         var agentProvider = new Mock<IAgentDefinitionProvider>();
         agentProvider.Setup(a => a.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("fail"));
 
-        var (_, goalEngine, bridge) = CreateBridge(agentProvider.Object, logger.Object);
+        await using var bridge = CreateBridge(agentProvider.Object, logger.Object).bridge;
 
         await bridge.StartAsync().ConfigureAwait(true);
         Assert.True(bridge.IsStarted);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -261,12 +251,10 @@ public sealed class CronGoalBridgeTests
             });
 
         var goalEngine = new Mock<IGoalEngine>();
-        var bridge = new CronGoalBridge(taskStore.Object, goalEngine.Object, agentProvider.Object);
+        await using var bridge = new CronGoalBridge(taskStore.Object, goalEngine.Object, agentProvider.Object);
 
         await bridge.StartAsync().ConfigureAwait(true);
 
         taskStore.Verify(t => t.AddTaskAsync(It.IsAny<CreateCronTaskRequest>(), It.IsAny<CancellationToken>()), Times.Never);
-
-        await bridge.DisposeAsync().ConfigureAwait(true);
     }
 }

@@ -62,7 +62,7 @@ public sealed class ServiceHostTests
     [Fact]
     public async Task StartAsync_StartsAllServices()
     {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service1 = CreateService("svc1");
         var service2 = CreateService("svc2");
 
@@ -74,14 +74,12 @@ public sealed class ServiceHostTests
         Assert.True(host.IsRunning);
         Assert.Equal(ServiceStatus.Running, host.GetServiceStatus("svc1"));
         Assert.Equal(ServiceStatus.Running, host.GetServiceStatus("svc2"));
-
-        await host.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task StartAsync_WhenAlreadyRunning_Returns()
     {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
 
@@ -89,22 +87,18 @@ public sealed class ServiceHostTests
         await host.StartAsync().ConfigureAwait(true);
 
         Assert.True(host.IsRunning);
-
-        await host.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task StartAsync_WhenServiceThrows_MarksFailedAndThrows()
     {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc", throwOnStart: true);
         host.RegisterService(service);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => host.StartAsync()).ConfigureAwait(true);
 
         Assert.Equal(ServiceStatus.Failed, host.GetServiceStatus("svc"));
-
-        await host.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -147,7 +141,7 @@ public sealed class ServiceHostTests
     [Fact]
     public async Task StartServiceAsync_ByName_ReturnsTrue()
     {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
 
@@ -155,8 +149,6 @@ public sealed class ServiceHostTests
 
         Assert.True(result);
         Assert.Equal(ServiceStatus.Running, host.GetServiceStatus("svc"));
-
-        await host.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -172,7 +164,7 @@ public sealed class ServiceHostTests
     [Fact]
     public async Task StopServiceAsync_ByName_ReturnsTrue()
     {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
 
@@ -181,8 +173,6 @@ public sealed class ServiceHostTests
 
         Assert.True(result);
         Assert.Equal(ServiceStatus.Stopped, host.GetServiceStatus("svc"));
-
-        await host.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
@@ -220,7 +210,7 @@ public sealed class ServiceHostTests
     [Fact]
     public async Task ServiceStatusChanged_RaisedOnStartAndStop()
     {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc");
         host.RegisterService(service);
 
@@ -232,14 +222,12 @@ public sealed class ServiceHostTests
 
         Assert.Contains(events, e => e.ServiceName == "svc" && e.NewStatus == ServiceStatus.Running);
         Assert.Contains(events, e => e.ServiceName == "svc" && e.NewStatus == ServiceStatus.Stopped);
-
-        await host.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]
     public async Task ServiceStatusChanged_RaisedOnFailure()
     {
-        var host = new ServiceHost();
+        await using var host = new ServiceHost();
         var service = CreateService("svc", throwOnStart: true);
         host.RegisterService(service);
 
@@ -259,8 +247,6 @@ public sealed class ServiceHostTests
         Assert.Equal("svc", eventArgs.ServiceName);
         Assert.Equal(ServiceStatus.Failed, eventArgs.NewStatus);
         Assert.NotNull(eventArgs.Exception);
-
-        await host.DisposeAsync().ConfigureAwait(true);
     }
 
     [Fact]

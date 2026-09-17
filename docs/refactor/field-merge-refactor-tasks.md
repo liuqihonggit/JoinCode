@@ -93,7 +93,15 @@
 - 起始:2026-09-18
 - 已完成 AsyncLocal 优化(6 个提交):54ac13d2e, 16de25e23, 080b0cf, a1fb3efd7, f8534d1b2, 10908543d
 - #1-10 已完成(从别分支拉取,已在 git 中)
-- #11-14 已完成并提交:1b67e23d6 (RemoteRefreshOptionsBase/BuildQueueBase/ConsoleCancelScope/IPluginHost 统一)
+- #11-14 已完成并 rebase 合并:dc5e6c75d (RemoteRefreshOptionsBase/BuildQueueBase/ConsoleCancelScope/IPluginHost 统一)
+  - 合并 HEAD 的 BuildQueueEntryStore + 我的 BuildQueueBase:基类内部用 _store(BuildQueueEntryStore)
+  - _store 可访问性用 private protected(同程序集子类可见)
+  - CreateQueuedEntry 返回 (Entry, Tcs) 元组,避免 TryGetTcs null 抑制
   - 修复 IPluginHost.Kind → PluginType 命名冲突(与 PluginResourceBase.Kind 同名)
-  - 修复 BuildQueueService.SubmitAsync 缺 override
-  - 修复 BuildWorker 嵌套类访问 BuildQueueBase static 方法需类名前缀
+- #15-18 已完成并提交:a020d63e3
+  - #15 AgentBase → AgentBudget + AgentOutput 值对象
+  - #16 ForkEntry → ForkIdentity(不可变) + ForkRuntime(可变)
+  - #17 AgentWorktreeService → WorktreePatternMatcher + WorktreeJsonFormatting
+  - #18 NamedPipeMailbox+NetworkMailbox → StreamMailboxBase 模板方法模式
+- #19 已随 #12 解决(PreventSleepScope 仅在 BuildQueueBase.ExecuteBuildCoreAsync 中调用)
+- #20-21 跳过(风险高/不建议合并)

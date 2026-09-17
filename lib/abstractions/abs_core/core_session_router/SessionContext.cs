@@ -19,27 +19,6 @@ public static class SessionContext
     {
         if (sessionId.IsEmpty)
             throw new ArgumentException("SessionId 不能为空", nameof(sessionId));
-        return new SessionScopeToken(_current, sessionId);
-    }
-
-    private sealed class SessionScopeToken : IDisposable
-    {
-        private readonly AsyncLocal<ObjectId?> _store;
-        private readonly ObjectId? _previous;
-        private bool _disposed;
-
-        internal SessionScopeToken(AsyncLocal<ObjectId?> store, ObjectId sessionId)
-        {
-            _store = store;
-            _previous = store.Value;
-            store.Value = sessionId;
-        }
-
-        public void Dispose()
-        {
-            if (_disposed) return;
-            _disposed = true;
-            _store.Value = _previous;
-        }
+        return AsyncLocalScope<ObjectId?>.Enter(_current, sessionId);
     }
 }

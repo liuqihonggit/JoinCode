@@ -54,12 +54,7 @@ public sealed class SubAgentContext
         return id;
     }
 
-    public IDisposable EnterScope()
-    {
-        var previous = _current.Value;
-        _current.Value = this;
-        return new ScopeRestore(previous);
-    }
+    public IDisposable EnterScope() => AsyncLocalScope<SubAgentContext?>.Enter(_current, this);
 
     public IDisposable EnterScopeWithCwd(string? cwd)
     {
@@ -73,11 +68,6 @@ public sealed class SubAgentContext
     public static string GetEffectiveCwd(string? fallbackCwd = null)
     {
         return _cwdOverride.Value ?? fallbackCwd ?? Environment.CurrentDirectory;
-    }
-
-    private sealed class ScopeRestore(SubAgentContext? previous) : IDisposable
-    {
-        public void Dispose() => _current.Value = previous;
     }
 
     private sealed class DualScopeRestore(SubAgentContext? previousContext, string? previousCwd) : IDisposable

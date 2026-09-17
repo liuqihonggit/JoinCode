@@ -10,11 +10,12 @@ using Core.Hooks.Execution.Interception.Defense;
 public class BashDefenseTests
 {
     private readonly RetainedDeviceNode _retainedDeviceNode = new();
+    private readonly ArgvHashNode _argvHashNode = new();
     private readonly BashDefenseService _bashDefenseService;
 
     public BashDefenseTests()
     {
-        _bashDefenseService = new BashDefenseService(_retainedDeviceNode);
+        _bashDefenseService = new BashDefenseService(_retainedDeviceNode, _argvHashNode);
     }
 
     #region BashDefense 链式构建器基本功能
@@ -174,6 +175,121 @@ public class BashDefenseTests
             .Then(_bashDefenseService.CheckRetainedDevice)
             .ExecuteAsync(CancellationToken.None);
         rejection.Should().BeNull();
+    }
+
+    #endregion
+
+    #region ArgvHashNode 防意图反推
+
+    [Fact]
+    public void ComputeArgvHash_SameCommand_ShouldReturnSameHash()
+    {
+        var hash1 = _argvHashNode.ComputeArgvHash("rm -rf ./build");
+        var hash2 = _argvHashNode.ComputeArgvHash("rm -rf ./build");
+        hash1.Should().Be(hash2);
+    }
+
+    [Fact]
+    public void ComputeArgvHash_DifferentCommand_ShouldReturnDifferentHash()
+    {
+        var hash1 = _argvHashNode.ComputeArgvHash("rm -rf ./build");
+        var hash2 = _argvHashNode.ComputeArgvHash("rm -rf ./buld");
+        hash1.Should().NotBe(hash2, "MTP 扰动 ./build→./buld 应产生不同 hash");
+    }
+
+    [Fact]
+    public void ComputeArgvHash_ShouldReturn6CharHex()
+    {
+        var hash = _argvHashNode.ComputeArgvHash("echo hello");
+        hash.Should().HaveLength(6);
+        hash.Should().MatchRegex("^[0-9A-F]{6}$", "应为 6 位大写 hex");
+    }
+
+    [Fact]
+    public void ValidateArgvHash_CorrectHash_ShouldReturnTrue()
+    {
+        var command = "rm -rf ./build";
+        var hash = _argvHashNode.ComputeArgvHash(command);
+        _argvHashNode.ValidateArgvHash(command, hash).Should().BeTrue();
+    }
+
+    [Fact]
+    public void ValidateArgvHash_WrongHash_ShouldReturnFalse()
+    {
+        _argvHashNode.ValidateArgvHash("rm -rf ./build", "000000").Should().BeFalse();
+    }
+
+    [Fact]
+    public void ValidateArgvHash_NullHash_ShouldReturnFalse()
+    {
+        _argvHashNode.ValidateArgvHash("rm -rf ./build", null).Should().BeFalse();
+    }
+
+    #endregion
+
+    #region RequireArgvHash 二次确认
+
+    [Fact]
+    public async Task RequireArgvHash_NoConfirmMode_ShouldPass()
+    {
+        var (_, rejection) = await _bashDefenseService
+            .Begin("echo hello", "/tmp", SystemActuatorKind.Bash)
+            .Then(_bashDefenseService.RequireArgvHash)
+            .ExecuteAsync(CancellationToken.None);
+        rejection.Should().BeNull("默认 None 模式不要求确认");
+    }
+
+    [Fact]
+    public async Task RequireArgvHash_FirstRound_ShouldRejectWithHash()
+    {
+        var (_, rejection) = await _bashDefenseService
+            .Begin("rm -rf ./build", "/tmp", SystemActuatorKind.Bash, GuardConfirmMode.AntiCharLossConfirm)
+            .Then(_bashDefenseService.RequireArgvHash)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().NotBeNull();
+        rejection!.GetFirstText().Should().Contain("确认码", "第一轮应返回确认码");
+        rejection.GetFirstText().Should().Contain("#", "确认码应以 # 开头");
+    }
+
+    [Fact]
+    public async Task RequireArgvHash_SecondRoundCorrectHash_ShouldPass()
+    {
+        var command = "rm -rf ./build";
+        var hash = _argvHashNode.ComputeArgvHash(command);
+
+        var (_, rejection) = await _bashDefenseService
+            .Begin(command, "/tmp", SystemActuatorKind.Bash, GuardConfirmMode.AntiCharLossConfirm, command, hash)
+            .Then(_bashDefenseService.RequireArgvHash)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().BeNull("第二轮命令匹配 + hash 匹配应通过");
+    }
+
+    [Fact]
+    public async Task RequireArgvHash_SecondRoundWrongHash_ShouldReject()
+    {
+        var command = "rm -rf ./build";
+
+        var (_, rejection) = await _bashDefenseService
+            .Begin(command, "/tmp", SystemActuatorKind.Bash, GuardConfirmMode.AntiCharLossConfirm, command, "WRONG0")
+            .Then(_bashDefenseService.RequireArgvHash)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().NotBeNull();
+        rejection!.GetFirstText().Should().Contain("确认码不匹配", "hash 不匹配应拒绝");
+    }
+
+    [Fact]
+    public async Task RequireArgvHash_SecondRoundCommandMismatch_ShouldReject()
+    {
+        var (_, rejection) = await _bashDefenseService
+            .Begin("rm -rf ./buld", "/tmp", SystemActuatorKind.Bash, GuardConfirmMode.AntiCharLossConfirm, "rm -rf ./build", null)
+            .Then(_bashDefenseService.RequireArgvHash)
+            .ExecuteAsync(CancellationToken.None);
+
+        rejection.Should().NotBeNull();
+        rejection!.GetFirstText().Should().Contain("不匹配", "命令不匹配应拒绝");
     }
 
     #endregion

@@ -22,14 +22,17 @@ namespace Core.Hooks.Execution.Interception.Defense;
 public sealed class BashDefenseService
 {
     private readonly RetainedDeviceNode _retainedDeviceNode;
+    private readonly ArgvHashNode _argvHashNode;
 
     /// <summary>
     /// 构造 Bash 防御服务
     /// </summary>
     /// <param name="retainedDeviceNode">保留设备名检测 node</param>
-    public BashDefenseService(RetainedDeviceNode retainedDeviceNode)
+    /// <param name="argvHashNode">argv hash 校验 node</param>
+    public BashDefenseService(RetainedDeviceNode retainedDeviceNode, ArgvHashNode argvHashNode)
     {
         _retainedDeviceNode = retainedDeviceNode ?? throw new ArgumentNullException(nameof(retainedDeviceNode));
+        _argvHashNode = argvHashNode ?? throw new ArgumentNullException(nameof(argvHashNode));
     }
 
     /// <summary>
@@ -80,6 +83,37 @@ public sealed class BashDefenseService
             ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build());
     }
 
+    /// <summary>
+    /// argv hash 二次确认 — 委托 <see cref="ArgvHashNode"/>，防意图反推（约束第9条）。
+    /// <para>
+    /// 三阶段逻辑：
+    /// <list type="number">
+    /// <item>未开启 AntiCharLossConfirm 模式 → 直接通过</item>
+    /// <item>第一轮（ConfirmedCommand 为 null）→ 拒绝，要求再次输入并回显 hash</item>
+    /// <item>第二轮 → 校验命令匹配 + hash 匹配，任一不匹配拒绝</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    /// <param name="ctx">Bash 防御上下文</param>
+    /// <param name="ct">取消令牌</param>
+    /// <returns>拒绝诊断；通过时返回 null</returns>
+    public ValueTask<ToolResult?> RequireArgvHash(BashDefenseContext ctx, CancellationToken ct)
+    {
+        if (ctx.ConfirmMode != GuardConfirmMode.AntiCharLossConfirm)
+            return ValueTask.FromResult<ToolResult?>(null);
+
+        if (ctx.ConfirmedCommand is null)
+            return ValueTask.FromResult<ToolResult?>(BuildFirstRoundRejection(ctx.CurrentCommand));
+
+        if (!string.Equals(ctx.ConfirmedCommand, ctx.CurrentCommand, StringComparison.Ordinal))
+            return ValueTask.FromResult<ToolResult?>(BuildCommandMismatchRejection(ctx.ConfirmedCommand, ctx.CurrentCommand));
+
+        if (!_argvHashNode.ValidateArgvHash(ctx.CurrentCommand, ctx.ArgvHash))
+            return ValueTask.FromResult<ToolResult?>(BuildHashMismatchRejection(ctx.ArgvHash, _argvHashNode.ComputeArgvHash(ctx.CurrentCommand)));
+
+        return ValueTask.FromResult<ToolResult?>(null);
+    }
+
     // ════════════════════════════════════════════════════════════════════
     //  诊断模板构建（封死替代路径 + MTP 扰动提示）
     // ════════════════════════════════════════════════════════════════════
@@ -101,4 +135,55 @@ public sealed class BashDefenseService
             "请改用 > /dev/null 丢弃输出，或使用 touch 创建文件。" +
             "禁止尝试 >NUL / >nul. / >con 等变体，全部会被拦截。" +
             "疑似 MTP 扰动时建议完整重新生成命令。");
+
+    /// <summary>
+    /// 构建第一轮拒绝诊断 — 要求再次输入并回显 argv hash。
+    /// </summary>
+    private ToolResult BuildFirstRoundRejection(string command)
+    {
+        var expectedHash = _argvHashNode.ComputeArgvHash(command);
+        var diag = ToolDiagnostic.Create(
+            "JCC9006",
+            $"防丢字符二次确认 — MTP 加速推理可能丢字符/乱入字符导致命令变形。" +
+            $"\n\n解析结果：{command}" +
+            $"\n确认码：#{expectedHash}" +
+            $"\n\n请再次输入完全相同的命令，并附带确认码 #{expectedHash} 以确认执行。" +
+            $"\n⚠️ 确认码由命令解析结果计算得出，无法从意图反推。",
+            "命令", command,
+            "请再次输入同样命令并附带确认码。确认码由解析结果计算，防意图反推。");
+        return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+    }
+
+    /// <summary>
+    /// 构建命令不匹配拒绝诊断 — 第二轮命令与第一轮不一致。
+    /// </summary>
+    private static ToolResult BuildCommandMismatchRejection(string confirmedCommand, string currentCommand)
+    {
+        var diag = ToolDiagnostic.Create(
+            "JCC9007",
+            $"二次确认命令不匹配 — 疑似 MTP 扰动导致命令变形。" +
+            $"\n\n第一轮命令：{confirmedCommand}" +
+            $"\n第二轮命令：{currentCommand}" +
+            $"\n\n⚠️ 建议丢弃当前命令，完整重新生成，不要在错误字符串上局部修补。",
+            "第一轮", confirmedCommand,
+            "两轮命令不一致，建议完整重新生成。");
+        return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+    }
+
+    /// <summary>
+    /// 构建 hash 不匹配拒绝诊断 — 防意图反推（约束第9条）。
+    /// </summary>
+    private static ToolResult BuildHashMismatchRejection(string? providedHash, string expectedHash)
+    {
+        var diag = ToolDiagnostic.Create(
+            "JCC9008",
+            $"确认码不匹配 — 防意图反推校验失败。" +
+            $"\n\n提供的确认码：{providedHash ?? "(未提供)"}" +
+            $"\n期望的确认码：#{expectedHash}" +
+            $"\n\n⚠️ 确认码必须由命令解析结果计算得出。如果不匹配，说明命令在生成过程中被扰动。" +
+            $"\n建议丢弃当前命令，完整重新生成。",
+            "提供", providedHash ?? "(null)",
+            "确认码不匹配，建议完整重新生成命令。");
+        return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
+    }
 }

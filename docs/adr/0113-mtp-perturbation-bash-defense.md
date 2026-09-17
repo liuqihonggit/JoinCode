@@ -84,6 +84,22 @@ ShellCommandInterceptionMiddleware
 
 测试产物 `tmp_output.txt` 已归档到 `.xxx/tmp_output.txt.20260917.del`。
 
+### Gap 修复：DangerousCommandNode（2026-09-17）
+
+手动验证发现 git 全局参数黑灯（commit `5a8e92dcf`）存在 gap：`CommandDangerClassifier` 正确分类 `git -c` 为 Dangerous，但 `CommandInterceptionDispatcher` 内唯一用分类器的 `CmdIndirectCallGuard` 只处理 `cmd /c`/`powershell -Command` 间接调用形式，**直接 `git -c` 在 `CanHandle` 阶段被跳过**。
+
+**修复**：BashDefense 链首位新增 `DangerousCommandNode`，委托 `ICommandDangerClassifier` 分类，Dangerous 级直接拒绝（JCC9011）。
+
+| # | 场景 | 命令 | 修复前 | 修复后 | 结果 |
+|---|------|------|--------|--------|------|
+| 13 | `git -c` 注入 | `git -c core.sshCommand=rm status` | ❌ 放行 | JCC9011 拦截 | ✅ |
+| 14 | `git --exec-path` | `git --exec-path=/tmp/evil status` | ❌ 放行 | JCC9011 拦截 | ✅ |
+| 15 | `git --config-env` | `git --config-env=foo=bar status` | ❌ 放行 | JCC9011 拦截 | ✅ |
+| 16 | 正常 git 不误杀 | `git status` | ✅ 通过 | ✅ 通过 | ✅ |
+| 17 | echo 不误杀 | `echo hello` | ✅ 通过 | ✅ 通过 | ✅ |
+
+9 个单元测试 + 466 全量测试通过。commit `8490c02a0`。
+
 ## 替代方案
 
 1. **关掉 MTP** — 放弃推理吞吐，不可行。MTP 是供应商侧优化，Agent 无法控制

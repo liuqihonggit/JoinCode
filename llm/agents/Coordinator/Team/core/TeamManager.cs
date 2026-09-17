@@ -165,13 +165,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             }
         }
 
-        if (_registry.TryRemoveRoom(teamId, out var removedRoom))
-        {
-            foreach (var member in removedRoom.Members)
-            {
-                _registry.UnregisterAgentFromTeam(member);
-            }
-        }
+        _registry.TryRemoveRoom(teamId, out _);
 
         RecordTeamMetrics("delete", true);
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);

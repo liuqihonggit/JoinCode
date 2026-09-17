@@ -92,3 +92,8 @@
 ## 状态跟踪
 - 起始:2026-09-18
 - 已完成 AsyncLocal 优化(6 个提交):54ac13d2e, 16de25e23, 080b0cf, a1fb3efd7, f8534d1b2, 10908543d
+- #1-10 已完成(从别分支拉取,已在 git 中)
+- #11-14 已完成并提交:1b67e23d6 (RemoteRefreshOptionsBase/BuildQueueBase/ConsoleCancelScope/IPluginHost 统一)
+  - 修复 IPluginHost.Kind → PluginType 命名冲突(与 PluginResourceBase.Kind 同名)
+  - 修复 BuildQueueService.SubmitAsync 缺 override
+  - 修复 BuildWorker 嵌套类访问 BuildQueueBase static 方法需类名前缀

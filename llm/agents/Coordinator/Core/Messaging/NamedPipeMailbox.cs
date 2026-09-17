@@ -1,22 +1,19 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 有名管道邮箱 — 基于 <see cref="NamedPipeTransport"/> 星型拓扑的跨进程双工邮箱。
-/// <para>继承 <see cref="MailboxBase{TMessage}"/>，复用全部双工+背压+水位线+超时能力。</para>
+/// <para>继承 <see cref="StreamMailboxBase{TMessage, TFrame}"/>，复用全部双工+背压+水位线+超时+接收循环能力。</para>
 /// <para>跨进程传输：消息序列化为字节，通过 <see cref="NamedPipeTransport"/> 传输到目标进程。</para>
 /// <para>本地投递：目标 Agent 在本进程时直接写入 Agent Channel。</para>
 /// <para>路由表：AgentId → ProcessId 映射，主机维护全局路由，从机注册时通知主机。</para>
 /// <para>序列化：<see cref="MailboxJsonContext"/> AOT 兼容，写入用 JsonSerializer，读取用 RelaxedJsonSerializer 容错。</para>
 /// </summary>
 [Register(typeof(NamedPipeMailbox), ServiceLifetime.Singleton)]
-public sealed partial class NamedPipeMailbox : MailboxBase<CoordinatorMessage>
+public sealed partial class NamedPipeMailbox : StreamMailboxBase<CoordinatorMessage, TransportFrame>
 {
     private readonly NamedPipeTransport _transport;
     private readonly ConcurrentDictionary<string, string> _agentToProcess;
     private readonly ILogger<NamedPipeMailbox>? _logger;
-    private readonly CancellationTokenSource _cts;
-    private Task? _receiveLoopTask;
-    private int _started;
 
     /// <summary>
     /// 构造有名管道邮箱。
@@ -38,7 +35,6 @@ public sealed partial class NamedPipeMailbox : MailboxBase<CoordinatorMessage>
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _logger = logger;
         _agentToProcess = new ConcurrentDictionary<string, string>();
-        _cts = new CancellationTokenSource();
     }
 
     /// <summary>传输层实例 — 外部可访问用于主机选举订阅。</summary>
@@ -54,9 +50,8 @@ public sealed partial class NamedPipeMailbox : MailboxBase<CoordinatorMessage>
     /// <param name="ct">取消令牌</param>
     public async Task StartAsync(CancellationToken ct = default)
     {
-        if (Interlocked.Exchange(ref _started, 1) != 0) return;
         await _transport.StartAsync(ct).ConfigureAwait(false);
-        _receiveLoopTask = Task.Run(() => ReceiveLoopAsync(_cts.Token), ct);
+        StartReceiveLoop();
         _logger?.LogInformation("NamedPipeMailbox started (role={Role}, pid={Pid})",
             _transport.Role, _transport.ProcessId);
     }
@@ -114,41 +109,50 @@ public sealed partial class NamedPipeMailbox : MailboxBase<CoordinatorMessage>
     }
 
     /// <summary>
-    /// 接收循环 — 从传输层读取跨进程消息，反序列化，投递到本地 Agent Channel。
+    /// 从传输层读取帧序列 — 接收循环骨架调用。
     /// </summary>
-    private async Task ReceiveLoopAsync(CancellationToken ct)
+    /// <param name="ct">取消令牌</param>
+    /// <returns>传输帧异步枚举流</returns>
+    protected override IAsyncEnumerable<TransportFrame> ReceiveFramesAsync(CancellationToken ct)
+        => _transport.ReceiveAsync(ct);
+
+    /// <summary>
+    /// 处理单帧 — 反序列化 JSON + 路由表学习 + 投递到本地 Agent Channel。
+    /// <para>JSON 反序列化失败时日志告警并跳过该帧，不终止循环。</para>
+    /// </summary>
+    /// <param name="frame">传输帧</param>
+    /// <param name="ct">取消令牌</param>
+    protected override ValueTask HandleFrameAsync(TransportFrame frame, CancellationToken ct)
     {
+        CoordinatorMessage? message;
         try
         {
-            await foreach (var frame in _transport.ReceiveAsync(ct).ConfigureAwait(false))
-            {
-                CoordinatorMessage? message = null;
-                try
-                {
-                    var json = Encoding.UTF8.GetString(frame.Data.Span);
-                    message = RelaxedJsonSerializer.Deserialize(json, MailboxJsonContext.Default.CoordinatorMessage);
-                }
-                catch (JsonException ex)
-                {
-                    _logger?.LogWarning(ex, "NamedPipeMailbox: failed to deserialize message from {Source}", frame.SourceProcessId);
-                    continue;
-                }
-
-                if (message is null) continue;
-
-                if (message.ToAgentId is not null)
-                {
-                    _agentToProcess.TryAdd(message.ToAgentId, frame.SourceProcessId);
-                    DeliverToAgent(message.ToAgentId, message);
-                }
-            }
+            var json = Encoding.UTF8.GetString(frame.Data.Span);
+            message = RelaxedJsonSerializer.Deserialize(json, MailboxJsonContext.Default.CoordinatorMessage);
         }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
-            _logger?.LogError(ex, "NamedPipeMailbox: receive loop error");
+            _logger?.LogWarning(ex, "NamedPipeMailbox: failed to deserialize message from {Source}", frame.SourceProcessId);
+            return ValueTask.CompletedTask;
         }
+
+        if (message is null) return ValueTask.CompletedTask;
+
+        if (message.ToAgentId is not null)
+        {
+            _agentToProcess.TryAdd(message.ToAgentId, frame.SourceProcessId);
+            DeliverToAgent(message.ToAgentId, message);
+        }
+
+        return ValueTask.CompletedTask;
     }
+
+    /// <summary>
+    /// 日志接收循环错误 — 非取消异常。
+    /// </summary>
+    /// <param name="ex">异常</param>
+    protected override void LogReceiveLoopError(Exception ex)
+        => _logger?.LogError(ex, "NamedPipeMailbox: receive loop error");
 
     /// <summary>
     /// 序列化消息并通过传输层发送到指定进程。
@@ -170,18 +174,10 @@ public sealed partial class NamedPipeMailbox : MailboxBase<CoordinatorMessage>
     /// <summary>
     /// 释放邮箱 — 停止接收循环 + 释放传输层。
     /// </summary>
-    public override ValueTask DisposeAsync() => DisposeAsyncCore();
-
-    private async ValueTask DisposeAsyncCore()
+    public override async ValueTask DisposeAsync()
     {
-        _cts.Cancel();
-        if (_receiveLoopTask is not null)
-        {
-            try { await _receiveLoopTask.ConfigureAwait(false); }
-            catch (OperationCanceledException) { }
-        }
+        await StopReceiveLoopAsync().ConfigureAwait(false);
         await _transport.DisposeAsync().ConfigureAwait(false);
-        _cts.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);
     }
 }

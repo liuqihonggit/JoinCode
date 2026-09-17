@@ -245,7 +245,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
                 var dirName = Path.GetFileName(entry);
 
-                if (!IsEphemeralWorktree(dirName, opts.EphemeralPatterns)) {
+                if (!WorktreePatternMatcher.IsEphemeralWorktree(dirName, opts.EphemeralPatterns)) {
                     continue;
                 }
 
@@ -451,7 +451,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 ["usedSparsePaths"] = session.SparsePaths?.Count > 0
             };
 
-            var updatedJson = FormatJsonNode(root);
+            var updatedJson = WorktreeJsonFormatting.FormatJsonNode(root);
 
             var dir = Path.GetDirectoryName(localSettingsPath);
             if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir))
@@ -486,7 +486,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
             root.Remove("activeWorktreeSession");
 
-            var updatedJson = FormatJsonNode(root);
+            var updatedJson = WorktreeJsonFormatting.FormatJsonNode(root);
             await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -785,17 +785,6 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         }
     }
 
-    private static bool IsEphemeralWorktree(string dirName, IReadOnlyList<string> patterns) {
-        return patterns.Any(pattern => {
-            try {
-                return Regex.IsMatch(dirName, pattern, RegexOptions.IgnoreCase);
-            }
-            catch {
-                return false;
-            }
-        });
-    }
-
     /// <summary>
     /// 在指定工作目录执行 git 命令
     /// </summary>
@@ -810,15 +799,4 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         => _gitRunner.ExecuteAsync(arguments, workingDirectory, cancellationToken);
 
     #endregion
-
-    private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
-
-    private static string FormatJsonNode(JsonNode node)
-    {
-        using var stream = new MemoryStream();
-        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
-        node.WriteTo(writer);
-        writer.Flush();
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
-    }
 }

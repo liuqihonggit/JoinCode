@@ -1,20 +1,18 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 网络邮箱 — 通过 <see cref="IPlatformBotAdapter"/> 接入 QQ/飞书等外部消息平台。
-/// <para>继承 <see cref="MailboxBase{TMessage}"/>，复用双工+背压+水位线+超时能力。</para>
+/// <para>继承 <see cref="StreamMailboxBase{TMessage, TFrame}"/>，复用双工+背压+水位线+超时+接收循环能力。</para>
 /// <para>发送：<see cref="HandleSendAsync"/> 本地投递 + 适配器远程投递。</para>
 /// <para>接收：后台循环从适配器 <see cref="IPlatformBotAdapter.ReceiveAsync"/> 读取并投递到本地 Agent。</para>
 /// <para>平台适配器可插拔替换（QQ/飞书/Discord/自定义），通过构造函数注入。</para>
 /// </summary>
-public sealed partial class NetworkMailbox : MailboxBase<CoordinatorMessage>
+public sealed partial class NetworkMailbox : StreamMailboxBase<CoordinatorMessage, PlatformMessage>
 {
     private readonly IPlatformBotAdapter _adapter;
     private readonly ILogger<NetworkMailbox>? _logger;
     private readonly Func<CoordinatorMessage, string>? _targetIdSelector;
     private readonly Func<CoordinatorMessage, string>? _textSelector;
-    private Task? _receiveLoopTask;
-    private int _disposed;
 
     /// <summary>
     /// 构造网络邮箱 — 注入平台适配器。
@@ -56,7 +54,7 @@ public sealed partial class NetworkMailbox : MailboxBase<CoordinatorMessage>
     public async ValueTask StartAsync(CancellationToken ct = default)
     {
         await _adapter.StartAsync(ct).ConfigureAwait(false);
-        _receiveLoopTask = Task.Run(() => ReceiveLoopAsync(ct), ct);
+        StartReceiveLoop();
         _logger?.LogInformation("NetworkMailbox: started on platform {Platform}", _adapter.PlatformName);
     }
 
@@ -95,46 +93,47 @@ public sealed partial class NetworkMailbox : MailboxBase<CoordinatorMessage>
     }
 
     /// <summary>
-    /// 接收循环 — 从适配器读取平台消息，转换为 CoordinatorMessage 投递到本地 Agent。
+    /// 从适配器读取平台消息序列 — 接收循环骨架调用。
     /// </summary>
-    private async Task ReceiveLoopAsync(CancellationToken ct)
+    /// <param name="ct">取消令牌</param>
+    /// <returns>平台消息异步枚举流</returns>
+    protected override IAsyncEnumerable<PlatformMessage> ReceiveFramesAsync(CancellationToken ct)
+        => _adapter.ReceiveAsync(ct);
+
+    /// <summary>
+    /// 处理单帧 — 平台消息转换为 CoordinatorMessage + 投递到本地 Agent Channel。
+    /// </summary>
+    /// <param name="frame">平台消息帧</param>
+    /// <param name="ct">取消令牌</param>
+    protected override ValueTask HandleFrameAsync(PlatformMessage frame, CancellationToken ct)
     {
-        try
+        var coordinatorMsg = new CoordinatorMessage
         {
-            await foreach (var msg in _adapter.ReceiveAsync(ct).ConfigureAwait(false))
-            {
-                var coordinatorMsg = new CoordinatorMessage
-                {
-                    FromAgentId = msg.SourceId,
-                    ToAgentId = msg.TargetId,
-                    MessageType = "text",
-                    Content = msg.Text,
-                    Timestamp = msg.Timestamp.UtcDateTime
-                };
-                DeliverToAgent(msg.TargetId, coordinatorMsg);
-                _logger?.LogDebug("NetworkMailbox: received from {Source} on {Platform}",
-                    msg.SourceId, _adapter.PlatformName);
-            }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "NetworkMailbox: receive loop error on {Platform}", _adapter.PlatformName);
-        }
+            FromAgentId = frame.SourceId,
+            ToAgentId = frame.TargetId,
+            MessageType = "text",
+            Content = frame.Text,
+            Timestamp = frame.Timestamp.UtcDateTime
+        };
+        DeliverToAgent(frame.TargetId, coordinatorMsg);
+        _logger?.LogDebug("NetworkMailbox: received from {Source} on {Platform}",
+            frame.SourceId, _adapter.PlatformName);
+        return ValueTask.CompletedTask;
     }
 
-    /// <summary>释放资源 — 释放适配器。</summary>
-    public override ValueTask DisposeAsync() => DisposeAsyncCore();
+    /// <summary>
+    /// 日志接收循环错误 — 非取消异常。
+    /// </summary>
+    /// <param name="ex">异常</param>
+    protected override void LogReceiveLoopError(Exception ex)
+        => _logger?.LogError(ex, "NetworkMailbox: receive loop error on {Platform}", _adapter.PlatformName);
 
-    private async ValueTask DisposeAsyncCore()
+    /// <summary>
+    /// 释放资源 — 停止接收循环 + 释放适配器。
+    /// </summary>
+    public override async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        if (_receiveLoopTask is not null)
-        {
-            try { await _receiveLoopTask.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false); }
-            catch (TimeoutException) { _logger?.LogWarning("NetworkMailbox: receive loop did not stop within 2s"); }
-            catch (OperationCanceledException) { }
-        }
+        await StopReceiveLoopAsync().ConfigureAwait(false);
         await _adapter.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

@@ -9,7 +9,7 @@ public sealed class PreemptiveSchedulerTests
     {
         var queryEngineMock = new Mock<IQueryEngine>();
         var agent = new AgentBase(task, null, queryEngineMock.Object, null, tokenBudget: tokenBudget);
-        agent.TokensUsed = tokensUsed;
+        agent.Output.TokensUsed = tokensUsed;
         agent.Status = TaskExecutionStatus.Completed;
         return agent;
     }

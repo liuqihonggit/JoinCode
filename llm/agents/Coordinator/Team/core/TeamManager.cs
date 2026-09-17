@@ -8,8 +8,7 @@ namespace Core.Agents.Coordinator;
 [Register(typeof(ITeamManager), ServiceLifetime.Singleton)]
 public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposable
 {
-    private readonly ConcurrentDictionary<string, ChatRoomState> _rooms = new();
-    private readonly ConcurrentDictionary<string, string> _agentToTeam = new();
+    private readonly TeamRegistry _registry = new();
     private readonly AsyncLock _lock = new();
     private readonly ITelemetryService? _telemetryService;
     private readonly ITeammateMailboxService? _mailboxService;
@@ -78,15 +77,15 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var sessionId = _subAgentContextAccessor.Current?.SessionId;
         if (sessionId is not null)
         {
-            var existingTeamForSession = _rooms.FirstOrDefault(kvp => kvp.Value.SessionId == sessionId);
-            if (existingTeamForSession.Key is not null)
+            var existingRoomForSession = _registry.FindRoomBySessionId(sessionId);
+            if (existingRoomForSession is not null)
             {
                 return OperationResult<TeamInfo?>.Fail("已在团队中，请先使用 TeamDelete 删除当前团队");
             }
         }
 
         // 名称唯一性检查（对齐 TS generateUniqueTeamName）
-        var nameConflict = _rooms.Values.Select(r => r.Info).FirstOrDefault(t => string.Equals(t.TeamName, teamName, StringComparison.OrdinalIgnoreCase));
+        var nameConflict = _registry.FindTeamByName(teamName);
         if (nameConflict is not null)
         {
             return OperationResult<TeamInfo?>.Fail($"团队名称 '{teamName}' 已存在，请使用其他名称");
@@ -124,13 +123,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             room.SessionId = sessionId;
         }
 
-        _rooms[teamId] = room;
+        _registry.AddRoom(teamId, room);
 
         if (initialMembers != null)
         {
             foreach (var member in initialMembers)
             {
-                _agentToTeam[member] = teamId;
+                _registry.RegisterAgentToTeam(member, teamId);
             }
         }
 
@@ -148,7 +147,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             RecordTeamMetrics("delete", false);
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
@@ -166,11 +165,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             }
         }
 
-        if (_rooms.TryRemove(teamId, out var removedRoom))
+        if (_registry.TryRemoveRoom(teamId, out var removedRoom))
         {
             foreach (var member in removedRoom.Members)
             {
-                _agentToTeam.TryRemove(member, out _);
+                _registry.UnregisterAgentFromTeam(member);
             }
         }
 
@@ -189,7 +188,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        _rooms.TryGetValue(teamId, out var room);
+        _registry.TryGetRoom(teamId, out var room);
         return Task.FromResult(room?.Info);
     }
 
@@ -201,7 +200,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     public Task<IReadOnlyList<TeamInfo>> ListTeamsAsync(
         CancellationToken cancellationToken = default)
     {
-        var teams = _rooms.Values.Select(r => r.Info).ToList();
+        var teams = _registry.Rooms.Select(r => r.Info).ToList();
         return Task.FromResult<IReadOnlyList<TeamInfo>>(teams);
     }
 
@@ -217,7 +216,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string agentId,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
@@ -244,7 +243,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             LastActivityAt = _clock.GetUtcNow()
         };
 
-        _agentToTeam[agentId] = teamId;
+        _registry.RegisterAgentToTeam(agentId, teamId);
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(room.Info);
@@ -262,7 +261,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string agentId,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
@@ -281,7 +280,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         memberDetails.Remove(agentId);
     
 
-        _agentToTeam.TryRemove(agentId, out _);
+        _registry.UnregisterAgentFromTeam(agentId);
 
         room.Info = team with
         {
@@ -304,7 +303,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
         }
@@ -328,7 +327,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
@@ -385,12 +384,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default)
     {
-        if (!_agentToTeam.TryGetValue(targetAgentId, out var teamId))
+        if (!_registry.TryGetTeamIdForAgent(targetAgentId, out var teamId))
         {
             return OperationResult<TeamInfo?>.Fail($"代理 {targetAgentId} 不属于任何团队");
         }
 
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
@@ -441,7 +440,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         int limit = 50,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return Array.Empty<TeamMessage>();
         }
@@ -467,7 +466,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
@@ -539,7 +538,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return message.ToAgentId is not null ? new[] { message.ToAgentId } : Array.Empty<string>();
         }
 
-        if (!_rooms.TryGetValue(teamId, out var room)) return Array.Empty<string>();
+        if (!_registry.TryGetRoom(teamId, out var room)) return Array.Empty<string>();
         var members = room.Members;
 
         if (message.Visibility == MessageVisibility.AdminOnly)
@@ -569,7 +568,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var targetAgentIds = FilterRecipientsByVisibility(teamId, message);
         if (targetAgentIds.Count == 0) return;
 
-        var sessionId = _rooms.TryGetValue(teamId, out var room) ? room.SessionId : null;
+        var sessionId = _registry.TryGetRoom(teamId, out var room) ? room.SessionId : null;
 
         if (_mailboxService is not null && sessionId is not null)
         {
@@ -620,7 +619,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string targetAgentId, string senderId, string content, string messageType, string teamId,
         CancellationToken cancellationToken)
     {
-        var sessionId = _rooms.TryGetValue(teamId, out var room) ? room.SessionId : null;
+        var sessionId = _registry.TryGetRoom(teamId, out var room) ? room.SessionId : null;
 
         if (_mailboxService is not null && sessionId is not null)
         {
@@ -676,7 +675,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         bool isActive,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
@@ -714,7 +713,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(Array.Empty<TeamAllowedPath>());
         }
@@ -736,7 +735,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         AccessLevel accessLevel = AccessLevel.Read,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
@@ -782,7 +781,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return Array.Empty<TeammateStatus>();
         }
@@ -818,7 +817,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var statuses = new List<TeammateStatus>();
 
-        foreach (var kvp in _rooms)
+        foreach (var kvp in _registry.SnapshotRooms())
         {
             var team = kvp.Value.Info;
             var memberDetails = kvp.Value.MemberDetails;
@@ -864,7 +863,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
             return null;
 
         var team = room.Info;
@@ -922,7 +921,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? reason = null,
         CancellationToken cancellationToken = default)
     {
-        if (!_rooms.TryGetValue(teamId, out var room))
+        if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }

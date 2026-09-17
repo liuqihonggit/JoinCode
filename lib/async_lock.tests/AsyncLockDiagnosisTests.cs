@@ -302,6 +302,7 @@ public class AsyncLockDiagnosisTests : IDisposable
 
             var t1 = Task.Run(async () =>
             {
+                LockRegistry.RegisterFlow();
                 using (await lockA.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lockA.Name}' 等待超时"))
                 {
                     t1Ready.SetResult();
@@ -313,6 +314,7 @@ public class AsyncLockDiagnosisTests : IDisposable
 
             var t2 = Task.Run(async () =>
             {
+                LockRegistry.RegisterFlow();
                 using (await lockB.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{lockB.Name}' 等待超时"))
                 {
                     t2Ready.SetResult();

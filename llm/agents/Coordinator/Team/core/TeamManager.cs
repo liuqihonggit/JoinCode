@@ -215,7 +215,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
-        var team = room.Info;
         var members = room.Members;
         var memberDetails = room.MemberDetails;
 
@@ -228,14 +227,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         members.Add(agentId);
         memberDetails[agentId] = new TeamMemberInfo { AgentId = agentId, JoinedAt = _clock.GetUtcNow() };
-    
 
-        room.Info = team with
-        {
-            Members = members.ToList(),
-            MemberDetails = memberDetails.Values.ToList(),
-            LastActivityAt = _clock.GetUtcNow()
-        };
+        UpdateRoomMembers(room);
 
         _registry.RegisterAgentToTeam(agentId, teamId);
 
@@ -260,7 +253,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
-        var team = room.Info;
         var members = room.Members;
         var memberDetails = room.MemberDetails;
 
@@ -272,16 +264,10 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
 
         memberDetails.Remove(agentId);
-    
 
         _registry.UnregisterAgentFromTeam(agentId);
 
-        room.Info = team with
-        {
-            Members = members.ToList(),
-            MemberDetails = memberDetails.Values.ToList(),
-            LastActivityAt = _clock.GetUtcNow()
-        };
+        UpdateRoomMembers(room);
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(room.Info);
@@ -354,7 +340,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
     
 
-        room.Info = team with { LastActivityAt = _clock.GetUtcNow() };
+        TouchRoomActivity(room);
 
         await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
@@ -493,7 +479,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
     
 
-        room.Info = team with { LastActivityAt = _clock.GetUtcNow() };
+        TouchRoomActivity(room);
 
         await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
@@ -515,6 +501,25 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
     private void RecordTeamMetrics(string operation, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "team.operation.count", operation, isSuccess, "Team operation count");
+
+    /// <summary>
+    /// 更新房间最后活动时间。
+    /// </summary>
+    private void TouchRoomActivity(ChatRoomState room)
+        => room.Info = room.Info with { LastActivityAt = _clock.GetUtcNow() };
+
+    /// <summary>
+    /// 更新房间成员信息(成员列表+成员详情+最后活动时间)。
+    /// </summary>
+    private void UpdateRoomMembers(ChatRoomState room)
+    {
+        room.Info = room.Info with
+        {
+            Members = room.Members.ToList(),
+            MemberDetails = room.MemberDetails.Values.ToList(),
+            LastActivityAt = _clock.GetUtcNow()
+        };
+    }
 
     /// <summary>
     /// 按消息可见性过滤投递目标 — ADR 0109 决策8。
@@ -954,7 +959,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             await PersistTeamMessageToMailboxAsync(teamId, notice, cancellationToken).ConfigureAwait(false);
         }
 
-        room.Info = team with { LastActivityAt = _clock.GetUtcNow() };
+        TouchRoomActivity(room);
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(room.Info);
     }

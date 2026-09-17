@@ -50,6 +50,20 @@ public sealed class MtpPerturbationNode
     private const int LengthDeviationThreshold = 2;
 
     private readonly ConcurrentQueue<PerturbationRecord> _recentRecords = new();
+    private volatile bool _isAdaptiveTriggered;
+
+    /// <summary>
+    /// 自适应是否已触发 — 连续异常达到阈值后置 true，后续 bash 调用自动启用 AntiCharLossConfirm。
+    /// <para>
+    /// MTP 扰动纵深防御约束第7条：自适应开关基于统计特征，不依赖 typo 关键字。
+    /// </para>
+    /// </summary>
+    public bool IsAdaptiveTriggered => _isAdaptiveTriggered;
+
+    /// <summary>
+    /// 重置自适应触发（手动恢复或配置变更时调用）。
+    /// </summary>
+    public void ResetAdaptiveTrigger() => _isAdaptiveTriggered = false;
 
     /// <summary>
     /// 记录一次工具调用，返回当前扰动分析报告。
@@ -70,7 +84,11 @@ public sealed class MtpPerturbationNode
         _recentRecords.Enqueue(record);
         TrimQueue();
 
-        return AnalyzeRecentRecords();
+        var report = AnalyzeRecentRecords();
+        if (report.ShouldTriggerAdaptive)
+            _isAdaptiveTriggered = true;
+
+        return report;
     }
 
     /// <summary>

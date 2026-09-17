@@ -19,6 +19,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
 {
     private readonly CommandInterceptionDispatcher _dispatcher;
     private readonly BashDefenseService _bashDefenseService;
+    private readonly MtpPerturbationNode _perturbationNode;
     private readonly WorkflowConfig _config;
     private readonly ILogger<ShellCommandInterceptionMiddleware>? _logger;
 
@@ -27,16 +28,19 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
     /// </summary>
     /// <param name="dispatcher">命令拦截调度器</param>
     /// <param name="bashDefenseService">Bash 防御服务（MTP 扰动纵深防御链）</param>
+    /// <param name="perturbationNode">MTP 扰动检测 node（读取自适应触发状态）</param>
     /// <param name="configOptions">工作流配置（读取 IsAntiCharLossConfirm 确认模式）</param>
     /// <param name="logger">日志器(可选)</param>
     public ShellCommandInterceptionMiddleware(
         CommandInterceptionDispatcher dispatcher,
         BashDefenseService bashDefenseService,
+        MtpPerturbationNode perturbationNode,
         IOptions<WorkflowConfig> configOptions,
         ILogger<ShellCommandInterceptionMiddleware>? logger = null)
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
         _bashDefenseService = bashDefenseService ?? throw new ArgumentNullException(nameof(bashDefenseService));
+        _perturbationNode = perturbationNode ?? throw new ArgumentNullException(nameof(perturbationNode));
         _config = configOptions?.Value ?? throw new ArgumentNullException(nameof(configOptions));
         _logger = logger;
     }
@@ -53,7 +57,7 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
             return;
         }
 
-        var confirmMode = _config.ShellExecution.IsAntiCharLossConfirm
+        var confirmMode = (_config.ShellExecution.IsAntiCharLossConfirm || _perturbationNode.IsAdaptiveTriggered)
             ? GuardConfirmMode.AntiCharLossConfirm
             : GuardConfirmMode.None;
 
@@ -104,11 +108,11 @@ public sealed partial class ShellCommandInterceptionMiddleware : ServiceEntity, 
     private async ValueTask<ToolResult?> EvaluateBashDefenseAsync(ShellPipelineContext context, CancellationToken ct)
     {
         var workDir = context.WorkingDirectory ?? string.Empty;
-        var confirmMode = _config.ShellExecution.IsAntiCharLossConfirm
+        var confirmMode = (_config.ShellExecution.IsAntiCharLossConfirm || _perturbationNode.IsAdaptiveTriggered)
             ? GuardConfirmMode.AntiCharLossConfirm
             : GuardConfirmMode.None;
         var (_, rejection) = await _bashDefenseService
-            .Begin(context.Command, workDir, context.Provider.Kind, confirmMode)
+            .Begin(context.Command, workDir, context.Provider.Kind, confirmMode, context.ConfirmedCommand, context.ArgvHash)
             .Then(_bashDefenseService.CheckDangerousCommand)
             .Then(_bashDefenseService.StrictParse)
             .Then(_bashDefenseService.CheckRetainedDevice)

@@ -53,6 +53,8 @@ public partial class ShellToolHandlers : ShellToolBase
         [McpToolParameter("Run in background (do not wait for completion)", Required = false, DefaultValue = "false")] bool? background = null,
         [McpToolParameter("Enable auto-backgrounding on timeout", Required = false, DefaultValue = "true")] bool? auto_background = null,
         [McpToolParameter("Override sandbox mode for this command", Required = false, DefaultValue = "false")] bool? dangerously_disable_sandbox = null,
+        [McpToolParameter("Confirmed command for MTP anti-char-loss two-round confirmation (second round only)", Required = false)] string? confirmed_command = null,
+        [McpToolParameter("Argv hash for MTP anti-char-loss confirmation (second round, format: #xxxxxx)", Required = false)] string? argv_hash = null,
         CancellationToken cancellationToken = default,
         ToolProgressCallback? onProgress = null)
     {
@@ -73,6 +75,8 @@ public partial class ShellToolHandlers : ShellToolBase
                 Background = background,
                 AutoBackground = auto_background,
                 DangerouslyDisableSandbox = dangerously_disable_sandbox,
+                ConfirmedCommand = confirmed_command,
+                ArgvHash = argv_hash,
                 CancellationToken = cancellationToken,
                 OnProgress = onProgress,
             };
@@ -97,6 +101,8 @@ public partial class ShellToolHandlers : ShellToolBase
                         Background = background,
                         AutoBackground = auto_background,
                         DangerouslyDisableSandbox = dangerously_disable_sandbox,
+                        ConfirmedCommand = confirmed_command,
+                        ArgvHash = argv_hash,
                         CancellationToken = cancellationToken,
                         OnProgress = onProgress,
                     };

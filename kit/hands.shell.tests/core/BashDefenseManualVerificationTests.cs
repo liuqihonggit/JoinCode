@@ -1,11 +1,14 @@
 namespace Hands.Tests.Shell;
 
+using Core.Security.DangerClassification;
+
 /// <summary>
 /// BashDefense 链手动验证 — 实际执行 bash 命令验证防御链行为（非 mock）
 /// </summary>
 public class BashDefenseManualVerificationTests
 {
     private readonly BashDefenseService _service;
+    private readonly DangerousCommandNode _dangerousNode;
     private readonly RedirectWhitelistNode _redirectNode = new();
     private readonly RetainedDeviceNode _retainedNode = new();
     private readonly ArgvHashNode _argvHashNode = new();
@@ -13,7 +16,8 @@ public class BashDefenseManualVerificationTests
 
     public BashDefenseManualVerificationTests()
     {
-        _service = new BashDefenseService(_retainedNode, _argvHashNode, _redirectNode, _strictParseNode);
+        _dangerousNode = new DangerousCommandNode(new CommandDangerClassifier());
+        _service = new BashDefenseService(_dangerousNode, _retainedNode, _argvHashNode, _redirectNode, _strictParseNode);
     }
 
     private static string WorkDir => AppContext.BaseDirectory;

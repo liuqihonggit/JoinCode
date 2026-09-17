@@ -46,7 +46,8 @@ public sealed class ArgvHashNode
     {
         if (string.IsNullOrEmpty(providedHash))
             return false;
+        var normalized = providedHash.TrimStart('#');
         var expected = ComputeArgvHash(command);
-        return string.Equals(expected, providedHash, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(expected, normalized, StringComparison.OrdinalIgnoreCase);
     }
 }

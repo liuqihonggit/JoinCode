@@ -61,6 +61,16 @@ public sealed class ShellPipelineContext
     public bool? DangerouslyDisableSandbox { get; init; }
 
     /// <summary>
+    /// 已确认的命令字符串（MTP 扰动二次确认第二轮传入，null 表示第一轮）
+    /// </summary>
+    public string? ConfirmedCommand { get; init; }
+
+    /// <summary>
+    /// argv hash（MTP 扰动二次确认第二轮传入，防意图反推）
+    /// </summary>
+    public string? ArgvHash { get; init; }
+
+    /// <summary>
     /// 取消令牌
     /// </summary>
     public CancellationToken CancellationToken { get; init; }

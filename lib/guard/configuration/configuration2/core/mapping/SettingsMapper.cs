@@ -35,6 +35,9 @@ public sealed partial class SettingsMapper : ServiceEntity
         // 快速模式
         config.FastMode = settings?.Current?.FastMode ?? false;
 
+        // Shell 执行配置 — 防丢字符二次确认（MTP 扰动纵深防御）
+        config.ShellExecution.IsAntiCharLossConfirm = settings?.Current?.IsAntiCharLossConfirm ?? false;
+
         // 工具评分配置
         ApplyToolScoreSettings(config, settings);
 

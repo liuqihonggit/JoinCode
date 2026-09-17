@@ -52,6 +52,14 @@ public sealed class ShellExecutionConfig
     public int TimeoutKeywordBufferSeconds { get; set; } = 30;
 
     /// <summary>
+    /// 防丢字符二次确认 — MTP 加速推理时防止丢字符/乱入字符导致命令变形 — ADR 0012
+    /// <para>
+    /// 从 settings.json 的 isAntiCharLossConfirm 映射，true 时启用 argv hash 二次确认防御链。
+    /// </para>
+    /// </summary>
+    public bool IsAntiCharLossConfirm { get; set; } = false;
+
+    /// <summary>
     /// 是否启用命令执行日志
     /// </summary>
     public bool EnableExecutionLogging { get; set; } = true;

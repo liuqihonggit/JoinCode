@@ -6,14 +6,13 @@ namespace Core.CostTracking;
 [Register(typeof(ICostTracker), ServiceLifetime.Singleton)]
 public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 {
-    private readonly ConcurrentDictionary<string, ModelCostInfo> _modelCosts;
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
     private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
     private readonly string _storagePath;
     private readonly ILogger<CostTracker>? _logger;
     private readonly IFileOperationService _fileOperationService;
     private readonly ITelemetryService? _telemetryService;
-    private readonly ModelPricingTable _pricingTable;
+    private readonly ModelPricing _pricing;
     private readonly CostSessionStats _stats;
     private readonly BudgetGuard _budget;
     private CancellationTokenSource? _disposeCts = new();
@@ -36,8 +35,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         _telemetryService = telemetryService;
         _budget = new BudgetGuard(logger, budgetConfig);
         _stats = new CostSessionStats(clock ?? SystemClockService.Instance);
-        _pricingTable = new ModelPricingTable(modelConfigLoader ?? new ModelConfigLoader());
-        _modelCosts = new ConcurrentDictionary<string, ModelCostInfo>(StringComparer.OrdinalIgnoreCase);
+        _pricing = new ModelPricing(logger, modelConfigLoader);
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
         _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
 
@@ -48,7 +46,6 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
                 budgetConfig.DailyLimit, budgetConfig.MonthlyLimit, budgetConfig.TotalLimit);
         }
 
-        LoadDefaultModelCosts();
         var initCts = Volatile.Read(ref _disposeCts);
         if (initCts is not null)
         {
@@ -210,37 +207,20 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="model">模型名称</param>
     /// <param name="promptCostPer1K">每 1K Prompt Token 成本 (USD)</param>
     /// <param name="completionCostPer1K">每 1K Completion Token 成本 (USD)</param>
-    public void SetModelCost(string model, decimal promptCostPer1K, decimal completionCostPer1K)
-    {
-        _modelCosts[model] = new ModelCostInfo
-        {
-            Model = model,
-            PromptCostPer1KTokens = promptCostPer1K,
-            CompletionCostPer1KTokens = completionCostPer1K
-        };
-
-        _logger?.LogInformation("[CostTracker] 设置模型定价 - {Model}: Prompt ${PromptCost}/1K, Completion ${CompletionCost}/1K",
-            model, promptCostPer1K, completionCostPer1K);
-    }
+    public void SetModelCost(string model, decimal promptCostPer1K, decimal completionCostPer1K) => _pricing.Set(model, promptCostPer1K, completionCostPer1K);
 
     /// <summary>
     /// 获取指定模型的定价信息
     /// </summary>
     /// <param name="model">模型名称</param>
     /// <returns>模型成本信息；若未配置则返回 null</returns>
-    public ModelCostInfo? GetModelCost(string model)
-    {
-        return _modelCosts.GetValueOrDefault(model);
-    }
+    public ModelCostInfo? GetModelCost(string model) => _pricing.Get(model);
 
     /// <summary>
     /// 获取所有已配置模型定价的只读字典快照
     /// </summary>
     /// <returns>模型定价只读字典，键为模型名称</returns>
-    public IReadOnlyDictionary<string, ModelCostInfo> GetAllModelCosts()
-    {
-        return _modelCosts.ToFrozenDictionary();
-    }
+    public IReadOnlyDictionary<string, ModelCostInfo> GetAllModelCosts() => _pricing.GetAll();
 
     /// <summary>
     /// 判断是否超出预算限制
@@ -281,20 +261,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             .Sum(r => r.CostUsd);
     }
 
-    private decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0)
-    {
-        if (!_modelCosts.TryGetValue(model, out var costInfo))
-        {
-            costInfo = GetDefaultCostInfo(model);
-        }
-
-        var promptCost = (promptTokens / 1000m) * costInfo.PromptCostPer1KTokens;
-        var completionCost = (completionTokens / 1000m) * costInfo.CompletionCostPer1KTokens;
-        var cacheCreationCost = (cacheCreationTokens / 1000m) * costInfo.PromptCostPer1KTokens * 1.25m;
-        var cacheReadCost = (cacheReadTokens / 1000m) * costInfo.PromptCostPer1KTokens * 0.1m;
-
-        return promptCost + completionCost + cacheCreationCost + cacheReadCost;
-    }
+    private decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) => _pricing.CalculateCost(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens);
 
     private CostStatistics CalculateStatistics(List<TokenUsageRecord> records)
     {
@@ -310,10 +277,10 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         var totalCost = records.Sum(r => r.CostUsd);
 
         var cacheSavings = records
-            .Where(r => r.CacheReadTokens > 0 && _modelCosts.TryGetValue(r.Model, out var costInfo))
+            .Where(r => r.CacheReadTokens > 0 && _pricing.TryGetCost(r.Model, out var costInfo))
             .Sum(r =>
             {
-                var costInfo = _modelCosts[r.Model];
+                var costInfo = _pricing.Get(r.Model)!;
                 var normalCost = (r.CacheReadTokens / 1000m) * costInfo.PromptCostPer1KTokens;
                 var cacheCost = (r.CacheReadTokens / 1000m) * costInfo.PromptCostPer1KTokens * 0.1m;
                 return normalCost - cacheCost;
@@ -324,7 +291,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         var lastTimestamp = records.Max(r => r.Timestamp);
         var wallDuration = lastTimestamp - firstTimestamp;
 
-        var hasUnknownModel = records.Any(r => !_modelCosts.ContainsKey(r.Model) && GetDefaultCostInfo(r.Model).PromptCostPer1KTokens == ModelPricingTable.DefaultPromptCostPer1K);
+        var hasUnknownModel = records.Any(r => !_pricing.Contains(r.Model) && _pricing.GetDefaultCostInfo(r.Model).PromptCostPer1KTokens == ModelPricingTable.DefaultPromptCostPer1K);
 
         var modelBreakdown = records
             .GroupBy(r => r.Model)
@@ -355,32 +322,6 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             LinesAdded = _stats.TotalLinesAdded,
             LinesRemoved = _stats.TotalLinesRemoved,
             HasUnknownModelCost = hasUnknownModel
-        };
-    }
-
-    private void LoadDefaultModelCosts()
-    {
-        foreach (var (keyword, promptCost, completionCost) in _pricingTable.GetAllEntries())
-        {
-            SetModelCost(keyword, promptCost, completionCost);
-        }
-    }
-
-    private ModelCostInfo GetDefaultCostInfo(string model)
-    {
-        foreach (var kvp in _modelCosts)
-        {
-            if (model.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
-            {
-                return kvp.Value;
-            }
-        }
-
-        return new ModelCostInfo
-        {
-            Model = model,
-            PromptCostPer1KTokens = ModelPricingTable.DefaultPromptCostPer1K,
-            CompletionCostPer1KTokens = ModelPricingTable.DefaultCompletionCostPer1K
         };
     }
 

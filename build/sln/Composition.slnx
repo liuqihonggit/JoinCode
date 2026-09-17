@@ -2,6 +2,7 @@
   <Folder Name="/composition/">
     <Project Path="../../kit/composition/Composition.csproj" />
     <Project Path="../../kit/composition.tests/Composition.Tests.csproj" />
+    <Project Path="../../kit/slash/Slash.csproj" />
     <Project Path="../../lib/clock/Clock.csproj" />
     <Project Path="../../lib/clock.tests/Clock.Tests.csproj" />
     <Project Path="../../kit/pipelines/Pipelines.csproj" />

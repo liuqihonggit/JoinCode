@@ -22,6 +22,7 @@ public sealed partial class EnvOverrideMiddleware : ServiceEntity, IConfigLoadMi
     /// <inheritdoc />
     public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
     {
+        _mapper.SkipProviderValidation = context.SkipProviderValidation;
         _mapper.ApplyEnvOverrides(context.Config, context.Settings);
 
         return next(context, ct);

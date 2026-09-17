@@ -8,6 +8,7 @@ public class ConfigLoader {
     private readonly IProviderDefinitionRegistry _registry;
     private readonly SettingsMapper _settingsMapper;
     private readonly IModelConfigLoader? _modelConfigLoader;
+    private readonly ILogger? _logger;
 
     /// <summary>
     /// 跳过 Provider API Key 验证 — 元命令模式（mcp_list/slash_call 等）不需要 LLM 服务，CI 环境无 API Key 时也能运行
@@ -24,7 +25,8 @@ public class ConfigLoader {
     /// <param name="modelConfigLoader">模型配置加载器(可选),用于灌入 vendor 模型数据</param>
     public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)
     {
-        _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader());
+        _logger = loggerFactory?.CreateLogger<ConfigLoader>();
+        _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
         _modelConfigLoader = modelConfigLoader;
         if (middlewares is not null && loggerFactory is not null)
@@ -90,7 +92,8 @@ public class ConfigLoader {
             var settingsTask = SettingsLoader.LoadAllSourcesAsync(
                 fs,
                 projectDir: projectDir,
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken,
+                logger: _logger);
             var rulesLoader = new ProjectRulesLoader(fs);
             var projectRulesTask = rulesLoader.LoadRulesAsync(projectDir, cancellationToken);
             var externalRulesLoader = new ExternalRulesLoader(fs);
@@ -120,6 +123,7 @@ public class ConfigLoader {
             EnsureEnvModelInConfig(settings);
 
             // Step 3: SettingsJson → WorkflowConfig（JSON 反序列化映射）
+            _settingsMapper.SkipProviderValidation = SkipProviderValidation;
             var config = _settingsMapper.ToWorkflowConfig(settings);
 
             // Step 4: 环境变量覆盖（Provider/Model/Endpoint 等，不含 API Key）
@@ -170,8 +174,9 @@ public class ConfigLoader {
             var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         }
-        catch
+        catch (Exception ex)
         {
+            Diag.WriteLifecycle($"[WARN] 全局配置文件解析失败，使用默认值: {settingsPath} | 错误: {ex.Message}");
             return null;
         }
     }
@@ -279,8 +284,9 @@ public class ConfigLoader {
             var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
         }
-        catch
+        catch (Exception ex)
         {
+            Diag.WriteLifecycle($"[WARN] auth.json 解析失败: {authPath} | 错误: {ex.Message}");
             return null;
         }
     }
@@ -638,6 +644,13 @@ public class ConfigLoader {
         // 注意: EnvOverrideApplier.Apply 合并 ProfileSettings 时可能将 Models 置 null
         if ((profileSettings.Models is null || profileSettings.Models.Count == 0) && settings.AutoFetchModels)
             return;
+
+        // 元命令模式跳过模型注册检查 — slash_call/mcp_list 等不需要 LLM 服务
+        if (SkipProviderValidation)
+        {
+            Diag.WriteLifecycle($"[WARN] 跳过模型注册检查 — 模型 '{modelId}' 未在 vendor.{profile}.models 中注册。元命令模式降级运行。");
+            return;
+        }
 
         throw new ConfigurationException(
             $"[GRD016] 模型 '{modelId}' 未在 settings.json 的 vendor.{profile}.models 列表中注册。" +

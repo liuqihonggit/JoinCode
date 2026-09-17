@@ -10,6 +10,11 @@ public sealed partial class SettingsMapper : ServiceEntity
 {
     private readonly IProviderDefinitionRegistry _registry;
 
+    /// <summary>
+    /// 跳过 Provider 存在性验证 — 元命令模式（mcp_list/slash_call 等）不需要 LLM 服务，允许未知 Provider 降级运行
+    /// </summary>
+    public bool SkipProviderValidation { get; set; }
+
     /// <summary>构造函数 — 注入 Provider 定义注册表</summary>
     public SettingsMapper(IProviderDefinitionRegistry registry)
     {
@@ -70,24 +75,37 @@ public sealed partial class SettingsMapper : ServiceEntity
             ApplyProfileFromVendor(envProvider, config, settings);
 
             // Provider 变更时，重新应用 Provider 定义的默认值
-            var newDefinition = _registry.TryGet(envProvider)
-                ?? throw new ConfigurationException(
-                    $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。");
-
-            config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
-            config.Provider.Definition = newDefinition;
-            // Protocol — ApplyProfileFromVendor 已从 settings.json profile 设置(配置大于代码)
-            // 仅当 profile 未配 protocol 时回退到 definition 的默认协议
-            var profileProtocol = GetProfileProtocol(envProvider, settings);
-            if (string.IsNullOrEmpty(profileProtocol))
-                config.Provider.Protocol = newDefinition.Protocol.ToValue();
-
-            // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
-            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
+            var newDefinition = _registry.TryGet(envProvider);
+            if (newDefinition is null && !SkipProviderValidation)
             {
-                config.Provider.ModelId ??= newDefinition.DefaultModelId
-                    ?? throw new ConfigurationException(
-                        $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
+                throw new ConfigurationException(
+                    $"未知的 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。");
+            }
+
+            if (newDefinition is not null)
+            {
+                config.Provider.Endpoint ??= newDefinition.DefaultEndpoint;
+                config.Provider.Definition = newDefinition;
+                // Protocol — ApplyProfileFromVendor 已从 settings.json profile 设置(配置大于代码)
+                // 仅当 profile 未配 protocol 时回退到 definition 的默认协议
+                var profileProtocol = GetProfileProtocol(envProvider, settings);
+                if (string.IsNullOrEmpty(profileProtocol))
+                    config.Provider.Protocol = newDefinition.Protocol.ToValue();
+
+                // 仅当 ModelId 未被显式设置时，使用新 Provider 的默认模型
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable(JccEnvVar.ModelId.ToValue())))
+                {
+                    config.Provider.ModelId ??= newDefinition.DefaultModelId;
+                    if (config.Provider.ModelId is null && !SkipProviderValidation)
+                    {
+                        throw new ConfigurationException(
+                            $"Provider '{newDefinition.ProviderName}' 没有定义默认模型，请通过 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
+                    }
+                }
+            }
+            else
+            {
+                Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{envProvider}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。元命令模式降级运行。");
             }
         }
 
@@ -196,9 +214,16 @@ public sealed partial class SettingsMapper : ServiceEntity
         }
         else if (definition is not null)
         {
-            config.Provider.ModelId = definition.DefaultModelId
-                ?? throw new ConfigurationException(
+            config.Provider.ModelId = definition.DefaultModelId;
+            if (config.Provider.ModelId is null && !SkipProviderValidation)
+            {
+                throw new ConfigurationException(
                     $"Provider '{definition.ProviderName}' 没有定义默认模型，请通过 vendor[current.profile].model 或 {JccEnvVar.ModelId.ToValue()} 环境变量指定模型。");
+            }
+        }
+        else if (SkipProviderValidation)
+        {
+            Diag.WriteLifecycle($"[WARN] 跳过 Provider 验证 — 未知 Provider '{config.Provider.Vendor}'，可用值: {string.Join(", ", _registry.RegisteredProviders)}。元命令模式降级运行。");
         }
         else
         {

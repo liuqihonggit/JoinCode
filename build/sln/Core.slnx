@@ -10,6 +10,7 @@
   </Folder>
   <Folder Name="/core/execution/">
     <Project Path="../../kit/brain/Brain.csproj" />
+    <Project Path="../../kit/prompts/Prompts.csproj" />
     <Project Path="../../kit/hands/Hands.csproj" />
     <Project Path="../../lib/scheduling/Scheduling.csproj" />
     <Project Path="../../lib/scheduling.tests/Scheduling.Tests.csproj" />

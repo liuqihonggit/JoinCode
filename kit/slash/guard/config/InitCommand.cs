@@ -19,7 +19,7 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
     {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
-        var isQuick = args is "quick" or "q";
+        var isQuick = args is "quick" or "q" || IsQuickModeFromJson(args);
 
         if (isQuick)
         {
@@ -31,6 +31,24 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
         }
 
         return ChatCommandResult.Continue();
+    }
+
+    /// <summary>
+    /// 从 JSON 参数中解析 mode 字段 — 支持 slash_call 传入 {"mode":"quick"} 格式
+    /// </summary>
+    private static bool IsQuickModeFromJson(string args)
+    {
+        if (!args.StartsWith('{')) return false;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(args);
+            return doc.RootElement.TryGetProperty("mode", out var mode)
+                && mode.GetString() is "quick" or "q";
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static async Task AiDrivenInitAsync(ChatCommandContext context)
@@ -99,6 +117,8 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
             TerminalHelper.WriteLine("  · settings.json 已存在");
         }
 
+        await WriteConfigTemplatesAsync(context, fs, jccDir).ConfigureAwait(false);
+
         await RegisterProjectConfigAsync(context, cwd).ConfigureAwait(false);
 
         TerminalHelper.NewLine();
@@ -108,17 +128,32 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
     /// <summary>
     /// 构建默认 settings.json 骨架 — 复用 SettingsLoader 的共享实现
-    /// 含所有5个供应商的预设入口点,models 数组留空由 AutoFetchModels 填充
+    /// 含所有5个供应商的预设入口点,models 数组留空由 AutoFetchModels 启动时拉取
     /// </summary>
     private static string BuildDefaultSettingsJson()
     {
         return Core.Configuration.SettingsLoader.BuildDefaultSettingsJson();
     }
 
+    /// <summary>
+    /// 写入配置模板文件到 .jcc/config/ — 源码生成器自动生成，改 C# 类属性后重新编译自动更新（ADR 0114）
+    /// </summary>
+    private static async Task WriteConfigTemplatesAsync(ChatCommandContext context, IFileSystem fs, string jccDir)
+    {
+        var configDir = Path.Combine(jccDir, "config");
+        if (!fs.DirectoryExists(configDir))
+            fs.CreateDirectory(configDir);
+
+        var currentTemplatePath = Path.Combine(configDir, "current.template.json");
+        var currentTemplate = Core.Configuration.Templates.ConfigTemplates.GetCurrentSettingsTemplate();
+        await fs.WriteAllTextAsync(currentTemplatePath, currentTemplate, context.CancellationToken).ConfigureAwait(false);
+        TerminalHelper.WriteLine("  ✓ 创建 config/current.template.json (源码生成器自动生成 — 改 C# 类属性后重新编译自动更新)");
+    }
+
     private static void EnsureJccDirectory(string cwd, IFileSystem fs)
     {
         var jccDir = Path.Combine(cwd, AppDataConstants.AppDataFolder);
-        if (fs.DirectoryExists(jccDir))
+        if (!fs.DirectoryExists(jccDir))
         {
             DirectoryHelper.EnsureDirectoryExists(fs, jccDir);
             TerminalHelper.WriteLine("  ✓ 创建 .jcc/ 目录");

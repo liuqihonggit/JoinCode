@@ -363,7 +363,10 @@ public sealed class ApplicationBuilder
         var dotEnv = GetDotEnv();
         WorkflowConfig config;
 
-        var loader = new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader)
+        var configLogLevel = JoinCode.Abstractions.Utils.Diagnostics.Diag.IsDebugLog ? LogLevel.Debug : LogLevel.Warning;
+        using var configLoggerFactory = LoggerFactory.Create(b => b.AddProvider(new Core.Configuration.StderrLoggerProvider(configLogLevel)));
+
+        var loader = new Core.Configuration.ConfigLoader(modelConfigLoader: modelConfigLoader, loggerFactory: configLoggerFactory)
         {
             SkipProviderValidation = options.SkipProviderValidation
         };
@@ -385,7 +388,7 @@ public sealed class ApplicationBuilder
             }
         }
 
-        var registry = new Core.Configuration.Providers.ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader());
+        var registry = new Core.Configuration.Providers.ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader(), logger: configLoggerFactory.CreateLogger<Core.Configuration.Providers.ProviderDefinitionRegistry>());
 
         if (dotEnv is not null)
         {

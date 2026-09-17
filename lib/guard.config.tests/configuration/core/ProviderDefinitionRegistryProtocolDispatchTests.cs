@@ -161,31 +161,30 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
 
     #endregion
 
-    #region Azure 硬编码修复验证(配置大于代码)
+    #region Azure 协议分派验证(配置驱动,无硬编码兜底)
 
     [Fact]
-    public void Azure_WithoutSettingsConfig_ShouldFallbackToAzureProviderDefinition()
+    public void Azure_WithoutSettingsConfig_ShouldNotBeRegistered()
     {
         var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("azure");
 
-        def.Should().NotBeNull();
-        def!.Protocol.Should().Be(ProtocolKind.Azure,
-            "settings.json 未配 azure 时回退到内置 AzureProviderDefinition");
+        def.Should().BeNull(
+            "settings.json 未配 azure 时不应注册,配置驱动无硬编码兜底");
     }
 
     [Fact]
-    public void Azure_WithSettingsConfig_ShouldUseConfiguredProtocol_NotOverwritten()
+    public void Azure_WithAzureProtocol_ShouldUseAzureProviderDefinition()
     {
-        var json = """{"vendor":{"azure":{"protocol":"openai-compatible","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
+        var json = """{"vendor":{"azure":{"protocol":"azure","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
         var def = registry.TryGet("azure")!;
 
-        def.Protocol.Should().Be(ProtocolKind.OpenAiCompatible,
-            "settings.json 配了 azure 时不被内置 AzureProviderDefinition 覆盖,配置大于代码");
+        def.Protocol.Should().Be(ProtocolKind.Azure,
+            "settings.json 配 protocol=azure 时分派到 AzureProviderDefinition");
         def.ProviderName.Should().Be("azure");
     }
 

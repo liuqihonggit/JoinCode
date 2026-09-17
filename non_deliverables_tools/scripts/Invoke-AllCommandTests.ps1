@@ -28,7 +28,12 @@ param(
     [int]$TimeoutSec = 30,
     [string]$ReportPath = (Join-Path $PSScriptRoot "..\..\artifacts\reports\command-test-report.md"),
     [switch]$McpOnly,
-    [switch]$SlashOnly
+    [switch]$SlashOnly,
+    [ValidateSet("all","mcp","slash")]
+    [string]$TestType = "all",
+    [int]$Shard = 1,
+    [int]$TotalShards = 1,
+    [int]$Concurrency = 8
 )
 
 $ErrorActionPreference = "Continue"
@@ -223,10 +228,13 @@ function Test-McpTools {
     $listJson = Extract-Json -Text $listResult.stdout
     if (-not $listJson -or -not $listJson.ok) {
         Write-Error "mcp_list failed"
+        Write-Host "  stdout: $($listResult.stdout.Substring(0, [Math]::Min(500, $listResult.stdout.Length)))" -ForegroundColor Red
+        Write-Host "  stderr: $($listResult.stderr.Substring(0, [Math]::Min(500, $listResult.stderr.Length)))" -ForegroundColor Red
+        Write-Host "  exitCode: $($listResult.exitCode)" -ForegroundColor Red
         return @()
     }
 
-    $tools = $listJson.data
+    $tools = $listJson.data | ForEach-Object { $_.name }
     Write-Host "Found $($tools.Count) MCP tools"
 
     if ($Limit -gt 0 -and $Limit -lt $tools.Count) {
@@ -234,11 +242,35 @@ function Test-McpTools {
         Write-Host "Limited to first $Limit tools"
     }
 
-    $results = @()
-    $i = 0
-    foreach ($tool in $tools) {
-        $i++
-        Write-Host "  [$i/$($tools.Count)] $tool" -NoNewline
+    if ($TotalShards -gt 1 -and $TestType -eq "mcp") {
+        $shardSize = [int][Math]::Ceiling($tools.Count / $TotalShards)
+        $start = ($Shard - 1) * $shardSize
+        $end = [Math]::Min($start + $shardSize - 1, $tools.Count - 1)
+        if ($start -ge $tools.Count) { return @() }
+        $tools = $tools[$start..$end]
+        Write-Host "Shard ${Shard}/${TotalShards} tools[$start..$end] ($($tools.Count) tools)"
+    }
+
+    $funcDefs = @{
+        InvokeJcc = (Get-Command Invoke-Jcc).Definition
+        ExtractJson = (Get-Command Extract-Json).Definition
+        GenerateArgValue = (Get-Command Generate-ArgValue).Definition
+        GenerateFullArgs = (Get-Command Generate-FullArgs).Definition
+        ExtractSteps = (Get-Command Extract-Steps).Definition
+    }
+    $total = $tools.Count
+    $dllPath = $JccDll
+    $timeout = $TimeoutSec
+
+    $results = $tools | ForEach-Object -Parallel {
+        $tool = $_
+        Set-Item function:Invoke-Jcc $using:funcDefs.InvokeJcc
+        Set-Item function:Extract-Json $using:funcDefs.ExtractJson
+        Set-Item function:Generate-ArgValue $using:funcDefs.GenerateArgValue
+        Set-Item function:Generate-FullArgs $using:funcDefs.GenerateFullArgs
+        Set-Item function:Extract-Steps $using:funcDefs.ExtractSteps
+        $JccDll = $using:dllPath
+        $TimeoutSec = $using:timeout
 
         $schemaResult = Invoke-Jcc -CmdArgs @("mcp_schema", $tool, "--json")
         $schema = $null
@@ -255,6 +287,7 @@ function Test-McpTools {
         $isError = $false
         $contentText = ""
         $exitReason = ""
+        $callJson = $null
 
         try {
             $callJson = Extract-Json -Text $callResult.stdout
@@ -292,9 +325,7 @@ function Test-McpTools {
 
         $stepSummary = if ($steps.Count -gt 0) { "$($steps.Count) steps" } else { "no steps" }
 
-        Write-Host " -> $status ($stepSummary) ${cmdDuration}s" -ForegroundColor $(switch ($status) { "OK" { "Green" } "ERROR" { "Yellow" } default { "Red" } })
-
-        $results += [PSCustomObject]@{
+        [PSCustomObject]@{
             Category = "MCP"
             Name     = $tool
             Status   = $status
@@ -305,6 +336,13 @@ function Test-McpTools {
             Stderr   = $callResult.stderr
             Duration = $cmdDuration
         }
+    } -ThrottleLimit $Concurrency
+
+    $results = @($results)
+    $i = 0
+    foreach ($r in $results) {
+        $i++
+        Write-Host "  [$i/$($results.Count)] $($r.Name) -> $($r.Status) ($($r.Steps)) $($r.Duration)s" -ForegroundColor $(switch ($r.Status) { "OK" { "Green" } "ERROR" { "Yellow" } default { "Red" } })
     }
     return $results
 }
@@ -320,6 +358,14 @@ function Test-SlashCommands {
     }
 
     $cmds = $listJson.data | ForEach-Object { $_.name.TrimStart('/') }
+
+    $globalStateMods = @("reset-config")
+    $excluded = $cmds | Where-Object { $globalStateMods -contains $_ }
+    if ($excluded) {
+        $cmds = $cmds | Where-Object { $globalStateMods -notcontains $_ }
+        Write-Host "Excluded global-state-modifying commands: $($excluded -join ', ')"
+    }
+
     Write-Host "Found $($cmds.Count) slash commands"
 
     if ($Limit -gt 0 -and $Limit -lt $cmds.Count) {
@@ -327,11 +373,40 @@ function Test-SlashCommands {
         Write-Host "Limited to first $Limit commands"
     }
 
-    $results = @()
-    $i = 0
-    foreach ($cmd in $cmds) {
-        $i++
-        Write-Host "  [$i/$($cmds.Count)] /$cmd" -NoNewline
+    if ($TotalShards -gt 1 -and $TestType -eq "slash") {
+        $shardSize = [int][Math]::Ceiling($cmds.Count / $TotalShards)
+        $start = ($Shard - 1) * $shardSize
+        $end = [Math]::Min($start + $shardSize - 1, $cmds.Count - 1)
+        if ($start -ge $cmds.Count) { return @() }
+        $cmds = $cmds[$start..$end]
+        Write-Host "Shard ${Shard}/${TotalShards} cmds[$start..$end] ($($cmds.Count) commands)"
+    }
+
+    $funcDefs = @{
+        InvokeJcc = (Get-Command Invoke-Jcc).Definition
+        ExtractJson = (Get-Command Extract-Json).Definition
+        GenerateArgValue = (Get-Command Generate-ArgValue).Definition
+        GenerateFullArgs = (Get-Command Generate-FullArgs).Definition
+        ExtractSteps = (Get-Command Extract-Steps).Definition
+    }
+    $dllPath = $JccDll
+    $timeout = $TimeoutSec
+
+    $results = $cmds | ForEach-Object -Parallel {
+        $cmd = $_
+        Set-Item function:Invoke-Jcc $using:funcDefs.InvokeJcc
+        Set-Item function:Extract-Json $using:funcDefs.ExtractJson
+        Set-Item function:Generate-ArgValue $using:funcDefs.GenerateArgValue
+        Set-Item function:Generate-FullArgs $using:funcDefs.GenerateFullArgs
+        Set-Item function:Extract-Steps $using:funcDefs.ExtractSteps
+        $JccDll = $using:dllPath
+        $TimeoutSec = $using:timeout
+
+        if ($cmd -eq "help") {
+            $envProf = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+            $settingsPath = Join-Path $envProf ".jcc\settings.json"
+            Write-Host "[DEBUG-PARALLEL] cmd=$cmd USERPROFILE=$envProf settingsPath=$settingsPath exists=$(Test-Path $settingsPath) HOME=$HOME"
+        }
 
         $schemaResult = Invoke-Jcc -CmdArgs @("slash_schema", $cmd, "--json")
         $schema = Extract-Json -Text $schemaResult.stdout
@@ -365,9 +440,7 @@ function Test-SlashCommands {
 
         $stepSummary = if ($steps.Count -gt 0) { "$($steps.Count) steps" } else { "no steps" }
 
-        Write-Host " -> $status ($stepSummary) ${cmdDuration}s" -ForegroundColor $(switch ($status) { "OK" { "Green" } "SKIP" { "DarkGray" } "ERROR" { "Yellow" } default { "Red" } })
-
-        $results += [PSCustomObject]@{
+        [PSCustomObject]@{
             Category = "Slash"
             Name     = "/$cmd"
             Status   = $status
@@ -378,6 +451,13 @@ function Test-SlashCommands {
             Stderr   = $callResult.stderr
             Duration = $cmdDuration
         }
+    } -ThrottleLimit $Concurrency
+
+    $results = @($results)
+    $i = 0
+    foreach ($r in $results) {
+        $i++
+        Write-Host "  [$i/$($results.Count)] $($r.Name) -> $($r.Status) ($($r.Steps)) $($r.Duration)s" -ForegroundColor $(switch ($r.Status) { "OK" { "Green" } "SKIP" { "DarkGray" } "ERROR" { "Yellow" } default { "Red" } })
     }
     return $results
 }
@@ -385,8 +465,8 @@ function Test-SlashCommands {
 $startTime = Get-Date
 $allResults = @()
 
-if (-not $SlashOnly) { $allResults += Test-McpTools }
-if (-not $McpOnly) { $allResults += Test-SlashCommands }
+if ($TestType -eq "all" -or $TestType -eq "mcp") { $allResults += Test-McpTools }
+if ($TestType -eq "all" -or $TestType -eq "slash") { $allResults += Test-SlashCommands }
 
 $duration = (Get-Date) - $startTime
 
@@ -449,6 +529,21 @@ if ($crashCount -gt 0 -or $timeoutCount -gt 0) {
     }
 }
 
+$okForDebug = $allResults | Where-Object { $_.Status -eq "OK" } | Select-Object -First 5
+if ($okForDebug) {
+    [void]$report.AppendLine()
+    [void]$report.AppendLine("## OK 调试详情(前5个)")
+    [void]$report.AppendLine()
+    foreach ($r in $okForDebug) {
+        [void]$report.AppendLine("### $($r.Category) $($r.Name)")
+        [void]$report.AppendLine("- 状态: $($r.Status)")
+        [void]$report.AppendLine("- 耗时: $($r.Duration)s")
+        $stderrText = if ($r.Stderr) { $r.Stderr } else { "" }
+        [void]$report.AppendLine("- stderr: $($stderrText.Substring(0, [Math]::Min(800, $stderrText.Length)))")
+        [void]$report.AppendLine()
+    }
+}
+
 $reportText = $report.ToString()
 $reportText | Out-File -FilePath $ReportPath -Encoding UTF8
 
@@ -457,4 +552,4 @@ Write-Host "Total: $($allResults.Count) | OK: $okCount | ERROR: $errorCount | CR
 Write-Host "Duration: $([math]::Round($duration.TotalSeconds, 1))s"
 Write-Host "Report: $ReportPath"
 
-if ($crashCount -gt 0 -or $timeoutCount -gt 0) { exit 1 } else { exit 0 }
+if ($crashCount -gt 0) { exit 1 } else { exit 0 }

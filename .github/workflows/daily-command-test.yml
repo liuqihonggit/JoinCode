@@ -110,6 +110,14 @@ jobs:
           $result = dotnet $jccDll mcp_list --json 2>&1
           Write-Host "exit=$LASTEXITCODE"
           Write-Host "output (first 500): $($result.Substring(0, [Math]::Min(500, $result.Length)))"
+          Write-Host "`n--- jcc slash_call /help test ---"
+          $result2 = dotnet $jccDll slash_call help --debuglog 2>&1
+          Write-Host "exit=$LASTEXITCODE"
+          Write-Host "output (first 500): $($result2.Substring(0, [Math]::Min(500, $result2.Length)))"
+          Write-Host "`n--- jcc slash_call /version test ---"
+          $result3 = dotnet $jccDll slash_call version --debuglog 2>&1
+          Write-Host "exit=$LASTEXITCODE"
+          Write-Host "output (first 500): $($result3.Substring(0, [Math]::Min(500, $result3.Length)))"
         shell: pwsh
 
       - name: Run Command Tests

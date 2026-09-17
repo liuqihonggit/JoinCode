@@ -343,9 +343,9 @@ public static class SettingsLoader
             var json = await fs.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         }
-        catch
+        catch (Exception ex)
         {
-            // 文件损坏或格式错误，返回 null（使用默认值）
+            System.Diagnostics.Trace.WriteLine($"SettingsLoader: Failed to load {path}: {ex.Message}");
             return null;
         }
     }
@@ -363,8 +363,9 @@ public static class SettingsLoader
             var json = fs.ReadAllText(path);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Trace.WriteLine($"SettingsLoader: Failed to load {path}: {ex.Message}");
             return null;
         }
     }

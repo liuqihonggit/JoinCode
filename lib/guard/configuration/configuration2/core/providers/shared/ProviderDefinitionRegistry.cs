@@ -19,9 +19,6 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
 
         ApplyVendorFromSettings(dict, modelConfigLoader, fs);
 
-        if (!dict.ContainsKey("azure"))
-            dict["azure"] = new AzureProviderDefinition(modelConfigLoader);
-
         _definitions = dict.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -63,14 +60,19 @@ public sealed class ProviderDefinitionRegistry : IProviderDefinitionRegistry
                 var apiKeyEnvVar = profileNode["apiKeyEnvVar"]?.GetValue<string>();
                 var anthropicBeta = profileNode["anthropicBeta"]?.GetValue<string>();
 
-                dict[vendorName] = string.Equals(protocol, ProtocolKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase)
-                    ? new AnthropicCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar, anthropicBeta)
-                    : new OpenAiCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar);
+                dict[vendorName] = protocol switch
+                {
+                    var p when string.Equals(p, ProtocolKindEnumConstants.Anthropic, StringComparison.OrdinalIgnoreCase) 
+                        => (IProviderDefinition)new AnthropicCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar, anthropicBeta),
+                    var p when string.Equals(p, ProtocolKindEnumConstants.Azure, StringComparison.OrdinalIgnoreCase) 
+                        => new AzureProviderDefinition(modelConfigLoader),
+                    _ => new OpenAiCompatibleProviderDefinition(modelConfigLoader, vendorName, apiKeyEnvVar),
+                };
             }
         }
-        catch (System.Exception ex) when (ex is System.IO.IOException or System.Text.Json.JsonException)
+        catch (System.Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"ProviderDefinitionRegistry: settings.json 读取失败: {ex.Message}");
+            System.Diagnostics.Trace.WriteLine($"ProviderDefinitionRegistry: settings.json 读取失败: {ex.Message}");
         }
     }
 }

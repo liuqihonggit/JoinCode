@@ -3,6 +3,7 @@ name: Daily Command Test
 # > ADR: [0080](docs/adr/0080-manual-exe-testing-guide.md) — 手动测试 exe 功能(非mock操作)
 # 每日定时遍历全部 MCP 工具 + 斜杠命令,全参数填充调用,验证功能正常
 # 报告含每个命令耗时,可针对性优化(>30s 的命令需备注,见 ADR 0080)
+# 并行架构: MCP工具分3片并行 + 斜杠命令1片, 每片内部ForEach-Object -Parallel并发8
 
 on:
   schedule:
@@ -24,9 +25,17 @@ env:
 
 jobs:
   command-test:
-    name: All MCP + Slash Command Test
+    name: ${{ matrix.name }}
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "MCP Shard 1/3",  test_type: mcp,   shard: 1, total: 3 }
+          - { name: "MCP Shard 2/3",  test_type: mcp,   shard: 2, total: 3 }
+          - { name: "MCP Shard 3/3",  test_type: mcp,   shard: 3, total: 3 }
+          - { name: "Slash Commands", test_type: slash, shard: 1, total: 1 }
 
     steps:
       - name: Checkout
@@ -78,14 +87,15 @@ jobs:
         run: |
           $limit = '${{ github.event.inputs.limit }}'
           if ([string]::IsNullOrWhiteSpace($limit) -or $limit -eq '0') { $limit = '0' }
-          powershell -ExecutionPolicy Bypass -File non_deliverables_tools/scripts/Invoke-AllCommandTests.ps1 -Limit ([int]$limit) -ReportPath artifacts/command-test-report.md
+          $reportName = "command-test-report-${{ matrix.test_type }}-${{ matrix.shard }}.md"
+          pwsh -ExecutionPolicy Bypass -File non_deliverables_tools/scripts/Invoke-AllCommandTests.ps1 -TestType ${{ matrix.test_type }} -Shard ${{ matrix.shard }} -TotalShards ${{ matrix.total }} -Concurrency 8 -Limit ([int]$limit) -ReportPath "artifacts/$reportName"
         shell: pwsh
 
       - name: Upload Report
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: command-test-report-${{ github.run_number }}
-          path: artifacts/command-test-report.md
+          name: command-test-report-${{ matrix.test_type }}-${{ matrix.shard }}-${{ github.run_number }}
+          path: artifacts/command-test-report-${{ matrix.test_type }}-${{ matrix.shard }}.md
           retention-days: 30
           if-no-files-found: warn

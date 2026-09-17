@@ -107,15 +107,15 @@ jobs:
           }
           $jccDll = "artifacts\bin\JoinCode\Debug\net10.0\jcc.dll"
           Write-Host "`n--- jcc mcp_list test ---"
-          $result = dotnet $jccDll mcp_list --json 2>&1
+          $result = dotnet $jccDll mcp_list --json 2>&1 | Out-String
           Write-Host "exit=$LASTEXITCODE"
           Write-Host "output (first 500): $($result.Substring(0, [Math]::Min(500, $result.Length)))"
           Write-Host "`n--- jcc slash_call /help test ---"
-          $result2 = dotnet $jccDll slash_call help --debuglog 2>&1
+          $result2 = dotnet $jccDll slash_call help --debuglog 2>&1 | Out-String
           Write-Host "exit=$LASTEXITCODE"
           Write-Host "output (first 500): $($result2.Substring(0, [Math]::Min(500, $result2.Length)))"
           Write-Host "`n--- jcc slash_call /version test ---"
-          $result3 = dotnet $jccDll slash_call version --debuglog 2>&1
+          $result3 = dotnet $jccDll slash_call version --debuglog 2>&1 | Out-String
           Write-Host "exit=$LASTEXITCODE"
           Write-Host "output (first 500): $($result3.Substring(0, [Math]::Min(500, $result3.Length)))"
         shell: pwsh

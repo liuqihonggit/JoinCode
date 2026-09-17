@@ -67,20 +67,26 @@ public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystem
     public IEnumerable<SystemPromptSection> GetSections()
     {
         PromptConfigSnapshot.SetCurrent(_options);
-
-        foreach (var section in PromptSectionRegistration.GetAlwaysSections())
-            yield return section;
-
-        if (_options.IsAgentMode)
+        try
         {
-            foreach (var section in PromptSectionRegistration.GetAgentModeSections())
+            foreach (var section in PromptSectionRegistration.GetAlwaysSections())
                 yield return section;
+
+            if (_options.IsAgentMode)
+            {
+                foreach (var section in PromptSectionRegistration.GetAgentModeSections())
+                    yield return section;
+            }
+
+            if (_options.IsCoordinatorMode)
+            {
+                foreach (var section in PromptSectionRegistration.GetCoordinatorModeSections())
+                    yield return section;
+            }
         }
-
-        if (_options.IsCoordinatorMode)
+        finally
         {
-            foreach (var section in PromptSectionRegistration.GetCoordinatorModeSections())
-                yield return section;
+            PromptConfigSnapshot.Clear();
         }
     }
 }

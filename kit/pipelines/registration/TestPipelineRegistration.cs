@@ -195,6 +195,7 @@ public static class TestPipelineRegistration
                 .Use(sp.GetRequiredService<ShellDownloadHintMiddleware>())
                 .Use(sp.GetRequiredService<ShellExecutionMiddleware>())
                 .Use(sp.GetRequiredService<ShellOutputMiddleware>())
+                .Use(sp.GetRequiredService<ShellPerturbationAuditMiddleware>())
                 .WithHooks(sp)
                 .Build());
 

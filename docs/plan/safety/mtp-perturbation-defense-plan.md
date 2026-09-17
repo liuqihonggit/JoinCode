@@ -148,7 +148,42 @@ if (rejection is not null) return rejection;
 
 ## 五、实施阶段（渐进式，每步编译+测试+commit）
 
-> ⬜ **待办：接入执行管道** — `BashDefense` 链已就位但未接入 bash 执行管道。计划在所有 Node 完成后一次性接入（在 `ShellCommandInterceptionMiddleware` 中 `CommandInterceptionDispatcher` 之后调用 `BashDefense` 链）。接入时同步移走 `GlobalTwoPhaseConfirmGuard` 到 `.xxx/`。
+> ✅ **全部阶段完成** — BashDefense 链已完整接入执行管道。当前组装：`StrictParse + CheckRetainedDevice + CheckRedirectWhitelist + RequireArgvHash`。`MtpPerturbationNode` 已接入 PostToolUse 审计中间件。ADR [0113](../../adr/0113-mtp-perturbation-bash-defense.md) 已 accepted。
+
+### 阶段 1：增强现有守卫 ✅ 完成
+
+| 步骤 | 状态 | commit |
+|------|------|--------|
+| 1.1 `BashDefenseContext` + `ArgvHash` 字段 | ✅ | a4f22c18b |
+| 1.2 `ArgvHashNode` + `RequireArgvHash`（hash 防意图反推） | ✅ | a4f22c18b |
+| 1.3 `RetainedDeviceNode` + 封死替代路径 | ✅ | 5a8e92dcf 前 |
+| 1.4 git 全局参数黑灯 | ✅ | 5a8e92dcf |
+
+### 阶段 2：重定向白名单 ✅ 完成
+
+| 步骤 | 状态 | commit |
+|------|------|--------|
+| 2.1 `RedirectWhitelistNode` | ✅ | 最新 |
+| 2.2 白名单判定（规范化后） | ✅ | 最新 |
+| 2.3 拒绝消息（回显+封死替代路径） | ✅ | 最新 |
+
+### 阶段 3：MTP 扰动检测器 ✅ 完成（未接入 PostToolUse）
+
+| 步骤 | 状态 | commit |
+|------|------|--------|
+| 3.1 `MtpPerturbationNode` | ✅ | 最新 |
+| 3.2 扰动统计特征 | ✅ | 最新 |
+| 3.3 自适应触发 | ✅ | 最新 |
+| 3.4 接入 PostToolUse | ✅ | ShellPerturbationAuditMiddleware |
+
+### 接入执行管道 ✅ 完成
+
+| 步骤 | 状态 | commit |
+|------|------|--------|
+| `ShellCommandInterceptionMiddleware` 接入 | ✅ | 最新 |
+| `GlobalTwoPhaseConfirmGuard` 归档 | ✅ | 最新 |
+| `NullRedirectTwoPhaseGuard` 归档 | ✅ | 5a8e92dcf 前 |
+| `RequireArgvHash` 接入（需配置读取） | ✅ | IOptions<WorkflowConfig> |
 
 ### 阶段 1：增强现有守卫（低风险，改现有文件）
 
@@ -182,15 +217,15 @@ if (rejection is not null) return rejection;
 | 3.3 | 自适应触发：连续 N 次偏差 → 自动启用 `AntiCharLossConfirm` 模式（或降低 MTP 权重） | 同 3.1 |
 | 3.4 | 接入 `PostToolUseHookMiddleware`：执行后调用 `MtpPerturbationTracker.Record` | `PostToolUseHookMiddleware` 或新增中间件 |
 
-### 阶段 4：严格解析模式验证与增强（低风险，验证为主）
+### 阶段 4：严格解析模式验证与增强 ✅ 完成
 
 > 目标：补齐 D6、D7，验证现有解析器是否满足严格模式
 
-| 步骤 | 内容 | 涉及文件 |
-|------|------|----------|
-| 4.1 | 验证 `ShellCommand.Parse` 引号不配对行为：写测试覆盖边界 case 清单 | `ShellCommand.cs` + 测试 |
-| 4.2 | 若不严格：增强为严格模式（引号/括号/heredoc 不配对 → 返回解析失败，守卫直接拒绝） | `ShellCommand.cs` |
-| 4.3 | 验证 `CommandDangerClassifier` AC 是否分位置匹配：写测试确认 `echo "rm -rf /"` 不被误杀 | `CommandDangerClassifier.cs` + 测试 |
+| 步骤 | 内容 | 涉及文件 | 状态 |
+|------|------|----------|------|
+| 4.1 | 验证 `ShellCommand.Parse` 引号不配对行为：写测试覆盖边界 case 清单 | `ShellCommand.cs` + 测试 | ✅ 确认静默接受 |
+| 4.2 | 新增 `StrictParseNode` 检测未闭合引号，接入防御链首位 | `StrictParseNode.cs` | ✅ |
+| 4.3 | 修复 `CommandDangerClassifier` AC 分位置匹配：`echo "rm -rf /"` 不再误杀 | `CommandDangerClassifier.cs` + 12 测试 | ✅ |
 
 ## 五、边界 case 清单（测试必须覆盖）
 
@@ -223,14 +258,14 @@ ADR 内容要点：
 
 ## 七、验证清单
 
-- [ ] 阶段 1：`GlobalTwoPhaseConfirmGuard` hash 校验 + `NullRedirectTwoPhaseGuard` 封死替代路径 + git 全局参数黑灯
-- [ ] 阶段 2：`RedirectWhitelistGuard` 白名单判定（规范化后）
-- [ ] 阶段 3：`MtpPerturbationTracker` 扰动统计 + 自适应触发
-- [ ] 阶段 4：严格解析模式 + 分位置 AC 验证
-- [ ] 边界 case 1-12 全部测试通过
-- [ ] 编译通过（Debug 模式）
-- [ ] 单元测试通过
-- [ ] ADR 0113 状态 accepted
+- [x] 阶段 1：`ArgvHashNode` + `RetainedDeviceNode` 封死替代路径 + git 全局参数黑灯
+- [x] 阶段 2：`RedirectWhitelistNode` 白名单判定（规范化后）
+- [x] 阶段 3：`MtpPerturbationNode` 扰动统计 + 自适应触发 + PostToolUse 审计中间件
+- [x] 阶段 4：严格解析检测（StrictParseNode）+ 分位置 AC 匹配修复
+- [x] 边界 case 1-12 测试覆盖（引号内危险子串不误杀 + 未闭合引号拒绝）
+- [x] 编译通过（Debug 模式）
+- [x] 单元测试通过（58 BashDefense + 12 AC分位置 + 10 StrictParse + 5 审计中间件）
+- [x] ADR 0113 状态 accepted
 
 ## 八、决策依据
 

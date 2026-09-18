@@ -62,7 +62,7 @@ public partial class ShellToolHandlers : ShellToolBase
         {
             var actuator = _registry.Get(SystemActuatorKind.Bash);
 
-            var workDir = string.IsNullOrEmpty(working_directory) ? _fs.GetCurrentDirectory() : working_directory;
+            var workDir = string.IsNullOrEmpty(working_directory) ? SubAgentContext.GetEffectiveCwd(_fs.GetCurrentDirectory()) : working_directory;
 
             var context = new ShellPipelineContext
             {

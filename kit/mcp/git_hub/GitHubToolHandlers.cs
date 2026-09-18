@@ -19,36 +19,13 @@ public partial class GitHubToolHandlers
     private readonly ILogger<GitHubToolHandlers>? _logger;
     private readonly GitHubRunLogFetcher _logFetcher;
     private readonly GitHubRunLogFilterRunner? _logFilterRunner;
-
-    /// <summary>
-    /// Run 日志缓存 — 用 MemoryCache.Default(系统内存压力自动释放)
-    /// <para>两级缓存(ADR 0067): Level1 摘要(轻量)长期保留, Level2 内容(大量行)按 section 独立缓存可被驱逐</para>
-    /// <para>24h 过期,内存压力时 Level2 优先被驱逐,Level1 摘要保留,AI 仍可看步骤列表和 section 摘要</para>
-    /// </summary>
-    private static readonly MemoryCache _logCache = MemoryCache.Default;
-
-    /// <summary>
-    /// Level1 摘要缓存 key 前缀 — value=RunLogSummary(步骤名→行数, section类型→行数,轻量)
-    /// <para>用 nameof 避免硬编码类名,重构时自动跟随</para>
-    /// </summary>
-    private static readonly string _summaryPrefix = nameof(GitHubToolHandlers) + ":summary:";
-
-    /// <summary>
-    /// Level2 内容缓存 key 前缀 — key=section:{runId}:{jobId}:{stepName}:{sectionType}, value=List&lt;string&gt;(该 section 的日志行)
-    /// <para>按 section 独立缓存,内存压力时各 section 可独立被驱逐,下次访问时按需重新拉取</para>
-    /// </summary>
-    private static readonly string _sectionPrefix = nameof(GitHubToolHandlers) + ":section:";
+    private readonly GitHubRunLogCache? _logCacheService;
 
     /// <summary>
     /// 统一持久化管道 — 异步串行写缓存文件到 .jcc/gh_cache/,不阻塞调用方
     /// <para>复用 ADR 0068 统一管道(IPersistencePipeline),替代专用 GitHubCacheWriteActor</para>
     /// </summary>
     private readonly IPersistencePipeline _pipeline;
-
-    /// <summary>
-    /// 文件级缓存目录 — {projectDir}/.jcc/gh_cache/,跨进程共享
-    /// </summary>
-    private static readonly string CacheDirName = Path.Combine(AppDataConstants.AppDataFolder, "gh_cache");
 
     /// <summary>
     /// 创建 GitHubToolHandlers 实例
@@ -75,6 +52,7 @@ public partial class GitHubToolHandlers
         _logger = logger;
         _logFetcher = new GitHubRunLogFetcher(this);
         _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient) : null;
+        _logCacheService = apiClient is not null ? new GitHubRunLogCache(apiClient, fs, pipeline, logger) : null;
     }
 
     // === 共用辅助方法 ===
@@ -339,37 +317,7 @@ public partial class GitHubToolHandlers
     /// 获取缓存目录路径 — {workingDir}/.jcc/gh_cache/ 或 {cwd}/.jcc/gh_cache/
     /// <para>项目级缓存,跨进程共享,24h 过期</para>
     /// </summary>
-    private string GetCacheDir(string? workingDir)
-    {
-        var baseDir = string.IsNullOrWhiteSpace(workingDir) ? _fs.GetCurrentDirectory() : workingDir;
-        return _fs.CombinePath(baseDir, CacheDirName);
-    }
-
-    /// <summary>
-    /// 获取缓存文件路径 — {cacheDir}/{sanitizedRunId}_{sanitizedJobId}.{extension}
-    /// </summary>
-    private string GetCacheFilePath(string cacheDir, string runId, string? jobId, string extension)
-    {
-        var safeRunId = SanitizeFileName(runId);
-        var safeJobId = SanitizeFileName(string.IsNullOrWhiteSpace(jobId) ? "all" : jobId);
-        return _fs.CombinePath(cacheDir, $"{safeRunId}_{safeJobId}.{extension}");
-    }
-
-    /// <summary>
-    /// 文件名安全化 — 移除路径分隔符和特殊字符,只保留字母数字下划线减号
-    /// </summary>
-    private static string SanitizeFileName(string value)
-    {
-        var sb = new StringBuilder(value.Length);
-        foreach (var c in value)
-        {
-            if (char.IsLetterOrDigit(c) || c == '-' || c == '_')
-                sb.Append(c);
-            else if (c == ' ')
-                sb.Append('_');
-        }
-        return sb.Length == 0 ? "unknown" : sb.ToString();
-    }
+    private string GetCacheDir(string? workingDir) => GitHubRunCachePaths.GetCacheDir(_fs, workingDir);
 
     /// <summary>
     /// 将源 JsonElement 的指定属性原样复制到 Utf8JsonWriter — AOT 友好(无反射/emit)

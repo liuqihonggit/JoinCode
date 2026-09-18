@@ -380,6 +380,19 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     }
 
     /// <summary>
+    /// 设置 Bridge Session API 请求头 — 认证 + anthropic-version + anthropic-beta + x-organization-uuid
+    /// <para>对齐 TS 端 BridgeSessionApi headers,4处方法共用</para>
+    /// </summary>
+    private void SetBridgeSessionHeaders(HttpRequestMessage request)
+    {
+        SetAuthHeader(request);
+        request.Headers.Add("anthropic-version", "2023-06-01");
+        request.Headers.Add("anthropic-beta", BetaHeader);
+        if (_options.OrgUUID is not null)
+            request.Headers.Add("x-organization-uuid", _options.OrgUUID);
+    }
+
+    /// <summary>
     /// 发送 GET 请求
     /// </summary>
     /// <typeparam name="T">响应类型</typeparam>
@@ -838,12 +851,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         {
             using var request = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/sessions/{sessionId}/archive");
-            SetAuthHeader(request);
-            // 对齐 TS 端 BridgeSessionApi.ArchiveAsync headers
-            request.Headers.Add("anthropic-version", "2023-06-01");
-            request.Headers.Add("anthropic-beta", BetaHeader);
-            if (_options.OrgUUID is not null)
-                request.Headers.Add("x-organization-uuid", _options.OrgUUID);
+            SetBridgeSessionHeaders(request);
 
             var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -1003,11 +1011,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get,
                     $"/v1/sessions/{sessionId}");
-                SetAuthHeader(request);
-                request.Headers.Add("anthropic-version", "2023-06-01");
-                request.Headers.Add("anthropic-beta", BetaHeader);
-                if (_options.OrgUUID is not null)
-                    request.Headers.Add("x-organization-uuid", _options.OrgUUID);
+                SetBridgeSessionHeaders(request);
 
                 var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
 
@@ -1054,11 +1058,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get,
                     $"/v1/sessions/{sessionId}");
-                SetAuthHeader(request);
-                request.Headers.Add("anthropic-version", "2023-06-01");
-                request.Headers.Add("anthropic-beta", BetaHeader);
-                if (_options.OrgUUID is not null)
-                    request.Headers.Add("x-organization-uuid", _options.OrgUUID);
+                SetBridgeSessionHeaders(request);
 
                 var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
 
@@ -1113,11 +1113,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
                 using var request = new HttpRequestMessage(HttpMethod.Patch,
                     $"/v1/sessions/{sessionId}")
                 { Content = content };
-                SetAuthHeader(request);
-                request.Headers.Add("anthropic-version", "2023-06-01");
-                request.Headers.Add("anthropic-beta", BetaHeader);
-                if (_options.OrgUUID is not null)
-                    request.Headers.Add("x-organization-uuid", _options.OrgUUID);
+                SetBridgeSessionHeaders(request);
 
                 var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
 

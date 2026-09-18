@@ -96,10 +96,10 @@
 - 提取 `AgentIdentity` + `TeammateIdentity` + `MessageIdentity` 类型族
 - **状态**:⏳ 待做
 
-### [P1-3] WorktreePatternCache 完全复制粘贴
-- **文件**:`llm/agents/Services/Support/AgentWorktreeService.cs:742-756` + `WorktreeConfigMiddleware.cs:278-297`
-- 提取 `WorktreeIncludePatternMatcher` 静态工具类
-- **状态**:⏳ 待做
+### [P1-3] WorktreePatternCache 完全复制粘贴 ✅ 已完成
+- **文件**:`llm/agents/Services/Support/AgentWorktreeService.cs` + `WorktreeConfigMiddleware.cs`
+- `WorktreeIncludePatternMatcher` 已存在;实际重复是 AgentWorktreeService 中4个死代码方法(CopyConfigFilesAsync/CopyWorktreeIncludeFilesAsync/ConfigureWorktreeHooksPathAsync/CreateSymlinksAsync),已被 WorktreeConfigMiddleware 中间件取代
+- **状态**:✅ `5c61f104e`(删除133行死代码,Agents 594测试通过)
 
 ### [P1-4] AgentRuntimeRegistry — _agentStartTimes 跨类重复
 - AgentServiceImpl + AgentCoordinator + 10+ 个散落 agentId→字典

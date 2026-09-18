@@ -141,9 +141,9 @@
 
 ## 🔥 P0 最高优先级(后续推进)
 
-### [P0-1] BridgeSessionTracker + HandleWorkContext + ShutdownContext — 20 个字典重复
+### [P0-1] BridgeSessionTracker + HandleWorkContext + ShutdownContext — 20 个字典重复 ✅ 已完成
 - HandleWorkContext/ShutdownContext 删除字典字段,改为持有 `internal BridgeSessionTracker Tracker` 引用
-- **状态**:⏳ 待做
+- **状态**:✅ `f741447c1`(Bridge.Tests 613测试通过)
 
 ### [P0-2] MainViewModel — 约 55 个字段,5 个职责组
 - 拆 `SessionInfrastructure`/`ChatPreferences`/`UiFeedbackState`/`SessionHistoryManager`/`ConnectionDropdown`

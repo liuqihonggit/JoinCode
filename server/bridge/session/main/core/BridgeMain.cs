@@ -7,45 +7,45 @@ namespace Core.Bridge;
 /// </summary>
 public sealed partial class BridgeMain : ServiceEntity
 {
-    private static readonly FrozenSet<string> ValidPermissionModes = FrozenSet.Create(
+    internal static readonly FrozenSet<string> ValidPermissionModes = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase, "default", "plan", "auto-accept", "bubble");
 
-    private readonly BridgeMainDeps _deps;
-    private readonly ILogger? _logger;
-    private readonly IFileSystem _fs;
-    private readonly IClockService _clock;
+    internal readonly BridgeMainDeps _deps;
+    internal readonly ILogger? _logger;
+    internal readonly IFileSystem _fs;
+    internal readonly IClockService _clock;
 
     // 活跃会话跟踪 — 对齐 TS 端 runBridgeLoop 的 7 个 Map + 3 个 Set
-    private readonly BridgeSessionTracker _tracker = new();
-    private readonly List<Task> _pendingCleanups = new(); // 待清理任务 — 对齐 TS 端 pendingCleanups
-    private readonly AsyncLock _cleanupLock = new(); // 替代 lock — JCC4001 分析器要求
+    internal readonly BridgeSessionTracker _tracker = new();
+    internal readonly List<Task> _pendingCleanups = new(); // 待清理任务 — 对齐 TS 端 pendingCleanups
+    internal readonly AsyncLock _cleanupLock = new(); // 替代 lock — JCC4001 分析器要求
 
     // 退避状态 — 对齐 TS 端 BackoffConfig + 双轨退避
-    private readonly BridgeBackoffStrategy _backoff;
+    internal readonly BridgeBackoffStrategy _backoff;
 
     // 崩溃恢复指针管理
-    private readonly BridgePointerManager _pointerManager;
+    internal readonly BridgePointerManager _pointerManager;
 
     // 工作 API 封装
-    private readonly BridgeWorkApiClient _workApi;
+    internal readonly BridgeWorkApiClient _workApi;
 
     // 生命周期
-    private CancellationTokenSource? _loopCts;
-    private Task? _loopTask;
-    private int _asyncDisposed;
-    private int _isShuttingDown;
-    private bool _isResuming; // 对齐 TS 端: resume 模式标记 — 可恢复关闭时跳过 archive+deregister
-    private bool _fatalExit; // 对齐 TS 端: fatalExit — 致命错误后跳过 resume 提示
+    internal CancellationTokenSource? _loopCts;
+    internal Task? _loopTask;
+    internal int _asyncDisposed;
+    internal int _isShuttingDown;
+    internal bool _isResuming; // 对齐 TS 端: resume 模式标记 — 可恢复关闭时跳过 archive+deregister
+    internal bool _fatalExit; // 对齐 TS 端: fatalExit — 致命错误后跳过 resume 提示
 
     // Token 刷新调度器 — 对齐 TS 端 createTokenRefreshScheduler + v1/v2 分支
-    private BridgeTokenRefreshScheduler? _tokenRefresh;
+    internal BridgeTokenRefreshScheduler? _tokenRefresh;
 
     // 遥测 — 对齐 TS 端 logEvent/logEventAsync (tengu_bridge_*)
-    private readonly ITelemetryService? _telemetry;
-    private DateTime _loopStartTime; // 主循环启动时间 — 用于计算 loop_duration_ms
-    private readonly MiddlewarePipeline<HandleWorkContext>? _handleWorkPipeline;
-    private readonly MiddlewarePipeline<ShutdownContext>? _shutdownPipeline;
-    private readonly MiddlewarePipeline<BridgeRunContext>? _runPipeline;
+    internal readonly ITelemetryService? _telemetry;
+    internal DateTime _loopStartTime; // 主循环启动时间 — 用于计算 loop_duration_ms
+    internal readonly MiddlewarePipeline<HandleWorkContext>? _handleWorkPipeline;
+    internal readonly MiddlewarePipeline<ShutdownContext>? _shutdownPipeline;
+    internal readonly MiddlewarePipeline<BridgeRunContext>? _runPipeline;
 
     /// <summary>当前活跃会话数</summary>
     public int ActiveSessionCount => _tracker.Sessions.Count;
@@ -63,7 +63,10 @@ public sealed partial class BridgeMain : ServiceEntity
     /// <summary>环境密钥</summary>
     public string? EnvironmentSecret { get; private set; }
 
-    private readonly INetworkConnectivityService? _networkService;
+    internal readonly INetworkConnectivityService? _networkService;
+
+    // 职责类
+    private readonly BridgeShutdownHandler _shutdownHandler;
 
     /// <summary>
     /// 构造 Bridge 主编排器
@@ -99,6 +102,7 @@ public sealed partial class BridgeMain : ServiceEntity
         _shutdownPipeline = shutdownPipeline;
         _runPipeline = runPipeline;
         _networkService = networkService;
+        _shutdownHandler = new BridgeShutdownHandler(this);
     }
 
     /// <summary>
@@ -760,136 +764,7 @@ public sealed partial class BridgeMain : ServiceEntity
     /// 请求优雅关闭 — 对齐 TS 端 SIGINT/SIGTERM 处理
     /// </summary>
     public async Task ShutdownAsync()
-    {
-        if (Interlocked.Exchange(ref _isShuttingDown, 1) != 0)
-        {
-            return; // 防重入
-        }
-
-        if (_shutdownPipeline is not null)
-        {
-            await ShutdownViaPipelineAsync().ConfigureAwait(false);
-            return;
-        }
-
-        await ShutdownDirectAsync().ConfigureAwait(false);
-    }
-
-    private async Task ShutdownViaPipelineAsync()
-    {
-        var ctx = new ShutdownContext
-        {
-            IsResuming = _isResuming,
-            FatalExit = _fatalExit,
-            EnvironmentId = EnvironmentId,
-            SpawnMode = _deps.Config.SpawnMode,
-            ResumePointerDir = _pointerManager.ResumePointerDir,
-            Tracker = _tracker,
-            Spawner = _deps.Spawner,
-            ApiClient = _deps.ApiClient,
-            PointerService = _deps.PointerService,
-            WorkingDirectory = _deps.WorkingDirectory,
-            ArchiveSession = _deps.ArchiveSession,
-            UnregisterKeyboardListener = () => _deps.UnregisterKeyboardListener?.Invoke(),
-            LoopCts = _loopCts,
-            LoopTask = _loopTask,
-            PointerRefreshTimer = _pointerManager.RefreshTimer,
-        };
-
-        var pipeline = _shutdownPipeline;
-        if (pipeline is not null)
-        {
-            await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(false);
-        }
-
-        _pointerManager.StopRefreshTimer();
-    }
-
-    private async Task ShutdownDirectAsync()
-    {
-        if (Interlocked.Exchange(ref _isShuttingDown, 1) != 0)
-        {
-            return; // 防重入
-        }
-
-        _logger?.LogInformation("BridgeMain: shutting down...");
-
-        // 注销键盘监听 — 对齐 TS 端: process.stdin.setRawMode(false)
-        _deps.UnregisterKeyboardListener?.Invoke();
-
-        // 取消主循环
-        await (_loopCts?.CancelAsync() ?? Task.CompletedTask).ConfigureAwait(false);
-
-        // 等待主循环退出
-        if (_loopTask is not null)
-        {
-            try
-            {
-                await _loopTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-
-        // 优雅关闭所有子进程 — 对齐 TS 端 shutdownGraceMs
-        var handles = _tracker.Sessions.GetAllHandles().ToList();
-        if (handles.Count > 0)
-        {
-            await _deps.Spawner.ShutdownAllAsync(handles).ConfigureAwait(false);
-        }
-
-        // 归档所有已知会话 — 对齐 TS 端: archiveSession(compatId)
-        // resume 模式下跳过归档，保留会话供下次 --continue 恢复
-        if (!_isResuming && _deps.ArchiveSession is not null)
-        {
-            var sessionsToArchive = _tracker.Sessions.GetAllCompatIds().ToList();
-            if (sessionsToArchive.Count > 0)
-            {
-                _logger?.LogInformation("BridgeMain: archiving {Count} session(s)", sessionsToArchive.Count);
-                foreach (var kvp in sessionsToArchive)
-                {
-                    try
-                    {
-                        await _deps.ArchiveSession(kvp.Value, CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogDebug(ex, "BridgeMain: archive failed for {SessionId} (non-fatal)", kvp.Value);
-                    }
-                }
-            }
-
-        }
-        else if (_isResuming && !_fatalExit)
-        {
-            _logger?.LogInformation($"Resume this session by running `{BrandConstants.CliCommandName} remote-control --continue`");
-            _logger?.LogDebug("BridgeMain: skipping archive+deregister to allow resume");
-        }
-
-        // 注销环境
-        // 对齐 TS 端: resumable shutdown — resume 模式下跳过注销，保留环境供下次恢复
-        if (!_isResuming && EnvironmentId is not null)
-        {
-            try
-            {
-                await _deps.ApiClient.DeregisterEnvironmentAsync(
-                    EnvironmentId, CancellationToken.None).ConfigureAwait(false);
-                _logger?.LogInformation("BridgeMain: environment deregistered");
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "BridgeMain: deregister failed (non-fatal)");
-            }
-        }
-
-        // 清除崩溃恢复指针 + 停止刷新定时器
-        // 对齐 TS 端: resumable shutdown — resume 模式下保留指针文件供下次 --continue
-        await _pointerManager.ClearPointerAsync(_isResuming, _deps.Config.SpawnMode, _deps.WorkingDirectory).ConfigureAwait(false);
-        _pointerManager.StopRefreshTimer();
-
-        _logger?.LogInformation("BridgeMain: shutdown complete");
-    }
+        => await _shutdownHandler.ShutdownAsync().ConfigureAwait(false);
 
     /// <summary>
     /// 核心轮询循环 — 对齐 TS 端 runBridgeLoop

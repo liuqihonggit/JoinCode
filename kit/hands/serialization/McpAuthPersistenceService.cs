@@ -2,14 +2,14 @@ namespace IO.Services;
 
 /// <summary>
 /// MCP 认证持久化服务 — 负责将 MCP 认证条目（名称、类型、序列化数据）持久化到配置存储，
-/// 并通过异步锁保证并发读写安全。
+/// 并通过 Actor 邮箱管道保证并发读写安全。
 /// </summary>
 [Register(typeof(IMcpAuthPersistenceService), ServiceLifetime.Singleton)]
 public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthPersistenceService
 {
     private readonly IConfigurationService? _configService;
     private readonly ILogger<McpAuthPersistenceService>? _logger;
-    private readonly AsyncLock _lock = new();
+    private readonly McpAuthPersistenceActor _actor;
 
     /// <summary>
     /// 构造 MCP 认证持久化服务。
@@ -20,6 +20,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         _configService = configService;
         _logger = logger;
+        _actor = new McpAuthPersistenceActor(this, logger);
     }
 
     /// <summary>
@@ -34,21 +35,9 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return;
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
-        var entry = new AuthConfigEntry
-        {
-            Name = authName,
-            AuthType = authType,
-            Data = serializedData,
-            SavedAt = DateTime.UtcNow
-        };
-
-        entries[authName] = entry;
-
-        await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
-    
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new SaveAuthCmd(authName, authType, serializedData, reply), ct).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -61,11 +50,9 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return null;
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
-        return entries.TryGetValue(authName, out var entry) ? entry : null;
-    
+        var reply = new TaskCompletionSource<AuthConfigEntry?>();
+        await _actor.SendAsync(new LoadAuthCmd(authName, reply), ct).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -77,10 +64,9 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return Array.Empty<AuthConfigEntry>();
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-        return (await LoadEntriesAsync(ct).ConfigureAwait(false)).Values.ToList();
-    
+        var reply = new TaskCompletionSource<IReadOnlyList<AuthConfigEntry>>();
+        await _actor.SendAsync(new ListAuthCmd(reply), ct).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -93,12 +79,41 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     {
         if (_configService == null) return;
 
-        using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new RemoveAuthCmd(authName, reply), ct).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
+    }
 
+    private async Task SaveInternalAsync(string authName, string authType, string serializedData, CancellationToken ct)
+    {
+        var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
+        var entry = new AuthConfigEntry
+        {
+            Name = authName,
+            AuthType = authType,
+            Data = serializedData,
+            SavedAt = DateTime.UtcNow
+        };
+
+        entries[authName] = entry;
+
+        await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
+    }
+
+    private async Task<AuthConfigEntry?> LoadInternalAsync(string authName, CancellationToken ct)
+    {
+        var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
+        return entries.TryGetValue(authName, out var entry) ? entry : null;
+    }
+
+    private async Task<IReadOnlyList<AuthConfigEntry>> ListInternalAsync(CancellationToken ct)
+        => (await LoadEntriesAsync(ct).ConfigureAwait(false)).Values.ToList();
+
+    private async Task RemoveInternalAsync(string authName, CancellationToken ct)
+    {
         var entries = await LoadEntriesAsync(ct).ConfigureAwait(false);
         entries.Remove(authName);
         await SaveEntriesAsync(entries, ct).ConfigureAwait(false);
-    
     }
 
     private async Task<Dictionary<string, AuthConfigEntry>> LoadEntriesAsync(CancellationToken ct)
@@ -136,12 +151,79 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     }
 
     /// <summary>
-    /// 释放异步锁持有的资源。
+    /// 异步释放资源 — await Actor 完全退出。
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
-        _lock.Dispose();
-        base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// MCP 认证持久化 Actor — 串行化所有读写操作，消除显式锁 — ADR 0115
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class McpAuthPersistenceActor : ActorBase<McpAuthPersistenceCommand, Unit>
+    {
+        private readonly McpAuthPersistenceService _owner;
+        private readonly ILogger<McpAuthPersistenceService>? _logger;
+
+        public McpAuthPersistenceActor(McpAuthPersistenceService owner, ILogger<McpAuthPersistenceService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 McpAuthPersistenceService 调用</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 McpAuthPersistenceService 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(McpAuthPersistenceCommand cmd, CancellationToken ct)
+        {
+            switch (cmd)
+            {
+                case SaveAuthCmd(var authName, var authType, var serializedData, var reply):
+                    try
+                    {
+                        await _owner.SaveInternalAsync(authName, authType, serializedData, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex) { reply.SetException(ex); }
+                    break;
+                case LoadAuthCmd(var authName, var reply):
+                    try
+                    {
+                        reply.SetResult(await _owner.LoadInternalAsync(authName, ct).ConfigureAwait(false));
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex) { reply.SetException(ex); }
+                    break;
+                case ListAuthCmd(var reply):
+                    try
+                    {
+                        reply.SetResult(await _owner.ListInternalAsync(ct).ConfigureAwait(false));
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex) { reply.SetException(ex); }
+                    break;
+                case RemoveAuthCmd(var authName, var reply):
+                    try
+                    {
+                        await _owner.RemoveInternalAsync(authName, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex) { reply.SetException(ex); }
+                    break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "McpAuthPersistenceActor 命令处理异常");
     }
 }
-

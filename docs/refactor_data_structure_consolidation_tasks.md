@@ -111,9 +111,9 @@
 - `LLMInvocationHandler` + `DefaultSystemPromptProvider` 改用 `using` 替代手动 try-finally
 - **状态**:✅ `16902516e`(Prompts 191 + Context 784 测试通过)
 
-### [P1-6] 颜色 Scope·CliOutputContract + FailFastChecker + ErrorConsole
-- 改用已有 `TerminalHelper.SetColor()` 的 `using` 模式
-- **状态**:⏳ 待做
+### [P1-6] 颜色 Scope·CliOutputContract + FailFastChecker + ErrorConsole ✅ 已完成
+- 新增 `TerminalHelper.SetColorRaw()` (不通过 ConsoleActor,专用于 stderr),`using` 替代手动 try-finally
+- **状态**:✅ `53c3c4295`(Host 1040测试通过)
 
 ### [P1-7] MemoryType 三维度属性表
 - **文件**:`lib/vault/memdir/memdir2/core/MemoryType.cs:39,47,55`

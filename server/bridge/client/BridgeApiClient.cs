@@ -300,6 +300,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     private readonly HttpClient _httpClient;
     private readonly BridgeApiOptions _options;
     private readonly ILogger<BridgeApiClient>? _logger;
+    private readonly BridgeRequestExecutor _requestExecutor;
     private int _isDisposed;
 
     /// <summary>
@@ -318,6 +319,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
+        _requestExecutor = new BridgeRequestExecutor(_options, logger);
         InitializeHttpClient();
     }
 
@@ -333,6 +335,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         _options = options ?? new BridgeApiOptions(config ?? new BridgeConfig());
         _httpClient = new HttpClient { Timeout = _options.Timeout };
         _logger = logger;
+        _requestExecutor = new BridgeRequestExecutor(_options, logger);
         InitializeHttpClient();
     }
 
@@ -350,42 +353,12 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     }
 
     /// <summary>
-    /// 获取当前认证 token — 优先使用动态 GetAccessToken，回退到静态 ApiKey
-    /// </summary>
-    private string? GetCurrentToken() =>
-        _options.GetAccessToken?.Invoke() ?? _options.ApiKey;
-
-    /// <summary>
-    /// 为请求设置 Authorization header — OAuth 启用时动态获取 token
-    /// 同时附加 X-Trusted-Device-Token header（如果可用）— 对齐 TS 端 getHeaders()
-    /// </summary>
-    private void SetAuthHeader(HttpRequestMessage request)
-    {
-        if (_options.IsOAuthRetryEnabled)
-        {
-            var token = GetCurrentToken();
-            if (!string.IsNullOrEmpty(token))
-            {
-                request.Headers.Add("Authorization", $"Bearer {token}");
-            }
-        }
-        // OAuth 未启用时，Authorization 已在构造函数中通过 DefaultRequestHeaders 设置
-
-        // 对齐 TS 端: const deviceToken = deps.getTrustedDeviceToken?.()
-        var deviceToken = _options.GetTrustedDeviceToken?.Invoke();
-        if (!string.IsNullOrEmpty(deviceToken))
-        {
-            request.Headers.Add("X-Trusted-Device-Token", deviceToken);
-        }
-    }
-
-    /// <summary>
     /// 设置 Bridge Session API 请求头 — 认证 + anthropic-version + anthropic-beta + x-organization-uuid
     /// <para>对齐 TS 端 BridgeSessionApi headers,4处方法共用</para>
     /// </summary>
     private void SetBridgeSessionHeaders(HttpRequestMessage request)
     {
-        SetAuthHeader(request);
+        _requestExecutor.SetAuthHeader(request);
         request.Headers.Add("anthropic-version", "2023-06-01");
         request.Headers.Add("anthropic-beta", BetaHeader);
         if (_options.OrgUUID is not null)
@@ -488,81 +461,6 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     }
 
     /// <summary>
-    /// 请求发送 — 降级为透传，网络重试统一由 ResilientHttpExecutor (Gateway) 处理，避免嵌套放大打爆服务器
-    /// </summary>
-    /// <typeparam name="T">响应类型</typeparam>
-    /// <param name="sendFunc">实际发送函数</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>响应结果</returns>
-    public async Task<T> SendWithRetryAsync<T>(
-        Func<CancellationToken, Task<T>> sendFunc,
-        CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(sendFunc);
-        return await sendFunc(ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 带 OAuth 重试和网络重试的请求发送 — 对齐 TS 端 withOAuthRetry + 网络重试
-    /// OAuth 重试层：401 → 刷新 token → 重试一次
-    /// 网络重试层：HttpRequestException → 指数退避重试
-    /// </summary>
-    /// <typeparam name="T">响应类型</typeparam>
-    /// <param name="sendFunc">实际发送函数（接受 CancellationToken）</param>
-    /// <param name="useOAuthRetry">是否使用 OAuth 重试（仅使用 accessToken 的方法启用）</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>响应结果</returns>
-    private async Task<T> SendWithOAuthAndNetworkRetryAsync<T>(
-        Func<CancellationToken, Task<T>> sendFunc,
-        bool useOAuthRetry,
-        CancellationToken ct = default)
-    {
-        if (!useOAuthRetry || !_options.IsOAuthRetryEnabled)
-        {
-            // 无 OAuth 重试 — 直接走网络重试
-            return await SendWithRetryAsync(sendFunc, ct).ConfigureAwait(false);
-        }
-
-        // OAuth 重试 + 网络重试双层
-        // 第一层：网络重试（指数退避）
-        // 第二层：OAuth 重试（401 刷新 token 后重试一次）
-        return await SendWithRetryAsync(async token =>
-        {
-            try
-            {
-                return await sendFunc(token).ConfigureAwait(false);
-            }
-            catch (BridgeFatalError ex) when (ex.StatusCode == 401 && _options.OnAuth401 is not null)
-            {
-                // 401 致命错误 — 尝试 OAuth 刷新
-                var staleToken = GetCurrentToken() ?? string.Empty;
-                _logger?.LogInformation("[BridgeApiClient] 401 认证失败，尝试 OAuth token 刷新");
-
-                var refreshed = await _options.OnAuth401(staleToken).ConfigureAwait(false);
-                if (!refreshed)
-                {
-                    _logger?.LogWarning("[BridgeApiClient] OAuth token 刷新失败");
-                    throw;
-                }
-
-                _logger?.LogInformation("[BridgeApiClient] OAuth token 刷新成功，重试请求");
-
-                // 刷新成功 — 重试一次
-                try
-                {
-                    return await sendFunc(token).ConfigureAwait(false);
-                }
-                catch (BridgeFatalError retryEx) when (retryEx.StatusCode == 401)
-                {
-                    // 重试仍 401 — 抛出原始错误
-                    _logger?.LogWarning("[BridgeApiClient] OAuth 重试后仍 401，放弃");
-                    throw;
-                }
-            }
-        }, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
     /// 健康检查 - 检查 API 是否可用
     /// </summary>
     /// <param name="ct">取消令牌</param>
@@ -588,7 +486,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// <returns>会话 ID 列表</returns>
     public async Task<IReadOnlyList<string>> GetSessionsAsync(CancellationToken ct = default)
     {
-        return await SendWithRetryAsync(async token =>
+        return await _requestExecutor.SendWithRetryAsync(async token =>
         {
             var response = await _httpClient.GetAsync("/sessions", token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -611,7 +509,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     {
         ArgumentNullException.ThrowIfNull(clientInfo);
 
-        return await SendWithRetryAsync(async token =>
+        return await _requestExecutor.SendWithRetryAsync(async token =>
         {
             var json = JsonSerializer.Serialize(clientInfo, BridgeJsonContext.Default.ClientInfo);
             using var content = new StringContent(json, Encoding.UTF8, HttpContentType.ApplicationJson.ToValue());
@@ -633,7 +531,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        await SendWithRetryAsync(async token =>
+        await _requestExecutor.SendWithRetryAsync(async token =>
         {
             var response = await _httpClient.DeleteAsync($"/sessions/{sessionId}", token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -654,13 +552,13 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     {
         ArgumentNullException.ThrowIfNull(registration);
 
-        return await SendWithOAuthAndNetworkRetryAsync(async token =>
+        return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
         {
             var json = JsonSerializer.Serialize(registration, BridgeJsonContext.Default.BridgeEnvironmentRegistration);
             using var content = new StringContent(json, Encoding.UTF8, HttpContentType.ApplicationJson.ToValue());
 
             using var request = new HttpRequestMessage(HttpMethod.Post, "/v1/environments/bridge") { Content = content };
-            SetAuthHeader(request);
+            _requestExecutor.SetAuthHeader(request);
 
             var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
 
@@ -755,7 +653,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             throw new ArgumentException("bridgeId and workId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await SendWithRetryAsync(async token =>
+        await _requestExecutor.SendWithRetryAsync(async token =>
         {
             using var request = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/environments/bridge/{environmentId}/work/{workId}/ack");
@@ -790,11 +688,11 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             throw new ArgumentException("bridgeId and workId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await SendWithOAuthAndNetworkRetryAsync(async token =>
+        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
         {
             using var request = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/environments/bridge/{environmentId}/work/{workId}/stop");
-            SetAuthHeader(request);
+            _requestExecutor.SetAuthHeader(request);
 
             var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -818,11 +716,11 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             throw new ArgumentException("bridgeId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await SendWithOAuthAndNetworkRetryAsync(async token =>
+        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
         {
             using var request = new HttpRequestMessage(HttpMethod.Delete,
                 $"/v1/environments/bridge/{environmentId}");
-            SetAuthHeader(request);
+            _requestExecutor.SetAuthHeader(request);
 
             var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -847,7 +745,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             throw new ArgumentException("sessionId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await SendWithOAuthAndNetworkRetryAsync(async token =>
+        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
         {
             using var request = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/sessions/{sessionId}/archive");
@@ -877,7 +775,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             throw new ArgumentException("environmentId and sessionId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        return await SendWithOAuthAndNetworkRetryAsync(async token =>
+        return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
         {
             var request = new BridgeReconnectRequest
             {
@@ -891,7 +789,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/environments/bridge/{environmentId}/sessions/{sessionId}/bridge/reconnect")
             { Content = content };
-            SetAuthHeader(httpRequest);
+            _requestExecutor.SetAuthHeader(httpRequest);
 
             var response = await _httpClient.SendAsync(httpRequest, token).ConfigureAwait(false);
 
@@ -973,7 +871,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             throw new ArgumentException("sessionId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await SendWithRetryAsync(async token =>
+        await _requestExecutor.SendWithRetryAsync(async token =>
         {
             var json = JsonSerializer.Serialize(permissionEvent, BridgeJsonContext.Default.BridgePermissionResponseEvent);
             using var content = new StringContent(json, Encoding.UTF8, HttpContentType.ApplicationJson.ToValue());
@@ -1007,7 +905,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 
         try
         {
-            return await SendWithOAuthAndNetworkRetryAsync(async token =>
+            return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get,
                     $"/v1/sessions/{sessionId}");
@@ -1054,7 +952,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 
         try
         {
-            return await SendWithOAuthAndNetworkRetryAsync(async token =>
+            return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get,
                     $"/v1/sessions/{sessionId}");
@@ -1104,7 +1002,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 
         try
         {
-            await SendWithOAuthAndNetworkRetryAsync(async token =>
+            await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
             {
                 var body = new Dictionary<string, string> { ["title"] = title };
                 var json = JsonSerializer.Serialize(body, BridgeJsonContext.Default.DictionaryStringString);

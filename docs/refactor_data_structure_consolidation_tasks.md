@@ -101,10 +101,10 @@
 - `WorktreeIncludePatternMatcher` 已存在;实际重复是 AgentWorktreeService 中4个死代码方法(CopyConfigFilesAsync/CopyWorktreeIncludeFilesAsync/ConfigureWorktreeHooksPathAsync/CreateSymlinksAsync),已被 WorktreeConfigMiddleware 中间件取代
 - **状态**:✅ `5c61f104e`(删除133行死代码,Agents 594测试通过)
 
-### [P1-4] AgentRuntimeRegistry — _agentStartTimes 跨类重复
-- AgentServiceImpl + AgentCoordinator + 10+ 个散落 agentId→字典
-- 提取 `AgentRuntimeRegistry`(参考已有 `AgentNameIndex` 模式)
-- **状态**:⏳ 待做
+### [P1-4] AgentRuntimeRegistry — _agentStartTimes 跨类重复 ✅ 已完成
+- AgentServiceImpl + AgentCoordinator 各自维护 `_agentStartTimes` ConcurrentDictionary<string,DateTime>
+- 提取 `AgentStartTimer`(Record/TryRemoveDurationMs/Remove/TryGet)
+- **状态**:✅ `1679a4160`(Agents 594测试通过)
 
 ### [P1-5] CallTrace + PromptConfigSnapshot 手动 try-finally
 - 增加 `EnterScope` 工厂方法,委托 `AsyncLocalScope<T>`

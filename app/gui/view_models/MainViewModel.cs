@@ -14,6 +14,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly IModelConfigLoader _modelConfigLoader;
     /// <summary>独立配置服务 — 引擎加载失败时仍可持久化 settings.json（主题/供应商/模型/推理力度）</summary>
     private readonly IConfigurationService _configService;
+    /// <summary>连接/模型下拉管理器 — 管理供应商连接列表和模型下拉选项</summary>
+    private readonly ConnectionDropdownManager _connectionDropdown = new();
     private bool _isPreferencesLoaded;
     private bool _isRefreshingConfig;
     private bool _isApplyingExternalTheme;
@@ -306,73 +308,15 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         OnPropertyChanged(nameof(AllMessagesText));
     }
 
-    /// <summary>模型下拉选项缓存 — session 切换时失效重建，避免每次访问重建数组导致 ComboBox 选中项引用失效闪现</summary>
-    /// <summary>模型下拉选项 — ObservableCollection 双向绑定，供应商切换时清空重填</summary>
-    public ObservableCollection<ModelOptionItem> ModelOptions { get; } = [];
-    private ILookup<string, ModelOptionItem> _modelById = Array.Empty<ModelOptionItem>().ToLookup(m => m.Id);
+    /// <summary>模型下拉选项 — 委托给 ConnectionDropdownManager，供应商切换时清空重填</summary>
+    public ObservableCollection<ModelOptionItem> ModelOptions => _connectionDropdown.ModelOptions;
 
-    /// <summary>按 Id O(1) 查找模型项（RefreshModelOptions 时同步重建，OrdinalIgnoreCase；null 返回 null）</summary>
-    private ModelOptionItem? GetModelById(string? id) => id is null ? null : _modelById[id].FirstOrDefault();
+    /// <summary>按 Id O(1) 查找模型项（委托给 ConnectionDropdownManager；null 返回 null）</summary>
+    private ModelOptionItem? GetModelById(string? id) => _connectionDropdown.GetModelById(id);
 
-    /// <summary>刷新模型下拉 — 从 VendorModelMap 取当前供应商模型列表填充 ObservableCollection</summary>
+    /// <summary>刷新模型下拉 — 委托给 ConnectionDropdownManager</summary>
     private void RefreshModelOptions()
-    {
-        var provider = SelectedConnection?.Id ?? _session.CurrentVendor;
-        var providerDisplay = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
-        var map = _session.VendorModelMap;
-        var source = map.TryGetValue(provider, out var models) && models is not null
-            ? models.ToList()
-            : new List<string>();
-        var current = _session.CurrentModelId;
-        if (!string.IsNullOrWhiteSpace(current)
-            && source.All(id => !string.Equals(id, current, StringComparison.OrdinalIgnoreCase)))
-        {
-            // 归属判定优先用会话 VendorModelMap（测试/占位场景 _modelConfigLoader 可能为空）：
-            // 当前模型已存在于其他供应商的目录 → 属于旧供应商残留，不追加（防跨供应商污染）
-            var ownedByOtherVendor = map.Any(kvp =>
-                !string.Equals(kvp.Key, provider, StringComparison.OrdinalIgnoreCase)
-                && kvp.Value is not null
-                && kvp.Value.Contains(current, StringComparer.OrdinalIgnoreCase));
-            if (!ownedByOtherVendor)
-            {
-                var modelProvider = _modelConfigLoader.FindProviderByModelId(current);
-                if (modelProvider is null || string.Equals(modelProvider, provider, StringComparison.OrdinalIgnoreCase))
-                {
-                    source.Add(current);
-                }
-            }
-        }
-        ModelOptions.Clear();
-        foreach (var id in source)
-        {
-            var tags = BuildModalityTags(provider, id);
-            ModelOptions.Add(new ModelOptionItem(id, $"{providerDisplay}:{id}", tags));
-        }
-        _modelById = ModelOptions.ToLookup(m => m.Id, StringComparer.OrdinalIgnoreCase);
-    }
-
-    /// <summary>根据模型模态能力生成标签文本（emoji 缩写）</summary>
-    private string BuildModalityTags(string provider, string modelId)
-    {
-        var modalities = _modelConfigLoader.GetModalities(provider, modelId);
-        if (modalities == ModelModalityKind.None || modalities == ModelModalityKind.Text)
-            return "";
-
-        var sb = new StringBuilder();
-        if (modalities.HasFlag(ModelModalityKind.ReadImage)) sb.Append("\U0001F4F7");
-        if (modalities.HasFlag(ModelModalityKind.ReadGif)) sb.Append("\U0001F3AC");
-        if (modalities.HasFlag(ModelModalityKind.ReadVideo)) sb.Append("\U0001F3A5");
-        if (modalities.HasFlag(ModelModalityKind.ReadAudio)) sb.Append("\U0001F3A7");
-        if (modalities.HasFlag(ModelModalityKind.ReadPdf)) sb.Append("\U0001F4C4");
-        if (modalities.HasFlag(ModelModalityKind.GenerateImage)) sb.Append("\U0001F5BC");
-        if (modalities.HasFlag(ModelModalityKind.GenerateVideo)) sb.Append("\U0001F3EE");
-        if (modalities.HasFlag(ModelModalityKind.GenerateAudio)) sb.Append("\U0001F50A");
-        if (modalities.HasFlag(ModelModalityKind.Thinking)) sb.Append("\U0001F9E0");
-        if (modalities.HasFlag(ModelModalityKind.CodeExecution)) sb.Append("\U0001F4BB");
-        if (modalities.HasFlag(ModelModalityKind.WebSearch)) sb.Append("\U0001F50D");
-        if (modalities.HasFlag(ModelModalityKind.ToolUse)) sb.Append("\U0001F527");
-        return sb.ToString();
-    }
+        => _connectionDropdown.RefreshModelOptions(_session, _modelConfigLoader, SelectedConnection?.Id);
 
     /// <summary>当前选中的模型下拉项（View 层绑定 ComboBox.SelectedItem）</summary>
     [ObservableProperty]
@@ -594,7 +538,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             _selectedModelOption = GetModelById(_session.CurrentModelId);
             _isRefreshingConfig = true;
             SelectedConnection = GetConnectionById(session.CurrentVendor)
-                ?? _connectionOptions.FirstOrDefault();
+                ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
             _isRefreshingConfig = false;
             IsEngineLoaded = true;
             StartModelConfigWatch();
@@ -608,10 +552,10 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             StatusText = "正在加载引擎…";
             RebuildConnectionOptions();
-            WriteDebugLog($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionOptions.Count} ids=[{string.Join(",", _connectionOptions.Select(c => c.Id))}]");
+            WriteDebugLog($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionDropdown.ConnectionOptions.Count} ids=[{string.Join(",", _connectionDropdown.ConnectionOptions.Select(c => c.Id))}]");
             _isRefreshingConfig = true;
             SelectedConnection = GetConnectionById(_session.CurrentVendor)
-                ?? _connectionOptions.FirstOrDefault();
+                ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
             _isRefreshingConfig = false;
             WriteDebugLog($"Constructor else: SelectedConnection={SelectedConnection?.Id}");
             RefreshModelOptions();
@@ -646,7 +590,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedEffort = _session.EffortLevel.ToValue();
         _isRefreshingConfig = true;
         SelectedConnection = GetConnectionById(session.CurrentVendor)
-            ?? _connectionOptions.FirstOrDefault();
+            ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
         _isRefreshingConfig = false;
         WriteDebugLog($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
 
@@ -740,7 +684,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             _isRefreshingConfig = true;
             SelectedConnection = GetConnectionById(previousConnectionId)
                 ?? GetConnectionById(_session.CurrentVendor)
-                ?? _connectionOptions.FirstOrDefault();
+                ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
             _isRefreshingConfig = false;
             OnPropertyChanged(nameof(IsMockConnection));
 
@@ -764,7 +708,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
         RebuildConnectionOptions();
-        SelectedConnection = _connectionOptions.FirstOrDefault();
+        SelectedConnection = _connectionDropdown.ConnectionOptions.FirstOrDefault();
         RefreshModelOptions();
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = GetModelById(_session.CurrentModelId);
@@ -1145,40 +1089,14 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     /// <summary>用户切换模型时持久化由 OnPropertyChanged 自动路由处理（SelectedModel 映射 SetModelAsync）</summary>
 
-    /// <summary>Mock 引擎连接候选（始终存在于下拉列表，用于演示/本地验证）</summary>
-    private static readonly ConnectionOptionItem MockConnection = new()
-    {
-        Id = "mock",
-        DisplayText = "🧪 Mock 引擎（演示）",
-        IsMock = true
-    };
+    /// <summary>连接下拉候选 — 委托给 ConnectionDropdownManager</summary>
+    public IReadOnlyList<ConnectionOptionItem> ConnectionOptions => _connectionDropdown.ConnectionOptions;
 
-    /// <summary>连接下拉候选 — ObservableCollection 绑定 ComboBox，引用固定不丢失选中项</summary>
-    private readonly ObservableCollection<ConnectionOptionItem> _connectionOptions = [];
-    private ILookup<string, ConnectionOptionItem> _connectionById = Array.Empty<ConnectionOptionItem>().ToLookup(c => c.Id);
+    /// <summary>按 Id O(1) 查找连接项（委托给 ConnectionDropdownManager；null 返回 null）</summary>
+    private ConnectionOptionItem? GetConnectionById(string? id) => _connectionDropdown.GetConnectionById(id);
 
-    /// <summary>按 Id O(1) 查找连接项（RebuildConnectionOptions 时同步重建；null 返回 null）</summary>
-    private ConnectionOptionItem? GetConnectionById(string? id) => id is null ? null : _connectionById[id].FirstOrDefault();
-
-    /// <summary>连接下拉候选 — Mock 引擎 + 配置文件驱动的全部供应商（改 config 自动更新）</summary>
-    public IReadOnlyList<ConnectionOptionItem> ConnectionOptions => _connectionOptions;
-
-    /// <summary>重建连接选项 — 从 VendorModelMap.Keys 填充 ObservableCollection（纯真实供应商，Mock 由独立按钮切换）</summary>
-    private void RebuildConnectionOptions()
-    {
-        _connectionOptions.Clear();
-        foreach (var provider in _session.VendorModelMap.Keys)
-        {
-            var display = VendorKindExtensions.FromValue(provider)?.ToString() ?? provider;
-            _connectionOptions.Add(new ConnectionOptionItem
-            {
-                Id = provider,
-                DisplayText = display,
-                IsMock = false
-            });
-        }
-        _connectionById = _connectionOptions.ToLookup(c => c.Id, StringComparer.OrdinalIgnoreCase);
-    }
+    /// <summary>重建连接选项 — 委托给 ConnectionDropdownManager</summary>
+    private void RebuildConnectionOptions() => _connectionDropdown.RebuildConnectionOptions(_session);
 
     /// <summary>当前选中的连接项（切换时替换活动会话，不销毁任何会话）</summary>
     [ObservableProperty]

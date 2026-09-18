@@ -14,12 +14,10 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly IAgentExecutionEngine _executionEngine;
     private readonly IClockService _clock;
     private readonly ILogger<AgentCoordinator>? _logger;
-    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    private readonly ISubagentStopHookManager? _subagentStopHookManager;
+    private readonly SubagentStopHookRunner _stopHookRunner;
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ISwarmPermissionBridge? _permissionBridge;
     private readonly TeammateReconnectDispatcher _reconnectDispatcher;
-    private readonly IAutoRebaseService? _autoRebaseService;
 
     private readonly ConcurrentDictionary<string, AgentExecutionContext> _executionContexts;
     private readonly Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
@@ -70,12 +68,10 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _disposePipeline = disposePipeline ?? throw new ArgumentNullException(nameof(disposePipeline));
         _spawnPipeline = spawnPipeline ?? throw new ArgumentNullException(nameof(spawnPipeline));
         _logger = logger;
-        _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
-        _subagentStopHookManager = subagentStopHookManager;
+        _stopHookRunner = new SubagentStopHookRunner(subAgentContextAccessor, subagentStopHookManager, autoRebaseService, _logger);
         _forkManager = forkManager;
         _permissionBridge = permission?.PermissionBridge;
         _reconnectDispatcher = new TeammateReconnectDispatcher(team?.ReconnectService, _logger);
-        _autoRebaseService = autoRebaseService;
         _executionContexts = new ConcurrentDictionary<string, AgentExecutionContext>();
         _secretaryRegistry = new SecretaryRegistry((task, opts, ct) => SpawnSubAgentAsync(task, opts, ct), _logger);
 
@@ -410,7 +406,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     {
         _logger?.LogInformation("[AgentCoordinator] 释放Agent {AgentId} 资源", agentId);
 
-        await OnSubagentStopHookAsync(agentId, cancellationToken).ConfigureAwait(false);
+        await _stopHookRunner.OnSubagentStopHookAsync(agentId, cancellationToken).ConfigureAwait(false);
 
         var ctx = new AgentDisposeContext
         {
@@ -907,68 +903,6 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             .Sum(c => (c.LastExecutionEnd.GetValueOrDefault() - c.LastExecutionStart.GetValueOrDefault()).TotalMilliseconds);
 
         return (long)(totalMs / completedContexts.Count);
-    }
-
-    private async Task OnSubagentStopHookAsync(string agentId, CancellationToken cancellationToken)
-    {
-        if (_subagentStopHookManager is not null)
-        {
-            var subAgentContext = _subAgentContextAccessor.Current;
-            var agentType = subAgentContext?.Role.ToValue() ?? "executor";
-            var sessionId = subAgentContext?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
-
-            var context = new SubagentStopHookContext
-            {
-                SessionId = sessionId,
-                AgentId = agentId,
-                AgentType = agentType,
-                WorktreePath = subAgentContext?.WorktreePath,
-            };
-
-            var result = await _subagentStopHookManager.OnSubagentStopAsync(context, cancellationToken).ConfigureAwait(false);
-            if (!result.ShouldProceed)
-            {
-                _logger?.LogWarning("[AgentCoordinator] SubagentStop Hook 阻塞了 Agent {AgentId} 的释放: {Message}",
-                    agentId, result.Message);
-            }
-        }
-
-        await TryAutoRebaseAsync(agentId, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// SubagentStop 时自动 rebase 同步主干 — 取代软通知模式（ADR T5.1）
-    /// </summary>
-    private async Task TryAutoRebaseAsync(string agentId, CancellationToken cancellationToken)
-    {
-        if (_autoRebaseService is null)
-            return;
-
-        var worktreePath = _subAgentContextAccessor.Current?.WorktreePath;
-        if (string.IsNullOrWhiteSpace(worktreePath))
-            return;
-
-        try
-        {
-            var request = new AutoRebaseRequest
-            {
-                WorktreePath = worktreePath,
-                AgentId = agentId,
-            };
-            var result = await _autoRebaseService.RebaseSyncAsync(request, cancellationToken).ConfigureAwait(false);
-            if (result.HadConflicts)
-                _logger?.LogWarning("[AgentCoordinator] AutoRebase 冲突 for {AgentId}: {Files}", agentId, string.Join(", ", result.ConflictFiles));
-            else if (!result.Success)
-                _logger?.LogWarning("[AgentCoordinator] AutoRebase 失败 for {AgentId}: {Message}", agentId, result.Message);
-            else if (result.WasSkipped)
-                _logger?.LogDebug("[AgentCoordinator] AutoRebase 跳过(无新提交) for {AgentId}", agentId);
-            else
-                _logger?.LogInformation("[AgentCoordinator] AutoRebase 成功 for {AgentId}", agentId);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[AgentCoordinator] AutoRebase 异常 for {AgentId}", agentId);
-        }
     }
 
     #endregion

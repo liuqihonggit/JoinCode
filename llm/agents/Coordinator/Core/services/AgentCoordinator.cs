@@ -23,7 +23,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
 
     private readonly ConcurrentDictionary<string, AgentExecutionContext> _executionContexts;
     private readonly Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
-    private readonly ConcurrentDictionary<string, string> _secretaries;
+    private readonly SecretaryRegistry _secretaryRegistry;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
     private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private volatile AsyncLock _spawnSemaphore;
@@ -77,7 +77,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _reconnectService = team?.ReconnectService;
         _autoRebaseService = autoRebaseService;
         _executionContexts = new ConcurrentDictionary<string, AgentExecutionContext>();
-        _secretaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+        _secretaryRegistry = new SecretaryRegistry((task, opts, ct) => SpawnSubAgentAsync(task, opts, ct), _logger);
 
         var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
         _spawnSemaphore = new AsyncLock(nameof(AgentCoordinator) + ".Spawn", spawnLimit, spawnLimit);
@@ -190,52 +190,22 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     }
 
     /// <summary>
-    /// T2.4: 确保队长秘书已 spawn 常驻 — 复用 ExecutorVariant.Teammate 变体
+    /// T2.4: 确保队长秘书已 spawn 常驻 — 委托给 SecretaryRegistry
     /// 秘书职责：队长改热文件时找调用点+批量改+编译自检；整理任务表(DAG)；发广播邮件；记录任务状态
     /// 通信：队长通过 IMailbox 给秘书派活，秘书做完回结果
     /// </summary>
     /// <param name="ownerId">队长标识（goalId 或 agentId）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>秘书的 agentId</returns>
-    public async Task<string> EnsureSecretaryAsync(string ownerId, CancellationToken cancellationToken = default)
+    public Task<string> EnsureSecretaryAsync(string ownerId, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
-
-        if (_secretaries.TryGetValue(ownerId, out var existingSecretaryId))
-        {
-            return existingSecretaryId;
-        }
-
-        const string secretarySystemPrompt = """
-            你是队长的秘书，负责处理杂活：
-            1. 队长改热文件（接口/枚举/公共签名）时，用 CodeSemanticSearch + grep 找所有调用点，批量连带改，跑编译自检
-            2. 整理任务表(DAG)，维护任务状态
-            3. 发广播邮件通知其他队员契约变更
-            4. 记录任务状态到 TodoWrite DAG
-            收到队长的指令后执行，完成后通过邮箱回复结果。不主动发起任务，只响应队长指令。
-            """;
-
-        var secretaryOptions = new SubAgentOptions
-        {
-            Role = AgentRole.Executor,
-            Variant = ExecutorVariant.Teammate,
-            DisplayName = "秘书",
-            SystemPrompt = secretarySystemPrompt,
-            SubagentName = $"secretary-{ownerId}",
-            GoalId = ownerId,
-        };
-
-        var secretary = await SpawnSubAgentAsync("等待队长指令", secretaryOptions, cancellationToken).ConfigureAwait(false);
-        var secretaryId = secretary.ObjectId.UniqueId;
-        _secretaries[ownerId] = secretaryId;
-        _logger?.LogInformation("{Prefix} 队长 {OwnerId} 的秘书已 spawn: {SecretaryId}", AgentCoordinatorConstants.LogMessages.AgentCoordinatorPrefix, ownerId, secretaryId);
-        return secretaryId;
+        return _secretaryRegistry.EnsureSecretaryAsync(ownerId, cancellationToken);
     }
 
     /// <summary>
-    /// T2.4: 获取队长的秘书 agentId（已 spawn 则返回，未 spawn 则 null）
+    /// T2.4: 获取队长的秘书 agentId（已 spawn 则返回，未 spawn 则 null）— 委托给 SecretaryRegistry
     /// </summary>
-    public string? GetSecretaryId(string ownerId) => _secretaries.TryGetValue(ownerId, out var id) ? id : null;
+    public string? GetSecretaryId(string ownerId) => _secretaryRegistry.GetSecretaryId(ownerId);
 
     /// <summary>
     /// 执行单个 Agent — 记录执行起止时间与结果到执行上下文

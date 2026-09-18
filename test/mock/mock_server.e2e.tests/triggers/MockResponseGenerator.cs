@@ -10,7 +10,8 @@ public sealed class MockResponseGenerator
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        WriteIndented = true
+        WriteIndented = true,
+        TypeInfoResolver = MockServerE2EJsonContext.Default
     };
 
     /// <summary>

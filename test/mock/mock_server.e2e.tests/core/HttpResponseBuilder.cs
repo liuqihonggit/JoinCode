@@ -26,7 +26,8 @@ internal static class HttpResponseBuilder
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+        TypeInfoResolver = MockServerE2EJsonContext.Default
     };
 
     /// <summary>
@@ -60,15 +61,8 @@ internal static class HttpResponseBuilder
     /// </summary>
     public static string BuildErrorResponse(int statusCode, string errorMessage, string? errorType = null)
     {
-        var errorResponse = new
-        {
-            error = new
-            {
-                message = errorMessage,
-                type = errorType ?? "invalid_request_error",
-                code = GetErrorCode(statusCode)
-            }
-        };
+        var errorResponse = new MockErrorResponse(
+            new MockErrorDetail(errorMessage, errorType ?? "invalid_request_error", GetErrorCode(statusCode)));
 
         var json = JsonSerializer.Serialize(errorResponse, JsonOptions);
         var statusText = GetStatusText(statusCode);

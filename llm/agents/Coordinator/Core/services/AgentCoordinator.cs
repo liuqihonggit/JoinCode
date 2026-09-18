@@ -659,7 +659,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
                 State = a.CurrentState,
                 ExecutionTimeMs = a.ExecutionTimeMs
             }).ToList(),
-            AverageExecutionTimeMs = CalculateAverageExecutionTime(contexts),
+            AverageExecutionTimeMs = ExecutionStatisticsCalculator.CalculateAverageExecutionTime(contexts),
             TotalRetries = contexts.Sum(c => c.RetryCount),
             AgentsWithRetries = contexts.Count(c => c.RetryCount > 0)
         };
@@ -811,24 +811,11 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     }
 
     /// <summary>
-    /// 获取执行统计信息
+    /// 获取执行统计信息 — 委托给 ExecutionStatisticsCalculator
     /// </summary>
     public ExecutionStatistics GetExecutionStatistics()
     {
-        var contexts = _executionContexts.Values;
-        var completedContexts = contexts.Where(c => c.Outcome != AgentOutcome.Pending).ToList();
-
-        return new ExecutionStatistics
-        {
-            TotalAgents = _executionContexts.Count,
-            SuccessfulAgents = completedContexts.Count(c => c.Outcome == AgentOutcome.Succeeded),
-            FailedAgents = completedContexts.Count(c => c.Outcome == AgentOutcome.Failed),
-            CancelledAgents = contexts.Count(c => c.Outcome == AgentOutcome.Cancelled),
-            TotalRetries = contexts.Sum(c => c.RetryCount),
-            AverageExecutionTimeMs = CalculateAverageExecutionTime(contexts),
-            ParallelExecutions = contexts.Count(c => c.ExecutionMode == ExecutionMode.Parallel),
-            SequentialExecutions = contexts.Count(c => c.ExecutionMode == ExecutionMode.Sequential)
-        };
+        return ExecutionStatisticsCalculator.BuildStatistics(_executionContexts);
     }
 
     #endregion
@@ -886,23 +873,6 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     public Task<IReadOnlyList<JoinCode.Abstractions.Interfaces.ReconnectResult>> ReconnectAllDisconnectedAsync(string teamId, CancellationToken cancellationToken = default)
     {
         return _reconnectDispatcher.ReconnectAllDisconnectedAsync(teamId, cancellationToken);
-    }
-
-    private static long? CalculateAverageExecutionTime(IEnumerable<AgentExecutionContext> contexts)
-    {
-        var completedContexts = contexts
-            .Where(c => c.LastExecutionStart.HasValue && c.LastExecutionEnd.HasValue)
-            .ToList();
-
-        if (completedContexts.Count == 0)
-        {
-            return null;
-        }
-
-        var totalMs = completedContexts
-            .Sum(c => (c.LastExecutionEnd.GetValueOrDefault() - c.LastExecutionStart.GetValueOrDefault()).TotalMilliseconds);
-
-        return (long)(totalMs / completedContexts.Count);
     }
 
     #endregion

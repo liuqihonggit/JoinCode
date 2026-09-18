@@ -23,6 +23,9 @@ public sealed partial class BridgeMain : ServiceEntity
     // 退避状态 — 对齐 TS 端 BackoffConfig + 双轨退避
     private readonly BridgeBackoffStrategy _backoff;
 
+    // 崩溃恢复指针管理
+    private readonly BridgePointerManager _pointerManager;
+
     // 生命周期
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
@@ -30,10 +33,6 @@ public sealed partial class BridgeMain : ServiceEntity
     private int _isShuttingDown;
     private bool _isResuming; // 对齐 TS 端: resume 模式标记 — 可恢复关闭时跳过 archive+deregister
     private bool _fatalExit; // 对齐 TS 端: fatalExit — 致命错误后跳过 resume 提示
-    private string? _resumePointerDir; // 对齐 TS 端: resumePointerDir — 指针来源目录，恢复失败时清除正确的指针
-
-    // 崩溃恢复指针刷新
-    private Timer? _pointerRefreshTimer;
 
     // Token 刷新调度器 — 对齐 TS 端 createTokenRefreshScheduler + v1/v2 分支
     private BridgeTokenRefreshScheduler? _tokenRefresh;
@@ -91,6 +90,7 @@ public sealed partial class BridgeMain : ServiceEntity
         _telemetry = deps.TelemetryService;
         _clock = clock ?? SystemClockService.Instance;
         _backoff = new BridgeBackoffStrategy(_clock, _logger, giveUpThreshold);
+        _pointerManager = new BridgePointerManager(deps.PointerService, _logger);
         _handleWorkPipeline = handleWorkPipeline;
         _shutdownPipeline = shutdownPipeline;
         _runPipeline = runPipeline;
@@ -222,7 +222,7 @@ public sealed partial class BridgeMain : ServiceEntity
     private async Task<BridgeMainResult> RunBridgeFromContextAsync(BridgeRunContext ctx, CancellationToken ct)
     {
         _isResuming = ctx.IsResuming;
-        _resumePointerDir = ctx.ResumePointerDir;
+        _pointerManager.ResumePointerDir = ctx.ResumePointerDir;
 
         var config = BuildConfig(ctx.Args, ctx.BaseUrl ?? throw new InvalidOperationException("BaseUrl is required"), ctx.ReuseEnvironmentId, ctx.EffectiveSpawnMode, ctx.IsResuming, ctx.SpawnModeSource);
 
@@ -403,7 +403,7 @@ public sealed partial class BridgeMain : ServiceEntity
                 var (pointerWithAge, pointerDir) = found.Value;
                 resumeSessionId = pointerWithAge.Pointer.SessionId;
                 reuseEnvironmentId = pointerWithAge.Pointer.EnvironmentId;
-                _resumePointerDir = pointerDir; // 记录指针来源目录 — 恢复失败时清除正确的指针
+                _pointerManager.ResumePointerDir = pointerDir; // 记录指针来源目录 — 恢复失败时清除正确的指针
                 var ageMin = Math.Round(pointerWithAge.AgeMs / 60_000.0);
                 var ageStr = ageMin < 60 ? $"{ageMin}m" : $"{Math.Round(ageMin / 60.0)}h";
                 var fromWt = pointerDir != _deps.WorkingDirectory ? $" from worktree {pointerDir}" : "";
@@ -779,7 +779,7 @@ public sealed partial class BridgeMain : ServiceEntity
             FatalExit = _fatalExit,
             EnvironmentId = EnvironmentId,
             SpawnMode = _deps.Config.SpawnMode,
-            ResumePointerDir = _resumePointerDir,
+            ResumePointerDir = _pointerManager.ResumePointerDir,
             Tracker = _tracker,
             Spawner = _deps.Spawner,
             ApiClient = _deps.ApiClient,
@@ -789,7 +789,7 @@ public sealed partial class BridgeMain : ServiceEntity
             UnregisterKeyboardListener = () => _deps.UnregisterKeyboardListener?.Invoke(),
             LoopCts = _loopCts,
             LoopTask = _loopTask,
-            PointerRefreshTimer = _pointerRefreshTimer,
+            PointerRefreshTimer = _pointerManager.RefreshTimer,
         };
 
         var pipeline = _shutdownPipeline;
@@ -798,7 +798,7 @@ public sealed partial class BridgeMain : ServiceEntity
             await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(false);
         }
 
-        _pointerRefreshTimer = null;
+        _pointerManager.StopRefreshTimer();
     }
 
     private async Task ShutdownDirectAsync()
@@ -879,26 +879,10 @@ public sealed partial class BridgeMain : ServiceEntity
             }
         }
 
-        // 清除崩溃恢复指针
+        // 清除崩溃恢复指针 + 停止刷新定时器
         // 对齐 TS 端: resumable shutdown — resume 模式下保留指针文件供下次 --continue
-        // 对齐 TS 端: 使用 _resumePointerDir（可能来自 worktree 兄弟目录）而非 _deps.WorkingDirectory
-        if (!_isResuming && _deps.Config.SpawnMode == BridgeSpawnMode.SingleSession)
-        {
-            try
-            {
-                var pointerDir = _resumePointerDir ?? _deps.WorkingDirectory;
-                await _deps.PointerService.ClearAsync(
-                    pointerDir).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug(ex, "BridgeMain: pointer clear failed (non-fatal)");
-            }
-        }
-
-        // 停止指针刷新定时器
-        _pointerRefreshTimer?.Dispose();
-        _pointerRefreshTimer = null;
+        await _pointerManager.ClearPointerAsync(_isResuming, _deps.Config.SpawnMode, _deps.WorkingDirectory).ConfigureAwait(false);
+        _pointerManager.StopRefreshTimer();
 
         _logger?.LogInformation("BridgeMain: shutdown complete");
     }
@@ -1179,8 +1163,8 @@ public sealed partial class BridgeMain : ServiceEntity
 
             if (config.SpawnMode == BridgeSpawnMode.SingleSession)
             {
-                await WritePointerAsync(config, work.SessionId).ConfigureAwait(false);
-                StartPointerRefreshTimer(config, work.SessionId);
+                await _pointerManager.WritePointerAsync(config, work.SessionId, EnvironmentId).ConfigureAwait(false);
+                _pointerManager.StartPointerRefreshTimer(config, work.SessionId, EnvironmentId);
             }
 
             _ = MonitorSessionCompletionAsync(config, work, ctx.Handle, ct);
@@ -1482,8 +1466,8 @@ public sealed partial class BridgeMain : ServiceEntity
         // 单会话模式: 写入崩溃恢复指针
         if (config.SpawnMode == BridgeSpawnMode.SingleSession)
         {
-            await WritePointerAsync(config, work.SessionId).ConfigureAwait(false);
-            StartPointerRefreshTimer(config, work.SessionId);
+            await _pointerManager.WritePointerAsync(config, work.SessionId, EnvironmentId).ConfigureAwait(false);
+            _pointerManager.StartPointerRefreshTimer(config, work.SessionId, EnvironmentId);
         }
 
         // 会话完成回调 — 对齐 TS 端: handle.done.then(onSessionDone)

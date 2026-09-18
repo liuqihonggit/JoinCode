@@ -228,36 +228,6 @@ public sealed partial class BridgeMain
         }
     }
 
-    private async Task WritePointerAsync(BridgeConfig config, string sessionId)
-    {
-        try
-        {
-            var pointer = new BridgePointer
-            {
-                SessionId = sessionId,
-                EnvironmentId = EnvironmentId ?? "",
-                Source = BridgePointerSource.Standalone.ToValue(),
-            };
-            await _deps.PointerService.WriteAsync(config.Dir, pointer).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "BridgeMain: pointer write failed (non-fatal)");
-        }
-    }
-
-    /// <summary>
-    /// 启动崩溃恢复指针刷新定时器 — 对齐 TS 端: 每小时刷新 mtime
-    /// </summary>
-    private void StartPointerRefreshTimer(BridgeConfig config, string sessionId)
-    {
-        _pointerRefreshTimer?.Dispose();
-        _pointerRefreshTimer = new Timer(async _ =>
-        {
-            await WritePointerAsync(config, sessionId).ConfigureAwait(false);
-        }, null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
-    }
-
     /// <summary>
     /// 确定子进程工作目录 — 对齐 TS 端: worktree/same-dir/session 模式
     /// </summary>
@@ -480,7 +450,7 @@ public sealed partial class BridgeMain
     {
         if (_asyncDisposed == 1) return;
         _loopCts?.Dispose();
-        _pointerRefreshTimer?.Dispose();
+        _pointerManager.Dispose();
         _ = _tokenRefresh?.DisposeAsync().AsTask();
         _cleanupLock.Dispose();
             base.Dispose();

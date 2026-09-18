@@ -6,15 +6,12 @@ namespace Core.CostTracking;
 [Register(typeof(ICostTracker), ServiceLifetime.Singleton)]
 public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 {
-    private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
-    private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
-    private readonly string _storagePath;
     private readonly ILogger<CostTracker>? _logger;
-    private readonly IFileOperationService _fileOperationService;
     private readonly ITelemetryService? _telemetryService;
     private readonly ModelPricing _pricing;
     private readonly CostSessionStats _stats;
     private readonly BudgetGuard _budget;
+    private readonly UsageStore _store;
     private CancellationTokenSource? _disposeCts = new();
 
     /// <summary>
@@ -29,15 +26,12 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="modelConfigLoader">模型配置加载器（可选，用于加载模型定价）</param>
     public CostTracker(IFileOperationService fileOperationService, string? storagePath = null, ILogger<CostTracker>? logger = null, BudgetConfig? budgetConfig = null, ITelemetryService? telemetryService = null, IClockService? clock = null, IModelConfigLoader? modelConfigLoader = null)
     {
-        _storagePath = storagePath ?? AppDataConstants.Paths.CostTrackingFilePath;
-        _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
         _telemetryService = telemetryService;
         _budget = new BudgetGuard(logger, budgetConfig);
         _stats = new CostSessionStats(clock ?? SystemClockService.Instance);
         _pricing = new ModelPricing(logger, modelConfigLoader);
-        _usageRecords = new ConcurrentBag<TokenUsageRecord>();
-        _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
+        _store = new UsageStore(fileOperationService, storagePath ?? AppDataConstants.Paths.CostTrackingFilePath, logger);
 
         if (budgetConfig != null)
         {
@@ -49,7 +43,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         var initCts = Volatile.Read(ref _disposeCts);
         if (initCts is not null)
         {
-            _ = LoadUsageHistoryAsync(initCts.Token).WaitAsync(TimeSpan.FromSeconds(10), initCts.Token).ConfigureAwait(false);
+            _ = _store.LoadHistoryAsync(initCts.Token).WaitAsync(TimeSpan.FromSeconds(10), initCts.Token).ConfigureAwait(false);
         }
     }
 
@@ -111,13 +105,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             ApiDurationMs = apiDurationMs
         };
 
-        _usageRecords.Add(record);
-
-        var sessionKey = record.SessionId;
-        _sessionIndex.AddOrUpdate(
-            sessionKey,
-            _ => [record],
-            (_, existing) => { lock (existing) { existing.Add(record); } return existing; });
+        _store.Add(record);
 
         _logger?.LogInformation("[CostTracker] 记录用量 - 模型: {Model}, Prompt: {PromptTokens}, Completion: {CompletionTokens}, CacheCreate: {CacheCreate}, CacheRead: {CacheRead}, 成本: ${Cost:F6}",
             model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens, record.CostUsd);
@@ -135,7 +123,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         var cts = Volatile.Read(ref _disposeCts);
         if (cts is not null)
         {
-            _ = Task.Run(() => SaveUsageHistoryAsync(cts.Token)).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
+            _ = Task.Run(() => _store.SaveHistoryAsync(cts.Token)).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
         }
 
         if (_budget.IsEnabled && cts is not null)
@@ -151,7 +139,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <returns>会话成本统计信息；若会话不存在则返回空统计</returns>
     public CostStatistics GetSessionStatistics(string sessionId)
     {
-        if (!_sessionIndex.TryGetValue(sessionId, out var records))
+        if (!_store.TryGetSessionRecords(sessionId, out var records))
             return new CostStatistics();
         lock (records)
         {
@@ -166,7 +154,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     public CostStatistics GetTodayStatistics()
     {
         var today = _stats.CurrentTime.Date;
-        var records = _usageRecords.Where(r => r.Timestamp.Date == today).ToList();
+        var records = _store.GetRecordsByDate(today);
         return CalculateStatistics(records);
     }
 
@@ -176,7 +164,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <returns>全部成本统计信息</returns>
     public CostStatistics GetTotalStatistics()
     {
-        return CalculateStatistics(_usageRecords.ToList());
+        return CalculateStatistics(_store.GetAllSnapshot());
     }
 
     /// <summary>
@@ -187,7 +175,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <returns>指定时间区间内的成本统计信息</returns>
     public CostStatistics GetStatistics(DateTime startDate, DateTime endDate)
     {
-        var records = _usageRecords.Where(r => r.Timestamp >= startDate && r.Timestamp <= endDate).ToList();
+        var records = _store.GetRecordsByDateRange(startDate, endDate);
         return CalculateStatistics(records);
     }
 
@@ -242,24 +230,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <returns>表示异步操作的任务</returns>
     public Task SetBudgetAsync(BudgetConfig config, CancellationToken ct = default) => _budget.SetAsync(config, ct);
 
-    private CostSnapshot GetCostSnapshot() => new(CalculateDailyCost(), CalculateMonthlyCost(), _usageRecords.Sum(r => r.CostUsd));
-
-    private decimal CalculateDailyCost()
-    {
-        var today = _stats.CurrentTime.Date;
-        return _usageRecords
-            .Where(r => r.Timestamp.Date == today)
-            .Sum(r => r.CostUsd);
-    }
-
-    private decimal CalculateMonthlyCost()
-    {
-        var now = _stats.CurrentTime;
-        var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        return _usageRecords
-            .Where(r => r.Timestamp >= startOfMonth)
-            .Sum(r => r.CostUsd);
-    }
+    private CostSnapshot GetCostSnapshot() => new(_store.SumCostByDate(_stats.CurrentTime.Date), _store.SumCostByMonth(_stats.CurrentTime), _store.SumCost());
 
     private decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) => _pricing.CalculateCost(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens);
 
@@ -325,76 +296,12 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         };
     }
 
-    private async Task LoadUsageHistoryAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var result = await _fileOperationService.ReadFileAsync(_storagePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
-                return;
-            }
-
-            var records = RelaxedJsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.ListTokenUsageRecord);
-
-            if (records != null)
-            {
-                foreach (var record in records)
-                {
-                    _usageRecords.Add(record);
-                }
-
-                foreach (var group in records.GroupBy(r => r.SessionId))
-                {
-                    var list = new List<TokenUsageRecord>(group);
-                    _sessionIndex.TryAdd(group.Key, list);
-                }
-
-                _logger?.LogInformation("[CostTracker] 加载了 {Count} 条历史用量记录", records.Count);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "[CostTracker] 加载用量历史失败");
-        }
-    }
-
-    private async Task SaveUsageHistoryAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var records = _usageRecords.ToList();
-            var json = JsonSerializer.Serialize(records, CostTrackingJsonContext.Default.ListTokenUsageRecord);
-
-            var directory = Path.GetDirectoryName(_storagePath);
-            if (!string.IsNullOrEmpty(directory) && !_fileOperationService.DirectoryExists(directory))
-            {
-                _fileOperationService.CreateDirectory(directory);
-            }
-
-            var result = await _fileOperationService.WriteFileAsync(_storagePath, json, cancellationToken).ConfigureAwait(false);
-            if (result.Success)
-            {
-                _logger?.LogInformation("[CostTracker] 已保存 {Count} 条用量记录", records.Count);
-            }
-            else
-            {
-                _logger?.LogError("[CostTracker] 保存用量历史失败: {Error}", result.ErrorMessage);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "[CostTracker] 保存用量历史失败");
-        }
-    }
-
     /// <summary>
     /// 重置所有用量记录 — 对齐 TS login.tsx resetCostState
     /// </summary>
     public void Reset()
     {
-        while (_usageRecords.TryTake(out _)) { }
-        _sessionIndex.Clear();
+        _store.Reset();
         _budget.Reset();
         _stats.Reset();
         _logger?.LogInformation("[CostTracker] 用量记录已重置");

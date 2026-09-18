@@ -130,4 +130,4 @@ public interface IWorkflowStateStore
 - [ADR 0068](0068-unified-persistence-pipeline-actor.md) — Actor 模型统一持久化管道（异步，不适用于强一致快照）
 - [ADR 0074](0074-actor-supervisor-tree.md) — Actor 监督树（并行执行架构）
 - [ADR 0093](0093-resource-management-exception-style.md) — 资源管理（using var + DisposeSafe）
-- [工作计划](../plan/Workflow断点续跑工作计划.md) — 分阶段实现计划
+- [工作计划](../plan/PLA001-Workflow断点续跑工作计划.md) — 分阶段实现计划

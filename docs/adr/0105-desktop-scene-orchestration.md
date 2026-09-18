@@ -8,7 +8,7 @@
 - 决策者：用户（惊惊）+ AI
 - 落地日期：2026-09-14（P0+P1+P2 全部完成，AC-07 detect+click 因需 LLM API 环境跳过）
 
-> 关联：[desktop-ai-scene-disclosure-report.md](../design/desktop-ai-scene-disclosure-report.md)、[desktop-scene-acceptance-criteria.md](../design/desktop-scene-acceptance-criteria.md)、[ADR 0032](0032-computeruse-win32-pinvoke.md)、[多模态隐喻显露工具-PRD](../design/多模态隐喻显露工具-PRD.md)
+> 关联：[desktop-ai-scene-disclosure-report.md](../design/DSG011-desktop-ai-scene-disclosure-report.md)、[desktop-scene-acceptance-criteria.md](../design/DSG010-desktop-scene-acceptance-criteria.md)、[ADR 0032](0032-computeruse-win32-pinvoke.md)、[多模态隐喻显露工具-PRD](../design/DSG019-多模态隐喻显露工具-PRD.md)
 
 ## 背景
 

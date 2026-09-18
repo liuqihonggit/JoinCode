@@ -23,7 +23,7 @@ ComputerUse P0 需要桌面输入能力（鼠标点击、键盘输入、截图�
 
 UI 元素语义检测留给 P1（截图 + 多模态 LLM）。
 
-定位文件：`docs/design/ComputerUse-P0-DesktopInput-Design.md`、`docs/design/ComputerUse-P0-Acceptance.md`
+定位文件：`docs/design/DSG007-ComputerUse-P0-DesktopInput-Design.md`、`docs/design/DSG008-ComputerUse-P0-Acceptance.md`
 
 ## 替代方案
 

@@ -49,7 +49,7 @@
 
 ### 4. 多模态隐喻显露工具 - M2/M3/M4模块 ✅ 已实现
 
-**文件**: `docs/design/多模态隐喻显露工具-PRD.md`
+**文件**: `docs/design/DSG019-多模态隐喻显露工具-PRD.md`
 
 **状态**: ✅ 已实现 — M1/M2/M3/M4全部13个工具已落地
 
@@ -65,7 +65,7 @@
 
 ### 5. lock-to-channel-pipeline - P1/P2 ✅ 已实现
 
-**文件**: `docs/refactor/lock-to-channel-pipeline-plan.md`
+**文件**: `docs/refactor/REF007-lock-to-channel-pipeline-plan.md`
 
 **状态**: ✅ 已实现 — P0/P1/P2全部完成
 

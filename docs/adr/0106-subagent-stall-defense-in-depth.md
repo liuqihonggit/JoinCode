@@ -9,7 +9,7 @@
 - 日期：2026-09-15
 - 决策者：用户 + AI
 
-> 关联：[subagent-stall-defense.md](../design/subagent-stall-defense.md)（技术设计文档）、[ADR 0040](0040-shannon-entropy-state-machine.md)（Shannon熵状态机）、[ADR 0048](0048-subagent-concurrency-options.md)（子代理并发控制）、[ADR 0054](0054-llm-output-loop-detection-intervention.md)（LLM输出循环检测与干预）、[ADR 0086](0086-core-tech-selection-lock-design.md)（锁设计与死锁防护）
+> 关联：[subagent-stall-defense.md](../design/DSG028-subagent-stall-defense.md)（技术设计文档）、[ADR 0040](0040-shannon-entropy-state-machine.md)（Shannon熵状态机）、[ADR 0048](0048-subagent-concurrency-options.md)（子代理并发控制）、[ADR 0054](0054-llm-output-loop-detection-intervention.md)（LLM输出循环检测与干预）、[ADR 0086](0086-core-tech-selection-lock-design.md)（锁设计与死锁防护）
 
 ## 背景
 

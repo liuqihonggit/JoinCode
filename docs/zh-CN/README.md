@@ -345,7 +345,7 @@ jcc -p "你好"
 
 ## 3. 架构与方法论
 
-> ✅ **架构迁移完成** — [ADR 0103](../adr/0103-folder-restructure-semantic-grouping-flat.md) 已落地:数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/design/flatten-restructure-plan.md](../design/flatten-restructure-plan.md)。下方架构描述已更新为新语义结构。
+> ✅ **架构迁移完成** — [ADR 0103](../adr/0103-folder-restructure-semantic-grouping-flat.md) 已落地:数字前缀(`00_generators/`~`09_app_*`)改为语义分组(`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`)+ 组内扁平(消除 src/+tests/ 双层)。详见 [docs/design/DSG004-flatten-restructure-plan.md](../design/DSG004-flatten-restructure-plan.md)。下方架构描述已更新为新语义结构。
 
 本工程对齐 TS 原版 和 DeepSeek-Reasonix，采用七层隔离架构 + 洋葱模型中间件管道。
 
@@ -433,9 +433,9 @@ OpenAI 的多层记忆 + 半衰期方案更为合理，但实现难度太高，�
 | 文档 | 说明 |
 |------|------|
 | [可用模型列表](../reference/models.md) | 6 个供应商 51 个模型的详细列表（别名、上下文长度、说明） |
-| [技术要点](../design/technical-details.md) | 宽容处理 / 前缀缓存 / 死循环处理 / 并行动态负载 / 串行编译 |
-| [小模型设计组合拳](../design/small-model-strategy.md) | 面向小模型场景的工程化策略（同义词 / 禁令 / 反例 / match） |
-| [项目架构索引](../design/architecture-index.md) | 组件依赖图 / 详情表 / 内部结构 / 中间件管道清单 / 构建命令速查 |
+| [技术要点](../design/DSG002-technical-details.md) | 宽容处理 / 前缀缓存 / 死循环处理 / 并行动态负载 / 串行编译 |
+| [小模型设计组合拳](../design/DSG003-small-model-strategy.md) | 面向小模型场景的工程化策略（同义词 / 禁令 / 反例 / match） |
+| [项目架构索引](../design/DSG001-architecture-index.md) | 组件依赖图 / 详情表 / 内部结构 / 中间件管道清单 / 构建命令速查 |
 | [架构决策记录](../adr/README.md) | ADR：为什么选 A 而不选 B |
 
 ---

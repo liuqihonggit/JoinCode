@@ -7,14 +7,14 @@
 
 ## 散落计划
 
-| 文件 | 标题 |
-|------|------|
-| [Workflow断点续跑工作计划.md](Workflow断点续跑工作计划.md) | Workflow 断点续跑工作计划 |
-| [gh-rest-api-rewrite-plan.md](gh-rest-api-rewrite-plan.md) | gh_* MCP 工具重写为 REST API 直调 |
-| [using改造工作计划.md](using改造工作计划.md) | using 改造工作计划 |
-| [强迫症扁平化方案.md](强迫症扁平化方案.md) | 命名规范 + 同名层级消除 |
-| [文件夹整理改革方案.md](文件夹整理改革方案.md) | 从领域驱动到功能驱动 |
-| [文件夹整理迁移映射表.md](文件夹整理迁移映射表.md) | 文件夹整理迁移映射表 |
+| 编号 | 文件 | 标题 |
+|------|------|------|
+| PLA001 | [PLA001-Workflow断点续跑工作计划.md](PLA001-Workflow断点续跑工作计划.md) | Workflow 断点续跑工作计划 |
+| PLA002 | [PLA002-gh-rest-api-rewrite-plan.md](PLA002-gh-rest-api-rewrite-plan.md) | gh_* MCP 工具重写为 REST API 直调 |
+| PLA003 | [PLA003-using改造工作计划.md](PLA003-using改造工作计划.md) | using 改造工作计划 |
+| PLA004 | [PLA004-强迫症扁平化方案.md](PLA004-强迫症扁平化方案.md) | 命名规范 + 同名层级消除 |
+| PLA005 | [PLA005-文件夹整理改革方案.md](PLA005-文件夹整理改革方案.md) | 从领域驱动到功能驱动 |
+| PLA006 | [PLA006-文件夹整理迁移映射表.md](PLA006-文件夹整理迁移映射表.md) | 文件夹整理迁移映射表 |
 
 ## 子目录
 

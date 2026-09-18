@@ -6,12 +6,12 @@
 > 📍 **导航**: [docs/](../README.md) › [refactor/](README.md) | **前置**: [adr/](../adr/README.md)
 > 🔗 **上游索引**: [refactor/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> ⚠️ **已被取代** — IMcpProtocolHandler 是死接口(0 个生产实现),为它做"不合并"决策无意义。详见 [refactoring/archive-dead-code.md](../refactor/archive-dead-code.md)
+> ⚠️ **已被取代** — IMcpProtocolHandler 是死接口(0 个生产实现),为它做"不合并"决策无意义。详见 [refactoring/archive-dead-code.md](../refactor/REF002-archive-dead-code.md)
 
 - 状态：superseded（归档死接口,详见 refactoring/archive-dead-code.md）
 - 日期：2026-08-29
 - 决策者：项目架构组
-- 取代原因：调查发现 IMcpProtocolHandler 有 0 个生产实现、McpServer 也是死代码，为死接口做"不合并"决策无意义。详见 [refactoring/archive-dead-code.md](../refactor/archive-dead-code.md)
+- 取代原因：调查发现 IMcpProtocolHandler 有 0 个生产实现、McpServer 也是死代码，为死接口做"不合并"决策无意义。详见 [refactoring/archive-dead-code.md](../refactor/REF002-archive-dead-code.md)
 
 ## 背景
 

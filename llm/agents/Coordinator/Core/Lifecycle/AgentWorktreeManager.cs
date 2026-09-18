@@ -196,9 +196,8 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     }
 
     /// <summary>
-    /// 清理 Agent 的 Worktree — 对齐 TS cleanupWorktreeIfNeeded
-    /// 无变更时自动删除，有变更时保留 worktree 并返回路径/分支信息
-    /// HookBased worktree 始终保留（无法检测 VCS 变更）
+    /// 检查 Agent Worktree 变更状态 — 只记录不删除,供 agent_stop/Dispose 安全调用。
+    /// 实际删除由 ForceRemoveWorktreeAsync 统一执行(worktree_remove 工具调用)。
     /// </summary>
     public async Task<WorktreeCleanupDetail> CleanupWorktreeAsync(string agentId, CancellationToken cancellationToken = default)
     {
@@ -207,10 +206,10 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
             return WorktreeCleanupDetail.NotIsolated;
         }
 
-        if (!s_worktreeSessions.TryRemove(agentId, out var removedSession))
+        if (!s_worktreeSessions.TryGetValue(agentId, out var session))
         {
-            removedSession = await ReconstructSessionFromDiskAsync(agentId, cancellationToken).ConfigureAwait(false);
-            if (removedSession is null)
+            session = await ReconstructSessionFromDiskAsync(agentId, cancellationToken).ConfigureAwait(false);
+            if (session is null)
             {
                 return WorktreeCleanupDetail.NoSession;
             }
@@ -218,50 +217,75 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
 
         try
         {
-            if (removedSession.HookBased)
+            if (session.HookBased)
             {
-                _logger?.LogInformation("Hook-based agent worktree kept at: {WorktreePath}", removedSession.WorktreePath);
-                FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName);
                 return new WorktreeCleanupDetail
                 {
                     Kept = true,
-                    WorktreePath = removedSession.WorktreePath,
-                    BranchName = removedSession.BranchName,
+                    WorktreePath = session.WorktreePath,
+                    BranchName = session.BranchName,
                     Reason = "hook-based"
                 };
             }
 
-            var hasChanges = await HasWorktreeChangesAsync(removedSession, cancellationToken).ConfigureAwait(false);
-
-            if (!hasChanges)
+            var hasChanges = await HasWorktreeChangesAsync(session, cancellationToken).ConfigureAwait(false);
+            return new WorktreeCleanupDetail
             {
-                var removed = await RemoveWorktreeViaGuardAsync(agentId, removedSession, cancellationToken).ConfigureAwait(false);
-                if (removed)
-                {
-                    _logger?.LogInformation("已释放git worktree,路径是:{WorktreePath} 已释放git分支:{BranchName}",
-                        removedSession.WorktreePath, removedSession.BranchName ?? "unknown");
-                    FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName ?? string.Empty);
-                    return WorktreeCleanupDetail.SuccessfullyRemoved;
-                }
+                Kept = true,
+                WorktreePath = session.WorktreePath,
+                BranchName = session.BranchName,
+                Reason = hasChanges ? "has_changes" : "no_changes"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, AgentCoordinatorConstants.LogMessages.CleanupWorktreeError, AgentCoordinatorConstants.LogMessages.AgentWorktreeManagerPrefix, agentId);
+            return new WorktreeCleanupDetail
+            {
+                Kept = true,
+                WorktreePath = session.WorktreePath,
+                BranchName = session.BranchName,
+                Reason = "cleanup_error"
+            };
+        }
+    }
 
-                _logger?.LogWarning("Failed to remove unchanged worktree for agent {AgentId}", agentId);
-                return new WorktreeCleanupDetail
-                {
-                    Kept = true,
-                    WorktreePath = removedSession.WorktreePath,
-                    BranchName = removedSession.BranchName,
-                    Reason = "remove_failed"
-                };
+    /// <summary>
+    /// 强制移除 Agent 的 Worktree — 跨进程安全,不依赖内存 session。
+    /// 优先走内存 session,不存在时用确定性路径从磁盘重建并直接 git worktree remove + branch -D。
+    /// 供 worktree_remove 工具调用,与 agent_stop(保留 worktree) 职责分离。
+    /// </summary>
+    public async Task<WorktreeCleanupDetail> ForceRemoveWorktreeAsync(string agentId, CancellationToken cancellationToken = default)
+    {
+        if (_worktreeService == null)
+        {
+            return WorktreeCleanupDetail.NotIsolated;
+        }
+
+        s_worktreeSessions.TryRemove(agentId, out var removedSession);
+        removedSession ??= await ReconstructSessionFromDiskAsync(agentId, cancellationToken).ConfigureAwait(false);
+        if (removedSession is null)
+        {
+            return WorktreeCleanupDetail.NoSession;
+        }
+
+        try
+        {
+            var removed = await RemoveWorktreeViaGuardAsync(agentId, removedSession, cancellationToken).ConfigureAwait(false);
+            if (removed)
+            {
+                _logger?.LogInformation("强制移除 worktree 成功: {WorktreePath}", removedSession.WorktreePath);
+                FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName ?? string.Empty);
+                return WorktreeCleanupDetail.SuccessfullyRemoved;
             }
 
-            _logger?.LogInformation("Agent worktree has changes, keeping: {WorktreePath}", removedSession.WorktreePath);
-            FireWorktreeCleaned(agentId, removedSession.WorktreePath, removedSession.BranchName);
+            _logger?.LogWarning("强制移除 worktree 失败: {AgentId}", agentId);
             return new WorktreeCleanupDetail
             {
                 Kept = true,
                 WorktreePath = removedSession.WorktreePath,
                 BranchName = removedSession.BranchName,
-                Reason = "has_changes"
+                Reason = "remove_failed"
             };
         }
         catch (Exception ex)
@@ -506,27 +530,13 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     }
 
     /// <summary>
-    /// 异步释放 — 遍历 guard 字典逐个 DisposeAsync，用构造时锁定的路径删除，从不二次计算。
+    /// 异步释放 — 仅清空 guard 字典,不自动删除 worktree。
+    /// worktree 生命周期由显式 worktree_remove 指令控制,不由进程退出自动清理。
     /// </summary>
     public override ValueTask DisposeAsync()
     {
-        var tasks = new List<Task>();
-        foreach (var kvp in _lifecycleGuards)
-        {
-            var agentId = kvp.Key;
-            var logger = _logger;
-            tasks.Add(kvp.Value.DisposeAsync().AsTask().ContinueWith(
-                static (t, state) =>
-                {
-                    var (l, id) = ((ILogger?, string))state!;
-                    if (t.IsFaulted && t.Exception is not null)
-                        l?.LogDebug(t.Exception, "DisposeAsync guard 清理 worktree {AgentId} 失败", id);
-                },
-                (logger, agentId),
-                TaskContinuationOptions.ExecuteSynchronously));
-        }
         Dispose();
-        return tasks.Count == 0 ? ValueTask.CompletedTask : new ValueTask(Task.WhenAll(tasks));
+        return ValueTask.CompletedTask;
     }
 
     /// <summary>释放资源 — 仅清理实例级 lifecycleGuards,不清空 static s_worktreeSessions(跨实例共享)</summary>

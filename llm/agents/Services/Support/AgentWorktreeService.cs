@@ -518,32 +518,11 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     /// <summary>
-    /// 异步释放资源，强制移除所有活跃 worktree 会话
+    /// 异步释放资源 — 仅释放 Actor,不自动删除 worktree。
+    /// worktree 生命周期由显式 worktree_remove 指令控制,不由进程退出自动清理。
     /// </summary>
     public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-
-        // 快照当前会话键，避免遍历期间集合被修改
-        var agentIds = _sessions.Keys.ToList();
-        var tasks = new List<Task>(agentIds.Count);
-        foreach (var agentId in agentIds)
-        {
-            var logger = _logger;
-            var id = agentId;
-            tasks.Add(RemoveAgentWorktreeAsync(id, force: true).ContinueWith(
-                static (t, state) =>
-                {
-                    var (l, aid) = ((ILogger<AgentWorktreeService>?, string))state!;
-                    if (t.IsFaulted && t.Exception is not null)
-                        l?.LogDebug(t.Exception, "DisposeAsync 清理 worktree 会话 {AgentId} 失败", aid);
-                },
-                (logger, id),
-                TaskContinuationOptions.ExecuteSynchronously));
-        }
-
-        if (tasks.Count > 0)
-            await Task.WhenAll(tasks).ConfigureAwait(false);
-
         await _sessionActor.DisposeAsync().ConfigureAwait(false);
     }
 

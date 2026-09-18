@@ -492,30 +492,17 @@ public partial class AgentToolHandlers
             var dryState = TryLoadDryRunState(agent_id);
             if (dryState is not null)
             {
-                if (dryState.IsolationMode == AgentIsolationMode.Worktree.ToValue() && _worktreeManager is not null)
-                {
-                    try
-                    {
-                        var cleanupResult = await _worktreeManager.CleanupWorktreeAsync(agent_id, cancellationToken).ConfigureAwait(false);
-                        _logger?.LogInformation("dry_run agent_stop worktree 清理: AgentId={AgentId}, Kept={Kept}, Reason={Reason}",
-                            agent_id, cleanupResult.Kept, cleanupResult.Reason);
-
-                        return ToolResultBuilder.Success()
-                            .WithText($"Agent {agent_id} stopped (dry-run, worktree cleanup: kept={cleanupResult.Kept}, reason={cleanupResult.Reason})")
-                            .Build();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogWarning(ex, "dry_run agent_stop 清理 worktree 失败: {AgentId}", agent_id);
-                        return ToolResultBuilder.Success()
-                            .WithText($"Agent {agent_id} stopped (dry-run, worktree cleanup failed: {ex.Message})")
-                            .Build();
-                    }
-                }
-
                 dryState.Status = "stopped";
                 dryState.CompletedAt = _clock.GetUtcNow();
                 TrySaveDryRunState(dryState);
+
+                if (dryState.IsolationMode == AgentIsolationMode.Worktree.ToValue())
+                {
+                    return ToolResultBuilder.Success()
+                        .WithText($"Agent {agent_id} stopped (dry-run, worktree kept — use worktree_remove to clean up)")
+                        .Build();
+                }
+
                 return ToolResultBuilder.Success()
                     .WithText($"Agent {agent_id} stopped (dry-run)")
                     .Build();

@@ -80,22 +80,14 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
     }
 
     /// <summary>
-    /// 异步释放 — 用构造时锁定的路径执行 git worktree remove。消费方用 await using。
+    /// 异步释放 — 仅标记已释放,不自动删除 worktree。
+    /// worktree 生命周期由显式 worktree_remove 指令控制,不由进程退出自动清理。
+    /// 删除操作通过 ReleaseAsync(force) 显式调用。
     /// </summary>
     public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
-        var logger = _logger;
-        var path = _worktreePath;
-        return new ValueTask(ReleaseCoreAsync(force: true, CancellationToken.None).ContinueWith(
-            static (t, state) =>
-            {
-                var (l, p) = ((ILogger?, string))state!;
-                if (t.IsFaulted && t.Exception is not null)
-                    l?.LogDebug(t.Exception, "DisposeAsync 清理失败: {Path}", p);
-            },
-            (logger, path),
-            TaskContinuationOptions.ExecuteSynchronously));
+        Interlocked.Exchange(ref _disposed, 1);
+        return ValueTask.CompletedTask;
     }
 
     private async Task<WorktreeGuardResult> ReleaseCoreAsync(bool force, CancellationToken cancellationToken)

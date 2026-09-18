@@ -173,7 +173,7 @@ public class WorktreeLifecycleGuardTest
     }
 
     /// <summary>
-    /// DisposeAsync 可多次调用不报错 — 幂等释放。
+    /// DisposeAsync 可多次调用不报错 — 幂等释放,不执行 git 命令。
     /// </summary>
     [Fact]
     public async Task DisposeAsync_CalledMultipleTimes_NoThrow()
@@ -196,14 +196,14 @@ public class WorktreeLifecycleGuardTest
         gitRunner.Verify(x => x.ExecuteAsync(
             It.Is<string>(s => s.Contains("worktree remove")),
             It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>
-    /// await using 语法自动 DisposeAsync — 验证标准 IAsyncDisposable 用法。
+    /// await using 语法自动 DisposeAsync — Dispose 不执行 git remove,worktree 保留。
     /// </summary>
     [Fact]
-    public async Task AwaitUsing_AutoDisposeAsync_ExecutesGitRemove()
+    public async Task AwaitUsing_AutoDisposeAsync_DoesNotExecuteGitRemove()
     {
         var gitRunner = new Mock<IGitCommandRunner>();
         gitRunner
@@ -215,9 +215,9 @@ public class WorktreeLifecycleGuardTest
         }
 
         gitRunner.Verify(x => x.ExecuteAsync(
-            It.Is<string>(s => s.Contains("worktree remove") && s.Contains(WorktreePath)),
+            It.Is<string>(s => s.Contains("worktree remove")),
             It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>

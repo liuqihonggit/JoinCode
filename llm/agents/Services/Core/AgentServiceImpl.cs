@@ -298,7 +298,6 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         }
 
         await CleanupMcpServersIfNeededAsync(agentId, cancellationToken).ConfigureAwait(false);
-        await CleanupWorktreeIfNeededAsync(agentId, cancellationToken).ConfigureAwait(false);
 
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
     }

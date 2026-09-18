@@ -91,6 +91,13 @@ public interface IAgentWorktreeManager
     Task<WorktreeCleanupDetail> CleanupWorktreeAsync(string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 强制移除 Agent 的 Worktree — 跨进程安全,不依赖内存 session。
+    /// 优先走内存 session,不存在时用确定性路径从磁盘重建并直接 git worktree remove + branch -D。
+    /// 供 worktree_remove 工具调用,与 agent_stop(保留 worktree) 职责分离。
+    /// </summary>
+    Task<WorktreeCleanupDetail> ForceRemoveWorktreeAsync(string agentId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 获取Agent的Worktree会话
     /// </summary>
     Task<AgentWorktreeSession?> GetWorktreeSessionAsync(string agentId, CancellationToken cancellationToken = default);

@@ -78,7 +78,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldRemoveUnchangedWorktree()
+    public async Task CleanupWorktreeAsync_ShouldKeepUnchangedWorktree()
     {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
@@ -89,16 +89,14 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
             .ReturnsAsync(false);
         _worktreeServiceMock.Setup(x => x.HasUncommittedChangesAsync(session.WorktreePath, default))
             .ReturnsAsync(false);
-        _worktreeServiceMock.Setup(x => x.RemoveAgentWorktreeAsync(agentId, true, default))
-            .ReturnsAsync(WorktreeCleanupResult.SuccessResult(true));
 
         await _manager.CreateWorktreeAsync(agentId).ConfigureAwait(true);
         var result = await _manager.CleanupWorktreeAsync(agentId).ConfigureAwait(true);
 
-        result.WasRemoved.Should().BeTrue();
-        result.Kept.Should().BeFalse();
-        result.WorktreePath.Should().BeNull();
-        _worktreeServiceMock.Verify(x => x.RemoveAgentWorktreeAsync(agentId, true, default), Times.Once);
+        result.Kept.Should().BeTrue();
+        result.WorktreePath.Should().Be(session.WorktreePath);
+        result.Reason.Should().Be("no_changes");
+        _worktreeServiceMock.Verify(x => x.RemoveAgentWorktreeAsync(It.IsAny<string>(), It.IsAny<bool>(), default), Times.Never);
     }
 
     [Fact]
@@ -161,7 +159,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldKeepWorktree_WhenRemoveFails()
+    public async Task CleanupWorktreeAsync_ShouldKeepWorktree_WhenNoChanges()
     {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
@@ -172,14 +170,12 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
             .ReturnsAsync(false);
         _worktreeServiceMock.Setup(x => x.HasUncommittedChangesAsync(session.WorktreePath, default))
             .ReturnsAsync(false);
-        _worktreeServiceMock.Setup(x => x.RemoveAgentWorktreeAsync(agentId, true, default))
-            .ReturnsAsync(WorktreeCleanupResult.FailureResult("permission denied"));
 
         await _manager.CreateWorktreeAsync(agentId).ConfigureAwait(true);
         var result = await _manager.CleanupWorktreeAsync(agentId).ConfigureAwait(true);
 
         result.Kept.Should().BeTrue();
-        result.Reason.Should().Be("remove_failed");
+        result.Reason.Should().Be("no_changes");
         result.WorktreePath.Should().Be(session.WorktreePath);
     }
 
@@ -204,7 +200,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldFireWorktreeCleanedEvent()
+    public async Task ForceRemoveWorktreeAsync_ShouldFireWorktreeCleanedEvent()
     {
         var agentId = "test-agent-1";
         var session = CreateSession(agentId);
@@ -213,15 +209,11 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
 
         _worktreeServiceMock.Setup(x => x.CreateAgentWorktreeAsync(agentId, null, null, default))
             .ReturnsAsync(WorktreeCreateResult.SuccessResult(session));
-        _worktreeServiceMock.Setup(x => x.HasUnpushedCommitsAsync(session.WorktreePath, session.BaseCommitSha, default))
-            .ReturnsAsync(false);
-        _worktreeServiceMock.Setup(x => x.HasUncommittedChangesAsync(session.WorktreePath, default))
-            .ReturnsAsync(false);
         _worktreeServiceMock.Setup(x => x.RemoveAgentWorktreeAsync(agentId, true, default))
             .ReturnsAsync(WorktreeCleanupResult.SuccessResult(true));
 
         await _manager.CreateWorktreeAsync(agentId).ConfigureAwait(true);
-        await _manager.CleanupWorktreeAsync(agentId).ConfigureAwait(true);
+        await _manager.ForceRemoveWorktreeAsync(agentId).ConfigureAwait(true);
 
         cleanedArgs.Should().NotBeNull();
         cleanedArgs!.AgentId.Should().Be(agentId);
@@ -289,17 +281,13 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CleanupWorktreeAsync_ShouldTriggerWorktreeRemoveHook()
+    public async Task ForceRemoveWorktreeAsync_ShouldTriggerWorktreeRemoveHook()
     {
         var agentId = "test-agent-hook-remove";
         var session = CreateSession(agentId);
 
         _worktreeServiceMock.Setup(x => x.CreateAgentWorktreeAsync(agentId, null, null, default))
             .ReturnsAsync(WorktreeCreateResult.SuccessResult(session));
-        _worktreeServiceMock.Setup(x => x.HasUnpushedCommitsAsync(session.WorktreePath, session.BaseCommitSha, default))
-            .ReturnsAsync(false);
-        _worktreeServiceMock.Setup(x => x.HasUncommittedChangesAsync(session.WorktreePath, default))
-            .ReturnsAsync(false);
         _worktreeServiceMock.Setup(x => x.RemoveAgentWorktreeAsync(agentId, true, default))
             .ReturnsAsync(WorktreeCleanupResult.SuccessResult(true));
 
@@ -311,7 +299,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
             .Returns(ToAsyncEnumerable(hookResults));
 
         await _manager.CreateWorktreeAsync(agentId).ConfigureAwait(true);
-        await _manager.CleanupWorktreeAsync(agentId).ConfigureAwait(true);
+        await _manager.ForceRemoveWorktreeAsync(agentId).ConfigureAwait(true);
 
         await Task.Delay(100).ConfigureAwait(true);
 
@@ -322,7 +310,7 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task FullWorkflow_CreateAndCleanupUnchanged_ShouldRemoveWorktree()
+    public async Task FullWorkflow_CreateAndCleanupUnchanged_ShouldKeepWorktree()
     {
         var agentId = "workflow-agent";
         var session = CreateSession(agentId);
@@ -333,8 +321,6 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
             .ReturnsAsync(false);
         _worktreeServiceMock.Setup(x => x.HasUncommittedChangesAsync(session.WorktreePath, default))
             .ReturnsAsync(false);
-        _worktreeServiceMock.Setup(x => x.RemoveAgentWorktreeAsync(agentId, true, default))
-            .ReturnsAsync(WorktreeCleanupResult.SuccessResult(true));
 
         var created = await _manager.CreateWorktreeAsync(agentId).ConfigureAwait(true);
         created.Should().BeTrue();
@@ -343,11 +329,11 @@ public class AgentWorktreeManagerTests : IAsyncLifetime
         sessionAfterCreate.Should().NotBeNull();
 
         var cleanup = await _manager.CleanupWorktreeAsync(agentId).ConfigureAwait(true);
-        cleanup.WasRemoved.Should().BeTrue();
-        cleanup.Kept.Should().BeFalse();
+        cleanup.Kept.Should().BeTrue();
+        cleanup.Reason.Should().Be("no_changes");
 
         var sessionAfterCleanup = await _manager.GetWorktreeSessionAsync(agentId).ConfigureAwait(true);
-        sessionAfterCleanup.Should().BeNull();
+        sessionAfterCleanup.Should().NotBeNull();
     }
 
     [Fact]

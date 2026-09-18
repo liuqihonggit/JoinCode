@@ -207,6 +207,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0110](0110-platform-bot-adapter-pattern.md) | 平台机器人适配器模式 | accepted | 2026-09-16 |
 | [0111](0111-unified-messaging-channel-mailboxhub-upgrade.md) | 统一消息通道 MailboxHub 升级 | accepted | 2026-09-16 |
 | [0112](0112-dispose-fire-and-forget-ban-continuewith-to-await.md) | Dispose 体内禁止 fire-and-forget + ContinueWith→await 统一释放规范 | accepted | 2026-09-17 |
+| [0115](0115-asynclock-file-io-migrate-actor-mailbox.md) | AsyncLock+文件 I/O 迁移到 Actor 邮箱管道（22 处） | proposed | 2026-09-19 |
 
 ## 主题索引（按议题）
 

@@ -64,19 +64,12 @@ public partial class AgentToolHandlers
     private readonly IServiceProvider? _serviceProvider;
     private readonly ITeamManager? _teamManager;
     private readonly IClockService _clock;
+    private readonly IWorktreeDecisionPolicy? _worktreeDecisionPolicy;
+    private readonly IAgentWorktreeManager? _worktreeManager;
 
     /// <summary>
     /// 构造 Agent 工具处理器
     /// </summary>
-    /// <param name="pipeline">中间件管道，处理验证、fork、spawn、执行、handoff 等阶段</param>
-    /// <param name="agentService">代理服务，负责代理的创建和管理</param>
-    /// <param name="coordinator">可选协调者代理服务，用于多代理协调</param>
-    /// <param name="logger">可选日志记录器</param>
-    /// <param name="telemetryService">可选遥测服务</param>
-    /// <param name="serviceProvider">可选服务提供者</param>
-    /// <param name="subAgentContextAccessor">子代理上下文访问器，默认创建新实例</param>
-    /// <param name="clock">时钟服务，默认使用系统时钟</param>
-    /// <param name="teamManager">可选团队管理器</param>
     public AgentToolHandlers(
         MiddlewarePipeline<AgentToolContext> pipeline,
         IAgentService agentService,
@@ -86,7 +79,9 @@ public partial class AgentToolHandlers
         IServiceProvider? serviceProvider = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
         IClockService? clock = null,
-        ITeamManager? teamManager = null)
+        ITeamManager? teamManager = null,
+        IWorktreeDecisionPolicy? worktreeDecisionPolicy = null,
+        IAgentWorktreeManager? worktreeManager = null)
     {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _agentService = agentService ?? throw new ArgumentNullException(nameof(agentService));
@@ -97,6 +92,8 @@ public partial class AgentToolHandlers
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _clock = clock ?? SystemClockService.Instance;
         _teamManager = teamManager;
+        _worktreeDecisionPolicy = worktreeDecisionPolicy;
+        _worktreeManager = worktreeManager;
     }
 
     /// <summary>
@@ -142,6 +139,7 @@ public partial class AgentToolHandlers
 
     /// <summary>
     /// 干跑模式 — 不调用 LLM，直接创建 mock agent 并持久化到 ~/.jcc/agents/，支持跨进程测试
+    /// dry_run 也走 worktree 隔离决策链路,验证完整链路: isolation 决策 → worktree 创建 → cwd 隔离
     /// </summary>
     private async Task<ToolResult> CreateDryRunAgentAsync(AgentCreateOptions options, CancellationToken cancellationToken)
     {
@@ -152,6 +150,29 @@ public partial class AgentToolHandlers
         Directory.CreateDirectory(stateDir);
 #pragma warning restore JCC9001
         var statePath = Path.Combine(stateDir, $"{agentId}.json");
+
+        var isolationMode = ResolveDryRunIsolationMode(options.Isolation);
+        string? worktreePath = null;
+        string? worktreeBranch = null;
+
+        if (isolationMode == AgentIsolationMode.Worktree && _worktreeManager is not null)
+        {
+            try
+            {
+                var wtSession = await _worktreeManager.CreateWorktreeForAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
+                if (wtSession is not null)
+                {
+                    worktreePath = wtSession.WorktreePath;
+                    worktreeBranch = wtSession.BranchName;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "dry_run worktree 创建失败,降级为 none 隔离");
+                isolationMode = AgentIsolationMode.None;
+            }
+        }
+
         var state = new DryRunAgentState
         {
             Id = agentId,
@@ -159,6 +180,9 @@ public partial class AgentToolHandlers
             Status = "running",
             StartedAt = now,
             Prompt = options.Prompt,
+            IsolationMode = isolationMode.ToValue(),
+            WorktreePath = worktreePath,
+            WorktreeBranch = worktreeBranch,
         };
 #pragma warning disable JCC9001
         await File.WriteAllTextAsync(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default), cancellationToken).ConfigureAwait(false);
@@ -168,9 +192,32 @@ public partial class AgentToolHandlers
         response.AppendLine($"Agent ID: {agentId}");
         response.AppendLine($"Description: {options.Description}");
         response.AppendLine($"Status: running");
+        response.AppendLine($"Isolation: {isolationMode.ToValue()}");
+        if (worktreePath is not null)
+        {
+            response.AppendLine($"WorktreePath: {worktreePath}");
+            response.AppendLine($"WorktreeBranch: {worktreeBranch}");
+        }
         response.AppendLine();
         response.AppendLine("Use agent_status to query status, agent_stop to stop, agent_get_messages to get messages.");
         return ToolResultBuilder.Success().WithText(response.ToString()).Build();
+    }
+
+    /// <summary>
+    /// 解析 dry_run 隔离模式 — 与 AgentForkMiddleware.ResolveTeammateIsolationMode 同逻辑
+    /// 优先级: 显式 isolation > WorktreeDecisionPolicy.Decide > None
+    /// </summary>
+    private AgentIsolationMode ResolveDryRunIsolationMode(string? explicitIsolation)
+    {
+        var explicitMode = AgentIsolationModeExtensions.FromValue(explicitIsolation);
+        if (explicitMode is not null)
+            return explicitMode.Value;
+
+        if (_worktreeDecisionPolicy is null || _worktreeManager is null)
+            return AgentIsolationMode.None;
+
+        var enableWorktree = _worktreeManager.IsWorktreeIsolationEnabled;
+        return _worktreeDecisionPolicy.Decide(enableWorktree, ExecutorVariant.Teammate);
     }
 
     /// <summary>
@@ -373,6 +420,12 @@ public partial class AgentToolHandlers
                     dryResponse.AppendLine($"Completed at: {dryState.CompletedAt.Value:yyyy-MM-dd HH:mm:ss}");
                 if (!string.IsNullOrEmpty(dryState.Prompt))
                     dryResponse.AppendLine($"Prompt: {dryState.Prompt}");
+                if (!string.IsNullOrEmpty(dryState.IsolationMode))
+                    dryResponse.AppendLine($"Isolation: {dryState.IsolationMode}");
+                if (!string.IsNullOrEmpty(dryState.WorktreePath))
+                    dryResponse.AppendLine($"WorktreePath: {dryState.WorktreePath}");
+                if (!string.IsNullOrEmpty(dryState.WorktreeBranch))
+                    dryResponse.AppendLine($"WorktreeBranch: {dryState.WorktreeBranch}");
                 return ToolResultBuilder.Success().WithText(dryResponse.ToString()).Build();
             }
 
@@ -1070,6 +1123,12 @@ public sealed class DryRunAgentState
     public DateTime? CompletedAt { get; set; }
     /// <summary>任务提示词</summary>
     public string? Prompt { get; set; }
+    /// <summary>隔离模式（none/worktree）— dry_run 也走决策链路</summary>
+    public string? IsolationMode { get; set; }
+    /// <summary>Worktree 路径 — 隔离模式为 worktree 时填充</summary>
+    public string? WorktreePath { get; set; }
+    /// <summary>Worktree 分支名 — 隔离模式为 worktree 时填充</summary>
+    public string? WorktreeBranch { get; set; }
 }
 
 /// <summary>

@@ -32,6 +32,7 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
     /// <param name="clock">可选时钟服务，缺省时使用系统时钟</param>
     /// <param name="fileOperationService">可选文件操作服务，用于构造生命周期守卫</param>
     /// <param name="gitRunner">可选 Git 命令执行器，用于守卫内的分支清理</param>
+    /// <param name="workflowConfig">可选工作流配置，从中读取 EnableWorktreeIsolation 全局开关</param>
     public AgentWorktreeManager(
         IAgentWorktreeService? worktreeService = null,
         IHookOrchestrator? hookOrchestrator = null,
@@ -39,13 +40,15 @@ public sealed partial class AgentWorktreeManager : ServiceEntity, IAgentWorktree
         bool enableWorktreeIsolation = false,
         IClockService? clock = null,
         IFileOperationService? fileOperationService = null,
-        IGitCommandRunner? gitRunner = null)
+        IGitCommandRunner? gitRunner = null,
+        WorkflowConfig? workflowConfig = null)
     {
         _worktreeService = worktreeService;
         _hookOrchestrator = hookOrchestrator;
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
-        _enableWorktreeIsolation = enableWorktreeIsolation && worktreeService != null;
+        var configEnabled = workflowConfig?.EnableWorktreeIsolation ?? enableWorktreeIsolation;
+        _enableWorktreeIsolation = configEnabled && worktreeService != null;
         _worktreeSessions = new ConcurrentDictionary<string, AgentWorktreeSession>();
         _lifecycleGuards = new ConcurrentDictionary<string, WorktreeLifecycleGuard>();
         _fileOperationService = fileOperationService;

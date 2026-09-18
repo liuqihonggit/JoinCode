@@ -1,4 +1,4 @@
-namespace McpToolDispatch;
+﻿namespace McpToolDispatch;
 
 /// <summary>
 /// GitHub Actions Run 工具 — gh run 子命令全套
@@ -105,8 +105,8 @@ public partial class GitHubToolHandlers
         var wantRefresh = refresh == true;
         // MCP 框架可能把缺失的 string? 参数传成空字符串,统一归一化为 null
         job_id = string.IsNullOrWhiteSpace(job_id) ? null : job_id;
-        var hasFilter = TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.All;
-        var markers = hasFilter ? GetFilterMarkers(filterLevel) : null;
+        var hasFilter = GitHubRunLogFilter.TryParseLogFilter(filter, out var filterLevel) && filterLevel != GitHubLogFilter.All;
+        var markers = hasFilter ? GitHubRunLogFilter.GetFilterMarkers(filterLevel) : null;
 
         // === expand=jobs: 列出 job 列表(不下载日志,轻量 API 调用) ===
         if (string.Equals(expand, "jobs", StringComparison.OrdinalIgnoreCase))
@@ -159,12 +159,12 @@ public partial class GitHubToolHandlers
                 if (sectionLines is null)
                     return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
 
-                var (secText, secHasMore) = SkipAndTruncate(sectionLines, maxLines, skip);
+                var (secText, secHasMore) = GitHubRunLogFilter.SkipAndTruncate(sectionLines, maxLines, skip);
                 if (secHasMore)
                     secText += GitHubRunLogHints.TruncatedHint;
-                if (HasNoStackTrace(secText))
+                if (GitHubRunLogFilter.HasNoStackTrace(secText))
                     secText += GitHubRunLogHints.NoStackTraceHint;
-                var secPrefix = BuildPrefix(run_id, $"步骤:{expandStep}/section:{sectionType}", filterLevel, sectionLines.Count);
+                var secPrefix = GitHubRunLogFilter.BuildPrefix(run_id, $"步骤:{expandStep}/section:{sectionType}", filterLevel, sectionLines.Count);
                 return Ok(secText, secPrefix);
             }
 
@@ -194,7 +194,7 @@ public partial class GitHubToolHandlers
                     return Ok($"未找到步骤 '{expandStep}'，可用步骤: {string.Join(", ", summary.SectionCounts.Keys)}");
 
                 var summaryText = secs
-                    .OrderBy(kvp => SectionOrder(kvp.Key))
+                    .OrderBy(kvp => GitHubRunLogFilter.SectionOrder(kvp.Key))
                     .Select(kvp => $"  {kvp.Key,-8} {kvp.Value,5} 行  (用 expand=step:{expandStep}/section:{kvp.Key} 查看)");
                 return Ok(string.Join('\n', summaryText) + GitHubRunLogHints.SectionHint, $"Run {run_id} 步骤:{expandStep} sections({secs.Count} 类):");
             }
@@ -1203,7 +1203,7 @@ public partial class GitHubToolHandlers
             matched.Add($"  L{lineNumber,5}  {StripLogTimestamp(line)}");
             if (matched.Count >= maxLines) break;
         }
-        var prefix = BuildPrefix(runId, scope, filterLevel, matched.Count);
+        var prefix = GitHubRunLogFilter.BuildPrefix(runId, scope, filterLevel, matched.Count);
         if (matched.Count == 0)
             return Ok(skipLines > 0 ? $"未匹配到更多日志行(已跳过 {skipLines} 行)" : "未匹配到任何日志行", prefix);
         var text = string.Join('\n', matched);
@@ -1211,129 +1211,9 @@ public partial class GitHubToolHandlers
         if (matched.Count >= maxLines)
             text += $"\n... [可能还有更多行，用 skip_lines={skipLines + maxLines} 续读]";
         if (hint is not null) text += hint;
-        if (HasNoStackTrace(text))
+        if (GitHubRunLogFilter.HasNoStackTrace(text))
             text += GitHubRunLogHints.NoStackTraceHint;
         return Ok(text, prefix);
-    }
-
-    /// <summary>
-    /// 跳过前 skipLines 行,再截断到 maxLines 行 — 返回 (结果文本, 是否还有更多行)
-    /// <para>截断提示包含 skip_lines 续读参数,LLM 可直接分页获取后续行</para>
-    /// </summary>
-    private static (string text, bool hasMore) SkipAndTruncate(IReadOnlyList<string> lines, int maxLines, int skipLines)
-    {
-        if (lines.Count == 0) return (string.Empty, false);
-        if (skipLines >= lines.Count)
-            return ($"已跳过全部 {lines.Count} 行(skip_lines={skipLines})，无更多日志。", false);
-
-        var take = Math.Min(lines.Count - skipLines, maxLines);
-        var sb = new StringBuilder(take * 80);
-        for (int i = skipLines; i < skipLines + take; i++)
-        {
-            sb.Append(lines[i]);
-            sb.Append('\n');
-        }
-        var hasMore = skipLines + take < lines.Count;
-        if (hasMore)
-        {
-            sb.Append($"... [共 {lines.Count} 行，显示第 {skipLines + 1}-{skipLines + take} 行。");
-            sb.Append($"用 skip_lines={skipLines + take} 续读后续行]");
-        }
-        return (sb.ToString(), hasMore);
-    }
-
-    /// <summary>
-    /// 对日志行列表应用标记过滤
-    /// </summary>
-    private static List<string> ApplyFilter(List<string> lines, FrozenSet<string>? markers)
-    {
-        if (markers is null) return lines;
-        return lines.Where(l => markers.Any(m => l.Contains(m, StringComparison.OrdinalIgnoreCase))).ToList();
-    }
-
-    /// <summary>
-    /// 构建结果前缀
-    /// </summary>
-    private static string BuildPrefix(string runId, string scope, GitHubLogFilter? filterLevel, int count)
-    {
-        var parts = new List<string> { scope };
-        if (filterLevel is { } fl) parts.Add($"过滤:{fl.ToValue()}");
-        return $"Run {runId} 日志({string.Join(", ", parts)},匹配 {count} 行):";
-    }
-
-    // === 排障提示词 — 引导用户逐步缩小范围(嵌入工具返回结果) ===
-
-    /// <summary>
-    /// GitHub Actions 日志过滤标记集 — 按 <see cref="GitHubLogFilter"/> 级别匹配 ##[error] / ##[warning] / ##[command]
-    /// </summary>
-    private static readonly FrozenSet<string> ErrorMarkers = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase, "##[error]");
-
-    private static readonly FrozenSet<string> WarningMarkers = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase, "##[error]", "##[warning]");
-
-    private static readonly FrozenSet<string> InfoMarkers = FrozenSet.Create(
-        StringComparer.OrdinalIgnoreCase, "##[error]", "##[warning]", "##[command]");
-
-    /// <summary>
-    /// 获取过滤级别对应的标记集
-    /// </summary>
-    private static FrozenSet<string> GetFilterMarkers(GitHubLogFilter filter) => filter switch
-    {
-        GitHubLogFilter.Error => ErrorMarkers,
-        GitHubLogFilter.Warning => WarningMarkers,
-        GitHubLogFilter.Info => InfoMarkers,
-        _ => ErrorMarkers,
-    };
-
-    /// <summary>
-    /// 解析日志过滤级别字符串为枚举 — 无效值返回 false(走常规模式)
-    /// </summary>
-    private static bool TryParseLogFilter(string? filter, out GitHubLogFilter result)
-    {
-        result = GitHubLogFilter.All;
-        if (string.IsNullOrWhiteSpace(filter)) return false;
-        var parsed = GitHubLogFilterExtensions.FromValue(filter);
-        if (parsed is null) return false;
-        result = parsed.Value;
-        return true;
-    }
-
-    /// <summary>
-    /// 检测日志文本是否只有 "Process completed with exit code N" 但缺少栈帧信息
-    /// <para>栈帧标记: "  at " / "Exception" / "StackTrace" / "   at " — 有任一即视为有栈帧</para>
-    /// </summary>
-    private static bool HasNoStackTrace(string text)
-    {
-        if (!text.Contains("Process completed with exit code", StringComparison.OrdinalIgnoreCase))
-            return false;
-        return !text.Contains("  at ", StringComparison.Ordinal)
-            && !text.Contains("Exception", StringComparison.OrdinalIgnoreCase)
-            && !text.Contains("StackTrace", StringComparison.OrdinalIgnoreCase)
-            && !text.Contains("stack trace", StringComparison.OrdinalIgnoreCase);
-    }
-
-    /// <summary>
-    /// Section 类型的排序优先级 — error 优先(排障首要),normal 最后
-    /// </summary>
-    private static int SectionOrder(string type) => type switch
-    {
-        RunLogCache.SectionError => 0,
-        RunLogCache.SectionWarning => 1,
-        RunLogCache.SectionCommand => 2,
-        RunLogCache.SectionGroup => 3,
-        RunLogCache.SectionNormal => 4,
-        _ => 5,
-    };
-
-    /// <summary>
-    /// 获取 section 的预览文本 — 第一行截断到 60 字符
-    /// </summary>
-    private static string GetSectionPreview(List<string> lines)
-    {
-        if (lines.Count == 0) return string.Empty;
-        var first = lines[0];
-        return first.Length <= 60 ? first : first[..60] + "...";
     }
 
     /// <summary>

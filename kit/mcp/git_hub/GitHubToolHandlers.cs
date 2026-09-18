@@ -12,11 +12,12 @@ namespace McpToolDispatch;
 [McpToolDispatch(ToolCategory.GitHub)]
 public partial class GitHubToolHandlers
 {
-    private readonly IGitHubApiClient? _apiClient;
+    internal readonly IGitHubApiClient? _apiClient;
     private readonly IGitCommandRunner? _git;
     private readonly IDownloader _downloader;
     private readonly IFileSystem _fs;
     private readonly ILogger<GitHubToolHandlers>? _logger;
+    private readonly GitHubRunLogFetcher _logFetcher;
 
     /// <summary>
     /// Run 日志缓存 — 用 MemoryCache.Default(系统内存压力自动释放)
@@ -71,6 +72,7 @@ public partial class GitHubToolHandlers
         _apiClient = apiClient;
         _git = git;
         _logger = logger;
+        _logFetcher = new GitHubRunLogFetcher(this);
     }
 
     // === 共用辅助方法 ===
@@ -108,7 +110,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 构建失败 ToolResult(直接错误消息)
     /// </summary>
-    private static ToolResult Fail(string message)
+    internal static ToolResult Fail(string message)
     {
         return ToolResultBuilder.Error().WithText(message).Build();
     }
@@ -116,7 +118,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 构建成功 ToolResult
     /// </summary>
-    private static ToolResult Ok(string output, string? prefix = null)
+    internal static ToolResult Ok(string output, string? prefix = null)
     {
         var text = string.IsNullOrEmpty(prefix) ? output : $"{prefix}\n{output}";
         return ToolResultBuilder.Success().WithText(text).Build();

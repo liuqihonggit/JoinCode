@@ -196,14 +196,12 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
         PulseNativeMethods.DeleteObject(hBrush);
 
         var hPen = PulseNativeMethods.CreatePen(NativeConstants.PS_SOLID, penWidth, lineColor);
-        var oldPen = PulseNativeMethods.SelectObject(hdc, hPen);
         var nullBrush = PulseNativeMethods.GetStockObject(NullBrush);
-        var oldBrush = PulseNativeMethods.SelectObject(hdc, nullBrush);
+        using var penScope = new GdiSelectScope(hdc, hPen);
+        using var brushScope = new GdiSelectScope(hdc, nullBrush);
 
         Gdi32NativeMethods.Rectangle(hdc, r.X, r.Y, r.X + r.Width, r.Y + r.Height);
 
-        PulseNativeMethods.SelectObject(hdc, oldPen);
-        PulseNativeMethods.SelectObject(hdc, oldBrush);
         PulseNativeMethods.DeleteObject(hPen);
     }
 
@@ -211,7 +209,7 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     private static void DrawSplitLines(IntPtr hdc, List<QuadtreeRect> parents, double progress)
     {
         var hPen = PulseNativeMethods.CreatePen(NativeConstants.PS_SOLID, 1, NormalLine);
-        var oldPen = PulseNativeMethods.SelectObject(hdc, hPen);
+        using var penScope = new GdiSelectScope(hdc, hPen);
 
         foreach (var p in parents)
         {
@@ -226,7 +224,6 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
             PulseNativeMethods.LineTo(hdc, cx, cy + halfH);
         }
 
-        PulseNativeMethods.SelectObject(hdc, oldPen);
         PulseNativeMethods.DeleteObject(hPen);
     }
 
@@ -234,14 +231,12 @@ internal sealed class QuadtreeSplitOverlay : IDisposable
     private static void DrawHighlight(IntPtr hdc, QuadtreeRect r)
     {
         var hPen = PulseNativeMethods.CreatePen(NativeConstants.PS_SOLID, 5, HighlightLine);
-        var oldPen = PulseNativeMethods.SelectObject(hdc, hPen);
         var nullBrush = PulseNativeMethods.GetStockObject(NullBrush);
-        var oldBrush = PulseNativeMethods.SelectObject(hdc, nullBrush);
+        using var penScope = new GdiSelectScope(hdc, hPen);
+        using var brushScope = new GdiSelectScope(hdc, nullBrush);
 
         Gdi32NativeMethods.Rectangle(hdc, r.X, r.Y, r.X + r.Width, r.Y + r.Height);
 
-        PulseNativeMethods.SelectObject(hdc, oldPen);
-        PulseNativeMethods.SelectObject(hdc, oldBrush);
         PulseNativeMethods.DeleteObject(hPen);
     }
 

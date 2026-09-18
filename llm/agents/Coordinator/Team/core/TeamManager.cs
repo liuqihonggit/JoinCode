@@ -11,6 +11,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private readonly TeamRegistry _registry = new();
     private readonly AsyncLock _lock = new();
     private readonly TeamMessageDispatcher _messageDispatcher;
+    private readonly TeammateStatusBuilder _teammateStatusBuilder;
     private readonly ITelemetryService? _telemetryService;
     private readonly ITeammateMailboxService? _mailboxService;
     private readonly MailboxHub? _mailboxHub;
@@ -51,6 +52,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _logger = logger;
         _messageDispatcher = new TeamMessageDispatcher(_registry, mailboxService, mailboxHub, _logger);
+        _teammateStatusBuilder = new TeammateStatusBuilder(_registry, () => ResolvedTeammateObserver);
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
         LoadState();
@@ -634,88 +636,27 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     }
 
     /// <summary>
-    /// 异步获取指定团队所有 Teammate 的状态，合并运行时观察器数据
+    /// 异步获取指定团队所有 Teammate 的状态 — 委托给 TeammateStatusBuilder
     /// </summary>
     /// <param name="teamId">团队标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>Teammate 状态只读列表</returns>
-    public async Task<IReadOnlyList<TeammateStatus>> GetTeammateStatusesAsync(
+    public Task<IReadOnlyList<TeammateStatus>> GetTeammateStatusesAsync(
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
-            return Array.Empty<TeammateStatus>();
-        }
-
-        var team = room.Info;
-        var memberDetails = room.MemberDetails;
-
-        var runningTeammates = ResolvedTeammateObserver is not null
-            ? await ResolvedTeammateObserver.GetRunningTeammatesAsync().ConfigureAwait(false)
-            : [];
-        var runningMap = runningTeammates.ToDictionary(t => t.Id);
-
-        var statuses = memberDetails.Values
-            .Select(md => BuildTeammateStatus(md, team, runningMap))
-            .ToList();
-
-        return statuses;
+        return _teammateStatusBuilder.GetTeammateStatusesAsync(teamId, cancellationToken);
     }
 
     /// <summary>
-    /// 异步获取所有团队的所有 Teammate 状态，合并运行时观察器数据
+    /// 异步获取所有团队的所有 Teammate 状态 — 委托给 TeammateStatusBuilder
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>所有 Teammate 状态只读列表</returns>
-    public async Task<IReadOnlyList<TeammateStatus>> GetAllTeammateStatusesAsync(
+    public Task<IReadOnlyList<TeammateStatus>> GetAllTeammateStatusesAsync(
         CancellationToken cancellationToken = default)
     {
-        var runningTeammates = ResolvedTeammateObserver is not null
-            ? await ResolvedTeammateObserver.GetRunningTeammatesAsync().ConfigureAwait(false)
-            : [];
-
-        var runningMap = runningTeammates.ToDictionary(t => t.Id);
-
-        var statuses = new List<TeammateStatus>();
-
-        foreach (var room in _registry.Rooms)
-        {
-            var team = room.Info;
-            var memberDetails = room.MemberDetails;
-
-            foreach (var md in memberDetails.Values)
-            {
-                statuses.Add(BuildTeammateStatus(md, team, runningMap));
-            }
-        }
-
-        return statuses;
-    }
-
-    private static TeammateStatus BuildTeammateStatus(
-        TeamMemberInfo memberInfo,
-        TeamInfo team,
-        Dictionary<string, TeammateInfo> runningMap)
-    {
-        runningMap.TryGetValue(memberInfo.AgentId, out var running);
-
-        return new TeammateStatus
-        {
-            AgentId = memberInfo.AgentId,
-            TeamId = team.TeamId,
-            TeamName = team.TeamName,
-            Role = memberInfo.Role,
-            ColorHex = memberInfo.Color ?? running?.ColorHex,
-            DisplayName = running?.DisplayName ?? memberInfo.AgentId,
-            Status = running?.State ?? AgentStatus.Pending,
-            IsActive = memberInfo.IsActive,
-            StartedAt = running?.StartedAt,
-            LastActivity = running?.LastActivity,
-            AgentType = running?.SpinnerVerb,
-            WorktreePath = null,
-            PermissionMode = null
-        };
+        return _teammateStatusBuilder.GetAllTeammateStatusesAsync(cancellationToken);
     }
 
     /// <summary>

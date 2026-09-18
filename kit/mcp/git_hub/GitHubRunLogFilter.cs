@@ -122,4 +122,19 @@ internal static class GitHubRunLogFilter
         if (filterLevel is { } fl) parts.Add($"过滤:{fl.ToValue()}");
         return $"Run {runId} 日志({string.Join(", ", parts)},匹配 {count} 行):";
     }
+
+    /// <summary>
+    /// 解析逗号分隔的 job IDs 字符串(如 "123,456")为 List{long}
+    /// </summary>
+    public static List<long> ParseJobIds(string? jobId)
+    {
+        if (string.IsNullOrWhiteSpace(jobId)) return [];
+        var result = new List<long>();
+        foreach (var part in jobId.Split(','))
+        {
+            if (long.TryParse(part.Trim(), out var id))
+                result.Add(id);
+        }
+        return result;
+    }
 }

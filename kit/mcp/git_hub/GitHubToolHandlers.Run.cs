@@ -226,20 +226,6 @@ public partial class GitHubToolHandlers
         return Ok(sb.ToString() + hint, $"Run {runId} job 列表({totalCount} 个,{failedCount} 个失败):");
     }
 
-    /// <summary>
-    /// 解析逗号分隔的 job IDs 字符串(如 "123,456")为 List{long}
-    /// </summary>
-    private static List<long> ParseJobIds(string? jobId)
-    {
-        if (string.IsNullOrWhiteSpace(jobId)) return [];
-        var result = new List<long>();
-        foreach (var part in jobId.Split(','))
-        {
-            if (long.TryParse(part.Trim(), out var id))
-                result.Add(id);
-        }
-        return result;
-    }
 
     /// <summary>
     /// 从 Level1 摘要缓存获取或流式拉取 — 三级缓存: MemoryCache → 文件级缓存(.jcc/gh_cache/) → 下载
@@ -312,7 +298,7 @@ public partial class GitHubToolHandlers
         var rawBuilder = new StringBuilder();
 
         // 解析 job_id 中的逗号分隔的多个值(如 "123,456")
-        var targetJobIds = ParseJobIds(jobId);
+        var targetJobIds = GitHubRunLogFilter.ParseJobIds(jobId);
         var parallelOk = targetJobIds.Count > 0
             && await TryDownloadJobsAsync(owner, repo, runId, targetJobIds, summary, sectionContents, rawBuilder, ct).ConfigureAwait(false);
         if (!parallelOk)

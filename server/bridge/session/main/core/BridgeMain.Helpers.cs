@@ -152,52 +152,6 @@ public sealed partial class BridgeMain
     /// ACK 工作项 — 对齐 TS 端 ackWork 闭包
     /// 使用 session_ingress_token 作为 Bearer 认证
     /// </summary>
-    private async Task AckWorkAsync(string workId, string sessionToken, CancellationToken ct)
-    {
-        try
-        {
-            await _deps.ApiClient.AcknowledgeWorkAsync(
-                EnvironmentId ?? throw new InvalidOperationException("EnvironmentId not set"), workId, sessionToken, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "BridgeMain: ACK failed for work {WorkId}", workId);
-        }
-    }
-
-    /// <summary>
-    /// 带重试的停止工作 — 对齐 TS 端 stopWorkWithRetry
-    /// 最多重试 3 次，指数退避
-    /// </summary>
-    private async Task StopWorkWithRetryAsync(string workId, CancellationToken ct, int baseDelayMs = 1000)
-    {
-        if (EnvironmentId is null) return;
-
-        for (var attempt = 0; attempt < 3; attempt++)
-        {
-            try
-            {
-                await _deps.ApiClient.StopWorkAsync(EnvironmentId, workId, ct).ConfigureAwait(false);
-                return;
-            }
-            catch (Exception ex)
-            {
-                if (attempt < 2)
-                {
-                    var delayMs = baseDelayMs * (1 << attempt);
-                    _logger?.LogDebug(ex,
-                        "BridgeMain: stopWork attempt {Attempt} failed for {WorkId}, retrying in {Delay}ms",
-                        attempt + 1, workId, delayMs);
-                    await Task.Delay(delayMs, ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    _logger?.LogDebug(ex, "BridgeMain: stopWork failed for {WorkId} after 3 attempts (non-fatal)", workId);
-                }
-            }
-        }
-    }
-
     /// <summary>
     /// 跟踪待清理任务 — 对齐 TS 端 trackCleanup
     /// 后台执行不阻塞主循环，定期清理已完成的任务
@@ -213,19 +167,6 @@ public sealed partial class BridgeMain
             using var guard = _cleanupLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cleanupLock.Name}' 等待超时");
                 _pendingCleanups.Remove(cleanupTask);
         }, TaskScheduler.Default);
-    }
-
-    private async Task SafeStopWorkAsync(string workId, CancellationToken ct)
-    {
-        if (EnvironmentId is null) return;
-        try
-        {
-            await _deps.ApiClient.StopWorkAsync(EnvironmentId, workId, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "BridgeMain: stopWork failed for {WorkId} (non-fatal)", workId);
-        }
     }
 
     /// <summary>

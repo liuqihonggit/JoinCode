@@ -12,6 +12,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private readonly AsyncLock _lock = new();
     private readonly TeamMessageDispatcher _messageDispatcher;
     private readonly TeammateStatusBuilder _teammateStatusBuilder;
+    private readonly ChatRoomViewBuilder _chatRoomViewBuilder;
     private readonly ITelemetryService? _telemetryService;
     private readonly ITeammateMailboxService? _mailboxService;
     private readonly MailboxHub? _mailboxHub;
@@ -53,6 +54,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _logger = logger;
         _messageDispatcher = new TeamMessageDispatcher(_registry, mailboxService, mailboxHub, _logger);
         _teammateStatusBuilder = new TeammateStatusBuilder(_registry, () => ResolvedTeammateObserver);
+        _chatRoomViewBuilder = new ChatRoomViewBuilder(_registry, _teammateStatusBuilder.GetTeammateStatusesAsync);
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
         LoadState();
@@ -660,58 +662,13 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     }
 
     /// <summary>
-    /// 获取聊天室信息 — 团队的聊天室视图，含房间 ID/成员角色/在线数/最后消息时间 — ADR 0109。
+    /// 获取聊天室信息 — 委托给 ChatRoomViewBuilder
     /// </summary>
-    public async Task<ChatRoomInfo?> GetChatRoomInfoAsync(
+    public Task<ChatRoomInfo?> GetChatRoomInfoAsync(
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_registry.TryGetRoom(teamId, out var room))
-            return null;
-
-        var team = room.Info;
-
-        var statuses = await GetTeammateStatusesAsync(teamId, cancellationToken).ConfigureAwait(false);
-        var members = statuses.Select(s => new ChatRoomMember
-        {
-            AgentId = s.AgentId,
-            DisplayName = s.DisplayName ?? s.AgentId,
-            Role = MapToChatRoomRole(s.Role, s.AgentId, team.LeadAgentId),
-            Status = MapToChatRoomMemberStatus(s),
-            JoinedAt = room.MemberDetails.TryGetValue(s.AgentId, out var md) ? md.JoinedAt : DateTime.UtcNow,
-        }).ToList();
-
-        var onlineCount = members.Count(m => m.Status == ChatRoomMemberStatus.Online);
-        DateTime? lastMessageAt = room.LastMessageAt;
-
-        return new ChatRoomInfo
-        {
-            ChatRoomId = team.TeamId,
-            RoomName = team.TeamName,
-            Members = members,
-            OnlineCount = onlineCount,
-            LastMessageAt = lastMessageAt,
-        };
-    }
-
-    private static ChatRoomRole MapToChatRoomRole(string? role, string agentId, string? leadAgentId)
-    {
-        if (agentId == leadAgentId) return ChatRoomRole.Owner;
-        return role switch
-        {
-            "admin" => ChatRoomRole.Admin,
-            _ => ChatRoomRole.Member,
-        };
-    }
-
-    private static ChatRoomMemberStatus MapToChatRoomMemberStatus(TeammateStatus s)
-    {
-        if (!s.IsActive) return ChatRoomMemberStatus.Offline;
-        return s.Status switch
-        {
-            AgentStatus.Running => ChatRoomMemberStatus.Online,
-            _ => ChatRoomMemberStatus.Offline,
-        };
+        return _chatRoomViewBuilder.GetChatRoomInfoAsync(teamId, cancellationToken);
     }
 
     /// <summary>

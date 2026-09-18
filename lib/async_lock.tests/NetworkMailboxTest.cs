@@ -26,6 +26,7 @@ public class NetworkMailboxTest
         await mailbox.StartAsync();
 
         await mailbox.RegisterAgentAsync("agent-1", "session-1");
+        await WaitForRegistrationAsync(mailbox, "agent-1");
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "agent-1", MessageType = "text", Content = "hello" };
 
         await mailbox.TellAsync("agent-1", msg);
@@ -43,6 +44,8 @@ public class NetworkMailboxTest
 
         await mailbox.RegisterAgentAsync("agent-1", "s1");
         await mailbox.RegisterAgentAsync("agent-2", "s1");
+        await WaitForRegistrationAsync(mailbox, "agent-1");
+        await WaitForRegistrationAsync(mailbox, "agent-2");
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "all", MessageType = "text", Content = "broadcast" };
 
         await mailbox.TellBroadcastAsync(msg, excludeAgentId: null);
@@ -60,6 +63,8 @@ public class NetworkMailboxTest
 
         await mailbox.RegisterAgentAsync("agent-1", "s1");
         await mailbox.RegisterAgentAsync("agent-2", "s1");
+        await WaitForRegistrationAsync(mailbox, "agent-1");
+        await WaitForRegistrationAsync(mailbox, "agent-2");
         var msg = new CoordinatorMessage { FromAgentId = "sender", ToAgentId = "all", MessageType = "text", Content = "broadcast" };
 
         await mailbox.TellBroadcastAsync(msg, excludeAgentId: "agent-1");
@@ -76,6 +81,7 @@ public class NetworkMailboxTest
         await mailbox.StartAsync();
 
         await mailbox.RegisterAgentAsync("agent-1", "s1");
+        await WaitForRegistrationAsync(mailbox, "agent-1");
 
         adapter.Deliver(new PlatformMessage("remote-user", "agent-1", "from-remote", DateTimeOffset.UtcNow));
 
@@ -83,6 +89,18 @@ public class NetworkMailboxTest
         received.Should().NotBeNull();
         received!.Content.Should().Be("from-remote");
         received.FromAgentId.Should().Be("remote-user");
+    }
+
+    /// <summary>
+    /// 等待 Agent 注册完成 — RegisterAgentAsync 是 Tell 模式(只入队不等 Consumer 处理),
+    /// 紧接的 ReceiveAsync 在 agent 未注册时返回空流导致 null。轮询 GetRegisteredAgents 确认注册完成。
+    /// 与 MailboxBaseTest.WaitForRegistrationAsync 保持同一模式。
+    /// </summary>
+    private static async Task WaitForRegistrationAsync(NetworkMailbox mailbox, string agentId, TimeSpan? timeout = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
+        while (DateTime.UtcNow < deadline && !mailbox.GetRegisteredAgents().Contains(agentId))
+            await Task.Delay(10);
     }
 
     [Fact]

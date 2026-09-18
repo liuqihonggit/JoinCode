@@ -47,7 +47,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 构建远程会话 URL — 对齐 TS 端 getRemoteSessionUrl
     /// </summary>
-    private static string BuildRemoteSessionUrl(string sessionId, BridgeConfig config)
+    internal static string BuildRemoteSessionUrl(string sessionId, BridgeConfig config)
     {
         var baseUrl = config.ApiBaseUrl ?? JccEndpoints.DefaultBridgeRemote;
         var trimmed = baseUrl.TrimEnd('/');
@@ -156,7 +156,7 @@ public sealed partial class BridgeMain
     /// 跟踪待清理任务 — 对齐 TS 端 trackCleanup
     /// 后台执行不阻塞主循环，定期清理已完成的任务
     /// </summary>
-    private void TrackCleanup(Task cleanupTask)
+    internal void TrackCleanup(Task cleanupTask)
     {
         using var guard = _cleanupLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cleanupLock.Name}' 等待超时");
             _pendingCleanups.Add(cleanupTask);
@@ -172,7 +172,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 确定子进程工作目录 — 对齐 TS 端: worktree/same-dir/session 模式
     /// </summary>
-    private string DetermineSpawnDir(BridgeConfig config, BridgeWorkItem work)
+    internal string DetermineSpawnDir(BridgeConfig config, BridgeWorkItem work)
     {
         return config.SpawnMode switch
         {
@@ -291,7 +291,7 @@ public sealed partial class BridgeMain
     /// 服务端标题（--name, web rename）优先: 如果 fetchSessionTitle 已标记 titledSessions 则跳过
     /// 否则派生标题 + 更新服务端 + 标记 titledSessions
     /// </summary>
-    private void OnFirstUserMessage(string sessionId, string text, BridgeConfig config)
+    internal void OnFirstUserMessage(string sessionId, string text, BridgeConfig config)
     {
         // 对齐 TS 端: if (titledSessions.has(compatSessionId)) return
         var compatId = GetCompatId(sessionId);
@@ -323,7 +323,7 @@ public sealed partial class BridgeMain
     /// 异步获取服务端会话标题 — 对齐 TS 端 fetchSessionTitle
     /// GET /v1/sessions/{id} → 提取 title → 设置本地显示 + 标记 titledSessions
     /// </summary>
-    private async Task FetchSessionTitleAsync(string sessionId, BridgeConfig config)
+    internal async Task FetchSessionTitleAsync(string sessionId, BridgeConfig config)
     {
         try
         {

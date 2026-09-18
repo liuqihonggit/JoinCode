@@ -44,41 +44,44 @@ public sealed partial class DiagnosticLogRecorder : ServiceEntity, IChatMiddlewa
 
         var entryWriter = new DiagnosticEntryWriter(_fs, logPath, _logger);
 
-        await entryWriter.WriteEntryAsync(new DiagnosticLogEntry
+        await using (entryWriter)
         {
-            EventType = "turn_start",
-            Timestamp = DateTimeOffset.UtcNow,
-            SessionId = sessionId,
-            Data = new Dictionary<string, string>
+            await entryWriter.WriteEntryAsync(new DiagnosticLogEntry
             {
-                ["message_length"] = context.Message.Length.ToString(),
-                ["conversation_turn"] = context.ConversationTurn.ToString(),
-            }
-        }, ct).ConfigureAwait(false);
+                EventType = "turn_start",
+                Timestamp = DateTimeOffset.UtcNow,
+                SessionId = sessionId,
+                Data = new Dictionary<string, string>
+                {
+                    ["message_length"] = context.Message.Length.ToString(),
+                    ["conversation_turn"] = context.ConversationTurn.ToString(),
+                }
+            }, ct).ConfigureAwait(false);
 
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
-            var entry = MapEventToEntry(evt, sessionId);
-            if (entry is not null)
+            await foreach (var evt in next(context, ct).ConfigureAwait(false))
             {
-                await entryWriter.WriteEntryAsync(entry, ct).ConfigureAwait(false);
+                var entry = MapEventToEntry(evt, sessionId);
+                if (entry is not null)
+                {
+                    await entryWriter.WriteEntryAsync(entry, ct).ConfigureAwait(false);
+                }
+
+                yield return evt;
             }
 
-            yield return evt;
+            await entryWriter.WriteEntryAsync(new DiagnosticLogEntry
+            {
+                EventType = "turn_end",
+                Timestamp = DateTimeOffset.UtcNow,
+                SessionId = sessionId,
+                Data = new Dictionary<string, string>
+                {
+                    ["total_tool_calls"] = context.TotalToolCalls.ToString(),
+                    ["loop_trigger_count"] = context.LoopTriggerCount.ToString(),
+                    ["total_ms"] = context.Timing.TotalMs.ToString(),
+                }
+            }, ct).ConfigureAwait(false);
         }
-
-        await entryWriter.WriteEntryAsync(new DiagnosticLogEntry
-        {
-            EventType = "turn_end",
-            Timestamp = DateTimeOffset.UtcNow,
-            SessionId = sessionId,
-            Data = new Dictionary<string, string>
-            {
-                ["total_tool_calls"] = context.TotalToolCalls.ToString(),
-                ["loop_trigger_count"] = context.LoopTriggerCount.ToString(),
-                ["total_ms"] = context.Timing.TotalMs.ToString(),
-            }
-        }, ct).ConfigureAwait(false);
     }
 
     private static DiagnosticLogEntry? MapEventToEntry(ChatStreamEvent evt, string sessionId)
@@ -188,38 +191,34 @@ public sealed record DiagnosticLogEntry
 /// <summary>
 /// 诊断条目写入器 — 负责将 DiagnosticLogEntry 序列化并追加到 JSONL 文件
 /// </summary>
-internal sealed class DiagnosticEntryWriter
+internal sealed class DiagnosticEntryWriter : IAsyncDisposable
 {
     private readonly IFileSystem _fs;
     private readonly string _logPath;
     private readonly ILogger? _logger;
-    private readonly AsyncLock _lock = new();
+    private readonly WriteEntryActor _actor;
 
     public DiagnosticEntryWriter(IFileSystem fs, string logPath, ILogger? logger)
     {
         _fs = fs;
         _logPath = logPath;
         _logger = logger;
+        _actor = new WriteEntryActor(fs, logPath, logger);
     }
 
     public async Task WriteEntryAsync(DiagnosticLogEntry entry, CancellationToken ct)
     {
-        try
-        {
-            var anomalyFlag = entry.IsAnomaly ? ",\"anomaly\":true" : "";
-            var dataProps = string.Join(",", entry.Data.Select(kv => $"\"{kv.Key}\":\"{EscapeJsonString(kv.Value)}\""));
-            var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\",\"trace\":\"{entry.TraceId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
+        var anomalyFlag = entry.IsAnomaly ? ",\"anomaly\":true" : "";
+        var dataProps = string.Join(",", entry.Data.Select(kv => $"\"{kv.Key}\":\"{EscapeJsonString(kv.Value)}\""));
+        var line = $"{{\"ts\":\"{entry.Timestamp:O}\",\"event\":\"{entry.EventType}\",\"session\":\"{entry.SessionId}\",\"trace\":\"{entry.TraceId}\"{anomalyFlag},\"data\":{{{dataProps}}}}}";
 
-            using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
-            await _fs.AppendAllTextAsync(_logPath, line + "\n", ct).ConfigureAwait(false);
-
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[DiagnosticLogRecorder] 写入诊断日志失败: {Path}", _logPath);
-        }
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new WriteEntryCmd(line, reply), ct).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
     }
+
+    public async ValueTask DisposeAsync()
+        => await _actor.DisposeAsync().ConfigureAwait(false);
 
     private static string EscapeJsonString(string value)
     {
@@ -229,5 +228,37 @@ internal sealed class DiagnosticEntryWriter
             .Replace("\n", "\\n")
             .Replace("\r", "\\r")
             .Replace("\t", "\\t");
+    }
+
+    private sealed record WriteEntryCmd(string Line, TaskCompletionSource Reply);
+
+    private sealed class WriteEntryActor : ActorBase<WriteEntryCmd, Unit>
+    {
+        private readonly IFileSystem _fs;
+        private readonly string _logPath;
+        private readonly ILogger? _logger;
+
+        public WriteEntryActor(IFileSystem fs, string logPath, ILogger? logger) : base()
+        {
+            _fs = fs;
+            _logPath = logPath;
+            _logger = logger;
+        }
+
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(WriteEntryCmd cmd, CancellationToken ct)
+        {
+            try
+            {
+                await _fs.AppendAllTextAsync(_logPath, cmd.Line + "\n", ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[DiagnosticLogRecorder] 写入诊断日志失败: {Path}", _logPath);
+            }
+            cmd.Reply.SetResult();
+        }
     }
 }

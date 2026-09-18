@@ -28,4 +28,7 @@ public sealed class AgentRegistryInfo
 
     /// <summary>进程是否存活（基于心跳判断）</summary>
     public bool IsAlive => DateTimeOffset.UtcNow - LastHeartbeat < TimeSpan.FromSeconds(30);
+
+    /// <summary>投影为 AgentCoreIdentity（Role 从 string 转换为枚举）</summary>
+    public AgentCoreIdentity ToIdentity() => new(AgentId, DisplayName, Role is not null && Enum.TryParse<AgentRole>(Role, out var role) ? role : null);
 }

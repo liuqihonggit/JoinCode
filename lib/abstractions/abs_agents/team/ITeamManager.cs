@@ -19,6 +19,12 @@ public sealed record TeammateStatus
     public DateTime? StartedAt { get; init; }
     public string? LastActivity { get; init; }
     public bool IsActive { get; init; } = true;
+
+    /// <summary>投影为 AgentCoreIdentity（Role 从 string 转换为枚举）</summary>
+    public AgentCoreIdentity ToIdentity() => new(AgentId, DisplayName, Role is not null && Enum.TryParse<AgentRole>(Role, out var role) ? role : null);
+
+    /// <summary>投影为 TeamIdentity</summary>
+    public TeamIdentity ToTeamIdentity() => new(TeamId, TeamName);
 }
 
 /// <summary>

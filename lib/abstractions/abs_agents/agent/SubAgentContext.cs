@@ -63,4 +63,7 @@ public sealed class SubAgentContext
     {
         return _current.Value?.CwdOverride ?? fallbackCwd ?? Environment.CurrentDirectory;
     }
+
+    /// <summary>投影为 AgentCoreIdentity</summary>
+    public AgentCoreIdentity ToIdentity() => new(AgentId, DisplayName, Role, Variant);
 }

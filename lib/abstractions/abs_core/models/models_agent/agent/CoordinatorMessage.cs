@@ -36,4 +36,7 @@ public sealed class CoordinatorMessage
 
     /// <summary>消息可见性 — 控制跨通道路由范围，对标 QQ 系统消息/私信/撤回 — ADR 0111 决策8。</summary>
     public MessageVisibility Visibility { get; init; } = MessageVisibility.Public;
+
+    /// <summary>投影为 MessageEndpoints</summary>
+    public MessageEndpoints ToEndpoints() => new(FromAgentId, ToAgentId);
 }

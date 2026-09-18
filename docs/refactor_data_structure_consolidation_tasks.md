@@ -129,9 +129,9 @@
 - Engine 提取 `ReasoningBudget`(4字段→小类,12→9字段);Builder 拆分跳过(临时存储无收益)
 - **状态**:✅ `cc25a82f7`(Reasoning 272测试通过)
 
-### [P1-10] StreamReader/Writer(stream, Encoding.UTF8) — ~40 处
-- 提取 `StreamTextScope` 扩展方法 `AsUtf8Reader()`/`ReadAllTextUtf8()`
-- **状态**:⏳ 待做
+### [P1-10] StreamReader/Writer(stream, Encoding.UTF8) — ~40 处 ✅ 已完成
+- 提取 `StreamTextScope` 扩展方法 `AsUtf8Reader()`/`AsUtf8Writer()`,15处统一替换
+- **状态**:✅ `140ed34e0`(Mcp 215测试通过)
 
 ### [P1-11] SystemActuatorCommandContext — 20 字段 + 3 个 Timer
 - 拆 `CommandSpec`/`ProcessLifecycle`/`CommandRuntimeState` + 提取 `ThreadSafeTimerField`

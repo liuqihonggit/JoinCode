@@ -105,7 +105,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     continue;
                 }
 
-                using var reader = new StreamReader(ctx.Request.InputStream, Encoding.UTF8);
+                using var reader = ctx.Request.InputStream.AsUtf8Reader();
                 var body = await reader.ReadToEndAsync(ct).ConfigureAwait(true);
 
                 var captured = new CapturedRequest

@@ -45,7 +45,7 @@ public class ResponsesQueryService : QueryServiceBase
         ExtractRateLimitHeaders(response);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using var reader = stream.AsUtf8Reader();
 
         var toolCallAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
         var reasoningAccumulator = new StringBuilder();
@@ -204,7 +204,7 @@ public class ResponsesQueryService : QueryServiceBase
             secondResponse.EnsureSuccessStatusCode();
             ExtractRateLimitHeaders(secondResponse);
             var secondStream = await secondResponse.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using var secondReader = new StreamReader(secondStream, Encoding.UTF8);
+            using var secondReader = secondStream.AsUtf8Reader();
             var secondAccumulator = new Dictionary<int, (string Id, string Name, StringBuilder Arguments)>();
             string? secondCurrentEvent = null;
             string? sLine;

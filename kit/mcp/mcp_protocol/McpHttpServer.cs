@@ -199,7 +199,7 @@ public sealed class McpHttpServer : ServiceEntity
         _server.NotificationReceived += OnNotification;
         try
         {
-            using var writer = new StreamWriter(ctx.Response.OutputStream, Encoding.UTF8);
+            using var writer = ctx.Response.OutputStream.AsUtf8Writer();
             writer.AutoFlush = true;
             await writer.WriteLineAsync("retry: 3000").ConfigureAwait(false);
             await writer.FlushAsync(ct).ConfigureAwait(false);
@@ -260,7 +260,7 @@ public sealed class McpHttpServer : ServiceEntity
 
     private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request, CancellationToken ct)
     {
-        using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
+        using var reader = request.InputStream.AsUtf8Reader();
         return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
     }
 

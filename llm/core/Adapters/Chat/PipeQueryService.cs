@@ -180,7 +180,7 @@ public sealed partial class PipeQueryService : IQueryService
         response.EnsureSuccessStatusCode();
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using var reader = stream.AsUtf8Reader();
 
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken)) != null)

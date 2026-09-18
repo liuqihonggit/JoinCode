@@ -546,7 +546,7 @@ public class OpenAIQueryService : QueryServiceBase
         Logger?.LogDebug("[WIRE {CallId}] POST {Endpoint} → {StatusCode}", CallTrace.CurrentId, endpoint, response.StatusCode);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using var reader = stream.AsUtf8Reader();
 
         var chunkCount = 0;
         var contentChunks = 0;

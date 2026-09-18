@@ -159,7 +159,7 @@ public sealed class InMemoryFileSystem : IFileSystem
             {
                 // 对齐 File.ReadAllText: 使用 StreamReader 自动检测编码并跳过 BOM
                 using var ms = new MemoryStream(file.ByteContent);
-                using var reader = new StreamReader(ms, System.Text.Encoding.UTF8);
+                using var reader = ms.AsUtf8Reader();
                 return reader.ReadToEnd();
             }
             return string.Empty;

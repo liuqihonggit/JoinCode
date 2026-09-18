@@ -716,7 +716,7 @@ public sealed class AnthropicQueryService : QueryServiceBase
         ExtractRateLimitHeaders(response);
 
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using var reader = stream.AsUtf8Reader();
 
         var messageId = string.Empty;
         var modelName = string.Empty;

@@ -78,9 +78,10 @@
 - FileToolHandlers 按子领域二次聚合 `FileEditDeps`/`LspDeps` ✅ `913f95084`
 - **状态**:✅ 全部完成
 
-### [P2-6] ID 字段合并·10 处 3-4 ID 字段
+### [P2-6] ID 字段合并·10 处 3-4 ID 字段 ⏭️ 跳过
 - ChatStreamEvent/TeammateContext/CrashExecutionContext/SubagentStopHookContext/AgentState+StateDocuments/TaskState+StateDocuments/TeamContext/ReconnectTeammateEntry/AgentCompletedEventArgs/AgentMetadata
-- **状态**:⏳ 待做
+- P1-2 已覆盖 6 处;剩余 4 处中 6 个类不满足 3+ ID 条件;3 个候选(CrashExecutionContext/TaskState/TeamContext)经评估:CrashExecutionContext 使用频率低(字段打包无收益),TeamContext 164处引用代价过大,TaskState 镜像对同步复杂
+- **状态**:⏭️ 跳过(P1-2 已覆盖核心场景,剩余提取收益/风险比不好)
 
 ---
 

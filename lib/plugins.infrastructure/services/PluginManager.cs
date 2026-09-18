@@ -22,14 +22,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private IPluginCommandRegistry? _pluginCommandRegistry;
     private IPluginAgentLoader? _pluginAgentLoader;
 
-    /// <summary>每个插件的撤销链 — Consumer 线程独占,无需并发容器</summary>
-    private readonly Dictionary<string, List<Action>> _pluginUndoChain = new();
-
-    /// <summary>每个插件的异步撤销链 — Consumer 线程独占</summary>
-    private readonly Dictionary<string, List<IAsyncDisposable>> _pluginAsyncUndoChain = new();
-
-    /// <summary>插件加载顺序 — Consumer 线程独占,无需锁(ADR 0098 Actor 串行化)</summary>
-    private readonly List<string> _loadOrder = new();
+    /// <summary>插件生命周期跟踪器 — 撤销链+加载顺序（Consumer 线程独占）</summary>
+    private readonly PluginLifecycleTracker _lifecycleTracker;
 
     /// <summary>每个插件的资源 ObjectId 列表 — 卸载后用于扫描验证</summary>
     private readonly ConcurrentDictionary<string, List<ObjectId>> _pluginResourceIds = new();
@@ -102,6 +96,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         _logger = logger;
         _serviceProvider = serviceProvider;
         _telemetryService = telemetryService;
+        _lifecycleTracker = new PluginLifecycleTracker(logger, ReportDiagnostic);
     }
 
     private IPluginHotReloader? HotReloader => _hotReloader ??= _serviceProvider?.GetService<IPluginHotReloader>();
@@ -206,12 +201,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 undoChain.Add(undo);
             }
 
-            _pluginUndoChain[pluginName] = undoChain;
-            if (host.Context is not null)
-            {
-                _pluginAsyncUndoChain[pluginName] = host.Context.GetAsyncUndoChain().ToList();
-            }
-            AddToLoadOrder(pluginName);
+            _lifecycleTracker.RegisterUndoChain(pluginName, undoChain, host.Context?.GetAsyncUndoChain().ToList());
+            _lifecycleTracker.AddToLoadOrder(pluginName);
 
             if (plugin is WorkflowPluginBase pluginBase)
             {
@@ -345,7 +336,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
-            _loadOrder.Add(pluginName);
+            _lifecycleTracker.AddToLoadOrder(pluginName);
             RecordPluginMetrics("native", "load", true);
             _logger?.LogInformation("Native 插件 {PluginName} 已加载", pluginName);
             PluginLoaded?.Invoke(this, pluginName);
@@ -613,7 +604,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
 
         // 最后按加载顺序逆序卸载 workflow
-        List<string> workflowPluginNames = GetLoadOrderReversed();
+        List<string> workflowPluginNames = _lifecycleTracker.GetLoadOrderReversed();
 
         foreach (var pluginName in workflowPluginNames)
         {
@@ -629,67 +620,13 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         return results;
     }
 
-    /// <summary>记录插件加载顺序 — Consumer 线程独占,无需锁</summary>
-    private void AddToLoadOrder(string pluginName) => _loadOrder.Add(pluginName);
-
-    /// <summary>从加载顺序中移除插件 — Consumer 线程独占,无需锁</summary>
-    private void RemoveFromLoadOrder(string pluginName) => _loadOrder.Remove(pluginName);
-
-    /// <summary>获取加载顺序的逆序副本 — Consumer 线程独占,无需锁</summary>
-    private List<string> GetLoadOrderReversed()
-    {
-        var list = _loadOrder.ToList();
-        list.Reverse();
-        return list;
-    }
-
-    /// <summary>执行插件撤销链 — 按逆序执行所有撤销函数(Cordis Effect 系统)</summary>
+    /// <summary>执行插件撤销链 — 委托给生命周期跟踪器</summary>
     private void ExecutePluginUndoChain(string pluginName)
-    {
-        if (_pluginUndoChain.Remove(pluginName, out var undoChain))
-        {
-            for (int i = undoChain.Count - 1; i >= 0; i--)
-            {
-                try { undoChain[i](); }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "插件 {PluginName} 撤销链第 {Index} 项执行失败", pluginName, i);
-                    ReportDiagnostic(new PluginDiagnostic
-                    {
-                        PluginId = pluginName,
-                        Kind = PluginDiagnosticKind.RevertFailed,
-                        Message = $"撤销链第 {i} 项执行失败: {ex.Message}",
-                        Suggestion = "检查副作用撤销操作是否正确处理了已释放的资源"
-                    });
-                }
-            }
-        }
+        => _lifecycleTracker.ExecuteUndoChain(pluginName);
 
-        RemoveFromLoadOrder(pluginName);
-    }
-
-    /// <summary>执行插件异步撤销链 — 按逆序 await DisposeAsync(在同步撤销链之前执行)</summary>
-    private async Task ExecutePluginAsyncUndoChainAsync(string pluginName, CancellationToken ct)
-    {
-        if (_pluginAsyncUndoChain.Remove(pluginName, out var chain))
-        {
-            for (int i = chain.Count - 1; i >= 0; i--)
-            {
-                try { await chain[i].DisposeAsync().ConfigureAwait(false); }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "插件 {PluginName} async 撤销链第 {Index} 项失败", pluginName, i);
-                    ReportDiagnostic(new PluginDiagnostic
-                    {
-                        PluginId = pluginName,
-                        Kind = PluginDiagnosticKind.RevertFailed,
-                        Message = $"异步撤销链第 {i} 项失败: {ex.Message}",
-                        Suggestion = "检查 IAsyncDisposable.DisposeAsync 是否正确处理了已释放的资源"
-                    });
-                }
-            }
-        }
-    }
+    /// <summary>执行插件异步撤销链 — 委托给生命周期跟踪器</summary>
+    private Task ExecutePluginAsyncUndoChainAsync(string pluginName, CancellationToken ct)
+        => _lifecycleTracker.ExecuteAsyncUndoChainAsync(pluginName, ct);
 
     /// <summary>
     /// 连带卸载依赖方 — 对齐 Cordis Theorem 63:
@@ -1020,7 +957,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
 
         // 最后按加载顺序逆序清理 workflow
-        var workflowPluginNames = GetLoadOrderReversed();
+        var workflowPluginNames = _lifecycleTracker.GetLoadOrderReversed();
         foreach (var pluginName in workflowPluginNames)
         {
             if (_plugins.TryRemove(pluginName, out var host) && host is WorkflowPluginHost workflowHost)

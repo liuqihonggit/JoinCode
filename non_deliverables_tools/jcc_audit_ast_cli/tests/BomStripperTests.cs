@@ -217,6 +217,32 @@ public sealed class BomStripperTests
     }
 
     [Fact]
+    public void Strip_SkipsNugetDirectory()
+    {
+        var dir = CreateTempDir();
+        try
+        {
+            var srcPath = Path.Combine(dir, "Src.cs");
+            var nugetDir = Path.Combine(dir, ".nuget", "packages", "SomePkg");
+            Directory.CreateDirectory(nugetDir);
+            var nugetPath = Path.Combine(nugetDir, "PkgFile.cs");
+            WriteCsFile(srcPath, "namespace A;", withBom: true);
+            WriteCsFile(nugetPath, "namespace B;", withBom: true);
+
+            var report = BomStripper.Strip(dir);
+
+            report.StrippedCount.Should().Be(1);
+            report.SkippedFiles.Should().Be(1);
+            BomStripper.HasUtf8Bom(srcPath).Should().BeFalse();
+            BomStripper.HasUtf8Bom(nugetPath).Should().BeTrue();
+        }
+        finally
+        {
+            Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
     public void Strip_NonExistentDirectory_ThrowsArgumentException()
     {
         var nonExistent = Path.Combine(Path.GetTempPath(), "DefinitelyDoesNotExist_" + Guid.NewGuid().ToString("N"));

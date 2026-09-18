@@ -120,20 +120,7 @@ public static class ErrorConsole
 
     private static void Colored(string text, System.ConsoleColor color)
     {
-        if (TerminalHelper.NoColor)
-        {
-            TerminalHelper.WriteErrorRaw(text);
-            return;
-        }
-        var prev = TerminalHelper.ForegroundColor;
-        try
-        {
-            TerminalHelper.ForegroundColor = color;
-            TerminalHelper.WriteErrorRaw(text);
-        }
-        finally
-        {
-            TerminalHelper.ForegroundColor = prev;
-        }
+        using var _ = TerminalHelper.SetColorRaw(color);
+        TerminalHelper.WriteErrorRaw(text);
     }
 }

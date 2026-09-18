@@ -300,6 +300,29 @@ public static class TerminalHelper
     /// <returns>颜色作用域，Dispose 时恢复原色</returns>
     public static IDisposable SetColor(ConsoleColor color) => _noColor ? NoOpDisposable.Instance : new ColorScope(color, _consoleActor);
 
+    /// <summary>
+    /// 设置前景色并返回作用域(不通过 ConsoleActor) — 专用于 stderr 错误输出,直接操作 Console.ForegroundColor
+    /// </summary>
+    public static IDisposable SetColorRaw(ConsoleColor color) => _noColor ? NoOpDisposable.Instance : new RawColorScope(color);
+
+    private sealed class RawColorScope : IDisposable
+    {
+        private readonly ConsoleColor _prev;
+        private bool _disposed;
+
+        public RawColorScope(ConsoleColor color)
+        {
+            _prev = System.Console.ForegroundColor;
+            System.Console.ForegroundColor = color;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return; _disposed = true;
+            System.Console.ForegroundColor = _prev;
+        }
+    }
+
     private sealed class ColorScope : IDisposable
     {
         private readonly ConsoleColor _prev;

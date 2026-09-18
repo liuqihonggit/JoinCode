@@ -55,24 +55,19 @@ public sealed class CliOutputContract
         }
         else
         {
-            var prev = TerminalHelper.ForegroundColor;
-            try
+            using (TerminalHelper.SetColorRaw(ConsoleColor.Red))
             {
-                TerminalHelper.ForegroundColor = ConsoleColor.Red;
                 TerminalHelper.WriteErrorRaw($"  ✖ [{error.Code}] {error.Message}");
                 TerminalHelper.WriteError();
-            }
-            finally
-            {
-                TerminalHelper.ForegroundColor = prev;
             }
 
             if (!string.IsNullOrEmpty(error.Hint))
             {
-                TerminalHelper.ForegroundColor = ConsoleColor.Cyan;
-                TerminalHelper.WriteErrorRaw($"  💡 {error.Hint}");
-                TerminalHelper.WriteError();
-                TerminalHelper.ForegroundColor = prev;
+                using (TerminalHelper.SetColorRaw(ConsoleColor.Cyan))
+                {
+                    TerminalHelper.WriteErrorRaw($"  💡 {error.Hint}");
+                    TerminalHelper.WriteError();
+                }
             }
         }
     }

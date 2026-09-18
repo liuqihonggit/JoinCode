@@ -91,8 +91,7 @@ public class NamedPipeFactoryTest
         var data = Encoding.UTF8.GetBytes("client-never-reads-this");
         var writeTask = server.WriteAsync(data).AsTask();
 
-        var completed = await Task.WhenAny(writeTask, Task.Delay(TimeSpan.FromSeconds(2)));
-        completed.Should().Be(writeTask, "缓冲区足够大(64KB),服务端写入不应阻塞即使客户端不读");
+        await writeTask.WaitAsync(TimeSpan.FromSeconds(2));
 
         await server.FlushAsync();
     }

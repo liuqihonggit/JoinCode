@@ -73,7 +73,7 @@ public class GlobalBuildQueueTest
         var tcs = new TaskCompletionSource();
         await using var queue = new GlobalBuildQueue(async (req, ct) =>
         {
-            await tcs.Task.ConfigureAwait(false);
+            await tcs.Task;
             return new GlobalBuildResult
             {
                 RequestId = req.RequestId,

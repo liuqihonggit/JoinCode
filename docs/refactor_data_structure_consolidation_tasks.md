@@ -153,9 +153,9 @@
 - BridgeMain 拆 5 个内聚类;AgentServiceImpl 拆 `AgentRuntimeState` + 依赖组
 - **状态**:⏳ 待做
 
-### [P0-4] GDI SelectObject 恢复模式 — 7 处重复
-- 提取 `GdiSelectScope` IDisposable 结构
-- **状态**:⏳ 待做
+### [P0-4] GDI SelectObject 恢复模式 — 7 处重复 ✅ 已完成
+- 提取 `GdiSelectScope` IDisposable 类,6/7处替换(GdiScreenCaptureService finally块模式跳过)
+- **状态**:✅ `f644fad`(ToolHandlers 482测试通过)
 
 ### [P0-5] MSBuildWorkspace.Create + FileStream + FileShare.ReadWrite
 - 提取 `MsBuildWorkspaceScope.Enter()` + `SafeFileScope.OpenRead/OpenWrite/OpenAppend`

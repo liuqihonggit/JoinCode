@@ -71,39 +71,10 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
         }
         else
         {
-            var defaultBranch = await _worktreeService.Value.GetDefaultBranchAsync(gitRoot).ConfigureAwait(false);
-            if (defaultBranch is not null)
-            {
-                var originRef = $"origin/{defaultBranch}";
-                var originSha = await _worktreeService.Value.ResolveRefAsync(gitRoot, originRef).ConfigureAwait(false);
-
-                if (originSha is not null)
-                {
-                    context.BaseBranch = originRef;
-                    context.BaseCommitSha = originSha;
-                    _logger?.LogDebug("本地已有 origin ref，跳过 fetch: {Ref} -> {Sha}", originRef, originSha);
-                }
-                else
-                {
-                    var fetchResult = await _worktreeService.Value.ExecuteGitCommandAsync(
-                        gitRoot, $"fetch origin {defaultBranch}", ct).ConfigureAwait(false);
-
-                    if (fetchResult.Success)
-                    {
-                        context.BaseBranch = originRef;
-                        var fetchedSha = await _worktreeService.Value.ResolveRefAsync(gitRoot, originRef).ConfigureAwait(false);
-                        if (fetchedSha is not null)
-                        {
-                            context.BaseCommitSha = fetchedSha;
-                        }
-                    }
-                    else
-                    {
-                        context.BaseBranch = "HEAD";
-                        _logger?.LogDebug("fetch origin {Branch} 失败，回退到 HEAD: {Error}", defaultBranch, fetchResult.Error);
-                    }
-                }
-            }
+            // 未指定 BaseBranch/PrNumber 时,基于当前 HEAD 创建子 worktree(而非 origin/main)
+            // 理由:子代理隔离应在当前 worktree 的代码基础上工作,不从 main 创建(代码可能不同)
+            context.BaseBranch = "HEAD";
+            _logger?.LogInformation("未指定 BaseBranch,基于当前 HEAD 创建子 worktree (不 fetch origin/main)");
         }
 
         await next(context, ct).ConfigureAwait(false);

@@ -39,6 +39,9 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
         var gitRoot = context.GitRoot;
         var worktreePath = context.WorktreePath;
 
+        _logger?.LogInformation("ConfigMiddleware 开始: GitRoot={GitRoot}, WorktreePath={WorktreePath}, ConfigFilesToCopy={Count}",
+            gitRoot, worktreePath, opts.ConfigFilesToCopy?.Count ?? 0);
+
         await CopyConfigFilesAsync(gitRoot, worktreePath, opts).ConfigureAwait(false);
         await CopyWorktreeIncludeFilesAsync(gitRoot, worktreePath, ct).ConfigureAwait(false);
         await ConfigureWorktreeHooksPathAsync(gitRoot, worktreePath, ct).ConfigureAwait(false);
@@ -55,8 +58,12 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
     {
         if (options.ConfigFilesToCopy is not { Count: > 0 })
         {
+            _logger?.LogWarning("ConfigFilesToCopy 为空或 null,跳过配置文件复制");
             return;
         }
+
+        _logger?.LogInformation("复制配置文件: GitRoot={GitRoot}, WorktreePath={WorktreePath}, 文件列表=[{Files}]",
+            gitRoot, worktreePath, string.Join(", ", options.ConfigFilesToCopy));
 
         foreach (var relativePath in options.ConfigFilesToCopy)
         {
@@ -65,8 +72,12 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
                 var sourcePath = _fs.CombinePath(gitRoot, relativePath);
                 var destPath = _fs.CombinePath(worktreePath, relativePath);
 
+                _logger?.LogDebug("配置文件路径: Source={Source}, Dest={Dest}, SourceExists={Exists}",
+                    sourcePath, destPath, _fs.FileExists(sourcePath));
+
                 if (!_fs.FileExists(sourcePath))
                 {
+                    _logger?.LogWarning("源配置文件不存在,跳过: {Source}", sourcePath);
                     continue;
                 }
 

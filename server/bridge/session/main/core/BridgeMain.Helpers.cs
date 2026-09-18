@@ -17,7 +17,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 从 gitRepoUrl 提取仓库名 — 对齐 TS 端 parseGitHubRepository + basename 回退
     /// </summary>
-    private static string ExtractRepoName(string? gitRepoUrl, string workingDirectory)
+    internal static string ExtractRepoName(string? gitRepoUrl, string workingDirectory)
     {
         if (gitRepoUrl is not null)
         {
@@ -58,7 +58,7 @@ public sealed partial class BridgeMain
     /// 更新状态显示 — 对齐 TS 端 updateStatusDisplay
     /// 每秒推送会话计数、每个会话的耗时/活动/工具轨迹到 logger
     /// </summary>
-    private void UpdateStatusDisplay(BridgeConfig config)
+    internal void UpdateStatusDisplay(BridgeConfig config)
     {
         try
         {
@@ -103,7 +103,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 后台刷新 v2 会话 — 对齐 TS 端 reconnectSession 双 ID 尝试
     /// </summary>
-    private void ReconnectV2SessionFireAndForget(string sessionId)
+    internal void ReconnectV2SessionFireAndForget(string sessionId)
     {
         if (EnvironmentId is null || _deps.ReconnectSession is null) return;
         _ = Task.Run(async () =>
@@ -131,7 +131,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 后台更新 v1 会话 OAuth token — best-effort, 失败仅记日志
     /// </summary>
-    private void UpdateV1SessionTokenFireAndForget(string sessionId, string oauthToken)
+    internal void UpdateV1SessionTokenFireAndForget(string sessionId, string oauthToken)
     {
         var handle = _tracker.Sessions.GetHandle(sessionId);
         if (handle is null) return;
@@ -237,7 +237,7 @@ public sealed partial class BridgeMain
     /// 键盘输入处理器 — 对齐 TS 端 onStdinData
     /// Space(0x20)=切换QR, w(0x77)=切换spawnMode, Ctrl+C(0x03)/Ctrl+D(0x04)=优雅关闭
     /// </summary>
-    private async Task OnKeyboardInputAsync(byte key)
+    internal async Task OnKeyboardInputAsync(byte key)
     {
         switch (key)
         {

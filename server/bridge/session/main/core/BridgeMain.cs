@@ -68,6 +68,7 @@ public sealed partial class BridgeMain : ServiceEntity
     // 职责类
     private readonly BridgeShutdownHandler _shutdownHandler;
     private readonly BridgeEnvironmentRegistrar _environmentRegistrar;
+    private readonly BridgeLoopRunner _loopRunner;
 
     /// <summary>
     /// 构造 Bridge 主编排器
@@ -105,6 +106,7 @@ public sealed partial class BridgeMain : ServiceEntity
         _networkService = networkService;
         _shutdownHandler = new BridgeShutdownHandler(this);
         _environmentRegistrar = new BridgeEnvironmentRegistrar(this);
+        _loopRunner = new BridgeLoopRunner(this);
     }
 
     /// <summary>
@@ -713,230 +715,17 @@ public sealed partial class BridgeMain : ServiceEntity
         => await _shutdownHandler.ShutdownAsync().ConfigureAwait(false);
 
     /// <summary>
-    /// 核心轮询循环 — 对齐 TS 端 runBridgeLoop
-    /// 注册环境 → 轮询工作 → 确认工作 → 生成子进程 → 管理生命周期
+    /// 核心轮询循环 — 委托给 BridgeLoopRunner
     /// </summary>
     private async Task RunBridgeLoopAsync(
         BridgeConfig config, string? initialSessionId, CancellationToken ct)
-    {
-        _logger?.LogInformation("BridgeMain: entering runBridgeLoop, maxSessions={MaxSessions}, spawnMode={SpawnMode}",
-            config.MaxSessions, config.SpawnMode);
-
-        _loopStartTime = _clock.GetUtcNow();
-
-        // 如果有初始会话 ID，先恢复 — 对齐 TS 端: reconnectSession
-        if (initialSessionId is not null && EnvironmentId is not null)
-        {
-            try
-            {
-                await _deps.ApiClient.ReconnectSessionAsync(
-                    EnvironmentId, initialSessionId, ct).ConfigureAwait(false);
-                _logger?.LogInformation("BridgeMain: reconnected session {SessionId}", initialSessionId);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "BridgeMain: reconnect failed for {SessionId}", initialSessionId);
-            }
-        }
-
-        // 主轮询循环
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                // 轮询工作 — 对齐 TS 端: api.pollForWork(envId, envSecret, signal, pollConfig.reclaim_older_than_ms)
-                var reclaimMs = _deps.PollConfig?.ReclaimOlderThanMs ?? 5000;
-                var work = await _deps.ApiClient.PollForWorkAsync(
-                    GetEnvironmentId(), ct, reclaimMs).ConfigureAwait(false);
-
-                // 重置退避状态（成功通信）
-                _backoff.Reset(onReconnected: ms => _logger?.LogInformation("BridgeMain: reconnected after {Ms}ms", ms));
-
-                if (work is null)
-                {
-                    // 无工作: 根据容量状态选择休眠策略
-                    await HandleNoWorkAsync(config, ct).ConfigureAwait(false);
-                    continue;
-                }
-
-                // 有工作: 处理工作项
-                await HandleWorkAsync(config, work, ct).ConfigureAwait(false);
-            }
-            catch (BridgeFatalError ex)
-            {
-                // 致命错误: 401/403/404/410 — 对齐 TS 端: 分层判断 + fatalExit 标记
-                _fatalExit = true;
-                // 对齐 TS 端: logEvent("tengu_bridge_fatal_error", {status, error_type})
-                TelemetryCount("tengu_bridge_fatal_error", new Dictionary<string, string>
-                {
-                    ["status"] = ex.StatusCode?.ToString() ?? "0",
-                    ["error_type"] = ex.ErrorType ?? "unknown",
-                });
-                if (BridgeApiClient.IsExpiredErrorType(ex.ErrorType))
-                {
-                    // 过期类错误 → 信息性状态消息（非错误样式）
-                _logger?.LogWarning("BridgeMain: registration expired: {Message}", ex.Message);
-                }
-                else if (BridgeApiClient.IsSuppressible403(ex))
-                {
-                    // 可抑制 403 → 仅调试日志（装饰性权限不足）
-                    _logger?.LogDebug("BridgeMain: suppressed 403 error: {Message}", ex.Message);
-                }
-                else
-                {
-                    // 其他致命错误 → 错误日志
-                    _logger?.LogError(ex, "BridgeMain: fatal error, exiting loop");
-                }
-                throw;
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                // 连接错误: 指数退避 — 对齐 TS 端
-                // P1-5: 改用异步等待，消除同步阻塞
-                var shouldContinue = await _backoff.HandleErrorAsync(
-                    ex, onFatalExit: () => _fatalExit = true, ct).ConfigureAwait(false);
-                if (!shouldContinue)
-                {
-                    _logger?.LogError(ex, "BridgeMain: giving up after too many errors");
-                    // 对齐 TS 端: logEvent("tengu_bridge_poll_give_up", {error_type, elapsed_ms})
-                    var errorType = ex is HttpRequestException or System.Net.Sockets.SocketException ? "connection" : "general";
-                    var elapsedMs = _backoff.IsInErrorState
-                        ? (long)(_clock.GetUtcNow() - _backoff.FirstErrorTime).TotalMilliseconds : 0;
-                    TelemetryCount("tengu_bridge_poll_give_up", new Dictionary<string, string>
-                    {
-                        ["error_type"] = errorType,
-                        ["elapsed_ms"] = elapsedMs.ToString(),
-                    });
-                    throw;
-                }
-            }
-        }
-
-        // 循环退出后清理
-        // 对齐 TS 端: logEvent("tengu_bridge_shutdown", {active_sessions, loop_duration_ms})
-        TelemetryCount("tengu_bridge_shutdown", new Dictionary<string, string>
-        {
-            ["active_sessions"] = _tracker.Sessions.Count.ToString(),
-            ["loop_duration_ms"] = _loopStartTime != default
-                ? ((long)(_clock.GetUtcNow() - _loopStartTime).TotalMilliseconds).ToString()
-                : "0",
-        });
-
-        await CleanupAllSessionsAsync(config, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 处理无工作状态 — 对齐 TS 端 at-capacity / partial-capacity 休眠策略
-    /// </summary>
-    private async Task HandleNoWorkAsync(BridgeConfig config, CancellationToken ct)
-    {
-        var atCapacity = _tracker.Sessions.Count >= config.MaxSessions;
-
-        if (atCapacity)
-        {
-            // at-capacity: 心跳保活 + 等待容量释放 — 对齐 TS 端: heartbeatActiveWorkItems + capacityWake
-            await RunAtCapacityHeartbeatAsync(config, ct).ConfigureAwait(false);
-        }
-        else
-        {
-            // 部分容量或空闲: 按配置间隔休眠 — 对齐 TS 端: sleep(pollInterval)
-            var pollInterval = _deps.PollConfig?.PollIntervalMs ?? 5000;
-            await Task.Delay(pollInterval, ct).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
-    /// at-capacity 心跳保活循环 — 对齐 TS 端: heartbeatActiveWorkItems + sleepUntilCapacityWakes
-    /// P3-2: 当 non_exclusive_heartbeat_interval_ms > 0 时进入心跳循环模式
-    /// 循环发送心跳，直到容量变化（capacityWake）或需要轮询刷新 token
-    /// </summary>
-    private async Task RunAtCapacityHeartbeatAsync(BridgeConfig config, CancellationToken ct)
-    {
-        var heartbeatIntervalMs = _deps.PollConfig?.HeartbeatIntervalMs ?? 30000;
-        var nonExclusiveIntervalMs = _deps.PollConfig?.NonExclusiveHeartbeatIntervalMs ?? 0;
-
-        // P3-2: 心跳循环模式 — 对齐 TS 端 at-capacity 心跳循环
-        // 当 non_exclusive_heartbeat_interval_ms > 0 时，在 at-capacity 期间循环发送心跳
-        var useHeartbeatLoop = nonExclusiveIntervalMs > 0;
-        var pollDeadlineMs = _deps.PollConfig?.AtCapacityPollIntervalMs ?? 0;
-
-        while (!ct.IsCancellationRequested)
-        {
-            // 对所有活跃工作项发送心跳 — 对齐 TS 端: heartbeatWork(environmentId, workId, ingressToken)
-            foreach (var (sessionId, state) in _tracker.Sessions.GetAllStates())
-            {
-                var workId = state.WorkId;
-                var ingressToken = state.IngressToken;
-                if (ingressToken is not null)
-                {
-                    try
-                    {
-                        await _deps.ApiClient.HeartbeatWorkAsync(
-                            GetEnvironmentId(), workId, ingressToken, ct).ConfigureAwait(false);
-                    }
-                    catch (BridgeFatalError ex) when (ex.StatusCode == 401 || ex.StatusCode == 403)
-                    {
-                        // P3-7: 对齐 TS 端 — heartbeat 401/403 → reconnectSession
-                        _logger?.LogDebug("BridgeMain: heartbeat auth_failed ({Status}) for {SessionId}, attempting reconnect",
-                            ex.StatusCode, sessionId);
-                        try
-                        {
-                            await _deps.ApiClient.ReconnectSessionAsync(
-                                GetEnvironmentId(), sessionId, ct).ConfigureAwait(false);
-                        }
-                        catch (Exception reconnectEx)
-                        {
-                            _logger?.LogDebug(reconnectEx, "BridgeMain: reconnect failed for {SessionId} (non-fatal)", sessionId);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.LogDebug(ex, "BridgeMain: heartbeat failed for {SessionId}", sessionId);
-                    }
-                }
-            }
-
-            // 非循环模式: 只做一次心跳+等待，然后返回让主循环继续轮询
-            if (!useHeartbeatLoop)
-            {
-                // 等待容量释放或超时 — 对齐 TS 端: capacityWake.signal() + sleep
-                if (_deps.CapacityWake is not null)
-                {
-                    await _deps.CapacityWake.SleepUntilCapacityWakesAsync(
-                        TimeSpan.FromMilliseconds(heartbeatIntervalMs), ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    await Task.Delay(heartbeatIntervalMs, ct).ConfigureAwait(false);
-                }
-                return;
-            }
-
-            // P3-2: 循环模式 — 等待 nonExclusiveIntervalMs 或容量变化
-            var waitMs = nonExclusiveIntervalMs;
-            if (_deps.CapacityWake is not null)
-            {
-                await _deps.CapacityWake.SleepUntilCapacityWakesAsync(
-                    TimeSpan.FromMilliseconds(waitMs), ct).ConfigureAwait(false);
-                // 容量变化 → 退出心跳循环，返回主循环轮询
-                break;
-            }
-            else
-            {
-                await Task.Delay(waitMs, ct).ConfigureAwait(false);
-            }
-        }
-    }
+        => await _loopRunner.RunBridgeLoopAsync(config, initialSessionId, ct).ConfigureAwait(false);
 
     /// <summary>
     /// 处理工作项 — 对齐 TS 端 bridgeMain.ts 的工作处理流程
     /// 流程: 解码 WorkSecret → healthcheck 处理 → ACK(sessionToken) → CCR v2 判断 → 生成子进程
     /// </summary>
-    private async Task HandleWorkAsync(BridgeConfig config, BridgeWorkItem work, CancellationToken ct)
+    internal async Task HandleWorkAsync(BridgeConfig config, BridgeWorkItem work, CancellationToken ct)
     {
         if (_handleWorkPipeline is not null)
         {
@@ -1483,7 +1272,7 @@ public sealed partial class BridgeMain : ServiceEntity
     /// <summary>
     /// 清理所有会话 — 对齐 TS 端: 优雅关闭流程
     /// </summary>
-    private async Task CleanupAllSessionsAsync(BridgeConfig config, CancellationToken ct)
+    internal async Task CleanupAllSessionsAsync(BridgeConfig config, CancellationToken ct)
     {
         if (_tracker.Sessions.Count == 0) return;
 

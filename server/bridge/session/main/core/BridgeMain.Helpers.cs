@@ -402,7 +402,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 记录遥测计数事件 — 对齐 TS 端 logEvent(eventName, metadata)
     /// </summary>
-    private void TelemetryCount(string eventName, Dictionary<string, string>? tags = null)
+    internal void TelemetryCount(string eventName, Dictionary<string, string>? tags = null)
     {
         _telemetry?.GetCounter(eventName)?.Add(1, tags);
     }
@@ -410,7 +410,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 记录遥测直方图事件 — 对齐 TS 端 logEvent(eventName, {duration_ms: ...})
     /// </summary>
-    private void TelemetryHistogram(string eventName, double value, Dictionary<string, string>? tags = null)
+    internal void TelemetryHistogram(string eventName, double value, Dictionary<string, string>? tags = null)
     {
         _telemetry?.GetHistogram(eventName)?.Record(value, tags);
     }

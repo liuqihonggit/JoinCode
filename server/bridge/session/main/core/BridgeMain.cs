@@ -54,19 +54,20 @@ public sealed partial class BridgeMain : ServiceEntity
     public bool IsRunning => _loopTask is { IsCompleted: false };
 
     /// <summary>环境 ID</summary>
-    public string? EnvironmentId { get; private set; }
+    public string? EnvironmentId { get; internal set; }
 
     /// <summary>获取环境 ID，未注册时抛出异常</summary>
-    private string GetEnvironmentId() =>
+    internal string GetEnvironmentId() =>
         EnvironmentId ?? throw new InvalidOperationException("Environment not registered yet. Call RegisterEnvironmentAsync first.");
 
     /// <summary>环境密钥</summary>
-    public string? EnvironmentSecret { get; private set; }
+    public string? EnvironmentSecret { get; internal set; }
 
     internal readonly INetworkConnectivityService? _networkService;
 
     // 职责类
     private readonly BridgeShutdownHandler _shutdownHandler;
+    private readonly BridgeEnvironmentRegistrar _environmentRegistrar;
 
     /// <summary>
     /// 构造 Bridge 主编排器
@@ -103,6 +104,7 @@ public sealed partial class BridgeMain : ServiceEntity
         _runPipeline = runPipeline;
         _networkService = networkService;
         _shutdownHandler = new BridgeShutdownHandler(this);
+        _environmentRegistrar = new BridgeEnvironmentRegistrar(this);
     }
 
     /// <summary>
@@ -130,74 +132,18 @@ public sealed partial class BridgeMain : ServiceEntity
     }
 
     /// <summary>
-    /// 注册 Bridge 环境 — RunAsync/RunHeadlessAsync 共享
-    /// 成功时设置 EnvironmentId/EnvironmentSecret 并返回响应
+    /// 注册 Bridge 环境 — 委托给 BridgeEnvironmentRegistrar
     /// </summary>
     private async Task<BridgeEnvironmentRegistrationResponse> RegisterEnvironmentAsync(
         BridgeConfig config, CancellationToken ct)
-    {
-        var registration = new BridgeEnvironmentRegistration
-        {
-            BridgeId = config.BridgeId,
-            MachineName = config.MachineName,
-            Dir = config.Dir,
-            Branch = config.Branch,
-            GitRepoUrl = config.GitRepoUrl,
-            MaxSessions = config.MaxSessions,
-            SpawnMode = config.SpawnMode.ToValue(),
-            WorkerType = config.WorkerType,
-            ReuseEnvironmentId = config.ReuseEnvironmentId,
-        };
-
-        var response = await _deps.ApiClient.RegisterBridgeEnvironmentAsync(
-            registration, ct).ConfigureAwait(false);
-
-        if (response is null)
-            throw new InvalidOperationException("Registration returned null response.");
-
-        EnvironmentId = response.EnvironmentId;
-        EnvironmentSecret = response.BridgeId;
-
-        return response;
-    }
+        => await _environmentRegistrar.RegisterEnvironmentAsync(config, ct).ConfigureAwait(false);
 
     /// <summary>
-    /// 尝试创建初始会话 — RunAsync/RunHeadlessAsync 共享
+    /// 尝试创建初始会话 — 委托给 BridgeEnvironmentRegistrar
     /// </summary>
-    /// <param name="name">会话标题</param>
-    /// <param name="permissionMode">权限模式</param>
-    /// <param name="config">Bridge 配置</param>
-    /// <param name="ct">取消令牌</param>
-    /// <returns>创建的会话 ID；null 表示未创建或创建失败</returns>
     private async Task<string?> TryCreateInitialSessionAsync(
         string? name, string? permissionMode, BridgeConfig config, CancellationToken ct)
-    {
-        if (_deps.CreateBridgeSession is null) return null;
-
-        try
-        {
-            var createRequest = new BridgeCreateSessionRequest
-            {
-                EnvironmentId = GetEnvironmentId(),
-                Title = name,
-                GitRepoUrl = config.GitRepoUrl,
-                Branch = config.Branch,
-                PermissionMode = permissionMode,
-            };
-            var createdSessionId = await _deps.CreateBridgeSession(
-                createRequest, ct).ConfigureAwait(false);
-            if (createdSessionId is not null)
-            {
-                _logger?.LogInformation("BridgeMain: created initial session {SessionId}", createdSessionId);
-            }
-            return createdSessionId;
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogDebug(ex, "BridgeMain: session creation failed (non-fatal)");
-            return null;
-        }
-    }
+        => await _environmentRegistrar.TryCreateInitialSessionAsync(name, permissionMode, config, ct).ConfigureAwait(false);
 
     /// <summary>
     /// 启动 Bridge 主循环 — 对齐 TS 端 bridgeMain()
@@ -1611,34 +1557,5 @@ public sealed partial class BridgeMain : ServiceEntity
     }
 
     private BridgeMainResult HandleRegistrationError(Exception ex)
-    {
-        if (ex is BridgeFatalError fatal)
-        {
-            TelemetryCount("tengu_bridge_registration_failed", new Dictionary<string, string>
-            {
-                ["status"] = fatal.StatusCode?.ToString() ?? "0",
-            });
-            if (BridgeApiClient.IsExpiredErrorType(fatal.ErrorType))
-            {
-                _logger?.LogWarning("BridgeMain: registration expired: {Message}", fatal.Message);
-            }
-            else if (BridgeApiClient.IsSuppressible403(fatal))
-            {
-                _logger?.LogDebug("BridgeMain: suppressed 403 during registration: {Message}", fatal.Message);
-            }
-            else
-            {
-                _logger?.LogError(fatal, "BridgeMain: environment registration failed (fatal)");
-            }
-            return new BridgeMainResult { Error = $"Registration failed: {fatal.Message}" };
-        }
-
-        if (ex is InvalidOperationException { Message: var msg } && msg.StartsWith("Registration returned null"))
-        {
-            return new BridgeMainResult { Error = msg };
-        }
-
-        _logger?.LogError(ex, "BridgeMain: environment registration failed");
-        return new BridgeMainResult { Error = $"Registration failed: {ex.Message}" };
-    }
+        => _environmentRegistrar.HandleRegistrationError(ex);
 }

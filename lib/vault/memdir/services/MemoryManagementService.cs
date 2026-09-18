@@ -318,17 +318,12 @@ public sealed record MemoryHealthReport
 public sealed partial class MemoryManagementService : ServiceEntity, IMemoryManagementService
 {
     private readonly MemoryStore _memoryStore;
-    private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
+    private readonly TeamMemoryPathStore _teamPathStore;
     private readonly MemoryMgmtActor _mgmtActor;
     private readonly MemoryRelevanceScorer _relevanceScorer;
     private readonly ILogger<MemoryManagementService>? _logger;
     private readonly IClockService _clock;
     private readonly MemoryOptionalServices? _optional;
-    private readonly IPersistencePipeline? _persistencePipeline;
-    private readonly IFileSystem? _fs;
-    private int _teamPathsLoaded;
-    private static readonly string TeamPathsSubDir = Path.Combine(AppDataConstants.AppDataFolder, "memory");
-    private const string TeamPathsFileName = "team-paths.json";
 
     /// <summary>
     /// 构造内存管理服务
@@ -352,8 +347,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         _clock = clock ?? SystemClockService.Instance;
         _relevanceScorer = new MemoryRelevanceScorer(_clock);
         _optional = optional;
-        _persistencePipeline = persistencePipeline;
-        _fs = fs;
+        _teamPathStore = new TeamMemoryPathStore(persistencePipeline, fs, _logger);
         _mgmtActor = new MemoryMgmtActor(this, _logger);
     }
 
@@ -565,22 +559,9 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         await _mgmtActor.AddTeamMemoryPathAsync(teamId, path, isShared, allowedAgents, ct).ConfigureAwait(false);
     }
 
-    internal async Task AddTeamMemoryPathCoreAsync(string teamId, string path, bool isShared, List<string>? allowedAgents, CancellationToken ct)
+    internal Task AddTeamMemoryPathCoreAsync(string teamId, string path, bool isShared, List<string>? allowedAgents, CancellationToken ct)
     {
-        await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
-        // 移除已存在的相同路径
-        _teamMemoryPaths.Remove((teamId, path));
-
-        _teamMemoryPaths[(teamId, path)] = new TeamMemoryPath
-        {
-            TeamId = teamId,
-            Path = path,
-            IsShared = isShared,
-            AllowedAgents = allowedAgents ?? new List<string>()
-        };
-
-        _logger?.LogInformation(L.T(StringKey.VaultLogAddTeamPath), teamId, path);
-        await SaveTeamPathsAsync(ct).ConfigureAwait(false);
+        return _teamPathStore.AddTeamMemoryPathCoreAsync(teamId, path, isShared, allowedAgents, ct);
     }
 
     /// <inheritdoc />
@@ -590,22 +571,9 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         return await _mgmtActor.GetTeamMemoryPathsAsync(teamId, ct).ConfigureAwait(false);
     }
 
-    internal async Task<List<TeamMemoryPath>> GetTeamMemoryPathsCoreAsync(string? teamId, CancellationToken ct)
+    internal Task<List<TeamMemoryPath>> GetTeamMemoryPathsCoreAsync(string? teamId, CancellationToken ct)
     {
-        await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
-        return GetTeamMemoryPathsCore(teamId);
-    }
-
-    private List<TeamMemoryPath> GetTeamMemoryPathsCore(string? teamId)
-    {
-        var paths = _teamMemoryPaths.Values.AsEnumerable();
-
-        if (!string.IsNullOrEmpty(teamId))
-        {
-            paths = paths.Where(p => p.TeamId == teamId);
-        }
-
-        return paths.ToList();
+        return _teamPathStore.GetTeamMemoryPathsCoreAsync(teamId, ct);
     }
 
     /// <inheritdoc />
@@ -615,67 +583,9 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         return await _mgmtActor.RemoveTeamMemoryPathAsync(teamId, path, ct).ConfigureAwait(false);
     }
 
-    internal async Task<bool> RemoveTeamMemoryPathCoreAsync(string teamId, string path, CancellationToken ct)
+    internal Task<bool> RemoveTeamMemoryPathCoreAsync(string teamId, string path, CancellationToken ct)
     {
-        await EnsureTeamPathsLoadedAsync(ct).ConfigureAwait(false);
-        var removed = _teamMemoryPaths.Remove((teamId, path));
-        if (removed)
-        {
-            _logger?.LogInformation(L.T(StringKey.VaultLogRemoveTeamPath), teamId, path);
-            await SaveTeamPathsAsync(ct).ConfigureAwait(false);
-            return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// 持久化团队路径到 .jcc/memory/team-paths.json(通过统一持久化管道)。
-    /// </summary>
-    private async Task SaveTeamPathsAsync(CancellationToken ct)
-    {
-        if (_persistencePipeline is null) return;
-
-        var snapshot = _teamMemoryPaths.Values.ToList();
-        var json = RelaxedJsonSerializer.Serialize(snapshot, MemdirJsonContext.Default);
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var request = new PersistRequest
-        {
-            Category = "memory",
-            Directory = TeamPathsSubDir,
-            FileName = TeamPathsFileName,
-            Content = json,
-            Completion = tcs,
-        };
-        await _persistencePipeline.EnqueueAsync(request, ct).ConfigureAwait(false);
-        await tcs.Task.ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 从 .jcc/memory/team-paths.json 加载团队路径(若存在且尚未加载)。Interlocked 保证只执行一次。
-    /// </summary>
-    private async Task EnsureTeamPathsLoadedAsync(CancellationToken ct)
-    {
-        if (_fs is null || Interlocked.CompareExchange(ref _teamPathsLoaded, 1, 0) != 0) return;
-
-        try
-        {
-            var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs!);
-            if (root is null) return;
-            var path = _fs.CombinePath(_fs.CombinePath(root, TeamPathsSubDir), TeamPathsFileName);
-            if (!_fs.FileExists(path)) return;
-            var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
-            var list = RelaxedJsonSerializer.Deserialize<List<TeamMemoryPath>>(json, MemdirJsonContext.Default);
-            if (list is null) return;
-            foreach (var tp in list)
-            {
-                _teamMemoryPaths[(tp.TeamId, tp.Path)] = tp;
-            }
-            _logger?.LogDebug("已加载 {Count} 条团队内存路径 from {Path}", list.Count, path);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "加载团队内存路径失败");
-        }
+        return _teamPathStore.RemoveTeamMemoryPathCoreAsync(teamId, path, ct);
     }
 
     /// <inheritdoc />
@@ -687,7 +597,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
     internal async Task<MemoryScanResult> ScanTeamMemoriesCoreAsync(string teamId, string query, int limit, CancellationToken ct)
     {
-        var teamPaths = GetTeamMemoryPathsCore(teamId);
+        var teamPaths = _teamPathStore.GetTeamMemoryPathsCore(teamId);
 
         if (teamPaths.Count == 0)
         {

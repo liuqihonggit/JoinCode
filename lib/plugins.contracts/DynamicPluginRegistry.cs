@@ -195,9 +195,7 @@ internal sealed class RunningPluginInstance
 public sealed class DynamicPluginRegistry
 {
     private int _packageCounter;
-    private readonly ConcurrentDictionary<string, PluginPackage> _packages = new();
-    private readonly ConcurrentDictionary<string, RunningPluginInstance> _running = new();
-    private readonly ConcurrentDictionary<string, DynamicPluginState> _states = new();
+    private readonly PluginRuntimeRegistry _runtime = new();
     private readonly PluginApprovalRegistry _approval;
     private readonly Func<DateTimeOffset>? _clock;
     private readonly Func<PluginPackage, PluginAlc, FrozenDictionary<string, Func<object?[], object?>>> _loader;
@@ -238,13 +236,12 @@ public sealed class DynamicPluginRegistry
             id, name, assemblyPath, version, entryType, entryMethod,
             capabilities ?? FrozenSet<string>.Empty, Now());
 
-        if (!_packages.TryAdd(name, pkg))
+        if (!_runtime.TryDefine(name, pkg))
         {
             throw new InvalidOperationException(
                 $"[DYN-DEFINE-DUP] 插件 {name} 已定义，请先 UndefinePlugin 再重新定义。");
         }
 
-        _states[name] = DynamicPluginState.Defined;
         return pkg;
     }
 
@@ -256,12 +253,12 @@ public sealed class DynamicPluginRegistry
     /// </summary>
     public PluginPackageId RunPlugin(string name)
     {
-        if (!_packages.TryGetValue(name, out var pkg))
+        if (!_runtime.TryGetPackage(name, out var pkg))
             throw new KeyNotFoundException($"[DYN-RUN-UNDEFINED] 插件 {name} 未定义。");
 
         lock (_runLock)
         {
-            if (_running.TryGetValue(name, out var existing))
+            if (_runtime.TryGetRunning(name, out var existing))
                 return existing.PackageId;
 
             var pending = _approval.PendingRequestFor(name);
@@ -274,8 +271,7 @@ public sealed class DynamicPluginRegistry
             var alc = new PluginAlc($"plugin-{name}-{pkg.PackageId}");
             var handlers = _loader(pkg, alc);
             var instance = new RunningPluginInstance(pkg.PackageId, alc, handlers, Now());
-            _running[name] = instance;
-            _states[name] = DynamicPluginState.Running;
+            _runtime.SetRunning(name, instance);
             return pkg.PackageId;
         }
     }
@@ -294,14 +290,14 @@ public sealed class DynamicPluginRegistry
         string entryMethod,
         FrozenSet<string>? capabilities = null)
     {
-        if (!_packages.TryGetValue(name, out var oldPkg))
+        if (!_runtime.TryGetPackage(name, out var oldPkg))
             throw new KeyNotFoundException($"[DYN-UPDATE-UNDEFINED] 插件 {name} 未定义。");
 
         if (newVersion <= oldPkg.Version)
             throw new ArgumentException(
                 $"[DYN-UPDATE-VERSION] 新版本 {newVersion} 必须大于旧版本 {oldPkg.Version}。");
 
-        var wasRunning = _running.TryRemove(name, out var oldInstance);
+        var wasRunning = _runtime.TryRemoveRunning(name, out var oldInstance);
         if (wasRunning)
         {
             oldInstance!.Alc.Unload();
@@ -312,8 +308,8 @@ public sealed class DynamicPluginRegistry
             id, name, assemblyPath, newVersion, entryType, entryMethod,
             capabilities ?? FrozenSet<string>.Empty, Now());
 
-        _packages[name] = newPkg;
-        _states[name] = wasRunning ? DynamicPluginState.Stopped : DynamicPluginState.Defined;
+        _runtime.UpdatePackage(name, newPkg);
+        _runtime.SetState(name, wasRunning ? DynamicPluginState.Stopped : DynamicPluginState.Defined);
         return newPkg;
     }
 
@@ -323,15 +319,13 @@ public sealed class DynamicPluginRegistry
     /// </summary>
     public bool StopPlugin(string name)
     {
-        if (!_running.TryRemove(name, out var instance))
+        if (!_runtime.TryRemoveRunning(name, out var instance))
         {
-            if (_states.TryGetValue(name, out var state) && state == DynamicPluginState.Stopped)
-                return false;
             return false;
         }
 
         instance.Alc.Unload();
-        _states[name] = DynamicPluginState.Stopped;
+        _runtime.SetState(name, DynamicPluginState.Stopped);
         return true;
     }
 
@@ -342,48 +336,37 @@ public sealed class DynamicPluginRegistry
     /// </summary>
     public bool UndefinePlugin(string name)
     {
-        if (_running.TryRemove(name, out var instance))
+        if (_runtime.TryRemoveRunning(name, out var instance))
             instance.Alc.Unload();
 
-        var removed = _packages.TryRemove(name, out _);
-        _states.TryRemove(name, out _);
-        _running.TryRemove(name, out _);
-        return removed;
+        return _runtime.Undefine(name);
     }
 
     /// <summary>
     /// 查看插件状态
     /// </summary>
     public DynamicPluginState GetState(string name)
-    {
-        return _states.GetValueOrDefault(name, DynamicPluginState.Undefined);
-    }
+        => _runtime.GetState(name);
 
     /// <summary>
     /// 查看插件包定义（inspect provider — 运行时自省）
     /// <para>插件未定义 → 返回 null</para>
     /// </summary>
     public PluginPackage? InspectPlugin(string name)
-    {
-        return _packages.GetValueOrDefault(name);
-    }
+        => _runtime.GetPackage(name);
 
     /// <summary>
     /// 列出所有已定义插件名（inspect provider — 运行时自省）
     /// </summary>
     public IReadOnlyList<string> ListPlugins()
-    {
-        return _packages.Keys.ToArray();
-    }
+        => _runtime.GetPackageNames();
 
     /// <summary>
     /// 获取当前运行实例的包 ID（inspect provider）
     /// <para>未运行 → 返回 null</para>
     /// </summary>
     public PluginPackageId? GetRunningPackageId(string name)
-    {
-        return _running.TryGetValue(name, out var instance) ? instance.PackageId : null;
-    }
+        => _runtime.TryGetRunning(name, out var instance) ? instance.PackageId : null;
 
     /// <summary>
     /// invoke handler — host.call(method, args) 路由
@@ -392,7 +375,7 @@ public sealed class DynamicPluginRegistry
     /// </summary>
     public PluginInvokeResult Invoke(string name, string method, object?[] args, PluginPackageId? expectedPackageId = null)
     {
-        if (!_running.TryGetValue(name, out var instance))
+        if (!_runtime.TryGetRunning(name, out var instance))
             return PluginInvokeResult.Fail(PluginInvokeFailure.PluginNotRunning, $"插件 {name} 未运行。");
 
         if (expectedPackageId.HasValue && expectedPackageId.Value != instance.PackageId)

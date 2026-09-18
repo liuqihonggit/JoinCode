@@ -9,16 +9,21 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
 {
 
     /// <summary>
-    /// 构造 WorktreeGitInfoMiddleware 实例，注入延迟加载的管道操作及日志器
+    /// 构造 WorktreeGitInfoMiddleware 实例，注入延迟加载的管道操作、文件操作服务及日志器
     /// </summary>
-    public WorktreeGitInfoMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, ILogger<WorktreeGitInfoMiddleware>? logger = null)
+    public WorktreeGitInfoMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IFileOperationService fs, ILogger<WorktreeGitInfoMiddleware>? logger = null)
     {
         _worktreeService = worktreeService;
+        _fs = fs;
         _logger = logger;
     }
     private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly IFileOperationService _fs;
     private readonly ILogger<WorktreeGitInfoMiddleware>? _logger;
 
+
+    /// <summary>执行优先级:Git 信息获取在恢复检查之后</summary>
+    public int Order => 400;
 
     /// <summary>
     /// 执行 Git 信息获取：获取当前分支、HEAD commit SHA，并按 PR 号/基准分支/默认分支解析基础引用
@@ -28,6 +33,7 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
+        WorktreeContextEnricher.EnsureGitRoot(context, _fs);
         var gitRoot = context.GitRoot;
 
         context.OriginalBranch = await _worktreeService.Value.GetCurrentBranchAsync(gitRoot).ConfigureAwait(false);

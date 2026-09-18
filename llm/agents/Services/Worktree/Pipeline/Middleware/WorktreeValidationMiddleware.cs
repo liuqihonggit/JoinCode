@@ -7,6 +7,9 @@ namespace Core.Agents.Worktree;
 public sealed partial class WorktreeValidationMiddleware : ServiceEntity, IWorktreeCreateMiddleware
 {
 
+    /// <summary>执行优先级:参数验证最先执行</summary>
+    public int Order => 100;
+
     /// <summary>
     /// 执行参数验证：检查 AgentId 非空、长度不超限、不含非法字符（路径遍历/分隔符/控制字符）
     /// </summary>

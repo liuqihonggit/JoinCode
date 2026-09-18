@@ -23,6 +23,9 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
     private readonly IClockService _clock;
 
 
+    /// <summary>执行优先级:worktree 创建在 Git 信息获取之后</summary>
+    public int Order => 500;
+
     /// <summary>
     /// 执行 worktree 创建：git worktree add + 可选稀疏检出，失败时回滚已创建的 worktree 与分支
     /// </summary>

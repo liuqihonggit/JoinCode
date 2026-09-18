@@ -23,6 +23,9 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
     /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>执行优先级:配置复制在 worktree 创建之后(依赖 WorktreePath 已指向真实目录)</summary>
+    public int Order => 600;
+
     /// <summary>
     /// 执行配置复制：复制配置文件、.worktreeinclude 文件、hooks 路径与符号链接（全部 best-effort）
     /// </summary>
@@ -31,6 +34,7 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
+        WorktreeContextEnricher.EnsureAllPaths(context, _fs);
         var opts = context.Options ?? new WorktreeOptions();
         var gitRoot = context.GitRoot;
         var worktreePath = context.WorktreePath;
@@ -63,6 +67,12 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
 
                 if (!_fs.FileExists(sourcePath))
                 {
+                    continue;
+                }
+
+                if (string.Equals(sourcePath, destPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger?.LogDebug("源和目标相同,跳过复制: {Path}", sourcePath);
                     continue;
                 }
 

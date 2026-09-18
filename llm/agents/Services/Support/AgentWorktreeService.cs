@@ -44,12 +44,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         {
             _createPipeline = new PipelineBuilder<WorktreeCreateContext>()
                 .WithLoggingScope(loggerFactory)
-                .UseRange(createMiddlewares)
+                .UseRange(createMiddlewares.OrderBy(m => m.Order))
                 .Build();
         }
         else if (createMiddlewares != null)
         {
-            _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares);
+            _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares.OrderBy(m => m.Order));
         }
 
         _sessionActor = new WorktreeSessionActor(this, _logger);

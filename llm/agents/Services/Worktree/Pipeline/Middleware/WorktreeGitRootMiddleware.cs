@@ -21,6 +21,9 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
     private readonly ILogger<WorktreeGitRootMiddleware>? _logger;
 
 
+    /// <summary>执行优先级:Git 根查找在验证之后</summary>
+    public int Order => 200;
+
     /// <summary>
     /// 执行 Git 根查找：若上下文已有 GitRoot 则跳过；否则从 GitRootPath 或当前目录向上查找 git 根目录
     /// </summary>

@@ -26,6 +26,9 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
     /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>执行优先级:恢复检查在 GitRoot 之后</summary>
+    public int Order => 300;
+
     /// <summary>
     /// 执行 worktree 恢复检查：若现有 worktree 可恢复则短路并设置恢复会话；否则填充默认路径与分支后继续
     /// </summary>
@@ -34,6 +37,7 @@ public sealed partial class WorktreeRecoveryMiddleware : ServiceEntity, IWorktre
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
+        WorktreeContextEnricher.EnsureGitRoot(context, _fs);
         var worktreePath = AgentWorktreeSession.GenerateWorktreePath(context.GitRoot, context.AgentId);
         var branchName = AgentWorktreeSession.GenerateBranchName(context.AgentId);
 

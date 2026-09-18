@@ -12,7 +12,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     private readonly IFileOperationService _files;
     private readonly ILogger<SkillDiscoveryService>? _logger;
     private readonly ConcurrentDictionary<string, DiscoveredSkill> _discoveredSkills;
-    private readonly AsyncLock _discoveryLock = new();
+    private readonly DiscoverActor _discoverActor;
 
     /// <summary>
     /// 发现新技能事件
@@ -45,6 +45,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         _files = files;
         _logger = logger;
         _discoveredSkills = new ConcurrentDictionary<string, DiscoveredSkill>(StringComparer.OrdinalIgnoreCase);
+        _discoverActor = new DiscoverActor(this, logger);
     }
 
     /// <summary>
@@ -54,8 +55,16 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     /// <returns>已发现的技能列表</returns>
     public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _discoveryLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_discoveryLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<IReadOnlyList<DiscoveredSkill>>();
+        await _discoverActor.SendAsync(new DiscoverCmd(reply), cancellationToken).ConfigureAwait(false);
+        return await _discoverActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 发现技能内部实现 — 由 DiscoverActor Consumer 串行调用,无显式锁。
+    /// </summary>
+    private async Task<IReadOnlyList<DiscoveredSkill>> DiscoverInternalAsync(CancellationToken cancellationToken)
+    {
         var results = new List<DiscoveredSkill>();
 
         if (!_files.DirectoryExists(_options.SkillsDirectory))
@@ -239,10 +248,10 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
             await ProcessFileChangeAsync(newPath, ct).ConfigureAwait(false);
     }
 
-    /// <summary>异步释放 — 先释放 discoveryLock,再停 watcher(基类)</summary>
+    /// <summary>异步释放 — 先释放 discoverActor,再停 watcher(基类)</summary>
     public override async ValueTask DisposeAsync()
     {
-        _discoveryLock.Dispose();
+        await _discoverActor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 
@@ -453,4 +462,43 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
             _logger?.LogInformation("[SkillDiscovery] 技能已移除: {Name}", name);
         }
     }
+
+    /// <summary>
+    /// 技能发现 Actor — 串行化 DiscoverAsync 扫描+加载操作,消除显式锁 — ADR 0115
+    /// <para>命令通过 Channel 投递,Consumer 单线程串行处理,天然无竞态。</para>
+    /// </summary>
+    private sealed class DiscoverActor : ActorBase<DiscoverCmd, Unit>
+    {
+        private readonly SkillDiscoveryService _owner;
+        private readonly ILogger<SkillDiscoveryService>? _logger;
+
+        public DiscoverActor(SkillDiscoveryService owner, ILogger<SkillDiscoveryService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 SkillDiscoveryService 调用</summary>
+        public async Task<IReadOnlyList<DiscoveredSkill>> AskReplyAsync(TaskCompletionSource<IReadOnlyList<DiscoveredSkill>> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(DiscoverCmd cmd, CancellationToken ct)
+        {
+            try
+            {
+                cmd.Reply.SetResult(await _owner.DiscoverInternalAsync(ct).ConfigureAwait(false));
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { cmd.Reply.SetException(ex); }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "DiscoverActor 命令处理异常");
+    }
 }
+
+/// <summary>
+/// 技能发现 Actor 命令 — DiscoverAsync 的 Actor 邮箱封装 — ADR 0115
+/// <para>消除 AsyncLock(_discoveryLock),改用 Actor 邮箱管道串行化发现操作(含文件 I/O)。</para>
+/// </summary>
+internal sealed record DiscoverCmd(TaskCompletionSource<IReadOnlyList<DiscoveredSkill>> Reply);

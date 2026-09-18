@@ -36,14 +36,14 @@ public sealed record ChatContextOptions
 
 /// <summary>
 /// 聊天上下文管理器 — 管理系统提示词、对话历史、工具规格、上下文折叠和缓存失效检测
-/// 按 SessionId 隔离对话历史，支持多会话切换；通过 AsyncLock 保证线程安全
+/// 按 SessionId 隔离对话历史，支持多会话切换；使用 Actor 邮箱管道串行化所有操作，消除显式锁 — ADR 0115
 /// </summary>
 [Register(typeof(IChatContextManager), ServiceLifetime.Singleton)]
 public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 {
     private readonly IStateService _stateService;
     private readonly ILogger<ChatContextManager> _logger;
-    private readonly AsyncLock _lock = new();
+    private readonly ChatContextActor _actor;
     private readonly ContextFoldExecutor? _foldExecutor;
     private readonly ContextFoldThresholds _thresholds;
     private readonly IContextWindowResolver _contextWindowResolver;
@@ -127,6 +127,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         _telemetryService = options?.TelemetryService;
         _clock = options?.Clock ?? SystemClockService.Instance;
         _providerBaseUrl = options?.ProviderBaseUrl;
+        _actor = new ChatContextActor(this, logger);
     }
 
     /// <summary>
@@ -134,12 +135,20 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task LoadContextAsync(CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new LoadContextCmd(reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 加载上下文内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private async Task LoadContextInternalAsync(CancellationToken cancellationToken)
+    {
         await using var span = _telemetryService?.StartSpan("context.load", TelemetrySpanKind.Server);
         try
         {
             var (systemPrompt, chatHistory) = await _stateService.LoadStateAsync(cancellationToken).ConfigureAwait(false);
-
-            using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
             _promptStore.Update(systemPrompt ?? string.Empty);
             Log.CompactInPlace([]);
@@ -244,8 +253,16 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new AddUserMessageCmd(content, originKind, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 添加用户消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task AddUserMessageInternalAsync(string content, MessageOriginKind? originKind, CancellationToken cancellationToken)
+    {
         var metadata = originKind is null
             ? null
             : new Dictionary<string, JsonElement>
@@ -254,6 +271,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             };
         Log.Append(new ApiMessage(MessageRole.User, content, metadata));
         _logger.LogDebug("已添加用户消息，当前对话数: {Count}", Log.Count);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -263,14 +281,22 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new AddCompactSummaryCmd(content, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 添加压缩摘要消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task AddCompactSummaryInternalAsync(string content, CancellationToken cancellationToken)
+    {
         Log.Append(new ApiMessage(MessageRole.User, content, new Dictionary<string, JsonElement>
         {
             ["isCompactSummary"] = JsonElementHelper.FromBoolean(true)
         }));
         _logger.LogDebug("已添加压缩摘要消息，当前对话数: {Count}", Log.Count);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -280,11 +306,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new AddAssistantMessageCmd(content, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 添加助手消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task AddAssistantMessageInternalAsync(string content, CancellationToken cancellationToken)
+    {
         Log.Append(new ApiMessage(MessageRole.Assistant, content));
         _logger.LogDebug("已添加助手消息，当前对话数: {Count}", Log.Count);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -292,11 +326,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddAssistantToolCallMessageAsync(string? content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new AddAssistantToolCallCmd(content, metadata, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 添加助手工具调用消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task AddAssistantToolCallInternalAsync(string? content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken)
+    {
         Log.Append(new ApiMessage(MessageRole.Assistant, content, metadata));
         _logger.LogDebug("已添加助手工具调用消息，当前对话数: {Count}", Log.Count);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -304,11 +346,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new AddToolResultCmd(content, metadata, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 添加工具结果消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task AddToolResultInternalAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, CancellationToken cancellationToken)
+    {
         Log.Append(new ApiMessage(MessageRole.Tool, content, metadata));
         _logger.LogDebug("已添加工具结果消息，当前对话数: {Count}", Log.Count);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -316,11 +366,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task AddToolResultMessageAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, IReadOnlyList<ToolContent>? contentBlocks, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new AddToolResultWithBlocksCmd(content, metadata, contentBlocks, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 添加含多模态内容的工具结果消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task AddToolResultWithBlocksInternalAsync(string content, IReadOnlyDictionary<string, JsonElement> metadata, IReadOnlyList<ToolContent>? contentBlocks, CancellationToken cancellationToken)
+    {
         Log.Append(new ApiMessage(MessageRole.Tool, content, metadata) { ContentBlocks = contentBlocks ?? [] });
         _logger.LogDebug("已添加工具结果消息(含多模态)，当前对话数: {Count}", Log.Count);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -330,11 +388,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new AddSystemMessageCmd(content, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 添加系统消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task AddSystemMessageInternalAsync(string content, CancellationToken cancellationToken)
+    {
         Log.Append(new ApiMessage(MessageRole.System, content));
         _logger.LogDebug("已添加系统消息，当前对话数: {Count}", Log.Count);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -344,11 +410,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(content);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new AddDynamicSystemMessageCmd(content, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 添加动态系统消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task AddDynamicSystemMessageInternalAsync(string content, CancellationToken cancellationToken)
+    {
         _promptStore.AddDynamic(content);
         _logger.LogDebug("已添加动态系统消息，当前动态消息数: {Count}", _promptStore.GetDynamicMessages().Count);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -356,11 +430,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task ClearDynamicSystemMessagesAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new ClearDynamicSystemMessagesCmd(reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 清空动态系统消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task ClearDynamicSystemMessagesInternalAsync(CancellationToken cancellationToken)
+    {
         _promptStore.ClearDynamic();
         _logger.LogDebug("已清空动态系统消息");
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -368,13 +450,20 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task ClearMessagesAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new ClearMessagesCmd(reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 清空对话消息内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task ClearMessagesInternalAsync(CancellationToken cancellationToken)
+    {
         Log.CompactInPlace([]);
         _promptStore.ResetCache();
-
         _logger.LogInformation("聊天消息已清空，保留静态系统提示词");
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -384,11 +473,19 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new UpdateSystemPromptCmd(systemPrompt, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 更新静态系统提示词内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task UpdateSystemPromptInternalAsync(string systemPrompt, CancellationToken cancellationToken)
+    {
         _promptStore.Update(systemPrompt);
         _logger.LogInformation("静态系统提示词已更新，长度: {Len}", _promptStore.StaticPrompt.Length);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -396,11 +493,18 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<MessageList> GetMessageListAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<MessageList>();
+        await _actor.SendAsync(new GetMessageListCmd(reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 获取消息列表内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task<MessageList> GetMessageListInternalAsync(CancellationToken cancellationToken)
+    {
         var messages = AssembleMessages();
-        return MessageList.FromList(messages);
-    
+        return Task.FromResult(MessageList.FromList(messages));
     }
 
     /// <summary>
@@ -408,12 +512,20 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task SaveContextAsync(CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new SaveContextCmd(reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 保存上下文内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private async Task SaveContextInternalAsync(CancellationToken cancellationToken)
+    {
         await using var span = _telemetryService?.StartSpan("context.save", TelemetrySpanKind.Server);
         try
         {
-            using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
             await SaveContextCoreAsync(cancellationToken).ConfigureAwait(false);
-
             span?.SetStatus(TelemetryStatusCode.Ok);
         }
         catch (Exception ex)
@@ -426,7 +538,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     }
 
     /// <summary>
-    /// 保存核心逻辑（调用方须已持有 _lock）
+    /// 保存核心逻辑（由 Actor Consumer 串行调用，无显式锁）
     /// </summary>
     private async Task SaveContextCoreAsync(CancellationToken cancellationToken)
     {
@@ -490,6 +602,16 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<ContextFoldResult> FoldIfNeededAsync(ContextFoldDecision decision, string? agentId = null, CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<ContextFoldResult>();
+        await _actor.SendAsync(new FoldIfNeededCmd(decision, agentId, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 折叠上下文内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private async Task<ContextFoldResult> FoldIfNeededInternalAsync(ContextFoldDecision decision, string? agentId, CancellationToken cancellationToken)
+    {
         if (_foldExecutor == null)
         {
             if (decision is ContextFoldDecision.FoldNormal or ContextFoldDecision.FoldAggressive)
@@ -508,7 +630,6 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         await using var foldSpan = _telemetryService?.StartSpan("context.fold", TelemetrySpanKind.Server);
         foldSpan?.SetTag("context.fold_decision", decision.ToString());
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
         try
         {
             // 折叠前先做低成本剪裁：过期的大工具结果可重派生，重写它们无需调用摘要器。
@@ -626,16 +747,23 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<RewindResult>();
+        await _actor.SendAsync(new RewindLastTurnCmd(reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 撤回最后一轮对话内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task<RewindResult> RewindLastTurnInternalAsync(CancellationToken cancellationToken)
+    {
         var removed = Log.TrimLastTurn();
         _logger.LogInformation("撤回最后一轮对话 (SP-3)，移除 {Count} 条消息，剩余 {Remaining} 条",
             removed, Log.Count);
 
         _telemetryService?.RecordCount("context.rewind.count", new() { ["kind"] = "last_turn" }, "count", "Context rewind count");
 
-        return RewindResult.Ok(RewindKind.TrimLastTurn, removed, Log.Count);
-    
+        return Task.FromResult(RewindResult.Ok(RewindKind.TrimLastTurn, removed, Log.Count));
     }
 
     /// <summary>
@@ -643,20 +771,27 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindToMessageIndexAsync(int messageIndex, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<RewindResult>();
+        await _actor.SendAsync(new RewindToMessageIndexCmd(messageIndex, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 撤回到指定消息索引内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task<RewindResult> RewindToMessageIndexInternalAsync(int messageIndex, CancellationToken cancellationToken)
+    {
         if (messageIndex < 0 || messageIndex > Log.Count)
         {
-            return RewindResult.Fail(
-                $"消息索引 {messageIndex} 超出范围 [0, {Log.Count}]");
+            return Task.FromResult(RewindResult.Fail(
+                $"消息索引 {messageIndex} 超出范围 [0, {Log.Count}]"));
         }
 
         var removed = Log.TruncateTo(messageIndex);
         _logger.LogInformation("撤回到消息索引 {Index} (SP-5)，移除 {Count} 条消息，剩余 {Remaining} 条",
             messageIndex, removed, Log.Count);
 
-        return RewindResult.Ok(RewindKind.TruncateToIndex, removed, Log.Count);
-    
+        return Task.FromResult(RewindResult.Ok(RewindKind.TruncateToIndex, removed, Log.Count));
     }
 
     /// <summary>
@@ -664,16 +799,23 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<RewindResult> RewindToStartAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<RewindResult>();
+        await _actor.SendAsync(new RewindToStartCmd(reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 撤回到会话初始状态内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task<RewindResult> RewindToStartInternalAsync(CancellationToken cancellationToken)
+    {
         var removed = Log.Count;
         Log.CompactInPlace([]);
         _promptStore.ResetCache();
 
         _logger.LogInformation("撤回到会话初始状态 (SP-0)，移除 {Count} 条消息，前缀保留", removed);
 
-        return RewindResult.Ok(RewindKind.ClearHistory, removed, 0);
-    
+        return Task.FromResult(RewindResult.Ok(RewindKind.ClearHistory, removed, 0));
     }
 
     /// <summary>
@@ -683,8 +825,16 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(toolSpecs);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new UpdateToolSpecsCmd(toolSpecs, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 更新工具规格内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task UpdateToolSpecsInternalAsync(IReadOnlyList<ToolSpec> toolSpecs, CancellationToken cancellationToken)
+    {
         _currentToolSpecs.Clear();
         _currentToolSpecs.AddRange(toolSpecs);
 
@@ -700,7 +850,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
         _logger.LogDebug("工具规格已更新，当前 {Count} 个工具，{DeferredCount} 个延迟工具",
             _currentToolSpecs.Count, _deferredTools.Count);
-    
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -708,8 +858,16 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task<PromptStateSnapshot> RecordPromptStateAsync(string? agentId = null, CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<PromptStateSnapshot>();
+        await _actor.SendAsync(new RecordPromptStateCmd(agentId, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 记录提示词前缀状态快照内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task<PromptStateSnapshot> RecordPromptStateInternalAsync(string? agentId, CancellationToken cancellationToken)
+    {
         var prefix = new ImmutablePrefix(_promptStore.StaticPrompt, _currentToolSpecs, []);
         var dynamicContent = _promptStore.GetDynamicContent();
         var snapshot = GetCacheBreakDetector(agentId).RecordPromptState(prefix, dynamicContent, Log.ToMessages());
@@ -727,7 +885,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
             "前缀状态快照已记录，SystemHash={SystemHash}, SystemBytes={SystemBytes}, ToolCount={ToolCount}, ToolNamesHash={ToolNamesHash}, ToolSpecsBytes={ToolSpecsBytes}, EstimatedTokens={EstimatedTokens}",
             snapshot.SystemPromptHash, systemBytes, snapshot.ToolCount, snapshot.ToolNamesHash, toolSpecsBytes, estimatedTokens);
 
-        return snapshot;
+        return Task.FromResult(snapshot);
     }
 
     /// <summary>
@@ -738,8 +896,16 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(usage);
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<CacheBreakResult>();
+        await _actor.SendAsync(new CheckCacheBreakCmd(snapshot, usage, agentId, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 检测缓存失效内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private Task<CacheBreakResult> CheckCacheBreakInternalAsync(PromptStateSnapshot snapshot, TokenUsage usage, string? agentId, CancellationToken cancellationToken)
+    {
         var currentPrefix = new ImmutablePrefix(_promptStore.StaticPrompt, _currentToolSpecs, []);
         var currentDynamicContent = _promptStore.GetDynamicContent();
         var result = GetCacheBreakDetector(agentId).CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, Log.ToMessages());
@@ -755,7 +921,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                 usage.CacheReadInputTokens, usage.CacheCreationInputTokens);
         }
 
-        return result;
+        return Task.FromResult(result);
     }
 
     /// <summary>
@@ -779,22 +945,29 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     public async Task SyncDiscoveredToolsFromHistoryAsync(CancellationToken cancellationToken = default)
     {
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new SyncDiscoveredToolsFromHistoryCmd(reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 从历史同步已发现工具内部实现 — 由 Actor Consumer 串行调用，无显式锁
+    /// </summary>
+    private async Task SyncDiscoveredToolsFromHistoryInternalAsync(CancellationToken cancellationToken)
+    {
         var history = AssembleMessages();
         var chatHistory = MessageList.FromList(history);
         var discovered = ToolReferenceExtractor.ExtractDiscoveredToolNames(chatHistory);
         await _discoveredTools.DiscoverRangeAsync(discovered).ConfigureAwait(false);
-    
     }
 
     /// <summary>
-    /// 异步释放资源，释放内部信号量
+    /// 异步释放资源，释放内部 Actor
     /// </summary>
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _lock.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
     }
 
     private List<ApiMessage> AssembleMessages()
@@ -810,5 +983,125 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         }
 
         return messages;
+    }
+
+    /// <summary>
+    /// 聊天上下文 Actor — 串行化所有操作，消除显式锁 — ADR 0115
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class ChatContextActor : ActorBase<ChatContextCommand, Unit>
+    {
+        private readonly ChatContextManager _owner;
+        private readonly ILogger<ChatContextManager> _logger;
+
+        public ChatContextActor(ChatContextManager owner, ILogger<ChatContextManager> logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复（无返回值）— 暴露 protected AskAwait 供 ChatContextManager 调用</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        /// <summary>Ask 模式等待回复（有返回值）— 暴露 protected AskAwait 供 ChatContextManager 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(ChatContextCommand cmd, CancellationToken ct)
+        {
+            try
+            {
+                switch (cmd)
+                {
+                    case LoadContextCmd(var reply):
+                        await _owner.LoadContextInternalAsync(ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case AddUserMessageCmd(var content, var originKind, var reply):
+                        await _owner.AddUserMessageInternalAsync(content, originKind, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case AddCompactSummaryCmd(var content, var reply):
+                        await _owner.AddCompactSummaryInternalAsync(content, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case AddAssistantMessageCmd(var content, var reply):
+                        await _owner.AddAssistantMessageInternalAsync(content, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case AddAssistantToolCallCmd(var content, var metadata, var reply):
+                        await _owner.AddAssistantToolCallInternalAsync(content, metadata, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case AddToolResultCmd(var content, var metadata, var reply):
+                        await _owner.AddToolResultInternalAsync(content, metadata, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case AddToolResultWithBlocksCmd(var content, var metadata, var contentBlocks, var reply):
+                        await _owner.AddToolResultWithBlocksInternalAsync(content, metadata, contentBlocks, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case AddSystemMessageCmd(var content, var reply):
+                        await _owner.AddSystemMessageInternalAsync(content, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case AddDynamicSystemMessageCmd(var content, var reply):
+                        await _owner.AddDynamicSystemMessageInternalAsync(content, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case ClearDynamicSystemMessagesCmd(var reply):
+                        await _owner.ClearDynamicSystemMessagesInternalAsync(ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case ClearMessagesCmd(var reply):
+                        await _owner.ClearMessagesInternalAsync(ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case UpdateSystemPromptCmd(var systemPrompt, var reply):
+                        await _owner.UpdateSystemPromptInternalAsync(systemPrompt, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case GetMessageListCmd(var reply):
+                        reply.SetResult(await _owner.GetMessageListInternalAsync(ct).ConfigureAwait(false));
+                        break;
+                    case SaveContextCmd(var reply):
+                        await _owner.SaveContextInternalAsync(ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case FoldIfNeededCmd(var decision, var agentId, var reply):
+                        reply.SetResult(await _owner.FoldIfNeededInternalAsync(decision, agentId, ct).ConfigureAwait(false));
+                        break;
+                    case RewindLastTurnCmd(var reply):
+                        reply.SetResult(await _owner.RewindLastTurnInternalAsync(ct).ConfigureAwait(false));
+                        break;
+                    case RewindToMessageIndexCmd(var messageIndex, var reply):
+                        reply.SetResult(await _owner.RewindToMessageIndexInternalAsync(messageIndex, ct).ConfigureAwait(false));
+                        break;
+                    case RewindToStartCmd(var reply):
+                        reply.SetResult(await _owner.RewindToStartInternalAsync(ct).ConfigureAwait(false));
+                        break;
+                    case UpdateToolSpecsCmd(var toolSpecs, var reply):
+                        await _owner.UpdateToolSpecsInternalAsync(toolSpecs, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case RecordPromptStateCmd(var agentId, var reply):
+                        reply.SetResult(await _owner.RecordPromptStateInternalAsync(agentId, ct).ConfigureAwait(false));
+                        break;
+                    case CheckCacheBreakCmd(var snapshot, var usage, var agentId, var reply):
+                        reply.SetResult(await _owner.CheckCacheBreakInternalAsync(snapshot, usage, agentId, ct).ConfigureAwait(false));
+                        break;
+                    case SyncDiscoveredToolsFromHistoryCmd(var reply):
+                        await _owner.SyncDiscoveredToolsFromHistoryInternalAsync(ct).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { cmd.SetReplyException(ex); }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger.LogWarning(ex, "ChatContextActor 命令处理异常");
     }
 }

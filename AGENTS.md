@@ -637,7 +637,7 @@ nuget包: 拒绝全部微软的AI包，因为大部分不支持NativeAOT。
 
 ## 测试
 
-> ADR: [0088](docs/adr/0088-test-execution-rules.md) — 详见 ADR 文档（含全局测试命令、卡死排查优先级[testhost/管道锁/逻辑死锁]、throw 探针法定位副作用测试）
+> ADR: [0080](docs/adr/0080-manual-exe-testing-guide.md) — 详见 ADR 文档（含手动测试规范、全局测试命令、卡死排查优先级[testhost/管道锁/逻辑死锁]、throw 探针法定位副作用测试）
 
 ### GUI / 异步 UI 测试（Avalonia + CommunityToolkit.Mvvm 适用）
 

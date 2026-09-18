@@ -22,7 +22,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly IAutoRebaseService? _autoRebaseService;
 
     private readonly ConcurrentDictionary<string, AgentExecutionContext> _executionContexts;
-    private readonly ConcurrentDictionary<string, DateTime> _agentStartTimes;
+    private readonly Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
     private readonly ConcurrentDictionary<string, string> _secretaries;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
     private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
@@ -77,7 +77,6 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _reconnectService = team?.ReconnectService;
         _autoRebaseService = autoRebaseService;
         _executionContexts = new ConcurrentDictionary<string, AgentExecutionContext>();
-        _agentStartTimes = new ConcurrentDictionary<string, DateTime>();
         _secretaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
 
         var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
@@ -156,7 +155,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
             {
                 if (ctx.SpawnedAt != default)
                 {
-                    _agentStartTimes[ctx.AgentId] = ctx.SpawnedAt;
+                    _agentStartTimer.Record(ctx.AgentId, ctx.SpawnedAt);
                 }
                 if (ctx.ExecutionContext is not null)
                 {
@@ -451,7 +450,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         await _disposePipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
 
         _executionContexts.TryRemove(agentId, out _);
-        _agentStartTimes.TryRemove(agentId, out _);
+        _agentStartTimer.Remove(agentId);
     }
 
     #endregion
@@ -735,7 +734,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     /// </summary>
     public TimeSpan? GetAgentExecutionDuration(string agentId)
     {
-        if (!_agentStartTimes.TryGetValue(agentId, out var startTime))
+        if (_agentStartTimer.TryGet(agentId) is not { } startTime)
         {
             return null;
         }

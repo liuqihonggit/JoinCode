@@ -37,7 +37,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
     private readonly Infrastructure.Pipeline.MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>> _completionSources;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _backgroundCts;
-    private readonly ConcurrentDictionary<string, DateTime> _agentStartTimes;
+    private readonly Coordinator.Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
     private readonly ConcurrentDictionary<string, ProgressTracker> _progressTrackers;
     private readonly Coordinator.Core.Messaging.AgentNameIndex _agentNameIndex = new();
     private readonly CancellationTokenSource _disposeCts = new();
@@ -77,7 +77,6 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         _clock = clock ?? SystemClockService.Instance;
         _completionSources = new ConcurrentDictionary<string, TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>>();
         _backgroundCts = new ConcurrentDictionary<string, CancellationTokenSource>();
-        _agentStartTimes = new ConcurrentDictionary<string, DateTime>();
         _progressTrackers = new ConcurrentDictionary<string, ProgressTracker>();
     }
 
@@ -123,7 +122,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         var tcs = new TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>();
         _completionSources[init.SubAgent.ObjectId.UniqueId] = tcs;
-        _agentStartTimes[init.SubAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
+        _agentStartTimer.Record(init.SubAgent.ObjectId.UniqueId, _clock.GetUtcNow());
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
         if (init.SubAgent is AgentBase baseAgent)
         {
@@ -177,7 +176,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         var init = await InitializeSubAgentAsync(options, cancellationToken).ConfigureAwait(false);
 
-        _agentStartTimes[init.SubAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
+        _agentStartTimer.Record(init.SubAgent.ObjectId.UniqueId, _clock.GetUtcNow());
         _inputForwardQueue?.Register(init.SubAgent.ObjectId.UniqueId);
         if (init.SubAgent is AgentBase streamBaseAgent)
         {
@@ -470,7 +469,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         var tcs = new TaskCompletionSource<JoinCode.Abstractions.Interfaces.AgentResult>();
         _completionSources[subAgent.ObjectId.UniqueId] = tcs;
-        _agentStartTimes[subAgent.ObjectId.UniqueId] = _clock.GetUtcNow();
+        _agentStartTimer.Record(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
 
         if (options.RunInBackground)
         {
@@ -709,9 +708,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                     tracker.RecordTokenUsage(concreteAgent.Context.TokenUsage.TotalTokens);
             }
 
-            var durationMs = _agentStartTimes.TryRemove(subAgent.ObjectId.UniqueId, out var startTime)
-                ? (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds
-                : (long?)null;
+            var durationMs = _agentStartTimer.TryRemoveDurationMs(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
 
             var toolUseCount = _progressTrackers.TryGetValue(subAgent.ObjectId.UniqueId, out var t) ? t.ToolUseCount : (int?)null;
             var tokenCount = concreteAgent.Context?.TokenUsage.TotalTokens;
@@ -780,9 +777,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
             var content = result.Success ? result.Output : $"ERROR: {result.Error}";
             await AppendTranscriptEntryAsync(subAgent.ObjectId.UniqueId, role, content, cancellationToken).ConfigureAwait(false);
 
-            var durationMs = _agentStartTimes.TryRemove(subAgent.ObjectId.UniqueId, out var startTime)
-                ? (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds
-                : (long?)null;
+            var durationMs = _agentStartTimer.TryRemoveDurationMs(subAgent.ObjectId.UniqueId, _clock.GetUtcNow());
 
             await _transcriptService.SaveMetadataAsync(SubAgentContext.Current?.SessionId ?? SessionIdFactory.DefaultSessionId, new JoinCode.Abstractions.Interfaces.AgentMetadata
             {

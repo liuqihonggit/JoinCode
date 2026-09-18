@@ -7,18 +7,18 @@
 
 | 编号 | 文件 | 标题 | 分类 | 工具数 |
 |------|------|------|------|--------|
-| 01 | [01-desktop-control.md](01-desktop-control.md) | 桌面控制 | DesktopControl | 32 |
-| 02 | [02-code-index-graph.md](02-code-index-graph.md) | 代码索引与图 | CodeIndex + Graph | 36 |
-| 03 | [03-github.md](03-github.md) | GitHub | GitHub | 29 |
-| 04 | [04-analytics-agent.md](04-analytics-agent.md) | 分析与智能体 | Analytics + Agent | 29 |
-| 05 | [05-skill-memory.md](05-skill-memory.md) | 技能与记忆 | Skill + Memory | 27 |
-| 06 | [06-task-vision.md](06-task-vision.md) | 任务与视觉 | Task + Vision | 25 |
-| 07 | [07-file-plan.md](07-file-plan.md) | 文件与计划 | File + Plan | 23 |
-| 08 | [08-lsp-team-notebook.md](08-lsp-team-notebook.md) | LSP/团队/笔记本 | Lsp + Team + Notebook | 30 |
-| 09 | [09-mcpclient-git-search-worktree.md](09-mcpclient-git-search-worktree.md) | MCP客户端/Git/搜索/Worktree | McpClient + Git + Search + Worktree | 34 |
-| 10 | [10-error-workflow-auth-permission-sandbox.md](10-error-workflow-auth-permission-sandbox.md) | 错误恢复/工作流/认证/权限/沙箱 | ErrorRecovery + Workflow + McpAuth + Permission + Sandbox | 34 |
-| 11 | [11-shell-ps-mcpres-cron-analysis-web-voice-config.md](11-shell-ps-mcpres-cron-analysis-web-voice-config.md) | Shell/PS/MCP资源/定时/分析/Web/语音/配置 | Shell + PowerShell + McpResource + Cron + CodeAnalysis + Web + Voice + Config | 35 |
-| 12 | [12-misc-small-categories.md](12-misc-small-categories.md) | 其余小类别 | Build + CodeExecution + Todo + Vcr + Goal + CodeGeneration + Brief + StructuredOutput + Sleep + Policy + Context + Snip + Terminal + Repl + Browser + Peers + PrSubscription + RemoteTrigger + Monitor + Notification + StepEvidence + Interaction + FileTransfer | 36 |
+| MCP001 | [MCP001-desktop-control.md](MCP001-desktop-control.md) | 桌面控制 | DesktopControl | 32 |
+| MCP002 | [MCP002-code-index-graph.md](MCP002-code-index-graph.md) | 代码索引与图 | CodeIndex + Graph | 36 |
+| MCP003 | [MCP003-github.md](MCP003-github.md) | GitHub | GitHub | 29 |
+| MCP004 | [MCP004-analytics-agent.md](MCP004-analytics-agent.md) | 分析与智能体 | Analytics + Agent | 29 |
+| MCP005 | [MCP005-skill-memory.md](MCP005-skill-memory.md) | 技能与记忆 | Skill + Memory | 27 |
+| MCP006 | [MCP006-task-vision.md](MCP006-task-vision.md) | 任务与视觉 | Task + Vision | 25 |
+| MCP007 | [MCP007-file-plan.md](MCP007-file-plan.md) | 文件与计划 | File + Plan | 23 |
+| MCP008 | [MCP008-lsp-team-notebook.md](MCP008-lsp-team-notebook.md) | LSP/团队/笔记本 | Lsp + Team + Notebook | 30 |
+| MCP009 | [MCP009-mcpclient-git-search-worktree.md](MCP009-mcpclient-git-search-worktree.md) | MCP客户端/Git/搜索/Worktree | McpClient + Git + Search + Worktree | 34 |
+| MCP010 | [MCP010-error-workflow-auth-permission-sandbox.md](MCP010-error-workflow-auth-permission-sandbox.md) | 错误恢复/工作流/认证/权限/沙箱 | ErrorRecovery + Workflow + McpAuth + Permission + Sandbox | 34 |
+| MCP011 | [MCP011-shell-ps-mcpres-cron-analysis-web-voice-config.md](MCP011-shell-ps-mcpres-cron-analysis-web-voice-config.md) | Shell/PS/MCP资源/定时/分析/Web/语音/配置 | Shell + PowerShell + McpResource + Cron + CodeAnalysis + Web + Voice + Config | 35 |
+| MCP012 | [MCP012-misc-small-categories.md](MCP012-misc-small-categories.md) | 其余小类别 | Build + CodeExecution + Todo + Vcr + Goal + CodeGeneration + Brief + StructuredOutput + Sleep + Policy + Context + Snip + Terminal + Repl + Browser + Peers + PrSubscription + RemoteTrigger + Monitor + Notification + StepEvidence + Interaction + FileTransfer | 36 |
 
 ## 使用说明
 

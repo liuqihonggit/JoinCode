@@ -18,11 +18,11 @@
 
 ## 子目录
 
-| 目录 | 主题 | 文档数 | 说明 |
-|------|------|--------|------|
-| [agent/](agent/) | 子代理 | 7 | Agent 架构、继承树、中断、防冲突 |
-| [mcp/](mcp/) | MCP 工具测试 | 12+README | 按 ToolCategory 分组的测试计划(已有 [README](mcp/README.md)) |
-| [plugin/](plugin/) | 插件系统 | 6 | Cordis 框架、Entity 资源化、万物皆插件 |
-| [refactor/](refactor/) | 重构计划 | 12 | 状态机、架构选型、0-GC、Spawn 管道 |
-| [safety/](safety/) | 安全防御 | 4 | 熵减检测器、纵深防御、超时、重试 |
-| [tui/](tui/) | TUI | 3 | 交互规格、架构重构、验收修复 |
+| 目录 | 前缀 | 主题 | 文档数 | 说明 |
+|------|------|------|--------|------|
+| [agent/](agent/) | AGT | 子代理 | 7 | Agent 架构、继承树、中断、防冲突 |
+| [mcp/](mcp/) | MCP | MCP 工具测试 | 12+README | 按 ToolCategory 分组的测试计划(已有 [README](mcp/README.md)) |
+| [plugin/](plugin/) | PLG | 插件系统 | 6 | Cordis 框架、Entity 资源化、万物皆插件 |
+| [refactor/](refactor/) | PRF | 重构计划 | 13 | 状态机、架构选型、0-GC、Spawn 管道 |
+| [safety/](safety/) | SAF | 安全防御 | 5 | 熵减检测器、纵深防御、超时、重试 |
+| [tui/](tui/) | TUI | TUI | 3 | 交互规格、架构重构、验收修复 |

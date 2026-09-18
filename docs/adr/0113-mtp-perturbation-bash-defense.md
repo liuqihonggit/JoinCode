@@ -148,5 +148,5 @@ ShellCommandInterceptionMiddleware
 
 ## 相关
 
-- 实施计划：[docs/plan/safety/mtp-perturbation-defense-plan.md](../plan/safety/mtp-perturbation-defense-plan.md)
+- 实施计划：[docs/plan/safety/SAF001-mtp-perturbation-defense-plan.md](../plan/safety/SAF001-mtp-perturbation-defense-plan.md)
 - 相关 ADR：[0034](0034-command-interception-layered.md) 命令拦截分层 · [0036](0036-defense-in-depth-l1-l10.md) 纵深防御 L1-L10 · [0047](0047-unified-danger-level-classification.md) 统一危险指令分级 · [0104](0104-write-defense-node-chain.md) WriteDefense node 链

@@ -154,8 +154,8 @@ public sealed class TeammateState
     public required IAgent Agent { get; init; }
     /// <summary>生命周期取消令牌源 — 控制 teammate 整体生命周期。</summary>
     public required CancellationTokenSource LifecycleCts { get; init; }
-    /// <summary>teammate 上下文 — 团队、颜色、会话等元数据。</summary>
-    public required TeammateContext Context { get; init; }
+    /// <summary>teammate 元信息 — 团队、颜色、会话等元数据。</summary>
+    public required TeammateMeta TeammateMeta { get; init; }
     /// <summary>是否空闲。</summary>
     public bool IsIdle { get; set; }
     /// <summary>最后一次结果,可选。</summary>
@@ -407,7 +407,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     {
         return Task.FromResult<IEnumerable<TeammateStateSnapshot>>(
             _activeTeammates.Select(kv => new TeammateStateSnapshot(
-                kv.Key, kv.Value.Context.ParentSessionId, kv.Value.Task,
+                kv.Key, kv.Value.TeammateMeta.ParentSessionId, kv.Value.Task,
                 kv.Value.IsIdle, kv.Value.TurnCount, kv.Value.LastResult)).ToList());
     }
 
@@ -722,12 +722,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
             _lifecycleCts = CancellationTokenSource.CreateLinkedTokenSource(_externalCt);
 
-            var teammateContext = new TeammateContext
+            var teammateMeta = new TeammateMeta
             {
-                AgentId = _teammateId,
                 AgentName = _teammateId,
                 TeamName = _definition.TeamName ?? "default",
-                TeamId = _definition.TeamId,
                 Color = _definition.Color,
                 PlanModeRequired = _definition.PlanModeRequired,
                 ParentSessionId = _definition.ParentSessionId ?? sessionId,
@@ -738,7 +736,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
             {
                 Agent = _agent,
                 LifecycleCts = _lifecycleCts,
-                Context = teammateContext,
+                TeammateMeta = teammateMeta,
                 IsIdle = false,
                 Task = _definition.Task
             };

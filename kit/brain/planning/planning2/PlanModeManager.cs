@@ -228,8 +228,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         // TS 条件: isTeammate() && isPlanModeRequired()
         // 只有 planModeRequired 的 teammate 才走审批，自愿进入 PlanMode 的 teammate 直接本地退出
         var agentContext = _subAgentContextAccessor.Current;
-        var teammateContext = JoinCode.Abstractions.Interfaces.TeammateContext.Current;
-        var isPlanModeRequired = teammateContext?.PlanModeRequired == true;
+        var isPlanModeRequired = agentContext?.TeammateMeta?.PlanModeRequired == true;
         if (agentContext != null && _mailboxService != null && isPlanModeRequired)
         {
             var planContent = PlanFileStore.FormatPlanAsMarkdown(plan);

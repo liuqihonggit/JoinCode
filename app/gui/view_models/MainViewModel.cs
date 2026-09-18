@@ -82,74 +82,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     partial void OnEnterSendsChanged(bool value) => OnPropertyChanged(nameof(SendHintText));
 
-    /// <summary>快捷键面板项列表（需求3）— 从 GuiPreferences 加载，录制后写回持久化</summary>
-    public ObservableCollection<HotkeyItemVm> HotkeyItems { get; } = [];
-
-    /// <summary>切换快捷键录制状态：同一时间只允许一个项录制中</summary>
-    [RelayCommand]
-    private void ToggleHotkeyRecording(HotkeyItemVm? item)
-    {
-        if (item is null)
-            return;
-        foreach (var h in HotkeyItems)
-            h.IsRecording = h == item && !h.IsRecording;
-    }
-
-    /// <summary>恢复单个快捷键为默认值</summary>
-    [RelayCommand]
-    private void ResetHotkey(HotkeyItemVm? item)
-    {
-        if (item is null)
-            return;
-        item.Gesture = HotkeyDefaults.Get(item.ActionKey);
-        SaveHotkeysToPreferences();
-    }
-
-    /// <summary>录制完成后由 View 层调用：设置键位并持久化</summary>
-    public void ApplyRecordedHotkey(HotkeyItemVm item, string gesture)
-    {
-        item.Gesture = gesture;
-        item.IsRecording = false;
-        SaveHotkeysToPreferences();
-    }
-
-    /// <summary>从 HotkeyItems 获取指定动作的当前键位</summary>
-    private string GetHotkeyGesture(string actionKey)
-    {
-        foreach (var h in HotkeyItems)
-            if (h.ActionKey == actionKey)
-                return h.Gesture;
-        return HotkeyDefaults.Get(actionKey);
-    }
-
-    /// <summary>从 HotkeyItems 写回 GuiPreferences 并持久化</summary>
-    private void SaveHotkeysToPreferences()
-    {
-        if (!_isPreferencesLoaded)
-            return;
-        try
-        {
-            var existing = _preferencesStore.Load();
-            foreach (var h in HotkeyItems)
-            {
-                switch (h.ActionKey)
-                {
-                    case "Send": existing.HotkeySend = h.Gesture; break;
-                    case "Newline": existing.HotkeyNewline = h.Gesture; break;
-                    case "Stop": existing.HotkeyStop = h.Gesture; break;
-                    case "NewSession": existing.HotkeyNewSession = h.Gesture; break;
-                    case "ClearHistory": existing.HotkeyClearHistory = h.Gesture; break;
-                    case "ToggleSettings": existing.HotkeyToggleSettings = h.Gesture; break;
-                }
-            }
-            _preferencesStore.Save(existing);
-        }
-        catch (Exception ex)
-        {
-            ViewModelDiagnosticsLogger.WriteError(ex);
-        }
-    }
-
     /// <summary>推理力度选项（对齐 CLI /effort：low/medium/high/max/auto）</summary>
     public IReadOnlyList<string> EffortOptions { get; } =
         [EffortLevel.Low.ToValue(), EffortLevel.Medium.ToValue(), EffortLevel.High.ToValue(), EffortLevel.Max.ToValue(), EffortLevel.Auto.ToValue()];
@@ -202,38 +134,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     /// <summary>当前字符数（随输入变化，驱动计数显示）</summary>
     [ObservableProperty]
     private int _charsCount;
-
-    /// <summary>错误 toast 文案（非空时显示错误弹出提示）</summary>
-    [ObservableProperty]
-    private string? _errorToastText;
-
-    /// <summary>是否显示错误 toast</summary>
-    public bool HasErrorToast => ErrorToastText is not null;
-
-    partial void OnErrorToastTextChanged(string? value)
-        => OnPropertyChanged(nameof(HasErrorToast));
-
-    /// <summary>复制错误 toast 时待写入剪贴板的文本（View 层消费后清空）</summary>
-    [ObservableProperty]
-    private string? _errorToastCopy;
-
-    /// <summary>复制错误内容到剪贴板并关闭 toast</summary>
-    [RelayCommand]
-    private void CopyErrorToast()
-    {
-        if (string.IsNullOrEmpty(ErrorToastText))
-            return;
-        ErrorToastCopy = ErrorToastText;
-        CopiedMessage = ErrorToastText.GetHashCode();
-        ErrorToastText = null;
-    }
-
-    /// <summary>手动关闭错误 toast</summary>
-    [RelayCommand]
-    private void DismissErrorToast() => ErrorToastText = null;
-
-    /// <summary>View 层消费完剪贴板文本后调用，清空待复制状态</summary>
-    public void ClearErrorToastCopy() => ErrorToastCopy = null;
 
     /// <summary>空状态建议提问（点击填充输入框）</summary>
     public IReadOnlyList<string> SuggestedPrompts { get; } =
@@ -291,42 +191,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     /// <summary>输入是否超过建议上限（驱动顶栏警示与计数标红）</summary>
     public bool IsInputTooLong => CharsCount > MaxInputChars;
 
-    /// <summary>从 settings.json 异步加载主题并应用到 IsDarkTheme（启动 / 引擎热切换后调用）</summary>
-    private void LoadThemeFromSettings()
-    {
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var theme = await _session.GetThemeAsync().WaitAsync(Timeout);
-                // Auto 保持默认 IsDarkTheme（GUI 无 Auto 选项，避免按时间覆盖用户上次明确选择）
-                if (theme is ThemeKind.Auto)
-                    return;
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    _isApplyingExternalTheme = true;
-                    IsDarkTheme = ThemeConverter.ToIsDark(theme);
-                    _isApplyingExternalTheme = false;
-                });
-            }
-            catch (Exception ex)
-            {
-                ViewModelDiagnosticsLogger.WriteError(ex);
-            }
-        });
-    }
-
-    /// <summary>settings.json theme 外部变更事件处理 — 驱动 GUI 热重载（双向绑定）</summary>
-    private void OnThemeChanged(object? sender, ThemeKind theme)
-    {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            _isApplyingExternalTheme = true;
-            IsDarkTheme = ThemeConverter.ToIsDark(theme);
-            _isApplyingExternalTheme = false;
-        });
-    }
-
     /// <summary>输入框变化时同步字符计数并退出历史回看游标（斜杠刷新由 View 层防抖触发）</summary>
     partial void OnInputTextChanged(string value)
     {
@@ -335,10 +199,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (!_isNavigating)
             _historyIndex = -1;
     }
-
-    /// <summary>切换深浅主题（占位阶段仅记录状态，UI 由 View 层响应）</summary>
-    [RelayCommand]
-    private void ToggleTheme() => IsDarkTheme = !IsDarkTheme;
 
     /// <summary>↑/↓ 翻看输入历史（-1 上一条，1 下一条；到底/顶时忽略）</summary>
     [RelayCommand]

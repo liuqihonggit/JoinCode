@@ -49,12 +49,11 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     private readonly IFileOperationService _files;
     private readonly Core.Skills.Mcp.IMcpSkillProvider? _mcpSkillProvider;
     private readonly MiddlewarePipeline<SkillContext> _pipeline;
-    private readonly AsyncLock _reloadLock = new();
+    private readonly SkillServiceActor _actor;
     private readonly ConcurrentDictionary<string, SkillDefinition> _skills;
     private readonly Core.Skills.Discovery.ISkillDiscoveryService? _discoveryService;
     private readonly ILogger<SkillService>? _logger;
     private DateTime _lastReloadTime = DateTime.MinValue;
-    private bool _disposed;
 
     /// <summary>
     /// 创建技能服务
@@ -86,6 +85,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 
         Diag.WriteLine("[SKILL-CTOR] 2 LoadBuiltInSkills");
         LoadBuiltInSkills();
+        _actor = new SkillServiceActor(this, _logger);
         Diag.WriteLine("[SKILL-CTOR] 3 done");
     }
 
@@ -203,7 +203,20 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     /// <returns>重载成功返回 true，否则返回 false</returns>
     public async Task<bool> ReloadAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken = default)
     {
-        using var guard = await _reloadLock.TryLockAsync(ctx.CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_reloadLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<bool>();
+        await _actor.SendAsync(new ReloadCmd(skillName, ctx, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 重载内部实现 — 由 SkillServiceActor Consumer 串行调用，天然无竞态，无需锁
+    /// </summary>
+    /// <param name="skillName">技能名称；为 null 则重载全部</param>
+    /// <param name="ctx">执行上下文</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>重载成功返回 true，否则返回 false</returns>
+    private async Task<bool> ReloadInternalAsync(string? skillName, ExecutionContext ctx, CancellationToken cancellationToken)
+    {
         try
         {
             if (skillName != null)
@@ -230,7 +243,6 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
             ctx.Logger?.LogError(ex, L.T(StringKey.SkillServiceReloadFailed));
             return false;
         }
-
     }
 
     /// <summary>
@@ -474,13 +486,53 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     #endregion
 
     /// <summary>
-    /// 释放资源 — 释放重载锁
+    /// 异步释放资源 — await Actor 完全退出，消除显式锁 — ADR 0115
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
-        _reloadLock.Dispose();
-        base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 技能服务 Actor — 串行化 ReloadAsync 操作，消除显式锁 — ADR 0115
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class SkillServiceActor : ActorBase<ReloadCmd, Unit>
+    {
+        private readonly SkillService _owner;
+        private readonly ILogger<SkillService>? _logger;
+
+        public SkillServiceActor(SkillService owner, ILogger<SkillService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 SkillService 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(ReloadCmd cmd, CancellationToken ct)
+        {
+            try
+            {
+                cmd.Reply.SetResult(await _owner.ReloadInternalAsync(cmd.SkillName, cmd.Ctx, ct).ConfigureAwait(false));
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { cmd.Reply.SetException(ex); }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "SkillServiceActor 命令处理异常");
     }
 }
+
+/// <summary>
+/// 技能重载 Actor 命令 — ReloadAsync 的 Actor 化封装 — ADR 0115
+/// <para>消除 AsyncLock，改用 Actor 邮箱管道串行化重载操作（含文件 I/O）。</para>
+/// </summary>
+public sealed record ReloadCmd(
+    string? SkillName,
+    ExecutionContext Ctx,
+    TaskCompletionSource<bool> Reply);

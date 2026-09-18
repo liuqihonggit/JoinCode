@@ -12,7 +12,7 @@ public sealed partial class BridgeMain
     /// 获取兼容 ID — 对齐 TS 端 sessionCompatIds.get(sessionId) ?? sessionId
     /// cse_* → session_* 转换，用于 logger/archive/title 等客户端兼容 API
     /// </summary>
-    private string GetCompatId(string sessionId) => _tracker.Sessions.GetCompatId(sessionId);
+    internal string GetCompatId(string sessionId) => _tracker.Sessions.GetCompatId(sessionId);
 
     /// <summary>
     /// 从 gitRepoUrl 提取仓库名 — 对齐 TS 端 parseGitHubRepository + basename 回退
@@ -95,7 +95,7 @@ public sealed partial class BridgeMain
         }
     }
 
-    private void CleanupSessionTracking(string sessionId)
+    internal void CleanupSessionTracking(string sessionId)
     {
         _tracker.CleanupSession(sessionId, onRemoveCompatId: compatId => _deps.BridgeLogger?.RemoveSession(compatId));
     }

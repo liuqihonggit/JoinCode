@@ -106,7 +106,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     {
         if (item is null)
             return;
-        item.Gesture = GetDefaultHotkey(item.ActionKey);
+        item.Gesture = HotkeyDefaults.Get(item.ActionKey);
         SaveHotkeysToPreferences();
     }
 
@@ -118,25 +118,13 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SaveHotkeysToPreferences();
     }
 
-    /// <summary>快捷键默认值表</summary>
-    private static string GetDefaultHotkey(string actionKey) => actionKey switch
-    {
-        "Send" => "Ctrl+Enter",
-        "Newline" => "Enter",
-        "Stop" => "Double+Escape",
-        "NewSession" => "Ctrl+N",
-        "ClearHistory" => "Ctrl+L",
-        "ToggleSettings" => "Ctrl+OemComma",
-        _ => string.Empty
-    };
-
     /// <summary>从 HotkeyItems 获取指定动作的当前键位</summary>
     private string GetHotkeyGesture(string actionKey)
     {
         foreach (var h in HotkeyItems)
             if (h.ActionKey == actionKey)
                 return h.Gesture;
-        return GetDefaultHotkey(actionKey);
+        return HotkeyDefaults.Get(actionKey);
     }
 
     /// <summary>从 HotkeyItems 写回 GuiPreferences 并持久化</summary>
@@ -163,7 +151,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -453,7 +441,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -552,12 +540,12 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             StatusText = "正在加载引擎…";
             RebuildConnectionOptions();
-            WriteDebugLog($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionDropdown.ConnectionOptions.Count} ids=[{string.Join(",", _connectionDropdown.ConnectionOptions.Select(c => c.Id))}]");
+            ViewModelDiagnosticsLogger.WriteDebug($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionDropdown.ConnectionOptions.Count} ids=[{string.Join(",", _connectionDropdown.ConnectionOptions.Select(c => c.Id))}]");
             _isRefreshingConfig = true;
             SelectedConnection = GetConnectionById(_session.CurrentVendor)
                 ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
             _isRefreshingConfig = false;
-            WriteDebugLog($"Constructor else: SelectedConnection={SelectedConnection?.Id}");
+            ViewModelDiagnosticsLogger.WriteDebug($"Constructor else: SelectedConnection={SelectedConnection?.Id}");
             RefreshModelOptions();
             _selectedModelOption = GetModelById(_session.CurrentModelId)
                 ?? ModelOptions.FirstOrDefault();
@@ -577,7 +565,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     /// </summary>
     public void AttachRealSession(IJccChatSession session)
     {
-        WriteDebugLog($"AttachRealSession: currentVendor={session.CurrentVendor} currentModel={session.CurrentModelId}");
+        ViewModelDiagnosticsLogger.WriteDebug($"AttachRealSession: currentVendor={session.CurrentVendor} currentModel={session.CurrentModelId}");
         _realSession = session;
         _session = session;
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
@@ -592,7 +580,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         SelectedConnection = GetConnectionById(session.CurrentVendor)
             ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
         _isRefreshingConfig = false;
-        WriteDebugLog($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
+        ViewModelDiagnosticsLogger.WriteDebug($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
 
         // 清空延迟构建的斜杠命令缓存，改用真实引擎的命令清单
         _slashCommandCache = [];
@@ -611,7 +599,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                WriteErrorLog(ex);
+                ViewModelDiagnosticsLogger.WriteError(ex);
             }
         });
         _ = Task.Run(async () =>
@@ -623,7 +611,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                WriteErrorLog(ex);
+                ViewModelDiagnosticsLogger.WriteError(ex);
             }
         });
         StatusText = $"已连接真实引擎 {session.CurrentVendor}";
@@ -697,7 +685,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -851,7 +839,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             _ = Task.Run(async () =>
             {
                 try { await _session.SetSystemPromptAsync(value).WaitAsync(Timeout); }
-                catch (Exception ex) { WriteErrorLog(ex); }
+                catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); }
             });
         }
     }
@@ -890,7 +878,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception ex)
         {
             _isPreferencesLoaded = true;
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -908,7 +896,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                WriteErrorLog(ex);
+                ViewModelDiagnosticsLogger.WriteError(ex);
             }
         });
     }
@@ -922,26 +910,9 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         try
         {
             Task.Run(action).Wait(Timeout);
-            WriteDebugLog($"PersistSync ok");
+            ViewModelDiagnosticsLogger.WriteDebug($"PersistSync ok");
         }
-        catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"PersistSync FAIL: {ex.Message}"); }
-    }
-
-    /// <summary>写诊断日志到 dumps/persist_debug.log（定位持久化路由问题）</summary>
-    private static void WriteDebugLog(string message)
-    {
-        try
-        {
-            var dir = AppDataConstants.Paths.DumpsDirectory;
-            System.IO.Directory.CreateDirectory(dir);
-            SafeFileIO.AppendAllText(
-                System.IO.Path.Combine(dir, "persist_debug.log"),
-                $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}");
-        }
-        catch (Exception writeEx)
-        {
-            System.Console.Error.WriteLine($"无法写入诊断日志: {writeEx.Message}");
-        }
+        catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); ViewModelDiagnosticsLogger.WriteDebug($"PersistSync FAIL: {ex.Message}"); }
     }
 
     /// <summary>
@@ -951,7 +922,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private void RegisterPersistActions()
     {
         _persistActions[nameof(IsDarkTheme)] = () =>
-            PersistSync(() => _session.SetThemeAsync(IsDarkToTheme(IsDarkTheme)));
+            PersistSync(() => _session.SetThemeAsync(ThemeConverter.FromIsDark(IsDarkTheme)));
         _persistActions[nameof(SelectedModel)] = () =>
         {
             var m = SelectedModel;
@@ -983,7 +954,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         if (propertyName is null)
             return;
         if (_persistActions.ContainsKey(propertyName))
-            WriteDebugLog($"OnPropertyChanged: {propertyName} | loaded={_isPreferencesLoaded} refresh={_isRefreshingConfig} extTheme={_isApplyingExternalTheme} | session={_session.GetType().Name}");
+            ViewModelDiagnosticsLogger.WriteDebug($"OnPropertyChanged: {propertyName} | loaded={_isPreferencesLoaded} refresh={_isRefreshingConfig} extTheme={_isApplyingExternalTheme} | session={_session.GetType().Name}");
         if (!_isPreferencesLoaded || _isRefreshingConfig || _isApplyingExternalTheme)
             return;
         if (_persistActions.TryGetValue(propertyName, out var action))
@@ -1020,27 +991,9 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
-
-    /// <summary>
-    /// ThemeKind → bool IsDarkTheme 映射 — auto 按时间（6-18 点 light，否则 dark），
-    /// daltonized/ansi 降级为基础明暗（GUI 调色板暂不支持色盲友好变体）。
-    /// </summary>
-    private static bool ThemeToIsDark(ThemeKind theme)
-    {
-        return theme switch
-        {
-            ThemeKind.Dark or ThemeKind.DarkDaltonized or ThemeKind.DarkAnsi => true,
-            ThemeKind.Light or ThemeKind.LightDaltonized or ThemeKind.LightAnsi => false,
-            ThemeKind.Auto => DateTime.Now.Hour is < 6 or >= 18,
-            _ => true
-        };
-    }
-
-    /// <summary>bool IsDarkTheme → ThemeKind 映射 — GUI 仅暴露 dark/light 二态</summary>
-    private static ThemeKind IsDarkToTheme(bool isDark) => isDark ? ThemeKind.Dark : ThemeKind.Light;
 
     /// <summary>从 settings.json 异步加载主题并应用到 IsDarkTheme（启动 / 引擎热切换后调用）</summary>
     private void LoadThemeFromSettings()
@@ -1056,13 +1009,13 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     _isApplyingExternalTheme = true;
-                    IsDarkTheme = ThemeToIsDark(theme);
+                    IsDarkTheme = ThemeConverter.ToIsDark(theme);
                     _isApplyingExternalTheme = false;
                 });
             }
             catch (Exception ex)
             {
-                WriteErrorLog(ex);
+                ViewModelDiagnosticsLogger.WriteError(ex);
             }
         });
     }
@@ -1073,7 +1026,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             _isApplyingExternalTheme = true;
-            IsDarkTheme = ThemeToIsDark(theme);
+            IsDarkTheme = ThemeConverter.ToIsDark(theme);
             _isApplyingExternalTheme = false;
         });
     }
@@ -1107,7 +1060,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
-        WriteDebugLog($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
+        ViewModelDiagnosticsLogger.WriteDebug($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
         if (value is null || _isRefreshingConfig)
             return;
 
@@ -1116,8 +1069,8 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         StatusText = _realSession is not null
             ? $"已连接真实引擎 {value.DisplayText}"
             : $"已选择供应商 {value.DisplayText}（引擎加载中…）";
-        try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); WriteDebugLog($"SetVendorAsync ok: id={value.Id}"); }
-        catch (Exception ex) { WriteErrorLog(ex); WriteDebugLog($"SetVendorAsync FAIL: {ex.Message}"); }
+        try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync ok: id={value.Id}"); }
+        catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync FAIL: {ex.Message}"); }
 
         RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
@@ -1258,7 +1211,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -1371,7 +1324,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
                 catch (Exception ex)
                 {
                     output = $"命令执行失败: {ex.Message}";
-                    WriteErrorLog(ex);
+                    ViewModelDiagnosticsLogger.WriteError(ex);
                 }
                 var commandEcho = Messages[^1];
                 commandEcho.Content = string.IsNullOrWhiteSpace(output)
@@ -1428,7 +1381,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
         {
             ErrorToastText = ex.Message;
             StatusText = "就绪";
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
             _turnProcessor?.CancelTurn();
             stopReason = MarqueeStopReason.Abnormal;
         }
@@ -1440,23 +1393,6 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
             RunStatus.EndTurn(stopReason);
             OnPropertyChanged(nameof(CanStop));
             SaveActiveSession();
-        }
-    }
-
-    /// <summary>把发送异常写入 dumps/send_error.log 以便诊断；写入失败则忽略</summary>
-    private static void WriteErrorLog(Exception ex)
-    {
-        try
-        {
-            var dir = AppDataConstants.Paths.DumpsDirectory;
-            System.IO.Directory.CreateDirectory(dir);
-            SafeFileIO.AppendAllText(
-                System.IO.Path.Combine(dir, "send_error.log"),
-                $"[{DateTime.Now:HH:mm:ss}] {ex}{Environment.NewLine}");
-        }
-        catch (Exception writeEx)
-        {
-            System.Console.Error.WriteLine($"无法写入错误日志: {writeEx.Message}");
         }
     }
 

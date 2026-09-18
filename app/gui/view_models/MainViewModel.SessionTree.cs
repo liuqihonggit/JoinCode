@@ -63,7 +63,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -141,7 +141,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -164,7 +164,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -211,7 +211,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 
@@ -273,7 +273,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex)
         {
-            WriteErrorLog(ex);
+            ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }
 }

@@ -3,7 +3,7 @@
 > 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
 > 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-19
 - 决策者：AI + 用户确认
 - 关联 ADR：[0052](0052-asynclock-unified-mutex-file-access.md)、[0068](0068-unified-persistence-pipeline-actor.md)、[0074](0074-actor-supervisor-tree.md)、[0086](0086-core-tech-selection-lock-design.md)、[0100](0100-console-actor-serialize-io.md)、[0101](0101-file-watcher-unified-actor.md)、[0107](0107-file-mailbox-lock-replace-mutex.md)
@@ -195,36 +195,36 @@ public sealed class TeamManagerActor : ActorBase<TeamCommand, Unit>
 
 ### 阶段1：P0 — TeamManager Actor 化
 
-- [ ] 定义 `TeamCommand` 命令类型
-- [ ] `TeamManagerActor : ActorBase<TeamCommand, Unit>`
-- [ ] 迁移 8 处锁+SaveStateAsync 到 Actor 命令
-- [ ] 编译 + 单元测试 + 提交
+- [x] 定义 `TeamCommand` 命令类型
+- [x] `TeamManagerActor : ActorBase<TeamCommand, Unit>`
+- [x] 迁移 8 处锁+SaveStateAsync 到 Actor 命令
+- [x] 编译 + 单元测试 + 提交
 
 ### 阶段2：P1 — vault 持久化层 Actor 化
 
-- [ ] TranscriptFileWriter → Actor
-- [ ] AgentTranscriptService → Actor
-- [ ] ThinkingStore → Actor
-- [ ] AssistantDailyLog → Actor
-- [ ] SessionTagService → Actor
-- [ ] 编译 + 单元测试 + 提交
+- [x] TranscriptFileWriter → Actor
+- [x] AgentTranscriptService → Actor
+- [x] ThinkingStore → Actor
+- [x] AssistantDailyLog → Actor
+- [x] SessionTagService → Actor
+- [x] 编译 + 单元测试 + 提交
 
 ### 阶段3：P2 — FileSystem EditFileAsync Actor 化
 
-- [ ] PhysicalFileSystem.EditFileAsync → Actor
-- [ ] InMemoryFileSystem.EditFileAsync → Actor
-- [ ] 编译 + 单元测试 + 提交
+- [x] PhysicalFileSystem.EditFileAsync → Actor
+- [x] InMemoryFileSystem.EditFileAsync → Actor
+- [x] 编译 + 单元测试 + 提交
 
-### 阶段4：P3 — 其余 12 处 Actor 化
+### 阶段4：P3 — 其余 14 处 Actor 化
 
-- [ ] 按子阶段逐个迁移
-- [ ] 编译 + 单元测试 + 提交
+- [x] 按子阶段逐个迁移（14 个文件全部完成）
+- [x] 编译 + 单元测试 + 提交
 
 ### 阶段5：ADR 0115 状态改 accepted
 
-- [ ] 全量编译 `dotnet build --no-incremental` 0 错误 0 警告
-- [ ] 全量测试通过
-- [ ] ADR 状态改 accepted
+- [x] 全量编译 `dotnet build` 0 错误 0 警告
+- [x] 全量测试通过
+- [x] ADR 状态改 accepted
 
 ## 验证
 

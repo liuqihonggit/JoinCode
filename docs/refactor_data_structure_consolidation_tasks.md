@@ -133,9 +133,9 @@
 - 提取 `StreamTextScope` 扩展方法 `AsUtf8Reader()`/`AsUtf8Writer()`,15处统一替换
 - **状态**:✅ `140ed34e0`(Mcp 215测试通过)
 
-### [P1-11] SystemActuatorCommandContext — 20 字段 + 3 个 Timer
-- 拆 `CommandSpec`/`ProcessLifecycle`/`CommandRuntimeState` + 提取 `ThreadSafeTimerField`
-- **状态**:⏳ 待做
+### [P1-11] SystemActuatorCommandContext — 20 字段 + 3 个 Timer ⏭️ 跳过
+- 字段交互紧密(_command 10+处日志,_status 20+处读写),拆分后访问变冗长,风险/收益比不好
+- **状态**:⏭️ 跳过(间接层降低可读性)
 
 ---
 

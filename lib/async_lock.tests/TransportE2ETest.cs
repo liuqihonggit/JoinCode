@@ -11,7 +11,7 @@ public class TransportE2ETest
         TimeSpan timeout)
     {
         using var cts = new CancellationTokenSource(timeout);
-        try { return await source.FirstOrDefaultAsync(cts.Token).ConfigureAwait(false); }
+        try { return await source.FirstOrDefaultAsync(cts.Token); }
         catch (OperationCanceledException) { return null; }
     }
 

@@ -306,6 +306,8 @@ public sealed class HostElectionService : IAsyncDisposable
         _electionChannel.Writer.TryComplete();
         if (_heartbeatTask is not null) await _heartbeatTask.ConfigureAwait(false);
         if (_electionConsumerTask is not null) await _electionConsumerTask.ConfigureAwait(false);
+        _heartbeatTask = null;
+        _electionConsumerTask = null;
         _cts.Dispose();
     }
 }

@@ -327,8 +327,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     /// </summary>
     public override ValueTask DisposeAsync()
     {
-        var baseTask = base.DisposeAsync();
         StopWatcherCore();
-        return baseTask;
+        return base.DisposeAsync();
     }
 }

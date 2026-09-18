@@ -95,6 +95,10 @@ public sealed partial class DesktopSafetyChecker : ServiceEntity, IDesktopSafety
 
     private readonly record struct DangerousZone(int X, int Y, int Width, int Height);
 
-    /// <summary>释放安全检查器资源 — 无外部资源需释放。</summary>
-    public override void Dispose() => base.Dispose();
+    /// <summary>释放安全检查器资源。</summary>
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

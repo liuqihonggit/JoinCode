@@ -157,9 +157,7 @@ namespace AotSafety.Generator
             context.RegisterSyntaxNodeAction(AnalyzeAsyncVoid, SyntaxKind.MethodDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeBlockingAsyncCall, SyntaxKind.SimpleMemberAccessExpression);
             context.RegisterSyntaxNodeAction(AnalyzeSequentialAwaitInLoop, SyntaxKind.AwaitExpression);
-            context.RegisterSyntaxNodeAction(AnalyzeConfigureAwaitFalse, SyntaxKind.AwaitExpression);
-            context.RegisterSyntaxNodeAction(AnalyzeConfigureAwaitTrueForTests, SyntaxKind.AwaitExpression);
-            context.RegisterSyntaxNodeAction(AnalyzeTaskDelayInTests, SyntaxKind.InvocationExpression);
+            context.RegisterCompilationStartAction(RegisterAsyncCodePathAnalysis);
             context.RegisterSyntaxNodeAction(AnalyzeEmptyCatchBlock, SyntaxKind.CatchClause);
             context.RegisterSyntaxNodeAction(AnalyzeUnreadStderr, SyntaxKind.ObjectCreationExpression);
         }
@@ -754,48 +752,73 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeConfigureAwaitFalse(SyntaxNodeAnalysisContext ctx)
+        /// <summary>
+        /// 注册 JCC3008/JCC3009/JCC3010-JCC3012 分析，缓存项目类型检测结果（解决方案无关）
+        /// </summary>
+        private static void RegisterAsyncCodePathAnalysis(CompilationStartAnalysisContext context)
+        {
+            var isTestProject = IsTestProject(context.Compilation);
+            var isRoslynProject = IsRoslynProject(context.Compilation);
+            var isLibraryProject = !isTestProject && !isRoslynProject;
+
+            context.RegisterSyntaxNodeAction(
+                ctx => AnalyzeConfigureAwaitFalse(ctx, isLibraryProject),
+                SyntaxKind.AwaitExpression);
+            context.RegisterSyntaxNodeAction(
+                ctx => AnalyzeConfigureAwaitTrueForTests(ctx, isTestProject),
+                SyntaxKind.AwaitExpression);
+            context.RegisterSyntaxNodeAction(
+                ctx => AnalyzeTaskDelayInTests(ctx, isTestProject),
+                SyntaxKind.InvocationExpression);
+        }
+
+        /// <summary>
+        /// 检测项目是否引用了测试框架（xUnit/NUnit/MSTest）。解决方案无关。
+        /// </summary>
+        private static bool IsTestProject(Compilation compilation)
+        {
+            foreach (var reference in compilation.References)
+            {
+                if (reference is not PortableExecutableReference peRef) continue;
+                var display = peRef.Display;
+                if (display is null) continue;
+                var displaySpan = display.AsSpan();
+                if (displaySpan.Contains("xunit.core".AsSpan(), StringComparison.OrdinalIgnoreCase) ||
+                    displaySpan.Contains("nunit.framework".AsSpan(), StringComparison.OrdinalIgnoreCase) ||
+                    displaySpan.Contains("Microsoft.VisualStudio.TestPlatform".AsSpan(), StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 检测项目是否引用了 Microsoft.CodeAnalysis.CSharp（Roslyn 项目）。解决方案无关。
+        /// </summary>
+        private static bool IsRoslynProject(Compilation compilation)
+        {
+            var targetSpan = "Microsoft.CodeAnalysis.CSharp".AsSpan();
+            foreach (var reference in compilation.References)
+            {
+                if (reference is not PortableExecutableReference peRef) continue;
+                var display = peRef.Display;
+                if (display is null) continue;
+                if (display.AsSpan().Contains(targetSpan, StringComparison.Ordinal))
+                    return true;
+            }
+            return false;
+        }
+
+        private static void AnalyzeConfigureAwaitFalse(SyntaxNodeAnalysisContext ctx, bool isLibraryProject)
         {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not AwaitExpressionSyntax awaitExpr) return;
 
-            var filePath = awaitExpr.SyntaxTree.FilePath;
-
-            if (string.IsNullOrEmpty(filePath)) return;
-            if (filePath[0] == '/') return;
-
-            if (!IsLibraryCodePath(filePath)) return;
+            if (!isLibraryProject) return;
 
             if (HasConfigureAwaitFalse(awaitExpr)) return;
 
             ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitFalse, awaitExpr.GetLocation()));
-        }
-
-        private static bool IsLibraryCodePath(string filePath)
-        {
-            if (HasPathSegment(filePath, "tests")) return false;
-            if (HasPathSegment(filePath, "generators")) return false;
-            if (HasPathSegment(filePath, "tools")) return false;
-            if (HasPathSegment(filePath, "libs")) return false;
-            if (HasPathSegment(filePath, "app")) return false;
-
-            return HasPathSegment(filePath, "foundation")
-                || HasPathSegment(filePath, "infrastructure")
-                || HasPathSegment(filePath, "core")
-                || HasPathSegment(filePath, "services")
-                || HasPathSegment(filePath, "composition");
-        }
-
-        private static bool HasPathSegment(string filePath, string segment)
-        {
-            var parts = filePath.Split('\\', '/');
-            foreach (var part in parts)
-            {
-                if (string.Equals(part, segment, StringComparison.Ordinal))
-                    return true;
-            }
-            return false;
         }
 
         private static bool HasConfigureAwaitFalse(AwaitExpressionSyntax awaitExpr)
@@ -821,25 +844,15 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeConfigureAwaitTrueForTests(SyntaxNodeAnalysisContext ctx)
+        private static void AnalyzeConfigureAwaitTrueForTests(SyntaxNodeAnalysisContext ctx, bool isTestProject)
         {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
             if (ctx.Node is not AwaitExpressionSyntax awaitExpr) return;
 
-            var filePath = awaitExpr.SyntaxTree.FilePath;
+            if (!isTestProject) return;
 
-            if (string.IsNullOrEmpty(filePath)) return;
-            if (filePath[0] == '/') return;
-
-            var isTestCode = HasPathSegment(filePath, "tests");
-            if (!isTestCode) return;
-
-            var isTestingCommon = HasPathSegment(filePath, "Testing.Common");
-            if (isTestingCommon) return;
-
-            var isMockServer = HasPathSegment(filePath, "MockServers");
-            if (isMockServer) return;
+            if (!AotSafetyHelpers.IsInsideTestMethod(awaitExpr)) return;
 
             if (IsTaskYield(awaitExpr)) return;
 
@@ -863,7 +876,7 @@ namespace AotSafety.Generator
             return false;
         }
 
-        private static void AnalyzeTaskDelayInTests(SyntaxNodeAnalysisContext ctx)
+        private static void AnalyzeTaskDelayInTests(SyntaxNodeAnalysisContext ctx, bool isTestProject)
         {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
@@ -877,15 +890,9 @@ namespace AotSafety.Generator
 
             if (containingType.Name != "Task" || symbol.Name != "Delay") return;
 
-            var filePath = invocation.SyntaxTree.FilePath;
-            if (string.IsNullOrEmpty(filePath)) return;
-            if (filePath[0] == '/') return;
+            if (!isTestProject) return;
 
-            var isTestCode = HasPathSegment(filePath, "tests");
-            if (!isTestCode) return;
-
-            var isTestingCommon = HasPathSegment(filePath, "Testing.Common");
-            if (isTestingCommon) return;
+            if (!AotSafetyHelpers.IsInsideTestMethod(invocation)) return;
 
             var args = invocation.ArgumentList.Arguments;
             if (args.Count > 0)

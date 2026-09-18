@@ -232,6 +232,7 @@ public sealed class MeshTransport : ITransportTopology
         _peerConnections.Clear();
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
+        _acceptTask = null;
         Cleanup(conns, _cts);
     }
 

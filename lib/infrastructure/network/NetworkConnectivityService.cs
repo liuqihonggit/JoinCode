@@ -178,6 +178,7 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     public override void Dispose()
     {
         UnsubscribeNetworkChange();
+        _stateLock.Dispose();
         base.Dispose();
     }
 

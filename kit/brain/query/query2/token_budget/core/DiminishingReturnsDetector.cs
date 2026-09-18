@@ -155,4 +155,11 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
             _consecutiveLowValueCount = 0;
         }
     }
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        _resetLock.Dispose();
+        base.Dispose();
+    }
 }

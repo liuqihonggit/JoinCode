@@ -125,4 +125,11 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
             Config = config
         });
     }
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

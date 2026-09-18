@@ -132,6 +132,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _storeSubscription?.Dispose();
+        _valueLock.Dispose();
         ImmutableInterlocked.Update(ref _subscribers, _ => ImmutableList<Action<TSelected>>.Empty);
     }
 

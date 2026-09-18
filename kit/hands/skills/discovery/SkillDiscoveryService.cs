@@ -239,11 +239,11 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
             await ProcessFileChangeAsync(newPath, ct).ConfigureAwait(false);
     }
 
-    /// <summary>异步释放 — 先停 watcher(基类),再释放 discoveryLock</summary>
+    /// <summary>异步释放 — 先释放 discoveryLock,再停 watcher(基类)</summary>
     public override async ValueTask DisposeAsync()
     {
-        await base.DisposeAsync().ConfigureAwait(false);
         _discoveryLock.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 
     private static bool IsSkillFile(string filePath)

@@ -169,4 +169,11 @@ public sealed partial class MacroRecorder : ServiceEntity, IMacroRecorder
             return false;
         }
     }
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

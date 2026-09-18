@@ -335,10 +335,10 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     {
         if (_disposed) return;
         _disposed = true;
-        await base.DisposeAsync().ConfigureAwait(false);
         _recordingCts?.Cancel();
         _recordingCts?.Dispose();
         _recordingStream?.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 
 }

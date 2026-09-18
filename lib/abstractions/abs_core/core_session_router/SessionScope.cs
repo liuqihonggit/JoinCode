@@ -122,6 +122,7 @@ public sealed class SessionScope : IDisposable
 
         _entities.Clear();
         _typeIndex.Clear();
+        _indexLock.Dispose();
     }
 
     private void AddToTypeIndex(Entity entity)

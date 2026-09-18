@@ -10,7 +10,8 @@ public sealed class PromptValidator
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        TypeInfoResolver = MockServerE2EJsonContext.Default
     };
 
     /// <summary>

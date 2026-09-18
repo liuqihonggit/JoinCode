@@ -305,6 +305,9 @@ public sealed class NamedPipeTransport : ITransportTopology
 
         if (_acceptTask is not null) await _acceptTask.ConfigureAwait(false);
         if (_slaveReceiveTask is not null) await _slaveReceiveTask.ConfigureAwait(false);
+        _slaveClient = null;
+        _acceptTask = null;
+        _slaveReceiveTask = null;
         Cleanup(conns, slaveClient, _election, _cts);
     }
 

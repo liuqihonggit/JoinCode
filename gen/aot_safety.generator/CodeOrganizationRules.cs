@@ -393,24 +393,6 @@ namespace AotSafety.Generator
 
         private static bool IsInHttpClientImplementation(SyntaxNodeAnalysisContext ctx)
         {
-            var filePath = ctx.Node.SyntaxTree.FilePath;
-            if (string.IsNullOrEmpty(filePath)) return false;
-
-            // Transport 传输层和 LLM 层需要自定义 Handler，允许自建 HttpClient
-            if (filePath.Contains("\\Transport\\Impl\\", StringComparison.Ordinal) ||
-                filePath.Contains("/Transport/Impl/", StringComparison.Ordinal) ||
-                filePath.Contains("\\Llm\\src\\Adapters\\", StringComparison.Ordinal) ||
-                filePath.Contains("/Llm/src/Adapters/", StringComparison.Ordinal) ||
-                filePath.Contains("\\Http\\", StringComparison.Ordinal) ||
-                filePath.Contains("/Http/", StringComparison.Ordinal) ||
-                filePath.Contains("HttpClientProviderFactory", StringComparison.Ordinal) ||
-                filePath.Contains("DefaultHttpClientProvider", StringComparison.Ordinal) ||
-                filePath.Contains("MockHttpClientProvider", StringComparison.Ordinal) ||
-                filePath.Contains("SharedHttpClient", StringComparison.Ordinal) ||
-                filePath.Contains("ApiClient.cs", StringComparison.Ordinal) ||
-                filePath.Contains("BridgeApiClient.cs", StringComparison.Ordinal))
-                return true;
-
             var containingType = ctx.SemanticModel.GetEnclosingSymbol(ctx.Node.SpanStart)?.ContainingType;
             if (containingType is null) return false;
 
@@ -424,15 +406,6 @@ namespace AotSafety.Generator
 
         private static bool IsInFileSystemImplementation(SyntaxNodeAnalysisContext ctx)
         {
-            var filePath = ctx.Node.SyntaxTree.FilePath;
-            if (string.IsNullOrEmpty(filePath)) return false;
-
-            if (filePath.Contains("\\FileSystem\\", StringComparison.Ordinal) ||
-                filePath.Contains("/FileSystem/", StringComparison.Ordinal) ||
-                filePath.Contains("SimpleFileReader", StringComparison.Ordinal) ||
-                filePath.Contains("FileOperationService", StringComparison.Ordinal))
-                return true;
-
             var containingType = ctx.SemanticModel.GetEnclosingSymbol(ctx.Node.SpanStart)?.ContainingType;
             if (containingType is null) return false;
 

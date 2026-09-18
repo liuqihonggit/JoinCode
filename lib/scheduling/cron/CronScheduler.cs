@@ -349,8 +349,7 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
         _timer.Change(Timeout.Infinite, Timeout.Infinite);
-        var task = base.DisposeAsync();
         _timer.Dispose();
-        return task;
+        return base.DisposeAsync();
     }
 }

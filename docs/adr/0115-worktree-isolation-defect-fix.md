@@ -1,6 +1,6 @@
 # 0115. Worktree 隔离缺陷修复 — cwd 污染 + Teammate 不隔离
 
-- 状态：proposed
+- 状态：accepted
 - 日期：2026-09-19
 - 决策者：用户 + AI
 

@@ -10,6 +10,9 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 {
     private readonly TeamRegistry _registry = new();
     private readonly AsyncLock _lock = new();
+    private readonly TeamMessageDispatcher _messageDispatcher;
+    private readonly TeammateStatusBuilder _teammateStatusBuilder;
+    private readonly ChatRoomViewBuilder _chatRoomViewBuilder;
     private readonly ITelemetryService? _telemetryService;
     private readonly ITeammateMailboxService? _mailboxService;
     private readonly MailboxHub? _mailboxHub;
@@ -49,6 +52,9 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _serviceProvider = serviceProvider;
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _logger = logger;
+        _messageDispatcher = new TeamMessageDispatcher(_registry, mailboxService, mailboxHub, _logger);
+        _teammateStatusBuilder = new TeammateStatusBuilder(_registry, () => ResolvedTeammateObserver);
+        _chatRoomViewBuilder = new ChatRoomViewBuilder(_registry, _teammateStatusBuilder.GetTeammateStatusesAsync);
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
         LoadState();
@@ -342,7 +348,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         TouchRoomActivity(room);
 
-        await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
+        await _messageDispatcher.PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(room.Info);
@@ -402,7 +408,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
     
 
-        await PersistDirectMessageToMailboxAsync(targetAgentId, senderId, content, messageType ?? "direct", teamId, cancellationToken).ConfigureAwait(false);
+        await _messageDispatcher.PersistDirectMessageToMailboxAsync(targetAgentId, senderId, content, messageType ?? "direct", teamId, cancellationToken).ConfigureAwait(false);
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(team);
@@ -481,7 +487,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         TouchRoomActivity(room);
 
-        await PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
+        await _messageDispatcher.PersistTeamMessageToMailboxAsync(teamId, message, cancellationToken).ConfigureAwait(false);
 
         await SaveStateAsync(cancellationToken).ConfigureAwait(false);
         return OperationResult<TeamInfo?>.Ok(room.Info);
@@ -519,145 +525,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             MemberDetails = room.MemberDetails.Values.ToList(),
             LastActivityAt = _clock.GetUtcNow()
         };
-    }
-
-    /// <summary>
-    /// 按消息可见性过滤投递目标 — ADR 0109 决策8。
-    /// <para>Public/System → 所有成员（排除发送者）</para>
-    /// <para>AdminOnly → 仅管理员/群主（排除发送者）</para>
-    /// <para>Private → 仅 ToAgentId</para>
-    /// <para>Hidden → 空列表（仅持久化不投递）</para>
-    /// </summary>
-    private IReadOnlyList<string> FilterRecipientsByVisibility(string teamId, TeamMessage message)
-    {
-        if (message.Visibility == MessageVisibility.Hidden) return Array.Empty<string>();
-
-        if (message.Visibility == MessageVisibility.Private)
-        {
-            return message.ToAgentId is not null ? new[] { message.ToAgentId } : Array.Empty<string>();
-        }
-
-        if (!_registry.TryGetRoom(teamId, out var room)) return Array.Empty<string>();
-        var members = room.Members;
-
-        if (message.Visibility == MessageVisibility.AdminOnly)
-        {
-            var details = room.MemberDetails;
-            var team = room.Info;
-            return members
-                .Where(m => m != message.SenderId && IsAdminOrOwner(m, details, team))
-                .ToList();
-        }
-
-        return members.Where(m => m != message.SenderId).ToList();
-    }
-
-    private static bool IsAdminOrOwner(string agentId, Dictionary<string, TeamMemberInfo>? details, TeamInfo? team)
-    {
-        if (agentId == team?.LeadAgentId) return true;
-        if (details is not null && details.TryGetValue(agentId, out var md))
-        {
-            return md.Role is "admin" or "owner";
-        }
-        return false;
-    }
-
-    private async Task PersistTeamMessageToMailboxAsync(string teamId, TeamMessage message, CancellationToken cancellationToken)
-    {
-        var targetAgentIds = FilterRecipientsByVisibility(teamId, message);
-        if (targetAgentIds.Count == 0) return;
-
-        var sessionId = _registry.TryGetRoom(teamId, out var room) ? room.SessionId : null;
-
-        if (_mailboxService is not null && sessionId is not null)
-        {
-            var tasks = targetAgentIds
-                .Select(m => _mailboxService.SendAsync(new MailboxSendRequest
-                {
-                    FromAgentId = message.SenderId,
-                    ToAgentId = m,
-                    MessageType = message.MessageType,
-                    Content = message.Content,
-                    SessionId = sessionId
-                }, cancellationToken).AsTask())
-                .ToArray();
-
-            try
-            {
-                await Task.WhenAll(tasks).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger?.LogWarning(ex, "广播团队消息到文件邮箱失败");
-            }
-        }
-
-        if (_mailboxHub is not null)
-        {
-            var coordinatorMsg = new CoordinatorMessage
-            {
-                FromAgentId = message.SenderId,
-                ToAgentId = message.Visibility == MessageVisibility.Private ? message.ToAgentId ?? "" : "broadcast",
-                MessageType = message.MessageType,
-                Content = message.Content,
-                Visibility = message.Visibility,
-            };
-
-            try
-            {
-                await _mailboxHub.BroadcastAsync(coordinatorMsg, message.Visibility, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger?.LogWarning(ex, "广播团队消息到 MailboxHub 跨通道失败");
-            }
-        }
-    }
-
-    private async Task PersistDirectMessageToMailboxAsync(
-        string targetAgentId, string senderId, string content, string messageType, string teamId,
-        CancellationToken cancellationToken)
-    {
-        var sessionId = _registry.TryGetRoom(teamId, out var room) ? room.SessionId : null;
-
-        if (_mailboxService is not null && sessionId is not null)
-        {
-            try
-            {
-                await _mailboxService.SendAsync(new MailboxSendRequest
-                {
-                    FromAgentId = senderId,
-                    ToAgentId = targetAgentId,
-                    MessageType = messageType,
-                    Content = content,
-                    SessionId = sessionId
-                }, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex2) when (ex2 is not OperationCanceledException)
-            {
-                _logger?.LogWarning(ex2, "持久化直发消息到文件邮箱失败");
-            }
-        }
-
-        if (_mailboxHub is not null)
-        {
-            var coordinatorMsg = new CoordinatorMessage
-            {
-                FromAgentId = senderId,
-                ToAgentId = targetAgentId,
-                MessageType = messageType,
-                Content = content,
-            };
-
-            try
-            {
-                await _mailboxHub.SendAsync(targetAgentId, coordinatorMsg, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex2) when (ex2 is not OperationCanceledException)
-            {
-                _logger?.LogWarning(ex2, "直发消息到 MailboxHub 失败");
-            }
-        }
     }
 
     /// <summary>
@@ -771,143 +638,37 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     }
 
     /// <summary>
-    /// 异步获取指定团队所有 Teammate 的状态，合并运行时观察器数据
+    /// 异步获取指定团队所有 Teammate 的状态 — 委托给 TeammateStatusBuilder
     /// </summary>
     /// <param name="teamId">团队标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>Teammate 状态只读列表</returns>
-    public async Task<IReadOnlyList<TeammateStatus>> GetTeammateStatusesAsync(
+    public Task<IReadOnlyList<TeammateStatus>> GetTeammateStatusesAsync(
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
-            return Array.Empty<TeammateStatus>();
-        }
-
-        var team = room.Info;
-        var memberDetails = room.MemberDetails;
-
-        var runningTeammates = ResolvedTeammateObserver is not null
-            ? await ResolvedTeammateObserver.GetRunningTeammatesAsync().ConfigureAwait(false)
-            : [];
-        var runningMap = runningTeammates.ToDictionary(t => t.Id);
-
-        var statuses = memberDetails.Values
-            .Select(md => BuildTeammateStatus(md, team, runningMap))
-            .ToList();
-
-        return statuses;
+        return _teammateStatusBuilder.GetTeammateStatusesAsync(teamId, cancellationToken);
     }
 
     /// <summary>
-    /// 异步获取所有团队的所有 Teammate 状态，合并运行时观察器数据
+    /// 异步获取所有团队的所有 Teammate 状态 — 委托给 TeammateStatusBuilder
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>所有 Teammate 状态只读列表</returns>
-    public async Task<IReadOnlyList<TeammateStatus>> GetAllTeammateStatusesAsync(
+    public Task<IReadOnlyList<TeammateStatus>> GetAllTeammateStatusesAsync(
         CancellationToken cancellationToken = default)
     {
-        var runningTeammates = ResolvedTeammateObserver is not null
-            ? await ResolvedTeammateObserver.GetRunningTeammatesAsync().ConfigureAwait(false)
-            : [];
-
-        var runningMap = runningTeammates.ToDictionary(t => t.Id);
-
-        var statuses = new List<TeammateStatus>();
-
-        foreach (var room in _registry.Rooms)
-        {
-            var team = room.Info;
-            var memberDetails = room.MemberDetails;
-
-            foreach (var md in memberDetails.Values)
-            {
-                statuses.Add(BuildTeammateStatus(md, team, runningMap));
-            }
-        }
-
-        return statuses;
-    }
-
-    private static TeammateStatus BuildTeammateStatus(
-        TeamMemberInfo memberInfo,
-        TeamInfo team,
-        Dictionary<string, TeammateInfo> runningMap)
-    {
-        runningMap.TryGetValue(memberInfo.AgentId, out var running);
-
-        return new TeammateStatus
-        {
-            AgentId = memberInfo.AgentId,
-            TeamId = team.TeamId,
-            TeamName = team.TeamName,
-            Role = memberInfo.Role,
-            ColorHex = memberInfo.Color ?? running?.ColorHex,
-            DisplayName = running?.DisplayName ?? memberInfo.AgentId,
-            Status = running?.State ?? AgentStatus.Pending,
-            IsActive = memberInfo.IsActive,
-            StartedAt = running?.StartedAt,
-            LastActivity = running?.LastActivity,
-            AgentType = running?.SpinnerVerb,
-            WorktreePath = null,
-            PermissionMode = null
-        };
+        return _teammateStatusBuilder.GetAllTeammateStatusesAsync(cancellationToken);
     }
 
     /// <summary>
-    /// 获取聊天室信息 — 团队的聊天室视图，含房间 ID/成员角色/在线数/最后消息时间 — ADR 0109。
+    /// 获取聊天室信息 — 委托给 ChatRoomViewBuilder
     /// </summary>
-    public async Task<ChatRoomInfo?> GetChatRoomInfoAsync(
+    public Task<ChatRoomInfo?> GetChatRoomInfoAsync(
         string teamId,
         CancellationToken cancellationToken = default)
     {
-        if (!_registry.TryGetRoom(teamId, out var room))
-            return null;
-
-        var team = room.Info;
-
-        var statuses = await GetTeammateStatusesAsync(teamId, cancellationToken).ConfigureAwait(false);
-        var members = statuses.Select(s => new ChatRoomMember
-        {
-            AgentId = s.AgentId,
-            DisplayName = s.DisplayName ?? s.AgentId,
-            Role = MapToChatRoomRole(s.Role, s.AgentId, team.LeadAgentId),
-            Status = MapToChatRoomMemberStatus(s),
-            JoinedAt = room.MemberDetails.TryGetValue(s.AgentId, out var md) ? md.JoinedAt : DateTime.UtcNow,
-        }).ToList();
-
-        var onlineCount = members.Count(m => m.Status == ChatRoomMemberStatus.Online);
-        DateTime? lastMessageAt = room.LastMessageAt;
-
-        return new ChatRoomInfo
-        {
-            ChatRoomId = team.TeamId,
-            RoomName = team.TeamName,
-            Members = members,
-            OnlineCount = onlineCount,
-            LastMessageAt = lastMessageAt,
-        };
-    }
-
-    private static ChatRoomRole MapToChatRoomRole(string? role, string agentId, string? leadAgentId)
-    {
-        if (agentId == leadAgentId) return ChatRoomRole.Owner;
-        return role switch
-        {
-            "admin" => ChatRoomRole.Admin,
-            _ => ChatRoomRole.Member,
-        };
-    }
-
-    private static ChatRoomMemberStatus MapToChatRoomMemberStatus(TeammateStatus s)
-    {
-        if (!s.IsActive) return ChatRoomMemberStatus.Offline;
-        return s.Status switch
-        {
-            AgentStatus.Running => ChatRoomMemberStatus.Online,
-            _ => ChatRoomMemberStatus.Offline,
-        };
+        return _chatRoomViewBuilder.GetChatRoomInfoAsync(teamId, cancellationToken);
     }
 
     /// <summary>
@@ -934,7 +695,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         }
 
         var isSender = originalMsg.SenderId == revokerId;
-        var isAdmin = IsAdminOrOwner(revokerId, room.MemberDetails, team);
+        var isAdmin = TeamMessageDispatcher.IsAdminOrOwner(revokerId, room.MemberDetails, team);
         if (!isSender && !isAdmin)
         {
             return OperationResult<TeamInfo?>.Fail($"撤回者 {revokerId} 无权限：仅发送者或管理员可撤回");
@@ -956,7 +717,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var notice = SystemNoticeFactory.Create(SystemNoticeKind.MessageRevoked, teamId, revokerId);
         if (msgDict.TryAdd(notice.MessageId, notice))
         {
-            await PersistTeamMessageToMailboxAsync(teamId, notice, cancellationToken).ConfigureAwait(false);
+            await _messageDispatcher.PersistTeamMessageToMailboxAsync(teamId, notice, cancellationToken).ConfigureAwait(false);
         }
 
         TouchRoomActivity(room);

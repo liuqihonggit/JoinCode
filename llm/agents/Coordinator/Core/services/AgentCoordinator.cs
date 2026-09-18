@@ -14,16 +14,14 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     private readonly IAgentExecutionEngine _executionEngine;
     private readonly IClockService _clock;
     private readonly ILogger<AgentCoordinator>? _logger;
-    private readonly ISubAgentContextAccessor _subAgentContextAccessor;
-    private readonly ISubagentStopHookManager? _subagentStopHookManager;
+    private readonly SubagentStopHookRunner _stopHookRunner;
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ISwarmPermissionBridge? _permissionBridge;
-    private readonly JoinCode.Abstractions.Interfaces.ITeammateReconnectService? _reconnectService;
-    private readonly IAutoRebaseService? _autoRebaseService;
+    private readonly TeammateReconnectDispatcher _reconnectDispatcher;
 
     private readonly ConcurrentDictionary<string, AgentExecutionContext> _executionContexts;
     private readonly Core.Lifecycle.AgentStartTimer _agentStartTimer = new();
-    private readonly ConcurrentDictionary<string, string> _secretaries;
+    private readonly SecretaryRegistry _secretaryRegistry;
     private readonly MiddlewarePipeline<AgentDisposeContext> _disposePipeline;
     private readonly MiddlewarePipeline<UnifiedSpawnContext> _spawnPipeline;
     private volatile AsyncLock _spawnSemaphore;
@@ -70,14 +68,12 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
         _disposePipeline = disposePipeline ?? throw new ArgumentNullException(nameof(disposePipeline));
         _spawnPipeline = spawnPipeline ?? throw new ArgumentNullException(nameof(spawnPipeline));
         _logger = logger;
-        _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
-        _subagentStopHookManager = subagentStopHookManager;
+        _stopHookRunner = new SubagentStopHookRunner(subAgentContextAccessor, subagentStopHookManager, autoRebaseService, _logger);
         _forkManager = forkManager;
         _permissionBridge = permission?.PermissionBridge;
-        _reconnectService = team?.ReconnectService;
-        _autoRebaseService = autoRebaseService;
+        _reconnectDispatcher = new TeammateReconnectDispatcher(team?.ReconnectService, _logger);
         _executionContexts = new ConcurrentDictionary<string, AgentExecutionContext>();
-        _secretaries = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+        _secretaryRegistry = new SecretaryRegistry((task, opts, ct) => SpawnSubAgentAsync(task, opts, ct), _logger);
 
         var spawnLimit = Math.Max(1, (concurrencyOptions ?? new SubAgentConcurrencyOptions()).MaxConcurrentSpawns);
         _spawnSemaphore = new AsyncLock(nameof(AgentCoordinator) + ".Spawn", spawnLimit, spawnLimit);
@@ -190,52 +186,22 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     }
 
     /// <summary>
-    /// T2.4: 确保队长秘书已 spawn 常驻 — 复用 ExecutorVariant.Teammate 变体
+    /// T2.4: 确保队长秘书已 spawn 常驻 — 委托给 SecretaryRegistry
     /// 秘书职责：队长改热文件时找调用点+批量改+编译自检；整理任务表(DAG)；发广播邮件；记录任务状态
     /// 通信：队长通过 IMailbox 给秘书派活，秘书做完回结果
     /// </summary>
     /// <param name="ownerId">队长标识（goalId 或 agentId）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>秘书的 agentId</returns>
-    public async Task<string> EnsureSecretaryAsync(string ownerId, CancellationToken cancellationToken = default)
+    public Task<string> EnsureSecretaryAsync(string ownerId, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
-
-        if (_secretaries.TryGetValue(ownerId, out var existingSecretaryId))
-        {
-            return existingSecretaryId;
-        }
-
-        const string secretarySystemPrompt = """
-            你是队长的秘书，负责处理杂活：
-            1. 队长改热文件（接口/枚举/公共签名）时，用 CodeSemanticSearch + grep 找所有调用点，批量连带改，跑编译自检
-            2. 整理任务表(DAG)，维护任务状态
-            3. 发广播邮件通知其他队员契约变更
-            4. 记录任务状态到 TodoWrite DAG
-            收到队长的指令后执行，完成后通过邮箱回复结果。不主动发起任务，只响应队长指令。
-            """;
-
-        var secretaryOptions = new SubAgentOptions
-        {
-            Role = AgentRole.Executor,
-            Variant = ExecutorVariant.Teammate,
-            DisplayName = "秘书",
-            SystemPrompt = secretarySystemPrompt,
-            SubagentName = $"secretary-{ownerId}",
-            GoalId = ownerId,
-        };
-
-        var secretary = await SpawnSubAgentAsync("等待队长指令", secretaryOptions, cancellationToken).ConfigureAwait(false);
-        var secretaryId = secretary.ObjectId.UniqueId;
-        _secretaries[ownerId] = secretaryId;
-        _logger?.LogInformation("{Prefix} 队长 {OwnerId} 的秘书已 spawn: {SecretaryId}", AgentCoordinatorConstants.LogMessages.AgentCoordinatorPrefix, ownerId, secretaryId);
-        return secretaryId;
+        return _secretaryRegistry.EnsureSecretaryAsync(ownerId, cancellationToken);
     }
 
     /// <summary>
-    /// T2.4: 获取队长的秘书 agentId（已 spawn 则返回，未 spawn 则 null）
+    /// T2.4: 获取队长的秘书 agentId（已 spawn 则返回，未 spawn 则 null）— 委托给 SecretaryRegistry
     /// </summary>
-    public string? GetSecretaryId(string ownerId) => _secretaries.TryGetValue(ownerId, out var id) ? id : null;
+    public string? GetSecretaryId(string ownerId) => _secretaryRegistry.GetSecretaryId(ownerId);
 
     /// <summary>
     /// 执行单个 Agent — 记录执行起止时间与结果到执行上下文
@@ -440,7 +406,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     {
         _logger?.LogInformation("[AgentCoordinator] 释放Agent {AgentId} 资源", agentId);
 
-        await OnSubagentStopHookAsync(agentId, cancellationToken).ConfigureAwait(false);
+        await _stopHookRunner.OnSubagentStopHookAsync(agentId, cancellationToken).ConfigureAwait(false);
 
         var ctx = new AgentDisposeContext
         {
@@ -693,7 +659,7 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
                 State = a.CurrentState,
                 ExecutionTimeMs = a.ExecutionTimeMs
             }).ToList(),
-            AverageExecutionTimeMs = CalculateAverageExecutionTime(contexts),
+            AverageExecutionTimeMs = ExecutionStatisticsCalculator.CalculateAverageExecutionTime(contexts),
             TotalRetries = contexts.Sum(c => c.RetryCount),
             AgentsWithRetries = contexts.Count(c => c.RetryCount > 0)
         };
@@ -845,24 +811,11 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     }
 
     /// <summary>
-    /// 获取执行统计信息
+    /// 获取执行统计信息 — 委托给 ExecutionStatisticsCalculator
     /// </summary>
     public ExecutionStatistics GetExecutionStatistics()
     {
-        var contexts = _executionContexts.Values;
-        var completedContexts = contexts.Where(c => c.Outcome != AgentOutcome.Pending).ToList();
-
-        return new ExecutionStatistics
-        {
-            TotalAgents = _executionContexts.Count,
-            SuccessfulAgents = completedContexts.Count(c => c.Outcome == AgentOutcome.Succeeded),
-            FailedAgents = completedContexts.Count(c => c.Outcome == AgentOutcome.Failed),
-            CancelledAgents = contexts.Count(c => c.Outcome == AgentOutcome.Cancelled),
-            TotalRetries = contexts.Sum(c => c.RetryCount),
-            AverageExecutionTimeMs = CalculateAverageExecutionTime(contexts),
-            ParallelExecutions = contexts.Count(c => c.ExecutionMode == ExecutionMode.Parallel),
-            SequentialExecutions = contexts.Count(c => c.ExecutionMode == ExecutionMode.Sequential)
-        };
+        return ExecutionStatisticsCalculator.BuildStatistics(_executionContexts);
     }
 
     #endregion
@@ -900,134 +853,26 @@ public sealed partial class AgentCoordinator : ServiceEntity, ISubAgentCoordinat
     #region 私有方法
 
     /// <summary>
-    /// 重连已断开的队友 — 委托给队友重连服务
+    /// 重连已断开的队友 — 委托给 TeammateReconnectDispatcher
     /// </summary>
     /// <param name="teamId">团队标识</param>
     /// <param name="agentId">目标队友标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>重连结果；服务未注册或重连失败时返回 null</returns>
-    public async Task<JoinCode.Abstractions.Interfaces.ReconnectResult?> ReconnectDisconnectedTeammateAsync(string teamId, string agentId, CancellationToken cancellationToken = default)
+    public Task<JoinCode.Abstractions.Interfaces.ReconnectResult?> ReconnectDisconnectedTeammateAsync(string teamId, string agentId, CancellationToken cancellationToken = default)
     {
-        if (_reconnectService is null)
-        {
-            _logger?.LogWarning("[AgentCoordinator] ITeammateReconnectService 未注册，无法重连");
-            return null;
-        }
-
-        try
-        {
-            return await _reconnectService.ReconnectTeammateAsync(teamId, agentId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "[AgentCoordinator] 重连 Teammate {AgentId} 失败", agentId);
-            return null;
-        }
+        return _reconnectDispatcher.ReconnectDisconnectedTeammateAsync(teamId, agentId, cancellationToken);
     }
 
     /// <summary>
-    /// 批量重连团队中所有已断开的队友 — 委托给队友重连服务
+    /// 批量重连团队中所有已断开的队友 — 委托给 TeammateReconnectDispatcher
     /// </summary>
     /// <param name="teamId">团队标识</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>重连结果列表；服务未注册时返回空列表</returns>
-    public async Task<IReadOnlyList<JoinCode.Abstractions.Interfaces.ReconnectResult>> ReconnectAllDisconnectedAsync(string teamId, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<JoinCode.Abstractions.Interfaces.ReconnectResult>> ReconnectAllDisconnectedAsync(string teamId, CancellationToken cancellationToken = default)
     {
-        if (_reconnectService is null)
-        {
-            _logger?.LogWarning("[AgentCoordinator] ITeammateReconnectService 未注册，无法批量重连");
-            return [];
-        }
-
-        try
-        {
-            var result = await _reconnectService.ReconnectAllDisconnectedAsync(teamId, cancellationToken).ConfigureAwait(false);
-            return new[] { result };
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "[AgentCoordinator] 批量重连 Teammate 失败");
-            return [];
-        }
-    }
-
-    private static long? CalculateAverageExecutionTime(IEnumerable<AgentExecutionContext> contexts)
-    {
-        var completedContexts = contexts
-            .Where(c => c.LastExecutionStart.HasValue && c.LastExecutionEnd.HasValue)
-            .ToList();
-
-        if (completedContexts.Count == 0)
-        {
-            return null;
-        }
-
-        var totalMs = completedContexts
-            .Sum(c => (c.LastExecutionEnd.GetValueOrDefault() - c.LastExecutionStart.GetValueOrDefault()).TotalMilliseconds);
-
-        return (long)(totalMs / completedContexts.Count);
-    }
-
-    private async Task OnSubagentStopHookAsync(string agentId, CancellationToken cancellationToken)
-    {
-        if (_subagentStopHookManager is not null)
-        {
-            var subAgentContext = _subAgentContextAccessor.Current;
-            var agentType = subAgentContext?.Role.ToValue() ?? "executor";
-            var sessionId = subAgentContext?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
-
-            var context = new SubagentStopHookContext
-            {
-                SessionId = sessionId,
-                AgentId = agentId,
-                AgentType = agentType,
-                WorktreePath = subAgentContext?.WorktreePath,
-            };
-
-            var result = await _subagentStopHookManager.OnSubagentStopAsync(context, cancellationToken).ConfigureAwait(false);
-            if (!result.ShouldProceed)
-            {
-                _logger?.LogWarning("[AgentCoordinator] SubagentStop Hook 阻塞了 Agent {AgentId} 的释放: {Message}",
-                    agentId, result.Message);
-            }
-        }
-
-        await TryAutoRebaseAsync(agentId, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// SubagentStop 时自动 rebase 同步主干 — 取代软通知模式（ADR T5.1）
-    /// </summary>
-    private async Task TryAutoRebaseAsync(string agentId, CancellationToken cancellationToken)
-    {
-        if (_autoRebaseService is null)
-            return;
-
-        var worktreePath = _subAgentContextAccessor.Current?.WorktreePath;
-        if (string.IsNullOrWhiteSpace(worktreePath))
-            return;
-
-        try
-        {
-            var request = new AutoRebaseRequest
-            {
-                WorktreePath = worktreePath,
-                AgentId = agentId,
-            };
-            var result = await _autoRebaseService.RebaseSyncAsync(request, cancellationToken).ConfigureAwait(false);
-            if (result.HadConflicts)
-                _logger?.LogWarning("[AgentCoordinator] AutoRebase 冲突 for {AgentId}: {Files}", agentId, string.Join(", ", result.ConflictFiles));
-            else if (!result.Success)
-                _logger?.LogWarning("[AgentCoordinator] AutoRebase 失败 for {AgentId}: {Message}", agentId, result.Message);
-            else if (result.WasSkipped)
-                _logger?.LogDebug("[AgentCoordinator] AutoRebase 跳过(无新提交) for {AgentId}", agentId);
-            else
-                _logger?.LogInformation("[AgentCoordinator] AutoRebase 成功 for {AgentId}", agentId);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[AgentCoordinator] AutoRebase 异常 for {AgentId}", agentId);
-        }
+        return _reconnectDispatcher.ReconnectAllDisconnectedAsync(teamId, cancellationToken);
     }
 
     #endregion

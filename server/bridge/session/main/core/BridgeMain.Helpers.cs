@@ -12,12 +12,12 @@ public sealed partial class BridgeMain
     /// 获取兼容 ID — 对齐 TS 端 sessionCompatIds.get(sessionId) ?? sessionId
     /// cse_* → session_* 转换，用于 logger/archive/title 等客户端兼容 API
     /// </summary>
-    private string GetCompatId(string sessionId) => _tracker.Sessions.GetCompatId(sessionId);
+    internal string GetCompatId(string sessionId) => _tracker.Sessions.GetCompatId(sessionId);
 
     /// <summary>
     /// 从 gitRepoUrl 提取仓库名 — 对齐 TS 端 parseGitHubRepository + basename 回退
     /// </summary>
-    private static string ExtractRepoName(string? gitRepoUrl, string workingDirectory)
+    internal static string ExtractRepoName(string? gitRepoUrl, string workingDirectory)
     {
         if (gitRepoUrl is not null)
         {
@@ -47,7 +47,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 构建远程会话 URL — 对齐 TS 端 getRemoteSessionUrl
     /// </summary>
-    private static string BuildRemoteSessionUrl(string sessionId, BridgeConfig config)
+    internal static string BuildRemoteSessionUrl(string sessionId, BridgeConfig config)
     {
         var baseUrl = config.ApiBaseUrl ?? JccEndpoints.DefaultBridgeRemote;
         var trimmed = baseUrl.TrimEnd('/');
@@ -58,7 +58,7 @@ public sealed partial class BridgeMain
     /// 更新状态显示 — 对齐 TS 端 updateStatusDisplay
     /// 每秒推送会话计数、每个会话的耗时/活动/工具轨迹到 logger
     /// </summary>
-    private void UpdateStatusDisplay(BridgeConfig config)
+    internal void UpdateStatusDisplay(BridgeConfig config)
     {
         try
         {
@@ -95,7 +95,7 @@ public sealed partial class BridgeMain
         }
     }
 
-    private void CleanupSessionTracking(string sessionId)
+    internal void CleanupSessionTracking(string sessionId)
     {
         _tracker.CleanupSession(sessionId, onRemoveCompatId: compatId => _deps.BridgeLogger?.RemoveSession(compatId));
     }
@@ -103,7 +103,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 后台刷新 v2 会话 — 对齐 TS 端 reconnectSession 双 ID 尝试
     /// </summary>
-    private void ReconnectV2SessionFireAndForget(string sessionId)
+    internal void ReconnectV2SessionFireAndForget(string sessionId)
     {
         if (EnvironmentId is null || _deps.ReconnectSession is null) return;
         _ = Task.Run(async () =>
@@ -131,7 +131,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 后台更新 v1 会话 OAuth token — best-effort, 失败仅记日志
     /// </summary>
-    private void UpdateV1SessionTokenFireAndForget(string sessionId, string oauthToken)
+    internal void UpdateV1SessionTokenFireAndForget(string sessionId, string oauthToken)
     {
         var handle = _tracker.Sessions.GetHandle(sessionId);
         if (handle is null) return;
@@ -156,7 +156,7 @@ public sealed partial class BridgeMain
     /// 跟踪待清理任务 — 对齐 TS 端 trackCleanup
     /// 后台执行不阻塞主循环，定期清理已完成的任务
     /// </summary>
-    private void TrackCleanup(Task cleanupTask)
+    internal void TrackCleanup(Task cleanupTask)
     {
         using var guard = _cleanupLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cleanupLock.Name}' 等待超时");
             _pendingCleanups.Add(cleanupTask);
@@ -172,7 +172,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 确定子进程工作目录 — 对齐 TS 端: worktree/same-dir/session 模式
     /// </summary>
-    private string DetermineSpawnDir(BridgeConfig config, BridgeWorkItem work)
+    internal string DetermineSpawnDir(BridgeConfig config, BridgeWorkItem work)
     {
         return config.SpawnMode switch
         {
@@ -237,7 +237,7 @@ public sealed partial class BridgeMain
     /// 键盘输入处理器 — 对齐 TS 端 onStdinData
     /// Space(0x20)=切换QR, w(0x77)=切换spawnMode, Ctrl+C(0x03)/Ctrl+D(0x04)=优雅关闭
     /// </summary>
-    private async Task OnKeyboardInputAsync(byte key)
+    internal async Task OnKeyboardInputAsync(byte key)
     {
         switch (key)
         {
@@ -291,7 +291,7 @@ public sealed partial class BridgeMain
     /// 服务端标题（--name, web rename）优先: 如果 fetchSessionTitle 已标记 titledSessions 则跳过
     /// 否则派生标题 + 更新服务端 + 标记 titledSessions
     /// </summary>
-    private void OnFirstUserMessage(string sessionId, string text, BridgeConfig config)
+    internal void OnFirstUserMessage(string sessionId, string text, BridgeConfig config)
     {
         // 对齐 TS 端: if (titledSessions.has(compatSessionId)) return
         var compatId = GetCompatId(sessionId);
@@ -323,7 +323,7 @@ public sealed partial class BridgeMain
     /// 异步获取服务端会话标题 — 对齐 TS 端 fetchSessionTitle
     /// GET /v1/sessions/{id} → 提取 title → 设置本地显示 + 标记 titledSessions
     /// </summary>
-    private async Task FetchSessionTitleAsync(string sessionId, BridgeConfig config)
+    internal async Task FetchSessionTitleAsync(string sessionId, BridgeConfig config)
     {
         try
         {
@@ -402,7 +402,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 记录遥测计数事件 — 对齐 TS 端 logEvent(eventName, metadata)
     /// </summary>
-    private void TelemetryCount(string eventName, Dictionary<string, string>? tags = null)
+    internal void TelemetryCount(string eventName, Dictionary<string, string>? tags = null)
     {
         _telemetry?.GetCounter(eventName)?.Add(1, tags);
     }
@@ -410,7 +410,7 @@ public sealed partial class BridgeMain
     /// <summary>
     /// 记录遥测直方图事件 — 对齐 TS 端 logEvent(eventName, {duration_ms: ...})
     /// </summary>
-    private void TelemetryHistogram(string eventName, double value, Dictionary<string, string>? tags = null)
+    internal void TelemetryHistogram(string eventName, double value, Dictionary<string, string>? tags = null)
     {
         _telemetry?.GetHistogram(eventName)?.Record(value, tags);
     }

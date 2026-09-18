@@ -177,9 +177,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
         var rooms = registry.SnapshotRooms();
         rooms[teamId].Messages.TryAdd(notice.MessageId, notice);
 
-        var persistMethod = typeof(TeamManager).GetMethod("PersistTeamMessageToMailboxAsync",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        await (Task)persistMethod!.Invoke(_teamManager, new object[] { teamId, notice, CancellationToken.None })!;
+        await InvokePersistTeamMessageAsync(teamId, notice, CancellationToken.None);
 
         sentAgents.Should().NotContain("member1");
         sentAgents.Should().Contain("admin1");
@@ -209,9 +207,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
             ToAgentId = "target",
         };
 
-        var persistMethod = typeof(TeamManager).GetMethod("PersistTeamMessageToMailboxAsync",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        await (Task)persistMethod!.Invoke(_teamManager, new object[] { teamId, privateMsg, CancellationToken.None })!;
+        await InvokePersistTeamMessageAsync(teamId, privateMsg, CancellationToken.None);
 
         sentAgents.Should().ContainSingle();
         sentAgents[0].Should().Be("target");
@@ -234,9 +230,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
             Visibility = MessageVisibility.Hidden,
         };
 
-        var persistMethod = typeof(TeamManager).GetMethod("PersistTeamMessageToMailboxAsync",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        await (Task)persistMethod!.Invoke(_teamManager, new object[] { teamId, hiddenMsg, CancellationToken.None })!;
+        await InvokePersistTeamMessageAsync(teamId, hiddenMsg, CancellationToken.None);
 
         _mailboxServiceMock.Verify(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -263,5 +257,14 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
         {
             room.MemberDetails[agentId] = info with { Role = role };
         }
+    }
+
+    private async Task InvokePersistTeamMessageAsync(string teamId, TeamMessage message, CancellationToken cancellationToken)
+    {
+        var dispatcherField = typeof(TeamManager).GetField("_messageDispatcher",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        var dispatcher = dispatcherField!.GetValue(_teamManager)!;
+        var persistMethod = typeof(TeamMessageDispatcher).GetMethod("PersistTeamMessageToMailboxAsync");
+        await (Task)persistMethod!.Invoke(dispatcher, new object[] { teamId, message, cancellationToken })!;
     }
 }

@@ -120,10 +120,10 @@
 - 合并 `DefaultTtls` + `BaseRelevanceWeights` 为 `FrozenDictionary<MemoryType, MemoryTypeProfile>` (readonly record struct)
 - **状态**:✅ `8b3a2963c`(Vault.Memdir 143测试通过)
 
-### [P1-8] CpuParallelism 双基线状态
-- **文件**:`lib/infrastructure/utils/system/CpuParallelism.cs:8,9,12-15,18-20`
-- 7 个可变 static 字段合并为 `WindowsCpuBaseline` + `FallbackCpuBaseline` record struct
-- **状态**:⏳ 待做
+### [P1-8] CpuParallelism 双基线状态 ✅ 已完成
+- **文件**:`lib/infrastructure/utils/system/CpuParallelism.cs`
+- 7 个可变 static 字段合并为 `WindowsCpuBaseline` + `FallbackCpuBaseline` readonly record struct
+- **状态**:✅ `339ac6dfa`(编译通过,无独立测试)
 
 ### [P1-9] ReasoningOptionsBuilder 14 字段 + ReasoningEngine 13 字段
 - Builder 拆 3 个配置 record;Engine 拆 `ReasoningBudget` + `ReasoningComponents`

@@ -8,7 +8,6 @@ namespace Tools.Handlers;
 [McpToolDispatch(ToolCategory.File)]
 public partial class FileToolHandlers : IDisposable
 {
-    private static readonly FrozenSet<string> BlockedDevicePaths = CreateBlockedDevicePathSet();
     private readonly CancellationTokenSource _disposeCts = new();
     private bool _disposed;
 
@@ -37,6 +36,7 @@ public partial class FileToolHandlers : IDisposable
     private readonly FileToolHandlersContext _ctx;
     private readonly WriteDefenseService _writeDefense;
     private readonly FileTelemetryRecorder _telemetry;
+    private readonly FilePathResolver _pathResolver;
     private readonly ILogger<FileToolHandlers>? _logger;
 
     /// <summary>
@@ -62,6 +62,7 @@ public partial class FileToolHandlers : IDisposable
         _logger = logger;
         _ctx = context ?? new FileToolHandlersContext();
         _telemetry = new FileTelemetryRecorder(_ctx.TelemetryService);
+        _pathResolver = new FilePathResolver(_ctx.SandboxManager);
         // FileOperationConfig fallback: 保证 _ctx.FileOperationConfig 非 null（对齐原 _ctx.FileOperationConfig = context?.FileOperationConfig ?? new()）
         if (_ctx.FileOperationConfig is null)
             _ctx = _ctx with { FileOperationConfig = new FileOperationConfig() };
@@ -170,30 +171,7 @@ public partial class FileToolHandlers : IDisposable
         _lspNotificationCompleted.DisposeSafe(_logger);
     }
 
-    private static FrozenSet<string> CreateBlockedDevicePathSet()
-    {
-        return FrozenSet.ToFrozenSet(
-        [
-            "/dev/zero", "/dev/random", "/dev/urandom", "/dev/full",
-            "/dev/stdin", "/dev/tty", "/dev/console",
-            "/dev/stdout", "/dev/stderr",
-            "/dev/fd/0", "/dev/fd/1", "/dev/fd/2"
-        ], StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static bool IsBlockedDevicePath(string filePath)
-    {
-        if (BlockedDevicePaths.Contains(filePath))
-            return true;
-
-        if (filePath.StartsWith("/proc/", StringComparison.OrdinalIgnoreCase)
-            && (filePath.EndsWith("/fd/0", StringComparison.OrdinalIgnoreCase)
-                || filePath.EndsWith("/fd/1", StringComparison.OrdinalIgnoreCase)
-                || filePath.EndsWith("/fd/2", StringComparison.OrdinalIgnoreCase)))
-            return true;
-
-        return false;
-    }
+    private static bool IsBlockedDevicePath(string filePath) => FilePathResolver.IsBlockedDevicePath(filePath);
 
     /// <summary>
     /// 替换字符串中第一个匹配项（用于预模拟编辑）。
@@ -268,28 +246,7 @@ public partial class FileToolHandlers : IDisposable
     /// </summary>
     private void RecordFileOperationTelemetry(string filePath, string operation) => _telemetry.RecordFileOperationTelemetry(filePath, operation);
 
-    private async Task<string> ResolveSandboxPathAsync(string path, CancellationToken cancellationToken)
-    {
-        if (_ctx.SandboxManager == null || !_ctx.SandboxManager.IsInSandbox)
-        {
-            return path;
-        }
-
-        var sandboxId = _ctx.SandboxManager.CurrentSandboxId;
-        if (sandboxId is null)
-        {
-            return path;
-        }
-
-        var resolvedPath = _ctx.SandboxManager.ResolvePath(path, sandboxId);
-        var isInSandbox = await _ctx.SandboxManager.ActiveProvider!.IsPathInSandboxAsync(resolvedPath, sandboxId, cancellationToken).ConfigureAwait(false);
-        if (!isInSandbox)
-        {
-            throw new UnauthorizedAccessException($"Path '{path}' is outside the sandbox scope");
-        }
-
-        return resolvedPath;
-    }
+    private async Task<string> ResolveSandboxPathAsync(string path, CancellationToken cancellationToken) => await _pathResolver.ResolveSandboxPathAsync(path, cancellationToken).ConfigureAwait(false);
 
     /// <summary>
     /// 估算文本内容的Token数量。

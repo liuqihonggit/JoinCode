@@ -42,7 +42,7 @@ public sealed partial class WorkHealthcheckMiddleware : ServiceEntity, IHandleWo
             return;
         }
 
-        var existingHandle = ctx.Sessions.GetHandle(ctx.Work.SessionId);
+        var existingHandle = ctx.Tracker.Sessions.GetHandle(ctx.Work.SessionId);
         if (existingHandle is not null)
         {
             if (ctx.SessionIngressToken is not null && ctx.SessionIngressToken != existingHandle.AccessToken)
@@ -52,7 +52,7 @@ public sealed partial class WorkHealthcheckMiddleware : ServiceEntity, IHandleWo
             }
             if (ctx.SessionIngressToken is not null)
             {
-                ctx.Sessions.UpdateIngressToken(ctx.Work.SessionId, ctx.SessionIngressToken);
+                ctx.Tracker.Sessions.UpdateIngressToken(ctx.Work.SessionId, ctx.SessionIngressToken);
             }
             ctx.ShortCircuited = true;
             return;

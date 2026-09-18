@@ -29,7 +29,7 @@ public sealed partial class ShutdownSubprocessesMiddleware : ServiceEntity, IShu
     /// <returns>表示异步执行操作的任务</returns>
     public async Task InvokeAsync(ShutdownContext ctx, MiddlewareDelegate<ShutdownContext> next, CancellationToken ct)
     {
-        var handles = ctx.Sessions.GetAllHandles().ToList();
+        var handles = ctx.Tracker.Sessions.GetAllHandles().ToList();
         if (handles.Count > 0)
         {
             await (ctx.Spawner ?? throw new InvalidOperationException("Spawner not available")).ShutdownAllAsync(handles).ConfigureAwait(false);

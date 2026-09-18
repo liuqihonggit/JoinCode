@@ -54,11 +54,8 @@ public sealed class HandleWorkContext : IPipelineContext
     /// <summary>轮询配置</summary>
     internal BridgeMainPollConfig? PollConfig { get; set; }
 
-    /// <summary>会话注册表 — 管理所有以 sessionId 为 key 的会话状态</summary>
-    internal BridgeSessionRegistry Sessions { get; set; } = new();
-
-    /// <summary>工作完成跟踪器</summary>
-    internal BridgeWorkCompletionTracker WorkCompletion { get; set; } = new();
+    /// <summary>会话跟踪器 — 聚合 Sessions/WorkCompletion/Titles</summary>
+    internal BridgeSessionTracker Tracker { get; set; } = new();
 
     /// <summary>停止工作委托（Work ID, 取消令牌）</summary>
     internal Func<string, CancellationToken, Task>? StopWorkAsync { get; set; }
@@ -89,7 +86,7 @@ public sealed class HandleWorkContext : IPipelineContext
     /// <param name="ct">取消令牌</param>
     internal void FailWork(CancellationToken ct = default)
     {
-        WorkCompletion.Mark(Work.WorkId);
+        Tracker.WorkCompletion.Mark(Work.WorkId);
         if (TrackCleanup is not null && StopWorkAsync is not null)
         {
             TrackCleanup(StopWorkAsync(Work.WorkId, ct));

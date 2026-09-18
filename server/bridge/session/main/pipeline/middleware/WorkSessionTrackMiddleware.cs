@@ -34,7 +34,7 @@ public sealed partial class WorkSessionTrackMiddleware : ServiceEntity, IHandleW
         var handle = ctx.Handle ?? throw new InvalidOperationException("Handle is not set. Ensure SpawnSubprocessMiddleware runs before WorkSessionTrackMiddleware.");
 
         var compatId = SessionIdCompat.ToCompatSessionId(work.SessionId);
-        ctx.Sessions.Register(work.SessionId, new BridgeSessionState
+        ctx.Tracker.Sessions.Register(work.SessionId, new BridgeSessionState
         {
             Handle = handle,
             StartTime = _clock.GetUtcNow(),
@@ -46,11 +46,11 @@ public sealed partial class WorkSessionTrackMiddleware : ServiceEntity, IHandleW
         });
 
         _logger?.LogInformation("BridgeMain: session {SessionId} started, active={Active}/{Max}, ccrV2={CcrV2}",
-            work.SessionId, ctx.Sessions.Count, ctx.Config.MaxSessions, ctx.UseCcrV2);
+            work.SessionId, ctx.Tracker.Sessions.Count, ctx.Config.MaxSessions, ctx.UseCcrV2);
 
         ctx.TelemetryCount?.Invoke("tengu_bridge_session_started", new Dictionary<string, string>
         {
-            ["active_sessions"] = ctx.Sessions.Count.ToString(),
+            ["active_sessions"] = ctx.Tracker.Sessions.Count.ToString(),
             ["spawn_mode"] = ctx.Config.SpawnMode.ToValue(),
             ["in_worktree"] = (ctx.CreatedWorktreePath is not null).ToString(),
         });

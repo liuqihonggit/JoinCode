@@ -32,7 +32,7 @@ public sealed partial class ShutdownArchiveMiddleware : ServiceEntity, IShutdown
     {
         if (!ctx.IsResuming && ctx.ArchiveSession is not null)
         {
-            var sessionsToArchive = ctx.Sessions.GetAllCompatIds().ToList();
+            var sessionsToArchive = ctx.Tracker.Sessions.GetAllCompatIds().ToList();
             if (sessionsToArchive.Count > 0)
             {
                 _logger?.LogInformation("BridgeMain: archiving {Count} session(s)", sessionsToArchive.Count);

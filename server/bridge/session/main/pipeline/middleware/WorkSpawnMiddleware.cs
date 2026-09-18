@@ -74,7 +74,7 @@ public sealed partial class WorkSpawnMiddleware : ServiceEntity, IHandleWorkMidd
                 }
             }
 
-            ctx.WorkCompletion.Mark(ctx.Work.WorkId);
+            ctx.Tracker.WorkCompletion.Mark(ctx.Work.WorkId);
             if (ctx.StopWorkAsync is not null)
             {
                 await ctx.StopWorkAsync(ctx.Work.WorkId, ct).ConfigureAwait(false);

@@ -30,18 +30,18 @@ public sealed partial class WorkCapacityCheckMiddleware : ServiceEntity, IHandle
         _logger?.LogInformation("BridgeMain: received work, WorkId={WorkId}, SessionId={SessionId}, WorkType={WorkType}",
             ctx.Work.WorkId, ctx.Work.SessionId, ctx.Work.WorkType);
 
-        if (ctx.Sessions.Count >= ctx.Config.MaxSessions)
+        if (ctx.Tracker.Sessions.Count >= ctx.Config.MaxSessions)
         {
             _logger?.LogWarning("BridgeMain: at capacity, skipping work {WorkId}", ctx.Work.WorkId);
             ctx.ShortCircuited = true;
             return;
         }
 
-        if (ctx.WorkCompletion.IsCompleted(ctx.Work.WorkId))
+        if (ctx.Tracker.WorkCompletion.IsCompleted(ctx.Work.WorkId))
         {
             _logger?.LogDebug("BridgeMain: skipping duplicate work {WorkId}", ctx.Work.WorkId);
 
-            if (ctx.Sessions.Count >= ctx.Config.MaxSessions)
+            if (ctx.Tracker.Sessions.Count >= ctx.Config.MaxSessions)
             {
                 var pollConfig = ctx.PollConfig;
                 var delayMs = pollConfig?.NonExclusiveHeartbeatIntervalMs > 0

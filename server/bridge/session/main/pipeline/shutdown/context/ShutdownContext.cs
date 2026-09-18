@@ -21,8 +21,8 @@ public sealed class ShutdownContext : IPipelineContext
     /// <summary>恢复指针目录路径</summary>
     public string? ResumePointerDir { get; init; }
 
-    /// <summary>会话注册表 — 管理所有以 sessionId 为 key 的会话状态</summary>
-    internal BridgeSessionRegistry Sessions { get; set; } = new();
+    /// <summary>会话跟踪器 — 聚合 Sessions/WorkCompletion/Titles</summary>
+    internal BridgeSessionTracker Tracker { get; set; } = new();
 
     /// <summary>子进程派生器</summary>
     internal BridgeSubprocessSpawner? Spawner { get; set; }

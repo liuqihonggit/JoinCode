@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 主机选举结果 — 探测有名管道后得出的角色决策。

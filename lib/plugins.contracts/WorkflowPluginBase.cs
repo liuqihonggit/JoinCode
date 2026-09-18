@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Entity;
+namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 工作流插件基类 — 所有插件必须继承此类

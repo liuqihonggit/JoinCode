@@ -1,4 +1,4 @@
-﻿namespace Tools;
+namespace Tools;
 
 /// <summary>
 /// 环境探测 Actor 命令 — Channel 中的消息类型

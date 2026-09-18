@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli.Output;
+namespace JoinCode.Cli.Output;
 
 /// <summary>
 /// 配置优先级枚举 — 对齐架构指南四级优先级

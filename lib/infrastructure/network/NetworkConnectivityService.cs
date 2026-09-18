@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Network;
+namespace Infrastructure.Network;
 
 /// <summary>
 /// 网络连接性服务 — 基于 NetworkInterface + NetworkChange 事件的实时多流网络感知

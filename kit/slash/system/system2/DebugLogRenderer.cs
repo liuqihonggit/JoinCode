@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// 诊断日志渲染器 — 提取自 DebugLogCommand，供启动流程（InitDebugDumpStep）和 /debuglog REPL 命令共用

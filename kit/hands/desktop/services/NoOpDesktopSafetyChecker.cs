@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Hands.Desktop;
+namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 桌面操作安全检查器 — NoOp 占位实现，总返回安全（测试用；生产用 DesktopSafetyChecker）

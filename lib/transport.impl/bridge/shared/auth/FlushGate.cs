@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport.Bridge;
+namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// 刷新门控选项 - 控制消息批处理的参数

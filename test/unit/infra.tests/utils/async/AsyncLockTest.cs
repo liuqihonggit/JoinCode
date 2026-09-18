@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.Utils.Async;
+namespace Infra.Tests.Utils.Async;
 
 /// <summary>
 /// AsyncLock 异步互斥锁单元测试 (SemaphoreSlim(1,1) 包装实现)。

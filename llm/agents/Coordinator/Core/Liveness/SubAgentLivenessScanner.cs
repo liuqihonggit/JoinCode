@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator.Liveness;
+namespace Core.Agents.Coordinator.Liveness;
 
 /// <summary>
 /// 子代理卡死事件参数 — 检测器确认卡死时触发

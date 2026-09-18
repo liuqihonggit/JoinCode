@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli;
+namespace JoinCode.Cli;
 
 /// <summary>
 /// Onboarding 流程控制器 - 管理步骤导航、状态持久化和完成追踪

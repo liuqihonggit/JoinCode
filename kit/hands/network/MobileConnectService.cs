@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 /// <summary>移动端连接服务 — 在本机开启 TCP 监听，接受移动端发起的连接握手并返回连接确认响应。</summary>
 [Register(typeof(IMobileConnectService), ServiceLifetime.Singleton)]

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CliCommands;
+namespace JoinCode.CliCommands;
 
 /// <summary>
 /// mcp_call 元命令 — 调用 MCP 工具。

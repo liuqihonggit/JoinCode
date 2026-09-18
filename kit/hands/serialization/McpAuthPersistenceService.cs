@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 /// <summary>
 /// MCP 认证持久化服务 — 负责将 MCP 认证条目（名称、类型、序列化数据）持久化到配置存储，

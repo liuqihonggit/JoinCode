@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 /// <summary>
 /// 终端焦点状态 — 对齐 TS terminal-focus-state.ts

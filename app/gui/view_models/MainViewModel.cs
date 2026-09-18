@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.ViewModels;
+namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 主窗口 ViewModel — 承载引擎会话门面与基础对话占位。

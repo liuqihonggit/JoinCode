@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CliCommands;
+namespace JoinCode.CliCommands;
 
 /// <summary>
 /// 斜杠命令直调执行器 — jcc slash_call &lt;cmd&gt; &lt;argsJson&gt;

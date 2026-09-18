@@ -1,4 +1,4 @@
-﻿namespace Core.Query.UsdBudget;
+namespace Core.Query.UsdBudget;
 
 /// <summary>
 /// USD 预算管理器接口 — 通过 Actor 模型实现线程安全的预算查询与记录

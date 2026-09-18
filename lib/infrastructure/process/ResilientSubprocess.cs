@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Subprocess;
+namespace Infrastructure.Subprocess;
 
 /// <summary>
 /// 弹性子进程 — 包装交互式进程，提供健康监控、自动重启、断路器与弹性通道读写能力

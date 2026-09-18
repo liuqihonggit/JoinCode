@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Worktree;
+namespace Core.Agents.Worktree;
 
 /// <summary>
 /// Worktree 生命周期守卫 — 构造时锁定 worktree 路径，Dispose 时用同一路径删除，从不二次计算。

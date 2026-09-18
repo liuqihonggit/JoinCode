@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 总线拓扑传输 — 共享服务器，多客户端连同一管道，主机中继广播所有消息。

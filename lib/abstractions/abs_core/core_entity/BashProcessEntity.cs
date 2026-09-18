@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Entity;
+namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// Shell 命令进程实体 — 派生自 ToolExecutionEntity，追踪 Shell 命令进程生命周期

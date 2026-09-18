@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Attributes;
+namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 标记 Settings 类 — 源码生成器据此自动生成拷贝构造函数、Merge 方法、GetSettingByKey、UpdateSettingByKey

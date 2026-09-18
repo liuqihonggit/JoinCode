@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>RenderOverview 渲染上下文 — 封装 12 个参数，消除 JCC1006 违规</summary>
 internal record class RenderOverviewContext(

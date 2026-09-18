@@ -1,4 +1,4 @@
-﻿namespace Core.Scheduling.Runtime;
+namespace Core.Scheduling.Runtime;
 
 
 /// <summary>

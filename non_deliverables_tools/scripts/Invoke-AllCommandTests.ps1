@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     覆盖全部 MCP 工具 + 斜杠命令的全参数填充总测试
 .DESCRIPTION

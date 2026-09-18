@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli.Interaction;
+namespace JoinCode.Cli.Interaction;
 
 /// <summary>
 /// 终端交互服务 — 真正的控制台多选交互实现，替代 Core 层的 Mock InteractiveService

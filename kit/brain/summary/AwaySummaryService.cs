@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Summary;
 
 /// <summary>

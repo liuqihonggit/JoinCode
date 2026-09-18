@@ -1,4 +1,4 @@
-﻿namespace Core.Hooks.Execution.Interception;
+namespace Core.Hooks.Execution.Interception;
 
 /// <summary>
 /// 守卫确认模式 — 替代 bool AntiCharLossConfirm，强类型枚举 — ADR 0012

@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 /// <summary>
 /// 工作密钥生命周期状态 — 归纳 IsRevoked/IsRotated 两个 bool 的隐式约束

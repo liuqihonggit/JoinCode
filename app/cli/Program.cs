@@ -1,4 +1,4 @@
-﻿namespace JoinCode;
+namespace JoinCode;
 
 /// <summary>
 /// 程序入口点 — 显式声明应用启动流程

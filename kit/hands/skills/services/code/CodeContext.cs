@@ -1,4 +1,4 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 /// <summary>
 /// 代码操作类型

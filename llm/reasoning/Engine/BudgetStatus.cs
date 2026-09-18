@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Reasoning.Engine;
+namespace JoinCode.Reasoning.Engine;
 
 /// <summary>
 /// 推理预算状态 — 轮次和 token 双预算追踪

@@ -1,4 +1,4 @@
-﻿namespace Core.Agents;
+namespace Core.Agents;
 
 /// <summary>
 /// 代理定义提供者 — 加载内置、用户、项目及插件代理定义，支持缓存与变更刷新

@@ -1,4 +1,4 @@
-﻿namespace State;
+namespace State;
 
 /// <summary>
 /// 配置变更同步服务 — 订阅 IConfigurationService.SettingChanged 事件，将变更同步到 AppState

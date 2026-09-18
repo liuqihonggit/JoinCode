@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.Hosting;
+namespace JoinCode.Gui.Hosting;
 
 /// <summary>
 /// 权限确认请求 — 引擎权限待确认时由网关传给 UI 决策的数据载体

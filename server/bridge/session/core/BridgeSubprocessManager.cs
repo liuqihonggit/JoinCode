@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Bridge;
 
 // BridgeSubprocessStatus 已迁移到 JoinCode.Transport 命名空间 (Transport.Contracts)

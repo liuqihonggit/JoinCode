@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Context.Collapse;
 
 /// <summary>

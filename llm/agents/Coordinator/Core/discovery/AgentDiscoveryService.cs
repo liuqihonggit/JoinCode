@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 跨进程 Agent 发现服务 — 基于文件注册表实现本机 agent 注册、心跳、发现

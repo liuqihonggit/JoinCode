@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CliCommands;
+namespace JoinCode.CliCommands;
 
 /// <summary>
 /// mcp_serve 元命令 — 启动 MCP 服务端。

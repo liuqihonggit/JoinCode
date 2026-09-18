@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Attributes;
+namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 工具提示词分类

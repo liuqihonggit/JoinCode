@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Entity;
+namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 缓存项实体 — 泛型 CacheEntryEntity&lt;T&gt;, Value 类型安全, AOT 友好

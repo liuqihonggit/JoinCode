@@ -1,4 +1,4 @@
-﻿namespace Services.Web;
+namespace Services.Web;
 
 /// <summary>
 /// WebFetch专用LRU缓存，15分钟TTL，50MB大小上限

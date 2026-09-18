@@ -1,4 +1,4 @@
-﻿namespace Core.Memdir;
+namespace Core.Memdir;
 
 /// <summary>
 /// 配置持久化服务基类 — 提供从配置服务加载/保存值的通用机制，子类通过重写抽象成员定义序列化行为

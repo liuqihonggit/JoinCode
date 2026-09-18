@@ -1,4 +1,4 @@
-﻿namespace Core.Scheduling.Runtime;
+namespace Core.Scheduling.Runtime;
 
 /// <summary>
 /// TaskRuntime Actor 命令 — Channel 中的消息类型

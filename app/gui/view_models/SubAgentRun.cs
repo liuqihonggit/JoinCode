@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.ViewModels;
+namespace JoinCode.Gui.ViewModels;
 
 /// <summary>
 /// 子代理运行态 — SubAgentRunTracker 聚合的单个 subAgent 运行记录，

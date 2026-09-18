@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /tasks 命令 — 列出和管理后台任务，支持 kill/detail/create/update/complete/todo 等操作。

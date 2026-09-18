@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>队友布局管理器 — 管理多队友在终端中的窗格布局、颜色分配与位置调度</summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.ITeammateLayoutManager), ServiceLifetime.Singleton)]

@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 网状拓扑传输 — 点对点直连，每进程一个独立管道，无中心转发。

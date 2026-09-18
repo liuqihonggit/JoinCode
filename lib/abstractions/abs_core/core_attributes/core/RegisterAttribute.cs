@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Attributes;
+namespace JoinCode.Abstractions.Attributes;
 
 /// <summary>
 /// 标记服务类自动注册到 DI 容器 — 源码生成器据此生成 AddSingleton/AddScoped/AddTransient 注册代码

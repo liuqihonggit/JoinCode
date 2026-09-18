@@ -1,4 +1,4 @@
-﻿namespace State;
+namespace State;
 
 /// <summary>
 /// 会话转录服务实现 — 负责将 TranscriptEntry 持久化到每会话子目录,支持加载、列表、删除、自定义标题与旧格式迁移。

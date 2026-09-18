@@ -1,4 +1,4 @@
-﻿namespace Services.Lsp.Internal;
+namespace Services.Lsp.Internal;
 
 /// <summary>
 /// LspManager Actor 命令 — Channel 中的消息类型

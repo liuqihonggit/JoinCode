@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Entity;
+namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// Git Worktree 实体 — 派生自 Entity，追踪 git worktree 生命周期

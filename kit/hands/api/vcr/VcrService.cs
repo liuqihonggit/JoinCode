@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.Api.Vcr;
 
 /// <summary>

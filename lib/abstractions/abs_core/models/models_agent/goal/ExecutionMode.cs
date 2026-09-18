@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.Goal;
+namespace JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 集群执行方案模式

@@ -1,4 +1,4 @@
-﻿namespace Core.Configuration;
+namespace Core.Configuration;
 
 /// <summary>
 /// 快速模式服务 — 在主模型与快速模型间切换,带冷却计时器自动回退

@@ -1,4 +1,4 @@
-﻿namespace Core.Memdir;
+namespace Core.Memdir;
 
 /// <summary>
 /// MemoryManagement Actor 命令 — Channel 中的消息类型

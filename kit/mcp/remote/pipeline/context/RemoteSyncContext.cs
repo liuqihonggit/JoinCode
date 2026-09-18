@@ -1,4 +1,4 @@
-﻿namespace McpToolRegistry;
+namespace McpToolRegistry;
 
 
 /// <summary>

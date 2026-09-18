@@ -1,4 +1,4 @@
-﻿namespace Core.Memdir;
+namespace Core.Memdir;
 
 /// <summary>
 /// 思考记录存储实现 — 按会话 ID 维护思考条目列表,支持加载、保存、查询最近/最新条目与清空操作。

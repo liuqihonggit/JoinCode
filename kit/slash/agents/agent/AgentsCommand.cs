@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /agents 命令 — 查看和管理代理，支持列出代理列表和查看代理详情

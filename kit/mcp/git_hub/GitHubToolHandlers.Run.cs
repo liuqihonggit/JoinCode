@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch;
+namespace McpToolDispatch;
 
 /// <summary>
 /// GitHub Actions Run 工具 — gh run 子命令全套

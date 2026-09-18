@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Tui.Tui;
+namespace JoinCode.Tui.Tui;
 
 /// <summary>问答选择输入解析状态</summary>
 public enum AskUserSelectionStatus

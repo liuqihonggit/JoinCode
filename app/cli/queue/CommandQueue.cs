@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Queue;
+namespace JoinCode.Queue;
 
 /// <summary>
 /// 命令队列优先级 — 对齐 TS 原版 的 QueuePriority（now > next > later）。

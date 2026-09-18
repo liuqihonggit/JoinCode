@@ -1,4 +1,4 @@
-﻿namespace IO.FileSystem;
+namespace IO.FileSystem;
 
 /// <summary>
 /// 物理文件系统实现 — 直接委托给 System.IO.File / System.IO.Directory

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Entry;
+namespace JoinCode.Entry;
 
 /// <summary>
 /// 启动时询问用户是否打开调试信息 — 放在 WorkspaceTrustStep 之后

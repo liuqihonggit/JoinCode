@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Hands.Desktop;
+namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 屏幕截图服务 — GDI BitBlt + GetDIBits + ImageSharp PNG 编码，返回 base64

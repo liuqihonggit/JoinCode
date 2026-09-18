@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 /// <summary>
 /// Bridge 工作轮询循环 — 对齐 TS 端 startWorkPollLoop

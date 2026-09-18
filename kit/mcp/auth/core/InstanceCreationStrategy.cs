@@ -1,4 +1,4 @@
-﻿namespace McpClient;
+namespace McpClient;
 
 /// <summary>
 /// 实例创建策略 — 指定用何种方式创建对象实例

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.Agent;
+namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// 文件修改意图 — 热点识别的双意图基础

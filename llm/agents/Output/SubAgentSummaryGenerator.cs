@@ -1,4 +1,4 @@
-﻿namespace Core.Agents;
+namespace Core.Agents;
 
 /// <summary>
 /// 子智能体摘要状态 — L2 自摘要结果

@@ -1,4 +1,4 @@
-﻿namespace Infra.Tests.EntityTests;
+namespace Infra.Tests.EntityTests;
 
 public sealed class ToolExecutionEntityCloneTests
 {

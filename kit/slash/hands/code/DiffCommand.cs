@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /diff 命令 - 交互式 diff 浏览器 — 对齐 TS DiffDialog

@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Shell;
+namespace Infrastructure.Shell;
 
 /// <summary>
 /// Shell 进程看护命令 — Actor 消息类型

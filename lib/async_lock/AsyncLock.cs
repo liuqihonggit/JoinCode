@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 锁/并发限流原语 — SemaphoreSlim 的薄封装,支持互斥 (1,1) 和并发限流 (N,N) 两种语义。

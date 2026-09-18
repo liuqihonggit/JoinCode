@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /plan 命令 — 计划模式管理，支持进入/退出/查看状态/打开计划文件

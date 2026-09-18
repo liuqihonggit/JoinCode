@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli.Output;
+namespace JoinCode.Cli.Output;
 
 /// <summary>
 /// CLI 错误分类 — 对齐架构指南5类退出码语义

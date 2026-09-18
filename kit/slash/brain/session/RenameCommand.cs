@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /rename 命令 — 重命名当前会话，通过 TranscriptService 追加 custom-title 元数据。

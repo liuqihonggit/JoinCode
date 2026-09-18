@@ -1,4 +1,4 @@
-﻿namespace McpToolRegistry.Tests;
+namespace McpToolRegistry.Tests;
 
 public sealed class PermissionAwareToolExecutorEntityTests
 {

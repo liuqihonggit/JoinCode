@@ -1,4 +1,4 @@
-﻿namespace Core.Goal;
+namespace Core.Goal;
 
 /// <summary>
 /// 分级重试决策

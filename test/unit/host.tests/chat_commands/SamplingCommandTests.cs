@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.ChatCommands;
+namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// /sampling 采样参数命令测试 — 温度/MaxTokens 写回 ExecutionSettingsProvider。

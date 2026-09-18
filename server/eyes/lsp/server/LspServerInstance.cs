@@ -1,4 +1,4 @@
-﻿namespace Services.Lsp.Internal;
+namespace Services.Lsp.Internal;
 
 /// <summary>
 /// LSP 服务器状态 — 与 Clock 组件的 ServiceStatus 结构相似，

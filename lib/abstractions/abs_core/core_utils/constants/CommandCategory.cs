@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 聊天命令分组分类枚举 — 源码生成器自动生成 ChatCommandCategoryEnumConstants + ChatCommandCategoryExtensions

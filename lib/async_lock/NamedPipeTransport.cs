@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 有名管道传输 — 星型拓扑实现，主机中心转发。

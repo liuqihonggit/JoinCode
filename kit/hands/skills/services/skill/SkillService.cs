@@ -1,4 +1,4 @@
-﻿namespace Core.Skills;
+namespace Core.Skills;
 
 /// <summary>
 /// 技能服务配置选项

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /mcp 命令 — 管理 MCP 服务器，支持 list/status/add/remove/reconnect/enable/disable 操作

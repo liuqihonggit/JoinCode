@@ -106,9 +106,10 @@
 - 提取 `AgentStartTimer`(Record/TryRemoveDurationMs/Remove/TryGet)
 - **状态**:✅ `1679a4160`(Agents 594测试通过)
 
-### [P1-5] CallTrace + PromptConfigSnapshot 手动 try-finally
-- 增加 `EnterScope` 工厂方法,委托 `AsyncLocalScope<T>`
-- **状态**:⏳ 待做
+### [P1-5] CallTrace + PromptConfigSnapshot 手动 try-finally ✅ 已完成
+- 添加 `EnterScope` 工厂方法,委托已有 `AsyncLocalScope<T>.Enter`
+- `LLMInvocationHandler` + `DefaultSystemPromptProvider` 改用 `using` 替代手动 try-finally
+- **状态**:✅ `16902516e`(Prompts 191 + Context 784 测试通过)
 
 ### [P1-6] 颜色 Scope·CliOutputContract + FailFastChecker + ErrorConsole
 - 改用已有 `TerminalHelper.SetColor()` 的 `using` 模式

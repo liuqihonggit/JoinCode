@@ -30,7 +30,7 @@ public sealed partial class DisposeWorktreeCleanupMiddleware : ServiceEntity, IA
     {
         try
         {
-            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(ctx.AgentId, ctx.CancellationToken).ConfigureAwait(false);
+            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(ctx.AgentId, cancellationToken: ctx.CancellationToken).ConfigureAwait(false);
             ctx.WorktreeCleanupResult = cleanupDetail;
             if (cleanupDetail.Kept && cleanupDetail.WorktreePath is not null)
             {

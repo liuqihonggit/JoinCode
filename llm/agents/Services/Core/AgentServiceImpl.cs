@@ -312,7 +312,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         try
         {
-            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken).ConfigureAwait(false);
+            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (cleanupDetail.Kept)
             {
                 _logger?.LogInformation("Agent {AgentId} worktree kept: {Path} (reason: {Reason})",
@@ -877,7 +877,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 {
                     try
                     {
-                        await _worktreeManager.CleanupWorktreeAsync(agentId, CancellationToken.None).ConfigureAwait(false);
+                        await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken: CancellationToken.None).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

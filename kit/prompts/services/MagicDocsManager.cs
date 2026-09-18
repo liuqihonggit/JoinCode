@@ -5,6 +5,7 @@ namespace Core.Prompts.Services;
 /// MagicDocs 管理服务 — 追踪已注册的 Magic Doc 文件，提供 FileRead 监听器
 /// 对齐 TS magicDocs.ts::trackedMagicDocs + registerFileReadListener
 /// 核心消费点：MagicDocsPromptTemplate.BuildMagicDocsUpdatePrompt()
+/// 使用 Actor 邮箱管道串行化 _trackedDocs 访问，消除显式锁 — ADR 0115
 /// </summary>
 [Register(typeof(IFileReadListener), ServiceLifetime.Singleton)]
 [Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
@@ -13,11 +14,9 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     private readonly IFileSystem _fileSystem;
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ILogger<MagicDocsManager>? _logger;
-    private readonly AsyncLock _semaphore = new();
+    private readonly MagicDocsActor _actor;
     private readonly Dictionary<string, MagicDocEntry> _trackedDocs = new(StringComparer.OrdinalIgnoreCase);
     private IDisposable? _fileReadSubscription;
-    // P1-8: 信号量等待超时 — 防止持有方异常未释放导致永久阻塞
-    private static readonly TimeSpan SemaphoreWaitTimeout = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// 构造 MagicDocs 管理服务。
@@ -37,6 +36,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
         _forkManager = forkManager;
         _logger = logger;
+        _actor = new MagicDocsActor(this, logger);
 
         if (fileReadListenerRegistry is not null)
         {
@@ -57,21 +57,11 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         var detection = MagicDocDetector.Detect(e.Content);
         if (detection is null) return;
 
-        // P1-8: 添加超时，防止永久阻塞
-        using var guard = _semaphore.TryLock();
-        if (guard is null)
+        var reply = new TaskCompletionSource();
+        if (!_actor.TrySend(new OnFileReadCmd(e.FilePath, detection, reply)))
         {
-            _logger?.LogWarning("MagicDocsManager.OnFileRead 信号量等待超时，跳过注册: {FilePath}", e.FilePath);
-            return;
+            _logger?.LogWarning("MagicDocsManager.OnFileRead Actor 已释放，跳过注册: {FilePath}", e.FilePath);
         }
-        _trackedDocs[e.FilePath] = new MagicDocEntry
-        {
-            FilePath = e.FilePath,
-            Title = detection.Title,
-            CustomInstructions = detection.CustomInstructions
-        };
-
-        _logger?.LogDebug("Magic Doc 已注册: {FilePath} (标题: {Title})", e.FilePath, detection.Title);
     }
 
     /// <summary>
@@ -81,12 +71,11 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     {
         if (context.QuerySource != "repl_main_thread") return;
 
-        List<MagicDocEntry> docsToUpdate;
-        using var guard = _semaphore.TryLock(context.CancellationToken) ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
+        var reply = new TaskCompletionSource<IReadOnlyList<MagicDocEntry>>();
+        await _actor.SendAsync(new PostSamplingCmd(reply), context.CancellationToken).ConfigureAwait(false);
+        var docsToUpdate = await _actor.AskReplyAsync(reply, context.CancellationToken).ConfigureAwait(false);
 
-        if (_trackedDocs.Count == 0) return;
-        docsToUpdate = [.. _trackedDocs.Values];
-    
+        if (docsToUpdate.Count == 0) return;
 
         foreach (var doc in docsToUpdate)
         {
@@ -105,7 +94,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     {
         if (!_fileSystem.FileExists(doc.FilePath))
         {
-            RemoveTrackedDocCore(doc.FilePath);
+            await RemoveTrackedDocAsync(doc.FilePath).ConfigureAwait(false);
             return;
         }
 
@@ -113,7 +102,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         var detection = MagicDocDetector.Detect(content);
         if (detection is null)
         {
-            RemoveTrackedDocCore(doc.FilePath);
+            await RemoveTrackedDocAsync(doc.FilePath).ConfigureAwait(false);
             return;
         }
 
@@ -141,18 +130,11 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         }
     }
 
-    /// <summary>
-    /// 移除追踪文档（调用方须已持有 _semaphore）
-    /// </summary>
-    private void RemoveTrackedDocCore(string filePath)
-    {
-        _trackedDocs.Remove(filePath);
-    }
-
     private async Task RemoveTrackedDocAsync(string filePath)
     {
-        using var guard = _semaphore.TryLock() ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
-        RemoveTrackedDocCore(filePath);
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new RemoveTrackedCmd(filePath, reply)).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -162,14 +144,21 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     {
         get
         {
-            // P1-8: 添加超时，防止永久阻塞；超时返回当前未加锁计数（best-effort）
-            using var guard = _semaphore.TryLock();
-            if (guard is null)
+            var reply = new TaskCompletionSource<int>();
+            if (!_actor.TrySend(new GetTrackedCountCmd(reply)))
             {
-                _logger?.LogWarning("MagicDocsManager.TrackedCount 信号量等待超时，返回未加锁计数");
-                return _trackedDocs.Count;
+                _logger?.LogWarning("MagicDocsManager.TrackedCount Actor 已释放，返回 0");
+                return 0;
             }
-            return _trackedDocs.Count;
+            try
+            {
+                return _actor.AskReplyAsync(reply).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "MagicDocsManager.TrackedCount Actor Ask 失败，返回 0");
+                return 0;
+            }
         }
     }
 
@@ -178,22 +167,150 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     /// </summary>
     public void Clear()
     {
-        // P1-8: 添加超时，防止永久阻塞
-        using var guard = _semaphore.TryLock();
-        if (guard is null)
+        var reply = new TaskCompletionSource();
+        if (!_actor.TrySend(new ClearCmd(reply)))
         {
-            _logger?.LogWarning("MagicDocsManager.Clear 信号量等待超时，跳过清除");
-            return;
+            _logger?.LogWarning("MagicDocsManager.Clear Actor 已释放，跳过清除");
         }
-        _trackedDocs.Clear();
     }
 
     /// <summary>
-    /// 释放信号量资源。
+    /// 异步释放资源 — await Actor 完全退出
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
-        _semaphore.Dispose();
-        base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    // === 锁内逻辑（由 Actor Consumer 串行调用，无需锁）===
+
+    private void OnFileReadInternal(string filePath, MagicDocDetection detection)
+    {
+        _trackedDocs[filePath] = new MagicDocEntry
+        {
+            FilePath = filePath,
+            Title = detection.Title,
+            CustomInstructions = detection.CustomInstructions
+        };
+
+        _logger?.LogDebug("Magic Doc 已注册: {FilePath} (标题: {Title})", filePath, detection.Title);
+    }
+
+    private IReadOnlyList<MagicDocEntry> GetTrackedDocsSnapshot()
+        => [.. _trackedDocs.Values];
+
+    private void RemoveTrackedDocInternal(string filePath)
+        => _trackedDocs.Remove(filePath);
+
+    private int GetTrackedCountInternal()
+        => _trackedDocs.Count;
+
+    private void ClearInternal()
+        => _trackedDocs.Clear();
+
+    /// <summary>
+    /// MagicDocs 管理 Actor — 串行化所有 _trackedDocs 访问，消除显式锁 — ADR 0115
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class MagicDocsActor : ActorBase<MagicDocsCommand, Unit>
+    {
+        private readonly MagicDocsManager _owner;
+        private readonly ILogger<MagicDocsManager>? _logger;
+
+        public MagicDocsActor(MagicDocsManager owner, ILogger<MagicDocsManager>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复（泛型）— 暴露 protected AskAwait 供 MagicDocsManager 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        /// <summary>Ask 模式等待回复（非泛型）— 暴露 protected AskAwait 供 MagicDocsManager 调用</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(MagicDocsCommand cmd, CancellationToken ct)
+        {
+            try
+            {
+                switch (cmd)
+                {
+                    case OnFileReadCmd(var filePath, var detection, var reply):
+                        _owner.OnFileReadInternal(filePath, detection);
+                        reply.SetResult();
+                        break;
+                    case PostSamplingCmd(var reply):
+                        reply.SetResult(_owner.GetTrackedDocsSnapshot());
+                        break;
+                    case RemoveTrackedCmd(var filePath, var reply):
+                        _owner.RemoveTrackedDocInternal(filePath);
+                        reply.SetResult();
+                        break;
+                    case GetTrackedCountCmd(var reply):
+                        reply.SetResult(_owner.GetTrackedCountInternal());
+                        break;
+                    case ClearCmd(var reply):
+                        _owner.ClearInternal();
+                        reply.SetResult();
+                        break;
+                    default:
+                        throw new InvalidOperationException($"未知 MagicDocs 命令类型: {cmd.GetType().Name}");
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                SetReplyException(cmd, ex);
+            }
+        }
+
+        private static void SetReplyException(MagicDocsCommand cmd, Exception ex)
+        {
+            switch (cmd)
+            {
+                case OnFileReadCmd(_, _, var reply): reply.TrySetException(ex); break;
+                case PostSamplingCmd(var reply): reply.TrySetException(ex); break;
+                case RemoveTrackedCmd(_, var reply): reply.TrySetException(ex); break;
+                case GetTrackedCountCmd(var reply): reply.TrySetException(ex); break;
+                case ClearCmd(var reply): reply.TrySetException(ex); break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "MagicDocsActor 命令处理异常");
     }
 }
+
+// === Actor 命令类型 ===
+
+/// <summary>
+/// MagicDocs 管理 Actor 命令类型 — 每个命令对应一个 MagicDocsManager 操作，由 MagicDocsActor Consumer 串行处理。
+/// <para>ADR 0115: AsyncLock 迁移到 Actor 邮箱管道，消除 5 处显式锁。</para>
+/// </summary>
+internal abstract record MagicDocsCommand;
+
+/// <summary>FileRead 监听 — 注册 Magic Doc 到 _trackedDocs</summary>
+internal sealed record OnFileReadCmd(
+    string FilePath,
+    MagicDocDetection Detection,
+    TaskCompletionSource Reply) : MagicDocsCommand;
+
+/// <summary>PostSampling — 拷贝 _trackedDocs 快照供锁外文件更新</summary>
+internal sealed record PostSamplingCmd(
+    TaskCompletionSource<IReadOnlyList<MagicDocEntry>> Reply) : MagicDocsCommand;
+
+/// <summary>移除追踪文档 — 从 _trackedDocs 删除指定路径</summary>
+internal sealed record RemoveTrackedCmd(
+    string FilePath,
+    TaskCompletionSource Reply) : MagicDocsCommand;
+
+/// <summary>获取追踪文档数量 — 返回 _trackedDocs.Count</summary>
+internal sealed record GetTrackedCountCmd(
+    TaskCompletionSource<int> Reply) : MagicDocsCommand;
+
+/// <summary>清除所有追踪文档 — 清空 _trackedDocs</summary>
+internal sealed record ClearCmd(
+    TaskCompletionSource Reply) : MagicDocsCommand;

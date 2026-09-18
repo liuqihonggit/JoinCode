@@ -823,7 +823,7 @@ public partial class GitHubToolHandlers
             secLines = new List<string>();
             stepSecs[sectionType] = secLines;
         }
-        secLines.Add(StripLogTimestamp(line));
+        secLines.Add(GitHubRunLogText.StripLogTimestamp(line));
     }
 
     /// <summary>
@@ -893,7 +893,7 @@ public partial class GitHubToolHandlers
         await foreach (var line in logLines.ConfigureAwait(false))
         {
             lineNumber++;
-            var content = StripLogTimestamp(line);
+            var content = GitHubRunLogText.StripLogTimestamp(line);
 
             switch (state)
             {
@@ -1014,54 +1014,6 @@ public partial class GitHubToolHandlers
         return Ok(sb.ToString(), prefix);
     }
 
-    /// <summary>
-    /// 去掉日志行的时间戳前缀和 ANSI 转义码 — "2026-09-07T17:08:27.5016453Z \x1B[36;1mcontent\x1B[0m" → "content"
-    /// </summary>
-    private static string StripLogTimestamp(string line)
-    {
-        // GitHub Actions 日志格式: "2026-09-07T17:08:27.5016453Z content"
-        // 找到第一个 'Z ' 后面的内容
-        var zIdx = line.IndexOf('Z');
-        if (zIdx > 0 && zIdx + 2 < line.Length && line[zIdx + 1] == ' ')
-        {
-            return StripAnsiEscapes(line[(zIdx + 2)..]);
-        }
-        // [entry.Name] 前缀的行
-        if (line.StartsWith('['))
-        {
-            var closeIdx = line.IndexOf(']');
-            if (closeIdx > 0 && closeIdx + 2 < line.Length)
-                return StripAnsiEscapes(line[(closeIdx + 2)..]);
-        }
-        return StripAnsiEscapes(line);
-    }
-
-    /// <summary>
-    /// 去除 ANSI 转义码序列(ESC[...m) — Span 查找 ESC,无 ESC 直接返回零分配
-    /// </summary>
-    private static string StripAnsiEscapes(string s)
-    {
-        var span = s.AsSpan();
-        var escIdx = span.IndexOf('\x1B');
-        if (escIdx < 0) return s;
-        var sb = new StringBuilder(s.Length);
-        var i = 0;
-        while (i < span.Length)
-        {
-            if (span[i] == '\x1B' && i + 1 < span.Length && span[i + 1] == '[')
-            {
-                i += 2;
-                while (i < span.Length && span[i] != 'm') i++;
-                i++;
-            }
-            else
-            {
-                sb.Append(span[i]);
-                i++;
-            }
-        }
-        return sb.ToString();
-    }
 
     /// <summary>
     /// 日志解析状态机状态
@@ -1143,7 +1095,7 @@ public partial class GitHubToolHandlers
         public static string? ExtractTestName(string line)
         {
             // 先去掉时间戳前缀 "2026-09-07T17:09:52.2828405Z content"
-            var content = StripLogTimestamp(line).TrimStart();
+            var content = GitHubRunLogText.StripLogTimestamp(line).TrimStart();
             // "  Failed Mcp.Tests.xxx [24 ms]" → "Mcp.Tests.xxx"
             // "[xUnit.net 00:00:00.81]     Mcp.Tests.xxx [FAIL]" → "Mcp.Tests.xxx"
             if (content.StartsWith("Failed ", StringComparison.OrdinalIgnoreCase))
@@ -1200,7 +1152,7 @@ public partial class GitHubToolHandlers
             // 先跳过 skipLines 行(分页续读)
             if (skipped < skipLines) { skipped++; continue; }
             // 加行号前缀,方便定位(去时间戳减少噪音)
-            matched.Add($"  L{lineNumber,5}  {StripLogTimestamp(line)}");
+            matched.Add($"  L{lineNumber,5}  {GitHubRunLogText.StripLogTimestamp(line)}");
             if (matched.Count >= maxLines) break;
         }
         var prefix = GitHubRunLogFilter.BuildPrefix(runId, scope, filterLevel, matched.Count);

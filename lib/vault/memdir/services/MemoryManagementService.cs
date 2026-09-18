@@ -320,6 +320,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     private readonly MemoryStore _memoryStore;
     private readonly Dictionary<(string TeamId, string Path), TeamMemoryPath> _teamMemoryPaths = new();
     private readonly MemoryMgmtActor _mgmtActor;
+    private readonly MemoryRelevanceScorer _relevanceScorer;
     private readonly ILogger<MemoryManagementService>? _logger;
     private readonly IClockService _clock;
     private readonly MemoryOptionalServices? _optional;
@@ -349,6 +350,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _relevanceScorer = new MemoryRelevanceScorer(_clock);
         _optional = optional;
         _persistencePipeline = persistencePipeline;
         _fs = fs;
@@ -414,7 +416,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
                 {
                     Memory = sm.Memory,
                     RelevanceScore = sm.RelevanceScore,
-                    MatchReason = GetMatchReason(sm.Memory, query)
+                    MatchReason = _relevanceScorer.GetMatchReason(sm.Memory, query)
                 })
                 .ToList();
         }
@@ -423,8 +425,8 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
             scoredMemories = results.Select(m => new DetailedScoredMemory
             {
                 Memory = m,
-                RelevanceScore = CalculateAdvancedRelevanceScore(m, query),
-                MatchReason = GetMatchReason(m, query)
+                RelevanceScore = _relevanceScorer.CalculateAdvancedRelevanceScore(m, query),
+                MatchReason = _relevanceScorer.GetMatchReason(m, query)
             })
             .OrderByDescending(m => m.RelevanceScore)
             .Take(limit)
@@ -719,7 +721,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
                 .Select(m => new DetailedScoredMemory
                 {
                     Memory = m,
-                    RelevanceScore = CalculateAdvancedRelevanceScore(m, query),
+                    RelevanceScore = _relevanceScorer.CalculateAdvancedRelevanceScore(m, query),
                     MatchReason = L.T(StringKey.VaultTeamShared, teamId)
                 })
                 .OrderByDescending(m => m.RelevanceScore)
@@ -926,78 +928,6 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     #endregion
 
     #region Private Methods
-
-    private double CalculateAdvancedRelevanceScore(MemoryEntry memory, string query)
-    {
-        var score = 0.0;
-        var queryWords = QueryWordHelper.ExtractQueryWords(query);
-        var contentSpan = memory.Content.AsSpan();
-
-        for (var i = 0; i < queryWords.Length; i++)
-        {
-            var wordSpan = queryWords[i].AsSpan();
-            if (QueryWordHelper.ContainsOrdinalIgnoreCase(contentSpan, wordSpan))
-            {
-                score += 1.0;
-
-                if (QueryWordHelper.ContainsWholeWordOrdinalIgnoreCase(contentSpan, wordSpan))
-                {
-                    score += 0.5;
-                }
-            }
-        }
-
-        // 标签匹配（权重更高）— AC 自动机一次扫描
-        var queryWordAc = AhoCorasick.CreateBool(queryWords, ignoreCase: true);
-        foreach (var tag in memory.Tags)
-        {
-            if (queryWordAc.ContainsAny(tag.AsSpan()))
-            {
-                score += 2.0;
-            }
-        }
-
-        // 类型匹配
-        if (queryWordAc.ContainsAny(memory.Type.ToString().AsSpan()))
-        {
-            score += 1.5;
-        }
-
-        // 访问频率加权
-        score *= (1 + Math.Log(1 + memory.AccessCount));
-
-        // 时间衰减（越新的记忆分数越高）
-        var daysSinceCreated = (_clock.GetUtcNow() - memory.CreatedAt).TotalDays;
-        score *= Math.Exp(-daysSinceCreated / 30.0);
-
-        return score;
-    }
-
-    private string? GetMatchReason(MemoryEntry memory, string query)
-    {
-        var reasons = new List<string>();
-        var queryWords = QueryWordHelper.ExtractQueryWords(query);
-        var queryWordAc = AhoCorasick.CreateBool(queryWords, ignoreCase: true);
-
-        if (queryWordAc.ContainsAny(memory.Content.AsSpan()))
-        {
-            reasons.Add(L.T(StringKey.VaultMatchReasonContent));
-        }
-
-        // 检查标签匹配
-        if (memory.Tags.Any(t => queryWordAc.ContainsAny(t.AsSpan())))
-        {
-            reasons.Add(L.T(StringKey.VaultMatchReasonTag));
-        }
-
-        // 检查类型匹配
-        if (queryWordAc.ContainsAny(memory.Type.ToString().AsSpan()))
-        {
-            reasons.Add(L.T(StringKey.VaultMatchReasonType));
-        }
-
-        return reasons.Count > 0 ? string.Join(", ", reasons) : null;
-    }
 
     private void RecordMemoryMetrics(string operation, int totalCount, int relevantCount)
     {

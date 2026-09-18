@@ -157,9 +157,9 @@
 - 提取 `GdiSelectScope` IDisposable 类,6/7处替换(GdiScreenCaptureService finally块模式跳过)
 - **状态**:✅ `f644fad`(ToolHandlers 482测试通过)
 
-### [P0-5] MSBuildWorkspace.Create + FileStream + FileShare.ReadWrite
-- 提取 `MsBuildWorkspaceScope.Enter()` + `SafeFileScope.OpenRead/OpenWrite/OpenAppend`
-- **状态**:⏳ 待做
+### [P0-5] MSBuildWorkspace.Create + FileStream + FileShare.ReadWrite ⏭️ 跳过
+- MSBuildWorkspace.Create 5处都在工具项目(non_deliverables_tools),FileShare.ReadWrite 已被 SafeFileIO 封装
+- **状态**:⏭️ 跳过(收益不大)
 
 ---
 

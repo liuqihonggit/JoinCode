@@ -18,6 +18,7 @@ public partial class GitHubToolHandlers
     private readonly IFileSystem _fs;
     private readonly ILogger<GitHubToolHandlers>? _logger;
     private readonly GitHubRunLogFetcher _logFetcher;
+    private readonly GitHubRunLogFilterRunner? _logFilterRunner;
 
     /// <summary>
     /// Run 日志缓存 — 用 MemoryCache.Default(系统内存压力自动释放)
@@ -73,6 +74,7 @@ public partial class GitHubToolHandlers
         _git = git;
         _logger = logger;
         _logFetcher = new GitHubRunLogFetcher(this);
+        _logFilterRunner = apiClient is not null ? new GitHubRunLogFilterRunner(apiClient) : null;
     }
 
     // === 共用辅助方法 ===

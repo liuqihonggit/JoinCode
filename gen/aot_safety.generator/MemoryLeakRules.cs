@@ -4,6 +4,7 @@ namespace AotSafety.Generator
     /// 内存泄漏检测分析器：检查所有 IDisposable/IAsyncDisposable 字段是否在 Dispose/DisposeAsync 中释放。
     /// JCC9301: IDisposable 字段未在 Dispose/DisposeAsync 中释放
     /// JCC9302: 可空 IDisposable 字段释放后未置 null
+    /// JCC9304: base.Dispose() 不在 Dispose 方法体最后位置（释放顺序错误）
     /// </summary>
     [DiagnosticAnalyzer(LanguageNames.CSharp)]
     public sealed class MemoryLeakRules : DiagnosticAnalyzer
@@ -33,14 +34,27 @@ namespace AotSafety.Generator
             "置null可: 1) 防止use-after-free; 2) 明确表达释放意图; 3) 帮助检测重复释放.",
             customTags: WellKnownDiagnosticTags.CompilationEnd);
 
+        private static readonly DiagnosticDescriptor RuleBaseDisposeNotLast = new(
+            "JCC9304",
+            "释放顺序: base.Dispose() 必须在 Dispose 方法体最后位置",
+            "base.{0}() 不在 Dispose 方法体最后位置，其后还有 {1} 条语句。子类资源应先释放，base.Dispose() 最后调用（父类做生命周期注销）。先释放父类会导致子类释放时访问已释放的父类资源。",
+            "ResourceSafety",
+            DiagnosticSeverity.Warning,
+            true,
+            "base.Dispose()/base.DisposeAsync() must be the last statement in Dispose/DisposeAsync method. " +
+            "Child resources should be released first, then base.Dispose() for parent lifecycle cleanup. " +
+            "If base.Dispose() is called before other statements, those statements may access already-released parent resources.",
+            customTags: WellKnownDiagnosticTags.CompilationEnd);
+
         public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
-            ImmutableArray.Create(RuleDisposableFieldNotReleased, RuleNullableFieldNotNulled);
+            ImmutableArray.Create(RuleDisposableFieldNotReleased, RuleNullableFieldNotNulled, RuleBaseDisposeNotLast);
 
         public override void Initialize(AnalysisContext context)
         {
             context.EnableConcurrentExecution();
             context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
             context.RegisterCompilationStartAction(AnalyzeDisposableFields);
+            context.RegisterSyntaxNodeAction(AnalyzeDisposeOrder, SyntaxKind.MethodDeclaration);
         }
 
         /// <summary>
@@ -151,6 +165,84 @@ namespace AotSafety.Generator
             var nameSpan = type.Name.AsSpan();
             if (nameSpan.SequenceEqual("SemaphoreSlim".AsSpan())) return true;
             if (nameSpan.SequenceEqual("ConcurrentDictionary".AsSpan())) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// JCC9304: 检测 base.Dispose()/base.DisposeAsync() 不在 Dispose 方法体最后位置。
+        /// 释放顺序：子类资源先释放 → base.Dispose() 最后调用（父类做生命周期注销）。
+        /// </summary>
+        private static void AnalyzeDisposeOrder(SyntaxNodeAnalysisContext ctx)
+        {
+            if (ctx.CancellationToken.IsCancellationRequested) return;
+
+            var methodDecl = (MethodDeclarationSyntax)ctx.Node;
+
+            var methodName = methodDecl.Identifier.ValueText.AsSpan();
+            if (!methodName.SequenceEqual("Dispose".AsSpan()) &&
+                !methodName.SequenceEqual("DisposeAsync".AsSpan()))
+                return;
+
+            if (!methodDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.OverrideKeyword)))
+                return;
+
+            if (methodDecl.Body is null) return;
+
+            var statements = methodDecl.Body.Statements;
+            if (statements.Count == 0) return;
+
+            for (var i = 0; i < statements.Count; i++)
+            {
+                if (TryGetBaseDisposeCall(statements[i], out var baseMethodName))
+                {
+                    if (i < statements.Count - 1)
+                    {
+                        var remaining = statements.Count - i - 1;
+                        ctx.ReportDiagnostic(Diagnostic.Create(RuleBaseDisposeNotLast,
+                            statements[i].GetLocation(), baseMethodName, remaining));
+                    }
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 检测语句是否是 base.Dispose() 或 await base.DisposeAsync() 调用
+        /// </summary>
+        private static bool TryGetBaseDisposeCall(StatementSyntax stmt, out string baseMethodName)
+        {
+            baseMethodName = string.Empty;
+
+            if (stmt is not ExpressionStatementSyntax exprStmt)
+                return false;
+
+            var expr = exprStmt.Expression;
+
+            if (expr is AwaitExpressionSyntax awaitExpr)
+                expr = awaitExpr.Expression;
+
+            if (expr is not InvocationExpressionSyntax invocation)
+                return false;
+
+            if (invocation.Expression is not MemberAccessExpressionSyntax ma)
+                return false;
+
+            if (ma.Expression is not BaseExpressionSyntax)
+                return false;
+
+            var name = ma.Name.Identifier.ValueText.AsSpan();
+            if (name.SequenceEqual("Dispose".AsSpan()))
+            {
+                baseMethodName = "Dispose";
+                return true;
+            }
+
+            if (name.SequenceEqual("DisposeAsync".AsSpan()))
+            {
+                baseMethodName = "DisposeAsync";
+                return true;
+            }
+
             return false;
         }
     }

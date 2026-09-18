@@ -125,9 +125,9 @@
 - 7 个可变 static 字段合并为 `WindowsCpuBaseline` + `FallbackCpuBaseline` readonly record struct
 - **状态**:✅ `339ac6dfa`(编译通过,无独立测试)
 
-### [P1-9] ReasoningOptionsBuilder 14 字段 + ReasoningEngine 13 字段
-- Builder 拆 3 个配置 record;Engine 拆 `ReasoningBudget` + `ReasoningComponents`
-- **状态**:⏳ 待做
+### [P1-9] ReasoningOptionsBuilder 14 字段 + ReasoningEngine 13 字段 ✅ 已完成
+- Engine 提取 `ReasoningBudget`(4字段→小类,12→9字段);Builder 拆分跳过(临时存储无收益)
+- **状态**:✅ `cc25a82f7`(Reasoning 272测试通过)
 
 ### [P1-10] StreamReader/Writer(stream, Encoding.UTF8) — ~40 处
 - 提取 `StreamTextScope` 扩展方法 `AsUtf8Reader()`/`ReadAllTextUtf8()`

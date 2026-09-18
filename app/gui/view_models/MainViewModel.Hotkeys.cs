@@ -48,7 +48,7 @@ public sealed partial class MainViewModel
     /// <summary>从 HotkeyItems 写回 GuiPreferences 并持久化</summary>
     private void SaveHotkeysToPreferences()
     {
-        if (!_isPreferencesLoaded)
+        if (!_gate.PreferencesLoaded)
             return;
         try
         {

@@ -48,8 +48,8 @@ public sealed partial class MainViewModel
 
     partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
     {
-        ViewModelDiagnosticsLogger.WriteDebug($"OnSelectedConnectionChanged: id={value?.Id} refresh={_isRefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
-        if (value is null || _isRefreshingConfig)
+        ViewModelDiagnosticsLogger.WriteDebug($"OnSelectedConnectionChanged: id={value?.Id} refresh={_gate.RefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
+        if (value is null || _gate.RefreshingConfig)
             return;
 
         // 无论引擎是否就绪,都持久化供应商切换到 settings.json(PlaceholderChatSession 也能写)
@@ -105,12 +105,11 @@ public sealed partial class MainViewModel
             RebuildConnectionOptions();
             RefreshModelOptions();
 
-            // 恢复连接选择（RebuildConnectionOptions 重建了对象引用），用标志位绕过 OnSelectedConnectionChanged 持久化副作用避免循环
-            _isRefreshingConfig = true;
+            // 恢复连接选择（RebuildConnectionOptions 重建了对象引用），用门控 scope 绕过 OnSelectedConnectionChanged 持久化副作用避免循环
+            using var _ = _gate.EnterRefreshingConfigScope();
             SelectedConnection = GetConnectionById(previousConnectionId)
                 ?? GetConnectionById(_session.CurrentVendor)
                 ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
-            _isRefreshingConfig = false;
             OnPropertyChanged(nameof(IsMockConnection));
 
             // 保留当前模型选择（若仍属于当前供应商模型列表），否则取引擎当前模型，再否则取第一个

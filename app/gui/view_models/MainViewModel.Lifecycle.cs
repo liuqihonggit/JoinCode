@@ -37,7 +37,7 @@ public sealed partial class MainViewModel
         LoadPersistedSessions();
         NewConversation();
 
-        // 注册持久化路由（在 LoadPreferences 之前，加载期 _isPreferencesLoaded=false 不触发）
+        // 注册持久化路由（在 LoadPreferences 之前，加载期门控关闭不触发）
         RegisterPersistActions();
 
         // 加载 GUI 偏好并应用到 UI 属性（启动时恢复上次显示的内容）
@@ -49,10 +49,11 @@ public sealed partial class MainViewModel
             RefreshModelOptions();
             _selectedModel = _session.CurrentModelId;
             _selectedModelOption = GetModelById(_session.CurrentModelId);
-            _isRefreshingConfig = true;
-            SelectedConnection = GetConnectionById(session.CurrentVendor)
-                ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
-            _isRefreshingConfig = false;
+            using (var _ = _gate.EnterRefreshingConfigScope())
+            {
+                SelectedConnection = GetConnectionById(session.CurrentVendor)
+                    ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
+            }
             IsEngineLoaded = true;
             StartModelConfigWatch();
             // 引擎就绪后把偏好里的采样参数应用到引擎
@@ -66,10 +67,11 @@ public sealed partial class MainViewModel
             StatusText = "正在加载引擎…";
             RebuildConnectionOptions();
             ViewModelDiagnosticsLogger.WriteDebug($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionDropdown.ConnectionOptions.Count} ids=[{string.Join(",", _connectionDropdown.ConnectionOptions.Select(c => c.Id))}]");
-            _isRefreshingConfig = true;
-            SelectedConnection = GetConnectionById(_session.CurrentVendor)
-                ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
-            _isRefreshingConfig = false;
+            using (var _ = _gate.EnterRefreshingConfigScope())
+            {
+                SelectedConnection = GetConnectionById(_session.CurrentVendor)
+                    ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
+            }
             ViewModelDiagnosticsLogger.WriteDebug($"Constructor else: SelectedConnection={SelectedConnection?.Id}");
             RefreshModelOptions();
             _selectedModelOption = GetModelById(_session.CurrentModelId)
@@ -101,10 +103,11 @@ public sealed partial class MainViewModel
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = GetModelById(_session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
-        _isRefreshingConfig = true;
-        SelectedConnection = GetConnectionById(session.CurrentVendor)
-            ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
-        _isRefreshingConfig = false;
+        using (var _ = _gate.EnterRefreshingConfigScope())
+        {
+            SelectedConnection = GetConnectionById(session.CurrentVendor)
+                ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
+        }
         ViewModelDiagnosticsLogger.WriteDebug($"AttachRealSession: SelectedConnection={SelectedConnection?.Id}");
 
         // 清空延迟构建的斜杠命令缓存，改用真实引擎的命令清单

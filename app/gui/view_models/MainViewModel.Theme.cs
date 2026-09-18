@@ -18,9 +18,8 @@ public sealed partial class MainViewModel
                     return;
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    _isApplyingExternalTheme = true;
+                    using var _ = _gate.EnterApplyingThemeScope();
                     IsDarkTheme = ThemeConverter.ToIsDark(theme);
-                    _isApplyingExternalTheme = false;
                 });
             }
             catch (Exception ex)
@@ -35,9 +34,8 @@ public sealed partial class MainViewModel
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            _isApplyingExternalTheme = true;
+            using var _ = _gate.EnterApplyingThemeScope();
             IsDarkTheme = ThemeConverter.ToIsDark(theme);
-            _isApplyingExternalTheme = false;
         });
     }
 

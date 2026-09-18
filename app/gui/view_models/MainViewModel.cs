@@ -16,8 +16,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private readonly IConfigurationService _configService;
     /// <summary>连接/模型下拉管理器 — 管理供应商连接列表和模型下拉选项</summary>
     private readonly ConnectionDropdownManager _connectionDropdown = new();
-    private bool _isRefreshingConfig;
-    private bool _isApplyingExternalTheme;
+    private readonly PropertyChangeGate _gate = new();
     private IFileSystemWatcher? _modelConfigWatcher;
     private readonly IFileSystem _fileSystem;
 

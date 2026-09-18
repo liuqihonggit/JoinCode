@@ -46,21 +46,21 @@ public partial class FileToolHandlers
         var extWithoutDot = ext.Length > 0 ? ext[1..] : string.Empty;
 
         // 图像文件特殊处理（不作为二进制拒绝，而是读取为图像）
-        if (ImageExtensions.Contains(extWithoutDot))
+        if (FileSpecialFormatReader.IsImageExtension(extWithoutDot))
         {
-            return await ReadImageFileAsync(file_path, extWithoutDot, cancellationToken).ConfigureAwait(false);
+            return await _specialReader.ReadImageFileAsync(file_path, extWithoutDot, cancellationToken).ConfigureAwait(false);
         }
 
         // 对齐 TS: FileReadTool — PDF 文件特殊处理（不作为二进制拒绝，而是读取为 base64）
         if (PdfReader.IsPdfExtension(file_path))
         {
-            return await ReadPdfFileAsync(file_path, pages, cancellationToken).ConfigureAwait(false);
+            return await _specialReader.ReadPdfFileAsync(file_path, pages, cancellationToken).ConfigureAwait(false);
         }
 
         // 对齐 TS: FileReadTool — Notebook 文件特殊处理（不作为二进制拒绝，而是格式化输出）
         if (NotebookReader.IsNotebookExtension(file_path))
         {
-            return await ReadNotebookFileAsync(file_path, cancellationToken).ConfigureAwait(false);
+            return await _specialReader.ReadNotebookFileAsync(file_path, cancellationToken).ConfigureAwait(false);
         }
 
         if (BinaryFileDetector.IsBinaryExtension(ext))
@@ -159,8 +159,8 @@ public partial class FileToolHandlers
         var fileConfig = _ctx.FileOperationConfig!;
         var maxTokens = fileConfig.MaxReadTokens > 0
             ? fileConfig.MaxReadTokens
-            : DefaultMaxReadTokens;
-        var estimatedTokens = EstimateTokenCount(result.Content, file_path);
+            : 25000;
+        var estimatedTokens = FileSpecialFormatReader.EstimateTokenCount(result.Content, file_path);
         if (estimatedTokens > maxTokens)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.TokenExceeded);

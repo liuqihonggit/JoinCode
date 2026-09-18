@@ -2,7 +2,7 @@
 namespace State.Tests;
 
 
-public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
+public sealed class TranscriptFileWriterPasteStoreTests : IAsyncDisposable
 {
     private readonly TestInMemFs _fs = new();
     private readonly string _tempDir;
@@ -99,7 +99,7 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
     [Fact]
     public async Task AppendEntryAsync_WithoutPasteStore_ShouldStoreInlineRegardlessOfSize()
     {
-        using var writerNoPaste = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, pasteStore: null);
+        await using var writerNoPaste = new TranscriptFileWriter(_fs, _tempDir, NullLogger.Instance, pasteStore: null);
         var largeContent = new string('y', 2000);
 
         var filePath = Path.Combine(_tempDir, "nopaste.json");
@@ -119,12 +119,12 @@ public sealed class TranscriptFileWriterPasteStoreTests : IDisposable
         loaded[0].ContentHash.Should().BeNull();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
 
-        _writer.DisposeSafe();
+        await _writer.DisposeAsync();
     }
 }
 #pragma warning restore JCC51010, JCC3010, JCC3011, JCC3012, JCC9001

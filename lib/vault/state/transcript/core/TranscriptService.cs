@@ -397,11 +397,11 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     /// <summary>
     /// 释放转录文件写入器资源。
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
-        _writer.Dispose();
-        base.Dispose();
+        await _writer.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

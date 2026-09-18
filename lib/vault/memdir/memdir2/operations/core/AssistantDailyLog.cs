@@ -166,7 +166,8 @@ public interface IAssistantDailyLogService : IDisposable
 /// <summary>
 /// 助手日志服务实现
 /// 以追加式写入方式管理每日日志，每天一个文件，
-/// 存储在用户记忆目录下的 daily-logs 子目录中
+/// 存储在用户记忆目录下的 daily-logs 子目录中。
+/// 使用 Actor 邮箱管道串行化写操作，消除显式锁 — ADR 0115
 /// </summary>
 [Register(typeof(IAssistantDailyLogService), ServiceLifetime.Singleton)]
 public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistantDailyLogService, IDisposable
@@ -179,8 +180,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<AssistantDailyLogService>? _logger;
     private readonly IClockService _clock;
-    private readonly AsyncLock _writeLock = new();
-    private bool _disposed;
+    private readonly DailyLogActor _actor;
 
     /// <summary>
     /// 构造助手日志服务
@@ -202,6 +202,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _actor = new DailyLogActor(this, logger);
     }
 
     /// <inheritdoc />
@@ -214,7 +215,20 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         ArgumentNullException.ThrowIfNull(content);
 
         cancellationToken.ThrowIfCancellationRequested();
-        using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_writeLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<DailyLogEntry>();
+        await _actor.SendAsync(new AppendEntryCmd(content, category, relatedMemoryId, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 追加日志条目内部实现 — 由 DailyLogActor Consumer 串行调用，无锁。
+    /// </summary>
+    private async Task<DailyLogEntry> AppendEntryInternalAsync(
+        string content,
+        DailyLogCategory category,
+        string? relatedMemoryId,
+        CancellationToken cancellationToken)
+    {
         var entry = new DailyLogEntry
         {
             Timestamp = _clock.GetUtcNow(),
@@ -376,16 +390,44 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         }
     }
 
-    /// <summary>
-    /// 释放日志写入锁资源。
-    /// </summary>
-    public override void Dispose()
+    /// <summary>异步释放资源 — await Actor 完全退出，禁止 fire-and-forget（JCC9200）</summary>
+    public override async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
 
-        _writeLock.Dispose();
-        base.Dispose();
+    /// <summary>
+    /// 助手日志 Actor — 串行化所有写操作，消除显式锁 — ADR 0115
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class DailyLogActor : ActorBase<AssistantDailyLogCommand, Unit>
+    {
+        private readonly AssistantDailyLogService _owner;
+        private readonly ILogger<AssistantDailyLogService>? _logger;
+
+        public DailyLogActor(AssistantDailyLogService owner, ILogger<AssistantDailyLogService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 AssistantDailyLogService 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(AssistantDailyLogCommand cmd, CancellationToken ct)
+        {
+            switch (cmd)
+            {
+                case AppendEntryCmd(var content, var category, var relatedMemoryId, var reply):
+                    reply.SetResult(await _owner.AppendEntryInternalAsync(content, category, relatedMemoryId, ct).ConfigureAwait(false));
+                    break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "DailyLogActor 命令处理异常");
     }
 }
 

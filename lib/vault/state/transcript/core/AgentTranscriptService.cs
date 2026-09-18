@@ -9,7 +9,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     private readonly string _sessionsDirectory;
     private readonly ILogger<AgentTranscriptService>? _logger;
     private readonly TranscriptFileWriter _writer;
-    private readonly AsyncLock _metaLock = new();
+    private readonly AgentTranscriptActor _actor;
     private readonly IFileSystem _fs;
     private bool _disposed;
 
@@ -29,6 +29,7 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
                 AppDataConstants.SessionsFolderName);
         _logger = logger;
         _writer = new TranscriptFileWriter(_fs, _sessionsDirectory, logger, pasteStore);
+        _actor = new AgentTranscriptActor(this, logger);
     }
 
     /// <inheritdoc/>
@@ -73,7 +74,20 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentNullException.ThrowIfNull(metadata);
 
-        using var guard = await _metaLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_metaLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new SaveMetadataCmd(sessionId, metadata, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 保存元数据内部实现 — Actor Consumer 线程独占执行，无需锁
+    /// </summary>
+    /// <param name="sessionId">会话标识</param>
+    /// <param name="metadata">Agent 元数据</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    private async Task SaveMetadataInternalAsync(
+        string sessionId, JoinCode.Abstractions.Interfaces.AgentMetadata metadata, CancellationToken cancellationToken)
+    {
         try
         {
             EnsureAgentDirectoryExists(sessionId, metadata.AgentId);
@@ -176,13 +190,47 @@ public sealed partial class AgentTranscriptService : ServiceEntity, JoinCode.Abs
     }
 
     /// <inheritdoc/>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
-        _writer.Dispose();
-        _metaLock.Dispose();
-            base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await _writer.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Agent 转录服务 Actor — 串行化元数据写操作，消除显式锁
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class AgentTranscriptActor : ActorBase<AgentTranscriptCommand, Unit>
+    {
+        private readonly AgentTranscriptService _owner;
+        private readonly ILogger<AgentTranscriptService>? _logger;
+
+        public AgentTranscriptActor(AgentTranscriptService owner, ILogger<AgentTranscriptService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 AgentTranscriptService 调用</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(AgentTranscriptCommand cmd, CancellationToken ct)
+        {
+            switch (cmd)
+            {
+                case SaveMetadataCmd(var sessionId, var metadata, var reply):
+                    await _owner.SaveMetadataInternalAsync(sessionId, metadata, ct).ConfigureAwait(false);
+                    reply.SetResult();
+                    break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "AgentTranscriptActor 命令处理异常");
     }
 }
 

@@ -11,9 +11,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
     private readonly ILogger<SessionTagService>? _logger;
-    private readonly AsyncLock _saveLock = new();
-    private readonly CancellationTokenSource _disposeCts = new();
-    private bool _disposed;
+    private readonly SessionTagActor _actor;
 
     /// <summary>
     /// 创建会话标签服务实例
@@ -27,6 +25,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
         _storagePath = Path.Combine(storagePath, "session_tags.json");
         _fileOperationService = fileOperationService;
         _logger = logger;
+        _actor = new SessionTagActor(this, logger);
     }
 
     /// <inheritdoc />
@@ -129,12 +128,11 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
 
     private void FireAndForgetSave()
     {
-        _ = SaveAsync(_disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
+        _actor.TrySend(new SessionTagSaveCmd());
     }
 
-    private async Task SaveAsync(CancellationToken cancellationToken)
+    private async Task SaveInternalAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _saveLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_saveLock.Name}' 等待超时");
         try
         {
             var data = new SessionTagData
@@ -151,16 +149,41 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     }
 
     /// <summary>
-    /// 释放取消令牌、保存锁等资源。
+    /// 异步释放资源 — await Actor 完全退出，禁止 fire-and-forget（JCC9200）
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
 
-        _disposeCts.CancelAndDisposeSafe(_logger);
-        _saveLock.Dispose();
-        base.Dispose();
+    /// <summary>
+    /// 会话标签 Actor — 串行化文件写操作，消除显式锁
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class SessionTagActor : ActorBase<SessionTagCommand, Unit>
+    {
+        private readonly SessionTagService _owner;
+        private readonly ILogger<SessionTagService>? _logger;
+
+        public SessionTagActor(SessionTagService owner, ILogger<SessionTagService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        protected override async ValueTask HandleAsync(SessionTagCommand cmd, CancellationToken ct)
+        {
+            switch (cmd)
+            {
+                case SessionTagSaveCmd:
+                    await _owner.SaveInternalAsync(ct).ConfigureAwait(false);
+                    break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "SessionTagActor 命令处理异常");
     }
 }
 

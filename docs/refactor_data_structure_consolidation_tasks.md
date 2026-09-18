@@ -115,10 +115,10 @@
 - 新增 `TerminalHelper.SetColorRaw()` (不通过 ConsoleActor,专用于 stderr),`using` 替代手动 try-finally
 - **状态**:✅ `53c3c4295`(Host 1040测试通过)
 
-### [P1-7] MemoryType 三维度属性表
-- **文件**:`lib/vault/memdir/memdir2/core/MemoryType.cs:39,47,55`
-- 合并 `DefaultTtls` + `BaseRelevanceWeights` 为 `FrozenDictionary<MemoryType, MemoryTypeProfile>`
-- **状态**:⏳ 待做
+### [P1-7] MemoryType 三维度属性表 ✅ 已完成
+- **文件**:`lib/vault/memdir/memdir2/core/MemoryType.cs`
+- 合并 `DefaultTtls` + `BaseRelevanceWeights` 为 `FrozenDictionary<MemoryType, MemoryTypeProfile>` (readonly record struct)
+- **状态**:✅ `8b3a2963c`(Vault.Memdir 143测试通过)
 
 ### [P1-8] CpuParallelism 双基线状态
 - **文件**:`lib/infrastructure/utils/system/CpuParallelism.cs:8,9,12-15,18-20`

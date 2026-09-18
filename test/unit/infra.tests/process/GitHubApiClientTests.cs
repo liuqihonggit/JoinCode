@@ -21,6 +21,7 @@ public sealed class GitHubApiClientTest : IDisposable
         if (_disposed) return;
         _disposed = true;
         _envScope.DisposeSafe();
+        _handler.Dispose();
         Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
     }
 
@@ -103,6 +104,13 @@ public sealed class GitHubApiClientTest : IDisposable
         {
             LastRequest = request;
             return Task.FromResult(Response);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                Response.Dispose();
+            base.Dispose(disposing);
         }
     }
 }

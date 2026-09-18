@@ -69,4 +69,11 @@ public sealed partial class UndoStack : ServiceEntity, IUndoStack
             _stack.Clear();
         }
     }
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

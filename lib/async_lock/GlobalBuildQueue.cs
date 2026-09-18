@@ -223,4 +223,13 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
             PendingTasks = _pending.Keys.ToArray()
         };
     }
+
+    /// <summary>
+    /// 释放全局编译队列 — 释放传输层。
+    /// </summary>
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync().ConfigureAwait(false);
+        if (_transport is not null) await _transport.DisposeAsync().ConfigureAwait(false);
+    }
 }

@@ -163,6 +163,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     {
         MarkDead();
         UnmanagedResources.ReleaseAll();
+        _resourceLock.Dispose();
         base.Dispose();
     }
 }

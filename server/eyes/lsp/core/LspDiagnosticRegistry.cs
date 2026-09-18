@@ -376,4 +376,11 @@ public sealed partial class LspDiagnosticRegistry : ServiceEntity, ILspDiagnosti
         "Hint" => 4,
         _ => 4
     };
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        _lock.Dispose();
+        base.Dispose();
+    }
 }

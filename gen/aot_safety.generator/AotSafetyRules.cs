@@ -128,7 +128,7 @@ namespace AotSafety.Generator
                 SyntaxKind.FieldDeclaration,
                 SyntaxKind.Parameter);
             context.RegisterSyntaxNodeAction(AnalyzeDynamicKeyword, SyntaxKind.IdentifierName);
-            context.RegisterSyntaxNodeAction(AnalyzeUsingInCsFile, SyntaxKind.UsingDirective);
+            context.RegisterCompilationStartAction(RegisterUsingInCsFileAnalysis);
             context.RegisterSyntaxNodeAction(AnalyzeTooManyParameters, SyntaxKind.MethodDeclaration);
             context.RegisterSyntaxNodeAction(AnalyzeSwitchOnString, SyntaxKind.SwitchStatement);
             context.RegisterSyntaxNodeAction(AnalyzeReflectionApi, SyntaxKind.InvocationExpression);
@@ -251,7 +251,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// JCC1005: 禁止在.cs文件内写using语句
         /// </summary>
-        private static void AnalyzeUsingInCsFile(SyntaxNodeAnalysisContext ctx)
+        private static void AnalyzeUsingInCsFile(SyntaxNodeAnalysisContext ctx, bool isRoslynProject)
         {
             if (ctx.CancellationToken.IsCancellationRequested) return;
 
@@ -267,15 +267,44 @@ namespace AotSafety.Generator
             if (filePath.Contains("\\obj\\", StringComparison.Ordinal) ||
                 filePath.Contains("/obj/", StringComparison.Ordinal)) return;
 
-            if (filePath.Contains("AotSafety.Generator", StringComparison.Ordinal) ||
-                filePath.Contains("CodeFixes", StringComparison.Ordinal) ||
-                filePath.Contains("EnumMetadata.Generator", StringComparison.Ordinal) ||
-                filePath.Contains("McpToolDispatch.Generator", StringComparison.Ordinal)) return;
+            if (isRoslynProject) return;
 
             if (usingDirective.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword)) return;
 
             var usingName = usingDirective.Name?.ToString() ?? "?";
             ctx.ReportDiagnostic(Diagnostic.Create(RuleUsingInCsFile, usingDirective.GetLocation(), usingName));
+        }
+
+        /// <summary>
+        /// 注册 JCC1005 分析，缓存 Roslyn 项目检测结果（解决方案无关）
+        /// </summary>
+        private static void RegisterUsingInCsFileAnalysis(CompilationStartAnalysisContext context)
+        {
+            var isRoslynProject = IsRoslynProject(context.Compilation);
+            context.RegisterSyntaxNodeAction(
+                ctx => AnalyzeUsingInCsFile(ctx, isRoslynProject),
+                SyntaxKind.UsingDirective);
+        }
+
+        /// <summary>
+        /// 检测项目是否引用了 Microsoft.CodeAnalysis.CSharp（Roslyn 生成器/分析器项目的本质特征）。
+        /// 解决方案无关：不依赖项目名称，任何引用了 Roslyn 的项目都豁免 JCC1005。
+        /// 用 Span 加速字符串匹配（0-GC）。
+        /// </summary>
+        private static bool IsRoslynProject(Compilation compilation)
+        {
+            const string target = "Microsoft.CodeAnalysis.CSharp";
+            var targetSpan = target.AsSpan();
+
+            foreach (var reference in compilation.References)
+            {
+                if (reference is not PortableExecutableReference peRef) continue;
+                var display = peRef.Display;
+                if (display is null) continue;
+                if (display.AsSpan().Contains(targetSpan, StringComparison.Ordinal))
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>

@@ -132,6 +132,13 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         _logger?.LogDebug("AgentRoleProfileRegistry 缓存已清除");
     }
 
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        _loadLock.Dispose();
+        base.Dispose();
+    }
+
     private void EnsureCustomLoaded()
     {
         if (_customLoaded || _definitionProvider is null)

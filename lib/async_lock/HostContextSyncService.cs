@@ -210,6 +210,9 @@ public sealed class HostContextSyncService : IAsyncDisposable
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         if (_syncTask is not null) await _syncTask.ConfigureAwait(false);
+        _syncTask = null;
+        await _transport.DisposeAsync().ConfigureAwait(false);
+        await _election.DisposeAsync().ConfigureAwait(false);
         _cts.Dispose();
     }
 }

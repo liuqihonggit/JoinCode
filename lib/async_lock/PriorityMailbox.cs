@@ -319,6 +319,7 @@ public abstract class PriorityMailbox<TCommand> : IAsyncDisposable
         _lowChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
         if (_consumerTask is { } task) await task.ConfigureAwait(false);
+        _consumerTask = null;
         _cts.Dispose();
         _signal.Dispose();
     }

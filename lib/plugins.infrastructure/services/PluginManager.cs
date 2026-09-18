@@ -927,9 +927,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         if (_isDisposed) return ValueTask.CompletedTask;
         _isDisposed = true;
 
-        var baseTask = base.DisposeAsync();
         CleanupAllPlugins();
-        return baseTask;
+        return base.DisposeAsync();
     }
 
     private void CleanupAllPlugins()

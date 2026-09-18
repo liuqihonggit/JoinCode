@@ -171,6 +171,7 @@ namespace AotSafety.Generator
         /// <summary>
         /// JCC9304: 检测 base.Dispose()/base.DisposeAsync() 不在 Dispose 方法体最后位置。
         /// 释放顺序：子类资源先释放 → base.Dispose() 最后调用（父类做生命周期注销）。
+        /// 检测方式：方法体中存在 base.Dispose() 调用，但最后一个语句不包含 base.Dispose() 调用。
         /// </summary>
         private static void AnalyzeDisposeOrder(SyntaxNodeAnalysisContext ctx)
         {
@@ -189,41 +190,31 @@ namespace AotSafety.Generator
             if (methodDecl.Body is null) return;
 
             var statements = methodDecl.Body.Statements;
-            if (statements.Count == 0) return;
+            if (statements.Count <= 1) return;
 
-            for (var i = 0; i < statements.Count; i++)
+            var hasBaseDispose = methodDecl.Body.DescendantNodes()
+                .OfType<InvocationExpressionSyntax>()
+                .Any(IsBaseDisposeCall);
+
+            if (!hasBaseDispose) return;
+
+            var lastStatement = statements[statements.Count - 1];
+            var lastHasBaseDispose = lastStatement.DescendantNodesAndSelf()
+                .OfType<InvocationExpressionSyntax>()
+                .Any(IsBaseDisposeCall);
+
+            if (!lastHasBaseDispose)
             {
-                if (TryGetBaseDisposeCall(statements[i], out var baseMethodName))
-                {
-                    if (i < statements.Count - 1)
-                    {
-                        var remaining = statements.Count - i - 1;
-                        ctx.ReportDiagnostic(Diagnostic.Create(RuleBaseDisposeNotLast,
-                            statements[i].GetLocation(), baseMethodName, remaining));
-                    }
-                    return;
-                }
+                ctx.ReportDiagnostic(Diagnostic.Create(RuleBaseDisposeNotLast,
+                    lastStatement.GetLocation(), "Dispose", 1));
             }
         }
 
         /// <summary>
-        /// 检测语句是否是 base.Dispose() 或 await base.DisposeAsync() 调用
+        /// 检测调用是否是 base.Dispose() 或 base.DisposeAsync()
         /// </summary>
-        private static bool TryGetBaseDisposeCall(StatementSyntax stmt, out string baseMethodName)
+        private static bool IsBaseDisposeCall(InvocationExpressionSyntax invocation)
         {
-            baseMethodName = string.Empty;
-
-            if (stmt is not ExpressionStatementSyntax exprStmt)
-                return false;
-
-            var expr = exprStmt.Expression;
-
-            if (expr is AwaitExpressionSyntax awaitExpr)
-                expr = awaitExpr.Expression;
-
-            if (expr is not InvocationExpressionSyntax invocation)
-                return false;
-
             if (invocation.Expression is not MemberAccessExpressionSyntax ma)
                 return false;
 
@@ -231,19 +222,8 @@ namespace AotSafety.Generator
                 return false;
 
             var name = ma.Name.Identifier.ValueText.AsSpan();
-            if (name.SequenceEqual("Dispose".AsSpan()))
-            {
-                baseMethodName = "Dispose";
-                return true;
-            }
-
-            if (name.SequenceEqual("DisposeAsync".AsSpan()))
-            {
-                baseMethodName = "DisposeAsync";
-                return true;
-            }
-
-            return false;
+            return name.SequenceEqual("Dispose".AsSpan()) ||
+                   name.SequenceEqual("DisposeAsync".AsSpan());
         }
     }
 }

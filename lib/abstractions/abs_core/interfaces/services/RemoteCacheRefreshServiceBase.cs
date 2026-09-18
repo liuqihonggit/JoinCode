@@ -141,8 +141,8 @@ public abstract class RemoteCacheRefreshServiceBase<TItem> : ActorBase<IRemoteCa
         if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
         _disposeCts.Cancel();
         _refreshTimer.Dispose();
-        await base.DisposeAsync().ConfigureAwait(false);
         _disposeCts.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

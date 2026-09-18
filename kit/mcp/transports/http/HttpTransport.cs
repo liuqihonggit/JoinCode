@@ -352,8 +352,8 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     /// <inheritdoc/>
     public override async ValueTask DisposeAsync()
     {
-        await base.DisposeAsync().ConfigureAwait(false);
         _httpClient.Dispose();
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }
 

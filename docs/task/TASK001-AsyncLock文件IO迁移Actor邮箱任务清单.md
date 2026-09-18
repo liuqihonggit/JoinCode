@@ -1,29 +1,25 @@
-# 0115. AsyncLock+文件 I/O 迁移到 Actor 邮箱管道
+# AsyncLock+文件 I/O 迁移到 Actor 邮箱管道任务清单
 
-> 📍 **导航**: [docs/](../README.md) › [adr/](README.md)
-> 🔗 **上游索引**: [adr/README.md](README.md) — 修改本文档后须同步更新此索引
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 
-- 状态：accepted
-- 日期：2026-09-19
-- 决策者：AI + 用户确认
-- 关联 ADR：[0052](0052-asynclock-unified-mutex-file-access.md)、[0068](0068-unified-persistence-pipeline-actor.md)、[0074](0074-actor-supervisor-tree.md)、[0086](0086-core-tech-selection-lock-design.md)、[0100](0100-console-actor-serialize-io.md)、[0101](0101-file-watcher-unified-actor.md)、[0107](0107-file-mailbox-lock-replace-mutex.md)
+> 迁移自原 ADR 0115（误写为 ADR，按 ADR README 规范转为 task）
+> 相关 ADR: [0052](../adr/0052-asynclock-unified-mutex-file-access.md)、[0068](../adr/0068-unified-persistence-pipeline-actor.md)、[0074](../adr/0074-actor-supervisor-tree.md)、[0086](../adr/0086-core-tech-selection-lock-design.md)、[0100](../adr/0100-console-actor-serialize-io.md)、[0101](../adr/0101-file-watcher-unified-actor.md)、[0107](../adr/0107-file-mailbox-lock-replace-mutex.md)
 
 ## 背景
 
-### 问题现象
-
-项目中有 **22 处** `AsyncLock`（`AsyncLock` = `SemaphoreSlim(1,1)` 薄封装）+ 文件 I/O 的"锁内文件访问"模式，散落在 `lib/`、`kit/`、`llm/`、`server/` 各层。虽然 ADR [0052](0052-asynclock-unified-mutex-file-access.md) 已统一用 `AsyncLock` 替代 `ReaderWriterLockSlim` 解决了跨 await 线程亲和性问题，但"锁+文件 I/O"模式仍存在以下架构问题：
+项目中有 **22 处** `AsyncLock`（`AsyncLock` = `SemaphoreSlim(1,1)` 薄封装）+ 文件 I/O 的"锁内文件访问"模式，散落在 `lib/`、`kit/`、`llm/`、`server/` 各层。虽然 ADR [0052](../adr/0052-asynclock-unified-mutex-file-access.md) 已统一用 `AsyncLock` 替代 `ReaderWriterLockSlim` 解决了跨 await 线程亲和性问题，但"锁+文件 I/O"模式仍存在以下架构问题：
 
 | 问题 | 根因 | 后果 |
 |------|------|------|
 | 持锁时间长 | 文件 I/O（序列化+写入，尤其大文件如 186MB code_index）在锁持有期间执行 | 其他等待者阻塞，高并发下吞吐量下降 |
 | 22 处重复逻辑 | 每个服务各自维护 `AsyncLock` + `TryLockAsync` + 序列化 + 文件 I/O + 异常处理 | 维护成本高，容易再次踩锁坑 |
-| 锁+await 死锁风险 | 虽 `AsyncLock` 解决了跨 await 释放，但多个锁的获取顺序、嵌套锁、锁内 fire-and-forget 仍可能死锁（ADR [0060](0060-asynclock-sync-trylock-fireandforget-deadlock.md) 已记录 fire-and-forget 死锁） | 运行时死锁，排查困难 |
+| 锁+await 死锁风险 | 虽 `AsyncLock` 解决了跨 await 释放，但多个锁的获取顺序、嵌套锁、锁内 fire-and-forget 仍可能死锁（ADR [0060](../adr/0060-asynclock-sync-trylock-fireandforget-deadlock.md) 已记录 fire-and-forget 死锁） | 运行时死锁，排查困难 |
 | 不符合架构方向 | AGENTS.md 第7条明确"死锁处理用 Actor 邮箱模型（消息传递替代共享锁）"，但 22 处仍用共享锁 | 架构不一致，新代码可能继续用锁而非 Actor |
 
-### 搜索结果（2026-09-19 并行 4 子代理搜索）
+## 搜索结果（2026-09-19 并行 4 子代理搜索）
 
-#### A 类：锁内文件 I/O（22 处，Actor 管道重构候选目标）
+### A 类：锁内文件 I/O（22 处，Actor 管道重构候选目标）
 
 | # | 文件 | 行号 | 锁 | 文件 I/O | 说明 |
 |---|------|------|-----|---------|------|
@@ -50,7 +46,7 @@
 | 21 | `server\bridge\session\core\SubprocessIoChannels.cs` | 84 | AsyncLock `_stdinLock` | StandardInput.WriteAsync | 子进程 stdin 写 |
 | 22 | `llm\agents\Coordinator\Team\core\TeamManager.cs` | 227 等 8 处 | AsyncLock `_lock` | SaveStateAsync+PersistMessage | **团队管理（重灾区）** |
 
-#### 已是 Actor 邮箱模式（无需重构，作为重构模板）
+### 已是 Actor 邮箱模式（无需重构，作为重构模板）
 
 | 文件 | 说明 |
 |------|------|
@@ -59,21 +55,21 @@
 | `server\dream\task\DreamTaskPersistence.cs` | FileLock 保护任务文件 |
 | `kit\hands\build\BuildQueueService.cs` | CrossProcessBuildLock + Channel |
 
-#### B 类：锁内内存 + 锁外持久化（重构价值低，不在本 ADR 范围）
+### B 类：锁内内存 + 锁外持久化（重构价值低，不在本任务范围）
 
 - `kit\mcp\core\management\ToolInterventionManager.cs` — 锁内改内存，锁外 `SaveToDisk`
 - `kit\mcp\core\management\McpServerStateManager.cs` — 锁内改内存，锁外 `PersistAsync`
 - `server\dream\task\PersistentDreamTaskRegistry.cs` — 锁内改内存，锁外 `_persistence.SaveAsync`
 
-#### 已有 ADR 覆盖的场景（不在本 ADR 范围）
+### 已有 ADR 覆盖的场景（不在本任务范围）
 
 | ADR | 覆盖范围 |
 |-----|---------|
-| [0068](0068-unified-persistence-pipeline-actor.md) | MCP 工具 6 个状态型分类的持久化（`PersistencePipeline` Actor） |
-| [0100](0100-console-actor-serialize-io.md) | Console I/O 串行化（`ConsoleActor`） |
-| [0101](0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化（`FileWatcherActorBase`） |
+| [0068](../adr/0068-unified-persistence-pipeline-actor.md) | MCP 工具 6 个状态型分类的持久化（`PersistencePipeline` Actor） |
+| [0100](../adr/0100-console-actor-serialize-io.md) | Console I/O 串行化（`ConsoleActor`） |
+| [0101](../adr/0101-file-watcher-unified-actor.md) | 文件监控全面 Actor 化（`FileWatcherActorBase`） |
 
-## 决策
+## 目标
 
 **采用 Actor 邮箱管道替代 22 处 `AsyncLock`+文件 I/O**，复用项目已有的 `ActorBase<TCommand, TOut>`（`lib\async_lock\ActorBase.cs`）。
 
@@ -97,7 +93,7 @@
 ### 核心设计
 
 1. **Actor 串行化消除锁** — 文件 I/O 操作通过命令投递到 Actor 邮箱，Consumer 单线程串行处理，天然无竞态，无需 `AsyncLock`
-2. **快照模式** — 生产者在主线程用读锁构造不可变快照（`ToList` + 序列化），把 JSON 字符串扔进队列。Actor 线程不访问共享可变状态（对齐 ADR [0068](0068-unified-persistence-pipeline-actor.md)）
+2. **快照模式** — 生产者在主线程用读锁构造不可变快照（`ToList` + 序列化），把 JSON 字符串扔进队列。Actor 线程不访问共享可变状态（对齐 ADR [0068](../adr/0068-unified-persistence-pipeline-actor.md)）
 3. **ActorBase 复用** — 继承现有 `ActorBase<TCommand>`，单消费者 Channel，命令 FIFO 串行处理，单条异常不退出 Consumer 循环。无需新建并发原语
 4. **背压策略** — 写密集型服务用有界通道 + `BoundedChannelFullMode.DropOldest`（只保留最新快照）；读密集型用无界通道
 5. **命令类型** — 每个服务定义一组 `record` 命令（如 `SaveTeamStateCmd`、`AddTeamMemberCmd`），Actor 按命令类型路由处理
@@ -109,8 +105,8 @@
 |------|------|------|
 | **写密集型** | TeamManager、TranscriptFileWriter、ThinkingStore、SessionTagService、AssistantDailyLog、DiagnosticLogRecorder、AgentTranscriptService | Actor 邮箱串行化写，有界通道 + DropOldest |
 | **读-改-写事务型** | PhysicalFileSystem.EditFileAsync、InMemoryFileSystem.EditFileAsync、VcrService、FileHistoryService | Actor 邮箱串行化读-改-写事务，无界通道 FIFO |
-| **加载/重载型** | SkillService、SkillDiscoveryService、AgentDefinitionProvider、DynamicKeywordConfigService、MagicDocsManager、AgentPermissionMode、ChatContextManager、PlanModeManager、McpAuthPersistenceService、AgentWorktreeService | Actor 邮箱串行化加载，与 ADR [0101](0101-file-watcher-unified-actor.md) 文件监控 Actor 协同 |
-| **流 I/O 型** | SubprocessIoChannels | Actor 邮箱串行化 stdin 写，对齐 ADR [0100](0100-console-actor-serialize-io.md) ConsoleActor 模式 |
+| **加载/重载型** | SkillService、SkillDiscoveryService、AgentDefinitionProvider、DynamicKeywordConfigService、MagicDocsManager、AgentPermissionMode、ChatContextManager、PlanModeManager、McpAuthPersistenceService、AgentWorktreeService | Actor 邮箱串行化加载，与 ADR [0101](../adr/0101-file-watcher-unified-actor.md) 文件监控 Actor 协同 |
+| **流 I/O 型** | SubprocessIoChannels | Actor 邮箱串行化 stdin 写，对齐 ADR [0100](../adr/0100-console-actor-serialize-io.md) ConsoleActor 模式 |
 | **跨进程型** | MailboxActor、AgentDiscoveryService、DreamTaskPersistence、BuildQueueService | **已是 Actor+FileMailboxLock 模式，无需重构** |
 
 ### 接口示例（TeamManager）
@@ -150,33 +146,6 @@ public sealed class TeamManagerActor : ActorBase<TeamCommand, Unit>
 }
 ```
 
-## 替代方案
-
-| 方案 | 放弃原因 |
-|------|----------|
-| 保持 `AsyncLock` | 持锁时间长、22 处重复逻辑、锁+await 死锁风险、不符合 AGENTS.md 第7条 Actor 邮箱模型方向 |
-| 用 `Channel<T>` 直接替代 Actor | 需重新实现异常容错/背压/监督/Ask 语义，ActorBase 已封装这些 |
-| 统一到 `PersistencePipeline`（ADR [0068](0068-unified-persistence-pipeline-actor.md)） | 0068 针对 MCP 工具状态型分类（无状态服务，快照+入队），不适用于有状态服务（如 TeamManager 有内存 `_teams` 字典需 Actor 独占） |
-| 用 `BlockingCollection` | 同步阻塞队列，无法 async，且 ActorBase 已用 Channel 更优 |
-| 仅重构 TeamManager，其余保持 | 治标不治本（违反 ADR [0024](0024-no-symptomatic-fix-chain.md)），其余 21 处仍散落锁+文件 I/O |
-
-## 后果
-
-### 正面
-
-- **消除 22 处显式锁** — 统一 Actor 模型，符合 AGENTS.md 第7条"死锁处理用 Actor 邮箱模型"
-- **持锁时间长问题消除** — Actor 串行化，无锁等待，文件 I/O 在 Actor 线程执行不阻塞生产者
-- **死锁风险消除** — Actor 消息传递无共享锁，天然无死锁（对齐 ADR [0086](0086-core-tech-selection-lock-design.md) 决策3）
-- **复用 ActorBase** — 无新并发原语，与 ADR [0074](0074-actor-supervisor-tree.md) 监督树可组合
-- **架构统一** — 与 ADR [0068](0068-unified-persistence-pipeline-actor.md)（PersistencePipeline）、[0100](0100-console-actor-serialize-io.md)（ConsoleActor）、[0101](0101-file-watcher-unified-actor.md)（FileWatcherActor）方向一致
-
-### 负面
-
-- **迁移工作量** — 22 处，渐进式逐个改造，每步编译+测试+提交（对齐 ADR [0007](0007-progressive-development.md)）
-- **命令类型定义** — 每服务一组 `record` 命令，代码量增加（但可读性更好，意图明确）
-- **异步化延迟** — 命令投递+消费，约 1-2ms（可接受，与 ADR [0100](0100-console-actor-serialize-io.md) ConsoleActor 同量级）
-- **Ask 语义阻塞** — 需要返回值的操作用 `AskAsync`（`TaskCompletionSource`），比直接调方法多一次 Channel 往返
-
 ## 重构优先级
 
 | 优先级 | 目标 | 理由 |
@@ -188,9 +157,9 @@ public sealed class TeamManagerActor : ActorBase<TeamCommand, Unit>
 
 ## 实现计划
 
-### 阶段0：ADR + 工作文档（本阶段）
+### 阶段0：任务文档（本阶段）
 
-- [x] 写 ADR 0115 proposed
+- [x] 写任务文档
 - [ ] 记录任务到 `docs/refactor/asynclock-file-io-actor-migration.md`
 
 ### 阶段1：P0 — TeamManager Actor 化
@@ -220,13 +189,12 @@ public sealed class TeamManagerActor : ActorBase<TeamCommand, Unit>
 - [x] 按子阶段逐个迁移（14 个文件全部完成）
 - [x] 编译 + 单元测试 + 提交
 
-### 阶段5：ADR 0115 状态改 accepted
+### 阶段5：验收
 
 - [x] 全量编译 `dotnet build` 0 错误 0 警告
 - [x] 全量测试通过
-- [x] ADR 状态改 accepted
 
-## 验证
+## 验收标准
 
 - [ ] 编译通过（Debug + Release）
 - [ ] AOT 兼容（无 dynamic、无反射 emit）

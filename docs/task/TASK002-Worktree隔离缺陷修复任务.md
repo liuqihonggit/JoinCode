@@ -1,8 +1,9 @@
-# 0115. Worktree 隔离缺陷修复 — cwd 污染 + Teammate 不隔离
+# Worktree 隔离缺陷修复任务 — cwd 污染 + Teammate 不隔离
 
-- 状态：accepted
-- 日期：2026-09-19
-- 决策者：用户 + AI
+> 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
+> 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
+
+> 迁移自原 ADR 0115（误写为 ADR，按 ADR README 规范转为 task）
 
 ## 背景
 
@@ -28,7 +29,7 @@
 - `lib/infrastructure/hot_spot/WorktreeDecisionPolicy.cs:58` → `Decide()` 仅测试调用
 - `llm/agents/Coordinator/Team/core/TeammateStatusBuilder.cs:102` → `WorktreePath = null`(硬编码)
 
-## 决策
+## 修复方案
 
 ### 缺陷 1 修复: shell 链路读 GetEffectiveCwd
 
@@ -53,7 +54,7 @@ IsolationMode = context.Isolation 显式传值
 
 用户显式传值优先,未传则由决策策略根据全局开关 + Variant 决定。
 
-## 替代方案(考虑过但放弃)
+## 考虑过但放弃的方案
 
 ### A1. 改 CwdTracker 不修改进程级 cwd
 
@@ -63,12 +64,12 @@ IsolationMode = context.Isolation 显式传值
 
 放弃原因: 硬编码默认值不够灵活,应通过 `WorktreeDecisionPolicy` 根据全局开关 + Variant 动态决策。直接改默认值会绕过决策策略。
 
-## 验证
+## 验收标准
 
-- TDD: 先写 E2E 红测试复现缺陷 → 单元红测试定位根因 → 修复 → 绿测试
-- 手动验证: 用启动参数实际运行 exe,验证子代理 cwd 隔离和 Teammate worktree 隔离
+- [ ] TDD: 先写 E2E 红测试复现缺陷 → 单元红测试定位根因 → 修复 → 绿测试
+- [ ] 手动验证: 用启动参数实际运行 exe,验证子代理 cwd 隔离和 Teammate worktree 隔离
 
-## 影响
+## 影响范围
 
 - `ShellToolHandlers` / `SystemActuatorBase` — cwd 解析逻辑变更
 - `AgentForkMiddleware` — Teammate 隔离模式决策变更

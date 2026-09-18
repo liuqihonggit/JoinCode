@@ -78,20 +78,48 @@ ADR 引用 design/plans，但不重复其内容。
 
 ## 不适用范围（禁止写成 ADR）
 
-ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下内容**不属于架构决策**，禁止写成 ADR：
+> **核心原则：ADR 是全局决策文档，不是任务文档。用户要求做任务时，先写 task，不要写 ADR。**
 
-- **Bug 修复报告** — bug 修复是"修对了什么"，不是架构取舍。根因+修复+验证记录在 commit message + 测试里
-- **功能开发日志** — 新功能实现过程不是决策。用 `docs/task/` 或 commit message
+ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下内容**不属于架构决策**，禁止写成 ADR，一律写 task：
+
+- **Bug 修复报告** — bug 修复是"修对了什么"，不是架构取舍。写 `docs/task/` + commit message（根因+修复+验证）+ 测试复现
+- **功能开发日志** — 新功能实现过程不是决策。写 `docs/task/`
+- **重构任务清单** — 重构是"做什么"的执行计划，不是架构取舍。写 `docs/task/` 或 `docs/refactor/`
 - **代码审查记录** — review 发现不是决策。用 PR comment
 - **排错/调试过程** — 调试过程不是决策。用 commit message 或 `docs/design/`
 
-**判断标准**：如果"替代方案"部分是空的或凑数的（没有真正"考虑过但放弃"的方案），那它大概率不是 ADR，而是 bug 报告或功能日志。
+### 判断标准（动手前必问）
 
-**正确做法**：bug 修复用 commit message（含根因+修复+验证），TDD 用测试复现，不需要 ADR。只有跨模块的"为什么选 A 放弃 B"才写 ADR。
+```
+是否有真正的"考虑过但放弃的替代方案"？
+  ├─ 有 + 跨模块影响 → 架构决策 → 写 ADR（proposed → accepted）
+  └─ 没有 / 凑数的 / 单模块内部 → bug 修复 / 功能开发 / 重构 → 写 task
+```
+
+**"替代方案"三问检验**：
+1. 替代方案是否真实考虑过？（不是事后补凑的）
+2. 替代方案是否有明确的放弃原因？（不是"也可以"）
+3. 决策是否影响多个模块？（单模块内部决策留代码注释）
+
+任一为否 → 不是 ADR，写 task。
+
+### 工作流
+
+```
+用户要求做任务
+  ├─ 判断是否为跨模块架构决策？
+  │   ├─ 是 → 先写 ADR（proposed）→ 实现 → ADR 改 accepted
+  │   └─ 否 → 先写 task → 实现 → commit message 记录根因/验证
+  └─ 已误写成 ADR 的非决策工作 → 转为 task，原 ADR 归档到 .xxx/
+```
+
+### 例外：工程规范类 ADR
+
+工程**指南/规范/禁令**类 ADR（如测试规则、平台禁令）记录的是"怎么做"而非"选 A 放弃 B"，仍可写 ADR，但须用 `## 规范` / `## 详细内容` / `## 禁令` 节代替 `## 决策` + `## 后果`，且必须是全局生效的规则。
 
 ## 统计
 
-- 总数：**105** | accepted：**100** | superseded：**5** | proposed：**0**
+- 总数：**104** | accepted：**100** | superseded：**5** | proposed：**0**
 
 ## 完整索引（按编号）
 
@@ -207,7 +235,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0110](0110-platform-bot-adapter-pattern.md) | 平台机器人适配器模式 | accepted | 2026-09-16 |
 | [0111](0111-unified-messaging-channel-mailboxhub-upgrade.md) | 统一消息通道 MailboxHub 升级 | accepted | 2026-09-16 |
 | [0112](0112-dispose-fire-and-forget-ban-continuewith-to-await.md) | Dispose 体内禁止 fire-and-forget + ContinueWith→await 统一释放规范 | accepted | 2026-09-17 |
-| [0115](0115-asynclock-file-io-migrate-actor-mailbox.md) | AsyncLock+文件 I/O 迁移到 Actor 邮箱管道（22 处） | proposed | 2026-09-19 |
 
 ## 主题索引（按议题）
 

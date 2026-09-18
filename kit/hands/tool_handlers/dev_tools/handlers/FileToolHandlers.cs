@@ -12,12 +12,6 @@ public partial class FileToolHandlers : IDisposable
     private bool _disposed;
 
     /// <summary>
-    /// LSP 通知完成信号量 — 测试中用于等待 fire-and-forget 操作完成，替代 Task.Delay
-    /// 初始计数 0，NotifyLspFileChange 完成后释放 1 次
-    /// </summary>
-    private readonly SemaphoreSlim _lspNotificationCompleted = new(0, int.MaxValue);
-
-    /// <summary>
     /// 图像扩展名集合（不作为二进制拒绝，而是读取为图像）
     /// 对齐 TS: IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
     /// </summary>
@@ -80,95 +74,13 @@ public partial class FileToolHandlers : IDisposable
     }
 
     /// <summary>
-    /// 通知文件写入监听器 — Worker 改文件时触发意图上报
-    /// </summary>
-    private void NotifyFileWrite(string filePath, string operation)
-    {
-        if (_ctx.FileWriteListenerRegistry is null) return;
-        var agentId = _ctx.SubAgentContextAccessor?.Current?.AgentId ?? "main";
-        try
-        {
-            _ctx.FileWriteListenerRegistry.Notify(new FileWriteEventArgs { FilePath = filePath, Operation = operation, AgentId = agentId });
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning("通知文件写入监听器失败: {Message}", ex.Message);
-        }
-    }
-    #region Diagnostics
-
-    /// <summary>
-    /// 通知 LSP 服务器文件变更（fire-and-forget）
-    /// 对齐 TS FileWriteTool/FileEditTool: changeFile + saveFile
-    /// </summary>
-    /// <param name="filePath">文件路径</param>
-    /// <param name="content">
-    /// 文件完整内容。FileWrite 传入写入内容，FileEdit 传入 null（由 LspFileSync 从文件读取）
-    /// </param>
-    private void NotifyLspFileChange(string filePath, string? content)
-    {
-        if (_ctx.LspFileSync is null)
-        {
-            // LspFileSync 为 null 时立即释放信号量，避免测试等待超时
-            _lspNotificationCompleted.Release();
-            return;
-        }
-
-        var ct = _disposeCts.Token;
-        // fire-and-forget: 不阻塞主流程，错误在 LspFileSync 内部处理
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                // 对齐 TS: lspManager.changeFile(path, content)
-                // LspFileSync.ChangeDocumentAsync 内部处理 didOpen 自动回退
-                var changeContent = content;
-                if (changeContent is null)
-                {
-                    // FileEdit 场景：从磁盘读取编辑后的内容（检测编码）
-                    var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs).ConfigureAwait(false);
-                    changeContent = await _fs.ReadAllTextAsync(filePath, encoding).ConfigureAwait(false);
-                }
-
-                await _ctx.LspFileSync.ChangeDocumentAsync(
-                    filePath,
-                    [new TextDocumentContentChangeEvent { Text = changeContent }],
-                    ct).WaitAsync(TimeSpan.FromSeconds(10), ct).ConfigureAwait(false);
-
-                // 对齐 TS: lspManager.saveFile(path)
-                await _ctx.LspFileSync.SaveDocumentAsync(filePath, ct)
-                    .WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // 取消时静默退出
-            }
-            catch (Exception ex)
-            {
-                // 对齐 TS: .catch() 处理错误，不阻塞主流程
-                _ctx.TelemetryService?.RecordCount("file.lsp_notify.error", new Dictionary<string, string>
-                {
-                    ["operation"] = "change_and_save",
-                    ["error"] = ex.GetType().Name
-                }, description: "LSP file change notification error");
-            }
-            finally
-            {
-                // 通知完成，释放信号量供测试等待
-                _lspNotificationCompleted.Release();
-            }
-        }, ct).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// 释放资源 — 取消所有待处理的 LSP 通知并释放信号量
+    /// 释放资源 — 取消所有待处理的操作
     /// </summary>
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         _disposeCts.CancelAndDisposeSafe(_logger);
-        _lspNotificationCompleted.DisposeSafe(_logger);
     }
 
     private static bool IsBlockedDevicePath(string filePath) => FilePathResolver.IsBlockedDevicePath(filePath);
@@ -705,6 +617,4 @@ public partial class FileToolHandlers : IDisposable
 
         return builder.Build();
     }
-
-    #endregion
 }

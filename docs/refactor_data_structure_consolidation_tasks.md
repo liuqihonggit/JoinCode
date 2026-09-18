@@ -33,10 +33,10 @@
 - **收益**:消除手动 try-finally,恢复 previous 比 ClearActorId 更正确(嵌套 Actor 保留外层 ActorId)
 - **状态**:✅ 已完成
 
-### [P3-3] public 字段→属性(SessionPlanState + EntropyFsmContext)
+### [P3-3] public 字段→属性(SessionPlanState + EntropyFsmContext) ✅ 已完成
 - **文件**:`kit/brain/planning/planning2/PlanModeManager.cs:40-48` + `kit/brain/context/services/loop/ShannonEntropyDetector.cs:47-54`
 - **重构**:public 字段改为 `{ get; set; }` 自动属性,可加状态转换守卫
-- **状态**:⏳ 待做
+- **状态**:✅ `b150b3878`
 
 ### [P3-4] Entity 基类 3 个 ID 字段(谨慎,暂不动)
 - **文件**:`lib/abstractions/abs_core/core_entity/Entity.cs:11,13,44`
@@ -51,7 +51,7 @@
 - BuildQueueService + BuildQueueRouter(`_entries`+`_waitHandles`)→ `BuildQueueEntryStore` ✅ `44533ba5b`
 - InProcessMailbox + FileMailbox(`_deliveredMessageIds`+`IsDuplicate`)→ `MessageDedupTracker` ✅ `28db751c7`
 - UsageTracker + CostTracker(`_usageRecords`+`_sessionIndex`)→ `TokenUsageStore` ⏭️ 跳过:两处 TokenUsageRecord 是不同类型(字段名不同 InputTokens/PromptTokens),泛型提取引入 Func 参数+放置位置困难(Hands/Brain 无共享工具项目),属巧合相似非本质重复
-- McpTcpServer + McpHttpServer(`_sessions`)→ `McpSessionRegistry`
+- McpTcpServer + McpHttpServer(`_sessions`)→ `McpSessionRegistry` ✅ `a93cc17b1`
 - InMemoryFileSystem + PhysicalFileSystem(`_editLocks`+`GetOrAdd`)→ `EditLockRegistry` ✅ `4de0884d9`
 - **状态**:✅ 4/5 组已完成(UsageTracker+CostTracker 跳过,原因见上)
 
@@ -73,10 +73,10 @@
 - 其余5个: 字段和方法不多,不需要组合根拆分,跳过
 - **状态**:✅ 1/6 完成(仅 EnvOverrideApplier 有 key 相同的字典值得合并)
 
-### [P2-5] 字段混乱·CostTracker 16 字段 + FileToolHandlers 20 字段
-- CostTracker 拆 `UsageStore`/`BudgetGuard`/`SessionStats`
-- FileToolHandlers 按子领域二次聚合 `FileEditDeps`/`LspDeps`
-- **状态**:⏳ 待做
+### [P2-5] 字段混乱·CostTracker 16 字段 + FileToolHandlers 20 字段 ✅ 已完成
+- CostTracker 拆 `UsageStore`/`BudgetGuard`/`SessionStats`/`ModelPricing` ✅ 4个提交
+- FileToolHandlers 按子领域二次聚合 `FileEditDeps`/`LspDeps` ✅ `913f95084`
+- **状态**:✅ 全部完成
 
 ### [P2-6] ID 字段合并·10 处 3-4 ID 字段
 - ChatStreamEvent/TeammateContext/CrashExecutionContext/SubagentStopHookContext/AgentState+StateDocuments/TaskState+StateDocuments/TeamContext/ReconnectTeammateEntry/AgentCompletedEventArgs/AgentMetadata
@@ -86,15 +86,15 @@
 
 ## 🟡 P1 高优先级(后续推进)
 
-### [P1-1] TeammateContext → SubAgentContext 合并
+### [P1-1] TeammateContext → SubAgentContext 合并 ✅ 已完成
 - **文件**:`lib/abstractions/abs_agents/team/TeammateContext.cs:5` + `lib/scheduling/tasks/core/TeammateLoopRunner.cs:106-107`
 - **重构**:`TeammateMeta` 作为可选子对象挂到 `SubAgentContext`,消除 1 个 AsyncLocal
-- **状态**:⏳ 待做
+- **状态**:✅ `61c5d6ef9`
 
-### [P1-2] AgentIdentity 统一族(6 处高价值)
+### [P1-2] AgentIdentity 统一族(6 处高价值) ✅ 已完成
 - AgentDescriptor/SubAgentContext/CoordinatorMessage/TranscriptEntry/AgentRegistryInfo/TeammateStatus
 - 提取 `AgentIdentity` + `TeammateIdentity` + `MessageIdentity` 类型族
-- **状态**:⏳ 待做
+- **状态**:✅ `767685457`
 
 ### [P1-3] WorktreePatternCache 完全复制粘贴 ✅ 已完成
 - **文件**:`llm/agents/Services/Support/AgentWorktreeService.cs` + `WorktreeConfigMiddleware.cs`

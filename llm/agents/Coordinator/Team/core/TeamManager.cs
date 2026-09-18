@@ -3,13 +3,13 @@ namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 团队管理器实现
-/// 使用单一锁保护成员和消息操作，消除多锁排序风险
+/// 使用 Actor 邮箱管道串行化写操作，消除显式锁 — ADR 0115
 /// </summary>
 [Register(typeof(ITeamManager), ServiceLifetime.Singleton)]
 public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposable
 {
     private readonly TeamRegistry _registry = new();
-    private readonly AsyncLock _lock = new();
+    private readonly TeamActor _actor;
     private readonly TeamMessageDispatcher _messageDispatcher;
     private readonly TeammateStatusBuilder _teammateStatusBuilder;
     private readonly ChatRoomViewBuilder _chatRoomViewBuilder;
@@ -22,7 +22,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     private readonly ILogger<TeamManager>? _logger;
     private int _teamCounter;
     private int _messageCounter;
-    private bool _disposed;
 
     /// <summary>
     /// 延迟解析 ITeammateObserver，打破循环依赖：
@@ -57,6 +56,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         _chatRoomViewBuilder = new ChatRoomViewBuilder(_registry, _teammateStatusBuilder.GetTeammateStatusesAsync);
         _persistenceFs = fileSystem;
         _stateFilePath = fileSystem is not null ? GetStateFilePath() : null;
+        _actor = new TeamActor(this, logger);
         LoadState();
     }
 
@@ -216,6 +216,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string agentId,
         CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
+        await _actor.SendAsync(new AddMemberCmd(teamId, agentId, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<TeamInfo?>> AddMemberInternalAsync(
+        string teamId, string agentId, CancellationToken cancellationToken)
+    {
         if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
@@ -223,8 +231,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var members = room.Members;
         var memberDetails = room.MemberDetails;
-
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (members.Contains(agentId))
         {
@@ -254,6 +260,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string agentId,
         CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
+        await _actor.SendAsync(new RemoveMemberCmd(teamId, agentId, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<TeamInfo?>> RemoveMemberInternalAsync(
+        string teamId, string agentId, CancellationToken cancellationToken)
+    {
         if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
@@ -261,8 +275,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var members = room.Members;
         var memberDetails = room.MemberDetails;
-
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (!members.Remove(agentId))
         {
@@ -313,12 +325,18 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
+        await _actor.SendAsync(new SendMsgCmd(teamId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<TeamInfo?>> SendMsgInternalAsync(
+        string teamId, string senderId, string content, string? messageType, CancellationToken cancellationToken)
+    {
         if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
-
-        var team = room.Info;
 
         var message = new TeamMessage
         {
@@ -332,8 +350,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = room.Messages;
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         if (!room.Members.Contains(senderId))
         {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
@@ -344,7 +360,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             _logger?.LogDebug("Duplicate team message {MessageId} skipped in SendMessageAsync", message.MessageId);
             return OperationResult<TeamInfo?>.Ok(room.Info);
         }
-    
 
         TouchRoomActivity(room);
 
@@ -370,6 +385,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
+        await _actor.SendAsync(new SendDirectMsgCmd(targetAgentId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<TeamInfo?>> SendDirectMsgInternalAsync(
+        string targetAgentId, string senderId, string content, string? messageType, CancellationToken cancellationToken)
+    {
         if (!_registry.TryGetTeamIdForAgent(targetAgentId, out var teamId))
         {
             return OperationResult<TeamInfo?>.Fail($"代理 {targetAgentId} 不属于任何团队");
@@ -394,8 +417,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = room.Messages;
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         if (!room.Members.Contains(senderId))
         {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
@@ -406,7 +427,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             _logger?.LogDebug("Duplicate team message {MessageId} skipped in SendMessageToAgentAsync", message.MessageId);
             return OperationResult<TeamInfo?>.Ok(team);
         }
-    
 
         await _messageDispatcher.PersistDirectMessageToMailboxAsync(targetAgentId, senderId, content, messageType ?? "direct", teamId, cancellationToken).ConfigureAwait(false);
 
@@ -426,12 +446,17 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         int limit = 50,
         CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<IReadOnlyList<TeamMessage>>();
+        await _actor.SendAsync(new GetMsgsCmd(teamId, limit, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private IReadOnlyList<TeamMessage> GetMsgsInternal(string teamId, int limit)
+    {
         if (!_registry.TryGetRoom(teamId, out var room))
         {
             return Array.Empty<TeamMessage>();
         }
-
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return room.GetMessages(limit);
     }
@@ -452,12 +477,18 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string? messageType = null,
         CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
+        await _actor.SendAsync(new BroadcastMsgCmd(teamId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<TeamInfo?>> BroadcastMsgInternalAsync(
+        string teamId, string senderId, string content, string? messageType, CancellationToken cancellationToken)
+    {
         if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
-
-        var team = room.Info;
 
         var message = new TeamMessage
         {
@@ -471,8 +502,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = room.Messages;
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         if (!room.Members.Contains(senderId))
         {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
@@ -483,7 +512,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             _logger?.LogDebug("Duplicate team message {MessageId} skipped in BroadcastMessageAsync", message.MessageId);
             return OperationResult<TeamInfo?>.Ok(room.Info);
         }
-    
 
         TouchRoomActivity(room);
 
@@ -541,6 +569,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         bool isActive,
         CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
+        await _actor.SendAsync(new SetMemberActiveCmd(teamId, agentId, isActive, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<TeamInfo?>> SetMemberActiveInternalAsync(
+        string teamId, string agentId, bool isActive, CancellationToken cancellationToken)
+    {
         if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
@@ -549,15 +585,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         var team = room.Info;
         var memberDetails = room.MemberDetails;
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         if (!memberDetails.TryGetValue(agentId, out var existing))
         {
             return OperationResult<TeamInfo?>.Fail($"代理 {agentId} 不是团队成员");
         }
 
         memberDetails[agentId] = existing with { IsActive = isActive };
-    
 
         room.Info = team with
         {
@@ -601,6 +634,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         AccessLevel accessLevel = AccessLevel.Read,
         CancellationToken cancellationToken = default)
     {
+        var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
+        await _actor.SendAsync(new AddAllowedPathCmd(teamId, path, accessLevel, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<OperationResult<TeamInfo?>> AddAllowedPathInternalAsync(
+        string teamId, string path, AccessLevel accessLevel, CancellationToken cancellationToken)
+    {
         if (!_registry.TryGetRoom(teamId, out var room))
         {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
@@ -615,8 +656,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var paths = room.AllowedPaths;
 
-        using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-
         if (paths.TryGetValue(path, out var existing))
         {
             paths[path] = existing with { AccessLevel = accessLevel };
@@ -625,7 +664,6 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         {
             paths[path] = new TeamAllowedPath { Path = path, AccessLevel = accessLevel };
         }
-    
 
         room.Info = team with
         {
@@ -725,12 +763,64 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
-    /// <summary>释放资源 — 释放团队管理锁</summary>
-    public override void Dispose()
+    /// <summary>异步释放资源 — await Actor 完全退出</summary>
+    public override async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
-        _lock.Dispose();
-        base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 团队管理 Actor — 串行化所有写操作，消除显式锁 — ADR 0115
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class TeamActor : ActorBase<TeamCommand, Unit>
+    {
+        private readonly TeamManager _owner;
+        private readonly ILogger<TeamManager>? _logger;
+
+        public TeamActor(TeamManager owner, ILogger<TeamManager>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 TeamManager 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(TeamCommand cmd, CancellationToken ct)
+        {
+            switch (cmd)
+            {
+                case AddMemberCmd(var teamId, var agentId, var reply):
+                    reply.SetResult(await _owner.AddMemberInternalAsync(teamId, agentId, ct).ConfigureAwait(false));
+                    break;
+                case RemoveMemberCmd(var teamId, var agentId, var reply):
+                    reply.SetResult(await _owner.RemoveMemberInternalAsync(teamId, agentId, ct).ConfigureAwait(false));
+                    break;
+                case SendMsgCmd(var teamId, var senderId, var content, var msgType, var reply):
+                    reply.SetResult(await _owner.SendMsgInternalAsync(teamId, senderId, content, msgType, ct).ConfigureAwait(false));
+                    break;
+                case SendDirectMsgCmd(var targetId, var senderId, var content, var msgType, var reply):
+                    reply.SetResult(await _owner.SendDirectMsgInternalAsync(targetId, senderId, content, msgType, ct).ConfigureAwait(false));
+                    break;
+                case GetMsgsCmd(var teamId, var limit, var reply):
+                    reply.SetResult(_owner.GetMsgsInternal(teamId, limit));
+                    break;
+                case BroadcastMsgCmd(var teamId, var senderId, var content, var msgType, var reply):
+                    reply.SetResult(await _owner.BroadcastMsgInternalAsync(teamId, senderId, content, msgType, ct).ConfigureAwait(false));
+                    break;
+                case SetMemberActiveCmd(var teamId, var agentId, var isActive, var reply):
+                    reply.SetResult(await _owner.SetMemberActiveInternalAsync(teamId, agentId, isActive, ct).ConfigureAwait(false));
+                    break;
+                case AddAllowedPathCmd(var teamId, var path, var accessLevel, var reply):
+                    reply.SetResult(await _owner.AddAllowedPathInternalAsync(teamId, path, accessLevel, ct).ConfigureAwait(false));
+                    break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "TeamActor 命令处理异常");
     }
 }

@@ -145,13 +145,15 @@
 - HandleWorkContext/ShutdownContext 删除字典字段,改为持有 `internal BridgeSessionTracker Tracker` 引用
 - **状态**:✅ `f741447c1`(Bridge.Tests 613测试通过)
 
-### [P0-2] MainViewModel — 约 55 个字段,5 个职责组
-- 拆 `SessionInfrastructure`/`ChatPreferences`/`UiFeedbackState`/`SessionHistoryManager`/`ConnectionDropdown`
-- **状态**:⏳ 待做
+### [P0-2] MainViewModel — 约 55 个字段,5 个职责组 ✅ 部分完成
+- ✅ 提取 `ConnectionDropdownManager` — 4字段+5方法(RefreshModelOptions/RebuildConnectionOptions/BuildModalityTags/GetModelById/GetConnectionById)提取到独立小类,删除死代码 MockConnection
+- ⏭️ ChatPreferences/UiFeedbackState/SessionHistoryManager 跳过 — [ObservableProperty] 字段无法移走,LoadPreferences/SavePreferences 深度耦合 MainViewModel 属性,提取需传入 self 引用,收益/风险比不好
+- **状态**:✅ `975b8213c`(Gui.Tests 411测试通过)
 
-### [P0-3] BridgeMain 25 字段 + AgentServiceImpl 22 字段
-- BridgeMain 拆 5 个内聚类;AgentServiceImpl 拆 `AgentRuntimeState` + 依赖组
-- **状态**:⏳ 待做
+### [P0-3] BridgeMain 25 字段 + AgentServiceImpl 22 字段 ⏭️ 跳过
+- BridgeMain 已大量聚合(_deps/_tracker/_backoff/_pointerManager/_workApi),剩余生命周期字段交互紧密
+- AgentServiceImpl 可选依赖52处引用,改为 _deps.Xxx 代价过大;运行时3字典打包无行为封装收益
+- **状态**:⏭️ 跳过(已充分聚合,进一步提取收益/风险比不好)
 
 ### [P0-4] GDI SelectObject 恢复模式 — 7 处重复 ✅ 已完成
 - 提取 `GdiSelectScope` IDisposable 类,6/7处替换(GdiScreenCaptureService finally块模式跳过)

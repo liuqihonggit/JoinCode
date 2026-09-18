@@ -34,27 +34,11 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
+        WorktreeContextEnricher.EnsureAllPaths(context, _fs);
         var opts = context.Options ?? new WorktreeOptions();
         var gitRoot = context.GitRoot;
-        if (string.IsNullOrEmpty(gitRoot))
-        {
-            gitRoot = !string.IsNullOrEmpty(context.OriginalCwd) ? context.OriginalCwd : _fs.GetCurrentDirectory();
-            context.GitRoot = gitRoot;
-        }
         var worktreePath = context.WorktreePath;
         var branchName = context.BranchName;
-
-        if (string.IsNullOrEmpty(branchName))
-        {
-            branchName = AgentWorktreeSession.GenerateBranchName(context.AgentId);
-            context.BranchName = branchName;
-        }
-
-        if (string.IsNullOrEmpty(worktreePath))
-        {
-            worktreePath = AgentWorktreeSession.GenerateWorktreePath(gitRoot, context.AgentId);
-            context.WorktreePath = worktreePath;
-        }
 
         context.CreationStartTime = _clock.GetUtcNow();
         _logger?.LogInformation("创建新 worktree: {WorktreePath}, Agent: {AgentId}", worktreePath, context.AgentId);

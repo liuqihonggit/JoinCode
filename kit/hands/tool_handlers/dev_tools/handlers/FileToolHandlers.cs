@@ -36,6 +36,7 @@ public partial class FileToolHandlers : IDisposable
     private readonly IFileSystem _fs;
     private readonly FileToolHandlersContext _ctx;
     private readonly WriteDefenseService _writeDefense;
+    private readonly FileTelemetryRecorder _telemetry;
     private readonly ILogger<FileToolHandlers>? _logger;
 
     /// <summary>
@@ -60,6 +61,7 @@ public partial class FileToolHandlers : IDisposable
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _ctx = context ?? new FileToolHandlersContext();
+        _telemetry = new FileTelemetryRecorder(_ctx.TelemetryService);
         // FileOperationConfig fallback: 保证 _ctx.FileOperationConfig 非 null（对齐原 _ctx.FileOperationConfig = context?.FileOperationConfig ?? new()）
         if (_ctx.FileOperationConfig is null)
             _ctx = _ctx with { FileOperationConfig = new FileOperationConfig() };
@@ -245,90 +247,26 @@ public partial class FileToolHandlers : IDisposable
         return sb.ToString();
     }
 
-    private void RecordFileMetrics(FileOperationType operation, FileOperationResult result)
-        => ToolTelemetryHelper.RecordToolCount(_ctx.TelemetryService, "file.operation.count", new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() });
+    private void RecordFileMetrics(FileOperationType operation, FileOperationResult result) => _telemetry.RecordFileMetrics(operation, result);
 
     /// <summary>
     /// 记录文件读取详细遥测。
     /// 对齐 TS: tengu_session_file_read — 文本文件读取详情（行数/字节数/扩展名/会话文件类型）
     /// 对齐 TS: tengu_file_operation — 通用文件操作（路径哈希脱敏）
     /// </summary>
-    private void RecordFileReadTelemetry(
-        string filePath, string content, int totalLines, int readLines,
-        int? offset, int? limit)
-    {
-        if (_ctx.TelemetryService is null) return;
-
-        // 对齐 TS: getFileExtensionForAnalytics — 脱敏扩展名（超过10字符替换为"other"）
-        var ext = Path.GetExtension(filePath).TrimStart('.');
-        var analyticsExt = string.IsNullOrEmpty(ext) ? null
-            : ext.Length > 10 ? "other"
-            : ext;
-
-        // 对齐 TS: detectSessionFileType — 检测会话文件类型
-        var isSessionMemory = MemoryFreshnessNote.IsMemoryFile(filePath);
-        var isSessionTranscript = filePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
-            && filePath.Contains("projects", StringComparison.OrdinalIgnoreCase);
-
-        // 对齐 TS: tengu_session_file_read
-        var tags = new Dictionary<string, string>
-        {
-            ["total_lines"] = totalLines.ToString(CultureInfo.InvariantCulture),
-            ["read_lines"] = readLines.ToString(CultureInfo.InvariantCulture),
-            ["total_bytes"] = content.Length.ToString(CultureInfo.InvariantCulture),
-            ["read_bytes"] = content.Length.ToString(CultureInfo.InvariantCulture),
-            ["offset"] = offset?.ToString(CultureInfo.InvariantCulture) ?? "0",
-            ["is_session_memory"] = isSessionMemory.ToString(),
-            ["is_session_transcript"] = isSessionTranscript.ToString(),
-        };
-        if (limit.HasValue)
-        {
-            tags["limit"] = limit.Value.ToString(CultureInfo.InvariantCulture);
-        }
-        if (analyticsExt is not null)
-        {
-            tags["ext"] = analyticsExt;
-        }
-
-        _ctx.TelemetryService.RecordCount("file.read.detail", tags, description: "File read detail telemetry");
-
-        // 对齐 TS: tengu_file_operation — 路径哈希脱敏
-        var pathHash = SecurityPatterns.ComputeShortHash(filePath);
-        _ctx.TelemetryService.RecordCount("file.operation",
-            new Dictionary<string, string> { ["operation"] = FileOperationTypeEnumConstants.Read, ["path_hash"] = pathHash },
-            description: "File operation with path hash");
-    }
+    private void RecordFileReadTelemetry(string filePath, string content, int totalLines, int readLines, int? offset, int? limit) => _telemetry.RecordFileReadTelemetry(filePath, content, totalLines, readLines, offset, limit);
 
     /// <summary>
     /// 记录 PDF 读取遥测。
     /// 对齐 TS: tengu_pdf_page_extraction — PDF 页面提取事件
     /// </summary>
-    private void RecordPdfReadTelemetry(string filePath, long fileSize, bool success)
-    {
-        if (_ctx.TelemetryService is null) return;
-
-        var tags = new Dictionary<string, string>
-        {
-            ["success"] = success.ToString(),
-            ["file_size"] = fileSize.ToString(CultureInfo.InvariantCulture),
-        };
-
-        _ctx.TelemetryService.RecordCount("file.read.pdf", tags, description: "PDF read telemetry");
-    }
+    private void RecordPdfReadTelemetry(string filePath, long fileSize, bool success) => _telemetry.RecordPdfReadTelemetry(filePath, fileSize, success);
 
     /// <summary>
     /// 记录文件操作遥测（路径哈希脱敏）。
     /// 对齐 TS: tengu_file_operation — 通用文件操作事件
     /// </summary>
-    private void RecordFileOperationTelemetry(string filePath, string operation)
-    {
-        if (_ctx.TelemetryService is null) return;
-
-        var pathHash = SecurityPatterns.ComputeShortHash(filePath);
-        _ctx.TelemetryService.RecordCount("file.operation.hash",
-            new Dictionary<string, string> { ["operation"] = operation, ["path_hash"] = pathHash },
-            description: "File operation with path hash");
-    }
+    private void RecordFileOperationTelemetry(string filePath, string operation) => _telemetry.RecordFileOperationTelemetry(filePath, operation);
 
     private async Task<string> ResolveSandboxPathAsync(string path, CancellationToken cancellationToken)
     {

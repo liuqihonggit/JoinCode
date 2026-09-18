@@ -2,7 +2,7 @@ namespace Hands.Shell.Tests;
 
 /// <summary>
 /// SubAgentContext cwd 隔离单元测试 — 验证 AsyncLocal CwdOverride 机制
-/// 缺陷: shell 链路未读 GetEffectiveCwd,导致跨 worktree cwd 污染(ADR 0115)
+/// 缺陷: shell 链路未读 GetEffectiveCwd,导致跨 worktree cwd 污染(TASK002)
 /// </summary>
 public sealed class SubAgentContextCwdIsolationTests
 {

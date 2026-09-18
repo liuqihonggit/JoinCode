@@ -2,7 +2,7 @@ namespace Core.Utils;
 
 /// <summary>
 /// Agent权限管理器实现
-/// <para>使用 Actor 邮箱管道串行化所有操作，消除显式锁 — ADR 0115</para>
+/// <para>使用 Actor 邮箱管道串行化所有操作，消除显式锁 — TASK001</para>
 /// </summary>
 [Register(typeof(IAgentPermissionManager), ServiceLifetime.Singleton)]
 public sealed partial class AgentPermissionManager : IAgentPermissionManager, IAsyncDisposable
@@ -335,7 +335,7 @@ public sealed partial class AgentPermissionManager : IAgentPermissionManager, IA
     }
 
     /// <summary>
-    /// Agent 权限管理 Actor — 串行化全部权限操作，消除显式 AsyncLock — ADR 0115
+    /// Agent 权限管理 Actor — 串行化全部权限操作，消除显式 AsyncLock — TASK001
     /// </summary>
     private sealed class PermissionActor : ActorBase<AgentPermissionCommand, Unit>
     {

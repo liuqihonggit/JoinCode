@@ -117,7 +117,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
 
     /// <summary>
     /// 重载配置内部实现 — 由 ReloadActor Consumer 串行调用，无锁安全。
-    /// <para>ADR 0115: 原 AsyncLock 保护逻辑迁移到 Actor 邮箱管道，Consumer 单线程串行处理。</para>
+    /// <para>TASK001: 原 AsyncLock 保护逻辑迁移到 Actor 邮箱管道，Consumer 单线程串行处理。</para>
     /// </summary>
     private void ReloadConfigInternal()
     {
@@ -126,7 +126,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     }
 
     /// <summary>
-    /// 异步释放资源 — 停止文件监听并 await Actor 完全退出 — ADR 0115
+    /// 异步释放资源 — 停止文件监听并 await Actor 完全退出 — TASK001
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
@@ -139,7 +139,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     }
 
     /// <summary>
-    /// 配置重载 Actor — 串行化 ReloadOnFileChangeAsync，消除显式锁 — ADR 0115
+    /// 配置重载 Actor — 串行化 ReloadOnFileChangeAsync，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class ReloadActor : ActorBase<ReloadConfigCmd, Unit>
@@ -231,6 +231,6 @@ internal sealed partial class DynamicKeywordConfigJsonContext : JsonSerializerCo
 
 /// <summary>
 /// 配置重载命令 — 对应 ReloadOnFileChangeAsync，由 ReloadActor Consumer 串行处理。
-/// <para>ADR 0115: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除显式锁。</para>
+/// <para>TASK001: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除显式锁。</para>
 /// </summary>
 public sealed record ReloadConfigCmd(TaskCompletionSource Reply);

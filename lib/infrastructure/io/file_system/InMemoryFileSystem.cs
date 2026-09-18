@@ -722,13 +722,13 @@ public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
     }
 
     /// <summary>
-    /// 异步释放资源 — 释放编辑 Actor — ADR 0115
+    /// 异步释放资源 — 释放编辑 Actor — TASK001
     /// </summary>
     public async ValueTask DisposeAsync()
         => await _editActor.DisposeAsync().ConfigureAwait(false);
 
     /// <summary>
-    /// 内存文件编辑 Actor — 串行化 EditFileAsync 读-改-写事务，消除 per-path AsyncLock — ADR 0115
+    /// 内存文件编辑 Actor — 串行化 EditFileAsync 读-改-写事务，消除 per-path AsyncLock — TASK001
     /// </summary>
     private sealed class EditFileActor : ActorBase<EditFileCmd, Unit>
     {

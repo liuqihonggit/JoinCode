@@ -4,7 +4,7 @@ namespace State;
 /// <summary>
 /// 共享的 Transcript 文件写入器 — 提取自 TranscriptService 和 AgentTranscriptService
 /// 封装 JSONL 格式的追加写入和读取逻辑，消除两个服务间的重复代码
-/// 并发保护：Actor 邮箱管道串行化写操作，消除显式锁 — ADR 0115
+/// 并发保护：Actor 邮箱管道串行化写操作，消除显式锁 — TASK001
 /// </summary>
 internal sealed class TranscriptFileWriter : IAsyncDisposable
 {
@@ -241,7 +241,7 @@ internal sealed class TranscriptFileWriter : IAsyncDisposable
     }
 
     /// <summary>
-    /// Transcript 文件写入 Actor — 串行化写操作，消除显式锁 — ADR 0115
+    /// Transcript 文件写入 Actor — 串行化写操作，消除显式锁 — TASK001
     /// </summary>
     private sealed class TranscriptFileWriterActor : ActorBase<TranscriptFileWriterCommand, Unit>
     {

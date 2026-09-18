@@ -486,7 +486,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     #endregion
 
     /// <summary>
-    /// 异步释放资源 — await Actor 完全退出，消除显式锁 — ADR 0115
+    /// 异步释放资源 — await Actor 完全退出，消除显式锁 — TASK001
     /// </summary>
     public override async ValueTask DisposeAsync()
     {
@@ -495,7 +495,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
     }
 
     /// <summary>
-    /// 技能服务 Actor — 串行化 ReloadAsync 操作，消除显式锁 — ADR 0115
+    /// 技能服务 Actor — 串行化 ReloadAsync 操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class SkillServiceActor : ActorBase<ReloadCmd, Unit>
@@ -529,7 +529,7 @@ public sealed partial class SkillService : ServiceEntity, ISkillService, IDispos
 }
 
 /// <summary>
-/// 技能重载 Actor 命令 — ReloadAsync 的 Actor 化封装 — ADR 0115
+/// 技能重载 Actor 命令 — ReloadAsync 的 Actor 化封装 — TASK001
 /// <para>消除 AsyncLock，改用 Actor 邮箱管道串行化重载操作（含文件 I/O）。</para>
 /// </summary>
 public sealed record ReloadCmd(

@@ -3,8 +3,6 @@
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> 迁移自原 ADR 0115（误写为 ADR，按 ADR README 规范转为 task）
-
 ## 背景
 
 调查发现子代理 git worktree 隔离存在两个实际风险缺陷(对标 ClaudeCode ts Issue #76250 和 Agent Teams 不隔离问题):

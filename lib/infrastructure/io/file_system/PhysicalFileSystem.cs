@@ -15,7 +15,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     /// <summary>
-    /// 文件编辑 Actor — 串行化所有 EditFileAsync 调用，消除 per-path AsyncLock — ADR 0115
+    /// 文件编辑 Actor — 串行化所有 EditFileAsync 调用，消除 per-path AsyncLock — TASK001
     /// </summary>
     private readonly EditFileActor _editActor;
 
@@ -396,7 +396,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     }
 
     /// <summary>
-    /// 物理文件编辑 Actor — 串行化 EditFileAsync 读-改-写事务，消除 per-path AsyncLock — ADR 0115
+    /// 物理文件编辑 Actor — 串行化 EditFileAsync 读-改-写事务，消除 per-path AsyncLock — TASK001
     /// </summary>
     private sealed class EditFileActor : ActorBase<EditFileCmd, Unit>
     {

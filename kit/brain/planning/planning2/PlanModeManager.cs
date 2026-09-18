@@ -2,7 +2,7 @@
 namespace Core.Planning;
 
 /// <summary>
-/// 计划历史 Actor 命令类型 — 串行化 _planHistory 访问，消除显式锁 — ADR 0115
+/// 计划历史 Actor 命令类型 — 串行化 _planHistory 访问，消除显式锁 — TASK001
 /// </summary>
 public abstract record PlanModeCommand;
 
@@ -303,7 +303,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         plan.Status = plan.Status == PlanStatus.Executing ? PlanStatus.Cancelled : plan.Status;
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        // 添加到历史记录 — 通过 Actor 串行化，消除显式锁 — ADR 0115
+        // 添加到历史记录 — 通过 Actor 串行化，消除显式锁 — TASK001
         var exitReply = new TaskCompletionSource();
         await _actor.SendAsync(new ExitPlanModeCmd(plan, exitReply), cancellationToken).ConfigureAwait(false);
         await _actor.AskReplyAsync(exitReply, cancellationToken).ConfigureAwait(false);
@@ -898,7 +898,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
     }
 
     /// <summary>
-    /// 计划历史 Actor — 串行化 _planHistory 访问，消除显式锁 — ADR 0115
+    /// 计划历史 Actor — 串行化 _planHistory 访问，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class PlanHistoryActor : ActorBase<PlanModeCommand, Unit>

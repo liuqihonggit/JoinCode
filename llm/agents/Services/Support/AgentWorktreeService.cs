@@ -695,7 +695,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     #endregion
 
     /// <summary>
-    /// Worktree 会话管理 Actor — 串行化所有 _sessions 字典访问，消除显式 AsyncLock — ADR 0115
+    /// Worktree 会话管理 Actor — 串行化所有 _sessions 字典访问，消除显式 AsyncLock — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// <para>_sessions 是 Dictionary 非线程安全，故读操作（GetSession/GetAllSessions）也经 Actor。</para>
     /// </summary>

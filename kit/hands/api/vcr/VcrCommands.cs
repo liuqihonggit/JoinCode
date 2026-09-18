@@ -2,7 +2,7 @@ namespace Services.Api.Vcr;
 
 /// <summary>
 /// VCR 服务 Actor 命令类型 — 对应 cassette 加载/保存操作，由 VcrActor Consumer 串行处理。
-/// <para>ADR 0115: AsyncLock 迁移到 Actor 邮箱管道，消除显式锁。</para>
+/// <para>TASK001: AsyncLock 迁移到 Actor 邮箱管道，消除显式锁。</para>
 /// <para>缓存命中快速路径不经 Actor（ConcurrentDictionary 线程安全），仅未命中时投递命令串行化文件 I/O。</para>
 /// </summary>
 public abstract record VcrCommand;

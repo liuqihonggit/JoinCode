@@ -3,7 +3,7 @@ namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 团队管理器实现
-/// 使用 Actor 邮箱管道串行化写操作，消除显式锁 — ADR 0115
+/// 使用 Actor 邮箱管道串行化写操作，消除显式锁 — TASK001
 /// </summary>
 [Register(typeof(ITeamManager), ServiceLifetime.Singleton)]
 public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposable
@@ -771,7 +771,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     }
 
     /// <summary>
-    /// 团队管理 Actor — 串行化所有写操作，消除显式锁 — ADR 0115
+    /// 团队管理 Actor — 串行化所有写操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class TeamActor : ActorBase<TeamCommand, Unit>

@@ -264,7 +264,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     }
 
     /// <summary>
-    /// VCR 文件操作 Actor — 串行化 cassette 加载/保存，消除显式锁 — ADR 0115
+    /// VCR 文件操作 Actor — 串行化 cassette 加载/保存，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class VcrActor : ActorBase<VcrCommand, Unit>

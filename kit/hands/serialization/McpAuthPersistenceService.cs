@@ -160,7 +160,7 @@ public sealed partial class McpAuthPersistenceService : ServiceEntity, IMcpAuthP
     }
 
     /// <summary>
-    /// MCP 认证持久化 Actor — 串行化所有读写操作，消除显式锁 — ADR 0115
+    /// MCP 认证持久化 Actor — 串行化所有读写操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class McpAuthPersistenceActor : ActorBase<McpAuthPersistenceCommand, Unit>

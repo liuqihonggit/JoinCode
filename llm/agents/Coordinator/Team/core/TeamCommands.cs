@@ -2,7 +2,7 @@ namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 团队管理 Actor 命令类型 — 每个命令对应一个 ITeamManager 写操作，由 TeamActor Consumer 串行处理。
-/// <para>ADR 0115: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除 8 处显式锁。</para>
+/// <para>TASK001: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除 8 处显式锁。</para>
 /// <para>读操作（GetTeamAsync/ListTeamsAsync/GetTeamMembersAsync/GetTeamAllowedPathsAsync）不经 Actor，直接读 TeamRegistry（ConcurrentDictionary 线程安全）。</para>
 /// </summary>
 public abstract record TeamCommand;

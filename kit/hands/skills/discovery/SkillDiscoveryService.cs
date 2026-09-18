@@ -464,7 +464,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     }
 
     /// <summary>
-    /// 技能发现 Actor — 串行化 DiscoverAsync 扫描+加载操作,消除显式锁 — ADR 0115
+    /// 技能发现 Actor — 串行化 DiscoverAsync 扫描+加载操作,消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递,Consumer 单线程串行处理,天然无竞态。</para>
     /// </summary>
     private sealed class DiscoverActor : ActorBase<DiscoverCmd, Unit>
@@ -498,7 +498,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
 }
 
 /// <summary>
-/// 技能发现 Actor 命令 — DiscoverAsync 的 Actor 邮箱封装 — ADR 0115
+/// 技能发现 Actor 命令 — DiscoverAsync 的 Actor 邮箱封装 — TASK001
 /// <para>消除 AsyncLock(_discoveryLock),改用 Actor 邮箱管道串行化发现操作(含文件 I/O)。</para>
 /// </summary>
 internal sealed record DiscoverCmd(TaskCompletionSource<IReadOnlyList<DiscoveredSkill>> Reply);

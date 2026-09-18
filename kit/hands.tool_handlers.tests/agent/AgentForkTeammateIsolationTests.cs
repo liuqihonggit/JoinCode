@@ -2,7 +2,7 @@ namespace Hands.ToolHandlers.Tests;
 
 /// <summary>
 /// AgentForkMiddleware Teammate 隔离模式决策单元测试
-/// 缺陷修复验证(ADR 0115): Teammate 未显式传 isolation 时应通过 WorktreeDecisionPolicy 决策
+/// 缺陷修复验证(TASK002): Teammate 未显式传 isolation 时应通过 WorktreeDecisionPolicy 决策
 /// </summary>
 public sealed class AgentForkTeammateIsolationTests
 {

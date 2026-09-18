@@ -2,7 +2,7 @@ namespace Core.Agents;
 
 /// <summary>
 /// Agent Worktree 会话管理 Actor 命令类型 — 每个命令对应一个 AgentWorktreeService 会话操作，由 WorktreeSessionActor Consumer 串行处理。
-/// <para>ADR 0115: AsyncLock 迁移到 Actor 邮箱管道，消除 4 处显式锁（GetSession/GetAllSessions/SaveSession/RemoveSession）。</para>
+/// <para>TASK001: AsyncLock 迁移到 Actor 邮箱管道，消除 4 处显式锁（GetSession/GetAllSessions/SaveSession/RemoveSession）。</para>
 /// <para>读操作（GetSessionAsync/GetAllSessionsAsync）也经 Actor，因 _sessions 是 Dictionary 非线程安全。</para>
 /// </summary>
 public abstract record WorktreeSessionCommand;

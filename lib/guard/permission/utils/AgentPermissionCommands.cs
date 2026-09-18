@@ -2,7 +2,7 @@ namespace Core.Utils;
 
 /// <summary>
 /// Agent 权限管理 Actor 命令类型 — 每个命令对应一个 IAgentPermissionManager 操作，由 PermissionActor Consumer 串行处理。
-/// <para>ADR 0115: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除 5 处显式锁。</para>
+/// <para>TASK001: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除 5 处显式锁。</para>
 /// <para>所有操作（含读操作 ListRulesAsync/GetMatchingRuleAsync）均经 Actor 串行化，因 EnsureRulesLoadedAsync 首次加载有副作用。</para>
 /// </summary>
 public abstract record AgentPermissionCommand;

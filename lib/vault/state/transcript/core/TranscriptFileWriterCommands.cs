@@ -1,7 +1,7 @@
 namespace State;
 
 /// <summary>
-/// Transcript 文件写入器 Actor 命令类型 — ADR 0115
+/// Transcript 文件写入器 Actor 命令类型 — TASK001
 /// </summary>
 public abstract record TranscriptFileWriterCommand;
 

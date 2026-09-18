@@ -23,7 +23,7 @@ public sealed class FileSnapshot
 
 /// <summary>
 /// 文件历史服务，按文件路径维护内容快照列表，支持回滚到历史版本
-/// <para>使用 Actor 邮箱管道串行化所有操作，消除显式锁 — ADR 0115</para>
+/// <para>使用 Actor 邮箱管道串行化所有操作，消除显式锁 — TASK001</para>
 /// </summary>
 public sealed class FileHistoryService : IAsyncDisposable
 {
@@ -173,7 +173,7 @@ public sealed class FileHistoryService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 文件历史 Actor — 串行化所有读写操作，消除显式锁 — ADR 0115
+    /// 文件历史 Actor — 串行化所有读写操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class FileHistoryActor : ActorBase<FileHistoryCommand, Unit>
@@ -228,7 +228,7 @@ public sealed class FileHistoryService : IAsyncDisposable
 
 /// <summary>
 /// 文件历史 Actor 命令类型 — 每个命令对应一个 FileHistoryService 操作，由 FileHistoryActor Consumer 串行处理。
-/// <para>ADR 0115: AsyncLock 迁移到 Actor 邮箱管道，消除显式锁。</para>
+/// <para>TASK001: AsyncLock 迁移到 Actor 邮箱管道，消除显式锁。</para>
 /// </summary>
 public abstract record FileHistoryCommand;
 

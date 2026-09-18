@@ -744,7 +744,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     }
 
     /// <summary>
-    /// 代理定义加载 Actor — 串行化 GetAgentDefinitionsAsync 加载操作，消除 AsyncLock + double-check 锁 — ADR 0115
+    /// 代理定义加载 Actor — 串行化 GetAgentDefinitionsAsync 加载操作，消除 AsyncLock + double-check 锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// <para>读快速路径（_cacheLoaded volatile 检查）不经 Actor，命中缓存直接返回。</para>
     /// </summary>

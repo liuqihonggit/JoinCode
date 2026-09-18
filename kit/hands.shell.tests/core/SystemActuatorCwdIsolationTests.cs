@@ -2,7 +2,7 @@ namespace Hands.Shell.Tests;
 
 /// <summary>
 /// SystemActuatorBase cwd 隔离单元测试 — 验证 ResolveWorkingDirectoryCore 读取 SubAgentContext.GetEffectiveCwd
-/// 缺陷修复验证(ADR 0115): shell 链路应优先使用 AsyncLocal CwdOverride 而非进程级 cwd
+/// 缺陷修复验证(TASK002): shell 链路应优先使用 AsyncLocal CwdOverride 而非进程级 cwd
 /// </summary>
 public sealed class SystemActuatorCwdIsolationTests
 {

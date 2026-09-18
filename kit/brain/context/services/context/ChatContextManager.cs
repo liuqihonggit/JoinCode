@@ -36,7 +36,7 @@ public sealed record ChatContextOptions
 
 /// <summary>
 /// 聊天上下文管理器 — 管理系统提示词、对话历史、工具规格、上下文折叠和缓存失效检测
-/// 按 SessionId 隔离对话历史，支持多会话切换；使用 Actor 邮箱管道串行化所有操作，消除显式锁 — ADR 0115
+/// 按 SessionId 隔离对话历史，支持多会话切换；使用 Actor 邮箱管道串行化所有操作，消除显式锁 — TASK001
 /// </summary>
 [Register(typeof(IChatContextManager), ServiceLifetime.Singleton)]
 public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
@@ -986,7 +986,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     }
 
     /// <summary>
-    /// 聊天上下文 Actor — 串行化所有操作，消除显式锁 — ADR 0115
+    /// 聊天上下文 Actor — 串行化所有操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class ChatContextActor : ActorBase<ChatContextCommand, Unit>

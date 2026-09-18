@@ -2,7 +2,7 @@ namespace IO.Services;
 
 /// <summary>
 /// MCP 认证持久化 Actor 命令类型 — 每个命令对应一个 IMcpAuthPersistenceService 操作，由 Actor Consumer 串行处理。
-/// <para>ADR 0115: AsyncLock 迁移到 Actor 邮箱管道，消除显式锁。</para>
+/// <para>TASK001: AsyncLock 迁移到 Actor 邮箱管道，消除显式锁。</para>
 /// </summary>
 public abstract record McpAuthPersistenceCommand;
 

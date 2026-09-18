@@ -5,7 +5,7 @@ namespace Core.Prompts.Services;
 /// MagicDocs 管理服务 — 追踪已注册的 Magic Doc 文件，提供 FileRead 监听器
 /// 对齐 TS magicDocs.ts::trackedMagicDocs + registerFileReadListener
 /// 核心消费点：MagicDocsPromptTemplate.BuildMagicDocsUpdatePrompt()
-/// 使用 Actor 邮箱管道串行化 _trackedDocs 访问，消除显式锁 — ADR 0115
+/// 使用 Actor 邮箱管道串行化 _trackedDocs 访问，消除显式锁 — TASK001
 /// </summary>
 [Register(typeof(IFileReadListener), ServiceLifetime.Singleton)]
 [Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
@@ -210,7 +210,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
         => _trackedDocs.Clear();
 
     /// <summary>
-    /// MagicDocs 管理 Actor — 串行化所有 _trackedDocs 访问，消除显式锁 — ADR 0115
+    /// MagicDocs 管理 Actor — 串行化所有 _trackedDocs 访问，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class MagicDocsActor : ActorBase<MagicDocsCommand, Unit>
@@ -288,7 +288,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
 
 /// <summary>
 /// MagicDocs 管理 Actor 命令类型 — 每个命令对应一个 MagicDocsManager 操作，由 MagicDocsActor Consumer 串行处理。
-/// <para>ADR 0115: AsyncLock 迁移到 Actor 邮箱管道，消除 5 处显式锁。</para>
+/// <para>TASK001: AsyncLock 迁移到 Actor 邮箱管道，消除 5 处显式锁。</para>
 /// </summary>
 internal abstract record MagicDocsCommand;
 

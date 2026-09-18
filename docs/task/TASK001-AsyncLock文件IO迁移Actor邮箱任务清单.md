@@ -3,7 +3,6 @@
 > 📍 **导航**: [docs/](../README.md) › [task/](README.md) | **前置**: [plan/](../plan/README.md)
 > 🔗 **上游索引**: [task/README.md](README.md) — 修改本文档后须同步更新此索引
 
-> 迁移自原 ADR 0115（误写为 ADR，按 ADR README 规范转为 task）
 > 相关 ADR: [0052](../adr/0052-asynclock-unified-mutex-file-access.md)、[0068](../adr/0068-unified-persistence-pipeline-actor.md)、[0074](../adr/0074-actor-supervisor-tree.md)、[0086](../adr/0086-core-tech-selection-lock-design.md)、[0100](../adr/0100-console-actor-serialize-io.md)、[0101](../adr/0101-file-watcher-unified-actor.md)、[0107](../adr/0107-file-mailbox-lock-replace-mutex.md)
 
 ## 背景

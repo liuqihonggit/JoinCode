@@ -167,7 +167,7 @@ public interface IAssistantDailyLogService : IDisposable
 /// 助手日志服务实现
 /// 以追加式写入方式管理每日日志，每天一个文件，
 /// 存储在用户记忆目录下的 daily-logs 子目录中。
-/// 使用 Actor 邮箱管道串行化写操作，消除显式锁 — ADR 0115
+/// 使用 Actor 邮箱管道串行化写操作，消除显式锁 — TASK001
 /// </summary>
 [Register(typeof(IAssistantDailyLogService), ServiceLifetime.Singleton)]
 public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistantDailyLogService, IDisposable
@@ -398,7 +398,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     }
 
     /// <summary>
-    /// 助手日志 Actor — 串行化所有写操作，消除显式锁 — ADR 0115
+    /// 助手日志 Actor — 串行化所有写操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class DailyLogActor : ActorBase<AssistantDailyLogCommand, Unit>

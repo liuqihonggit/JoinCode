@@ -183,7 +183,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     private string GetFilePath() => Path.Combine(_storagePath, "thinking_store.json");
 
     /// <summary>
-    /// 思考记录存储 Actor — 串行化文件写操作，消除显式锁 — ADR 0115
+    /// 思考记录存储 Actor — 串行化文件写操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
     private sealed class ThinkingStoreActor : ActorBase<ThinkingStoreCommand, Unit>

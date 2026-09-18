@@ -3,7 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 子进程 IO 通道 — 封装进程读写、队列缓冲、transcript 写入、stdin Actor、读取任务生命周期
 /// 从 BridgeSubprocessHandle 提取,所有进程交互和 IO 资源释放集中于此
-/// ADR 0115: stdin 写入迁移到 Actor 邮箱管道，消除 AsyncLock
+/// TASK001: stdin 写入迁移到 Actor 邮箱管道，消除 AsyncLock
 /// </summary>
 internal sealed class SubprocessIoChannels : IAsyncDisposable
 {
@@ -67,7 +67,7 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
 
     /// <summary>
     /// 向 stdin 写入数据 — 对齐 TS 端 writeStdin
-    /// 韧性模式直接走 _resilientSubprocess,非韧性模式经 Actor 邮箱串行化 — ADR 0115
+    /// 韧性模式直接走 _resilientSubprocess,非韧性模式经 Actor 邮箱串行化 — TASK001
     /// </summary>
     public async Task WriteStdinAsync(string data, CancellationToken ct = default)
     {
@@ -201,7 +201,7 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
     }
 
     /// <summary>
-    /// stdin 写入 Actor — 串行化 WriteStdinAsync 调用,消除 AsyncLock — ADR 0115
+    /// stdin 写入 Actor — 串行化 WriteStdinAsync 调用,消除 AsyncLock — TASK001
     /// <para>命令通过 Channel 投递,Consumer 单线程串行处理,天然无竞态。</para>
     /// </summary>
     private sealed class StdinActor : ActorBase<WriteStdinCmd, Unit>
@@ -237,6 +237,6 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
 }
 
 /// <summary>
-/// stdin 写入 Actor 命令 — WriteStdinAsync 的 Actor 化封装 — ADR 0115
+/// stdin 写入 Actor 命令 — WriteStdinAsync 的 Actor 化封装 — TASK001
 /// </summary>
 internal sealed record WriteStdinCmd(string Data, TaskCompletionSource Reply);

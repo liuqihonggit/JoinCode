@@ -15,45 +15,6 @@ public sealed class ArgumentRepairResult
 
 internal static class ToolCallRepairService
 {
-    private static readonly FrozenDictionary<string, string> ParameterAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["file_path"] = "filePath",
-        ["file_name"] = "fileName",
-        ["old_string"] = "old_string",
-        ["new_string"] = "new_string",
-        ["oldString"] = "old_string",
-        ["newString"] = "new_string",
-        ["old_text"] = "old_string",
-        ["new_text"] = "new_string",
-        ["path"] = "filePath",
-        ["file"] = "filePath",
-        ["directory"] = "dirPath",
-        ["dir"] = "dirPath",
-        ["search_query"] = "query",
-        ["search_pattern"] = "pattern",
-        ["search_string"] = "pattern",
-        ["regex_pattern"] = "pattern",
-        ["line_number"] = "lineNumber",
-        ["line_num"] = "lineNumber",
-        ["line"] = "lineNumber",
-        ["page_num"] = "pageNumber",
-        ["page_number"] = "pageNumber",
-        ["command_text"] = "command",
-        ["cmd"] = "command",
-        ["script"] = "command",
-        ["url_link"] = "url",
-        ["link"] = "url",
-        ["uri"] = "url",
-        ["web_url"] = "url",
-        ["search_term"] = "query",
-        ["text_content"] = "content",
-        ["body"] = "content",
-        ["message_text"] = "message",
-        ["msg"] = "message",
-        ["explanation_text"] = "explanation",
-        ["desc"] = "description",
-    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-
     public static ToolCallRepairResult RepairJson(string? rawJson)
     {
         if (string.IsNullOrWhiteSpace(rawJson))
@@ -128,7 +89,7 @@ internal static class ToolCallRepairService
         var hints = new List<string>();
         var modified = false;
 
-        var nameRepairs = RepairParameterNames(arguments, schema);
+        var nameRepairs = ParameterNameRepairer.RepairParameterNames(arguments, schema);
         if (nameRepairs.Modified)
         {
             repaired = nameRepairs.Arguments;
@@ -152,279 +113,28 @@ internal static class ToolCallRepairService
     }
 
     /// <summary>
-    /// 工具名归一化 — 将 LLM 返回的任意大小写工具名（如 read/READ/Read）归一化为标准名
-    /// 利用各工具名枚举的 FromValue（OrdinalIgnoreCase）反查，找到标准名后返回
-    /// 找不到匹配则返回原名（可能是 MCP 工具或自定义工具）
+    /// 工具名归一化 — 委托给 ToolNameResolver
     /// </summary>
     public static string RepairToolName(string? toolName)
-    {
-        if (string.IsNullOrEmpty(toolName))
-            return toolName ?? string.Empty;
-
-        foreach (var resolver in ToolNameResolvers)
-        {
-            var standard = resolver(toolName);
-            if (standard is not null)
-                return standard;
-        }
-
-        // Fallback: 去下划线模糊匹配(WEBFETCH → web_fetch, DIRECTORYLIST → directory_list)
-        return UnderscoreFallback(toolName) ?? toolName;
-    }
+        => ToolNameResolver.RepairToolName(toolName);
 
     /// <summary>
-    /// 去下划线模糊匹配 — 当 FromValue 精确匹配失败时,去掉下划线后 OrdinalIgnoreCase 比较
-    /// <para>场景: WEBFETCH → web_fetch, webfetch → web_fetch</para>
-    /// </summary>
-    private static string? UnderscoreFallback(string name)
-    {
-        var normalized = name.Replace("_", "");
-        return UnderscoreFallbackCore<FileToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<SearchToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<WebToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<ShellToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<TaskToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<TodoToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<CodeToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<GitToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<NotebookToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<MemoryToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<PlanToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<SkillToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<McpToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<CronToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<SystemToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<InteractionToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<AgentToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<TeamToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<WorkflowToolName>(normalized, v => v.ToValue())
-            ?? UnderscoreFallbackCore<WorktreeToolName>(normalized, v => v.ToValue());
-    }
-
-    private static string? UnderscoreFallbackCore<TEnum>(string normalized, Func<TEnum, string> toValue) where TEnum : struct, Enum
-    {
-        foreach (var value in Enum.GetValues<TEnum>())
-        {
-            var enumValue = toValue(value);
-            if (enumValue.Replace("_", "").Equals(normalized, StringComparison.OrdinalIgnoreCase))
-                return enumValue;
-        }
-        return null;
-    }
-
-    private static readonly Func<string, string?>[] ToolNameResolvers =
-    [
-        name => FileToolNameExtensions.FromValue(name)?.ToValue(),
-        name => SearchToolNameExtensions.FromValue(name)?.ToValue(),
-        name => WebToolNameExtensions.FromValue(name)?.ToValue(),
-        name => ShellToolNameExtensions.FromValue(name)?.ToValue(),
-        name => TaskToolNameExtensions.FromValue(name)?.ToValue(),
-        name => TodoToolNameExtensions.FromValue(name)?.ToValue(),
-        name => CodeToolNameExtensions.FromValue(name)?.ToValue(),
-        name => GitToolNameExtensions.FromValue(name)?.ToValue(),
-        name => NotebookToolNameExtensions.FromValue(name)?.ToValue(),
-        name => MemoryToolNameExtensions.FromValue(name)?.ToValue(),
-        name => PlanToolNameExtensions.FromValue(name)?.ToValue(),
-        name => SkillToolNameExtensions.FromValue(name)?.ToValue(),
-        name => McpToolNameExtensions.FromValue(name)?.ToValue(),
-        name => CronToolNameExtensions.FromValue(name)?.ToValue(),
-        name => SystemToolNameExtensions.FromValue(name)?.ToValue(),
-        name => InteractionToolNameExtensions.FromValue(name)?.ToValue(),
-        name => AgentToolNameExtensions.FromValue(name)?.ToValue(),
-        name => TeamToolNameExtensions.FromValue(name)?.ToValue(),
-        name => WorkflowToolNameExtensions.FromValue(name)?.ToValue(),
-        name => WorktreeToolNameExtensions.FromValue(name)?.ToValue(),
-    ];
-
-    /// <summary>
-    /// 工具名模糊匹配 — 当用户/AI 调用不存在的工具名时,推荐相似工具名
-    /// <para>匹配策略: 精确(大小写不同) > 前缀 > 子串 > 编辑距离≤3</para>
-    /// <para>返回按相似度降序排列的工具名,最多 5 个</para>
+    /// 工具名模糊匹配 — 委托给 ToolNameResolver
     /// </summary>
     public static IReadOnlyList<string> SuggestToolNames(string input, IEnumerable<string> availableTools)
-    {
-        if (string.IsNullOrEmpty(input) || availableTools is null)
-            return Array.Empty<string>();
-
-        var scored = new List<(string Name, int Score)>();
-        foreach (var tool in availableTools)
-        {
-            var score = ComputeNameSimilarity(input, tool);
-            if (score > 0)
-                scored.Add((tool, score));
-        }
-
-        return scored
-            .OrderByDescending(s => s.Score)
-            .ThenBy(s => s.Name, StringComparer.Ordinal)
-            .Take(5)
-            .Select(s => s.Name)
-            .ToList();
-    }
-
-    private static int ComputeNameSimilarity(string input, string candidate)
-    {
-        if (string.Equals(input, candidate, StringComparison.OrdinalIgnoreCase))
-            return 100;
-
-        if (input.Length > candidate.Length && input.StartsWith(candidate, StringComparison.OrdinalIgnoreCase))
-            return 80 - (input.Length - candidate.Length);
-
-        if (input.Length < candidate.Length && candidate.StartsWith(input, StringComparison.OrdinalIgnoreCase))
-            return 60 - (candidate.Length - input.Length);
-
-        if (input.Contains(candidate, StringComparison.OrdinalIgnoreCase) || candidate.Contains(input, StringComparison.OrdinalIgnoreCase))
-            return 40;
-
-        var dist = LevenshteinIgnoreCase(input, candidate);
-        if (dist <= 3)
-            return 30 - dist;
-
-        return 0;
-    }
-
-    /// <summary>Levenshtein 编辑距离(大小写不敏感)</summary>
-    private static int LevenshteinIgnoreCase(string a, string b)
-    {
-        if (a.Length == 0) return b.Length;
-        if (b.Length == 0) return a.Length;
-
-        var prev = new int[b.Length + 1];
-        var curr = new int[b.Length + 1];
-        for (int j = 0; j <= b.Length; j++) prev[j] = j;
-
-        for (int i = 1; i <= a.Length; i++)
-        {
-            curr[0] = i;
-            for (int j = 1; j <= b.Length; j++)
-            {
-                var cost = char.ToLowerInvariant(a[i - 1]) == char.ToLowerInvariant(b[j - 1]) ? 0 : 1;
-                curr[j] = Math.Min(Math.Min(prev[j] + 1, curr[j - 1] + 1), prev[j - 1] + cost);
-            }
-            (prev, curr) = (curr, prev);
-        }
-        return prev[b.Length];
-    }
+        => ToolNameResolver.SuggestToolNames(input, availableTools);
 
     /// <summary>
-    /// 生成跨 shell 调用示例文本 — 帮助 AI/用户正确传递 JSON 参数
-    /// <para>覆盖 PowerShell(--%)、Bash(单引号)、Cmd(转义引号)三种 shell</para>
-    /// <para>若提供 schema 则按 required/properties 生成具体参数示例，否则用通用示例</para>
+    /// 生成跨 shell 调用示例文本 — 委托给 ShellCallExampleBuilder
     /// </summary>
     internal static string BuildShellCallExamples(string toolName, ToolSchema? schema = null)
-    {
-        var exampleJson = BuildExampleJson(schema);
-        var exampleKv = BuildExampleKeyValue(schema, toolName);
-        return $$"""
-调用示例 (JSON):
-  PowerShell: jcc mcp_call {{toolName}} --% "{{exampleJson}}"
-  Bash:       jcc mcp_call {{toolName}} '{{exampleJson}}'
-  Cmd:        jcc mcp_call {{toolName}} "{{exampleJson}}"
-调用示例 (key=value):
-  All shells: jcc mcp_call {{exampleKv}}
-""";
-    }
+        => ShellCallExampleBuilder.BuildShellCallExamples(toolName, schema);
 
     /// <summary>
-    /// 根据 ToolSchema 生成示例 JSON 字符串 — 优先包含 required 参数，无 required 则包含前 3 个 properties
-    /// </summary>
-    private static string BuildExampleJson(ToolSchema? schema)
-    {
-        if (schema is null || schema.Properties.Count == 0)
-            return "{\"key\":\"value\"}";
-
-        var keys = schema.Required.Count > 0
-            ? schema.Required
-            : schema.Properties.Keys.Take(3).ToList();
-
-        if (keys.Count == 0)
-            return "{}";
-
-        var parts = new List<string>(keys.Count);
-        foreach (var key in keys)
-        {
-            if (!schema.Properties.TryGetValue(key, out var prop))
-                continue;
-            parts.Add($"\"{key}\":{BuildExampleValue(prop)}");
-        }
-        return parts.Count == 0 ? "{}" : $"{{{string.Join(",", parts)}}}";
-    }
-
-    /// <summary>
-    /// 根据 ToolSchemaProperty 类型生成占位值
-    /// </summary>
-    private static string BuildExampleValue(ToolSchemaProperty prop)
-    {
-        if (prop.Enum is { Count: > 0 })
-            return "\"" + prop.Enum[0] + "\"";
-        return prop.Type switch
-        {
-            "integer" or "number" => "0",
-            "boolean" => "false",
-            "array" => "[]",
-            "object" => "{}",
-            _ => "\"<" + prop.Type + ">\"",
-        };
-    }
-
-    /// <summary>
-    /// 根据 ToolSchema 生成 key=value 格式示例参数 — 优先包含 required 参数
-    /// </summary>
-    private static string BuildExampleKeyValue(ToolSchema? schema, string toolName)
-    {
-        if (schema is null || schema.Properties.Count == 0)
-            return toolName + " key=value";
-
-        var keys = schema.Required.Count > 0
-            ? schema.Required
-            : schema.Properties.Keys.Take(3).ToList();
-
-        if (keys.Count == 0)
-            return toolName;
-
-        var parts = new List<string>(keys.Count);
-        foreach (var key in keys)
-        {
-            if (!schema.Properties.TryGetValue(key, out var prop))
-                continue;
-            parts.Add(key + "=" + BuildExampleKvValue(prop));
-        }
-        return parts.Count == 0 ? toolName : toolName + " " + string.Join(" ", parts);
-    }
-
-    /// <summary>
-    /// 根据 ToolSchemaProperty 类型生成 key=value 占位值（不带引号）
-    /// </summary>
-    private static string BuildExampleKvValue(ToolSchemaProperty prop)
-    {
-        if (prop.Enum is { Count: > 0 })
-            return prop.Enum[0];
-        return prop.Type switch
-        {
-            "integer" or "number" => "0",
-            "boolean" => "false",
-            "array" => "[]",
-            "object" => "{}",
-            _ => "<" + prop.Type + ">",
-        };
-    }
-
-    /// <summary>
-    /// 检测"引号被 shell 剥落"特征并返回修正写法提示 — 以 { 开头、有冒号、但无双引号
-    /// <para>返回 null 表示未检测到该特征(不提示)</para>
+    /// 检测"引号被 shell 剥落"特征并返回修正写法提示 — 委托给 ShellCallExampleBuilder
     /// </summary>
     internal static string? BuildShellQuoteHint(string json)
-    {
-        if (json.Length > 0 && json[0] == '{' && json.Contains(':') && !json.Contains('"'))
-        {
-            return """
-提示: 输入看起来像被 shell 剥掉了引号。
-  PowerShell: 用 --% 停止解析,或用 \" 转义双引号
-  示例: jcc mcp_call <tool> --% "{\"key\":\"value\"}"
-""";
-        }
-        return null;
-    }
+        => ShellCallExampleBuilder.BuildShellQuoteHint(json);
 
     /// <summary>
     /// 激进修复 PowerShell 剥引号后的单键对象 — 值中含 {} 时 FixUnquotedValues 会截断
@@ -1090,105 +800,6 @@ internal static class ToolCallRepairService
         return c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
     }
 
-
-
-    private static (Dictionary<string, JsonElement> Arguments, bool Modified, string? Hint) RepairParameterNames(
-        Dictionary<string, JsonElement> arguments,
-        ToolSchema schema)
-    {
-        var schemaProps = schema.Properties.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var repairs = new List<string>();
-        var repaired = new Dictionary<string, JsonElement>(arguments.Count);
-
-        foreach (var (key, value) in arguments)
-        {
-            if (schemaProps.Contains(key))
-            {
-                // 使用 OrdinalIgnoreCase HashSet 时，Contains("Pattern") 对 "pattern" 返回 true
-                // 但必须用 schema 中的实际 key（"pattern"）存储，否则下游工具按精确匹配找不到参数
-                var actualKey = FindActualKey(key, schemaProps) ?? key;
-                repaired[actualKey] = value;
-                if (!string.Equals(actualKey, key, StringComparison.Ordinal))
-                {
-                    repairs.Add($"'{key}' → '{actualKey}'");
-                }
-                continue;
-            }
-
-            var matched = TryMatchParameter(key, schemaProps);
-            if (matched is not null)
-            {
-                // 不覆盖已由直接匹配设置的值（直接匹配优先于别名匹配）
-                // 场景: schema 有 file_path，LLM 同时发送 file_path(直接匹配) 和 path(别名→filePath→snake_case file_path)
-                // 若别名覆盖直接匹配，会导致正确的 file_path 值被丢弃
-                if (!repaired.ContainsKey(matched))
-                {
-                    repaired[matched] = value;
-                    repairs.Add($"'{key}' → '{matched}'");
-                }
-                else
-                {
-                    // 目标 key 已被直接匹配占用，保留原 key 避免数据丢失
-                    repaired[key] = value;
-                }
-            }
-            else
-            {
-                repaired[key] = value;
-            }
-        }
-
-        if (repairs.Count == 0)
-            return (arguments, false, null);
-
-        return (repaired, true, $"renamed parameter(s): {string.Join(", ", repairs)}");
-    }
-
-    private static string? TryMatchParameter(string wrongName, HashSet<string> schemaProps)
-    {
-        if (ParameterAliases.TryGetValue(wrongName, out var alias))
-        {
-            if (schemaProps.Contains(alias))
-                return FindActualKey(alias, schemaProps);
-
-            // 别名目标值不匹配时，尝试 snake_case/camelCase 转换
-            // 例: alias="filePath"，schema 属性名为 "file_path"
-            var aliasSnake = ToSnakeCase(alias);
-            if (schemaProps.Contains(aliasSnake))
-                return FindActualKey(aliasSnake, schemaProps);
-
-            var aliasCamel = ToCamelCase(alias);
-            if (schemaProps.Contains(aliasCamel))
-                return FindActualKey(aliasCamel, schemaProps);
-        }
-
-        foreach (var schemaKey in schemaProps)
-        {
-            if (string.Equals(wrongName, schemaKey, StringComparison.OrdinalIgnoreCase))
-                return schemaKey;
-        }
-
-        var snakeCase = ToSnakeCase(wrongName);
-        if (schemaProps.Contains(snakeCase))
-            return FindActualKey(snakeCase, schemaProps);
-
-        var camelCase = ToCamelCase(wrongName);
-        if (schemaProps.Contains(camelCase))
-            return FindActualKey(camelCase, schemaProps);
-
-        return null;
-    }
-
-    private static string? FindActualKey(string key, HashSet<string> schemaProps)
-    {
-        foreach (var schemaKey in schemaProps)
-        {
-            if (string.Equals(schemaKey, key, StringComparison.OrdinalIgnoreCase))
-                return schemaKey;
-        }
-        return key;
-    }
-
     private static (Dictionary<string, JsonElement> Arguments, bool Modified, string? Hint) RepairArgumentTypes(
         Dictionary<string, JsonElement> arguments,
         ToolSchema schema)
@@ -1355,37 +966,6 @@ internal static class ToolCallRepairService
         }
 
         return (value, false);
-    }
-
-    private static string ToSnakeCase(string name)
-    {
-        if (string.IsNullOrEmpty(name)) return name;
-        var sb = new StringBuilder(name.Length + 4);
-        for (int i = 0; i < name.Length; i++)
-        {
-            if (i > 0 && char.IsUpper(name[i]) && (char.IsLower(name[i - 1]) || (i + 1 < name.Length && char.IsLower(name[i + 1]))))
-                sb.Append('_');
-            sb.Append(char.ToLowerInvariant(name[i]));
-        }
-        return sb.ToString();
-    }
-
-    private static string ToCamelCase(string name)
-    {
-        if (string.IsNullOrEmpty(name)) return name;
-        var parts = name.Split('_');
-        if (parts.Length <= 1) return name;
-        var sb = new StringBuilder(name.Length);
-        sb.Append(parts[0].ToLowerInvariant());
-        for (int i = 1; i < parts.Length; i++)
-        {
-            if (parts[i].Length > 0)
-            {
-                sb.Append(char.ToUpperInvariant(parts[i][0]));
-                sb.Append(parts[i].Substring(1).ToLowerInvariant());
-            }
-        }
-        return sb.ToString();
     }
 
     private static string TruncateForHint(string text, int maxLength = 200)

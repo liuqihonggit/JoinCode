@@ -16,7 +16,7 @@ public sealed class SseStreamParser
         Stream stream,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
-        using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: true);
+        using var reader = stream.AsUtf8Reader(leaveOpen: true);
 
         var eventType = string.Empty;
         var dataBuilder = new StringBuilder();

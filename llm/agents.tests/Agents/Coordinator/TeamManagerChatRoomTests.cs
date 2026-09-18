@@ -54,9 +54,10 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
         messagesAfterFirst.Should().HaveCount(1);
 
         var firstMsg = messagesAfterFirst[0];
-        var roomsField = typeof(TeamManager).GetField("_rooms",
+        var registryField = typeof(TeamManager).GetField("_registry",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var rooms = (System.Collections.Concurrent.ConcurrentDictionary<string, ChatRoomState>)roomsField!.GetValue(_teamManager)!;
+        var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
+        var rooms = registry.SnapshotRooms();
         var innerDict = rooms[teamId].Messages;
 
         var duplicateMsg = firstMsg with { };
@@ -170,9 +171,10 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
             .Returns(() => ValueTask.FromResult<CoordinatorMessage>(null!));
 
         var notice = SystemNoticeFactory.Create(SystemNoticeKind.MemberMuted, teamId, "member1");
-        var roomsField = typeof(TeamManager).GetField("_rooms",
+        var registryField = typeof(TeamManager).GetField("_registry",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var rooms = (System.Collections.Concurrent.ConcurrentDictionary<string, ChatRoomState>)roomsField!.GetValue(_teamManager)!;
+        var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
+        var rooms = registry.SnapshotRooms();
         rooms[teamId].Messages.TryAdd(notice.MessageId, notice);
 
         var persistMethod = typeof(TeamManager).GetMethod("PersistTeamMessageToMailboxAsync",
@@ -241,9 +243,10 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
 
     private void SetTeamSession(string teamId, string sessionId)
     {
-        var roomsField = typeof(TeamManager).GetField("_rooms",
+        var registryField = typeof(TeamManager).GetField("_registry",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var rooms = (System.Collections.Concurrent.ConcurrentDictionary<string, ChatRoomState>)roomsField!.GetValue(_teamManager)!;
+        var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
+        var rooms = registry.SnapshotRooms();
         if (rooms.TryGetValue(teamId, out var room))
         {
             room.SessionId = sessionId;
@@ -252,9 +255,10 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
 
     private void SetMemberRole(string teamId, string agentId, string role)
     {
-        var roomsField = typeof(TeamManager).GetField("_rooms",
+        var registryField = typeof(TeamManager).GetField("_registry",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var rooms = (System.Collections.Concurrent.ConcurrentDictionary<string, ChatRoomState>)roomsField!.GetValue(_teamManager)!;
+        var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
+        var rooms = registry.SnapshotRooms();
         if (rooms.TryGetValue(teamId, out var room) && room.MemberDetails.TryGetValue(agentId, out var info))
         {
             room.MemberDetails[agentId] = info with { Role = role };

@@ -10,7 +10,7 @@ public sealed class McpTcpServer : ServiceEntity
 {
     private readonly McpServer _server;
     private readonly TcpListener _listener;
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _sessions = new(StringComparer.Ordinal);
+    private readonly McpSessionRegistry _sessions = new();
     private readonly bool _statelessMode;
     private readonly FrozenSet<string> _allowedOrigins;
     private CancellationTokenSource? _cts;
@@ -182,7 +182,7 @@ public sealed class McpTcpServer : ServiceEntity
         var sessionId = request.Headers.GetValueOrDefault("Mcp-Session-Id");
 
         // 有状态模式:带 session 但不存在 → 404
-        if (!_statelessMode && !string.IsNullOrEmpty(sessionId) && !_sessions.ContainsKey(sessionId))
+        if (!_statelessMode && !string.IsNullOrEmpty(sessionId) && !_sessions.Contains(sessionId))
         {
             await WriteResponseAsync(stream, 404, "Not Found", null, ct).ConfigureAwait(false);
             return;
@@ -207,7 +207,7 @@ public sealed class McpTcpServer : ServiceEntity
         if (!_statelessMode && IsInitializeRequest(request.Body))
         {
             var newSessionId = GenerateSessionId();
-            _sessions[newSessionId] = DateTime.UtcNow;
+            _sessions.Register(newSessionId);
             extraHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Mcp-Session-Id"] = newSessionId
@@ -223,7 +223,7 @@ public sealed class McpTcpServer : ServiceEntity
         var sessionId = request.Headers.GetValueOrDefault("Mcp-Session-Id");
         if (!string.IsNullOrEmpty(sessionId))
         {
-            _sessions.TryRemove(sessionId, out _);
+            _sessions.Remove(sessionId);
         }
         WriteResponseAsync(stream, 204, "No Content", null, default).GetAwaiter().GetResult();
     }

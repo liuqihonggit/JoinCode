@@ -60,8 +60,6 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         Diag.WriteLine("[DI] FileCronTaskStore.ctor done");
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 设置会话隔离标识 — 重新计算文件路径并重新初始化 watcher。
@@ -106,7 +104,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     public async Task<IReadOnlyList<CronTask>> GetAllTasksAsync(CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        var tcs = CreateTcs<IReadOnlyList<CronTask>>();
+        var tcs = TcsFactory.Create<IReadOnlyList<CronTask>>();
         await SendAsync(new GetAllTasksCmd(ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -119,7 +117,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         if (!CronExpressionParser.IsValid(request.CronExpression))
             throw new ArgumentException("Invalid cron expression", nameof(request));
 
-        var tcs = CreateTcs<CronTask>();
+        var tcs = TcsFactory.Create<CronTask>();
         await SendAsync(new AddTaskCmd(request, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -131,7 +129,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         var idSet = new HashSet<string>(ids);
         if (idSet.Count == 0) return;
 
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new RemoveTasksCmd(idSet, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -143,7 +141,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         var idSet = new HashSet<string>(ids);
         if (idSet.Count == 0) return;
 
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new MarkTasksFiredCmd(idSet, firedAt, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -152,7 +150,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     public async Task<CronTask?> GetTaskByIdAsync(string id, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        var tcs = CreateTcs<CronTask?>();
+        var tcs = TcsFactory.Create<CronTask?>();
         await SendAsync(new GetTaskByIdCmd(id, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -161,7 +159,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
     public async Task<IReadOnlyList<CronTask>> GetTasksByAgentIdAsync(string agentId, CancellationToken ct = default)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        var tcs = CreateTcs<IReadOnlyList<CronTask>>();
+        var tcs = TcsFactory.Create<IReadOnlyList<CronTask>>();
         await SendAsync(new GetTasksByAgentIdCmd(agentId, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }

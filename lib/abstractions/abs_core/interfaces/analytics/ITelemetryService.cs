@@ -58,23 +58,27 @@ public interface ITelemetrySpan : IAsyncDisposable
     TelemetrySpanData ToSpanData();
 }
 
-public interface ITelemetryCounter
+/// <summary>
+/// 遥测指标公共契约 — 所有指标类型(Counter/Histogram/Gauge)的公共基接口
+/// <para>用于统一存储与遍历已注册指标,避免维护多个并行字典</para>
+/// </summary>
+public interface ITelemetryMetric
 {
+    /// <summary>获取指标名称</summary>
     string Name { get; }
+}
 
+public interface ITelemetryCounter : ITelemetryMetric
+{
     void Add(double value, Dictionary<string, string>? tags = null);
 }
 
-public interface ITelemetryHistogram
+public interface ITelemetryHistogram : ITelemetryMetric
 {
-    string Name { get; }
-
     void Record(double value, Dictionary<string, string>? tags = null);
 }
 
-public interface ITelemetryGauge
+public interface ITelemetryGauge : ITelemetryMetric
 {
-    string Name { get; }
-
     void Record(double value, Dictionary<string, string>? tags = null);
 }

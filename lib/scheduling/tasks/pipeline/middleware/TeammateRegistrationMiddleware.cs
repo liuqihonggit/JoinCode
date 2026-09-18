@@ -40,12 +40,10 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
 
         var lifecycleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-        var teammateContext = new TeammateContext
+        var teammateMeta = new TeammateMeta
         {
-            AgentId = definition.TeammateId,
             AgentName = definition.TeammateId,
             TeamName = definition.TeamName ?? "default",
-            TeamId = definition.TeamId,
             Color = definition.Color,
             PlanModeRequired = definition.PlanModeRequired,
             ParentSessionId = definition.ParentSessionId ?? sessionId,
@@ -56,7 +54,7 @@ public sealed partial class TeammateRegistrationMiddleware : ServiceEntity, ITea
         {
             Agent = ctx.Agent ?? throw new InvalidOperationException("Agent is not set."),
             LifecycleCts = lifecycleCts,
-            Context = teammateContext,
+            TeammateMeta = teammateMeta,
             IsIdle = false
         };
 

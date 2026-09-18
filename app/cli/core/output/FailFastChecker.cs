@@ -77,21 +77,12 @@ public sealed class FailFastChecker
                 outputContract.WriteError(error);
             else
             {
-                var prev = TerminalHelper.ForegroundColor;
-                try
-                {
-                    TerminalHelper.ForegroundColor = ConsoleColor.Red;
+                using (TerminalHelper.SetColorRaw(ConsoleColor.Red))
                     TerminalHelper.WriteError($"  ✖ [{error.Code}] {error.Message}");
-                }
-                finally
-                {
-                    TerminalHelper.ForegroundColor = prev;
-                }
                 if (!string.IsNullOrEmpty(error.Hint))
                 {
-                    TerminalHelper.ForegroundColor = ConsoleColor.Cyan;
-                    TerminalHelper.WriteError($"  💡 {error.Hint}");
-                    TerminalHelper.ForegroundColor = prev;
+                    using (TerminalHelper.SetColorRaw(ConsoleColor.Cyan))
+                        TerminalHelper.WriteError($"  💡 {error.Hint}");
                 }
             }
         }

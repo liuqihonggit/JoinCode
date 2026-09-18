@@ -27,11 +27,11 @@ internal sealed class RetryHandler
     /// <returns>终止决策（GoalUnmet）或 null（继续）</returns>
     public NodeCompletionOutcome? CheckFailureRateTermination(GraphExecutionContext context)
     {
-        var totalFinished = context.CompletedNodes.Count + context.FailedNodes.Count;
-        if (totalFinished >= 3 && (double)context.FailedNodes.Count / totalFinished > 0.5)
+        var totalFinished = context.CompletedCount + context.FailedCount;
+        if (totalFinished >= 3 && (double)context.FailedCount / totalFinished > 0.5)
         {
             _logger?.LogInformation("[GoalGraph] 失败率过高终止: {Failed}/{Total}",
-                context.FailedNodes.Count, totalFinished);
+                context.FailedCount, totalFinished);
             return NodeCompletionOutcome.GoalUnmet;
         }
         return null;
@@ -46,7 +46,7 @@ internal sealed class RetryHandler
     /// <param name="ct">取消令牌</param>
     public async Task HandleRetryAsync(string targetNodeId, GraphExecutionContext context, CancellationToken ct)
     {
-        var retryCount = context.RetryCount.GetValueOrDefault(targetNodeId, 0);
+        var retryCount = context.GetRetryCount(targetNodeId);
 
         if (_nodeInspector is not null && context.Graph.Dag.Nodes.TryGetValue(targetNodeId, out var targetNode))
         {
@@ -97,11 +97,10 @@ internal sealed class RetryHandler
             node.Payload.CompletedAt = null;
             node.Payload.TokensUsed = 0;
             node.Version++;
-            context.CompletedNodes.TryRemove(node.Id, out _);
-            context.FailedNodes.TryRemove(node.Id, out _);
+            context.ResetNodeState(node.Id);
         }
 
-        context.RetryCount[targetNodeId] = retryCount + 1;
+        context.SetRetryCount(targetNodeId, retryCount + 1);
         context.GlobalLoopIteration++;
         context.ReadyQueue.Enqueue(targetNodeId);
 

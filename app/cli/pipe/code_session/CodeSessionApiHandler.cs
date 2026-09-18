@@ -232,7 +232,7 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity
 
     private async Task HandleCreateRouteAsync(HttpListenerContext context, CancellationToken ct)
     {
-        using var reader = new StreamReader(context.Request.InputStream, Encoding.UTF8);
+        using var reader = context.Request.InputStream.AsUtf8Reader();
         var body = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
 
         string projectName = string.Empty;

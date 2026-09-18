@@ -126,8 +126,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     }
     private const int MaxLspFileSizeBytes = 10_000_000;
 
-    private readonly ConcurrentDictionary<string, LspServerInstance> _servers = new();
-    private readonly ConcurrentDictionary<string, List<string>> _extensionMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly LspServerRegistry _registry = new();
     private readonly ConcurrentDictionary<string, string> _openedFiles = new();
     private readonly ILogger<LspManager> _logger;
     private readonly IFileOperationService? _fileOperationService;
@@ -164,20 +163,14 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
         {
             var instance = new LspServerInstance(config, _fs, _processService, _logger);
 
-            _servers[config.Name] = instance;
-
-            foreach (var kvp in config.ExtensionToLanguage)
-            {
-                var serverNames = _extensionMap.GetOrAdd(kvp.Key, _ => []);
-                serverNames.Add(config.Name);
-            }
+            _registry.Register(config.Name, instance, config.ExtensionToLanguage);
 
             _logger.LogInformation("Registered LSP server: {Name} ({LanguageId}) for extensions: {Extensions}",
                 config.Name, config.LanguageId, string.Join(", ", config.ExtensionToLanguage.Keys));
         }
 
         Volatile.Write(ref _isInitialized, 1);
-        _logger.LogInformation("LSP Manager initialized with {Count} server(s)", _servers.Count);
+        _logger.LogInformation("LSP Manager initialized with {Count} server(s)", _registry.Count);
 
         if (_passiveFeedback != null)
         {
@@ -202,11 +195,10 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     {
         if (!IsInitialized) return;
 
-        var tasks = _servers.Values.Select(s => s.StopAsync(cancellationToken).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted));
+        var tasks = _registry.Servers.Select(s => s.StopAsync(cancellationToken).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted));
         await Task.WhenAll(tasks).ConfigureAwait(false);
 
-        _servers.Clear();
-        _extensionMap.Clear();
+        _registry.Clear();
         _openedFiles.Clear();
         Volatile.Write(ref _isInitialized, 0);
     }
@@ -219,12 +211,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     public ILspServerInstance? GetServerForFile(string filePath)
     {
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
-        if (!_extensionMap.TryGetValue(ext, out var serverNames) || serverNames.Count == 0)
-        {
-            return null;
-        }
-
-        return _servers.TryGetValue(serverNames[0], out var instance) ? instance : null;
+        return _registry.TryGetByExtension(ext, out var instance) ? instance : null;
     }
 
     /// <summary>
@@ -397,7 +384,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
         var fileUri = LspUriHelper.PathToFileUrl(filePath);
         if (!_openedFiles.TryRemove(fileUri, out var serverName)) return;
 
-        if (!_servers.TryGetValue(serverName, out var server)) return;
+        if (!_registry.TryGetByName(serverName, out var server)) return;
         if (!server.IsHealthy) return;
 
         var closeParams = new Dictionary<string, JsonElement>
@@ -434,7 +421,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <returns>服务器名到实例的只读字典</returns>
     public IReadOnlyDictionary<string, ILspServerInstance> GetAllServers()
     {
-        return _servers.ToDictionary(kvp => kvp.Key, kvp => (ILspServerInstance)kvp.Value);
+        return _registry.Snapshot();
     }
 
     /// <summary>
@@ -444,11 +431,11 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) return;
 
+        var servers = _registry.Servers.ToArray();
         await ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
-        var tasks = _servers.Values.Select(s => s.DisposeAsync().AsTask()).ToArray();
-        _servers.Clear();
+        foreach (var server in servers)
+            await server.DisposeAsync().ConfigureAwait(false);
         await _initActor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
-        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 }

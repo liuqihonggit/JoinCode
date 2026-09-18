@@ -89,21 +89,21 @@ internal sealed class TeammateLoopRunner
     {
         var subAgentContext = new SubAgentContext
         {
-            AgentId = state.Context.AgentId,
+            AgentId = definition.TeammateId,
             Role = AgentRole.Executor,
             Variant = ExecutorVariant.Teammate,
             Task = definition.Task,
             ParentAgentId = _subAgentContextAccessor.Current?.AgentId,
             SessionId = definition.ParentSessionId ?? _subAgentContextAccessor.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId,
-            TeamId = state.Context.TeamId,
-            SubagentName = state.Context.AgentName,
+            TeamId = definition.TeamId,
+            SubagentName = state.TeammateMeta.AgentName,
             IsBuiltIn = true,
-            DisplayName = state.Context.AgentName
+            DisplayName = state.TeammateMeta.AgentName,
+            TeammateMeta = state.TeammateMeta
         };
 
         var completedNormally = false;
 
-        using (state.Context.EnterScope())
         using (subAgentContext.EnterScopeWithCwd(null))
         {
             var shouldExit = false;
@@ -281,7 +281,7 @@ internal sealed class TeammateLoopRunner
             var idleNotification = new TeammateIdleNotification
             {
                 AgentId = teammateId,
-                TeamName = state.Context.TeamName,
+                TeamName = state.TeammateMeta.TeamName,
                 LastResult = lastResult
             };
 

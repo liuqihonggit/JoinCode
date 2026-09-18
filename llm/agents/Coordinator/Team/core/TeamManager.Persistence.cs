@@ -61,7 +61,7 @@ public sealed partial class TeamManager
                         room.MemberDetails = detailList.ToDictionary(m => m.AgentId, m => m);
                     }
 
-                    _rooms[team.TeamId] = room;
+                    _registry.AddRoom(team.TeamId, room);
                 }
             }
 
@@ -70,7 +70,7 @@ public sealed partial class TeamManager
             {
                 foreach (var kvp in data.AgentToTeam)
                 {
-                    _agentToTeam[kvp.Key] = kvp.Value;
+                    _registry.RegisterAgentToTeam(kvp.Key, kvp.Value);
                 }
             }
 
@@ -78,7 +78,7 @@ public sealed partial class TeamManager
             _teamCounter = Math.Max(_teamCounter, data.TeamCounter);
             _messageCounter = Math.Max(_messageCounter, data.MessageCounter);
 
-            _logger?.LogDebug("团队状态已从 {FilePath} 加载: {TeamCount} 个团队", _stateFilePath, _rooms.Count);
+            _logger?.LogDebug("团队状态已从 {FilePath} 加载: {TeamCount} 个团队", _stateFilePath, _registry.Count);
         }
         catch (Exception ex)
         {
@@ -95,13 +95,14 @@ public sealed partial class TeamManager
 
         try
         {
+            var roomsSnapshot = _registry.SnapshotRooms();
             var data = new TeamStateData
             {
-                Teams = _rooms.Values.Select(r => r.Info).ToList(),
-                TeamMembers = _rooms.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Members.ToList()),
-                TeamMessages = _rooms.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Messages.Values.ToList()),
-                TeamMemberDetails = _rooms.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.MemberDetails.Values.ToList()),
-                AgentToTeam = new Dictionary<string, string>(_agentToTeam),
+                Teams = roomsSnapshot.Values.Select(r => r.Info).ToList(),
+                TeamMembers = roomsSnapshot.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Members.ToList()),
+                TeamMessages = roomsSnapshot.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Messages.Values.ToList()),
+                TeamMemberDetails = roomsSnapshot.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.MemberDetails.Values.ToList()),
+                AgentToTeam = new Dictionary<string, string>(_registry.SnapshotAgentToTeam()),
                 TeamCounter = _teamCounter,
                 MessageCounter = _messageCounter
             };

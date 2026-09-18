@@ -32,12 +32,11 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
         _logger = logger;
     }
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <inheritdoc/>
     public async Task<EnvironmentReport> ProbeEnvironmentAsync(bool forceRescan = false, CancellationToken ct = default)
     {
-        var tcs = CreateTcs<EnvironmentReport>();
+        var tcs = TcsFactory.Create<EnvironmentReport>();
         await SendAsync(new ProbeEnvCmd(forceRescan, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }

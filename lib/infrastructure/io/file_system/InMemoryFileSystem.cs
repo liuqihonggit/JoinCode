@@ -8,9 +8,8 @@ public sealed class InMemoryFileSystem : IFileSystem
 {
     private readonly ConcurrentDictionary<string, InMemoryFileEntry> _files = new();
     private readonly ConcurrentDictionary<string, InMemoryDirectoryEntry> _directories = new();
-    private readonly List<InMemoryFileSystemWatcher> _watchers = [];
-    private readonly AsyncLock _watchersLock = new("InMemoryFileSystem");
-    private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
+    private readonly WatcherRegistry _watcherRegistry = new();
+    private readonly EditLockRegistry _editLocks = new();
     private string _currentDirectory = "/test";
 
     /// <summary>
@@ -50,7 +49,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         file.TextContent = contents;
         file.LastWriteTime = DateTime.Now;
         file.CreationTime = file.CreationTime == default ? DateTime.Now : file.CreationTime;
-        NotifyWatchers(path, isNew ? WatcherChangeTypes.Created : WatcherChangeTypes.Changed);
+        _watcherRegistry.NotifyChanged(path, isNew ? WatcherChangeTypes.Created : WatcherChangeTypes.Changed);
     }
 
     /// <inheritdoc />
@@ -81,7 +80,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         file.TextContent = null; // 编码写入清除文本缓存，强制通过 ByteContent 解码
         file.LastWriteTime = DateTime.Now;
         file.CreationTime = file.CreationTime == default ? DateTime.Now : file.CreationTime;
-        NotifyWatchers(path, isNew ? WatcherChangeTypes.Created : WatcherChangeTypes.Changed);
+        _watcherRegistry.NotifyChanged(path, isNew ? WatcherChangeTypes.Created : WatcherChangeTypes.Changed);
     }
 
     /// <inheritdoc />
@@ -104,7 +103,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         file.TextContent = null; // 二进制文件清除文本缓存
         file.LastWriteTime = DateTime.Now;
         file.CreationTime = file.CreationTime == default ? DateTime.Now : file.CreationTime;
-        NotifyWatchers(path, isNew ? WatcherChangeTypes.Created : WatcherChangeTypes.Changed);
+        _watcherRegistry.NotifyChanged(path, isNew ? WatcherChangeTypes.Created : WatcherChangeTypes.Changed);
     }
 
     /// <inheritdoc />
@@ -134,7 +133,7 @@ public sealed class InMemoryFileSystem : IFileSystem
             file.TextContent = (file.TextContent ?? string.Empty) + contents;
         }
         file.LastWriteTime = DateTime.Now;
-        NotifyWatchers(path, WatcherChangeTypes.Changed);
+        _watcherRegistry.NotifyChanged(path, WatcherChangeTypes.Changed);
     }
 
     // === File 读操作 ===
@@ -160,7 +159,7 @@ public sealed class InMemoryFileSystem : IFileSystem
             {
                 // 对齐 File.ReadAllText: 使用 StreamReader 自动检测编码并跳过 BOM
                 using var ms = new MemoryStream(file.ByteContent);
-                using var reader = new StreamReader(ms, System.Text.Encoding.UTF8);
+                using var reader = ms.AsUtf8Reader();
                 return reader.ReadToEnd();
             }
             return string.Empty;
@@ -233,7 +232,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
     {
         var normalizedPath = NormalizePath(path);
-        var editLock = _editLocks.GetOrAdd(normalizedPath, p => new AsyncLock($"EditFile:{p}"));
+        var editLock = _editLocks.GetOrAdd(normalizedPath);
         var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(false);
         if (releaser is null)
             throw new TimeoutException($"编辑文件锁超时: {path}");
@@ -263,7 +262,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     {
         var normalizedPath = NormalizePath(path);
         _files.TryRemove(normalizedPath, out _);
-        NotifyWatchers(path, WatcherChangeTypes.Deleted);
+        _watcherRegistry.NotifyChanged(path, WatcherChangeTypes.Deleted);
     }
 
     /// <inheritdoc />
@@ -284,7 +283,7 @@ public sealed class InMemoryFileSystem : IFileSystem
         _files.TryRemove(normalizedSource, out _);
         file.FullPath = normalizedDest;
         _files[normalizedDest] = file;
-        NotifyWatchersRenamed(sourcePath, destPath);
+        _watcherRegistry.NotifyRenamed(sourcePath, destPath);
     }
 
     /// <inheritdoc />
@@ -570,33 +569,13 @@ public sealed class InMemoryFileSystem : IFileSystem
     /// 注册 watcher — 由 InMemoryFileSystemWatcher 内部调用
     /// </summary>
     internal void RegisterWatcher(InMemoryFileSystemWatcher watcher)
-    {
-        using (_watchersLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_watchersLock.Name}' 等待超时")) _watchers.Add(watcher);
-    }
+        => _watcherRegistry.Register(watcher);
 
     /// <summary>
     /// 注销 watcher — 由 InMemoryFileSystemWatcher.Dispose 内部调用
     /// </summary>
     internal void UnregisterWatcher(InMemoryFileSystemWatcher watcher)
-    {
-        using (_watchersLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_watchersLock.Name}' 等待超时")) _watchers.Remove(watcher);
-    }
-
-    private void NotifyWatchers(string fullPath, WatcherChangeTypes changeType)
-    {
-        List<InMemoryFileSystemWatcher> snapshot;
-        using (_watchersLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_watchersLock.Name}' 等待超时")) snapshot = [.. _watchers];
-        foreach (var watcher in snapshot)
-            watcher.OnFileChanged(fullPath, changeType);
-    }
-
-    private void NotifyWatchersRenamed(string oldFullPath, string newFullPath)
-    {
-        List<InMemoryFileSystemWatcher> snapshot;
-        using (_watchersLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_watchersLock.Name}' 等待超时")) snapshot = [.. _watchers];
-        foreach (var watcher in snapshot)
-            watcher.OnFileRenamed(oldFullPath, newFullPath);
-    }
+        => _watcherRegistry.Unregister(watcher);
 
     /// <summary>
     /// 清空整个文件系统

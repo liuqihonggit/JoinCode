@@ -7,7 +7,7 @@ namespace Core.Plugins;
 /// <para>卸载: plugin_unload + NativeLibrary.Free</para>
 /// <para>线程安全: 非线程安全,调用方需自行同步(Actor 模式下单线程访问)</para>
 /// </summary>
-public sealed unsafe class NativePluginHost : IDisposable
+public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
 {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int PluginLoadDelegate(byte* configPtr, int configLen);
@@ -39,6 +39,9 @@ public sealed unsafe class NativePluginHost : IDisposable
 
     /// <summary>是否已加载</summary>
     public bool IsLoaded => _isLoaded && !_isDisposed;
+
+    /// <summary>插件类型 — Native DLL 插件</summary>
+    public PluginKind PluginType => PluginKind.Native;
 
     /// <summary>
     /// 构造 — 指定 native DLL 路径和插件名

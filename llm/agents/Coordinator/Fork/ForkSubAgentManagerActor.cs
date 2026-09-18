@@ -21,37 +21,17 @@ public sealed record ForkManagerDependencies(
 [Register(typeof(IForkSubAgentManager), ServiceLifetime.Singleton)]
 public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentManagerActor.IForkCommand, Unit>, IForkSubAgentManager, IAsyncDisposable, ISubAgentConcurrencyUpdater
 {
+    /// <summary>
+    /// Fork 条目 — 持有不可变身份(<see cref="ForkIdentity"/>)与可变运行时状态(<see cref="ForkRuntime"/>)。
+    /// <para>身份字段创建时设定后不再变更;运行时字段由 Consumer 线程独占访问,执行过程中反复读写。</para>
+    /// </summary>
     private sealed class ForkEntry
     {
-        private ForkState _state = ForkState.Running;
+        /// <summary>Fork 身份信息 — 创建时设定,生命周期内不可变</summary>
+        public required ForkIdentity Identity { get; init; }
 
-        /// <summary>Fork 状态 — setter 校验转换合法性，非法转换抛 InvalidOperationException</summary>
-        public ForkState State
-        {
-            get => _state;
-            set
-            {
-                if (!ForkStateTransitions.CanTransitionTo(_state, value))
-                {
-                    throw new InvalidOperationException(
-                        $"[FORK-ILLEGAL] 非法 Fork 状态转换: {_state} → {value}");
-                }
-                _state = value;
-            }
-        }
-
-        /// <summary>Fork 子代理执行结果文本（完成后填充，未完成为 null）</summary>
-        public string? Result;
-        /// <summary>父会话标识（必填），发起 Fork 的主代理会话 ID</summary>
-        public required string ParentSessionId;
-        /// <summary>子代理标识（分配后填充，未分配为 null）</summary>
-        public string? AgentId;
-        /// <summary>进度跟踪器实例（可选），用于上报子代理执行进度</summary>
-        public ProgressTracker? ProgressTracker = null;
-        /// <summary>取消令牌源，用于外部取消该 Fork 子代理的执行</summary>
-        public CancellationTokenSource? Cts;
-        /// <summary>Fork 条目创建时间（UTC），用于超时检测与统计</summary>
-        public DateTime CreatedAt;
+        /// <summary>Fork 运行时状态 — 执行过程中可变,由 Consumer 线程独占访问</summary>
+        public ForkRuntime Runtime { get; } = new();
     }
 
     /// <summary>ForkEntry 快照 — 安全传递 entry 状态到 Consumer 外（不可变）</summary>
@@ -321,18 +301,18 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             case SetForkStateCmd(var forkId, var state, var result):
                 if (_entries.TryGetValue(forkId, out var stateEntry))
                 {
-                    stateEntry.State = state;
+                    stateEntry.Runtime.State = state;
                     if (result is not null)
-                        stateEntry.Result = result;
+                        stateEntry.Runtime.Result = result;
                 }
                 return ValueTask.CompletedTask;
             case SetForkAgentIdCmd(var forkId, var agentId):
                 if (_entries.TryGetValue(forkId, out var agentEntry))
-                    agentEntry.AgentId = agentId;
+                    agentEntry.Runtime.AgentId = agentId;
                 return ValueTask.CompletedTask;
             case SetForkCtsCmd(var forkId, var cts):
                 if (_entries.TryGetValue(forkId, out var ctsEntry))
-                    ctsEntry.Cts = cts;
+                    ctsEntry.Runtime.Cts = cts;
                 return ValueTask.CompletedTask;
             case BuildForkResultQuery(var forkId, var tcs):
                 tcs.SetResult(BuildForkResult(forkId));
@@ -369,7 +349,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         {
             if (!_entries.TryGetValue(current, out var entry)) break;
             depth++;
-            current = entry.ParentSessionId;
+            current = entry.Identity.ParentSessionId;
         }
 
         return depth;
@@ -393,9 +373,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
 
         _entries[forkId] = new ForkEntry
         {
-            State = ForkState.Running,
-            ParentSessionId = options.ParentSessionId,
-            CreatedAt = createdAt
+            Identity = new ForkIdentity(options.ParentSessionId, createdAt)
         };
     }
 
@@ -407,8 +385,8 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         return new ForkResult
         {
             ForkId = forkId,
-            State = entry?.State ?? ForkState.Failed,
-            Result = entry?.Result,
+            State = entry?.Runtime.State ?? ForkState.Failed,
+            Result = entry?.Runtime.Result,
             SharedCache = cache
         };
     }
@@ -417,27 +395,27 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     {
         if (!_entries.TryGetValue(forkId, out var entry)) return null;
         return new ForkEntrySnapshot(
-            entry.State,
-            entry.Result,
-            entry.AgentId,
-            entry.ParentSessionId,
-            entry.Cts,
-            entry.CreatedAt);
+            entry.Runtime.State,
+            entry.Runtime.Result,
+            entry.Runtime.AgentId,
+            entry.Identity.ParentSessionId,
+            entry.Runtime.Cts,
+            entry.Identity.CreatedAt);
     }
 
     private IReadOnlyList<ForkSubAgent> GetActiveForksList()
     {
         return _entries
-            .Where(kvp => kvp.Value.State == ForkState.Running
-                       || kvp.Value.State == ForkState.Completed
-                       || kvp.Value.State == ForkState.Failed)
+            .Where(kvp => kvp.Value.Runtime.State == ForkState.Running
+                       || kvp.Value.Runtime.State == ForkState.Completed
+                       || kvp.Value.Runtime.State == ForkState.Failed)
             .Select(kvp => new ForkSubAgent
             {
                 ForkId = kvp.Key,
-                ParentSessionId = kvp.Value.ParentSessionId,
-                State = kvp.Value.State,
-                CreatedAt = kvp.Value.CreatedAt,
-                Result = kvp.Value.Result
+                ParentSessionId = kvp.Value.Identity.ParentSessionId,
+                State = kvp.Value.Runtime.State,
+                CreatedAt = kvp.Value.Identity.CreatedAt,
+                Result = kvp.Value.Runtime.Result
             })
             .ToList();
     }
@@ -454,17 +432,17 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             };
         }
 
-        if (entry.State != ForkState.Completed)
+        if (entry.Runtime.State != ForkState.Completed)
         {
             return new ForkResult
             {
                 ForkId = forkId,
-                State = entry.State,
-                Result = $"Fork is in {entry.State} state, cannot merge"
+                State = entry.Runtime.State,
+                Result = $"Fork is in {entry.Runtime.State} state, cannot merge"
             };
         }
 
-        var parentSessionId = entry.ParentSessionId;
+        var parentSessionId = entry.Identity.ParentSessionId;
 
         if (IsSharedCacheForFork(forkId, parentSessionId))
         {
@@ -479,7 +457,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
             _sharedCache[parentSessionId] = parentCache;
         }
 
-        entry.State = ForkState.Merged;
+        entry.Runtime.State = ForkState.Merged;
 
         _logger?.LogInformation("Fork {ForkId} merged into parent {ParentSessionId}",
             forkId, parentSessionId);
@@ -491,7 +469,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         {
             ForkId = forkId,
             State = ForkState.Merged,
-            Result = mergedEntry?.Result,
+            Result = mergedEntry?.Runtime.Result,
             SharedCache = cache
         };
     }
@@ -506,7 +484,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     private void CleanupAll()
     {
         var ctsEntries = _entries.Values
-            .Select(e => e.Cts)
+            .Select(e => e.Runtime.Cts)
             .OfType<CancellationTokenSource>()
             .ToList();
         foreach (var cts in ctsEntries)

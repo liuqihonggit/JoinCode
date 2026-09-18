@@ -48,7 +48,6 @@ public sealed partial class WorkWorktreeMiddleware : ServiceEntity, IHandleWorkM
             if (worktreeResult.Success && worktreeResult.Session?.WorktreePath is not null)
             {
                 ctx.CreatedWorktreePath = worktreeResult.Session.WorktreePath;
-                ctx.SessionWorktrees[ctx.Work.SessionId] = worktreeResult.Session.WorktreePath;
                 _logger?.LogInformation("BridgeMain: created worktree for session {SessionId} at {Path}",
                     ctx.Work.SessionId, worktreeResult.Session.WorktreePath);
             }

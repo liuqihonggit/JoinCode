@@ -23,6 +23,12 @@ public sealed partial class BridgeMain : ServiceEntity
     // 退避状态 — 对齐 TS 端 BackoffConfig + 双轨退避
     private readonly BridgeBackoffStrategy _backoff;
 
+    // 崩溃恢复指针管理
+    private readonly BridgePointerManager _pointerManager;
+
+    // 工作 API 封装
+    private readonly BridgeWorkApiClient _workApi;
+
     // 生命周期
     private CancellationTokenSource? _loopCts;
     private Task? _loopTask;
@@ -30,10 +36,6 @@ public sealed partial class BridgeMain : ServiceEntity
     private int _isShuttingDown;
     private bool _isResuming; // 对齐 TS 端: resume 模式标记 — 可恢复关闭时跳过 archive+deregister
     private bool _fatalExit; // 对齐 TS 端: fatalExit — 致命错误后跳过 resume 提示
-    private string? _resumePointerDir; // 对齐 TS 端: resumePointerDir — 指针来源目录，恢复失败时清除正确的指针
-
-    // 崩溃恢复指针刷新
-    private Timer? _pointerRefreshTimer;
 
     // Token 刷新调度器 — 对齐 TS 端 createTokenRefreshScheduler + v1/v2 分支
     private BridgeTokenRefreshScheduler? _tokenRefresh;
@@ -46,7 +48,7 @@ public sealed partial class BridgeMain : ServiceEntity
     private readonly MiddlewarePipeline<BridgeRunContext>? _runPipeline;
 
     /// <summary>当前活跃会话数</summary>
-    public int ActiveSessionCount => _tracker.ActiveSessionCount;
+    public int ActiveSessionCount => _tracker.Sessions.Count;
 
     /// <summary>是否正在运行</summary>
     public bool IsRunning => _loopTask is { IsCompleted: false };
@@ -91,6 +93,8 @@ public sealed partial class BridgeMain : ServiceEntity
         _telemetry = deps.TelemetryService;
         _clock = clock ?? SystemClockService.Instance;
         _backoff = new BridgeBackoffStrategy(_clock, _logger, giveUpThreshold);
+        _pointerManager = new BridgePointerManager(deps.PointerService, _logger);
+        _workApi = new BridgeWorkApiClient(deps.ApiClient, _logger);
         _handleWorkPipeline = handleWorkPipeline;
         _shutdownPipeline = shutdownPipeline;
         _runPipeline = runPipeline;
@@ -222,7 +226,7 @@ public sealed partial class BridgeMain : ServiceEntity
     private async Task<BridgeMainResult> RunBridgeFromContextAsync(BridgeRunContext ctx, CancellationToken ct)
     {
         _isResuming = ctx.IsResuming;
-        _resumePointerDir = ctx.ResumePointerDir;
+        _pointerManager.ResumePointerDir = ctx.ResumePointerDir;
 
         var config = BuildConfig(ctx.Args, ctx.BaseUrl ?? throw new InvalidOperationException("BaseUrl is required"), ctx.ReuseEnvironmentId, ctx.EffectiveSpawnMode, ctx.IsResuming, ctx.SpawnModeSource);
 
@@ -273,7 +277,7 @@ public sealed partial class BridgeMain : ServiceEntity
                     GetAccessToken = _deps.GetAccessToken,
                     OnRefresh = (sessionId, oauthToken) =>
                     {
-                        if (_tracker.V2Sessions.ContainsKey(sessionId))
+                        if (_tracker.Sessions.IsV2(sessionId))
                         {
                             _logger?.LogDebug("BridgeMain: refreshing v2 session {SessionId} via reconnectSession", sessionId);
                             ReconnectV2SessionFireAndForget(sessionId);
@@ -403,7 +407,7 @@ public sealed partial class BridgeMain : ServiceEntity
                 var (pointerWithAge, pointerDir) = found.Value;
                 resumeSessionId = pointerWithAge.Pointer.SessionId;
                 reuseEnvironmentId = pointerWithAge.Pointer.EnvironmentId;
-                _resumePointerDir = pointerDir; // 记录指针来源目录 — 恢复失败时清除正确的指针
+                _pointerManager.ResumePointerDir = pointerDir; // 记录指针来源目录 — 恢复失败时清除正确的指针
                 var ageMin = Math.Round(pointerWithAge.AgeMs / 60_000.0);
                 var ageStr = ageMin < 60 ? $"{ageMin}m" : $"{Math.Round(ageMin / 60.0)}h";
                 var fromWt = pointerDir != _deps.WorkingDirectory ? $" from worktree {pointerDir}" : "";
@@ -552,7 +556,7 @@ public sealed partial class BridgeMain : ServiceEntity
                     GetAccessToken = _deps.GetAccessToken,
                     OnRefresh = (sessionId, oauthToken) =>
                     {
-                        if (_tracker.V2Sessions.ContainsKey(sessionId))
+                        if (_tracker.Sessions.IsV2(sessionId))
                         {
                             // 对齐 TS 端: v2 会话通过 reconnectSession 刷新 — 服务端重新派发带新 JWT 的工作项
                             // 对齐 TS 端: 双 ID 尝试 — 先 compatId(session_*), 失败再 infraId(cse_*)
@@ -779,9 +783,8 @@ public sealed partial class BridgeMain : ServiceEntity
             FatalExit = _fatalExit,
             EnvironmentId = EnvironmentId,
             SpawnMode = _deps.Config.SpawnMode,
-            ResumePointerDir = _resumePointerDir,
-            ActiveSessions = _tracker.ActiveSessions,
-            SessionCompatIds = _tracker.SessionCompatIds,
+            ResumePointerDir = _pointerManager.ResumePointerDir,
+            Tracker = _tracker,
             Spawner = _deps.Spawner,
             ApiClient = _deps.ApiClient,
             PointerService = _deps.PointerService,
@@ -790,7 +793,7 @@ public sealed partial class BridgeMain : ServiceEntity
             UnregisterKeyboardListener = () => _deps.UnregisterKeyboardListener?.Invoke(),
             LoopCts = _loopCts,
             LoopTask = _loopTask,
-            PointerRefreshTimer = _pointerRefreshTimer,
+            PointerRefreshTimer = _pointerManager.RefreshTimer,
         };
 
         var pipeline = _shutdownPipeline;
@@ -799,7 +802,7 @@ public sealed partial class BridgeMain : ServiceEntity
             await pipeline.ExecuteAsync(ctx, CancellationToken.None).ConfigureAwait(false);
         }
 
-        _pointerRefreshTimer = null;
+        _pointerManager.StopRefreshTimer();
     }
 
     private async Task ShutdownDirectAsync()
@@ -830,7 +833,7 @@ public sealed partial class BridgeMain : ServiceEntity
         }
 
         // 优雅关闭所有子进程 — 对齐 TS 端 shutdownGraceMs
-        var handles = _tracker.ActiveSessions.Values.ToList();
+        var handles = _tracker.Sessions.GetAllHandles().ToList();
         if (handles.Count > 0)
         {
             await _deps.Spawner.ShutdownAllAsync(handles).ConfigureAwait(false);
@@ -840,7 +843,7 @@ public sealed partial class BridgeMain : ServiceEntity
         // resume 模式下跳过归档，保留会话供下次 --continue 恢复
         if (!_isResuming && _deps.ArchiveSession is not null)
         {
-            var sessionsToArchive = _tracker.SessionCompatIds.ToList();
+            var sessionsToArchive = _tracker.Sessions.GetAllCompatIds().ToList();
             if (sessionsToArchive.Count > 0)
             {
                 _logger?.LogInformation("BridgeMain: archiving {Count} session(s)", sessionsToArchive.Count);
@@ -856,6 +859,7 @@ public sealed partial class BridgeMain : ServiceEntity
                     }
                 }
             }
+
         }
         else if (_isResuming && !_fatalExit)
         {
@@ -879,26 +883,10 @@ public sealed partial class BridgeMain : ServiceEntity
             }
         }
 
-        // 清除崩溃恢复指针
+        // 清除崩溃恢复指针 + 停止刷新定时器
         // 对齐 TS 端: resumable shutdown — resume 模式下保留指针文件供下次 --continue
-        // 对齐 TS 端: 使用 _resumePointerDir（可能来自 worktree 兄弟目录）而非 _deps.WorkingDirectory
-        if (!_isResuming && _deps.Config.SpawnMode == BridgeSpawnMode.SingleSession)
-        {
-            try
-            {
-                var pointerDir = _resumePointerDir ?? _deps.WorkingDirectory;
-                await _deps.PointerService.ClearAsync(
-                    pointerDir).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogDebug(ex, "BridgeMain: pointer clear failed (non-fatal)");
-            }
-        }
-
-        // 停止指针刷新定时器
-        _pointerRefreshTimer?.Dispose();
-        _pointerRefreshTimer = null;
+        await _pointerManager.ClearPointerAsync(_isResuming, _deps.Config.SpawnMode, _deps.WorkingDirectory).ConfigureAwait(false);
+        _pointerManager.StopRefreshTimer();
 
         _logger?.LogInformation("BridgeMain: shutdown complete");
     }
@@ -1011,7 +999,7 @@ public sealed partial class BridgeMain : ServiceEntity
         // 对齐 TS 端: logEvent("tengu_bridge_shutdown", {active_sessions, loop_duration_ms})
         TelemetryCount("tengu_bridge_shutdown", new Dictionary<string, string>
         {
-            ["active_sessions"] = _tracker.ActiveSessions.Count.ToString(),
+            ["active_sessions"] = _tracker.Sessions.Count.ToString(),
             ["loop_duration_ms"] = _loopStartTime != default
                 ? ((long)(_clock.GetUtcNow() - _loopStartTime).TotalMilliseconds).ToString()
                 : "0",
@@ -1025,7 +1013,7 @@ public sealed partial class BridgeMain : ServiceEntity
     /// </summary>
     private async Task HandleNoWorkAsync(BridgeConfig config, CancellationToken ct)
     {
-        var atCapacity = _tracker.ActiveSessions.Count >= config.MaxSessions;
+        var atCapacity = _tracker.Sessions.Count >= config.MaxSessions;
 
         if (atCapacity)
         {
@@ -1058,11 +1046,11 @@ public sealed partial class BridgeMain : ServiceEntity
         while (!ct.IsCancellationRequested)
         {
             // 对所有活跃工作项发送心跳 — 对齐 TS 端: heartbeatWork(environmentId, workId, ingressToken)
-            foreach (var kvp in _tracker.ActiveSessions)
+            foreach (var (sessionId, state) in _tracker.Sessions.GetAllStates())
             {
-                var sessionId = kvp.Key;
-                if (_tracker.SessionWorkIds.TryGetValue(sessionId, out var workId) &&
-                    _tracker.SessionIngressTokens.TryGetValue(sessionId, out var ingressToken))
+                var workId = state.WorkId;
+                var ingressToken = state.IngressToken;
+                if (ingressToken is not null)
                 {
                     try
                     {
@@ -1146,15 +1134,8 @@ public sealed partial class BridgeMain : ServiceEntity
             Work = work,
             CancellationToken = ct,
             EnvironmentId = EnvironmentId,
-            ActiveSessions = _tracker.ActiveSessions,
-            SessionStartTimes = _tracker.SessionStartTimes,
-            SessionWorkIds = _tracker.SessionWorkIds,
-            SessionIngressTokens = _tracker.SessionIngressTokens,
-            SessionWorktrees = _tracker.SessionWorktrees,
-            CompletedWorkIds = _tracker.CompletedWorkIds,
-            V2Sessions = _tracker.V2Sessions,
-            SessionCompatIds = _tracker.SessionCompatIds,
-            StopWorkAsync = (workId, token) => StopWorkWithRetryAsync(workId, token),
+            Tracker = _tracker,
+            StopWorkAsync = (workId, token) => _workApi.StopWorkWithRetryAsync(EnvironmentId, workId, token),
             TrackCleanup = task => TrackCleanup(task),
             CapacityWake = () => _deps.CapacityWake?.WakeUp(),
             TelemetryCount = (name, props) => TelemetryCount(name, props),
@@ -1186,8 +1167,8 @@ public sealed partial class BridgeMain : ServiceEntity
 
             if (config.SpawnMode == BridgeSpawnMode.SingleSession)
             {
-                await WritePointerAsync(config, work.SessionId).ConfigureAwait(false);
-                StartPointerRefreshTimer(config, work.SessionId);
+                await _pointerManager.WritePointerAsync(config, work.SessionId, EnvironmentId).ConfigureAwait(false);
+                _pointerManager.StartPointerRefreshTimer(config, work.SessionId, EnvironmentId);
             }
 
             _ = MonitorSessionCompletionAsync(config, work, ctx.Handle, ct);
@@ -1210,7 +1191,7 @@ public sealed partial class BridgeMain : ServiceEntity
             work.WorkId, work.SessionId, work.WorkType);
 
         // 容量检查 — 对齐 TS 端: activeSessions.size >= config.maxSessions
-        if (_tracker.ActiveSessions.Count >= config.MaxSessions)
+        if (_tracker.Sessions.Count >= config.MaxSessions)
         {
             _logger?.LogWarning("BridgeMain: at capacity, skipping work {WorkId}", work.WorkId);
             return;
@@ -1218,12 +1199,12 @@ public sealed partial class BridgeMain : ServiceEntity
 
         // 去重检查 — 对齐 TS 端: completedWorkIds
         // 服务端可能在处理 stopWork 请求前重新投递过期工作项
-        if (_tracker.CompletedWorkIds.ContainsKey(work.WorkId))
+        if (_tracker.WorkCompletion.IsCompleted(work.WorkId))
         {
             _logger?.LogDebug("BridgeMain: skipping duplicate work {WorkId}", work.WorkId);
             // 容量节流 — 对齐 TS 端: 持续的过期重投递会导致 tight-loop
             // at-capacity 时 sleep 一段时间避免空转
-            if (_tracker.ActiveSessions.Count >= config.MaxSessions)
+            if (_tracker.Sessions.Count >= config.MaxSessions)
             {
                 var pollConfig = _deps.PollConfig;
                 var delayMs = pollConfig?.NonExclusiveHeartbeatIntervalMs > 0
@@ -1256,8 +1237,8 @@ public sealed partial class BridgeMain : ServiceEntity
                 // 对齐 TS 端: logEvent("tengu_bridge_work_secret_failed")
                 TelemetryCount("tengu_bridge_work_secret_failed");
                 // 对齐 TS 端: 解码失败 → stopWork（用 OAuth token）+ 标记完成 + 跳过
-                _tracker.MarkWorkCompleted(work.WorkId);
-                TrackCleanup(StopWorkWithRetryAsync(work.WorkId, ct));
+                _tracker.WorkCompletion.Mark(work.WorkId);
+                TrackCleanup(_workApi.StopWorkWithRetryAsync(EnvironmentId, work.WorkId, ct));
                 _deps.CapacityWake?.WakeUp();
                 return;
             }
@@ -1273,7 +1254,7 @@ public sealed partial class BridgeMain : ServiceEntity
             // 对齐 TS 端: await ackWork() → 仅记录日志
             if (sessionIngressToken is not null)
             {
-                await AckWorkAsync(work.WorkId, sessionIngressToken, ct).ConfigureAwait(false);
+                await _workApi.AckWorkAsync(EnvironmentId, work.WorkId, sessionIngressToken, ct).ConfigureAwait(false);
             }
             _logger?.LogDebug("BridgeMain: healthcheck received");
             return;
@@ -1281,7 +1262,8 @@ public sealed partial class BridgeMain : ServiceEntity
 
         // 已有会话: 更新 token — 对齐 TS 端: existingHandle 路径
         // TS 端使用 secret.session_ingress_token 更新（而非 OAuth token）
-        if (_tracker.ActiveSessions.TryGetValue(work.SessionId, out var existingHandle))
+        var existingHandle = _tracker.Sessions.GetHandle(work.SessionId);
+        if (existingHandle is not null)
         {
             if (sessionIngressToken is not null && sessionIngressToken != existingHandle.AccessToken)
             {
@@ -1291,7 +1273,7 @@ public sealed partial class BridgeMain : ServiceEntity
             // 存储 ingress token — 对齐 TS 端: sessionIngressTokens.set(sessionId, secret.session_ingress_token)
             if (sessionIngressToken is not null)
             {
-                _tracker.SessionIngressTokens[work.SessionId] = sessionIngressToken;
+                _tracker.Sessions.UpdateIngressToken(work.SessionId, sessionIngressToken);
             }
             return;
         }
@@ -1301,7 +1283,7 @@ public sealed partial class BridgeMain : ServiceEntity
         // ACK 必须在确认要处理该工作项之后调用（at-capacity 守卫已通过）
         if (sessionIngressToken is not null)
         {
-            await AckWorkAsync(work.WorkId, sessionIngressToken, ct).ConfigureAwait(false);
+            await _workApi.AckWorkAsync(EnvironmentId, work.WorkId, sessionIngressToken, ct).ConfigureAwait(false);
         }
         else
         {
@@ -1356,8 +1338,8 @@ public sealed partial class BridgeMain : ServiceEntity
 
                     _logger?.LogError(ex,
                         "BridgeMain: CCR v2 worker registration failed for session {SessionId}", work.SessionId);
-                    _tracker.MarkWorkCompleted(work.WorkId);
-                    TrackCleanup(StopWorkWithRetryAsync(work.WorkId, ct));
+                    _tracker.WorkCompletion.Mark(work.WorkId);
+                    TrackCleanup(_workApi.StopWorkWithRetryAsync(EnvironmentId, work.WorkId, ct));
                     _deps.CapacityWake?.WakeUp();
                     return;
                 }
@@ -1387,7 +1369,7 @@ public sealed partial class BridgeMain : ServiceEntity
                 {
                     spawnDir = worktreeResult.Session.WorktreePath;
                     createdWorktreePath = worktreeResult.Session.WorktreePath;
-                    _tracker.SessionWorktrees[work.SessionId] = worktreeResult.Session.WorktreePath;
+                    _tracker.Sessions.UpdateWorktree(work.SessionId, worktreeResult.Session.WorktreePath);
                     _logger?.LogInformation("BridgeMain: created worktree for session {SessionId} at {Path}",
                         work.SessionId, worktreeResult.Session.WorktreePath);
                 }
@@ -1396,8 +1378,8 @@ public sealed partial class BridgeMain : ServiceEntity
                     // P3-4: 对齐 TS 端 — worktree 创建失败时 stopWork + completedWorkIds，而非 fallback
                     _logger?.LogError("BridgeMain: worktree creation failed for session {SessionId}, stopping work",
                         work.SessionId);
-                    _tracker.MarkWorkCompleted(work.WorkId);
-                    await SafeStopWorkAsync(work.WorkId, ct).ConfigureAwait(false);
+                    _tracker.WorkCompletion.Mark(work.WorkId);
+                    await _workApi.SafeStopWorkAsync(EnvironmentId, work.WorkId, ct).ConfigureAwait(false);
                     return;
                 }
             }
@@ -1406,8 +1388,8 @@ public sealed partial class BridgeMain : ServiceEntity
                 // P3-4: 对齐 TS 端 — worktree 创建异常时 stopWork + completedWorkIds
                 _logger?.LogError(ex, "BridgeMain: worktree creation error for session {SessionId}, stopping work",
                     work.SessionId);
-                _tracker.MarkWorkCompleted(work.WorkId);
-                await SafeStopWorkAsync(work.WorkId, ct).ConfigureAwait(false);
+                _tracker.WorkCompletion.Mark(work.WorkId);
+                await _workApi.SafeStopWorkAsync(EnvironmentId, work.WorkId, ct).ConfigureAwait(false);
                 return;
             }
         }
@@ -1455,7 +1437,7 @@ public sealed partial class BridgeMain : ServiceEntity
                 {
                     await _deps.WorktreeService.RemoveAgentWorktreeAsync(
                         work.SessionId, force: true, cancellationToken: ct).ConfigureAwait(false);
-                    _tracker.RemoveWorktree(work.SessionId, out _);
+                    _tracker.Sessions.RemoveWorktree(work.SessionId, out _);
                 }
                 catch (Exception cleanupEx)
                 {
@@ -1463,15 +1445,23 @@ public sealed partial class BridgeMain : ServiceEntity
                 }
             }
 
-            _tracker.MarkWorkCompleted(work.WorkId);
-            await SafeStopWorkAsync(work.WorkId, ct).ConfigureAwait(false);
+            _tracker.WorkCompletion.Mark(work.WorkId);
+            await _workApi.SafeStopWorkAsync(EnvironmentId, work.WorkId, ct).ConfigureAwait(false);
             return;
         }
 
         // 注册跟踪
         var compatId = SessionIdCompat.ToCompatSessionId(work.SessionId);
-        _tracker.RegisterSession(work.SessionId, handle, work.WorkId,
-            ingressToken: sessionIngressToken, compatId: compatId, isV2: useCcrV2);
+        _tracker.Sessions.Register(work.SessionId, new BridgeSessionState
+        {
+            Handle = handle,
+            StartTime = DateTime.UtcNow,
+            WorkId = work.WorkId,
+            IngressToken = sessionIngressToken,
+            WorktreePath = createdWorktreePath,
+            CompatId = compatId,
+            IsV2 = useCcrV2,
+        });
 
         // 注册到 logger 会话列表 — 对齐 TS 端: logger.addSession(compatSessionId, url)
         _deps.BridgeLogger?.AddSession(compatId, BuildRemoteSessionUrl(compatId, config));
@@ -1480,8 +1470,8 @@ public sealed partial class BridgeMain : ServiceEntity
         // 单会话模式: 写入崩溃恢复指针
         if (config.SpawnMode == BridgeSpawnMode.SingleSession)
         {
-            await WritePointerAsync(config, work.SessionId).ConfigureAwait(false);
-            StartPointerRefreshTimer(config, work.SessionId);
+            await _pointerManager.WritePointerAsync(config, work.SessionId, EnvironmentId).ConfigureAwait(false);
+            _pointerManager.StartPointerRefreshTimer(config, work.SessionId, EnvironmentId);
         }
 
         // 会话完成回调 — 对齐 TS 端: handle.done.then(onSessionDone)
@@ -1498,14 +1488,14 @@ public sealed partial class BridgeMain : ServiceEntity
         }
 
         _logger?.LogInformation("BridgeMain: session {SessionId} started, active={Active}/{Max}, ccrV2={CcrV2}",
-            work.SessionId, _tracker.ActiveSessions.Count, config.MaxSessions, useCcrV2);
+            work.SessionId, _tracker.Sessions.Count, config.MaxSessions, useCcrV2);
 
         // 对齐 TS 端: logEvent("tengu_bridge_session_started", {...})
         TelemetryCount("tengu_bridge_session_started", new Dictionary<string, string>
         {
-            ["active_sessions"] = _tracker.ActiveSessions.Count.ToString(),
+            ["active_sessions"] = _tracker.Sessions.Count.ToString(),
             ["spawn_mode"] = config.SpawnMode.ToValue(),
-            ["in_worktree"] = (_tracker.SessionWorktrees.ContainsKey(work.SessionId)).ToString(),
+            ["in_worktree"] = (_tracker.Sessions.HasWorktree(work.SessionId)).ToString(),
         });
 
         // 对齐 TS 端: fetchSessionTitle — spawn 后立即异步获取服务端标题
@@ -1535,14 +1525,13 @@ public sealed partial class BridgeMain : ServiceEntity
 
         // wasTimedOut 检测 — 对齐 TS 端: timedOutSessions.delete(sessionId)
         // 如果会话被超时看门狗杀掉，interrupted 状态修正为 failed
-        var wasTimedOut = _tracker.RemoveTimedOut(work.SessionId);
+        var wasTimedOut = _tracker.Sessions.RemoveTimedOut(work.SessionId);
         var status = wasTimedOut && rawStatus == BridgeSubprocessStatus.Interrupted
             ? BridgeSubprocessStatus.Failed
             : rawStatus;
 
         var compatId = GetCompatId(work.SessionId);
-        var durationMs = _tracker.SessionStartTimes.TryGetValue(work.SessionId, out var st)
-            ? (long)(_clock.GetUtcNow() - st).TotalMilliseconds : 0L;
+        var durationMs = _tracker.Sessions.GetDurationMs(work.SessionId, _clock);
 
         _logger?.LogInformation("BridgeMain: session {SessionId} done, status={Status}, duration={Duration}ms",
             work.SessionId, status, durationMs);
@@ -1583,7 +1572,7 @@ public sealed partial class BridgeMain : ServiceEntity
         CleanupSessionTracking(work.SessionId);
 
         // 清理 worktree — 对齐 TS 端: cleanupWorktree
-        if (_tracker.RemoveWorktree(work.SessionId, out var worktreePath) &&
+        if (_tracker.Sessions.RemoveWorktree(work.SessionId, out var worktreePath) &&
             _deps.WorktreeService is not null)
         {
             try
@@ -1602,8 +1591,8 @@ public sealed partial class BridgeMain : ServiceEntity
         // 非 interrupted 状态才 stopWork + completedWorkIds
         if (status != BridgeSubprocessStatus.Interrupted)
         {
-            await StopWorkWithRetryAsync(work.WorkId, ct).ConfigureAwait(false);
-            _tracker.MarkWorkCompleted(work.WorkId);
+            await _workApi.StopWorkWithRetryAsync(EnvironmentId, work.WorkId, ct).ConfigureAwait(false);
+            _tracker.WorkCompletion.Mark(work.WorkId);
         }
 
         // 归档会话 — 对齐 TS 端: archiveSession(compatId)
@@ -1654,9 +1643,9 @@ public sealed partial class BridgeMain : ServiceEntity
         }
 
         // 超时: 终止子进程
-        if (handle.IsRunning && !_tracker.TimedOutSessions.ContainsKey(work.SessionId))
+        if (handle.IsRunning && !_tracker.Sessions.IsTimedOut(work.SessionId))
         {
-            _tracker.MarkTimedOut(work.SessionId);
+            _tracker.Sessions.MarkTimedOut(work.SessionId);
             var compatId = GetCompatId(work.SessionId);
             var timeoutMsg = $"Session timed out after {timeoutMs}ms";
             _logger?.LogWarning("BridgeMain: session {SessionId} timed out after {TimeoutMs}ms",
@@ -1675,25 +1664,25 @@ public sealed partial class BridgeMain : ServiceEntity
     /// </summary>
     private async Task CleanupAllSessionsAsync(BridgeConfig config, CancellationToken ct)
     {
-        if (_tracker.ActiveSessions.Count == 0) return;
+        if (_tracker.Sessions.Count == 0) return;
 
-        _logger?.LogInformation("BridgeMain: cleaning up {Count} sessions", _tracker.ActiveSessions.Count);
+        _logger?.LogInformation("BridgeMain: cleaning up {Count} sessions", _tracker.Sessions.Count);
 
         // 1. SIGTERM 所有活跃子进程
-        var handles = _tracker.ActiveSessions.Values.ToList();
+        var handles = _tracker.Sessions.GetAllHandles().ToList();
         await _deps.Spawner.ShutdownAllAsync(handles, ct).ConfigureAwait(false);
 
         // 2. 停止所有工作项
-        var workIds = _tracker.SessionWorkIds.Values.ToList();
+        var workIds = _tracker.Sessions.GetAllWorkIds().ToList();
         foreach (var workId in workIds)
         {
-            await SafeStopWorkAsync(workId, ct).ConfigureAwait(false);
+            await _workApi.SafeStopWorkAsync(EnvironmentId, workId, ct).ConfigureAwait(false);
         }
 
         // 3. 归档所有会话 — 对齐 TS 端: archiveSession(compatId)
         if (_deps.ArchiveSession is not null)
         {
-            var sessionIds = _tracker.ActiveSessions.Keys.ToList();
+            var sessionIds = _tracker.Sessions.GetAllSessionIds().ToList();
             foreach (var sessionId in sessionIds)
             {
                 try
@@ -1709,9 +1698,10 @@ public sealed partial class BridgeMain : ServiceEntity
         }
 
         // 4. 清理 worktree — 对齐 TS 端: 清理所有会话的 worktree
-        if (_tracker.SessionWorktrees.Count > 0 && _deps.WorktreeService is not null)
+        var worktreeSessionIds = _tracker.Sessions.GetAllWorktreeSessionIds().ToList();
+        if (worktreeSessionIds.Count > 0 && _deps.WorktreeService is not null)
         {
-            foreach (var (sessionId, _) in _tracker.SessionWorktrees)
+            foreach (var sessionId in worktreeSessionIds)
             {
                 try
                 {

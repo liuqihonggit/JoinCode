@@ -93,21 +93,36 @@ public sealed class ShannonEntropyConfig
 }
 
 /// <summary>
-/// 输出循环检测器配置 — 尾部子串重复检测参数
+/// 循环模式检测器配置基类 — 含尾部子串/序列重复检测的公共参数
+/// 派生类在构造函数中覆盖各自特定默认值
 /// </summary>
-public sealed class OutputLoopConfig
+public abstract class LoopPatternDetectorConfig
 {
     /// <summary>检测窗口大小</summary>
-    public int WindowSize { get; set; } = 2000;
+    public int WindowSize { get; set; } = 100;
 
     /// <summary>最小重复模式长度</summary>
-    public int MinPatternLength { get; set; } = 10;
+    public int MinPatternLength { get; set; } = 3;
+
+    /// <summary>触发所需的最少重复次数</summary>
+    public int RequiredRepeats { get; set; } = 5;
+}
+
+/// <summary>
+/// 输出循环检测器配置 — 尾部子串重复检测参数
+/// </summary>
+public sealed class OutputLoopConfig : LoopPatternDetectorConfig
+{
+    /// <summary>初始化输出循环检测器配置，设置特定默认值</summary>
+    public OutputLoopConfig()
+    {
+        WindowSize = 2000;
+        MinPatternLength = 10;
+        RequiredRepeats = 10;
+    }
 
     /// <summary>最大重复模式长度</summary>
     public int MaxPatternLength { get; set; } = 500;
-
-    /// <summary>触发所需的最少重复次数</summary>
-    public int RequiredRepeats { get; set; } = 10;
 
     /// <summary>检查间隔（字符数）</summary>
     public int CheckInterval { get; set; } = 50;
@@ -137,16 +152,15 @@ public sealed class LogicFingerprintConfig
 /// <summary>
 /// 工具调用序列检测器配置 — 工具名+参数指纹重复检测参数
 /// </summary>
-public sealed class ToolCallSequenceConfig
+public sealed class ToolCallSequenceConfig : LoopPatternDetectorConfig
 {
-    /// <summary>滑动窗口大小</summary>
-    public int WindowSize { get; set; } = 6;
-
-    /// <summary>最小模式长度</summary>
-    public int MinPatternLength { get; set; } = 3;
-
-    /// <summary>触发所需的最少重复次数</summary>
-    public int RequiredRepeats { get; set; } = 4;
+    /// <summary>初始化工具调用序列检测器配置，设置特定默认值</summary>
+    public ToolCallSequenceConfig()
+    {
+        WindowSize = 6;
+        MinPatternLength = 3;
+        RequiredRepeats = 4;
+    }
 }
 
 /// <summary>

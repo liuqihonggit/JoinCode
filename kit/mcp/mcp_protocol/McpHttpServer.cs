@@ -9,7 +9,7 @@ public sealed class McpHttpServer : ServiceEntity
 {
     private readonly McpServer _server;
     private readonly HttpListener _listener;
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> _sessions = new(StringComparer.Ordinal);
+    private readonly McpSessionRegistry _sessions = new();
     private readonly bool _statelessMode;
     private readonly FrozenSet<string> _allowedOrigins;
     private CancellationTokenSource? _cts;
@@ -68,7 +68,7 @@ public sealed class McpHttpServer : ServiceEntity
     }
 
     /// <summary>当前活跃会话数(有状态模式)</summary>
-    public int ActiveSessionCount => _sessions.Count;
+    public int ActiveSessionCount => _sessions.ActiveSessionCount;
 
     /// <summary>是否无状态模式</summary>
     public bool IsStatelessMode => _statelessMode;
@@ -125,7 +125,7 @@ public sealed class McpHttpServer : ServiceEntity
         var sessionId = ctx.Request.Headers["Mcp-Session-Id"];
 
         // 有状态模式:带 session 但不存在 → 404(会话过期)
-        if (!_statelessMode && !string.IsNullOrEmpty(sessionId) && !_sessions.ContainsKey(sessionId))
+        if (!_statelessMode && !string.IsNullOrEmpty(sessionId) && !_sessions.Contains(sessionId))
         {
             ctx.Response.StatusCode = 404;
             ctx.Response.Close();
@@ -153,7 +153,7 @@ public sealed class McpHttpServer : ServiceEntity
         if (!_statelessMode && IsInitializeRequest(body))
         {
             var newSessionId = GenerateSessionId();
-            _sessions[newSessionId] = DateTime.UtcNow;
+            _sessions.Register(newSessionId);
             ctx.Response.Headers["Mcp-Session-Id"] = newSessionId;
         }
 
@@ -176,7 +176,7 @@ public sealed class McpHttpServer : ServiceEntity
             return;
         }
 
-        if (!_sessions.ContainsKey(sessionId))
+        if (!_sessions.Contains(sessionId))
         {
             ctx.Response.StatusCode = 404;
             ctx.Response.Close();
@@ -199,7 +199,7 @@ public sealed class McpHttpServer : ServiceEntity
         _server.NotificationReceived += OnNotification;
         try
         {
-            using var writer = new StreamWriter(ctx.Response.OutputStream, Encoding.UTF8);
+            using var writer = ctx.Response.OutputStream.AsUtf8Writer();
             writer.AutoFlush = true;
             await writer.WriteLineAsync("retry: 3000").ConfigureAwait(false);
             await writer.FlushAsync(ct).ConfigureAwait(false);
@@ -233,7 +233,7 @@ public sealed class McpHttpServer : ServiceEntity
         var sessionId = ctx.Request.Headers["Mcp-Session-Id"];
         if (!string.IsNullOrEmpty(sessionId))
         {
-            _sessions.TryRemove(sessionId, out _);
+            _sessions.Remove(sessionId);
         }
         ctx.Response.StatusCode = 204;
         ctx.Response.Close();
@@ -260,7 +260,7 @@ public sealed class McpHttpServer : ServiceEntity
 
     private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request, CancellationToken ct)
     {
-        using var reader = new StreamReader(request.InputStream, Encoding.UTF8);
+        using var reader = request.InputStream.AsUtf8Reader();
         return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
     }
 

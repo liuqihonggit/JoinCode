@@ -74,7 +74,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     public IDisposable EnterWriteLock()
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        return new WriteLockScope(_lock);
+        return _lock.EnterWriteScope();
     }
 
     /// <summary>
@@ -83,7 +83,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     public IDisposable EnterReadLock()
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        return new ReadLockScope(_lock);
+        return _lock.EnterReadScope();
     }
 
     /// <summary>
@@ -92,7 +92,7 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
     public IDisposable EnterUpgradeableReadLock()
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
-        return new UpgradeableReadLockScope(_lock);
+        return _lock.EnterUpgradeableReadScope();
     }
 
     /// <summary>
@@ -131,41 +131,6 @@ public sealed partial class InMemoryIndexStore : ServiceEntity, IDisposable
             base.Dispose();
     }
 
-    private sealed class WriteLockScope : IDisposable
-    {
-        private readonly ReaderWriterLockSlim _lock;
-        private int _disposed;
-        public WriteLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterWriteLock(); }
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-            _lock.ExitWriteLock();
-        }
-    }
-
-    private sealed class ReadLockScope : IDisposable
-    {
-        private readonly ReaderWriterLockSlim _lock;
-        private int _disposed;
-        public ReadLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterReadLock(); }
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-            _lock.ExitReadLock();
-        }
-    }
-
-    private sealed class UpgradeableReadLockScope : IDisposable
-    {
-        private readonly ReaderWriterLockSlim _lock;
-        private int _disposed;
-        public UpgradeableReadLockScope(ReaderWriterLockSlim l) { _lock = l; _lock.EnterUpgradeableReadLock(); }
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-            _lock.ExitUpgradeableReadLock();
-        }
-    }
 }
 
 /// <summary>

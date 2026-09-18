@@ -66,13 +66,9 @@ public class AgentBase : Entity, IAgent
     /// <summary>额外指令</summary>
     public string? Instruction { get; set; }
 
-    // === 预算 ===
-    /// <summary>Token 预算上限</summary>
-    public int? TokenBudget { get; init; }
-    /// <summary>已使用 Token 数</summary>
-    public int TokensUsed { get; set; }
-    /// <summary>已完成的对话轮数</summary>
-    public int TurnsCompleted { get; set; }
+    // === 预算（不可变配置，创建时设定）===
+    /// <summary>Agent 预算值对象 — Token 预算上限等预算约束</summary>
+    public AgentBudget Budget { get; init; }
 
     // === Goal绑定 ===
     /// <summary>Goal 标识</summary>
@@ -80,13 +76,9 @@ public class AgentBase : Entity, IAgent
     /// <summary>图节点标识</summary>
     public string? GraphNodeId { get; init; }
 
-    // === 输出 ===
-    /// <summary>执行输出</summary>
-    public string? Output { get; set; }
-    /// <summary>错误消息</summary>
-    public string? ErrorMessage { get; set; }
-    /// <summary>路由列表</summary>
-    public string[]? Routes { get; set; }
+    // === 输出（可变运行时累计）===
+    /// <summary>Agent 输出值对象 — 已用 Token、完成轮数、执行输出、错误消息、路由</summary>
+    public AgentOutput Output { get; }
 
     /// <summary>执行计数器，记录 Agent 已执行的对话轮数</summary>
     protected int _executionCount;
@@ -156,7 +148,7 @@ public class AgentBase : Entity, IAgent
         SystemPrompt = systemPrompt;
         Instruction = instruction;
         FreshContext = freshContext;
-        TokenBudget = tokenBudget;
+        Budget = new AgentBudget(tokenBudget);
         GoalId = goalId;
         GraphNodeId = graphNodeId;
         Options = options ?? new SubAgentOptions();
@@ -169,6 +161,7 @@ public class AgentBase : Entity, IAgent
         Status = TaskExecutionStatus.Pending;
         _executionCount = 0;
         ContextManager = contextManager;
+        Output = new AgentOutput();
         Context = new SubAgentContext
         {
             AgentId = UniqueId,
@@ -321,7 +314,7 @@ public class AgentBase : Entity, IAgent
             }
 
             var output = responseBuilder.ToString();
-            Output = output;
+            Output.Text = output;
 
             _logger?.LogInformation("[Agent {AgentId}] 任务执行完成，耗时{ElapsedMs}ms", UniqueId, stopwatch.ElapsedMilliseconds);
 
@@ -351,7 +344,7 @@ public class AgentBase : Entity, IAgent
         {
             CompletedAt = _clock.GetUtcNow();
             Status = TaskExecutionStatus.Failed;
-            ErrorMessage = ex.Message;
+            Output.ErrorMessage = ex.Message;
 
             if (Context is not null)
             {
@@ -519,8 +512,8 @@ public class AgentBase : Entity, IAgent
         }
 
         var finalOutput = succeeded ? responseBuilder.ToString() : errorMessage;
-        if (succeeded) Output = finalOutput;
-        else ErrorMessage = errorMessage;
+        if (succeeded) Output.Text = finalOutput;
+        else Output.ErrorMessage = errorMessage;
 
         yield return new AgentStreamChunk
         {

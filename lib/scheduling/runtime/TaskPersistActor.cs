@@ -23,19 +23,17 @@ internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit>
         _logger = logger;
     }
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public async Task PersistAsync(CancellationToken ct)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new PersistCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
 
     public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId, CancellationToken ct)
     {
-        var tcs = CreateTcs<IReadOnlyList<RuntimeTask>>();
+        var tcs = TcsFactory.Create<IReadOnlyList<RuntimeTask>>();
         await SendAsync(new RecoverCmd(goalId, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }

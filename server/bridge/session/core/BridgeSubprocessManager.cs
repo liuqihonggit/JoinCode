@@ -10,37 +10,27 @@ namespace Core.Bridge;
 /// </summary>
 public sealed class BridgeSubprocessHandle : PluginResourceBase
 {
-    private readonly IInteractiveProcess _process;
-    private readonly ResilientSubprocess? _resilientSubprocess;
-    private readonly TaskCompletionSource<BridgeSubprocessStatus> _doneTcs;
-    private readonly AsyncLock _stdinLock = new();
-    private readonly Queue<string> _stderrQueue;
-    private readonly Queue<string> _activityQueue;
+    private readonly SubprocessIoChannels _io;
+    private readonly SubprocessState _state;
     private readonly ILogger? _logger;
-    private readonly CancellationTokenSource _readCts;
-    private Task? _stdoutReadTask;
-    private bool _asyncDisposed;
-    private int _sigkillSent;
-    private StreamWriter? _transcriptStream;
-    private bool _firstUserMessageSeen; // 对齐 TS 端 firstUserMessageSeen — 标题获取一次性回调
 
     /// <summary>会话 ID</summary>
     public new string SessionId { get; }
 
     /// <summary>进程退出 Promise — 对齐 TS 端 done</summary>
-    public Task<BridgeSubprocessStatus> Done => _doneTcs.Task;
+    public Task<BridgeSubprocessStatus> Done => _state.Done;
 
     /// <summary>访问令牌（可动态更新）</summary>
     public string? AccessToken { get; set; }
 
     /// <summary>最近的活动 — 对齐 TS 端 activities（遍历器，不分配新集合）</summary>
-    public IEnumerable<string> Activities => _activityQueue;
+    public IEnumerable<string> Activities => _io.Activities;
 
     /// <summary>最近的 stderr 输出 — 对齐 TS 端 lastStderr（遍历器，不分配新集合）</summary>
-    public IEnumerable<string> StderrLines => _stderrQueue;
+    public IEnumerable<string> StderrLines => _io.StderrLines;
 
     /// <summary>当前活动 — 对齐 TS 端 currentActivity</summary>
-    public string? CurrentActivity { get; private set; }
+    public string? CurrentActivity => _io.CurrentActivity;
 
     /// <summary>
     /// 首条用户消息回调 — 对齐 TS 端 SessionSpawnOpts.onFirstUserMessage
@@ -63,21 +53,11 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     public Action<BridgeNdjsonActivity>? OnActivity { get; set; }
 
     /// <summary>进程是否仍在运行</summary>
-    public bool IsRunning
-    {
-        get
-        {
-            try { return !_process.HasExited; }
-            catch { return false; }
-        }
-    }
+    public bool IsRunning => _io.IsRunning;
 
     /// <summary>设置 transcript 流 — 用于对齐 TS 端 transcript 写入</summary>
     /// <param name="stream">transcript 写入流</param>
-    public void SetTranscriptStream(StreamWriter stream)
-    {
-        _transcriptStream = stream;
-    }
+    public void SetTranscriptStream(StreamWriter stream) => _io.SetTranscriptStream(stream);
 
     /// <summary>
     /// 私有构造 — 通过 CreateAsync 工厂方法创建
@@ -85,21 +65,15 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     private BridgeSubprocessHandle(IInteractiveProcess process, BridgeSubprocessOptions options, ILogger? logger, ResilientSubprocess? resilientSubprocess = null)
         : base("Bridge", PluginResourceKind.Hook, options.SessionId)
     {
-        _process = process;
-        _resilientSubprocess = resilientSubprocess;
         SessionId = options.SessionId;
         AccessToken = options.AccessToken;
         _logger = logger;
-        _doneTcs = new TaskCompletionSource<BridgeSubprocessStatus>();
+        _state = new SubprocessState();
+        _io = new SubprocessIoChannels(process, resilientSubprocess, logger, options.SessionId);
 
-        _stderrQueue = new Queue<string>(MaxStderrLines);
-        _activityQueue = new Queue<string>(MaxActivities);
-        _readCts = new CancellationTokenSource();
-
-        _process.ErrorDataReceived += OnErrorDataReceived;
-
-        _stdoutReadTask = ReadStdoutAsync(_readCts.Token);
-        _ = MonitorExitAsync(_readCts.Token);
+        var stdoutTask = ReadStdoutAsync(_io.ReadCancellationToken);
+        _io.SetStdoutReadTask(stdoutTask);
+        _ = MonitorExitAsync(_io.ReadCancellationToken);
     }
 
     /// <summary>
@@ -144,32 +118,27 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         return new BridgeSubprocessHandle(process, options, logger, resilientSubprocess);
     }
 
-    private void OnErrorDataReceived(object? sender, string line)
-    {
-        EnqueueBounded(_stderrQueue, line, MaxStderrLines);
-    }
-
     private async Task MonitorExitAsync(CancellationToken ct)
     {
         try
         {
-            await _process.WaitForExitAsync(ct).ConfigureAwait(false);
-            var exitCode = _process.ExitCode;
+            await _io.WaitForExitAsync(ct).ConfigureAwait(false);
+            var exitCode = _io.ExitCode;
             var status = exitCode == 0
                 ? BridgeSubprocessStatus.Completed
                 : BridgeSubprocessStatus.Failed;
 
-            _doneTcs.TrySetResult(status);
+            _state.TrySetDone(status);
             _logger?.LogInformation("[SubprocessHandle] 进程退出: {SessionId}, 退出码={ExitCode}, 状态={Status}",
                 SessionId, exitCode, status);
         }
         catch (OperationCanceledException)
         {
-            _doneTcs.TrySetResult(BridgeSubprocessStatus.Failed);
+            _state.TrySetDone(BridgeSubprocessStatus.Failed);
         }
         catch (Exception ex)
         {
-            _doneTcs.TrySetResult(BridgeSubprocessStatus.Failed);
+            _state.TrySetDone(BridgeSubprocessStatus.Failed);
             _logger?.LogWarning(ex, "[SubprocessHandle] 监控进程退出异常: {SessionId}", SessionId);
         }
     }
@@ -182,36 +151,7 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// <returns>表示异步操作的任务</returns>
     public async Task WriteStdinAsync(string data, CancellationToken ct = default)
     {
-        if (_resilientSubprocess is not null)
-        {
-            try
-            {
-                await _resilientSubprocess.WriteStdinAsync(data, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "[SubprocessHandle] 写入 stdin 失败（韧性）");
-            }
-            return;
-        }
-
-        using var guard = await _stdinLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stdinLock.Name}' 等待超时");
-        try
-        {
-            if (_process.StandardInput.BaseStream is null || !_process.StandardInput.BaseStream.CanWrite)
-            {
-                _logger?.LogWarning("[SubprocessHandle] stdin 不可写");
-                return;
-            }
-
-            await _process.StandardInput.WriteAsync(data.AsMemory(), ct).ConfigureAwait(false);
-            await _process.StandardInput.FlushAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[SubprocessHandle] 写入 stdin 失败");
-        }
-
+        await _io.WriteStdinAsync(data, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -232,53 +172,19 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     /// <summary>
     /// 优雅停止 — 对齐 TS 端 kill()
     /// </summary>
-    public void Kill()
-    {
-        try
-        {
-            if (!_process.HasExited)
-            {
-                _process.Kill();
-                _logger?.LogInformation("[SubprocessHandle] 已发送终止信号: {SessionId}", SessionId);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[SubprocessHandle] 终止进程失败");
-        }
-    }
+    public void Kill() => _io.TryKillProcess("已发送终止信号", LogLevel.Information);
 
     /// <summary>
     /// 强制杀死 — 对齐 TS 端 forceKill()
     /// </summary>
     public void ForceKill()
     {
-        if (Interlocked.Exchange(ref _sigkillSent, 1) != 0)
-        {
-            return;
-        }
-
-        try
-        {
-            if (!_process.HasExited)
-            {
-                _process.Kill();
-                _logger?.LogWarning("[SubprocessHandle] 已强制终止: {SessionId}", SessionId);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "[SubprocessHandle] 强制终止失败");
-        }
+        if (!_state.TryMarkSigkillSent()) return;
+        _io.TryKillProcess("已强制终止", LogLevel.Warning);
     }
 
-    /// <summary>
-    /// stdout 行接收事件 — NDJSON 消息
-    /// </summary>
+    /// <summary>stdout 行接收事件 — NDJSON 消息</summary>
     public event EventHandler<string>? OutputLineReceived;
-
-    private const int MaxStderrLines = 10;
-    private const int MaxActivities = 10;
 
     /// <summary>异步读取 stdout（NDJSON 行）— 消费 StandardOutput 流</summary>
     private async Task ReadStdoutAsync(CancellationToken ct)
@@ -287,36 +193,19 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         {
             while (!ct.IsCancellationRequested)
             {
-                var line = _resilientSubprocess is not null
-                    ? await _resilientSubprocess.ReadStdoutLineAsync(ct).ConfigureAwait(false)
-                    : await _process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false);
+                var line = await _io.ReadStdoutLineAsync(ct).ConfigureAwait(false);
                 if (line is null) break;
 
-                EnqueueBounded(_activityQueue, line, MaxActivities);
-                CurrentActivity = line;
-
-                // 对齐 TS 端: 写入 transcript 文件
-                if (_transcriptStream is not null)
-                {
-                    try
-                    {
-                        _transcriptStream.WriteLine(line);
-                        _transcriptStream.Flush();
-                    }
-                    catch (Exception ex)
-                    {
-                        // transcript 写入失败不阻塞
-                        _logger?.LogWarning(ex, "[BridgeSubprocessManager] transcript 写入失败");
-                    }
-                }
+                _io.EnqueueActivity(line);
+                _io.WriteTranscript(line);
 
                 // 对齐 TS 端 sessionRunner.ts: 检测首条用户消息 — onFirstUserMessage 回调
-                if (!_firstUserMessageSeen && OnFirstUserMessage is not null)
+                if (!_state.FirstUserMessageSeen && OnFirstUserMessage is not null)
                 {
                     var userText = ExtractUserMessageText(line);
                     if (userText is not null)
                     {
-                        _firstUserMessageSeen = true;
+                        _state.MarkFirstUserMessageSeen();
                         OnFirstUserMessage(userText);
                     }
                 }
@@ -441,50 +330,16 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
         }
     }
 
-    /// <summary>有界入队 — 超出容量时出队最旧元素</summary>
-    private static void EnqueueBounded(Queue<string> queue, string item, int maxCount)
-    {
-        while (queue.Count >= maxCount)
-        {
-            queue.Dequeue();
-        }
-        queue.Enqueue(item);
-    }
-
     /// <summary>
-    /// 异步释放子进程资源 — 唯一释放入口：取消读取、终止进程、等待任务完成、释放锁和 transcript 流
+    /// 异步释放子进程资源 — 唯一释放入口：标记释放 → 终止进程 → 释放 IO 通道 → Entity 注销
     /// </summary>
     /// <returns>表示异步释放操作的 ValueTask</returns>
     public override async ValueTask DisposeAsync()
     {
-        if (_asyncDisposed) return;
-        _asyncDisposed = true;
+        if (!_state.MarkDisposed()) return;
 
-        // 1. 取消读取 + 释放 CTS（Cancel+Dispose 合并，幂等吞 ObjectDisposedException）
-        _readCts.CancelAndDisposeSafe(_logger);
-
-        // 2. 终止进程并等待退出
         await TerminateProcessAsync().ConfigureAwait(false);
-
-        // 3. 等待 stdout 读取任务完成（不分配 List，直接 await 单个 task）
-        if (_stdoutReadTask is not null)
-        {
-            try { await _stdoutReadTask.ConfigureAwait(false); }
-            catch (Exception ex) { _logger?.LogWarning(ex, "[BridgeSubprocessHandle] Dispose 时读取任务异常"); }
-        }
-
-        // 4. 释放进程/韧性子进程
-        if (_resilientSubprocess is not null)
-            await _resilientSubprocess.DisposeSafeAsync(_logger).ConfigureAwait(false);
-        else
-            await _process.DisposeSafeAsync(_logger).ConfigureAwait(false);
-
-        // 5. 释放锁 + transcript 流
-        _stdinLock.DisposeSafe(_logger);
-        _transcriptStream.DisposeSafe(_logger);
-        _transcriptStream = null;
-
-        // 6. 触发 Entity 生命周期注销（ObjectId/SessionRouter）— 异步入口
+        await _io.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 
@@ -493,10 +348,10 @@ public sealed class BridgeSubprocessHandle : PluginResourceBase
     {
         try
         {
-            if (!_process.HasExited)
+            if (_io.IsRunning)
             {
                 Kill();
-                await _process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                await _io.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception ex)

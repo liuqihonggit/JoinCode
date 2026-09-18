@@ -78,7 +78,7 @@ public static class RelaxedJsonSerializer
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsonTypeInfo<T> 为源码生成，无需运行时反射 emit。")]
     public static async Task<T?> DeserializeAsync<T>(Stream stream, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
     {
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using var reader = stream.AsUtf8Reader();
         var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
         return Deserialize<T>(json, typeInfo);
     }

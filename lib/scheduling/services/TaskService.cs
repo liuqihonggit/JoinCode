@@ -2,6 +2,27 @@
 namespace Core.Scheduling;
 
 /// <summary>
+/// 任务条目 — 合并 TaskItem 与 TaskStateMachine 的复合容器，按 taskId 统一索引
+/// </summary>
+public sealed class TaskEntry
+{
+    /// <summary>任务项数据</summary>
+    public TaskItem Item { get; set; }
+
+    /// <summary>任务状态机（可为 null，表示尚未初始化状态机）</summary>
+    public TaskStateMachine? StateMachine { get; set; }
+
+    /// <summary>初始化任务条目</summary>
+    /// <param name="item">任务项</param>
+    public TaskEntry(TaskItem item) => Item = item;
+
+    /// <summary>返回带有新任务项的副本（保持状态机引用，用于并发原子替换）</summary>
+    /// <param name="newItem">新任务项</param>
+    /// <returns>包含新任务项和当前状态机的新条目</returns>
+    public TaskEntry WithItem(TaskItem newItem) => new(newItem) { StateMachine = StateMachine };
+}
+
+/// <summary>
 /// 内存任务服务实现（仅用于测试和简单场景）
 /// 生产环境应使用 FileBasedTaskService（支持跨进程/多智能体协作）
 /// </summary>
@@ -17,8 +38,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     {
         _telemetryService = telemetryService;
     }
-    private readonly ConcurrentDictionary<string, TaskItem> _tasks = new();
-    private readonly ConcurrentDictionary<string, TaskStateMachine> _taskStateMachines = new();
+    private readonly ConcurrentDictionary<string, TaskEntry> _tasks = new();
     private readonly ConcurrentDag<string> _dag = new();
     private readonly ITelemetryService? _telemetryService;
     private int _taskCounter;
@@ -47,7 +67,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
             Tags = tags ?? new List<string>()
         };
 
-        _tasks[taskId] = task;
+        _tasks[taskId] = new TaskEntry(task);
         RecordTaskMetrics("created", task.Priority);
         return Task.FromResult(OperationResult<TaskItem?>.Ok(task));
     }
@@ -61,7 +81,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         int offset,
         CancellationToken cancellationToken = default)
     {
-        var query = _tasks.Values.AsEnumerable();
+        var query = _tasks.Values.Select(e => e.Item).AsEnumerable();
 
         if (!string.IsNullOrEmpty(status))
         {
@@ -97,11 +117,12 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         UpdateTaskRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (!_tasks.TryGetValue(request.TaskId, out var task))
+        if (!_tasks.TryGetValue(request.TaskId, out var entry))
         {
             return Task.FromResult(OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotFound, request.TaskId)));
         }
 
+        var task = entry.Item;
         var updatedTask = task with
         {
             Title = request.Title ?? task.Title,
@@ -113,7 +134,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
             Tags = request.Tags ?? task.Tags
         };
 
-        _tasks[request.TaskId] = updatedTask;
+        _tasks[request.TaskId] = entry.WithItem(updatedTask);
         RecordTaskMetrics("updated", updatedTask.Priority);
         return Task.FromResult(OperationResult<TaskItem?>.Ok(updatedTask));
     }
@@ -124,17 +145,18 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
         string? reason,
         CancellationToken cancellationToken = default)
     {
-        if (!_tasks.TryGetValue(taskId, out var task))
+        if (!_tasks.TryGetValue(taskId, out var entry))
         {
             return Task.FromResult(OperationResult<TaskItem?>.Fail(L.T(StringKey.TaskNotFound, taskId)));
         }
 
+        var task = entry.Item;
         var updatedTask = task with
         {
             Status = TaskExecutionStatusEnumConstants.Stopped
         };
 
-        _tasks[taskId] = updatedTask;
+        _tasks[taskId] = entry.WithItem(updatedTask);
         RecordTaskMetrics("stopped", updatedTask.Priority);
         return Task.FromResult(OperationResult<TaskItem?>.Ok(updatedTask));
     }
@@ -142,8 +164,8 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     /// <inheritdoc/>
     public Task<TaskItem?> GetTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
-        _tasks.TryGetValue(taskId, out var task);
-        return Task.FromResult(task);
+        _tasks.TryGetValue(taskId, out var entry);
+        return Task.FromResult(entry?.Item);
     }
 
     /// <inheritdoc/>
@@ -201,14 +223,14 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
             return OperationResult<TaskItem?>.Fail(edgeResult.ErrorMessage ?? "Failed to add dependency");
         }
 
-        if (_taskStateMachines.TryGetValue(taskId, out var stateMachine))
+        if (_tasks.TryGetValue(taskId, out var depEntry) && depEntry.StateMachine is { } stateMachine)
         {
             stateMachine.TryTransitionTo(TaskState.WaitingForDependency);
             UpdateTaskStatusFromStateMachine(taskId, stateMachine);
         }
 
-        _tasks.TryGetValue(taskId, out var task);
-        return OperationResult<TaskItem?>.Ok(task);
+        _tasks.TryGetValue(taskId, out var resultEntry);
+        return OperationResult<TaskItem?>.Ok(resultEntry?.Item);
     }
 
     /// <inheritdoc/>
@@ -230,18 +252,19 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
 
         CheckAndUpdateTaskState(taskId);
 
-        _tasks.TryGetValue(taskId, out var task);
-        return OperationResult<TaskItem?>.Ok(task);
+        _tasks.TryGetValue(taskId, out var entry);
+        return OperationResult<TaskItem?>.Ok(entry?.Item);
     }
 
     /// <inheritdoc/>
     public Task<bool> CanExecuteTaskAsync(string taskId, CancellationToken cancellationToken = default)
     {
-        if (!_tasks.TryGetValue(taskId, out var task))
+        if (!_tasks.TryGetValue(taskId, out var entry))
         {
             return Task.FromResult(false);
         }
 
+        var task = entry.Item;
         if (task.Status != TaskExecutionStatusEnumConstants.Pending && task.Status != TaskExecutionStatusEnumConstants.WaitingForDependency)
         {
             return Task.FromResult(false);
@@ -252,9 +275,9 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
 
         foreach (var dep in blockingDeps)
         {
-            if (_tasks.TryGetValue(dep.FromId, out var dependsOnTask))
+            if (_tasks.TryGetValue(dep.FromId, out var depEntry))
             {
-                if (dependsOnTask.Status != TaskExecutionStatusEnumConstants.Completed)
+                if (depEntry.Item.Status != TaskExecutionStatusEnumConstants.Completed)
                 {
                     return Task.FromResult(false);
                 }
@@ -266,14 +289,14 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
 
     private void CheckAndUpdateTaskState(string taskId)
     {
-        if (!_taskStateMachines.TryGetValue(taskId, out var stateMachine))
+        if (!_tasks.TryGetValue(taskId, out var entry) || entry.StateMachine is not { } stateMachine)
         {
             return;
         }
 
         var hasBlockingDependencies = _dag.Edges.Values
             .Where(e => e.ToId == taskId && e.Label == TaskDependencyType.Blocks.ToValue())
-            .Any(e => _tasks.TryGetValue(e.FromId, out var t) && t.Status != TaskExecutionStatusEnumConstants.Completed);
+            .Any(e => _tasks.TryGetValue(e.FromId, out var depEntry) && depEntry.Item.Status != TaskExecutionStatusEnumConstants.Completed);
 
         if (!hasBlockingDependencies && stateMachine.CurrentState == TaskState.WaitingForDependency)
         {
@@ -286,20 +309,21 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     {
         var status = TaskExecutionStatusExtensions.ToValue((JoinCode.Abstractions.State.TaskExecutionStatus)stateMachine.CurrentState) ?? TaskExecutionStatusEnumConstants.Pending;
 
-        if (_tasks.TryGetValue(taskId, out var task))
+        if (_tasks.TryGetValue(taskId, out var entry))
         {
-            _tasks[taskId] = task with { Status = status };
+            _tasks[taskId] = entry.WithItem(entry.Item with { Status = status });
         }
     }
 
     /// <inheritdoc/>
     public Task<bool> StopTaskAsync(string taskId, bool force, CancellationToken cancellationToken = default)
     {
-        if (!_tasks.TryGetValue(taskId, out var task))
+        if (!_tasks.TryGetValue(taskId, out var entry))
         {
             return Task.FromResult(false);
         }
 
+        var task = entry.Item;
         if (task.Status != TaskExecutionStatusEnumConstants.Running && task.Status != TaskExecutionStatusEnumConstants.Pending && task.Status != TaskExecutionStatusEnumConstants.WaitingForDependency)
         {
             return Task.FromResult(false);
@@ -310,9 +334,9 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
             Status = TaskExecutionStatusEnumConstants.Stopped
         };
 
-        _tasks[taskId] = updatedTask;
+        _tasks[taskId] = entry.WithItem(updatedTask);
 
-        if (_taskStateMachines.TryGetValue(taskId, out var stateMachine))
+        if (entry.StateMachine is { } stateMachine)
         {
             stateMachine.TryTransitionTo(TaskState.Stopped);
         }
@@ -324,6 +348,7 @@ public sealed partial class TaskService : ServiceEntity, ITaskService, IDisposab
     public Task<IReadOnlyList<RunningTaskInfo>> GetRunningTasksAsync(CancellationToken cancellationToken = default)
     {
         var runningTasks = _tasks.Values
+            .Select(e => e.Item)
             .Where(t => t.Status == TaskExecutionStatusEnumConstants.Running)
             .Select(t => new RunningTaskInfo
             {

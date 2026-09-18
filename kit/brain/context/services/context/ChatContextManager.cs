@@ -86,8 +86,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         _sessionId = sessionId;
     }
 
-    private string _staticSystemPrompt = string.Empty;
-    private readonly List<string> _dynamicSystemMessages = [];
+    private readonly SystemPromptStore _promptStore = new();
     private readonly List<ToolSpec> _currentToolSpecs = [];
     private readonly ConcurrentDictionary<string, AppendOnlyLog> Logs = new();
 
@@ -101,9 +100,6 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
     private readonly DiscoveredToolSet _discoveredTools = new();
     private readonly List<DeferredToolInfo> _deferredTools = [];
-    private string _previousDynamicHash = string.Empty;
-    private List<ApiMessage> _cachedSystemMessages = [];
-    private bool _systemMessagesCached;
     private int _deferredFoldCount;
     private int _consecutiveNoProgressFolds;
 
@@ -145,10 +141,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
             using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-            _staticSystemPrompt = systemPrompt ?? string.Empty;
-            _dynamicSystemMessages.Clear();
-            _cachedSystemMessages = [];
-        _systemMessagesCached = false;
+            _promptStore.Update(systemPrompt ?? string.Empty);
             Log.CompactInPlace([]);
 
             if (chatHistory is { Count: > 0 })
@@ -157,11 +150,9 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                 {
                     if (msg.Role == MessageRole.System)
                     {
-                        if (string.IsNullOrWhiteSpace(_staticSystemPrompt))
+                        if (string.IsNullOrWhiteSpace(_promptStore.StaticPrompt))
                         {
-                            _staticSystemPrompt = msg.Content ?? string.Empty;
-                            _cachedSystemMessages = [];
-        _systemMessagesCached = false;
+                            _promptStore.Update(msg.Content ?? string.Empty);
                         }
                         continue;
                     }
@@ -169,10 +160,9 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
                     Log.Append(new ApiMessage(msg.Role, msg.Content, msg.Metadata));
                 }
             }
-        
 
             _logger.LogInformation("聊天上下文已加载，静态前缀长度: {Len}, 对话消息数: {Count}",
-                _staticSystemPrompt.Length, Log.Count);
+                _promptStore.StaticPrompt.Length, Log.Count);
 
             span?.SetTag("context.message_count", Log.Count);
             span?.SetStatus(TelemetryStatusCode.Ok);
@@ -356,10 +346,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        _dynamicSystemMessages.Add(content);
-        _cachedSystemMessages = [];
-        _systemMessagesCached = false;
-        _logger.LogDebug("已添加动态系统消息，当前动态消息数: {Count}", _dynamicSystemMessages.Count);
+        _promptStore.AddDynamic(content);
+        _logger.LogDebug("已添加动态系统消息，当前动态消息数: {Count}", _promptStore.GetDynamicMessages().Count);
     
     }
 
@@ -370,9 +358,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        _dynamicSystemMessages.Clear();
-        _cachedSystemMessages = [];
-        _systemMessagesCached = false;
+        _promptStore.ClearDynamic();
         _logger.LogDebug("已清空动态系统消息");
     
     }
@@ -385,17 +371,12 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         Log.CompactInPlace([]);
-        _dynamicSystemMessages.Clear();
-        _cachedSystemMessages = [];
-        _systemMessagesCached = false;
+        _promptStore.ResetCache();
 
         _logger.LogInformation("聊天消息已清空，保留静态系统提示词");
     
     }
 
-    /// <summary>
-    /// 更新静态系统提示词
-    /// </summary>
     /// <summary>
     /// 更新静态系统提示词，清空缓存
     /// </summary>
@@ -405,10 +386,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        _staticSystemPrompt = systemPrompt;
-        _cachedSystemMessages = [];
-        _systemMessagesCached = false;
-        _logger.LogInformation("静态系统提示词已更新，长度: {Len}", _staticSystemPrompt.Length);
+        _promptStore.Update(systemPrompt);
+        _logger.LogInformation("静态系统提示词已更新，长度: {Len}", _promptStore.StaticPrompt.Length);
     
     }
 
@@ -451,7 +430,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     /// </summary>
     private async Task SaveContextCoreAsync(CancellationToken cancellationToken)
     {
-        var staticPrefix = _staticSystemPrompt;
+        var staticPrefix = _promptStore.StaticPrompt;
         var conversationSnapshot = new MessageList(Log.ToMessages());
 
         await _stateService.SaveStateAsync(staticPrefix, conversationSnapshot, cancellationToken).ConfigureAwait(false);
@@ -689,9 +668,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
         var removed = Log.Count;
         Log.CompactInPlace([]);
-        _dynamicSystemMessages.Clear();
-        _cachedSystemMessages = [];
-        _systemMessagesCached = false;
+        _promptStore.ResetCache();
 
         _logger.LogInformation("撤回到会话初始状态 (SP-0)，移除 {Count} 条消息，前缀保留", removed);
 
@@ -733,17 +710,17 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        var prefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
-        var dynamicContent = string.Join("\n", _dynamicSystemMessages);
+        var prefix = new ImmutablePrefix(_promptStore.StaticPrompt, _currentToolSpecs, []);
+        var dynamicContent = _promptStore.GetDynamicContent();
         var snapshot = GetCacheBreakDetector(agentId).RecordPromptState(prefix, dynamicContent, Log.ToMessages());
 
         var toolSpecsBytes = _currentToolSpecs.Sum(t =>
             System.Text.Encoding.UTF8.GetByteCount(t.Name) +
             (t.Description != null ? System.Text.Encoding.UTF8.GetByteCount(t.Description) : 0) +
             (t.InputSchemaJson != null ? System.Text.Encoding.UTF8.GetByteCount(t.InputSchemaJson) : 0));
-        var systemBytes = System.Text.Encoding.UTF8.GetByteCount(_staticSystemPrompt);
+        var systemBytes = System.Text.Encoding.UTF8.GetByteCount(_promptStore.StaticPrompt);
         var estimatedTokens = ContextFoldDecider.EstimateTokenCount(
-            [new ApiMessage(MessageRole.System, _staticSystemPrompt)],
+            [new ApiMessage(MessageRole.System, _promptStore.StaticPrompt)],
             _currentToolSpecs);
 
         _logger.LogInformation(
@@ -763,8 +740,8 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
 
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        var currentPrefix = new ImmutablePrefix(_staticSystemPrompt, _currentToolSpecs, []);
-        var currentDynamicContent = string.Join("\n", _dynamicSystemMessages);
+        var currentPrefix = new ImmutablePrefix(_promptStore.StaticPrompt, _currentToolSpecs, []);
+        var currentDynamicContent = _promptStore.GetDynamicContent();
         var result = GetCacheBreakDetector(agentId).CheckCacheBreak(snapshot, currentPrefix, currentDynamicContent, usage, Log.ToMessages());
 
         if (result.BreakDetected)
@@ -824,7 +801,7 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
     {
         var messages = new List<ApiMessage>();
 
-        var systemMessages = GetOrCreateCachedSystemMessages();
+        var systemMessages = _promptStore.GetOrCreateCachedSystemMessages();
         messages.AddRange(systemMessages);
 
         foreach (var msg in Log.ToMessages())
@@ -833,53 +810,5 @@ public partial class ChatContextManager : IChatContextManager, IAsyncDisposable
         }
 
         return messages;
-    }
-
-    /// <summary>
-    /// 获取或创建缓存的系统消息列表 — 动态消息未变时复用缓存，避免每轮重建 ApiMessage
-    /// </summary>
-    private List<ApiMessage> GetOrCreateCachedSystemMessages()
-    {
-        var dynamicContent = string.Join("\n", _dynamicSystemMessages);
-        var currentDynamicHash = string.IsNullOrEmpty(dynamicContent)
-            ? string.Empty
-            : ContentHash.Compute(dynamicContent);
-        var dynamicChanged = currentDynamicHash != _previousDynamicHash;
-        _previousDynamicHash = currentDynamicHash;
-
-        if (!dynamicChanged && _systemMessagesCached)
-        {
-            return _cachedSystemMessages;
-        }
-
-        var systemMessages = new List<ApiMessage>();
-        if (!string.IsNullOrWhiteSpace(_staticSystemPrompt))
-        {
-            systemMessages.Add(new ApiMessage(MessageRole.System, _staticSystemPrompt));
-        }
-
-        foreach (var dynamicMsg in _dynamicSystemMessages)
-        {
-            if (dynamicChanged)
-            {
-                systemMessages.Add(new ApiMessage(MessageRole.System, dynamicMsg, CacheBreakMarker.Create()));
-            }
-            else
-            {
-                systemMessages.Add(new ApiMessage(MessageRole.System, dynamicMsg));
-            }
-        }
-
-        if (dynamicChanged)
-        {
-            _cachedSystemMessages = [];
-            _systemMessagesCached = false;
-        }
-        else
-        {
-            _cachedSystemMessages = systemMessages;
-            _systemMessagesCached = true;
-        }
-        return systemMessages;
     }
 }

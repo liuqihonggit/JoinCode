@@ -54,22 +54,8 @@ public sealed class HandleWorkContext : IPipelineContext
     /// <summary>轮询配置</summary>
     internal BridgeMainPollConfig? PollConfig { get; set; }
 
-    /// <summary>活跃会话句柄表（会话 ID → 句柄）</summary>
-    internal ConcurrentDictionary<string, BridgeSubprocessHandle> ActiveSessions { get; set; } = new();
-    /// <summary>会话启动时间表（会话 ID → 启动时间）</summary>
-    internal ConcurrentDictionary<string, DateTime> SessionStartTimes { get; set; } = new();
-    /// <summary>会话与工作 ID 映射（会话 ID → Work ID）</summary>
-    internal ConcurrentDictionary<string, string> SessionWorkIds { get; set; } = new();
-    /// <summary>会话入口令牌表（会话 ID → 令牌）</summary>
-    internal ConcurrentDictionary<string, string> SessionIngressTokens { get; set; } = new();
-    /// <summary>会话 worktree 路径表（会话 ID → worktree 路径）</summary>
-    internal ConcurrentDictionary<string, string> SessionWorktrees { get; set; } = new();
-    /// <summary>已完成工作 ID 集合</summary>
-    internal ConcurrentDictionary<string, byte> CompletedWorkIds { get; set; } = new();
-    /// <summary>v2 会话集合</summary>
-    internal ConcurrentDictionary<string, byte> V2Sessions { get; set; } = new();
-    /// <summary>会话兼容 ID 映射</summary>
-    internal ConcurrentDictionary<string, string> SessionCompatIds { get; set; } = new();
+    /// <summary>会话跟踪器 — 聚合 Sessions/WorkCompletion/Titles</summary>
+    internal BridgeSessionTracker Tracker { get; set; } = new();
 
     /// <summary>停止工作委托（Work ID, 取消令牌）</summary>
     internal Func<string, CancellationToken, Task>? StopWorkAsync { get; set; }
@@ -100,7 +86,7 @@ public sealed class HandleWorkContext : IPipelineContext
     /// <param name="ct">取消令牌</param>
     internal void FailWork(CancellationToken ct = default)
     {
-        CompletedWorkIds.TryAdd(Work.WorkId, 0);
+        Tracker.WorkCompletion.Mark(Work.WorkId);
         if (TrackCleanup is not null && StopWorkAsync is not null)
         {
             TrackCleanup(StopWorkAsync(Work.WorkId, ct));

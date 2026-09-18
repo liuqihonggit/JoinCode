@@ -91,7 +91,7 @@ public sealed class KestrelMockServer : IHttpMockServer
 
         _app.MapPost("{**path}", async (HttpContext ctx) =>
         {
-            using var reader = new StreamReader(ctx.Request.Body, Encoding.UTF8);
+            using var reader = ctx.Request.Body.AsUtf8Reader();
             var body = await reader.ReadToEndAsync(ctx.RequestAborted);
 
             var path = ctx.Request.Path.Value ?? "";

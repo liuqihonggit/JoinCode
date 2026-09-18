@@ -47,8 +47,8 @@ public class DesktopOverlayToolHandlers
         {
             var hPen = Gdi32NativeMethods.CreatePen(NativeConstants.PS_SOLID, 4, colorRef);
             var hBrush = Gdi32NativeMethods.GetStockObject(NativeConstants.NULL_BRUSH);
-            var oldPen = Gdi32NativeMethods.SelectObject(hdc, hPen);
-            var oldBrush = Gdi32NativeMethods.SelectObject(hdc, hBrush);
+            using var penScope = new GdiSelectScope(hdc, hPen);
+            using var brushScope = new GdiSelectScope(hdc, hBrush);
 
             // 定期重画防止 DWM 合成擦掉(DWM 下 GDI 直接画桌面 DC 非持久,一帧后消失)
             var intervals = Math.Max(1, durationMs / 50);
@@ -59,8 +59,6 @@ public class DesktopOverlayToolHandlers
                 catch (TaskCanceledException) { cancelled = true; break; }
             }
 
-            Gdi32NativeMethods.SelectObject(hdc, oldPen);
-            Gdi32NativeMethods.SelectObject(hdc, oldBrush);
             Gdi32NativeMethods.DeleteObject(hPen);
         }
         finally

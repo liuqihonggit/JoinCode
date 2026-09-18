@@ -71,48 +71,42 @@ public sealed partial class LLMInvocationHandler : ServiceEntity, ILLMInvocation
     {
         var callId = _contextManager is ChatContextManager cm ? cm.NextCallId() : $"?.{iterationIndex}";
         iterState.CallId = callId;
-        CallTrace.SetId(callId);
-        try
+        using var scope = CallTrace.EnterScope(callId);
+
+        var chatCompletionService = _kernel.GetChatCompletionService();
+
+        var dumpSessionId = (_contextManager is ChatContextManager c) ? c.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
+        _services?.FileContextService?.DumpMessageList(historySnapshot, dumpSessionId, context.ConversationTurn, iterationIndex);
+
+        context.Timing.StartLlmCall();
+        var isFirstChunk = true;
+
+        await foreach (var chunk in chatCompletionService.GetStreamEventContentsAsync(
+            historySnapshot, executionSettings, _kernel, ct).ConfigureAwait(false))
         {
-            var chatCompletionService = _kernel.GetChatCompletionService();
-
-            var dumpSessionId = (_contextManager is ChatContextManager c) ? c.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
-            _services?.FileContextService?.DumpMessageList(historySnapshot, dumpSessionId, context.ConversationTurn, iterationIndex);
-
-            context.Timing.StartLlmCall();
-            var isFirstChunk = true;
-
-            await foreach (var chunk in chatCompletionService.GetStreamEventContentsAsync(
-                historySnapshot, executionSettings, _kernel, ct).ConfigureAwait(false))
+            if (isFirstChunk)
             {
-                if (isFirstChunk)
-                {
-                    isFirstChunk = false;
-                    context.Timing.FirstTokenLatencyMs = context.Timing.LlmTotalMs;
-                }
-
-                var result = _chunkProcessor.ProcessChunk(chunk, iterState, streamingToolExecution);
-
-                foreach (var evt in result.Events)
-                {
-                    yield return evt;
-                }
-
-                if (result.Action == ChunkAction.Break) break;
-                if (result.Action == ChunkAction.Continue) continue;
+                isFirstChunk = false;
+                context.Timing.FirstTokenLatencyMs = context.Timing.LlmTotalMs;
             }
 
-            context.Timing.StopLlmCall();
-            context.Timing.LlmCallCount++;
+            var result = _chunkProcessor.ProcessChunk(chunk, iterState, streamingToolExecution);
 
-            var textPreview = iterState.FullResponse.Length > 0
-                ? $" | 预览={iterState.FullResponse.ToString(0, Math.Min(iterState.FullResponse.Length, 100))}"
-                : "";
-            Diag.WriteLine($"[LLM {callId}] #{iterationIndex} → {(iterState.ToolCallName is not null ? $"tool_call={iterState.ToolCallName}" : "纯文本")}, 文本={iterState.FullResponse.Length}字符{textPreview}, 模型={iterState.StreamModelId ?? "?"}, tokens={iterState.StreamUsage?.TotalTokens}");
+            foreach (var evt in result.Events)
+            {
+                yield return evt;
+            }
+
+            if (result.Action == ChunkAction.Break) break;
+            if (result.Action == ChunkAction.Continue) continue;
         }
-        finally
-        {
-            CallTrace.Clear();
-        }
+
+        context.Timing.StopLlmCall();
+        context.Timing.LlmCallCount++;
+
+        var textPreview = iterState.FullResponse.Length > 0
+            ? $" | 预览={iterState.FullResponse.ToString(0, Math.Min(iterState.FullResponse.Length, 100))}"
+            : "";
+        Diag.WriteLine($"[LLM {callId}] #{iterationIndex} → {(iterState.ToolCallName is not null ? $"tool_call={iterState.ToolCallName}" : "纯文本")}, 文本={iterState.FullResponse.Length}字符{textPreview}, 模型={iterState.StreamModelId ?? "?"}, tokens={iterState.StreamUsage?.TotalTokens}");
     }
 }

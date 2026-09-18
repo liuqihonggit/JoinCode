@@ -13,7 +13,7 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
 {
     private readonly ITeammateMailboxService _mailboxService;
     private readonly ILogger<FileMailbox>? _logger;
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _deliveredMessageIds;
+    private readonly MessageDedupTracker _dedup = new();
 
     /// <summary>
     /// 构造文件邮箱。
@@ -34,7 +34,6 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
     {
         _mailboxService = mailboxService ?? throw new ArgumentNullException(nameof(mailboxService));
         _logger = logger;
-        _deliveredMessageIds = new ConcurrentDictionary<string, ConcurrentDictionary<string, byte>>();
     }
 
     /// <summary>
@@ -100,10 +99,7 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
     /// 检查消息是否已投递 — 用 MessageId 去重。
     /// </summary>
     private bool IsDuplicate(string agentId, string messageId)
-    {
-        var deliveredSet = _deliveredMessageIds.GetOrAdd(agentId, _ => new ConcurrentDictionary<string, byte>());
-        return !deliveredSet.TryAdd(messageId, 0);
-    }
+        => _dedup.IsDuplicate(agentId, messageId);
 
     /// <summary>
     /// 持久化消息到文件邮箱。

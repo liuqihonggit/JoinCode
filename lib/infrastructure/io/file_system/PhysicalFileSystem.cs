@@ -18,14 +18,12 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// per-file 编辑锁 — 同一文件的 EditFileAsync 串行化，不同文件并行。
     /// 锁按规范路径缓存，生命周期与 PhysicalFileSystem（Singleton）相同。
     /// </summary>
-    private readonly ConcurrentDictionary<string, AsyncLock> _editLocks = new();
+    private readonly EditLockRegistry _editLocks = new();
 
     /// <inheritdoc />
     public override void Dispose()
     {
-        foreach (var kvp in _editLocks)
-            kvp.Value.Dispose();
-        _editLocks.Clear();
+        _editLocks.Dispose();
         base.Dispose();
     }
 
@@ -146,7 +144,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
     {
         var normalizedPath = Path.GetFullPath(path);
-        var editLock = _editLocks.GetOrAdd(normalizedPath, p => new AsyncLock($"EditFile:{p}"));
+        var editLock = _editLocks.GetOrAdd(normalizedPath);
         var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(false);
         if (releaser is null)
             throw new TimeoutException($"编辑文件锁超时: {path}");

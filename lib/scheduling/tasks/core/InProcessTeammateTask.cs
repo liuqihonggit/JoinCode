@@ -154,8 +154,8 @@ public sealed class TeammateState
     public required IAgent Agent { get; init; }
     /// <summary>生命周期取消令牌源 — 控制 teammate 整体生命周期。</summary>
     public required CancellationTokenSource LifecycleCts { get; init; }
-    /// <summary>teammate 上下文 — 团队、颜色、会话等元数据。</summary>
-    public required TeammateContext Context { get; init; }
+    /// <summary>teammate 元信息 — 团队、颜色、会话等元数据。</summary>
+    public required TeammateMeta TeammateMeta { get; init; }
     /// <summary>是否空闲。</summary>
     public bool IsIdle { get; set; }
     /// <summary>最后一次结果,可选。</summary>
@@ -207,7 +207,7 @@ internal sealed record InterruptTeammateCmd(
     TaskCompletionSource<bool> Tcs) : ITeammateCommand;
 
 /// <summary>
-/// 进程内 Teammate 任务执行器 — Actor 化：继承 ActorBase，Consumer 线程独占 _activeTeammates/_pendingMessages，
+/// 进程内 Teammate 任务执行器 — Actor 化：继承 ActorBase，Consumer 线程独占 _registry，
 /// 消除 AsyncLock。复合操作（Stop+Cleanup、TryCleanup、Interrupt）通过 Actor 命令保证原子性。
 /// 读操作（GetActiveTeammates、GetSnapshots、IsIdle）直接读 ConcurrentDictionary，无锁无命令开销。
 /// 循环逻辑委托 TeammateLoopRunner，清理逻辑委托 TeammateCleanupHelper。
@@ -223,8 +223,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     private readonly ITelemetryService? _telemetryService;
     private readonly IMailboxPoller? _mailboxPoller;
     private readonly IPlanModeManager? _planModeManager;
-    private readonly ConcurrentDictionary<string, TeammateState> _activeTeammates = new();
-    private readonly ConcurrentDictionary<string, Channel<CoordinatorMessage>> _pendingMessages = new();
+    private readonly TeammateRegistry _registry = new();
     private readonly MiddlewarePipeline<TeammateExecutionContext>? _executePipeline;
     private readonly IAgentWorktreeService? _worktreeService;
     private readonly IAgentWorktreeManager? _worktreeManager;
@@ -297,7 +296,6 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         }
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <inheritdoc/>
     public async Task<AgentTaskResult> ExecuteTeammateAsync(InProcessTeammateDefinition definition, CancellationToken ct = default)
@@ -321,8 +319,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
             RunLoopAsync = (d, s, t) => { _loopRunner.RunTeammateLoopBackground(d, s, t); return Task.CompletedTask; },
             TryCleanupAsync = (teammateId) => ((ITeammateRuntime)this).TryCleanupTeammateAsync(teammateId),
             CleanupAsync = (teammateId, state) => _cleanupHelper.CleanupTeammateAsync(teammateId, state),
-            ActiveTeammates = _activeTeammates,
-            PendingMessages = _pendingMessages,
+            ActiveTeammates = _registry.ActiveTeammates,
+            PendingMessages = _registry.PendingMessages,
         };
 
         var pipeline = _executePipeline;
@@ -387,7 +385,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     /// <inheritdoc/>
     public async Task<bool> SendMessageToTeammateAsync(string teammateId, CoordinatorMessage message, CancellationToken ct = default)
     {
-        if (_pendingMessages.TryGetValue(teammateId, out var channel))
+        if (_registry.TryGetChannel(teammateId, out var channel))
         {
             await channel.Writer.WriteAsync(message, ct).ConfigureAwait(false);
         }
@@ -398,7 +396,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     /// <inheritdoc/>
     public Task<IEnumerable<string>> GetActiveTeammatesAsync(CancellationToken ct = default)
     {
-        return Task.FromResult<IEnumerable<string>>(_activeTeammates.Keys);
+        return Task.FromResult<IEnumerable<string>>(_registry.Keys);
     }
 
     /// <summary>
@@ -406,16 +404,13 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     /// </summary>
     public Task<IEnumerable<TeammateStateSnapshot>> GetActiveTeammateSnapshotsAsync(CancellationToken ct = default)
     {
-        return Task.FromResult<IEnumerable<TeammateStateSnapshot>>(
-            _activeTeammates.Select(kv => new TeammateStateSnapshot(
-                kv.Key, kv.Value.Context.ParentSessionId, kv.Value.Task,
-                kv.Value.IsIdle, kv.Value.TurnCount, kv.Value.LastResult)).ToList());
+        return Task.FromResult<IEnumerable<TeammateStateSnapshot>>(_registry.GetSnapshots());
     }
 
     /// <inheritdoc/>
     public async Task StopTeammateAsync(string teammateId, CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StopTeammateCmd(teammateId, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -423,7 +418,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     /// <inheritdoc/>
     public async Task TerminateTeammateAsync(string teammateId, string? reason = null, CancellationToken ct = default)
     {
-        if (!_activeTeammates.TryGetValue(teammateId, out _))
+        if (!_registry.Contains(teammateId))
         {
             return;
         }
@@ -444,7 +439,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     /// <inheritdoc/>
     public Task<bool> IsTeammateIdleAsync(string teammateId, CancellationToken ct = default)
     {
-        return Task.FromResult(_activeTeammates.TryGetValue(teammateId, out var state) && state.IsIdle);
+        return Task.FromResult(_registry.TryGetState(teammateId, out var state) && state.IsIdle);
     }
 
     /// <summary>
@@ -460,27 +455,25 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     }
 
     /// <summary>
-    /// Actor Consumer — 线程独占 _activeTeammates/_pendingMessages，串行处理命令，无需锁。
+    /// Actor Consumer — 线程独占 _registry，串行处理命令，无需锁。
     /// </summary>
     protected override async ValueTask HandleAsync(ITeammateCommand command, CancellationToken ct)
     {
         switch (command)
         {
             case RegisterTeammateCmd cmd:
-                _activeTeammates[cmd.TeammateId] = cmd.State;
-                _pendingMessages[cmd.TeammateId] = cmd.PendingChannel;
+                _registry.Register(cmd.TeammateId, cmd.State, cmd.PendingChannel);
                 cmd.Tcs.TrySetResult();
                 break;
 
             case UnregisterTeammateCmd cmd:
-                _activeTeammates.TryRemove(cmd.TeammateId, out _);
+                _registry.Unregister(cmd.TeammateId);
                 break;
 
             case StopTeammateCmd cmd:
-                if (_activeTeammates.TryRemove(cmd.TeammateId, out var stopState))
+                if (_registry.TryRemove(cmd.TeammateId, out var stopState, out var stopChannel))
                 {
                     await stopState.LifecycleCts.CancelAsync().ConfigureAwait(false);
-                    _pendingMessages.TryRemove(cmd.TeammateId, out var stopChannel);
                     stopChannel?.Writer.Complete();
                     await _cleanupHelper.CleanupTeammateAsync(cmd.TeammateId, stopState).ConfigureAwait(false);
                 }
@@ -488,9 +481,8 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
                 break;
 
             case TryCleanupTeammateCmd cmd:
-                if (_activeTeammates.TryRemove(cmd.TeammateId, out var cleanupState))
+                if (_registry.TryRemove(cmd.TeammateId, out var cleanupState, out var cleanupChannel))
                 {
-                    _pendingMessages.TryRemove(cmd.TeammateId, out var cleanupChannel);
                     cleanupChannel?.Writer.Complete();
                     await _cleanupHelper.CleanupTeammateAsync(cmd.TeammateId, cleanupState).ConfigureAwait(false);
                 }
@@ -498,7 +490,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
                 break;
 
             case SetWorkCtsCmd cmd:
-                if (_activeTeammates.TryGetValue(cmd.TeammateId, out var setState))
+                if (_registry.TryGetState(cmd.TeammateId, out var setState))
                 {
                     setState.CurrentWorkCts = cmd.WorkCts;
                 }
@@ -506,14 +498,14 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
                 break;
 
             case ClearWorkCtsCmd cmd:
-                if (_activeTeammates.TryGetValue(cmd.TeammateId, out var clearState))
+                if (_registry.TryGetState(cmd.TeammateId, out var clearState))
                 {
                     clearState.CurrentWorkCts = null;
                 }
                 break;
 
             case InterruptTeammateCmd cmd:
-                if (!_activeTeammates.TryGetValue(cmd.TeammateId, out var interruptState))
+                if (!_registry.TryGetState(cmd.TeammateId, out var interruptState))
                 {
                     cmd.Tcs.TrySetResult(false);
                     break;
@@ -542,7 +534,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
     async Task ITeammateRuntime.SetCurrentWorkCtsAsync(string teammateId, CancellationTokenSource workCts, CancellationToken lifecycleCt)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new SetWorkCtsCmd(teammateId, workCts, tcs), lifecycleCt).ConfigureAwait(false);
         await AskAwait(tcs, lifecycleCt);
     }
@@ -556,7 +548,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     {
         try
         {
-            var tcs = CreateTcs();
+            var tcs = TcsFactory.Create();
             await SendAsync(new TryCleanupTeammateCmd(teammateId, tcs), CancellationToken.None).ConfigureAwait(false);
             await AskAwait(tcs, CancellationToken.None);
         }
@@ -568,7 +560,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
     Channel<CoordinatorMessage>? ITeammateRuntime.GetPendingChannel(string teammateId)
     {
-        _pendingMessages.TryGetValue(teammateId, out var channel);
+        _registry.TryGetChannel(teammateId, out var channel);
         return channel;
     }
 
@@ -620,7 +612,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
     /// <summary>
     /// Teammate 直接执行作用域 — 封装 ExecuteTeammateDirectAsync 的资源获取/释放
-    /// <para>InitAsync:spawn agent + worktree 隔离 + 注册 broker/polling + 创建 lifecycleCts + 构造 state + 发 Actor 命令注册到 _activeTeammates/_pendingMessages</para>
+    /// <para>InitAsync:spawn agent + worktree 隔离 + 注册 broker/polling + 创建 lifecycleCts + 构造 state + 发 Actor 命令注册到 _registry</para>
     /// <para>Detach:ContinuousMode 时调用,后台循环接管清理,DisposeAsync 仅发注销命令</para>
     /// <para>DisposeAsync:发注销命令 + CleanupTeammateAsync(或半成品清理),修复原资源泄漏 bug</para>
     /// </summary>
@@ -723,12 +715,10 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
             _lifecycleCts = CancellationTokenSource.CreateLinkedTokenSource(_externalCt);
 
-            var teammateContext = new TeammateContext
+            var teammateMeta = new TeammateMeta
             {
-                AgentId = _teammateId,
                 AgentName = _teammateId,
                 TeamName = _definition.TeamName ?? "default",
-                TeamId = _definition.TeamId,
                 Color = _definition.Color,
                 PlanModeRequired = _definition.PlanModeRequired,
                 ParentSessionId = _definition.ParentSessionId ?? sessionId,
@@ -739,7 +729,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
             {
                 Agent = _agent,
                 LifecycleCts = _lifecycleCts,
-                Context = teammateContext,
+                TeammateMeta = teammateMeta,
                 IsIdle = false,
                 Task = _definition.Task
             };

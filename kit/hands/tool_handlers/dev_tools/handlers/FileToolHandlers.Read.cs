@@ -46,21 +46,21 @@ public partial class FileToolHandlers
         var extWithoutDot = ext.Length > 0 ? ext[1..] : string.Empty;
 
         // 图像文件特殊处理（不作为二进制拒绝，而是读取为图像）
-        if (ImageExtensions.Contains(extWithoutDot))
+        if (FileSpecialFormatReader.IsImageExtension(extWithoutDot))
         {
-            return await ReadImageFileAsync(file_path, extWithoutDot, cancellationToken).ConfigureAwait(false);
+            return await _specialReader.ReadImageFileAsync(file_path, extWithoutDot, cancellationToken).ConfigureAwait(false);
         }
 
         // 对齐 TS: FileReadTool — PDF 文件特殊处理（不作为二进制拒绝，而是读取为 base64）
         if (PdfReader.IsPdfExtension(file_path))
         {
-            return await ReadPdfFileAsync(file_path, pages, cancellationToken).ConfigureAwait(false);
+            return await _specialReader.ReadPdfFileAsync(file_path, pages, cancellationToken).ConfigureAwait(false);
         }
 
         // 对齐 TS: FileReadTool — Notebook 文件特殊处理（不作为二进制拒绝，而是格式化输出）
         if (NotebookReader.IsNotebookExtension(file_path))
         {
-            return await ReadNotebookFileAsync(file_path, cancellationToken).ConfigureAwait(false);
+            return await _specialReader.ReadNotebookFileAsync(file_path, cancellationToken).ConfigureAwait(false);
         }
 
         if (BinaryFileDetector.IsBinaryExtension(ext))
@@ -77,7 +77,7 @@ public partial class FileToolHandlers
 
         // 对齐 TS: readFileState dedup — 检查文件是否已读取且未修改
         // 约 18% 的 Read 调用是同文件碰撞，去重可节省 cache_creation token
-        var existingState = _fileStateCache?.GetReadState(file_path);
+        var existingState = _ctx.FileStateCache?.GetReadState(file_path);
         if (existingState is not null && !existingState.IsPartialView && existingState.Offset.HasValue)
         {
             var rangeMatch = existingState.Offset == (offset.HasValue ? offset.Value - 1 : (int?)null)
@@ -156,10 +156,11 @@ public partial class FileToolHandlers
 
         // Token limit check (matches TS: validateContentTokens)
         // Prevents reading files that would consume too much context
-        var maxTokens = _fileOperationConfig.MaxReadTokens > 0
-            ? _fileOperationConfig.MaxReadTokens
-            : DefaultMaxReadTokens;
-        var estimatedTokens = EstimateTokenCount(result.Content, file_path);
+        var fileConfig = _ctx.FileOperationConfig!;
+        var maxTokens = fileConfig.MaxReadTokens > 0
+            ? fileConfig.MaxReadTokens
+            : 25000;
+        var estimatedTokens = FileSpecialFormatReader.EstimateTokenCount(result.Content, file_path);
         if (estimatedTokens > maxTokens)
         {
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.TokenExceeded);
@@ -175,7 +176,7 @@ public partial class FileToolHandlers
             return ToolResultBuilder.Error().WithText(tokenDiagnostic.FormattedMessage).WithDiagnostic(tokenDiagnostic).Build();
         }
 
-        var numberedContent = AddLineNumbers(result.Content, result.StartLine, _fileOperationConfig.CompactLinePrefix);
+        var numberedContent = AddLineNumbers(result.Content, result.StartLine, _ctx.FileOperationConfig!.CompactLinePrefix);
 
         var response = new StringBuilder(256);
         response.Append(numberedContent);
@@ -204,7 +205,7 @@ public partial class FileToolHandlers
         {
             recordTimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         }
-        _fileStateCache?.RecordRead(
+        _ctx.FileStateCache?.RecordRead(
             result.FilePath,
             result.Content,
             recordTimestampMs,
@@ -213,7 +214,7 @@ public partial class FileToolHandlers
 
         // 对齐 TS: FileReadTool — 通知文件读取监听器
         // 仅在文本文件读取成功后触发，PDF/Notebook/图像等特殊文件不触发
-        _fileReadListenerRegistry?.Notify(new FileReadEventArgs
+        _ctx.FileReadListenerRegistry?.Notify(new FileReadEventArgs
         {
             FilePath = result.FilePath,
             Content = result.Content,

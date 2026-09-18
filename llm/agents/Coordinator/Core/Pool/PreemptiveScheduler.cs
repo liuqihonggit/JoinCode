@@ -125,12 +125,12 @@ public sealed class PreemptiveScheduler
     }
 
     /// <summary>
-    /// 估算子代理的 token 用量 — 基于 AgentBase.TokensUsed 和 TokenBudget
+    /// 估算子代理的 token 用量 — 基于 AgentBase.Output.TokensUsed 和 Budget.TokenBudget
     /// </summary>
     private static (int used, int max) EstimateTokenUsage(AgentBase agent)
     {
-        var used = agent.TokensUsed;
-        var max = agent.TokenBudget ?? 128000;
+        var used = agent.Output.TokensUsed;
+        var max = agent.Budget.TokenBudget ?? 128000;
         return (used, max);
     }
 }

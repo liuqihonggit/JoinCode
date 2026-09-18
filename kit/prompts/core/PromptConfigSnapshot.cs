@@ -22,4 +22,9 @@ public sealed class PromptConfigSnapshot
     /// 清除当前会话的配置快照
     /// </summary>
     public static void Clear() => _current.Value = null;
+
+    /// <summary>
+    /// 进入配置快照作用域 — Dispose 时恢复原值(支持嵌套)
+    /// </summary>
+    public static IDisposable EnterScope(SystemPromptProviderOptions options) => AsyncLocalScope<SystemPromptProviderOptions>.Enter(_current, options);
 }

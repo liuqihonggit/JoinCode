@@ -14,7 +14,7 @@ public interface IGraphScheduler
     /// 运行调度循环，直到抵达终止节点或取消。
     /// </summary>
     /// <param name="graph">目标图定义</param>
-    /// <param name="context">执行上下文（持有 ReadyQueue/CompletedNodes 等可变状态）</param>
+    /// <param name="context">执行上下文（持有 ReadyQueue/NodeStates 等可变状态）</param>
     /// <param name="processNodeAsync">单个节点执行+完成后逻辑的回调（由 GoalGraphEngine 提供）</param>
     /// <param name="concurrencyLimiter">并发限流器（null 表示不限流）</param>
     /// <param name="ct">取消令牌</param>

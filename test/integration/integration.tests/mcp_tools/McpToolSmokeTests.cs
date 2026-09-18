@@ -98,6 +98,28 @@ public sealed class McpToolSmokeTests
         return args;
     }
 
+    /// <summary>
+    /// 有真实 git 副作用的工具 — 冒烟测试跳过，避免污染测试环境（创建/删除真实 git worktree）
+    /// </summary>
+    private static readonly FrozenSet<string> ToolsWithGitSideEffects = FrozenSet.Create(
+        StringComparer.Ordinal,
+        [
+            "worktree_create",
+            "worktree_remove",
+            "worktree_cleanup",
+            "worktree_merge",
+            "enter_worktree",
+            "exit_worktree"
+        ]
+    );
+
+    /// <summary>
+    /// 判断工具是否有真实副作用（桌面 Win32 SendInput / git worktree 操作），冒烟测试应跳过
+    /// </summary>
+    private static bool HasRealSideEffects(ToolInfo tool) =>
+        string.Equals(tool.Category, "desktop", StringComparison.OrdinalIgnoreCase)
+        || ToolsWithGitSideEffects.Contains(tool.Name);
+
     [Fact]
     public async Task All_Registered_Tools_Can_Be_Called_Without_Crash()
     {
@@ -107,9 +129,17 @@ public sealed class McpToolSmokeTests
 
         var results = new List<(string ToolName, bool IsError, string? ErrorMessage)>();
         var crashed = new List<(string ToolName, Exception Ex)>();
+        var skipped = new List<string>();
 
         foreach (var tool in allTools.OrderBy(t => t.Name))
         {
+            if (HasRealSideEffects(tool))
+            {
+                skipped.Add(tool.Name);
+                results.Add((tool.Name, false, "SKIPPED: 有真实副作用"));
+                continue;
+            }
+
             try
             {
                 var args = BuildMinimalArguments(tool);
@@ -135,6 +165,7 @@ public sealed class McpToolSmokeTests
         report.AppendLine($"成功: {results.Count(r => !r.IsError)}");
         report.AppendLine($"错误(非崩溃): {results.Count(r => r.IsError && !r.ErrorMessage?.StartsWith("CRASH") == true)}");
         report.AppendLine($"崩溃: {crashed.Count}");
+        report.AppendLine($"跳过(有真实副作用): {skipped.Count}");
         report.AppendLine();
 
         report.AppendLine("## 详细结果");

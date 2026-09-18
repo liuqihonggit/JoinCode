@@ -41,6 +41,9 @@ public sealed class SubAgentContext
     /// </summary>
     public JoinCode.Abstractions.LLM.Chat.ContentReplacementState? ContentReplacementState { get; set; }
 
+    /// <summary>Teammate 元信息 — 非 null 表示当前上下文为 teammate 执行</summary>
+    public TeammateMeta? TeammateMeta { get; set; }
+
     public string? ConsumeInvokingRequestId()
     {
         var id = InvokingRequestId;
@@ -60,4 +63,7 @@ public sealed class SubAgentContext
     {
         return _current.Value?.CwdOverride ?? fallbackCwd ?? Environment.CurrentDirectory;
     }
+
+    /// <summary>投影为 AgentCoreIdentity</summary>
+    public AgentCoreIdentity ToIdentity() => new(AgentId, DisplayName, Role, Variant);
 }

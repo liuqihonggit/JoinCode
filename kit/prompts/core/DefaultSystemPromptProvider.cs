@@ -66,27 +66,21 @@ public sealed partial class DefaultSystemPromptProvider : ServiceEntity, ISystem
     /// <returns>系统提示词部分的可枚举序列。</returns>
     public IEnumerable<SystemPromptSection> GetSections()
     {
-        PromptConfigSnapshot.SetCurrent(_options);
-        try
+        using var scope = PromptConfigSnapshot.EnterScope(_options);
+
+        foreach (var section in PromptSectionRegistration.GetAlwaysSections())
+            yield return section;
+
+        if (_options.IsAgentMode)
         {
-            foreach (var section in PromptSectionRegistration.GetAlwaysSections())
+            foreach (var section in PromptSectionRegistration.GetAgentModeSections())
                 yield return section;
-
-            if (_options.IsAgentMode)
-            {
-                foreach (var section in PromptSectionRegistration.GetAgentModeSections())
-                    yield return section;
-            }
-
-            if (_options.IsCoordinatorMode)
-            {
-                foreach (var section in PromptSectionRegistration.GetCoordinatorModeSections())
-                    yield return section;
-            }
         }
-        finally
+
+        if (_options.IsCoordinatorMode)
         {
-            PromptConfigSnapshot.Clear();
+            foreach (var section in PromptSectionRegistration.GetCoordinatorModeSections())
+                yield return section;
         }
     }
 }

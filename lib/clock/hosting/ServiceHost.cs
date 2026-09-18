@@ -6,8 +6,7 @@ namespace Core.Hosting;
 /// </summary>
 public sealed partial class ServiceHost : IAsyncDisposable
 {
-    private readonly ConcurrentDictionary<string, IWorkflowService> _services = new();
-    private readonly ConcurrentDictionary<string, ServiceStatus> _serviceStatuses = new();
+    private readonly ConcurrentDictionary<string, ServiceEntry> _services = new();
     private readonly ILogger<ServiceHost>? _logger;
     private readonly CancellationTokenSource _hostCts = new();
     private bool _isRunning;
@@ -34,9 +33,8 @@ public sealed partial class ServiceHost : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(service);
 
-        if (_services.TryAdd(service.ServiceName, service))
+        if (_services.TryAdd(service.ServiceName, new ServiceEntry { Service = service }))
         {
-            _serviceStatuses[service.ServiceName] = ServiceStatus.Stopped;
             _logger?.LogInformation("服务已注册: {ServiceName}", service.ServiceName);
         }
         else
@@ -95,17 +93,17 @@ public sealed partial class ServiceHost : IAsyncDisposable
         using var linkedCts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(30)); // 30秒超时
 
         // 反向停止服务（按注册顺序的逆序）
-        var services = _services.Values.Reverse().ToList();
+        var entries = _services.Values.Reverse().ToList();
 
-        var stopTasks = services.Select(async service =>
+        var stopTasks = entries.Select(async entry =>
         {
             try
             {
-                await StopServiceAsync(service, linkedCts.Token).ConfigureAwait(false);
+                await StopServiceAsync(entry, linkedCts.Token).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, L.T(StringKey.ServiceHostStopError), service.ServiceName);
+                _logger?.LogError(ex, L.T(StringKey.ServiceHostStopError), entry.Service.ServiceName);
             }
         });
         await Task.WhenAll(stopTasks).ConfigureAwait(false);
@@ -119,13 +117,13 @@ public sealed partial class ServiceHost : IAsyncDisposable
     /// </summary>
     public async Task<bool> StartServiceAsync(string serviceName, CancellationToken cancellationToken = default)
     {
-        if (!_services.TryGetValue(serviceName, out var service))
+        if (!_services.TryGetValue(serviceName, out var entry))
         {
             _logger?.LogWarning(L.T(StringKey.ServiceHostNotFound), serviceName);
             return false;
         }
 
-        await StartServiceAsync(service, cancellationToken).ConfigureAwait(false);
+        await StartServiceAsync(entry, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -134,13 +132,13 @@ public sealed partial class ServiceHost : IAsyncDisposable
     /// </summary>
     public async Task<bool> StopServiceAsync(string serviceName, CancellationToken cancellationToken = default)
     {
-        if (!_services.TryGetValue(serviceName, out var service))
+        if (!_services.TryGetValue(serviceName, out var entry))
         {
             _logger?.LogWarning(L.T(StringKey.ServiceHostNotFound), serviceName);
             return false;
         }
 
-        await StopServiceAsync(service, cancellationToken).ConfigureAwait(false);
+        await StopServiceAsync(entry, cancellationToken).ConfigureAwait(false);
         return true;
     }
 
@@ -149,7 +147,7 @@ public sealed partial class ServiceHost : IAsyncDisposable
     /// </summary>
     public ServiceStatus? GetServiceStatus(string serviceName)
     {
-        return _serviceStatuses.TryGetValue(serviceName, out var status) ? status : null;
+        return _services.TryGetValue(serviceName, out var entry) ? entry.Status : null;
     }
 
     /// <summary>
@@ -157,7 +155,7 @@ public sealed partial class ServiceHost : IAsyncDisposable
     /// </summary>
     public IReadOnlyDictionary<string, ServiceStatus> GetAllServiceStatuses()
     {
-        return _serviceStatuses.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        return _services.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Status);
     }
 
     /// <summary>
@@ -165,33 +163,35 @@ public sealed partial class ServiceHost : IAsyncDisposable
     /// </summary>
     public bool IsRunning => _isRunning;
 
-    private async Task StartServiceAsync(IWorkflowService service, CancellationToken cancellationToken)
+    private async Task StartServiceAsync(ServiceEntry entry, CancellationToken cancellationToken)
     {
-        var oldStatus = _serviceStatuses[service.ServiceName];
+        var service = entry.Service;
+        var oldStatus = entry.Status;
 
         try
         {
             _logger?.LogInformation(L.T(StringKey.ServiceHostStartingService), service.ServiceName);
-            _serviceStatuses[service.ServiceName] = ServiceStatus.Starting;
+            entry.Status = ServiceStatus.Starting;
 
             await service.StartAsync(cancellationToken).ConfigureAwait(false);
 
-            _serviceStatuses[service.ServiceName] = ServiceStatus.Running;
+            entry.Status = ServiceStatus.Running;
             OnServiceStatusChanged(service.ServiceName, oldStatus, ServiceStatus.Running);
 
             _logger?.LogInformation(L.T(StringKey.ServiceHostServiceStarted), service.ServiceName);
         }
         catch (Exception ex)
         {
-            _serviceStatuses[service.ServiceName] = ServiceStatus.Failed;
+            entry.Status = ServiceStatus.Failed;
             OnServiceStatusChanged(service.ServiceName, oldStatus, ServiceStatus.Failed, exception: ex);
             throw;
         }
     }
 
-    private async Task StopServiceAsync(IWorkflowService service, CancellationToken cancellationToken)
+    private async Task StopServiceAsync(ServiceEntry entry, CancellationToken cancellationToken)
     {
-        var oldStatus = _serviceStatuses[service.ServiceName];
+        var service = entry.Service;
+        var oldStatus = entry.Status;
 
         if (oldStatus == ServiceStatus.Stopped)
             return;
@@ -199,11 +199,11 @@ public sealed partial class ServiceHost : IAsyncDisposable
         try
         {
             _logger?.LogInformation(L.T(StringKey.ServiceHostStoppingService), service.ServiceName);
-            _serviceStatuses[service.ServiceName] = ServiceStatus.Stopping;
+            entry.Status = ServiceStatus.Stopping;
 
             await service.StopAsync(cancellationToken).ConfigureAwait(false);
 
-            _serviceStatuses[service.ServiceName] = ServiceStatus.Stopped;
+            entry.Status = ServiceStatus.Stopped;
             OnServiceStatusChanged(service.ServiceName, oldStatus, ServiceStatus.Stopped);
 
             _logger?.LogInformation(L.T(StringKey.ServiceHostServiceStopped), service.ServiceName);
@@ -211,7 +211,7 @@ public sealed partial class ServiceHost : IAsyncDisposable
         catch (Exception ex)
         {
             _logger?.LogError(ex, L.T(StringKey.ServiceHostStopFailed), service.ServiceName);
-            _serviceStatuses[service.ServiceName] = ServiceStatus.Failed;
+            entry.Status = ServiceStatus.Failed;
             OnServiceStatusChanged(service.ServiceName, oldStatus, ServiceStatus.Failed, exception: ex);
             throw;
         }

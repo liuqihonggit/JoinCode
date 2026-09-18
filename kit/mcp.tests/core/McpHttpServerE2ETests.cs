@@ -171,7 +171,7 @@ public class McpHttpServerE2ETests
             notificationResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
 
             using var stream = await getResponse.Content.ReadAsStreamAsync();
-            using var reader = new StreamReader(stream, Encoding.UTF8);
+            using var reader = stream.AsUtf8Reader();
             var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var receivedData = string.Empty;
             while (!timeoutCts.Token.IsCancellationRequested)
@@ -225,7 +225,7 @@ public class McpHttpServerE2ETests
             await client.SendAsync(notificationRequest);
 
             using var stream = await getResponse.Content.ReadAsStreamAsync();
-            using var reader = new StreamReader(stream, Encoding.UTF8);
+            using var reader = stream.AsUtf8Reader();
             var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var receivedId = string.Empty;
             while (!timeoutCts.Token.IsCancellationRequested)

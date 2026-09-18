@@ -8,16 +8,8 @@ public static class CpuParallelism
     private static readonly int _coreCount = Environment.ProcessorCount;
     private static readonly ExpiringValue<double> _loadCache = new(MeasureCpuLoad, TimeSpan.FromSeconds(1));
 
-    // Windows: previous raw values
-    private static long _prevIdle;
-    private static long _prevKernel;
-    private static long _prevUser;
-    private static bool _hasWindowsBaseline;
-
-    // Fallback: previous values
-    private static DateTime _prevFallbackTime;
-    private static TimeSpan _prevFallbackCpu;
-    private static bool _hasFallbackBaseline;
+    private static WindowsCpuBaseline _windowsBaseline;
+    private static FallbackCpuBaseline _fallbackBaseline;
 
     /// <summary>
     /// 根据当前 CPU 负载动态推荐并行度 — 负载&gt;90% 返回 1，&gt;70% 返回核数一半，否则返回核数
@@ -56,21 +48,16 @@ public static class CpuParallelism
         if (!GetSystemTimes(out var idle, out var kernel, out var user))
             return MeasureFallbackCpuLoad();
 
-        if (!_hasWindowsBaseline)
+        if (!_windowsBaseline.HasBaseline)
         {
-            _prevIdle = idle;
-            _prevKernel = kernel;
-            _prevUser = user;
-            _hasWindowsBaseline = true;
+            _windowsBaseline = new WindowsCpuBaseline(idle, kernel, user);
             return 0;
         }
 
-        var idleDelta = idle - _prevIdle;
-        var totalDelta = (kernel - _prevKernel) + (user - _prevUser);
+        var idleDelta = idle - _windowsBaseline.PrevIdle;
+        var totalDelta = (kernel - _windowsBaseline.PrevKernel) + (user - _windowsBaseline.PrevUser);
 
-        _prevIdle = idle;
-        _prevKernel = kernel;
-        _prevUser = user;
+        _windowsBaseline = new WindowsCpuBaseline(idle, kernel, user);
 
         if (totalDelta == 0) return 0;
 
@@ -83,21 +70,28 @@ public static class CpuParallelism
         var now = DateTime.UtcNow;
         var cpu = Process.GetCurrentProcess().TotalProcessorTime;
 
-        if (!_hasFallbackBaseline)
+        if (!_fallbackBaseline.HasBaseline)
         {
-            _prevFallbackTime = now;
-            _prevFallbackCpu = cpu;
-            _hasFallbackBaseline = true;
+            _fallbackBaseline = new FallbackCpuBaseline(now, cpu);
             return 0;
         }
 
-        var elapsed = (now - _prevFallbackTime).TotalMilliseconds;
-        var cpuUsed = (cpu - _prevFallbackCpu).TotalMilliseconds;
+        var elapsed = (now - _fallbackBaseline.PrevTime).TotalMilliseconds;
+        var cpuUsed = (cpu - _fallbackBaseline.PrevCpu).TotalMilliseconds;
 
-        _prevFallbackTime = now;
-        _prevFallbackCpu = cpu;
+        _fallbackBaseline = new FallbackCpuBaseline(now, cpu);
 
         if (elapsed <= 0 || _coreCount <= 0) return 0;
         return Math.Min(1.0, cpuUsed / (elapsed * _coreCount));
+    }
+
+    private readonly record struct WindowsCpuBaseline(long PrevIdle, long PrevKernel, long PrevUser)
+    {
+        public readonly bool HasBaseline = true;
+    }
+
+    private readonly record struct FallbackCpuBaseline(DateTime PrevTime, TimeSpan PrevCpu)
+    {
+        public readonly bool HasBaseline = true;
     }
 }

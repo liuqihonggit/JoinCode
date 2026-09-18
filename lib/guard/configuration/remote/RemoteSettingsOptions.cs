@@ -4,7 +4,7 @@ namespace Core.Configuration.Remote;
 /// <summary>
 /// 远程设置刷新选项 — 配置远程托管设置的拉取端点、刷新间隔与缓存策略
 /// </summary>
-public sealed class RemoteSettingsOptions : IRemoteRefreshOptions
+public sealed class RemoteSettingsOptions : RemoteRefreshOptionsBase
 {
     /// <summary>
     /// 配置节名称
@@ -12,25 +12,10 @@ public sealed class RemoteSettingsOptions : IRemoteRefreshOptions
     public const string SectionName = "RemoteSettings";
 
     /// <summary>
-    /// 远程 API 端点地址
+    /// 初始化远程设置刷新选项 — 刷新间隔默认 15 分钟,缓存过期默认 20 分钟
     /// </summary>
-    public string ApiEndpoint { get; set; } = string.Empty;
-    /// <summary>
-    /// 客户端密钥
-    /// </summary>
-    public string ClientKey { get; set; } = string.Empty;
-    /// <summary>
-    /// 刷新间隔
-    /// </summary>
-    public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromMinutes(15);
-    /// <summary>
-    /// 缓存过期时间
-    /// </summary>
-    public TimeSpan CacheExpiration { get; set; } = TimeSpan.FromMinutes(20);
-    /// <summary>
-    /// 是否启用缓存
-    /// </summary>
-    public bool EnableCache { get; set; } = true;
+    public RemoteSettingsOptions() : base(TimeSpan.FromMinutes(15), TimeSpan.FromMinutes(20)) { }
+
     /// <summary>
     /// 是否启用通知
     /// </summary>

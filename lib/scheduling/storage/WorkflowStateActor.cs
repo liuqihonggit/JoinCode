@@ -24,19 +24,17 @@ internal sealed class WorkflowStateActor : ActorBase<IWorkflowStateCommand, Unit
         _logger = logger;
     }
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public async Task SaveSnapshotAsync(string workflowId, WorkflowSnapshot snapshot, CancellationToken ct)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new SaveSnapshotCmd(workflowId, snapshot, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
 
     public async Task<WorkflowSnapshot?> LoadSnapshotAsync(string workflowId, CancellationToken ct)
     {
-        var tcs = CreateTcs<WorkflowSnapshot?>();
+        var tcs = TcsFactory.Create<WorkflowSnapshot?>();
         await SendAsync(new LoadSnapshotCmd(workflowId, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }

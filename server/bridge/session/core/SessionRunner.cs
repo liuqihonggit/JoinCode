@@ -143,8 +143,7 @@ public sealed partial class BridgeSessionFactory
 [Register(typeof(BridgeSessionRunner), ServiceLifetime.Singleton)]
 public sealed partial class BridgeSessionRunner : ServiceEntity
 {
-    private readonly ConcurrentDictionary<string, BridgeSession> _sessions;
-    private readonly ConcurrentDictionary<string, string> _clientIdToSessionId;
+    private readonly SessionRegistry _registry = new();
     private readonly BridgeSessionFactory _sessionFactory;
     private readonly BridgeSessionConfiguration _configuration;
     private readonly ILogger? _logger;
@@ -178,8 +177,6 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
         _configuration = configuration ?? new BridgeSessionConfiguration();
         _logger = logger;
-        _sessions = new ConcurrentDictionary<string, BridgeSession>();
-        _clientIdToSessionId = new ConcurrentDictionary<string, string>();
 
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
@@ -245,7 +242,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        var activeCount = _sessions.Values.Count(s => s.Status == BridgeSessionStatus.Active);
+        var activeCount = _registry.CountActive();
         if (activeCount >= _configuration.MaxActiveSessions)
         {
             throw new InvalidOperationException(
@@ -253,8 +250,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         }
 
         var session = _sessionFactory.Create(clientId, metadata);
-        _sessions[session.SessionId] = session;
-        _clientIdToSessionId[clientId] = session.SessionId;
+        _registry.Add(session);
 
         _logger?.LogInformation(
             "[SessionRunner] 会话已创建: {SessionId}, 客户端: {ClientId}",
@@ -280,7 +276,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_sessions.TryGetValue(sessionId, out var session))
+        if (!_registry.TryGet(sessionId, out var session))
         {
             throw new KeyNotFoundException($"[BRG009] 会话不存在: {sessionId}");
         }
@@ -295,8 +291,8 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         session.Status = BridgeSessionStatus.Closed;
         session.LastActiveAt = _timeProvider.GetUtcNow();
 
-        if (_clientIdToSessionId.TryGetValue(session.ClientId, out var mappedId) && mappedId == sessionId)
-            _clientIdToSessionId.TryRemove(session.ClientId, out _);
+        if (_registry.IsClientMappedTo(session.ClientId, sessionId))
+            _registry.RemoveClientMapping(session.ClientId);
 
         _logger?.LogInformation("[SessionRunner] 会话已停止: {SessionId}", sessionId);
 
@@ -316,7 +312,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_sessions.TryGetValue(sessionId, out var session))
+        if (!_registry.TryGet(sessionId, out var session))
         {
             throw new KeyNotFoundException($"[BRG010] 会话不存在: {sessionId}");
         }
@@ -349,7 +345,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_sessions.TryGetValue(sessionId, out var session))
+        if (!_registry.TryGet(sessionId, out var session))
         {
             throw new KeyNotFoundException($"[BRG011] 会话不存在: {sessionId}");
         }
@@ -380,7 +376,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <returns>会话实例，不存在则返回 null</returns>
     public BridgeSession? GetSession(string sessionId)
     {
-        return _sessions.TryGetValue(sessionId, out var session) ? session : null;
+        return _registry.TryGet(sessionId, out var session) ? session : null;
     }
 
     /// <summary>
@@ -390,9 +386,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <returns>会话实例，不存在则返回 null</returns>
     public BridgeSession? GetByClientId(string clientId)
     {
-        return _clientIdToSessionId.TryGetValue(clientId, out var sessionId)
-            ? GetSession(sessionId)
-            : null;
+        return _registry.GetByClientId(clientId);
     }
 
     /// <summary>
@@ -464,7 +458,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     /// <returns>活跃会话列表</returns>
     public IReadOnlyList<BridgeSession> GetActiveSessions()
     {
-        return _sessions.Values
+        return _registry.Values
             .Where(s => s.Status == BridgeSessionStatus.Active)
             .OrderByDescending(s => s.LastActiveAt)
             .ToList();
@@ -480,7 +474,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
     {
         using var guard = await _lock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
-        if (!_sessions.TryGetValue(sessionId, out var session))
+        if (!_registry.TryGet(sessionId, out var session))
         {
             _logger?.LogWarning("[SessionRunner] KeepAlive 失败，会话不存在: {SessionId}", sessionId);
             return false;
@@ -521,7 +515,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
 
         var now = _timeProvider.GetUtcNow();
         var timeout = _configuration.SessionTimeout;
-        var expiredSessionIds = _sessions.Values
+        var expiredSessionIds = _registry.Values
             .Where(s => !BridgeSessionTransitions.IsTerminal(s.Status)
                 && now - s.LastActiveAt > timeout)
             .Select(s => s.SessionId)
@@ -529,7 +523,7 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
 
         foreach (var sessionId in expiredSessionIds)
         {
-            if (_sessions.TryGetValue(sessionId, out var session))
+            if (_registry.TryGet(sessionId, out var session))
             {
                 var previousStatus = session.Status;
                 session.Status = BridgeSessionStatus.Closed;
@@ -550,14 +544,14 @@ public sealed partial class BridgeSessionRunner : ServiceEntity
         }
 
         // 移除已关闭的会话
-        var closedSessionIds = _sessions.Values
+        var closedSessionIds = _registry.Values
             .Where(s => BridgeSessionTransitions.IsTerminal(s.Status))
             .Select(s => s.SessionId)
             .ToList();
 
         foreach (var sessionId in closedSessionIds)
         {
-            _sessions.TryRemove(sessionId, out _);
+            _registry.Remove(sessionId);
         }
 
         var totalCleaned = expiredSessionIds.Count + closedSessionIds.Count;

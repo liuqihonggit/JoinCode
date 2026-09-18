@@ -4,7 +4,7 @@ namespace Core.Plugins;
 /// <summary>
 /// 外部exe进程插件宿主 - 管理独立进程的生命周期
 /// </summary>
-public sealed class ExternalPluginHost : PluginResourceBase
+public sealed class ExternalPluginHost : PluginResourceBase, IPluginHost
 {
     private readonly Process _process;
     private readonly string _pluginName;
@@ -23,6 +23,9 @@ public sealed class ExternalPluginHost : PluginResourceBase
 
     /// <summary>是否被强制终止 — 卸载泄漏信号,用于黑名单判定</summary>
     public bool WasForceKilled => _wasForceKilled;
+
+    /// <summary>插件类型 — 外部进程插件</summary>
+    public PluginKind PluginType => PluginKind.External;
 
     /// <summary>
     /// 构造外部插件宿主

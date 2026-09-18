@@ -115,4 +115,7 @@ public sealed class AgentDescriptor
     /// 生成唯一 Agent Id
     /// </summary>
     public static string GenerateId() => $"agent-{Guid.NewGuid():N}"[..20];
+
+    /// <summary>投影为 AgentCoreIdentity（Id → AgentId, Name → DisplayName）</summary>
+    public AgentCoreIdentity ToIdentity() => new(Id, Name);
 }

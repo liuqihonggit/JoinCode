@@ -17,4 +17,9 @@ public static class CallTrace
 
     /// <summary>清除当前调用链路 ID — 在 LLM 调用出口处清除</summary>
     public static void Clear() => _callId.Value = null;
+
+    /// <summary>
+    /// 进入调用链路作用域 — Dispose 时恢复原值(支持嵌套)
+    /// </summary>
+    public static IDisposable EnterScope(string id) => AsyncLocalScope<string>.Enter(_callId, id);
 }

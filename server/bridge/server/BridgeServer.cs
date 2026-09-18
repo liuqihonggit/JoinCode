@@ -22,7 +22,8 @@ public sealed partial class BridgeSessionListData
 public sealed partial class BridgeServer : ServiceEntity, IDisposable
 {
     private readonly HttpListener _httpListener;
-    private readonly ConcurrentDictionary<string, WebSocket> _clients;
+    private readonly ClientRegistry _clientRegistry = new();
+    private readonly RouteRegistry _routeRegistry = new();
     private readonly ILogger<BridgeServer>? _logger;
     private readonly IClockService _clock;
     private readonly IFileOperationService _fileOperationService;
@@ -38,7 +39,6 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     private readonly IIdeIntegrationService? _ideService;
     private FlushGate<BridgeServerMessage>? _outgoingFlushGate;
     private volatile int _gateActive;
-    private readonly ConcurrentDictionary<string, Func<HttpListenerContext, CancellationToken, Task>> _customRoutes = new();
 
     /// <summary>
     /// 构造桥接服务器
@@ -72,7 +72,6 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
         _clock = clock ?? SystemClockService.Instance;
         _actuatorRegistry = actuatorRegistry;
         _ideService = ideService;
-        _clients = new ConcurrentDictionary<string, WebSocket>();
         _cts = new CancellationTokenSource();
         _httpListener = new HttpListener();
         _httpListener.Prefixes.Add($"http://localhost:{port}/");
@@ -104,7 +103,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(handler);
 
-        _customRoutes[path] = handler;
+        _routeRegistry.Register(path, handler);
         _logger?.LogInformation("[BridgeServer] 注册自定义路由: {Path}", path);
     }
 
@@ -150,14 +149,10 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
 
         _httpListener.Stop();
 
-        await Task.WhenAll(_clients.Values
-            .Select(client => client.CloseAsync(
-                WebSocketCloseStatus.NormalClosure,
-                "Server shutting down",
-                cancellationToken)
-                .ContinueWith(_ => { }, cancellationToken))).ConfigureAwait(false);
-
-        _clients.Clear();
+        await _clientRegistry.CloseAllAsync(
+            WebSocketCloseStatus.NormalClosure,
+            "Server shutting down",
+            cancellationToken).ConfigureAwait(false);
 
         if (_listenerTask != null)
         {
@@ -222,7 +217,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
             var wsContext = await context.AcceptWebSocketAsync(null).ConfigureAwait(false);
             var webSocket = wsContext.WebSocket;
 
-            _clients[clientId] = webSocket;
+            _clientRegistry.Add(clientId, webSocket);
             _logger?.LogInformation("[BridgeServer] 客户端 {ClientId} 已连接", clientId);
 
             // Verify JWT token if available
@@ -328,7 +323,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
             }
 
             _bridgeUIService?.UnregisterSession(clientId);
-            _clients.TryRemove(clientId, out _);
+            _clientRegistry.TryRemove(clientId);
             _logger?.LogInformation("[BridgeServer] 客户端 {ClientId} 已断开", clientId);
         }
     }
@@ -344,7 +339,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
         {
             var path = context.Request.Url?.AbsolutePath ?? "/";
 
-            if (_customRoutes.TryGetValue(path, out var customHandler))
+            if (_routeRegistry.TryGet(path, out var customHandler))
             {
                 await customHandler(context, _cts.Token).ConfigureAwait(false);
                 return;
@@ -353,11 +348,11 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
             switch (path)
             {
                 case "/health":
-                    await WriteJsonResponseAsync(response, new BridgeHealthData { Status = "ok", Clients = _clients.Count }, BridgeJsonContext.Default.BridgeHealthData).ConfigureAwait(false);
+                    await WriteJsonResponseAsync(response, new BridgeHealthData { Status = "ok", Clients = _clientRegistry.Count }, BridgeJsonContext.Default.BridgeHealthData).ConfigureAwait(false);
                     break;
 
                 case "/clients":
-                    await WriteJsonResponseAsync(response, new BridgeClientsData { Clients = _clients.Keys.ToList() }, BridgeJsonContext.Default.BridgeClientsData).ConfigureAwait(false);
+                    await WriteJsonResponseAsync(response, new BridgeClientsData { Clients = _clientRegistry.Keys.ToList() }, BridgeJsonContext.Default.BridgeClientsData).ConfigureAwait(false);
                     break;
 
                 case "/sessions":
@@ -629,7 +624,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     /// <param name="cancellationToken">取消令牌</param>
     public async Task SendMessageAsync(string clientId, BridgeServerMessage message, CancellationToken cancellationToken)
     {
-        if (!_clients.TryGetValue(clientId, out var webSocket))
+        if (!_clientRegistry.TryGet(clientId, out var webSocket))
         {
             return;
         }
@@ -655,7 +650,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             _logger?.LogWarning("[BridgeServer] WebSocket 写超时: {ClientId}，断开连接", clientId);
-            _clients.TryRemove(clientId, out _);
+            _clientRegistry.TryRemove(clientId);
         }
     }
 
@@ -682,7 +677,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable
     /// </summary>
     private Task BroadcastDirectAsync(BridgeServerMessage message, CancellationToken cancellationToken)
     {
-        return Task.WhenAll(_clients.Keys
+        return Task.WhenAll(_clientRegistry.Keys
             .Select(clientId => SendMessageAsync(clientId, message, cancellationToken)));
     }
 

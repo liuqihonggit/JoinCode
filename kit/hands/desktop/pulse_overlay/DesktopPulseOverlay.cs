@@ -153,13 +153,11 @@ internal sealed class DesktopPulseOverlay : IDisposable
             // 实心圆：用目标颜色填充
             var hBrush = PulseNativeMethods.CreateSolidBrush(_state.ColorRef);
             var hPen = PulseNativeMethods.CreatePen(0, 2, _state.ColorRef);
-            var hOldPen = PulseNativeMethods.SelectObject(hdc, hPen);
-            var hOldBrush = PulseNativeMethods.SelectObject(hdc, hBrush);
+            using var penScope = new GdiSelectScope(hdc, hPen);
+            using var brushScope = new GdiSelectScope(hdc, hBrush);
 
             PulseNativeMethods.Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
 
-            PulseNativeMethods.SelectObject(hdc, hOldPen);
-            PulseNativeMethods.SelectObject(hdc, hOldBrush);
             PulseNativeMethods.DeleteObject(hPen);
             PulseNativeMethods.DeleteObject(hBrush);
 
@@ -167,12 +165,11 @@ internal sealed class DesktopPulseOverlay : IDisposable
             const int crossSize = 20;
             const uint crossColor = 0x000000FF; // 红色 COLORREF
             var crossPen = PulseNativeMethods.CreatePen(0, 3, crossColor);
-            var oldCrossPen = PulseNativeMethods.SelectObject(hdc, crossPen);
+            using var crossPenScope = new GdiSelectScope(hdc, crossPen);
             PulseNativeMethods.MoveToEx(hdc, cx - crossSize, cy, IntPtr.Zero);
             PulseNativeMethods.LineTo(hdc, cx + crossSize, cy);
             PulseNativeMethods.MoveToEx(hdc, cx, cy - crossSize, IntPtr.Zero);
             PulseNativeMethods.LineTo(hdc, cx, cy + crossSize);
-            PulseNativeMethods.SelectObject(hdc, oldCrossPen);
             PulseNativeMethods.DeleteObject(crossPen);
         }
         finally

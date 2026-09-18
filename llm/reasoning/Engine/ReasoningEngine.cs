@@ -12,10 +12,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     private readonly ReasoningOptions _options;
     private DateTime? _lastRunAt;
 
-    private int _adversarialRoundCount;
-    private int _tokensUsed;
-    private int _roundsBudget;
-    private int _tokensBudget;
+    private readonly ReasoningBudget _budget;
 
     private readonly ConeOrchestrator _coneOrchestrator = new();
     private readonly BayesianEvidenceUpdater _bayesianUpdater = new();
@@ -35,8 +32,7 @@ public sealed class ReasoningEngine : IReasoningEngine
         _logger = logger;
         _options = options ?? ReasoningOptions.Panda;
         _agents = agents.ToDictionary(a => a.Role, a => a);
-        _roundsBudget = _options.MaxAdversarialRounds;
-        _tokensBudget = _options.MaxTokens;
+        _budget = new ReasoningBudget(_options.MaxAdversarialRounds, _options.MaxTokens);
 
         _coneOrchestrator.RegisterRole(AgentRole.Prosecutor, _options.ConeWindowSize);
         _coneOrchestrator.RegisterRole(AgentRole.Defender, _options.ConeWindowSize);
@@ -252,7 +248,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             return;
         }
 
-        _adversarialRoundCount++;
+        _budget.IncrementRound();
         RecordTokenUsage(_options.RoundOverheadTokens);
 
         var context = new ReasoningContext
@@ -348,30 +344,30 @@ public sealed class ReasoningEngine : IReasoningEngine
         switch (mode)
         {
             case BudgetRefillMode.RoundsOnly:
-                _roundsBudget += rounds;
-                _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _roundsBudget);
+                _budget.AddRounds(rounds);
+                _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _budget.RoundsBudget);
                 break;
             case BudgetRefillMode.TokensOnly:
-                _tokensBudget += tokens;
-                _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _tokensBudget);
+                _budget.AddTokens(tokens);
+                _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _budget.TokensBudget);
                 break;
             case BudgetRefillMode.Both:
-                _roundsBudget += rounds;
-                _tokensBudget += tokens;
+                _budget.AddRounds(rounds);
+                _budget.AddTokens(tokens);
                 _logger.LogInformation("[续费] 轮次 +{Rounds} → {TotalRounds}, Token +{Tokens} → {TotalTokens}",
-                    rounds, _roundsBudget, tokens, _tokensBudget);
+                    rounds, _budget.RoundsBudget, tokens, _budget.TokensBudget);
                 break;
             case BudgetRefillMode.Default:
                 var budget = GetBudgetStatus();
                 if (budget.IsRoundsExhausted)
                 {
-                    _roundsBudget += rounds;
-                    _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _roundsBudget);
+                    _budget.AddRounds(rounds);
+                    _logger.LogInformation("[续费] 轮次预算 +{Rounds} → {Total}", rounds, _budget.RoundsBudget);
                 }
                 if (budget.IsTokensExhausted)
                 {
-                    _tokensBudget += tokens;
-                    _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _tokensBudget);
+                    _budget.AddTokens(tokens);
+                    _logger.LogInformation("[续费] Token预算 +{Tokens} → {Total}", tokens, _budget.TokensBudget);
                 }
                 break;
         }
@@ -399,13 +395,7 @@ public sealed class ReasoningEngine : IReasoningEngine
     /// 获取当前预算使用状态
     /// </summary>
     /// <returns>包含已用轮次、轮次预算、已用 Token 和 Token 预算的状态对象</returns>
-    public BudgetStatus GetBudgetStatus() => new()
-    {
-        RoundsUsed = _adversarialRoundCount,
-        RoundsBudget = _roundsBudget,
-        TokensUsed = _tokensUsed,
-        TokensBudget = _tokensBudget,
-    };
+    public BudgetStatus GetBudgetStatus() => _budget.GetStatus();
 
     /// <summary>
     /// 证据失效传播 — 降级指定节点，沿 DAG 反向传播到下游
@@ -462,12 +452,12 @@ public sealed class ReasoningEngine : IReasoningEngine
 
     private bool IsBudgetExhausted()
     {
-        return _adversarialRoundCount >= _roundsBudget || _tokensUsed >= _tokensBudget;
+        return _budget.IsExhausted;
     }
 
     private void RecordTokenUsage(int tokens)
     {
-        _tokensUsed += tokens;
+        _budget.RecordTokenUsage(tokens);
     }
 
     private void ApplyAgentAction(AgentAction action)
@@ -627,10 +617,7 @@ public sealed class ReasoningEngine : IReasoningEngine
             _dag.RemoveNode(id);
         }
 
-        _adversarialRoundCount = 0;
-        _tokensUsed = 0;
-        _roundsBudget = _options.MaxAdversarialRounds;
-        _tokensBudget = _options.MaxTokens;
+        _budget.Reset(_options.MaxAdversarialRounds, _options.MaxTokens);
         _lastRunAt = null;
 
         foreach (AgentRole role in Enum.GetValues<AgentRole>())

@@ -120,7 +120,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
             throw new DirectoryNotFoundException(PluginErrors.DirectoryNotFound(pluginDirectory));
         }
 
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StartWatchingCmd(pluginDirectory, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -135,7 +135,7 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
             return;
         }
 
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new StopWatchingCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -160,12 +160,11 @@ public sealed partial class PluginHotReloader : ActorBase<IPluginReloadCommand, 
     /// </summary>
     internal async Task ReloadPluginAsync(string pluginName, string filePath, ReloadReason reason)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new ReloadPluginAndWaitCmd(pluginName, filePath, reason, tcs), CancellationToken.None).ConfigureAwait(false);
         await AskAwait(tcs, CancellationToken.None);
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// Actor Consumer — 线程独占 _watcher 和重载逻辑，串行处理命令，无需锁。

@@ -245,7 +245,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
                 var dirName = Path.GetFileName(entry);
 
-                if (!IsEphemeralWorktree(dirName, opts.EphemeralPatterns)) {
+                if (!WorktreePatternMatcher.IsEphemeralWorktree(dirName, opts.EphemeralPatterns)) {
                     continue;
                 }
 
@@ -451,7 +451,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 ["usedSparsePaths"] = session.SparsePaths?.Count > 0
             };
 
-            var updatedJson = FormatJsonNode(root);
+            var updatedJson = WorktreeJsonFormatting.FormatJsonNode(root);
 
             var dir = Path.GetDirectoryName(localSettingsPath);
             if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir))
@@ -486,7 +486,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
             root.Remove("activeWorktreeSession");
 
-            var updatedJson = FormatJsonNode(root);
+            var updatedJson = WorktreeJsonFormatting.FormatJsonNode(root);
             await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -652,166 +652,6 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         return setResult.Success;
     }
 
-    private async Task CopyConfigFilesAsync(string gitRoot, string worktreePath, WorktreeOptions options) {
-        if (options.ConfigFilesToCopy is not { Count: > 0 }) {
-            return;
-        }
-
-        foreach (var relativePath in options.ConfigFilesToCopy) {
-            try {
-                var sourcePath = _fileOperationService.CombinePath(gitRoot, relativePath);
-                var destPath = _fileOperationService.CombinePath(worktreePath, relativePath);
-
-                if (!_fileOperationService.FileExists(sourcePath)) {
-                    continue;
-                }
-
-                var destDir = Path.GetDirectoryName(destPath);
-                if (!string.IsNullOrEmpty(destDir) && !_fileOperationService.DirectoryExists(destDir)) {
-                    _fileOperationService.CreateDirectory(destDir);
-                }
-
-                await _fileOperationService.CopyFileAsync(sourcePath, destPath, overwrite: true).ConfigureAwait(false);
-                _logger?.LogDebug("复制配置文件: {Source} -> {Dest}", sourcePath, destPath);
-            } catch (Exception ex) {
-                _logger?.LogWarning(ex, "复制配置文件失败: {File}", relativePath);
-            }
-        }
-    }
-
-    private async Task CopyWorktreeIncludeFilesAsync(string gitRoot, string worktreePath, CancellationToken cancellationToken) {
-        var includeFilePath = _fileOperationService.CombinePath(gitRoot, ".worktreeinclude");
-        if (!_fileOperationService.FileExists(includeFilePath)) {
-            return;
-        }
-
-        try {
-            var readResult = await _fileOperationService.ReadFileAsync(includeFilePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!readResult.Success) return;
-
-            var patterns = readResult.Content
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(l => l.Trim())
-                .Where(l => l.Length > 0 && !l.StartsWith('#'))
-                .ToList();
-
-            if (patterns.Count == 0) return;
-
-            var lsResult = await ExecuteGitCommandAsync(
-                gitRoot,
-                "ls-files --others --ignored --exclude-standard --directory",
-                cancellationToken).ConfigureAwait(false);
-
-            if (!lsResult.Success || string.IsNullOrWhiteSpace(lsResult.Output)) return;
-
-            var entries = lsResult.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            var copied = new List<string>();
-
-            foreach (var entry in entries) {
-                var trimmed = entry.Trim();
-                if (trimmed.EndsWith('/')) continue;
-
-                var matches = patterns.Any(p => MatchesWorktreeIncludePattern(trimmed, p.TrimStart('/')));
-                if (!matches) continue;
-
-                var srcPath = _fileOperationService.CombinePath(gitRoot, trimmed);
-                var destPath = _fileOperationService.CombinePath(worktreePath, trimmed);
-
-                if (!_fileOperationService.FileExists(srcPath)) continue;
-
-                try {
-                    var destDir = Path.GetDirectoryName(destPath);
-                    if (!string.IsNullOrEmpty(destDir) && !_fileOperationService.DirectoryExists(destDir)) {
-                        _fileOperationService.CreateDirectory(destDir);
-                    }
-                    await _fileOperationService.CopyFileAsync(srcPath, destPath, overwrite: true, cancellationToken).ConfigureAwait(false);
-                    copied.Add(trimmed);
-                } catch (Exception ex) {
-                    _logger?.LogWarning(ex, "复制 .worktreeinclude 文件失败: {File}", trimmed);
-                }
-            }
-
-            if (copied.Count > 0) {
-                _logger?.LogInformation("从 .worktreeinclude 复制了 {Count} 个文件: {Files}", copied.Count, string.Join(", ", copied));
-            }
-        } catch (Exception ex) {
-            _logger?.LogWarning(ex, "处理 .worktreeinclude 时出错");
-        }
-    }
-
-    private static readonly ConcurrentDictionary<string, Regex> WorktreePatternCache = new(StringComparer.Ordinal);
-
-    private static bool MatchesWorktreeIncludePattern(string filePath, string pattern) {
-        if (pattern.Contains('*')) {
-            var regexStr = "^" + Regex.Escape(pattern).Replace("\\*\\*", ".*").Replace("\\*", "[^/]*") + "$";
-            var regex = WorktreePatternCache.GetOrAdd(regexStr, static r => new Regex(r, RegexOptions.IgnoreCase | RegexOptions.Compiled));
-            try {
-                return regex.IsMatch(filePath);
-            } catch {
-                return false;
-            }
-        }
-        return filePath.StartsWith(pattern, StringComparison.OrdinalIgnoreCase) ||
-               filePath.Equals(pattern, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private async Task ConfigureWorktreeHooksPathAsync(string gitRoot, string worktreePath, CancellationToken cancellationToken) {
-        try {
-            var hooksResult = await ExecuteGitCommandAsync(
-                gitRoot, "config --get core.hooksPath", cancellationToken).ConfigureAwait(false);
-
-            if (hooksResult.Success && !string.IsNullOrWhiteSpace(hooksResult.Output)) {
-                var hooksPath = hooksResult.Output.Trim();
-                var absHooksPath = Path.IsPathRooted(hooksPath)
-                    ? hooksPath
-                    : _fileOperationService.CombinePath(gitRoot, hooksPath);
-
-                if (_fileOperationService.DirectoryExists(absHooksPath)) {
-                    await ExecuteGitCommandAsync(
-                        worktreePath,
-                        $"config core.hooksPath \"{absHooksPath}\"",
-                        cancellationToken).ConfigureAwait(false);
-                    _logger?.LogDebug("配置 worktree hooks 路径: {Path}", absHooksPath);
-                }
-            }
-        } catch (Exception ex) {
-            _logger?.LogDebug(ex, "配置 worktree hooks 路径失败");
-        }
-    }
-
-    private async Task CreateSymlinksAsync(string gitRoot, string worktreePath, IReadOnlyList<string> directories) {
-        foreach (var dir in directories) {
-            try {
-                var sourcePath = _fileOperationService.CombinePath(gitRoot, dir);
-                var destPath = _fileOperationService.CombinePath(worktreePath, dir);
-
-                if (!_fileOperationService.DirectoryExists(sourcePath)) {
-                    continue;
-                }
-
-                if (_fileOperationService.DirectoryExists(destPath) || _fileOperationService.FileExists(destPath)) {
-                    continue;
-                }
-
-                _fileOperationService.CreateSymbolicLink(destPath, sourcePath);
-                _logger?.LogDebug("创建符号链接: {Source} -> {Dest}", sourcePath, destPath);
-            } catch (Exception ex) {
-                _logger?.LogWarning(ex, "创建符号链接失败: {Directory}", dir);
-            }
-        }
-    }
-
-    private static bool IsEphemeralWorktree(string dirName, IReadOnlyList<string> patterns) {
-        return patterns.Any(pattern => {
-            try {
-                return Regex.IsMatch(dirName, pattern, RegexOptions.IgnoreCase);
-            }
-            catch {
-                return false;
-            }
-        });
-    }
-
     /// <summary>
     /// 在指定工作目录执行 git 命令
     /// </summary>
@@ -826,15 +666,4 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         => _gitRunner.ExecuteAsync(arguments, workingDirectory, cancellationToken);
 
     #endregion
-
-    private static readonly JsonWriterOptions s_indentedWriterOptions = new() { Indented = true };
-
-    private static string FormatJsonNode(JsonNode node)
-    {
-        using var stream = new MemoryStream();
-        using var writer = new Utf8JsonWriter(stream, s_indentedWriterOptions);
-        node.WriteTo(writer);
-        writer.Flush();
-        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
-    }
 }

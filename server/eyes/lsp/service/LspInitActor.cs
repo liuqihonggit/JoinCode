@@ -31,7 +31,6 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
         _logger = logger;
     }
 
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 异步初始化 — 通过 Actor 邮箱序列化 InitializeCmd 执行
@@ -40,7 +39,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     /// <param name="ct">取消令牌</param>
     public async Task InitializeAsync(List<LspInstanceConfig> configs, CancellationToken ct)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new InitializeCmd(configs, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
@@ -51,7 +50,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     /// <param name="ct">取消令牌</param>
     public async Task ShutdownAsync(CancellationToken ct)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new ShutdownCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }

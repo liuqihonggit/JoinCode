@@ -46,11 +46,11 @@ public enum EntropyEvent : byte
 /// </summary>
 internal sealed class EntropyFsmContext : FsmContext
 {
-    public DateTimeOffset? FirstTriggerTime;
-    public int TriggerCount;
-    public bool IsDeclining;
-    public DateTimeOffset Now;
-    public TimeSpan Window;
+    public DateTimeOffset? FirstTriggerTime { get; set; }
+    public int TriggerCount { get; set; }
+    public bool IsDeclining { get; set; }
+    public DateTimeOffset Now { get; set; }
+    public TimeSpan Window { get; set; }
 }
 
 /// <summary>

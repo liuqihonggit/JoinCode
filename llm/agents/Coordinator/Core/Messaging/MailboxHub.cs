@@ -13,8 +13,7 @@ public sealed partial class MailboxHub
     private readonly IMailbox _inProcess;
     private readonly ITeammateMailboxService? _fileMailbox;
     private readonly ConcurrentDictionary<MailboxKind, MailboxBase<CoordinatorMessage>> _extraChannels;
-    private readonly ConcurrentDictionary<string, MailboxKind> _agentChannels;
-    private readonly ConcurrentDictionary<string, ChatRoomRole> _agentRoles;
+    private readonly AgentChannelRegistry _agentChannels;
     private readonly ILogger<MailboxHub>? _logger;
 
     /// <summary>
@@ -31,8 +30,7 @@ public sealed partial class MailboxHub
         _inProcess = inProcess ?? throw new ArgumentNullException(nameof(inProcess));
         _fileMailbox = fileMailbox;
         _extraChannels = new ConcurrentDictionary<MailboxKind, MailboxBase<CoordinatorMessage>>();
-        _agentChannels = new ConcurrentDictionary<string, MailboxKind>();
-        _agentRoles = new ConcurrentDictionary<string, ChatRoomRole>();
+        _agentChannels = new AgentChannelRegistry();
         _logger = logger;
     }
 
@@ -91,7 +89,7 @@ public sealed partial class MailboxHub
     /// <returns>true=已投递；false=通道未注册或投递失败。</returns>
     public ValueTask<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken ct = default)
     {
-        var kind = _agentChannels.GetValueOrDefault(agentId, MailboxKind.InProcess);
+        var kind = _agentChannels.GetChannel(agentId);
         return SendAsync(agentId, message, kind, ct);
     }
 
@@ -186,7 +184,7 @@ public sealed partial class MailboxHub
                 return;
 
             case MessageVisibility.AdminOnly:
-                foreach (var (agentId, role) in _agentRoles)
+                foreach (var (agentId, role) in _agentChannels.GetAllRoles())
                 {
                     if (role > ChatRoomRole.Admin) continue;
                     if (agentId == message.FromAgentId) continue;
@@ -204,7 +202,7 @@ public sealed partial class MailboxHub
 
     /// <summary>获取 agent 的聊天室角色 — ADR 0111 决策7。</summary>
     public ChatRoomRole GetAgentRole(string agentId)
-        => _agentRoles.GetValueOrDefault(agentId, ChatRoomRole.Member);
+        => _agentChannels.GetRole(agentId);
 
     /// <summary>
     /// 从 agent 所在通道接收消息流。
@@ -214,7 +212,7 @@ public sealed partial class MailboxHub
     /// <returns>消息异步流；通道未注册时返回空流。</returns>
     public IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken ct = default)
     {
-        var kind = _agentChannels.GetValueOrDefault(agentId, MailboxKind.InProcess);
+        var kind = _agentChannels.GetChannel(agentId);
         return kind switch
         {
             MailboxKind.InProcess => _inProcess.ReceiveAsync(agentId, ct),
@@ -236,8 +234,7 @@ public sealed partial class MailboxHub
     /// <param name="ct">取消令牌。</param>
     public async ValueTask RegisterAgentAsync(string agentId, MailboxKind kind = MailboxKind.InProcess, string? sessionId = null, ChatRoomRole role = ChatRoomRole.Member, CancellationToken ct = default)
     {
-        _agentChannels[agentId] = kind;
-        _agentRoles[agentId] = role;
+        _agentChannels.Register(agentId, kind, role);
 
         switch (kind)
         {
@@ -258,7 +255,7 @@ public sealed partial class MailboxHub
     /// </summary>
     public void RegisterAgent(string agentId, string? sessionId = null)
     {
-        _agentChannels[agentId] = MailboxKind.InProcess;
+        _agentChannels.SetChannel(agentId, MailboxKind.InProcess);
         _inProcess.RegisterAgent(agentId, sessionId);
     }
 
@@ -269,7 +266,7 @@ public sealed partial class MailboxHub
     /// <param name="ct">取消令牌。</param>
     public async ValueTask UnregisterAgentAsync(string agentId, CancellationToken ct = default)
     {
-        var kind = _agentChannels.TryRemove(agentId, out var k) ? k : MailboxKind.InProcess;
+        _agentChannels.Unregister(agentId, out var kind);
         switch (kind)
         {
             case MailboxKind.InProcess:
@@ -289,7 +286,7 @@ public sealed partial class MailboxHub
     /// </summary>
     public void UnregisterAgent(string agentId)
     {
-        _agentChannels.TryRemove(agentId, out _);
+        _agentChannels.Unregister(agentId, out _);
         _inProcess.UnregisterAgent(agentId);
     }
 
@@ -309,7 +306,7 @@ public sealed partial class MailboxHub
 
     /// <summary>获取 agent 注册的通道类型。</summary>
     public MailboxKind GetAgentChannel(string agentId)
-        => _agentChannels.GetValueOrDefault(agentId, MailboxKind.InProcess);
+        => _agentChannels.GetChannel(agentId);
 
     private async ValueTask<bool> SendToFileMailboxAsync(string agentId, CoordinatorMessage message, CancellationToken ct)
     {

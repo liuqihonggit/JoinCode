@@ -88,8 +88,6 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
         _decayTimer = new Timer(_ => TrySend(new DecayTickCmd()), null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
     }
 
-    private static TaskCompletionSource<T> CreateTcs<T>() => new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private static TaskCompletionSource CreateTcs() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// 热更新黑名单 — 双变量切换模式：构建新快照 → 原子替换引用
@@ -195,7 +193,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <returns>更新后的工具健康记录</returns>
     public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default)
     {
-        var tcs = CreateTcs<ToolHealthRecord>();
+        var tcs = TcsFactory.Create<ToolHealthRecord>();
         await SendAsync(new RecordSuccessCmd(toolName, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -209,7 +207,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <returns>更新后的工具健康记录</returns>
     public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default)
     {
-        var tcs = CreateTcs<ToolHealthRecord>();
+        var tcs = TcsFactory.Create<ToolHealthRecord>();
         await SendAsync(new RecordFailureCmd(toolName, errorMessage, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
@@ -244,7 +242,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     /// <returns>表示异步操作的任务</returns>
     public async Task ResetToolAsync(string toolName, CancellationToken ct = default)
     {
-        var tcs = CreateTcs();
+        var tcs = TcsFactory.Create();
         await SendAsync(new ResetToolCmd(toolName, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }

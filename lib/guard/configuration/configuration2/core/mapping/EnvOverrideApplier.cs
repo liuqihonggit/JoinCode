@@ -8,36 +8,22 @@ namespace Core.Configuration;
 public static class EnvOverrideApplier
 {
     /// <summary>
-    /// vendor → 协议推断表 — 仅 anthropic/azure 有专属协议，其余默认 OpenAiCompatible
+    /// vendor → 推断信息表 — 聚合协议和 API Key 环境变量名,按 vendor 名索引
+    /// 合并原 ProtocolByVendor + ApiKeyEnvVarByVendor 两个字典(key 同为 vendor 名)
     /// 查表替代 if-else 链: O(1) 查找, AOT 零分配, key 用编译期常量 VendorKindEnumConstants
     /// 用 FrozenDictionary.Create 显式传 OrdinalIgnoreCase 比较器(ToFrozenDictionary 无参版会丢失比较器)
     /// </summary>
-    private static readonly FrozenDictionary<string, ProtocolKind> ProtocolByVendor =
-        FrozenDictionary.Create(
-            StringComparer.OrdinalIgnoreCase,
-            new KeyValuePair<string, ProtocolKind>[]
-            {
-                new(VendorKindEnumConstants.Anthropic, ProtocolKind.Anthropic),
-                new(VendorKindEnumConstants.Azure, ProtocolKind.Azure),
-            });
-
-    /// <summary>
-    /// vendor → API Key 环境变量名推断表 — 6 个供应商有映射, bedrock/未知返回 null
-    /// 查表替代 if-else 链: O(1) 查找, AOT 零分配, key/value 用编译期常量
-    /// 用 FrozenDictionary.Create 显式传 OrdinalIgnoreCase 比较器
-    /// </summary>
-    private static readonly FrozenDictionary<string, string> ApiKeyEnvVarByVendor =
-        FrozenDictionary.Create(
-            StringComparer.OrdinalIgnoreCase,
-            new KeyValuePair<string, string>[]
-            {
-                new(VendorKindEnumConstants.OpenAi, ProviderEnvVarEnumConstants.OpenAiApiKey),
-                new(VendorKindEnumConstants.Anthropic, ProviderEnvVarEnumConstants.AnthropicApiKey),
-                new(VendorKindEnumConstants.Azure, ProviderEnvVarEnumConstants.AzureOpenAiApiKey),
-                new(VendorKindEnumConstants.DeepSeek, ProviderEnvVarEnumConstants.DeepSeekApiKey),
-                new(VendorKindEnumConstants.Agnes, ProviderEnvVarEnumConstants.AgnesApiKey),
-                new(VendorKindEnumConstants.Sensenova, ProviderEnvVarEnumConstants.SenseNovaApiKey),
-            });
+    private static readonly FrozenDictionary<string, VendorInference> VendorInferences = FrozenDictionary.Create(
+        StringComparer.OrdinalIgnoreCase,
+        new KeyValuePair<string, VendorInference>[]
+        {
+            new(VendorKindEnumConstants.OpenAi, new(ProtocolKind.OpenAiCompatible, ProviderEnvVarEnumConstants.OpenAiApiKey)),
+            new(VendorKindEnumConstants.Anthropic, new(ProtocolKind.Anthropic, ProviderEnvVarEnumConstants.AnthropicApiKey)),
+            new(VendorKindEnumConstants.Azure, new(ProtocolKind.Azure, ProviderEnvVarEnumConstants.AzureOpenAiApiKey)),
+            new(VendorKindEnumConstants.DeepSeek, new(ProtocolKind.OpenAiCompatible, ProviderEnvVarEnumConstants.DeepSeekApiKey)),
+            new(VendorKindEnumConstants.Agnes, new(ProtocolKind.OpenAiCompatible, ProviderEnvVarEnumConstants.AgnesApiKey)),
+            new(VendorKindEnumConstants.Sensenova, new(ProtocolKind.OpenAiCompatible, ProviderEnvVarEnumConstants.SenseNovaApiKey)),
+        });
 
     /// <summary>
     /// 用 JCC_* 环境变量覆盖 SettingsJson 字段,返回新 SettingsJson(不可变,用 Merge 生成)。
@@ -112,8 +98,8 @@ public static class EnvOverrideApplier
     internal static string? InferProtocol(string? vendor)
     {
         if (string.IsNullOrEmpty(vendor)) return null;
-        return (ProtocolByVendor.TryGetValue(vendor, out var protocol)
-            ? protocol
+        return (VendorInferences.TryGetValue(vendor, out var info)
+            ? info.Protocol
             : ProtocolKind.OpenAiCompatible).ToValue();
     }
 
@@ -123,6 +109,14 @@ public static class EnvOverrideApplier
     internal static string? InferApiKeyEnvVar(string? vendor)
     {
         if (string.IsNullOrEmpty(vendor)) return null;
-        return ApiKeyEnvVarByVendor.TryGetValue(vendor, out var envVar) ? envVar : null;
+        return VendorInferences.TryGetValue(vendor, out var info) ? info.ApiKeyEnvVar : null;
     }
 }
+
+/// <summary>
+/// vendor 推断信息 — 聚合协议类型和 API Key 环境变量名,按 vendor 名索引
+/// </summary>
+internal readonly record struct VendorInference(
+    ProtocolKind Protocol,
+    string? ApiKeyEnvVar
+);

@@ -3,15 +3,13 @@ namespace Brain.Tests.Context;
 /// <summary>
 /// ChatService 中间件管道单元测试 — 验证管道构建、排序、短路、清理、ToolUseContext 共享
 /// </summary>
-public sealed class ChatServiceMiddlewareTests
-{
+public sealed class ChatServiceMiddlewareTests {
     /// <summary>
     /// 创建 ChatService 实例，使用 mock 依赖和指定中间件列表
     /// </summary>
     private static ChatService CreateService(
         IEnumerable<IChatMiddleware> middlewares,
-        Mock<IChatUsageProcessor>? usageProcessorMock = null)
-    {
+        Mock<IChatUsageProcessor>? usageProcessorMock = null) {
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MessageList());
@@ -43,8 +41,7 @@ public sealed class ChatServiceMiddlewareTests
     // === 管道构建 ===
 
     [Fact]
-    public async Task SendMessageAsync_NoMiddlewares_ReturnsFallbackText()
-    {
+    public async Task SendMessageAsync_NoMiddlewares_ReturnsFallbackText() {
         // 空中间件列表 → 只有 TerminalHandler → 无事件 → 返回回退文本
         var service = CreateService([]);
         var result = await service.SendMessageAsync("hello").ConfigureAwait(true);
@@ -52,8 +49,7 @@ public sealed class ChatServiceMiddlewareTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_WithMockQueryLoop_ReturnsResponse()
-    {
+    public async Task SendMessageAsync_WithMockQueryLoop_ReturnsResponse() {
         var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware("Hello from mock")
@@ -66,8 +62,7 @@ public sealed class ChatServiceMiddlewareTests
     // === 排序 ===
 
     [Fact]
-    public async Task Pipeline_MiddlewaresExecuteInOrderSequence()
-    {
+    public async Task Pipeline_MiddlewaresExecuteInOrderSequence() {
         // 用自定义中间件记录执行顺序
         var executionLog = new List<string>();
 
@@ -85,16 +80,14 @@ public sealed class ChatServiceMiddlewareTests
     // === 事件流 ===
 
     [Fact]
-    public async Task StreamWithEventsAsync_WithMockMiddlewares_ReturnsAllEvents()
-    {
+    public async Task StreamWithEventsAsync_WithMockMiddlewares_ReturnsAllEvents() {
         var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware("stream text")
         ]);
 
         var events = new List<ChatStreamEvent>();
-        await foreach (var evt in service.StreamWithEventsAsync("hello").ConfigureAwait(true))
-        {
+        await foreach (var evt in service.StreamWithEventsAsync("hello").ConfigureAwait(true)) {
             events.Add(evt);
         }
 
@@ -106,16 +99,14 @@ public sealed class ChatServiceMiddlewareTests
     }
 
     [Fact]
-    public async Task SendMessageStreamAsync_WithMockMiddlewares_ReturnsTextChunks()
-    {
+    public async Task SendMessageStreamAsync_WithMockMiddlewares_ReturnsTextChunks() {
         var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware("chunk1")
         ]);
 
         var chunks = new List<string>();
-        await foreach (var chunk in service.SendMessageStreamAsync("hello").ConfigureAwait(true))
-        {
+        await foreach (var chunk in service.SendMessageStreamAsync("hello").ConfigureAwait(true)) {
             chunks.Add(chunk);
         }
 
@@ -125,8 +116,7 @@ public sealed class ChatServiceMiddlewareTests
     // === 短路 ===
 
     [Fact]
-    public async Task Pipeline_ShortCircuit_MiddlewareSkipsNext()
-    {
+    public async Task Pipeline_ShortCircuit_MiddlewareSkipsNext() {
         var executionLog = new List<string>();
 
         var service = CreateService([
@@ -143,8 +133,7 @@ public sealed class ChatServiceMiddlewareTests
     // === ConversationTurn 递增 ===
 
     [Fact]
-    public async Task SendMessageAsync_IncrementsConversationTurn()
-    {
+    public async Task SendMessageAsync_IncrementsConversationTurn() {
         var service = CreateService([
             new MockPreChatMiddleware(),
             new MockQueryLoopMiddleware()
@@ -171,8 +160,7 @@ public sealed class ChatServiceMiddlewareTests
     // === ToolUseContext 共享 ===
 
     [Fact]
-    public async Task Pipeline_ToolUseContext_SharedAcrossMiddlewares()
-    {
+    public async Task Pipeline_ToolUseContext_SharedAcrossMiddlewares() {
         var contextCapture = new ToolUseContextCaptureMiddleware();
 
         var service = CreateService([
@@ -189,8 +177,7 @@ public sealed class ChatServiceMiddlewareTests
     // === CleanupAsync — 使用真实 ProcessUsageMiddleware 验证 ===
 
     [Fact]
-    public async Task SendMessageAsync_WithUsage_ProcessesUsage()
-    {
+    public async Task SendMessageAsync_WithUsage_ProcessesUsage() {
         var usageMock = new Mock<IChatUsageProcessor>();
         var preprocessorMock = new Mock<IChatPreprocessor>();
         var contextManagerMock = new Mock<IChatContextManager>();
@@ -221,8 +208,7 @@ public sealed class ChatServiceMiddlewareTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_WithUsage_ProcessUsageFailure_DoesNotThrow()
-    {
+    public async Task SendMessageAsync_WithUsage_ProcessUsageFailure_DoesNotThrow() {
         var usageMock = new Mock<IChatUsageProcessor>();
         usageMock.Setup(u => u.ProcessUsageAsync(It.IsAny<TokenUsage>(), It.IsAny<string>(), It.IsAny<PromptStateSnapshot>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("usage failed"));
@@ -257,16 +243,13 @@ public sealed class ChatServiceMiddlewareTests
     /// <summary>
     /// 顺序追踪中间件 — 记录执行顺序
     /// </summary>
-    private sealed class OrderTrackingMiddleware(string label, List<string> log) : IChatMiddleware
-    {
+    private sealed class OrderTrackingMiddleware(string label, List<string> log) : IChatMiddleware {
         public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
             ChatMiddlewareContext context,
             StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-            [EnumeratorCancellation] CancellationToken ct)
-        {
+            [EnumeratorCancellation] CancellationToken ct) {
             log.Add(label);
-            await foreach (var evt in next(context, ct).ConfigureAwait(true))
-            {
+            await foreach (var evt in next(context, ct).ConfigureAwait(true)) {
                 yield return evt;
             }
         }
@@ -275,13 +258,11 @@ public sealed class ChatServiceMiddlewareTests
     /// <summary>
     /// 短路中间件 — 不调用 next，直接返回文本事件
     /// </summary>
-    private sealed class ShortCircuitMiddleware(string response, List<string> log) : IChatMiddleware
-    {
+    private sealed class ShortCircuitMiddleware(string response, List<string> log) : IChatMiddleware {
         public IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
             ChatMiddlewareContext context,
             StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-            CancellationToken ct)
-        {
+            CancellationToken ct) {
             log.Add("short-circuit");
             context.FinalUsage = new TokenUsage(1, 1);
             context.FinalModelId = "test-model";
@@ -290,8 +271,7 @@ public sealed class ChatServiceMiddlewareTests
         }
 
         private static async IAsyncEnumerable<ChatStreamEvent> ShortCircuitImpl(
-            string response, [EnumeratorCancellation] CancellationToken ct)
-        {
+            string response, [EnumeratorCancellation] CancellationToken ct) {
             yield return ChatStreamEvent.Text(response);
             yield return ChatStreamEvent.Done(new TokenUsage(1, 1), "test-model");
         }
@@ -300,18 +280,15 @@ public sealed class ChatServiceMiddlewareTests
     /// <summary>
     /// 轮次记录中间件 — 捕获 ConversationTurn
     /// </summary>
-    private sealed class TurnRecordingMiddleware : IChatMiddleware
-    {
+    private sealed class TurnRecordingMiddleware : IChatMiddleware {
         public int LastTurn { get; private set; }
 
         public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
             ChatMiddlewareContext context,
             StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-            [EnumeratorCancellation] CancellationToken ct)
-        {
+            [EnumeratorCancellation] CancellationToken ct) {
             LastTurn = context.ConversationTurn;
-            await foreach (var evt in next(context, ct).ConfigureAwait(true))
-            {
+            await foreach (var evt in next(context, ct).ConfigureAwait(true)) {
                 yield return evt;
             }
         }
@@ -320,18 +297,15 @@ public sealed class ChatServiceMiddlewareTests
     /// <summary>
     /// ToolUseContext 捕获中间件 — 验证共享实例
     /// </summary>
-    private sealed class ToolUseContextCaptureMiddleware : IChatMiddleware
-    {
+    private sealed class ToolUseContextCaptureMiddleware : IChatMiddleware {
         public ToolUseContext? CapturedContext { get; private set; }
 
         public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
             ChatMiddlewareContext context,
             StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-            [EnumeratorCancellation] CancellationToken ct)
-        {
+            [EnumeratorCancellation] CancellationToken ct) {
             CapturedContext = context.ToolUseContext;
-            await foreach (var evt in next(context, ct).ConfigureAwait(true))
-            {
+            await foreach (var evt in next(context, ct).ConfigureAwait(true)) {
                 yield return evt;
             }
         }

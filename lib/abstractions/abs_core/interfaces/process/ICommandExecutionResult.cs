@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 提供统一的 ExitCode/Success/Output/Error/ExecutionTime 字段,日后可扩展更多字段(MemoryUsage/CpuTime 等)
 /// </para>
 /// </summary>
-public interface ICommandExecutionResult
-{
+public interface ICommandExecutionResult {
     /// <summary>退出码(0=成功,非0=失败,null=未获取/中断)</summary>
     int? ExitCode { get; }
 

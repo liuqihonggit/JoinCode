@@ -15,8 +15,7 @@ internal sealed record CleanupSessionsCmd(TaskCompletionSource Tcs) : ISshComman
 /// SSH 会话管理器 — Actor 化串行处理会话创建、销毁与清理命令，线程独占 _sessions 字典
 /// </summary>
 [Register(typeof(ISshSessionManager), ServiceLifetime.Singleton)]
-public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, ISshSessionManager
-{
+public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, ISshSessionManager {
 
     /// <summary>
     /// 构造会话管理器
@@ -25,8 +24,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// <param name="logger">可选日志记录器</param>
     /// <param name="telemetryService">可选遥测服务，用于记录会话操作计数</param>
     public SshSessionManager(IFileSystem fs, ILogger<SshSessionManager>? logger = null, ITelemetryService? telemetryService = null)
-        : base()
-    {
+        : base() {
         _fs = fs;
         _logger = logger;
         _telemetryService = telemetryService;
@@ -49,8 +47,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// <returns>已创建的 SSH 会话实例</returns>
     public async Task<ISshSession> CreateSessionAsync(
         SshSessionConfig config,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
         ArgumentNullException.ThrowIfNull(config);
 
@@ -64,8 +61,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// </summary>
     /// <param name="sessionId">会话标识</param>
     /// <returns>命中时返回会话实例，未命中时返回 null</returns>
-    public ISshSession? GetSession(string sessionId)
-    {
+    public ISshSession? GetSession(string sessionId) {
         return _sessions.TryGetValue(sessionId, out var session) ? session : null;
     }
 
@@ -73,8 +69,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// 获取所有处于 Connected 状态的活动会话
     /// </summary>
     /// <returns>活动会话集合</returns>
-    public IEnumerable<ISshSession> GetActiveSessions()
-    {
+    public IEnumerable<ISshSession> GetActiveSessions() {
         return _sessions.Values
             .Where(s => s.ConnectionState == SshConnectionState.Connected);
     }
@@ -87,8 +82,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// <returns>表示异步销毁操作的任务</returns>
     public async Task DestroySessionAsync(
         string sessionId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         var tcs = TcsFactory.Create();
@@ -99,10 +93,8 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     private void RecordSessionMetrics(string operation, bool isSuccess) =>
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "ssh.session.count", operation, isSuccess, "SSH session operation count");
 
-    private void OnSessionConnectionStateChanged(object? sender, SshConnectionStateChangedEventArgs e)
-    {
-        SessionStateChanged?.Invoke(this, new SshSessionStateChangedEventArgs
-        {
+    private void OnSessionConnectionStateChanged(object? sender, SshConnectionStateChangedEventArgs e) {
+        SessionStateChanged?.Invoke(this, new SshSessionStateChangedEventArgs {
             SessionId = e.SessionId,
             NewState = e.NewState,
             PreviousState = e.PreviousState,
@@ -113,14 +105,10 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// <summary>
     /// Actor Consumer — 线程独占 _sessions，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(ISshCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
-            case CreateSessionCmd cmd:
-            {
-                try
-                {
+    protected override async ValueTask HandleAsync(ISshCommand command, CancellationToken ct) {
+        switch (command) {
+            case CreateSessionCmd cmd: {
+                try {
                     var session = new SshSession(cmd.Config, _fs, _logger);
                     _sessions[session.SessionId] = session;
                     session.ConnectionStateChanged += OnSessionConnectionStateChanged;
@@ -130,15 +118,12 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
 
                     RecordSessionMetrics("create", true);
                     cmd.Tcs.TrySetResult(session);
-                }
-                catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
+                } catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
                 break;
             }
 
-            case DestroySessionCmd cmd:
-            {
-                if (_sessions.TryRemove(cmd.SessionId, out var session))
-                {
+            case DestroySessionCmd cmd: {
+                if (_sessions.TryRemove(cmd.SessionId, out var session)) {
                     session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
                     await session.DisposeAsync().ConfigureAwait(false);
                     _logger?.LogInformation("SSH 会话已销毁: {SessionId}", cmd.SessionId);
@@ -148,11 +133,9 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
                 break;
             }
 
-            case CleanupSessionsCmd cmd:
-            {
+            case CleanupSessionsCmd cmd: {
                 var sessions = _sessions.Values.ToList();
-                foreach (var session in sessions)
-                {
+                foreach (var session in sessions) {
                     session.ConnectionStateChanged -= OnSessionConnectionStateChanged;
                 }
 
@@ -167,8 +150,7 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
 
     /// <summary>消费者异常回调 — 记录日志</summary>
     /// <param name="ex">异常对象</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[SshSessionManager] Actor Consumer 异常");
     }
 
@@ -176,10 +158,8 @@ public sealed partial class SshSessionManager : ActorBase<ISshCommand, Unit>, IS
     /// 异步释放资源 — 通过 Actor 串行清理所有会话后释放基类
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public override async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public override async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return;
         }
 

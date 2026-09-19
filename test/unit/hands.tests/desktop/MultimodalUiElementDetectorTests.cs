@@ -3,8 +3,7 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// MultimodalUiElementDetector 纯方法单元测试 — 验证 JSON 解析、枚举映射、LLM 交互
 /// </summary>
-public sealed class MultimodalUiElementDetectorTests
-{
+public sealed class MultimodalUiElementDetectorTests {
     #region ParseElementType
 
     [Theory]
@@ -29,14 +28,12 @@ public sealed class MultimodalUiElementDetectorTests
     [InlineData("listitem", UiElementType.ListItem)]
     [InlineData("titlebar", UiElementType.TitleBar)]
     [InlineData("scrollbar", UiElementType.ScrollBar)]
-    public void ParseElementType_KnownTypes_ReturnCorrectEnum(string input, UiElementType expected)
-    {
+    public void ParseElementType_KnownTypes_ReturnCorrectEnum(string input, UiElementType expected) {
         MultimodalUiElementDetector.ParseElementType(input).Should().Be(expected);
     }
 
     [Fact]
-    public void ParseElementType_UnknownType_ReturnsUnknown()
-    {
+    public void ParseElementType_UnknownType_ReturnsUnknown() {
         MultimodalUiElementDetector.ParseElementType("foobar").Should().Be(UiElementType.Unknown);
         MultimodalUiElementDetector.ParseElementType(null).Should().Be(UiElementType.Unknown);
         MultimodalUiElementDetector.ParseElementType(string.Empty).Should().Be(UiElementType.Unknown);
@@ -57,14 +54,12 @@ public sealed class MultimodalUiElementDetectorTests
     [InlineData("enabled", ElementState.Normal)]
     [InlineData("checked", ElementState.Selected)]
     [InlineData("active", ElementState.Focused)]
-    public void ParseElementState_KnownStates_ReturnCorrectEnum(string input, ElementState expected)
-    {
+    public void ParseElementState_KnownStates_ReturnCorrectEnum(string input, ElementState expected) {
         MultimodalUiElementDetector.ParseElementState(input).Should().Be(expected);
     }
 
     [Fact]
-    public void ParseElementState_UnknownState_DefaultsToNormal()
-    {
+    public void ParseElementState_UnknownState_DefaultsToNormal() {
         MultimodalUiElementDetector.ParseElementState("foobar").Should().Be(ElementState.Normal);
         MultimodalUiElementDetector.ParseElementState(null).Should().Be(ElementState.Normal);
     }
@@ -74,15 +69,13 @@ public sealed class MultimodalUiElementDetectorTests
     #region ExtractJson
 
     [Fact]
-    public void ExtractJson_PureJson_ReturnsAsIs()
-    {
+    public void ExtractJson_PureJson_ReturnsAsIs() {
         var json = """{"found": true}""";
         MultimodalUiElementDetector.ExtractJson(json).Should().Be(json);
     }
 
     [Fact]
-    public void ExtractJson_MarkdownCodeBlock_ExtractsInnerJson()
-    {
+    public void ExtractJson_MarkdownCodeBlock_ExtractsInnerJson() {
         var response = """
             ```json
             {"found": true, "element": null}
@@ -93,16 +86,14 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public void ExtractJson_JsonWithSurroundingText_ExtractsJsonObject()
-    {
+    public void ExtractJson_JsonWithSurroundingText_ExtractsJsonObject() {
         var response = "Here is the result: {\"found\": true} done.";
         var result = MultimodalUiElementDetector.ExtractJson(response);
         result.Should().Be("""{"found": true}""");
     }
 
     [Fact]
-    public void ExtractJson_EmptyInput_ReturnsEmpty()
-    {
+    public void ExtractJson_EmptyInput_ReturnsEmpty() {
         MultimodalUiElementDetector.ExtractJson("").Should().BeEmpty();
         MultimodalUiElementDetector.ExtractJson("   ").Should().BeEmpty();
     }
@@ -112,8 +103,7 @@ public sealed class MultimodalUiElementDetectorTests
     #region ParseDetectionResult
 
     [Fact]
-    public void ParseDetectionResult_ValidJson_ReturnsElements()
-    {
+    public void ParseDetectionResult_ValidJson_ReturnsElements() {
         var json = """
             {
               "imageWidth": 1920,
@@ -161,8 +151,7 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public void ParseDetectionResult_MarkdownWrapped_ParsesCorrectly()
-    {
+    public void ParseDetectionResult_MarkdownWrapped_ParsesCorrectly() {
         var response = """
             ```json
             {"imageWidth": 800, "imageHeight": 600, "elements": [{"type": "link", "text": "点击这里", "description": "超链接", "x": 10, "y": 20, "width": 60, "height": 20, "state": "normal", "confidence": 0.9}]}
@@ -177,8 +166,7 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public void ParseDetectionResult_EmptyElements_ReturnsEmptyList()
-    {
+    public void ParseDetectionResult_EmptyElements_ReturnsEmptyList() {
         var json = """{"imageWidth": 100, "imageHeight": 100, "elements": []}""";
         var result = MultimodalUiElementDetector.ParseDetectionResult(json);
         result.Elements.Should().BeEmpty();
@@ -186,23 +174,20 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public void ParseDetectionResult_InvalidJson_ReturnsEmptyResult()
-    {
+    public void ParseDetectionResult_InvalidJson_ReturnsEmptyResult() {
         var result = MultimodalUiElementDetector.ParseDetectionResult("not json at all");
         result.Elements.Should().BeEmpty();
         result.ImageWidth.Should().Be(0);
     }
 
     [Fact]
-    public void ParseDetectionResult_EmptyInput_ReturnsEmptyResult()
-    {
+    public void ParseDetectionResult_EmptyInput_ReturnsEmptyResult() {
         var result = MultimodalUiElementDetector.ParseDetectionResult("");
         result.Elements.Should().BeEmpty();
     }
 
     [Fact]
-    public void ParseDetectionResult_MissingImageDimensions_DefaultsToZero()
-    {
+    public void ParseDetectionResult_MissingImageDimensions_DefaultsToZero() {
         var json = """{"elements": []}""";
         var result = MultimodalUiElementDetector.ParseDetectionResult(json);
         result.ImageWidth.Should().Be(0);
@@ -214,8 +199,7 @@ public sealed class MultimodalUiElementDetectorTests
     #region ParseFindResult
 
     [Fact]
-    public void ParseFindResult_FoundTrue_ReturnsElement()
-    {
+    public void ParseFindResult_FoundTrue_ReturnsElement() {
         var json = """
             {
               "found": true,
@@ -243,23 +227,20 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public void ParseFindResult_FoundFalse_ReturnsNull()
-    {
+    public void ParseFindResult_FoundFalse_ReturnsNull() {
         var json = """{"found": false, "element": null}""";
         var result = MultimodalUiElementDetector.ParseFindResult(json);
         result.Should().BeNull();
     }
 
     [Fact]
-    public void ParseFindResult_InvalidJson_ReturnsNull()
-    {
+    public void ParseFindResult_InvalidJson_ReturnsNull() {
         var result = MultimodalUiElementDetector.ParseFindResult("not json");
         result.Should().BeNull();
     }
 
     [Fact]
-    public void ParseFindResult_EmptyInput_ReturnsNull()
-    {
+    public void ParseFindResult_EmptyInput_ReturnsNull() {
         var result = MultimodalUiElementDetector.ParseFindResult("");
         result.Should().BeNull();
     }
@@ -269,8 +250,7 @@ public sealed class MultimodalUiElementDetectorTests
     #region DetectAsync (with Mock IQueryService)
 
     [Fact]
-    public async Task DetectAsync_ValidResponse_ReturnsParsedElements()
-    {
+    public async Task DetectAsync_ValidResponse_ReturnsParsedElements() {
         var llmResponse = """
             {"imageWidth": 1920, "imageHeight": 1080, "elements": [{"type": "button", "text": "OK", "description": "确认按钮", "x": 1, "y": 2, "width": 3, "height": 4, "state": "normal", "confidence": 0.9}]}
             """;
@@ -291,8 +271,7 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public async Task DetectAsync_EmptyLlmResponse_ReturnsEmptyResult()
-    {
+    public async Task DetectAsync_EmptyLlmResponse_ReturnsEmptyResult() {
         var mockQueryService = new Mock<IQueryService>();
         mockQueryService
             .Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
@@ -306,8 +285,7 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public async Task DetectAsync_NullOrWhiteSpaceBase64_ThrowsArgumentException()
-    {
+    public async Task DetectAsync_NullOrWhiteSpaceBase64_ThrowsArgumentException() {
         var mockQueryService = new Mock<IQueryService>();
         var detector = new MultimodalUiElementDetector(mockQueryService.Object);
 
@@ -316,8 +294,7 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public async Task DetectAsync_PassesMultimodalContentBlock_ToQueryService()
-    {
+    public async Task DetectAsync_PassesMultimodalContentBlock_ToQueryService() {
         MessageList? capturedMessages = null;
         var mockQueryService = new Mock<IQueryService>();
         mockQueryService
@@ -346,8 +323,7 @@ public sealed class MultimodalUiElementDetectorTests
     #region FindByDescriptionAsync (with Mock IQueryService)
 
     [Fact]
-    public async Task FindByDescriptionAsync_FoundTrue_ReturnsElement()
-    {
+    public async Task FindByDescriptionAsync_FoundTrue_ReturnsElement() {
         var llmResponse = """
             {"found": true, "element": {"type": "button", "text": "保存", "description": "保存按钮", "x": 10, "y": 20, "width": 80, "height": 30, "state": "normal", "confidence": 0.95}}
             """;
@@ -367,8 +343,7 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public async Task FindByDescriptionAsync_FoundFalse_ReturnsNull()
-    {
+    public async Task FindByDescriptionAsync_FoundFalse_ReturnsNull() {
         var llmResponse = """{"found": false, "element": null}""";
 
         var mockQueryService = new Mock<IQueryService>();
@@ -384,8 +359,7 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public async Task FindByDescriptionAsync_NullOrWhiteSpaceArguments_ThrowsArgumentException()
-    {
+    public async Task FindByDescriptionAsync_NullOrWhiteSpaceArguments_ThrowsArgumentException() {
         var mockQueryService = new Mock<IQueryService>();
         var detector = new MultimodalUiElementDetector(mockQueryService.Object);
 
@@ -397,8 +371,7 @@ public sealed class MultimodalUiElementDetectorTests
     }
 
     [Fact]
-    public async Task FindByDescriptionAsync_PassesDescriptionInUserMessage()
-    {
+    public async Task FindByDescriptionAsync_PassesDescriptionInUserMessage() {
         MessageList? capturedMessages = null;
         var mockQueryService = new Mock<IQueryService>();
         mockQueryService

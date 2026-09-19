@@ -6,8 +6,7 @@ namespace MockServer.E2E.Tests.Fixtures;
 /// 提供测试生命周期管理和常用断言方法
 /// </summary>
 [Collection(nameof(PipeTestCollection))]
-public abstract class OpenAIMockTestBase : IAsyncLifetime
-{
+public abstract class OpenAIMockTestBase : IAsyncLifetime {
     private readonly PipeMockServerFixture _fixture;
     private readonly ITestOutputHelper _output;
     private readonly ILoggerFactory _loggerFactory;
@@ -39,13 +38,11 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// </summary>
     protected bool IsCliRunning => _cliProcess?.IsRunning ?? false;
 
-    protected OpenAIMockTestBase(PipeMockServerFixture fixture, ITestOutputHelper output)
-    {
+    protected OpenAIMockTestBase(PipeMockServerFixture fixture, ITestOutputHelper output) {
         _fixture = fixture ?? throw new ArgumentNullException(nameof(fixture));
         _output = output ?? throw new ArgumentNullException(nameof(output));
 
-        _loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
-        {
+        _loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder => {
             builder.AddConsole();
             builder.SetMinimumLevel(LogLevel.Debug);
         });
@@ -54,8 +51,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// <summary>
     /// 测试初始化 - 清理请求记录
     /// </summary>
-    public virtual Task InitializeAsync()
-    {
+    public virtual Task InitializeAsync() {
         _output.WriteLine($"[{nameof(OpenAIMockTestBase)}] 测试初始化 - 清理请求记录");
         RequestRecorder.Clear();
         return Task.CompletedTask;
@@ -64,12 +60,10 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// <summary>
     /// 测试释放 - 停止 JoinCode 进程
     /// </summary>
-    public virtual async Task DisposeAsync()
-    {
+    public virtual async Task DisposeAsync() {
         _output.WriteLine($"[{nameof(OpenAIMockTestBase)}] 测试释放 - 停止 JoinCode 进程");
 
-        if (_cliProcess != null)
-        {
+        if (_cliProcess != null) {
             await _cliProcess.StopAsync();
             await _cliProcess.DisposeAsync();
             _cliProcess = null;
@@ -87,15 +81,13 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     protected async Task StartJoinCodeAsync(
         string executablePath,
         string? additionalArgs = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrEmpty(executablePath);
 
         _output.WriteLine($"[{nameof(OpenAIMockTestBase)}] 启动 JoinCode 进程: {executablePath}");
 
         // 确保之前的进程已停止
-        if (_cliProcess != null)
-        {
+        if (_cliProcess != null) {
             await _cliProcess.StopAsync().ConfigureAwait(true);
             await _cliProcess.DisposeAsync().ConfigureAwait(true);
         }
@@ -116,8 +108,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
         _cliProcess = new StdioProcessManager(
             _loggerFactory.CreateLogger<StdioProcessManager>());
 
-        var config = new StdioProcessConfig
-        {
+        var config = new StdioProcessConfig {
             ExecutablePath = executablePath,
             Arguments = BuildArguments(pipeName, additionalArgs),
             EnvironmentVariables = BuildEnvironmentVariables(pipeName, apiKey)
@@ -133,10 +124,8 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// </summary>
     /// <param name="input">输入内容</param>
     /// <param name="ct">取消令牌</param>
-    protected async Task SendInputAsync(string input, CancellationToken ct = default)
-    {
-        if (_cliProcess == null)
-        {
+    protected async Task SendInputAsync(string input, CancellationToken ct = default) {
+        if (_cliProcess == null) {
             throw new InvalidOperationException("[GEN041] [E2E011] JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
         }
 
@@ -154,10 +143,8 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     protected async Task<string> WaitForResponseAsync(
         Func<string, bool> predicate,
         TimeSpan? timeout = null,
-        CancellationToken ct = default)
-    {
-        if (_cliProcess == null)
-        {
+        CancellationToken ct = default) {
+        if (_cliProcess == null) {
             throw new InvalidOperationException("[GEN042] [E2E012] JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
         }
 
@@ -180,8 +167,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     protected async Task<string> WaitForResponseContainingAsync(
         string text,
         TimeSpan? timeout = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         return await WaitForResponseAsync(
             output => output.Contains(text, StringComparison.OrdinalIgnoreCase),
             timeout,
@@ -193,13 +179,11 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// </summary>
     /// <param name="expectedContent">期望内容</param>
     /// <param name="message">断言消息</param>
-    protected void AssertRequestContains(string expectedContent, string? message = null)
-    {
+    protected void AssertRequestContains(string expectedContent, string? message = null) {
         var requests = RequestRecorder.GetRequests();
         var found = requests.Any(r => r.Body.Contains(expectedContent, StringComparison.OrdinalIgnoreCase));
 
-        if (!found)
-        {
+        if (!found) {
             var actualRequests = string.Join(", ", requests.Select(r => r.Body[..Math.Min(100, r.Body.Length)]));
             Assert.Fail(message ?? $"期望请求包含 '{expectedContent}'，但未找到。实际请求: {actualRequests}");
         }
@@ -210,16 +194,14 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// </summary>
     /// <param name="role">角色 (system/user/assistant)</param>
     /// <param name="content">期望内容</param>
-    protected void AssertRequestContainsRoleMessage(string role, string content)
-    {
+    protected void AssertRequestContainsRoleMessage(string role, string content) {
         var requests = RequestRecorder.GetRequests();
         var found = requests.Any(r =>
             r.ParsedRequest?.Messages.Any(m =>
                 m.Role.Equals(role, StringComparison.OrdinalIgnoreCase) &&
                 m.Content.Contains(content, StringComparison.OrdinalIgnoreCase)) == true);
 
-        if (!found)
-        {
+        if (!found) {
             Assert.Fail($"期望请求包含 {role} 角色的消息 '{content}'，但未找到。");
         }
     }
@@ -228,8 +210,7 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// 断言请求数量
     /// </summary>
     /// <param name="expectedCount">期望数量</param>
-    protected void AssertRequestCount(int expectedCount)
-    {
+    protected void AssertRequestCount(int expectedCount) {
         var actualCount = RequestRecorder.Count;
         Assert.Equal(expectedCount, actualCount);
     }
@@ -237,10 +218,8 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// <summary>
     /// 获取当前 JoinCode 输出
     /// </summary>
-    protected async Task<string> GetCurrentOutputAsync()
-    {
-        if (_cliProcess == null)
-        {
+    protected async Task<string> GetCurrentOutputAsync() {
+        if (_cliProcess == null) {
             throw new InvalidOperationException("[GEN043] [E2E013] JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
         }
 
@@ -250,10 +229,8 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// <summary>
     /// 清空 JoinCode 输出缓冲区
     /// </summary>
-    protected async Task ClearOutputAsync()
-    {
-        if (_cliProcess == null)
-        {
+    protected async Task ClearOutputAsync() {
+        if (_cliProcess == null) {
             throw new InvalidOperationException("[GEN044] [E2E014] JoinCode 进程未启动。请先调用 StartJoinCodeAsync。");
         }
 
@@ -263,12 +240,10 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// <summary>
     /// 构建进程启动参数
     /// </summary>
-    private static string BuildArguments(string pipeName, string? additionalArgs)
-    {
+    private static string BuildArguments(string pipeName, string? additionalArgs) {
         var args = $"--pipe \"{pipeName}\"";
 
-        if (!string.IsNullOrWhiteSpace(additionalArgs))
-        {
+        if (!string.IsNullOrWhiteSpace(additionalArgs)) {
             args += $" {additionalArgs}";
         }
 
@@ -278,10 +253,8 @@ public abstract class OpenAIMockTestBase : IAsyncLifetime
     /// <summary>
     /// 构建环境变量字典
     /// </summary>
-    private static Dictionary<string, string> BuildEnvironmentVariables(string pipeName, string apiKey)
-    {
-        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
+    private static Dictionary<string, string> BuildEnvironmentVariables(string pipeName, string apiKey) {
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             [nameof(pipeName).ToUpperInvariant()] = pipeName,
             [ProviderEnvVarEnumConstants.OpenAiApiKey] = apiKey,
             ["OPENAI_BASE_URL"] = "http://localhost:8080/v1",

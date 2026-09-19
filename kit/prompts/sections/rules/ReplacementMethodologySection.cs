@@ -8,13 +8,11 @@ namespace Core.Prompts.Sections;
     Keywords = new[] { "替换", "批量替换", "全局命名空间", "using迁移", "AST替换", "机械化替换", "全局替换", "replace", "batch replace" },
     InjectOn = PromptSectionInject.Keyword,
     Order = 62)]
-public static class ReplacementMethodologySection
-{
+public static class ReplacementMethodologySection {
     /// <summary>
     /// 获取 replacement_methodology 部分内容；替换方法论文本。
     /// </summary>
-    public static string GetContent()
-    {
+    public static string GetContent() {
         return """
 # 替换方法论
 
@@ -73,8 +71,7 @@ public static class ReplacementMethodologySection
     /// <summary>
     /// 创建 replacement_methodology 提示词部分。
     /// </summary>
-    public static SystemPromptSection Create()
-    {
+    public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("replacement_methodology", GetContent);
     }
 }

@@ -6,6 +6,5 @@ namespace JoinCode.Abstractions.Attributes;
 /// 并在调用时自动构造选项对象。
 /// </summary>
 [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
-public sealed class McpToolOptionsAttribute : Attribute
-{
+public sealed class McpToolOptionsAttribute : Attribute {
 }

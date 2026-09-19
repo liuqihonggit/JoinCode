@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 系统执行器类型标识 — 替代枚举，支持"构造类即扩展"的注册式扩展
 /// 新增执行器类型只需添加静态实例 + 对应 SystemActuatorBase 子类，无需改枚举
 /// </summary>
-public sealed class SystemActuatorKind
-{
+public sealed class SystemActuatorKind {
     /// <summary>
     /// 类型唯一标识（如 "bash", "powershell", "cmd", "python"）
     /// </summary>
@@ -16,8 +15,7 @@ public sealed class SystemActuatorKind
     /// </summary>
     public string DisplayName { get; }
 
-    private SystemActuatorKind(string id, string displayName)
-    {
+    private SystemActuatorKind(string id, string displayName) {
         Id = id;
         DisplayName = displayName;
     }
@@ -54,8 +52,7 @@ public sealed class SystemActuatorKind
     /// <summary>
     /// 从字符串标识解析执行器类型，支持别名（pwsh→PowerShell, python3/py→Python）
     /// </summary>
-    public static SystemActuatorKind? FromId(string? id)
-    {
+    public static SystemActuatorKind? FromId(string? id) {
         if (id is null) return null;
         if (_registry.TryGetValue(id, out var kind)) return kind;
 
@@ -69,8 +66,7 @@ public sealed class SystemActuatorKind
     /// <summary>
     /// 尝试从字符串标识解析执行器类型
     /// </summary>
-    public static bool TryFromId(string? id, [NotNullWhen(true)] out SystemActuatorKind? kind)
-    {
+    public static bool TryFromId(string? id, [NotNullWhen(true)] out SystemActuatorKind? kind) {
         kind = FromId(id);
         return kind is not null;
     }

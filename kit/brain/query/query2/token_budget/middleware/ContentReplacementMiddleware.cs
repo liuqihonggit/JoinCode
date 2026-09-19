@@ -4,14 +4,12 @@ namespace Core.Query;
 /// 内容替换中间件 — 工具调用结果处理时执行内容替换和预算检查
 /// </summary>
 [Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQueryMiddleware
-{
+public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQueryMiddleware {
     /// <summary>
     /// 构造函数 — 注入内容替换服务（可选）
     /// </summary>
     /// <param name="contentReplacementService">内容替换服务</param>
-    public ContentReplacementMiddleware(IContentReplacementService? contentReplacementService = null)
-    {
+    public ContentReplacementMiddleware(IContentReplacementService? contentReplacementService = null) {
         _contentReplacementService = contentReplacementService;
     }
     private readonly IContentReplacementService? _contentReplacementService;
@@ -29,10 +27,8 @@ public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQuery
     /// <param name="next">下一委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
-    {
-        if (_contentReplacementService is not null)
-        {
+    public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct) {
+        if (_contentReplacementService is not null) {
             context.ContentReplacementService = _contentReplacementService;
             context.AfterToolCallHooks.Add(ApplyToolResultBudgetAsync);
         }
@@ -40,8 +36,7 @@ public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQuery
         return next(context, ct);
     }
 
-    private async Task ApplyToolResultBudgetAsync(QueryMiddlewareContext context, CancellationToken ct)
-    {
+    private async Task ApplyToolResultBudgetAsync(QueryMiddlewareContext context, CancellationToken ct) {
         var contentReplacementService = _contentReplacementService ?? throw new InvalidOperationException("ContentReplacementService not available.");
         var state = context.Options?.ContentReplacementState;
         if (state is null)
@@ -53,25 +48,19 @@ public sealed partial class ContentReplacementMiddleware : ServiceEntity, IQuery
         var (budgeted, newlyReplaced) = await contentReplacementService.ApplyToolResultBudgetAsync(
             context.ChatHistory, state, sessionId, neverPersistTools, ct).ConfigureAwait(false);
 
-        if (newlyReplaced.Count > 0)
-        {
+        if (newlyReplaced.Count > 0) {
             var writeToTranscript = context.Options?.WriteToTranscript;
-            if (writeToTranscript is not null)
-            {
-                try
-                {
+            if (writeToTranscript is not null) {
+                try {
                     writeToTranscript(newlyReplaced);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     context.Logger?.LogWarning(ex, "Failed to write content replacement records to transcript");
                 }
             }
         }
 
         var hasChanges = newlyReplaced.Count > 0 || budgeted.Count != context.ChatHistory.Count;
-        if (hasChanges)
-        {
+        if (hasChanges) {
             context.ChatHistory.ReplaceAll(budgeted);
         }
     }

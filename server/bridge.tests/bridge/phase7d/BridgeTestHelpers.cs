@@ -4,8 +4,7 @@ namespace Bridge.Tests.Phase7D;
 /// <summary>
 /// 测试用 BridgeLogger — 记录 SetSessionTitle 调用
 /// </summary>
-internal sealed class TestBridgeLogger : IBridgeLogger
-{
+internal sealed class TestBridgeLogger : IBridgeLogger {
     public Action<string, string>? OnSetSessionTitle { get; init; }
 
     public void PrintBanner(BridgeConfig config, string environmentId) { }
@@ -30,34 +29,28 @@ internal sealed class TestBridgeLogger : IBridgeLogger
 /// <summary>
 /// 模拟 HTTP 消息处理器 — 避免测试发起真实 HTTP 请求导致卡死
 /// </summary>
-internal sealed class MockHttpMessageHandler : HttpMessageHandler
-{
+internal sealed class MockHttpMessageHandler : HttpMessageHandler {
     private readonly HttpResponseMessage _response;
 
-    public MockHttpMessageHandler(HttpResponseMessage response)
-    {
+    public MockHttpMessageHandler(HttpResponseMessage response) {
         _response = response;
     }
 
     protected override Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         return Task.FromResult(_response);
     }
 }
 
-internal static class BridgeTestHelperMethods
-{
+internal static class BridgeTestHelperMethods {
     internal static BridgeMainDeps CreateDeps(
         string? accessToken = "test-token",
         string baseUrl = "https://api.test.com",
         bool checkRemoteDialog = true,
-        BridgeApiClient? apiClient = null)
-    {
+        BridgeApiClient? apiClient = null) {
         var fs = new InMemoryFileSystem();
-        return new BridgeMainDeps
-        {
+        return new BridgeMainDeps {
             ApiClient = apiClient ?? CreateMockApiClient(),
             Spawner = CreateMockSpawner(),
             FileSystem = fs,
@@ -69,27 +62,22 @@ internal static class BridgeTestHelperMethods
         };
     }
 
-    internal static BridgeApiClient CreateMockApiClient()
-    {
+    internal static BridgeApiClient CreateMockApiClient() {
         var handler = new MockHttpMessageHandler(
-            new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-            {
+            new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                 Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"),
             });
         var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
-        var options = new BridgeApiOptions
-        {
+        var options = new BridgeApiOptions {
             BaseUrl = "https://api.test.com",
             ApiKey = "test-key",
         };
         return new BridgeApiClient(httpClient, options);
     }
 
-    internal static BridgeSubprocessSpawner CreateMockSpawner()
-    {
+    internal static BridgeSubprocessSpawner CreateMockSpawner() {
         var processService = new Mock<IProcessService>().Object;
-        return new BridgeSubprocessSpawner(new InMemoryFileSystem(), processService)
-        {
+        return new BridgeSubprocessSpawner(new InMemoryFileSystem(), processService) {
             ExecPath = "echo",
         };
     }
@@ -100,10 +88,8 @@ internal static class BridgeTestHelperMethods
         BridgeSpawnMode spawnMode = BridgeSpawnMode.SameDir,
         bool? checkWorkspaceTrusted = true,
         bool? checkGitRepoExists = null,
-        bool? checkWorktreeCreateHooks = null)
-    {
-        return new BridgeHeadlessOpts
-        {
+        bool? checkWorktreeCreateHooks = null) {
+        return new BridgeHeadlessOpts {
             Dir = "C:\\workspace",
             SpawnMode = spawnMode,
             Capacity = 5,

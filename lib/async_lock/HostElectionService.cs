@@ -3,8 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// 主机选举结果 — 探测有名管道后得出的角色决策。
 /// </summary>
-public sealed record HostElectionResult
-{
+public sealed record HostElectionResult {
     /// <summary>选举出的角色（主机/从机）。</summary>
     public required ProcessRole Role { get; init; }
 
@@ -33,8 +32,7 @@ internal sealed record ElectionRequest(
 /// <para>5. 主机掉线 → 从机检测心跳超时，句柄最小的从机根据上下文快照替代为新主机。</para>
 /// <para>线程安全：所有方法通过 <see cref="AsyncLock"/> 保护，避免并发选举冲突。</para>
 /// </summary>
-public sealed class HostElectionService : IAsyncDisposable
-{
+public sealed class HostElectionService : IAsyncDisposable {
     private readonly string _pipeName;
     private readonly ILogger? _logger;
     private readonly TimeSpan _heartbeatInterval;
@@ -62,22 +60,19 @@ public sealed class HostElectionService : IAsyncDisposable
         ILogger? logger = null,
         TimeSpan? heartbeatInterval = null,
         TimeSpan? heartbeatTimeout = null,
-        string? processId = null)
-    {
+        string? processId = null) {
         _pipeName = pipeName;
         _logger = logger;
         _processId = processId ?? Environment.ProcessId.ToString();
         _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(3);
         _heartbeatTimeout = heartbeatTimeout ?? TimeSpan.FromSeconds(10);
         _cts = new CancellationTokenSource();
-        _electionChannel = Channel.CreateBounded<HostElectionResult>(new BoundedChannelOptions(16)
-        {
+        _electionChannel = Channel.CreateBounded<HostElectionResult>(new BoundedChannelOptions(16) {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
             SingleWriter = false
         });
-        _electionCmdChannel = Channel.CreateUnbounded<ElectionRequest>(new UnboundedChannelOptions
-        {
+        _electionCmdChannel = Channel.CreateUnbounded<ElectionRequest>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
@@ -103,8 +98,7 @@ public sealed class HostElectionService : IAsyncDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>选举结果</returns>
-    public async ValueTask<HostElectionResult> ElectAsync(CancellationToken ct = default)
-    {
+    public async ValueTask<HostElectionResult> ElectAsync(CancellationToken ct = default) {
         ThrowIfDisposed();
 
         EnsureConsumerStarted();
@@ -119,8 +113,7 @@ public sealed class HostElectionService : IAsyncDisposable
     /// <summary>
     /// 确保选举消费者已启动 — 首次调用 ElectAsync 时延迟启动,避免构造即启后台线程。
     /// </summary>
-    private void EnsureConsumerStarted()
-    {
+    private void EnsureConsumerStarted() {
         if (_electionConsumerTask is not null) return;
         Interlocked.CompareExchange(ref _electionConsumerTask, Task.Run(ElectionConsumerLoopAsync), null);
     }
@@ -128,33 +121,26 @@ public sealed class HostElectionService : IAsyncDisposable
     /// <summary>
     /// 选举决策消费者 — Channel 串行化，单线程独占决策，无需锁。
     /// </summary>
-    private async Task ElectionConsumerLoopAsync()
-    {
-        try
-        {
-            await foreach (var req in _electionCmdChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
-            {
+    private async Task ElectionConsumerLoopAsync() {
+        try {
+            await foreach (var req in _electionCmdChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
                 var result = DecideRole(req.ExistingHostPid);
                 Volatile.Write(ref _currentRole, result);
                 _electionChannel.Writer.TryWrite(result);
                 req.Tcs.SetResult(result);
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
     }
 
     /// <summary>
     /// 根据探测结果决定角色 — 由消费者线程独占调用，无需锁。
     /// </summary>
-    private HostElectionResult DecideRole(string? existingHostPid)
-    {
+    private HostElectionResult DecideRole(string? existingHostPid) {
         var pid = _processId;
 
-        if (existingHostPid is null)
-        {
+        if (existingHostPid is null) {
             _logger?.LogInformation("HostElection: elected as HOST (pid={Pid}, pipe={Pipe})", pid, _pipeName);
-            return new HostElectionResult
-            {
+            return new HostElectionResult {
                 Role = ProcessRole.Host,
                 ProcessId = pid,
                 HostProcessId = pid,
@@ -162,13 +148,11 @@ public sealed class HostElectionService : IAsyncDisposable
             };
         }
 
-        if (int.TryParse(existingHostPid, out var hostPid) && int.TryParse(_processId, out var myPid) && hostPid > myPid)
-        {
+        if (int.TryParse(existingHostPid, out var hostPid) && int.TryParse(_processId, out var myPid) && hostPid > myPid) {
             _logger?.LogInformation(
                 "HostElection: CONFLICT resolved — local pid={Local} < remote pid={Remote}, taking over as HOST",
                 _processId, hostPid);
-            return new HostElectionResult
-            {
+            return new HostElectionResult {
                 Role = ProcessRole.Host,
                 ProcessId = pid,
                 HostProcessId = pid,
@@ -177,8 +161,7 @@ public sealed class HostElectionService : IAsyncDisposable
         }
 
         _logger?.LogInformation("HostElection: joined as SLAVE (pid={Pid}, host={Host})", pid, existingHostPid);
-        return new HostElectionResult
-        {
+        return new HostElectionResult {
             Role = ProcessRole.Slave,
             ProcessId = pid,
             HostProcessId = existingHostPid,
@@ -192,8 +175,7 @@ public sealed class HostElectionService : IAsyncDisposable
     /// </summary>
     /// <param name="onHostDown">主机掉线回调（从机选举新主机）</param>
     /// <param name="ct">取消令牌</param>
-    public void StartHeartbeat(Func<HostContextSnapshot?, CancellationToken, ValueTask<HostElectionResult>> onHostDown, CancellationToken ct = default)
-    {
+    public void StartHeartbeat(Func<HostContextSnapshot?, CancellationToken, ValueTask<HostElectionResult>> onHostDown, CancellationToken ct = default) {
         ThrowIfDisposed();
         if (_heartbeatTask is not null) return;
         _heartbeatTask = Task.Run(() => HeartbeatLoopAsync(onHostDown, ct), ct);
@@ -203,21 +185,17 @@ public sealed class HostElectionService : IAsyncDisposable
     /// 更新主机上下文快照 — 从机收到主机同步的上下文时调用。
     /// </summary>
     /// <param name="snapshot">主机上下文快照</param>
-    public void UpdateSnapshot(HostContextSnapshot snapshot)
-    {
+    public void UpdateSnapshot(HostContextSnapshot snapshot) {
         Volatile.Write(ref _lastSnapshot, snapshot);
     }
 
     private async Task HeartbeatLoopAsync(
         Func<HostContextSnapshot?, CancellationToken, ValueTask<HostElectionResult>> onHostDown,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         var lastHeartbeat = DateTimeOffset.UtcNow;
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, ct);
-        try
-        {
-            while (!_cts.IsCancellationRequested && !ct.IsCancellationRequested)
-            {
+        try {
+            while (!_cts.IsCancellationRequested && !ct.IsCancellationRequested) {
                 await Task.Delay(_heartbeatInterval, linkedCts.Token)
                     .ConfigureAwait(false);
 
@@ -227,8 +205,7 @@ public sealed class HostElectionService : IAsyncDisposable
                 var snapshot = Volatile.Read(ref _lastSnapshot);
                 var lastUpdate = snapshot?.Timestamp ?? DateTimeOffset.MinValue;
 
-                if (DateTimeOffset.UtcNow - lastUpdate > _heartbeatTimeout)
-                {
+                if (DateTimeOffset.UtcNow - lastUpdate > _heartbeatTimeout) {
                     _logger?.LogWarning(
                         "HostElection: host {Host} heartbeat timeout (last={LastUpdate:F1}s ago), triggering failover",
                         role.HostProcessId, (DateTimeOffset.UtcNow - lastUpdate).TotalSeconds);
@@ -239,10 +216,7 @@ public sealed class HostElectionService : IAsyncDisposable
                     return;
                 }
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, "HostElection: heartbeat loop error");
         }
     }
@@ -250,10 +224,8 @@ public sealed class HostElectionService : IAsyncDisposable
     /// <summary>
     /// 探测有名管道是否存在且可连接 — 返回主机 PID（null 表示无主机）。
     /// </summary>
-    private async ValueTask<string?> TryDetectHostAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async ValueTask<string?> TryDetectHostAsync(CancellationToken ct) {
+        try {
             using var client = NamedPipeFactory.CreateClient(_pipeName);
 
             using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -263,10 +235,7 @@ public sealed class HostElectionService : IAsyncDisposable
 
             var hostPid = await ReadHostPidAsync(client, ct).ConfigureAwait(false);
             return hostPid;
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex) when (ex is IOException or TimeoutException)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) when (ex is IOException or TimeoutException) {
             _logger?.LogDebug("HostElection: no existing host detected on pipe {Pipe}", _pipeName);
         }
         return null;
@@ -276,21 +245,17 @@ public sealed class HostElectionService : IAsyncDisposable
     /// 从管道读取主机 PID — 握手协议：客户端连接后，服务端发送 "HOST:{pid}\n"。
     /// <para>超时保护：2 秒内未读到数据则返回 null，防止协议不匹配时死锁。</para>
     /// </summary>
-    private async ValueTask<string?> ReadHostPidAsync(NamedPipeClientStream client, CancellationToken ct)
-    {
-        try
-        {
+    private async ValueTask<string?> ReadHostPidAsync(NamedPipeClientStream client, CancellationToken ct) {
+        try {
             using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             readCts.CancelAfter(TimeSpan.FromSeconds(2));
             var line = await BinaryProtocol.ReadLineRawAsync(client, readCts.Token).ConfigureAwait(false);
             if (line is null || !line.StartsWith("HOST:", StringComparison.Ordinal)) return null;
             return line["HOST:".Length..].Trim();
-        }
-        catch (OperationCanceledException) { return null; }
+        } catch (OperationCanceledException) { return null; }
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(HostElectionService));
     }
@@ -298,8 +263,7 @@ public sealed class HostElectionService : IAsyncDisposable
     /// <summary>
     /// 释放选举服务 — 取消心跳循环。
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _electionCmdChannel.Writer.TryComplete();

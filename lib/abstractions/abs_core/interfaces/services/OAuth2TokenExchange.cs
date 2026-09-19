@@ -1,15 +1,13 @@
 namespace JoinCode.Abstractions.Services;
 
-public static class OAuth2TokenExchange
-{
+public static class OAuth2TokenExchange {
     public static async Task<OAuth2TokenResponse> ExchangeTokenAsync(
         HttpClient httpClient,
         string tokenEndpoint,
         Dictionary<string, string> parameters,
         JsonTypeInfo<OAuth2TokenResponse> jsonTypeInfo,
         ILogger? logger = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(httpClient);
         ArgumentException.ThrowIfNullOrEmpty(tokenEndpoint);
         ArgumentNullException.ThrowIfNull(parameters);
@@ -23,16 +21,14 @@ public static class OAuth2TokenExchange
         var response = await httpClient.PostAsync(tokenEndpoint, content, cancellationToken).ConfigureAwait(false);
         var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-        {
+        if (!response.IsSuccessStatusCode) {
             logger?.LogError("令牌请求失败: {StatusCode} - {Body}", response.StatusCode, responseBody);
             throw new OAuthException($"Token request failed: {response.StatusCode}", response.StatusCode, responseBody);
         }
 
         var tokenResponse = RelaxedJsonSerializer.Deserialize(responseBody, jsonTypeInfo);
 
-        if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken))
-        {
+        if (tokenResponse == null || string.IsNullOrEmpty(tokenResponse.AccessToken)) {
             throw new OAuthException("Invalid token response");
         }
 

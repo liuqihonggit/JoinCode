@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Exceptions;
 /// <para>当 L4 历史压缩后仍超过 EmergencyThreshold 时抛出，对齐 openCode ContextOverflowError。</para>
 /// <para>不可重试 — 上下文已无法容纳，必须停止并要求用户处理。</para>
 /// </summary>
-public sealed class ContextOverflowException : WorkflowException
-{
+public sealed class ContextOverflowException : WorkflowException {
     /// <summary>
     /// 上下文窗口最大 token 数
     /// </summary>
@@ -28,8 +27,7 @@ public sealed class ContextOverflowException : WorkflowException
         int contextMaxTokens,
         int currentTokens,
         ExceptionContext? context = null)
-        : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ContextOverflow.ToValue(), ErrorCategory.Resource, context)
-    {
+        : base(message, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ContextOverflow.ToValue(), ErrorCategory.Resource, context) {
         ContextMaxTokens = contextMaxTokens;
         CurrentTokens = currentTokens;
     }
@@ -43,8 +41,7 @@ public sealed class ContextOverflowException : WorkflowException
         int contextMaxTokens,
         int currentTokens,
         ExceptionContext? context = null)
-        : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ContextOverflow.ToValue(), ErrorCategory.Resource, context)
-    {
+        : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ContextOverflow.ToValue(), ErrorCategory.Resource, context) {
         ContextMaxTokens = contextMaxTokens;
         CurrentTokens = currentTokens;
     }

@@ -7,8 +7,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Compact, Description = "压缩对话上下文以节省 Token，可选自定义摘要指令", Usage = "/compact [自定义摘要指令]", Aliases = ["comp"], ArgumentHint = "<optional custom summarization instructions>", Category = ChatCommandCategory.Session, ExposeToMcp = true)]
 [ChatCommandArg("instructions", Type = "string", Description = "自定义压缩摘要指令")]
-public sealed class CompactCommand : ChatCommandBase
-{
+public sealed class CompactCommand : ChatCommandBase {
     /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameEnumConstants.Compact;
     /// <summary>命令描述。</summary>
@@ -25,8 +24,7 @@ public sealed class CompactCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
-    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         // 对齐 TS: customInstructions = args.trim()
         var customInstructions = GetNormalizedArgs(context);
 
@@ -35,8 +33,7 @@ public sealed class CompactCommand : ChatCommandBase
         var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
         var (messageCount, originalTokens) = CalculateOriginalMetrics(history);
 
-        if (messageCount == 0)
-        {
+        if (messageCount == 0) {
             TerminalHelper.WriteLine("没有对话内容可压缩");
             return ChatCommandResult.Continue();
         }
@@ -45,17 +42,14 @@ public sealed class CompactCommand : ChatCommandBase
         const int maxPtRetries = 3;
         var contextManager = context.Services?.GetService(typeof(IChatContextManager)) as IChatContextManager;
 
-        for (var attempt = 0; attempt < maxPtRetries; attempt++)
-        {
-            try
-            {
+        for (var attempt = 0; attempt < maxPtRetries; attempt++) {
+            try {
                 var summary = await GenerateSummaryFromHistoryAsync(history, context, customInstructions).ConfigureAwait(false);
                 var compressedTokens = (summary?.Length ?? 0) / 4;
 
                 await context.GetCommandServices().ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
 
-                var fallbackData = new CompactSummaryData
-                {
+                var fallbackData = new CompactSummaryData {
                     MessagesSummarized = messageCount,
                     Direction = CompactDirection.UpTo,
                     OriginalTokens = originalTokens,
@@ -64,9 +58,7 @@ public sealed class CompactCommand : ChatCommandBase
 
                 TerminalHelper.WriteLine(new CompactSummaryRenderer().Render(fallbackData));
                 return ChatCommandResult.Continue();
-            }
-            catch (Exception ex) when (IsPromptTooLongError(ex.Message) && attempt < maxPtRetries - 1 && contextManager is not null)
-            {
+            } catch (Exception ex) when (IsPromptTooLongError(ex.Message) && attempt < maxPtRetries - 1 && contextManager is not null) {
                 // 对齐 TS: PTL 重试 — 回滚最近一轮消息后重试
                 var rewindResult = await contextManager.RewindLastTurnAsync(context.CancellationToken).ConfigureAwait(false);
                 if (rewindResult.RemovedCount == 0) break;
@@ -75,25 +67,20 @@ public sealed class CompactCommand : ChatCommandBase
         }
 
         // 最终失败
-        try
-        {
+        try {
             var summary = await GenerateSummaryFromHistoryAsync(history, context, customInstructions).ConfigureAwait(false);
             await context.GetCommandServices().ChatService.CompactHistoryAsync(summary ?? "[无摘要]", context.CancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             HandleError("生成摘要", ex);
         }
 
         return ChatCommandResult.Continue();
     }
 
-    internal static (int Count, int EstimatedTokens) CalculateOriginalMetrics(IReadOnlyList<ApiMessageRecord> history)
-    {
+    internal static (int Count, int EstimatedTokens) CalculateOriginalMetrics(IReadOnlyList<ApiMessageRecord> history) {
         var messageCount = history.Count;
         var totalChars = 0;
-        foreach (var msg in history)
-        {
+        foreach (var msg in history) {
             totalChars += msg.Content?.Length ?? 0;
         }
         var estimatedTokens = totalChars / 4;
@@ -103,30 +90,24 @@ public sealed class CompactCommand : ChatCommandBase
     /// <summary>
     /// 使用结构化 Prompt 生成摘要 — 对齐 TS compactConversation
     /// </summary>
-    private async Task<string> GenerateSummaryFromHistoryAsync(IReadOnlyList<ApiMessageRecord> history, ChatCommandContext context, string? customInstructions)
-    {
-        if (history.Count == 0)
-        {
+    private async Task<string> GenerateSummaryFromHistoryAsync(IReadOnlyList<ApiMessageRecord> history, ChatCommandContext context, string? customInstructions) {
+        if (history.Count == 0) {
             return "[无对话内容可压缩]";
         }
 
         // 对齐 TS: 使用 9 段式结构化 prompt，替代简化 prompt
         var compactPrompt = Core.Prompts.Templates.Memory.CompactPromptTemplate.GetCompactPrompt(customInstructions);
 
-        try
-        {
+        try {
             var rawSummary = await context.GetCommandServices().ChatService.SendMessageAsync(compactPrompt, context.CancellationToken).ConfigureAwait(false);
             return Core.Prompts.Templates.Memory.CompactPromptTemplate.FormatCompactSummary(rawSummary ?? "[无摘要]");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             HandleError("生成摘要", ex);
             return "[无法生成摘要]";
         }
     }
 
-    private static bool IsPromptTooLongError(string errorMessage)
-    {
+    private static bool IsPromptTooLongError(string errorMessage) {
         return !string.IsNullOrEmpty(errorMessage)
             && (errorMessage.Contains("prompt_too_long", StringComparison.OrdinalIgnoreCase)
                 || errorMessage.Contains("prompt too long", StringComparison.OrdinalIgnoreCase)

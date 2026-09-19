@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Runtime;
 
-public sealed record RuntimeTaskInput
-{
+public sealed record RuntimeTaskInput {
     public required string Description { get; init; }
     public RuntimeTaskPriority Priority { get; init; } = RuntimeTaskPriority.Later;
     public string? GoalId { get; init; }

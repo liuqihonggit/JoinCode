@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 会话 Hook 辅助服务 — ClearHistory/CompactHistory 共用的 SessionStart/SessionEnd Hook 执行逻辑
 /// </summary>
 [Register(typeof(SessionHookHelper), ServiceLifetime.Singleton)]
-public sealed partial class SessionHookHelper : ServiceEntity
-{
+public sealed partial class SessionHookHelper : ServiceEntity {
 
     /// <summary>
     /// 初始化 <see cref="SessionHookHelper"/> 实例
@@ -13,8 +12,7 @@ public sealed partial class SessionHookHelper : ServiceEntity
     /// <param name="sessionStartHookManager">可选的会话启动 Hook 管理器</param>
     /// <param name="hookOrchestrator">可选的 Hook 编排器，用于执行 SessionEnd Hook</param>
     /// <param name="logger">可选的日志记录器</param>
-    public SessionHookHelper(ISessionStartHookManager? sessionStartHookManager = null, IHookOrchestrator? hookOrchestrator = null, ILogger<SessionHookHelper>? logger = null)
-    {
+    public SessionHookHelper(ISessionStartHookManager? sessionStartHookManager = null, IHookOrchestrator? hookOrchestrator = null, ILogger<SessionHookHelper>? logger = null) {
         _sessionStartHookManager = sessionStartHookManager;
         _hookOrchestrator = hookOrchestrator;
         _logger = logger;
@@ -26,21 +24,16 @@ public sealed partial class SessionHookHelper : ServiceEntity
     /// <summary>
     /// 执行 SessionStart Hook — 对齐 TS processSessionStartHooks
     /// </summary>
-    public async Task ExecuteSessionStartHookAsync(string sessionId, string source, CancellationToken ct)
-    {
+    public async Task ExecuteSessionStartHookAsync(string sessionId, string source, CancellationToken ct) {
         if (_sessionStartHookManager is null) return;
 
-        try
-        {
-            var hookContext = new SessionStartHookContext
-            {
+        try {
+            var hookContext = new SessionStartHookContext {
                 SessionId = sessionId,
                 Source = source
             };
             await _sessionStartHookManager.OnSessionStartAsync(hookContext, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "SessionStart Hook 执行失败 (source={Source})", source);
         }
     }
@@ -48,14 +41,11 @@ public sealed partial class SessionHookHelper : ServiceEntity
     /// <summary>
     /// 执行 SessionEnd Hook — 对齐 TS executeSessionEndHooks
     /// </summary>
-    public async Task ExecuteSessionEndHookAsync(string sessionId, string reason, CancellationToken ct)
-    {
+    public async Task ExecuteSessionEndHookAsync(string sessionId, string reason, CancellationToken ct) {
         if (_hookOrchestrator is null) return;
 
-        try
-        {
-            var payload = new Dictionary<string, JsonElement>
-            {
+        try {
+            var payload = new Dictionary<string, JsonElement> {
                 ["sessionId"] = JsonElementHelper.FromString(sessionId),
                 ["reason"] = JsonElementHelper.FromString(reason)
             };
@@ -65,12 +55,9 @@ public sealed partial class SessionHookHelper : ServiceEntity
                 payload,
                 matcher: reason,
                 sessionId: sessionId,
-                cancellationToken: ct).ConfigureAwait(false))
-            {
+                cancellationToken: ct).ConfigureAwait(false)) {
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "SessionEnd Hook 执行失败 (reason={Reason})", reason);
         }
     }

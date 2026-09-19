@@ -1,7 +1,6 @@
 namespace JoinCode.CodeIndex.Benchmarks;
 
-public static class TestCaseRepository
-{
+public static class TestCaseRepository {
     public static List<TestCase> GetL1TestCases() =>
     [
         .. ExactSearchCases(),

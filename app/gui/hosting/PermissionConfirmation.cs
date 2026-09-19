@@ -7,8 +7,7 @@ public sealed record PermissionConfirmationRequest(
     string ToolName,
     string ConfirmationPrompt,
     string? RequestId,
-    string? RuleContent)
-{
+    string? RuleContent) {
     /// <summary>是否有规则内容（驱动 RuleContent TextBlock 显隐）</summary>
     public bool HasRuleContent => !string.IsNullOrWhiteSpace(RuleContent);
 
@@ -29,8 +28,7 @@ public sealed record PermissionConfirmationRequest(
 /// <summary>
 /// 权限确认决策 — GUI/CLI 弹窗结果
 /// </summary>
-public enum PermissionConfirmationDecision
-{
+public enum PermissionConfirmationDecision {
     /// <summary>拒绝本次执行</summary>
     [EnumValue("deny")]
     Deny,

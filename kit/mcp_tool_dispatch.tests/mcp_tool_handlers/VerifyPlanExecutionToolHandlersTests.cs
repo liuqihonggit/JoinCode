@@ -1,18 +1,15 @@
 namespace Sync.Tests.ToolHandlers;
 
-public class VerifyPlanExecutionToolHandlersTests
-{
+public class VerifyPlanExecutionToolHandlersTests {
     private readonly Mock<IPlanService> _planService = new();
     private readonly VerifyPlanExecutionToolHandlers _handler;
 
-    public VerifyPlanExecutionToolHandlersTests()
-    {
+    public VerifyPlanExecutionToolHandlersTests() {
         _handler = new VerifyPlanExecutionToolHandlers(_planService.Object, NullLogger<VerifyPlanExecutionToolHandlers>.Instance);
     }
 
     [Fact]
-    public async Task VerifyPlanExecutionAsync_Success_ReturnsSuccess()
-    {
+    public async Task VerifyPlanExecutionAsync_Success_ReturnsSuccess() {
         _planService.Setup(x => x.ExecutePlanWithResultAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PlanExecutionResult { Success = true, Result = "ok" });
 
@@ -23,8 +20,7 @@ public class VerifyPlanExecutionToolHandlersTests
     }
 
     [Fact]
-    public async Task VerifyPlanExecutionAsync_Failure_ReturnsError()
-    {
+    public async Task VerifyPlanExecutionAsync_Failure_ReturnsError() {
         _planService.Setup(x => x.ExecutePlanWithResultAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PlanExecutionResult { Success = false, Error = "bad plan" });
 
@@ -35,8 +31,7 @@ public class VerifyPlanExecutionToolHandlersTests
     }
 
     [Fact]
-    public async Task VerifyPlanExecutionAsync_WithCriteria_ReturnsSuccess()
-    {
+    public async Task VerifyPlanExecutionAsync_WithCriteria_ReturnsSuccess() {
         _planService.Setup(x => x.ExecutePlanWithResultAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PlanExecutionResult { Success = true, Result = "ok" });
 
@@ -48,8 +43,7 @@ public class VerifyPlanExecutionToolHandlersTests
     }
 
     [Fact]
-    public async Task VerifyPlanExecutionAsync_ServiceThrows_ReturnsError()
-    {
+    public async Task VerifyPlanExecutionAsync_ServiceThrows_ReturnsError() {
         _planService.Setup(x => x.ExecutePlanWithResultAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 

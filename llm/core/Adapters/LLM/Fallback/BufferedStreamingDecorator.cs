@@ -15,13 +15,11 @@ namespace Api.LLM.Fallback;
 /// // GetApiMessageContentsAsync 内部走流式 + 缓冲
 /// // GetStreamEventContentsAsync 直接委托给内部服务
 /// </remarks>
-public sealed class BufferedStreamingDecorator : IQueryService
-{
+public sealed class BufferedStreamingDecorator : IQueryService {
     private readonly IQueryService _inner;
     private readonly ILogger? _logger;
 
-    public BufferedStreamingDecorator(IQueryService inner, ILogger? logger = null)
-    {
+    public BufferedStreamingDecorator(IQueryService inner, ILogger? logger = null) {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _logger = logger;
     }
@@ -34,17 +32,15 @@ public sealed class BufferedStreamingDecorator : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var contentBuilder = new StringBuilder();
         var metadata = new Dictionary<string, JsonElement>();
         string? modelId = null;
-        MessageRole role = MessageRole.Assistant;
+        var role = MessageRole.Assistant;
         TokenUsage? usage = null;
 
         await foreach (var evt in _inner.GetStreamEventContentsAsync(
-            chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false))
-        {
+            chatHistory, executionSettings, kernel, cancellationToken).ConfigureAwait(false)) {
             if (evt.Role.HasValue)
                 role = evt.Role.Value;
 
@@ -54,37 +50,30 @@ public sealed class BufferedStreamingDecorator : IQueryService
             if (evt.ModelId != null)
                 modelId = evt.ModelId;
 
-            if (evt.Metadata != null)
-            {
-                foreach (var kvp in evt.Metadata)
-                {
-                    switch (kvp.Key)
-                    {
+            if (evt.Metadata != null) {
+                foreach (var kvp in evt.Metadata) {
+                    switch (kvp.Key) {
                         case "Usage":
-                            try
-                            {
-                                usage = kvp.Value.Deserialize(NativeJsonContext.Default.TokenUsage);
-                            }
-                            catch (JsonException ex)
-                            {
-                                _logger?.LogWarning(ex, "Failed to deserialize TokenUsage from stream event metadata");
-                            }
-                            break;
+                        try {
+                            usage = kvp.Value.Deserialize(NativeJsonContext.Default.TokenUsage);
+                        } catch (JsonException ex) {
+                            _logger?.LogWarning(ex, "Failed to deserialize TokenUsage from stream event metadata");
+                        }
+                        break;
                         case "FinishReason":
                         case "Id":
                         case "Created":
-                            metadata[kvp.Key] = kvp.Value;
-                            break;
+                        metadata[kvp.Key] = kvp.Value;
+                        break;
                         case "AllToolCalls":
-                            metadata["AllToolCalls"] = kvp.Value;
-                            break;
+                        metadata["AllToolCalls"] = kvp.Value;
+                        break;
                     }
                 }
             }
         }
 
-        if (usage != null)
-        {
+        if (usage != null) {
             metadata["Usage"] = JsonElementHelper.FromObject(usage, NativeJsonContext.Default.TokenUsage);
         }
 
@@ -100,8 +89,7 @@ public sealed class BufferedStreamingDecorator : IQueryService
         MessageList chatHistory,
         ChatOptions? executionSettings = null,
         IChatClient? kernel = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         return _inner.GetStreamEventContentsAsync(chatHistory, executionSettings, kernel, cancellationToken);
     }
 }

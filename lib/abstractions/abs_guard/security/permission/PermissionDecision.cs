@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security;
 /// <summary>
 /// 权限决策结果 — 中间件管道中权限检查的返回值,替代异常传播
 /// </summary>
-public enum PermissionDecision
-{
+public enum PermissionDecision {
     /// <summary>允许执行</summary>
     [EnumValue("allowed")] Allowed,
 

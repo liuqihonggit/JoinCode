@@ -1,10 +1,8 @@
 namespace Core.Agents;
 
 
-public sealed class PluginAgentValidatorTests
-{
-    private static AgentDefinition CreateValidDefinition() => new()
-    {
+public sealed class PluginAgentValidatorTests {
+    private static AgentDefinition CreateValidDefinition() => new() {
         Role = AgentRole.Executor,
         Variant = ExecutorVariant.Code,
         WhenToUse = "code agent",
@@ -12,16 +10,14 @@ public sealed class PluginAgentValidatorTests
     };
 
     [Fact]
-    public void Validate_SafeAgent_DoesNotThrow()
-    {
+    public void Validate_SafeAgent_DoesNotThrow() {
         var def = CreateValidDefinition();
         var act = () => PluginAgentValidator.Validate(def);
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void Validate_WithPermissionMode_Throws()
-    {
+    public void Validate_WithPermissionMode_Throws() {
         var def = CreateValidDefinition();
         def.PermissionMode = "auto";
         var act = () => PluginAgentValidator.Validate(def);
@@ -30,11 +26,9 @@ public sealed class PluginAgentValidatorTests
     }
 
     [Fact]
-    public void Validate_WithHooks_Throws()
-    {
+    public void Validate_WithHooks_Throws() {
         var def = CreateValidDefinition();
-        def.Hooks = new Dictionary<string, List<AgentHookMatcher>>
-        {
+        def.Hooks = new Dictionary<string, List<AgentHookMatcher>> {
             ["on_start"] = [],
         };
         var act = () => PluginAgentValidator.Validate(def);
@@ -43,8 +37,7 @@ public sealed class PluginAgentValidatorTests
     }
 
     [Fact]
-    public void Validate_WithMcpServers_Throws()
-    {
+    public void Validate_WithMcpServers_Throws() {
         var def = CreateValidDefinition();
         def.McpServers = [AgentMcpServerSpec.FromReference("evil")];
         var act = () => PluginAgentValidator.Validate(def);
@@ -53,16 +46,14 @@ public sealed class PluginAgentValidatorTests
     }
 
     [Fact]
-    public void ValidateAll_AllSafe_ReturnsEmpty()
-    {
+    public void ValidateAll_AllSafe_ReturnsEmpty() {
         var defs = new[] { CreateValidDefinition(), CreateValidDefinition() };
         var violations = PluginAgentValidator.ValidateAll(defs);
         violations.Should().BeEmpty();
     }
 
     [Fact]
-    public void ValidateAll_MixedViolations_ReturnsAllMessages()
-    {
+    public void ValidateAll_MixedViolations_ReturnsAllMessages() {
         var def1 = CreateValidDefinition();
         def1.PermissionMode = "auto";
         var def2 = CreateValidDefinition();

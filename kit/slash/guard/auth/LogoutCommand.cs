@@ -8,8 +8,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Logout, Description = "登出 AI 服务", Usage = "/logout [provider]", Category = ChatCommandCategory.Auth)]
 [ChatCommandArg("provider", Type = "string", Description = "要登出的供应商名称,省略则登出当前")]
-public sealed class LogoutCommand : ChatCommandBase
-{
+public sealed class LogoutCommand : ChatCommandBase {
     private static readonly string AuthPath = AppDataConstants.Paths.AuthFilePath;
 
     /// <summary>
@@ -18,30 +17,24 @@ public sealed class LogoutCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,登出全部返回 Exit,其余返回 Continue</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
         var args = ChatCommandBase.GetSplitArgs(context);
         var provider = args.Length > 0 ? args[0].ToLowerInvariant() : "all";
 
-        if (provider == "all")
-        {
+        if (provider == "all") {
             // 对齐 TS: Dialog 确认框 — 登出前确认
             var confirmed = await Confirmation.ConfirmAsync("确定要登出所有服务吗？", context.CancellationToken).ConfigureAwait(false);
-            if (confirmed)
-            {
+            if (confirmed) {
                 // 删除 API Key 文件 — 对齐 TS removeApiKey
-                if (services.FileSystem.FileExists(AuthPath))
-                {
+                if (services.FileSystem.FileExists(AuthPath)) {
                     services.FileSystem.DeleteFile(AuthPath);
                 }
 
                 // 清除 OAuth Token 存储 — 对齐 TS secureStorage.delete
-                if (services.TokenStorage is not null)
-                {
+                if (services.TokenStorage is not null) {
                     var providers = await services.TokenStorage.GetStoredProvidersAsync(context.CancellationToken).ConfigureAwait(false);
-                    foreach (var p in providers)
-                    {
+                    foreach (var p in providers) {
                         await services.TokenStorage.DeleteTokenAsync(p, context.CancellationToken).ConfigureAwait(false);
                     }
                 }
@@ -55,12 +48,9 @@ public sealed class LogoutCommand : ChatCommandBase
                 TerminalHelper.WriteLine($"{TerminalColors.Muted}登出后将退出应用...{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Exit();
             }
-        }
-        else
-        {
+        } else {
             // 清除指定 Provider 的 OAuth Token
-            if (services.TokenStorage is not null && await services.TokenStorage.HasTokenAsync(provider, context.CancellationToken).ConfigureAwait(false))
-            {
+            if (services.TokenStorage is not null && await services.TokenStorage.HasTokenAsync(provider, context.CancellationToken).ConfigureAwait(false)) {
                 await services.TokenStorage.DeleteTokenAsync(provider, context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider} (OAuth){AnsiStyleEnumConstants.Reset}");
 
@@ -69,39 +59,29 @@ public sealed class LogoutCommand : ChatCommandBase
             }
 
             // 清除指定 Provider 的 API Key
-            if (services.FileSystem.FileExists(AuthPath))
-            {
+            if (services.FileSystem.FileExists(AuthPath)) {
                 var removed = false;
-                try
-                {
-                    removed = await services.FileSystem.EditFileAsync<bool>(AuthPath, async (bytes, ct) =>
-                    {
+                try {
+                    removed = await services.FileSystem.EditFileAsync<bool>(AuthPath, async (bytes, ct) => {
                         var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                         Dictionary<string, string> authData;
-                        try
-                        {
+                        try {
                             authData = RelaxedJsonSerializer.Deserialize(content, CliJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
-                        }
-                        catch
-                        {
+                        } catch {
                             authData = new Dictionary<string, string>();
                         }
-                        if (authData.Remove(provider))
-                        {
+                        if (authData.Remove(provider)) {
                             var json = JsonSerializer.Serialize(authData, CliIndentedJsonContext.Default.DictionaryStringString);
                             var newBytes = FileEncodingDetector.EncodeString(json, encoding);
                             return (newBytes, true);
                         }
                         return (null, false);
                     }, context.CancellationToken).ConfigureAwait(false);
-                }
-                catch (FileNotFoundException)
-                {
+                } catch (FileNotFoundException) {
                     removed = false;
                 }
 
-                if (removed)
-                {
+                if (removed) {
                     TerminalHelper.WriteLine($"{TerminalColors.Success}已登出 {provider}{AnsiStyleEnumConstants.Reset}");
                     await PostLogoutRefreshAsync(context).ConfigureAwait(false);
                     return ChatCommandResult.Continue();
@@ -120,18 +100,13 @@ public sealed class LogoutCommand : ChatCommandBase
     ///     + resetUserCache + refreshGrowthBook + clearRemoteManagedSettings + clearPolicyLimitsCache
     /// C#: 成本重置 + 速率限制清除（多 Provider 架构下的等价操作）
     /// </summary>
-    private static Task PostLogoutRefreshAsync(ChatCommandContext context, ILogger? logger = null)
-    {
+    private static Task PostLogoutRefreshAsync(ChatCommandContext context, ILogger? logger = null) {
         // 重置成本追踪 — 对齐 TS clearAuthRelatedCaches 中的成本相关缓存
         var costTracker = context.GetCommandServices().CostTracker;
-        if (costTracker is not null)
-        {
-            try
-            {
+        if (costTracker is not null) {
+            try {
                 costTracker.Reset();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 成本重置失败不影响登出
                 logger?.LogWarning(ex, "成本重置失败");
             }

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 子代理 bot 前缀随机中文名生成器 — 生成 <c>bot{中文名}</c> 格式的显示名，进程内去重。
 /// 用于子代理 spawn 时 <see cref="JoinCode.Abstractions.Models.Agent.SubAgentOptions.DisplayName"/> 为空的场景。
 /// </summary>
-public static class BotNameGenerator
-{
+public static class BotNameGenerator {
     /// <summary>
     /// 中文小名池 — 36 个常见中文小名，覆盖不同风格。
     /// </summary>
@@ -33,10 +32,8 @@ public static class BotNameGenerator
     /// 生成一个 <c>bot{中文名}</c> 格式的随机显示名，进程内去重。
     /// </summary>
     /// <returns>格式为 <c>bot{中文名}</c> 的显示名，如 <c>bot小明</c>、<c>bot阿虎</c>。</returns>
-    public static string Generate()
-    {
-        for (var i = 0; i < s_chineseNames.Length; i++)
-        {
+    public static string Generate() {
+        for (var i = 0; i < s_chineseNames.Length; i++) {
             var name = s_chineseNames[s_random.Next(s_chineseNames.Length)];
             var botName = $"bot{name}";
             if (s_usedNames.TryAdd(botName, 0))

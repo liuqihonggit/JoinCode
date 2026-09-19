@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 子代理用户输入转发队列 — 独立于 IMailbox，专用于用户在子代理运行期间追加的输入
 /// 子代理在每轮 LLM 调用前通过 TryDrain 非阻塞消费队列中的用户转发消息
 /// </summary>
-public interface IAgentInputForwardQueue
-{
+public interface IAgentInputForwardQueue {
     /// <summary>
     /// 注册子代理的输入转发队列（子代理启动时调用）
     /// </summary>

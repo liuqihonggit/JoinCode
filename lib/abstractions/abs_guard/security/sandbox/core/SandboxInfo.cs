@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Sandbox;
 
-public sealed partial class SandboxInfo
-{
+public sealed partial class SandboxInfo {
     public required SandboxType Type { get; init; }
     public required string SandboxId { get; init; }
     public required string RootPath { get; init; }

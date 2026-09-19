@@ -5,15 +5,13 @@ namespace Services.Web;
 /// Order=300 在缓存检查之后执行，Blocked时短路管道
 /// </summary>
 [Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WebDomainCheckMiddleware : ServiceEntity, IWebMiddleware
-{
+public sealed partial class WebDomainCheckMiddleware : ServiceEntity, IWebMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="WebDomainCheckMiddleware"/> 实例。
     /// </summary>
     /// <param name="domainBlocklistChecker">域名黑名单检查器，用于预检域名安全性。</param>
-    public WebDomainCheckMiddleware(IDomainBlocklistChecker domainBlocklistChecker)
-    {
+    public WebDomainCheckMiddleware(IDomainBlocklistChecker domainBlocklistChecker) {
         _domainBlocklistChecker = domainBlocklistChecker;
     }
     private readonly IDomainBlocklistChecker _domainBlocklistChecker;
@@ -24,16 +22,13 @@ public sealed partial class WebDomainCheckMiddleware : ServiceEntity, IWebMiddle
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
-    {
-        if (Uri.TryCreate(context.UpgradedUrl, UriKind.Absolute, out var parsed))
-        {
+    public async Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct) {
+        if (Uri.TryCreate(context.UpgradedUrl, UriKind.Absolute, out var parsed)) {
             context.Host = parsed.Host;
             var domainCheck = await _domainBlocklistChecker.CheckAsync(parsed.Host, ct).ConfigureAwait(false);
             context.DomainCheckResult = domainCheck;
 
-            if (domainCheck == DomainCheckResult.Blocked)
-            {
+            if (domainCheck == DomainCheckResult.Blocked) {
                 context.Result = new WebFetchResult(false, context.Url,
                     ErrorMessage: $"Domain {parsed.Host} is blocked by safety policy. This domain may contain copyrighted or harmful content.");
                 return; // 短路

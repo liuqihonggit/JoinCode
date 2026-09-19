@@ -24,8 +24,7 @@ namespace Api.LLM.QueryServices.Agnes;
 ///   jcc 发送的 system prompt + 工具定义约 200KB，Agnes 可正常处理（512K 上下文窗口）。
 ///   但部分小型 OpenAI 兼容供应商可能对请求体大小有限制，需注意。
 /// </summary>
-public sealed class AgnesQueryService : OpenAIQueryService
-{
+public sealed class AgnesQueryService : OpenAIQueryService {
     public AgnesQueryService(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
         : base(config, httpClient, logger, fs, resilientExecutor) { }
 
@@ -33,16 +32,12 @@ public sealed class AgnesQueryService : OpenAIQueryService
     /// 覆写 CreateRequest — 对基类结果做 Agnes 专属后处理：
     /// 防御性确保每个 tool.function.parameters 非空（踩坑1的兜底保护）
     /// </summary>
-    internal override OpenAIChatRequest CreateRequest(MessageList chatHistory, ChatOptions? settings, bool stream, IChatClient? kernel)
-    {
+    internal override OpenAIChatRequest CreateRequest(MessageList chatHistory, ChatOptions? settings, bool stream, IChatClient? kernel) {
         var request = base.CreateRequest(chatHistory, settings, stream, kernel);
 
-        if (request.Tools is { Count: > 0 })
-        {
-            foreach (var tool in request.Tools)
-            {
-                if (tool.Function is not null && tool.Function.Parameters is null)
-                {
+        if (request.Tools is { Count: > 0 }) {
+            foreach (var tool in request.Tools) {
+                if (tool.Function is not null && tool.Function.Parameters is null) {
                     tool.Function.Parameters = new OpenAIFunctionParameters();
                 }
             }

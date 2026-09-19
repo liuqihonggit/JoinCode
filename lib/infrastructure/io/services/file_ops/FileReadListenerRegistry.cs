@@ -4,8 +4,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// 文件读取监听器注册中心的线程安全实现。
 /// 对齐 TS FileReadTool: registerFileReadListener / fileReadListeners
 /// </summary>
-public sealed class FileReadListenerRegistry : IFileReadListenerRegistry
-{
+public sealed class FileReadListenerRegistry : IFileReadListenerRegistry {
     private readonly ThreadSafeListenerList<IFileReadListener> _listeners = new();
 
     /// <summary>
@@ -19,8 +18,7 @@ public sealed class FileReadListenerRegistry : IFileReadListenerRegistry
     /// 通知所有已注册监听器文件已被读取
     /// </summary>
     /// <param name="e">文件读取事件参数</param>
-    public void Notify(FileReadEventArgs e)
-    {
+    public void Notify(FileReadEventArgs e) {
         ArgumentNullException.ThrowIfNull(e);
         _listeners.Notify(l => l.OnFileRead(e));
     }

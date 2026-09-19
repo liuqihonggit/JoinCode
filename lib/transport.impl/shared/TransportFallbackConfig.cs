@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// 传输回退配置 — 控制传输层故障转移、健康检查和熔断器的参数
 /// </summary>
-public sealed class TransportFallbackConfig
-{
+public sealed class TransportFallbackConfig {
     /// <summary>连接超时时间（毫秒），默认 5000</summary>
     public int ConnectTimeoutMs { get; init; } = 5000;
 
@@ -34,8 +33,7 @@ public sealed class TransportFallbackConfig
     /// 读取 JCC_TRANSPORT_FALLBACK、JCC_TRANSPORT_CIRCUIT_BREAKER、JCC_TRANSPORT_CONNECT_TIMEOUT_MS 等环境变量
     /// </summary>
     /// <returns>从环境变量填充的配置实例</returns>
-    public static TransportFallbackConfig FromEnvironment()
-    {
+    public static TransportFallbackConfig FromEnvironment() {
         var envDisable = Environment.GetEnvironmentVariable("JCC_TRANSPORT_FALLBACK");
         var envCircuitDisable = Environment.GetEnvironmentVariable("JCC_TRANSPORT_CIRCUIT_BREAKER");
         var envTimeout = Environment.GetEnvironmentVariable("JCC_TRANSPORT_CONNECT_TIMEOUT_MS");
@@ -44,8 +42,7 @@ public sealed class TransportFallbackConfig
         var envCbThreshold = Environment.GetEnvironmentVariable("JCC_TRANSPORT_CB_THRESHOLD");
         var envCbCooldown = Environment.GetEnvironmentVariable("JCC_TRANSPORT_CB_COOLDOWN_MS");
 
-        return new TransportFallbackConfig
-        {
+        return new TransportFallbackConfig {
             Enabled = envDisable != "0",
             CircuitBreakerEnabled = envCircuitDisable != "0",
             HealthCheckEnabled = envHealthCheck != "0",

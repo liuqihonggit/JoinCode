@@ -4,8 +4,7 @@ namespace Core.Summary;
 /// <summary>
 /// 离开摘要服务接口 — 管理用户离开期间的事件跟踪与摘要生成
 /// </summary>
-public interface IAwaySummaryService
-{
+public interface IAwaySummaryService {
     /// <summary>
     /// 异步标记用户离开，启动离开期间的事件跟踪与自动保存。
     /// </summary>

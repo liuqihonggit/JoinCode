@@ -1,12 +1,10 @@
 namespace Core.Tests.Query.BudgetAnalysis;
 
-public class DiminishingReturnsDetectorTests
-{
+public class DiminishingReturnsDetectorTests {
     private readonly DiminishingReturnsDetector _detector = new();
 
     [Fact]
-    public void CheckDiminishingReturns_InsufficientSamples_ShouldReturnNotDiminishing()
-    {
+    public void CheckDiminishingReturns_InsufficientSamples_ShouldReturnNotDiminishing() {
         var consumptions = new List<TokenConsumption>
         {
             new() { Amount = 100 }
@@ -20,24 +18,21 @@ public class DiminishingReturnsDetectorTests
     }
 
     [Fact]
-    public void CheckDiminishingReturns_EmptyList_ShouldReturnNotDiminishing()
-    {
+    public void CheckDiminishingReturns_EmptyList_ShouldReturnNotDiminishing() {
         var result = _detector.CheckDiminishingReturns([]);
 
         result.IsDiminishing.Should().BeFalse();
     }
 
     [Fact]
-    public void CheckDiminishingReturns_NullInput_ShouldThrowArgumentNullException()
-    {
+    public void CheckDiminishingReturns_NullInput_ShouldThrowArgumentNullException() {
         var act = () => _detector.CheckDiminishingReturns(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void CheckDiminishingReturns_HighRatioData_ShouldNotTriggerDiminishing()
-    {
+    public void CheckDiminishingReturns_HighRatioData_ShouldNotTriggerDiminishing() {
         var consumptions = new List<TokenConsumption>
         {
             new() { Amount = 100 },
@@ -53,8 +48,7 @@ public class DiminishingReturnsDetectorTests
     }
 
     [Fact]
-    public void CheckDiminishingReturns_LowRatioData_ShouldTriggerDiminishing()
-    {
+    public void CheckDiminishingReturns_LowRatioData_ShouldTriggerDiminishing() {
         var consumptions = new List<TokenConsumption>
         {
             new() { Amount = 1000 },
@@ -63,8 +57,7 @@ public class DiminishingReturnsDetectorTests
         };
 
         DiminishingReturnsResult result = new();
-        for (var i = 0; i < 3; i++)
-        {
+        for (var i = 0; i < 3; i++) {
             result = _detector.CheckDiminishingReturns(consumptions);
         }
 
@@ -73,8 +66,7 @@ public class DiminishingReturnsDetectorTests
     }
 
     [Fact]
-    public void CheckDiminishingReturns_LowRatioOnce_ShouldNotTriggerYet()
-    {
+    public void CheckDiminishingReturns_LowRatioOnce_ShouldNotTriggerYet() {
         var consumptions = new List<TokenConsumption>
         {
             new() { Amount = 1000 },
@@ -88,8 +80,7 @@ public class DiminishingReturnsDetectorTests
     }
 
     [Fact]
-    public void CheckDiminishingReturns_LowRatioTwice_ShouldNotTriggerYet()
-    {
+    public void CheckDiminishingReturns_LowRatioTwice_ShouldNotTriggerYet() {
         var consumptions = new List<TokenConsumption>
         {
             new() { Amount = 1000 },
@@ -104,8 +95,7 @@ public class DiminishingReturnsDetectorTests
     }
 
     [Fact]
-    public void CheckDiminishingReturns_HighRatioAfterLow_ShouldResetConsecutiveCount()
-    {
+    public void CheckDiminishingReturns_HighRatioAfterLow_ShouldResetConsecutiveCount() {
         var lowConsumptions = new List<TokenConsumption>
         {
             new() { Amount = 1000 },
@@ -128,8 +118,7 @@ public class DiminishingReturnsDetectorTests
     }
 
     [Fact]
-    public void Reset_ShouldClearConsecutiveCount()
-    {
+    public void Reset_ShouldClearConsecutiveCount() {
         var lowConsumptions = new List<TokenConsumption>
         {
             new() { Amount = 1000 },
@@ -146,8 +135,7 @@ public class DiminishingReturnsDetectorTests
     }
 
     [Fact]
-    public void CheckDiminishingReturns_ZeroPreviousAmount_ShouldSkipRatio()
-    {
+    public void CheckDiminishingReturns_ZeroPreviousAmount_ShouldSkipRatio() {
         var consumptions = new List<TokenConsumption>
         {
             new() { Amount = 0 },
@@ -160,16 +148,14 @@ public class DiminishingReturnsDetectorTests
     }
 
     [Fact]
-    public void CheckDiminishingReturns_SustainedDiminishing_ShouldRecommendStop()
-    {
+    public void CheckDiminishingReturns_SustainedDiminishing_ShouldRecommendStop() {
         var lowConsumptions = new List<TokenConsumption>
         {
             new() { Amount = 1000 },
             new() { Amount = 10 }
         };
 
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             _detector.CheckDiminishingReturns(lowConsumptions);
         }
 

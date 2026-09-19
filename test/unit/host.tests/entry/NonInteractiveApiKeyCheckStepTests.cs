@@ -5,14 +5,10 @@ namespace JoinCode.Entry.Tests;
 /// NonInteractiveApiKeyCheckStep 单元测试
 /// 验证 R-P2-002 修复:无 API Key 时非交互模式应直接退出而非警告后继续
 /// </summary>
-public class NonInteractiveApiKeyCheckStepTests
-{
-    private static StartupContext CreateContext(string apiKey)
-    {
-        var config = new WorkflowConfig
-        {
-            Provider = new ProviderConfig
-            {
+public class NonInteractiveApiKeyCheckStepTests {
+    private static StartupContext CreateContext(string apiKey) {
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
                 ApiKey = apiKey,
                 Vendor = "openai",
                 ModelId = "gpt-4o"
@@ -22,8 +18,7 @@ public class NonInteractiveApiKeyCheckStepTests
         var host = new Mock<IHost>().Object;
         var fs = new InMemoryFileSystem();
 
-        return new StartupContext
-        {
+        return new StartupContext {
             Config = config,
             Options = new CommandLineOptions(),
             Host = host,
@@ -32,16 +27,14 @@ public class NonInteractiveApiKeyCheckStepTests
     }
 
     [Fact]
-    public async Task EmptyApiKey_ShouldSetNonZeroExitCodeAndNotCallNext()
-    {
+    public async Task EmptyApiKey_ShouldSetNonZeroExitCodeAndNotCallNext() {
         // Arrange — 无 API Key 是 R-P2-002 修复目标场景
         var step = new NonInteractiveApiKeyCheckStep();
         var context = CreateContext(apiKey: string.Empty);
         var nextCalled = false;
 
         // Act
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -52,16 +45,14 @@ public class NonInteractiveApiKeyCheckStepTests
     }
 
     [Fact]
-    public async Task ValidApiKey_ShouldCallNextAndKeepExitCodeZero()
-    {
+    public async Task ValidApiKey_ShouldCallNextAndKeepExitCodeZero() {
         // Arrange — 有 API Key 是正常场景
         var step = new NonInteractiveApiKeyCheckStep();
         var context = CreateContext(apiKey: "sk-test-key-12345");
         var nextCalled = false;
 
         // Act
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);

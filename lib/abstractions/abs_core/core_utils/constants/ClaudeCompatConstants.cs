@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Utils;
 /// claude_code_args JSON 字段、CLAUDE_PLUGIN_ROOT 插件环境变量等。</para>
 /// <para>禁止在代码中直接硬编码这些字符串，统一引用此常量类。</para>
 /// </summary>
-public static class ClaudeCompatConstants
-{
+public static class ClaudeCompatConstants {
     #region 配置文件名（向后兼容读取 CLAUDE.md）
 
     /// <summary>项目规则文件名 — 兼容读取 CLAUDE.md</summary>

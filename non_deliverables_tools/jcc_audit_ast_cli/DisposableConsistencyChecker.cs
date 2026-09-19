@@ -9,13 +9,11 @@ namespace JccAuditCli;
 ///   JCC9103 (Warning): 类型实现 IAsyncDisposable 但 DisposeAsync() 仅委托给 Dispose() — 应统一为 IAsyncDisposable + await using
 ///   JCC9004 (Warning): 类型实现 IAsyncDisposable 但消费方用 using（非 await using）— 应改用 await using
 /// </summary>
-public static class DisposableConsistencyChecker
-{
+public static class DisposableConsistencyChecker {
     private static readonly string IDisposableFullName = typeof(IDisposable).FullName!;
     private static readonly string IAsyncDisposableFullName = typeof(IAsyncDisposable).FullName!;
 
-    public static List<DisposableConsistencyInfo> Extract(Compilation compilation)
-    {
+    public static List<DisposableConsistencyInfo> Extract(Compilation compilation) {
         var results = new List<DisposableConsistencyInfo>();
 
         var idisposableType = compilation.GetTypeByMetadataName(IDisposableFullName);
@@ -24,8 +22,7 @@ public static class DisposableConsistencyChecker
         if (idisposableType is null || iasyncDisposableType is null)
             return results;
 
-        foreach (var syntaxTree in compilation.SyntaxTrees)
-        {
+        foreach (var syntaxTree in compilation.SyntaxTrees) {
             var filePath = syntaxTree.FilePath ?? string.Empty;
             if (filePath.Contains("\\obj\\", StringComparison.Ordinal) ||
                 filePath.Contains("/obj/", StringComparison.Ordinal))
@@ -40,24 +37,20 @@ public static class DisposableConsistencyChecker
 
     private static void ExtractFromTree(SyntaxTree syntaxTree, SemanticModel semanticModel,
         string filePath, INamedTypeSymbol idisposableType, INamedTypeSymbol iasyncDisposableType,
-        List<DisposableConsistencyInfo> results)
-    {
+        List<DisposableConsistencyInfo> results) {
         var root = syntaxTree.GetRoot();
 
-        foreach (var typeDecl in root.DescendantNodes().OfType<TypeDeclarationSyntax>())
-        {
+        foreach (var typeDecl in root.DescendantNodes().OfType<TypeDeclarationSyntax>()) {
             var symbol = semanticModel.GetDeclaredSymbol(typeDecl) as INamedTypeSymbol;
             if (symbol is null) continue;
 
             var implementsIDisposable = symbol.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
             var implementsIAsyncDisposable = symbol.AllInterfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
 
-            if (implementsIDisposable && implementsIAsyncDisposable)
-            {
+            if (implementsIDisposable && implementsIAsyncDisposable) {
                 var hasRealAsyncDispose = HasRealAsyncDispose(symbol);
 
-                results.Add(new DisposableConsistencyInfo
-                {
+                results.Add(new DisposableConsistencyInfo {
                     TypeName = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
                     FilePath = filePath,
                     Line = typeDecl.GetLocation().GetLineSpan().StartLinePosition.Line + 1,
@@ -74,10 +67,8 @@ public static class DisposableConsistencyChecker
     /// <summary>
     /// 检查 DisposeAsync() 是否有真正的异步逻辑（而非仅委托给 Dispose()）
     /// </summary>
-    private static bool HasRealAsyncDispose(INamedTypeSymbol type)
-    {
-        foreach (var member in type.GetMembers("DisposeAsync"))
-        {
+    private static bool HasRealAsyncDispose(INamedTypeSymbol type) {
+        foreach (var member in type.GetMembers("DisposeAsync")) {
             if (member is not IMethodSymbol method) continue;
 
             var syntaxRef = method.DeclaringSyntaxReferences.FirstOrDefault();
@@ -105,8 +96,7 @@ public static class DisposableConsistencyChecker
 /// <summary>
 /// IDisposable/IAsyncDisposable 一致性检测结果
 /// </summary>
-public sealed record DisposableConsistencyInfo
-{
+public sealed record DisposableConsistencyInfo {
     public string TypeName { get; init; } = string.Empty;
     public string FilePath { get; init; } = string.Empty;
     public int Line { get; init; }

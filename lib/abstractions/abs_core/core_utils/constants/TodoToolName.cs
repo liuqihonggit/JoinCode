@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Todo 工具名称枚举
 /// </summary>
-public enum TodoToolName
-{
+public enum TodoToolName {
     [EnumValue("todo_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TodoCreate,

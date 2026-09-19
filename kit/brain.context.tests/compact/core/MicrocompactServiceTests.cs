@@ -4,11 +4,9 @@ namespace Brain.Tests.Context.Compact;
 /// MicrocompactService 单元测试 — 对齐 TS microCompact.ts
 /// 验证工具结果清除逻辑、COMPACTABLE_TOOLS 过滤、keepRecent 保留策略
 /// </summary>
-public sealed class MicrocompactServiceTests
-{
+public sealed class MicrocompactServiceTests {
     [Fact]
-    public void CompactMessages_ClearsOldToolResults()
-    {
+    public void CompactMessages_ClearsOldToolResults() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
@@ -33,8 +31,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void CompactMessages_OnlyCompactsCompactableTools()
-    {
+    public void CompactMessages_OnlyCompactsCompactableTools() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
@@ -52,8 +49,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void CompactMessages_SkipsAlreadyClearedResults()
-    {
+    public void CompactMessages_SkipsAlreadyClearedResults() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
@@ -70,8 +66,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void CompactMessages_NoCompactableTools_ReturnsUnchanged()
-    {
+    public void CompactMessages_NoCompactableTools_ReturnsUnchanged() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
@@ -86,8 +81,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void CompactMessages_UsesToolCallsMetadata()
-    {
+    public void CompactMessages_UsesToolCallsMetadata() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         // 使用 ChatService 实际存储格式: Metadata["ToolCalls"] = [{Id, Name, Arguments}]
         var toolCalls = new List<Dictionary<string, JsonElement>>
@@ -99,8 +93,7 @@ public sealed class MicrocompactServiceTests
                 ["Arguments"] = JsonSerializer.SerializeToElement("{}"),
             }
         };
-        var assistantMetadata = new Dictionary<string, JsonElement>
-        {
+        var assistantMetadata = new Dictionary<string, JsonElement> {
             ["ToolCalls"] = JsonSerializer.SerializeToElement(toolCalls, TestJsonContext.Default.ListDictionaryStringJsonElement),
         };
         var messages = new List<ApiMessage>
@@ -116,8 +109,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void CompactMessages_CustomCompactableToolNames()
-    {
+    public void CompactMessages_CustomCompactableToolNames() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var customTools = new HashSet<string> { "MyCustomTool" };
         var messages = new List<ApiMessage>
@@ -136,8 +128,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void TimeBasedCompact_ReturnsNull_WhenNoTimestamp()
-    {
+    public void TimeBasedCompact_ReturnsNull_WhenNoTimestamp() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
@@ -150,11 +141,9 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void TimeBasedCompact_ReturnsNull_WhenGapTooSmall()
-    {
+    public void TimeBasedCompact_ReturnsNull_WhenGapTooSmall() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
-        var metadata = new Dictionary<string, JsonElement>
-        {
+        var metadata = new Dictionary<string, JsonElement> {
             ["timestamp"] = JsonSerializer.SerializeToElement(DateTime.UtcNow.ToString("O")),
         };
         var messages = new List<ApiMessage>
@@ -168,8 +157,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void EstimateMessageTokens_ReturnsNonZero()
-    {
+    public void EstimateMessageTokens_ReturnsNonZero() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
@@ -182,8 +170,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void EstimateMessageTokens_IncludesContentBlocks()
-    {
+    public void EstimateMessageTokens_IncludesContentBlocks() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var contentBlocks = new List<ToolContent>
         {
@@ -202,8 +189,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void EstimateMessageTokens_IncludesToolUseBlocks()
-    {
+    public void EstimateMessageTokens_IncludesToolUseBlocks() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
@@ -217,8 +203,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void CompactMessages_EmptyList_ReturnsUnchanged()
-    {
+    public void CompactMessages_EmptyList_ReturnsUnchanged() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>();
 
@@ -229,8 +214,7 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void CompactMessages_MultipleToolResultsInSequence()
-    {
+    public void CompactMessages_MultipleToolResultsInSequence() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var messages = new List<ApiMessage>
         {
@@ -254,12 +238,10 @@ public sealed class MicrocompactServiceTests
     }
 
     [Fact]
-    public void TimeBasedCompact_ActuallyClears_WhenGapExceeded()
-    {
+    public void TimeBasedCompact_ActuallyClears_WhenGapExceeded() {
         var service = new MicrocompactService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var oldTimestamp = DateTime.UtcNow.AddMinutes(-120).ToString("O");
-        var assistantMetadata = new Dictionary<string, JsonElement>
-        {
+        var assistantMetadata = new Dictionary<string, JsonElement> {
             ["timestamp"] = JsonSerializer.SerializeToElement(oldTimestamp),
         };
         var messages = new List<ApiMessage>
@@ -282,8 +264,7 @@ public sealed class MicrocompactServiceTests
     /// <summary>
     /// 创建 Assistant 工具调用消息 — 使用简化的 Metadata 格式
     /// </summary>
-    private static ApiMessage CreateAssistantToolCallMessage(string toolCallId, string toolName)
-    {
+    private static ApiMessage CreateAssistantToolCallMessage(string toolCallId, string toolName) {
         var toolCalls = new List<Dictionary<string, JsonElement>>
         {
             new()
@@ -293,8 +274,7 @@ public sealed class MicrocompactServiceTests
                 ["Arguments"] = JsonSerializer.SerializeToElement("{}"),
             }
         };
-        var metadata = new Dictionary<string, JsonElement>
-        {
+        var metadata = new Dictionary<string, JsonElement> {
             ["ToolCalls"] = JsonSerializer.SerializeToElement(toolCalls, TestJsonContext.Default.ListDictionaryStringJsonElement),
         };
         return new ApiMessage(MessageRole.Assistant, null, metadata);
@@ -303,10 +283,8 @@ public sealed class MicrocompactServiceTests
     /// <summary>
     /// 创建 Tool 结果消息 — 对齐 ChatService 存储格式 Metadata["ToolCallId"]
     /// </summary>
-    private static ApiMessage CreateToolResultMessage(string toolCallId, string content)
-    {
-        var metadata = new Dictionary<string, JsonElement>
-        {
+    private static ApiMessage CreateToolResultMessage(string toolCallId, string content) {
+        var metadata = new Dictionary<string, JsonElement> {
             ["ToolCallId"] = JsonSerializer.SerializeToElement(toolCallId),
         };
         return new ApiMessage(MessageRole.Tool, content, metadata);

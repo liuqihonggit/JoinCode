@@ -1,12 +1,10 @@
 namespace ToolPrompt.Generator;
 
 [Generator]
-internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<ToolPromptGenerator.ToolPromptInfo>
-{
+internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<ToolPromptGenerator.ToolPromptInfo> {
     internal override string AttributeFullName => "JoinCode.Abstractions.Attributes.ToolPromptAttribute";
 
-    internal override ToolPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation)
-    {
+    internal override ToolPromptInfo? ExtractInfo(INamedTypeSymbol typeSymbol, AttributeData attr, Compilation compilation) {
         var toolName = AttributeScanner.GetToolNameNamedArg(attr, "ToolName");
         var category = AttributeScanner.GetIntNamedArg(attr, "Category");
         var hasParameters = AttributeScanner.GetBoolNamedArg(attr, "HasParameters");
@@ -46,8 +44,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
             hasGetPrompt);
     }
 
-    internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<ToolPromptInfo> infos)
-    {
+    internal override void GenerateRegistration(SourceProductionContext context, ImmutableArray<ToolPromptInfo> infos) {
         var orderedInfos = infos.OrderBy(i => i.ToolName).ToList();
 
         if (orderedInfos.Count == 0)
@@ -74,8 +71,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
         sb.AppendLine("        return toolName switch");
         sb.AppendLine("        {");
 
-        foreach (var info in orderedInfos)
-        {
+        foreach (var info in orderedInfos) {
             if (!info.HasParameterlessAccess)
                 continue;
 
@@ -92,8 +88,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
         sb.AppendLine();
 
         var parameterizedInfos = orderedInfos.Where(i => i.HasParameters && i.HasGetPromptMethod).ToList();
-        if (parameterizedInfos.Count > 0)
-        {
+        if (parameterizedInfos.Count > 0) {
             sb.AppendLine("    /// <summary>");
             sb.AppendLine("    /// 根据工具名称获取带参数的详细描述");
             sb.AppendLine("    /// </summary>");
@@ -102,8 +97,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
             sb.AppendLine("        return toolName switch");
             sb.AppendLine("        {");
 
-            foreach (var info in parameterizedInfos)
-            {
+            foreach (var info in parameterizedInfos) {
                 var fqn = info.FullyQualifiedName;
                 sb.AppendLine($"            \"{info.ToolName}\" => {fqn}.{info.ContentMethod}(),");
             }
@@ -120,8 +114,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
         sb.AppendLine("    public static IEnumerable<(string ToolName, string Category, bool HasParameters)> GetAllToolPrompts()");
         sb.AppendLine("    {");
 
-        foreach (var info in orderedInfos)
-        {
+        foreach (var info in orderedInfos) {
             var categoryName = ((ToolPromptCategoryValue)info.Category).ToString();
             sb.AppendLine($"        yield return (\"{info.ToolName}\", \"{categoryName}\", {info.HasParameters.ToString().ToLowerInvariant()});");
         }
@@ -132,8 +125,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
         context.AddSource("ToolPromptRegistration.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private enum ToolPromptCategoryValue
-    {
+    private enum ToolPromptCategoryValue {
         Agent = 0,
         File = 1,
         Planning = 2,
@@ -142,8 +134,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
         System = 5
     }
 
-    internal sealed class ToolPromptInfo
-    {
+    internal sealed class ToolPromptInfo {
         public string FullyQualifiedName { get; }
         public string TypeName { get; }
         public string Namespace { get; }
@@ -157,8 +148,7 @@ internal sealed class ToolPromptGenerator : AttributeRegistrationGeneratorBase<T
         public ToolPromptInfo(
             string fullyQualifiedName, string typeName, string ns,
             string toolName, int category, bool hasParameters,
-            string contentMethod, bool hasParameterlessAccess, bool hasGetPromptMethod)
-        {
+            string contentMethod, bool hasParameterlessAccess, bool hasGetPromptMethod) {
             FullyQualifiedName = fullyQualifiedName;
             TypeName = typeName;
             Namespace = ns;

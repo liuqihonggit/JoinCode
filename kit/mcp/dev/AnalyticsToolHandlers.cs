@@ -6,16 +6,14 @@ namespace McpToolDispatch;
 /// 分析工具处理器 - 提供使用统计和分析功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Analytics, Optional = true)]
-public class AnalyticsToolHandlers
-{
+public class AnalyticsToolHandlers {
     private readonly IAnalyticsService _analyticsService;
 
     /// <summary>
     /// 初始化 <see cref="AnalyticsToolHandlers"/> 实例
     /// </summary>
     /// <param name="analyticsService">分析服务</param>
-    public AnalyticsToolHandlers(IAnalyticsService analyticsService)
-    {
+    public AnalyticsToolHandlers(IAnalyticsService analyticsService) {
         _analyticsService = analyticsService ?? throw new ArgumentNullException(nameof(analyticsService));
     }
 
@@ -25,8 +23,7 @@ public class AnalyticsToolHandlers
     [McpTool(InteractionToolNameEnumConstants.AnalyticsReport, "Get system usage statistics report", "analytics")]
     public Task<ToolResult> AnalyticsReportAsync(
         [McpToolParameter("Number of days for statistics (default 7)", Required = false)] int? days = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var report = _analyticsService.GetUsageReport(days ?? 7);
 
         var response = new System.Text.StringBuilder();
@@ -39,16 +36,14 @@ public class AnalyticsToolHandlers
         response.AppendLine(L.T(StringKey.AnalyticsAvgExecTime, report.AverageToolDurationMs.ToString("F0")));
         response.AppendLine(L.T(StringKey.AnalyticsErrorRate, report.ErrorRate.ToString("F1")));
 
-        if (report.TopTools.Count > 0)
-        {
+        if (report.TopTools.Count > 0) {
             response.AppendLine();
             response.AppendLine($"{ObjectSymbol.Gear.ToValue()} {L.T(StringKey.AnalyticsTopTools)}");
             response.Append(string.Join(Environment.NewLine, report.TopTools.Take(5).Select(tool => $"  {tool.ToolName} {L.T(StringKey.AnalyticsToolEntry, tool.CallCount, tool.SuccessRate.ToString("F0"))}")));
             response.AppendLine();
         }
 
-        if (report.DailyStats.Count > 0)
-        {
+        if (report.DailyStats.Count > 0) {
             response.AppendLine();
             response.AppendLine($"{ObjectSymbol.DiamondOpen.ToValue()} {L.T(StringKey.AnalyticsDailyStats)}");
             response.Append(string.Join(Environment.NewLine, report.DailyStats.OrderByDescending(s => s.Key).Take(7).Select(s => L.T(StringKey.AnalyticsDailyEntry, s.Key.ToString("MM-dd"), s.Value.EventCount, s.Value.ToolCalls, s.Value.ErrorCount))));
@@ -64,8 +59,7 @@ public class AnalyticsToolHandlers
     [McpTool(InteractionToolNameEnumConstants.AnalyticsTools, "Get tool usage statistics details", "analytics")]
     public Task<ToolResult> AnalyticsToolsAsync(
         [McpToolParameter("Number of days for statistics (default 7)", Required = false)] int? days = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var stats = _analyticsService.GetToolUsageStatistics(days ?? 7);
 
         var response = new System.Text.StringBuilder();
@@ -74,14 +68,10 @@ public class AnalyticsToolHandlers
         response.AppendLine(L.T(StringKey.AnalyticsToolCount, stats.Count));
         response.AppendLine();
 
-        if (stats.Count == 0)
-        {
+        if (stats.Count == 0) {
             response.AppendLine(L.T(StringKey.AnalyticsNoToolData));
-        }
-        else
-        {
-            foreach (var tool in stats)
-            {
+        } else {
+            foreach (var tool in stats) {
                 var statusIcon = tool.SuccessRate >= 90 ? StatusSymbol.Tick.ToValue() :
                                 tool.SuccessRate >= 70 ? StatusSymbol.Warning.ToValue() : StatusSymbol.Cross.ToValue();
 
@@ -89,8 +79,7 @@ public class AnalyticsToolHandlers
                 response.AppendLine($"   {L.T(StringKey.AnalyticsCallSummary, tool.CallCount, tool.SuccessCount, tool.ErrorCount)}");
                 response.AppendLine($"   {L.T(StringKey.AnalyticsSuccessRateDuration, tool.SuccessRate.ToString("F1"), tool.AverageDurationMs.ToString("F0"))}");
 
-                if (tool.LastCallAt.HasValue)
-                {
+                if (tool.LastCallAt.HasValue) {
                     response.AppendLine($"   {L.T(StringKey.AnalyticsLastCall, tool.LastCallAt.Value.ToString("MM-dd HH:mm"))}");
                 }
 
@@ -108,11 +97,9 @@ public class AnalyticsToolHandlers
     public Task<ToolResult> AnalyticsEventsAsync(
         [McpToolParameter("Event type filter (optional)", Required = false)] string? event_type = null,
         [McpToolParameter("Result count limit", Required = false, DefaultValue = "50")] int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         AnalyticsEventType? type = null;
-        if (!string.IsNullOrEmpty(event_type))
-        {
+        if (!string.IsNullOrEmpty(event_type)) {
             type = AnalyticsEventTypeExtensions.FromValue(event_type);
         }
 
@@ -123,16 +110,11 @@ public class AnalyticsToolHandlers
         response.AppendLine(L.T(StringKey.AnalyticsEventCount, events.Count));
         response.AppendLine();
 
-        if (events.Count == 0)
-        {
+        if (events.Count == 0) {
             response.AppendLine(L.T(StringKey.AnalyticsNoEventData));
-        }
-        else
-        {
-            foreach (var evt in events)
-            {
-                var typeIcon = evt.Type switch
-                {
+        } else {
+            foreach (var evt in events) {
+                var typeIcon = evt.Type switch {
                     AnalyticsEventType.ToolSuccess => StatusSymbol.Tick.ToValue(),
                     AnalyticsEventType.ToolError => StatusSymbol.Cross.ToValue(),
                     AnalyticsEventType.AgentStart => StatusSymbol.Play.ToValue(),
@@ -143,23 +125,19 @@ public class AnalyticsToolHandlers
 
                 response.AppendLine($"{typeIcon} [{evt.Timestamp:MM-dd HH:mm:ss}] {evt.Type,-15} {evt.Name}");
 
-                if (!string.IsNullOrEmpty(evt.AgentName))
-                {
+                if (!string.IsNullOrEmpty(evt.AgentName)) {
                     response.AppendLine($"   {L.T(StringKey.AnalyticsAgent, evt.AgentName)}");
                 }
 
-                if (evt.DurationMs.HasValue)
-                {
+                if (evt.DurationMs.HasValue) {
                     response.AppendLine($"   {L.T(StringKey.AnalyticsDuration, evt.DurationMs.Value.ToString("F0"))}");
                 }
 
-                if (!string.IsNullOrEmpty(evt.ErrorMessage))
-                {
+                if (!string.IsNullOrEmpty(evt.ErrorMessage)) {
                     response.AppendLine($"   {L.T(StringKey.AnalyticsErrorInfo, evt.ErrorMessage)}");
                 }
 
-                if (evt.Data.Count > 0)
-                {
+                if (evt.Data.Count > 0) {
                     var dataStr = string.Join(", ", evt.Data.Take(3).Select(d => $"{d.Key}={d.Value}"));
                     response.AppendLine($"   {L.T(StringKey.AnalyticsDataInfo, dataStr)}");
                 }
@@ -178,18 +156,15 @@ public class AnalyticsToolHandlers
     public async Task<ToolResult> AnalyticsExportAsync(
         [McpToolParameter("Start date (optional)", Required = false)] string? start_date = null,
         [McpToolParameter("End date (optional)", Required = false)] string? end_date = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         DateTime? start = null;
         DateTime? end = null;
 
-        if (!string.IsNullOrEmpty(start_date) && DateTime.TryParse(start_date, out var parsedStart))
-        {
+        if (!string.IsNullOrEmpty(start_date) && DateTime.TryParse(start_date, out var parsedStart)) {
             start = parsedStart;
         }
 
-        if (!string.IsNullOrEmpty(end_date) && DateTime.TryParse(end_date, out var parsedEnd))
-        {
+        if (!string.IsNullOrEmpty(end_date) && DateTime.TryParse(end_date, out var parsedEnd)) {
             end = parsedEnd;
         }
 
@@ -199,13 +174,11 @@ public class AnalyticsToolHandlers
         response.AppendLine($"{ObjectSymbol.ArrowUp.ToValue()} {L.T(StringKey.AnalyticsDataExport)}");
         response.AppendLine();
 
-        if (start.HasValue)
-        {
+        if (start.HasValue) {
             response.AppendLine(L.T(StringKey.AnalyticsStartDate, start.Value.ToString("yyyy-MM-dd")));
         }
 
-        if (end.HasValue)
-        {
+        if (end.HasValue) {
             response.AppendLine(L.T(StringKey.AnalyticsEndDate, end.Value.ToString("yyyy-MM-dd")));
         }
 
@@ -214,8 +187,7 @@ public class AnalyticsToolHandlers
         response.AppendLine("```json");
         response.AppendLine(json[..Math.Min(WorkflowConstants.Limits.JsonTruncateLength, json.Length)]);
 
-        if (json.Length > WorkflowConstants.Limits.JsonTruncateLength)
-        {
+        if (json.Length > WorkflowConstants.Limits.JsonTruncateLength) {
             response.AppendLine("...");
             response.AppendLine(L.T(StringKey.AnalyticsTruncated, json.Length));
         }
@@ -232,10 +204,8 @@ public class AnalyticsToolHandlers
     public Task<ToolResult> AnalyticsClearAsync(
         [McpToolParameter("Clear data older than N days (optional)", Required = false)] int? older_than_days = null,
         [McpToolParameter("Confirm clear (enter 'yes' to confirm)")] string? confirm = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (confirm != "yes")
-        {
+        CancellationToken cancellationToken = default) {
+        if (confirm != "yes") {
             return Task.FromResult(ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.AnalyticsConfirmClear))
                 .Build());

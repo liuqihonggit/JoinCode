@@ -9,16 +9,14 @@ namespace JoinCode.Abstractions.Utils;
 /// 详见 ADR-0093、AGENTS.md「代码风格规范」。
 /// </para>
 /// </summary>
-public sealed class TempFileScope : IDisposable
-{
+public sealed class TempFileScope : IDisposable {
     /// <summary>临时文件路径。</summary>
     public string Path { get; }
 
     private readonly IFileSystem _fs;
     private bool _disposed;
 
-    private TempFileScope(string path, IFileSystem fs)
-    {
+    private TempFileScope(string path, IFileSystem fs) {
         Path = path;
         _fs = fs;
     }
@@ -29,8 +27,7 @@ public sealed class TempFileScope : IDisposable
     /// <param name="fs">文件系统抽象。</param>
     /// <param name="prefix">文件名前缀，默认 "jcctmp_"。</param>
     /// <param name="extension">文件扩展名（含点），默认 ".tmp"。</param>
-    public static TempFileScope Create(IFileSystem fs, string? prefix = null, string? extension = null)
-    {
+    public static TempFileScope Create(IFileSystem fs, string? prefix = null, string? extension = null) {
         ArgumentNullException.ThrowIfNull(fs);
         var prefixStr = prefix ?? "jcctmp_";
         var ext = extension ?? ".tmp";
@@ -41,11 +38,9 @@ public sealed class TempFileScope : IDisposable
     /// <summary>
     /// 删除临时文件（若存在）。幂等，删除失败不抛（best effort，记 Debug 日志）。
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        try { if (_fs.FileExists(Path)) _fs.DeleteFile(Path); }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TempFileScope] 清理临时文件失败: {Path} - {ex.Message}"); }
+        try { if (_fs.FileExists(Path)) _fs.DeleteFile(Path); } catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TempFileScope] 清理临时文件失败: {Path} - {ex.Message}"); }
     }
 }

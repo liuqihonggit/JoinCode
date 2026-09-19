@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// 传输回退事件参数 — 当传输从一种类型回退到另一种类型时携带的上下文信息
 /// </summary>
-public sealed class TransportFallbackEventArgs : EventArgs
-{
+public sealed class TransportFallbackEventArgs : EventArgs {
     /// <summary>回退前的传输类型名称</summary>
     public required string FromTransportType { get; init; }
     /// <summary>回退后的传输类型名称</summary>

@@ -3,21 +3,18 @@ namespace JoinCode.Reasoning.Engine;
 /// <summary>
 /// 推理预算跟踪 — 轮次与 Token 的使用量与预算上限
 /// </summary>
-internal sealed class ReasoningBudget
-{
+internal sealed class ReasoningBudget {
     internal int RoundsUsed { get; private set; }
     internal int TokensUsed { get; private set; }
     internal int RoundsBudget { get; private set; }
     internal int TokensBudget { get; private set; }
 
-    internal ReasoningBudget(int maxRounds, int maxTokens)
-    {
+    internal ReasoningBudget(int maxRounds, int maxTokens) {
         RoundsBudget = maxRounds;
         TokensBudget = maxTokens;
     }
 
-    internal void Reset(int maxRounds, int maxTokens)
-    {
+    internal void Reset(int maxRounds, int maxTokens) {
         RoundsUsed = 0;
         TokensUsed = 0;
         RoundsBudget = maxRounds;
@@ -33,8 +30,7 @@ internal sealed class ReasoningBudget
     internal bool IsRoundsExhausted => RoundsUsed >= RoundsBudget;
     internal bool IsTokensExhausted => TokensUsed >= TokensBudget;
 
-    internal BudgetStatus GetStatus() => new()
-    {
+    internal BudgetStatus GetStatus() => new() {
         RoundsUsed = RoundsUsed,
         RoundsBudget = RoundsBudget,
         TokensUsed = TokensUsed,

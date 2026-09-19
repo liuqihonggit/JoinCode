@@ -3,8 +3,7 @@ namespace Services.Lsp.Internal;
 /// <summary>
 /// LSP 管理器接口 — 统一管理多个 LSP 服务器实例的生命周期和文件操作
 /// </summary>
-public interface ILspManager : IAsyncDisposable
-{
+public interface ILspManager : IAsyncDisposable {
     /// <summary>获取管理器是否已初始化</summary>
     bool IsInitialized { get; }
 
@@ -103,8 +102,7 @@ public interface ILspManager : IAsyncDisposable
 /// LSP 管理器实现 — 管理多个 LSP 服务器实例的注册、启动、文件追踪和消息分发
 /// </summary>
 [Register(typeof(ILspManager), ServiceLifetime.Singleton)]
-public sealed partial class LspManager : ServiceEntity, ILspManager
-{
+public sealed partial class LspManager : ServiceEntity, ILspManager {
 
     /// <summary>
     /// 构造 LSP 管理器
@@ -115,8 +113,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <param name="fileOperationService">可选的文件操作服务</param>
     /// <param name="passiveFeedback">可选的被动反馈处理器</param>
     public LspManager(ILogger<LspManager> logger, IFileSystem fs, IProcessService processService, IFileOperationService? fileOperationService = null, ILspPassiveFeedback? passiveFeedback = null)
-        : base(nameof(LspManager))
-    {
+        : base(nameof(LspManager)) {
         _logger = logger;
         _fs = fs;
         _processService = processService;
@@ -145,8 +142,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// </summary>
     /// <param name="configs">LSP 实例配置列表</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task InitializeAsync(IEnumerable<LspInstanceConfig> configs, CancellationToken cancellationToken = default)
-    {
+    public async Task InitializeAsync(IEnumerable<LspInstanceConfig> configs, CancellationToken cancellationToken = default) {
         await _initActor.InitializeAsync(configs.ToList(), cancellationToken).ConfigureAwait(false);
     }
 
@@ -155,12 +151,10 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// </summary>
     /// <param name="configs">LSP 实例配置列表</param>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task InitializeCoreAsync(List<LspInstanceConfig> configs, CancellationToken cancellationToken)
-    {
+    internal async Task InitializeCoreAsync(List<LspInstanceConfig> configs, CancellationToken cancellationToken) {
         if (IsInitialized) return;
 
-        foreach (var config in configs)
-        {
+        foreach (var config in configs) {
             var instance = new LspServerInstance(config, _fs, _processService, _logger);
 
             _registry.Register(config.Name, instance, config.ExtensionToLanguage);
@@ -172,8 +166,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
         Volatile.Write(ref _isInitialized, 1);
         _logger.LogInformation("LSP Manager initialized with {Count} server(s)", _registry.Count);
 
-        if (_passiveFeedback != null)
-        {
+        if (_passiveFeedback != null) {
             _passiveFeedback.RegisterNotificationHandlers(this);
         }
     }
@@ -182,8 +175,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// 关闭所有 LSP 服务器 — 通过 Actor 序列化调用
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task ShutdownAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ShutdownAsync(CancellationToken cancellationToken = default) {
         await _initActor.ShutdownAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -191,8 +183,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// 关闭核心逻辑 — 停止所有 LSP 服务器并清空注册表
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
-    internal async Task ShutdownCoreAsync(CancellationToken cancellationToken)
-    {
+    internal async Task ShutdownCoreAsync(CancellationToken cancellationToken) {
         if (!IsInitialized) return;
 
         var tasks = _registry.Servers.Select(s => s.StopAsync(cancellationToken).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnFaulted));
@@ -208,8 +199,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>匹配的服务器实例，无匹配时返回 null</returns>
-    public ILspServerInstance? GetServerForFile(string filePath)
-    {
+    public ILspServerInstance? GetServerForFile(string filePath) {
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
         return _registry.TryGetByExtension(ext, out var instance) ? instance : null;
     }
@@ -220,21 +210,17 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <param name="filePath">文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>已启动的服务器实例，无匹配或启动失败时返回 null</returns>
-    public async Task<ILspServerInstance?> EnsureServerStartedAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task<ILspServerInstance?> EnsureServerStartedAsync(string filePath, CancellationToken cancellationToken = default) {
         var server = GetServerForFile(filePath);
         if (server == null) return null;
 
         if (server.IsHealthy) return server;
 
-        try
-        {
+        try {
             var workspaceRoot = await GitWorkspaceResolver.FindWorkspaceRootAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
             await server.StartAsync(workspaceRoot, cancellationToken).ConfigureAwait(false);
             return server;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "Failed to start LSP server '{Name}' for file: {FilePath}", server.Name, filePath);
             return null;
         }
@@ -248,8 +234,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <param name="params">请求参数对象</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>响应 JSON 节点，失败时返回 null</returns>
-    public async Task<JsonNode?> SendRequestAsync(string filePath, string method, object? @params, CancellationToken cancellationToken = default)
-    {
+    public async Task<JsonNode?> SendRequestAsync(string filePath, string method, object? @params, CancellationToken cancellationToken = default) {
         var server = await EnsureServerStartedAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (server == null) return null;
 
@@ -263,8 +248,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <param name="method">LSP 方法名</param>
     /// <param name="params">通知参数对象</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task SendNotificationAsync(string filePath, string method, object? @params, CancellationToken cancellationToken = default)
-    {
+    public async Task SendNotificationAsync(string filePath, string method, object? @params, CancellationToken cancellationToken = default) {
         var server = await EnsureServerStartedAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (server == null) return;
 
@@ -277,24 +261,20 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <param name="filePath">文件路径</param>
     /// <param name="content">文件内容</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task OpenFileAsync(string filePath, string content, CancellationToken cancellationToken = default)
-    {
+    public async Task OpenFileAsync(string filePath, string content, CancellationToken cancellationToken = default) {
         var server = await EnsureServerStartedAsync(filePath, cancellationToken).ConfigureAwait(false);
         if (server == null) return;
 
         var fileUri = LspUriHelper.PathToFileUrl(filePath);
-        if (_openedFiles.TryGetValue(fileUri, out var existingServer) && existingServer == server.Name)
-        {
+        if (_openedFiles.TryGetValue(fileUri, out var existingServer) && existingServer == server.Name) {
             return;
         }
 
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
         var languageId = server.Config.ExtensionToLanguage.TryGetValue(ext, out var lang) ? lang : "plaintext";
 
-        var didOpenParams = new LspDidOpenTextDocumentParams
-        {
-            TextDocument = new LspTextDocumentItem
-            {
+        var didOpenParams = new LspDidOpenTextDocumentParams {
+            TextDocument = new LspTextDocumentItem {
                 Uri = fileUri,
                 LanguageId = languageId,
                 Version = 1,
@@ -312,33 +292,27 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// <param name="filePath">文件路径</param>
     /// <param name="content">变更后的完整内容</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task ChangeFileAsync(string filePath, string content, CancellationToken cancellationToken = default)
-    {
+    public async Task ChangeFileAsync(string filePath, string content, CancellationToken cancellationToken = default) {
         var server = GetServerForFile(filePath);
-        if (server == null || !server.IsHealthy)
-        {
+        if (server == null || !server.IsHealthy) {
             await OpenFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         var fileUri = LspUriHelper.PathToFileUrl(filePath);
-        if (_openedFiles.TryGetValue(fileUri, out var existingServer) && existingServer != server.Name)
-        {
+        if (_openedFiles.TryGetValue(fileUri, out var existingServer) && existingServer != server.Name) {
             await OpenFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        if (!_openedFiles.ContainsKey(fileUri))
-        {
+        if (!_openedFiles.ContainsKey(fileUri)) {
             await OpenFileAsync(filePath, content, cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        var changeParams = new Dictionary<string, JsonElement>
-        {
+        var changeParams = new Dictionary<string, JsonElement> {
             ["textDocument"] = JsonElementHelper.FromObject(
-                new Dictionary<string, JsonElement>
-                {
+                new Dictionary<string, JsonElement> {
                     ["uri"] = JsonElementHelper.FromString(fileUri),
                     ["version"] = JsonElementHelper.FromInt32(1)
                 },
@@ -356,16 +330,14 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task SaveFileAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task SaveFileAsync(string filePath, CancellationToken cancellationToken = default) {
         var server = GetServerForFile(filePath);
         if (server == null || !server.IsHealthy) return;
 
         var fileUri = LspUriHelper.PathToFileUrl(filePath);
         if (!_openedFiles.ContainsKey(fileUri)) return;
 
-        var saveParams = new Dictionary<string, JsonElement>
-        {
+        var saveParams = new Dictionary<string, JsonElement> {
             ["textDocument"] = JsonElementHelper.FromObject(
                 new Dictionary<string, JsonElement> { ["uri"] = JsonElementHelper.FromString(fileUri) },
                 LspJsonContext.Default.DictionaryStringJsonElement)
@@ -379,27 +351,22 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task CloseFileAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task CloseFileAsync(string filePath, CancellationToken cancellationToken = default) {
         var fileUri = LspUriHelper.PathToFileUrl(filePath);
         if (!_openedFiles.TryRemove(fileUri, out var serverName)) return;
 
         if (!_registry.TryGetByName(serverName, out var server)) return;
         if (!server.IsHealthy) return;
 
-        var closeParams = new Dictionary<string, JsonElement>
-        {
+        var closeParams = new Dictionary<string, JsonElement> {
             ["textDocument"] = JsonElementHelper.FromObject(
                 new Dictionary<string, JsonElement> { ["uri"] = JsonElementHelper.FromString(fileUri) },
                 LspJsonContext.Default.DictionaryStringJsonElement)
         };
 
-        try
-        {
+        try {
             await server.SendNotificationAsync("textDocument/didClose", closeParams, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogDebug(ex, "Failed to send didClose for: {FilePath}", filePath);
         }
     }
@@ -409,8 +376,7 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>已打开返回 true，否则 false</returns>
-    public bool IsFileOpen(string filePath)
-    {
+    public bool IsFileOpen(string filePath) {
         var fileUri = LspUriHelper.PathToFileUrl(filePath);
         return _openedFiles.ContainsKey(fileUri);
     }
@@ -419,16 +385,14 @@ public sealed partial class LspManager : ServiceEntity, ILspManager
     /// 获取所有已注册的 LSP 服务器实例快照
     /// </summary>
     /// <returns>服务器名到实例的只读字典</returns>
-    public IReadOnlyDictionary<string, ILspServerInstance> GetAllServers()
-    {
+    public IReadOnlyDictionary<string, ILspServerInstance> GetAllServers() {
         return _registry.Snapshot();
     }
 
     /// <summary>
     /// 异步释放资源 — 关闭所有 LSP 服务器并清空注册表
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) return;
 
         var servers = _registry.Servers.ToArray();

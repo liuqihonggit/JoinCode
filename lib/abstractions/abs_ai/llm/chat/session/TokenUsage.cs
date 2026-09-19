@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public class TokenUsage
-{
+public class TokenUsage {
     [JsonPropertyName("prompt_tokens")]
     public int PromptTokens { get; set; }
 
@@ -22,8 +21,7 @@ public class TokenUsage
 
     public TokenUsage() { }
 
-    public TokenUsage(int promptTokens, int completionTokens)
-    {
+    public TokenUsage(int promptTokens, int completionTokens) {
         PromptTokens = promptTokens;
         CompletionTokens = completionTokens;
     }

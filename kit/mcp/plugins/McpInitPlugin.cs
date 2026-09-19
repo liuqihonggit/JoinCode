@@ -5,8 +5,7 @@ namespace JoinCode.Mcp.Plugins;
 /// <para>万物皆插件(ADR 0098): 从 McpInitModule 硬编码迁移为插件加载</para>
 /// </summary>
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
-public sealed partial class McpInitPlugin : WorkflowPluginBase
-{
+public sealed partial class McpInitPlugin : WorkflowPluginBase {
     /// <summary>构造 McpInitPlugin 实例 — 基类命名为 "McpInit"。</summary>
     public McpInitPlugin() : base("McpInit") { }
 
@@ -24,23 +23,17 @@ public sealed partial class McpInitPlugin : WorkflowPluginBase
         => Task.FromResult(OperationResult.Ok());
 
     /// <summary>初始化插件 — 调用 IMcpService.InitializeAsync,5s 超时</summary>
-    public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
+    public override async Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         var logger = serviceProvider.GetService<ILogger<McpInitPlugin>>();
-        try
-        {
+        try {
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(5));
             var mcpService = serviceProvider.GetRequiredService<IMcpService>();
             await mcpService.InitializeAsync(serviceProvider, cts.Token).ConfigureAwait(false);
             return OperationResult.Ok();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             logger?.LogWarning("[MCP] InitializeAsync timed out after 5s");
             return OperationResult.Fail("MCP 初始化超时(5s)");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogError(ex, "[MCP] InitializeAsync failed");
             return OperationResult.Fail(ex.Message);
         }

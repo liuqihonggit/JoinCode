@@ -5,15 +5,12 @@ namespace Infra.Tests.LLM;
 /// AnthropicQueryService.ConvertAnthropicResponseToApiMessages 的 web_search 链路测试
 /// 验证 server_tool_use / web_search_tool_result 内容块的解析
 /// </summary>
-public sealed class QueryServiceWebSearchTests
-{
+public sealed class QueryServiceWebSearchTests {
     #region server_tool_use 处理
 
     [Fact]
-    public void ServerToolUse_SkipsBlock_DoesNotAppearInContent()
-    {
-        var response = new AnthropicMessagesResponse
-        {
+    public void ServerToolUse_SkipsBlock_DoesNotAppearInContent() {
+        var response = new AnthropicMessagesResponse {
             Id = "msg_test",
             Model = "claude-sonnet-4-6",
             Role = "assistant",
@@ -53,11 +50,9 @@ public sealed class QueryServiceWebSearchTests
     #region web_search_tool_result 处理
 
     [Fact]
-    public void WebSearchToolResult_ExtractsLinksAsMarkdown()
-    {
+    public void WebSearchToolResult_ExtractsLinksAsMarkdown() {
         var searchContent = /*lang=json,strict*/ """[{"title":"Example Site","url":"https://example.com"},{"title":"Another Site","url":"https://another.com"}]""";
-        var response = new AnthropicMessagesResponse
-        {
+        var response = new AnthropicMessagesResponse {
             Id = "msg_test",
             Model = "claude-sonnet-4-6",
             Role = "assistant",
@@ -94,11 +89,9 @@ public sealed class QueryServiceWebSearchTests
     }
 
     [Fact]
-    public void WebSearchToolResult_ErrorCase_ExtractsErrorCode()
-    {
+    public void WebSearchToolResult_ErrorCase_ExtractsErrorCode() {
         var errorContent = /*lang=json,strict*/ """{"error_code":"rate_limit_error"}""";
-        var response = new AnthropicMessagesResponse
-        {
+        var response = new AnthropicMessagesResponse {
             Id = "msg_test",
             Model = "claude-sonnet-4-6",
             Role = "assistant",
@@ -128,11 +121,9 @@ public sealed class QueryServiceWebSearchTests
     }
 
     [Fact]
-    public void WebSearchToolResult_EmptyArray_NoLinksInContent()
-    {
+    public void WebSearchToolResult_EmptyArray_NoLinksInContent() {
         var emptyContent = /*lang=json,strict*/ """[]""";
-        var response = new AnthropicMessagesResponse
-        {
+        var response = new AnthropicMessagesResponse {
             Id = "msg_test",
             Model = "claude-sonnet-4-6",
             Role = "assistant",
@@ -161,12 +152,10 @@ public sealed class QueryServiceWebSearchTests
     }
 
     [Fact]
-    public void WebSearchToolResult_MultipleSearches_AllLinksExtracted()
-    {
+    public void WebSearchToolResult_MultipleSearches_AllLinksExtracted() {
         var search1 = /*lang=json,strict*/ """[{"title":"Result 1","url":"https://r1.com"}]""";
         var search2 = /*lang=json,strict*/ """[{"title":"Result 2","url":"https://r2.com"}]""";
-        var response = new AnthropicMessagesResponse
-        {
+        var response = new AnthropicMessagesResponse {
             Id = "msg_test",
             Model = "claude-sonnet-4-6",
             Role = "assistant",
@@ -214,11 +203,9 @@ public sealed class QueryServiceWebSearchTests
     }
 
     [Fact]
-    public void WebSearchToolResult_MissingTitleOrUrl_SkipsInvalidEntries()
-    {
+    public void WebSearchToolResult_MissingTitleOrUrl_SkipsInvalidEntries() {
         var searchContent = /*lang=json,strict*/ """[{"title":"Valid","url":"https://valid.com"},{"title":"No URL"},{"url":"https://no-title.com"}]""";
-        var response = new AnthropicMessagesResponse
-        {
+        var response = new AnthropicMessagesResponse {
             Id = "msg_test",
             Model = "claude-sonnet-4-6",
             Role = "assistant",

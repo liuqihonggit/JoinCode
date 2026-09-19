@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public static class ContentReplacementConstants
-{
+public static class ContentReplacementConstants {
     public const int DefaultMaxResultSizeChars = 50000;
     public const int MaxToolResultsPerMessageChars = 200000;
     public const int PreviewSizeChars = 2000;
@@ -27,8 +26,7 @@ public static class ContentReplacementConstants
     /// 使用枚举常量，避免硬编码字符串
     /// FrozenDictionary: 初始化后不可变，NativeAOT 友好，无锁读取
     /// </summary>
-    private static readonly FrozenDictionary<string, int> ToolMaxResultSizeChars = new Dictionary<string, int>(StringComparer.Ordinal)
-    {
+    private static readonly FrozenDictionary<string, int> ToolMaxResultSizeChars = new Dictionary<string, int>(StringComparer.Ordinal) {
         [FileToolNameEnumConstants.FileRead] = -1,           // TS: Infinity — 永不持久化
         [ShellToolNameEnumConstants.Bash] = 30000,   // TS: 30_000
         [SearchToolNameEnumConstants.Grep] = 20000,          // TS: 20_000
@@ -43,8 +41,7 @@ public static class ContentReplacementConstants
     /// 获取工具的持久化阈值 — 对齐 TS getPersistenceThreshold
     /// 逻辑: Infinity(-1) → 返回 -1(永不持久化); 否则 Math.min(声明值, DefaultMaxResultSizeChars)
     /// </summary>
-    public static int GetPersistenceThreshold(string toolName)
-    {
+    public static int GetPersistenceThreshold(string toolName) {
         if (!ToolMaxResultSizeChars.TryGetValue(toolName, out var declared))
             return DefaultMaxResultSizeChars; // 未声明的工具使用默认值
 
@@ -57,18 +54,15 @@ public static class ContentReplacementConstants
     /// <summary>
     /// 判断工具是否永不持久化 — 对齐 TS Number.isFinite(maxResultSizeChars) 检查
     /// </summary>
-    public static bool IsNeverPersistTool(string toolName)
-    {
+    public static bool IsNeverPersistTool(string toolName) {
         return ToolMaxResultSizeChars.TryGetValue(toolName, out var declared) && declared < 0;
     }
 
     /// <summary>
     /// 获取所有永不持久化的工具名 — 对齐 TS query.ts 过滤 Infinity 工具
     /// </summary>
-    public static IEnumerable<string> GetNeverPersistToolNames()
-    {
-        foreach (var kvp in ToolMaxResultSizeChars)
-        {
+    public static IEnumerable<string> GetNeverPersistToolNames() {
+        foreach (var kvp in ToolMaxResultSizeChars) {
             if (kvp.Value < 0)
                 yield return kvp.Key;
         }
@@ -78,8 +72,7 @@ public static class ContentReplacementConstants
     /// 统一构建 persisted-output 消息 — 对齐 TS buildLargeToolResultMessage
     /// 格式: &lt;persisted-output&gt;\nOutput too large (XX.XKB). Full output saved to: path\n\nPreview (first XX.XKB):\n...content...\n&lt;/persisted-output&gt;
     /// </summary>
-    public static string BuildPersistedOutputMessage(PersistedToolResult result)
-    {
+    public static string BuildPersistedOutputMessage(PersistedToolResult result) {
         var sb = new System.Text.StringBuilder(256 + result.Preview.Length);
         sb.Append(PersistedOutputOpen);
         sb.Append('\n');
@@ -101,18 +94,15 @@ public static class ContentReplacementConstants
     /// 统一实现，消除各子系统重复代码
     /// 使用手动整数格式化，避免浮点格式化的文化敏感问题（InvariantGlobalization兼容）
     /// </summary>
-    public static string FormatCharCount(long charCount)
-    {
+    public static string FormatCharCount(long charCount) {
         if (charCount < 1024)
             return $"{charCount} bytes";
-        if (charCount < 1024 * 1024)
-        {
+        if (charCount < 1024 * 1024) {
             var kbWhole = charCount / 1024;
             var kbFrac = (charCount % 1024) * 10 / 1024; // 一位小数
             return kbFrac == 0 ? $"{kbWhole}KB" : $"{kbWhole}.{kbFrac}KB";
         }
-        if (charCount < 1024L * 1024 * 1024)
-        {
+        if (charCount < 1024L * 1024 * 1024) {
             var mbWhole = charCount / (1024 * 1024);
             var mbFrac = (charCount % (1024 * 1024)) * 10 / (1024 * 1024);
             return mbFrac == 0 ? $"{mbWhole}MB" : $"{mbWhole}.{mbFrac}MB";

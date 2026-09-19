@@ -4,8 +4,7 @@ namespace Core.Scheduling.Tasks;
 /// <summary>
 /// 队友执行上下文 — 承载 In-Process 队友(子智能体)在管道中执行所需的全部状态与回调
 /// </summary>
-public sealed class TeammateExecutionContext : IPipelineContext
-{
+public sealed class TeammateExecutionContext : IPipelineContext {
     /// <summary>
     /// 队友定义 — 描述队友的静态配置(名称、角色、能力等)
     /// </summary>
@@ -78,8 +77,7 @@ public sealed class TeammateExecutionContext : IPipelineContext
     string? IPipelineContext.ErrorMessage { get; set; }
 
     /// <inheritdoc/>
-    void IPipelineContext.Fail(string message)
-    {
+    void IPipelineContext.Fail(string message) {
         ((IPipelineContext)this).Failed = true;
         ((IPipelineContext)this).ErrorMessage = message;
     }

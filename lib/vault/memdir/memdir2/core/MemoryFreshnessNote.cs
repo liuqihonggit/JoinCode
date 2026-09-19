@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 记忆新鲜度提示 — 委托给 JoinCode.Abstractions.Configuration.Settings.MemoryFreshnessNote
 /// 对齐 TS: memdir/memoryAge.ts
 /// </summary>
-public static class MemoryFreshnessNote
-{
+public static class MemoryFreshnessNote {
     /// <inheritdoc cref="JoinCode.Abstractions.Configuration.Settings.MemoryFreshnessNote.MemoryAgeDays"/>
     public static int MemoryAgeDays(long mtimeMs) => JoinCode.Abstractions.Configuration.Settings.MemoryFreshnessNote.MemoryAgeDays(mtimeMs);
 

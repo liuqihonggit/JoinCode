@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Goal;
 /// 节点健康告警类型
 /// [EnumValue] 由 EnumMetadataGenerator 自动生成 NodeAlertKindEnumConstants + NodeAlertKindExtensions
 /// </summary>
-public enum NodeAlertKind
-{
+public enum NodeAlertKind {
     [EnumValue("node_timeout")] NodeTimeout,
     [EnumValue("dead_loop")] DeadLoop,
     [EnumValue("file_conflict")] FileConflict,

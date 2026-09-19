@@ -3,19 +3,16 @@ namespace Dream.Tests.Commands;
 /// <summary>
 /// /dream 与 /dream-tasks 命令单元测试
 /// </summary>
-public sealed class DreamCommandTests
-{
+public sealed class DreamCommandTests {
     #region DreamCommand
 
     [Fact]
-    public void DreamCommand_Constructor_NullFeature_ThrowsArgumentNullException()
-    {
+    public void DreamCommand_Constructor_NullFeature_ThrowsArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() => new DreamCommand("Dream", null!));
     }
 
     [Fact]
-    public async Task DreamCommand_ExecuteAsync_ForceArgument_OutputsForceMode()
-    {
+    public async Task DreamCommand_ExecuteAsync_ForceArgument_OutputsForceMode() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ExecuteAsync(It.Is<DreamRequest>(r => r.Force), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Success("ok", "t1", 1, 0));
@@ -28,8 +25,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamCommand_ExecuteAsync_NoForceArgument_OutputsAutoMode()
-    {
+    public async Task DreamCommand_ExecuteAsync_NoForceArgument_OutputsAutoMode() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ExecuteAsync(It.Is<DreamRequest>(r => !r.Force), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Success("ok", "t1", 1, 0));
@@ -42,8 +38,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamCommand_ExecuteAsync_SkippedResult_OutputsWarning()
-    {
+    public async Task DreamCommand_ExecuteAsync_SkippedResult_OutputsWarning() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Skipped("skipped"));
@@ -56,8 +51,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamCommand_ExecuteAsync_FailureResult_OutputsError()
-    {
+    public async Task DreamCommand_ExecuteAsync_FailureResult_OutputsError() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Failure("boom"));
@@ -70,8 +64,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamCommand_ExecuteAsync_SuccessResultWithContent_OutputsSuccessAndDetails()
-    {
+    public async Task DreamCommand_ExecuteAsync_SuccessResultWithContent_OutputsSuccessAndDetails() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Success("memory", "t1", 3, 42));
@@ -88,8 +81,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamCommand_ExecuteAsync_EmptySuccessResult_OutputsWarning()
-    {
+    public async Task DreamCommand_ExecuteAsync_EmptySuccessResult_OutputsWarning() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(DreamResult.Success(string.Empty, "t1", 1, 0));
@@ -102,8 +94,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamCommand_ExecuteAsync_Cancelled_OutputsWarning()
-    {
+    public async Task DreamCommand_ExecuteAsync_Cancelled_OutputsWarning() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
@@ -116,8 +107,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamCommand_ExecuteAsync_Exception_LogsErrorAndOutputsError()
-    {
+    public async Task DreamCommand_ExecuteAsync_Exception_LogsErrorAndOutputsError() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ExecuteAsync(It.IsAny<DreamRequest>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("bad"));
@@ -141,14 +131,12 @@ public sealed class DreamCommandTests
     #region DreamTasksCommand
 
     [Fact]
-    public void DreamTasksCommand_Constructor_NullFeature_ThrowsArgumentNullException()
-    {
+    public void DreamTasksCommand_Constructor_NullFeature_ThrowsArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() => new DreamTasksCommand("Dream", null!));
     }
 
     [Fact]
-    public async Task DreamTasksCommand_ExecuteAsync_List_NoTasks_OutputsNoTasks()
-    {
+    public async Task DreamTasksCommand_ExecuteAsync_List_NoTasks_OutputsNoTasks() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.ListTasksAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<string, DreamTaskState>());
@@ -161,13 +149,10 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamTasksCommand_ExecuteAsync_List_WithTasks_OutputsTasks()
-    {
+    public async Task DreamTasksCommand_ExecuteAsync_List_WithTasks_OutputsTasks() {
         var feature = new Mock<IDreamFeature>();
-        var tasks = new Dictionary<string, DreamTaskState>
-        {
-            ["d12345678"] = new()
-            {
+        var tasks = new Dictionary<string, DreamTaskState> {
+            ["d12345678"] = new() {
                 Id = "d12345678",
                 Description = "dreaming",
                 StartTime = DateTime.UtcNow,
@@ -195,13 +180,10 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamTasksCommand_ExecuteAsync_List_LastTurnPreview_Truncated()
-    {
+    public async Task DreamTasksCommand_ExecuteAsync_List_LastTurnPreview_Truncated() {
         var feature = new Mock<IDreamFeature>();
-        var tasks = new Dictionary<string, DreamTaskState>
-        {
-            ["d12345678"] = new()
-            {
+        var tasks = new Dictionary<string, DreamTaskState> {
+            ["d12345678"] = new() {
                 Id = "d12345678",
                 Description = "dreaming",
                 StartTime = DateTime.UtcNow,
@@ -222,8 +204,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamTasksCommand_ExecuteAsync_KillMissingArgument_OutputsError()
-    {
+    public async Task DreamTasksCommand_ExecuteAsync_KillMissingArgument_OutputsError() {
         var feature = new Mock<IDreamFeature>();
         var ctx = new FakeCommandContext { Arguments = ["kill"] };
         var command = new DreamTasksCommand("Dream", feature.Object);
@@ -234,8 +215,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamTasksCommand_ExecuteAsync_KillNonExistentTask_OutputsError()
-    {
+    public async Task DreamTasksCommand_ExecuteAsync_KillNonExistentTask_OutputsError() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.GetTaskStatusAsync("missing", It.IsAny<CancellationToken>()))
             .ReturnsAsync((DreamTaskState?)null);
@@ -248,12 +228,10 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamTasksCommand_ExecuteAsync_KillTerminalTask_OutputsWarning()
-    {
+    public async Task DreamTasksCommand_ExecuteAsync_KillTerminalTask_OutputsWarning() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.GetTaskStatusAsync("d12345678", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DreamTaskState
-            {
+            .ReturnsAsync(new DreamTaskState {
                 Id = "d12345678",
                 Description = "dreaming",
                 StartTime = DateTime.UtcNow,
@@ -270,12 +248,10 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamTasksCommand_ExecuteAsync_KillRunningTask_Success()
-    {
+    public async Task DreamTasksCommand_ExecuteAsync_KillRunningTask_Success() {
         var feature = new Mock<IDreamFeature>();
         feature.Setup(f => f.GetTaskStatusAsync("d12345678", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DreamTaskState
-            {
+            .ReturnsAsync(new DreamTaskState {
                 Id = "d12345678",
                 Description = "dreaming",
                 StartTime = DateTime.UtcNow,
@@ -293,8 +269,7 @@ public sealed class DreamCommandTests
     }
 
     [Fact]
-    public async Task DreamTasksCommand_ExecuteAsync_UnknownAction_OutputsError()
-    {
+    public async Task DreamTasksCommand_ExecuteAsync_UnknownAction_OutputsError() {
         var feature = new Mock<IDreamFeature>();
         var ctx = new FakeCommandContext { Arguments = ["unknown"] };
         var command = new DreamTasksCommand("Dream", feature.Object);
@@ -306,8 +281,7 @@ public sealed class DreamCommandTests
 
     #endregion
 
-    private sealed class FakeCommandContext : ICommandContext
-    {
+    private sealed class FakeCommandContext : ICommandContext {
         public string RawInput { get; set; } = string.Empty;
         public string CommandName { get; set; } = string.Empty;
         public string[] Arguments { get; set; } = Array.Empty<string>();

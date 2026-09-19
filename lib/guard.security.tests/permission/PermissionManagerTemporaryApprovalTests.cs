@@ -4,10 +4,8 @@ namespace Core.Tests.Permission;
 /// PermissionManager 临时批准（ApproveToolTemporarily）接口契约测试
 /// 验证 GUI/CLI 权限确认闭环所需的接口能力：临时批准后 CheckPermissionAsync 立即 Granted
 /// </summary>
-public sealed class PermissionManagerTemporaryApprovalTests
-{
-    private static IToolPermissionManager CreatePermissionManager(FakeTimeProvider? timeProvider = null)
-    {
+public sealed class PermissionManagerTemporaryApprovalTests {
+    private static IToolPermissionManager CreatePermissionManager(FakeTimeProvider? timeProvider = null) {
         var config = Options.Create(PermissionConfig.CreateDefault());
         var checker = new PermissionChecker(
             new MiddlewarePipeline<PermissionCheckContext>([]),
@@ -21,8 +19,7 @@ public sealed class PermissionManagerTemporaryApprovalTests
     }
 
     [Fact]
-    public async Task ApproveToolTemporarily_未批准时返回待确认()
-    {
+    public async Task ApproveToolTemporarily_未批准时返回待确认() {
         var manager = CreatePermissionManager();
         var request = new PermissionRequest(ShellToolNameEnumConstants.Bash);
 
@@ -33,8 +30,7 @@ public sealed class PermissionManagerTemporaryApprovalTests
     }
 
     [Fact]
-    public async Task ApproveToolTemporarily_批准后立即授权()
-    {
+    public async Task ApproveToolTemporarily_批准后立即授权() {
         var manager = CreatePermissionManager();
         var request = new PermissionRequest(ShellToolNameEnumConstants.Bash);
 
@@ -47,8 +43,7 @@ public sealed class PermissionManagerTemporaryApprovalTests
     }
 
     [Fact]
-    public async Task ApproveToolTemporarily_过期后恢复待确认()
-    {
+    public async Task ApproveToolTemporarily_过期后恢复待确认() {
         var timeProvider = new FakeTimeProvider();
         var manager = CreatePermissionManager(timeProvider) as PermissionManager;
         var request = new PermissionRequest(ShellToolNameEnumConstants.Bash);

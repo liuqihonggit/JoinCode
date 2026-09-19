@@ -4,14 +4,12 @@ namespace Core.Prompts.Sections;
 /// 输出样式：解释性模式
 /// </summary>
 [PromptSection(Name = "output_style_explanatory", Keywords = new[] { "解释", "explanatory", "教学", "educational", "说明", "详解", "讲解", "explain", "tutorial" }, InjectOn = PromptSectionInject.Keyword, Order = 80)]
-public static class ExplanatoryStyleSection
-{
+public static class ExplanatoryStyleSection {
     /// <summary>
     /// 获取解释性输出样式部分的内容。
     /// </summary>
     /// <returns>解释性样式提示词文本。</returns>
-    public static string GetContent()
-    {
+    public static string GetContent() {
         return $"""
 # 输出样式：解释性
 

@@ -5,8 +5,7 @@ namespace McpToolRegistry;
 /// FeatureFlag 检查中间件 — Order=700 — 检查工具是否被 FeatureFlag 禁用
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class FeatureFlagMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class FeatureFlagMiddleware : ServiceEntity, IToolExecutionMiddleware {
 
     private readonly IFeatureFlagService? _featureFlagService;
     private readonly ILogger<FeatureFlagMiddleware> _logger;
@@ -18,8 +17,7 @@ public sealed partial class FeatureFlagMiddleware : ServiceEntity, IToolExecutio
     /// <param name="logger">日志记录器实例</param>
     public FeatureFlagMiddleware(
         IFeatureFlagService? featureFlagService,
-        ILogger<FeatureFlagMiddleware> logger)
-    {
+        ILogger<FeatureFlagMiddleware> logger) {
         _featureFlagService = featureFlagService;
         _logger = logger;
     }
@@ -34,16 +32,13 @@ public sealed partial class FeatureFlagMiddleware : ServiceEntity, IToolExecutio
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,
-        CancellationToken ct)
-    {
-        if (_featureFlagService is not null)
-        {
+        CancellationToken ct) {
+        if (_featureFlagService is not null) {
             var featureKey = $"tool.{context.ToolName}.enabled";
             var isEnabled = await _featureFlagService.IsEnabledAsync(
                 featureKey, cancellationToken: ct).ConfigureAwait(false);
 
-            if (!isEnabled)
-            {
+            if (!isEnabled) {
                 _logger.LogWarning(L.T(StringKey.FeatureFlagDisabledLog, context.ToolName, featureKey));
                 context.Deny(L.T(StringKey.FeatureFlagDisabledTool, context.ToolName));
                 return;

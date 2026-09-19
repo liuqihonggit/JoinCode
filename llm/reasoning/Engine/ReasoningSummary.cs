@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Engine;
 /// <summary>
 /// 推理引擎状态摘要
 /// </summary>
-public sealed class ReasoningSummary
-{
+public sealed class ReasoningSummary {
     /// <summary>
     /// 假设总数
     /// </summary>
@@ -43,8 +42,7 @@ public sealed class ReasoningSummary
     /// <summary>
     /// 当前预算状态
     /// </summary>
-    public BudgetStatus Budget { get; init; } = new()
-    {
+    public BudgetStatus Budget { get; init; } = new() {
         RoundsUsed = 0,
         RoundsBudget = 0,
         TokensUsed = 0,

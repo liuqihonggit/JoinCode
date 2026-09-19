@@ -6,18 +6,15 @@ namespace JoinCode.App.Modules;
 /// EntityReaper: 延迟30秒+60秒循环扫描可回收/超时/泄漏 Entity
 /// </summary>
 [AppModule(Order = 75)]
-public sealed class HousekeepingModule : IAppModule
-{
+public sealed class HousekeepingModule : IAppModule {
     /// <summary>模块加载顺序，值越大越靠后</summary>
     public int Order => 75;
 
     /// <summary>注册家政清理与实体回收 HostedService</summary>
     /// <param name="services">服务集合</param>
     /// <param name="context">应用模块上下文</param>
-    public void ConfigureServices(IServiceCollection services, AppModuleContext context)
-    {
-        services.AddHostedService<Infrastructure.Housekeeping.BackgroundHousekeepingService>(sp =>
-        {
+    public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
+        services.AddHostedService<Infrastructure.Housekeeping.BackgroundHousekeepingService>(sp => {
             var housekeeping = sp.GetRequiredService<IHousekeepingService>();
             var fs = sp.GetRequiredService<IFileSystem>();
             var clock = sp.GetRequiredService<IClockService>();
@@ -25,8 +22,7 @@ public sealed class HousekeepingModule : IAppModule
             return new Infrastructure.Housekeeping.BackgroundHousekeepingService(housekeeping, fs, clock, logger);
         });
 
-        services.AddHostedService<Infrastructure.EntityReaper.BackgroundEntityReaperService>(sp =>
-        {
+        services.AddHostedService<Infrastructure.EntityReaper.BackgroundEntityReaperService>(sp => {
             var reaper = sp.GetRequiredService<IEntityReaper>();
             var clock = sp.GetRequiredService<IClockService>();
             var logger = sp.GetService<ILogger<Infrastructure.EntityReaper.BackgroundEntityReaperService>>();

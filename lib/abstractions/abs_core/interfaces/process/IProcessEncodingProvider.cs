@@ -13,8 +13,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 所有 <see cref="ProcessOptions"/> / <see cref="InteractiveProcessOptions"/> 的编码字段为 null 时自动回退到此接口提供的编码。
 /// </para>
 /// </summary>
-public interface IProcessEncodingProvider
-{
+public interface IProcessEncodingProvider {
     /// <summary>进程 stdout 编码</summary>
     Encoding Output { get; }
 

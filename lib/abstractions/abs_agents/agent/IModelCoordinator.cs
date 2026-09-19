@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 对齐 Reasonix Coordinator: Planner 在独立 Session 中用只读工具做研究，
 /// Executor 在另一个独立 Session 中执行计划。两个 Session 永不混合。
 /// </summary>
-public interface IModelCoordinator
-{
+public interface IModelCoordinator {
     /// <summary>
     /// 规划 — Planner 在独立 Session 中用只读工具做研究，产出计划
     /// </summary>
@@ -31,8 +30,7 @@ public interface IModelCoordinator
 /// <summary>
 /// 规划结果
 /// </summary>
-public sealed class ModelPlanResult
-{
+public sealed class ModelPlanResult {
     /// <summary>是否成功产出计划</summary>
     public bool Succeeded { get; init; }
 
@@ -48,16 +46,14 @@ public sealed class ModelPlanResult
     /// <summary>Planner 使用的 token 用量</summary>
     public TokenUsage? Usage { get; init; }
 
-    public static ModelPlanResult Success(string plan, bool isNoOp = false, TokenUsage? usage = null) => new()
-    {
+    public static ModelPlanResult Success(string plan, bool isNoOp = false, TokenUsage? usage = null) => new() {
         Succeeded = true,
         Plan = plan,
         IsNoOp = isNoOp,
         Usage = usage
     };
 
-    public static ModelPlanResult Fail(string errorMessage) => new()
-    {
+    public static ModelPlanResult Fail(string errorMessage) => new() {
         Succeeded = false,
         ErrorMessage = errorMessage
     };
@@ -66,8 +62,7 @@ public sealed class ModelPlanResult
 /// <summary>
 /// 执行结果
 /// </summary>
-public sealed class ModelExecutionResult
-{
+public sealed class ModelExecutionResult {
     /// <summary>是否成功执行</summary>
     public bool Succeeded { get; init; }
 
@@ -80,15 +75,13 @@ public sealed class ModelExecutionResult
     /// <summary>Executor 使用的 token 用量</summary>
     public TokenUsage? Usage { get; init; }
 
-    public static ModelExecutionResult Success(string output, TokenUsage? usage = null) => new()
-    {
+    public static ModelExecutionResult Success(string output, TokenUsage? usage = null) => new() {
         Succeeded = true,
         Output = output,
         Usage = usage
     };
 
-    public static ModelExecutionResult Fail(string errorMessage) => new()
-    {
+    public static ModelExecutionResult Fail(string errorMessage) => new() {
         Succeeded = false,
         ErrorMessage = errorMessage
     };
@@ -97,8 +90,7 @@ public sealed class ModelExecutionResult
 /// <summary>
 /// 协调结果 — 完整的 Plan + Execute 流程结果
 /// </summary>
-public sealed class ModelCoordinationResult
-{
+public sealed class ModelCoordinationResult {
     /// <summary>规划结果</summary>
     public ModelPlanResult Plan { get; init; } = new();
 
@@ -108,14 +100,12 @@ public sealed class ModelCoordinationResult
     /// <summary>整体是否成功</summary>
     public bool Succeeded => Plan.Succeeded && (Plan.IsNoOp || Execution?.Succeeded == true);
 
-    public static ModelCoordinationResult FromPlanOnly(ModelPlanResult plan) => new()
-    {
+    public static ModelCoordinationResult FromPlanOnly(ModelPlanResult plan) => new() {
         Plan = plan,
         Execution = null
     };
 
-    public static ModelCoordinationResult FromPlanAndExecution(ModelPlanResult plan, ModelExecutionResult execution) => new()
-    {
+    public static ModelCoordinationResult FromPlanAndExecution(ModelPlanResult plan, ModelExecutionResult execution) => new() {
         Plan = plan,
         Execution = execution
     };

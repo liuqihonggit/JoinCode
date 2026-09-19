@@ -6,17 +6,14 @@ namespace Core.Permission;
 /// Default 模式返回待确认，Auto 模式返回批准
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class DefaultResultMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class DefaultResultMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
-        context.Result = context.CurrentMode switch
-        {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
+        context.Result = context.CurrentMode switch {
             PermissionMode.Auto => ToolPermissionCheckResult.Approved(),
             _ => ToolPermissionCheckResult.PendingConfirmation($"工具 '{context.ToolName}' 请求执行操作，是否批准？")
         };

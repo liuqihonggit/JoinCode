@@ -13,16 +13,14 @@ namespace Core.Goal;
 /// </list>
 /// 调度器单 Consumer 从 <c>_completedCh</c> 读事件检查终止；Worker 并发执行节点受 limiter 限流。
 /// </remarks>
-internal sealed class EventDrivenGraphScheduler : IGraphScheduler
-{
+internal sealed class EventDrivenGraphScheduler : IGraphScheduler {
     private readonly ILogger? _logger;
 
     /// <summary>
     /// 构造 EventDrivenGraphScheduler — 注入可选日志记录器
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
-    public EventDrivenGraphScheduler(ILogger? logger = null)
-    {
+    public EventDrivenGraphScheduler(ILogger? logger = null) {
         _logger = logger;
     }
 
@@ -32,19 +30,16 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler
         GraphExecutionContext context,
         ProcessNodeCompletionAsync processNodeAsync,
         AsyncLock? concurrencyLimiter,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         var completedCh = Channel.CreateUnbounded<NodeCompletionOutcome>(
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
 
         var pendingCount = 0;
 
-        while (true)
-        {
+        while (true) {
             ct.ThrowIfCancellationRequested();
 
-            while (completedCh.Reader.TryRead(out var completedOutcome))
-            {
+            while (completedCh.Reader.TryRead(out var completedOutcome)) {
                 pendingCount--;
                 if (completedOutcome == NodeCompletionOutcome.GoalAchieved)
                     return completedOutcome;
@@ -54,19 +49,14 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler
 
             var batch = DrainReadyBatch(graph, context);
 
-            if (batch.Count == 0)
-            {
+            if (batch.Count == 0) {
                 if (context.ReadyQueue.IsEmpty && pendingCount == 0)
                     return NodeCompletionOutcome.Continue;
 
-                if (pendingCount > 0)
-                {
-                    try
-                    {
+                if (pendingCount > 0) {
+                    try {
                         await completedCh.Reader.WaitToReadAsync(ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                    {
+                    } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                         throw;
                     }
                 }
@@ -74,8 +64,7 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler
             }
 
             pendingCount += batch.Count;
-            foreach (var nodeId in batch)
-            {
+            foreach (var nodeId in batch) {
                 _ = ExecuteAndReportAsync(
                     nodeId, graph, context, processNodeAsync, concurrencyLimiter, completedCh, ct);
             }
@@ -86,22 +75,19 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler
     /// 从就绪队列批量取出所有上游已完成的节点（同层节点，可并行执行）。
     /// 未就绪节点重新入队，待下一轮处理。
     /// </summary>
-    private static List<string> DrainReadyBatch(GoalGraph graph, GraphExecutionContext context)
-    {
+    private static List<string> DrainReadyBatch(GoalGraph graph, GraphExecutionContext context) {
         var batch = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var deferred = new List<string>();
 
-        while (context.ReadyQueue.TryDequeue(out var nodeId))
-        {
+        while (context.ReadyQueue.TryDequeue(out var nodeId)) {
             if (!seen.Add(nodeId))
                 continue;
 
             if (context.IsNodeCompleted(nodeId))
                 continue;
 
-            if (!context.AreAllUpstreamsCompleted(nodeId))
-            {
+            if (!context.AreAllUpstreamsCompleted(nodeId)) {
                 deferred.Add(nodeId);
                 continue;
             }
@@ -131,14 +117,12 @@ internal sealed class EventDrivenGraphScheduler : IGraphScheduler
         ProcessNodeCompletionAsync processNodeAsync,
         AsyncLock? limiter,
         Channel<NodeCompletionOutcome> completedCh,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         IDisposable? releaser = null;
         if (limiter is not null)
             releaser = await limiter.TryLockAsync(ct).ConfigureAwait(false)
                 ?? throw new System.TimeoutException($"锁 '{limiter.Name}' 等待超时");
-        using (releaser)
-        {
+        using (releaser) {
             var dagNode = graph.Dag.Nodes[nodeId];
             var outcome = await processNodeAsync(nodeId, dagNode, context, ct).ConfigureAwait(false);
             context.NodeCompletedSignal.Release();

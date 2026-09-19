@@ -3,8 +3,7 @@ namespace Infrastructure.Utils.Resilience;
 /// <summary>
 /// 故障围栏 — 包裹执行动作捕获异常，生成 CrashSnapshot 入库；按分类器决定是否中断执行
 /// </summary>
-public sealed class FaultFence
-{
+public sealed class FaultFence {
     private readonly string _name;
     private readonly CrashSeverity _defaultSeverity;
     private readonly ICrashSnapshotStore? _store;
@@ -47,8 +46,7 @@ public sealed class FaultFence
         CrashSeverity defaultSeverity = CrashSeverity.Error,
         ICrashSnapshotStore? store = null,
         Func<Exception, CrashSeverity>? severityClassifier = null,
-        Func<Exception, bool>? shouldInterrupt = null)
-    {
+        Func<Exception, bool>? shouldInterrupt = null) {
         ArgumentException.ThrowIfNullOrEmpty(name);
         _name = name;
         _defaultSeverity = defaultSeverity;
@@ -68,24 +66,17 @@ public sealed class FaultFence
     public async Task<T> ExecuteAsync<T>(
         Func<Task<T>> action,
         CrashExecutionContext? context = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         Interlocked.Increment(ref _totalExecutions);
-        try
-        {
+        try {
             return await action().ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Interlocked.Increment(ref _totalFailures);
             var snapshot = CaptureSnapshot(ex, context);
 
-            if (ShouldInterrupt(ex))
-            {
+            if (ShouldInterrupt(ex)) {
                 Interlocked.Increment(ref _totalInterrupts);
                 Diag.WriteError($"[FaultFence:{_name}] 中断执行: {snapshot.ToSummary()}", ex);
                 throw;
@@ -105,10 +96,8 @@ public sealed class FaultFence
     public async Task ExecuteAsync(
         Func<Task> action,
         CrashExecutionContext? context = null,
-        CancellationToken cancellationToken = default)
-    {
-        await ExecuteAsync(async () =>
-        {
+        CancellationToken cancellationToken = default) {
+        await ExecuteAsync(async () => {
             await action().ConfigureAwait(false);
             return true;
         }, context, cancellationToken).ConfigureAwait(false);
@@ -123,20 +112,15 @@ public sealed class FaultFence
     /// <returns>动作返回值</returns>
     public T Execute<T>(
         Func<T> action,
-        CrashExecutionContext? context = null)
-    {
+        CrashExecutionContext? context = null) {
         Interlocked.Increment(ref _totalExecutions);
-        try
-        {
+        try {
             return action();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Interlocked.Increment(ref _totalFailures);
             var snapshot = CaptureSnapshot(ex, context);
 
-            if (ShouldInterrupt(ex))
-            {
+            if (ShouldInterrupt(ex)) {
                 Interlocked.Increment(ref _totalInterrupts);
                 Diag.WriteError($"[FaultFence:{_name}] 中断执行: {snapshot.ToSummary()}", ex);
                 throw;
@@ -156,21 +140,16 @@ public sealed class FaultFence
     /// <returns>包含成功值或失败快照的结果</returns>
     public FaultFenceResult<T> TryExecute<T>(
         Func<T> action,
-        CrashExecutionContext? context = null)
-    {
+        CrashExecutionContext? context = null) {
         Interlocked.Increment(ref _totalExecutions);
-        try
-        {
+        try {
             var result = action();
             return FaultFenceResult<T>.Success(result);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Interlocked.Increment(ref _totalFailures);
             var snapshot = CaptureSnapshot(ex, context);
 
-            if (ShouldInterrupt(ex))
-            {
+            if (ShouldInterrupt(ex)) {
                 Interlocked.Increment(ref _totalInterrupts);
                 Diag.WriteError($"[FaultFence:{_name}] 中断执行: {snapshot.ToSummary()}", ex);
                 return FaultFenceResult<T>.Failed(snapshot, interrupt: true);
@@ -191,25 +170,18 @@ public sealed class FaultFence
     public async Task<FaultFenceResult<T>> TryExecuteAsync<T>(
         Func<Task<T>> action,
         CrashExecutionContext? context = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         Interlocked.Increment(ref _totalExecutions);
-        try
-        {
+        try {
             var result = await action().ConfigureAwait(false);
             return FaultFenceResult<T>.Success(result);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Interlocked.Increment(ref _totalFailures);
             var snapshot = CaptureSnapshot(ex, context);
 
-            if (ShouldInterrupt(ex))
-            {
+            if (ShouldInterrupt(ex)) {
                 Interlocked.Increment(ref _totalInterrupts);
                 Diag.WriteError($"[FaultFence:{_name}] 中断执行: {snapshot.ToSummary()}", ex);
                 return FaultFenceResult<T>.Failed(snapshot, interrupt: true);
@@ -225,16 +197,14 @@ public sealed class FaultFence
     /// <param name="ex">异常</param>
     /// <param name="context">崩溃执行上下文（可选）</param>
     /// <returns>生成的崩溃快照</returns>
-    public CrashSnapshot CaptureSnapshot(Exception ex, CrashExecutionContext? context = null)
-    {
+    public CrashSnapshot CaptureSnapshot(Exception ex, CrashExecutionContext? context = null) {
         var severity = _severityClassifier?.Invoke(ex) ?? _defaultSeverity;
         var snapshot = new CrashSnapshot(_name, severity, ex, context);
         _store?.Add(snapshot);
         return snapshot;
     }
 
-    private bool ShouldInterrupt(Exception ex)
-    {
+    private bool ShouldInterrupt(Exception ex) {
         if (_shouldInterrupt is not null)
             return _shouldInterrupt(ex);
 
@@ -246,8 +216,7 @@ public sealed class FaultFence
 /// 故障围栏执行结果 — 包含成功值或失败快照与中断标志
 /// </summary>
 /// <typeparam name="T">成功值类型</typeparam>
-public sealed class FaultFenceResult<T>
-{
+public sealed class FaultFenceResult<T> {
     /// <summary>
     /// 是否成功
     /// </summary>
@@ -268,8 +237,7 @@ public sealed class FaultFenceResult<T>
     /// </summary>
     public bool ShouldInterrupt { get; }
 
-    private FaultFenceResult(bool isSuccess, T? value, CrashSnapshot? snapshot, bool shouldInterrupt)
-    {
+    private FaultFenceResult(bool isSuccess, T? value, CrashSnapshot? snapshot, bool shouldInterrupt) {
         IsSuccess = isSuccess;
         Value = value;
         Snapshot = snapshot;

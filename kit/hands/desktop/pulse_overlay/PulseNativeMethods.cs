@@ -3,8 +3,7 @@ namespace JoinCode.Hands.Desktop.PulseOverlay;
 /// <summary>
 /// 脉冲覆盖层 Win32 P/Invoke 声明 — 透明窗口创建/消息循环/GDI 绘制
 /// </summary>
-internal static class PulseNativeMethods
-{
+internal static class PulseNativeMethods {
     public const int WS_POPUP = -2147483648;
     public const int WS_EX_LAYERED = 0x00080000;
     public const int WS_EX_TOPMOST = 0x00000008;
@@ -121,8 +120,7 @@ internal static class PulseNativeMethods
 }
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-internal struct WNDCLASSEX
-{
+internal struct WNDCLASSEX {
     public int cbSize;
     public int style;
     public PulseNativeMethods.WndProcDelegate lpfnWndProc;
@@ -138,8 +136,7 @@ internal struct WNDCLASSEX
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct MSG
-{
+internal struct MSG {
     public IntPtr hwnd;
     public uint message;
     public IntPtr wParam;
@@ -149,8 +146,7 @@ internal struct MSG
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct PAINTSTRUCT
-{
+internal struct PAINTSTRUCT {
     public IntPtr hdc;
     public bool fErase;
     public RECT rcPaint;
@@ -165,8 +161,7 @@ internal struct PAINTSTRUCT
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct RECT
-{
+internal struct RECT {
     public int Left;
     public int Top;
     public int Right;
@@ -174,8 +169,7 @@ internal struct RECT
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct POINT
-{
+internal struct POINT {
     public int X;
     public int Y;
 }

@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IVcrService
-{
+public interface IVcrService {
     string GetCassettePath(string name, string? directory = null);
     string CassettesDirectory { get; }
     Task<VcrCassette> LoadCassetteAsync(string name, string? directory = null, CancellationToken cancellationToken = default);

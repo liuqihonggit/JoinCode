@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>- 可逆效应: LoadFromPlugin 返回撤销函数，插件卸载时自动移除 agent 定义</para>
 /// <para>- 响应式协效应: Changed 事件通知消费方缓存失效</para>
 /// </summary>
-public interface IPluginAgentLoader
-{
+public interface IPluginAgentLoader {
     /// <summary>插件 agent 集合变化事件 — 响应式协效应</summary>
     event EventHandler? Changed;
 

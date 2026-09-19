@@ -1,8 +1,7 @@
 namespace Infra.Tests.Housekeeping;
 
 
-public sealed class HousekeepingServiceTests
-{
+public sealed class HousekeepingServiceTests {
     private readonly TestInMemFs _fs = new();
     private readonly FakeClockService _clock = new();
 
@@ -20,15 +19,13 @@ public sealed class HousekeepingServiceTests
         => new(_fs, _clock, _planModeManager.Object, _worktreeService.Object, null, NullLogger<HousekeepingService>.Instance);
 
     [Fact]
-    public void CleanupOldSessionFiles_WithNoSessionsDir_ShouldReturnZero()
-    {
+    public void CleanupOldSessionFiles_WithNoSessionsDir_ShouldReturnZero() {
         var sut = CreateSut();
         sut.CleanupOldSessionFiles().Should().Be(0);
     }
 
     [Fact]
-    public void CleanupOldSessionFiles_ShouldDeleteOldJsonlFiles()
-    {
+    public void CleanupOldSessionFiles_ShouldDeleteOldJsonlFiles() {
         _fs.CreateDirectory(SessionsDir);
         var oldFile = Path.Combine(SessionsDir, "old-session.json");
         var newFile = Path.Combine(SessionsDir, "new-session.json");
@@ -48,8 +45,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldSessionFiles_ShouldDeleteOldCastFiles()
-    {
+    public void CleanupOldSessionFiles_ShouldDeleteOldCastFiles() {
         _fs.CreateDirectory(SessionsDir);
         var castFile = Path.Combine(SessionsDir, "old-session.cast");
         _fs.WriteAllText(castFile, "cast-content");
@@ -63,8 +59,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldSessionFiles_WithAllRecentFiles_ShouldDeleteNothing()
-    {
+    public void CleanupOldSessionFiles_WithAllRecentFiles_ShouldDeleteNothing() {
         _fs.CreateDirectory(SessionsDir);
         var recentFile = Path.Combine(SessionsDir, "recent.json");
         _fs.WriteAllText(recentFile, "recent");
@@ -76,8 +71,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldFileHistoryBackups_ShouldDeleteOldDirectories()
-    {
+    public void CleanupOldFileHistoryBackups_ShouldDeleteOldDirectories() {
         _fs.CreateDirectory(FileHistoryDir);
         var oldDir = Path.Combine(FileHistoryDir, "old-backup");
         var newDir = Path.Combine(FileHistoryDir, "new-backup");
@@ -96,8 +90,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldSessionEnvDirs_ShouldDeleteOldDirectories()
-    {
+    public void CleanupOldSessionEnvDirs_ShouldDeleteOldDirectories() {
         _fs.CreateDirectory(SessionEnvDir);
         var oldDir = Path.Combine(SessionEnvDir, "old-env");
         _fs.CreateDirectory(oldDir);
@@ -111,8 +104,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldDebugLogs_ShouldDeleteOldTxtFiles()
-    {
+    public void CleanupOldDebugLogs_ShouldDeleteOldTxtFiles() {
         _fs.CreateDirectory(DebugDir);
         var oldLog = Path.Combine(DebugDir, "old-log.txt");
         var newLog = Path.Combine(DebugDir, "new-log.txt");
@@ -131,8 +123,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldMessageFiles_ShouldDeleteOldErrorFiles()
-    {
+    public void CleanupOldMessageFiles_ShouldDeleteOldErrorFiles() {
         _fs.CreateDirectory(ErrorsDir);
         var oldError = Path.Combine(ErrorsDir, "old-error.log");
         _fs.WriteAllText(oldError, "error");
@@ -146,8 +137,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public async Task RunAllCleanupAsync_ShouldAggregateAllResults()
-    {
+    public async Task RunAllCleanupAsync_ShouldAggregateAllResults() {
         _fs.CreateDirectory(SessionsDir);
         var oldFile = Path.Combine(SessionsDir, "old.json");
         _fs.WriteAllText(oldFile, "old");
@@ -165,38 +155,32 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldFileHistoryBackups_WithNoDir_ShouldReturnZero()
-    {
+    public void CleanupOldFileHistoryBackups_WithNoDir_ShouldReturnZero() {
         CreateSut().CleanupOldFileHistoryBackups().Should().Be(0);
     }
 
     [Fact]
-    public void CleanupOldSessionEnvDirs_WithNoDir_ShouldReturnZero()
-    {
+    public void CleanupOldSessionEnvDirs_WithNoDir_ShouldReturnZero() {
         CreateSut().CleanupOldSessionEnvDirs().Should().Be(0);
     }
 
     [Fact]
-    public void CleanupOldDebugLogs_WithNoDir_ShouldReturnZero()
-    {
+    public void CleanupOldDebugLogs_WithNoDir_ShouldReturnZero() {
         CreateSut().CleanupOldDebugLogs().Should().Be(0);
     }
 
     [Fact]
-    public void CleanupOldMessageFiles_WithNoDir_ShouldReturnZero()
-    {
+    public void CleanupOldMessageFiles_WithNoDir_ShouldReturnZero() {
         CreateSut().CleanupOldMessageFiles().Should().Be(0);
     }
 
     [Fact]
-    public void CleanupOldImageCaches_WithNoDir_ShouldReturnZero()
-    {
+    public void CleanupOldImageCaches_WithNoDir_ShouldReturnZero() {
         CreateSut().CleanupOldImageCaches("session-1").Should().Be(0);
     }
 
     [Fact]
-    public void CleanupOldImageCaches_ShouldDeleteNonCurrentSessionDirs()
-    {
+    public void CleanupOldImageCaches_ShouldDeleteNonCurrentSessionDirs() {
         var imageCacheDir = Path.Combine(JccDir, "image-cache");
         _fs.CreateDirectory(imageCacheDir);
         var oldSessionDir = Path.Combine(imageCacheDir, "old-session");
@@ -215,8 +199,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldImageCaches_WithEmptySessionId_ShouldDeleteAllDirs()
-    {
+    public void CleanupOldImageCaches_WithEmptySessionId_ShouldDeleteAllDirs() {
         var imageCacheDir = Path.Combine(JccDir, "image-cache");
         _fs.CreateDirectory(imageCacheDir);
         var dir1 = Path.Combine(imageCacheDir, "session-1");
@@ -233,8 +216,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldImageCaches_ShouldRemoveEmptyBaseDir()
-    {
+    public void CleanupOldImageCaches_ShouldRemoveEmptyBaseDir() {
         var imageCacheDir = Path.Combine(JccDir, "image-cache");
         _fs.CreateDirectory(imageCacheDir);
         var oldDir = Path.Combine(imageCacheDir, "old-session");
@@ -247,14 +229,12 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldPastes_WithNoDir_ShouldReturnZero()
-    {
+    public void CleanupOldPastes_WithNoDir_ShouldReturnZero() {
         CreateSut().CleanupOldPastes().Should().Be(0);
     }
 
     [Fact]
-    public void CleanupOldPastes_ShouldDeleteOldTxtFiles()
-    {
+    public void CleanupOldPastes_ShouldDeleteOldTxtFiles() {
         var pasteCacheDir = Path.Combine(JccDir, "paste-cache");
         _fs.CreateDirectory(pasteCacheDir);
         var oldPaste = Path.Combine(pasteCacheDir, "abc123.txt");
@@ -274,8 +254,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldPastes_ShouldIgnoreNonTxtFiles()
-    {
+    public void CleanupOldPastes_ShouldIgnoreNonTxtFiles() {
         var pasteCacheDir = Path.Combine(JccDir, "paste-cache");
         _fs.CreateDirectory(pasteCacheDir);
         var jsonFile = Path.Combine(pasteCacheDir, "meta.json");
@@ -290,8 +269,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldPlanFiles_ShouldDelegateToPlanModeManager()
-    {
+    public void CleanupOldPlanFiles_ShouldDelegateToPlanModeManager() {
         _planModeManager.Setup(p => p.CleanupOldPlanFiles(30)).Returns(3);
 
         var sut = CreateSut();
@@ -302,8 +280,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public void CleanupOldPlanFiles_WhenException_ShouldReturnZero()
-    {
+    public void CleanupOldPlanFiles_WhenException_ShouldReturnZero() {
         _planModeManager.Setup(p => p.CleanupOldPlanFiles(It.IsAny<int>()))
             .Throws(new InvalidOperationException("test"));
 
@@ -314,8 +291,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public async Task CleanupStaleWorktreesAsync_ShouldDelegateToWorktreeService()
-    {
+    public async Task CleanupStaleWorktreesAsync_ShouldDelegateToWorktreeService() {
         _worktreeService.Setup(w => w.CleanupStaleWorktreesAsync(It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(2);
 
@@ -327,8 +303,7 @@ public sealed class HousekeepingServiceTests
     }
 
     [Fact]
-    public async Task CleanupStaleWorktreesAsync_WhenException_ShouldReturnZero()
-    {
+    public async Task CleanupStaleWorktreesAsync_WhenException_ShouldReturnZero() {
         _worktreeService.Setup(w => w.CleanupStaleWorktreesAsync(It.IsAny<WorktreeOptions?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("test"));
 

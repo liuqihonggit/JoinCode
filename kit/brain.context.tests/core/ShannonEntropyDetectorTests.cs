@@ -1,7 +1,6 @@
 namespace Core.Context;
 
-public sealed class ShannonEntropyDetectorTests
-{
+public sealed class ShannonEntropyDetectorTests {
     private static ShannonEntropyDetector CreateDetector(
         int windowSize = 10,
         int declineThreshold = 3,
@@ -26,8 +25,7 @@ public sealed class ShannonEntropyDetectorTests
     private static readonly string EvenLower2Entropy = new string('a', 2000) + new string('b', 10);
 
     [Fact]
-    public void Record_ShortText_ReturnsNoLoop()
-    {
+    public void Record_ShortText_ReturnsNoLoop() {
         var sut = CreateDetector();
         var result = sut.Record("短文本");
 
@@ -35,8 +33,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_NormalText_ReturnsNoLoop()
-    {
+    public void Record_NormalText_ReturnsNoLoop() {
         var sut = CreateDetector(declineThreshold: 4, minEntropyDelta: 0.05);
         var text = "这是一段正常的文本内容，包含了各种不同的字符和词汇。";
 
@@ -46,8 +43,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_FirstDecline_EntersSuspected_NotConfirmed()
-    {
+    public void Record_FirstDecline_EntersSuspected_NotConfirmed() {
         var sut = CreateDetector(declineThreshold: 3, minEntropyDelta: 0.001);
 
         sut.Record(HighEntropy);
@@ -61,8 +57,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_SecondDeclineWithinWindow_Confirmed()
-    {
+    public void Record_SecondDeclineWithinWindow_Confirmed() {
         var time = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
         var sut = CreateDetector(
             declineThreshold: 3, minEntropyDelta: 0.001,
@@ -83,8 +78,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_SecondDeclineAfterTimeout_ResetsToSuspected()
-    {
+    public void Record_SecondDeclineAfterTimeout_ResetsToSuspected() {
         var time = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
         var sut = CreateDetector(
             declineThreshold: 3, minEntropyDelta: 0.001,
@@ -104,8 +98,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_ConfirmedThenRecover_BackToMonitoring()
-    {
+    public void Record_ConfirmedThenRecover_BackToMonitoring() {
         var time = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
         var sut = CreateDetector(
             declineThreshold: 3, minEntropyDelta: 0.001,
@@ -127,8 +120,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_Confirmed_ContinuesReportingWithIncrement()
-    {
+    public void Record_Confirmed_ContinuesReportingWithIncrement() {
         var time = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
         var sut = CreateDetector(
             declineThreshold: 3, minEntropyDelta: 0.001,
@@ -150,21 +142,18 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_StableEntropy_NoLoop()
-    {
+    public void Record_StableEntropy_NoLoop() {
         var sut = CreateDetector(declineThreshold: 3, minEntropyDelta: 0.05);
 
         var text = "这是一段正常的文本内容，包含了各种不同的字符。";
-        for (var i = 0; i < 10; i++)
-        {
+        for (var i = 0; i < 10; i++) {
             var result = sut.Record(text);
             Assert.False(result.IsLoopDetected);
         }
     }
 
     [Fact]
-    public void Record_EntropyIncrease_NoLoop()
-    {
+    public void Record_EntropyIncrease_NoLoop() {
         var sut = CreateDetector(declineThreshold: 3, minEntropyDelta: 0.01);
 
         var low = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -179,8 +168,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Reset_ClearsState()
-    {
+    public void Reset_ClearsState() {
         var time = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
         var sut = CreateDetector(declineThreshold: 3, minEntropyDelta: 0.001, clock: () => time);
 
@@ -203,8 +191,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_CurrentEntropy_ReturnedCorrectly()
-    {
+    public void Record_CurrentEntropy_ReturnedCorrectly() {
         var sut = CreateDetector();
         var text = "这是一段正常的文本内容，包含了各种不同的字符。";
 
@@ -214,8 +201,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_PureRepeatingChars_LowEntropy()
-    {
+    public void Record_PureRepeatingChars_LowEntropy() {
         var sut = CreateDetector();
         var text = new string('A', 100);
 
@@ -225,8 +211,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_UniformChars_HighEntropy()
-    {
+    public void Record_UniformChars_HighEntropy() {
         var sut = CreateDetector();
         var text = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -236,15 +221,13 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_NullText_Throws()
-    {
+    public void Record_NullText_Throws() {
         var sut = CreateDetector();
         Assert.Throws<ArgumentNullException>(() => sut.Record(null!));
     }
 
     [Fact]
-    public void NoLoop_StaticProperty_HasDefaultValues()
-    {
+    public void NoLoop_StaticProperty_HasDefaultValues() {
         Assert.Equal(EntropyDetectionState.Monitoring, ShannonEntropyResult.NoLoop.State);
         Assert.False(ShannonEntropyResult.NoLoop.IsLoopDetected);
         Assert.Equal(0, ShannonEntropyResult.NoLoop.CurrentEntropy);
@@ -252,8 +235,7 @@ public sealed class ShannonEntropyDetectorTests
     }
 
     [Fact]
-    public void Record_ShortText_PreservesState()
-    {
+    public void Record_ShortText_PreservesState() {
         var time = DateTimeOffset.Parse("2026-01-01T00:00:00Z");
         var sut = CreateDetector(declineThreshold: 3, minEntropyDelta: 0.001, clock: () => time);
 

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Shell;
 /// sed 编辑信息 — 对齐 TS SedEditInfo
 /// 将 sed -i 命令解析为结构化的文件编辑操作
 /// </summary>
-public sealed record SedEditInfo
-{
+public sealed record SedEditInfo {
     /// <summary>
     /// 被编辑的文件路径
     /// </summary>
@@ -35,8 +34,7 @@ public sealed record SedEditInfo
 /// <summary>
 /// sed 验证结果 — 对齐 TS sedValidation
 /// </summary>
-public sealed record SedValidationResult : ShellPermissionCheckResult
-{
+public sealed record SedValidationResult : ShellPermissionCheckResult {
     public SedValidationResult() : base(PermissionBehavior.Passthrough) { }
 
     public SedValidationResult(PermissionBehavior behavior, string? message = null) : base(behavior, message) { }

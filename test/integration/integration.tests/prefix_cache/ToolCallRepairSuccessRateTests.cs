@@ -6,13 +6,11 @@ namespace Integration.Tests.PrefixCache.Unit;
 /// 三层修复：RepairToolName（工具名归一化）→ RepairJson（JSON 语法修复）→ RepairArguments（参数名+类型修复）
 /// 基准对比：opus4.8 无宽容处理，遇到脏调用直接失败（成功率 0%）
 /// </summary>
-public sealed class ToolCallRepairSuccessRateTests
-{
+public sealed class ToolCallRepairSuccessRateTests {
     /// <summary>
     /// 脏工具调用样本 — 模拟 LLM 真实输出
     /// </summary>
-    private sealed record DirtyToolCallSample
-    {
+    private sealed record DirtyToolCallSample {
         public required string Category { get; init; }
         public required string Description { get; init; }
         public required string RawToolName { get; init; }
@@ -26,10 +24,8 @@ public sealed class ToolCallRepairSuccessRateTests
     /// <summary>
     /// Read 工具的标准 Schema — 用于参数名+类型修复
     /// </summary>
-    private static readonly ToolSchema ReadToolSchema = new()
-    {
-        Properties = new Dictionary<string, ToolSchemaProperty>
-        {
+    private static readonly ToolSchema ReadToolSchema = new() {
+        Properties = new Dictionary<string, ToolSchemaProperty> {
             ["filePath"] = new() { Type = "string" },
             ["offset"] = new() { Type = "integer" },
             ["limit"] = new() { Type = "integer" }
@@ -39,10 +35,8 @@ public sealed class ToolCallRepairSuccessRateTests
     /// <summary>
     /// Bash 工具的标准 Schema
     /// </summary>
-    private static readonly ToolSchema BashToolSchema = new()
-    {
-        Properties = new Dictionary<string, ToolSchemaProperty>
-        {
+    private static readonly ToolSchema BashToolSchema = new() {
+        Properties = new Dictionary<string, ToolSchemaProperty> {
             ["command"] = new() { Type = "string" },
             ["workingDirectory"] = new() { Type = "string" },
             ["timeout"] = new() { Type = "integer" }
@@ -52,10 +46,8 @@ public sealed class ToolCallRepairSuccessRateTests
     /// <summary>
     /// Search 工具的标准 Schema
     /// </summary>
-    private static readonly ToolSchema SearchToolSchema = new()
-    {
-        Properties = new Dictionary<string, ToolSchemaProperty>
-        {
+    private static readonly ToolSchema SearchToolSchema = new() {
+        Properties = new Dictionary<string, ToolSchemaProperty> {
             ["query"] = new() { Type = "string" },
             ["pattern"] = new() { Type = "string" },
             ["recursive"] = new() { Type = "boolean" }
@@ -80,8 +72,7 @@ public sealed class ToolCallRepairSuccessRateTests
 
     [Theory]
     [MemberData(nameof(ToolNameCaseSamples))]
-    public void SuccessRate_ToolNameCase_NormalizesCorrectly(string rawName, string expectedName, string args)
-    {
+    public void SuccessRate_ToolNameCase_NormalizesCorrectly(string rawName, string expectedName, string args) {
         var repairedName = ToolCallRepairService.RepairToolName(rawName);
         repairedName.Should().Be(expectedName, $"工具名 {rawName} 应归一化为 {expectedName}");
 
@@ -116,21 +107,18 @@ public sealed class ToolCallRepairSuccessRateTests
 
     [Theory]
     [MemberData(nameof(JsonSyntaxSamples))]
-    public void SuccessRate_JsonSyntax_RepairAndParse(string rawJson, string expectedKey, string expectedValue)
-    {
+    public void SuccessRate_JsonSyntax_RepairAndParse(string rawJson, string expectedKey, string expectedValue) {
         var jsonRepair = ToolCallRepairService.RepairJson(rawJson);
         jsonRepair.Success.Should().BeTrue($"JSON 应修复成功: {rawJson}");
 
-        if (string.IsNullOrEmpty(expectedKey))
-        {
+        if (string.IsNullOrEmpty(expectedKey)) {
             jsonRepair.RepairedJson.Should().Be("{}");
             return;
         }
 
         var parsed = JsonArgumentParser.Parse(jsonRepair.RepairedJson);
         parsed.Should().ContainKey(expectedKey);
-        if (!string.IsNullOrEmpty(expectedValue))
-        {
+        if (!string.IsNullOrEmpty(expectedValue)) {
             parsed[expectedKey].GetString().Should().Be(expectedValue);
         }
     }
@@ -164,8 +152,7 @@ public sealed class ToolCallRepairSuccessRateTests
     [Theory]
     [MemberData(nameof(ParameterNameSamples))]
     public void SuccessRate_ParameterName_RenamesToCorrectName(
-        string toolName, ToolSchema schema, string rawJson, string expectedKey, string expectedValue)
-    {
+        string toolName, ToolSchema schema, string rawJson, string expectedKey, string expectedValue) {
         var jsonRepair = ToolCallRepairService.RepairJson(rawJson);
         jsonRepair.Success.Should().BeTrue();
 
@@ -202,8 +189,7 @@ public sealed class ToolCallRepairSuccessRateTests
     [Theory]
     [MemberData(nameof(ParameterTypeSamples))]
     public void SuccessRate_ParameterType_ConvertsToCorrectType(
-        string toolName, ToolSchema schema, string rawJson, string expectedKey, string expectedType)
-    {
+        string toolName, ToolSchema schema, string rawJson, string expectedKey, string expectedType) {
         var jsonRepair = ToolCallRepairService.RepairJson(rawJson);
         jsonRepair.Success.Should().BeTrue();
 
@@ -212,8 +198,7 @@ public sealed class ToolCallRepairSuccessRateTests
 
         repaired.RepairedArguments.Should().ContainKey(expectedKey);
         var value = repaired.RepairedArguments[expectedKey];
-        var actualType = expectedType switch
-        {
+        var actualType = expectedType switch {
             "integer" => value.ValueKind == JsonValueKind.Number ? "integer" : value.ValueKind.ToString(),
             "boolean" => value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False ? "boolean" : value.ValueKind.ToString(),
             "string" => value.ValueKind == JsonValueKind.String ? "string" : value.ValueKind.ToString(),
@@ -258,8 +243,7 @@ public sealed class ToolCallRepairSuccessRateTests
     [MemberData(nameof(MixedProblemSamples))]
     public void SuccessRate_MixedProblems_FullPipelineRepairs(
         string rawToolName, string expectedToolName, ToolSchema schema,
-        string rawJson, string expectedKey, string expectedValue)
-    {
+        string rawJson, string expectedKey, string expectedValue) {
         // 第一层：工具名归一化
         var repairedName = ToolCallRepairService.RepairToolName(rawToolName);
         repairedName.Should().Be(expectedToolName, $"工具名 {rawToolName} 应归一化为 {expectedToolName}");
@@ -281,29 +265,24 @@ public sealed class ToolCallRepairSuccessRateTests
     #region 成功率统计报告
 
     [Fact]
-    public void SuccessRate_Report_GeneratesStatistics()
-    {
+    public void SuccessRate_Report_GeneratesStatistics() {
         var samples = GetAllSamples();
         var totalSamples = samples.Count;
         var successCount = 0;
         var failures = new List<string>();
 
-        foreach (var sample in samples)
-        {
-            try
-            {
+        foreach (var sample in samples) {
+            try {
                 // 第一层：工具名归一化
                 var repairedName = ToolCallRepairService.RepairToolName(sample.RawToolName);
-                if (repairedName != sample.ExpectedToolName)
-                {
+                if (repairedName != sample.ExpectedToolName) {
                     failures.Add($"[{sample.Category}] {sample.Description}: 工具名修复失败 {sample.RawToolName} → {repairedName} (期望 {sample.ExpectedToolName})");
                     continue;
                 }
 
                 // 第二层：JSON 语法修复
                 var jsonRepair = ToolCallRepairService.RepairJson(sample.RawArguments);
-                if (!jsonRepair.Success)
-                {
+                if (!jsonRepair.Success) {
                     failures.Add($"[{sample.Category}] {sample.Description}: JSON 修复失败");
                     continue;
                 }
@@ -312,17 +291,12 @@ public sealed class ToolCallRepairSuccessRateTests
                 var parsed = JsonArgumentParser.Parse(jsonRepair.RepairedJson);
                 var repaired = ToolCallRepairService.RepairArguments(sample.ExpectedToolName, parsed, sample.Schema);
 
-                if (sample.ValidateResult(repaired.RepairedArguments))
-                {
+                if (sample.ValidateResult(repaired.RepairedArguments)) {
                     successCount++;
-                }
-                else
-                {
+                } else {
                     failures.Add($"[{sample.Category}] {sample.Description}: 参数验证失败");
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 failures.Add($"[{sample.Category}] {sample.Description}: 异常 {ex.Message}");
             }
         }

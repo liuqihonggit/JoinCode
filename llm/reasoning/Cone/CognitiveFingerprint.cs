@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Cone;
 /// <summary>
 /// 认知指纹 — 描述一个片段是如何被"感知"的
 /// </summary>
-public sealed class CognitiveFingerprint
-{
+public sealed class CognitiveFingerprint {
     /// <summary>
     /// 入口刺激，如"证据X在物证袋中的位置"
     /// </summary>

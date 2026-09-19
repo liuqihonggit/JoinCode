@@ -1,32 +1,27 @@
 
 namespace Core.Tests.Context;
 
-public partial class CacheBreakMonitorTests
-{
+public partial class CacheBreakMonitorTests {
     private readonly Mock<IStateService> _stateService;
     [Inject] private readonly ILogger<ChatContextManager> _logger;
 
-    public CacheBreakMonitorTests()
-    {
+    public CacheBreakMonitorTests() {
         _stateService = new Mock<IStateService>();
 
         _logger = NullLogger<ChatContextManager>.Instance;
     }
 
     private ChatContextManager CreateSut() =>
-        new(_stateService.Object, _logger, new ChatContextOptions
-        {
+        new(_stateService.Object, _logger, new ChatContextOptions {
             ContextWindowResolver = new FixedWindowResolver(1000)
         });
 
-    private sealed class FixedWindowResolver(int window) : IContextWindowResolver
-    {
+    private sealed class FixedWindowResolver(int window) : IContextWindowResolver {
         public int ResolveCurrentContextWindow() => window;
     }
 
     [Fact]
-    public async Task RecordPromptStateAsync_CapturesCurrentState()
-    {
+    public async Task RecordPromptStateAsync_CapturesCurrentState() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic context").ConfigureAwait(true);
@@ -42,8 +37,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_SameState_NoBreak()
-    {
+    public async Task CheckCacheBreakAsync_SameState_NoBreak() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -59,8 +53,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_SystemPromptChanged_SystemBreak()
-    {
+    public async Task CheckCacheBreakAsync_SystemPromptChanged_SystemBreak() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system v1").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -78,8 +71,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_DynamicContentChanged_DynamicBreak()
-    {
+    public async Task CheckCacheBreakAsync_DynamicContentChanged_DynamicBreak() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic v1").ConfigureAwait(true);
@@ -98,8 +90,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_ToolSpecsChanged_ToolBreak()
-    {
+    public async Task CheckCacheBreakAsync_ToolSpecsChanged_ToolBreak() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -117,8 +108,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_ToolAppendNotBreak_IfCacheStillHit()
-    {
+    public async Task CheckCacheBreakAsync_ToolAppendNotBreak_IfCacheStillHit() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -140,8 +130,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_CacheEviction_Detected()
-    {
+    public async Task CheckCacheBreakAsync_CacheEviction_Detected() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -160,8 +149,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_CacheEviction_PartialDrop_Detected()
-    {
+    public async Task CheckCacheBreakAsync_CacheEviction_PartialDrop_Detected() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -180,8 +168,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_CacheEviction_SmallRelativeDrop_NotReported()
-    {
+    public async Task CheckCacheBreakAsync_CacheEviction_SmallRelativeDrop_NotReported() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -199,8 +186,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_CacheEviction_DropBelowAbsoluteThreshold_NotReported()
-    {
+    public async Task CheckCacheBreakAsync_CacheEviction_DropBelowAbsoluteThreshold_NotReported() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -218,8 +204,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public void CheckCacheBreak_HaikuModel_Skipped()
-    {
+    public void CheckCacheBreak_HaikuModel_Skipped() {
         var detector = new CacheBreakDetector();
         var prefix = new ImmutablePrefix("system v1", [new ToolSpec("tool_a", "desc_a")], []);
         var snapshot = detector.RecordPromptState(prefix, "dynamic", modelId: "claude-3-haiku");
@@ -232,8 +217,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public void CheckCacheBreak_Ttl5Min_Detected()
-    {
+    public void CheckCacheBreak_Ttl5Min_Detected() {
         var time = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
         var detector = new CacheBreakDetector(() => time);
         var prefix = new ImmutablePrefix("system", [new ToolSpec("tool_a", "desc_a")], []);
@@ -251,8 +235,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public void CheckCacheBreak_Ttl1Hour_Detected()
-    {
+    public void CheckCacheBreak_Ttl1Hour_Detected() {
         var time = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
         var detector = new CacheBreakDetector(() => time);
         var prefix = new ImmutablePrefix("system", [new ToolSpec("tool_a", "desc_a")], []);
@@ -270,8 +253,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public void CheckCacheBreak_ServerSideRouting_Detected()
-    {
+    public void CheckCacheBreak_ServerSideRouting_Detected() {
         var time = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
         var detector = new CacheBreakDetector(() => time);
         var prefix = new ImmutablePrefix("system", [new ToolSpec("tool_a", "desc_a")], []);
@@ -289,8 +271,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public void CheckCacheBreak_NotifyCacheDeletion_SuppressesBreak()
-    {
+    public void CheckCacheBreak_NotifyCacheDeletion_SuppressesBreak() {
         var time = new DateTimeOffset(2026, 9, 2, 0, 0, 0, TimeSpan.Zero);
         var detector = new CacheBreakDetector(() => time);
         var prefix = new ImmutablePrefix("system", [new ToolSpec("tool_a", "desc_a")], []);
@@ -309,8 +290,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public void CheckCacheBreak_McpToolName_SanitizedInToolDrift()
-    {
+    public void CheckCacheBreak_McpToolName_SanitizedInToolDrift() {
         var detector = new CacheBreakDetector();
         var prefix1 = new ImmutablePrefix("system", [new ToolSpec("mcp__filesystem_read", "desc_v1")], []);
         var snapshot = detector.RecordPromptState(prefix1, "dynamic");
@@ -325,8 +305,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_MultiAgent_BaselinesIsolated()
-    {
+    public async Task CheckCacheBreakAsync_MultiAgent_BaselinesIsolated() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -348,8 +327,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task RecordPromptStateAsync_NoToolSpecs_StillWorks()
-    {
+    public async Task RecordPromptStateAsync_NoToolSpecs_StillWorks() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system prompt").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -362,8 +340,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task UpdateToolSpecsAsync_ReplacesExistingSpecs()
-    {
+    public async Task UpdateToolSpecsAsync_ReplacesExistingSpecs() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system").ConfigureAwait(true);
         await sut.UpdateToolSpecsAsync([new ToolSpec("tool_a", "desc_a")]).ConfigureAwait(true);
@@ -383,8 +360,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task CheckCacheBreakAsync_Priority_SystemOverToolOverDynamic()
-    {
+    public async Task CheckCacheBreakAsync_Priority_SystemOverToolOverDynamic() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("system v1").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic v1").ConfigureAwait(true);
@@ -405,8 +381,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task FullPipeline_RecordCheck_RecordAgain_NoBreak()
-    {
+    public async Task FullPipeline_RecordCheck_RecordAgain_NoBreak() {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("stable system").ConfigureAwait(true);
         await sut.AddDynamicSystemMessageAsync("dynamic").ConfigureAwait(true);
@@ -424,8 +399,7 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task DecideAfterUsage_AfterNoProgressFolds_PausesFolding()
-    {
+    public async Task DecideAfterUsage_AfterNoProgressFolds_PausesFolding() {
         var sut = CreateSut();
         var usage = new TokenUsage(600, 0);
 
@@ -437,14 +411,12 @@ public partial class CacheBreakMonitorTests
     }
 
     [Fact]
-    public async Task DecideAfterUsage_SuccessfulFold_ResetsStuckGuard()
-    {
+    public async Task DecideAfterUsage_SuccessfulFold_ResetsStuckGuard() {
         var executor = new ContextFoldExecutor(new StubSummarizer());
         var sut = new ChatContextManager(
             _stateService.Object,
             _logger,
-            new ChatContextOptions
-            {
+            new ChatContextOptions {
                 FoldExecutor = executor,
                 ContextWindowResolver = new FixedWindowResolver(1000)
             });
@@ -456,8 +428,7 @@ public partial class CacheBreakMonitorTests
 
         sut.DecideAfterUsage(usage).Should().Be(ContextFoldDecision.None);
 
-        await sut.AddAssistantToolCallMessageAsync(null, new Dictionary<string, JsonElement>
-        {
+        await sut.AddAssistantToolCallMessageAsync(null, new Dictionary<string, JsonElement> {
             ["ToolCalls"] = JsonSerializer.SerializeToElement("[]")
         }).ConfigureAwait(true);
 
@@ -467,8 +438,7 @@ public partial class CacheBreakMonitorTests
         sut.DecideAfterUsage(usage).Should().Be(ContextFoldDecision.FoldNormal);
     }
 
-    private sealed class StubSummarizer : IFoldSummarizer
-    {
+    private sealed class StubSummarizer : IFoldSummarizer {
         public Task<string> SummarizeForFoldAsync(
             IReadOnlyList<ApiMessage> headMessages,
             CancellationToken cancellationToken = default) =>

@@ -10,16 +10,14 @@ namespace IO.ProcessService;
 /// </para>
 /// </summary>
 [Register(typeof(PrBodyGenerator), ServiceLifetime.Singleton)]
-public sealed class PrBodyGenerator
-{
+public sealed class PrBodyGenerator {
     private readonly IGitCommandRunner _gitRunner;
 
     /// <summary>
     /// 构造 PR Body 生成器
     /// </summary>
     /// <param name="gitRunner">Git 命令执行器</param>
-    public PrBodyGenerator(IGitCommandRunner gitRunner)
-    {
+    public PrBodyGenerator(IGitCommandRunner gitRunner) {
         _gitRunner = gitRunner ?? throw new ArgumentNullException(nameof(gitRunner));
     }
 
@@ -30,15 +28,13 @@ public sealed class PrBodyGenerator
         string baseBranch,
         string headBranch,
         string? workingDirectory = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var result = await _gitRunner.ExecuteAsync(
             $"log {baseBranch}..{headBranch} --pretty=format:%s",
             workingDirectory,
             ct).ConfigureAwait(false);
 
-        if (!result.Success || string.IsNullOrWhiteSpace(result.Output))
-        {
+        if (!result.Success || string.IsNullOrWhiteSpace(result.Output)) {
             return GenerateFromBranchName(headBranch);
         }
 
@@ -48,16 +44,14 @@ public sealed class PrBodyGenerator
             .Where(static c => c.Length > 0)
             .ToList();
 
-        if (commits.Count == 0)
-        {
+        if (commits.Count == 0) {
             return GenerateFromBranchName(headBranch);
         }
 
         var sb = new StringBuilder();
         sb.AppendLine("## 变更内容");
         sb.AppendLine();
-        foreach (var commit in commits)
-        {
+        foreach (var commit in commits) {
             sb.AppendLine($"- {commit}");
         }
 
@@ -67,10 +61,8 @@ public sealed class PrBodyGenerator
     /// <summary>
     /// 从分支名生成 PR body
     /// </summary>
-    public static string GenerateFromBranchName(string branchName)
-    {
-        if (string.IsNullOrWhiteSpace(branchName))
-        {
+    public static string GenerateFromBranchName(string branchName) {
+        if (string.IsNullOrWhiteSpace(branchName)) {
             return "## 变更内容\n\n（请在 PR 中描述变更内容）";
         }
 
@@ -99,15 +91,13 @@ public sealed class PrBodyGenerator
         string baseBranch,
         string headBranch,
         string? workingDirectory = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var result = await _gitRunner.ExecuteAsync(
             $"diff {baseBranch}..{headBranch} --stat",
             workingDirectory,
             ct).ConfigureAwait(false);
 
-        if (!result.Success || string.IsNullOrWhiteSpace(result.Output))
-        {
+        if (!result.Success || string.IsNullOrWhiteSpace(result.Output)) {
             return GenerateFromBranchName(headBranch);
         }
 
@@ -124,13 +114,11 @@ public sealed class PrBodyGenerator
     /// <summary>
     /// 使用模板生成 PR body
     /// </summary>
-    public static string GenerateWithTemplate(string title, string? description = null)
-    {
+    public static string GenerateWithTemplate(string title, string? description = null) {
         var sb = new StringBuilder();
         sb.AppendLine($"## {title}");
         sb.AppendLine();
-        if (!string.IsNullOrWhiteSpace(description))
-        {
+        if (!string.IsNullOrWhiteSpace(description)) {
             sb.AppendLine(description);
             sb.AppendLine();
         }

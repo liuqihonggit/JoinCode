@@ -1,7 +1,6 @@
 namespace Core.Tests.Services.E2E;
 
-public sealed class QueryLifecycleE2ETests : IAsyncDisposable
-{
+public sealed class QueryLifecycleE2ETests : IAsyncDisposable {
     private readonly QueryStateTransitions _transitions;
     private readonly QueryStopHookManager _stopHooks;
     private readonly DiminishingReturnsDetector _diminishingReturns;
@@ -9,8 +8,7 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
     private readonly HistorySnipService _snipService;
     private bool _disposed;
 
-    public QueryLifecycleE2ETests()
-    {
+    public QueryLifecycleE2ETests() {
         _transitions = new QueryStateTransitions();
         _stopHooks = new QueryStopHookManager();
         _diminishingReturns = new DiminishingReturnsDetector();
@@ -18,24 +16,21 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
 
         var costTracker = new Mock<JoinCode.Abstractions.Interfaces.ICostTracker>();
         costTracker.Setup(c => c.GetTotalStatistics()).Returns(new JoinCode.Abstractions.Interfaces.CostStatistics());
-        var config = Options.Create(new QueryEngineConfig
-        {
+        var config = Options.Create(new QueryEngineConfig {
             MaxUsdBudget = 10.0m,
             UsdAlertThreshold = 0.8
         });
         _budgetManager = new UsdBudgetManager(costTracker.Object, config);
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
         await _budgetManager.DisposeSafeAsync();
     }
 
     [Fact]
-    public void FullQueryLifecycle_StateTransitions_ShouldFollowValidPath()
-    {
+    public void FullQueryLifecycle_StateTransitions_ShouldFollowValidPath() {
         _transitions.CurrentState.Should().Be(QueryState.Idle);
 
         _transitions.TransitionTo(QueryState.Initializing);
@@ -60,8 +55,7 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task QueryLifecycle_WithStopHook_ShouldExecuteHookAndReturnStop()
-    {
+    public async Task QueryLifecycle_WithStopHook_ShouldExecuteHookAndReturnStop() {
         _transitions.TransitionTo(QueryState.Initializing);
         _transitions.TransitionTo(QueryState.Running);
 
@@ -80,8 +74,7 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task QueryLifecycle_UsdBudgetTracking_ShouldDetectExceeded()
-    {
+    public async Task QueryLifecycle_UsdBudgetTracking_ShouldDetectExceeded() {
         (await _budgetManager.IsBudgetExceededAsync().ConfigureAwait(true)).Should().BeFalse();
 
         await _budgetManager.RecordCostAsync(8.0m, "LLM call 1").ConfigureAwait(true);
@@ -97,8 +90,7 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public void QueryLifecycle_DiminishingReturns_ShouldDetectAfterConsecutiveLowValues()
-    {
+    public void QueryLifecycle_DiminishingReturns_ShouldDetectAfterConsecutiveLowValues() {
         var highConsumptions = new List<TokenConsumption>
         {
             new() { Amount = 1000 },
@@ -127,12 +119,10 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task QueryLifecycle_HistorySnip_ShouldReduceContext()
-    {
+    public async Task QueryLifecycle_HistorySnip_ShouldReduceContext() {
         var history = new MessageList();
         history.AddSystemMessage("System prompt");
-        for (var i = 0; i < 20; i++)
-        {
+        for (var i = 0; i < 20; i++) {
             history.AddUserMessage($"User message {i} with some content to make it longer");
             history.AddAssistantMessage($"Assistant response {i} with detailed output to increase token count");
         }
@@ -147,8 +137,7 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public void QueryLifecycle_CompactionTransition_ShouldBeValid()
-    {
+    public void QueryLifecycle_CompactionTransition_ShouldBeValid() {
         _transitions.TransitionTo(QueryState.Initializing);
         _transitions.TransitionTo(QueryState.Running);
 
@@ -166,11 +155,9 @@ public sealed class QueryLifecycleE2ETests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task QueryLifecycle_BudgetAlert_ShouldFireAtThreshold()
-    {
+    public async Task QueryLifecycle_BudgetAlert_ShouldFireAtThreshold() {
         var alertFired = false;
-        _budgetManager.BudgetAlert += (_, args) =>
-        {
+        _budgetManager.BudgetAlert += (_, args) => {
             alertFired = true;
             args.UsagePercentage.Should().BeGreaterThanOrEqualTo(0.8);
         };

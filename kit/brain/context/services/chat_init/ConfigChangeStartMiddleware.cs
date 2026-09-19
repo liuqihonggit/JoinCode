@@ -6,8 +6,7 @@ namespace Core.Context;
 /// 同时实现 IAsyncDisposable，由 DI 容器在应用关闭时自动释放资源
 /// </summary>
 [Register(typeof(IChatInitMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, IAsyncDisposable
-{
+public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, IAsyncDisposable {
 
     /// <summary>
     /// 初始化 <see cref="ConfigChangeStartMiddleware"/> 实例
@@ -16,8 +15,7 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
     /// <param name="configChangeNotifier">可选的配置变更通知器</param>
     /// <param name="settingsChangeApplier">可选的设置变更应用器，用于热重载</param>
     /// <param name="logger">可选的日志记录器</param>
-    public ConfigChangeStartMiddleware(IFileSystem fs, IConfigChangeNotifier? configChangeNotifier = null, ISettingsChangeApplier? settingsChangeApplier = null, ILogger<ConfigChangeStartMiddleware>? logger = null)
-    {
+    public ConfigChangeStartMiddleware(IFileSystem fs, IConfigChangeNotifier? configChangeNotifier = null, ISettingsChangeApplier? settingsChangeApplier = null, ILogger<ConfigChangeStartMiddleware>? logger = null) {
         _fs = fs;
         _configChangeNotifier = configChangeNotifier;
         _settingsChangeApplier = settingsChangeApplier;
@@ -38,10 +36,8 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
     /// <summary>
     /// 启动配置文件变更监控
     /// </summary>
-    public async Task InvokeAsync(ChatInitContext context, MiddlewareDelegate<ChatInitContext> next, CancellationToken ct)
-    {
-        if (_configChangeNotifier is not null)
-        {
+    public async Task InvokeAsync(ChatInitContext context, MiddlewareDelegate<ChatInitContext> next, CancellationToken ct) {
+        if (_configChangeNotifier is not null) {
             var workingDir = _fs.GetCurrentDirectory();
             _configChangeNotifier.ConfigChanged += OnConfigChanged;
             _configChangeNotifier.StartMonitoring(workingDir);
@@ -51,14 +47,12 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private void OnConfigChanged(object? sender, ConfigChangeEventArgs e)
-    {
+    private void OnConfigChanged(object? sender, ConfigChangeEventArgs e) {
         if (_disposed != 0) return;
 
         // 对齐 TS 版 applySettingsChange — 自动更新 EffortLevel 和 Hook 配置
         // 注：不再向 LLM 注入 <system-reminder> 提示，仅应用设置热重载
-        if (_settingsChangeApplier is not null && _disposed == 0)
-        {
+        if (_settingsChangeApplier is not null && _disposed == 0) {
             _ = _settingsChangeApplier.ApplySettingsChangeAsync(_disposeCts.Token)
                 .ConfigureAwait(false);
         }
@@ -69,12 +63,10 @@ public sealed partial class ConfigChangeStartMiddleware : IChatInitMiddleware, I
     /// <summary>
     /// 释放资源：取消配置变更订阅、取消即发即忘操作
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
 
-        if (_configChangeNotifier is not null)
-        {
+        if (_configChangeNotifier is not null) {
             _configChangeNotifier.ConfigChanged -= OnConfigChanged;
             _configChangeNotifier.StopMonitoring();
         }

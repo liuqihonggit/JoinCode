@@ -1,12 +1,9 @@
 namespace AotSafety.Tests;
 
-public class ContainerInitializationRulesTests
-{
+public class ContainerInitializationRulesTests {
     [Fact]
-    public async Task ContainerField_NotInitialized_ReportsJCC11001()
-    {
-        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier>
-        {
+    public async Task ContainerField_NotInitialized_ReportsJCC11001() {
+        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -20,10 +17,8 @@ public class ContainerInitializationRulesTests
     }
 
     [Fact]
-    public async Task ContainerField_Initialized_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier>
-        {
+    public async Task ContainerField_Initialized_NoReport() {
+        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -37,10 +32,8 @@ public class ContainerInitializationRulesTests
     }
 
     [Fact]
-    public async Task NullableContainerField_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier>
-        {
+    public async Task NullableContainerField_NoReport() {
+        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -54,10 +47,8 @@ public class ContainerInitializationRulesTests
     }
 
     [Fact]
-    public async Task ConstructorAssignedField_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier>
-        {
+    public async Task ConstructorAssignedField_NoReport() {
+        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -72,10 +63,8 @@ public class ContainerInitializationRulesTests
     }
 
     [Fact]
-    public async Task InterfaceProperty_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier>
-        {
+    public async Task InterfaceProperty_NoReport() {
+        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -89,10 +78,8 @@ public class ContainerInitializationRulesTests
     }
 
     [Fact]
-    public async Task RequiredInitProperty_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier>
-        {
+    public async Task RequiredInitProperty_NoReport() {
+        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -106,10 +93,8 @@ public class ContainerInitializationRulesTests
     }
 
     [Fact]
-    public async Task SettableProperty_NotInitialized_ReportsJCC11001()
-    {
-        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier>
-        {
+    public async Task SettableProperty_NotInitialized_ReportsJCC11001() {
+        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -123,10 +108,8 @@ public class ContainerInitializationRulesTests
     }
 
     [Fact]
-    public async Task ArrayField_NotInitialized_ReportsJCC11001()
-    {
-        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier>
-        {
+    public async Task ArrayField_NotInitialized_ReportsJCC11001() {
+        var test = new CSharpAnalyzerTest<ContainerInitializationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class Foo

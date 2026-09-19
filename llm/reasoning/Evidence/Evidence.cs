@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Evidence;
 /// <summary>
 /// 证据实体
 /// </summary>
-public sealed class EvidenceRecord
-{
+public sealed class EvidenceRecord {
     /// <summary>
     /// 证据唯一标识
     /// </summary>

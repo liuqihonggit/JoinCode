@@ -5,16 +5,14 @@ namespace Infrastructure.HotSpot;
 /// 纯逻辑不执行实际通知，执行由中间件接入
 /// </summary>
 [Register(typeof(IHotSpotResolutionPolicy), ServiceLifetime.Singleton)]
-public sealed class HotSpotResolutionPolicy : IHotSpotResolutionPolicy
-{
+public sealed class HotSpotResolutionPolicy : IHotSpotResolutionPolicy {
     private readonly IHotSpotTracker _hotSpotTracker;
 
     /// <summary>
     /// 构造热点处置策略
     /// </summary>
     /// <param name="hotSpotTracker">热点跟踪器</param>
-    public HotSpotResolutionPolicy(IHotSpotTracker hotSpotTracker)
-    {
+    public HotSpotResolutionPolicy(IHotSpotTracker hotSpotTracker) {
         _hotSpotTracker = hotSpotTracker ?? throw new ArgumentNullException(nameof(hotSpotTracker));
     }
 
@@ -23,16 +21,13 @@ public sealed class HotSpotResolutionPolicy : IHotSpotResolutionPolicy
     /// </summary>
     /// <param name="filePath">热点文件路径</param>
     /// <returns>热点处置决策(是否队长接管、需通知的 Worker 列表等)</returns>
-    public HotSpotResolution Resolve(string filePath)
-    {
+    public HotSpotResolution Resolve(string filePath) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var info = _hotSpotTracker.GetHotSpotInfo(filePath);
 
-        if (!info.IsHotSpot)
-        {
-            return new HotSpotResolution
-            {
+        if (!info.IsHotSpot) {
+            return new HotSpotResolution {
                 FilePath = filePath,
                 ShouldCaptainTakeOver = false,
                 WorkersToNotify = [],
@@ -40,8 +35,7 @@ public sealed class HotSpotResolutionPolicy : IHotSpotResolutionPolicy
             };
         }
 
-        return new HotSpotResolution
-        {
+        return new HotSpotResolution {
             FilePath = filePath,
             ShouldCaptainTakeOver = true,
             WorkersToNotify = info.ClaimingWorkers,
@@ -54,12 +48,10 @@ public sealed class HotSpotResolutionPolicy : IHotSpotResolutionPolicy
     /// 针对所有已跟踪热点文件生成处置决策
     /// </summary>
     /// <returns>所有热点文件的处置决策列表</returns>
-    public IReadOnlyList<HotSpotResolution> ResolveAll()
-    {
+    public IReadOnlyList<HotSpotResolution> ResolveAll() {
         var hotSpotFiles = _hotSpotTracker.GetHotSpotFiles();
         var resolutions = new List<HotSpotResolution>(hotSpotFiles.Count);
-        foreach (var file in hotSpotFiles)
-        {
+        foreach (var file in hotSpotFiles) {
             resolutions.Add(Resolve(file));
         }
         return resolutions;

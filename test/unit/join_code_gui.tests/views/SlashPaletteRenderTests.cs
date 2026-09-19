@@ -11,8 +11,7 @@ namespace JoinCode.Gui.Tests.Views;
 /// ③ 暗/亮主题帧图保存到 dumps/gui_slash/ 供人工核对。
 /// </summary>
 [Collection("GuiUiSequential")]
-public sealed class SlashPaletteRenderTests
-{
+public sealed class SlashPaletteRenderTests {
     /// <summary>创建注入 InMemoryFileSystem 会话存储的 ViewModel — 传入就绪占位会话避免后台引擎加载（IsBusy 抑制补全）；
     /// preferencesStore 同样 InMemory 隔离（否则 Placeholder 会话读真实 ~/.jcc/settings.json 的 theme 覆盖测试主题）</summary>
     private static MainViewModel CreateVm() => new(
@@ -21,8 +20,7 @@ public sealed class SlashPaletteRenderTests
         new JoinCode.Gui.Persistence.GuiPreferencesStore(new IO.FileSystem.InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     /// <summary>定位仓库根目录（向上找 Gui.slnx），dumps 输出到 {root}/dumps/gui_slash/</summary>
-    private static string DumpDir()
-    {
+    private static string DumpDir() {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Gui.slnx")))
             dir = dir.Parent;
@@ -32,8 +30,7 @@ public sealed class SlashPaletteRenderTests
         return dump;
     }
 
-    private static byte[] ReadPixels(WriteableBitmap frame)
-    {
+    private static byte[] ReadPixels(WriteableBitmap frame) {
         var bytes = new byte[frame.PixelSize.Width * frame.PixelSize.Height * 4];
         using var locked = frame.Lock();
         Marshal.Copy(locked.Address, bytes, 0, bytes.Length);
@@ -41,14 +38,11 @@ public sealed class SlashPaletteRenderTests
     }
 
     /// <summary>比较两帧指定区域的像素差异（任一通道差 &gt; 8 视为有差异）</summary>
-    private static bool RegionDiffers(byte[] a, byte[] b, int width, int y0, int y1, int x0, int x1)
-    {
+    private static bool RegionDiffers(byte[] a, byte[] b, int width, int y0, int y1, int x0, int x1) {
         var stride = width * 4;
-        for (int y = y0; y <= y1; y++)
-        {
-            for (int x = x0; x <= x1; x++)
-            {
-                int i = y * stride + x * 4;
+        for (var y = y0; y <= y1; y++) {
+            for (var x = x0; x <= x1; x++) {
+                var i = y * stride + x * 4;
                 if (Math.Abs(a[i] - b[i]) > 8 || Math.Abs(a[i + 1] - b[i + 1]) > 8 || Math.Abs(a[i + 2] - b[i + 2]) > 8)
                     return true;
             }
@@ -57,14 +51,11 @@ public sealed class SlashPaletteRenderTests
     }
 
     /// <summary>找出两帧全部差异像素的最低（最大 y）行 — 用于断言面板锚定窗口下部</summary>
-    private static int LowestDiffRow(byte[] a, byte[] b, int width, int height)
-    {
+    private static int LowestDiffRow(byte[] a, byte[] b, int width, int height) {
         var stride = width * 4;
-        for (int y = height - 1; y >= 0; y--)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                int i = y * stride + x * 4;
+        for (var y = height - 1; y >= 0; y--) {
+            for (var x = 0; x < width; x++) {
+                var i = y * stride + x * 4;
                 if (Math.Abs(a[i] - b[i]) > 8 || Math.Abs(a[i + 1] - b[i + 1]) > 8 || Math.Abs(a[i + 2] - b[i + 2]) > 8)
                     return y;
             }
@@ -76,8 +67,7 @@ public sealed class SlashPaletteRenderTests
         => frame.Save(path); // Avalonia 11.3：按扩展名选择编码器，.png → PNG
 
     /// <summary>把控件边界换算到窗口坐标（含 RenderTransform 影响）</summary>
-    private static Rect BoundsInWindow(Visual v)
-    {
+    private static Rect BoundsInWindow(Visual v) {
         var root = (Visual)(v.GetVisualRoot() ?? throw new InvalidOperationException("控件不在视觉树中"));
         var topLeft = (v.TransformToVisual(root) ?? throw new InvalidOperationException("坐标换算失败"))
             .Transform(new Point(0, 0));
@@ -85,13 +75,11 @@ public sealed class SlashPaletteRenderTests
     }
 
     /// <summary>打开窗口（主题就绪、布局完成），返回窗口实例</summary>
-    private static MainWindow OpenWindow(bool dark)
-    {
+    private static MainWindow OpenWindow(bool dark) {
         GuiPalette.CurrentVariant = dark
             ? GuiPalette.GuiThemeVariant.Dark
             : GuiPalette.GuiThemeVariant.Light;
-        var win = new MainWindow
-        {
+        var win = new MainWindow {
             DataContext = CreateVm(),
             Width = 980,
             Height = 680,
@@ -105,8 +93,7 @@ public sealed class SlashPaletteRenderTests
     }
 
     /// <summary>触发斜杠补全并等待动画完成（真实管线："/" 输入 → 双向绑定回写 VM → 30ms 防抖 → 升起动画）</summary>
-    private static async Task TriggerSlashAsync(MainWindow win)
-    {
+    private static async Task TriggerSlashAsync(MainWindow win) {
         var tb = win.GetVisualDescendants()
             .OfType<TextBox>()
             .First(x => x.Name == "InputTextBox");
@@ -118,27 +105,22 @@ public sealed class SlashPaletteRenderTests
     }
 
     /// <summary>打开窗口并捕获"补全面板关闭/打开"两帧</summary>
-    private static async Task<(WriteableBitmap ClosedFrame, WriteableBitmap OpenFrame)> CapturePairAsync(bool dark)
-    {
+    private static async Task<(WriteableBitmap ClosedFrame, WriteableBitmap OpenFrame)> CapturePairAsync(bool dark) {
         var win = OpenWindow(dark);
-        try
-        {
+        try {
             var closed = win.CaptureRenderedFrame()
                 ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
             await TriggerSlashAsync(win);
             var open = win.CaptureRenderedFrame()
                 ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
             return (closed, open);
-        }
-        finally
-        {
+        } finally {
             win.Close();
         }
     }
 
     [AvaloniaFact]
-    public async Task SlashPalette_RendersInWindowFrame_AnchoredAboveInputBar()
-    {
+    public async Task SlashPalette_RendersInWindowFrame_AnchoredAboveInputBar() {
         var dump = DumpDir();
         var (closedFrame, openFrame) = await CapturePairAsync(dark: true);
         SavePng(closedFrame, Path.Combine(dump, "slash-closed-dark.png"));
@@ -159,11 +141,9 @@ public sealed class SlashPaletteRenderTests
     }
 
     [AvaloniaFact]
-    public async Task SlashPalette_EdgesAlignWithInputBar_NoOverlap()
-    {
+    public async Task SlashPalette_EdgesAlignWithInputBar_NoOverlap() {
         var win = OpenWindow(dark: true);
-        try
-        {
+        try {
             await TriggerSlashAsync(win);
 
             var paletteRoot = win.GetVisualDescendants().OfType<Border>().First(b => b.Name == "PaletteRoot");
@@ -179,19 +159,15 @@ public sealed class SlashPaletteRenderTests
                 $"面板底部压住输入栏：palette.Bottom={p.Bottom:F1} > inputBar.Top={i.Top:F1}");
             // 面板必须实际展开（有可见高度）
             Assert.True(p.Height > 40, $"面板高度 {p.Height:F1} 异常，疑似未展开");
-        }
-        finally
-        {
+        } finally {
             win.Close();
         }
     }
 
     [AvaloniaFact]
-    public async Task Composer_SendButtonEmbeddedInCard()
-    {
+    public async Task Composer_SendButtonEmbeddedInCard() {
         var win = OpenWindow(dark: true);
-        try
-        {
+        try {
             Dispatcher.UIThread.RunJobs();
 
             var composer = win.GetVisualDescendants().OfType<Border>().First(b => b.Name == "ComposerBox");
@@ -202,29 +178,23 @@ public sealed class SlashPaletteRenderTests
             // 发送按钮必须完整落在 composer 卡片内部（嵌入式，而非卡片外的并列按钮）
             Assert.True(s.Left >= c.Left - 0.5 && s.Right <= c.Right + 0.5 && s.Top >= c.Top - 0.5 && s.Bottom <= c.Bottom + 0.5,
                 $"发送按钮未嵌入 composer 卡片内：button=[{s.Left:F1},{s.Top:F1},{s.Right:F1},{s.Bottom:F1}] composer=[{c.Left:F1},{c.Top:F1},{c.Right:F1},{c.Bottom:F1}]");
-        }
-        finally
-        {
+        } finally {
             win.Close();
         }
     }
 
     [AvaloniaFact]
-    public async Task SlashPalette_KeyboardNavigationScrollsToLastItem()
-    {
+    public async Task SlashPalette_KeyboardNavigationScrollsToLastItem() {
         var win = OpenWindow(dark: true);
-        try
-        {
+        try {
             await TriggerSlashAsync(win);
             var vm = (MainViewModel)win.DataContext!;
             var list = win.GetVisualDescendants().OfType<ListBox>().First(x => x.Name == "PaletteList");
 
             // 真实键盘管线：连按 ↓ 走 InputBar KeyDown → vm.SlashNavigate → ScrollIntoView
-            for (int i = 0; i < vm.SlashSuggestions.Count - 1; i++)
-            {
+            for (var i = 0; i < vm.SlashSuggestions.Count - 1; i++) {
                 var tb = win.GetVisualDescendants().OfType<TextBox>().First(x => x.Name == "InputTextBox");
-                tb.RaiseEvent(new Avalonia.Input.KeyEventArgs
-                {
+                tb.RaiseEvent(new Avalonia.Input.KeyEventArgs {
                     RoutedEvent = Avalonia.Input.InputElement.KeyDownEvent,
                     Key = Avalonia.Input.Key.Down
                 });
@@ -245,16 +215,13 @@ public sealed class SlashPaletteRenderTests
             var itemRect = BoundsInWindow(lastContainer!);
             Assert.True(itemRect.Top >= listRect.Top - 0.75 && itemRect.Bottom <= listRect.Bottom + 0.75,
                 $"最后一项 [{itemRect.Top:F1},{itemRect.Bottom:F1}] 超出列表视口 [{listRect.Top:F1},{listRect.Bottom:F1}]，选中项不可见");
-        }
-        finally
-        {
+        } finally {
             win.Close();
         }
     }
 
     [AvaloniaFact]
-    public async Task SlashPalette_LightTheme_SavesFrameForReview()
-    {
+    public async Task SlashPalette_LightTheme_SavesFrameForReview() {
         var dump = DumpDir();
         var (_, openFrame) = await CapturePairAsync(dark: false);
         SavePng(openFrame, Path.Combine(dump, "slash-open-light.png"));

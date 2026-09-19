@@ -4,8 +4,7 @@ namespace State;
 /// <summary>
 /// 状态变更事件参数
 /// </summary>
-public sealed class StateChangedEventArgs<TState> where TState : notnull
-{
+public sealed class StateChangedEventArgs<TState> where TState : notnull {
     /// <summary>
     /// 变更前的旧状态
     /// </summary>
@@ -21,8 +20,7 @@ public sealed class StateChangedEventArgs<TState> where TState : notnull
     /// </summary>
     /// <param name="oldState">变更前的旧状态</param>
     /// <param name="newState">变更后的新状态</param>
-    public StateChangedEventArgs(TState oldState, TState newState)
-    {
+    public StateChangedEventArgs(TState oldState, TState newState) {
         OldState = oldState;
         NewState = newState;
     }
@@ -31,8 +29,7 @@ public sealed class StateChangedEventArgs<TState> where TState : notnull
 /// <summary>
 /// 状态订阅者接口
 /// </summary>
-public interface IStateSubscriber<TState> where TState : notnull
-{
+public interface IStateSubscriber<TState> where TState : notnull {
     /// <summary>
     /// 状态变更回调方法
     /// </summary>
@@ -49,8 +46,7 @@ public delegate void StateChangedHandler<TState>(StateChangedEventArgs<TState> a
 /// 响应式状态存储接口
 /// 提供不可变状态的获取、更新和订阅功能
 /// </summary>
-public interface IStore<TState> where TState : notnull
-{
+public interface IStore<TState> where TState : notnull {
     /// <summary>
     /// 获取当前状态（不可变）
     /// </summary>
@@ -93,8 +89,7 @@ public interface IStore<TState> where TState : notnull
 /// 派生状态选择器接口
 /// 用于从 Store 中选择派生状态，仅在派生值变化时通知
 /// </summary>
-public interface IStoreSelector<TState, TSelected> where TState : notnull
-{
+public interface IStoreSelector<TState, TSelected> where TState : notnull {
     /// <summary>
     /// 选择器函数
     /// </summary>
@@ -116,8 +111,7 @@ public interface IStoreSelector<TState, TSelected> where TState : notnull
 /// <summary>
 /// Store 扩展方法
 /// </summary>
-public static class StoreExtensions
-{
+public static class StoreExtensions {
     /// <summary>
     /// 创建派生状态选择器
     /// </summary>
@@ -128,8 +122,7 @@ public static class StoreExtensions
     /// <returns>派生状态选择器</returns>
     public static IStoreSelector<TState, TSelected> Select<TState, TSelected>(
         this IStore<TState> store,
-        Func<TState, TSelected> selector) where TState : notnull
-    {
+        Func<TState, TSelected> selector) where TState : notnull {
         return new StoreSelector<TState, TSelected>(store, selector);
     }
 
@@ -139,8 +132,7 @@ public static class StoreExtensions
     public static IStoreSelector<TState, TSelected> SelectByValue<TState, TSelected>(
         this IStore<TState> store,
         Func<TState, TSelected> selector,
-        IEqualityComparer<TSelected>? comparer = null) where TState : notnull
-    {
+        IEqualityComparer<TSelected>? comparer = null) where TState : notnull {
         return new StoreSelector<TState, TSelected>(store, selector, comparer);
     }
 }

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// 只读命令检测器接口 — 对齐 TS readOnlyValidation.ts
 /// </summary>
-public interface IReadOnlyCommandDetector
-{
+public interface IReadOnlyCommandDetector {
     /// <summary>
     /// 检查命令是否为只读命令 — 对齐 TS isCommandReadOnly
     /// </summary>

@@ -4,8 +4,7 @@ namespace Core.Bridge.Init;
 /// <summary>
 /// v2 env-less 桥初始化管道上下文 — 中间件间共享的可变状态
 /// </summary>
-public sealed class V2BridgeInitContext : ITokenValidationContext, INullCheckContext
-{
+public sealed class V2BridgeInitContext : ITokenValidationContext, INullCheckContext {
     /// <summary>桥接初始化参数 — 由调用方提供的配置项集合</summary>
     public required V2BridgeParams Parameters { get; init; }
     /// <summary>HTTP 客户端 — 用于桥接 API 调用</summary>
@@ -52,8 +51,7 @@ public sealed class V2BridgeInitContext : ITokenValidationContext, INullCheckCon
     /// 标记上下文为失败状态,并通知状态变更
     /// </summary>
     /// <param name="message">失败错误消息</param>
-    public void Fail(string message)
-    {
+    public void Fail(string message) {
         Failed = true;
         ErrorMessage = message;
         Parameters.OnStateChange?.Invoke(BridgeState.Failed, message);

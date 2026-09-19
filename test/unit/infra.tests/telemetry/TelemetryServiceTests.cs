@@ -1,27 +1,23 @@
 
 namespace Core.Tests.Telemetry;
 
-public sealed class TelemetryServiceTests
-{
+public sealed class TelemetryServiceTests {
     private readonly TelemetryConfig _config = new();
 
     [Fact]
-    public async Task Constructor_SetsConfig()
-    {
+    public async Task Constructor_SetsConfig() {
         await using var service = new TelemetryService(_config);
 
         Assert.Same(_config, service.Config);
     }
 
     [Fact]
-    public void Constructor_WithNullConfig_Throws()
-    {
+    public void Constructor_WithNullConfig_Throws() {
         Assert.Throws<ArgumentNullException>(() => new TelemetryService(null!));
     }
 
     [Fact]
-    public async Task IsTracingEnabled_ReflectsConfig()
-    {
+    public async Task IsTracingEnabled_ReflectsConfig() {
         var tracingOff = new TelemetryConfig { TracingEnabled = false };
         await using var service = new TelemetryService(tracingOff);
 
@@ -29,8 +25,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task IsMetricsEnabled_ReflectsConfig()
-    {
+    public async Task IsMetricsEnabled_ReflectsConfig() {
         var metricsOff = new TelemetryConfig { MetricsEnabled = false };
         await using var service = new TelemetryService(metricsOff);
 
@@ -38,8 +33,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task StartSpan_ReturnsSpan()
-    {
+    public async Task StartSpan_ReturnsSpan() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test-operation");
 
@@ -51,8 +45,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task StartSpan_WithKind_SetsKind()
-    {
+    public async Task StartSpan_WithKind_SetsKind() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("client-call", TelemetrySpanKind.Client);
 
@@ -60,8 +53,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task StartSpan_WithParent_SetsParentSpanId()
-    {
+    public async Task StartSpan_WithParent_SetsParentSpanId() {
         await using var service = new TelemetryService(_config);
         await using var parent = service.StartSpan("parent");
         await using var child = service.StartSpan("child", TelemetrySpanKind.Internal, parent);
@@ -71,8 +63,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task StartSpan_TracingDisabled_ReturnsNoOpSpan()
-    {
+    public async Task StartSpan_TracingDisabled_ReturnsNoOpSpan() {
         var noTracing = new TelemetryConfig { TracingEnabled = false };
         await using var service = new TelemetryService(noTracing);
         await using var span = service.StartSpan("no-op");
@@ -82,8 +73,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task GetCounter_ReturnsCounter()
-    {
+    public async Task GetCounter_ReturnsCounter() {
         await using var service = new TelemetryService(_config);
         var counter = service.GetCounter("request-count", "requests", "Total requests");
 
@@ -92,8 +82,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task GetCounter_SameName_ReturnsSameInstance()
-    {
+    public async Task GetCounter_SameName_ReturnsSameInstance() {
         await using var service = new TelemetryService(_config);
         var counter1 = service.GetCounter("request-count");
         var counter2 = service.GetCounter("request-count");
@@ -102,8 +91,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task GetHistogram_ReturnsHistogram()
-    {
+    public async Task GetHistogram_ReturnsHistogram() {
         await using var service = new TelemetryService(_config);
         var histogram = service.GetHistogram("request-duration", "ms", "Request duration");
 
@@ -112,8 +100,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task GetHistogram_SameName_ReturnsSameInstance()
-    {
+    public async Task GetHistogram_SameName_ReturnsSameInstance() {
         await using var service = new TelemetryService(_config);
         var hist1 = service.GetHistogram("duration");
         var hist2 = service.GetHistogram("duration");
@@ -122,8 +109,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task GetGauge_ReturnsGauge()
-    {
+    public async Task GetGauge_ReturnsGauge() {
         await using var service = new TelemetryService(_config);
         var gauge = service.GetGauge("active-sessions", "sessions", "Active sessions");
 
@@ -132,8 +118,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task GetActiveSpans_ReturnsActiveSpans()
-    {
+    public async Task GetActiveSpans_ReturnsActiveSpans() {
         await using var service = new TelemetryService(_config);
         await using var span1 = service.StartSpan("op1");
         await using var span2 = service.StartSpan("op2");
@@ -143,8 +128,7 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task GetRegisteredMetrics_ReturnsMetricNames()
-    {
+    public async Task GetRegisteredMetrics_ReturnsMetricNames() {
         await using var service = new TelemetryService(_config);
         service.GetCounter("c1");
         service.GetHistogram("h1");
@@ -154,14 +138,12 @@ public sealed class TelemetryServiceTests
     }
 
     [Fact]
-    public async Task DisposeAsync_CleansUp()
-    {
+    public async Task DisposeAsync_CleansUp() {
         await using var service = new TelemetryService(_config);
     }
 
     [Fact]
-    public async Task DisposeAsync_CalledTwice_DoesNotThrow()
-    {
+    public async Task DisposeAsync_CalledTwice_DoesNotThrow() {
         var service = new TelemetryService(_config);
         await service.DisposeAsync().ConfigureAwait(true);
         await service.DisposeAsync().ConfigureAwait(true);

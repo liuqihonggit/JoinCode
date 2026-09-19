@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 系统执行器接口 — 统一 Bash/PowerShell/Cmd/Python 等执行器的命令构建、执行、后台启动
 /// 消费者通过 ISystemActuatorRegistry.Get(kind) 获取实例，多态调用
 /// </summary>
-public interface ISystemActuator
-{
+public interface ISystemActuator {
     /// <summary>
     /// 执行器类型标识
     /// </summary>
@@ -86,8 +85,7 @@ public interface ISystemActuator
 /// <summary>
 /// 系统执行器生命周期管理接口 — 上下文压缩时的链式清理
 /// </summary>
-public interface ISystemActuatorLifecycle : IAsyncDisposable
-{
+public interface ISystemActuatorLifecycle : IAsyncDisposable {
     /// <summary>
     /// 当前生命周期状态
     /// </summary>
@@ -107,8 +105,7 @@ public interface ISystemActuatorLifecycle : IAsyncDisposable
 /// <summary>
 /// 系统执行器命令上下文接口 — 封装正在运行的进程，支持前台转后台操作
 /// </summary>
-public interface ISystemActuatorCommandContext : ISystemActuatorLifecycle
-{
+public interface ISystemActuatorCommandContext : ISystemActuatorLifecycle {
     /// <summary>
     /// 任务 ID
     /// </summary>

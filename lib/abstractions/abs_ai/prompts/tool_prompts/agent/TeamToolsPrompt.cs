@@ -1,8 +1,7 @@
 namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 
 [ToolPrompt(ToolName = TeamToolName.TeamCreate, Category = ToolPromptCategory.Agent)]
-public static class TeamCreateToolPrompt
-{
+public static class TeamCreateToolPrompt {
     public const string ToolName = TeamToolNameEnumConstants.TeamCreate;
 
     public static string Prompt { get; } = $$"""
@@ -118,8 +117,7 @@ public static class TeamCreateToolPrompt
 }
 
 [ToolPrompt(ToolName = TeamToolName.TeamDelete, Category = ToolPromptCategory.Agent)]
-public static class TeamDeleteToolPrompt
-{
+public static class TeamDeleteToolPrompt {
     public const string ToolName = TeamToolNameEnumConstants.TeamDelete;
 
     public static string Prompt { get; } = $$"""
@@ -139,12 +137,10 @@ public static class TeamDeleteToolPrompt
 }
 
 [ToolPrompt(ToolName = SystemToolName.ToolSearch, Category = ToolPromptCategory.Agent)]
-public static class ToolSearchToolPrompt
-{
+public static class ToolSearchToolPrompt {
     public const string ToolName = SystemToolNameEnumConstants.ToolSearch;
 
-    public static string GetPrompt(bool deltaEnabled = false)
-    {
+    public static string GetPrompt(bool deltaEnabled = false) {
         var toolLocationHint = deltaEnabled
             ? "延迟工具按名称出现在 <system-reminder> 消息中。"
             : "延迟工具按名称出现在 <available-deferred-tools> 消息中。";

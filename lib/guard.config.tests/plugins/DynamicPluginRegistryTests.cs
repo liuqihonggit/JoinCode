@@ -1,17 +1,14 @@
 namespace Core.Tests.Plugins;
 
-public sealed class DynamicPluginRegistryTests
-{
-    private static DynamicPluginRegistry CreateRegistry(PluginApprovalRegistry? approval = null)
-    {
+public sealed class DynamicPluginRegistryTests {
+    private static DynamicPluginRegistry CreateRegistry(PluginApprovalRegistry? approval = null) {
         return new DynamicPluginRegistry(
             approval,
             clock: null,
             loader: (_, _) => FrozenDictionary<string, Func<object?[], object?>>.Empty);
     }
 
-    private static PluginPackage DefineSample(DynamicPluginRegistry reg, string name = "alpha")
-    {
+    private static PluginPackage DefineSample(DynamicPluginRegistry reg, string name = "alpha") {
         return reg.DefinePlugin(
             name,
             assemblyPath: "/tmp/fake.dll",
@@ -22,8 +19,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void DefinePlugin_RegistersPackage()
-    {
+    public void DefinePlugin_RegistersPackage() {
         var reg = CreateRegistry();
         var pkg = DefineSample(reg);
         Assert.Equal("alpha", pkg.Name);
@@ -32,8 +28,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void DefinePlugin_DuplicateName_Throws()
-    {
+    public void DefinePlugin_DuplicateName_Throws() {
         var reg = CreateRegistry();
         DefineSample(reg);
         var ex = Assert.Throws<InvalidOperationException>(() => DefineSample(reg));
@@ -41,8 +36,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void RunPlugin_TransitionsToRunning()
-    {
+    public void RunPlugin_TransitionsToRunning() {
         var reg = CreateRegistry();
         DefineSample(reg);
         var pkgId = reg.RunPlugin("alpha");
@@ -51,8 +45,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void RunPlugin_IdempotentWhenAlreadyRunning()
-    {
+    public void RunPlugin_IdempotentWhenAlreadyRunning() {
         var reg = CreateRegistry();
         DefineSample(reg);
         var first = reg.RunPlugin("alpha");
@@ -61,16 +54,14 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void RunPlugin_Undefined_Throws()
-    {
+    public void RunPlugin_Undefined_Throws() {
         var reg = CreateRegistry();
         var ex = Assert.Throws<KeyNotFoundException>(() => reg.RunPlugin("ghost"));
         Assert.Contains("DYN-RUN-UNDEFINED", ex.Message);
     }
 
     [Fact]
-    public void RunPlugin_PendingApproval_Throws()
-    {
+    public void RunPlugin_PendingApproval_Throws() {
         var approval = new PluginApprovalRegistry();
         var reg = CreateRegistry(approval);
         DefineSample(reg);
@@ -80,8 +71,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void RunPlugin_AfterApproval_Succeeds()
-    {
+    public void RunPlugin_AfterApproval_Succeeds() {
         var approval = new PluginApprovalRegistry();
         var reg = CreateRegistry(approval);
         DefineSample(reg);
@@ -92,8 +82,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void StopPlugin_TransitionsToStopped()
-    {
+    public void StopPlugin_TransitionsToStopped() {
         var reg = CreateRegistry();
         DefineSample(reg);
         reg.RunPlugin("alpha");
@@ -102,16 +91,14 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void StopPlugin_NotRunning_ReturnsFalse()
-    {
+    public void StopPlugin_NotRunning_ReturnsFalse() {
         var reg = CreateRegistry();
         DefineSample(reg);
         Assert.False(reg.StopPlugin("alpha"));
     }
 
     [Fact]
-    public void StopPlugin_CanRerun()
-    {
+    public void StopPlugin_CanRerun() {
         var reg = CreateRegistry();
         DefineSample(reg);
         reg.RunPlugin("alpha");
@@ -121,8 +108,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void UndefinePlugin_RemovesDefinition()
-    {
+    public void UndefinePlugin_RemovesDefinition() {
         var reg = CreateRegistry();
         DefineSample(reg);
         Assert.True(reg.UndefinePlugin("alpha"));
@@ -131,8 +117,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void UndefinePlugin_Running_StopsAndRemoves()
-    {
+    public void UndefinePlugin_Running_StopsAndRemoves() {
         var reg = CreateRegistry();
         DefineSample(reg);
         reg.RunPlugin("alpha");
@@ -141,15 +126,13 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void UndefinePlugin_NotDefined_ReturnsFalse()
-    {
+    public void UndefinePlugin_NotDefined_ReturnsFalse() {
         var reg = CreateRegistry();
         Assert.False(reg.UndefinePlugin("ghost"));
     }
 
     [Fact]
-    public void UpdatePlugin_ReplacesVersion()
-    {
+    public void UpdatePlugin_ReplacesVersion() {
         var reg = CreateRegistry();
         DefineSample(reg);
         var newPkg = reg.UpdatePlugin("alpha", "/tmp/fake2.dll", new Version(2, 0, 0), "MyPlugin.Entry", "Activate");
@@ -159,8 +142,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void UpdatePlugin_OlderVersion_Throws()
-    {
+    public void UpdatePlugin_OlderVersion_Throws() {
         var reg = CreateRegistry();
         DefineSample(reg);
         var ex = Assert.Throws<ArgumentException>(() =>
@@ -169,8 +151,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void UpdatePlugin_Running_StopsOldInstance()
-    {
+    public void UpdatePlugin_Running_StopsOldInstance() {
         var reg = CreateRegistry();
         DefineSample(reg);
         reg.RunPlugin("alpha");
@@ -179,8 +160,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void InspectPlugin_ReturnsPackage()
-    {
+    public void InspectPlugin_ReturnsPackage() {
         var reg = CreateRegistry();
         var pkg = DefineSample(reg);
         var inspected = reg.InspectPlugin("alpha");
@@ -190,15 +170,13 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void InspectPlugin_Undefined_ReturnsNull()
-    {
+    public void InspectPlugin_Undefined_ReturnsNull() {
         var reg = CreateRegistry();
         Assert.Null(reg.InspectPlugin("ghost"));
     }
 
     [Fact]
-    public void ListPlugins_ReturnsAllDefined()
-    {
+    public void ListPlugins_ReturnsAllDefined() {
         var reg = CreateRegistry();
         DefineSample(reg, "alpha");
         DefineSample(reg, "beta");
@@ -211,8 +189,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void Invoke_NotRunning_ReturnsPluginNotRunning()
-    {
+    public void Invoke_NotRunning_ReturnsPluginNotRunning() {
         var reg = CreateRegistry();
         DefineSample(reg);
         var result = reg.Invoke("alpha", "foo", []);
@@ -221,8 +198,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void Invoke_MethodNotFound()
-    {
+    public void Invoke_MethodNotFound() {
         var reg = CreateRegistry();
         DefineSample(reg);
         reg.RunPlugin("alpha");
@@ -232,8 +208,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void Invoke_StalePackageId_ReturnsStaleRun()
-    {
+    public void Invoke_StalePackageId_ReturnsStaleRun() {
         var reg = CreateRegistry();
         DefineSample(reg);
         reg.RunPlugin("alpha");
@@ -244,8 +219,7 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void NextPackageId_Increments()
-    {
+    public void NextPackageId_Increments() {
         var reg = CreateRegistry();
         var id1 = reg.NextPackageId();
         var id2 = reg.NextPackageId();
@@ -253,16 +227,14 @@ public sealed class DynamicPluginRegistryTests
     }
 
     [Fact]
-    public void GetRunningPackageId_NotRunning_ReturnsNull()
-    {
+    public void GetRunningPackageId_NotRunning_ReturnsNull() {
         var reg = CreateRegistry();
         DefineSample(reg);
         Assert.Null(reg.GetRunningPackageId("alpha"));
     }
 
     [Fact]
-    public void PluginPackageId_Equality()
-    {
+    public void PluginPackageId_Equality() {
         var a = new PluginPackageId(42);
         var b = new PluginPackageId(42);
         var c = new PluginPackageId(43);

@@ -5,8 +5,7 @@ namespace Guard.Tests.Configuration;
 /// SettingsJson 反序列化 BDD 测试
 /// 新结构: 顶层只有 vendor + current 两个分支
 /// </summary>
-public class SettingsJsonDeserializationTests
-{
+public class SettingsJsonDeserializationTests {
     private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
     private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
     private static readonly string DefaultOpenAiModelId = Loader.GetDefaultModelId("openai");
@@ -14,8 +13,7 @@ public class SettingsJsonDeserializationTests
     #region 场景1: 完整 settings.json 反序列化
 
     [Fact]
-    public void Given_完整SettingsJson_When_反序列化_Then_所有字段正确映射()
-    {
+    public void Given_完整SettingsJson_When_反序列化_Then_所有字段正确映射() {
         var json = $$"""
             {
               "vendor": {
@@ -120,8 +118,7 @@ public class SettingsJsonDeserializationTests
     #region 场景2: 最小 settings.json
 
     [Fact]
-    public void Given_仅包含vendor和profile的SettingsJson_When_反序列化_Then_其余字段为null()
-    {
+    public void Given_仅包含vendor和profile的SettingsJson_When_反序列化_Then_其余字段为null() {
         var json = $$"""
             {
               "vendor": {
@@ -150,8 +147,7 @@ public class SettingsJsonDeserializationTests
     #region 场景3: 空 settings.json
 
     [Fact]
-    public void Given_空对象SettingsJson_When_反序列化_Then_vendor和current为null()
-    {
+    public void Given_空对象SettingsJson_When_反序列化_Then_vendor和current为null() {
         var json = "{}";
 
         var settings = JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
@@ -166,8 +162,7 @@ public class SettingsJsonDeserializationTests
     #region 场景4: 损坏 JSON 恢复
 
     [Fact]
-    public void Given_损坏的JSON_When_反序列化_Then_抛出JsonException()
-    {
+    public void Given_损坏的JSON_When_反序列化_Then_抛出JsonException() {
         var json = "{ invalid json }";
 
         var act = () => JsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
@@ -179,25 +174,19 @@ public class SettingsJsonDeserializationTests
     #region 场景5: 序列化 + 反序列化往返
 
     [Fact]
-    public void Given_SettingsJson对象_When_序列化再反序列化_Then_数据一致()
-    {
-        var original = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["openai"] = new ProfileSettings
-                {
+    public void Given_SettingsJson对象_When_序列化再反序列化_Then_数据一致() {
+        var original = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase) {
+                ["openai"] = new ProfileSettings {
                     Provider = "openai",
                     Model = DefaultOpenAiModelId,
                 },
             },
-            Current = new CurrentSettings
-            {
+            Current = new CurrentSettings {
                 Profile = "openai",
                 FastMode = true,
                 Env = new Dictionary<string, string> { ["KEY"] = "value" },
-                Permissions = new PermissionsSettings
-                {
+                Permissions = new PermissionsSettings {
                     Allow = ["Bash(npm test)"],
                     DefaultMode = PermissionMode.Auto.ToValue(),
                 },
@@ -221,8 +210,7 @@ public class SettingsJsonDeserializationTests
     #region 场景6: SandboxSettings 新字段反序列化
 
     [Fact]
-    public void Given_SandboxSettings含新字段_When_反序列化_Then_AllowedPathsRestrictNetworkMemoryLimitMb正确映射()
-    {
+    public void Given_SandboxSettings含新字段_When_反序列化_Then_AllowedPathsRestrictNetworkMemoryLimitMb正确映射() {
         var json = """
             {
               "current": {
@@ -248,8 +236,7 @@ public class SettingsJsonDeserializationTests
     }
 
     [Fact]
-    public void Given_SandboxSettings仅旧字段_When_反序列化_Then_新字段为null()
-    {
+    public void Given_SandboxSettings仅旧字段_When_反序列化_Then_新字段为null() {
         var json = """
             {
               "current": {
@@ -276,12 +263,9 @@ public class SettingsJsonDeserializationTests
     #region 场景7: GetActiveProfile 辅助方法
 
     [Fact]
-    public void Given_CurrentProfile指向Vendor键_When_GetActiveProfile_Then_返回对应预设()
-    {
-        var settings = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
-            {
+    public void Given_CurrentProfile指向Vendor键_When_GetActiveProfile_Then_返回对应预设() {
+        var settings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase) {
                 ["sensenova"] = new ProfileSettings { Provider = "sensenova", Model = "sensenova-6.7-flash-lite" },
             },
             Current = new CurrentSettings { Profile = "sensenova" },
@@ -294,12 +278,9 @@ public class SettingsJsonDeserializationTests
     }
 
     [Fact]
-    public void Given_CurrentProfile不存在于Vendor_When_GetActiveProfile_Then_返回null()
-    {
-        var settings = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
-            {
+    public void Given_CurrentProfile不存在于Vendor_When_GetActiveProfile_Then_返回null() {
+        var settings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase) {
                 ["openai"] = new ProfileSettings { Provider = "openai" },
             },
             Current = new CurrentSettings { Profile = "nonexistent" },

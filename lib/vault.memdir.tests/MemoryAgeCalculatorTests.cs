@@ -1,14 +1,12 @@
 
 namespace Core.Tests.Memdir;
 
-public sealed class MemoryAgeCalculatorTests
-{
+public sealed class MemoryAgeCalculatorTests {
     private readonly MemoryAgeCalculator _sut = new();
     private readonly DateTime _now = new(2026, 8, 2, 12, 0, 0, DateTimeKind.Utc);
 
     [Fact]
-    public void CalculateAgedRelevance_FreshEntry_ReturnsBaseScore()
-    {
+    public void CalculateAgedRelevance_FreshEntry_ReturnsBaseScore() {
         var entry = MemoryEntry.Create(MemoryType.User, "fresh", now: _now);
 
         var score = _sut.CalculateAgedRelevance(entry, _now);
@@ -17,8 +15,7 @@ public sealed class MemoryAgeCalculatorTests
     }
 
     [Fact]
-    public void CalculateAgedRelevance_ExpiredEntry_ReturnsMinScore()
-    {
+    public void CalculateAgedRelevance_ExpiredEntry_ReturnsMinScore() {
         var entry = MemoryEntry.Create(MemoryType.User, "expired", ttl: TimeSpan.FromSeconds(-1), now: _now);
 
         var score = _sut.CalculateAgedRelevance(entry, _now);
@@ -27,8 +24,7 @@ public sealed class MemoryAgeCalculatorTests
     }
 
     [Fact]
-    public void CalculateAgedRelevance_AccessCount_BoostsScore()
-    {
+    public void CalculateAgedRelevance_AccessCount_BoostsScore() {
         // 创建一个有轻微衰减的条目，使基础分数 < 1.0，这样 accessBonus 才能提升分数
         var olderTime = _now.AddDays(-10);
         var entry = MemoryEntry.Create(MemoryType.User, "accessed", now: olderTime);
@@ -41,8 +37,7 @@ public sealed class MemoryAgeCalculatorTests
     }
 
     [Fact]
-    public void CalculateAgedRelevance_AccessCount_IsCapped()
-    {
+    public void CalculateAgedRelevance_AccessCount_IsCapped() {
         var entry = MemoryEntry.Create(MemoryType.User, "accessed", now: _now);
         var accessed = entry with { AccessCount = 1000 };
 
@@ -52,8 +47,7 @@ public sealed class MemoryAgeCalculatorTests
     }
 
     [Fact]
-    public void ShouldArchive_AlreadyArchived_ReturnsFalse()
-    {
+    public void ShouldArchive_AlreadyArchived_ReturnsFalse() {
         var entry = MemoryEntry.Create(MemoryType.User, "archived", now: _now).WithArchived(_now);
 
         var result = _sut.ShouldArchive(entry, _now);
@@ -62,8 +56,7 @@ public sealed class MemoryAgeCalculatorTests
     }
 
     [Fact]
-    public void ShouldArchive_Expired_ReturnsTrue()
-    {
+    public void ShouldArchive_Expired_ReturnsTrue() {
         var entry = MemoryEntry.Create(MemoryType.User, "expired", ttl: TimeSpan.FromSeconds(-1), now: _now);
 
         var result = _sut.ShouldArchive(entry, _now);
@@ -72,8 +65,7 @@ public sealed class MemoryAgeCalculatorTests
     }
 
     [Fact]
-    public void ShouldArchive_BelowArchiveThreshold_ReturnsTrue()
-    {
+    public void ShouldArchive_BelowArchiveThreshold_ReturnsTrue() {
         var entry = MemoryEntry.Create(MemoryType.User, "old", now: _now);
         var old = entry with { CreatedAt = _now.AddYears(2) };
 
@@ -83,8 +75,7 @@ public sealed class MemoryAgeCalculatorTests
     }
 
     [Fact]
-    public void ShouldArchive_YoungAndRelevant_ReturnsFalse()
-    {
+    public void ShouldArchive_YoungAndRelevant_ReturnsFalse() {
         var entry = MemoryEntry.Create(MemoryType.User, "fresh", now: _now);
 
         var result = _sut.ShouldArchive(entry, _now);
@@ -93,8 +84,7 @@ public sealed class MemoryAgeCalculatorTests
     }
 
     [Fact]
-    public void ShouldArchive_ExceedsMaxAge_ReturnsTrue()
-    {
+    public void ShouldArchive_ExceedsMaxAge_ReturnsTrue() {
         var entry = MemoryEntry.Create(MemoryType.User, "ancient", now: _now);
         var future = _now.AddDays(400);
 

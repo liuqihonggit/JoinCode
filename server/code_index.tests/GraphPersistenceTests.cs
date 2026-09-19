@@ -1,23 +1,20 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class GraphPersistenceTests : IDisposable
-{
+public sealed class GraphPersistenceTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly SymbolIndex _index;
     private readonly IFileSystem _fs;
     private readonly GraphPersistence _persistence;
     private bool _disposed;
 
-    public GraphPersistenceTests()
-    {
+    public GraphPersistenceTests() {
         _store = new InMemoryIndexStore();
         _fs = TestFileSystem.Current;
         _index = new SymbolIndex(_store, _fs, new CSharpSymbolExtractor());
         _persistence = new GraphPersistence(_store, _fs);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _index.DisposeSafe();
@@ -25,26 +22,22 @@ public sealed class GraphPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task IndexFileAsync_WithCallEdges_PersistsCallGraph()
-    {
+    public async Task IndexFileAsync_WithCallEdges_PersistsCallGraph() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task IndexFileAsync_WithDependencies_PersistsDependencyGraph()
-    {
+    public async Task IndexFileAsync_WithDependencies_PersistsDependencyGraph() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task RemoveFileAsync_RemovesCallAndDependencyEdges()
-    {
+    public async Task RemoveFileAsync_RemovesCallAndDependencyEdges() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task IndexFileAsync_CrossFileInterface_CorrectsInheritsToImplements()
-    {
+    public async Task IndexFileAsync_CrossFileInterface_CorrectsInheritsToImplements() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
@@ -53,8 +46,7 @@ public sealed class GraphPersistenceTests : IDisposable
     /// 回归 bug: ReaderWriterLockSlim 锁 scope 跨越 await 调用，线程亲和性导致释放锁抛异常。
     /// </summary>
     [Fact]
-    public async Task SaveAsync_WithData_WritesFileWithoutLockException()
-    {
+    public async Task SaveAsync_WithData_WritesFileWithoutLockException() {
         PopulateStoreWithData();
         const string dir = "graph-save-data";
 
@@ -73,14 +65,13 @@ public sealed class GraphPersistenceTests : IDisposable
     /// SaveAsync 保存的 JSON 文件能被 LoadAsync 正确读回，数据往返一致。
     /// </summary>
     [Fact]
-    public async Task SaveAsync_ThenLoadAsync_RoundTripsData()
-    {
+    public async Task SaveAsync_ThenLoadAsync_RoundTripsData() {
         PopulateStoreWithData();
         const string dir = "graph-roundtrip";
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
 
-        using var loadStore =  new InMemoryIndexStore();
+        using var loadStore = new InMemoryIndexStore();
         var loadPersistence = new GraphPersistence(loadStore, _fs);
         var loaded = await loadPersistence.LoadAsync(dir, CancellationToken.None).ConfigureAwait(true);
         Assert.True(loaded, "LoadAsync 应返回 true 表示成功加载");
@@ -107,15 +98,14 @@ public sealed class GraphPersistenceTests : IDisposable
         Assert.Single(loadStore.NuGetRefs["P.csproj"]);
         Assert.Equal("Newtonsoft.Json", loadStore.NuGetRefs["P.csproj"][0].PackageName);
         Assert.Equal("13.0.1", loadStore.NuGetRefs["P.csproj"][0].Version);
-    
+
     }
 
     /// <summary>
     /// SaveAsync 在空索引时也能正常保存，生成有效 JSON 且可被 LoadAsync 读回。
     /// </summary>
     [Fact]
-    public async Task SaveAsync_EmptyStore_WritesValidJson()
-    {
+    public async Task SaveAsync_EmptyStore_WritesValidJson() {
         const string dir = "graph-empty";
 
         await _persistence.SaveAsync(dir, CancellationToken.None).ConfigureAwait(true);
@@ -144,21 +134,16 @@ public sealed class GraphPersistenceTests : IDisposable
     /// 修复后锁 scope 限制在同步块内，await 前已释放锁，并发安全。
     /// </summary>
     [Fact]
-    public async Task SaveAsync_ConcurrentCalls_DoNotThrowLockException()
-    {
+    public async Task SaveAsync_ConcurrentCalls_DoNotThrowLockException() {
         PopulateStoreWithData();
         const int concurrency = 8;
         var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
         var dirs = Enumerable.Range(0, concurrency).Select(i => $"graph-concurrent-{i}").ToArray();
 
-        var tasks = dirs.Select(d => Task.Run(async () =>
-        {
-            try
-            {
+        var tasks = dirs.Select(d => Task.Run(async () => {
+            try {
                 await _persistence.SaveAsync(d, CancellationToken.None).ConfigureAwait(true);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 exceptions.Add(ex);
             }
         })).ToArray();
@@ -166,8 +151,7 @@ public sealed class GraphPersistenceTests : IDisposable
         await Task.WhenAll(tasks).ConfigureAwait(true);
 
         Assert.Empty(exceptions);
-        foreach (var d in dirs)
-        {
+        foreach (var d in dirs) {
             Assert.True(_fs.FileExists(Path.Combine(d, "code-index.json")), $"并发保存后 {d} 应存在文件");
         }
     }
@@ -176,8 +160,7 @@ public sealed class GraphPersistenceTests : IDisposable
     /// ExistsAsync 在已保存目录返回 true。
     /// </summary>
     [Fact]
-    public async Task ExistsAsync_AfterSave_ReturnsTrue()
-    {
+    public async Task ExistsAsync_AfterSave_ReturnsTrue() {
         PopulateStoreWithData();
         const string dir = "graph-exists-true";
 
@@ -191,19 +174,16 @@ public sealed class GraphPersistenceTests : IDisposable
     /// ExistsAsync 在未保存目录返回 false。
     /// </summary>
     [Fact]
-    public async Task ExistsAsync_WithoutSave_ReturnsFalse()
-    {
+    public async Task ExistsAsync_WithoutSave_ReturnsFalse() {
         const string dir = "graph-exists-false";
 
         var exists = await _persistence.ExistsAsync(dir, CancellationToken.None).ConfigureAwait(true);
         Assert.False(exists, "未保存的目录 ExistsAsync 应返回 false");
     }
 
-    private void PopulateStoreWithData()
-    {
+    private void PopulateStoreWithData() {
         using var scope = _store.EnterWriteLock();
-        _store.SymbolsByFqn["A.B.C"] = new SymbolInfo
-        {
+        _store.SymbolsByFqn["A.B.C"] = new SymbolInfo {
             Name = "C",
             FullyQualifiedName = "A.B.C",
             Kind = SymbolKind.Class,
@@ -213,23 +193,20 @@ public sealed class GraphPersistenceTests : IDisposable
             StartColumn = 1,
             EndColumn = 1
         };
-        _store.CallEdges.Add(new CallEdge
-        {
+        _store.CallEdges.Add(new CallEdge {
             CallerSymbol = "A.B.C",
             CalleeSymbol = "A.B.D",
             CallSiteFilePath = "C.cs",
             CallSiteLine = 5,
             CallKind = CallKind.Direct
         });
-        _store.DepEdges.Add(new DependencyEdge
-        {
+        _store.DepEdges.Add(new DependencyEdge {
             SourceSymbol = "A.B.C",
             TargetSymbol = "A.B.D",
             DependencyKind = DependencyKind.Inherits,
             SourceFilePath = "C.cs"
         });
-        _store.Projects["P.csproj"] = new ProjectInfo
-        {
+        _store.Projects["P.csproj"] = new ProjectInfo {
             Name = "P",
             FilePath = "P.csproj",
             TargetFramework = "net10.0"

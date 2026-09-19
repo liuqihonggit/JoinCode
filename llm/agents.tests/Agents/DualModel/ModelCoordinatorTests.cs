@@ -1,14 +1,12 @@
 namespace Sync.Tests.Unit.Agents.DualModel;
 
-public sealed class ModelCoordinatorTests
-{
+public sealed class ModelCoordinatorTests {
     private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
     private static readonly string DefaultFastModelId = Loader.GetDefaultFastModelId("openai");
     private static readonly string DefaultModelId = Loader.GetDefaultModelId("openai");
 
     [Fact]
-    public async Task PlanAsync_Success_ReturnsPlanResult()
-    {
+    public async Task PlanAsync_Success_ReturnsPlanResult() {
         var queryEngine = CreateMockQueryEngine("1. Read the file\n2. Fix the bug\n3. Add tests");
         var coordinator = new ModelCoordinator(
             queryEngine, DefaultFastModelId, DefaultModelId);
@@ -21,8 +19,7 @@ public sealed class ModelCoordinatorTests
     }
 
     [Fact]
-    public async Task PlanAsync_NoOpPlan_ReturnsNoOpResult()
-    {
+    public async Task PlanAsync_NoOpPlan_ReturnsNoOpResult() {
         var queryEngine = CreateMockQueryEngine("no changes needed, already implemented");
         var coordinator = new ModelCoordinator(
             queryEngine, DefaultFastModelId, DefaultModelId);
@@ -34,8 +31,7 @@ public sealed class ModelCoordinatorTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_Success_ReturnsExecutionResult()
-    {
+    public async Task ExecuteAsync_Success_ReturnsExecutionResult() {
         var queryEngine = CreateMockQueryEngine("Bug fixed and tests added");
         var coordinator = new ModelCoordinator(
             queryEngine, DefaultFastModelId, DefaultModelId);
@@ -47,11 +43,9 @@ public sealed class ModelCoordinatorTests
     }
 
     [Fact]
-    public async Task PlanAndExecuteAsync_Success_ReturnsCoordinationResult()
-    {
+    public async Task PlanAndExecuteAsync_Success_ReturnsCoordinationResult() {
         var callCount = 0;
-        var queryEngine = CreateMockQueryEngine(_ =>
-        {
+        var queryEngine = CreateMockQueryEngine(_ => {
             callCount++;
             return callCount == 1 ? "1. Fix the bug" : "Bug fixed";
         });
@@ -68,8 +62,7 @@ public sealed class ModelCoordinatorTests
     }
 
     [Fact]
-    public async Task PlanAndExecuteAsync_NoOpPlan_SkipsExecution()
-    {
+    public async Task PlanAndExecuteAsync_NoOpPlan_SkipsExecution() {
         var queryEngine = CreateMockQueryEngine("no changes needed");
         var coordinator = new ModelCoordinator(
             queryEngine, DefaultFastModelId, DefaultModelId);
@@ -82,11 +75,9 @@ public sealed class ModelCoordinatorTests
     }
 
     [Fact]
-    public async Task PlanAndExecuteAsync_WithShouldPlan_SkipsPlanning()
-    {
+    public async Task PlanAndExecuteAsync_WithShouldPlan_SkipsPlanning() {
         var callCount = 0;
-        var queryEngine = CreateMockQueryEngine(_ =>
-        {
+        var queryEngine = CreateMockQueryEngine(_ => {
             callCount++;
             return "Direct response";
         });
@@ -102,8 +93,7 @@ public sealed class ModelCoordinatorTests
     }
 
     [Fact]
-    public void ResetPlannerSession_ClearsSession()
-    {
+    public void ResetPlannerSession_ClearsSession() {
         var queryEngine = CreateMockQueryEngine("plan");
         var coordinator = new ModelCoordinator(
             queryEngine, DefaultFastModelId, DefaultModelId);
@@ -112,8 +102,7 @@ public sealed class ModelCoordinatorTests
     }
 
     [Fact]
-    public void DefaultPlannerTools_ContainsReadOnlyTools()
-    {
+    public void DefaultPlannerTools_ContainsReadOnlyTools() {
         var tools = ModelCoordinator.DefaultPlannerTools();
         Assert.Contains("read_file", tools);
         Assert.Contains("search_files", tools);
@@ -122,8 +111,7 @@ public sealed class ModelCoordinatorTests
         Assert.DoesNotContain("edit_file", tools);
     }
 
-    private static IQueryEngine CreateMockQueryEngine(string response)
-    {
+    private static IQueryEngine CreateMockQueryEngine(string response) {
         var mock = new Mock<IQueryEngine>();
         mock.Setup(e => e.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
             .Returns((string input, MessageList history, QueryOptions? options, CancellationToken ct) =>
@@ -134,8 +122,7 @@ public sealed class ModelCoordinatorTests
         return mock.Object;
     }
 
-    private static IQueryEngine CreateMockQueryEngine(Func<string, string> responseFunc)
-    {
+    private static IQueryEngine CreateMockQueryEngine(Func<string, string> responseFunc) {
         var mock = new Mock<IQueryEngine>();
         mock.Setup(e => e.QueryAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<QueryOptions?>(), It.IsAny<CancellationToken>()))
             .Returns((string input, MessageList history, QueryOptions? options, CancellationToken ct) =>
@@ -148,15 +135,12 @@ public sealed class ModelCoordinatorTests
 
     private static async IAsyncEnumerable<QueryStreamChunk> EmitChunksAsync(
         string response,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        yield return new QueryStreamChunk
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        yield return new QueryStreamChunk {
             Type = AgentStreamChunkType.Content,
             Content = response
         };
-        yield return new QueryStreamChunk
-        {
+        yield return new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = response
         };

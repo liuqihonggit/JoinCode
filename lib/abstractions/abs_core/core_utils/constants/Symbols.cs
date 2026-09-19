@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 状态指示器符号枚举
 /// </summary>
-public enum StatusSymbol
-{
+public enum StatusSymbol {
     [EnumValue("\u2713")] Tick,
     [EnumValue("\u2717")] Cross,
     [EnumValue("\u26A0")] Warning,
@@ -21,8 +20,7 @@ public enum StatusSymbol
 /// <summary>
 /// 对象类型图标符号枚举
 /// </summary>
-public enum ObjectSymbol
-{
+public enum ObjectSymbol {
     [EnumValue("\u2500")] File,
     [EnumValue("\u25B8")] Directory,
     [EnumValue("\u25C6")] DiamondFilled,
@@ -49,8 +47,7 @@ public enum ObjectSymbol
 /// <summary>
 /// 优先级符号枚举
 /// </summary>
-public enum PrioritySymbol
-{
+public enum PrioritySymbol {
     [EnumValue("\u25CF")] Critical,
     [EnumValue("\u25D0")] High,
     [EnumValue("\u25D4")] Medium,
@@ -60,8 +57,7 @@ public enum PrioritySymbol
 /// <summary>
 /// 结构/导航符号枚举
 /// </summary>
-public enum StructureSymbol
-{
+public enum StructureSymbol {
     [EnumValue("\u2022")] Bullet,
     [EnumValue("\u276F")] Pointer,
     [EnumValue("\u251C")] Branch,

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// Sleep 实体 — 派生自 ToolExecutionEntity，追踪延迟执行生命周期
 /// 额外字段: DurationSeconds, RemainingSeconds, TickCount, Reason
 /// </summary>
-public sealed class SleepEntity : ToolExecutionEntity
-{
+public sealed class SleepEntity : ToolExecutionEntity {
     public int DurationSeconds { get; init; }
     public int RemainingSeconds { get; set; }
     public int TickCount { get; set; }
@@ -18,8 +17,7 @@ public sealed class SleepEntity : ToolExecutionEntity
         string? spanId = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base("sleep", toolUseId, spanId, displayName ?? $"sleep:{durationSeconds}s", sessionId)
-    {
+        : base("sleep", toolUseId, spanId, displayName ?? $"sleep:{durationSeconds}s", sessionId) {
         DurationSeconds = durationSeconds;
         RemainingSeconds = durationSeconds;
         Reason = reason;
@@ -28,16 +26,14 @@ public sealed class SleepEntity : ToolExecutionEntity
     /// <summary>
     /// 跨会话深拷贝 — 保留 DurationSeconds/RemainingSeconds/TickCount/Reason 等延迟执行特有字段
     /// </summary>
-    public override Entity Clone(CloneContext context)
-    {
+    public override Entity Clone(CloneContext context) {
         var cloned = new SleepEntity(
             durationSeconds: DurationSeconds,
             reason: Reason,
             toolUseId: ToolUseId,
             spanId: SpanId,
             displayName: DisplayName,
-            sessionId: context.TargetSessionId)
-        {
+            sessionId: context.TargetSessionId) {
             RemainingSeconds = RemainingSeconds,
             TickCount = TickCount,
         };

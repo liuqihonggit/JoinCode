@@ -5,8 +5,7 @@ namespace IO.Services;
 /// 带限流的文件操作服务
 /// 所有文件操作都经过全局 IO 限流器控制
 /// </summary>
-public sealed partial class ThrottledFileService : IFileOperationService, IDisposable
-{
+public sealed partial class ThrottledFileService : IFileOperationService, IDisposable {
     private readonly IFileSystem _fs;
     private readonly IIOThrottleService _throttleService;
     private readonly ILogger<ThrottledFileService>? _logger;
@@ -24,8 +23,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         IFileSystem fs,
         IIOThrottleService throttleService,
         ILogger<ThrottledFileService>? logger = null,
-        ITelemetryService? telemetryService = null)
-    {
+        ITelemetryService? telemetryService = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _throttleService = throttleService;
         _logger = logger;
@@ -37,21 +35,18 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         string filePath,
         int? offset = null,
         int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken)
             .ConfigureAwait(false);
 
         await using var span = _telemetryService?.StartSpan("file.read", TelemetrySpanKind.Server);
         span?.SetTag("path", filePath);
-        try
-        {
+        try {
             _logger?.LogDebug("Reading file: {FilePath}", filePath);
 
             var normalizedPath = NormalizePath(filePath);
 
-            if (!_fs.FileExists(normalizedPath))
-            {
+            if (!_fs.FileExists(normalizedPath)) {
                 RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
                 return FileReadResult.FailureResult(normalizedPath, "文件不存在");
             }
@@ -78,9 +73,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
                 count,
                 startLine,
                 totalLines);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to read file: {FilePath}", filePath);
             RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
             return FileReadResult.FailureResult(filePath, ex.Message);
@@ -91,15 +84,13 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     public async Task<FileWriteResult> WriteFileAsync(
         string filePath,
         string content,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
         await using var span = _telemetryService?.StartSpan("file.write", TelemetrySpanKind.Server);
         span?.SetTag("path", filePath);
-        try
-        {
+        try {
             _logger?.LogDebug("Writing file: {FilePath}", filePath);
 
             var normalizedPath = NormalizePath(filePath);
@@ -110,8 +101,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             string? originalContent = null;
             var operation = _fs.FileExists(normalizedPath) ? "update" : "create";
 
-            if (_fs.FileExists(normalizedPath))
-            {
+            if (_fs.FileExists(normalizedPath)) {
                 originalContent = await _fs.ReadAllTextAsync(normalizedPath, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -122,17 +112,13 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             if (!lockResult.Success)
                 throw new TimeoutException($"[INF021] 获取锁超时: {normalizedPath}");
 
-            await using (lockResult.GetLock())
-            {
+            await using (lockResult.GetLock()) {
                 var tempPath = normalizedPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-                try
-                {
+                try {
                     await _fs.WriteAllTextAsync(tempPath, content, cancellationToken)
                         .ConfigureAwait(false);
                     _fs.MoveFile(tempPath, normalizedPath, overwrite: true);
-                }
-                catch
-                {
+                } catch {
                     if (_fs.FileExists(tempPath)) _fs.DeleteFile(tempPath);
                     throw;
                 }
@@ -140,9 +126,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Ok, operation);
             return FileWriteResult.SuccessResult(normalizedPath, content, operation, originalContent);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to write file: {FilePath}", filePath);
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Failed);
             return FileWriteResult.FailureResult(filePath, ex.Message);
@@ -155,46 +139,37 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
         string oldString,
         string newString,
         bool replaceAll = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
         await using var span = _telemetryService?.StartSpan("file.edit", TelemetrySpanKind.Server);
         span?.SetTag("path", filePath);
-        try
-        {
+        try {
             _logger?.LogDebug("Editing file: {FilePath}", filePath);
 
             var normalizedPath = NormalizePath(filePath);
 
-            if (!_fs.FileExists(normalizedPath))
-            {
+            if (!_fs.FileExists(normalizedPath)) {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
                 return FileEditResult.FailureResult(normalizedPath, oldString, newString, "文件不存在");
             }
 
-            try
-            {
-                return await _fs.EditFileAsync<FileEditResult>(normalizedPath, async (bytes, ct) =>
-                {
+            try {
+                return await _fs.EditFileAsync<FileEditResult>(normalizedPath, async (bytes, ct) => {
                     var (originalContent, encoding) = FileEncodingDetector.DecodeBytes(bytes);
 
                     var comparison = StringComparison.Ordinal;
                     var replaceCount = 0;
                     string updatedContent;
 
-                    if (replaceAll)
-                    {
+                    if (replaceAll) {
                         updatedContent = originalContent.Replace(oldString, newString, comparison);
                         replaceCount = (originalContent.Length - updatedContent.Length) / (oldString.Length - newString.Length);
                         if (replaceCount < 0) replaceCount = 0;
-                    }
-                    else
-                    {
+                    } else {
                         var index = originalContent.IndexOf(oldString, comparison);
-                        if (index == -1)
-                        {
+                        if (index == -1) {
                             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
                             return (null, FileEditResult.FailureResult(normalizedPath, oldString, newString, "未找到匹配的字符串"));
                         }
@@ -216,15 +191,11 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
                         updatedContent,
                         replaceCount));
                 }, cancellationToken).ConfigureAwait(false);
-            }
-            catch (FileNotFoundException)
-            {
+            } catch (FileNotFoundException) {
                 RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
                 return FileEditResult.FailureResult(normalizedPath, oldString, newString, "文件不存在");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to edit file: {FilePath}", filePath);
             RecordFileMetrics(FileOperationType.Edit, FileOperationResult.Failed);
             return FileEditResult.FailureResult(filePath, oldString, newString, ex.Message);
@@ -234,37 +205,31 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     /// <inheritdoc />
     public async Task<FileLineEditResult> EditByLineRangeAsync(
         LineRangeEditRequest request,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
         await using var span = _telemetryService?.StartSpan("file.edit_line_range", TelemetrySpanKind.Server);
         span?.SetTag("path", request.FilePath);
-        try
-        {
+        try {
             _logger?.LogDebug("Editing file by line range: {FilePath}", request.FilePath);
 
             var normalizedPath = NormalizePath(request.FilePath);
 
-            if (!_fs.FileExists(normalizedPath))
-            {
+            if (!_fs.FileExists(normalizedPath)) {
                 RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Failed);
                 return FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "文件不存在");
             }
 
-            try
-            {
-                return await _fs.EditFileAsync<FileLineEditResult>(normalizedPath, async (bytes, ct) =>
-                {
+            try {
+                return await _fs.EditFileAsync<FileLineEditResult>(normalizedPath, async (bytes, ct) => {
                     var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                     var allLines = content.Split('\n').Select(l => l.TrimEnd('\r')).ToList();
 
                     var startLine = Math.Max(0, request.StartLine);
                     var endLine = Math.Min(allLines.Count - 1, request.EndLine);
 
-                    if (startLine > endLine)
-                    {
+                    if (startLine > endLine) {
                         RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Failed);
                         return (null, FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "无效的行范围"));
                     }
@@ -288,15 +253,11 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
                         updatedContent,
                         endLine - startLine + 1));
                 }, cancellationToken).ConfigureAwait(false);
-            }
-            catch (FileNotFoundException)
-            {
+            } catch (FileNotFoundException) {
                 RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Failed);
                 return FileLineEditResult.FailureResult(normalizedPath, request.StartLine, request.EndLine, "文件不存在");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to edit file by line range: {FilePath}", request.FilePath);
             RecordFileMetrics(FileOperationType.EditLineRange, FileOperationResult.Failed);
             return FileLineEditResult.FailureResult(request.FilePath, request.StartLine, request.EndLine, ex.Message);
@@ -306,28 +267,23 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     /// <inheritdoc />
     public async Task<bool> DeleteFileAsync(
         string filePath,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Delete, cancellationToken)
             .ConfigureAwait(false);
 
         _logger?.LogDebug("Deleting file: {FilePath}", filePath);
 
-        try
-        {
+        try {
             var normalizedPath = NormalizePath(filePath);
 
-            if (!_fs.FileExists(normalizedPath))
-            {
+            if (!_fs.FileExists(normalizedPath)) {
                 return false;
             }
 
             _fs.DeleteFile(normalizedPath);
             RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Ok);
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to delete file: {FilePath}", filePath);
             RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Failed);
             return false;
@@ -338,19 +294,16 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     public async Task<DirectoryListResult> ListDirectoryAsync(
         string directoryPath,
         bool recursive = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken)
             .ConfigureAwait(false);
 
         _logger?.LogDebug("Listing directory: {DirectoryPath}", directoryPath);
 
-        try
-        {
+        try {
             var normalizedPath = NormalizePath(directoryPath);
 
-            if (!_fs.DirectoryExists(normalizedPath))
-            {
+            if (!_fs.DirectoryExists(normalizedPath)) {
                 RecordFileMetrics(FileOperationType.List, FileOperationResult.Failed);
                 return DirectoryListResult.FailureResult(normalizedPath, "目录不存在");
             }
@@ -358,8 +311,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             var searchOption = recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
 
             var files = _fs.EnumerateFiles(normalizedPath, "*", searchOption)
-                .Select(file => new FileEntry
-                {
+                .Select(file => new FileEntry {
                     Name = Path.GetFileName(file),
                     FullPath = file,
                     Size = _fs.GetFileLength(file),
@@ -369,8 +321,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
                 .ToList();
 
             var directories = _fs.EnumerateDirectories(normalizedPath, "*", searchOption)
-                .Select(dir => new DirectoryEntry
-                {
+                .Select(dir => new DirectoryEntry {
                     Name = _fs.GetDirectoryName(dir),
                     FullPath = dir,
                     LastModified = _fs.GetDirectoryLastWriteTimeUtc(dir).ToLocalTime()
@@ -380,9 +331,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
 
             RecordFileMetrics(FileOperationType.List, FileOperationResult.Ok);
             return DirectoryListResult.SuccessResult(normalizedPath, files, directories);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to list directory: {DirectoryPath}", directoryPath);
             RecordFileMetrics(FileOperationType.List, FileOperationResult.Failed);
             return DirectoryListResult.FailureResult(directoryPath, ex.Message);
@@ -390,52 +339,43 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     }
 
     /// <inheritdoc />
-    public bool FileExists(string filePath)
-    {
+    public bool FileExists(string filePath) {
         return _fs.FileExists(NormalizePath(filePath));
     }
 
     /// <inheritdoc />
-    public Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default) {
         return Task.FromResult(FileExists(filePath));
     }
 
     /// <inheritdoc />
-    public bool DirectoryExists(string directoryPath)
-    {
+    public bool DirectoryExists(string directoryPath) {
         return _fs.DirectoryExists(NormalizePath(directoryPath));
     }
 
     /// <inheritdoc />
-    public Task<bool> DirectoryExistsAsync(string directoryPath, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> DirectoryExistsAsync(string directoryPath, CancellationToken cancellationToken = default) {
         return Task.FromResult(DirectoryExists(directoryPath));
     }
 
     /// <inheritdoc />
-    public DirectoryInfo CreateDirectory(string directoryPath)
-    {
+    public DirectoryInfo CreateDirectory(string directoryPath) {
         return _fs.CreateDirectory(NormalizePath(directoryPath));
     }
 
     /// <inheritdoc />
-    public async Task<bool> CopyFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> CopyFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
-        try
-        {
+        try {
             var normalizedSource = NormalizePath(sourcePath);
             var normalizedDest = NormalizePath(destPath);
 
             _fs.CopyFile(normalizedSource, normalizedDest, overwrite);
             RecordFileMetrics(FileOperationType.Copy, FileOperationResult.Ok);
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to copy file from {SourcePath} to {DestPath}", sourcePath, destPath);
             RecordFileMetrics(FileOperationType.Copy, FileOperationResult.Failed);
             return false;
@@ -443,27 +383,22 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     }
 
     /// <inheritdoc />
-    public async Task<bool> MoveFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> MoveFileAsync(string sourcePath, string destPath, bool overwrite = false, CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken)
             .ConfigureAwait(false);
 
-        try
-        {
+        try {
             var normalizedSource = NormalizePath(sourcePath);
             var normalizedDest = NormalizePath(destPath);
 
-            if (overwrite && _fs.FileExists(normalizedDest))
-            {
+            if (overwrite && _fs.FileExists(normalizedDest)) {
                 _fs.DeleteFile(normalizedDest);
             }
 
             _fs.MoveFile(normalizedSource, normalizedDest);
             RecordFileMetrics(FileOperationType.Move, FileOperationResult.Ok);
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to move file from {SourcePath} to {DestPath}", sourcePath, destPath);
             RecordFileMetrics(FileOperationType.Move, FileOperationResult.Failed);
             return false;
@@ -471,96 +406,79 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     }
 
     /// <inheritdoc />
-    public bool CreateSymbolicLink(string linkPath, string targetPath)
-    {
-        try
-        {
+    public bool CreateSymbolicLink(string linkPath, string targetPath) {
+        try {
             var normalizedLink = NormalizePath(linkPath);
             var normalizedTarget = NormalizePath(targetPath);
 
             File.CreateSymbolicLink(normalizedLink, normalizedTarget);
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to create symbolic link from {LinkPath} to {TargetPath}", linkPath, targetPath);
             return false;
         }
     }
 
     /// <inheritdoc />
-    public DateTime GetDirectoryLastWriteTimeUtc(string directoryPath)
-    {
+    public DateTime GetDirectoryLastWriteTimeUtc(string directoryPath) {
         return _fs.GetDirectoryLastWriteTimeUtc(NormalizePath(directoryPath));
     }
 
     /// <inheritdoc />
-    public void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime)
-    {
+    public void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime) {
         _fs.SetDirectoryLastWriteTimeUtc(NormalizePath(directoryPath), utcTime);
     }
 
     /// <inheritdoc />
-    public DateTime GetFileLastWriteTime(string filePath)
-    {
+    public DateTime GetFileLastWriteTime(string filePath) {
         return _fs.GetLastWriteTime(NormalizePath(filePath));
     }
 
     /// <inheritdoc />
-    public Task<DateTime> GetLastWriteTimeUtcAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public Task<DateTime> GetLastWriteTimeUtcAsync(string filePath, CancellationToken cancellationToken = default) {
         return Task.FromResult(_fs.GetLastWriteTimeUtc(NormalizePath(filePath)));
     }
 
     /// <inheritdoc />
-    public string GetCurrentDirectory()
-    {
+    public string GetCurrentDirectory() {
         return _fs.GetCurrentDirectory();
     }
 
     /// <inheritdoc />
-    public string GetFullPath(string path)
-    {
+    public string GetFullPath(string path) {
         return _fs.GetFullPath(path);
     }
 
     /// <inheritdoc />
-    public string CombinePath(params string[] paths)
-    {
+    public string CombinePath(params string[] paths) {
         return _fs.CombinePath(paths);
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> EnumerateFiles(string directoryPath, string searchPattern, SearchOption searchOption)
-    {
+    public IEnumerable<string> EnumerateFiles(string directoryPath, string searchPattern, SearchOption searchOption) {
         return _fs.EnumerateFiles(NormalizePath(directoryPath), searchPattern, searchOption);
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> EnumerateDirectories(string directoryPath, string searchPattern, SearchOption searchOption)
-    {
+    public IEnumerable<string> EnumerateDirectories(string directoryPath, string searchPattern, SearchOption searchOption) {
         return _fs.EnumerateDirectories(NormalizePath(directoryPath), searchPattern, searchOption);
     }
 
     /// <inheritdoc />
-    public string[] GetFiles(string directoryPath, string searchPattern, SearchOption searchOption)
-    {
+    public string[] GetFiles(string directoryPath, string searchPattern, SearchOption searchOption) {
         return _fs.GetFiles(NormalizePath(directoryPath), searchPattern, searchOption);
     }
 
     /// <inheritdoc />
-    public string[] GetDirectories(string directoryPath, string searchPattern, SearchOption searchOption)
-    {
+    public string[] GetDirectories(string directoryPath, string searchPattern, SearchOption searchOption) {
         return _fs.GetDirectories(NormalizePath(directoryPath), searchPattern, searchOption);
     }
 
     /// <inheritdoc />
-    public async Task<FileMetadataResult> ReadFileWithMetadataAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task<FileMetadataResult> ReadFileWithMetadataAsync(string filePath, CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Read, cancellationToken).ConfigureAwait(false);
         var normalizedPath = NormalizePath(filePath);
-        try
-        {
+        try {
             if (!_fs.FileExists(normalizedPath))
                 return FileMetadataResult.FailureResult(normalizedPath, "File does not exist");
 
@@ -574,21 +492,17 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             var normalizedContent = content.Replace("\r\n", "\n");
 
             return FileMetadataResult.SuccessResult(normalizedPath, normalizedContent, encoding, lineEndings);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to read file metadata: {FilePath}", filePath);
             return FileMetadataResult.FailureResult(normalizedPath, ex.Message);
         }
     }
 
     /// <inheritdoc />
-    public async Task<FileWriteResult> WriteFileWithEncodingAsync(string filePath, string content, Encoding? encoding = null, string? lineEndings = null, CancellationToken cancellationToken = default)
-    {
+    public async Task<FileWriteResult> WriteFileWithEncodingAsync(string filePath, string content, Encoding? encoding = null, string? lineEndings = null, CancellationToken cancellationToken = default) {
         using var lease = await _throttleService.AcquireAsync(IOOperationType.Write, cancellationToken).ConfigureAwait(false);
         var normalizedPath = NormalizePath(filePath);
-        try
-        {
+        try {
             var effectiveEncoding = encoding ?? Encoding.UTF8;
             var contentToWrite = content;
             if (string.Equals(lineEndings, "CRLF", StringComparison.OrdinalIgnoreCase))
@@ -598,37 +512,30 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
             DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
             var tempPath = normalizedPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
+            try {
                 await _fs.WriteAllTextAsync(tempPath, contentToWrite, effectiveEncoding, cancellationToken).ConfigureAwait(false);
                 _fs.MoveFile(tempPath, normalizedPath, overwrite: true);
-            }
-            catch
-            {
+            } catch {
                 if (_fs.FileExists(tempPath)) _fs.DeleteFile(tempPath);
                 throw;
             }
 
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Ok, "update");
             return FileWriteResult.SuccessResult(normalizedPath, contentToWrite, "update");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to write file with encoding: {FilePath}", filePath);
             RecordFileMetrics(FileOperationType.Write, FileOperationResult.Failed);
             return FileWriteResult.FailureResult(normalizedPath, ex.Message);
         }
     }
 
-    private void RecordFileMetrics(FileOperationType operation, FileOperationResult result, string? detail = null)
-    {
+    private void RecordFileMetrics(FileOperationType operation, FileOperationResult result, string? detail = null) {
         var tags = new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() };
         if (detail != null) tags["detail"] = detail;
         _telemetryService?.RecordCount("file.operation.count", tags, "count", "File operation count");
     }
 
-    private static string NormalizePath(string path)
-    {
+    private static string NormalizePath(string path) {
         if (string.IsNullOrWhiteSpace(path))
             throw new ArgumentException("[INF022] 路径不能为空", nameof(path));
 
@@ -638,8 +545,7 @@ public sealed partial class ThrottledFileService : IFileOperationService, IDispo
     /// <summary>
     /// 释放服务 — 不拥有 ThrottleService 生命周期,仅空实现满足 IDisposable 契约
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return; _disposed = true;
         // ThrottledFileService 不拥有 ThrottleService 的生命周期
     }

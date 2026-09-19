@@ -1,12 +1,10 @@
 namespace Sync.Tests.ToolHandlers;
 
-public class CtxInspectToolHandlersTests
-{
+public class CtxInspectToolHandlersTests {
     private readonly Mock<IChatContextManager> _contextManager = new();
     private readonly CtxInspectToolHandlers _handler;
 
-    public CtxInspectToolHandlersTests()
-    {
+    public CtxInspectToolHandlersTests() {
         _contextManager.Setup(x => x.GetContextMaxTokens()).Returns(128000);
         _contextManager.Setup(x => x.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MessageList());
@@ -17,8 +15,7 @@ public class CtxInspectToolHandlersTests
     }
 
     [Fact]
-    public async Task InspectContextAsync_Summary_ReturnsSuccess()
-    {
+    public async Task InspectContextAsync_Summary_ReturnsSuccess() {
         var result = await _handler.InspectContextAsync("summary", CancellationToken.None).ConfigureAwait(true);
 
         Assert.False(result.IsError);
@@ -27,8 +24,7 @@ public class CtxInspectToolHandlersTests
     }
 
     [Fact]
-    public async Task InspectContextAsync_Detailed_ReturnsSuccess()
-    {
+    public async Task InspectContextAsync_Detailed_ReturnsSuccess() {
         var result = await _handler.InspectContextAsync("detailed", CancellationToken.None).ConfigureAwait(true);
 
         Assert.False(result.IsError);
@@ -36,8 +32,7 @@ public class CtxInspectToolHandlersTests
     }
 
     [Fact]
-    public async Task InspectContextAsync_Exception_ReturnsError()
-    {
+    public async Task InspectContextAsync_Exception_ReturnsError() {
         _contextManager.Setup(x => x.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 

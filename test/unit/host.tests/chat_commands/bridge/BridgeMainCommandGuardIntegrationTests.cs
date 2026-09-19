@@ -5,8 +5,7 @@ namespace Host.Tests.ChatCommands.Bridge;
 /// BridgeMainCommand Guard 集成单元测试 — P0-C TDD
 /// 验证 IsPolicyAllowed/GetAccessToken/CheckRemoteDialogAccepted 三个集成点
 /// </summary>
-public sealed class BridgeMainCommandGuardIntegrationTests
-{
+public sealed class BridgeMainCommandGuardIntegrationTests {
     private readonly Mock<IFileSystem> _fsMock = new();
     private readonly Mock<IProcessService> _processMock = new();
 
@@ -29,23 +28,20 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     // ============================================================
 
     [Fact]
-    public async Task IsPolicyAllowedAsync_WhenPolicyServiceNull_FailOpen_ReturnsTrue()
-    {
+    public async Task IsPolicyAllowedAsync_WhenPolicyServiceNull_FailOpen_ReturnsTrue() {
         var command = CreateCommand(policyService: null);
         var result = await command.IsPolicyAllowedAsync(CancellationToken.None).ConfigureAwait(true);
         result.Should().BeTrue();
     }
 
     [Fact]
-    public async Task IsPolicyAllowedAsync_WhenRuleAllows_ReturnsTrue()
-    {
+    public async Task IsPolicyAllowedAsync_WhenRuleAllows_ReturnsTrue() {
         var policyMock = new Mock<IRemotePolicyService>();
         policyMock.Setup(p => p.EvaluateAsync(
                 It.Is<string>(a => a == "allow_remote_control"),
                 It.IsAny<Dictionary<string, string>?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PolicyEvaluationResult
-            {
+            .ReturnsAsync(new PolicyEvaluationResult {
                 RuleId = "test-rule-allow",
                 Allowed = true,
                 Action = PolicyAction.Allow
@@ -62,15 +58,13 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     }
 
     [Fact]
-    public async Task IsPolicyAllowedAsync_WhenRuleDenies_ReturnsFalse()
-    {
+    public async Task IsPolicyAllowedAsync_WhenRuleDenies_ReturnsFalse() {
         var policyMock = new Mock<IRemotePolicyService>();
         policyMock.Setup(p => p.EvaluateAsync(
                 It.Is<string>(a => a == "allow_remote_control"),
                 It.IsAny<Dictionary<string, string>?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PolicyEvaluationResult
-            {
+            .ReturnsAsync(new PolicyEvaluationResult {
                 RuleId = "test-rule-deny",
                 Allowed = false,
                 Action = PolicyAction.Deny,
@@ -84,8 +78,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     }
 
     [Fact]
-    public async Task IsPolicyAllowedAsync_WhenPolicyServiceThrows_LogsAndFailsOpen()
-    {
+    public async Task IsPolicyAllowedAsync_WhenPolicyServiceThrows_LogsAndFailsOpen() {
         var policyMock = new Mock<IRemotePolicyService>();
         policyMock.Setup(p => p.EvaluateAsync(
                 It.IsAny<string>(),
@@ -104,18 +97,15 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     // ============================================================
 
     [Fact]
-    public async Task GetAccessTokenAsync_WhenStoredTokenValid_PrefersStoredOverEnvVar()
-    {
+    public async Task GetAccessTokenAsync_WhenStoredTokenValid_PrefersStoredOverEnvVar() {
         Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), "env-token-xxx");
         Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
-        try
-        {
+        try {
             var tokenMock = new Mock<ITokenStorage>();
             tokenMock.Setup(t => t.LoadTokenAsync(
                     It.Is<string>(p => p == "anthropic"),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new OAuthToken
-                {
+                .ReturnsAsync(new OAuthToken {
                     AccessToken = "stored-token",
                     ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
                 });
@@ -124,26 +114,21 @@ public sealed class BridgeMainCommandGuardIntegrationTests
             var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
 
             result.Should().Be("stored-token");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         }
     }
 
     [Fact]
-    public async Task GetAccessTokenAsync_WhenNoEnvVar_LoadsFromTokenStorage()
-    {
+    public async Task GetAccessTokenAsync_WhenNoEnvVar_LoadsFromTokenStorage() {
         Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
-        try
-        {
+        try {
             var tokenMock = new Mock<ITokenStorage>();
             tokenMock.Setup(t => t.LoadTokenAsync(
                     It.Is<string>(p => p == "anthropic"),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new OAuthToken
-                {
+                .ReturnsAsync(new OAuthToken {
                     AccessToken = "stored-token-abc",
                     ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
                 });
@@ -155,26 +140,21 @@ public sealed class BridgeMainCommandGuardIntegrationTests
             tokenMock.Verify(t => t.LoadTokenAsync(
                 It.Is<string>(p => p == "anthropic"),
                 It.IsAny<CancellationToken>()), Times.Once);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         }
     }
 
     [Fact]
-    public async Task GetAccessTokenAsync_WhenTokenExpired_ReturnsNull_Then_FallsBackToOAuthEnv()
-    {
+    public async Task GetAccessTokenAsync_WhenTokenExpired_ReturnsNull_Then_FallsBackToOAuthEnv() {
         Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), "oauth-env-fallback");
         Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
-        try
-        {
+        try {
             var tokenMock = new Mock<ITokenStorage>();
             tokenMock.Setup(t => t.LoadTokenAsync(
                     It.Is<string>(p => p == "anthropic"),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new OAuthToken
-                {
+                .ReturnsAsync(new OAuthToken {
                     AccessToken = "expired-token",
                     ExpiresAt = DateTimeOffset.UtcNow.AddHours(-1)
                 });
@@ -183,28 +163,22 @@ public sealed class BridgeMainCommandGuardIntegrationTests
             var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
 
             result.Should().Be("oauth-env-fallback");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
         }
     }
 
     [Fact]
-    public async Task GetAccessTokenAsync_WhenTokenStorageNull_FallsBackToOAuthEnvVar()
-    {
+    public async Task GetAccessTokenAsync_WhenTokenStorageNull_FallsBackToOAuthEnvVar() {
         Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), "fallback-from-env");
         Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
-        try
-        {
+        try {
             var command = CreateCommand(tokenStorage: null);
 
             var result = await command.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(true);
 
             result.Should().Be("fallback-from-env");
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.OAuthToken.ToValue(), null);
         }
     }
@@ -214,8 +188,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     // ============================================================
 
     [Fact]
-    public async Task CheckRemoteDialogAcceptedAsync_WhenConfigServiceNull_ReturnsFalse()
-    {
+    public async Task CheckRemoteDialogAcceptedAsync_WhenConfigServiceNull_ReturnsFalse() {
         var command = CreateCommand(configService: null);
 
         var result = await command.CheckRemoteDialogAcceptedAsync(CancellationToken.None).ConfigureAwait(true);
@@ -224,8 +197,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     }
 
     [Fact]
-    public async Task CheckRemoteDialogAcceptedAsync_WhenSettingIsTrue_ReturnsTrue()
-    {
+    public async Task CheckRemoteDialogAcceptedAsync_WhenSettingIsTrue_ReturnsTrue() {
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(c => c.GetAsync(
                 It.Is<string>(k => k == "remoteDialogSeen"),
@@ -239,8 +211,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     }
 
     [Fact]
-    public async Task CheckRemoteDialogAcceptedAsync_WhenSettingIsMissing_ReturnsFalse()
-    {
+    public async Task CheckRemoteDialogAcceptedAsync_WhenSettingIsMissing_ReturnsFalse() {
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(c => c.GetAsync(
                 It.Is<string>(k => k == "remoteDialogSeen"),
@@ -254,8 +225,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     }
 
     [Fact]
-    public async Task MarkRemoteDialogSeenAsync_CallsSetAsync()
-    {
+    public async Task MarkRemoteDialogSeenAsync_CallsSetAsync() {
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(c => c.SetAsync(
                 It.Is<string>(k => k == "remoteDialogSeen"),
@@ -277,11 +247,9 @@ public sealed class BridgeMainCommandGuardIntegrationTests
     // ============================================================
 
     [Fact]
-    public async Task BuildDeps_PassesMarkRemoteDialogSeen_ToBridgeMainDeps()
-    {
+    public async Task BuildDeps_PassesMarkRemoteDialogSeen_ToBridgeMainDeps() {
         Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), "test-token-for-deps");
-        try
-        {
+        try {
             var configMock = new Mock<IConfigurationService>();
             var command = CreateCommand(configService: configMock.Object);
 
@@ -289,9 +257,7 @@ public sealed class BridgeMainCommandGuardIntegrationTests
 
             deps.Should().NotBeNull();
             deps!.MarkRemoteDialogSeen.Should().NotBeNull();
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable(JccEnvVar.SessionAccessToken.ToValue(), null);
         }
     }

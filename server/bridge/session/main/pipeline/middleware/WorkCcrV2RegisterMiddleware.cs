@@ -5,16 +5,14 @@ namespace Core.Bridge;
 /// CCR v2 工作注册中间件 — 当密钥启用 CodeSessions 或强制启用 CCR v2 时,注册 worker 并构建 SDK URL
 /// </summary>
 [Register(typeof(IHandleWorkMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandleWorkMiddleware
-{
+public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandleWorkMiddleware {
 
     /// <summary>
     /// 构造 CCR v2 注册中间件
     /// </summary>
     /// <param name="apiClient">桥接 API 客户端</param>
     /// <param name="logger">日志记录器(可选)</param>
-    public WorkCcrV2RegisterMiddleware(BridgeApiClient apiClient, ILogger<WorkCcrV2RegisterMiddleware>? logger = null)
-    {
+    public WorkCcrV2RegisterMiddleware(BridgeApiClient apiClient, ILogger<WorkCcrV2RegisterMiddleware>? logger = null) {
         _apiClient = apiClient;
         _logger = logger;
     }
@@ -31,18 +29,14 @@ public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandle
     /// <param name="next">后续中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>异步任务</returns>
-    public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(HandleWorkContext ctx, MiddlewareDelegate<HandleWorkContext> next, CancellationToken ct) {
         var forceCcrV2 = Environment.GetEnvironmentVariable(JccEnvVar.BridgeUseCcrV2.ToValue()) is "1" or "true";
 
-        if ((ctx.Secret?.UseCodeSessions == true || forceCcrV2) && ctx.SecretApiBaseUrl is not null && ctx.SessionIngressToken is not null)
-        {
+        if ((ctx.Secret?.UseCodeSessions == true || forceCcrV2) && ctx.SecretApiBaseUrl is not null && ctx.SessionIngressToken is not null) {
             ctx.SdkUrl = BridgeWorkSecretDecoder.BuildCCRv2SdkUrl(ctx.SecretApiBaseUrl, ctx.Work.SessionId);
 
-            for (var attempt = 1; attempt <= 2; attempt++)
-            {
-                try
-                {
+            for (var attempt = 1; attempt <= 2; attempt++) {
+                try {
                     ctx.WorkerEpoch = (int)await BridgeWorkSecretDecoder.RegisterWorkerAsync(
                         ctx.SdkUrl, ctx.SessionIngressToken, _apiClient.HttpClient, ct).ConfigureAwait(false);
                     ctx.UseCcrV2 = true;
@@ -50,11 +44,8 @@ public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandle
                         "BridgeMain: CCR v2 registered worker, SessionId={SessionId}, epoch={Epoch}, attempt={Attempt}",
                         ctx.Work.SessionId, ctx.WorkerEpoch, attempt);
                     break;
-                }
-                catch (Exception ex)
-                {
-                    if (attempt < 2)
-                    {
+                } catch (Exception ex) {
+                    if (attempt < 2) {
                         _logger?.LogDebug(ex,
                             "BridgeMain: CCR v2 registerWorker attempt {Attempt} failed, retrying", attempt);
                         await Task.Delay(2000, ct).ConfigureAwait(false);
@@ -67,9 +58,7 @@ public sealed partial class WorkCcrV2RegisterMiddleware : ServiceEntity, IHandle
                     return;
                 }
             }
-        }
-        else
-        {
+        } else {
             var ingressUrl = ctx.SecretApiBaseUrl ?? ctx.Config.SessionIngressUrl;
             ctx.SdkUrl = BridgeWorkSecretDecoder.BuildSdkUrl(ingressUrl, ctx.Work.SessionId);
         }

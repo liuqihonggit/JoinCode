@@ -3,26 +3,22 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// EnvironmentToolHandlers 单元测试 — 验证 get_environment_state/wait_for_idle/undo_last_action/get_operation_history
 /// </summary>
-public sealed class EnvironmentToolHandlersTests
-{
-    private static Mock<IEnvironmentAwarenessService> CreateEnvMock()
-    {
+public sealed class EnvironmentToolHandlersTests {
+    private static Mock<IEnvironmentAwarenessService> CreateEnvMock() {
         var mock = new Mock<IEnvironmentAwarenessService>();
         mock.Setup(e => e.GetCursorStateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(CursorState.Normal);
         mock.Setup(e => e.DetectPopupAsync(It.IsAny<CancellationToken>())).ReturnsAsync((PopupInfo?)null);
         return mock;
     }
 
-    private static Mock<IUndoStack> CreateUndoMock()
-    {
+    private static Mock<IUndoStack> CreateUndoMock() {
         var mock = new Mock<IUndoStack>();
         mock.SetupGet(u => u.Count).Returns(0);
         return mock;
     }
 
     [Fact]
-    public async Task GetEnvironmentState_NormalCursorNoPopup_ReturnsStateInfo()
-    {
+    public async Task GetEnvironmentState_NormalCursorNoPopup_ReturnsStateInfo() {
         var envMock = CreateEnvMock();
         var undoMock = CreateUndoMock();
         undoMock.SetupGet(u => u.Count).Returns(3);
@@ -38,8 +34,7 @@ public sealed class EnvironmentToolHandlersTests
     }
 
     [Fact]
-    public async Task GetEnvironmentState_WaitCursorAndPopup_ReturnsWarning()
-    {
+    public async Task GetEnvironmentState_WaitCursorAndPopup_ReturnsWarning() {
         var envMock = new Mock<IEnvironmentAwarenessService>();
         envMock.Setup(e => e.GetCursorStateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(CursorState.Wait);
         envMock.Setup(e => e.DetectPopupAsync(It.IsAny<CancellationToken>()))
@@ -58,8 +53,7 @@ public sealed class EnvironmentToolHandlersTests
     }
 
     [Fact]
-    public async Task WaitForIdle_ReturnsTrue_WhenIdle()
-    {
+    public async Task WaitForIdle_ReturnsTrue_WhenIdle() {
         var envMock = new Mock<IEnvironmentAwarenessService>();
         envMock.Setup(e => e.WaitForIdleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var handler = new EnvironmentToolHandlers(envMock.Object, CreateUndoMock().Object);
@@ -71,8 +65,7 @@ public sealed class EnvironmentToolHandlersTests
     }
 
     [Fact]
-    public async Task WaitForIdle_ReturnsTimeout_WhenNotIdle()
-    {
+    public async Task WaitForIdle_ReturnsTimeout_WhenNotIdle() {
         var envMock = new Mock<IEnvironmentAwarenessService>();
         envMock.Setup(e => e.WaitForIdleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         var handler = new EnvironmentToolHandlers(envMock.Object, CreateUndoMock().Object);
@@ -83,8 +76,7 @@ public sealed class EnvironmentToolHandlersTests
     }
 
     [Fact]
-    public async Task UndoLastAction_EmptyStack_ReturnsEmptyMessage()
-    {
+    public async Task UndoLastAction_EmptyStack_ReturnsEmptyMessage() {
         var undoMock = CreateUndoMock();
         undoMock.Setup(u => u.Pop()).Returns((DesktopOperation?)null);
         var handler = new EnvironmentToolHandlers(CreateEnvMock().Object, undoMock.Object);
@@ -95,8 +87,7 @@ public sealed class EnvironmentToolHandlersTests
     }
 
     [Fact]
-    public async Task UndoLastAction_WithOperation_ReturnsUndoInfo()
-    {
+    public async Task UndoLastAction_WithOperation_ReturnsUndoInfo() {
         var op = new DesktopOperation(DesktopOperationKind.Click, 100, 200, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null);
         var undoMock = new Mock<IUndoStack>();
         undoMock.Setup(u => u.Pop()).Returns(op);
@@ -113,8 +104,7 @@ public sealed class EnvironmentToolHandlersTests
     }
 
     [Fact]
-    public async Task GetOperationHistory_Empty_ReturnsEmptyMessage()
-    {
+    public async Task GetOperationHistory_Empty_ReturnsEmptyMessage() {
         var undoMock = CreateUndoMock();
         undoMock.Setup(u => u.GetRecent(It.IsAny<int>())).Returns(Array.Empty<DesktopOperation>());
         var handler = new EnvironmentToolHandlers(CreateEnvMock().Object, undoMock.Object);
@@ -125,8 +115,7 @@ public sealed class EnvironmentToolHandlersTests
     }
 
     [Fact]
-    public async Task GetOperationHistory_WithOperations_ReturnsFormattedHistory()
-    {
+    public async Task GetOperationHistory_WithOperations_ReturnsFormattedHistory() {
         var ops = new[]
         {
             new DesktopOperation(DesktopOperationKind.Click, 100, 200, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null),

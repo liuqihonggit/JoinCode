@@ -3,8 +3,7 @@ namespace Guard.Security.Tests;
 /// <summary>
 /// RetainedDeviceNames 唯一数据源测试 — 验证全部22个设备名检测
 /// </summary>
-public class RetainedDeviceNamesTests
-{
+public class RetainedDeviceNamesTests {
     #region IsMatch — 全部22个设备名
 
     [Theory]
@@ -30,8 +29,7 @@ public class RetainedDeviceNamesTests
     [InlineData("lpt7")]
     [InlineData("lpt8")]
     [InlineData("lpt9")]
-    public void IsMatch_All_Device_Names(string name)
-    {
+    public void IsMatch_All_Device_Names(string name) {
         RetainedDeviceNames.IsMatch(name).Should().BeTrue();
     }
 
@@ -42,8 +40,7 @@ public class RetainedDeviceNamesTests
     [InlineData("Aux")]
     [InlineData("COM1")]
     [InlineData("LPT9")]
-    public void IsMatch_Case_Insensitive(string name)
-    {
+    public void IsMatch_Case_Insensitive(string name) {
         RetainedDeviceNames.IsMatch(name).Should().BeTrue();
     }
 
@@ -60,8 +57,7 @@ public class RetainedDeviceNamesTests
     [InlineData("lpt10")]
     [InlineData("")]
     [InlineData("   ")]
-    public void IsMatch_Non_Device_Names(string name)
-    {
+    public void IsMatch_Non_Device_Names(string name) {
         RetainedDeviceNames.IsMatch(name).Should().BeFalse();
     }
 
@@ -76,8 +72,7 @@ public class RetainedDeviceNamesTests
     [InlineData("dir/con/file.txt")]
     [InlineData("prn.txt")]
     [InlineData("path/aux.txt")]
-    public void FindInPath_With_Device_Name(string path)
-    {
+    public void FindInPath_With_Device_Name(string path) {
         RetainedDeviceNames.FindInPath(path).Should().BeTrue();
     }
 
@@ -86,8 +81,7 @@ public class RetainedDeviceNamesTests
     [InlineData("normal.txt")]
     [InlineData("path/to/file.cs")]
     [InlineData("foo.CON.bar")]
-    public void FindInPath_Without_Device_Name(string path)
-    {
+    public void FindInPath_Without_Device_Name(string path) {
         RetainedDeviceNames.FindInPath(path).Should().BeFalse();
     }
 
@@ -102,8 +96,7 @@ public class RetainedDeviceNamesTests
     [InlineData("settings.json.PRN")]
     [InlineData(".bashrc.AUX")]
     [InlineData("path/com1.txt")]
-    public void FindInPathOrExtension_With_Device_Name(string path)
-    {
+    public void FindInPathOrExtension_With_Device_Name(string path) {
         RetainedDeviceNames.FindInPathOrExtension(path).Should().BeTrue();
     }
 
@@ -111,8 +104,7 @@ public class RetainedDeviceNamesTests
     [InlineData("normal.txt")]
     [InlineData("path/to/file.cs")]
     [InlineData("foo.bar.baz")]
-    public void FindInPathOrExtension_Without_Device_Name(string path)
-    {
+    public void FindInPathOrExtension_Without_Device_Name(string path) {
         RetainedDeviceNames.FindInPathOrExtension(path).Should().BeFalse();
     }
 
@@ -132,8 +124,7 @@ public class RetainedDeviceNamesTests
     [InlineData("echo test >lpt1", "lpt1")]
     [InlineData("echo test 2>>con", "con")]
     [InlineData("echo test &>nul", "nul")]
-    public void FindAfterRedirect_Extracts_Device_Name(string command, string expected)
-    {
+    public void FindAfterRedirect_Extracts_Device_Name(string command, string expected) {
         RetainedDeviceNames.FindAfterRedirect(command).Should().Be(expected);
     }
 
@@ -143,8 +134,7 @@ public class RetainedDeviceNamesTests
     [InlineData("echo test > file.txt")]
     [InlineData("echo test 2> error.log")]
     [InlineData("")]
-    public void FindAfterRedirect_No_Match(string command)
-    {
+    public void FindAfterRedirect_No_Match(string command) {
         RetainedDeviceNames.FindAfterRedirect(command).Should().BeNull();
     }
 
@@ -153,14 +143,12 @@ public class RetainedDeviceNamesTests
     #region Names 集合 — 唯一数据源验证
 
     [Fact]
-    public void Names_Contains_Exactly_22_Device_Names()
-    {
+    public void Names_Contains_Exactly_22_Device_Names() {
         RetainedDeviceNames.Names.Should().HaveCount(22);
     }
 
     [Fact]
-    public void Pattern_Matches_Documentation()
-    {
+    public void Pattern_Matches_Documentation() {
         RetainedDeviceNames.Pattern.Should().Be("nul|con|prn|aux|com[1-9]|lpt[1-9]");
     }
 

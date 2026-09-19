@@ -1,11 +1,9 @@
 
 namespace Clock.Tests.Unit.Hosting;
 
-public sealed class WorkflowApplicationTests
-{
+public sealed class WorkflowApplicationTests {
     [Fact]
-    public async Task Constructor_CreatesMessageBusAndHost()
-    {
+    public async Task Constructor_CreatesMessageBusAndHost() {
         await using var app = new WorkflowApplication();
 
         Assert.NotNull(app.MessageBus);
@@ -13,8 +11,7 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task Initialize_WithoutCronTaskStore_DoesNotRegisterCronService()
-    {
+    public async Task Initialize_WithoutCronTaskStore_DoesNotRegisterCronService() {
         await using var app = new WorkflowApplication();
 
         app.Initialize();
@@ -23,8 +20,7 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task Initialize_WithCronTaskStore_RegistersCronService()
-    {
+    public async Task Initialize_WithCronTaskStore_RegistersCronService() {
         var taskStore = Mock.Of<ICronTaskStore>();
         await using var app = new WorkflowApplication(cronTaskStore: taskStore);
 
@@ -35,15 +31,13 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task StartAsync_StartsHostAndPublishesSystemStarted()
-    {
+    public async Task StartAsync_StartsHostAndPublishesSystemStarted() {
         await using var app = new WorkflowApplication();
         app.Initialize();
 
         ServiceMessage? received = null;
         var tcs = new TaskCompletionSource();
-        await app.MessageBus.SubscribeAsync(ServiceMessageType.SystemStarted.ToValue(), msg =>
-        {
+        await app.MessageBus.SubscribeAsync(ServiceMessageType.SystemStarted.ToValue(), msg => {
             received = msg;
             tcs.TrySetResult();
             return Task.CompletedTask;
@@ -60,16 +54,14 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task StopAsync_PublishesSystemStoppedAndStopsHost()
-    {
+    public async Task StopAsync_PublishesSystemStoppedAndStopsHost() {
         await using var app = new WorkflowApplication();
         app.Initialize();
         await app.StartAsync().ConfigureAwait(true);
 
         ServiceMessage? received = null;
         var tcs = new TaskCompletionSource();
-        await app.MessageBus.SubscribeAsync(ServiceMessageType.SystemStopped.ToValue(), msg =>
-        {
+        await app.MessageBus.SubscribeAsync(ServiceMessageType.SystemStopped.ToValue(), msg => {
             received = msg;
             tcs.TrySetResult();
             return Task.CompletedTask;
@@ -84,8 +76,7 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task RunAsync_WaitsForCancellation()
-    {
+    public async Task RunAsync_WaitsForCancellation() {
         await using var app = new WorkflowApplication();
         app.Initialize();
 
@@ -100,8 +91,7 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task GetStatusReport_WhenNotRunning_ReturnsStatus()
-    {
+    public async Task GetStatusReport_WhenNotRunning_ReturnsStatus() {
         await using var app = new WorkflowApplication();
         app.Initialize();
 
@@ -115,8 +105,7 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task GetStatusReport_WhenRunning_ReturnsStatus()
-    {
+    public async Task GetStatusReport_WhenRunning_ReturnsStatus() {
         var taskStore = Mock.Of<ICronTaskStore>();
         await using var app = new WorkflowApplication(cronTaskStore: taskStore);
         app.Initialize();
@@ -135,16 +124,14 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task ServiceStatusChanged_PublishesMessage()
-    {
+    public async Task ServiceStatusChanged_PublishesMessage() {
         var taskStore = Mock.Of<ICronTaskStore>();
         await using var app = new WorkflowApplication(cronTaskStore: taskStore);
         app.Initialize();
 
         ServiceMessage? received = null;
         var tcs = new TaskCompletionSource();
-        await app.MessageBus.SubscribeAsync(ServiceMessageType.ServiceStatusChanged.ToValue(), msg =>
-        {
+        await app.MessageBus.SubscribeAsync(ServiceMessageType.ServiceStatusChanged.ToValue(), msg => {
             received = msg;
             tcs.TrySetResult();
             return Task.CompletedTask;
@@ -161,8 +148,7 @@ public sealed class WorkflowApplicationTests
     }
 
     [Fact]
-    public async Task DisposeAsync_StopsApplication()
-    {
+    public async Task DisposeAsync_StopsApplication() {
         var taskStore = Mock.Of<ICronTaskStore>();
         var app = new WorkflowApplication(cronTaskStore: taskStore);
         app.Initialize();

@@ -3,16 +3,14 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// P5 观察学习单元测试
 /// </summary>
-public sealed class P5ObservationLearnerTests
-{
+public sealed class P5ObservationLearnerTests {
     private static DesktopOperation Op(DesktopOperationKind kind = DesktopOperationKind.Click, int x = 10, int y = 20, bool succeeded = true) =>
         new(kind, x, y, null, null, null, DateTimeOffset.UtcNow, succeeded, null);
 
     private static ObservedSession MakeSession(params DesktopOperation[] ops) =>
         new("test-session", ops, [], DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
 
-    private static Mock<IQueryService> CreateQueryMock(string response)
-    {
+    private static Mock<IQueryService> CreateQueryMock(string response) {
         var mock = new Mock<IQueryService>();
         mock.Setup(q => q.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<ApiMessage> { new(MessageRole.Assistant, response) });
@@ -22,8 +20,7 @@ public sealed class P5ObservationLearnerTests
     #region Constructor
 
     [Fact]
-    public void Constructor_NullQueryService_Throws()
-    {
+    public void Constructor_NullQueryService_Throws() {
         var act = () => new ObservationLearner(null!);
         act.Should().Throw<ArgumentNullException>();
     }
@@ -33,16 +30,14 @@ public sealed class P5ObservationLearnerTests
     #region BuildOperationsDescription
 
     [Fact]
-    public void BuildOperationsDescription_EmptySession_ReturnsEmpty()
-    {
+    public void BuildOperationsDescription_EmptySession_ReturnsEmpty() {
         var session = MakeSession();
         var desc = ObservationLearner.BuildOperationsDescription(session);
         desc.Should().BeEmpty();
     }
 
     [Fact]
-    public void BuildOperationsDescription_SingleClick_ContainsIndexAndKind()
-    {
+    public void BuildOperationsDescription_SingleClick_ContainsIndexAndKind() {
         var session = MakeSession(Op(DesktopOperationKind.Click, 100, 200));
         var desc = ObservationLearner.BuildOperationsDescription(session);
         desc.Should().Contain("[1]");
@@ -52,8 +47,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void BuildOperationsDescription_FailedOp_ShowsCrossMark()
-    {
+    public void BuildOperationsDescription_FailedOp_ShowsCrossMark() {
         var session = MakeSession(Op(DesktopOperationKind.Click, 0, 0, succeeded: false));
         var desc = ObservationLearner.BuildOperationsDescription(session);
         desc.Should().Contain("✗");
@@ -61,8 +55,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void BuildOperationsDescription_WithText_IncludesText()
-    {
+    public void BuildOperationsDescription_WithText_IncludesText() {
         var op = new DesktopOperation(DesktopOperationKind.TypeText, 0, 0, "hello", null, null, DateTimeOffset.UtcNow, true, null);
         var session = MakeSession(op);
         var desc = ObservationLearner.BuildOperationsDescription(session);
@@ -70,8 +63,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void BuildOperationsDescription_WithMouseAction_IncludesAction()
-    {
+    public void BuildOperationsDescription_WithMouseAction_IncludesAction() {
         var op = new DesktopOperation(DesktopOperationKind.Click, 5, 5, null, MouseAction.RightClick, null, DateTimeOffset.UtcNow, true, null);
         var session = MakeSession(op);
         var desc = ObservationLearner.BuildOperationsDescription(session);
@@ -79,8 +71,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void BuildOperationsDescription_WithModifiers_IncludesMods()
-    {
+    public void BuildOperationsDescription_WithModifiers_IncludesMods() {
         var op = new DesktopOperation(DesktopOperationKind.KeyPress, 0, 0, null, null, KeyModifier.Control, DateTimeOffset.UtcNow, true, null);
         var session = MakeSession(op);
         var desc = ObservationLearner.BuildOperationsDescription(session);
@@ -88,8 +79,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void BuildOperationsDescription_MultipleOps_SequentialIndex()
-    {
+    public void BuildOperationsDescription_MultipleOps_SequentialIndex() {
         var session = MakeSession(Op(), Op(), Op());
         var desc = ObservationLearner.BuildOperationsDescription(session);
         desc.Should().Contain("[1]");
@@ -102,22 +92,19 @@ public sealed class P5ObservationLearnerTests
     #region ExtractJson
 
     [Fact]
-    public void ExtractJson_NullOrEmpty_ReturnsEmpty()
-    {
+    public void ExtractJson_NullOrEmpty_ReturnsEmpty() {
         ObservationLearner.ExtractJson("").Should().BeEmpty();
         ObservationLearner.ExtractJson("   ").Should().BeEmpty();
     }
 
     [Fact]
-    public void ExtractJson_PlainJson_ReturnedAsIs()
-    {
+    public void ExtractJson_PlainJson_ReturnedAsIs() {
         var json = """{"name":"test"}""";
         ObservationLearner.ExtractJson(json).Should().Be(json);
     }
 
     [Fact]
-    public void ExtractJson_JsonInMarkdownFence_Extracted()
-    {
+    public void ExtractJson_JsonInMarkdownFence_Extracted() {
         var input = """
             ```json
             {"name":"test"}
@@ -128,16 +115,14 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ExtractJson_JsonWithSurroundingText_ExtractsBraces()
-    {
+    public void ExtractJson_JsonWithSurroundingText_ExtractsBraces() {
         var input = "Here is the result: {\"name\":\"test\"} done.";
         var result = ObservationLearner.ExtractJson(input);
         result.Should().Be("""{"name":"test"}""");
     }
 
     [Fact]
-    public void ExtractJson_NoBraces_ReturnsTrimmed()
-    {
+    public void ExtractJson_NoBraces_ReturnsTrimmed() {
         ObservationLearner.ExtractJson("just text").Should().Be("just text");
     }
 
@@ -146,8 +131,7 @@ public sealed class P5ObservationLearnerTests
     #region ParseAbstractLogic
 
     [Fact]
-    public void ParseAbstractLogic_ValidJson_ReturnsParsed()
-    {
+    public void ParseAbstractLogic_ValidJson_ReturnsParsed() {
         var json = """{"name":"打开应用","pattern":"点击图标","parameters":"target={app}","steps":["定位","点击"],"confidence":0.9}""";
         var result = ObservationLearner.ParseAbstractLogic(json, "fallback");
         result.Name.Should().Be("打开应用");
@@ -158,8 +142,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseAbstractLogic_EmptyResponse_ReturnsFallback()
-    {
+    public void ParseAbstractLogic_EmptyResponse_ReturnsFallback() {
         var result = ObservationLearner.ParseAbstractLogic("", "fallback");
         result.Name.Should().Be("fallback");
         result.Pattern.Should().Be("无法抽象");
@@ -167,8 +150,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseAbstractLogic_InvalidJson_ReturnsParseFailed()
-    {
+    public void ParseAbstractLogic_InvalidJson_ReturnsParseFailed() {
         var result = ObservationLearner.ParseAbstractLogic("not json at all {{{", "fallback");
         result.Name.Should().Be("fallback");
         result.Pattern.Should().Be("解析失败");
@@ -176,8 +158,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseAbstractLogic_MissingName_UsesFallback()
-    {
+    public void ParseAbstractLogic_MissingName_UsesFallback() {
         var json = """{"pattern":"test","steps":[],"confidence":0.5}""";
         var result = ObservationLearner.ParseAbstractLogic(json, "fallback");
         result.Name.Should().Be("fallback");
@@ -185,32 +166,28 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseAbstractLogic_MissingConfidence_DefaultsToHalf()
-    {
+    public void ParseAbstractLogic_MissingConfidence_DefaultsToHalf() {
         var json = """{"name":"test","pattern":"","parameters":"","steps":[]}""";
         var result = ObservationLearner.ParseAbstractLogic(json, "fallback");
         result.Confidence.Should().Be(0.5);
     }
 
     [Fact]
-    public void ParseAbstractLogic_StepsNotArray_EmptySteps()
-    {
+    public void ParseAbstractLogic_StepsNotArray_EmptySteps() {
         var json = """{"name":"test","pattern":"","parameters":"","steps":"not array","confidence":0.5}""";
         var result = ObservationLearner.ParseAbstractLogic(json, "fallback");
         result.Steps.Should().BeEmpty();
     }
 
     [Fact]
-    public void ParseAbstractLogic_StepsWithEmptyStrings_Filtered()
-    {
+    public void ParseAbstractLogic_StepsWithEmptyStrings_Filtered() {
         var json = """{"name":"test","pattern":"","parameters":"","steps":["real","","  "],"confidence":0.5}""";
         var result = ObservationLearner.ParseAbstractLogic(json, "fallback");
         result.Steps.Should().Equal("real");
     }
 
     [Fact]
-    public void ParseAbstractLogic_MarkdownFencedJson_Parsed()
-    {
+    public void ParseAbstractLogic_MarkdownFencedJson_Parsed() {
         var input = """
             ```json
             {"name":"fenced","pattern":"p","parameters":"","steps":["s1"],"confidence":0.8}
@@ -226,8 +203,7 @@ public sealed class P5ObservationLearnerTests
     #region AbstractAsync
 
     [Fact]
-    public async Task AbstractAsync_ValidResponse_ReturnsParsedLogic()
-    {
+    public async Task AbstractAsync_ValidResponse_ReturnsParsedLogic() {
         var llmResponse = """{"name":"登录模式","pattern":"输入凭据并点击登录","parameters":"user={u},pass={p}","steps":["输入用户名","输入密码","点击登录"],"confidence":0.85}""";
         var mock = CreateQueryMock(llmResponse);
         var learner = new ObservationLearner(mock.Object);
@@ -245,8 +221,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public async Task AbstractAsync_EmptyResponse_ReturnsFallback()
-    {
+    public async Task AbstractAsync_EmptyResponse_ReturnsFallback() {
         var mock = CreateQueryMock("");
         var learner = new ObservationLearner(mock.Object);
 
@@ -257,8 +232,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public async Task AbstractAsync_NullSession_Throws()
-    {
+    public async Task AbstractAsync_NullSession_Throws() {
         var mock = CreateQueryMock("");
         var learner = new ObservationLearner(mock.Object);
 
@@ -267,8 +241,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public async Task AbstractAsync_CallsQueryServiceOnce()
-    {
+    public async Task AbstractAsync_CallsQueryServiceOnce() {
         var mock = CreateQueryMock("""{"name":"x","pattern":"","parameters":"","steps":[],"confidence":0.5}""");
         var learner = new ObservationLearner(mock.Object);
 
@@ -282,8 +255,7 @@ public sealed class P5ObservationLearnerTests
     #region OptimizeAsync
 
     [Fact]
-    public async Task OptimizeAsync_ValidResponse_ReturnsText()
-    {
+    public async Task OptimizeAsync_ValidResponse_ReturnsText() {
         var mock = CreateQueryMock("建议：合并步骤1和2");
         var learner = new ObservationLearner(mock.Object);
 
@@ -294,8 +266,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public async Task OptimizeAsync_EmptyResponse_ReturnsDefaultMessage()
-    {
+    public async Task OptimizeAsync_EmptyResponse_ReturnsDefaultMessage() {
         var mock = CreateQueryMock("");
         var learner = new ObservationLearner(mock.Object);
 
@@ -306,8 +277,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public async Task OptimizeAsync_NullLogic_Throws()
-    {
+    public async Task OptimizeAsync_NullLogic_Throws() {
         var mock = CreateQueryMock("");
         var learner = new ObservationLearner(mock.Object);
 
@@ -320,8 +290,7 @@ public sealed class P5ObservationLearnerTests
     #region ReproduceAsync (L-03)
 
     [Fact]
-    public async Task ReproduceAsync_ValidResponse_ReturnsMacroWithOperations()
-    {
+    public async Task ReproduceAsync_ValidResponse_ReturnsMacroWithOperations() {
         var llmResponse = """{"operations":[{"kind":"Click","x":100,"y":200,"succeeded":true},{"kind":"TypeText","x":0,"y":0,"text":"hello","succeeded":true}]}""";
         var mock = CreateQueryMock(llmResponse);
         var learner = new ObservationLearner(mock.Object);
@@ -338,8 +307,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public async Task ReproduceAsync_EmptyResponse_ReturnsEmptyMacro()
-    {
+    public async Task ReproduceAsync_EmptyResponse_ReturnsEmptyMacro() {
         var mock = CreateQueryMock("");
         var learner = new ObservationLearner(mock.Object);
 
@@ -350,8 +318,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public async Task ReproduceAsync_NullLogic_Throws()
-    {
+    public async Task ReproduceAsync_NullLogic_Throws() {
         var mock = CreateQueryMock("");
         var learner = new ObservationLearner(mock.Object);
 
@@ -360,8 +327,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public async Task ReproduceAsync_CallsQueryServiceOnce()
-    {
+    public async Task ReproduceAsync_CallsQueryServiceOnce() {
         var mock = CreateQueryMock("""{"operations":[]}""");
         var learner = new ObservationLearner(mock.Object);
 
@@ -376,8 +342,7 @@ public sealed class P5ObservationLearnerTests
     #region ParseOperations
 
     [Fact]
-    public void ParseOperations_ValidJson_ReturnsOperations()
-    {
+    public void ParseOperations_ValidJson_ReturnsOperations() {
         var json = """{"operations":[{"kind":"Click","x":10,"y":20,"succeeded":true},{"kind":"TypeText","text":"hi","succeeded":true}]}""";
         var ops = ObservationLearner.ParseOperations(json);
         ops.Should().HaveCount(2);
@@ -386,34 +351,29 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseOperations_EmptyResponse_ReturnsEmpty()
-    {
+    public void ParseOperations_EmptyResponse_ReturnsEmpty() {
         ObservationLearner.ParseOperations("").Should().BeEmpty();
     }
 
     [Fact]
-    public void ParseOperations_NoOperationsProperty_ReturnsEmpty()
-    {
+    public void ParseOperations_NoOperationsProperty_ReturnsEmpty() {
         var json = """{"name":"test"}""";
         ObservationLearner.ParseOperations(json).Should().BeEmpty();
     }
 
     [Fact]
-    public void ParseOperations_InvalidJson_ReturnsEmpty()
-    {
+    public void ParseOperations_InvalidJson_ReturnsEmpty() {
         ObservationLearner.ParseOperations("not json {{{").Should().BeEmpty();
     }
 
     [Fact]
-    public void ParseOperations_OperationsNotArray_ReturnsEmpty()
-    {
+    public void ParseOperations_OperationsNotArray_ReturnsEmpty() {
         var json = """{"operations":"not array"}""";
         ObservationLearner.ParseOperations(json).Should().BeEmpty();
     }
 
     [Fact]
-    public void ParseOperations_WithMouseAction_Parsed()
-    {
+    public void ParseOperations_WithMouseAction_Parsed() {
         var json = """{"operations":[{"kind":"Click","x":1,"y":2,"mouseAction":"RightClick","succeeded":true}]}""";
         var ops = ObservationLearner.ParseOperations(json);
         ops.Should().HaveCount(1);
@@ -421,8 +381,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseOperations_WithModifiers_Parsed()
-    {
+    public void ParseOperations_WithModifiers_Parsed() {
         var json = """{"operations":[{"kind":"KeyPress","x":0,"y":0,"modifiers":"Control","succeeded":true}]}""";
         var ops = ObservationLearner.ParseOperations(json);
         ops.Should().HaveCount(1);
@@ -430,8 +389,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseOperations_InvalidKind_Skipped()
-    {
+    public void ParseOperations_InvalidKind_Skipped() {
         var json = """{"operations":[{"kind":"UnknownKind","x":1,"y":2,"succeeded":true},{"kind":"Click","x":3,"y":4,"succeeded":true}]}""";
         var ops = ObservationLearner.ParseOperations(json);
         ops.Should().HaveCount(1);
@@ -439,15 +397,13 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseOperations_MissingKind_Skipped()
-    {
+    public void ParseOperations_MissingKind_Skipped() {
         var json = """{"operations":[{"x":1,"y":2,"succeeded":true}]}""";
         ObservationLearner.ParseOperations(json).Should().BeEmpty();
     }
 
     [Fact]
-    public void ParseOperations_MissingSucceeded_DefaultsToTrue()
-    {
+    public void ParseOperations_MissingSucceeded_DefaultsToTrue() {
         var json = """{"operations":[{"kind":"Click","x":1,"y":2}]}""";
         var ops = ObservationLearner.ParseOperations(json);
         ops.Should().HaveCount(1);
@@ -455,8 +411,7 @@ public sealed class P5ObservationLearnerTests
     }
 
     [Fact]
-    public void ParseOperations_MarkdownFenced_Parsed()
-    {
+    public void ParseOperations_MarkdownFenced_Parsed() {
         var input = """
             ```json
             {"operations":[{"kind":"Move","x":50,"y":60,"succeeded":true}]}

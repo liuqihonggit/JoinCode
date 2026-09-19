@@ -1,28 +1,22 @@
 namespace Tests;
 
 [Trait("Category", "Integration")]
-public class McpToolRegistrationTests
-{
+public class McpToolRegistrationTests {
     [Fact]
-    public async Task InitializeAsync_CompletesWithinTimeout()
-    {
+    public async Task InitializeAsync_CompletesWithinTimeout() {
         var serviceProvider = BuildServiceProvider();
         var mcpService = serviceProvider.GetRequiredService<IMcpService>();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        try
-        {
+        try {
             await mcpService.InitializeAsync(serviceProvider, cts.Token).ConfigureAwait(true);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             Assert.Fail("InitializeAsync timed out after 15 seconds");
         }
     }
 
     [Fact]
-    public async Task RegisterAllToolHandlers_ShouldRegisterCoreTools()
-    {
+    public async Task RegisterAllToolHandlers_ShouldRegisterCoreTools() {
         var serviceProvider = BuildServiceProvider();
         var mcpService = serviceProvider.GetRequiredService<IMcpService>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
@@ -38,8 +32,7 @@ public class McpToolRegistrationTests
     }
 
     [Fact]
-    public async Task RegisterAllToolHandlers_FileAndShellToolsAvailable()
-    {
+    public async Task RegisterAllToolHandlers_FileAndShellToolsAvailable() {
         var serviceProvider = BuildServiceProvider();
         var mcpService = serviceProvider.GetRequiredService<IMcpService>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
@@ -54,8 +47,7 @@ public class McpToolRegistrationTests
         Assert.Empty(missingTools);
     }
 
-    private static IServiceProvider BuildServiceProvider()
-    {
+    private static IServiceProvider BuildServiceProvider() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AppDataFolder, tempDir);
 

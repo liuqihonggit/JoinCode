@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 对齐 TS bootstrap/state.ts ChannelEntry
 /// 表示一个已注册的外部消息通道（Telegram/Discord/Slack 等）
 /// </summary>
-public sealed record ChannelEntry
-{
+public sealed record ChannelEntry {
     /// <summary>
     /// 通道类型
     /// </summary>
@@ -26,8 +25,7 @@ public sealed record ChannelEntry
 /// <summary>
 /// 通道类型
 /// </summary>
-public enum ChannelKind
-{
+public enum ChannelKind {
     /// <summary>
     /// MCP 服务器通道
     /// </summary>
@@ -46,8 +44,7 @@ public enum ChannelKind
 /// 对齐 TS bootstrap/state.ts getAllowedChannels / isChannelsEnabled
 /// 管理 MCP 外部消息通道的注册和状态查询
 /// </summary>
-public interface IChannelStateService
-{
+public interface IChannelStateService {
     /// <summary>
     /// 是否有活跃的 channels（对齐 TS isChannelsEnabled）
     /// 当 channels 激活时，PlanMode 应被禁用

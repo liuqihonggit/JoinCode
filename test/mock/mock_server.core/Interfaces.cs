@@ -1,13 +1,11 @@
 namespace MockServer.Core;
 
-public interface ICacheSimulator
-{
+public interface ICacheSimulator {
     CacheStats ComputeCacheStats(JsonElement request);
     void ResetCache();
 }
 
-public interface IResponseStrategy
-{
+public interface IResponseStrategy {
     string BuildResponse(JsonElement request, CacheStats cacheStats);
     bool SupportsStreaming { get; }
     string BuildStreamChunk(string id, string content, bool isLast);
@@ -75,8 +73,7 @@ public interface IResponseStrategy
     string? BuildToolDescriptionRequest(JsonElement request) => null;
 }
 
-public interface IHttpMockServer : IAsyncDisposable
-{
+public interface IHttpMockServer : IAsyncDisposable {
     Task StartAsync(int port = 0);
     Task StopAsync();
     string Url { get; }

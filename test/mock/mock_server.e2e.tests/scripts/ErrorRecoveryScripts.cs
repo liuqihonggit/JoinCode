@@ -1,12 +1,9 @@
 namespace MockServer.E2E.Tests.Scripts;
 
-public static class ApiErrorRecoveryScripts
-{
-    public static ConversationScript RateLimit429ThenRecover => new()
-    {
+public static class ApiErrorRecoveryScripts {
+    public static ConversationScript RateLimit429ThenRecover => new() {
         Name = "429限流后恢复",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
         },
         Turns =
@@ -42,11 +39,9 @@ public static class ApiErrorRecoveryScripts
         ]
     };
 
-    public static ConversationScript ServerError500ThenRecover => new()
-    {
+    public static ConversationScript ServerError500ThenRecover => new() {
         Name = "500服务器错误后恢复",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
         },
         Turns =
@@ -82,11 +77,9 @@ public static class ApiErrorRecoveryScripts
         ]
     };
 
-    public static ConversationScript ServiceUnavailable503ThenRecover => new()
-    {
+    public static ConversationScript ServiceUnavailable503ThenRecover => new() {
         Name = "503服务不可用后恢复",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
         },
         Turns =
@@ -122,11 +115,9 @@ public static class ApiErrorRecoveryScripts
         ]
     };
 
-    public static ConversationScript ErrorThenToolCallThenRecover => new()
-    {
+    public static ConversationScript ErrorThenToolCallThenRecover => new() {
         Name = "错误后工具调用恢复",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true",
             ["JCC_DISABLE_RETRY"] = "true"
         },
@@ -172,11 +163,9 @@ public static class ApiErrorRecoveryScripts
         ]
     };
 
-    public static ConversationScript AuthError401NoRetry => new()
-    {
+    public static ConversationScript AuthError401NoRetry => new() {
         Name = "401认证错误不重试",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
         },
         Turns =
@@ -199,10 +188,8 @@ public static class ApiErrorRecoveryScripts
     };
 }
 
-public static class StreamInterruptionScripts
-{
-    public static ConversationScript ToolCallFailureThenRecover => new()
-    {
+public static class StreamInterruptionScripts {
+    public static ConversationScript ToolCallFailureThenRecover => new() {
         Name = "工具调用失败后恢复",
         Turns =
         [
@@ -246,8 +233,7 @@ public static class StreamInterruptionScripts
         ]
     };
 
-    public static ConversationScript UnknownToolThenFallback => new()
-    {
+    public static ConversationScript UnknownToolThenFallback => new() {
         Name = "未知工具后降级回复",
         Turns =
         [
@@ -278,8 +264,7 @@ public static class StreamInterruptionScripts
         ]
     };
 
-    public static ConversationScript MultiToolPartialFailure => new()
-    {
+    public static ConversationScript MultiToolPartialFailure => new() {
         Name = "多工具部分失败",
         Turns =
         [
@@ -316,13 +301,10 @@ public static class StreamInterruptionScripts
     };
 }
 
-public static class PermissionDenialScripts
-{
-    public static ConversationScript AskPermissionMode => new()
-    {
+public static class PermissionDenialScripts {
+    public static ConversationScript AskPermissionMode => new() {
         Name = "ask权限模式对话",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_PERMISSION_MODE"] = "ask"
         },
         Turns =
@@ -343,11 +325,9 @@ public static class PermissionDenialScripts
         ]
     };
 
-    public static ConversationScript DenyPermissionMode => new()
-    {
+    public static ConversationScript DenyPermissionMode => new() {
         Name = "deny权限模式对话",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_PERMISSION_MODE"] = "deny"
         },
         Turns =
@@ -368,11 +348,9 @@ public static class PermissionDenialScripts
         ]
     };
 
-    public static ConversationScript DenyModeToolCallBlocked => new()
-    {
+    public static ConversationScript DenyModeToolCallBlocked => new() {
         Name = "deny模式下工具调用被阻止",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_PERMISSION_MODE"] = "deny"
         },
         Turns =
@@ -403,11 +381,9 @@ public static class PermissionDenialScripts
         ]
     };
 
-    public static ConversationScript AutoPermissionModeToolCall => new()
-    {
+    public static ConversationScript AutoPermissionModeToolCall => new() {
         Name = "auto权限模式工具调用",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_PERMISSION_MODE"] = "auto"
         },
         Turns =
@@ -439,10 +415,8 @@ public static class PermissionDenialScripts
     };
 }
 
-public static class AnthropicDeepCoverageScripts
-{
-    public static ConversationScript AnthropicMultiToolCalls => new()
-    {
+public static class AnthropicDeepCoverageScripts {
+    public static ConversationScript AnthropicMultiToolCalls => new() {
         Name = "Anthropic多工具调用",
         Turns =
         [
@@ -478,8 +452,7 @@ public static class AnthropicDeepCoverageScripts
         ]
     };
 
-    public static ConversationScript AnthropicThinkingThenToolCall => new()
-    {
+    public static ConversationScript AnthropicThinkingThenToolCall => new() {
         Name = "Anthropic思考后工具调用",
         Turns =
         [
@@ -510,8 +483,7 @@ public static class AnthropicDeepCoverageScripts
         ]
     };
 
-    public static ConversationScript AnthropicFiveRoundMemory => new()
-    {
+    public static ConversationScript AnthropicFiveRoundMemory => new() {
         Name = "Anthropic五轮对话记忆",
         Turns =
         [
@@ -548,8 +520,7 @@ public static class AnthropicDeepCoverageScripts
         ]
     };
 
-    public static ConversationScript DeepSeekReasoningThenToolCall => new()
-    {
+    public static ConversationScript DeepSeekReasoningThenToolCall => new() {
         Name = "DeepSeek推理后工具调用",
         Turns =
         [
@@ -580,8 +551,7 @@ public static class AnthropicDeepCoverageScripts
         ]
     };
 
-    public static ConversationScript DeepSeekMultiToolCalls => new()
-    {
+    public static ConversationScript DeepSeekMultiToolCalls => new() {
         Name = "DeepSeek多工具调用",
         Turns =
         [
@@ -617,8 +587,7 @@ public static class AnthropicDeepCoverageScripts
         ]
     };
 
-    public static ConversationScript DeepSeekFiveRoundMemory => new()
-    {
+    public static ConversationScript DeepSeekFiveRoundMemory => new() {
         Name = "DeepSeek五轮对话记忆",
         Turns =
         [
@@ -655,11 +624,9 @@ public static class AnthropicDeepCoverageScripts
         ]
     };
 
-    public static ConversationScript AnthropicError429ThenRecover => new()
-    {
+    public static ConversationScript AnthropicError429ThenRecover => new() {
         Name = "Anthropic 429限流后恢复",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
         },
         Turns =
@@ -695,11 +662,9 @@ public static class AnthropicDeepCoverageScripts
         ]
     };
 
-    public static ConversationScript DeepSeekError500ThenRecover => new()
-    {
+    public static ConversationScript DeepSeekError500ThenRecover => new() {
         Name = "DeepSeek 500服务器错误后恢复",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_DISABLE_STREAMING_FALLBACK"] = "true"
         },
         Turns =
@@ -736,10 +701,8 @@ public static class AnthropicDeepCoverageScripts
     };
 }
 
-public static class McpProtocolScripts
-{
-    public static ConversationScript McpToolListThenCall => new()
-    {
+public static class McpProtocolScripts {
+    public static ConversationScript McpToolListThenCall => new() {
         Name = "MCP工具列表后调用",
         Turns =
         [
@@ -769,8 +732,7 @@ public static class McpProtocolScripts
         ]
     };
 
-    public static ConversationScript McpClientCall => new()
-    {
+    public static ConversationScript McpClientCall => new() {
         Name = "MCP客户端调用",
         Turns =
         [
@@ -800,8 +762,7 @@ public static class McpProtocolScripts
         ]
     };
 
-    public static ConversationScript McpToolCallThenFollowUp => new()
-    {
+    public static ConversationScript McpToolCallThenFollowUp => new() {
         Name = "MCP工具调用后追问",
         Turns =
         [
@@ -845,10 +806,8 @@ public static class McpProtocolScripts
     };
 }
 
-public static class ConcurrentRequestScripts
-{
-    public static ConversationScript RapidSequentialRequests => new()
-    {
+public static class ConcurrentRequestScripts {
+    public static ConversationScript RapidSequentialRequests => new() {
         Name = "快速连续请求",
         Turns =
         [
@@ -894,8 +853,7 @@ public static class ConcurrentRequestScripts
         ]
     };
 
-    public static ConversationScript InterleavedToolCallsAndText => new()
-    {
+    public static ConversationScript InterleavedToolCallsAndText => new() {
         Name = "交替工具调用和文本",
         Turns =
         [

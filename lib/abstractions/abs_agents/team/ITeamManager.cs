@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Teammate 运行时状态 - 聚合团队信息和运行时状态
 /// </summary>
-public sealed record TeammateStatus
-{
+public sealed record TeammateStatus {
     public required string AgentId { get; init; }
     public required string TeamId { get; init; }
     public string? TeamName { get; init; }
@@ -30,8 +29,7 @@ public sealed record TeammateStatus
 /// <summary>
 /// 团队管理器接口
 /// </summary>
-public interface ITeamManager : IDisposable
-{
+public interface ITeamManager : IDisposable {
     /// <summary>
     /// 创建团队
     /// </summary>

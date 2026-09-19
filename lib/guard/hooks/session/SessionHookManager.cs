@@ -4,8 +4,7 @@ namespace Core.Hooks.Session;
 /// <summary>
 /// 会话钩子管理器扩展接口 — Guard 内部使用的额外方法
 /// </summary>
-public interface ISessionHookManagerInternal : ISessionHookManager
-{
+public interface ISessionHookManagerInternal : ISessionHookManager {
     /// <summary>
     /// 获取会话钩子
     /// </summary>
@@ -33,8 +32,7 @@ public interface ISessionHookManagerInternal : ISessionHookManager
 /// <summary>
 /// 会话钩子条目
 /// </summary>
-public sealed record SessionHookEntry
-{
+public sealed record SessionHookEntry {
     /// <summary>
     /// 钩子命令
     /// </summary>
@@ -59,8 +57,7 @@ public sealed record SessionHookEntry
 /// <summary>
 /// 会话钩子存储
 /// </summary>
-public sealed partial class SessionHookStore
-{
+public sealed partial class SessionHookStore {
     /// <summary>
     /// 按事件存储的钩子
     /// </summary>
@@ -69,8 +66,7 @@ public sealed partial class SessionHookStore
     /// <summary>
     /// 添加钩子
     /// </summary>
-    public void AddHook(HookEvent hookEvent, SessionHookEntry entry)
-    {
+    public void AddHook(HookEvent hookEvent, SessionHookEntry entry) {
         var bag = Hooks.GetOrAdd(hookEvent, _ => new ConcurrentBag<SessionHookEntry>());
         bag.Add(entry);
     }
@@ -78,10 +74,8 @@ public sealed partial class SessionHookStore
     /// <summary>
     /// 移除钩子
     /// </summary>
-    public void RemoveHook(HookEvent hookEvent, Func<SessionHookEntry, bool> predicate)
-    {
-        if (!Hooks.TryGetValue(hookEvent, out var bag))
-        {
+    public void RemoveHook(HookEvent hookEvent, Func<SessionHookEntry, bool> predicate) {
+        if (!Hooks.TryGetValue(hookEvent, out var bag)) {
             return;
         }
 
@@ -95,10 +89,8 @@ public sealed partial class SessionHookStore
     /// <summary>
     /// 获取事件的钩子
     /// </summary>
-    public List<SessionHookEntry> GetHooks(HookEvent hookEvent)
-    {
-        if (!Hooks.TryGetValue(hookEvent, out var bag))
-        {
+    public List<SessionHookEntry> GetHooks(HookEvent hookEvent) {
+        if (!Hooks.TryGetValue(hookEvent, out var bag)) {
             return new List<SessionHookEntry>();
         }
 
@@ -108,8 +100,7 @@ public sealed partial class SessionHookStore
     /// <summary>
     /// 获取所有钩子
     /// </summary>
-    public Dictionary<HookEvent, List<SessionHookEntry>> GetAllHooks()
-    {
+    public Dictionary<HookEvent, List<SessionHookEntry>> GetAllHooks() {
         return Hooks.ToDictionary(
             kvp => kvp.Key,
             kvp => kvp.Value.ToList());
@@ -118,8 +109,7 @@ public sealed partial class SessionHookStore
     /// <summary>
     /// 清除所有钩子
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         Hooks.Clear();
     }
 }
@@ -129,16 +119,14 @@ public sealed partial class SessionHookStore
 /// </summary>
 [Register(typeof(ISessionHookManagerInternal), ServiceLifetime.Singleton)]
 [Register(typeof(ISessionHookManager), ServiceLifetime.Singleton)]
-public sealed partial class SessionHookManager : ServiceEntity, ISessionHookManagerInternal
-{
+public sealed partial class SessionHookManager : ServiceEntity, ISessionHookManagerInternal {
     private readonly ConcurrentDictionary<string, SessionHookStore> _sessionStores = new();
     private readonly ILogger<SessionHookManager>? _logger;
 
     /// <summary>
     /// 初始化会话钩子管理器实例
     /// </summary>
-    public SessionHookManager(ILogger<SessionHookManager>? logger = null)
-    {
+    public SessionHookManager(ILogger<SessionHookManager>? logger = null) {
         _logger = logger;
     }
 
@@ -148,12 +136,10 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         HookEvent hookEvent,
         string? matcher,
         HookCommand hook,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var store = _sessionStores.GetOrAdd(sessionId, _ => new SessionHookStore());
 
-        store.AddHook(hookEvent, new SessionHookEntry
-        {
+        store.AddHook(hookEvent, new SessionHookEntry {
             Hook = hook,
             Matcher = matcher
         });
@@ -175,12 +161,10 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         Func<HookInput, CancellationToken, Task<HookResult>> callback,
         string? errorMessage = null,
         int? timeout = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var hookId = $"function-hook-{Guid.NewGuid():N}";
 
-        var functionHook = new FunctionHook
-        {
+        var functionHook = new FunctionHook {
             Id = hookId,
             Callback = callback,
             ErrorMessage = errorMessage,
@@ -189,8 +173,7 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
 
         var store = _sessionStores.GetOrAdd(sessionId, _ => new SessionHookStore());
 
-        store.AddHook(hookEvent, new SessionHookEntry
-        {
+        store.AddHook(hookEvent, new SessionHookEntry {
             Hook = functionHook,
             Matcher = matcher
         });
@@ -209,10 +192,8 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         string sessionId,
         HookEvent hookEvent,
         string hookId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_sessionStores.TryGetValue(sessionId, out var store))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_sessionStores.TryGetValue(sessionId, out var store)) {
             return Task.CompletedTask;
         }
 
@@ -234,10 +215,8 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
         HookEvent hookEvent,
         string? matcher,
         HookCommand hook,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_sessionStores.TryGetValue(sessionId, out var store))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_sessionStores.TryGetValue(sessionId, out var store)) {
             return Task.CompletedTask;
         }
 
@@ -256,24 +235,19 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     public Task<List<SourcedHookConfig>> GetSessionHooksAsync(
         string sessionId,
         HookEvent? hookEvent = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_sessionStores.TryGetValue(sessionId, out var store))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_sessionStores.TryGetValue(sessionId, out var store)) {
             return Task.FromResult(new List<SourcedHookConfig>());
         }
 
         var result = new List<SourcedHookConfig>();
 
-        if (hookEvent.HasValue)
-        {
+        if (hookEvent.HasValue) {
             var entries = store.GetHooks(hookEvent.Value)
                 .Where(e => e.Hook is not FunctionHook); // 函数钩子单独处理
 
-            foreach (var entry in entries)
-            {
-                result.Add(new SourcedHookConfig
-                {
+            foreach (var entry in entries) {
+                result.Add(new SourcedHookConfig {
                     Event = hookEvent.Value,
                     Matcher = entry.Matcher,
                     Command = entry.Hook,
@@ -281,18 +255,13 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
                     SkillRoot = entry.SkillRoot
                 });
             }
-        }
-        else
-        {
-            foreach (var evt in store.GetAllHooks())
-            {
+        } else {
+            foreach (var evt in store.GetAllHooks()) {
                 var entries = evt.Value
                     .Where(e => e.Hook is not FunctionHook);
 
-                foreach (var entry in entries)
-                {
-                    result.Add(new SourcedHookConfig
-                    {
+                foreach (var entry in entries) {
+                    result.Add(new SourcedHookConfig {
                         Event = evt.Key,
                         Matcher = entry.Matcher,
                         Command = entry.Hook,
@@ -310,27 +279,21 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     public Task<List<FunctionHook>> GetSessionFunctionHooksAsync(
         string sessionId,
         HookEvent? hookEvent = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_sessionStores.TryGetValue(sessionId, out var store))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_sessionStores.TryGetValue(sessionId, out var store)) {
             return Task.FromResult(new List<FunctionHook>());
         }
 
         var result = new List<FunctionHook>();
 
-        if (hookEvent.HasValue)
-        {
+        if (hookEvent.HasValue) {
             var entries = store.GetHooks(hookEvent.Value)
                 .Where(e => e.Hook is FunctionHook)
                 .Select(e => (FunctionHook)e.Hook);
 
             result.AddRange(entries);
-        }
-        else
-        {
-            foreach (var evt in store.GetAllHooks())
-            {
+        } else {
+            foreach (var evt in store.GetAllHooks()) {
                 var entries = evt.Value
                     .Where(e => e.Hook is FunctionHook)
                     .Select(e => (FunctionHook)e.Hook);
@@ -345,10 +308,8 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     /// <inheritdoc />
     public Task ClearSessionHooksAsync(
         string sessionId,
-        CancellationToken cancellationToken = default)
-    {
-        if (_sessionStores.TryRemove(sessionId, out var store))
-        {
+        CancellationToken cancellationToken = default) {
+        if (_sessionStores.TryRemove(sessionId, out var store)) {
             store.Clear();
             _logger?.LogDebug("Cleared all hooks for session {SessionId}", sessionId);
         }
@@ -364,10 +325,8 @@ public sealed partial class SessionHookManager : ServiceEntity, ISessionHookMana
     /// <summary>
     /// 清除所有会话钩子
     /// </summary>
-    public void ClearAllSessions()
-    {
-        foreach (var store in _sessionStores.Values)
-        {
+    public void ClearAllSessions() {
+        foreach (var store in _sessionStores.Values) {
             store.Clear();
         }
 

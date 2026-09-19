@@ -1,17 +1,14 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
-public static class BashSemanticChecker
-{
+public static class BashSemanticChecker {
     public static BashSemanticCheckResult CheckSemantics(BashSimpleCommandInfo[] commands)
         => CheckSemantics(commands, BashSemanticCheckIdMap.Default, null);
 
     public static BashSemanticCheckResult CheckSemantics(
         BashSimpleCommandInfo[] commands,
         BashSemanticCheckIdMap checkIds,
-        Func<string, BashSemanticCheckResult?>? preCheck)
-    {
-        foreach (var cmd in commands)
-        {
+        Func<string, BashSemanticCheckResult?>? preCheck) {
+        foreach (var cmd in commands) {
             if (cmd.Argv.Length == 0) continue;
 
             var a = BashSafeWrapperStripper.StripSafeWrappers(cmd.Argv);
@@ -19,8 +16,7 @@ public static class BashSemanticChecker
 
             if (string.IsNullOrEmpty(name)) continue;
 
-            if (preCheck is not null)
-            {
+            if (preCheck is not null) {
                 var preResult = preCheck(name);
                 if (preResult is not null) return preResult;
             }
@@ -62,12 +58,10 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckEvalLikeBuiltins(string name, string[] a, BashSemanticCheckIdMap checkIds)
-    {
+    private static BashSemanticCheckResult CheckEvalLikeBuiltins(string name, string[] a, BashSemanticCheckIdMap checkIds) {
         if (!BashSecurityConstants.EvalLikeBuiltins.Contains(name)) return new BashSemanticCheckResult(true);
 
-        if (name.Equals("command", StringComparison.OrdinalIgnoreCase))
-        {
+        if (name.Equals("command", StringComparison.OrdinalIgnoreCase)) {
             if (a.Length > 1 && (a[1] is "-v" or "-V"))
                 return new BashSemanticCheckResult(true);
             return new BashSemanticCheckResult(false,
@@ -75,20 +69,17 @@ public static class BashSemanticChecker
                 checkIds.EvalLikeBuiltins);
         }
 
-        if (name.Equals("fc", StringComparison.OrdinalIgnoreCase))
-        {
+        if (name.Equals("fc", StringComparison.OrdinalIgnoreCase)) {
             if (!BashSecurityConstants.HasExecFlag(a))
                 return new BashSemanticCheckResult(true);
         }
 
-        if (name.Equals("compgen", StringComparison.OrdinalIgnoreCase))
-        {
+        if (name.Equals("compgen", StringComparison.OrdinalIgnoreCase)) {
             if (!BashSecurityConstants.HasCompgenDangerFlag(a))
                 return new BashSemanticCheckResult(true);
         }
 
-        if (name.Equals("builtin", StringComparison.OrdinalIgnoreCase))
-        {
+        if (name.Equals("builtin", StringComparison.OrdinalIgnoreCase)) {
             if (a.Length > 1 && BashSecurityConstants.EvalLikeBuiltins.Contains(a[1]))
                 return new BashSemanticCheckResult(false,
                     $"builtin {a[1]} 可绕过函数定义执行内置命令",
@@ -101,8 +92,7 @@ public static class BashSemanticChecker
             checkIds.EvalLikeBuiltins);
     }
 
-    private static BashSemanticCheckResult CheckZshDangerousBuiltins(string name, BashSemanticCheckIdMap checkIds)
-    {
+    private static BashSemanticCheckResult CheckZshDangerousBuiltins(string name, BashSemanticCheckIdMap checkIds) {
         if (BashSecurityConstants.ZshDangerousBuiltins.Contains(name))
             return new BashSemanticCheckResult(false,
                 $"Zsh内置命令 '{name}' 可绕过安全检查",
@@ -111,8 +101,7 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckShellKeywords(string name, BashSemanticCheckIdMap checkIds)
-    {
+    private static BashSemanticCheckResult CheckShellKeywords(string name, BashSemanticCheckIdMap checkIds) {
         if (BashSecurityConstants.ShellKeywords.Contains(name))
             return new BashSemanticCheckResult(false,
                 $"Shell关键字 '{name}' 作为命令名 — 可能是 tree-sitter 误解析",
@@ -121,10 +110,8 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckSubscriptEvalFlags(string name, string[] a)
-    {
-        FrozenSet<string>? dangerFlags = name switch
-        {
+    private static BashSemanticCheckResult CheckSubscriptEvalFlags(string name, string[] a) {
+        var dangerFlags = name switch {
             "test" or "[" => BashSecurityConstants.SubscriptEvalFlagsTest,
             "printf" => BashSecurityConstants.SubscriptEvalFlagsPrintf,
             "wait" => BashSecurityConstants.SubscriptEvalFlagsWait,
@@ -133,32 +120,24 @@ public static class BashSemanticChecker
 
         if (dangerFlags is null) return new BashSemanticCheckResult(true);
 
-        for (var i = 1; i < a.Length; i++)
-        {
+        for (var i = 1; i < a.Length; i++) {
             var arg = a[i];
-            if (dangerFlags.Contains(arg) && i + 1 < a.Length && a[i + 1].Contains('['))
-            {
+            if (dangerFlags.Contains(arg) && i + 1 < a.Length && a[i + 1].Contains('[')) {
                 return new BashSemanticCheckResult(false,
                     $"'{name} {arg}' 操作数包含数组下标 — bash 会在下标中求值 $(cmd)",
                     BashSecurityCheckId.SubscriptEvalFlags);
             }
-            foreach (var flag in dangerFlags)
-            {
-                if (arg.StartsWith(flag) && arg.Length > flag.Length && arg.Contains('['))
-                {
+            foreach (var flag in dangerFlags) {
+                if (arg.StartsWith(flag) && arg.Length > flag.Length && arg.Contains('[')) {
                     return new BashSemanticCheckResult(false,
                         $"'{name} {flag}' (融合) 操作数包含数组下标 — bash 会在下标中求值 $(cmd)",
                         BashSecurityCheckId.SubscriptEvalFlags);
                 }
             }
-            if (arg.Length > 2 && arg[0] == '-' && arg[1] != '-' && !arg.Contains('['))
-            {
-                foreach (var flag in dangerFlags)
-                {
-                    if (flag.Length == 2 && arg.Contains(flag[1]))
-                    {
-                        if (i + 1 < a.Length && a[i + 1].Contains('['))
-                        {
+            if (arg.Length > 2 && arg[0] == '-' && arg[1] != '-' && !arg.Contains('[')) {
+                foreach (var flag in dangerFlags) {
+                    if (flag.Length == 2 && arg.Contains(flag[1])) {
+                        if (i + 1 < a.Length && a[i + 1].Contains('[')) {
                             return new BashSemanticCheckResult(false,
                                 $"'{name} {flag}' (组合在 '{arg}' 中) 操作数包含数组下标",
                                 BashSecurityCheckId.SubscriptEvalFlags);
@@ -171,15 +150,12 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckArithmeticComparison(string name, string[] a)
-    {
+    private static BashSemanticCheckResult CheckArithmeticComparison(string name, string[] a) {
         if (!name.Equals("[[", StringComparison.Ordinal)) return new BashSemanticCheckResult(true);
 
-        for (var i = 2; i < a.Length; i++)
-        {
+        for (var i = 2; i < a.Length; i++) {
             if (!BashSecurityConstants.TestArithCmpOps.Contains(a[i])) continue;
-            if ((i > 0 && a[i - 1].Contains('[')) || (i + 1 < a.Length && a[i + 1].Contains('[')))
-            {
+            if ((i > 0 && a[i - 1].Contains('[')) || (i + 1 < a.Length && a[i + 1].Contains('['))) {
                 return new BashSemanticCheckResult(false,
                     $"'[[ ... {a[i]} ... ]]' 操作数包含数组下标 — bash 会在下标中求值 $(cmd)",
                     BashSecurityCheckId.SubscriptEvalFlags);
@@ -189,30 +165,21 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckBareSubscriptNameBuiltins(string name, string[] a)
-    {
+    private static BashSemanticCheckResult CheckBareSubscriptNameBuiltins(string name, string[] a) {
         if (!BashSecurityConstants.BareSubscriptNameBuiltins.Contains(name)) return new BashSemanticCheckResult(true);
 
         var skipNext = false;
-        for (var i = 1; i < a.Length; i++)
-        {
+        for (var i = 1; i < a.Length; i++) {
             var arg = a[i];
             if (skipNext) { skipNext = false; continue; }
 
-            if (arg.StartsWith('-'))
-            {
-                if (name.Equals("read", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (BashSecurityConstants.ReadDataFlags.Contains(arg))
-                    {
+            if (arg.StartsWith('-')) {
+                if (name.Equals("read", StringComparison.OrdinalIgnoreCase)) {
+                    if (BashSecurityConstants.ReadDataFlags.Contains(arg)) {
                         skipNext = true;
-                    }
-                    else if (arg.Length > 2 && arg[1] != '-')
-                    {
-                        for (var j = 1; j < arg.Length; j++)
-                        {
-                            if (BashSecurityConstants.ReadDataFlags.Contains($"-{arg[j]}"))
-                            {
+                    } else if (arg.Length > 2 && arg[1] != '-') {
+                        for (var j = 1; j < arg.Length; j++) {
+                            if (BashSecurityConstants.ReadDataFlags.Contains($"-{arg[j]}")) {
                                 if (j == arg.Length - 1) skipNext = true;
                                 break;
                             }
@@ -222,8 +189,7 @@ public static class BashSemanticChecker
                 continue;
             }
 
-            if (arg.Contains('['))
-            {
+            if (arg.Contains('[')) {
                 return new BashSemanticCheckResult(false,
                     $"'{name}' 位置参数 '{arg}' 包含数组下标 — bash 会在下标中求值 $(cmd)",
                     BashSecurityCheckId.SubscriptEvalFlags);
@@ -233,30 +199,23 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckNewlineHash(BashSimpleCommandInfo cmd)
-    {
-        foreach (var arg in cmd.Argv)
-        {
-            if (arg.Contains('\n') && BashSecurityRegex.NewlineHashRegex().IsMatch(arg))
-            {
+    private static BashSemanticCheckResult CheckNewlineHash(BashSimpleCommandInfo cmd) {
+        foreach (var arg in cmd.Argv) {
+            if (arg.Contains('\n') && BashSecurityRegex.NewlineHashRegex().IsMatch(arg)) {
                 return new BashSemanticCheckResult(false,
                     "引号参数中的换行+井号可对路径验证隐藏参数",
                     BashSecurityCheckId.MidWordHash);
             }
         }
-        foreach (var ev in cmd.EnvVars)
-        {
-            if (ev.Value.Contains('\n') && BashSecurityRegex.NewlineHashRegex().IsMatch(ev.Value))
-            {
+        foreach (var ev in cmd.EnvVars) {
+            if (ev.Value.Contains('\n') && BashSecurityRegex.NewlineHashRegex().IsMatch(ev.Value)) {
                 return new BashSemanticCheckResult(false,
                     "环境变量值中的换行+井号可对路径验证隐藏参数",
                     BashSecurityCheckId.MidWordHash);
             }
         }
-        foreach (var r in cmd.Redirects)
-        {
-            if (r.Target.Contains('\n') && BashSecurityRegex.NewlineHashRegex().IsMatch(r.Target))
-            {
+        foreach (var r in cmd.Redirects) {
+            if (r.Target.Contains('\n') && BashSecurityRegex.NewlineHashRegex().IsMatch(r.Target)) {
                 return new BashSemanticCheckResult(false,
                     "重定向目标中的换行+井号可对路径验证隐藏参数",
                     BashSecurityCheckId.MidWordHash);
@@ -266,25 +225,20 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckJqSecurity(string name, string[] a)
-    {
+    private static BashSemanticCheckResult CheckJqSecurity(string name, string[] a) {
         if (!name.Equals("jq", StringComparison.OrdinalIgnoreCase))
             return new BashSemanticCheckResult(true);
 
-        foreach (var arg in a)
-        {
-            if (BashSecurityRegex.JqSystemRegex().IsMatch(arg))
-            {
+        foreach (var arg in a) {
+            if (BashSecurityRegex.JqSystemRegex().IsMatch(arg)) {
                 return new BashSemanticCheckResult(false,
                     "jq system() 函数可执行任意Shell命令",
                     BashSecurityCheckId.JqSystemFunction);
             }
         }
 
-        foreach (var arg in a)
-        {
-            if (BashSecurityRegex.JqDangerousFlagsRegex().IsMatch(arg))
-            {
+        foreach (var arg in a) {
+            if (BashSecurityRegex.JqDangerousFlagsRegex().IsMatch(arg)) {
                 return new BashSemanticCheckResult(false,
                     "jq 危险标志可执行代码或读取任意文件",
                     BashSecurityCheckId.JqSystemFunction);
@@ -294,18 +248,15 @@ public static class BashSemanticChecker
         return new BashSemanticCheckResult(true);
     }
 
-    private static BashSemanticCheckResult CheckProcEnvironAccess(BashSimpleCommandInfo cmd)
-    {
-        foreach (var arg in cmd.Argv)
-        {
+    private static BashSemanticCheckResult CheckProcEnvironAccess(BashSimpleCommandInfo cmd) {
+        foreach (var arg in cmd.Argv) {
             if (arg.Contains("/proc/") && BashSecurityRegex.ProcEnvironRegex().IsMatch(arg))
                 return new BashSemanticCheckResult(false,
                     "访问 /proc/*/environ 可暴露敏感环境变量",
                     BashSecurityCheckId.ProcEnvironAccess);
         }
 
-        foreach (var redirect in cmd.Redirects)
-        {
+        foreach (var redirect in cmd.Redirects) {
             if (redirect.Target.Contains("/proc/") && BashSecurityRegex.ProcEnvironRegex().IsMatch(redirect.Target))
                 return new BashSemanticCheckResult(false,
                     "重定向访问 /proc/*/environ 可暴露敏感环境变量",

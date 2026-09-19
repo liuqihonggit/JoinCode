@@ -6,8 +6,7 @@ namespace JoinCode.CodeIndex;
 /// <para>卸载时重置为默认工厂,实现可逆效应</para>
 /// </summary>
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
-public sealed partial class CSharpLanguagePlugin : WorkflowPluginBase
-{
+public sealed partial class CSharpLanguagePlugin : WorkflowPluginBase {
     private CodeIndexer? _indexer;
 
     /// <summary>
@@ -29,16 +28,14 @@ public sealed partial class CSharpLanguagePlugin : WorkflowPluginBase
         => Task.FromResult(OperationResult.Ok());
 
     /// <summary>初始化插件 — 从 DI 获取 CodeIndexer,设置 C# 语言插件工厂</summary>
-    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
+    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         _indexer = serviceProvider.GetRequiredService<CodeIndexer>();
         _indexer.SetLanguagePluginFactory(static () => new CSharpSymbolExtractor());
         return Task.FromResult(OperationResult.Ok());
     }
 
     /// <summary>插件特定清理 — 重置为默认工厂</summary>
-    protected override void OnUnload()
-    {
+    protected override void OnUnload() {
         _indexer?.SetLanguagePluginFactory(static () => new CSharpSymbolExtractor());
         _indexer = null;
     }

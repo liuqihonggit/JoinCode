@@ -6,8 +6,7 @@ namespace Core.Telemetry;
 /// <para>卸载时禁用导出器,实现可逆效应</para>
 /// </summary>
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
-public sealed partial class TelemetryPlugin : WorkflowPluginBase
-{
+public sealed partial class TelemetryPlugin : WorkflowPluginBase {
     private TelemetryService? _telemetryService;
 
     /// <summary>构造遥测插件</summary>
@@ -27,11 +26,9 @@ public sealed partial class TelemetryPlugin : WorkflowPluginBase
         => Task.FromResult(OperationResult.Ok());
 
     /// <summary>初始化插件 — 根据遥测配置启用控制台导出器</summary>
-    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
+    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         _telemetryService = serviceProvider.GetRequiredService<TelemetryService>();
-        if (_telemetryService.Config.ExportFormat == TelemetryExportFormat.Console)
-        {
+        if (_telemetryService.Config.ExportFormat == TelemetryExportFormat.Console) {
             var logger = serviceProvider.GetService<ILogger<TelemetryService>>();
             _telemetryService.EnableConsoleExporter(logger);
         }
@@ -39,8 +36,7 @@ public sealed partial class TelemetryPlugin : WorkflowPluginBase
     }
 
     /// <summary>插件特定清理 — 禁用控制台导出器</summary>
-    protected override void OnUnload()
-    {
+    protected override void OnUnload() {
         _telemetryService?.DisableConsoleExporter();
         _telemetryService = null;
     }

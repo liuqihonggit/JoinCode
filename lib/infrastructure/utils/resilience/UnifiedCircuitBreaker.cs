@@ -3,8 +3,7 @@ namespace Infrastructure.Utils.Resilience;
 /// <summary>
 /// 熔断器相位枚举 — Closed(正常)/Open(熔断)/HalfOpen(半开探针)
 /// </summary>
-public enum CircuitBreakerPhase
-{
+public enum CircuitBreakerPhase {
     /// <summary>关闭态 — 正常放行请求</summary>
     [EnumValue("closed")]
     Closed,
@@ -19,8 +18,7 @@ public enum CircuitBreakerPhase
 /// <summary>
 /// 熔断器事件枚举 — 驱动状态机转换（ADR 0040）
 /// </summary>
-public enum CircuitBreakerEvent
-{
+public enum CircuitBreakerEvent {
     /// <summary>记录成功 — 任意状态 → Closed</summary>
     [EnumValue("record_success")]
     RecordSuccess,
@@ -45,8 +43,7 @@ public enum CircuitBreakerEvent
 /// <summary>
 /// 熔断器共享上下文 — ADR 0040 FsmContext 强类型子类
 /// </summary>
-internal sealed class CircuitBreakerContext : FsmContext
-{
+internal sealed class CircuitBreakerContext : FsmContext {
     /// <summary>连续失败次数</summary>
     public int ConsecutiveFailures;
     /// <summary>累计失败次数</summary>
@@ -83,8 +80,7 @@ internal sealed class CircuitBreakerContext : FsmContext
 [Transition(CircuitBreakerPhase.Closed, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
 [Transition(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
 [Transition(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset, CircuitBreakerPhase.Closed)]
-public sealed partial class UnifiedCircuitBreaker
-{
+public sealed partial class UnifiedCircuitBreaker {
     private readonly TimeSpan _openDuration;
     private readonly AsyncLock _lock = new("UnifiedCircuitBreaker");
     private readonly Fsm<CircuitBreakerPhase, CircuitBreakerEvent> _fsm;
@@ -97,12 +93,9 @@ public sealed partial class UnifiedCircuitBreaker
     public CircuitBreakerPhase State => Phase;
 
     /// <summary>当前相位 — 读取时惰性触发 Open→HalfOpen 转换</summary>
-    public CircuitBreakerPhase Phase
-    {
-        get
-        {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-            {
+    public CircuitBreakerPhase Phase {
+        get {
+            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
                 MaybeTransitionToHalfOpen();
                 return _fsm.CurrentState;
             }
@@ -110,30 +103,24 @@ public sealed partial class UnifiedCircuitBreaker
     }
 
     /// <summary>连续失败次数</summary>
-    public int ConsecutiveFailures
-    {
+    public int ConsecutiveFailures {
         get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) { return _ctx.ConsecutiveFailures; } }
     }
 
     /// <summary>累计失败次数</summary>
-    public int TotalFailures
-    {
+    public int TotalFailures {
         get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) { return _ctx.TotalFailures; } }
     }
 
     /// <summary>累计成功次数</summary>
-    public int TotalSuccesses
-    {
+    public int TotalSuccesses {
         get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) { return _ctx.TotalSuccesses; } }
     }
 
     /// <summary>熔断开启时间;未开启返回 null</summary>
-    public DateTimeOffset? OpenedAt
-    {
-        get
-        {
-            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-            {
+    public DateTimeOffset? OpenedAt {
+        get {
+            using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
                 return _fsm.CurrentState != CircuitBreakerPhase.Closed ? _ctx.OpenedAt : null;
             }
         }
@@ -143,8 +130,7 @@ public sealed partial class UnifiedCircuitBreaker
     public bool IsOpen => Phase == CircuitBreakerPhase.Open;
 
     /// <summary>最近一次失败时间;无失败记录返回 null</summary>
-    public DateTimeOffset? LastFailureTime
-    {
+    public DateTimeOffset? LastFailureTime {
         get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) { return _ctx.LastFailureTime == DateTimeOffset.MinValue ? null : _ctx.LastFailureTime; } }
     }
 
@@ -155,16 +141,14 @@ public sealed partial class UnifiedCircuitBreaker
     /// <param name="failureThreshold">连续失败阈值,达到即熔断</param>
     /// <param name="openDuration">熔断开启持续时长,超时进入 HalfOpen</param>
     /// <param name="halfOpenMaxProbe">半开态最大探针请求数</param>
-    public UnifiedCircuitBreaker(string name, int failureThreshold = 5, TimeSpan? openDuration = null, int halfOpenMaxProbe = 1)
-    {
+    public UnifiedCircuitBreaker(string name, int failureThreshold = 5, TimeSpan? openDuration = null, int halfOpenMaxProbe = 1) {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(failureThreshold);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(halfOpenMaxProbe);
 
         Name = name;
         _openDuration = openDuration ?? TimeSpan.FromSeconds(30);
-        _ctx = new CircuitBreakerContext
-        {
+        _ctx = new CircuitBreakerContext {
             FailureThreshold = failureThreshold,
             HalfOpenMaxProbe = halfOpenMaxProbe,
             OpenedAt = DateTimeOffset.MinValue,
@@ -180,26 +164,22 @@ public sealed partial class UnifiedCircuitBreaker
     /// <param name="name">熔断器名称</param>
     /// <param name="config">熔断器配置</param>
     public UnifiedCircuitBreaker(string name, CircuitBreakerConfig config)
-        : this(name, config.FailureThreshold, config.OpenDuration, config.HalfOpenMaxProbe)
-    {
+        : this(name, config.FailureThreshold, config.OpenDuration, config.HalfOpenMaxProbe) {
     }
 
     /// <summary>
     /// 尝试探针请求 — Closed 直接放行;HalfOpen 限流放行;Open 拒绝
     /// </summary>
     /// <returns>放行返回 true,拒绝返回 false</returns>
-    public bool TryProbe()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public bool TryProbe() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             MaybeTransitionToHalfOpen();
             var state = _fsm.CurrentState;
 
             if (state == CircuitBreakerPhase.Closed)
                 return true;
 
-            if (state == CircuitBreakerPhase.HalfOpen)
-            {
+            if (state == CircuitBreakerPhase.HalfOpen) {
                 _ctx.Now = DateTimeOffset.UtcNow;
                 var result = _fsm.Trigger(CircuitBreakerEvent.TryProbe, _ctx);
                 return result.Transitioned;
@@ -210,10 +190,8 @@ public sealed partial class UnifiedCircuitBreaker
     }
 
     /// <summary>记录成功 — 任意状态回到 Closed 并清零失败计数</summary>
-    public void RecordSuccess()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void RecordSuccess() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             MaybeTransitionToHalfOpen();
             _ctx.TotalSuccesses++;
             _fsm.Trigger(CircuitBreakerEvent.RecordSuccess, _ctx);
@@ -221,10 +199,8 @@ public sealed partial class UnifiedCircuitBreaker
     }
 
     /// <summary>记录失败 — 累加失败计数,达阈值则熔断</summary>
-    public void RecordFailure()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void RecordFailure() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             MaybeTransitionToHalfOpen();
 
             _ctx.ConsecutiveFailures++;
@@ -237,10 +213,8 @@ public sealed partial class UnifiedCircuitBreaker
     }
 
     /// <summary>手动重置 — 任意状态回到 Closed 并清零所有计数</summary>
-    public void Reset()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void Reset() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _fsm.Trigger(CircuitBreakerEvent.Reset, _ctx);
         }
     }
@@ -248,11 +222,9 @@ public sealed partial class UnifiedCircuitBreaker
     /// <summary>
     /// 惰性求值 — Open 状态超时则触发 OpenTimeout 事件转 HalfOpen
     /// </summary>
-    private void MaybeTransitionToHalfOpen()
-    {
+    private void MaybeTransitionToHalfOpen() {
         if (_fsm.CurrentState == CircuitBreakerPhase.Open &&
-            DateTimeOffset.UtcNow - _ctx.OpenedAt > _openDuration)
-        {
+            DateTimeOffset.UtcNow - _ctx.OpenedAt > _openDuration) {
             _ctx.Now = DateTimeOffset.UtcNow;
             _fsm.Trigger(CircuitBreakerEvent.OpenTimeout, _ctx);
         }
@@ -266,8 +238,7 @@ public sealed partial class UnifiedCircuitBreaker
 
     [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordFailure)]
     [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordFailure)]
-    private static void FsmActOpen(FsmContext? ctx)
-    {
+    private static void FsmActOpen(FsmContext? ctx) {
         var c = (CircuitBreakerContext)ctx!;
         c.OpenedAt = DateTimeOffset.UtcNow;
         c.HalfOpenProbeCount = 0;
@@ -276,8 +247,7 @@ public sealed partial class UnifiedCircuitBreaker
     [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.RecordSuccess)]
     [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.RecordSuccess)]
     [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.RecordSuccess)]
-    private static void FsmActSuccess(FsmContext? ctx)
-    {
+    private static void FsmActSuccess(FsmContext? ctx) {
         var c = (CircuitBreakerContext)ctx!;
         c.ConsecutiveFailures = 0;
         c.HalfOpenProbeCount = 0;
@@ -286,8 +256,7 @@ public sealed partial class UnifiedCircuitBreaker
     [TransitionAction(CircuitBreakerPhase.Closed, CircuitBreakerEvent.Reset)]
     [TransitionAction(CircuitBreakerPhase.Open, CircuitBreakerEvent.Reset)]
     [TransitionAction(CircuitBreakerPhase.HalfOpen, CircuitBreakerEvent.Reset)]
-    private static void FsmActReset(FsmContext? ctx)
-    {
+    private static void FsmActReset(FsmContext? ctx) {
         var c = (CircuitBreakerContext)ctx!;
         c.ConsecutiveFailures = 0;
         c.HalfOpenProbeCount = 0;

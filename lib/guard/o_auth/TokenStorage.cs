@@ -5,8 +5,7 @@ namespace Services.OAuth;
 /// Token 存储接口
 /// 安全地存储和检索 OAuth Token
 /// </summary>
-public interface ITokenStorage
-{
+public interface ITokenStorage {
     /// <summary>
     /// 保存 Token
     /// </summary>
@@ -36,8 +35,7 @@ public interface ITokenStorage
 /// <summary>
 /// OAuth Token 信息
 /// </summary>
-public sealed record OAuthToken
-{
+public sealed record OAuthToken {
     /// <summary>访问令牌</summary>
     public required string AccessToken { get; init; }
     /// <summary>刷新令牌，可为空</summary>
@@ -60,8 +58,7 @@ public sealed record OAuthToken
     /// 获取 Token 剩余有效时间
     /// </summary>
     /// <returns>剩余时间,已过期返回 Zero</returns>
-    public TimeSpan GetRemainingTime()
-    {
+    public TimeSpan GetRemainingTime() {
         var remaining = ExpiresAt - DateTimeOffset.UtcNow;
         return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
@@ -71,8 +68,7 @@ public sealed record OAuthToken
 /// Token 存储实现
 /// </summary>
 [Register(typeof(ITokenStorage), ServiceLifetime.Singleton)]
-public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
-{
+public sealed partial class TokenStorage : ServiceEntity, ITokenStorage {
     private readonly string _storagePath;
     private readonly ILogger<TokenStorage>? _logger;
     private readonly IFileSystem _fs;
@@ -83,8 +79,7 @@ public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
     /// <param name="fs">文件系统抽象</param>
     /// <param name="storagePath">存储目录路径,默认使用应用数据目录下的 Tokens 目录</param>
     /// <param name="logger">日志记录器</param>
-    public TokenStorage(IFileSystem fs, string? storagePath = null, ILogger<TokenStorage>? logger = null)
-    {
+    public TokenStorage(IFileSystem fs, string? storagePath = null, ILogger<TokenStorage>? logger = null) {
         _fs = fs;
         _storagePath = storagePath ?? GetDefaultStoragePath();
         _logger = logger;
@@ -93,8 +88,7 @@ public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
     }
 
     /// <inheritdoc />
-    public async Task SaveTokenAsync(string provider, OAuthToken token, CancellationToken cancellationToken = default)
-    {
+    public async Task SaveTokenAsync(string provider, OAuthToken token, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(provider);
         ArgumentNullException.ThrowIfNull(token);
 
@@ -106,8 +100,7 @@ public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
     }
 
     /// <inheritdoc />
-    public async Task<OAuthToken?> LoadTokenAsync(string provider, CancellationToken cancellationToken = default)
-    {
+    public async Task<OAuthToken?> LoadTokenAsync(string provider, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(provider);
 
         var filePath = GetTokenFilePath(provider);
@@ -115,26 +108,21 @@ public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
         if (!_fs.FileExists(filePath))
             return null;
 
-        try
-        {
+        try {
             return await _fs.ReadAndDeserializeAsync(filePath, OAuthTokenJsonContext.Default.OAuthToken, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to load token for provider: {Provider}", provider);
             return null;
         }
     }
 
     /// <inheritdoc />
-    public Task DeleteTokenAsync(string provider, CancellationToken cancellationToken = default)
-    {
+    public Task DeleteTokenAsync(string provider, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(provider);
 
         var filePath = GetTokenFilePath(provider);
 
-        if (_fs.FileExists(filePath))
-        {
+        if (_fs.FileExists(filePath)) {
             _fs.DeleteFile(filePath);
             _logger?.LogInformation("Token deleted for provider: {Provider}", provider);
         }
@@ -143,8 +131,7 @@ public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
     }
 
     /// <inheritdoc />
-    public Task<IReadOnlyList<string>> GetStoredProvidersAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyList<string>> GetStoredProvidersAsync(CancellationToken cancellationToken = default) {
         if (!_fs.DirectoryExists(_storagePath))
             return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
 
@@ -160,14 +147,12 @@ public sealed partial class TokenStorage : ServiceEntity, ITokenStorage
     }
 
     /// <inheritdoc />
-    public async Task<bool> HasTokenAsync(string provider, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> HasTokenAsync(string provider, CancellationToken cancellationToken = default) {
         var token = await LoadTokenAsync(provider, cancellationToken).ConfigureAwait(false);
         return token != null;
     }
 
-    private string GetTokenFilePath(string provider)
-    {
+    private string GetTokenFilePath(string provider) {
         var safeProvider = string.Join("_", provider.Split(Path.GetInvalidFileNameChars()));
         return Path.Combine(_storagePath, $"{safeProvider}.token");
     }

@@ -1,11 +1,9 @@
 
 namespace Bridge.Tests.Phase7B;
 
-public sealed class BridgeConfigTests
-{
+public sealed class BridgeConfigTests {
     [Fact]
-    public void DefaultValues_AreCorrect()
-    {
+    public void DefaultValues_AreCorrect() {
         var config = new BridgeConfig();
 
         Assert.False(config.Enabled);
@@ -19,8 +17,7 @@ public sealed class BridgeConfigTests
     }
 
     [Fact]
-    public void ClientFields_DefaultValues()
-    {
+    public void ClientFields_DefaultValues() {
         var config = new BridgeConfig();
 
         Assert.Equal(Environment.MachineName, config.MachineName);
@@ -33,8 +30,7 @@ public sealed class BridgeConfigTests
     }
 
     [Fact]
-    public void BridgeSpawnMode_EnumValues()
-    {
+    public void BridgeSpawnMode_EnumValues() {
         Assert.Equal("single-session", BridgeSpawnMode.SingleSession.ToValue());
         Assert.Equal("worktree", BridgeSpawnMode.Worktree.ToValue());
         Assert.Equal("same-dir", BridgeSpawnMode.SameDir.ToValue());

@@ -1,10 +1,8 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class ImmutablePrefixStableSortTests
-{
+public sealed class ImmutablePrefixStableSortTests {
     [Fact]
-    public void Fingerprint_IsStable_RegardlessOfToolRegistrationOrder()
-    {
+    public void Fingerprint_IsStable_RegardlessOfToolRegistrationOrder() {
         var toolsAb = new List<ToolSpec>
         {
             new("alpha", "Alpha tool"),
@@ -24,8 +22,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void Fingerprint_IsStable_WithThreeTools_DifferentOrders()
-    {
+    public void Fingerprint_IsStable_WithThreeTools_DifferentOrders() {
         var tools123 = new List<ToolSpec>
         {
             new("read", "Read files"),
@@ -47,8 +44,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void Fingerprint_DifferentContent_DifferentHash()
-    {
+    public void Fingerprint_DifferentContent_DifferentHash() {
         var tools1 = new List<ToolSpec> { new("read", "Read files") };
         var tools2 = new List<ToolSpec> { new("read", "Read files v2") };
 
@@ -60,8 +56,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void Fingerprint_DifferentNames_DifferentHash()
-    {
+    public void Fingerprint_DifferentNames_DifferentHash() {
         var tools1 = new List<ToolSpec> { new("read", "Same description") };
         var tools2 = new List<ToolSpec> { new("write", "Same description") };
 
@@ -73,8 +68,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void Fingerprint_WithInputSchema_StableAcrossOrder()
-    {
+    public void Fingerprint_WithInputSchema_StableAcrossOrder() {
         var toolsAb = new List<ToolSpec>
         {
             new("alpha", "Alpha tool", """{"type":"object","properties":{"path":{"type":"string"}}}"""),
@@ -94,8 +88,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void AddTool_InvalidatesFingerprintCache()
-    {
+    public void AddTool_InvalidatesFingerprintCache() {
         var prefix = new ImmutablePrefix("System", [new ToolSpec("alpha", "Alpha")], []);
         var fp1 = prefix.Fingerprint;
 
@@ -106,8 +99,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void RemoveTool_InvalidatesFingerprintCache()
-    {
+    public void RemoveTool_InvalidatesFingerprintCache() {
         var prefix = new ImmutablePrefix("System",
             [new ToolSpec("alpha", "Alpha"), new ToolSpec("beta", "Beta")], []);
         var fp1 = prefix.Fingerprint;
@@ -119,8 +111,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void Fingerprint_SameTools_SameSystem_SameResult()
-    {
+    public void Fingerprint_SameTools_SameSystem_SameResult() {
         var tools = new List<ToolSpec>
         {
             new("read", "Read files"),
@@ -135,8 +126,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void TwoBuilds_ProduceByteStableConversationPrefix()
-    {
+    public void TwoBuilds_ProduceByteStableConversationPrefix() {
         var tools = new List<ToolSpec>
         {
             new("read", "Read files", """{"type":"object","properties":{"path":{"type":"string"}}}"""),
@@ -158,8 +148,7 @@ public sealed class ImmutablePrefixStableSortTests
     }
 
     [Fact]
-    public void TwoBuilds_FingerprintAndBytes_BothStableAcrossToolOrder()
-    {
+    public void TwoBuilds_FingerprintAndBytes_BothStableAcrossToolOrder() {
         var toolsAb = new List<ToolSpec>
         {
             new("alpha", "Alpha tool"),

@@ -3,8 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// 固定窗口限流器 — 在固定时间窗口内限制最大请求数
 /// </summary>
-public sealed class FixedWindowRateLimiter
-{
+public sealed class FixedWindowRateLimiter {
     private readonly AsyncLock _lock = new("FixedWindowRateLimiter");
     private readonly int _maxRequests;
     private readonly TimeSpan _window;
@@ -16,8 +15,7 @@ public sealed class FixedWindowRateLimiter
     /// </summary>
     /// <param name="maxRequests">窗口内最大请求数</param>
     /// <param name="window">时间窗口长度</param>
-    public FixedWindowRateLimiter(int maxRequests, TimeSpan window)
-    {
+    public FixedWindowRateLimiter(int maxRequests, TimeSpan window) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxRequests);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(window, TimeSpan.Zero);
         _maxRequests = maxRequests;
@@ -28,13 +26,10 @@ public sealed class FixedWindowRateLimiter
     /// 尝试获取一个请求配额
     /// </summary>
     /// <returns>窗口内未达上限返回 true，否则 false</returns>
-    public bool TryAcquire()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public bool TryAcquire() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             var now = DateTime.UtcNow;
-            if (now - _windowStart >= _window)
-            {
+            if (now - _windowStart >= _window) {
                 _windowStart = now;
                 _currentCount = 0;
             }
@@ -50,10 +45,8 @@ public sealed class FixedWindowRateLimiter
     /// <summary>
     /// 重置限流器，清空当前窗口计数并重新开始计时
     /// </summary>
-    public void Reset()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void Reset() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _windowStart = DateTime.UtcNow;
             _currentCount = 0;
         }

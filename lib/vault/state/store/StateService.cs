@@ -7,16 +7,14 @@ namespace State;
 /// </summary>
 [Register(typeof(StateService), ServiceLifetime.Singleton)]
 [Register(typeof(IStateService), ServiceLifetime.Singleton)]
-public sealed partial class StateService : ServiceEntity, IStateService, IDisposable
-{
+public sealed partial class StateService : ServiceEntity, IStateService, IDisposable {
     private readonly ConcurrentDictionary<string, SessionState> _fallbackStorage = new();
     private readonly IClockService _clock;
     private readonly ILogger<StateService>? _logger;
     private const string StateKey = "state";
     private bool _disposed;
 
-    private static ISessionCache? GetCurrentCache()
-    {
+    private static ISessionCache? GetCurrentCache() {
         var sessionId = SessionContext.Current;
         if (sessionId is null) return null;
         return SessionRouter.GetScope(sessionId.Value)?.Cache;
@@ -27,8 +25,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     /// </summary>
     /// <param name="clock">时钟服务,用于获取时间戳</param>
     /// <param name="logger">可选的日志记录器</param>
-    public StateService(IClockService clock, ILogger<StateService>? logger = null)
-    {
+    public StateService(IClockService clock, ILogger<StateService>? logger = null) {
         _clock = clock;
         _logger = logger;
         _logger?.LogInformation(L.T(StringKey.VaultLogStateServiceInitialized));
@@ -37,11 +34,9 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     #region IStateService Implementation
 
     /// <inheritdoc />
-    public void SaveState(string systemPrompt, MessageList chatHistory)
-    {
+    public void SaveState(string systemPrompt, MessageList chatHistory) {
         var chatHistoryList = chatHistory
-            .Select(m => new ApiMessageState
-            {
+            .Select(m => new ApiMessageState {
                 Role = m.Role.ToValue(),
                 Content = m.Content ?? string.Empty,
                 Timestamp = _clock.GetUtcNow(),
@@ -49,8 +44,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
             })
             .ToImmutableList();
 
-        var state = new SessionState
-        {
+        var state = new SessionState {
             SystemPrompt = systemPrompt,
             MessageList = chatHistoryList,
             LastActivityAt = _clock.GetUtcNow()
@@ -64,8 +58,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         _logger?.LogInformation(L.T(StringKey.VaultLogStateSaveSuccess));
     }
 
-    private static ImmutableDictionary<string, string> SerializeMetadata(IReadOnlyDictionary<string, JsonElement>? metadata)
-    {
+    private static ImmutableDictionary<string, string> SerializeMetadata(IReadOnlyDictionary<string, JsonElement>? metadata) {
         if (metadata is null || metadata.Count == 0)
             return ImmutableDictionary<string, string>.Empty;
 
@@ -75,8 +68,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
         return builder.ToImmutable();
     }
 
-    private static IReadOnlyDictionary<string, JsonElement>? DeserializeMetadata(IReadOnlyDictionary<string, string>? stored)
-    {
+    private static IReadOnlyDictionary<string, JsonElement>? DeserializeMetadata(IReadOnlyDictionary<string, string>? stored) {
         if (stored is null || stored.Count == 0) return null;
 
         var dict = new Dictionary<string, JsonElement>(stored.Count);
@@ -86,17 +78,14 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     }
 
     /// <inheritdoc />
-    public Task SaveStateAsync(string systemPrompt, MessageList chatHistory, CancellationToken cancellationToken = default)
-    {
+    public Task SaveStateAsync(string systemPrompt, MessageList chatHistory, CancellationToken cancellationToken = default) {
         SaveState(systemPrompt, chatHistory);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public (string SystemPrompt, MessageList MessageList) LoadState()
-    {
-        try
-        {
+    public (string SystemPrompt, MessageList MessageList) LoadState() {
+        try {
             var cache = GetCurrentCache();
             var sessionState = cache?.Get<SessionState>(StateKey) ?? _fallbackStorage.GetValueOrDefault(StateKey);
             if (sessionState is null)
@@ -104,32 +93,26 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
             var chatHistory = new MessageList();
             var seenContent = new HashSet<string>(StringComparer.Ordinal);
-            var rolePriority = new Dictionary<MessageRole, int>
-            {
+            var rolePriority = new Dictionary<MessageRole, int> {
                 [MessageRole.System] = 0,
                 [MessageRole.User] = 1,
                 [MessageRole.Assistant] = 2,
                 [MessageRole.Tool] = 3,
             };
 
-            foreach (var message in sessionState.MessageList)
-            {
+            foreach (var message in sessionState.MessageList) {
                 var role = MessageRoleExtensions.FromValue(message.Role) ?? MessageRole.User;
                 var metadata = DeserializeMetadata(message.Metadata);
                 var content = message.Content ?? string.Empty;
                 var isToolMessage = role == MessageRole.Tool;
 
-                if (!string.IsNullOrEmpty(content) && seenContent.Contains(content))
-                {
+                if (!string.IsNullOrEmpty(content) && seenContent.Contains(content)) {
                     var replaced = false;
-                    for (var i = 0; i < chatHistory.Count; i++)
-                    {
-                        if ((chatHistory[i].Content ?? string.Empty) == content)
-                        {
+                    for (var i = 0; i < chatHistory.Count; i++) {
+                        if ((chatHistory[i].Content ?? string.Empty) == content) {
                             var existingPriority = rolePriority.GetValueOrDefault(chatHistory[i].Role, 0);
                             var newPriority = rolePriority.GetValueOrDefault(role, 0);
-                            if (newPriority > existingPriority)
-                            {
+                            if (newPriority > existingPriority) {
                                 chatHistory[i] = new ApiMessage(role, content, metadata);
                                 replaced = true;
                             }
@@ -147,23 +130,19 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
 
             _logger?.LogInformation(L.T(StringKey.VaultLogStateLoadSuccess));
             return (sessionState.SystemPrompt, chatHistory);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogStateLoadFailed));
             return (string.Empty, new MessageList());
         }
     }
 
     /// <inheritdoc />
-    public Task<(string SystemPrompt, MessageList MessageList)> LoadStateAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<(string SystemPrompt, MessageList MessageList)> LoadStateAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult(LoadState());
     }
 
     /// <inheritdoc />
-    public bool ClearState()
-    {
+    public bool ClearState() {
         var cache = GetCurrentCache();
         var result = cache?.Remove(StateKey) ?? _fallbackStorage.TryRemove(StateKey, out _);
         if (result)
@@ -172,8 +151,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     }
 
     /// <inheritdoc />
-    public Task<bool> ClearStateAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<bool> ClearStateAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult(ClearState());
     }
 
@@ -182,8 +160,7 @@ public sealed partial class StateService : ServiceEntity, IStateService, IDispos
     /// <summary>
     /// 清空回退存储中的所有会话状态。
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
 

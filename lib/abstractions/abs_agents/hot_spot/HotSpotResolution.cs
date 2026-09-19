@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 热点处置决策 — 给定热点文件，决定队长是否接管、通知哪些Worker
 /// 不可变 record，由 IHotSpotResolutionPolicy 生成
 /// </summary>
-public sealed record HotSpotResolution
-{
+public sealed record HotSpotResolution {
     /// <summary>
     /// 热点文件路径
     /// </summary>

@@ -3,8 +3,7 @@ namespace IO.Services;
 /// <summary>
 /// 终端焦点状态 — 对齐 TS terminal-focus-state.ts
 /// </summary>
-public enum TerminalFocusState
-{
+public enum TerminalFocusState {
     /// <summary>终端处于焦点</summary>
     [EnumValue("focused")]
     Focused,
@@ -26,8 +25,7 @@ public enum TerminalFocusState
 /// - Windows 可选：GetForegroundWindow 检测（需要 P/Invoke，暂不启用）
 /// - Unix：tcgetpgrp 检测（需要 P/Invoke，暂不启用）
 /// </summary>
-public sealed class TerminalFocusDetector
-{
+public sealed class TerminalFocusDetector {
     private int _state = (int)TerminalFocusState.Unknown;
 
     /// <summary>当前焦点状态</summary>
@@ -40,31 +38,25 @@ public sealed class TerminalFocusDetector
     public event EventHandler<TerminalFocusState>? FocusChanged;
 
     /// <summary>设置终端为焦点状态</summary>
-    public void SetFocused()
-    {
+    public void SetFocused() {
         var old = (TerminalFocusState)Interlocked.Exchange(ref _state, (int)TerminalFocusState.Focused);
-        if (old != TerminalFocusState.Focused)
-        {
+        if (old != TerminalFocusState.Focused) {
             FocusChanged?.Invoke(this, TerminalFocusState.Focused);
         }
     }
 
     /// <summary>设置终端为失焦状态</summary>
-    public void SetBlurred()
-    {
+    public void SetBlurred() {
         var old = (TerminalFocusState)Interlocked.Exchange(ref _state, (int)TerminalFocusState.Blurred);
-        if (old != TerminalFocusState.Blurred)
-        {
+        if (old != TerminalFocusState.Blurred) {
             FocusChanged?.Invoke(this, TerminalFocusState.Blurred);
         }
     }
 
     /// <summary>重置为未知状态</summary>
-    public void Reset()
-    {
+    public void Reset() {
         var old = (TerminalFocusState)Interlocked.Exchange(ref _state, (int)TerminalFocusState.Unknown);
-        if (old != TerminalFocusState.Unknown)
-        {
+        if (old != TerminalFocusState.Unknown) {
             FocusChanged?.Invoke(this, TerminalFocusState.Unknown);
         }
     }

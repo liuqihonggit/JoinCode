@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 任务类型 - 用于区分不同类型的后台任务
 /// </summary>
-public enum TaskType
-{
+public enum TaskType {
     [EnumValue("local_bash")] LocalBash,
     [EnumValue("local_agent")] LocalAgent,
     [EnumValue("remote_agent")] RemoteAgent,
@@ -17,8 +16,7 @@ public enum TaskType
 /// <summary>
 /// 任务状态 - 与TaskState保持一致但用于做梦系统
 /// </summary>
-public enum DreamTaskStatus
-{
+public enum DreamTaskStatus {
     [EnumValue("pending")] Pending,
     [EnumValue("running")] Running,
     [EnumValue("completed")] Completed,
@@ -29,8 +27,7 @@ public enum DreamTaskStatus
 /// <summary>
 /// 做梦阶段
 /// </summary>
-public enum DreamPhase
-{
+public enum DreamPhase {
     [EnumValue("starting")] Starting,
     [EnumValue("updating")] Updating
 }
@@ -38,10 +35,8 @@ public enum DreamPhase
 /// <summary>
 /// 任务ID前缀映射
 /// </summary>
-public static class TaskIdPrefixes
-{
-    private static readonly Dictionary<TaskType, char> Prefixes = new()
-    {
+public static class TaskIdPrefixes {
+    private static readonly Dictionary<TaskType, char> Prefixes = new() {
         [TaskType.LocalBash] = 'b',
         [TaskType.LocalAgent] = 'a',
         [TaskType.RemoteAgent] = 'r',

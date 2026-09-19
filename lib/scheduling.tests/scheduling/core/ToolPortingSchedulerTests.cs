@@ -1,34 +1,29 @@
 
 namespace Core.Tests.Scheduling;
 
-public class ToolPortingSchedulerTests
-{
+public class ToolPortingSchedulerTests {
     private readonly ToolPortingScheduler _scheduler;
 
-    public ToolPortingSchedulerTests()
-    {
+    public ToolPortingSchedulerTests() {
         _scheduler = new ToolPortingScheduler();
     }
 
     [Fact]
-    public void InitializeTasks_ShouldCreateTwelveTasks()
-    {
+    public void InitializeTasks_ShouldCreateTwelveTasks() {
         _scheduler.InitializeTasks();
 
         _scheduler.GetAllTasks().Should().HaveCount(12);
     }
 
     [Fact]
-    public void GetFirstWaveTasks_ShouldReturnNineTasks()
-    {
+    public void GetFirstWaveTasks_ShouldReturnNineTasks() {
         _scheduler.InitializeTasks();
 
         _scheduler.GetFirstWaveTasks().Should().HaveCount(9);
     }
 
     [Fact]
-    public void StartTask_ShouldSetInProgress()
-    {
+    public void StartTask_ShouldSetInProgress() {
         _scheduler.InitializeTasks();
         var first = _scheduler.GetFirstWaveTasks().First();
 
@@ -39,8 +34,7 @@ public class ToolPortingSchedulerTests
     }
 
     [Fact]
-    public void CompleteTask_ShouldSetCompletedAndRaiseDependencyEvent()
-    {
+    public void CompleteTask_ShouldSetCompletedAndRaiseDependencyEvent() {
         _scheduler.InitializeTasks();
         var first = _scheduler.GetFirstWaveTasks().First();
         var dependents = _scheduler.GetAllTasks().Where(t => t.Dependencies.Contains(first.Id)).ToList();
@@ -53,23 +47,20 @@ public class ToolPortingSchedulerTests
 
         result.Should().BeTrue();
         _scheduler.GetTask(first.Id)!.Status.Should().Be(ScheduledTaskStatus.Completed);
-        if (dependents.Count > 0)
-        {
+        if (dependents.Count > 0) {
             captured.Should().NotBeNull();
             captured!.CompletedDependencyId.Should().Be(first.Id);
         }
     }
 
     [Fact]
-    public void CompleteTask_NonExistent_ShouldReturnFalse()
-    {
+    public void CompleteTask_NonExistent_ShouldReturnFalse() {
         _scheduler.InitializeTasks();
         _scheduler.CompleteTask("missing", "done").Should().BeFalse();
     }
 
     [Fact]
-    public void FailTask_ShouldSetFailed()
-    {
+    public void FailTask_ShouldSetFailed() {
         _scheduler.InitializeTasks();
         var first = _scheduler.GetFirstWaveTasks().First();
 
@@ -79,12 +70,10 @@ public class ToolPortingSchedulerTests
     }
 
     [Fact]
-    public void GetReport_ShouldReflectStatus()
-    {
+    public void GetReport_ShouldReflectStatus() {
         _scheduler.InitializeTasks();
         var firstWave = _scheduler.GetFirstWaveTasks();
-        foreach (var task in firstWave)
-        {
+        foreach (var task in firstWave) {
             _scheduler.StartTask(task.Id);
             _scheduler.CompleteTask(task.Id);
         }
@@ -95,8 +84,7 @@ public class ToolPortingSchedulerTests
     }
 
     [Fact]
-    public void GetTaskNameToIdMap_ShouldContainAllTasks()
-    {
+    public void GetTaskNameToIdMap_ShouldContainAllTasks() {
         _scheduler.InitializeTasks();
         var map = _scheduler.GetTaskNameToIdMap();
 
@@ -105,8 +93,7 @@ public class ToolPortingSchedulerTests
     }
 
     [Fact]
-    public void TaskStatusChanged_ShouldBeObservable()
-    {
+    public void TaskStatusChanged_ShouldBeObservable() {
         _scheduler.InitializeTasks();
         var triggered = false;
         _scheduler.TaskStatusChanged += (_, _) => triggered = true;

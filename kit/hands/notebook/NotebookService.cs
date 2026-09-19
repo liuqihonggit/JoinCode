@@ -5,8 +5,7 @@ namespace Services.Notebook;
 /// Notebook服务实现
 /// </summary>
 [Register(typeof(INotebookService), ServiceLifetime.Singleton)]
-public sealed partial class NotebookService : ServiceEntity, INotebookService
-{
+public sealed partial class NotebookService : ServiceEntity, INotebookService {
 
     /// <summary>
     /// 构造 Notebook 服务。
@@ -15,8 +14,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     /// <param name="fs">文件系统抽象。</param>
     /// <param name="fileHistoryService">文件历史服务（可选，用于编辑前备份）。</param>
     /// <param name="telemetryService">遥测服务（可选，用于记录操作指标）。</param>
-    public NotebookService(IFileOperationService fileOperationService, IFileSystem fs, IFileHistoryService? fileHistoryService = null, ITelemetryService? telemetryService = null)
-    {
+    public NotebookService(IFileOperationService fileOperationService, IFileSystem fs, IFileHistoryService? fileHistoryService = null, ITelemetryService? telemetryService = null) {
         _fileOperationService = fileOperationService;
         _fs = fs;
         _fileHistoryService = fileHistoryService;
@@ -28,11 +26,9 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     private readonly ITelemetryService? _telemetryService;
 
     /// <inheritdoc />
-    public async Task<NotebookDocument?> LoadAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task<NotebookDocument?> LoadAsync(string filePath, CancellationToken cancellationToken = default) {
         var result = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordNotebookMetrics("load", false);
             return null;
         }
@@ -43,13 +39,10 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     /// <inheritdoc />
-    public async Task<bool> SaveAsync(string filePath, NotebookDocument notebook, CancellationToken cancellationToken = default)
-    {
-        try
-        {
+    public async Task<bool> SaveAsync(string filePath, NotebookDocument notebook, CancellationToken cancellationToken = default) {
+        try {
             // 对齐 TS: fileHistoryTrackEdit — 编辑前创建备份
-            if (_fileHistoryService is not null && _fs.FileExists(filePath))
-            {
+            if (_fileHistoryService is not null && _fs.FileExists(filePath)) {
                 await _fileHistoryService.BackupBeforeWriteAsync(filePath, cancellationToken).ConfigureAwait(false);
             }
 
@@ -57,11 +50,9 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
             var json = RelaxedJsonSerializer.Serialize(notebook, NotebookDocumentJsonContext.Default);
 
             // 对齐 TS: readFileSyncWithMetadata + writeTextContent — 保持原始编码和换行符
-            if (_fs.FileExists(filePath))
-            {
+            if (_fs.FileExists(filePath)) {
                 var metadata = await _fileOperationService.ReadFileWithMetadataAsync(filePath, cancellationToken).ConfigureAwait(false);
-                if (metadata.Success)
-                {
+                if (metadata.Success) {
                     var writeResult = await _fileOperationService.WriteFileWithEncodingAsync(
                         filePath, json, metadata.Encoding, metadata.LineEndings, cancellationToken).ConfigureAwait(false);
                     RecordNotebookMetrics("save", writeResult.Success);
@@ -73,31 +64,24 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
             var result = await _fileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
             RecordNotebookMetrics("save", result.Success);
             return result.Success;
-        }
-        catch
-        {
+        } catch {
             RecordNotebookMetrics("save", false);
             return false;
         }
     }
 
     /// <inheritdoc />
-    public NotebookDocument Create(string? kernelName = null, string? language = null)
-    {
-        return new NotebookDocument
-        {
+    public NotebookDocument Create(string? kernelName = null, string? language = null) {
+        return new NotebookDocument {
             NbFormat = 4,
             NbFormatMinor = 5,
-            Metadata = new NotebookMetadata
-            {
-                KernelSpec = !string.IsNullOrEmpty(kernelName) ? new KernelSpec
-                {
+            Metadata = new NotebookMetadata {
+                KernelSpec = !string.IsNullOrEmpty(kernelName) ? new KernelSpec {
                     DisplayName = kernelName,
                     Language = language ?? "python",
                     Name = kernelName.ToLowerInvariant()
                 } : null,
-                LanguageInfo = !string.IsNullOrEmpty(language) ? new LanguageInfo
-                {
+                LanguageInfo = !string.IsNullOrEmpty(language) ? new LanguageInfo {
                     Name = language,
                     MimeType = $"text/x-{language}",
                     FileExtension = ".py"
@@ -108,10 +92,8 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     /// <inheritdoc />
-    public NotebookEditResult AddCell(NotebookDocument notebook, NotebookCellType cellType, string content, int? index = null)
-    {
-        var cell = new NotebookCell
-        {
+    public NotebookEditResult AddCell(NotebookDocument notebook, NotebookCellType cellType, string content, int? index = null) {
+        var cell = new NotebookCell {
             // 对齐 TS: nbformat >= 4.5 时自动生成随机 cell ID
             Id = ShouldGenerateCellId(notebook) ? GenerateCellId() : null,
             CellType = cellType.ToCellTypeString(),
@@ -127,8 +109,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
 
         notebook.Cells.Insert(insertIndex, cell);
 
-        return new NotebookEditResult
-        {
+        return new NotebookEditResult {
             Success = true,
             Notebook = notebook,
             AffectedCellIndex = insertIndex
@@ -136,12 +117,9 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     /// <inheritdoc />
-    public NotebookEditResult DeleteCell(NotebookDocument notebook, int index)
-    {
-        if (index < 0 || index >= notebook.Cells.Count)
-        {
-            return new NotebookEditResult
-            {
+    public NotebookEditResult DeleteCell(NotebookDocument notebook, int index) {
+        if (index < 0 || index >= notebook.Cells.Count) {
+            return new NotebookEditResult {
                 Success = false,
                 ErrorMessage = $"无效的单元格索引: {index}"
             };
@@ -149,20 +127,16 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
 
         notebook.Cells.RemoveAt(index);
 
-        return new NotebookEditResult
-        {
+        return new NotebookEditResult {
             Success = true,
             Notebook = notebook
         };
     }
 
     /// <inheritdoc />
-    public NotebookEditResult EditCell(NotebookDocument notebook, int index, string newContent, string? newCellType = null)
-    {
-        if (index < 0 || index >= notebook.Cells.Count)
-        {
-            return new NotebookEditResult
-            {
+    public NotebookEditResult EditCell(NotebookDocument notebook, int index, string newContent, string? newCellType = null) {
+        if (index < 0 || index >= notebook.Cells.Count) {
+            return new NotebookEditResult {
                 Success = false,
                 ErrorMessage = $"无效的单元格索引: {index}"
             };
@@ -176,16 +150,14 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
         var isCodeCell = string.Equals(resolvedCellType, NotebookCellTypeEnumConstants.Code, StringComparison.OrdinalIgnoreCase);
 
         // 编辑代码单元格后重置 execution_count 和清空 outputs，防止显示过时的执行结果
-        notebook.Cells[index] = cell with
-        {
+        notebook.Cells[index] = cell with {
             CellType = resolvedCellType,
             Source = lines,
             ExecutionCount = isCodeCell ? null : cell.ExecutionCount,
             Outputs = isCodeCell ? [] : cell.Outputs
         };
 
-        return new NotebookEditResult
-        {
+        return new NotebookEditResult {
             Success = true,
             Notebook = notebook,
             AffectedCellIndex = index
@@ -193,21 +165,16 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     /// <inheritdoc />
-    public NotebookEditResult MoveCell(NotebookDocument notebook, int fromIndex, int toIndex)
-    {
-        if (fromIndex < 0 || fromIndex >= notebook.Cells.Count)
-        {
-            return new NotebookEditResult
-            {
+    public NotebookEditResult MoveCell(NotebookDocument notebook, int fromIndex, int toIndex) {
+        if (fromIndex < 0 || fromIndex >= notebook.Cells.Count) {
+            return new NotebookEditResult {
                 Success = false,
                 ErrorMessage = $"无效的源索引: {fromIndex}"
             };
         }
 
-        if (toIndex < 0 || toIndex > notebook.Cells.Count)
-        {
-            return new NotebookEditResult
-            {
+        if (toIndex < 0 || toIndex > notebook.Cells.Count) {
+            return new NotebookEditResult {
                 Success = false,
                 ErrorMessage = $"无效的目标索引: {toIndex}"
             };
@@ -221,8 +188,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
 
         notebook.Cells.Insert(toIndex, cell);
 
-        return new NotebookEditResult
-        {
+        return new NotebookEditResult {
             Success = true,
             Notebook = notebook,
             AffectedCellIndex = toIndex
@@ -230,12 +196,9 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     /// <inheritdoc />
-    public NotebookEditResult ChangeCellType(NotebookDocument notebook, int index, NotebookCellType newType)
-    {
-        if (index < 0 || index >= notebook.Cells.Count)
-        {
-            return new NotebookEditResult
-            {
+    public NotebookEditResult ChangeCellType(NotebookDocument notebook, int index, NotebookCellType newType) {
+        if (index < 0 || index >= notebook.Cells.Count) {
+            return new NotebookEditResult {
                 Success = false,
                 ErrorMessage = $"无效的单元格索引: {index}"
             };
@@ -245,10 +208,8 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
         var newCellType = newType.ToCellTypeString();
 
         // 如果类型相同，不做任何操作
-        if (cell.CellType == newCellType)
-        {
-            return new NotebookEditResult
-            {
+        if (cell.CellType == newCellType) {
+            return new NotebookEditResult {
                 Success = true,
                 Notebook = notebook,
                 AffectedCellIndex = index
@@ -256,15 +217,13 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
         }
 
         // 创建新的cell，保留内容但更改类型
-        notebook.Cells[index] = cell with
-        {
+        notebook.Cells[index] = cell with {
             CellType = newCellType,
             Outputs = newType == NotebookCellType.Code ? new List<NotebookOutput>() : null,
             ExecutionCount = null
         };
 
-        return new NotebookEditResult
-        {
+        return new NotebookEditResult {
             Success = true,
             Notebook = notebook,
             AffectedCellIndex = index
@@ -272,12 +231,9 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     /// <inheritdoc />
-    public NotebookEditResult ExecuteCell(NotebookDocument notebook, int index, string? output = null)
-    {
-        if (index < 0 || index >= notebook.Cells.Count)
-        {
-            return new NotebookEditResult
-            {
+    public NotebookEditResult ExecuteCell(NotebookDocument notebook, int index, string? output = null) {
+        if (index < 0 || index >= notebook.Cells.Count) {
+            return new NotebookEditResult {
                 Success = false,
                 ErrorMessage = $"无效的单元格索引: {index}"
             };
@@ -286,10 +242,8 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
         var cell = notebook.Cells[index];
 
         // 只有代码单元格可以执行
-        if (cell.Type != NotebookCellType.Code)
-        {
-            return new NotebookEditResult
-            {
+        if (cell.Type != NotebookCellType.Code) {
+            return new NotebookEditResult {
                 Success = false,
                 ErrorMessage = "只有代码单元格可以执行"
             };
@@ -298,24 +252,20 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
         var executionCount = notebook.Cells.OfType<NotebookCell>().Max(c => c.ExecutionCount ?? 0) + 1;
 
         var outputs = new List<NotebookOutput>();
-        if (!string.IsNullOrEmpty(output))
-        {
-            outputs.Add(new NotebookOutput
-            {
+        if (!string.IsNullOrEmpty(output)) {
+            outputs.Add(new NotebookOutput {
                 OutputType = "stream",
                 Name = "stdout",
                 Text = SplitWithNewlines(output)
             });
         }
 
-        notebook.Cells[index] = cell with
-        {
+        notebook.Cells[index] = cell with {
             ExecutionCount = executionCount,
             Outputs = outputs
         };
 
-        return new NotebookEditResult
-        {
+        return new NotebookEditResult {
             Success = true,
             Notebook = notebook,
             AffectedCellIndex = index
@@ -323,33 +273,26 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     /// <inheritdoc />
-    public NotebookEditResult ClearAllOutputs(NotebookDocument notebook)
-    {
-        for (int i = 0; i < notebook.Cells.Count; i++)
-        {
+    public NotebookEditResult ClearAllOutputs(NotebookDocument notebook) {
+        for (var i = 0; i < notebook.Cells.Count; i++) {
             var cell = notebook.Cells[i];
-            if (cell.Type == NotebookCellType.Code)
-            {
-                notebook.Cells[i] = cell with
-                {
+            if (cell.Type == NotebookCellType.Code) {
+                notebook.Cells[i] = cell with {
                     Outputs = new List<NotebookOutput>(),
                     ExecutionCount = null
                 };
             }
         }
 
-        return new NotebookEditResult
-        {
+        return new NotebookEditResult {
             Success = true,
             Notebook = notebook
         };
     }
 
     /// <inheritdoc />
-    public string? GetCellContent(NotebookDocument notebook, int index)
-    {
-        if (index < 0 || index >= notebook.Cells.Count)
-        {
+    public string? GetCellContent(NotebookDocument notebook, int index) {
+        if (index < 0 || index >= notebook.Cells.Count) {
             return null;
         }
 
@@ -357,10 +300,8 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     }
 
     /// <inheritdoc />
-    public List<(int Index, NotebookCellType Type, string Preview)> ListCells(NotebookDocument notebook)
-    {
-        return notebook.Cells.Select((cell, index) =>
-        {
+    public List<(int Index, NotebookCellType Type, string Preview)> ListCells(NotebookDocument notebook) {
+        return notebook.Cells.Select((cell, index) => {
             var preview = cell.SourceText.Length > 50
                 ? cell.SourceText[..50] + "..."
                 : cell.SourceText;
@@ -372,8 +313,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     private void RecordNotebookMetrics(string operation, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "notebook.operation.count", operation, isSuccess, "Notebook operation count");
 
-    private static List<string> SplitWithNewlines(string content)
-    {
+    private static List<string> SplitWithNewlines(string content) {
         var lines = content.Split('\n');
         return lines.Select((line, i) => i < lines.Length - 1 ? line + "\n" : line).ToList();
     }
@@ -387,12 +327,11 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService
     /// <summary>
     /// 对齐 TS: 生成随机 cell ID (Math.random().toString(36).substring(2, 15))
     /// </summary>
-    private static string GenerateCellId()
-    {
+    private static string GenerateCellId() {
         // 使用 Random.Shared 生成类似 TS 的 base36 随机 ID
         const string chars = "0123456789abcdefghijklmnopqrstuvwxyz";
         var span = new char[13];
-        for (int i = 0; i < span.Length; i++)
+        for (var i = 0; i < span.Length; i++)
             span[i] = chars[Random.Shared.Next(chars.Length)];
         return new string(span);
     }

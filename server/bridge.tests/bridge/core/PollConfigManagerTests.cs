@@ -5,14 +5,12 @@ namespace Bridge.Tests;
 /// PollConfigManager 单元测试
 /// 测试默认配置、配置更新、指数退避计算和重置
 /// </summary>
-public sealed class PollConfigManagerTests
-{
+public sealed class PollConfigManagerTests {
     private static PollConfigManager CreateSut(PollConfig? initialConfig = null) =>
         new(initialConfig, NullLogger<PollConfigManager>.Instance);
 
     [Fact]
-    public async Task GetCurrentConfigAsync_ShouldReturnDefaultConfig()
-    {
+    public async Task GetCurrentConfigAsync_ShouldReturnDefaultConfig() {
         // Arrange
         var sut = CreateSut();
 
@@ -29,12 +27,10 @@ public sealed class PollConfigManagerTests
     }
 
     [Fact]
-    public async Task UpdateConfigAsync_ShouldUpdateConfig()
-    {
+    public async Task UpdateConfigAsync_ShouldUpdateConfig() {
         // Arrange
         var sut = CreateSut();
-        var newConfig = new PollConfig
-        {
+        var newConfig = new PollConfig {
             IntervalMs = 200,
             MaxIntervalMs = 60000,
             BackoffMultiplier = 3.0,
@@ -55,8 +51,7 @@ public sealed class PollConfigManagerTests
     }
 
     [Fact]
-    public async Task CalculateNextIntervalAsync_ShouldReturnBaseInterval_WhenNoErrors()
-    {
+    public async Task CalculateNextIntervalAsync_ShouldReturnBaseInterval_WhenNoErrors() {
         // Arrange
         var sut = CreateSut();
         var config = await sut.GetCurrentConfigAsync().ConfigureAwait(true);
@@ -73,8 +68,7 @@ public sealed class PollConfigManagerTests
     }
 
     [Fact]
-    public async Task CalculateNextIntervalAsync_ShouldIncreaseInterval_WhenErrorsOccur()
-    {
+    public async Task CalculateNextIntervalAsync_ShouldIncreaseInterval_WhenErrorsOccur() {
         // Arrange
         var sut = CreateSut();
         var config = await sut.GetCurrentConfigAsync().ConfigureAwait(true);
@@ -93,11 +87,9 @@ public sealed class PollConfigManagerTests
     }
 
     [Fact]
-    public async Task CalculateNextIntervalAsync_ShouldNotExceedMaxInterval()
-    {
+    public async Task CalculateNextIntervalAsync_ShouldNotExceedMaxInterval() {
         // Arrange - 使用小 MaxIntervalMs 便于测试
-        var sut = CreateSut(new PollConfig
-        {
+        var sut = CreateSut(new PollConfig {
             IntervalMs = 100,
             MaxIntervalMs = 500,
             BackoffMultiplier = 10.0,
@@ -105,8 +97,7 @@ public sealed class PollConfigManagerTests
         });
 
         // Act - 多次错误使退避超过 MaxIntervalMs
-        for (var i = 0; i < 10; i++)
-        {
+        for (var i = 0; i < 10; i++) {
             await sut.CalculateNextIntervalAsync(hasError: true).ConfigureAwait(true);
         }
 
@@ -117,12 +108,10 @@ public sealed class PollConfigManagerTests
     }
 
     [Fact]
-    public async Task ResetToDefaultAsync_ShouldRestoreDefaultConfig()
-    {
+    public async Task ResetToDefaultAsync_ShouldRestoreDefaultConfig() {
         // Arrange
         var sut = CreateSut();
-        var customConfig = new PollConfig
-        {
+        var customConfig = new PollConfig {
             IntervalMs = 999,
             MaxIntervalMs = 99999,
             BackoffMultiplier = 5.0,

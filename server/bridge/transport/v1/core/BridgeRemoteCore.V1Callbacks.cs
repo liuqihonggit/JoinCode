@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 桥接远程核心(v1) — partial 类,负责注册 v1 传输回调
 /// </summary>
-public static partial class BridgeRemoteCore
-{
+public static partial class BridgeRemoteCore {
     /// <summary>
     /// 注册 v1 传输回调 — 对齐 TS 端 wireTransport
     /// </summary>
@@ -16,10 +15,8 @@ public static partial class BridgeRemoteCore
         BridgeInitState state,
         BridgeWorkPollLoop pollLoop,
         ILogger? logger,
-        CancellationToken ct)
-    {
-        transport.SetOnConnect(() =>
-        {
+        CancellationToken ct) {
+        transport.SetOnConnect(() => {
             if (state.TornDown) return;
 
             // 陈旧传输守卫 — 对齐 TS 端: if (transport !== currentTransport) return
@@ -30,15 +27,13 @@ public static partial class BridgeRemoteCore
             // v1 专属: 更新 OAuth token 到环境变量 — 对齐 TS 端 updateSessionIngressAuthToken
             // v2 跳过此步（v2 在 createV2ReplTransport 中已存储 JWT，覆盖会破坏 /worker/* 请求的 session_id 校验）
             var currentToken = parameters.GetAccessToken();
-            if (!string.IsNullOrEmpty(currentToken))
-            {
+            if (!string.IsNullOrEmpty(currentToken)) {
                 Environment.SetEnvironmentVariable(
                     JccEnvVar.SessionAccessToken.ToValue(), currentToken);
             }
 
             // 初始消息刷新 — 对齐 TS 端: if (!initialFlushDone && initialMessages)
-            if (!state.InitialFlushDone && parameters.InitialMessages is { Length: > 0 })
-            {
+            if (!state.InitialFlushDone && parameters.InitialMessages is { Length: > 0 }) {
                 state.InitialFlushDone = true;
                 _ = FlushHistoryAsync(
                     parameters.InitialMessages,
@@ -48,10 +43,8 @@ public static partial class BridgeRemoteCore
                     sessionId,
                     state.InitCts.Token,
                     parameters.PreviouslyFlushedUUIDs)
-                .ContinueWith(task =>
-                {
-                    if (task.IsFaulted)
-                    {
+                .ContinueWith(task => {
+                    if (task.IsFaulted) {
                         logger?.LogError("Bridge v1: flushHistory 失败: {Message}",
                             task.Exception?.InnerException?.Message);
                     }
@@ -61,25 +54,20 @@ public static partial class BridgeRemoteCore
                         parameters.ToSDKMessages, transport, sessionId, state.InitCts.Token);
                     parameters.OnStateChange?.Invoke(BridgeState.Connected, null);
                 }, state.InitCts.Token);
-            }
-            else if (!state.FlushGate.Active)
-            {
+            } else if (!state.FlushGate.Active) {
                 parameters.OnStateChange?.Invoke(BridgeState.Connected, null);
             }
         });
 
-        transport.SetOnData(data =>
-        {
+        transport.SetOnData(data => {
             BridgeMessaging.HandleIngressMessage(
                 data,
                 state.RecentPostedUUIDs,
                 state.RecentInboundUUIDs,
                 onInboundMessage: parameters.OnInboundMessage,
                 onPermissionResponse: parameters.OnPermissionResponse,
-                onControlRequest: async request =>
-                {
-                    var handlers = new ServerControlRequestHandlers
-                    {
+                onControlRequest: async request => {
+                    var handlers = new ServerControlRequestHandlers {
                         Transport = transport,
                         SessionId = sessionId,
                         OutboundOnly = parameters.OutboundOnly,
@@ -92,8 +80,7 @@ public static partial class BridgeRemoteCore
                 });
         });
 
-        transport.SetOnClose(code =>
-        {
+        transport.SetOnClose(code => {
             // 陈旧传输守卫 — 对齐 TS 端: if (transport !== currentTransport) return
             if (pollLoop.CurrentTransport != transport) return;
 
@@ -102,8 +89,7 @@ public static partial class BridgeRemoteCore
             // 对齐 TS 端 handleTransportPermanentClose:
             // 1. 捕获 SSE 序列号高水位
             var closedSeq = transport.GetLastSequenceNum();
-            if (closedSeq > state.LastTransportSequenceNum)
-            {
+            if (closedSeq > state.LastTransportSequenceNum) {
                 state.LastTransportSequenceNum = closedSeq;
             }
 
@@ -115,15 +101,13 @@ public static partial class BridgeRemoteCore
 
             // 4. 丢弃 flushGate 中排队的消息 — 对齐 TS 端: flushGate.drop()
             var dropped = state.FlushGate.Drop();
-            if (dropped > 0)
-            {
+            if (dropped > 0) {
                 logger?.LogDebug("Bridge v1: 传输关闭时丢弃 {Count} 条排队消息 (code={Code})",
                     dropped, code);
             }
 
             // 5. 根据关闭码决定行为 — 对齐 TS 端
-            if (code == 1000)
-            {
+            if (code == 1000) {
                 // 干净关闭 — 会话正常结束，触发拆卸
                 parameters.OnStateChange?.Invoke(BridgeState.Failed, "session ended");
                 return;
@@ -135,26 +119,19 @@ public static partial class BridgeRemoteCore
                 $"Transport closed (code {code}), reconnecting...");
 
             // 异步触发重连 — 对齐 TS 端: void reconnectEnvironmentWithSession()
-            _ = Task.Run(async () =>
-            {
-                try
-                {
+            _ = Task.Run(async () => {
+                try {
                     var handle = BridgeHandle.GetHandle() as V1BridgeHandle;
-                    if (handle is not null)
-                    {
+                    if (handle is not null) {
                         var reconnected = await handle.ReconnectAsync(state.InitCts.Token).ConfigureAwait(false);
-                        if (!reconnected && !state.TornDown)
-                        {
+                        if (!reconnected && !state.TornDown) {
                             logger?.LogError("Bridge v1: 环境重连失败");
                             parameters.OnStateChange?.Invoke(BridgeState.Failed, "Reconnect failed");
                         }
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     logger?.LogError(ex, "Bridge v1: 重连异常");
-                    if (!state.TornDown)
-                    {
+                    if (!state.TornDown) {
                         parameters.OnStateChange?.Invoke(BridgeState.Failed, $"Reconnect error: {ex.Message}");
                     }
                 }

@@ -1,15 +1,13 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed class ConcurrentSessionTests
-{
+public sealed class ConcurrentSessionTests {
     private readonly InMemoryFileSystem _fs = new();
 
     private ConcurrentSessionService CreateSut() => new(_fs);
 
     [Fact]
-    public async Task RegisterAsync_ShouldWritePidFile()
-    {
+    public async Task RegisterAsync_ShouldWritePidFile() {
         var sut = CreateSut();
 
         var result = await sut.RegisterAsync("test-session-001").ConfigureAwait(true);
@@ -27,12 +25,10 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task RegisterAsync_WithDaemonKind_ShouldUseEnvVar()
-    {
+    public async Task RegisterAsync_WithDaemonKind_ShouldUseEnvVar() {
         var sut = CreateSut();
         Environment.SetEnvironmentVariable("JCC_SESSION_KIND", "daemon");
-        try
-        {
+        try {
             await sut.RegisterAsync().ConfigureAwait(true);
 
             var path = sut.GetPidFilePath();
@@ -40,16 +36,13 @@ public sealed class ConcurrentSessionTests
             var record = JsonSerializer.Deserialize(json, BridgeJsonContext.Default.ConcurrentSessionRecord);
             Assert.NotNull(record);
             Assert.Equal("daemon", record.Kind);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_SESSION_KIND", null);
         }
     }
 
     [Fact]
-    public async Task UnregisterAsync_ShouldDeletePidFile()
-    {
+    public async Task UnregisterAsync_ShouldDeletePidFile() {
         var sut = CreateSut();
         await sut.RegisterAsync("session-1").ConfigureAwait(true);
 
@@ -61,8 +54,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task UnregisterAsync_WhenNoFile_ShouldNotThrow()
-    {
+    public async Task UnregisterAsync_WhenNoFile_ShouldNotThrow() {
         var sut = CreateSut();
 
         // 不应抛异常
@@ -70,8 +62,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task UpdateBridgeSessionIdAsync_ShouldUpdateRecord()
-    {
+    public async Task UpdateBridgeSessionIdAsync_ShouldUpdateRecord() {
         var sut = CreateSut();
         await sut.RegisterAsync("session-1").ConfigureAwait(true);
 
@@ -86,8 +77,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task UpdateBridgeSessionIdAsync_WithNull_ShouldClearValue()
-    {
+    public async Task UpdateBridgeSessionIdAsync_WithNull_ShouldClearValue() {
         var sut = CreateSut();
         await sut.RegisterAsync("session-1").ConfigureAwait(true);
         await sut.UpdateBridgeSessionIdAsync("session_compat_123").ConfigureAwait(true);
@@ -102,8 +92,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task UpdateSessionNameAsync_ShouldUpdateName()
-    {
+    public async Task UpdateSessionNameAsync_ShouldUpdateName() {
         var sut = CreateSut();
         await sut.RegisterAsync("session-1").ConfigureAwait(true);
 
@@ -117,8 +106,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task UpdateSessionActivityAsync_ShouldUpdateStatus()
-    {
+    public async Task UpdateSessionActivityAsync_ShouldUpdateStatus() {
         var sut = CreateSut();
         await sut.RegisterAsync("session-1").ConfigureAwait(true);
 
@@ -133,8 +121,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task UpdateAsync_WhenNoPidFile_ShouldNotThrow()
-    {
+    public async Task UpdateAsync_WhenNoPidFile_ShouldNotThrow() {
         var sut = CreateSut();
 
         // PID 文件不存在，不应抛异常
@@ -142,8 +129,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public void CountConcurrentSessions_WhenNoDir_ShouldReturn0()
-    {
+    public void CountConcurrentSessions_WhenNoDir_ShouldReturn0() {
         var sut = CreateSut();
 
         var count = sut.CountConcurrentSessions();
@@ -152,8 +138,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task CountConcurrentSessions_ShouldCountCurrentProcess()
-    {
+    public async Task CountConcurrentSessions_ShouldCountCurrentProcess() {
         var sut = CreateSut();
         await sut.RegisterAsync("session-1").ConfigureAwait(true);
 
@@ -163,20 +148,17 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task CountConcurrentSessions_ShouldCleanupStaleFiles()
-    {
+    public async Task CountConcurrentSessions_ShouldCleanupStaleFiles() {
         var sut = CreateSut();
         await sut.RegisterAsync("session-1").ConfigureAwait(true);
 
         // 写入一个过期 PID 文件（PID 不存在）
         var sessionsDir = ConcurrentSessionService.GetSessionsDir();
-        if (!_fs.DirectoryExists(sessionsDir))
-        {
+        if (!_fs.DirectoryExists(sessionsDir)) {
             _fs.CreateDirectory(sessionsDir);
         }
         var stalePath = Path.Combine(sessionsDir, "99999999.json");
-        var staleRecord = new ConcurrentSessionRecord
-        {
+        var staleRecord = new ConcurrentSessionRecord {
             Pid = 99999999,
             SessionId = "stale",
             StartedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
@@ -193,8 +175,7 @@ public sealed class ConcurrentSessionTests
     }
 
     [Fact]
-    public async Task RegisterAsync_ShouldCreateSessionsDir()
-    {
+    public async Task RegisterAsync_ShouldCreateSessionsDir() {
         var sut = CreateSut();
         var sessionsDir = ConcurrentSessionService.GetSessionsDir();
 

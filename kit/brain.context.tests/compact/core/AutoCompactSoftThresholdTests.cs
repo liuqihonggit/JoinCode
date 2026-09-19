@@ -1,10 +1,8 @@
 namespace Core.Context.Compact;
 
-public sealed class AutoCompactSoftThresholdTests
-{
+public sealed class AutoCompactSoftThresholdTests {
     [Fact]
-    public void ShouldAutoCompact_BelowSoftThreshold_ReturnsFalse()
-    {
+    public void ShouldAutoCompact_BelowSoftThreshold_ReturnsFalse() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 80_000;
@@ -13,8 +11,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldAutoCompact_AtSoftThreshold_ReturnsFalse()
-    {
+    public void ShouldAutoCompact_AtSoftThreshold_ReturnsFalse() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 100_000;
@@ -24,8 +21,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldAutoCompact_BetweenSoftAndHard_ReturnsFalse()
-    {
+    public void ShouldAutoCompact_BetweenSoftAndHard_ReturnsFalse() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 140_000;
@@ -35,8 +31,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldAutoCompact_AtHardThreshold_ReturnsTrue()
-    {
+    public void ShouldAutoCompact_AtHardThreshold_ReturnsTrue() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var hardThreshold = contextWindow - 20_000 - 13_000;
@@ -46,8 +41,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_BelowSoftThreshold_ReturnsFalse()
-    {
+    public void ShouldSoftCompactNotice_BelowSoftThreshold_ReturnsFalse() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 80_000;
@@ -56,8 +50,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_AtSoftThreshold_ReturnsTrue()
-    {
+    public void ShouldSoftCompactNotice_AtSoftThreshold_ReturnsTrue() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 100_000;
@@ -67,8 +60,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_BetweenSoftAndHard_ReturnsTrue()
-    {
+    public void ShouldSoftCompactNotice_BetweenSoftAndHard_ReturnsTrue() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 140_000;
@@ -78,8 +70,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_AtHardThreshold_ReturnsFalse()
-    {
+    public void ShouldSoftCompactNotice_AtHardThreshold_ReturnsFalse() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var hardThreshold = contextWindow - 20_000 - 13_000;
@@ -89,8 +80,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void CalculateWarningState_SoftThreshold_SetsFlag()
-    {
+    public void CalculateWarningState_SoftThreshold_SetsFlag() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 100_000;
@@ -102,8 +92,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void CalculateWarningState_BelowSoftThreshold_NoFlag()
-    {
+    public void CalculateWarningState_BelowSoftThreshold_NoFlag() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 80_000;
@@ -114,8 +103,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_OnlyNoticesOnce()
-    {
+    public void ShouldSoftCompactNotice_OnlyNoticesOnce() {
         var sut = CreateSut();
         var contextWindow = 200_000;
         var currentTokens = 100_000;
@@ -125,8 +113,7 @@ public sealed class AutoCompactSoftThresholdTests
     }
 
     [Fact]
-    public void ShouldSoftCompactNotice_ResetsWhenBelowSoftThreshold()
-    {
+    public void ShouldSoftCompactNotice_ResetsWhenBelowSoftThreshold() {
         var sut = CreateSut();
         var contextWindow = 200_000;
 
@@ -135,11 +122,9 @@ public sealed class AutoCompactSoftThresholdTests
         sut.ShouldSoftCompactNotice(100_000, contextWindow).Should().BeTrue("notice again after reset");
     }
 
-    private static AutoCompactService CreateSut(double? softCompactRatio = null)
-    {
+    private static AutoCompactService CreateSut(double? softCompactRatio = null) {
         var thresholds = new CompactThresholds();
-        if (softCompactRatio.HasValue)
-        {
+        if (softCompactRatio.HasValue) {
             thresholds = new CompactThresholds { SoftCompactRatio = softCompactRatio.Value };
         }
 

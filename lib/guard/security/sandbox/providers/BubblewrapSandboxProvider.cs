@@ -5,8 +5,7 @@ namespace Core.Security.Sandbox.Providers;
 /// Bubblewrap (bwrap) 沙箱提供者 — Linux 下基于用户命名空间的轻量沙箱,提供文件系统、网络、进程隔离
 /// </summary>
 [Register(typeof(SandboxProviderBase), ServiceLifetime.Singleton)]
-public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
-{
+public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase {
     private readonly IProcessService _processService;
 
     /// <summary>沙箱类型 — Bubblewrap</summary>
@@ -28,37 +27,28 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
         ILogger<BubblewrapSandboxProvider>? logger = null,
         IClockService? clock = null,
         ITelemetryService? telemetryService = null)
-        : base(fs, logger, clock ?? SystemClockService.Instance, telemetryService)
-    {
+        : base(fs, logger, clock ?? SystemClockService.Instance, telemetryService) {
         _processService = processService;
     }
 
     /// <summary>
     /// 沙箱是否可用 — 仅 Linux 平台且 PATH 中存在 bwrap 可执行文件时返回 true
     /// </summary>
-    public override bool IsAvailable
-    {
-        get
-        {
-            if (!OperatingSystem.IsLinux())
-            {
+    public override bool IsAvailable {
+        get {
+            if (!OperatingSystem.IsLinux()) {
                 return false;
             }
 
-            try
-            {
+            try {
                 var path = Environment.GetEnvironmentVariable("PATH") ?? "";
-                foreach (var dir in path.Split(':', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    if (Fs.FileExists(Path.Combine(dir, "bwrap")))
-                    {
+                foreach (var dir in path.Split(':', StringSplitOptions.RemoveEmptyEntries)) {
+                    if (Fs.FileExists(Path.Combine(dir, "bwrap"))) {
                         return true;
                     }
                 }
                 return false;
-            }
-            catch
-            {
+            } catch {
                 return false;
             }
         }
@@ -76,8 +66,7 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
         string sandboxId,
         string command,
         int timeoutMs = 30000,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var info = GetSandboxInfo(sandboxId)
             ?? throw new InvalidOperationException($"[GRD012] Bubblewrap 沙箱 '{sandboxId}' 不存在");
 
@@ -85,8 +74,7 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
 
         var bwrapArgs = new List<string> { "--unshare-all", "--die-with-parent" };
 
-        if (!info.RestrictNetwork)
-        {
+        if (!info.RestrictNetwork) {
             bwrapArgs.Add("--share-net");
         }
 
@@ -102,17 +90,12 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
         if (Fs.DirectoryExists("/sbin"))
             bwrapArgs.AddRange(new[] { "--ro-bind", "/sbin", "/sbin" });
 
-        if (info.AllowedPaths is not null)
-        {
-            foreach (var allowed in info.AllowedPaths)
-            {
+        if (info.AllowedPaths is not null) {
+            foreach (var allowed in info.AllowedPaths) {
                 var fullAllowed = Path.GetFullPath(allowed);
-                if (Fs.DirectoryExists(fullAllowed))
-                {
+                if (Fs.DirectoryExists(fullAllowed)) {
                     bwrapArgs.AddRange(new[] { "--bind", fullAllowed, fullAllowed });
-                }
-                else if (Fs.FileExists(fullAllowed))
-                {
+                } else if (Fs.FileExists(fullAllowed)) {
                     bwrapArgs.AddRange(new[] { "--ro-bind", fullAllowed, fullAllowed });
                 }
             }
@@ -120,15 +103,13 @@ public sealed partial class BubblewrapSandboxProvider : SandboxProviderBase
 
         bwrapArgs.AddRange(new[] { "--", "/bin/sh", "-c", ShellCommandEscape.EscapeForSingleQuotedShell(command) });
 
-        var result = await _processService.ExecuteAsync(new ProcessOptions
-        {
+        var result = await _processService.ExecuteAsync(new ProcessOptions {
             FileName = "bwrap",
             ArgumentList = bwrapArgs,
             TimeoutMs = timeoutMs
         }, ct).ConfigureAwait(false);
 
-        return new ProviderExecutionResult
-        {
+        return new ProviderExecutionResult {
             StandardOutput = result.StandardOutput,
             StandardError = result.StandardError,
             ExitCode = result.ExitCode,

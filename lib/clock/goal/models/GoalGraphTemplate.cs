@@ -4,8 +4,7 @@ namespace Core.Goal;
 /// <summary>
 /// Goal Graph 模板 — 定义图结构 + 关键词匹配规则
 /// </summary>
-public sealed class GoalGraphTemplate
-{
+public sealed class GoalGraphTemplate {
     /// <summary>模板名称，作为注册键</summary>
     public required string Name { get; init; }
     /// <summary>关键词列表，用于匹配目标描述</summary>
@@ -20,11 +19,9 @@ public sealed class GoalGraphTemplate
     /// </summary>
     /// <param name="objective">目标描述</param>
     /// <returns>匹配返回 true，否则 false</returns>
-    public bool MatchesObjective(string objective)
-    {
+    public bool MatchesObjective(string objective) {
         var lower = objective.ToLowerInvariant();
-        foreach (var keyword in Keywords)
-        {
+        foreach (var keyword in Keywords) {
             if (lower.Contains(keyword.ToLowerInvariant()))
                 return true;
         }

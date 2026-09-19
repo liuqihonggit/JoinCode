@@ -3,8 +3,7 @@ namespace Core.Prompts.Testing;
 /// <summary>
 /// 提示词触发测试器
 /// </summary>
-public sealed class PromptTriggerTester
-{
+public sealed class PromptTriggerTester {
     private readonly TriggerConditionMapper _conditionMapper = new();
     private readonly IFileSystem _fs;
 
@@ -12,23 +11,20 @@ public sealed class PromptTriggerTester
     /// 初始化 <see cref="PromptTriggerTester"/> 的新实例。
     /// </summary>
     /// <param name="fs">文件系统抽象。</param>
-    public PromptTriggerTester(IFileSystem fs)
-    {
+    public PromptTriggerTester(IFileSystem fs) {
         _fs = fs;
     }
 
     /// <summary>
     /// 测试所有Section的触发情况
     /// </summary>
-    public PromptTriggerReport TestTriggers(PromptTestContext context)
-    {
+    public PromptTriggerReport TestTriggers(PromptTestContext context) {
         var report = new PromptTriggerReport();
 
         // 创建不同配置的Provider实例进行测试
         var scenarios = CreateTestScenarios(context);
 
-        foreach (var scenario in scenarios)
-        {
+        foreach (var scenario in scenarios) {
             var scenarioResults = TestScenario(scenario, context);
             report.AddResults(scenarioResults);
         }
@@ -39,8 +35,7 @@ public sealed class PromptTriggerTester
     /// <summary>
     /// 测试单个场景
     /// </summary>
-    private List<PromptTriggerResult> TestScenario(TestScenario scenario, PromptTestContext baseContext)
-    {
+    private List<PromptTriggerResult> TestScenario(TestScenario scenario, PromptTestContext baseContext) {
         var results = new List<PromptTriggerResult>();
         var scenarioContext = new PromptTestContext(scenario.Config);
 
@@ -50,8 +45,7 @@ public sealed class PromptTriggerTester
         // 获取所有Section
         var sections = provider.GetSections().ToList();
 
-        foreach (var section in sections)
-        {
+        foreach (var section in sections) {
             var stopwatch = Stopwatch.StartNew();
 
             // 执行计算
@@ -82,8 +76,7 @@ public sealed class PromptTriggerTester
     /// <summary>
     /// 创建测试场景
     /// </summary>
-    private List<TestScenario> CreateTestScenarios(PromptTestContext ctx)
-    {
+    private List<TestScenario> CreateTestScenarios(PromptTestContext ctx) {
         var baseConfig = ctx.Config;
 
         return new List<TestScenario>
@@ -108,8 +101,7 @@ public sealed class PromptTriggerTester
     /// <summary>
     /// 克隆配置并应用修改
     /// </summary>
-    private static PromptTestConfig CloneConfig(PromptTestConfig source, Action<PromptTestConfig> modifier)
-    {
+    private static PromptTestConfig CloneConfig(PromptTestConfig source, Action<PromptTestConfig> modifier) {
         var clone = source with { };
         modifier(clone);
         return clone;
@@ -118,12 +110,10 @@ public sealed class PromptTriggerTester
     /// <summary>
     /// 根据测试配置创建Provider
     /// </summary>
-    private DefaultSystemPromptProvider CreateProvider(PromptTestConfig config)
-    {
+    private DefaultSystemPromptProvider CreateProvider(PromptTestConfig config) {
         IBriefModeService? briefModeService = config.IsBriefEnabled ? new TestBriefModeService(true) : null;
 
-        return new DefaultSystemPromptProvider(_fs, new SystemPromptProviderOptions
-        {
+        return new DefaultSystemPromptProvider(_fs, new SystemPromptProviderOptions {
             CustomIntro = config.CustomIntro,
             EnabledTools = config.EnabledTools ?? [],
             AdditionalEnvInfo = config.AdditionalEnvInfo,
@@ -149,8 +139,7 @@ public sealed class PromptTriggerTester
         }, briefModeService);
     }
 
-    private sealed class TestBriefModeService : IBriefModeService
-    {
+    private sealed class TestBriefModeService : IBriefModeService {
         private readonly bool _enabled;
 
         public TestBriefModeService(bool enabled) => _enabled = enabled;

@@ -4,8 +4,7 @@ namespace Core.Scheduling.Tasks;
 /// <summary>
 /// MCP 监控任务执行器接口 — 提供 MCP 服务器监控的启动、停止、查询与事件订阅能力。
 /// </summary>
-public interface IMonitorMcpTaskExecutor
-{
+public interface IMonitorMcpTaskExecutor {
     /// <summary>
     /// 异步启动对指定 MCP 服务器的监控。
     /// </summary>
@@ -37,8 +36,7 @@ public interface IMonitorMcpTaskExecutor
 /// <summary>
 /// MCP 监控配置 — 描述监控的服务器名、轮询间隔、事件过滤与重连策略。
 /// </summary>
-public sealed partial class McpMonitorConfig
-{
+public sealed partial class McpMonitorConfig {
     /// <summary>目标 MCP 服务器名称。</summary>
     public required string ServerName { get; init; }
     /// <summary>事件过滤器列表,为空表示接收所有事件。</summary>
@@ -55,12 +53,9 @@ public sealed partial class McpMonitorConfig
     /// <summary>
     /// 事件过滤器集合 — 延迟初始化的 FrozenSet,供 O(1) 查询。
     /// </summary>
-    public FrozenSet<string> EventFilterSet
-    {
-        get
-        {
-            if (!_eventFilterSetInitialized)
-            {
+    public FrozenSet<string> EventFilterSet {
+        get {
+            if (!_eventFilterSetInitialized) {
                 _eventFilterSet = EventFilters.ToFrozenSet();
                 _eventFilterSetInitialized = true;
             }
@@ -72,8 +67,7 @@ public sealed partial class McpMonitorConfig
 /// <summary>
 /// MCP 监控状态 — 描述单个监控会话的当前状态与统计信息。
 /// </summary>
-public sealed partial class McpMonitorStatus
-{
+public sealed partial class McpMonitorStatus {
     /// <summary>监控会话唯一标识。</summary>
     public required string MonitorId { get; init; }
     /// <summary>监控的 MCP 服务器名称。</summary>
@@ -91,8 +85,7 @@ public sealed partial class McpMonitorStatus
 /// <summary>
 /// MCP 监控会话状态枚举。
 /// </summary>
-public enum MonitorState
-{
+public enum MonitorState {
     /// <summary>启动中 — 尚未完成首次连接。</summary>
     [EnumValue("starting")] Starting = 0,
     /// <summary>运行中 — 正常轮询中。</summary>
@@ -106,8 +99,7 @@ public enum MonitorState
 /// <summary>
 /// 监控会话事件 — 触发状态转换的事件（ADR 0040 事件枚举）
 /// </summary>
-internal enum MonitorSessionEvent
-{
+internal enum MonitorSessionEvent {
     /// <summary>启动成功 — Starting → Running</summary>
     Started,
     /// <summary>出错 — Starting/Running → Error</summary>
@@ -121,8 +113,7 @@ internal enum MonitorSessionEvent
 /// <summary>
 /// MCP 监控事件参数 — 当监控检测到 tools_update/resources_update 等事件时触发。
 /// </summary>
-public sealed partial class McpMonitorEventArgs : EventArgs
-{
+public sealed partial class McpMonitorEventArgs : EventArgs {
     /// <summary>监控会话唯一标识。</summary>
     public required string MonitorId { get; init; }
     /// <summary>监控的 MCP 服务器名称。</summary>
@@ -140,8 +131,7 @@ public sealed partial class McpMonitorEventArgs : EventArgs
 /// 支持自动重连、事件过滤与遥测上报。
 /// </summary>
 [Register(typeof(IMonitorMcpTaskExecutor), ServiceLifetime.Singleton)]
-public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IAsyncDisposable
-{
+public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IAsyncDisposable {
     private readonly IMcpToolRegistry _mcpToolRegistry;
     private readonly ILogger<MonitorMcpTaskExecutor>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -163,8 +153,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     /// <param name="logger">日志记录器,可选。</param>
     /// <param name="telemetryService">遥测服务,可选,用于记录监控操作指标。</param>
     /// <param name="clock">时钟服务,可选,默认使用系统时钟。</param>
-    public MonitorMcpTaskExecutor(IMcpToolRegistry mcpToolRegistry, ILogger<MonitorMcpTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null)
-    {
+    public MonitorMcpTaskExecutor(IMcpToolRegistry mcpToolRegistry, ILogger<MonitorMcpTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null) {
         _mcpToolRegistry = mcpToolRegistry;
         _logger = logger;
         _telemetryService = telemetryService;
@@ -172,8 +161,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     }
 
     /// <inheritdoc/>
-    public async Task<string> StartMonitoringAsync(McpMonitorConfig config, CancellationToken ct = default)
-    {
+    public async Task<string> StartMonitoringAsync(McpMonitorConfig config, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(config);
 
         var monitorId = $"monitor-{Interlocked.Increment(ref _monitorIdCounter):D4}";
@@ -182,7 +170,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         using var guard = await _sessionLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
 
         _sessions[monitorId] = session;
-    
+
 
         _ = Task.Run(() => RunMonitorLoopAsync(session, ct));
 
@@ -191,32 +179,28 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     }
 
     /// <inheritdoc/>
-    public async Task StopMonitoringAsync(string monitorId, CancellationToken ct = default)
-    {
+    public async Task StopMonitoringAsync(string monitorId, CancellationToken ct = default) {
         using var guard = await _sessionLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
 
-        if (_sessions.TryRemove(monitorId, out var session))
-        {
+        if (_sessions.TryRemove(monitorId, out var session)) {
             await session.DisposeAsync().ConfigureAwait(false);
             RecordMonitorMetrics("stop", session.Config.ServerName, true);
         }
-    
+
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<McpMonitorStatus>> GetActiveMonitorsAsync(CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyList<McpMonitorStatus>> GetActiveMonitorsAsync(CancellationToken ct = default) {
         using var guard = await _sessionLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
 
         return _sessions.Values.Select(s => s.ToStatus()).ToList();
-    
+
     }
 
     /// <summary>
     /// 异步释放所有监控会话与锁资源。
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
@@ -225,27 +209,22 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
     }
 
     /// <summary>清理所有监控会话（在锁保护下执行）</summary>
-    private async Task CleanupSessionsAsync()
-    {
+    private async Task CleanupSessionsAsync() {
         using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
-        foreach (var session in _sessions.Values)
-        {
+        foreach (var session in _sessions.Values) {
             await session.DisposeAsync().ConfigureAwait(false);
         }
 
         _sessions.Clear();
     }
 
-    private async Task RunMonitorLoopAsync(MonitorSession session, CancellationToken externalCt)
-    {
+    private async Task RunMonitorLoopAsync(MonitorSession session, CancellationToken externalCt) {
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(externalCt, session.Cts.Token);
 
-        try
-        {
+        try {
             var client = await ResolveMcpClientAsync(session.Config.ServerName).ConfigureAwait(false);
 
-            if (client is null)
-            {
+            if (client is null) {
                 session.Trigger(MonitorSessionEvent.Fail);
                 _logger?.LogError("Failed to resolve MCP client for server {ServerName}", session.Config.ServerName);
                 return;
@@ -253,19 +232,13 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
             session.Trigger(MonitorSessionEvent.Started);
 
-            while (!linkedCts.Token.IsCancellationRequested)
-            {
-                try
-                {
+            while (!linkedCts.Token.IsCancellationRequested) {
+                try {
                     await PollMcpServerAsync(session, client, linkedCts.Token).ConfigureAwait(false);
                     await Task.Delay(session.Config.PollInterval, linkedCts.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
+                } catch (OperationCanceledException) {
                     break;
-                }
-                catch (Exception ex) when (session.Config.AutoReconnect)
-                {
+                } catch (Exception ex) when (session.Config.AutoReconnect) {
                     session.Trigger(MonitorSessionEvent.Fail);
                     _logger?.LogWarning(ex, "Monitor {MonitorId} encountered error, attempting reconnect", session.MonitorId);
 
@@ -273,66 +246,46 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
                     if (!reconnected) break;
 
                     session.Trigger(MonitorSessionEvent.Recover);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     session.Trigger(MonitorSessionEvent.Fail);
                     _logger?.LogError(ex, "Monitor {MonitorId} failed", session.MonitorId);
                     break;
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             session.Trigger(MonitorSessionEvent.Fail);
             _logger?.LogError(ex, "Monitor {MonitorId} loop crashed", session.MonitorId);
-        }
-        finally
-        {
-            if (session.State != MonitorState.Error)
-            {
+        } finally {
+            if (session.State != MonitorState.Error) {
                 session.Trigger(MonitorSessionEvent.Stop);
             }
         }
     }
 
-    private async Task<IMcpClient?> ResolveMcpClientAsync(string serverName)
-    {
-        try
-        {
+    private async Task<IMcpClient?> ResolveMcpClientAsync(string serverName) {
+        try {
             var clients = await _mcpToolRegistry.GetAllRemoteClientsAsync().ConfigureAwait(false);
             return clients.TryGetValue(serverName, out var client) ? client : null;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to resolve MCP client for {ServerName}", serverName);
             return null;
         }
     }
 
-    private async Task PollMcpServerAsync(MonitorSession session, IMcpClient client, CancellationToken ct)
-    {
-        if (!client.IsConnected)
-        {
-            if (session.Config.AutoReconnect)
-            {
+    private async Task PollMcpServerAsync(MonitorSession session, IMcpClient client, CancellationToken ct) {
+        if (!client.IsConnected) {
+            if (session.Config.AutoReconnect) {
                 await client.ConnectAsync(ct).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 return;
             }
         }
 
         var toolsResult = await client.ListToolsAsync(ct).ConfigureAwait(false);
 
-        if (toolsResult.Success && toolsResult.GetData().Count > 0)
-        {
-            OnMonitorEvent(session, "tools_update", new Dictionary<string, JsonElement>
-            {
+        if (toolsResult.Success && toolsResult.GetData().Count > 0) {
+            OnMonitorEvent(session, "tools_update", new Dictionary<string, JsonElement> {
                 ["toolCount"] = JsonElementHelper.FromInt32(toolsResult.GetData().Count),
                 ["tools"] = JsonElementHelper.FromObject(toolsResult.GetData().Select(t => t.Name).ToList(), SchedulingJsonContext.Default.ListString)
             });
@@ -340,35 +293,25 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 
         var resourcesResult = await client.ListResourcesAsync(ct).ConfigureAwait(false);
 
-        if (resourcesResult.Success && resourcesResult.GetData().Count > 0)
-        {
-            OnMonitorEvent(session, "resources_update", new Dictionary<string, JsonElement>
-            {
+        if (resourcesResult.Success && resourcesResult.GetData().Count > 0) {
+            OnMonitorEvent(session, "resources_update", new Dictionary<string, JsonElement> {
                 ["resourceCount"] = JsonElementHelper.FromInt32(resourcesResult.GetData().Count)
             });
         }
     }
 
-    private async Task<bool> TryReconnectAsync(MonitorSession session, CancellationToken ct)
-    {
-        for (var i = 0; i < 3; i++)
-        {
-            try
-            {
+    private async Task<bool> TryReconnectAsync(MonitorSession session, CancellationToken ct) {
+        for (var i = 0; i < 3; i++) {
+            try {
                 await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, i)), ct).ConfigureAwait(false);
                 var client = await ResolveMcpClientAsync(session.Config.ServerName).ConfigureAwait(false);
-                if (client is not null)
-                {
+                if (client is not null) {
                     await client.ConnectAsync(ct).ConfigureAwait(false);
                     return true;
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 return false;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "MCP 客户端连接失败: {Server}", session.Config.ServerName);
             }
         }
@@ -376,23 +319,19 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
         return false;
     }
 
-    private void OnMonitorEvent(MonitorSession session, string eventType, Dictionary<string, JsonElement> data)
-    {
-        if (session.Config.EventFilterSet.Count > 0 && !session.Config.EventFilterSet.Contains(eventType))
-        {
+    private void OnMonitorEvent(MonitorSession session, string eventType, Dictionary<string, JsonElement> data) {
+        if (session.Config.EventFilterSet.Count > 0 && !session.Config.EventFilterSet.Contains(eventType)) {
             return;
         }
 
-        if (session.EventsReceived >= session.Config.MaxEvents)
-        {
+        if (session.EventsReceived >= session.Config.MaxEvents) {
             return;
         }
 
         Interlocked.Increment(ref session.EventsReceivedField);
         session.LastEventAt = _clock.GetUtcNow();
 
-        var args = new McpMonitorEventArgs
-        {
+        var args = new McpMonitorEventArgs {
             MonitorId = session.MonitorId,
             ServerName = session.Config.ServerName,
             EventType = eventType,
@@ -414,8 +353,7 @@ public sealed partial class MonitorMcpTaskExecutor : IMonitorMcpTaskExecutor, IA
 [Transition(MonitorState.Running, MonitorSessionEvent.Stop, MonitorState.Stopped)]
 [Transition(MonitorState.Error, MonitorSessionEvent.Recover, MonitorState.Running)]
 [Transition(MonitorState.Error, MonitorSessionEvent.Stop, MonitorState.Stopped)]
-internal sealed partial class MonitorSession : IAsyncDisposable
-{
+internal sealed partial class MonitorSession : IAsyncDisposable {
     private readonly Fsm<MonitorState, MonitorSessionEvent> _fsm;
     private int _disposed;
 
@@ -428,8 +366,7 @@ internal sealed partial class MonitorSession : IAsyncDisposable
     public DateTime? LastEventAt { get; set; }
     public CancellationTokenSource Cts { get; } = new();
 
-    public MonitorSession(string monitorId, McpMonitorConfig config)
-    {
+    public MonitorSession(string monitorId, McpMonitorConfig config) {
         MonitorId = monitorId;
         Config = config;
         _fsm = new Fsm<MonitorState, MonitorSessionEvent>(_fsmSortedKeys, _fsmRules, MonitorState.Starting);
@@ -439,10 +376,8 @@ internal sealed partial class MonitorSession : IAsyncDisposable
     /// <summary>触发事件 — 查转换表合法则转,非法静默忽略(保持原直接赋值语义)</summary>
     public void Trigger(MonitorSessionEvent evt) => _fsm.TryTrigger(evt);
 
-    public McpMonitorStatus ToStatus()
-    {
-        return new McpMonitorStatus
-        {
+    public McpMonitorStatus ToStatus() {
+        return new McpMonitorStatus {
             MonitorId = MonitorId,
             ServerName = Config.ServerName,
             State = State,
@@ -452,8 +387,7 @@ internal sealed partial class MonitorSession : IAsyncDisposable
         };
     }
 
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         Cts.Cancel();
         Cts.Dispose();

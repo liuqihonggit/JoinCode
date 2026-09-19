@@ -7,14 +7,12 @@ namespace Infrastructure.Pipeline.Middlewares;
 /// </summary>
 public sealed class LoggingScopeMiddleware<TContext>(
     ILogger<LoggingScopeMiddleware<TContext>>? logger = null,
-    Func<TContext, ObjectId>? objectIdSelector = null) : IMiddleware<TContext>
-{
+    Func<TContext, ObjectId>? objectIdSelector = null) : IMiddleware<TContext> {
     private readonly Func<TContext, ObjectId> _objectIdSelector =
         objectIdSelector ?? (ctx => ctx is Entity e ? e.ObjectId : ObjectId.Empty);
 
     /// <inheritdoc/>
-    public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct) {
         var activity = Activity.Current;
         var state = new LogScopeState(
             activity?.TraceId.ToString(),
@@ -30,8 +28,7 @@ public sealed class LoggingScopeMiddleware<TContext>(
 /// </summary>
 public sealed class StreamLoggingScopeMiddleware<TContext, TEvent>(
     ILogger<StreamLoggingScopeMiddleware<TContext, TEvent>>? logger = null,
-    Func<TContext, ObjectId>? objectIdSelector = null) : IStreamMiddleware<TContext, TEvent>
-{
+    Func<TContext, ObjectId>? objectIdSelector = null) : IStreamMiddleware<TContext, TEvent> {
     private readonly Func<TContext, ObjectId> _objectIdSelector =
         objectIdSelector ?? (ctx => ctx is Entity e ? e.ObjectId : ObjectId.Empty);
 
@@ -39,16 +36,14 @@ public sealed class StreamLoggingScopeMiddleware<TContext, TEvent>(
     public async IAsyncEnumerable<TEvent> InvokeAsync(
         TContext context,
         StreamMiddlewareDelegate<TContext, TEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         var activity = Activity.Current;
         var state = new LogScopeState(
             activity?.TraceId.ToString(),
             activity?.SpanId.ToString(),
             _objectIdSelector(context));
         using var scope = logger?.BeginScope(state);
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }
     }

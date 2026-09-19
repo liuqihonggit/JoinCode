@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Configuration.AppData;
 /// <summary>
 /// JCC 专属环境变量名枚举 — 替代原 AppDataConstants.JccEnvVars 静态常量类
 /// </summary>
-public enum JccEnvVar
-{
+public enum JccEnvVar {
     [EnumValue("JCC_VENDOR")]
     [SubCommandInfo("LLM 供应商 (openai/azure/anthropic/deepseek/sensenova)", "供应商配置")]
     Vendor,
@@ -235,8 +234,7 @@ public enum JccEnvVar
 /// <summary>
 /// Provider 专属环境变量名枚举
 /// </summary>
-public enum ProviderEnvVar
-{
+public enum ProviderEnvVar {
     [EnumValue("OPENAI_API_KEY")] OpenAiApiKey,
     [EnumValue("AZURE_OPENAI_API_KEY")] AzureOpenAiApiKey,
     [EnumValue("AZURE_OPENAI_ENDPOINT")] AzureOpenAiEndpoint,

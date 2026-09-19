@@ -10,19 +10,16 @@ namespace Integration.Tests.PrefixCache.Unit;
 /// - 中途某条已存在消息被篡改 → 必须报 ConversationHistoryChanged
 /// - 撤回/截断 (前缀变短) → 新前缀是已缓存前缀的前缀 → 仍可命中, 不误报
 /// </summary>
-public sealed class CacheBreakDetectorConversationHistoryTests
-{
+public sealed class CacheBreakDetectorConversationHistoryTests {
     private readonly CacheBreakDetector _detector = new();
 
-    private static TokenUsage HitUsage() => new(200, 50)
-    {
+    private static TokenUsage HitUsage() => new(200, 50) {
         CacheReadInputTokens = 180,
         CacheCreationInputTokens = 0
     };
 
     [Fact]
-    public void MultiTurnGrowth_AppendTailOnly_ShouldNotBreak()
-    {
+    public void MultiTurnGrowth_AppendTailOnly_ShouldNotBreak() {
         var prefix = new ImmutablePrefix("System", [], []);
         var snapshot = _detector.RecordPromptState(prefix, "dynamic",
             conversation:
@@ -43,8 +40,7 @@ public sealed class CacheBreakDetectorConversationHistoryTests
     }
 
     [Fact]
-    public void TamperExistingAssistantMessage_ShouldBreak()
-    {
+    public void TamperExistingAssistantMessage_ShouldBreak() {
         var prefix = new ImmutablePrefix("System", new List<ToolSpec>(), []);
         var snapshot = _detector.RecordPromptState(prefix, "dynamic",
             conversation:
@@ -66,8 +62,7 @@ public sealed class CacheBreakDetectorConversationHistoryTests
     }
 
     [Fact]
-    public void TamperFirstMessage_ShouldBreak()
-    {
+    public void TamperFirstMessage_ShouldBreak() {
         var prefix = new ImmutablePrefix("System", new List<ToolSpec>(), []);
         var snapshot = _detector.RecordPromptState(prefix, "dynamic",
             conversation:
@@ -88,8 +83,7 @@ public sealed class CacheBreakDetectorConversationHistoryTests
     }
 
     [Fact]
-    public void InsertMessageInMiddle_ShouldBreak()
-    {
+    public void InsertMessageInMiddle_ShouldBreak() {
         var prefix = new ImmutablePrefix("System", new List<ToolSpec>(), []);
         var snapshot = _detector.RecordPromptState(prefix, "dynamic",
             conversation:
@@ -112,8 +106,7 @@ public sealed class CacheBreakDetectorConversationHistoryTests
     }
 
     [Fact]
-    public void RewindShrink_ShorterPrefix_ShouldNotBreak()
-    {
+    public void RewindShrink_ShorterPrefix_ShouldNotBreak() {
         var prefix = new ImmutablePrefix("System", new List<ToolSpec>(), []);
         var snapshot = _detector.RecordPromptState(prefix, "dynamic",
             conversation:
@@ -135,8 +128,7 @@ public sealed class CacheBreakDetectorConversationHistoryTests
     }
 
     [Fact]
-    public void SnapshotWasEmptyConversation_ShouldNotBreak()
-    {
+    public void SnapshotWasEmptyConversation_ShouldNotBreak() {
         var prefix = new ImmutablePrefix("System", new List<ToolSpec>(), []);
         var snapshot = _detector.RecordPromptState(prefix, "dynamic");
 

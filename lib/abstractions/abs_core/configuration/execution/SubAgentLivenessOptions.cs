@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 /// 子代理卡死防护配置 — 纵深防御四层参数（ADR 0106）。
 /// L1 预防(工具超时) + L2 检测(无输出+巡查+链路) + L3 干预(激活+抢塞) + L4 恢复(渐进式压缩)。
 /// </summary>
-public sealed class SubAgentLivenessOptions
-{
+public sealed class SubAgentLivenessOptions {
     /// <summary>
     /// L1 预防：子代理执行超时（秒），0=不限。默认 300（5分钟）。
     /// 消费方：AgentLifecycleManager.ExecuteAsync 通过 TimeoutHelper.CreateLinkedTimeout 施加。
@@ -61,8 +60,7 @@ public sealed class SubAgentLivenessOptions
     /// <summary>
     /// 校验配置合法性 — 配置加载时调用，非法值抛 ArgumentException。
     /// </summary>
-    public void Validate()
-    {
+    public void Validate() {
         if (AgentTimeoutSeconds < 0)
             throw new ArgumentException("AgentTimeoutSeconds 必须 >= 0（0=不限）", nameof(AgentTimeoutSeconds));
         if (IdleThresholdSeconds < 1)

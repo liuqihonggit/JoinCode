@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 统计数据模型 — 对齐 TS Stats 组件数据模型
 /// </summary>
-public sealed class StatsData
-{
+public sealed class StatsData {
     /// <summary>
     /// 总会话数
     /// </summary>
@@ -64,8 +63,7 @@ public sealed class StatsData
 /// <summary>
 /// 模型统计
 /// </summary>
-public sealed class ModelStats
-{
+public sealed class ModelStats {
     /// <summary>
     /// 模型名称
     /// </summary>
@@ -93,8 +91,7 @@ public sealed class ModelStats
     /// <param name="inputTokens">输入 token 数</param>
     /// <param name="outputTokens">输出 token 数</param>
     /// <param name="costUsd">花费（美元）</param>
-    public ModelStats(string model, int inputTokens, int outputTokens, decimal costUsd)
-    {
+    public ModelStats(string model, int inputTokens, int outputTokens, decimal costUsd) {
         Model = model;
         InputTokens = inputTokens;
         OutputTokens = outputTokens;
@@ -110,8 +107,7 @@ public sealed class ModelStats
 /// <summary>
 /// 每日使用量
 /// </summary>
-public sealed class DailyUsage
-{
+public sealed class DailyUsage {
     /// <summary>
     /// 日期（必填，仅初始化时可设置）
     /// </summary>
@@ -141,8 +137,7 @@ public sealed class DailyUsage
 /// <summary>
 /// 统计 Tab 类型
 /// </summary>
-public enum StatsTab
-{
+public enum StatsTab {
     /// <summary>
     /// 概览
     /// </summary>

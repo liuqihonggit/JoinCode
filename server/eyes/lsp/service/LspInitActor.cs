@@ -14,8 +14,7 @@ internal sealed record ShutdownCmd(CancellationToken Ct, TaskCompletionSource Tc
 /// <summary>
 /// LSP 初始化 Actor — 序列化 Initialize/Shutdown，消除 AsyncLock 锁内长 await（Shutdown 停止所有 LSP 服务器 >5s）。
 /// </summary>
-internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
-{
+internal sealed class LspInitActor : ActorBase<ILspCommand, Unit> {
     private readonly LspManager _owner;
     private readonly ILogger<LspManager> _logger;
 
@@ -25,8 +24,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     /// <param name="owner">所属的 LSP 管理器</param>
     /// <param name="logger">日志记录器</param>
     public LspInitActor(LspManager owner, ILogger<LspManager> logger)
-        : base()
-    {
+        : base() {
         _owner = owner;
         _logger = logger;
     }
@@ -37,8 +35,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     /// </summary>
     /// <param name="configs">LSP 实例配置列表</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InitializeAsync(List<LspInstanceConfig> configs, CancellationToken ct)
-    {
+    public async Task InitializeAsync(List<LspInstanceConfig> configs, CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new InitializeCmd(configs, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
@@ -48,8 +45,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     /// 异步关闭 — 通过 Actor 邮箱序列化 ShutdownCmd 执行
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task ShutdownAsync(CancellationToken ct)
-    {
+    public async Task ShutdownAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new ShutdownCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
@@ -60,28 +56,20 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     /// </summary>
     /// <param name="command">待处理的 LSP 命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(ILspCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
-            case InitializeCmd cmd:
-            {
-                try
-                {
+    protected override async ValueTask HandleAsync(ILspCommand command, CancellationToken ct) {
+        switch (command) {
+            case InitializeCmd cmd: {
+                try {
                     await _owner.InitializeCoreAsync(cmd.Configs, cmd.Ct).ConfigureAwait(false);
                     cmd.Tcs.TrySetResult();
-                }
-                catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
+                } catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
                 break;
             }
-            case ShutdownCmd cmd:
-            {
-                try
-                {
+            case ShutdownCmd cmd: {
+                try {
                     await _owner.ShutdownCoreAsync(cmd.Ct).ConfigureAwait(false);
                     cmd.Tcs.TrySetResult();
-                }
-                catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
+                } catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
                 break;
             }
         }
@@ -91,8 +79,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit>
     /// 消费者异常钩子 — 记录 Actor 消费循环中的未处理异常
     /// </summary>
     /// <param name="ex">捕获的异常</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger.LogError(ex, "[LspManager] Init Actor Consumer 异常");
     }
 }

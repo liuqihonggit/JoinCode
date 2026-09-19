@@ -1,15 +1,12 @@
 
 namespace Hands.Tests.Tools;
 
-public sealed class LocalToolRegistryTests : IAsyncDisposable
-{
+public sealed class LocalToolRegistryTests : IAsyncDisposable {
     private readonly LocalToolRegistry _registry = new();
 
     private static IToolHandler CreateHandler(
-        string name, string description, Func<Dictionary<string, JsonElement>, Task<ToolResult>>? execute = null)
-    {
-        execute ??= _ => Task.FromResult(new ToolResult
-        {
+        string name, string description, Func<Dictionary<string, JsonElement>, Task<ToolResult>>? execute = null) {
+        execute ??= _ => Task.FromResult(new ToolResult {
             Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "ok" } }
         });
 
@@ -19,23 +16,20 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     public ValueTask DisposeAsync() => _registry.DisposeAsync();
 
     [Fact]
-    public async Task Registry_Creation_ShouldBeEmpty()
-    {
+    public async Task Registry_Creation_ShouldBeEmpty() {
         var count = await _registry.GetCountAsync();
         count.Should().Be(0);
     }
 
     [Fact]
-    public async Task RegisterTool_ShouldIncrementCount()
-    {
+    public async Task RegisterTool_ShouldIncrementCount() {
         await _registry.RegisterToolAsync(CreateHandler("file_read", "Read file contents"));
         var count = await _registry.GetCountAsync();
         count.Should().Be(1);
     }
 
     [Fact]
-    public async Task RegisterTool_ShouldBeRetrievable()
-    {
+    public async Task RegisterTool_ShouldBeRetrievable() {
         await _registry.RegisterToolAsync(CreateHandler("file_read", "Read file contents"));
         var handler = await _registry.GetToolAsync("file_read");
 
@@ -45,8 +39,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RegisterTool_ShouldFireToolRegisteredEvent()
-    {
+    public async Task RegisterTool_ShouldFireToolRegisteredEvent() {
         string? registeredName = null;
         _registry.ToolRegistered += (_, e) => registeredName = e.ToolName;
 
@@ -56,8 +49,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RegisterTool_DuplicateName_ShouldOverwrite()
-    {
+    public async Task RegisterTool_DuplicateName_ShouldOverwrite() {
         await _registry.RegisterToolAsync(CreateHandler("tool1", "v1"));
         await _registry.RegisterToolAsync(CreateHandler("tool1", "v2"));
 
@@ -69,8 +61,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task UnregisterTool_ShouldDecrementCount()
-    {
+    public async Task UnregisterTool_ShouldDecrementCount() {
         await _registry.RegisterToolAsync(CreateHandler("tool1", "desc"));
         var removed = await _registry.UnregisterToolAsync("tool1");
 
@@ -80,15 +71,13 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task UnregisterTool_NonExistent_ShouldReturnFalse()
-    {
+    public async Task UnregisterTool_NonExistent_ShouldReturnFalse() {
         var removed = await _registry.UnregisterToolAsync("nonexistent");
         removed.Should().BeFalse();
     }
 
     [Fact]
-    public async Task UnregisterTool_ShouldFireToolUnregisteredEvent()
-    {
+    public async Task UnregisterTool_ShouldFireToolUnregisteredEvent() {
         string? unregisteredName = null;
         _registry.ToolUnregistered += (_, e) => unregisteredName = e.ToolName;
 
@@ -99,15 +88,13 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetTool_NonExistent_ShouldReturnNull()
-    {
+    public async Task GetTool_NonExistent_ShouldReturnNull() {
         var handler = await _registry.GetToolAsync("nonexistent");
         handler.Should().BeNull();
     }
 
     [Fact]
-    public async Task ContainsTool_ShouldReturnCorrectResult()
-    {
+    public async Task ContainsTool_ShouldReturnCorrectResult() {
         await _registry.RegisterToolAsync(CreateHandler("tool1", "desc"));
 
         (await _registry.ContainsToolAsync("tool1")).Should().BeTrue();
@@ -115,8 +102,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetAllTools_ShouldReturnAllRegistered()
-    {
+    public async Task GetAllTools_ShouldReturnAllRegistered() {
         await _registry.RegisterToolAsync(CreateHandler("file_read", "Read"));
         await _registry.RegisterToolAsync(CreateHandler("file_write", "Write"));
         await _registry.RegisterToolAsync(CreateHandler("execute_command", "Execute"));
@@ -127,8 +113,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetAllToolInfos_ShouldReturnCorrectInfos()
-    {
+    public async Task GetAllToolInfos_ShouldReturnCorrectInfos() {
         await _registry.RegisterToolAsync(CreateHandler("file_read", "Read file contents"));
 
         var infos = await _registry.GetAllToolInfosAsync();
@@ -138,8 +123,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetToolInfo_ShouldReturnCorrectInfo()
-    {
+    public async Task GetToolInfo_ShouldReturnCorrectInfo() {
         await _registry.RegisterToolAsync(CreateHandler("git_operations", "Git operations tool"));
 
         var info = await _registry.GetToolInfoAsync("git_operations");
@@ -149,19 +133,15 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteTool_ShouldReturnSuccess()
-    {
-        await _registry.RegisterToolAsync(CreateHandler("echo", "Echo tool", args =>
-        {
+    public async Task ExecuteTool_ShouldReturnSuccess() {
+        await _registry.RegisterToolAsync(CreateHandler("echo", "Echo tool", args => {
             var text = args.TryGetValue("text", out var v) ? v.GetString() : "default";
-            return Task.FromResult(new ToolResult
-            {
+            return Task.FromResult(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = text ?? "default" } }
             });
         }));
 
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["text"] = JsonSerializer.SerializeToElement("hello")
         };
 
@@ -171,16 +151,14 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteTool_NonExistent_ShouldReturnError()
-    {
+    public async Task ExecuteTool_NonExistent_ShouldReturnError() {
         var result = await _registry.ExecuteToolAsync("nonexistent", new Dictionary<string, JsonElement>());
         result.IsError.Should().BeTrue();
         result.GetTextContent().Should().Contain("not found");
     }
 
     [Fact]
-    public async Task ExecuteTool_HandlerThrows_ShouldReturnError()
-    {
+    public async Task ExecuteTool_HandlerThrows_ShouldReturnError() {
         await _registry.RegisterToolAsync(CreateHandler("failing", "Fails", _ =>
             throw new InvalidOperationException("boom")));
 
@@ -190,8 +168,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task Clear_ShouldRemoveAllTools()
-    {
+    public async Task Clear_ShouldRemoveAllTools() {
         await _registry.RegisterToolAsync(CreateHandler("tool1", "d1"));
         await _registry.RegisterToolAsync(CreateHandler("tool2", "d2"));
 
@@ -202,8 +179,7 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task Clear_ShouldFireToolsClearedEvent()
-    {
+    public async Task Clear_ShouldFireToolsClearedEvent() {
         var fired = false;
         _registry.ToolsCleared += (_, _) => fired = true;
 
@@ -214,14 +190,12 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RegisterTool_WithDelegateOverload_ShouldWork()
-    {
+    public async Task RegisterTool_WithDelegateOverload_ShouldWork() {
         await _registry.RegisterToolAsync(
             "delegate_tool",
             "Delegate tool",
             new ToolSchema(),
-            (name, args, ct, progress) => Task.FromResult(new ToolResult
-            {
+            (name, args, ct, progress) => Task.FromResult(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "delegate result" } }
             }));
 
@@ -231,20 +205,17 @@ public sealed class LocalToolRegistryTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task MultipleToolsRegistration_ShouldTrackAll()
-    {
+    public async Task MultipleToolsRegistration_ShouldTrackAll() {
         var toolNames = new[] { "file_read", "file_edit", "file_write", "execute_command", "search", "list_files" };
 
-        foreach (var name in toolNames)
-        {
+        foreach (var name in toolNames) {
             await _registry.RegisterToolAsync(CreateHandler(name, $"{name} description"));
         }
 
         var count = await _registry.GetCountAsync();
         count.Should().Be(toolNames.Length);
 
-        foreach (var name in toolNames)
-        {
+        foreach (var name in toolNames) {
             (await _registry.ContainsToolAsync(name)).Should().BeTrue($"tool '{name}' should be registered");
         }
     }

@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// project: 项目级，通过版本控制共享，入 VCS
 /// local: 本地级，不入版本控制，针对本项目和本机
 /// </summary>
-public enum AgentMemoryScope
-{
+public enum AgentMemoryScope {
     [EnumValue("user")] User,
     [EnumValue("project")] Project,
     [EnumValue("local")] Local,
@@ -17,8 +16,7 @@ public enum AgentMemoryScope
 /// <summary>
 /// Agent 记忆快照操作类型
 /// </summary>
-public enum AgentMemorySnapshotAction
-{
+public enum AgentMemorySnapshotAction {
     /// <summary>无需操作</summary>
     [EnumValue("none")]
     None,
@@ -33,8 +31,7 @@ public enum AgentMemorySnapshotAction
 /// <summary>
 /// Agent 记忆快照检查结果
 /// </summary>
-public sealed record AgentMemorySnapshotCheck
-{
+public sealed record AgentMemorySnapshotCheck {
     public required AgentMemorySnapshotAction Action { get; init; }
     public string? SnapshotTimestamp { get; init; }
 }

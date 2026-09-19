@@ -30,8 +30,7 @@ public sealed record JournalResetCommand() : IJournalCommand;
 ///
 /// Actor 化：继承 ActorBase&lt;IJournalCommand, Unit&gt;，Consumer 线程独占滑动窗口，消除 AsyncLock。
 /// </summary>
-public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
-{
+public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit> {
     private readonly int _traceWindowCapacity;
     private readonly LinkedList<JournalEntry> _traceWindow = [];
     private readonly ILogger? _logger;
@@ -43,8 +42,7 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
     /// <param name="traceWindowCapacity">追踪窗口最大容量（最少 5）</param>
     /// <param name="logger">可选日志记录器</param>
     public LoopDiagnosticJournal(int traceWindowCapacity = 50, ILogger? logger = null)
-        : base(new ActorBackpressure(Capacity: 256, FullMode: BoundedChannelFullMode.DropOldest))
-    {
+        : base(new ActorBackpressure(Capacity: 256, FullMode: BoundedChannelFullMode.DropOldest)) {
         ArgumentOutOfRangeException.ThrowIfLessThan(traceWindowCapacity, 5);
         _traceWindowCapacity = traceWindowCapacity;
         _logger = logger;
@@ -54,10 +52,8 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
     /// 记录一条正常日志，分配 traceId，异步加入滑动窗口
     /// 前台调用：只入队，不阻塞
     /// </summary>
-    public JournalEntry Record(string eventType, string sessionId, int conversationTurn, int toolCallCount, Dictionary<string, string>? data = null)
-    {
-        var entry = new JournalEntry
-        {
+    public JournalEntry Record(string eventType, string sessionId, int conversationTurn, int toolCallCount, Dictionary<string, string>? data = null) {
+        var entry = new JournalEntry {
             TraceId = Guid.NewGuid().ToString("N")[..12],
             EventType = eventType,
             SessionId = sessionId,
@@ -84,12 +80,10 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
         int triggerCount,
         string reason,
         double? entropy = null,
-        string? textSnippet = null)
-    {
+        string? textSnippet = null) {
         var anomalyTraceId = Guid.NewGuid().ToString("N")[..12];
 
-        var anomaly = new LoopAnomalyRecord
-        {
+        var anomaly = new LoopAnomalyRecord {
             TraceId = anomalyTraceId,
             DetectorLayer = detectorLayer,
             SessionId = sessionId,
@@ -111,8 +105,7 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
     /// <summary>
     /// 重置日志簿状态
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         TrySend(new JournalResetCommand());
     }
 
@@ -126,22 +119,20 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
     /// </summary>
     /// <param name="command">日志簿命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(IJournalCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override async ValueTask HandleAsync(IJournalCommand command, CancellationToken ct) {
+        switch (command) {
             case JournalRecordCommand(var entry):
-                AddToWindowCore(entry);
-                break;
+            AddToWindowCore(entry);
+            break;
 
             case JournalAnomalyCommand(var anomaly):
-                await ProcessAnomalyAsync(anomaly).ConfigureAwait(false);
-                break;
+            await ProcessAnomalyAsync(anomaly).ConfigureAwait(false);
+            break;
 
             case JournalResetCommand:
-                _traceWindow.Clear();
-                Volatile.Write(ref _windowCount, 0);
-                break;
+            _traceWindow.Clear();
+            Volatile.Write(ref _windowCount, 0);
+            break;
         }
     }
 
@@ -149,13 +140,11 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
     /// Consumer 线程发生异常时的回调 — 记录警告日志
     /// </summary>
     /// <param name="ex">异常对象</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogWarning(ex, "[LoopDiagnosticJournal] 后台消费者异常");
     }
 
-    private async Task ProcessAnomalyAsync(LoopAnomalyRecord anomaly)
-    {
+    private async Task ProcessAnomalyAsync(LoopAnomalyRecord anomaly) {
         var traceChain = _traceWindow.Select(e => e.TraceId).ToList();
 
         var fullAnomaly = anomaly with { TraceChain = traceChain };
@@ -166,8 +155,7 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
             fullAnomaly.TriggerCount, fullAnomaly.Entropy?.ToString("F3") ?? "N/A",
             traceChain.Count, fullAnomaly.TraceId);
 
-        var anomalyEntry = new JournalEntry
-        {
+        var anomalyEntry = new JournalEntry {
             TraceId = fullAnomaly.TraceId,
             EventType = "loop_anomaly",
             SessionId = fullAnomaly.SessionId,
@@ -180,11 +168,9 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
         AddToWindowCore(anomalyEntry);
     }
 
-    private void AddToWindowCore(JournalEntry entry)
-    {
+    private void AddToWindowCore(JournalEntry entry) {
         _traceWindow.AddLast(entry);
-        while (_traceWindow.Count > _traceWindowCapacity)
-        {
+        while (_traceWindow.Count > _traceWindowCapacity) {
             _traceWindow.RemoveFirst();
         }
         Volatile.Write(ref _windowCount, _traceWindow.Count);
@@ -194,8 +180,7 @@ public sealed class LoopDiagnosticJournal : ActorBase<IJournalCommand, Unit>
 /// <summary>
 /// 日志簿条目 — 滑动窗口中的一条日志记录
 /// </summary>
-public sealed record JournalEntry
-{
+public sealed record JournalEntry {
     /// <summary>追踪标识，用于关联同一逻辑链路上的日志条目</summary>
     public required string TraceId { get; init; }
     /// <summary>事件类型，如 loop_anomaly、guardian_detect 等</summary>
@@ -216,8 +201,7 @@ public sealed record JournalEntry
 /// 循环异常记录 — Guardian 触发时生成的诊断记录
 /// 包含完整上下文信息，供医生模式回溯分析
 /// </summary>
-public sealed record LoopAnomalyRecord
-{
+public sealed record LoopAnomalyRecord {
     /// <summary>异常追踪标识</summary>
     public required string TraceId { get; init; }
     /// <summary>触发检测器层名（OutputLoop、LogicFingerprint、ToolCallSequence、ShannonEntropy）</summary>
@@ -244,10 +228,8 @@ public sealed record LoopAnomalyRecord
     /// <summary>
     /// 转换为 DiagnosticLogEntry.Data 格式，供写入 JSONL
     /// </summary>
-    public Dictionary<string, string> ToDiagnosticData()
-    {
-        var data = new Dictionary<string, string>
-        {
+    public Dictionary<string, string> ToDiagnosticData() {
+        var data = new Dictionary<string, string> {
             ["detector_layer"] = DetectorLayer,
             ["conversation_turn"] = ConversationTurn.ToString(),
             ["tool_call_count"] = ToolCallCount.ToString(),

@@ -8,8 +8,7 @@ namespace Tools.Handlers;
 /// 本服务职责：① 注入 node ② 将 node 的 string? error 包装为 ToolResult + 诊断 ③ 提供 Begin() 入口。
 /// </summary>
 [Register(typeof(WriteDefenseService), ServiceLifetime.Singleton)]
-public sealed class WriteDefenseService
-{
+public sealed class WriteDefenseService {
     private readonly SecretGuardNode _secretGuard;
     private readonly FileBackupNode _backupNode;
     private readonly WriteNotifyNode _notifyNode;
@@ -35,8 +34,7 @@ public sealed class WriteDefenseService
         SandboxGuardNode sandboxNode,
         FileStateGuardNode stateNode,
         FormatValidatorNode validatorNode,
-        ITelemetryService? telemetryService = null)
-    {
+        ITelemetryService? telemetryService = null) {
         _secretGuard = secretGuard ?? throw new ArgumentNullException(nameof(secretGuard));
         _backupNode = backupNode ?? throw new ArgumentNullException(nameof(backupNode));
         _notifyNode = notifyNode ?? throw new ArgumentNullException(nameof(notifyNode));
@@ -78,8 +76,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> RejectUncPath(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> RejectUncPath(WriteDefenseContext ctx, CancellationToken ct) {
         if (!PathGuardNode.IsUncPath(ctx.OriginalPath))
             return ValueTask.FromResult<ToolResult?>(null);
 
@@ -95,15 +92,11 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public async ValueTask<ToolResult?> ResolveSandboxAsync(WriteDefenseContext ctx, CancellationToken ct)
-    {
-        try
-        {
+    public async ValueTask<ToolResult?> ResolveSandboxAsync(WriteDefenseContext ctx, CancellationToken ct) {
+        try {
             ctx.ResolvedPath = await _sandboxNode.ResolvePathAsync(ctx.OriginalPath, ct).ConfigureAwait(false);
             return null;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
+        } catch (UnauthorizedAccessException ex) {
             var diag = ToolDiagnostic.Create(
                 "SandboxViolation",
                 $"路径越出沙箱范围: {ex.Message}",
@@ -120,8 +113,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> CheckTeamMemSecrets(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> CheckTeamMemSecrets(WriteDefenseContext ctx, CancellationToken ct) {
         var secretError = _secretGuard.CheckSecrets(ctx.ResolvedPath, ctx.ContentToCheck);
         if (secretError is null)
             return ValueTask.FromResult<ToolResult?>(null);
@@ -138,8 +130,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> RequireReadBeforeWrite(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> RequireReadBeforeWrite(WriteDefenseContext ctx, CancellationToken ct) {
         if (_stateNode.HasBeenRead(ctx.ResolvedPath))
             return ValueTask.FromResult<ToolResult?>(null);
 
@@ -155,8 +146,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public async ValueTask<ToolResult?> GuardStaleWriteAsync(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public async ValueTask<ToolResult?> GuardStaleWriteAsync(WriteDefenseContext ctx, CancellationToken ct) {
         var stale = await _stateNode.CheckStaleWriteAsync(ctx.ResolvedPath, ct).ConfigureAwait(false);
         if (stale is null)
             return null;
@@ -172,8 +162,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public async ValueTask<ToolResult?> BackupBeforeWriteAsync(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public async ValueTask<ToolResult?> BackupBeforeWriteAsync(WriteDefenseContext ctx, CancellationToken ct) {
         await _backupNode.BackupAsync(ctx.ResolvedPath, ct).ConfigureAwait(false);
         return null;
     }
@@ -188,8 +177,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> RejectNotebookEdit(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> RejectNotebookEdit(WriteDefenseContext ctx, CancellationToken ct) {
         if (!PathGuardNode.IsNotebookPath(ctx.ResolvedPath))
             return ValueTask.FromResult<ToolResult?>(null);
 
@@ -204,8 +192,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> RejectIdenticalStrings(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> RejectIdenticalStrings(WriteDefenseContext ctx, CancellationToken ct) {
         if (ctx.OldString is null || ctx.NewString is null || ctx.OldString != ctx.NewString)
             return ValueTask.FromResult<ToolResult?>(null);
 
@@ -220,8 +207,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public async ValueTask<ToolResult?> ValidateSettingsEditAsync(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public async ValueTask<ToolResult?> ValidateSettingsEditAsync(WriteDefenseContext ctx, CancellationToken ct) {
         if (ctx.OldString is null || ctx.NewString is null)
             return null; // 非 FileEdit 工具无 old/new_string，跳过
 
@@ -241,8 +227,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> ValidateKeywordSectionsEdit(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> ValidateKeywordSectionsEdit(WriteDefenseContext ctx, CancellationToken ct) {
         var error = _validatorNode.ValidateKeywordSectionsEdit(ctx.ResolvedPath);
         if (error is null)
             return ValueTask.FromResult<ToolResult?>(null);
@@ -259,8 +244,7 @@ public sealed class WriteDefenseService
     /// <param name="ctx">写入防御上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>拒绝诊断；通过时返回 null</returns>
-    public ValueTask<ToolResult?> ValidateDoctorAgentEdit(WriteDefenseContext ctx, CancellationToken ct)
-    {
+    public ValueTask<ToolResult?> ValidateDoctorAgentEdit(WriteDefenseContext ctx, CancellationToken ct) {
         var error = _validatorNode.ValidateDoctorAgentEdit(ctx.ResolvedPath);
         if (error is null)
             return ValueTask.FromResult<ToolResult?>(null);

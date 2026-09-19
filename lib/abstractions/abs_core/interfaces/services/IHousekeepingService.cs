@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 后台家政清理服务接口 — 对齐 TS startBackgroundHousekeeping / cleanupOldMessageFilesInBackground
 /// 聚合调度所有 CleanupOld* 方法，延迟执行+循环清理
 /// </summary>
-public interface IHousekeepingService
-{
+public interface IHousekeepingService {
     /// <summary>
     /// 执行全部清理操作 — 对齐 TS cleanupOldMessageFilesInBackground
     /// 依次调用: CleanupOldSessionFiles, CleanupOldFileHistoryBackups,

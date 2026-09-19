@@ -8,8 +8,7 @@ namespace Core.Context;
 /// </para>
 /// </summary>
 [Flags]
-public enum EntropyDetectionState : byte
-{
+public enum EntropyDetectionState : byte {
     /// <summary>无状态 — 初始或重置后</summary>
     None = 0,
 
@@ -26,8 +25,7 @@ public enum EntropyDetectionState : byte
 /// <summary>
 /// 熵减检测器事件枚举 — 驱动状态机转换（ADR 0040）
 /// </summary>
-public enum EntropyEvent : byte
-{
+public enum EntropyEvent : byte {
     /// <summary>检测到熵减 — Monitoring→Suspected 或 Confirmed 自循环</summary>
     [EnumValue("decline")] Decline,
 
@@ -44,8 +42,7 @@ public enum EntropyEvent : byte
 /// <summary>
 /// 熵减检测器共享上下文 — ADR 0040 FsmContext 强类型子类
 /// </summary>
-internal sealed class EntropyFsmContext : FsmContext
-{
+internal sealed class EntropyFsmContext : FsmContext {
     public DateTimeOffset? FirstTriggerTime { get; set; }
     public int TriggerCount { get; set; }
     public bool IsDeclining { get; set; }
@@ -66,8 +63,7 @@ internal sealed class EntropyFsmContext : FsmContext
 [Transition(EntropyDetectionState.Suspected, EntropyEvent.Timeout, EntropyDetectionState.Monitoring)]
 [Transition(EntropyDetectionState.Confirmed, EntropyEvent.Decline, EntropyDetectionState.Confirmed)]
 [Transition(EntropyDetectionState.Confirmed, EntropyEvent.Recover, EntropyDetectionState.Monitoring)]
-public sealed partial class ShannonEntropyDetector
-{
+public sealed partial class ShannonEntropyDetector {
     private readonly int _windowSize;
     private readonly int _declineThreshold;
     private readonly double _minEntropyDelta;
@@ -90,8 +86,7 @@ public sealed partial class ShannonEntropyDetector
         int declineThreshold,
         double minEntropyDelta,
         TimeSpan confirmationWindow,
-        Func<DateTimeOffset>? clock = null)
-    {
+        Func<DateTimeOffset>? clock = null) {
         ArgumentOutOfRangeException.ThrowIfLessThan(windowSize, 3);
         ArgumentOutOfRangeException.ThrowIfLessThan(declineThreshold, 2);
         ArgumentOutOfRangeException.ThrowIfNegative(minEntropyDelta);
@@ -111,8 +106,7 @@ public sealed partial class ShannonEntropyDetector
     /// <summary>
     /// 记录一轮文本，计算 Shannon 熵并驱动状态机转换
     /// </summary>
-    public ShannonEntropyResult Record(string text)
-    {
+    public ShannonEntropyResult Record(string text) {
         ArgumentNullException.ThrowIfNull(text);
 
         if (text.Length < 10)
@@ -138,8 +132,7 @@ public sealed partial class ShannonEntropyDetector
     }
 
     /// <summary>重置检测器状态机和所有历史</summary>
-    public void Reset()
-    {
+    public void Reset() {
         _entropyHistory.Clear();
         _ctx.TriggerCount = 0;
         _ctx.FirstTriggerTime = null;
@@ -152,10 +145,8 @@ public sealed partial class ShannonEntropyDetector
     /// <summary>累计确认死循环触发次数</summary>
     public int TriggerCount => _ctx.TriggerCount;
 
-    private static EntropyEvent? SelectEvent(EntropyDetectionState state, EntropyFsmContext ctx)
-    {
-        return state switch
-        {
+    private static EntropyEvent? SelectEvent(EntropyDetectionState state, EntropyFsmContext ctx) {
+        return state switch {
             EntropyDetectionState.Monitoring => ctx.IsDeclining ? EntropyEvent.Decline : null,
             EntropyDetectionState.Suspected => SelectSuspectedEvent(ctx),
             EntropyDetectionState.Confirmed => ctx.IsDeclining ? EntropyEvent.Decline : EntropyEvent.Recover,
@@ -163,8 +154,7 @@ public sealed partial class ShannonEntropyDetector
         };
     }
 
-    private static EntropyEvent? SelectSuspectedEvent(EntropyFsmContext ctx)
-    {
+    private static EntropyEvent? SelectSuspectedEvent(EntropyFsmContext ctx) {
         var inWindow = (ctx.Now - (ctx.FirstTriggerTime ?? ctx.Now)) <= ctx.Window;
         if (!inWindow)
             return EntropyEvent.Timeout;
@@ -172,8 +162,7 @@ public sealed partial class ShannonEntropyDetector
     }
 
     [TransitionAction(EntropyDetectionState.Monitoring, EntropyEvent.Decline)]
-    private static void FsmActDeclineFromMonitoring(FsmContext? ctx)
-    {
+    private static void FsmActDeclineFromMonitoring(FsmContext? ctx) {
         var c = (EntropyFsmContext)ctx!;
         c.FirstTriggerTime = c.Now;
     }
@@ -193,14 +182,12 @@ public sealed partial class ShannonEntropyDetector
     /// <summary>
     /// 计算 Shannon 信息熵 H = -Σ(p_i * log2(p_i))
     /// </summary>
-    private static double ComputeShannonEntropy(string text)
-    {
+    private static double ComputeShannonEntropy(string text) {
         if (text.Length == 0)
             return 0.0;
 
         var freq = new Dictionary<char, int>();
-        foreach (var c in text)
-        {
+        foreach (var c in text) {
             ref var count = ref CollectionsMarshal.GetValueRefOrAddDefault(freq, c, out _);
             count++;
         }
@@ -208,8 +195,7 @@ public sealed partial class ShannonEntropyDetector
         var entropy = 0.0;
         var len = (double)text.Length;
 
-        foreach (var kvp in freq)
-        {
+        foreach (var kvp in freq) {
             var p = kvp.Value / len;
             entropy -= p * Math.Log2(p);
         }
@@ -220,21 +206,16 @@ public sealed partial class ShannonEntropyDetector
     /// <summary>
     /// 计算连续下降轮数（从最新往回看，每轮熵差超过 minEntropyDelta 才算下降）
     /// </summary>
-    private int CountConsecutiveDecline()
-    {
+    private int CountConsecutiveDecline() {
         if (_entropyHistory.Count < 2)
             return 0;
 
         var streak = 0;
-        for (var i = _entropyHistory.Count - 1; i >= 1; i--)
-        {
+        for (var i = _entropyHistory.Count - 1; i >= 1; i--) {
             var delta = _entropyHistory[i - 1] - _entropyHistory[i];
-            if (delta >= _minEntropyDelta)
-            {
+            if (delta >= _minEntropyDelta) {
                 streak++;
-            }
-            else
-            {
+            } else {
                 break;
             }
         }
@@ -256,8 +237,7 @@ public sealed record ShannonEntropyResult(
     bool IsLoopDetected,
     double CurrentEntropy,
     int DeclineStreak,
-    int TriggerCount)
-{
+    int TriggerCount) {
     /// <summary>
     /// 只有 Confirmed 状态才 IsLoopDetected=true，触发 LoopDetected 事件
     /// </summary>

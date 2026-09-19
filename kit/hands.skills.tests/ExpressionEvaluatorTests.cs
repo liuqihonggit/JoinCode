@@ -5,12 +5,10 @@ namespace Core.Tests.Skills;
 /// ExpressionEvaluator 单元测试类
 /// 测试表达式求值功能，包括算术运算、属性访问和字符串方法
 /// </summary>
-public class ExpressionEvaluatorTests
-{
+public class ExpressionEvaluatorTests {
     private readonly ExpressionEvaluator _evaluator;
 
-    public ExpressionEvaluatorTests()
-    {
+    public ExpressionEvaluatorTests() {
         _evaluator = new ExpressionEvaluator();
     }
 
@@ -22,11 +20,9 @@ public class ExpressionEvaluatorTests
     private static JsonElement J(Dictionary<string, string> value) => JsonSerializer.SerializeToElement(value);
     private static JsonElement J(string[] value) => JsonSerializer.SerializeToElement(value);
 
-    private static Dictionary<string, JsonElement> Vars(params (string key, JsonElement value)[] pairs)
-    {
+    private static Dictionary<string, JsonElement> Vars(params (string key, JsonElement value)[] pairs) {
         var dict = new Dictionary<string, JsonElement>();
-        foreach (var (key, value) in pairs)
-        {
+        foreach (var (key, value) in pairs) {
             dict[key] = value;
         }
         return dict;
@@ -41,8 +37,7 @@ public class ExpressionEvaluatorTests
     [InlineData("5 + 3", "8")]
     [InlineData("10 + 20", "30")]
     [InlineData("0 + 0", "0")]
-    public void Evaluate_Addition_ShouldReturnCorrectResult(string expression, string expected)
-    {
+    public void Evaluate_Addition_ShouldReturnCorrectResult(string expression, string expected) {
         var variables = new Dictionary<string, JsonElement>();
 
         var result = _evaluator.Evaluate(expression, variables);
@@ -57,8 +52,7 @@ public class ExpressionEvaluatorTests
     [InlineData("10 - 3", "7")]
     [InlineData("5 - 10", "-5")]
     [InlineData("0 - 0", "0")]
-    public void Evaluate_Subtraction_ShouldReturnCorrectResult(string expression, string expected)
-    {
+    public void Evaluate_Subtraction_ShouldReturnCorrectResult(string expression, string expected) {
         var variables = new Dictionary<string, JsonElement>();
 
         var result = _evaluator.Evaluate(expression, variables);
@@ -73,8 +67,7 @@ public class ExpressionEvaluatorTests
     [InlineData("4 * 5", "20")]
     [InlineData("0 * 100", "0")]
     [InlineData("-3 * 4", "-12")]
-    public void Evaluate_Multiplication_ShouldReturnCorrectResult(string expression, string expected)
-    {
+    public void Evaluate_Multiplication_ShouldReturnCorrectResult(string expression, string expected) {
         var variables = new Dictionary<string, JsonElement>();
 
         var result = _evaluator.Evaluate(expression, variables);
@@ -89,8 +82,7 @@ public class ExpressionEvaluatorTests
     [InlineData("20 / 4", "5")]
     [InlineData("10 / 3", "3.33")]
     [InlineData("0 / 5", "0")]
-    public void Evaluate_Division_ShouldReturnCorrectResult(string expression, string expected)
-    {
+    public void Evaluate_Division_ShouldReturnCorrectResult(string expression, string expected) {
         var variables = new Dictionary<string, JsonElement>();
 
         var result = _evaluator.Evaluate(expression, variables);
@@ -102,8 +94,7 @@ public class ExpressionEvaluatorTests
     /// 测试变量替换和简单算术表达式求值 - 分步计算
     /// </summary>
     [Fact]
-    public void Evaluate_WithVariableArithmetic_ShouldSubstituteAndEvaluate()
-    {
+    public void Evaluate_WithVariableArithmetic_ShouldSubstituteAndEvaluate() {
         var variables = Vars(("price", J("10")), ("quantity", J("5")), ("tax", J("2")));
 
         var step1 = _evaluator.Evaluate("price * quantity", variables);
@@ -121,8 +112,7 @@ public class ExpressionEvaluatorTests
     /// 测试 toUpper 方法应该将字符串转为大写
     /// </summary>
     [Fact]
-    public void Evaluate_ToUpper_ShouldReturnUpperCase()
-    {
+    public void Evaluate_ToUpper_ShouldReturnUpperCase() {
         var expression = "name.toUpper()";
         var variables = Vars(("name", J("alice")));
 
@@ -135,8 +125,7 @@ public class ExpressionEvaluatorTests
     /// 测试 toLower 方法应该将字符串转为小写
     /// </summary>
     [Fact]
-    public void Evaluate_ToLower_ShouldReturnLowerCase()
-    {
+    public void Evaluate_ToLower_ShouldReturnLowerCase() {
         var expression = "name.toLower()";
         var variables = Vars(("name", J("BOB")));
 
@@ -149,8 +138,7 @@ public class ExpressionEvaluatorTests
     /// 测试 trim 方法应该去除字符串两端空格
     /// </summary>
     [Fact]
-    public void Evaluate_Trim_ShouldReturnTrimmedString()
-    {
+    public void Evaluate_Trim_ShouldReturnTrimmedString() {
         var expression = "text.trim()";
         var variables = Vars(("text", J("  hello world  ")));
 
@@ -163,8 +151,7 @@ public class ExpressionEvaluatorTests
     /// 测试 length 属性应该返回字符串长度
     /// </summary>
     [Fact]
-    public void Evaluate_Length_ShouldReturnStringLength()
-    {
+    public void Evaluate_Length_ShouldReturnStringLength() {
         var expression = "text.length";
         var variables = Vars(("text", J("hello")));
 
@@ -177,8 +164,7 @@ public class ExpressionEvaluatorTests
     /// 测试 substring 方法应该返回子字符串
     /// </summary>
     [Fact]
-    public void Evaluate_Substring_ShouldReturnSubstring()
-    {
+    public void Evaluate_Substring_ShouldReturnSubstring() {
         var expression = "text.substring(0, 5)";
         var variables = Vars(("text", J("hello world")));
 
@@ -191,8 +177,7 @@ public class ExpressionEvaluatorTests
     /// 测试 replace 方法应该替换字符串
     /// </summary>
     [Fact]
-    public void Evaluate_Replace_ShouldReplaceSubstring()
-    {
+    public void Evaluate_Replace_ShouldReplaceSubstring() {
         var expression = "text.replace('world', 'universe')";
         var variables = Vars(("text", J("hello world")));
 
@@ -205,8 +190,7 @@ public class ExpressionEvaluatorTests
     /// 测试 contains 方法应该检查包含关系
     /// </summary>
     [Fact]
-    public void Evaluate_Contains_ShouldReturnBoolean()
-    {
+    public void Evaluate_Contains_ShouldReturnBoolean() {
         var expression = "text.contains('world')";
         var variables = Vars(("text", J("hello world")));
 
@@ -223,8 +207,7 @@ public class ExpressionEvaluatorTests
     /// 测试简单属性访问应该返回值 - 使用字典对象
     /// </summary>
     [Fact]
-    public void Evaluate_PropertyAccess_ShouldReturnValue()
-    {
+    public void Evaluate_PropertyAccess_ShouldReturnValue() {
         var expression = "user.name";
         var variables = new Dictionary<string, JsonElement>
         {
@@ -240,8 +223,7 @@ public class ExpressionEvaluatorTests
     /// 测试嵌套属性访问应该返回值 - 使用字典存储嵌套值
     /// </summary>
     [Fact]
-    public void Evaluate_NestedPropertyAccess_ShouldReturnValue()
-    {
+    public void Evaluate_NestedPropertyAccess_ShouldReturnValue() {
         var expression = "user.address.city";
         var variables = new Dictionary<string, JsonElement>
         {
@@ -262,8 +244,7 @@ public class ExpressionEvaluatorTests
     /// 测试数组长度属性应该返回长度
     /// </summary>
     [Fact]
-    public void Evaluate_ArrayLength_ShouldReturnLength()
-    {
+    public void Evaluate_ArrayLength_ShouldReturnLength() {
         var expression = "items.length";
         var variables = new Dictionary<string, JsonElement>
         {
@@ -283,8 +264,7 @@ public class ExpressionEvaluatorTests
     /// 测试链式方法调用 - 分步验证
     /// </summary>
     [Fact]
-    public void Evaluate_ChainedMethods_ShouldExecuteInOrder()
-    {
+    public void Evaluate_ChainedMethods_ShouldExecuteInOrder() {
         var variables = Vars(("text", J("  hello  ")));
 
         var trimmedResult = _evaluator.Evaluate("text.trim()", variables);
@@ -298,8 +278,7 @@ public class ExpressionEvaluatorTests
     /// 测试复杂算术表达式应该正确求值 - 分步计算
     /// </summary>
     [Fact]
-    public void Evaluate_ComplexArithmetic_ShouldEvaluateCorrectly()
-    {
+    public void Evaluate_ComplexArithmetic_ShouldEvaluateCorrectly() {
         var variables = Vars(("a", J("2")), ("b", J("3")), ("c", J("4")), ("d", J("10")));
 
         var step1 = _evaluator.Evaluate("a + b", variables);
@@ -330,8 +309,7 @@ public class ExpressionEvaluatorTests
     /// 测试空表达式应该返回空字符串
     /// </summary>
     [Fact]
-    public void Evaluate_EmptyExpression_ShouldReturnEmpty()
-    {
+    public void Evaluate_EmptyExpression_ShouldReturnEmpty() {
         var expression = "";
         var variables = new Dictionary<string, JsonElement>();
 
@@ -344,8 +322,7 @@ public class ExpressionEvaluatorTests
     /// 测试纯文本表达式应该返回原值
     /// </summary>
     [Fact]
-    public void Evaluate_PlainText_ShouldReturnText()
-    {
+    public void Evaluate_PlainText_ShouldReturnText() {
         var expression = "hello world";
         var variables = new Dictionary<string, JsonElement>();
 
@@ -358,8 +335,7 @@ public class ExpressionEvaluatorTests
     /// 测试未定义变量应该返回原始表达式
     /// </summary>
     [Fact]
-    public void Evaluate_UndefinedVariable_ShouldReturnOriginal()
-    {
+    public void Evaluate_UndefinedVariable_ShouldReturnOriginal() {
         var expression = "undefinedVar";
         var variables = new Dictionary<string, JsonElement>();
 

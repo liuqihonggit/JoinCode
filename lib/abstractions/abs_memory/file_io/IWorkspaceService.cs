@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 工作区服务接口 - 管理会话级额外工作目录
 /// </summary>
-public interface IWorkspaceService
-{
+public interface IWorkspaceService {
     /// <summary>
     /// 添加额外工作目录
     /// </summary>

@@ -4,8 +4,7 @@ namespace Memdir.Sync;
 /// <summary>
 /// 团队记忆同步服务接口 — 提供团队共享记忆的启动、停止、同步和冲突解决功能
 /// </summary>
-public interface ITeamMemorySyncService : IAsyncDisposable
-{
+public interface ITeamMemorySyncService : IAsyncDisposable {
     /// <summary>
     /// 启动同步服务
     /// </summary>

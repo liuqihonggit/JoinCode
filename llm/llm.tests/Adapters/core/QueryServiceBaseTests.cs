@@ -1,12 +1,9 @@
 namespace Llm.Tests.Adapters;
 
-public class QueryServiceBaseTests
-{
+public class QueryServiceBaseTests {
     [Fact]
-    public void ProviderConfig_HasRequiredProperties()
-    {
-        var config = new ProviderConfig
-        {
+    public void ProviderConfig_HasRequiredProperties() {
+        var config = new ProviderConfig {
             Vendor = VendorKind.OpenAi.ToValue(),
             ModelId = "gpt-4o",
             ApiKey = "sk-test"
@@ -18,8 +15,7 @@ public class QueryServiceBaseTests
     }
 
     [Fact]
-    public void VendorKind_EnumValues_MatchExpected()
-    {
+    public void VendorKind_EnumValues_MatchExpected() {
         var values = Enum.GetValues<VendorKind>();
         values.Should().Contain(VendorKind.OpenAi);
         values.Should().Contain(VendorKind.Anthropic);

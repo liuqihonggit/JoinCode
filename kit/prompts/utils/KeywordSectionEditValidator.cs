@@ -4,8 +4,7 @@ namespace Core.Prompts.Utils;
 /// 关键词配置文件编辑校验器 — 限制只能编辑 keyword-sections.json，防止后台 Agent 误改其他文件
 /// 复用 SettingsEditValidator 模式：路径限制 + 格式校验 + 增量保护
 /// </summary>
-public static class KeywordSectionEditValidator
-{
+public static class KeywordSectionEditValidator {
     private const string TargetFileName = "keyword-sections.json";
 
     /// <summary>
@@ -15,27 +14,22 @@ public static class KeywordSectionEditValidator
     /// <param name="originalContent">编辑前内容</param>
     /// <param name="updatedContent">编辑后内容</param>
     /// <returns>null 表示合法，非 null 为错误消息</returns>
-    public static string? ValidateEdit(string filePath, string originalContent, string updatedContent)
-    {
+    public static string? ValidateEdit(string filePath, string originalContent, string updatedContent) {
         if (!IsKeywordSectionsPath(filePath))
             return $"关键词维护Agent只能编辑 {TargetFileName}，禁止修改其他文件";
 
         if (string.IsNullOrWhiteSpace(updatedContent))
             return "禁止清空 keyword-sections.json";
 
-        try
-        {
+        try {
             _ = RelaxedJsonSerializer.Deserialize(updatedContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             return $"keyword-sections.json 格式非法: {ex.Message}";
         }
 
         var afterConfig = RelaxedJsonSerializer.Deserialize(updatedContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
 
-        if (!string.IsNullOrWhiteSpace(originalContent))
-        {
+        if (!string.IsNullOrWhiteSpace(originalContent)) {
             var beforeConfig = RelaxedJsonSerializer.Deserialize(originalContent, DynamicKeywordConfigJsonContext.Default.DynamicKeywordConfig);
             if (beforeConfig is not null && afterConfig is not null && afterConfig.Sections.Count < beforeConfig.Sections.Count)
                 return "禁止删除已有 Section，只能追加关键词或新增 Section";
@@ -47,8 +41,7 @@ public static class KeywordSectionEditValidator
     /// <summary>
     /// 判断路径是否为 keyword-sections.json
     /// </summary>
-    public static bool IsKeywordSectionsPath(string filePath)
-    {
+    public static bool IsKeywordSectionsPath(string filePath) {
         if (string.IsNullOrEmpty(filePath))
             return false;
 

@@ -8,8 +8,7 @@ namespace Tools.Shell;
 /// </para>
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellPerturbationAuditMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellPerturbationAuditMiddleware : ServiceEntity, IShellMiddleware {
     private readonly MtpPerturbationNode _perturbationNode;
     private readonly ILogger<ShellPerturbationAuditMiddleware>? _logger;
 
@@ -20,8 +19,7 @@ public sealed partial class ShellPerturbationAuditMiddleware : ServiceEntity, IS
     /// <param name="logger">日志器（可选）</param>
     public ShellPerturbationAuditMiddleware(
         MtpPerturbationNode perturbationNode,
-        ILogger<ShellPerturbationAuditMiddleware>? logger = null)
-    {
+        ILogger<ShellPerturbationAuditMiddleware>? logger = null) {
         _perturbationNode = perturbationNode ?? throw new ArgumentNullException(nameof(perturbationNode));
         _logger = logger;
     }
@@ -30,8 +28,7 @@ public sealed partial class ShellPerturbationAuditMiddleware : ServiceEntity, IS
     public async Task InvokeAsync(
         ShellPipelineContext context,
         MiddlewareDelegate<ShellPipelineContext> next,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         await next(context, ct).ConfigureAwait(false);
 
         if (context.ExecutionResult is null)
@@ -42,8 +39,7 @@ public sealed partial class ShellPerturbationAuditMiddleware : ServiceEntity, IS
             context.ExecutionResult.ExitCode ?? 0,
             context.ExecutionResult.Stderr);
 
-        if (report.ShouldTriggerAdaptive)
-        {
+        if (report.ShouldTriggerAdaptive) {
             _logger?.LogWarning(
                 "MTP 扰动自适应触发 — 连续 {Count} 次异常，建议启用 AntiCharLossConfirm 模式。最近命令: {Command}",
                 report.ConsecutiveAnomalies,

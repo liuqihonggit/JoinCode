@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// 客户端注册表 — 管理 WebSocket 客户端连接
 /// 从 BridgeServer 提取,降低大类字段数和客户端管理逻辑复杂度
 /// </summary>
-internal sealed class ClientRegistry
-{
+internal sealed class ClientRegistry {
     private readonly ConcurrentDictionary<string, WebSocket> _clients = new();
 
     /// <summary>添加客户端连接</summary>
@@ -31,8 +30,7 @@ internal sealed class ClientRegistry
     public void Clear() => _clients.Clear();
 
     /// <summary>关闭所有客户端连接并清空注册表</summary>
-    public async Task CloseAllAsync(WebSocketCloseStatus status, string reason, CancellationToken cancellationToken)
-    {
+    public async Task CloseAllAsync(WebSocketCloseStatus status, string reason, CancellationToken cancellationToken) {
         await Task.WhenAll(_clients.Values
             .Select(client => client.CloseAsync(status, reason, cancellationToken)
                 .ContinueWith(_ => { }, cancellationToken))).ConfigureAwait(false);
@@ -44,8 +42,7 @@ internal sealed class ClientRegistry
 /// 自定义路由注册表 — 管理 HTTP 路由处理器
 /// 从 BridgeServer 提取,降低大类字段数
 /// </summary>
-internal sealed class RouteRegistry
-{
+internal sealed class RouteRegistry {
     private readonly ConcurrentDictionary<string, Func<HttpListenerContext, CancellationToken, Task>> _routes = new();
 
     /// <summary>注册路由处理器</summary>

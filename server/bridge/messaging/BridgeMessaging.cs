@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 服务器控制请求处理器回调集合 — 对齐 TS 端 ServerControlRequestHandlers
 /// </summary>
-public sealed class ServerControlRequestHandlers
-{
+public sealed class ServerControlRequestHandlers {
     /// <summary>传输层实例（用于发送响应）</summary>
     public IReplBridgeTransport? Transport { get; init; }
 
@@ -37,14 +36,12 @@ public sealed class ServerControlRequestHandlers
 /// Bridge 消息处理 — 对齐 TS 端 bridgeMessaging.ts
 /// 纯函数式设计，无闭包状态，所有状态通过参数传入
 /// </summary>
-public static class BridgeMessaging
-{
+public static class BridgeMessaging {
     /// <summary>
     /// 构造结果成功消息 — 对齐 TS 端 makeResultMessage
     /// 使用 StringBuilder 避免 JSON 注入，AOT 合规
     /// </summary>
-    public static string MakeResultMessage(string sessionId)
-    {
+    public static string MakeResultMessage(string sessionId) {
         // 使用 StringBuilder 构造 JSON，避免字符串插值导致的 JSON 注入
         return new System.Text.StringBuilder(256)
             .Append("{\"type\":\"result\",\"subtype\":\"success\",\"duration_ms\":0,\"duration_api_ms\":0,\"is_error\":false,\"num_turns\":0,\"result\":\"\",\"stop_reason\":null,\"total_cost_usd\":0,\"usage\":{},\"modelUsage\":{},\"permission_denials\":[],\"session_id\":\"")
@@ -58,14 +55,11 @@ public static class BridgeMessaging
     /// <summary>
     /// 转义 JSON 字符串中的特殊字符 — 防止 JSON 注入
     /// </summary>
-    private static string EscapeJsonString(ReadOnlySpan<char> value)
-    {
+    private static string EscapeJsonString(ReadOnlySpan<char> value) {
         // 快速路径: 无需转义
         var needsEscape = false;
-        foreach (var c in value)
-        {
-            if (c is '"' or '\\' or '\n' or '\r' or '\t')
-            {
+        foreach (var c in value) {
+            if (c is '"' or '\\' or '\n' or '\r' or '\t') {
                 needsEscape = true;
                 break;
             }
@@ -74,10 +68,8 @@ public static class BridgeMessaging
         if (!needsEscape) return value.ToString();
 
         var sb = new System.Text.StringBuilder(value.Length + 16);
-        foreach (var c in value)
-        {
-            switch (c)
-            {
+        foreach (var c in value) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;
@@ -106,10 +98,8 @@ public static class BridgeMessaging
         BoundedUUIDSet recentInboundUUIDs,
         Action<string>? onInboundMessage = null,
         Action<JsonElement>? onPermissionResponse = null,
-        Action<JsonElement>? onControlRequest = null)
-    {
-        try
-        {
+        Action<JsonElement>? onControlRequest = null) {
+        try {
             // JSON 解析
             var parsed = JsonDocument.Parse(data);
             var root = parsed.RootElement;
@@ -120,56 +110,47 @@ public static class BridgeMessaging
             // 三路路由
 
             // 1. control_response — 远端客户端回答了权限提示
-            if (IsControlResponse(root))
-            {
+            if (IsControlResponse(root)) {
                 onPermissionResponse?.Invoke(root);
                 return IngressMessageAction.PermissionResponse;
             }
 
             // 2. control_request — 服务器主动发来的控制请求
-            if (IsControlRequest(root))
-            {
+            if (IsControlRequest(root)) {
                 onControlRequest?.Invoke(root);
                 return IngressMessageAction.ControlRequest;
             }
 
             // 3. SDKMessage — 普通消息
-            if (!IsSDKMessage(root))
-            {
+            if (!IsSDKMessage(root)) {
                 return IngressMessageAction.ParseError;
             }
 
             // UUID 回声过滤
             var uuid = GetUuid(root);
-            if (uuid is not null && recentPostedUUIDs.Contains(uuid))
-            {
+            if (uuid is not null && recentPostedUUIDs.Contains(uuid)) {
                 return IngressMessageAction.EchoFiltered;
             }
 
             // UUID 重复投递过滤
-            if (uuid is not null && recentInboundUUIDs.Contains(uuid))
-            {
+            if (uuid is not null && recentInboundUUIDs.Contains(uuid)) {
                 return IngressMessageAction.DuplicateFiltered;
             }
 
             // 仅转发 type === 'user' 的消息
             var messageType = GetMessageRole(root);
-            if (messageType != "user")
-            {
+            if (messageType != "user") {
                 return IngressMessageAction.NonUserIgnored;
             }
 
             // 转发用户消息
-            if (uuid is not null)
-            {
+            if (uuid is not null) {
                 recentInboundUUIDs.Add(uuid);
             }
 
             onInboundMessage?.Invoke(data);
             return IngressMessageAction.InboundMessage;
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             // 对齐 TS 端: 解析失败只记录调试日志，不抛异常
             return IngressMessageAction.ParseError;
         }
@@ -182,10 +163,8 @@ public static class BridgeMessaging
     public static async Task HandleServerControlRequestAsync(
         JsonElement request,
         ServerControlRequestHandlers handlers,
-        CancellationToken ct = default)
-    {
-        if (handlers.Transport is null)
-        {
+        CancellationToken ct = default) {
+        if (handlers.Transport is null) {
             // 无法回复，直接返回
             return;
         }
@@ -194,8 +173,7 @@ public static class BridgeMessaging
         var subtype = GetSubtype(request);
 
         // outboundOnly 模式: 除 initialize 外所有可变请求返回错误
-        if (handlers.OutboundOnly && subtype != "initialize")
-        {
+        if (handlers.OutboundOnly && subtype != "initialize") {
             await SendControlResponseAsync(
                 handlers.Transport,
                 requestId,
@@ -206,64 +184,54 @@ public static class BridgeMessaging
             return;
         }
 
-        switch (subtype)
-        {
+        switch (subtype) {
             case "initialize":
-                await HandleInitializeAsync(handlers.Transport, requestId, handlers.SessionId, ct).ConfigureAwait(false);
-                break;
+            await HandleInitializeAsync(handlers.Transport, requestId, handlers.SessionId, ct).ConfigureAwait(false);
+            break;
 
-            case "set_model":
-                {
-                    var model = GetRequestField(request, "model");
-                    handlers.OnSetModel?.Invoke(model);
-                    await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
-                }
-                break;
+            case "set_model": {
+                var model = GetRequestField(request, "model");
+                handlers.OnSetModel?.Invoke(model);
+                await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
+            }
+            break;
 
-            case "set_max_thinking_tokens":
-                {
-                    var maxTokens = GetRequestIntField(request, "max_thinking_tokens");
-                    handlers.OnSetMaxThinkingTokens?.Invoke(maxTokens);
-                    await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
-                }
-                break;
+            case "set_max_thinking_tokens": {
+                var maxTokens = GetRequestIntField(request, "max_thinking_tokens");
+                handlers.OnSetMaxThinkingTokens?.Invoke(maxTokens);
+                await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
+            }
+            break;
 
-            case "set_permission_mode":
-                {
-                    var mode = GetRequestField(request, "mode");
-                    if (handlers.OnSetPermissionMode is not null && mode is not null)
-                    {
-                        var result = handlers.OnSetPermissionMode(mode);
-                        if (result.Success)
-                        {
-                            await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: false, error: result.ErrorMessage ?? "Permission mode change denied", ct: ct).ConfigureAwait(false);
-                        }
+            case "set_permission_mode": {
+                var mode = GetRequestField(request, "mode");
+                if (handlers.OnSetPermissionMode is not null && mode is not null) {
+                    var result = handlers.OnSetPermissionMode(mode);
+                    if (result.Success) {
+                        await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
+                    } else {
+                        await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: false, error: result.ErrorMessage ?? "Permission mode change denied", ct: ct).ConfigureAwait(false);
                     }
-                    else
-                    {
-                        await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: false, error: "Permission mode change not supported", ct: ct).ConfigureAwait(false);
-                    }
+                } else {
+                    await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: false, error: "Permission mode change not supported", ct: ct).ConfigureAwait(false);
                 }
-                break;
+            }
+            break;
 
             case "interrupt":
-                handlers.OnInterrupt?.Invoke();
-                await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
-                break;
+            handlers.OnInterrupt?.Invoke();
+            await SendControlResponseAsync(handlers.Transport, requestId, handlers.SessionId, success: true, ct: ct).ConfigureAwait(false);
+            break;
 
             default:
-                await SendControlResponseAsync(
-                    handlers.Transport,
-                    requestId,
-                    handlers.SessionId,
-                    success: false,
-                    error: $"REPL bridge does not handle control_request subtype: {subtype}",
-                    ct).ConfigureAwait(false);
-                break;
+            await SendControlResponseAsync(
+                handlers.Transport,
+                requestId,
+                handlers.SessionId,
+                success: false,
+                error: $"REPL bridge does not handle control_request subtype: {subtype}",
+                ct).ConfigureAwait(false);
+            break;
         }
     }
 
@@ -277,8 +245,7 @@ public static class BridgeMessaging
         IReplBridgeTransport transport,
         string requestId,
         string sessionId,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         var json = new StringBuilder()
             .Append("{\"type\":\"control_response\",\"request_id\":\"").Append(requestId)
             .Append("\",\"session_id\":\"").Append(sessionId)
@@ -301,15 +268,13 @@ public static class BridgeMessaging
         string sessionId,
         bool success,
         string? error = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var sb = new StringBuilder()
             .Append("{\"type\":\"control_response\",\"request_id\":\"").Append(requestId)
             .Append("\",\"session_id\":\"").Append(sessionId)
             .Append("\",\"response\":{\"success\":").Append(success ? "true" : "false");
 
-        if (error is not null)
-        {
+        if (error is not null) {
             sb.Append(",\"error\":").Append(JsonEncode(error));
         }
 
@@ -318,14 +283,11 @@ public static class BridgeMessaging
     }
 
     /// <summary>JSON 字符串编码</summary>
-    private static string JsonEncode(string value)
-    {
+    private static string JsonEncode(string value) {
         var sb = new StringBuilder(value.Length + 2);
         sb.Append('"');
-        foreach (var c in value)
-        {
-            switch (c)
-            {
+        foreach (var c in value) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;
@@ -343,16 +305,14 @@ public static class BridgeMessaging
     #region JSON 解析辅助
 
     /// <summary>判断是否为 control_response</summary>
-    private static bool IsControlResponse(JsonElement root)
-    {
+    private static bool IsControlResponse(JsonElement root) {
         return root.TryGetProperty("type", out var typeProp)
             && typeProp.ValueEquals("control_response")
             && root.TryGetProperty("response", out _);
     }
 
     /// <summary>判断是否为 control_request</summary>
-    private static bool IsControlRequest(JsonElement root)
-    {
+    private static bool IsControlRequest(JsonElement root) {
         return root.TryGetProperty("type", out var typeProp)
             && typeProp.ValueEquals("control_request")
             && root.TryGetProperty("request_id", out _)
@@ -360,17 +320,14 @@ public static class BridgeMessaging
     }
 
     /// <summary>判断是否为 SDKMessage（有 type 字段且为 string）</summary>
-    private static bool IsSDKMessage(JsonElement root)
-    {
+    private static bool IsSDKMessage(JsonElement root) {
         return root.TryGetProperty("type", out var typeProp)
             && typeProp.ValueKind == JsonValueKind.String;
     }
 
     /// <summary>获取消息 UUID</summary>
-    private static string? GetUuid(JsonElement root)
-    {
-        if (root.TryGetProperty("uuid", out var uuidProp) && uuidProp.ValueKind == JsonValueKind.String)
-        {
+    private static string? GetUuid(JsonElement root) {
+        if (root.TryGetProperty("uuid", out var uuidProp) && uuidProp.ValueKind == JsonValueKind.String) {
             return uuidProp.GetString();
         }
         return null;
@@ -380,15 +337,11 @@ public static class BridgeMessaging
     /// 从 JSON 字符串中提取 UUID — 对齐 TS 端 m.uuid
     /// 用于 writeMessages 中的双层去重过滤
     /// </summary>
-    public static string? ExtractUuid(string json)
-    {
-        try
-        {
+    public static string? ExtractUuid(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             return GetUuid(doc.RootElement);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -397,40 +350,34 @@ public static class BridgeMessaging
     /// 从 JSON 消息中提取标题文本 — 对齐 TS 端 extractTitleText
     /// 仅提取用户消息（type=user）且非 meta、非 toolUseResult、非 compactSummary、origin 为 human 的文本
     /// </summary>
-    public static string? ExtractTitleText(string json)
-    {
-        try
-        {
+    public static string? ExtractTitleText(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
             // type !== 'user' → 跳过
             if (!root.TryGetProperty("type", out var typeProp) ||
                 typeProp.ValueKind != JsonValueKind.String ||
-                typeProp.GetString() != "user")
-            {
+                typeProp.GetString() != "user") {
                 return null;
             }
 
             // isMeta → 跳过
             if (root.TryGetProperty("isMeta", out var metaProp) &&
-                metaProp.ValueKind == JsonValueKind.True)
-            {
+                metaProp.ValueKind == JsonValueKind.True) {
                 return null;
             }
 
             // toolUseResult → 跳过
             if (root.TryGetProperty("toolUseResult", out var toolResultProp) &&
                 toolResultProp.ValueKind != JsonValueKind.Null &&
-                toolResultProp.ValueKind != JsonValueKind.Undefined)
-            {
+                toolResultProp.ValueKind != JsonValueKind.Undefined) {
                 return null;
             }
 
             // isCompactSummary → 跳过
             if (root.TryGetProperty("isCompactSummary", out var compactProp) &&
-                compactProp.ValueKind == JsonValueKind.True)
-            {
+                compactProp.ValueKind == JsonValueKind.True) {
                 return null;
             }
 
@@ -439,41 +386,34 @@ public static class BridgeMessaging
                 originProp.ValueKind == JsonValueKind.Object &&
                 originProp.TryGetProperty("kind", out var kindProp) &&
                 kindProp.ValueKind == JsonValueKind.String &&
-                kindProp.GetString() != "human")
-            {
+                kindProp.GetString() != "human") {
                 return null;
             }
 
             // 提取 message.content 文本
             if (!root.TryGetProperty("message", out var msgProp) ||
-                msgProp.ValueKind != JsonValueKind.Object)
-            {
+                msgProp.ValueKind != JsonValueKind.Object) {
                 return null;
             }
 
-            if (!msgProp.TryGetProperty("content", out var contentProp))
-            {
+            if (!msgProp.TryGetProperty("content", out var contentProp)) {
                 return null;
             }
 
             // content 是字符串
-            if (contentProp.ValueKind == JsonValueKind.String)
-            {
+            if (contentProp.ValueKind == JsonValueKind.String) {
                 var text = contentProp.GetString();
                 return string.IsNullOrEmpty(text) ? null : text.Trim();
             }
 
             // content 是数组，找第一个 type=text 的 block
-            if (contentProp.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var block in contentProp.EnumerateArray())
-                {
+            if (contentProp.ValueKind == JsonValueKind.Array) {
+                foreach (var block in contentProp.EnumerateArray()) {
                     if (block.TryGetProperty("type", out var blockType) &&
                         blockType.ValueKind == JsonValueKind.String &&
                         blockType.GetString() == "text" &&
                         block.TryGetProperty("text", out var textProp) &&
-                        textProp.ValueKind == JsonValueKind.String)
-                    {
+                        textProp.ValueKind == JsonValueKind.String) {
                         var text = textProp.GetString();
                         return string.IsNullOrEmpty(text) ? null : text.Trim();
                     }
@@ -481,9 +421,7 @@ public static class BridgeMessaging
             }
 
             return null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -492,14 +430,11 @@ public static class BridgeMessaging
     /// 向 JSON 消息注入 session_id 字段 — 对齐 TS 端 sdkMsg => ({ ...sdkMsg, session_id })
     /// 如果消息已包含 session_id 则不覆盖
     /// </summary>
-    public static string InjectSessionId(string json, string sessionId)
-    {
-        try
-        {
+    public static string InjectSessionId(string json, string sessionId) {
+        try {
             using var doc = JsonDocument.Parse(json);
             // 如果已有 session_id，不覆盖
-            if (doc.RootElement.TryGetProperty("session_id", out _))
-            {
+            if (doc.RootElement.TryGetProperty("session_id", out _)) {
                 return json;
             }
 
@@ -510,69 +445,56 @@ public static class BridgeMessaging
             var prefix = json[..lastBrace].TrimEnd();
             var separator = prefix.EndsWith('{') ? "" : ",";
             return $"{prefix}{separator}\"session_id\":\"{sessionId}\"}}";
-        }
-        catch
-        {
+        } catch {
             return json;
         }
     }
 
     /// <summary>获取消息角色（type 字段值）</summary>
-    private static string? GetMessageRole(JsonElement root)
-    {
-        if (root.TryGetProperty("type", out var typeProp) && typeProp.ValueKind == JsonValueKind.String)
-        {
+    private static string? GetMessageRole(JsonElement root) {
+        if (root.TryGetProperty("type", out var typeProp) && typeProp.ValueKind == JsonValueKind.String) {
             return typeProp.GetString();
         }
         return null;
     }
 
     /// <summary>获取 request_id</summary>
-    private static string GetRequestId(JsonElement root)
-    {
-        if (root.TryGetProperty("request_id", out var prop) && prop.ValueKind == JsonValueKind.String)
-        {
+    private static string GetRequestId(JsonElement root) {
+        if (root.TryGetProperty("request_id", out var prop) && prop.ValueKind == JsonValueKind.String) {
             return prop.GetString() ?? string.Empty;
         }
         // 兼容 camelCase
-        if (root.TryGetProperty("requestId", out var camelProp) && camelProp.ValueKind == JsonValueKind.String)
-        {
+        if (root.TryGetProperty("requestId", out var camelProp) && camelProp.ValueKind == JsonValueKind.String) {
             return camelProp.GetString() ?? string.Empty;
         }
         return string.Empty;
     }
 
     /// <summary>获取 request.subtype</summary>
-    private static string GetSubtype(JsonElement request)
-    {
+    private static string GetSubtype(JsonElement request) {
         if (request.TryGetProperty("request", out var reqProp)
             && reqProp.TryGetProperty("subtype", out var subtypeProp)
-            && subtypeProp.ValueKind == JsonValueKind.String)
-        {
+            && subtypeProp.ValueKind == JsonValueKind.String) {
             return subtypeProp.GetString() ?? string.Empty;
         }
         return string.Empty;
     }
 
     /// <summary>获取 request 中的字符串字段</summary>
-    private static string? GetRequestField(JsonElement request, string fieldName)
-    {
+    private static string? GetRequestField(JsonElement request, string fieldName) {
         if (request.TryGetProperty("request", out var reqProp)
             && reqProp.TryGetProperty(fieldName, out var fieldProp)
-            && fieldProp.ValueKind == JsonValueKind.String)
-        {
+            && fieldProp.ValueKind == JsonValueKind.String) {
             return fieldProp.GetString();
         }
         return null;
     }
 
     /// <summary>获取 request 中的整数字段</summary>
-    private static int? GetRequestIntField(JsonElement request, string fieldName)
-    {
+    private static int? GetRequestIntField(JsonElement request, string fieldName) {
         if (request.TryGetProperty("request", out var reqProp)
             && reqProp.TryGetProperty(fieldName, out var fieldProp)
-            && fieldProp.ValueKind == JsonValueKind.Number)
-        {
+            && fieldProp.ValueKind == JsonValueKind.Number) {
             return fieldProp.GetInt32();
         }
         return null;
@@ -582,8 +504,7 @@ public static class BridgeMessaging
     /// 归一化控制消息键 — 对齐 TS 端 normalizeControlMessageKeys
     /// 将 camelCase requestId 转为 snake_case request_id
     /// </summary>
-    private static void NormalizeControlMessageKeys(ref JsonElement root)
-    {
+    private static void NormalizeControlMessageKeys(ref JsonElement root) {
         // JsonElement 是只读的，这里仅做检查不做修改
         // 实际归一化在 GetRequestId 中通过双路径查找实现
     }
@@ -596,10 +517,8 @@ public static class BridgeMessaging
     /// 提取入站消息字段 — 对齐 TS 端 extractInboundMessageFields
     /// 从 SDKMessage 中提取 content 和 uuid
     /// </summary>
-    public static InboundMessageFields? ExtractInboundMessageFields(JsonElement message)
-    {
-        if (!message.TryGetProperty("type", out var typeProp) || typeProp.ValueKind != JsonValueKind.String)
-        {
+    public static InboundMessageFields? ExtractInboundMessageFields(JsonElement message) {
+        if (!message.TryGetProperty("type", out var typeProp) || typeProp.ValueKind != JsonValueKind.String) {
             return null;
         }
 
@@ -607,21 +526,17 @@ public static class BridgeMessaging
 
         // 提取 uuid
         string? uuid = null;
-        if (message.TryGetProperty("uuid", out var uuidProp) && uuidProp.ValueKind == JsonValueKind.String)
-        {
+        if (message.TryGetProperty("uuid", out var uuidProp) && uuidProp.ValueKind == JsonValueKind.String) {
             uuid = uuidProp.GetString();
         }
 
         // 提取 content
-        if (message.TryGetProperty("content", out var contentProp))
-        {
-            if (contentProp.ValueKind == JsonValueKind.String)
-            {
+        if (message.TryGetProperty("content", out var contentProp)) {
+            if (contentProp.ValueKind == JsonValueKind.String) {
                 return new InboundMessageFields { Content = contentProp.GetString() ?? string.Empty, Uuid = uuid };
             }
 
-            if (contentProp.ValueKind == JsonValueKind.Array)
-            {
+            if (contentProp.ValueKind == JsonValueKind.Array) {
                 // 归一化图片块
                 var normalized = NormalizeImageBlocks(contentProp);
                 return new InboundMessageFields { ContentBlocks = normalized, Uuid = uuid };
@@ -635,15 +550,12 @@ public static class BridgeMessaging
     /// 归一化图片块 — 对齐 TS 端 normalizeImageBlocks
     /// 将 camelCase mediaType 转为 snake_case media_type
     /// </summary>
-    public static List<Dictionary<string, JsonElement>> NormalizeImageBlocks(JsonElement blocks)
-    {
+    public static List<Dictionary<string, JsonElement>> NormalizeImageBlocks(JsonElement blocks) {
         var result = new List<Dictionary<string, JsonElement>>();
 
-        foreach (var block in blocks.EnumerateArray())
-        {
+        foreach (var block in blocks.EnumerateArray()) {
             var dict = new Dictionary<string, JsonElement>();
-            foreach (var prop in block.EnumerateObject())
-            {
+            foreach (var prop in block.EnumerateObject()) {
                 var key = prop.Name;
                 // camelCase → snake_case 归一化
                 if (key == "mediaType") key = "media_type";
@@ -662,10 +574,8 @@ public static class BridgeMessaging
     /// 检测 base64 图片格式 — 对齐 TS 端 detectImageFormatFromBase64
     /// 通过 base64 前缀字节判断 PNG/JPEG/GIF/WebP
     /// </summary>
-    public static string? DetectImageFormatFromBase64(ReadOnlySpan<char> base64)
-    {
-        try
-        {
+    public static string? DetectImageFormatFromBase64(ReadOnlySpan<char> base64) {
+        try {
             // base64 解码前几个字节检查魔数
             var b64 = base64.Length > 32 ? base64.Slice(0, 32) : base64;
             var padding = b64.Length % 4;
@@ -674,8 +584,7 @@ public static class BridgeMessaging
 
             var bytes = Convert.FromBase64String(str);
 
-            if (bytes.Length >= 8)
-            {
+            if (bytes.Length >= 8) {
                 // PNG: 89 50 4E 47
                 if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47)
                     return "image/png";
@@ -692,9 +601,7 @@ public static class BridgeMessaging
             }
 
             return null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }

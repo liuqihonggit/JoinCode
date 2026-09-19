@@ -4,8 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 连接下拉候选 — 表示一个可切换的引擎连接（Mock 演示引擎或真实供应商引擎）。
 /// 让用户随时知道当前会话背后是 Mock 服务器还是真实环境。
 /// </summary>
-public sealed class ConnectionOptionItem
-{
+public sealed class ConnectionOptionItem {
     /// <summary>连接唯一标识（供应商 ID 或 "mock"）</summary>
     public required string Id { get; init; }
 

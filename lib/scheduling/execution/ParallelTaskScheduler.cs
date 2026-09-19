@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 并行任务调度器 - 用于协调多智能体并行执行任务
 /// </summary>
-public sealed class ParallelTaskScheduler
-{
+public sealed class ParallelTaskScheduler {
     private readonly IClockService _clock;
     private readonly ConcurrentDictionary<string, ScheduledTask> _scheduledTasks = new();
     private readonly ConcurrentDictionary<string, List<string>> _taskDependencies = new();
@@ -22,8 +21,7 @@ public sealed class ParallelTaskScheduler
     /// 初始化并行任务调度器
     /// </summary>
     /// <param name="clock">时钟服务,用于获取当前时间;为空时使用系统默认时钟</param>
-    public ParallelTaskScheduler(IClockService? clock = null)
-    {
+    public ParallelTaskScheduler(IClockService? clock = null) {
         _clock = clock ?? SystemClockService.Instance;
     }
 
@@ -41,11 +39,9 @@ public sealed class ParallelTaskScheduler
         string description,
         int requiredAgents,
         TodoPriority priority,
-        List<string>? dependencies = null)
-    {
+        List<string>? dependencies = null) {
         var taskId = $"scheduled-task-{Interlocked.Increment(ref _taskCounter):D3}";
-        var task = new ScheduledTask
-        {
+        var task = new ScheduledTask {
             Id = taskId,
             Name = taskName,
             Description = description,
@@ -58,11 +54,9 @@ public sealed class ParallelTaskScheduler
 
         _scheduledTasks[taskId] = task;
 
-        if (dependencies?.Count > 0)
-        {
+        if (dependencies?.Count > 0) {
             _taskDependencies[taskId] = new List<string>(dependencies);
-            foreach (var dep in dependencies)
-            {
+            foreach (var dep in dependencies) {
                 _reverseDependencies.AddOrUpdate(
                     dep,
                     new List<string> { taskId },
@@ -82,16 +76,14 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 获取指定状态的任务
     /// </summary>
-    public IEnumerable<ScheduledTask> GetTasksByStatus(ScheduledTaskStatus status)
-    {
+    public IEnumerable<ScheduledTask> GetTasksByStatus(ScheduledTaskStatus status) {
         return _scheduledTasks.Values.Where(t => t.Status == status);
     }
 
     /// <summary>
     /// 获取可执行的任务（依赖已满足且状态为Pending）
     /// </summary>
-    public IEnumerable<ScheduledTask> GetExecutableTasks()
-    {
+    public IEnumerable<ScheduledTask> GetExecutableTasks() {
         return _scheduledTasks.Values
             .Where(t => t.Status == ScheduledTaskStatus.Pending && AreDependenciesMet(t.Id))
             .OrderByDescending(t => t.Priority);
@@ -100,8 +92,7 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 获取第一波可并行执行的任务（无依赖）
     /// </summary>
-    public IEnumerable<ScheduledTask> GetFirstWaveTasks()
-    {
+    public IEnumerable<ScheduledTask> GetFirstWaveTasks() {
         return _scheduledTasks.Values
             .Where(t => t.Status == ScheduledTaskStatus.Pending && !t.Dependencies.Any())
             .OrderByDescending(t => t.Priority);
@@ -110,18 +101,15 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 更新任务状态
     /// </summary>
-    public bool UpdateTaskStatus(string taskId, ScheduledTaskStatus newStatus, string? message = null)
-    {
-        if (!_scheduledTasks.TryGetValue(taskId, out var task))
-        {
+    public bool UpdateTaskStatus(string taskId, ScheduledTaskStatus newStatus, string? message = null) {
+        if (!_scheduledTasks.TryGetValue(taskId, out var task)) {
             return false;
         }
 
         var oldStatus = task.Status;
         var updatedTask = task with { Status = newStatus, UpdatedAt = _clock.GetUtcNow() };
 
-        if (newStatus == ScheduledTaskStatus.Completed)
-        {
+        if (newStatus == ScheduledTaskStatus.Completed) {
             updatedTask = updatedTask with { CompletedAt = _clock.GetUtcNow() };
             _completionEvents.Add(new TaskCompletionEvent(taskId, _clock.GetUtcNow()));
         }
@@ -135,17 +123,13 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 检查任务依赖是否已满足
     /// </summary>
-    public bool AreDependenciesMet(string taskId)
-    {
-        if (!_taskDependencies.TryGetValue(taskId, out var dependencies))
-        {
+    public bool AreDependenciesMet(string taskId) {
+        if (!_taskDependencies.TryGetValue(taskId, out var dependencies)) {
             return true;
         }
 
-        return dependencies.All(depId =>
-        {
-            if (!_scheduledTasks.TryGetValue(depId, out var depTask))
-            {
+        return dependencies.All(depId => {
+            if (!_scheduledTasks.TryGetValue(depId, out var depTask)) {
                 return false;
             }
             return depTask.Status == ScheduledTaskStatus.Completed;
@@ -155,10 +139,8 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 获取依赖于指定任务的其他任务
     /// </summary>
-    public IEnumerable<ScheduledTask> GetDependentTasks(string taskId)
-    {
-        if (!_reverseDependencies.TryGetValue(taskId, out var dependentIds))
-        {
+    public IEnumerable<ScheduledTask> GetDependentTasks(string taskId) {
+        if (!_reverseDependencies.TryGetValue(taskId, out var dependentIds)) {
             return [];
         }
 
@@ -171,11 +153,9 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 获取调度状态报告
     /// </summary>
-    public SchedulerReport GetReport()
-    {
+    public SchedulerReport GetReport() {
         var tasks = _scheduledTasks.Values.ToList();
-        return new SchedulerReport
-        {
+        return new SchedulerReport {
             TotalTasks = tasks.Count,
             PendingCount = tasks.Count(t => t.Status == ScheduledTaskStatus.Pending),
             InProgressCount = tasks.Count(t => t.Status == ScheduledTaskStatus.InProgress),
@@ -188,14 +168,10 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 等待任务完成
     /// </summary>
-    public async Task WaitForTaskAsync(string taskId, CancellationToken cancellationToken = default)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            if (_scheduledTasks.TryGetValue(taskId, out var task))
-            {
-                if (task.Status == ScheduledTaskStatus.Completed || task.Status == ScheduledTaskStatus.Failed)
-                {
+    public async Task WaitForTaskAsync(string taskId, CancellationToken cancellationToken = default) {
+        while (!cancellationToken.IsCancellationRequested) {
+            if (_scheduledTasks.TryGetValue(taskId, out var task)) {
+                if (task.Status == ScheduledTaskStatus.Completed || task.Status == ScheduledTaskStatus.Failed) {
                     return;
                 }
             }
@@ -206,15 +182,12 @@ public sealed class ParallelTaskScheduler
     /// <summary>
     /// 等待所有任务完成
     /// </summary>
-    public async Task WaitForAllAsync(CancellationToken cancellationToken = default)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
+    public async Task WaitForAllAsync(CancellationToken cancellationToken = default) {
+        while (!cancellationToken.IsCancellationRequested) {
             var allCompleted = _scheduledTasks.Values.All(t =>
                 t.Status == ScheduledTaskStatus.Completed || t.Status == ScheduledTaskStatus.Failed);
 
-            if (allCompleted)
-            {
+            if (allCompleted) {
                 return;
             }
 
@@ -226,8 +199,7 @@ public sealed class ParallelTaskScheduler
 /// <summary>
 /// 已调度任务
 /// </summary>
-public sealed record ScheduledTask
-{
+public sealed record ScheduledTask {
     /// <summary>任务唯一标识</summary>
     public required string Id { get; init; }
     /// <summary>任务名称</summary>
@@ -255,8 +227,7 @@ public sealed record ScheduledTask
 /// <summary>
 /// 调度任务状态 — 仅用于 ParallelTaskScheduler 内部
 /// </summary>
-public enum ScheduledTaskStatus
-{
+public enum ScheduledTaskStatus {
     /// <summary>待执行</summary>
     [EnumValue("pending")] Pending,
     /// <summary>执行中</summary>
@@ -272,8 +243,7 @@ public enum ScheduledTaskStatus
 /// <summary>
 /// 任务状态变更事件参数
 /// </summary>
-public sealed class TaskStatusChangedEventArgs : EventArgs
-{
+public sealed class TaskStatusChangedEventArgs : EventArgs {
     /// <summary>状态变更关联的任务</summary>
     public ScheduledTask Task { get; }
     /// <summary>变更前的旧状态</summary>
@@ -287,8 +257,7 @@ public sealed class TaskStatusChangedEventArgs : EventArgs
     /// <param name="task">关联的任务对象</param>
     /// <param name="oldStatus">变更前的旧状态</param>
     /// <param name="message">状态变更附加消息</param>
-    public TaskStatusChangedEventArgs(ScheduledTask task, ScheduledTaskStatus oldStatus, string? message = null)
-    {
+    public TaskStatusChangedEventArgs(ScheduledTask task, ScheduledTaskStatus oldStatus, string? message = null) {
         Task = task;
         OldStatus = oldStatus;
         Message = message;
@@ -303,8 +272,7 @@ public sealed record TaskCompletionEvent(string TaskId, DateTime CompletedAt);
 /// <summary>
 /// 调度器报告
 /// </summary>
-public sealed record SchedulerReport
-{
+public sealed record SchedulerReport {
     /// <summary>任务总数</summary>
     public int TotalTasks { get; init; }
     /// <summary>待执行任务数</summary>

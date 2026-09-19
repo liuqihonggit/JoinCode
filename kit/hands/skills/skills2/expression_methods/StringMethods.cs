@@ -4,8 +4,7 @@ namespace Core.Skills.ExpressionMethods;
 /// <summary>
 /// 转大写方法 — 将目标字符串转换为全大写形式
 /// </summary>
-public sealed class ToUpperMethod : IExpressionMethod
-{
+public sealed class ToUpperMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写，支持别名）
     /// </summary>
@@ -25,8 +24,7 @@ public sealed class ToUpperMethod : IExpressionMethod
 /// <summary>
 /// 转小写方法 — 将目标字符串转换为全小写形式
 /// </summary>
-public sealed class ToLowerMethod : IExpressionMethod
-{
+public sealed class ToLowerMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写，支持别名）
     /// </summary>
@@ -46,8 +44,7 @@ public sealed class ToLowerMethod : IExpressionMethod
 /// <summary>
 /// 去除首尾空白方法 — 移除目标字符串首尾的空白字符
 /// </summary>
-public sealed class TrimMethod : IExpressionMethod
-{
+public sealed class TrimMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -67,8 +64,7 @@ public sealed class TrimMethod : IExpressionMethod
 /// <summary>
 /// 去除首部空白方法 — 移除目标字符串首部的空白字符
 /// </summary>
-public sealed class TrimStartMethod : IExpressionMethod
-{
+public sealed class TrimStartMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -88,8 +84,7 @@ public sealed class TrimStartMethod : IExpressionMethod
 /// <summary>
 /// 去除尾部空白方法 — 移除目标字符串尾部的空白字符
 /// </summary>
-public sealed class TrimEndMethod : IExpressionMethod
-{
+public sealed class TrimEndMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -109,8 +104,7 @@ public sealed class TrimEndMethod : IExpressionMethod
 /// <summary>
 /// 子字符串方法 — 从目标字符串中截取指定位置的子串
 /// </summary>
-public sealed class SubstringMethod : IExpressionMethod
-{
+public sealed class SubstringMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -123,13 +117,10 @@ public sealed class SubstringMethod : IExpressionMethod
     /// <param name="args">参数列表：第一个参数为起始索引，第二个参数为长度（可选）</param>
     /// <param name="elementToString">将 JsonElement 转为字符串的辅助方法</param>
     /// <returns>截取到的子字符串；参数无效时返回原字符串</returns>
-    public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
-    {
-        if (args.Count >= 1 && int.TryParse(elementToString(args[0]), out var startIndex))
-        {
+    public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString) {
+        if (args.Count >= 1 && int.TryParse(elementToString(args[0]), out var startIndex)) {
             var length = args.Count >= 2 && int.TryParse(elementToString(args[1]), out var len) ? len : target.Length - startIndex;
-            if (startIndex >= 0 && startIndex < target.Length)
-            {
+            if (startIndex >= 0 && startIndex < target.Length) {
                 length = Math.Min(length, target.Length - startIndex);
                 return target.Substring(startIndex, length);
             }
@@ -141,8 +132,7 @@ public sealed class SubstringMethod : IExpressionMethod
 /// <summary>
 /// 替换方法 — 将目标字符串中指定的子串替换为新子串
 /// </summary>
-public sealed class ReplaceMethod : IExpressionMethod
-{
+public sealed class ReplaceMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -155,10 +145,8 @@ public sealed class ReplaceMethod : IExpressionMethod
     /// <param name="args">参数列表：第一个参数为要查找的子串，第二个参数为替换后的子串</param>
     /// <param name="elementToString">将 JsonElement 转为字符串的辅助方法</param>
     /// <returns>替换后的字符串；参数不足时返回原字符串</returns>
-    public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
-    {
-        if (args.Count >= 2)
-        {
+    public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString) {
+        if (args.Count >= 2) {
             return target.Replace(elementToString(args[0]), elementToString(args[1]));
         }
         return target;
@@ -168,8 +156,7 @@ public sealed class ReplaceMethod : IExpressionMethod
 /// <summary>
 /// 包含判断方法 — 判断目标字符串是否包含指定子串
 /// </summary>
-public sealed class ContainsMethod : IExpressionMethod
-{
+public sealed class ContainsMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -189,8 +176,7 @@ public sealed class ContainsMethod : IExpressionMethod
 /// <summary>
 /// 起始判断方法 — 判断目标字符串是否以指定子串开头
 /// </summary>
-public sealed class StartsWithMethod : IExpressionMethod
-{
+public sealed class StartsWithMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -210,8 +196,7 @@ public sealed class StartsWithMethod : IExpressionMethod
 /// <summary>
 /// 结尾判断方法 — 判断目标字符串是否以指定子串结尾
 /// </summary>
-public sealed class EndsWithMethod : IExpressionMethod
-{
+public sealed class EndsWithMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -231,8 +216,7 @@ public sealed class EndsWithMethod : IExpressionMethod
 /// <summary>
 /// 查找索引方法 — 查找指定子串在目标字符串中首次出现的索引
 /// </summary>
-public sealed class IndexOfMethod : IExpressionMethod
-{
+public sealed class IndexOfMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -252,8 +236,7 @@ public sealed class IndexOfMethod : IExpressionMethod
 /// <summary>
 /// 长度方法 — 获取目标字符串的字符长度
 /// </summary>
-public sealed class LengthMethod : IExpressionMethod
-{
+public sealed class LengthMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -273,8 +256,7 @@ public sealed class LengthMethod : IExpressionMethod
 /// <summary>
 /// 分割方法 — 按指定分隔符分割目标字符串并以逗号空格连接
 /// </summary>
-public sealed class SplitMethod : IExpressionMethod
-{
+public sealed class SplitMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -287,10 +269,8 @@ public sealed class SplitMethod : IExpressionMethod
     /// <param name="args">参数列表：第一个参数为分隔符</param>
     /// <param name="elementToString">将 JsonElement 转为字符串的辅助方法</param>
     /// <returns>分割后以逗号空格连接的字符串；参数不足时返回原字符串</returns>
-    public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
-    {
-        if (args.Count >= 1)
-        {
+    public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString) {
+        if (args.Count >= 1) {
             var separator = elementToString(args[0]);
             var parts = target.Split(separator);
             return string.Join(", ", parts);
@@ -302,8 +282,7 @@ public sealed class SplitMethod : IExpressionMethod
 /// <summary>
 /// 格式化方法 — 使用目标字符串作为格式模板，按参数进行字符串格式化
 /// </summary>
-public sealed class FormatMethod : IExpressionMethod
-{
+public sealed class FormatMethod : IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写）
     /// </summary>
@@ -316,16 +295,11 @@ public sealed class FormatMethod : IExpressionMethod
     /// <param name="args">参数列表：用于填充格式占位符的参数</param>
     /// <param name="elementToString">将 JsonElement 转为字符串的辅助方法</param>
     /// <returns>格式化后的字符串；格式化失败或参数不足时返回原字符串</returns>
-    public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString)
-    {
-        if (args.Count >= 1)
-        {
-            try
-            {
+    public string Execute(string target, List<JsonElement> args, Func<JsonElement, string> elementToString) {
+        if (args.Count >= 1) {
+            try {
                 return string.Format(CultureInfo.InvariantCulture, target, args.Select(elementToString).Cast<object>().ToArray());
-            }
-            catch
-            {
+            } catch {
                 return target;
             }
         }

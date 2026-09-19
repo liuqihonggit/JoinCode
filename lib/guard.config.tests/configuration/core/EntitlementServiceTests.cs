@@ -1,10 +1,8 @@
 namespace Core.Configuration.Tests;
 
-public sealed class EntitlementServiceTests
-{
+public sealed class EntitlementServiceTests {
     [Fact]
-    public void IsBriefEntitled_Default_Should_Be_True()
-    {
+    public void IsBriefEntitled_Default_Should_Be_True() {
         // 开源项目默认允许
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
@@ -12,8 +10,7 @@ public sealed class EntitlementServiceTests
     }
 
     [Fact]
-    public void IsBriefEntitled_EnvVar_True_Should_Be_True()
-    {
+    public void IsBriefEntitled_EnvVar_True_Should_Be_True() {
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=1 应该允许
@@ -22,8 +19,7 @@ public sealed class EntitlementServiceTests
     }
 
     [Fact]
-    public void IsBriefEntitled_EnvVar_False_Should_Be_False()
-    {
+    public void IsBriefEntitled_EnvVar_False_Should_Be_False() {
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=false 应该拒绝
@@ -32,8 +28,7 @@ public sealed class EntitlementServiceTests
     }
 
     [Fact]
-    public void IsBriefEntitled_EnvVar_Zero_Should_Be_False()
-    {
+    public void IsBriefEntitled_EnvVar_Zero_Should_Be_False() {
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         // JCC_BRIEF=0 应该拒绝
@@ -42,8 +37,7 @@ public sealed class EntitlementServiceTests
     }
 
     [Fact]
-    public void IsBriefEnabled_Requires_Entitlement_And_OptIn()
-    {
+    public void IsBriefEnabled_Requires_Entitlement_And_OptIn() {
         // 对齐 TS: (getKairosActive() || getUserMsgOptIn()) && isBriefEntitled()
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
@@ -57,36 +51,29 @@ public sealed class EntitlementServiceTests
     }
 
     [Fact]
-    public void IsBriefEnabled_EnvVar_False_Overrides_OptIn()
-    {
+    public void IsBriefEnabled_EnvVar_False_Overrides_OptIn() {
         // JCC_BRIEF=false 即使 optIn=true 也应该拒绝
         var briefMode = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var service = new EntitlementService(briefMode);
         briefMode.Enable();
 
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Brief, "false");
-        try
-        {
+        try {
             Assert.False(service.IsBriefEnabled);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Brief, null);
         }
     }
 
     [Fact]
-    public void Constructor_NullBriefMode_Should_Throw()
-    {
+    public void Constructor_NullBriefMode_Should_Throw() {
         Assert.Throws<ArgumentNullException>(() => new EntitlementService(null!));
     }
 }
 
-public sealed class BriefModeServiceTests
-{
+public sealed class BriefModeServiceTests {
     [Fact]
-    public void Initial_State_Should_Be_Disabled()
-    {
+    public void Initial_State_Should_Be_Disabled() {
         var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         Assert.False(service.IsEnabled);
         Assert.Null(service.EnabledAt);
@@ -94,8 +81,7 @@ public sealed class BriefModeServiceTests
     }
 
     [Fact]
-    public void Enable_Should_Set_IsEnabled_And_UserMsgOptIn()
-    {
+    public void Enable_Should_Set_IsEnabled_And_UserMsgOptIn() {
         // 对齐 TS: setUserMsgOptIn(true)
         var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
@@ -105,8 +91,7 @@ public sealed class BriefModeServiceTests
     }
 
     [Fact]
-    public void Disable_Should_Clear_IsEnabled_And_UserMsgOptIn()
-    {
+    public void Disable_Should_Clear_IsEnabled_And_UserMsgOptIn() {
         // 对齐 TS: setUserMsgOptIn(false)
         var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
@@ -117,8 +102,7 @@ public sealed class BriefModeServiceTests
     }
 
     [Fact]
-    public void Toggle_Should_Switch_Both_States()
-    {
+    public void Toggle_Should_Switch_Both_States() {
         var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         Assert.False(service.IsEnabled);
         Assert.False(service.UserMsgOptIn);
@@ -133,8 +117,7 @@ public sealed class BriefModeServiceTests
     }
 
     [Fact]
-    public void UserMsgOptIn_Can_Be_Set_Independently()
-    {
+    public void UserMsgOptIn_Can_Be_Set_Independently() {
         // 对齐 TS: userMsgOptIn 可独立于 isBriefOnly 设置
         var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.UserMsgOptIn = true;
@@ -143,8 +126,7 @@ public sealed class BriefModeServiceTests
     }
 
     [Fact]
-    public void GetStatus_Enabled_Should_Return_EnabledStatus()
-    {
+    public void GetStatus_Enabled_Should_Return_EnabledStatus() {
         var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         service.Enable();
         var status = service.GetStatus();
@@ -153,8 +135,7 @@ public sealed class BriefModeServiceTests
     }
 
     [Fact]
-    public void GetStatus_Disabled_Should_Return_DisabledStatus()
-    {
+    public void GetStatus_Disabled_Should_Return_DisabledStatus() {
         var service = new BriefModeService(JoinCode.Abstractions.Clock.SystemClockService.Instance);
         var status = service.GetStatus();
         Assert.False(status.IsEnabled);
@@ -162,8 +143,7 @@ public sealed class BriefModeServiceTests
     }
 
     [Fact]
-    public void CrossInstance_PersistedToFile_WhenFileSystemProvided()
-    {
+    public void CrossInstance_PersistedToFile_WhenFileSystemProvided() {
         var fs = new IO.FileSystem.InMemoryFileSystem();
         var cwd = fs.GetCurrentDirectory();
         fs.CreateDirectory(Path.Combine(cwd, ".git"));

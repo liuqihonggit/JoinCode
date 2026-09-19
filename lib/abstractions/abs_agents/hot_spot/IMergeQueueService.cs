@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 合并队列服务 — 队长串行处理Worker产出：编译校验→合并→push
 /// Worker提交产出到队列不直接push，队长独占push串行合并防冲突
 /// </summary>
-public interface IMergeQueueService
-{
+public interface IMergeQueueService {
     /// <summary>
     /// Worker 提交产出到合并队列
     /// </summary>

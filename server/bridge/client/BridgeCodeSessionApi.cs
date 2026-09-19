@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// 远程凭证 — 对齐 TS 端 codeSessionApi.ts RemoteCredentials
 /// POST /v1/code/sessions/{id}/bridge 返回的 worker 凭证
 /// </summary>
-public sealed class BridgeRemoteCredentials
-{
+public sealed class BridgeRemoteCredentials {
     /// <summary>Worker JWT 令牌</summary>
     [JsonPropertyName("worker_jwt")]
     public required string WorkerJwt { get; init; }
@@ -30,19 +29,15 @@ public sealed class BridgeRemoteCredentials
     /// 解析 worker_epoch — 对齐 TS 端 protojson int64 字符串兼容
     /// protojson 将 int64 序列化为字符串避免 JS 精度丢失
     /// </summary>
-    public static long ParseWorkerEpoch(JsonElement epoch)
-    {
-        if (epoch.ValueKind == JsonValueKind.String)
-        {
-            if (!long.TryParse(epoch.GetString(), out var result))
-            {
+    public static long ParseWorkerEpoch(JsonElement epoch) {
+        if (epoch.ValueKind == JsonValueKind.String) {
+            if (!long.TryParse(epoch.GetString(), out var result)) {
                 throw new InvalidOperationException($"Invalid worker_epoch string: {epoch}");
             }
             return result;
         }
 
-        if (epoch.ValueKind == JsonValueKind.Number)
-        {
+        if (epoch.ValueKind == JsonValueKind.Number) {
             return epoch.GetInt64();
         }
 
@@ -50,18 +45,15 @@ public sealed class BridgeRemoteCredentials
     }
 
     /// <summary>重载：从字符串解析</summary>
-    public static long ParseWorkerEpoch(string epoch)
-    {
-        if (!long.TryParse(epoch, out var result))
-        {
+    public static long ParseWorkerEpoch(string epoch) {
+        if (!long.TryParse(epoch, out var result)) {
             throw new InvalidOperationException($"Invalid worker_epoch string: {epoch}");
         }
         return result;
     }
 
     /// <summary>重载：从 double 解析（JSON 数字）</summary>
-    public static long ParseWorkerEpoch(double epoch)
-    {
+    public static long ParseWorkerEpoch(double epoch) {
         return (long)epoch;
     }
 }
@@ -70,8 +62,7 @@ public sealed class BridgeRemoteCredentials
 /// CCR v2 代码会话 API — 对齐 TS 端 codeSessionApi.ts
 /// 独立于 remoteBridgeCore.ts，让 SDK /bridge 子路径可以导出这些函数
 /// </summary>
-public static class BridgeCodeSessionApi
-{
+public static class BridgeCodeSessionApi {
     /// <summary>
     /// 创建代码会话 — 对齐 TS 端 createCodeSession
     /// POST /v1/code/sessions → cse_* 格式的会话 ID
@@ -83,8 +74,7 @@ public static class BridgeCodeSessionApi
         int timeoutMs,
         HttpClient httpClient,
         string[]? tags = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(httpClient);
 
         var url = $"{baseUrl.TrimEnd('/')}/v1/code/sessions";
@@ -94,11 +84,9 @@ public static class BridgeCodeSessionApi
         var body = new StringBuilder("{\"title\":");
         body.Append(JsonEncode(title));
         body.Append(",\"bridge\":{}");
-        if (tags is { Length: > 0 })
-        {
+        if (tags is { Length: > 0 }) {
             body.Append(",\"tags\":[");
-            for (var i = 0; i < tags.Length; i++)
-            {
+            for (var i = 0; i < tags.Length; i++) {
                 if (i > 0) body.Append(',');
                 body.Append(JsonEncode(tags[i]));
             }
@@ -106,8 +94,7 @@ public static class BridgeCodeSessionApi
         }
         body.Append('}');
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, url)
-        {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent(body.ToString(), System.Text.Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -115,14 +102,12 @@ public static class BridgeCodeSessionApi
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
-        try
-        {
+        try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
 
             // 对齐 TS 端：仅接受 200/201，非 5xx 优雅返回 null
             if (response.StatusCode != System.Net.HttpStatusCode.OK &&
-                response.StatusCode != System.Net.HttpStatusCode.Created)
-            {
+                response.StatusCode != System.Net.HttpStatusCode.Created) {
                 return null;
             }
 
@@ -134,19 +119,15 @@ public static class BridgeCodeSessionApi
             if (root.TryGetProperty("session", out var sessionProp) &&
                 sessionProp.ValueKind == JsonValueKind.Object &&
                 sessionProp.TryGetProperty("id", out var idProp) &&
-                idProp.ValueKind == JsonValueKind.String)
-            {
+                idProp.ValueKind == JsonValueKind.String) {
                 var sessionId = idProp.GetString();
-                if (sessionId is not null && sessionId.StartsWith("cse_", StringComparison.Ordinal))
-                {
+                if (sessionId is not null && sessionId.StartsWith("cse_", StringComparison.Ordinal)) {
                     return sessionId;
                 }
             }
 
             return null;
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             return null; // 超时
         }
     }
@@ -162,33 +143,28 @@ public static class BridgeCodeSessionApi
         int timeoutMs,
         HttpClient httpClient,
         string? trustedDeviceToken = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(httpClient);
 
         var url = $"{baseUrl.TrimEnd('/')}/v1/code/sessions/{sessionId}/bridge";
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, url)
-        {
+        using var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Add("anthropic-version", "2023-06-01");
 
-        if (trustedDeviceToken is not null)
-        {
+        if (trustedDeviceToken is not null) {
             request.Headers.Add("x-trusted-device-token", trustedDeviceToken);
         }
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
-        try
-        {
+        try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
 
             // 对齐 TS 端：仅接受 200
-            if (response.StatusCode != System.Net.HttpStatusCode.OK)
-            {
+            if (response.StatusCode != System.Net.HttpStatusCode.OK) {
                 return null;
             }
 
@@ -197,42 +173,34 @@ public static class BridgeCodeSessionApi
             var root = parsed.RootElement;
 
             // 对齐 TS 端：逐字段严格校验类型
-            if (root.ValueKind != JsonValueKind.Object)
-            {
+            if (root.ValueKind != JsonValueKind.Object) {
                 return null;
             }
 
             if (!root.TryGetProperty("worker_jwt", out var jwtProp) || jwtProp.ValueKind != JsonValueKind.String ||
                 !root.TryGetProperty("api_base_url", out var urlProp) || urlProp.ValueKind != JsonValueKind.String ||
                 !root.TryGetProperty("expires_in", out var expiresProp) || expiresProp.ValueKind != JsonValueKind.Number ||
-                !root.TryGetProperty("worker_epoch", out var epochProp))
-            {
+                !root.TryGetProperty("worker_epoch", out var epochProp)) {
                 return null;
             }
 
-            return new BridgeRemoteCredentials
-            {
+            return new BridgeRemoteCredentials {
                 WorkerJwt = jwtProp.GetString()!,
                 ApiBaseUrl = urlProp.GetString()!,
                 ExpiresIn = expiresProp.GetInt32(),
                 WorkerEpochRaw = epochProp.Clone(),
             };
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             return null; // 超时
         }
     }
 
     /// <summary>JSON 字符串编码</summary>
-    private static string JsonEncode(string value)
-    {
+    private static string JsonEncode(string value) {
         var sb = new StringBuilder(value.Length + 2);
         sb.Append('"');
-        foreach (var c in value)
-        {
-            switch (c)
-            {
+        foreach (var c in value) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;

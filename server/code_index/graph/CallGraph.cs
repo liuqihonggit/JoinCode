@@ -5,8 +5,7 @@ namespace JoinCode.CodeIndex;
 /// store 已维护 CallsByCaller/CallsByCallee/CallsByFile 索引,无需额外缓存层
 /// 文件增量更新通过 SymbolIndex 直接写入 store,图查询自动反映最新状态
 /// </summary>
-public sealed class CallGraph : ICallGraph
-{
+public sealed class CallGraph : ICallGraph {
     private readonly InMemoryIndexStore _store;
     private int _cacheVersion;
 
@@ -14,8 +13,7 @@ public sealed class CallGraph : ICallGraph
     /// 构造调用图
     /// </summary>
     /// <param name="store">内存索引存储，提供调用关系索引</param>
-    public CallGraph(InMemoryIndexStore store)
-    {
+    public CallGraph(InMemoryIndexStore store) {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
     }
@@ -23,16 +21,14 @@ public sealed class CallGraph : ICallGraph
     /// <summary>
     /// 兼容旧 API — InMemoryIndexStore 实时同步,版本号自增即可
     /// </summary>
-    internal void InvalidateCache()
-    {
+    internal void InvalidateCache() {
         Interlocked.Increment(ref _cacheVersion);
     }
 
     /// <summary>
     /// 兼容旧 API — 单文件失效,内存版本自动反映,仅记录版本
     /// </summary>
-    internal Task InvalidateCacheForFileAsync(string filePath, CancellationToken ct)
-    {
+    internal Task InvalidateCacheForFileAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
         Interlocked.Increment(ref _cacheVersion);
         return Task.CompletedTask;
@@ -44,16 +40,13 @@ public sealed class CallGraph : ICallGraph
     /// <param name="symbolName">符号名（支持简单名和完全限定名）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>调用方边列表</returns>
-    public Task<IReadOnlyList<CallEdge>> GetCallersAsync(string symbolName, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<CallEdge>> GetCallersAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
         using var scope = _store.EnterReadLock();
         var result = new List<CallEdge>();
-        foreach (var fqn in ResolveFqns(symbolName))
-        {
-            if (_store.CallsByCallee.TryGetValue(fqn, out var list))
-            {
+        foreach (var fqn in ResolveFqns(symbolName)) {
+            if (_store.CallsByCallee.TryGetValue(fqn, out var list)) {
                 result.AddRange(list);
             }
         }
@@ -66,16 +59,13 @@ public sealed class CallGraph : ICallGraph
     /// <param name="symbolName">符号名（支持简单名和完全限定名）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>被调用方边列表</returns>
-    public Task<IReadOnlyList<CallEdge>> GetCalleesAsync(string symbolName, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<CallEdge>> GetCalleesAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
         using var scope = _store.EnterReadLock();
         var result = new List<CallEdge>();
-        foreach (var fqn in ResolveFqns(symbolName))
-        {
-            if (_store.CallsByCaller.TryGetValue(fqn, out var list))
-            {
+        foreach (var fqn in ResolveFqns(symbolName)) {
+            if (_store.CallsByCaller.TryGetValue(fqn, out var list)) {
                 result.AddRange(list);
             }
         }
@@ -85,13 +75,10 @@ public sealed class CallGraph : ICallGraph
     /// <summary>
     /// 将符号名解析为所有匹配的完全限定名集合 — 同时包含原始输入和符号的 FQN，支持简单名和完全限定名两种输入
     /// </summary>
-    private HashSet<string> ResolveFqns(string symbolName)
-    {
+    private HashSet<string> ResolveFqns(string symbolName) {
         var fqns = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { symbolName };
-        if (_store.SymbolsByName.TryGetValue(symbolName, out var list))
-        {
-            foreach (var s in list)
-            {
+        if (_store.SymbolsByName.TryGetValue(symbolName, out var list)) {
+            foreach (var s in list) {
                 fqns.Add(s.FullyQualifiedName);
             }
         }
@@ -105,8 +92,7 @@ public sealed class CallGraph : ICallGraph
     /// <param name="to">目标符号名</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>调用边路径，不存在时返回空列表</returns>
-    public Task<IReadOnlyList<CallEdge>> GetCallChainAsync(string from, string to, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<CallEdge>> GetCallChainAsync(string from, string to, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(from);
         ArgumentNullException.ThrowIfNull(to);
 
@@ -121,8 +107,7 @@ public sealed class CallGraph : ICallGraph
     /// <param name="symbolName">起始符号名</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>受影响的调用方符号名列表（不含起始符号）</returns>
-    public Task<IReadOnlyList<string>> GetImpactScopeAsync(string symbolName, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<string>> GetImpactScopeAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
         using var scope = _store.EnterReadLock();
@@ -130,15 +115,12 @@ public sealed class CallGraph : ICallGraph
         var queue = new Queue<string>();
         queue.Enqueue(symbolName);
 
-        while (queue.Count > 0)
-        {
+        while (queue.Count > 0) {
             var current = queue.Dequeue();
             if (!_store.CallsByCallee.TryGetValue(current, out var callers)) continue;
 
-            foreach (var edge in callers)
-            {
-                if (visited.Add(edge.CallerSymbol))
-                {
+            foreach (var edge in callers) {
+                if (visited.Add(edge.CallerSymbol)) {
                     queue.Enqueue(edge.CallerSymbol);
                 }
             }
@@ -148,10 +130,8 @@ public sealed class CallGraph : ICallGraph
         return Task.FromResult<IReadOnlyList<string>>(visited.ToList());
     }
 
-    private static IReadOnlyList<CallEdge> BfsPath(Dictionary<string, List<CallEdge>> adj, string from, string to)
-    {
-        if (!adj.TryGetValue(from, out _))
-        {
+    private static IReadOnlyList<CallEdge> BfsPath(Dictionary<string, List<CallEdge>> adj, string from, string to) {
+        if (!adj.TryGetValue(from, out _)) {
             return Array.Empty<CallEdge>();
         }
 
@@ -161,19 +141,16 @@ public sealed class CallGraph : ICallGraph
         var queue = new Queue<string>();
         queue.Enqueue(from);
 
-        while (queue.Count > 0)
-        {
+        while (queue.Count > 0) {
             var current = queue.Dequeue();
             if (!adj.TryGetValue(current, out var neighbors)) continue;
 
-            foreach (var nextEdge in neighbors)
-            {
+            foreach (var nextEdge in neighbors) {
                 if (!visited.Add(nextEdge.CalleeSymbol)) continue;
 
                 parentMap[nextEdge.CalleeSymbol] = nextEdge;
 
-                if (nextEdge.CalleeSymbol == to)
-                {
+                if (nextEdge.CalleeSymbol == to) {
                     return ReconstructPath(parentMap, from, to);
                 }
 
@@ -184,13 +161,11 @@ public sealed class CallGraph : ICallGraph
         return Array.Empty<CallEdge>();
     }
 
-    private static List<CallEdge> ReconstructPath(Dictionary<string, CallEdge> parentMap, string from, string to)
-    {
+    private static List<CallEdge> ReconstructPath(Dictionary<string, CallEdge> parentMap, string from, string to) {
         var path = new List<CallEdge>();
         var current = to;
 
-        while (current != from)
-        {
+        while (current != from) {
             var edge = parentMap[current];
             path.Add(edge);
             current = edge.CallerSymbol;

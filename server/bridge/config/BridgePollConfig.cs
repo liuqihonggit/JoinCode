@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// 桥轮询间隔配置 — 对齐 TS 端 pollConfigDefaults.ts PollIntervalConfig
 /// 定义单会话和多会话（bridgeMain.ts）两套轮询间隔，以及回收超时和 keepalive 间隔
 /// </summary>
-public sealed class BridgePollIntervalConfig
-{
+public sealed class BridgePollIntervalConfig {
     /// <summary>非容量时轮询间隔（毫秒）— 默认 2000</summary>
     [JsonPropertyName("poll_interval_ms_not_at_capacity")]
     public int PollIntervalMsNotAtCapacity { get; init; } = 2000;
@@ -47,8 +46,7 @@ public sealed class BridgePollIntervalConfig
 /// 桥轮询间隔配置管理 — 对齐 TS 端 pollConfig.ts
 /// 从配置源读取并验证轮询间隔配置，验证失败整体回退到默认值
 /// </summary>
-public static class BridgePollConfig
-{
+public static class BridgePollConfig {
     /// <summary>轮询间隔最小值（毫秒）</summary>
     private const int MinPollIntervalMs = 100;
 
@@ -65,15 +63,12 @@ public static class BridgePollConfig
     /// 获取轮询间隔配置 — 对齐 TS 端 getPollIntervalConfig()
     /// 从配置源读取并验证，验证失败整体回退到默认值
     /// </summary>
-    public static BridgePollIntervalConfig GetPollIntervalConfig()
-    {
+    public static BridgePollIntervalConfig GetPollIntervalConfig() {
         // 检查缓存是否有效
         var cached = _cachedConfig;
-        if (cached is not null)
-        {
+        if (cached is not null) {
             var elapsed = TimeSpan.FromTicks(Environment.TickCount64 - Volatile.Read(ref _lastRefreshTicks));
-            if (elapsed < _cacheRefreshWindow)
-            {
+            if (elapsed < _cacheRefreshWindow) {
                 return cached;
             }
         }
@@ -92,8 +87,7 @@ public static class BridgePollConfig
     /// 验证配置 — 对齐 TS 端 Zod schema 验证
     /// 任何一个字段不合法，整个配置回退到默认值（整体拒绝策略，对齐 TS 端）
     /// </summary>
-    public static BridgePollIntervalConfig ValidateConfig(BridgePollIntervalConfig config)
-    {
+    public static BridgePollIntervalConfig ValidateConfig(BridgePollIntervalConfig config) {
         ArgumentNullException.ThrowIfNull(config);
 
         // 单字段验证 — 对齐 TS 端 Zod .min() 约束
@@ -108,14 +102,12 @@ public static class BridgePollConfig
 
         // 对象级 refine: 单会话 at-capacity liveness — 对齐 TS 端 .refine()
         // 非独占心跳或 at_capacity 轮询必须至少有一个启用
-        if (config.NonExclusiveHeartbeatIntervalMs <= 0 && config.PollIntervalMsAtCapacity <= 0)
-        {
+        if (config.NonExclusiveHeartbeatIntervalMs <= 0 && config.PollIntervalMsAtCapacity <= 0) {
             return BridgePollIntervalConfig.Defaults;
         }
 
         // 对象级 refine: 多会话 at-capacity liveness — 对齐 TS 端 .refine()
-        if (config.NonExclusiveHeartbeatIntervalMs <= 0 && config.MultisessionPollIntervalMsAtCapacity <= 0)
-        {
+        if (config.NonExclusiveHeartbeatIntervalMs <= 0 && config.MultisessionPollIntervalMsAtCapacity <= 0) {
             return BridgePollIntervalConfig.Defaults;
         }
 
@@ -126,17 +118,14 @@ public static class BridgePollConfig
     private static bool IsValidAtCapacityValue(int value) => value == 0 || value >= MinPollIntervalMs;
 
     /// <summary>重置缓存（用于测试）</summary>
-    public static void ResetCache()
-    {
+    public static void ResetCache() {
         _cachedConfig = null;
         Volatile.Write(ref _lastRefreshTicks, 0);
     }
 
     /// <summary>从环境变量读取配置</summary>
-    private static BridgePollIntervalConfig ReadFromEnvironment()
-    {
-        return new BridgePollIntervalConfig
-        {
+    private static BridgePollIntervalConfig ReadFromEnvironment() {
+        return new BridgePollIntervalConfig {
             PollIntervalMsNotAtCapacity = TryGetEnvInt("JCC_BRIDGE_POLL_INTERVAL_NOT_AT_CAPACITY", out var p1) ? p1 : 2000,
             PollIntervalMsAtCapacity = TryGetEnvInt("JCC_BRIDGE_POLL_INTERVAL_AT_CAPACITY", out var p2) ? p2 : 600000,
             NonExclusiveHeartbeatIntervalMs = TryGetEnvInt("JCC_BRIDGE_HEARTBEAT_INTERVAL", out var p3) ? p3 : 0,
@@ -148,8 +137,7 @@ public static class BridgePollConfig
         };
     }
 
-    private static bool TryGetEnvInt(string name, out int value)
-    {
+    private static bool TryGetEnvInt(string name, out int value) {
         value = 0;
         var env = Environment.GetEnvironmentVariable(name);
         return env is not null && int.TryParse(env, out value);

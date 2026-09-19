@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface ITaskRuntime
-{
+public interface ITaskRuntime {
     Task<OperationResult<RuntimeTask?>> CreateTaskAsync(RuntimeTaskInput input, CancellationToken cancellationToken = default);
 
     Task<OperationResult<RuntimeTask?>> UpdateTaskAsync(string taskId, RuntimeTaskUpdate update, CancellationToken cancellationToken = default);

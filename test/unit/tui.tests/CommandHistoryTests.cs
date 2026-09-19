@@ -3,33 +3,28 @@ namespace Tui.Tests;
 /// <summary>
 /// CommandHistory 单元测试 — 验证上下箭头导航历史命令。
 /// </summary>
-public class CommandHistoryTests
-{
+public class CommandHistoryTests {
     [Fact]
-    public void Empty_NavigateUp_ReturnsNull()
-    {
+    public void Empty_NavigateUp_ReturnsNull() {
         var history = new CommandHistory();
         Assert.Null(history.NavigateUp());
     }
 
     [Fact]
-    public void Empty_NavigateDown_ReturnsNull()
-    {
+    public void Empty_NavigateDown_ReturnsNull() {
         var history = new CommandHistory();
         Assert.Null(history.NavigateDown());
     }
 
     [Fact]
-    public void Add_ThenNavigateUp_ReturnsLastCommand()
-    {
+    public void Add_ThenNavigateUp_ReturnsLastCommand() {
         var history = new CommandHistory();
         history.Add("/help");
         Assert.Equal("/help", history.NavigateUp());
     }
 
     [Fact]
-    public void MultipleCommands_NavigateUp_ReturnsInReverseOrder()
-    {
+    public void MultipleCommands_NavigateUp_ReturnsInReverseOrder() {
         var history = new CommandHistory();
         history.Add("/help");
         history.Add("/clear");
@@ -40,8 +35,7 @@ public class CommandHistoryTests
     }
 
     [Fact]
-    public void NavigateUp_ThenDown_ReturnsToEmpty()
-    {
+    public void NavigateUp_ThenDown_ReturnsToEmpty() {
         var history = new CommandHistory();
         history.Add("/help");
         history.Add("/clear");
@@ -52,8 +46,7 @@ public class CommandHistoryTests
     }
 
     [Fact]
-    public void Add_ResetsNavigationPosition()
-    {
+    public void Add_ResetsNavigationPosition() {
         var history = new CommandHistory();
         history.Add("/help");
         history.Add("/clear");
@@ -63,8 +56,7 @@ public class CommandHistoryTests
     }
 
     [Fact]
-    public void DuplicateConsecutive_NotAdded()
-    {
+    public void DuplicateConsecutive_NotAdded() {
         var history = new CommandHistory();
         history.Add("/help");
         history.Add("/help");
@@ -72,8 +64,7 @@ public class CommandHistoryTests
     }
 
     [Fact]
-    public void MaxCapacity_20_Commands()
-    {
+    public void MaxCapacity_20_Commands() {
         var history = new CommandHistory();
         for (var i = 0; i < 25; i++)
             history.Add($"/cmd{i}");

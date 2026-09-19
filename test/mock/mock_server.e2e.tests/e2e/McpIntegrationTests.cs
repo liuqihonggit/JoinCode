@@ -5,8 +5,7 @@ namespace MockServer.E2E.Tests;
 /// 链路: LLM(MockServer)返回 mcp_connect/mcp_call_tool 工具调用 → jcc 执行 → Mcp.MockServer 响应
 /// 独立测试类以启用 xUnit 集合并行
 /// </summary>
-public sealed class McpIntegrationTests : CoverageTestBase
-{
+public sealed class McpIntegrationTests : CoverageTestBase {
     public McpIntegrationTests(ITestOutputHelper output) : base(output) { }
 
     /// <summary>
@@ -14,8 +13,7 @@ public sealed class McpIntegrationTests : CoverageTestBase
     /// 验证: mcp_connect 工具调用 → jcc 连接 Mcp.MockServer → mcp_call_tool(echo) → 返回结果
     /// </summary>
     [Fact]
-    public async Task McpConnectAndCallEcho_ShouldVerifyForwardChain()
-    {
+    public async Task McpConnectAndCallEcho_ShouldVerifyForwardChain() {
         await RunScriptAsync(McpIntegrationScripts.McpConnectAndCallEcho).ConfigureAwait(true);
     }
 }

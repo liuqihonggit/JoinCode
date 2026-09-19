@@ -1,9 +1,7 @@
 namespace MockServer.E2E.Tests.Scripts;
 
-public static class ClusterConversationScripts
-{
-    public static ConversationScript ClusterNonInteractive => new()
-    {
+public static class ClusterConversationScripts {
+    public static ConversationScript ClusterNonInteractive => new() {
         Name = "集群非交互模式",
         Turns =
         [
@@ -22,8 +20,7 @@ public static class ClusterConversationScripts
                 ]
             }
         ],
-        ExtraEnvVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
+        ExtraEnvVars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             ["JCC_CLUSTER_DECOMPOSITION_OVERRIDE"] = "3",
         },
         AdditionalArgs = "--await 30",

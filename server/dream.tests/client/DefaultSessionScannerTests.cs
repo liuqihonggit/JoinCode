@@ -3,11 +3,9 @@ namespace Dream.Tests.Client;
 /// <summary>
 /// 默认会话扫描器单元测试
 /// </summary>
-public sealed class DefaultSessionScannerTests
-{
+public sealed class DefaultSessionScannerTests {
     [Fact]
-    public void Constructor_NullConfig_UsesCurrentDirectory()
-    {
+    public void Constructor_NullConfig_UsesCurrentDirectory() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
 
         var scanner = new DefaultSessionScanner(null!, fs);
@@ -16,8 +14,7 @@ public sealed class DefaultSessionScannerTests
     }
 
     [Fact]
-    public void GetProjectDir_ReturnsConfigProjectDir()
-    {
+    public void GetProjectDir_ReturnsConfigProjectDir() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
 
@@ -27,8 +24,7 @@ public sealed class DefaultSessionScannerTests
     }
 
     [Fact]
-    public async Task ListSessionsTouchedSinceAsync_NoSessionsDir_ReturnsEmpty()
-    {
+    public async Task ListSessionsTouchedSinceAsync_NoSessionsDir_ReturnsEmpty() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);
@@ -39,8 +35,7 @@ public sealed class DefaultSessionScannerTests
     }
 
     [Fact]
-    public async Task ListSessionsTouchedSinceAsync_WithNewFiles_ReturnsSessionIds()
-    {
+    public async Task ListSessionsTouchedSinceAsync_WithNewFiles_ReturnsSessionIds() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);
@@ -60,8 +55,7 @@ public sealed class DefaultSessionScannerTests
     }
 
     [Fact]
-    public async Task ListSessionsTouchedSinceAsync_WithOnlyOldFiles_ReturnsEmpty()
-    {
+    public async Task ListSessionsTouchedSinceAsync_WithOnlyOldFiles_ReturnsEmpty() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);
@@ -77,8 +71,7 @@ public sealed class DefaultSessionScannerTests
     }
 
     [Fact]
-    public async Task ListSessionsTouchedSinceAsync_IgnoresNonJsonlFiles()
-    {
+    public async Task ListSessionsTouchedSinceAsync_IgnoresNonJsonlFiles() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);
@@ -97,8 +90,7 @@ public sealed class DefaultSessionScannerTests
     }
 
     [Fact]
-    public async Task ListSessionsTouchedSinceAsync_SkipsEmptySessionIdFile()
-    {
+    public async Task ListSessionsTouchedSinceAsync_SkipsEmptySessionIdFile() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         var config = new AutoDreamConfig { ProjectDir = "/project" };
         var scanner = new DefaultSessionScanner(config, fs);

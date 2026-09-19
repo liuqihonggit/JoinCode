@@ -8,8 +8,7 @@ namespace Core.Goal;
 /// 提取自 GoalGraphEngine.ExecuteAsync 主循环，使调度策略可插拔（ADR lock-to-channel P2）。
 /// 调度器只负责"取 batch → 并发执行 → 检查终止"，节点执行逻辑通过 <see cref="ProcessNodeCompletionAsync"/> 委托回调。
 /// </remarks>
-public interface IGraphScheduler
-{
+public interface IGraphScheduler {
     /// <summary>
     /// 运行调度循环，直到抵达终止节点或取消。
     /// </summary>

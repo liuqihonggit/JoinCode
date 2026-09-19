@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Client;
 
-public sealed class McpToolProgress
-{
+public sealed class McpToolProgress {
     public required string Type { get; init; }
 
     public required string Status { get; init; }
@@ -21,8 +20,7 @@ public sealed class McpToolProgress
 
 public delegate void McpProgressCallback(McpToolProgress progress);
 
-public enum McpProgressStatus
-{
+public enum McpProgressStatus {
     [EnumValue("started")] Started,
     [EnumValue("progress")] Progress,
     [EnumValue("completed")] Completed,

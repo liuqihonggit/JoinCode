@@ -6,8 +6,7 @@ namespace JoinCode.Gui.Persistence;
 /// 与引擎 settings.json 解耦：settings.json 管引擎配置（与 CLI 共享），
 /// gui-preferences.json 管 GUI 专属偏好（CLI 不消费，避免破坏 CLI "温度不持久化" 语义）。
 /// </summary>
-public sealed class GuiPreferences
-{
+public sealed class GuiPreferences {
     /// <summary>采样温度（设置面板滑块，默认 0.7）</summary>
     public double Temperature { get; set; } = 0.7;
 

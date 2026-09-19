@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces.Cache;
 /// 粘贴内容缓存接口 — 对齐 TS pasteStore.ts
 /// 内容寻址持久化缓存：大文本超过阈值时不在历史中内联存储，而是存到 paste-cache 目录
 /// </summary>
-public interface IPasteStore : IStore
-{
+public interface IPasteStore : IStore {
     /// <summary>
     /// 计算粘贴文本的内容哈希 — 对齐 TS hashPastedText
     /// SHA-256 前 16 位十六进制，用作文件名

@@ -5,8 +5,7 @@ namespace Core.Context.Collapse;
 /// 上下文折叠服务实现：识别并折叠内容中的可折叠段，生成摘要以降低 token 用量
 /// </summary>
 [Register(typeof(IContextCollapseService), ServiceLifetime.Singleton)]
-public sealed partial class ContextCollapseService : ServiceEntity, IContextCollapseService
-{
+public sealed partial class ContextCollapseService : ServiceEntity, IContextCollapseService {
     private readonly ILogger<ContextCollapseService>? _logger;
     private readonly AsyncLock _collapseLock = new();
 
@@ -14,8 +13,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     /// 构造上下文折叠服务
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    public ContextCollapseService(ILogger<ContextCollapseService>? logger = null)
-    {
+    public ContextCollapseService(ILogger<ContextCollapseService>? logger = null) {
         _logger = logger;
     }
 
@@ -29,22 +27,18 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     public async Task<ContextCollapseResult> CollapseAsync(
         string content,
         ContextCollapseOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(content);
         options ??= ContextCollapseOptions.Balanced;
 
         using var guard = await _collapseLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_collapseLock.Name}' 等待超时");
-        try
-        {
+        try {
             var segments = await IdentifyCollapsibleSegmentsAsync(content, options, cancellationToken).ConfigureAwait(false);
             var originalTokenCount = EstimateTokenCount(content);
 
-            if (segments.Count == 0)
-            {
+            if (segments.Count == 0) {
                 _logger?.LogDebug("未发现可折叠段");
-                return new ContextCollapseResult
-                {
+                return new ContextCollapseResult {
                     Collapsed = false,
                     CollapsedContent = content,
                     OriginalTokenCount = originalTokenCount,
@@ -61,11 +55,9 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
                 .Take(options.MaxSegmentsToCollapse)
                 .ToList();
 
-            if (eligibleSegments.Count == 0)
-            {
+            if (eligibleSegments.Count == 0) {
                 _logger?.LogDebug("没有满足折叠条件的段");
-                return new ContextCollapseResult
-                {
+                return new ContextCollapseResult {
                     Collapsed = false,
                     CollapsedContent = content,
                     OriginalTokenCount = originalTokenCount,
@@ -79,8 +71,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
             var collapsedContent = content;
             var collapsedSegmentInfos = new List<CollapsedSegmentInfo>();
 
-            foreach (var segment in eligibleSegments)
-            {
+            foreach (var segment in eligibleSegments) {
                 var summary = await GenerateSummaryAsync(segment, options, cancellationToken).ConfigureAwait(false);
                 var summaryTokenCount = EstimateTokenCount(summary);
 
@@ -90,8 +81,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
                     ? segment.KeyReferences
                     : Array.Empty<string>();
 
-                collapsedSegmentInfos.Add(new CollapsedSegmentInfo
-                {
+                collapsedSegmentInfos.Add(new CollapsedSegmentInfo {
                     SegmentId = segment.Id,
                     Type = segment.Type,
                     OriginalTokenCount = segment.TokenCount,
@@ -108,8 +98,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
                 options.Strategy, eligibleSegments.Count, segments.Count - eligibleSegments.Count,
                 (double)collapsedTokenCount / originalTokenCount);
 
-            return new ContextCollapseResult
-            {
+            return new ContextCollapseResult {
                 Collapsed = true,
                 CollapsedContent = collapsedContent,
                 OriginalTokenCount = originalTokenCount,
@@ -119,12 +108,9 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
                 Strategy = options.Strategy,
                 CollapsedSegments = collapsedSegmentInfos
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "上下文折叠失败");
-            return new ContextCollapseResult
-            {
+            return new ContextCollapseResult {
                 Collapsed = false,
                 CollapsedContent = content,
                 OriginalTokenCount = EstimateTokenCount(content),
@@ -148,8 +134,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     public async Task<IReadOnlyList<CollapsibleSegment>> IdentifyCollapsibleSegmentsAsync(
         string content,
         ContextCollapseOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(content);
         options ??= ContextCollapseOptions.Balanced;
 
@@ -159,14 +144,11 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         var segmentId = 0;
 
         var codeBlockRanges = ExtractCodeBlockRanges(content);
-        foreach (var (start, end) in codeBlockRanges)
-        {
+        foreach (var (start, end) in codeBlockRanges) {
             var blockContent = content[start..end];
             var tokenCount = EstimateTokenCount(blockContent);
-            if (tokenCount >= options.MinSegmentTokenCount)
-            {
-                segments.Add(new CollapsibleSegment
-                {
+            if (tokenCount >= options.MinSegmentTokenCount) {
+                segments.Add(new CollapsibleSegment {
                     Id = $"seg_{++segmentId}",
                     Content = blockContent,
                     Type = CollapsibleSegmentType.CodeBlock,
@@ -180,13 +162,10 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         }
 
         var repetitivePatterns = DetectRepetitivePatterns(content);
-        foreach (var pattern in repetitivePatterns)
-        {
+        foreach (var pattern in repetitivePatterns) {
             var tokenCount = EstimateTokenCount(pattern.Content);
-            if (tokenCount >= options.MinSegmentTokenCount)
-            {
-                segments.Add(new CollapsibleSegment
-                {
+            if (tokenCount >= options.MinSegmentTokenCount) {
+                segments.Add(new CollapsibleSegment {
                     Id = $"seg_{++segmentId}",
                     Content = pattern.Content,
                     Type = CollapsibleSegmentType.RepetitivePattern,
@@ -200,14 +179,11 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         }
 
         var toolOutputs = ExtractToolOutputRanges(content);
-        foreach (var (start, end) in toolOutputs)
-        {
+        foreach (var (start, end) in toolOutputs) {
             var blockContent = content[start..end];
             var tokenCount = EstimateTokenCount(blockContent);
-            if (tokenCount >= options.MinSegmentTokenCount)
-            {
-                segments.Add(new CollapsibleSegment
-                {
+            if (tokenCount >= options.MinSegmentTokenCount) {
+                segments.Add(new CollapsibleSegment {
                     Id = $"seg_{++segmentId}",
                     Content = blockContent,
                     Type = CollapsibleSegmentType.ToolOutput,
@@ -233,16 +209,14 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     public async Task<string> GenerateSummaryAsync(
         CollapsibleSegment segment,
         ContextCollapseOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(segment);
         options ??= ContextCollapseOptions.Balanced;
 
         await Task.CompletedTask.ConfigureAwait(false);
 
         var maxLen = options.MaxSummaryLength;
-        var summary = segment.Type switch
-        {
+        var summary = segment.Type switch {
             CollapsibleSegmentType.CodeBlock => GenerateCodeBlockSummary(segment, maxLen),
             CollapsibleSegmentType.RepetitivePattern => GenerateRepetitiveSummary(segment, maxLen),
             CollapsibleSegmentType.ToolOutput => GenerateToolOutputSummary(segment, maxLen),
@@ -257,16 +231,13 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return summary;
     }
 
-    private static string GenerateCodeBlockSummary(CollapsibleSegment segment, int maxLen)
-    {
+    private static string GenerateCodeBlockSummary(CollapsibleSegment segment, int maxLen) {
         var contentSpan = segment.Content.AsSpan();
         var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
-        string firstLine = "";
-        foreach (var (start, length) in ranges)
-        {
+        var firstLine = "";
+        foreach (var (start, length) in ranges) {
             var lineSpan = contentSpan.Slice(start, length);
-            if (!lineSpan.IsWhiteSpace())
-            {
+            if (!lineSpan.IsWhiteSpace()) {
                 firstLine = lineSpan.ToString();
                 break;
             }
@@ -278,14 +249,12 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return StringTruncator.Truncate(summary, maxLen);
     }
 
-    private static string GenerateRepetitiveSummary(CollapsibleSegment segment, int maxLen)
-    {
+    private static string GenerateRepetitiveSummary(CollapsibleSegment segment, int maxLen) {
         var contentSpan = segment.Content.AsSpan();
         var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
-        string sample = "";
+        var sample = "";
         var nonEmptyCount = 0;
-        foreach (var (start, length) in ranges)
-        {
+        foreach (var (start, length) in ranges) {
             if (length == 0) continue;
             nonEmptyCount++;
             if (sample.Length == 0)
@@ -295,8 +264,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return StringTruncator.Truncate(summary, maxLen);
     }
 
-    private static string GenerateToolOutputSummary(CollapsibleSegment segment, int maxLen)
-    {
+    private static string GenerateToolOutputSummary(CollapsibleSegment segment, int maxLen) {
         var refs = segment.KeyReferences.Count > 0
             ? $" | Refs: {string.Join(", ", segment.KeyReferences.Take(3))}"
             : "";
@@ -304,39 +272,32 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return StringTruncator.Truncate(summary, maxLen);
     }
 
-    private static string GenerateDialogueSummary(CollapsibleSegment segment, int maxLen)
-    {
+    private static string GenerateDialogueSummary(CollapsibleSegment segment, int maxLen) {
         var lines = segment.Content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         var summary = $"[Historical dialogue: {lines.Length} messages]";
         return StringTruncator.Truncate(summary, maxLen);
     }
 
-    private static string GenerateProseSummary(CollapsibleSegment segment, int maxLen)
-    {
+    private static string GenerateProseSummary(CollapsibleSegment segment, int maxLen) {
         var content = segment.Content.Replace('\n', ' ').Trim();
-        if (content.Length <= maxLen)
-        {
+        if (content.Length <= maxLen) {
             return content;
         }
 
         var truncateAt = content.LastIndexOf(' ', maxLen - 3);
-        if (truncateAt <= 0)
-        {
+        if (truncateAt <= 0) {
             truncateAt = maxLen - 3;
         }
 
         return content[..truncateAt] + "...";
     }
 
-    private static int EstimateTokenCount(string content)
-    {
+    private static int EstimateTokenCount(string content) {
         return (int)Math.Ceiling(content.Length / 4.0);
     }
 
-    private static double CalculateCodeBlockPriority(string content, int tokenCount, CollapseStrategy strategy)
-    {
-        var basePriority = strategy switch
-        {
+    private static double CalculateCodeBlockPriority(string content, int tokenCount, CollapseStrategy strategy) {
+        var basePriority = strategy switch {
             CollapseStrategy.Aggressive => 0.7,
             CollapseStrategy.Conservative => 0.3,
             _ => 0.5
@@ -348,10 +309,8 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return Math.Min(1.0, basePriority + lengthBonus + hasManyLines);
     }
 
-    private static double CalculateRepetitivePriority(int tokenCount, int repetitionCount, CollapseStrategy strategy)
-    {
-        var basePriority = strategy switch
-        {
+    private static double CalculateRepetitivePriority(int tokenCount, int repetitionCount, CollapseStrategy strategy) {
+        var basePriority = strategy switch {
             CollapseStrategy.Aggressive => 0.8,
             CollapseStrategy.Conservative => 0.4,
             _ => 0.6
@@ -361,23 +320,19 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return Math.Min(1.0, basePriority + repetitionBonus);
     }
 
-    private static double CalculateToolOutputPriority(int tokenCount, CollapseStrategy strategy)
-    {
-        return strategy switch
-        {
+    private static double CalculateToolOutputPriority(int tokenCount, CollapseStrategy strategy) {
+        return strategy switch {
             CollapseStrategy.Aggressive => 0.9,
             CollapseStrategy.Conservative => 0.5,
             _ => 0.7
         };
     }
 
-    private static List<(int Start, int End)> ExtractCodeBlockRanges(string content)
-    {
+    private static List<(int Start, int End)> ExtractCodeBlockRanges(string content) {
         var ranges = new List<(int, int)>();
         var index = 0;
 
-        while (index < content.Length)
-        {
+        while (index < content.Length) {
             var start = content.IndexOf("```", index, StringComparison.Ordinal);
             if (start < 0) break;
 
@@ -391,32 +346,26 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return ranges;
     }
 
-    private static List<PatternRange> DetectRepetitivePatterns(string content)
-    {
+    private static List<PatternRange> DetectRepetitivePatterns(string content) {
         var patterns = new List<PatternRange>();
         var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
         var lineCounts = new Dictionary<string, (int Count, int FirstLine, int LastLine)>();
 
-        for (var i = 0; i < ranges.Count; i++)
-        {
+        for (var i = 0; i < ranges.Count; i++) {
             var (start, length) = ranges[i];
             var line = content.Substring(start, length);
             var trimmed = line.Trim();
             if (trimmed.Length < 10) continue;
 
             var key = trimmed.Length > 50 ? trimmed[..50] : trimmed;
-            if (lineCounts.TryGetValue(key, out var existing))
-            {
+            if (lineCounts.TryGetValue(key, out var existing)) {
                 lineCounts[key] = (existing.Count + 1, existing.FirstLine, i);
-            }
-            else
-            {
+            } else {
                 lineCounts[key] = (1, i, i);
             }
         }
 
-        foreach (var kvp in lineCounts)
-        {
+        foreach (var kvp in lineCounts) {
             if (kvp.Value.Count < 3) continue;
 
             var firstLine = kvp.Value.FirstLine;
@@ -424,10 +373,8 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
             var startOffset = GetOffsetForLine(content, firstLine);
             var endOffset = GetOffsetForLine(content, lastLine) + ranges[lastLine].Length;
 
-            if (endOffset > startOffset)
-            {
-                patterns.Add(new PatternRange
-                {
+            if (endOffset > startOffset) {
+                patterns.Add(new PatternRange {
                     Content = content[startOffset..Math.Min(endOffset, content.Length)],
                     StartOffset = startOffset,
                     EndOffset = Math.Min(endOffset, content.Length),
@@ -439,24 +386,20 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return patterns;
     }
 
-    private static List<(int Start, int End)> ExtractToolOutputRanges(string content)
-    {
+    private static List<(int Start, int End)> ExtractToolOutputRanges(string content) {
         var ranges = new List<(int, int)>();
         var index = 0;
 
-        while (index < content.Length)
-        {
+        while (index < content.Length) {
             var start = content.IndexOf("<tool_result>", index, StringComparison.Ordinal);
-            if (start < 0)
-            {
+            if (start < 0) {
                 start = content.IndexOf("<tool-output>", index, StringComparison.Ordinal);
             }
             if (start < 0) break;
 
             var endTag = "</tool_result>";
             var end = content.IndexOf(endTag, start, StringComparison.Ordinal);
-            if (end < 0)
-            {
+            if (end < 0) {
                 endTag = "</tool-output>";
                 end = content.IndexOf(endTag, start, StringComparison.Ordinal);
             }
@@ -478,17 +421,13 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         new(@"namespace\s+([\w.]+)"),
     ];
 
-    private static IReadOnlyList<string> ExtractKeyReferences(string content)
-    {
+    private static IReadOnlyList<string> ExtractKeyReferences(string content) {
         var refs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var regex in KeyReferencePatterns)
-        {
+        foreach (var regex in KeyReferencePatterns) {
             var matches = regex.Matches(content);
-            foreach (Match match in matches)
-            {
-                if (match.Groups.Count > 1)
-                {
+            foreach (Match match in matches) {
+                if (match.Groups.Count > 1) {
                     refs.Add(match.Groups[1].Value);
                 }
             }
@@ -497,19 +436,16 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
         return refs.Take(10).ToList();
     }
 
-    private static string ReplaceSegment(string content, string segment, string replacement)
-    {
+    private static string ReplaceSegment(string content, string segment, string replacement) {
         var index = content.IndexOf(segment, StringComparison.Ordinal);
         if (index < 0) return content;
 
         return string.Concat(content.AsSpan(0, index), replacement, content.AsSpan(index + segment.Length));
     }
 
-    private static int GetOffsetForLine(string content, int lineIndex)
-    {
+    private static int GetOffsetForLine(string content, int lineIndex) {
         var offset = 0;
-        for (var i = 0; i < lineIndex && offset < content.Length; i++)
-        {
+        for (var i = 0; i < lineIndex && offset < content.Length; i++) {
             offset = content.IndexOf('\n', offset) + 1;
             if (offset <= 0) return content.Length;
         }
@@ -519,14 +455,12 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     /// <summary>
     /// 释放资源
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _collapseLock.Dispose();
         base.Dispose();
     }
 
-    private sealed class PatternRange
-    {
+    private sealed class PatternRange {
         public string Content { get; init; } = string.Empty;
         public int StartOffset { get; init; }
         public int EndOffset { get; init; }

@@ -3,8 +3,7 @@ namespace Core.Query.Snip;
 /// <summary>
 /// 历史裁剪服务接口 — 按 Token 上限或消息数量裁剪对话历史
 /// </summary>
-public interface IHistorySnipService
-{
+public interface IHistorySnipService {
     /// <summary>
     /// 按选项裁剪对话历史
     /// </summary>
@@ -36,8 +35,7 @@ public interface IHistorySnipService
 /// <summary>
 /// 历史裁剪选项
 /// </summary>
-public sealed class SnipOptions
-{
+public sealed class SnipOptions {
     /// <summary>
     /// Token 上限（可选）
     /// </summary>
@@ -72,8 +70,7 @@ public sealed class SnipOptions
 /// <summary>
 /// 历史裁剪策略
 /// </summary>
-public enum SnipStrategy
-{
+public enum SnipStrategy {
     /// <summary>
     /// 优先裁剪最旧消息
     /// </summary>
@@ -93,8 +90,7 @@ public enum SnipStrategy
 /// <summary>
 /// 历史裁剪结果
 /// </summary>
-public sealed class SnipResult
-{
+public sealed class SnipResult {
     /// <summary>
     /// 移除的消息数量
     /// </summary>
@@ -120,8 +116,7 @@ public sealed class SnipResult
 /// 历史裁剪服务实现 — 按策略选择可移除消息并应用裁剪
 /// </summary>
 [Register(typeof(IHistorySnipService), ServiceLifetime.Singleton)]
-public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipService
-{
+public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipService {
     private const int EstimatedCharsPerToken = 4;
     private readonly ITelemetryService? _telemetryService;
 
@@ -129,8 +124,7 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
     /// 构造函数 — 注入遥测服务（可选）
     /// </summary>
     /// <param name="telemetryService">遥测服务</param>
-    public HistorySnipService(ITelemetryService? telemetryService = null)
-    {
+    public HistorySnipService(ITelemetryService? telemetryService = null) {
         _telemetryService = telemetryService;
     }
 
@@ -141,8 +135,7 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
     /// <param name="options">裁剪选项</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>裁剪结果</returns>
-    public Task<SnipResult> SnipHistoryAsync(MessageList history, SnipOptions options, CancellationToken ct = default)
-    {
+    public Task<SnipResult> SnipHistoryAsync(MessageList history, SnipOptions options, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(history);
         ArgumentNullException.ThrowIfNull(options);
 
@@ -164,14 +157,12 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
     /// <param name="maxTokens">Token 上限</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>裁剪结果</returns>
-    public Task<SnipResult> SnipByTokenLimitAsync(MessageList history, int maxTokens, CancellationToken ct = default)
-    {
+    public Task<SnipResult> SnipByTokenLimitAsync(MessageList history, int maxTokens, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(history);
 
         ct.ThrowIfCancellationRequested();
 
-        var options = new SnipOptions
-        {
+        var options = new SnipOptions {
             MaxTokens = maxTokens,
             PreserveSystemMessages = true,
             PreserveRecentMessages = true,
@@ -189,14 +180,12 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
     /// <param name="maxMessages">消息数量上限</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>裁剪结果</returns>
-    public Task<SnipResult> SnipByMessageCountAsync(MessageList history, int maxMessages, CancellationToken ct = default)
-    {
+    public Task<SnipResult> SnipByMessageCountAsync(MessageList history, int maxMessages, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(history);
 
         ct.ThrowIfCancellationRequested();
 
-        var options = new SnipOptions
-        {
+        var options = new SnipOptions {
             MaxMessages = maxMessages,
             PreserveSystemMessages = true,
             PreserveRecentMessages = true,
@@ -207,22 +196,18 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
         return SnipHistoryAsync(history, options, ct);
     }
 
-    private static List<int> GetRemovableIndices(MessageList history, SnipOptions options)
-    {
+    private static List<int> GetRemovableIndices(MessageList history, SnipOptions options) {
         var removable = new List<int>();
         var recentStartIndex = Math.Max(0, history.Count - options.RecentMessageCount);
 
-        for (var i = 0; i < history.Count; i++)
-        {
+        for (var i = 0; i < history.Count; i++) {
             var message = history[i];
 
-            if (options.PreserveSystemMessages && message.Role == MessageRole.System)
-            {
+            if (options.PreserveSystemMessages && message.Role == MessageRole.System) {
                 continue;
             }
 
-            if (options.PreserveRecentMessages && i >= recentStartIndex)
-            {
+            if (options.PreserveRecentMessages && i >= recentStartIndex) {
                 continue;
             }
 
@@ -232,10 +217,8 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
         return removable;
     }
 
-    private static List<int> SelectIndicesToRemove(MessageList history, List<int> removableIndices, SnipOptions options)
-    {
-        if (removableIndices.Count == 0)
-        {
+    private static List<int> SelectIndicesToRemove(MessageList history, List<int> removableIndices, SnipOptions options) {
+        if (removableIndices.Count == 0) {
             return [];
         }
 
@@ -243,13 +226,11 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
         var needsTokenSnip = options.MaxTokens.HasValue && totalTokens > options.MaxTokens.Value;
         var needsMessageSnip = options.MaxMessages.HasValue && history.Count > options.MaxMessages.Value;
 
-        if (!needsTokenSnip && !needsMessageSnip)
-        {
+        if (!needsTokenSnip && !needsMessageSnip) {
             return [];
         }
 
-        var indicesToRemove = options.Strategy switch
-        {
+        var indicesToRemove = options.Strategy switch {
             SnipStrategy.OldestFirst => removableIndices.OrderBy(i => i).ToList(),
             SnipStrategy.LargestFirst => removableIndices
                 .OrderByDescending(i => EstimateMessageTokens(history[i]))
@@ -266,16 +247,14 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
         var tokensRemoved = 0;
         var messagesRemoved = 0;
 
-        foreach (var index in indicesToRemove)
-        {
+        foreach (var index in indicesToRemove) {
             var wouldExceedMessageLimit = options.MaxMessages.HasValue &&
                 (history.Count - messagesRemoved) > options.MaxMessages.Value;
 
             var wouldExceedTokenLimit = options.MaxTokens.HasValue &&
                 (totalTokens - tokensRemoved) > options.MaxTokens.Value;
 
-            if (!wouldExceedMessageLimit && !wouldExceedTokenLimit)
-            {
+            if (!wouldExceedMessageLimit && !wouldExceedTokenLimit) {
                 break;
             }
 
@@ -287,12 +266,9 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
         return result;
     }
 
-    private static SnipResult ApplySnip(MessageList history, List<int> indicesToRemove)
-    {
-        if (indicesToRemove.Count == 0)
-        {
-            return new SnipResult
-            {
+    private static SnipResult ApplySnip(MessageList history, List<int> indicesToRemove) {
+        if (indicesToRemove.Count == 0) {
+            return new SnipResult {
                 MessagesRemoved = 0,
                 TokensRemoved = 0,
                 RemainingMessages = history.Count,
@@ -301,18 +277,15 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
         }
 
         var tokensRemoved = 0;
-        foreach (var index in indicesToRemove)
-        {
+        foreach (var index in indicesToRemove) {
             tokensRemoved += EstimateMessageTokens(history[index]);
         }
 
-        for (var i = indicesToRemove.Count - 1; i >= 0; i--)
-        {
+        for (var i = indicesToRemove.Count - 1; i >= 0; i--) {
             history.RemoveAt(indicesToRemove[i]);
         }
 
-        return new SnipResult
-        {
+        return new SnipResult {
             MessagesRemoved = indicesToRemove.Count,
             TokensRemoved = tokensRemoved,
             RemainingMessages = history.Count,
@@ -320,41 +293,32 @@ public sealed partial class HistorySnipService : ServiceEntity, IHistorySnipServ
         };
     }
 
-    private static int EstimateMessageTokens(ApiMessage message)
-    {
-        if (string.IsNullOrEmpty(message.Content))
-        {
+    private static int EstimateMessageTokens(ApiMessage message) {
+        if (string.IsNullOrEmpty(message.Content)) {
             return 0;
         }
 
         return (message.Content.Length + EstimatedCharsPerToken - 1) / EstimatedCharsPerToken;
     }
 
-    private static int EstimateTotalTokens(MessageList history)
-    {
+    private static int EstimateTotalTokens(MessageList history) {
         var total = 0;
-        foreach (var message in history)
-        {
+        foreach (var message in history) {
             total += EstimateMessageTokens(message);
         }
         return total;
     }
 
-    private static int GetMessageRelevanceScore(ApiMessage message)
-    {
+    private static int GetMessageRelevanceScore(ApiMessage message) {
         var score = 0;
 
-        if (message.Role == MessageRole.Assistant)
-        {
+        if (message.Role == MessageRole.Assistant) {
             score += 2;
-        }
-        else if (message.Role == MessageRole.User)
-        {
+        } else if (message.Role == MessageRole.User) {
             score += 3;
         }
 
-        if (!string.IsNullOrEmpty(message.Content))
-        {
+        if (!string.IsNullOrEmpty(message.Content)) {
             score += Math.Min(10, message.Content.Length / 100);
         }
 

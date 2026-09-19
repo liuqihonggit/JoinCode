@@ -7,19 +7,16 @@ namespace Core.Tests.State;
 /// Store&lt;TState&gt; 即发即弃持久化测试
 /// 验证 SetState/SetStateAsync 触发持久化、Dispose 取消持久化、异常不崩溃
 /// </summary>
-public sealed class StorePersistenceTests
-{
+public sealed class StorePersistenceTests {
     /// <summary>
     /// 模拟持久化实现 — 记录调用次数和最后一次 CancellationToken
     /// </summary>
-    private sealed class MockPersistence : IStorePersistence<string>
-    {
+    private sealed class MockPersistence : IStorePersistence<string> {
         private readonly SemaphoreSlim _saveSignal = new(0);
         public int SaveCallCount;
         public CancellationToken LastCancellationToken;
 
-        public Task SaveAsync(string state, CancellationToken ct)
-        {
+        public Task SaveAsync(string state, CancellationToken ct) {
             Interlocked.Increment(ref SaveCallCount);
             LastCancellationToken = ct;
             _saveSignal.Release();
@@ -34,12 +31,10 @@ public sealed class StorePersistenceTests
     /// <summary>
     /// 慢速持久化实现 — SaveAsync 永远不主动完成，仅靠 CancellationToken 取消
     /// </summary>
-    private sealed class SlowPersistence : IStorePersistence<string>
-    {
+    private sealed class SlowPersistence : IStorePersistence<string> {
         private readonly SemaphoreSlim _enteredSignal = new(0);
 
-        public async Task SaveAsync(string state, CancellationToken ct)
-        {
+        public async Task SaveAsync(string state, CancellationToken ct) {
             _enteredSignal.Release();
             await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(true);
         }
@@ -52,12 +47,10 @@ public sealed class StorePersistenceTests
     /// <summary>
     /// 抛异常持久化实现 — SaveAsync 总是抛出异常
     /// </summary>
-    private sealed class ThrowingPersistence : IStorePersistence<string>
-    {
+    private sealed class ThrowingPersistence : IStorePersistence<string> {
         private readonly SemaphoreSlim _enteredSignal = new(0);
 
-        public Task SaveAsync(string state, CancellationToken ct)
-        {
+        public Task SaveAsync(string state, CancellationToken ct) {
             _enteredSignal.Release();
             throw new InvalidOperationException("[VLT001] 模拟持久化失败");
         }
@@ -68,8 +61,7 @@ public sealed class StorePersistenceTests
     }
 
     [Fact(Timeout = 5000)]
-    public async Task SetState_WithPersistence_CallsSaveAsync()
-    {
+    public async Task SetState_WithPersistence_CallsSaveAsync() {
         // Arrange
         var persistence = new MockPersistence();
         using var store = new Store<string>("initial", persistence);
@@ -84,8 +76,7 @@ public sealed class StorePersistenceTests
     }
 
     [Fact(Timeout = 5000)]
-    public async Task SetStateAsync_WithPersistence_CallsSaveAsync()
-    {
+    public async Task SetStateAsync_WithPersistence_CallsSaveAsync() {
         // Arrange
         var persistence = new MockPersistence();
         using var store = new Store<string>("initial", persistence);
@@ -100,8 +91,7 @@ public sealed class StorePersistenceTests
     }
 
     [Fact(Timeout = 5000)]
-    public async Task Dispose_CancelsPendingPersistence()
-    {
+    public async Task Dispose_CancelsPendingPersistence() {
         // Arrange
         var persistence = new MockPersistence();
         var store = new Store<string>("initial", persistence);
@@ -121,8 +111,7 @@ public sealed class StorePersistenceTests
     }
 
     [Fact(Timeout = 5000)]
-    public async Task SetState_PersistenceThrows_DoesNotCrash()
-    {
+    public async Task SetState_PersistenceThrows_DoesNotCrash() {
         // Arrange
         var persistence = new ThrowingPersistence();
         using var store = new Store<string>("initial", persistence);
@@ -143,8 +132,7 @@ public sealed class StorePersistenceTests
     }
 
     [Fact(Timeout = 5000)]
-    public async Task SetState_PersistenceTimesOut_DoesNotCrash()
-    {
+    public async Task SetState_PersistenceTimesOut_DoesNotCrash() {
         // Arrange — SlowPersistence 的 SaveAsync 永远不主动完成
         var persistence = new SlowPersistence();
         var store = new Store<string>("initial", persistence);

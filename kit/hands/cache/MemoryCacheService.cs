@@ -8,7 +8,7 @@ namespace Services.Cache;
 /// </summary>
 [Register(typeof(ICacheService), ServiceLifetime.Singleton)]
 public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposable {
-    private MemoryCache _cache;
+    private readonly MemoryCache _cache;
     private readonly ILogger<MemoryCacheService>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly MemoryCacheEntryOptions _defaultEntryOptions;
@@ -162,8 +162,7 @@ public partial class MemoryCacheService : ServiceEntity, ICacheService, IDisposa
     /// <summary>
     /// 释放底层 MemoryCache 资源
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _cache?.Dispose();

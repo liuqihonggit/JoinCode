@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Insights;
 /// 会话 Facet 数据 — 对齐 TS insights.ts SessionFacets
 /// 由 LLM 从会话转录中提取的结构化洞察
 /// </summary>
-public sealed class SessionFacets
-{
+public sealed class SessionFacets {
     public string SessionId { get; init; } = string.Empty;
 
     /// <summary>用户根本想达成什么</summary>
@@ -45,8 +44,7 @@ public sealed class SessionFacets
 /// <summary>
 /// Facet 提取结果 — 包含提取的 facets 和缓存状态
 /// </summary>
-public sealed class FacetExtractionResult
-{
+public sealed class FacetExtractionResult {
     public required SessionFacets Facets { get; init; }
     public bool FromCache { get; init; }
 }
@@ -54,8 +52,7 @@ public sealed class FacetExtractionResult
 /// <summary>
 /// Multi-Clauding 检测结果 — 对齐 TS detectMultiClauding
 /// </summary>
-public sealed class MultiClaudingResult
-{
+public sealed class MultiClaudingResult {
     /// <summary>交替会话对数</summary>
     public int OverlapEvents { get; init; }
 

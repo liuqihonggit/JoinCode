@@ -4,8 +4,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// 文件未找到时的建议工具。
 /// 对齐 TS: findSimilarFile + suggestPathUnderCwd — file.ts
 /// </summary>
-public static class FileSuggestionHelper
-{
+public static class FileSuggestionHelper {
     /// <summary>
     /// 在同目录下查找同名但不同扩展名的文件。
     /// 对齐 TS: findSimilarFile — file.ts L178-207
@@ -14,10 +13,8 @@ public static class FileSuggestionHelper
     /// <param name="filePath">请求的文件路径</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>相似文件名；未找到返回 null</returns>
-    public static string? FindSimilarFile(string filePath, IFileSystem fs)
-    {
-        try
-        {
+    public static string? FindSimilarFile(string filePath, IFileSystem fs) {
+        try {
             var dir = Path.GetDirectoryName(filePath);
             if (string.IsNullOrEmpty(dir) || !fs.DirectoryExists(dir))
                 return null;
@@ -25,23 +22,19 @@ public static class FileSuggestionHelper
             var fileBaseName = Path.GetFileNameWithoutExtension(filePath);
             var fileExtension = Path.GetExtension(filePath);
 
-            foreach (var existingFile in fs.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var existingFile in fs.EnumerateFiles(dir, "*", SearchOption.TopDirectoryOnly)) {
                 var existingBaseName = Path.GetFileNameWithoutExtension(existingFile);
                 var existingExtension = Path.GetExtension(existingFile);
 
                 // 同名但不同扩展名
                 if (string.Equals(existingBaseName, fileBaseName, StringComparison.OrdinalIgnoreCase) &&
-                    !string.Equals(existingExtension, fileExtension, StringComparison.OrdinalIgnoreCase))
-                {
+                    !string.Equals(existingExtension, fileExtension, StringComparison.OrdinalIgnoreCase)) {
                     return Path.GetFileName(existingFile);
                 }
             }
 
             return null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -54,10 +47,8 @@ public static class FileSuggestionHelper
     /// <param name="requestedPath">请求的文件路径</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>修正后的路径；无法修正返回 null</returns>
-    public static string? SuggestPathUnderCwd(string requestedPath, IFileSystem fs)
-    {
-        try
-        {
+    public static string? SuggestPathUnderCwd(string requestedPath, IFileSystem fs) {
+        try {
             var cwd = fs.GetCurrentDirectory();
             var cwdParent = Path.GetDirectoryName(cwd);
             if (string.IsNullOrEmpty(cwdParent))
@@ -76,8 +67,7 @@ public static class FileSuggestionHelper
 
             if (!resolvedPath.StartsWith(cwdParentPrefix, StringComparison.OrdinalIgnoreCase) ||
                 resolvedPath.StartsWith(cwdPrefix, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(resolvedPath, cwd, StringComparison.OrdinalIgnoreCase))
-            {
+                string.Equals(resolvedPath, cwd, StringComparison.OrdinalIgnoreCase)) {
                 return null;
             }
 
@@ -86,9 +76,7 @@ public static class FileSuggestionHelper
             var correctedPath = Path.Combine(cwd, relFromParent);
 
             return fs.FileExists(correctedPath) ? correctedPath : null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -101,20 +89,15 @@ public static class FileSuggestionHelper
     /// <param name="filePath">请求的文件路径</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>带建议的错误消息</returns>
-    public static string BuildFileNotFoundMessage(string filePath, IFileSystem fs)
-    {
+    public static string BuildFileNotFoundMessage(string filePath, IFileSystem fs) {
         var message = $"File does not exist. Note: your current working directory is {fs.GetCurrentDirectory()}.";
 
         var cwdSuggestion = SuggestPathUnderCwd(filePath, fs);
-        if (cwdSuggestion is not null)
-        {
+        if (cwdSuggestion is not null) {
             message += $" Did you mean {cwdSuggestion}?";
-        }
-        else
-        {
+        } else {
             var similarFile = FindSimilarFile(filePath, fs);
-            if (similarFile is not null)
-            {
+            if (similarFile is not null) {
                 message += $" Did you mean {similarFile}?";
             }
         }
@@ -126,8 +109,7 @@ public static class FileSuggestionHelper
     /// 构建文件未找到的结构化诊断信息 — 包含路径、cwd、建议。
     /// GUI 可根据 Details/Suggestions 分区域渲染。
     /// </summary>
-    public static ToolDiagnostic BuildFileNotFoundDiagnostic(string filePath, IFileSystem fs)
-    {
+    public static ToolDiagnostic BuildFileNotFoundDiagnostic(string filePath, IFileSystem fs) {
         var message = BuildFileNotFoundMessage(filePath, fs);
         var details = new List<DiagnosticDetail>(3)
         {
@@ -137,23 +119,18 @@ public static class FileSuggestionHelper
 
         var suggestions = new List<string>(1);
         var cwdSuggestion = SuggestPathUnderCwd(filePath, fs);
-        if (cwdSuggestion is not null)
-        {
+        if (cwdSuggestion is not null) {
             suggestions.Add($"Did you mean {cwdSuggestion}?");
             details.Add(new DiagnosticDetail("suggestion", cwdSuggestion));
-        }
-        else
-        {
+        } else {
             var similarFile = FindSimilarFile(filePath, fs);
-            if (similarFile is not null)
-            {
+            if (similarFile is not null) {
                 suggestions.Add($"Did you mean {similarFile}?");
                 details.Add(new DiagnosticDetail("suggestion", similarFile));
             }
         }
 
-        if (suggestions.Count == 0)
-        {
+        if (suggestions.Count == 0) {
             suggestions.Add($"检查路径拼写、大小写，或使用 {FileToolNameEnumConstants.FileRead} 工具确认文件是否存在。");
         }
 

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <summary>
 /// 插件诊断类别(ADR 0098)
 /// </summary>
-public enum PluginDiagnosticKind
-{
+public enum PluginDiagnosticKind {
     /// <summary>撤销操作失败</summary>
     [EnumValue("revert_failed")]
     RevertFailed,
@@ -29,8 +28,7 @@ public enum PluginDiagnosticKind
 /// 插件诊断事件 — 结构化诊断(ADR 0098)
 /// <para>Kind 分类见 PluginDiagnosticKind,Suggestion 给出修复建议</para>
 /// </summary>
-public sealed class PluginDiagnostic
-{
+public sealed class PluginDiagnostic {
     /// <summary>插件标识</summary>
     public string PluginId { get; init; } = "";
     /// <summary>诊断类别</summary>

@@ -1,41 +1,34 @@
 namespace Core.Tests.Services.FeatureFlags;
 
-public sealed class FeatureFlagServiceTests : IAsyncDisposable
-{
+public sealed class FeatureFlagServiceTests : IAsyncDisposable {
     private readonly FeatureFlagService _service;
     private readonly HttpClient _httpClient;
     private bool _disposed;
 
-    public FeatureFlagServiceTests()
-    {
+    public FeatureFlagServiceTests() {
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-        var options = Options.Create(new FeatureFlagOptions
-        {
+        var options = Options.Create(new FeatureFlagOptions {
             EnableCache = false
         });
         _service = new FeatureFlagService(_httpClient, options);
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
         await _service.DisposeSafeAsync();
         _httpClient.DisposeSafe();
     }
 
-    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, FeatureFlag> GetCache(FeatureFlagService service)
-    {
+    private static global::System.Collections.Concurrent.ConcurrentDictionary<string, FeatureFlag> GetCache(FeatureFlagService service) {
         var cacheField = typeof(FeatureFlagService).BaseType!.GetField("_cache", global::System.Reflection.BindingFlags.NonPublic | global::System.Reflection.BindingFlags.Instance);
         return (global::System.Collections.Concurrent.ConcurrentDictionary<string, FeatureFlag>)cacheField!.GetValue(service)!;
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithEnabledFlag_ReturnsTrue()
-    {
+    public async Task IsEnabledAsync_WithEnabledFlag_ReturnsTrue() {
         var cache = GetCache(_service);
-        cache["test-feature"] = new FeatureFlag
-        {
+        cache["test-feature"] = new FeatureFlag {
             Key = "test-feature",
             Enabled = true,
             RolloutPercentage = 100.0
@@ -47,11 +40,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithDisabledFlag_ReturnsFalse()
-    {
+    public async Task IsEnabledAsync_WithDisabledFlag_ReturnsFalse() {
         var cache = GetCache(_service);
-        cache["disabled-feature"] = new FeatureFlag
-        {
+        cache["disabled-feature"] = new FeatureFlag {
             Key = "disabled-feature",
             Enabled = false,
             RolloutPercentage = 100.0
@@ -63,16 +54,14 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithNonExistentFlag_ReturnsTrue()
-    {
+    public async Task IsEnabledAsync_WithNonExistentFlag_ReturnsTrue() {
         var result = await _service.IsEnabledAsync("nonexistent-feature").ConfigureAwait(true);
 
         result.Should().BeTrue();
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithPercentageRollout_RespectsPercentage()
-    {
+    public async Task IsEnabledAsync_WithPercentageRollout_RespectsPercentage() {
         var cache = GetCache(_service);
         cache["full-rollout"] = new FeatureFlag { Key = "full-rollout", Enabled = true, RolloutPercentage = 100.0 };
         cache["zero-rollout"] = new FeatureFlag { Key = "zero-rollout", Enabled = true, RolloutPercentage = 0.0 };
@@ -85,16 +74,14 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RefreshAsync_WithNoEndpoint_DoesNotThrow()
-    {
+    public async Task RefreshAsync_WithNoEndpoint_DoesNotThrow() {
         var act = () => _service.RefreshAsync();
 
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task GetAllFlagsAsync_ReturnsAllFlags()
-    {
+    public async Task GetAllFlagsAsync_ReturnsAllFlags() {
         var cache = GetCache(_service);
         cache["flag-a"] = new FeatureFlag { Key = "flag-a", Enabled = true, RolloutPercentage = 100.0 };
         cache["flag-b"] = new FeatureFlag { Key = "flag-b", Enabled = false, RolloutPercentage = 50.0 };
@@ -105,27 +92,23 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Constructor_WithNullHttpClient_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullHttpClient_ThrowsArgumentNullException() {
         var act = () => new FeatureFlagService(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task Constructor_WithNullOptions_UsesDefaultOptions()
-    {
+    public async Task Constructor_WithNullOptions_UsesDefaultOptions() {
         await using var service = new FeatureFlagService(_httpClient, null);
 
         service.Should().NotBeNull();
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithTargetingRules_MatchingAttributes_ReturnsTrue()
-    {
+    public async Task IsEnabledAsync_WithTargetingRules_MatchingAttributes_ReturnsTrue() {
         var cache = GetCache(_service);
-        cache["targeted-feature"] = new FeatureFlag
-        {
+        cache["targeted-feature"] = new FeatureFlag {
             Key = "targeted-feature",
             Enabled = true,
             RolloutPercentage = 100.0,
@@ -138,11 +121,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithTargetingRules_MissingAttributes_ReturnsFalse()
-    {
+    public async Task IsEnabledAsync_WithTargetingRules_MissingAttributes_ReturnsFalse() {
         var cache = GetCache(_service);
-        cache["targeted-feature"] = new FeatureFlag
-        {
+        cache["targeted-feature"] = new FeatureFlag {
             Key = "targeted-feature",
             Enabled = true,
             RolloutPercentage = 100.0,
@@ -155,11 +136,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithTargetingRules_NonMatchingValue_ReturnsFalse()
-    {
+    public async Task IsEnabledAsync_WithTargetingRules_NonMatchingValue_ReturnsFalse() {
         var cache = GetCache(_service);
-        cache["targeted-feature"] = new FeatureFlag
-        {
+        cache["targeted-feature"] = new FeatureFlag {
             Key = "targeted-feature",
             Enabled = true,
             RolloutPercentage = 100.0,
@@ -172,11 +151,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsEnabledAsync_WithTargetingRules_NoRules_ReturnsTrue()
-    {
+    public async Task IsEnabledAsync_WithTargetingRules_NoRules_ReturnsTrue() {
         var cache = GetCache(_service);
-        cache["no-rules-feature"] = new FeatureFlag
-        {
+        cache["no-rules-feature"] = new FeatureFlag {
             Key = "no-rules-feature",
             Enabled = true,
             RolloutPercentage = 100.0
@@ -188,11 +165,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsEnabledAsync_RolloutBoundary_ExactlyAtHash_ReturnsFalse()
-    {
+    public async Task IsEnabledAsync_RolloutBoundary_ExactlyAtHash_ReturnsFalse() {
         var cache = GetCache(_service);
-        cache["a"] = new FeatureFlag
-        {
+        cache["a"] = new FeatureFlag {
             Key = "a",
             Enabled = true,
             RolloutPercentage = 97.0
@@ -204,11 +179,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsEnabledAsync_RolloutBoundary_OneAboveHash_ReturnsTrue()
-    {
+    public async Task IsEnabledAsync_RolloutBoundary_OneAboveHash_ReturnsTrue() {
         var cache = GetCache(_service);
-        cache["a"] = new FeatureFlag
-        {
+        cache["a"] = new FeatureFlag {
             Key = "a",
             Enabled = true,
             RolloutPercentage = 98.0
@@ -220,11 +193,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetVariantAsync_WithMatchingTypedDefaultValue_ReturnsValue()
-    {
+    public async Task GetVariantAsync_WithMatchingTypedDefaultValue_ReturnsValue() {
         var cache = GetCache(_service);
-        cache["variant-feature"] = new FeatureFlag
-        {
+        cache["variant-feature"] = new FeatureFlag {
             Key = "variant-feature",
             Enabled = true,
             DefaultValue = "variant-a"
@@ -236,11 +207,9 @@ public sealed class FeatureFlagServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetVariantAsync_WithMismatchedType_ReturnsDefaultValue()
-    {
+    public async Task GetVariantAsync_WithMismatchedType_ReturnsDefaultValue() {
         var cache = GetCache(_service);
-        cache["variant-feature"] = new FeatureFlag
-        {
+        cache["variant-feature"] = new FeatureFlag {
             Key = "variant-feature",
             Enabled = true,
             DefaultValue = 123

@@ -4,31 +4,24 @@ namespace Core.Tests.Agents.Coordinator;
 /// 跨通道可见性路由 E2E 测试 — 验证 InProcess + NamedPipe(用 InProcessMailbox 模拟) 混合成员下，
 /// AdminOnly/Private/Hidden/Public 可见性正确路由 — ADR 0109 决策8 + ADR 0111 决策6。
 /// </summary>
-public sealed class CrossChannelVisibilityE2ETests
-{
+public sealed class CrossChannelVisibilityE2ETests {
     private static async Task<List<CoordinatorMessage>> ReceiveWithTimeoutAsync(
-        IAsyncEnumerable<CoordinatorMessage> stream, int timeoutMs = 500)
-    {
+        IAsyncEnumerable<CoordinatorMessage> stream, int timeoutMs = 500) {
         using var cts = new CancellationTokenSource(timeoutMs);
         var result = new List<CoordinatorMessage>();
-        try
-        {
-            await foreach (var msg in stream.WithCancellation(cts.Token))
-            {
+        try {
+            await foreach (var msg in stream.WithCancellation(cts.Token)) {
                 result.Add(msg);
                 if (result.Count >= 1) break;
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
         return result;
     }
 
     private static async Task SetupHubAsync(
         MailboxHub hub, InProcessMailbox inProcess, InProcessMailbox namedPipe,
-        params (string AgentId, MailboxKind Kind, ChatRoomRole Role)[] agents)
-    {
-        foreach (var (agentId, kind, role) in agents)
-        {
+        params (string AgentId, MailboxKind Kind, ChatRoomRole Role)[] agents) {
+        foreach (var (agentId, kind, role) in agents) {
             if (kind == MailboxKind.InProcess)
                 await inProcess.RegisterAgentAsync(agentId);
             else
@@ -39,8 +32,7 @@ public sealed class CrossChannelVisibilityE2ETests
     }
 
     [Fact]
-    public async Task AdminOnly_MixedChannels_OnlyAdminsOnBothChannelsReceive()
-    {
+    public async Task AdminOnly_MixedChannels_OnlyAdminsOnBothChannelsReceive() {
         await using var inProcessMailbox = new InProcessMailbox();
         await using var namedPipeMailbox = new InProcessMailbox();
 
@@ -53,8 +45,7 @@ public sealed class CrossChannelVisibilityE2ETests
             ("admin_pipe", MailboxKind.NamedPipe, ChatRoomRole.Owner),
             ("member_pipe", MailboxKind.NamedPipe, ChatRoomRole.Member));
 
-        var message = new CoordinatorMessage
-        {
+        var message = new CoordinatorMessage {
             FromAgentId = "sender",
             ToAgentId = "broadcast",
             MessageType = "text",
@@ -79,8 +70,7 @@ public sealed class CrossChannelVisibilityE2ETests
     }
 
     [Fact]
-    public async Task Private_MixedChannels_OnlyTargetAgentReceives()
-    {
+    public async Task Private_MixedChannels_OnlyTargetAgentReceives() {
         await using var inProcessMailbox = new InProcessMailbox();
         await using var namedPipeMailbox = new InProcessMailbox();
 
@@ -92,8 +82,7 @@ public sealed class CrossChannelVisibilityE2ETests
             ("agent_b", MailboxKind.NamedPipe, ChatRoomRole.Member),
             ("agent_c", MailboxKind.InProcess, ChatRoomRole.Member));
 
-        var message = new CoordinatorMessage
-        {
+        var message = new CoordinatorMessage {
             FromAgentId = "agent_a",
             ToAgentId = "agent_b",
             MessageType = "text",
@@ -113,8 +102,7 @@ public sealed class CrossChannelVisibilityE2ETests
     }
 
     [Fact]
-    public async Task Hidden_MixedChannels_NoAgentReceives()
-    {
+    public async Task Hidden_MixedChannels_NoAgentReceives() {
         await using var inProcessMailbox = new InProcessMailbox();
         await using var namedPipeMailbox = new InProcessMailbox();
 
@@ -125,8 +113,7 @@ public sealed class CrossChannelVisibilityE2ETests
             ("agent_a", MailboxKind.InProcess, ChatRoomRole.Member),
             ("agent_b", MailboxKind.NamedPipe, ChatRoomRole.Member));
 
-        var message = new CoordinatorMessage
-        {
+        var message = new CoordinatorMessage {
             FromAgentId = "agent_a",
             ToAgentId = "broadcast",
             MessageType = "text",
@@ -145,8 +132,7 @@ public sealed class CrossChannelVisibilityE2ETests
     }
 
     [Fact]
-    public async Task Public_MixedChannels_AllAgentsOnBothChannelsReceive()
-    {
+    public async Task Public_MixedChannels_AllAgentsOnBothChannelsReceive() {
         await using var inProcessMailbox = new InProcessMailbox();
         await using var namedPipeMailbox = new InProcessMailbox();
 
@@ -157,8 +143,7 @@ public sealed class CrossChannelVisibilityE2ETests
             ("agent_inproc", MailboxKind.InProcess, ChatRoomRole.Member),
             ("agent_pipe", MailboxKind.NamedPipe, ChatRoomRole.Member));
 
-        var message = new CoordinatorMessage
-        {
+        var message = new CoordinatorMessage {
             FromAgentId = "sender",
             ToAgentId = "broadcast",
             MessageType = "text",
@@ -179,8 +164,7 @@ public sealed class CrossChannelVisibilityE2ETests
     }
 
     [Fact]
-    public async Task SystemNotice_MixedChannels_AllAgentsReceive()
-    {
+    public async Task SystemNotice_MixedChannels_AllAgentsReceive() {
         await using var inProcessMailbox = new InProcessMailbox();
         await using var namedPipeMailbox = new InProcessMailbox();
 
@@ -191,8 +175,7 @@ public sealed class CrossChannelVisibilityE2ETests
             ("agent_inproc", MailboxKind.InProcess, ChatRoomRole.Member),
             ("agent_pipe", MailboxKind.NamedPipe, ChatRoomRole.Member));
 
-        var message = new CoordinatorMessage
-        {
+        var message = new CoordinatorMessage {
             FromAgentId = "system",
             ToAgentId = "broadcast",
             MessageType = "system_notice",

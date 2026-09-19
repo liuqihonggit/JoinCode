@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// 基于命名管道的 HTTP 消息处理器
 /// </summary>
-public sealed class PipeHttpMessageHandler : HttpMessageHandler
-{
+public sealed class PipeHttpMessageHandler : HttpMessageHandler {
     private readonly string _pipeName;
     private readonly ILogger? _logger;
     private const int ConnectTimeoutMs = 5000;
@@ -15,8 +14,7 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler
     /// </summary>
     /// <param name="pipeName">管道名称</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public PipeHttpMessageHandler(string pipeName, ILogger? logger = null)
-    {
+    public PipeHttpMessageHandler(string pipeName, ILogger? logger = null) {
         ArgumentException.ThrowIfNullOrEmpty(pipeName);
 
         _pipeName = pipeName;
@@ -31,8 +29,7 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler
     /// <returns>HTTP 响应</returns>
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         ArgumentNullException.ThrowIfNull(request);
 
         _logger?.LogDebug("{Method} Sending HTTP request via pipe: {PipeName}", nameof(SendAsync), _pipeName);
@@ -43,8 +40,7 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler
             PipeDirection.InOut,
             PipeOptions.Asynchronous);
 
-        try
-        {
+        try {
             // 连接到管道服务器
             await pipeClient.ConnectAsync(ConnectTimeoutMs, cancellationToken);
             _logger?.LogDebug("Connected to pipe: {PipeName}", _pipeName);
@@ -64,27 +60,21 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler
 
             // 解析响应
             return HttpRequestSerializer.Deserialize(responseText);
-        }
-        catch (TimeoutException ex)
-        {
+        } catch (TimeoutException ex) {
             _logger?.LogError(ex, "Timeout connecting to pipe: {PipeName}", _pipeName);
             throw new HttpRequestException($"[TRN016] 管道连接超时: {_pipeName}", ex);
-        }
-        catch (IOException ex)
-        {
+        } catch (IOException ex) {
             _logger?.LogError(ex, "IO error communicating with pipe: {PipeName}", _pipeName);
             throw new HttpRequestException($"[TRN017] 管道通信错误: {_pipeName}", ex);
         }
     }
 
-    private static async Task<string> ReadResponseAsync(NamedPipeClientStream pipeClient, CancellationToken cancellationToken)
-    {
+    private static async Task<string> ReadResponseAsync(NamedPipeClientStream pipeClient, CancellationToken cancellationToken) {
         using var memoryStream = new MemoryStream();
         var buffer = new byte[ReadBufferSize];
 
         int bytesRead;
-        while ((bytesRead = await pipeClient.ReadAsync(buffer, cancellationToken)) > 0)
-        {
+        while ((bytesRead = await pipeClient.ReadAsync(buffer, cancellationToken)) > 0) {
             await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
         }
 
@@ -95,10 +85,8 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler
     /// 释放资源
     /// </summary>
     /// <param name="disposing">是否释放托管资源</param>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
+    protected override void Dispose(bool disposing) {
+        if (disposing) {
             _logger?.LogDebug("{Method} Disposing PipeHttpMessageHandler", nameof(Dispose));
         }
 

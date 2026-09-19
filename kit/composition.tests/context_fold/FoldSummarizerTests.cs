@@ -1,13 +1,11 @@
 namespace Core.Tests.ContextFold;
 
 
-public sealed class FoldSummarizerTests
-{
+public sealed class FoldSummarizerTests {
     private readonly Mock<IChatClient> _kernel;
     private readonly Mock<IQueryService> _queryService;
 
-    public FoldSummarizerTests()
-    {
+    public FoldSummarizerTests() {
         _kernel = new Mock<IChatClient>();
         _queryService = new Mock<IQueryService>();
         _kernel.Setup(k => k.GetChatCompletionService()).Returns(_queryService.Object);
@@ -16,16 +14,14 @@ public sealed class FoldSummarizerTests
     private FoldSummarizer CreateSut() => new(_kernel.Object, NullLogger<FoldSummarizer>.Instance);
 
     [Fact]
-    public async Task EmptyMessages_ReturnsEmpty()
-    {
+    public async Task EmptyMessages_ReturnsEmpty() {
         var sut = CreateSut();
         var result = await sut.SummarizeForFoldAsync([]);
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task ValidMessages_LlmReturnsSummary_ReturnsSummary()
-    {
+    public async Task ValidMessages_LlmReturnsSummary_ReturnsSummary() {
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "hello"),
@@ -43,8 +39,7 @@ public sealed class FoldSummarizerTests
     }
 
     [Fact]
-    public async Task LlmReturnsEmpty_ThrowsInvalidOperationException()
-    {
+    public async Task LlmReturnsEmpty_ThrowsInvalidOperationException() {
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "短消息"),
@@ -60,8 +55,7 @@ public sealed class FoldSummarizerTests
     }
 
     [Fact]
-    public async Task LlmThrows_PropagatesException()
-    {
+    public async Task LlmThrows_PropagatesException() {
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "测试消息"),
@@ -77,8 +71,7 @@ public sealed class FoldSummarizerTests
     }
 
     [Fact]
-    public async Task LlmReturnsMultiple_TakesFirst()
-    {
+    public async Task LlmReturnsMultiple_TakesFirst() {
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "input"),
@@ -98,8 +91,7 @@ public sealed class FoldSummarizerTests
     }
 
     [Fact]
-    public async Task Cancellation_ThrowsOperationCanceledException()
-    {
+    public async Task Cancellation_ThrowsOperationCanceledException() {
         var messages = new List<ApiMessage>
         {
             new(MessageRole.User, "input"),

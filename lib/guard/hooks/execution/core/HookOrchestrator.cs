@@ -4,8 +4,7 @@ namespace Core.Hooks;
 /// <summary>
 /// 钩子编排器内部接口（扩展 Abstractions.IHookOrchestrator，增加管理方法）
 /// </summary>
-public interface IHookOrchestratorInternal : IHookOrchestrator
-{
+public interface IHookOrchestratorInternal : IHookOrchestrator {
     /// <summary>
     /// 注册钩子执行器
     /// </summary>
@@ -22,8 +21,7 @@ public interface IHookOrchestratorInternal : IHookOrchestrator
 /// </summary>
 [Register(typeof(IHookOrchestratorInternal), ServiceLifetime.Singleton)]
 [Register(typeof(IHookOrchestrator), ServiceLifetime.Singleton)]
-public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorInternal
-{
+public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorInternal {
     private readonly IHookConfigurationManager _configurationManager;
     private readonly IHookExecutorFactory _executorFactory;
     private readonly ISessionHookManagerInternal _sessionHookManager;
@@ -49,8 +47,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
         IHookEventBroadcaster eventBroadcaster,
         IAsyncHookRegistry asyncHookRegistry,
         IHookConditionEvaluator conditionEvaluator,
-        ILogger<HookOrchestrator>? logger = null)
-    {
+        ILogger<HookOrchestrator>? logger = null) {
         _configurationManager = configurationManager;
         _executorFactory = executorFactory;
         _sessionHookManager = sessionHookManager;
@@ -63,8 +60,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     /// <inheritdoc />
     public async IAsyncEnumerable<HookResult> ExecuteHooksAsync(
         HookInput input,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken = default) {
         var hookId = Guid.NewGuid().ToString("N");
 
         _logger?.LogDebug(
@@ -77,22 +73,19 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var hasResult = false;
 
-        await foreach (var result in ExecuteHooksInternalAsync(input, cancellationToken))
-        {
+        await foreach (var result in ExecuteHooksInternalAsync(input, cancellationToken)) {
             hasResult = true;
             yield return result;
 
             if (result.PreventContinuation ||
-                result.Outcome == HookOutcome.Blocking)
-            {
+                result.Outcome == HookOutcome.Blocking) {
                 break;
             }
         }
 
         stopwatch.Stop();
 
-        _eventBroadcaster.BroadcastResponse(new BroadcastContext
-        {
+        _eventBroadcaster.BroadcastResponse(new BroadcastContext {
             HookId = hookId,
             HookName = $"hook-{input.Event}",
             HookEvent = input.Event,
@@ -111,10 +104,8 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
         Dictionary<string, JsonElement> payload,
         string? matcher = null,
         string? sessionId = null,
-        CancellationToken cancellationToken = default)
-    {
-        var input = new HookInput
-        {
+        CancellationToken cancellationToken = default) {
+        var input = new HookInput {
             Event = hookEvent,
             Matcher = matcher,
             SessionId = sessionId,
@@ -126,8 +117,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
 
     private async IAsyncEnumerable<HookResult> ExecuteHooksInternalAsync(
         HookInput input,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
+        [EnumeratorCancellation] CancellationToken cancellationToken) {
         var configHooks = await _configurationManager.GetHooksForEventAsync(
             input.Event,
             input.Matcher,
@@ -159,42 +149,34 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
             functionHooks.Count,
             input.Event);
 
-        foreach (var hookConfig in allHooks)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
+        foreach (var hookConfig in allHooks) {
+            if (cancellationToken.IsCancellationRequested) {
                 yield break;
             }
 
             var result = await ExecuteSingleHookAsync(hookConfig.Command, input, cancellationToken).ConfigureAwait(false);
 
-            if (result != null)
-            {
+            if (result != null) {
                 yield return result;
 
                 if (result.PreventContinuation ||
-                    result.Outcome == HookOutcome.Blocking)
-                {
+                    result.Outcome == HookOutcome.Blocking) {
                     yield break;
                 }
             }
         }
 
-        foreach (var functionHook in functionHooks)
-        {
-            if (cancellationToken.IsCancellationRequested)
-            {
+        foreach (var functionHook in functionHooks) {
+            if (cancellationToken.IsCancellationRequested) {
                 yield break;
             }
 
             var result = await ExecuteSingleHookAsync(functionHook, input, cancellationToken).ConfigureAwait(false);
 
-            if (result != null)
-            {
+            if (result != null) {
                 yield return result;
 
-                if (functionHook.Once == true && input.SessionId != null)
-                {
+                if (functionHook.Once == true && input.SessionId != null) {
                     await _sessionHookManager.RemoveFunctionHookAsync(
                         input.SessionId,
                         input.Event,
@@ -203,8 +185,7 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
                 }
 
                 if (result.PreventContinuation ||
-                    result.Outcome == HookOutcome.Blocking)
-                {
+                    result.Outcome == HookOutcome.Blocking) {
                     yield break;
                 }
             }
@@ -214,12 +195,9 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     private async Task<HookResult?> ExecuteSingleHookAsync(
         HookCommand hook,
         HookInput input,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (!await EvaluateConditionAsync(hook.If, input, cancellationToken).ConfigureAwait(false))
-            {
+        CancellationToken cancellationToken) {
+        try {
+            if (!await EvaluateConditionAsync(hook.If, input, cancellationToken).ConfigureAwait(false)) {
                 _logger?.LogDebug(
                     "Skipping hook {HookType} due to condition: {Condition}",
                     hook.Type,
@@ -242,13 +220,9 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
                 result.Outcome);
 
             return result;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(
                 ex,
                 "Failed to execute hook {HookType}",
@@ -263,20 +237,17 @@ public sealed partial class HookOrchestrator : ServiceEntity, IHookOrchestratorI
     private async Task<bool> EvaluateConditionAsync(
         string? condition,
         HookInput input,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         return await _conditionEvaluator.EvaluateAsync(condition, input, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public void RegisterExecutor(IHookExecutor executor)
-    {
+    public void RegisterExecutor(IHookExecutor executor) {
         _executorFactory.RegisterExecutor(executor);
     }
 
     /// <inheritdoc />
-    public void RegisterConfigurationProvider(HookSource source, IHookConfigurationProvider provider)
-    {
+    public void RegisterConfigurationProvider(HookSource source, IHookConfigurationProvider provider) {
         (_configurationManager as HookConfigurationManager)?.RegisterProvider(source, provider);
     }
 }

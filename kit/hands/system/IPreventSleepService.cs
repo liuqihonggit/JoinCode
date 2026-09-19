@@ -4,8 +4,7 @@ namespace Services.SystemPower;
 /// <summary>
 /// 防睡眠服务接口 — 提供阻止/恢复系统睡眠状态的能力
 /// </summary>
-public interface IPreventSleepService : IDisposable
-{
+public interface IPreventSleepService : IDisposable {
     /// <summary>
     /// 阻止系统进入睡眠状态
     /// </summary>

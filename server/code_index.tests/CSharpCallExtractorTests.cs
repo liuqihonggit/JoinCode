@@ -1,12 +1,10 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class CSharpCallExtractorTests
-{
+public sealed class CSharpCallExtractorTests {
     private readonly CSharpSymbolExtractor _symbolExtractor = new();
 
     [Fact]
-    public void ExtractCalls_DirectMethodCall_ReturnsCallEdge()
-    {
+    public void ExtractCalls_DirectMethodCall_ReturnsCallEdge() {
         var source = """
             public class Service
             {
@@ -27,8 +25,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_ConstructorCall_ReturnsConstructorKind()
-    {
+    public void ExtractCalls_ConstructorCall_ReturnsConstructorKind() {
         var source = """
             public class Service
             {
@@ -49,8 +46,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_StaticMethodCall_ReturnsStaticKind()
-    {
+    public void ExtractCalls_StaticMethodCall_ReturnsStaticKind() {
         var source = """
             public class Helper
             {
@@ -74,8 +70,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_MethodChaining_ReturnsMultipleCallEdges()
-    {
+    public void ExtractCalls_MethodChaining_ReturnsMultipleCallEdges() {
         var source = """
             public class Builder
             {
@@ -100,8 +95,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_NoCalls_ReturnsEmptyList()
-    {
+    public void ExtractCalls_NoCalls_ReturnsEmptyList() {
         var source = """
             public class Service
             {
@@ -117,8 +111,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_CallSiteLine_IsCorrect()
-    {
+    public void ExtractCalls_CallSiteLine_IsCorrect() {
         var source = """
             public class Service
             {
@@ -138,8 +131,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_InterfaceMethodCall_ReturnsVirtualKind()
-    {
+    public void ExtractCalls_InterfaceMethodCall_ReturnsVirtualKind() {
         var source = """
             public interface IRepository
             {
@@ -163,8 +155,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_BaseMethodCall_ReturnsVirtualKind()
-    {
+    public void ExtractCalls_BaseMethodCall_ReturnsVirtualKind() {
         var source = """
             public class Base
             {
@@ -188,8 +179,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_ThisMethodCall_ReturnsVirtualKind()
-    {
+    public void ExtractCalls_ThisMethodCall_ReturnsVirtualKind() {
         var source = """
             public class Service
             {
@@ -210,8 +200,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_LambdaCall_AttributedToEnclosingMethod()
-    {
+    public void ExtractCalls_LambdaCall_AttributedToEnclosingMethod() {
         var source = """
             public class Service
             {
@@ -232,8 +221,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_LocalFunctionCall_AttributedToLocalFunction()
-    {
+    public void ExtractCalls_LocalFunctionCall_AttributedToLocalFunction() {
         var source = """
             public class Service
             {
@@ -259,8 +247,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_PropertyAccessorCall_AttributedToProperty()
-    {
+    public void ExtractCalls_PropertyAccessorCall_AttributedToProperty() {
         var source = """
             public class Service
             {
@@ -281,8 +268,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_ConstructorInitializerBase_Detected()
-    {
+    public void ExtractCalls_ConstructorInitializerBase_Detected() {
         var source = """
             public class Base { }
             public class Derived : Base
@@ -299,8 +285,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_ConstructorInitializerThis_Detected()
-    {
+    public void ExtractCalls_ConstructorInitializerThis_Detected() {
         var source = """
             public class Service
             {
@@ -317,8 +302,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_ExtensionMethod_ResolvedToStaticClass()
-    {
+    public void ExtractCalls_ExtensionMethod_ResolvedToStaticClass() {
         var source = """
             public static class StringExtensions
             {
@@ -342,8 +326,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_NameofExpression_NotDetectedAsCall()
-    {
+    public void ExtractCalls_NameofExpression_NotDetectedAsCall() {
         var source = """
             public class Service
             {
@@ -362,8 +345,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_NameofWithMemberAccess_NotDetectedAsCall()
-    {
+    public void ExtractCalls_NameofWithMemberAccess_NotDetectedAsCall() {
         var source = """
             public class Service
             {
@@ -384,8 +366,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_EventHandlerSubscription_Detected()
-    {
+    public void ExtractCalls_EventHandlerSubscription_Detected() {
         var source = """
             public class Service
             {
@@ -406,8 +387,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_EventHandlerUnsubscription_Detected()
-    {
+    public void ExtractCalls_EventHandlerUnsubscription_Detected() {
         var source = """
             public class Service
             {
@@ -428,8 +408,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_RegularAssignment_NotEventHandler()
-    {
+    public void ExtractCalls_RegularAssignment_NotEventHandler() {
         var source = """
             public class Service
             {
@@ -448,8 +427,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_LambdaInLinqChain_AttributedToContainingMethod()
-    {
+    public void ExtractCalls_LambdaInLinqChain_AttributedToContainingMethod() {
         var source = """
             public class Item { public void Process() { } }
             public class Service
@@ -469,8 +447,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_PropertySetter_CallsAttributedToProperty()
-    {
+    public void ExtractCalls_PropertySetter_CallsAttributedToProperty() {
         var source = """
             public class Service
             {
@@ -492,8 +469,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_ExtensionMethodChain_ResolvesAll()
-    {
+    public void ExtractCalls_ExtensionMethodChain_ResolvesAll() {
         var source = """
             public static class StringExt
             {
@@ -518,8 +494,7 @@ public sealed class CSharpCallExtractorTests
     }
 
     [Fact]
-    public void ExtractCalls_ConstructorChainWithArgs_Detected()
-    {
+    public void ExtractCalls_ConstructorChainWithArgs_Detected() {
         var source = """
             public class Base
             {

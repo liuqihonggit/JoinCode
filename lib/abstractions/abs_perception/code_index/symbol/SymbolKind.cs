@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public enum SymbolKind
-{
+public enum SymbolKind {
     [EnumValue("class")]
     Class,
     [EnumValue("struct")]

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Build;
 /// <summary>
 /// 编译队列条目状态
 /// </summary>
-public enum BuildQueueEntryStatus
-{
+public enum BuildQueueEntryStatus {
     /// <summary>排队中</summary>
     [EnumValue("queued")] Queued,
 

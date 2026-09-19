@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// <summary>
 /// 上下文折叠决策器，根据 token 使用比例与阈值决定折叠动作、计算保护区边界与 token 估算
 /// </summary>
-public static class ContextFoldDecider
-{
+public static class ContextFoldDecider {
     /// <summary>
     /// 根据本次请求的 token 使用情况决定后续折叠动作
     /// </summary>
@@ -19,8 +18,7 @@ public static class ContextFoldDecider
         int ctxMax,
         bool alreadyFoldedThisTurn,
         ContextFoldThresholds? thresholds = null,
-        int deferralCount = 0)
-    {
+        int deferralCount = 0) {
         ArgumentNullException.ThrowIfNull(usage);
         if (ctxMax <= 0) throw new ArgumentOutOfRangeException(nameof(ctxMax));
 
@@ -41,8 +39,7 @@ public static class ContextFoldDecider
 
         if (action != ContextFoldDecision.None
             && usage.CacheReadInputTokens > 0
-            && deferralCount < t.DeferFoldLimit)
-        {
+            && deferralCount < t.DeferFoldLimit) {
             return ContextFoldDecision.Deferred;
         }
 
@@ -61,8 +58,7 @@ public static class ContextFoldDecider
         IReadOnlyList<ApiMessage> messages,
         IReadOnlyList<ToolSpec> toolSpecs,
         int ctxMax,
-        ContextFoldThresholds? thresholds = null)
-    {
+        ContextFoldThresholds? thresholds = null) {
         ArgumentNullException.ThrowIfNull(messages);
         ArgumentNullException.ThrowIfNull(toolSpecs);
         if (ctxMax <= 0) throw new ArgumentOutOfRangeException(nameof(ctxMax));
@@ -71,8 +67,7 @@ public static class ContextFoldDecider
         var estimate = EstimateTokenCount(messages, toolSpecs, t);
         var ratio = (double)estimate / ctxMax;
 
-        return new PreflightDecision
-        {
+        return new PreflightDecision {
             NeedsAction = ratio > t.EmergencyThreshold,
             EstimatedRatio = ratio
         };
@@ -88,20 +83,17 @@ public static class ContextFoldDecider
     public static int EstimateTokenCount(
         IReadOnlyList<ApiMessage> messages,
         IReadOnlyList<ToolSpec> toolSpecs,
-        ContextFoldThresholds? thresholds = null)
-    {
+        ContextFoldThresholds? thresholds = null) {
         var t = thresholds ?? ContextFoldThresholds.Default;
         var totalChars = 0;
 
-        for (var i = 0; i < messages.Count; i++)
-        {
+        for (var i = 0; i < messages.Count; i++) {
             var msg = messages[i];
             if (msg.Content != null)
                 totalChars += msg.Content.Length;
         }
 
-        for (var i = 0; i < toolSpecs.Count; i++)
-        {
+        for (var i = 0; i < toolSpecs.Count; i++) {
             var spec = toolSpecs[i];
             totalChars += spec.Name.Length;
             if (spec.Description != null) totalChars += spec.Description.Length;
@@ -123,8 +115,7 @@ public static class ContextFoldDecider
         IReadOnlyList<ApiMessage> messages,
         int ctxMax,
         bool aggressive,
-        ContextFoldThresholds? thresholds = null)
-    {
+        ContextFoldThresholds? thresholds = null) {
         ArgumentNullException.ThrowIfNull(messages);
         if (ctxMax <= 0) throw new ArgumentOutOfRangeException(nameof(ctxMax));
 
@@ -136,27 +127,23 @@ public static class ContextFoldDecider
         var charCount = 0;
         var boundary = messages.Count;
 
-        for (var i = messages.Count - 1; i >= 0; i--)
-        {
+        for (var i = messages.Count - 1; i >= 0; i--) {
             var msg = messages[i];
             var msgChars = msg.Content?.Length ?? 0;
 
-            if (charCount + msgChars > tailCharBudget)
-            {
+            if (charCount + msgChars > tailCharBudget) {
                 boundary = i + 1;
                 break;
             }
 
             charCount += msgChars;
 
-            if (msg.Role == MessageRole.User)
-            {
+            if (msg.Role == MessageRole.User) {
                 boundary = i;
             }
         }
 
-        if (boundary == messages.Count && charCount <= tailCharBudget)
-        {
+        if (boundary == messages.Count && charCount <= tailCharBudget) {
             boundary = 0;
         }
 
@@ -177,8 +164,7 @@ public static class ContextFoldDecider
         int headStart,
         int headEnd,
         int ctxMax,
-        ContextFoldThresholds? thresholds = null)
-    {
+        ContextFoldThresholds? thresholds = null) {
         ArgumentNullException.ThrowIfNull(messages);
         if (ctxMax <= 0) throw new ArgumentOutOfRangeException(nameof(ctxMax));
 
@@ -186,8 +172,7 @@ public static class ContextFoldDecider
         var headChars = 0;
         var totalChars = 0;
 
-        for (var i = 0; i < messages.Count; i++)
-        {
+        for (var i = 0; i < messages.Count; i++) {
             var msgChars = messages[i].Content?.Length ?? 0;
             totalChars += msgChars;
             if (i >= headStart && i < headEnd)
@@ -212,8 +197,7 @@ public static class ContextFoldDecider
     /// <param name="limit">Maximum tolerated consecutive no-progress folds before
     /// declaring the fold stuck.</param>
     /// <returns>True when the fold is considered stuck.</returns>
-    public static bool IsFoldStuck(int consecutiveNoProgressFolds, int limit)
-    {
+    public static bool IsFoldStuck(int consecutiveNoProgressFolds, int limit) {
         if (limit <= 0) throw new ArgumentOutOfRangeException(nameof(limit));
         return consecutiveNoProgressFolds >= limit;
     }
@@ -223,8 +207,7 @@ public static class ContextFoldDecider
     /// </summary>
     /// <param name="log">会话消息日志，原地改写</param>
     /// <returns>裁剪成功返回 true；末条非工具调用助手消息或日志为空返回 false</returns>
-    public static bool TrimTrailingToolCalls(AppendOnlyLog log)
-    {
+    public static bool TrimTrailingToolCalls(AppendOnlyLog log) {
         ArgumentNullException.ThrowIfNull(log);
 
         if (log.Count == 0) return false;
@@ -240,7 +223,7 @@ public static class ContextFoldDecider
         return true;
     }
 
-/// <summary>
+    /// <summary>
     /// 剪裁折叠保护区（tail boundary）之前的过期大工具结果 — 对齐 Reasonix Go 版 SnipStaleToolResults。
     /// 工具结果可重派生，重写其内容无需调用摘要器、不丢弃消息，只把超长内容压成"头尾行保留"的占位符。
     /// 幂等：已剪裁（带 snipped 标记）的结果不再重复剪裁；保护区内的结果原样保留。
@@ -250,8 +233,7 @@ public static class ContextFoldDecider
     /// <param name="ctxMax">上下文窗口大小。</param>
     /// <param name="thresholds">折叠阈值（默认使用 <see cref="ContextFoldThresholds.Default"/>）。</param>
     /// <returns>本次剪裁统计。</returns>
-    public static SnipStats SnipStaleToolResults(AppendOnlyLog log, int ctxMax, ContextFoldThresholds? thresholds = null)
-    {
+    public static SnipStats SnipStaleToolResults(AppendOnlyLog log, int ctxMax, ContextFoldThresholds? thresholds = null) {
         ArgumentNullException.ThrowIfNull(log);
         if (ctxMax <= 0) throw new ArgumentOutOfRangeException(nameof(ctxMax));
 
@@ -268,8 +250,7 @@ public static class ContextFoldDecider
         // 兜底：末条消息单独超预算时 ComputeTailBoundary 归零（整个日志被视作保护区）。
         // 对齐 Go tailStart 的 minKeep 下限，仍保护最近 RecentKeepTailMessages 条，
         // 允许剪裁更早的过期大工具结果 — 否则末条巨大时前面永不再剪。
-        if (boundary == 0 && messages.Count > t.RecentKeepTailMessages)
-        {
+        if (boundary == 0 && messages.Count > t.RecentKeepTailMessages) {
             boundary = messages.Count - t.RecentKeepTailMessages;
         }
 
@@ -278,28 +259,24 @@ public static class ContextFoldDecider
         var changed = false;
         var rewritten = new List<ApiMessage>(messages.Count);
 
-        for (var i = 0; i < messages.Count; i++)
-        {
+        for (var i = 0; i < messages.Count; i++) {
             var msg = messages[i];
             if (i < boundary && msg.Role == MessageRole.Tool
                 && (msg.Content?.Length ?? 0) >= minSnipChars
                 && msg.ContentBlocks is null or { Count: 0 }
-                && !IsSnipped(msg))
-            {
+                && !IsSnipped(msg)) {
                 var replacement = RewriteSnipped(msg, t);
 
                 // 剪裁必须承诺严格变短：行数仅略超 head+tail 阈值时，保留的
                 // 80 行加上 marker 头可能反超原文（SavedChars 变负、上下文膨胀）。
                 // 此时保持原文不动，跳过本轮剪裁。
-                if (replacement.Length >= (msg.Content?.Length ?? 0))
-                {
+                if (replacement.Length >= (msg.Content?.Length ?? 0)) {
                     rewritten.Add(msg);
                     continue;
                 }
 
                 saved += (msg.Content?.Length ?? 0) - replacement.Length;
-                rewritten.Add(new ApiMessage(msg.Role, replacement, msg.Metadata, msg.ModelId, msg.TokenUsage)
-                {
+                rewritten.Add(new ApiMessage(msg.Role, replacement, msg.Metadata, msg.ModelId, msg.TokenUsage) {
                     ContentBlocks = msg.ContentBlocks ?? []
                 });
                 index++;
@@ -310,8 +287,7 @@ public static class ContextFoldDecider
             rewritten.Add(msg);
         }
 
-        if (changed)
-        {
+        if (changed) {
             log.CompactInPlace(rewritten);
         }
 
@@ -326,8 +302,7 @@ public static class ContextFoldDecider
     /// 把工具结果压缩为"头 N 行 + 省略标记 + 尾 M 行"占位符，保留 head/tail 行语义。
     /// 对齐 Reasonix Go 版 snipToolResult 的头尾行保留策略（side-effecting 默认 40/40）。
     /// </summary>
-    private static string RewriteSnipped(ApiMessage msg, ContextFoldThresholds t)
-    {
+    private static string RewriteSnipped(ApiMessage msg, ContextFoldThresholds t) {
         var content = (msg.Content ?? string.Empty).TrimEnd('\n', '\r');
         var toolName = msg.ExtractToolName() ?? "tool";
         var span = content.AsSpan();
@@ -337,11 +312,9 @@ public static class ContextFoldDecider
         string tail;
         int omitted;
 
-        if (ranges.Count > t.SnipHeadLines + t.SnipTailLines)
-        {
+        if (ranges.Count > t.SnipHeadLines + t.SnipTailLines) {
             var headSb = new StringBuilder(t.SnipHeadLines * 80);
-            for (int i = 0; i < t.SnipHeadLines; i++)
-            {
+            for (var i = 0; i < t.SnipHeadLines; i++) {
                 if (i > 0) headSb.Append('\n');
                 var (hs, hl) = ranges[i];
                 headSb.Append(span.Slice(hs, hl));
@@ -350,8 +323,7 @@ public static class ContextFoldDecider
 
             var tailSb = new StringBuilder(t.SnipTailLines * 80);
             var tailStart = ranges.Count - t.SnipTailLines;
-            for (int i = tailStart; i < ranges.Count; i++)
-            {
+            for (var i = tailStart; i < ranges.Count; i++) {
                 if (i > tailStart) tailSb.Append('\n');
                 var (ts, tl) = ranges[i];
                 tailSb.Append(span.Slice(ts, tl));
@@ -371,23 +343,19 @@ public static class ContextFoldDecider
                $"{head}\n[... {content.Length - headChars - tailChars} chars omitted ...]\n{tail}";
     }
 
-    private static bool HasToolCalls(ApiMessage msg)
-    {
+    private static bool HasToolCalls(ApiMessage msg) {
         return msg.Metadata != null &&
             (msg.Metadata.ContainsKey("ToolCall") || msg.Metadata.ContainsKey("ToolCalls"));
     }
 
-    private static IReadOnlyList<ApiMessage> RemoveLastAndKeepText(AppendOnlyLog log, bool keepText, ApiMessage last)
-    {
+    private static IReadOnlyList<ApiMessage> RemoveLastAndKeepText(AppendOnlyLog log, bool keepText, ApiMessage last) {
         var result = new List<ApiMessage>(log.Count);
 
-        for (var i = 0; i < log.Count - 1; i++)
-        {
+        for (var i = 0; i < log.Count - 1; i++) {
             result.Add(log[i]);
         }
 
-        if (keepText)
-        {
+        if (keepText) {
             result.Add(new ApiMessage(MessageRole.Assistant, last.Content));
         }
 

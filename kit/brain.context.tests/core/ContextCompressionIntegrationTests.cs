@@ -1,20 +1,17 @@
 
 namespace Core.Tests.Context;
 
-public partial class ContextCompressionIntegrationTests
-{
+public partial class ContextCompressionIntegrationTests {
     private readonly ITestOutputHelper _output;
     [Inject] private readonly ILogger<ContextHierarchy> _logger;
 
-    public ContextCompressionIntegrationTests(ITestOutputHelper output)
-    {
+    public ContextCompressionIntegrationTests(ITestOutputHelper output) {
         _output = output;
         _logger = new Testing.Common.Logging.TestOutputLogger<ContextHierarchy>(output);
     }
 
     [Fact]
-    public async Task CompressAsync_WithCodeContent_ShouldReduceTokenCount()
-    {
+    public async Task CompressAsync_WithCodeContent_ShouldReduceTokenCount() {
         // Arrange
         var factory = new CompressionStrategyFactory();
         var compressor = new ContextCompressor(factory);
@@ -44,8 +41,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public async Task CompressAsync_WithDialogueContent_ShouldPreserveKeyDecisions()
-    {
+    public async Task CompressAsync_WithDialogueContent_ShouldPreserveKeyDecisions() {
         // Arrange
         var factory = new CompressionStrategyFactory();
         var compressor = new ContextCompressor(factory);
@@ -63,8 +59,7 @@ public partial class ContextCompressionIntegrationTests
         result.CompressedLength.Should().BeLessThan(originalLength);
 
         // 验证关键决策点被保留
-        if (result.CompressedContent.Contains("[决策]"))
-        {
+        if (result.CompressedContent.Contains("[决策]")) {
             _output.WriteLine("关键决策点已被保留");
         }
 
@@ -73,8 +68,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public async Task CompressBatchAsync_MultipleContents_ShouldCompressAll()
-    {
+    public async Task CompressBatchAsync_MultipleContents_ShouldCompressAll() {
         // Arrange
         var factory = new CompressionStrategyFactory();
         var compressor = new ContextCompressor(factory);
@@ -93,15 +87,13 @@ public partial class ContextCompressionIntegrationTests
         results.Should().HaveCount(4);
         results.All(r => r.IsSuccess).Should().BeTrue();
 
-        foreach (var result in results)
-        {
+        foreach (var result in results) {
             _output.WriteLine($"内容 {result.ContentId}: 压缩比 {result.CompressionRatio:P2}, 耗时 {result.ProcessingTimeMs}ms");
         }
     }
 
     [Fact]
-    public void CanCompress_WithValidContent_ShouldReturnTrue()
-    {
+    public void CanCompress_WithValidContent_ShouldReturnTrue() {
         // Arrange
         var factory = new CompressionStrategyFactory();
         var compressor = new ContextCompressor(factory);
@@ -115,8 +107,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public void CanCompress_WithShortContent_ShouldReturnFalse()
-    {
+    public void CanCompress_WithShortContent_ShouldReturnFalse() {
         // Arrange
         var factory = new CompressionStrategyFactory();
         var compressor = new ContextCompressor(factory);
@@ -127,8 +118,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public void GetCompressionRatio_ShouldReturnEstimatedRatio()
-    {
+    public void GetCompressionRatio_ShouldReturnEstimatedRatio() {
         // Arrange
         var factory = new CompressionStrategyFactory();
         var compressor = new ContextCompressor(factory);
@@ -145,12 +135,10 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public async Task ContextHierarchy_WithMultipleLayers_ShouldManageLayersCorrectly()
-    {
+    public async Task ContextHierarchy_WithMultipleLayers_ShouldManageLayersCorrectly() {
         // Arrange
         var hierarchy = ContextHierarchy.Create(
-            new ContextHierarchyOptions
-            {
+            new ContextHierarchyOptions {
                 TokenThreshold = 4000,
                 AutoCompressionEnabled = false
             },
@@ -189,8 +177,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public async Task ContextHierarchy_PromoteLayer_ShouldCompressContent()
-    {
+    public async Task ContextHierarchy_PromoteLayer_ShouldCompressContent() {
         // Arrange
         var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
@@ -218,8 +205,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public async Task ContextHierarchy_DemoteLayer_ShouldRestoreContent()
-    {
+    public async Task ContextHierarchy_DemoteLayer_ShouldRestoreContent() {
         // Arrange
         var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
@@ -241,8 +227,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public async Task ContextHierarchy_GetEffectiveContext_ShouldMergeLayers()
-    {
+    public async Task ContextHierarchy_GetEffectiveContext_ShouldMergeLayers() {
         // Arrange
         var hierarchy = ContextHierarchy.Create(
             new ContextHierarchyOptions { AutoCompressionEnabled = false },
@@ -276,14 +261,12 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public async Task FullCompressionWorkflow_WithContextHierarchy_ShouldReduceTokens()
-    {
+    public async Task FullCompressionWorkflow_WithContextHierarchy_ShouldReduceTokens() {
         // Arrange
         var factory = new CompressionStrategyFactory();
         var compressor = new ContextCompressor(factory);
         var hierarchy = ContextHierarchy.Create(
-            new ContextHierarchyOptions
-            {
+            new ContextHierarchyOptions {
                 TokenThreshold = 2000,
                 AutoCompressionEnabled = false
             },
@@ -323,8 +306,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public async Task Performance_LargeContextCompression_ShouldCompleteInReasonableTime()
-    {
+    public async Task Performance_LargeContextCompression_ShouldCompleteInReasonableTime() {
         // Arrange
         var factory = new CompressionStrategyFactory();
         var compressor = new ContextCompressor(factory);
@@ -350,8 +332,7 @@ public partial class ContextCompressionIntegrationTests
     }
 
     [Fact]
-    public void CompressionStrategyFactory_RegisterAndRetrieve_ShouldWork()
-    {
+    public void CompressionStrategyFactory_RegisterAndRetrieve_ShouldWork() {
         // Arrange
         var factory = new CompressionStrategyFactory();
 
@@ -369,22 +350,19 @@ public partial class ContextCompressionIntegrationTests
         var allStrategies = factory.GetAllStrategies().ToList();
         allStrategies.Should().NotBeEmpty();
 
-        foreach (var strategy in allStrategies)
-        {
+        foreach (var strategy in allStrategies) {
             _output.WriteLine($"策略: {strategy.Name} - {strategy.Description}");
         }
     }
 
     [Fact]
-    public async Task CodeContentCompressor_WithRealCode_ShouldPreserveSignatures()
-    {
+    public async Task CodeContentCompressor_WithRealCode_ShouldPreserveSignatures() {
         // Arrange - 使用足够长的代码以触发压缩
         var compressor = new CodeContentCompressor();
         var code = GenerateLargeCodeContent(20); // 生成足够长的代码
 
         // 使用 MaxMethodBodyLines = 3 来保留短方法体，压缩长方法体
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             TargetCompressionRatio = 0.5,
             PreserveSignatures = true,
             PreserveImports = true,
@@ -410,8 +388,7 @@ public partial class ContextCompressionIntegrationTests
 
     #region Helper Methods
 
-    private static string GenerateLargeCodeContent(int methodCount)
-    {
+    private static string GenerateLargeCodeContent(int methodCount) {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Generic;");
@@ -422,15 +399,13 @@ public partial class ContextCompressionIntegrationTests
         sb.AppendLine("    public partial class GeneratedClass");
         sb.AppendLine("    {");
 
-        for (int i = 0; i < methodCount; i++)
-        {
+        for (var i = 0; i < methodCount; i++) {
             sb.AppendLine($"        private int _field{i};");
         }
 
         sb.AppendLine();
 
-        for (int i = 0; i < methodCount; i++)
-        {
+        for (var i = 0; i < methodCount; i++) {
             sb.AppendLine($"        public void Method{i}(int param{i})");
             sb.AppendLine("        {");
             sb.AppendLine($"            var localVar{i} = param{i} * 2;");
@@ -448,12 +423,10 @@ public partial class ContextCompressionIntegrationTests
         return sb.ToString();
     }
 
-    private static string GenerateDialogueContent(int roundCount)
-    {
+    private static string GenerateDialogueContent(int roundCount) {
         var sb = new System.Text.StringBuilder();
 
-        for (int i = 0; i < roundCount; i++)
-        {
+        for (var i = 0; i < roundCount; i++) {
             sb.AppendLine($"[User] Message {i}: Can you help me with this code?");
             sb.AppendLine($"[Assistant] Response {i}: Sure, here's how you can do it...");
             sb.AppendLine($"    You need to implement the following:");
@@ -461,8 +434,7 @@ public partial class ContextCompressionIntegrationTests
             sb.AppendLine($"    2. Add the required methods");
             sb.AppendLine($"    3. Test your implementation");
 
-            if (i % 5 == 0)
-            {
+            if (i % 5 == 0) {
                 sb.AppendLine("    [决策] We decided to use approach A instead of B");
             }
 
@@ -472,12 +444,10 @@ public partial class ContextCompressionIntegrationTests
         return sb.ToString();
     }
 
-    private static string GenerateTextContent(int paragraphCount)
-    {
+    private static string GenerateTextContent(int paragraphCount) {
         var sb = new System.Text.StringBuilder();
 
-        for (int i = 0; i < paragraphCount; i++)
-        {
+        for (var i = 0; i < paragraphCount; i++) {
             sb.AppendLine($"Paragraph {i}: This is a sample text content that needs to be compressed. " +
                 "It contains various information about the system design and implementation details. " +
                 "The content is intentionally verbose to test compression effectiveness. " +

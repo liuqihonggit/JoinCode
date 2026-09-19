@@ -3,16 +3,14 @@ namespace Integration.Tests.Guard.Permission;
 /// <summary>
 /// AgentToolRestrictions 单元测试 — 验证工具在各权限模式下的允许/拒绝
 /// </summary>
-public sealed class AgentToolRestrictionsTests
-{
+public sealed class AgentToolRestrictionsTests {
     private readonly AgentToolRestrictions _restrictions = new();
 
     [Theory]
     [InlineData(SystemToolNameEnumConstants.TaskOutput, PermissionMode.Auto)]
     [InlineData(SystemToolNameEnumConstants.TaskOutput, PermissionMode.Plan)]
     [InlineData(SystemToolNameEnumConstants.TaskOutput, PermissionMode.Ask)]
-    public void IsToolAllowedForMode_TaskOutput_ShouldBeAllowed(string toolName, PermissionMode mode)
-    {
+    public void IsToolAllowedForMode_TaskOutput_ShouldBeAllowed(string toolName, PermissionMode mode) {
         // Act
         var isAllowed = _restrictions.IsToolAllowedForMode(toolName, mode);
 
@@ -23,8 +21,7 @@ public sealed class AgentToolRestrictionsTests
     [Theory]
     [InlineData(TaskToolNameEnumConstants.TaskList, PermissionMode.Auto)]
     [InlineData(TaskToolNameEnumConstants.TaskGet, PermissionMode.Auto)]
-    public void IsToolAllowedForMode_KnownTaskTools_ShouldBeAllowed(string toolName, PermissionMode mode)
-    {
+    public void IsToolAllowedForMode_KnownTaskTools_ShouldBeAllowed(string toolName, PermissionMode mode) {
         // Act
         var isAllowed = _restrictions.IsToolAllowedForMode(toolName, mode);
 
@@ -35,8 +32,7 @@ public sealed class AgentToolRestrictionsTests
     [Theory]
     [InlineData(ShellToolNameEnumConstants.Bash, PermissionMode.Auto)]
     [InlineData(ShellToolNameEnumConstants.Powershell, PermissionMode.Auto)]
-    public void IsToolAllowedForMode_SensitiveTools_ShouldBeAllowedInAuto(string toolName, PermissionMode mode)
-    {
+    public void IsToolAllowedForMode_SensitiveTools_ShouldBeAllowedInAuto(string toolName, PermissionMode mode) {
         // Act
         var isAllowed = _restrictions.IsToolAllowedForMode(toolName, mode);
 
@@ -46,8 +42,7 @@ public sealed class AgentToolRestrictionsTests
     }
 
     [Fact]
-    public void PermissionConfig_CreateDefault_ShouldIncludeTaskOutputInAutoApproved()
-    {
+    public void PermissionConfig_CreateDefault_ShouldIncludeTaskOutputInAutoApproved() {
         // Act
         var config = PermissionConfig.CreateDefault();
 

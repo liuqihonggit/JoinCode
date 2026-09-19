@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 模型目录接口 - 提供模型列表、别名解析、能力查询
 /// </summary>
-public interface IModelCatalog
-{
+public interface IModelCatalog {
     /// <summary>
     /// 获取指定提供商的模型列表
     /// </summary>

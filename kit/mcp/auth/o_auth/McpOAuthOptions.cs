@@ -4,8 +4,7 @@ namespace McpClient;
 /// <summary>
 /// MCP OAuth 认证选项 — 配置 OAuth 2.0 PKCE 授权流程的参数
 /// </summary>
-public sealed class McpOAuthOptions
-{
+public sealed class McpOAuthOptions {
     /// <summary>
     /// OAuth 客户端 ID
     /// </summary>

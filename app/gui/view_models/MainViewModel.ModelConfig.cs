@@ -3,8 +3,7 @@ namespace JoinCode.Gui.ViewModels;
 /// <summary>
 /// MainViewModel 模型/连接配置 partial — 供应商连接下拉、模型下拉、settings.json 热重载监控。
 /// </summary>
-public sealed partial class MainViewModel
-{
+public sealed partial class MainViewModel {
     /// <summary>模型下拉选项 — 委托给 ConnectionDropdownManager，供应商切换时清空重填</summary>
     public ObservableCollection<ModelOptionItem> ModelOptions => _connectionDropdown.ModelOptions;
 
@@ -20,10 +19,8 @@ public sealed partial class MainViewModel
     private ModelOptionItem? _selectedModelOption;
 
     /// <summary>用户切换模型下拉项时回写共享配置（绑定同一个配置源，下次请求引擎生效）</summary>
-    partial void OnSelectedModelOptionChanged(ModelOptionItem? value)
-    {
-        if (value is not null && value.Id != _session.CurrentModelId)
-        {
+    partial void OnSelectedModelOptionChanged(ModelOptionItem? value) {
+        if (value is not null && value.Id != _session.CurrentModelId) {
             SelectedModel = value.Id;
         }
     }
@@ -46,8 +43,7 @@ public sealed partial class MainViewModel
     /// <summary>当前是否连接 Mock 引擎（驱动状态提示与 Mock 徽标显隐）</summary>
     public bool IsMockConnection => _session is PlaceholderChatSession;
 
-    partial void OnSelectedConnectionChanged(ConnectionOptionItem? value)
-    {
+    partial void OnSelectedConnectionChanged(ConnectionOptionItem? value) {
         ViewModelDiagnosticsLogger.WriteDebug($"OnSelectedConnectionChanged: id={value?.Id} refresh={_gate.RefreshingConfig} realSession={_realSession is not null} session={_session.GetType().Name} currentVendor={_session.CurrentVendor}");
         if (value is null || _gate.RefreshingConfig)
             return;
@@ -57,8 +53,7 @@ public sealed partial class MainViewModel
         StatusText = _realSession is not null
             ? $"已连接真实引擎 {value.DisplayText}"
             : $"已选择供应商 {value.DisplayText}（引擎加载中…）";
-        try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync ok: id={value.Id}"); }
-        catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync FAIL: {ex.Message}"); }
+        try { Task.Run(() => _session.SetVendorAsync(value.Id)).Wait(Timeout); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync ok: id={value.Id}"); } catch (Exception ex) { ViewModelDiagnosticsLogger.WriteError(ex); ViewModelDiagnosticsLogger.WriteDebug($"SetVendorAsync FAIL: {ex.Message}"); }
 
         RefreshModelOptions();
         OnPropertyChanged(nameof(IsMockConnection));
@@ -70,8 +65,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>启动 settings.json 文件监控（热重载）— 文件变更时自动刷新供应商/模型列表</summary>
-    private void StartModelConfigWatch()
-    {
+    private void StartModelConfigWatch() {
         var path = AppDataConstants.Paths.SettingsFilePath;
         var dir = System.IO.Path.GetDirectoryName(path);
         if (string.IsNullOrEmpty(dir) || !_fileSystem.DirectoryExists(dir))
@@ -87,16 +81,13 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>settings.json 变更事件 — 在 UI 线程刷新配置（防抖由 IFileSystemWatcher.DebouncedChanged 接管）</summary>
-    private void OnModelConfigChanged(object? sender, FileChangedEventArgs e)
-    {
+    private void OnModelConfigChanged(object? sender, FileChangedEventArgs e) {
         Avalonia.Threading.Dispatcher.UIThread.Post(RefreshModelOptionsFromConfig);
     }
 
     /// <summary>从 settings.json 重新加载配置并刷新连接/模型列表</summary>
-    private void RefreshModelOptionsFromConfig()
-    {
-        try
-        {
+    private void RefreshModelOptionsFromConfig() {
+        try {
             // 记住热重载前的选择，重载后尽量保留（避免下拉跳回第一项）
             var previousModelId = SelectedModelOption?.Id;
             var previousConnectionId = SelectedConnection?.Id;
@@ -118,9 +109,7 @@ public sealed partial class MainViewModel
                 ?? ModelOptions.FirstOrDefault();
             SelectedModel = SelectedModelOption?.Id;
             StatusText = "配置已热重载";
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);
         }
     }

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 执行者变体 — 不同专长的执行者 Agent
 /// [EnumValue] 由 EnumMetadataGenerator 自动生成 ExecutorVariantEnumConstants + ExecutorVariantExtensions
 /// </summary>
-public enum ExecutorVariant
-{
+public enum ExecutorVariant {
     /// <summary>
     /// 代码执行者 — 代码读写编辑
     /// </summary>
@@ -53,8 +52,7 @@ public enum ExecutorVariant
 /// 一次性执行者变体 — Explore/Plan 运行一次即返回报告，不会通过 SendMessage 继续
 /// 结果中省略 agentId/SendMessage 提示，节省 token
 /// </summary>
-public static class OneShotExecutorVariants
-{
+public static class OneShotExecutorVariants {
     private static readonly FrozenSet<string> Variants = FrozenSet.Create(
         StringComparer.Ordinal,
         ExecutorVariant.Explore.ToValue(),

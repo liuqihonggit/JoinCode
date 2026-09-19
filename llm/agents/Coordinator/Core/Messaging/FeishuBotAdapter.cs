@@ -7,8 +7,7 @@ namespace Core.Agents.Coordinator;
 /// <para>接收：事件订阅 webhook（飞书事件回调），监听 im.message.receive_v1 事件</para>
 /// <para>配置：appId + appSecret 通过 <see cref="FeishuBotConfig"/> 注入</para>
 /// </summary>
-public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig>
-{
+public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig> {
     /// <summary>
     /// 构造飞书 Bot 适配器。
     /// </summary>
@@ -16,16 +15,14 @@ public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig>
     /// <param name="httpClient">HTTP 客户端</param>
     /// <param name="logger">日志记录器</param>
     public FeishuBotAdapter(FeishuBotConfig config, HttpClient httpClient, ILogger<FeishuBotAdapter>? logger = null)
-        : base(config, httpClient, logger)
-    {
+        : base(config, httpClient, logger) {
     }
 
     /// <inheritdoc/>
     public override string PlatformName => "feishu";
 
     /// <inheritdoc/>
-    protected override async ValueTask<string> AcquireTokenAsync(CancellationToken ct)
-    {
+    protected override async ValueTask<string> AcquireTokenAsync(CancellationToken ct) {
         var url = $"{Config.ApiBaseUrl}/open-apis/auth/v3/tenant_access_token/internal";
         var body = $$"""{"app_id":"{{Config.AppId}}","app_secret":"{{Config.AppSecret}}"}""";
         using var response = await HttpClient.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"), ct).ConfigureAwait(false);
@@ -44,12 +41,10 @@ public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig>
         => $$"""{"receive_id":"{{targetId}}","msg_type":"text","content":"{\"text\":\"{{JsonEncodedText.Encode(text)}}\"}"}""";
 
     /// <inheritdoc/>
-    protected override string? ExtractMessageId(string json)
-    {
+    protected override string? ExtractMessageId(string json) {
         var doc = JsonDocument.Parse(json);
         if (doc.RootElement.TryGetProperty("data", out var data)
-            && data.TryGetProperty("message_id", out var id))
-        {
+            && data.TryGetProperty("message_id", out var id)) {
             return id.GetString();
         }
         return null;
@@ -59,8 +54,7 @@ public sealed class FeishuBotAdapter : PlatformBotAdapterBase<FeishuBotConfig>
 /// <summary>
 /// 飞书 Bot 配置 — API 凭据与端点。
 /// </summary>
-public sealed record FeishuBotConfig
-{
+public sealed record FeishuBotConfig {
     /// <summary>飞书 App ID。</summary>
     public required string AppId { get; init; }
 

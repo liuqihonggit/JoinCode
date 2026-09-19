@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>带修复提示：告知需在 inject 数组中添加该服务</para>
 /// <para>不用 DispatchProxy（AOT 不兼容），改运行时 ServiceLookup 校验</para>
 /// </summary>
-public sealed class ServiceNotDeclaredException : Exception
-{
+public sealed class ServiceNotDeclaredException : Exception {
     /// <summary>被拒绝的服务名</summary>
     public string ServiceName { get; }
 
@@ -16,8 +15,7 @@ public sealed class ServiceNotDeclaredException : Exception
     /// <param name="serviceName">被拒绝的服务名</param>
     /// <param name="declaredInjects">已声明的 inject 列表</param>
     public ServiceNotDeclaredException(string serviceName, string[] declaredInjects)
-        : base($"[INF-CAPABILITY] 服务 '{serviceName}' 未在 inject 中声明。已声明: [{string.Join(", ", declaredInjects)}]。请在 inject 数组中添加 '{serviceName}'。")
-    {
+        : base($"[INF-CAPABILITY] 服务 '{serviceName}' 未在 inject 中声明。已声明: [{string.Join(", ", declaredInjects)}]。请在 inject 数组中添加 '{serviceName}'。") {
         ServiceName = serviceName;
         DeclaredInjects = declaredInjects;
     }
@@ -29,8 +27,7 @@ public sealed class ServiceNotDeclaredException : Exception
 /// <para>对齐 DSH @Inject 装饰器</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Parameter)]
-public sealed class InjectAttribute : Attribute
-{
+public sealed class InjectAttribute : Attribute {
     /// <summary>声明的服务名列表</summary>
     public string[] Services { get; }
 
@@ -44,13 +41,11 @@ public sealed class InjectAttribute : Attribute
 /// <para>不用 DispatchProxy（AOT 不兼容），改 FrozenSet + 运行时校验</para>
 /// <para>配合源码生成器编译时检查（后续 #9 扩展）</para>
 /// </summary>
-public sealed class CapabilityGate
-{
+public sealed class CapabilityGate {
     private readonly FrozenSet<string> _declaredInjects;
 
     /// <param name="declaredInjects">已声明的 inject 服务名</param>
-    public CapabilityGate(IEnumerable<string> declaredInjects)
-    {
+    public CapabilityGate(IEnumerable<string> declaredInjects) {
         ArgumentNullException.ThrowIfNull(declaredInjects);
         _declaredInjects = declaredInjects.ToFrozenSet();
     }
@@ -58,10 +53,8 @@ public sealed class CapabilityGate
     /// <summary>
     /// 校验服务已声明 — 未声明抛 ServiceNotDeclaredException（带修复提示）
     /// </summary>
-    public T RequireService<T>(string serviceName, Func<T> resolve)
-    {
-        if (!_declaredInjects.Contains(serviceName))
-        {
+    public T RequireService<T>(string serviceName, Func<T> resolve) {
+        if (!_declaredInjects.Contains(serviceName)) {
             throw new ServiceNotDeclaredException(serviceName, _declaredInjects.ToArray());
         }
         return resolve();

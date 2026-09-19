@@ -5,15 +5,13 @@ namespace Core.DependencyInjection;
 /// 检测所有执行器能力并注册工厂到 SystemActuatorRegistry
 /// 替代原 CapabilityInitializer
 /// </summary>
-public static class SystemActuatorInitializer
-{
+public static class SystemActuatorInitializer {
     private static int _initialized;
 
     /// <summary>
     /// 初始化系统执行器 — 在 DI 容器构建完成后调用
     /// </summary>
-    public static void Initialize(IFileSystem fs, ILogger? logger = null)
-    {
+    public static void Initialize(IFileSystem fs, ILogger? logger = null) {
         if (Interlocked.Exchange(ref _initialized, 1) != 0) return;
 
         BashSystemActuator.CreateCapability(fs, logger);
@@ -21,8 +19,7 @@ public static class SystemActuatorInitializer
         CmdSystemActuator.CreateCapability(fs, logger);
         PythonSystemActuator.CreateCapability(fs, logger);
 
-        var factories = new Dictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>>
-        {
+        var factories = new Dictionary<SystemActuatorKind, Func<RegistryDeps, ISystemActuator>> {
             [SystemActuatorKind.Bash] = deps => new BashSystemActuator(
                 deps.FileSystem, logger: deps.Logger, sandboxManager: deps.SandboxManager,
                 preventSleepService: deps.PreventSleepService, config: deps.Config),
@@ -46,8 +43,7 @@ public static class SystemActuatorInitializer
     /// <summary>
     /// 重置 — 仅用于测试
     /// </summary>
-    internal static void Reset()
-    {
+    internal static void Reset() {
         _initialized = 0;
         SystemActuatorBase.ResetCapabilityCache();
     }

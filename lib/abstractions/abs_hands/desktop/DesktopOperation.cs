@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 桌面操作种类 — 标识原子操作类型，用于操作日志与回放
 /// </summary>
-public enum DesktopOperationKind
-{
+public enum DesktopOperationKind {
     /// <summary>鼠标移动</summary>
     [EnumValue("move")] Move,
 

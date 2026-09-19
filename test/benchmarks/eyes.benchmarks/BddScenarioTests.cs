@@ -1,35 +1,29 @@
 namespace JoinCode.CodeIndex.Benchmarks;
 
-public sealed class BddScenarioTests : IDisposable
-{
+public sealed class BddScenarioTests : IDisposable {
     private readonly string _workspaceRoot;
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
     private readonly IFileSystem _fs = new IO.FileSystem.PhysicalFileSystem();
     private bool _disposed;
 
-    public BddScenarioTests()
-    {
+    public BddScenarioTests() {
         _workspaceRoot = Path.Combine(Path.GetTempPath(), $"bdd_{Guid.NewGuid():N}");
         _fs.CreateDirectory(_workspaceRoot);
         _store = new InMemoryIndexStore();
         _indexer = new CodeIndexer(_store, _fs);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        try { _indexer.Dispose(); }
-        finally { _store.Dispose(); }
+        try { _indexer.Dispose(); } finally { _store.Dispose(); }
 
-        try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); }
-        catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
+        try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); } catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
     }
 
     [Fact]
-    public async Task Scenario_符号搜索_打开项目后可搜索类名()
-    {
+    public async Task Scenario_符号搜索_打开项目后可搜索类名() {
         // Given 一个包含 UserService.cs 的项目
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "UserService.cs"),
             "public class UserService { public string GetName() => \"User\"; }").ConfigureAwait(true);
@@ -44,8 +38,7 @@ public sealed class BddScenarioTests : IDisposable
     }
 
     [Fact]
-    public async Task Scenario_增量更新_修改文件后搜索结果更新()
-    {
+    public async Task Scenario_增量更新_修改文件后搜索结果更新() {
         // Given 已索引的 Calculator.cs
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "Calculator.cs"),
             "public class Calculator { public int Add(int a, int b) => a + b; }").ConfigureAwait(true);
@@ -63,8 +56,7 @@ public sealed class BddScenarioTests : IDisposable
     }
 
     [Fact]
-    public async Task Scenario_调用图_查找方法调用者()
-    {
+    public async Task Scenario_调用图_查找方法调用者() {
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "UserService.cs"),
             "public class UserService { public string GetName() => \"User\"; }").ConfigureAwait(true);
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "Controller.cs"),
@@ -85,8 +77,7 @@ public sealed class BddScenarioTests : IDisposable
     }
 
     [Fact]
-    public async Task Scenario_影响范围_方法变更影响相关文件()
-    {
+    public async Task Scenario_影响范围_方法变更影响相关文件() {
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "UserService.cs"),
             "public class UserService { public bool ValidateUser() => true; }").ConfigureAwait(true);
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "OrderService.cs"),
@@ -107,8 +98,7 @@ public sealed class BddScenarioTests : IDisposable
     }
 
     [Fact]
-    public async Task Scenario_跨文件定义查找()
-    {
+    public async Task Scenario_跨文件定义查找() {
         // Given UserService 定义在 UserService.cs
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "UserService.cs"),
             "public class UserService { public string GetName() => \"User\"; }").ConfigureAwait(true);
@@ -127,8 +117,7 @@ public sealed class BddScenarioTests : IDisposable
     }
 
     [Fact]
-    public async Task Scenario_删除文件后索引更新()
-    {
+    public async Task Scenario_删除文件后索引更新() {
         // Given 已索引两个文件
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "ServiceA.cs"), "public class ServiceA { }").ConfigureAwait(true);
         await _fs.WriteAllTextAsync(Path.Combine(_workspaceRoot, "ServiceB.cs"), "public class ServiceB { }").ConfigureAwait(true);

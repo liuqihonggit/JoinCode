@@ -5,16 +5,14 @@ namespace Core.Memdir.ToolHandlers;
 /// 内存管理工具处理器 - 提供内存扫描、年龄管理和团队内存功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Memory, Optional = true)]
-public class MemoryManagementToolHandlers
-{
+public class MemoryManagementToolHandlers {
     private readonly IMemoryManagementService _memoryManagementService;
 
     /// <summary>
     /// 构造内存管理工具处理器
     /// </summary>
     /// <param name="memoryManagementService">内存管理服务</param>
-    public MemoryManagementToolHandlers(IMemoryManagementService memoryManagementService)
-    {
+    public MemoryManagementToolHandlers(IMemoryManagementService memoryManagementService) {
         _memoryManagementService = memoryManagementService ?? throw new ArgumentNullException(nameof(memoryManagementService));
     }
 
@@ -26,10 +24,8 @@ public class MemoryManagementToolHandlers
         [McpToolParameter("Search query")] string query,
         [McpToolParameter("Category filter (optional)", Required = false)] string? category = null,
         [McpToolParameter("Result count limit", Required = false, DefaultValue = "10")] int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(query)) {
             var diag = BuildEmptyQueryDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -42,22 +38,17 @@ public class MemoryManagementToolHandlers
         response.AppendLine(L.T(StringKey.VaultFoundRelevantMemories, result.RelevantMemories.Count, result.TotalMemories));
         response.AppendLine();
 
-        if (result.RelevantMemories.Count == 0)
-        {
+        if (result.RelevantMemories.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoRelevantMemories));
-        }
-        else
-        {
-            for (int i = 0; i < result.RelevantMemories.Count; i++)
-            {
+        } else {
+            for (var i = 0; i < result.RelevantMemories.Count; i++) {
                 var scored = result.RelevantMemories[i];
                 var memory = scored.Memory;
 
                 response.AppendLine(L.T(StringKey.VaultLabelScore, i + 1, memory.Id, scored.RelevanceScore));
                 response.AppendLine(L.T(StringKey.VaultLabelContent, memory.Content[..Math.Min(100, memory.Content.Length)]));
 
-                if (!string.IsNullOrEmpty(scored.MatchReason))
-                {
+                if (!string.IsNullOrEmpty(scored.MatchReason)) {
                     response.AppendLine(L.T(StringKey.VaultLabelMatch, scored.MatchReason));
                 }
 
@@ -75,12 +66,10 @@ public class MemoryManagementToolHandlers
     [McpTool(MemoryToolNameEnumConstants.MemoryAge, "Get memory age and access statistics", "memory")]
     public async Task<ToolResult> MemoryAgeAsync(
         [McpToolParameter("Show only memories needing attention", Required = false, DefaultValue = "false")] bool? attention_only = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var ageInfos = await _memoryManagementService.GetMemoryAgeInfoAsync(cancellationToken).ConfigureAwait(false);
 
-        if (attention_only == true)
-        {
+        if (attention_only == true) {
             ageInfos = ageInfos.Where(a => a.ShouldArchive || a.ShouldDelete).ToList();
         }
 
@@ -89,17 +78,13 @@ public class MemoryManagementToolHandlers
         response.AppendLine(L.T(StringKey.VaultTotalMemories, ageInfos.Count));
         response.AppendLine();
 
-        if (ageInfos.Count == 0)
-        {
+        if (ageInfos.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoMemories));
-        }
-        else
-        {
+        } else {
             // 按健康分数排序
             var sorted = ageInfos.OrderBy(a => a.HealthScore).ToList();
 
-            foreach (var info in sorted)
-            {
+            foreach (var info in sorted) {
                 var statusIcon = info.ShouldDelete ? ObjectSymbol.Clean.ToValue() :
                                 info.ShouldArchive ? ObjectSymbol.DiamondFilled.ToValue() :
                                 info.HealthScore < 30 ? StatusSymbol.Warning.ToValue() : StatusSymbol.Tick.ToValue();
@@ -110,12 +95,9 @@ public class MemoryManagementToolHandlers
                 response.AppendLine(L.T(StringKey.VaultLabelAccessCount, info.AccessCount));
                 response.AppendLine(L.T(StringKey.VaultLabelHealthScore, info.HealthScore));
 
-                if (info.ShouldDelete)
-                {
+                if (info.ShouldDelete) {
                     response.AppendLine(L.T(StringKey.VaultSuggestDelete, StatusSymbol.Warning.ToValue()));
-                }
-                else if (info.ShouldArchive)
-                {
+                } else if (info.ShouldArchive) {
                     response.AppendLine(L.T(StringKey.VaultSuggestArchive, ObjectSymbol.DiamondFilled.ToValue()));
                 }
 
@@ -134,10 +116,8 @@ public class MemoryManagementToolHandlers
         [McpToolParameter("Archive threshold in days (default 90)", Required = false)] int? archive_after_days = null,
         [McpToolParameter("Delete threshold in days (default 180)", Required = false)] int? delete_after_days = null,
         [McpToolParameter("Confirm execution (enter 'yes' to confirm)")] string? confirm = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (confirm != "yes")
-        {
+        CancellationToken cancellationToken = default) {
+        if (confirm != "yes") {
             var diag = BuildCleanupConfirmRequiredDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(diag.FormattedMessage)
@@ -158,17 +138,14 @@ public class MemoryManagementToolHandlers
         response.AppendLine(L.T(StringKey.VaultDeletedMemories, result.DeletedCount));
         response.AppendLine(L.T(StringKey.VaultRetainedMemories, result.RetainedCount));
 
-        if (result.ProcessedIds.Count > 0)
-        {
+        if (result.ProcessedIds.Count > 0) {
             response.AppendLine();
             response.AppendLine(L.T(StringKey.VaultProcessedMemoryIds));
-            foreach (var id in result.ProcessedIds.Take(10))
-            {
+            foreach (var id in result.ProcessedIds.Take(10)) {
                 response.AppendLine($"  - {id}");
             }
 
-            if (result.ProcessedIds.Count > 10)
-            {
+            if (result.ProcessedIds.Count > 10) {
                 response.AppendLine(L.T(StringKey.VaultMoreItems, result.ProcessedIds.Count - 10));
             }
         }
@@ -181,8 +158,7 @@ public class MemoryManagementToolHandlers
     /// </summary>
     [McpTool(MemoryToolNameEnumConstants.MemoryHealth, "Get memory health report", "memory")]
     public async Task<ToolResult> MemoryHealthAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var report = await _memoryManagementService.GetHealthReportAsync(cancellationToken).ConfigureAwait(false);
 
         var response = new System.Text.StringBuilder();
@@ -195,27 +171,22 @@ public class MemoryManagementToolHandlers
         response.AppendLine(L.T(StringKey.VaultSuggestDeleteCount, report.ShouldDelete));
         response.AppendLine(L.T(StringKey.VaultAvgHealthScore, report.AverageHealthScore));
 
-        if (report.AgeDistribution.Count > 0)
-        {
+        if (report.AgeDistribution.Count > 0) {
             response.AppendLine();
             response.AppendLine($"{ObjectSymbol.List.ToValue()} {L.T(StringKey.VaultAgeDistribution)}");
-            foreach (var (range, count) in report.AgeDistribution)
-            {
+            foreach (var (range, count) in report.AgeDistribution) {
                 var bar = new string('█', count > 0 ? Math.Max(1, count * 20 / report.TotalMemories) : 0);
                 response.AppendLine($"  {range,-10} {bar} {count}");
             }
         }
 
-        if (report.ShouldArchive > 0 || report.ShouldDelete > 0)
-        {
+        if (report.ShouldArchive > 0 || report.ShouldDelete > 0) {
             response.AppendLine();
             response.AppendLine($"{ObjectSymbol.DiamondFilled.ToValue()} {L.T(StringKey.VaultSuggestions)}");
-            if (report.ShouldDelete > 0)
-            {
+            if (report.ShouldDelete > 0) {
                 response.AppendLine(L.T(StringKey.VaultSuggestDeleteUseCleanup, report.ShouldDelete));
             }
-            if (report.ShouldArchive > 0)
-            {
+            if (report.ShouldArchive > 0) {
                 response.AppendLine(L.T(StringKey.VaultSuggestArchiveCount2, report.ShouldArchive));
             }
         }
@@ -232,16 +203,13 @@ public class MemoryManagementToolHandlers
         [McpToolParameter("Memory path")] string path,
         [McpToolParameter("Whether shared", Required = false, DefaultValue = "true")] bool? is_shared = null,
         [McpToolParameter("Allowed agents list (comma-separated)", Required = false)] string? allowed_agents = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(team_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(team_id)) {
             var diag = BuildEmptyTeamIdDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(path))
-        {
+        if (string.IsNullOrWhiteSpace(path)) {
             var diag = BuildEmptyPathDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -259,8 +227,7 @@ public class MemoryManagementToolHandlers
         response.AppendLine(L.T(StringKey.VaultLabelPath, path));
         response.AppendLine(L.T(StringKey.VaultLabelShared, is_shared ?? true ? L.T(StringKey.VaultYes) : L.T(StringKey.VaultNo)));
 
-        if (agents?.Count > 0)
-        {
+        if (agents?.Count > 0) {
             response.AppendLine(L.T(StringKey.VaultLabelAllowedAgents, string.Join(", ", agents)));
         }
 
@@ -273,40 +240,32 @@ public class MemoryManagementToolHandlers
     [McpTool(MemoryToolNameEnumConstants.MemoryListTeamPaths, "List team memory paths", "memory")]
     public async Task<ToolResult> MemoryListTeamPathsAsync(
         [McpToolParameter("Team ID (optional, omit to show all)", Required = false)] string? team_id = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var paths = await _memoryManagementService.GetTeamMemoryPathsAsync(team_id, cancellationToken).ConfigureAwait(false);
 
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{PrioritySymbol.Critical.ToValue()} {L.T(StringKey.VaultTeamMemoryPaths)}");
 
-        if (!string.IsNullOrEmpty(team_id))
-        {
+        if (!string.IsNullOrEmpty(team_id)) {
             response.AppendLine(L.T(StringKey.VaultLabelTeam, team_id));
         }
 
         response.AppendLine(L.T(StringKey.VaultPathCount, paths.Count));
         response.AppendLine();
 
-        if (paths.Count == 0)
-        {
+        if (paths.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoTeamMemoryPaths));
-        }
-        else
-        {
+        } else {
             var grouped = paths.GroupBy(p => p.TeamId);
 
-            foreach (var group in grouped)
-            {
+            foreach (var group in grouped) {
                 response.AppendLine($"{ObjectSymbol.Directory.ToValue()} {L.T(StringKey.VaultLabelTeam, group.Key)}");
 
-                foreach (var path in group)
-                {
+                foreach (var path in group) {
                     var shareIcon = path.IsShared ? StatusSymbol.Circle.ToValue() : ObjectSymbol.DiamondFilled.ToValue();
                     response.AppendLine($"  {shareIcon} {path.Path}");
 
-                    if (path.AllowedAgents.Count > 0)
-                    {
+                    if (path.AllowedAgents.Count > 0) {
                         response.AppendLine($"     {L.T(StringKey.VaultLabelAllowedAgents, string.Join(", ", path.AllowedAgents))}");
                     }
                 }
@@ -325,24 +284,20 @@ public class MemoryManagementToolHandlers
     public async Task<ToolResult> MemoryRemoveTeamPathAsync(
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Memory path")] string path,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(team_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(team_id)) {
             var diag = BuildEmptyTeamIdDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(path))
-        {
+        if (string.IsNullOrWhiteSpace(path)) {
             var diag = BuildEmptyPathDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var removed = await _memoryManagementService.RemoveTeamMemoryPathAsync(team_id, path, cancellationToken).ConfigureAwait(false);
 
-        if (!removed)
-        {
+        if (!removed) {
             var diag = BuildTeamNotFoundDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -360,16 +315,13 @@ public class MemoryManagementToolHandlers
         [McpToolParameter("Team ID")] string team_id,
         [McpToolParameter("Search query")] string query,
         [McpToolParameter("Result count limit", Required = false, DefaultValue = "10")] int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(team_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(team_id)) {
             var diag = BuildEmptyTeamIdDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
-        if (string.IsNullOrWhiteSpace(query))
-        {
+        if (string.IsNullOrWhiteSpace(query)) {
             var diag = BuildEmptyQueryDiagnostic();
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -382,14 +334,10 @@ public class MemoryManagementToolHandlers
         response.AppendLine(L.T(StringKey.VaultFoundRelevantMemories, result.RelevantMemories.Count, result.TotalMemories));
         response.AppendLine();
 
-        if (result.RelevantMemories.Count == 0)
-        {
+        if (result.RelevantMemories.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoRelevantMemories));
-        }
-        else
-        {
-            for (int i = 0; i < result.RelevantMemories.Count; i++)
-            {
+        } else {
+            for (var i = 0; i < result.RelevantMemories.Count; i++) {
                 var scored = result.RelevantMemories[i];
                 var memory = scored.Memory;
 
@@ -440,8 +388,7 @@ public class MemoryManagementToolHandlers
 
     #region Private Methods
 
-    private static double GetPercentage(int part, int total)
-    {
+    private static double GetPercentage(int part, int total) {
         return total > 0 ? (double)part / total * 100 : 0;
     }
 

@@ -5,20 +5,17 @@ namespace McpClient;
 /// MCP 客户端工厂 — 根据连接配置创建对应传输类型的 MCP 客户端实例,支持回退链构建。
 /// </summary>
 [Register(typeof(IMcpClientFactory), ServiceLifetime.Singleton)]
-public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory
-{
+public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory {
     /// <summary>
     /// 根据连接配置创建 MCP 客户端实例 — 按 TransportType 选择 Stdio/Http/WebSocket 客户端。
     /// </summary>
     /// <param name="config">服务器连接配置。</param>
     /// <param name="logger">日志记录器。</param>
     /// <returns>对应传输类型的 IMcpClient 实例。</returns>
-    public IMcpClient CreateClient(McpServerConnectionConfig config, ILogger? logger = null)
-    {
+    public IMcpClient CreateClient(McpServerConnectionConfig config, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(config);
 
-        return config.TransportType switch
-        {
+        return config.TransportType switch {
             McpClientTransportType.Stdio => new McpStdioClient(config, logger: logger),
             McpClientTransportType.Http => new McpHttpClient(config, logger: logger),
             McpClientTransportType.WebSocket => new McpWebSocketClient(config, logger: logger),
@@ -33,8 +30,7 @@ public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory
     /// <param name="enableFallback">是否启用回退链,true 时创建带回退的客户端。</param>
     /// <param name="logger">日志记录器。</param>
     /// <returns>对应传输类型的 IMcpClient 实例。</returns>
-    public IMcpClient CreateClient(McpServerConnectionConfig config, bool enableFallback, ILogger? logger = null)
-    {
+    public IMcpClient CreateClient(McpServerConnectionConfig config, bool enableFallback, ILogger? logger = null) {
         return enableFallback ? CreateClientWithFallback(config, logger: logger) : CreateClient(config, logger);
     }
 
@@ -48,8 +44,7 @@ public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory
     public IMcpClient CreateClientWithFallback(
         McpServerConnectionConfig config,
         TransportFallbackConfig? fallbackConfig = null,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(config);
         fallbackConfig ??= TransportFallbackConfig.FromEnvironment();
 
@@ -58,18 +53,15 @@ public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory
     }
 
     private static (IMcpTransport[] Transports, ITransportHealthCheck[] HealthChecks) BuildClientFallbackChain(
-        McpServerConnectionConfig config, ILogger? logger)
-    {
+        McpServerConnectionConfig config, ILogger? logger) {
         var transports = new List<IMcpTransport>();
         var healthChecks = new List<ITransportHealthCheck>();
 
-        if (config.TransportType == McpClientTransportType.Stdio && !string.IsNullOrWhiteSpace(config.Endpoint))
-        {
+        if (config.TransportType == McpClientTransportType.Stdio && !string.IsNullOrWhiteSpace(config.Endpoint)) {
             healthChecks.Add(new StdioHealthCheck(config.Endpoint, new IO.FileSystem.PhysicalFileSystem()));
         }
 
-        if (!string.IsNullOrWhiteSpace(config.Endpoint) && config.TransportType != McpClientTransportType.Stdio)
-        {
+        if (!string.IsNullOrWhiteSpace(config.Endpoint) && config.TransportType != McpClientTransportType.Stdio) {
             transports.Add(new HttpTransport(config, logger: logger as ILogger<HttpTransport>));
             healthChecks.Add(new HttpListenerHealthCheck($"http://localhost:{ExtractPort(config.Endpoint)}/"));
 
@@ -82,15 +74,11 @@ public sealed partial class McpClientFactory : ServiceEntity, IMcpClientFactory
         return (transports.ToArray(), healthChecks.ToArray());
     }
 
-    private static int ExtractPort(string endpoint)
-    {
-        try
-        {
+    private static int ExtractPort(string endpoint) {
+        try {
             var uri = new Uri(endpoint);
             return uri.Port > 0 ? uri.Port : 80;
-        }
-        catch
-        {
+        } catch {
             return 80;
         }
     }

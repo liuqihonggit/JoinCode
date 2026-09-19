@@ -5,14 +5,11 @@ namespace Core.Agents;
 /// Coordinator 模式工具集限制测试
 /// 验证 JCC_COORDINATOR_MODE 启用时 Coordinator Profile 工具集限制为 [Agent, SendMessage, TaskStop]
 /// </summary>
-public sealed class CoordinatorModeToolRestrictionTests
-{
+public sealed class CoordinatorModeToolRestrictionTests {
     [Fact]
-    public void GetProfile_CoordinatorModeEnabled_RestrictsToolsToAgentSendMessageTaskStop()
-    {
+    public void GetProfile_CoordinatorModeEnabled_RestrictsToolsToAgentSendMessageTaskStop() {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", "1");
-        try
-        {
+        try {
             var registry = new AgentRoleProfileRegistry();
             registry.RegisterBuiltInProfiles();
             var profile = registry.GetProfile(AgentRole.Coordinator);
@@ -23,16 +20,13 @@ public sealed class CoordinatorModeToolRestrictionTests
             profile.AllowedTools.Should().Contain(AgentToolNameEnumConstants.AgentSendMessage);
             profile.AllowedTools.Should().Contain(TaskToolNameEnumConstants.TaskStop);
             profile.AllowedTools.Should().HaveCount(3);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", null);
         }
     }
 
     [Fact]
-    public void GetProfile_CoordinatorModeDisabled_AllowsAllTools()
-    {
+    public void GetProfile_CoordinatorModeDisabled_AllowsAllTools() {
         Environment.SetEnvironmentVariable("JCC_COORDINATOR_MODE", null);
         var registry = new AgentRoleProfileRegistry();
         registry.RegisterBuiltInProfiles();

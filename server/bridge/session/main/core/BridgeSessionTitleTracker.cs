@@ -3,8 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Bridge 会话标题跟踪器 — 跟踪已获取标题的会话（按兼容 ID 索引）
 /// </summary>
-internal sealed class BridgeSessionTitleTracker
-{
+internal sealed class BridgeSessionTitleTracker {
     private readonly ConcurrentDictionary<string, byte> _titled = new();
 
     /// <summary>是否已获取标题</summary>

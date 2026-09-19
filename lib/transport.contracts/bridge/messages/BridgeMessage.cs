@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// Bridge 消息类型枚举
 /// </summary>
-public enum BridgeMessageType
-{
+public enum BridgeMessageType {
     /// <summary>初始化请求</summary>
     [EnumValue("initialize")]
     Initialize,
@@ -56,8 +55,7 @@ public enum BridgeMessageType
 /// Bridge 基础消息类
 /// 参考 TS 原版 的 SDKMessage 类型
 /// </summary>
-public abstract class BridgeMessage
-{
+public abstract class BridgeMessage {
     /// <summary>消息唯一标识</summary>
     [JsonPropertyName("id")]
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
@@ -79,8 +77,7 @@ public abstract class BridgeMessage
 /// <summary>
 /// SDK 控制请求（来自 IDE 的控制命令）
 /// </summary>
-public class ControlRequest : BridgeMessage
-{
+public class ControlRequest : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "control_request";
 
@@ -94,8 +91,7 @@ public class ControlRequest : BridgeMessage
     public Dictionary<string, JsonElement> Params { get; init; } = [];
 
     /// <summary>获取命令参数字典</summary>
-    public Dictionary<string, JsonElement> GetParams()
-    {
+    public Dictionary<string, JsonElement> GetParams() {
         return Params;
     }
 }
@@ -103,8 +99,7 @@ public class ControlRequest : BridgeMessage
 /// <summary>
 /// SDK 控制响应
 /// </summary>
-public class ControlResponse : BridgeMessage
-{
+public class ControlResponse : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "control_response";
 
@@ -130,8 +125,7 @@ public class ControlResponse : BridgeMessage
 /// <summary>
 /// 初始化请求
 /// </summary>
-public class InitializeRequest : BridgeMessage
-{
+public class InitializeRequest : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "initialize";
 
@@ -151,8 +145,7 @@ public class InitializeRequest : BridgeMessage
 /// <summary>
 /// 初始化响应
 /// </summary>
-public class InitializeResponse : BridgeMessage
-{
+public class InitializeResponse : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "initialize_response";
 
@@ -172,8 +165,7 @@ public class InitializeResponse : BridgeMessage
 /// <summary>
 /// 工具列表请求
 /// </summary>
-public class ToolsListRequest : BridgeMessage
-{
+public class ToolsListRequest : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "tools/list";
 }
@@ -181,8 +173,7 @@ public class ToolsListRequest : BridgeMessage
 /// <summary>
 /// 工具列表响应
 /// </summary>
-public class ToolsListResponse : BridgeMessage
-{
+public class ToolsListResponse : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "tools/list_response";
 
@@ -194,8 +185,7 @@ public class ToolsListResponse : BridgeMessage
 /// <summary>
 /// 工具调用请求
 /// </summary>
-public class ToolsCallRequest : BridgeMessage
-{
+public class ToolsCallRequest : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "tools/call";
 
@@ -209,8 +199,7 @@ public class ToolsCallRequest : BridgeMessage
     public Dictionary<string, JsonElement> Arguments { get; init; } = [];
 
     /// <summary>获取工具调用参数字典</summary>
-    public Dictionary<string, JsonElement> GetArguments()
-    {
+    public Dictionary<string, JsonElement> GetArguments() {
         return Arguments;
     }
 }
@@ -218,8 +207,7 @@ public class ToolsCallRequest : BridgeMessage
 /// <summary>
 /// 工具调用响应
 /// </summary>
-public class ToolsCallResponse : BridgeMessage
-{
+public class ToolsCallResponse : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "tools/call_response";
 
@@ -245,8 +233,7 @@ public class ToolsCallResponse : BridgeMessage
 /// <summary>
 /// 技能执行请求
 /// </summary>
-public class SkillExecuteRequest : BridgeMessage
-{
+public class SkillExecuteRequest : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "skill/execute";
 
@@ -265,8 +252,7 @@ public class SkillExecuteRequest : BridgeMessage
     public SkillContext? Context { get; init; }
 
     /// <summary>获取技能执行参数字典</summary>
-    public Dictionary<string, JsonElement> GetParameters()
-    {
+    public Dictionary<string, JsonElement> GetParameters() {
         return Parameters;
     }
 }
@@ -274,8 +260,7 @@ public class SkillExecuteRequest : BridgeMessage
 /// <summary>
 /// 技能执行响应
 /// </summary>
-public class SkillExecuteResponse : BridgeMessage
-{
+public class SkillExecuteResponse : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "skill/execute_response";
 
@@ -301,8 +286,7 @@ public class SkillExecuteResponse : BridgeMessage
 /// <summary>
 /// 心跳消息
 /// </summary>
-public class PingMessage : BridgeMessage
-{
+public class PingMessage : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "ping";
 }
@@ -310,8 +294,7 @@ public class PingMessage : BridgeMessage
 /// <summary>
 /// 心跳响应
 /// </summary>
-public class PongMessage : BridgeMessage
-{
+public class PongMessage : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "pong";
 }
@@ -319,8 +302,7 @@ public class PongMessage : BridgeMessage
 /// <summary>
 /// 错误消息
 /// </summary>
-public class ErrorMessage : BridgeMessage
-{
+public class ErrorMessage : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "error";
 
@@ -341,8 +323,7 @@ public class ErrorMessage : BridgeMessage
 /// <summary>
 /// 通知消息
 /// </summary>
-public class NotificationMessage : BridgeMessage
-{
+public class NotificationMessage : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "notification";
 
@@ -363,8 +344,7 @@ public class NotificationMessage : BridgeMessage
 /// <summary>
 /// 回显消息（需要过滤）
 /// </summary>
-public class EchoMessage : BridgeMessage
-{
+public class EchoMessage : BridgeMessage {
     /// <summary>消息类型字符串</summary>
     public override string Type => "echo";
 
@@ -383,8 +363,7 @@ public class EchoMessage : BridgeMessage
 /// <summary>
 /// 客户端信息
 /// </summary>
-public class ClientInfo
-{
+public class ClientInfo {
     /// <summary>客户端名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
@@ -397,8 +376,7 @@ public class ClientInfo
 /// <summary>
 /// 服务端信息
 /// </summary>
-public class ServerInfo
-{
+public class ServerInfo {
     /// <summary>服务端名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = "Core";
@@ -411,8 +389,7 @@ public class ServerInfo
 /// <summary>
 /// 客户端能力声明
 /// </summary>
-public class ClientCapabilities
-{
+public class ClientCapabilities {
     /// <summary>工具能力</summary>
     [JsonPropertyName("tools")]
     public ToolCapabilities? Tools { get; init; }
@@ -425,8 +402,7 @@ public class ClientCapabilities
 /// <summary>
 /// 服务端能力声明
 /// </summary>
-public class ServerCapabilities
-{
+public class ServerCapabilities {
     /// <summary>工具能力</summary>
     [JsonPropertyName("tools")]
     public ToolCapabilities? Tools { get; init; }
@@ -443,8 +419,7 @@ public class ServerCapabilities
 /// <summary>
 /// 工具能力
 /// </summary>
-public class ToolCapabilities
-{
+public class ToolCapabilities {
     /// <summary>是否支持列表变更通知</summary>
     [JsonPropertyName("listChanged")]
     public bool ListChanged { get; init; }
@@ -453,8 +428,7 @@ public class ToolCapabilities
 /// <summary>
 /// 技能能力
 /// </summary>
-public class SkillCapabilities
-{
+public class SkillCapabilities {
     /// <summary>是否支持列表变更通知</summary>
     [JsonPropertyName("listChanged")]
     public bool ListChanged { get; init; }
@@ -463,8 +437,7 @@ public class SkillCapabilities
 /// <summary>
 /// Bridge 工具定义
 /// </summary>
-public class BridgeToolDefinition
-{
+public class BridgeToolDefinition {
     /// <summary>工具名称</summary>
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
@@ -481,8 +454,7 @@ public class BridgeToolDefinition
 /// <summary>
 /// 技能执行上下文
 /// </summary>
-public class SkillContext
-{
+public class SkillContext {
     /// <summary>会话 ID</summary>
     [JsonPropertyName("session_id")]
     public string SessionId { get; init; } = string.Empty;

@@ -7,8 +7,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Voice, Description = "切换语音输入模式", Usage = "/voice [on|off|status]", Category = ChatCommandCategory.Social)]
 [ChatCommandArg("action", Type = "string", Description = "语音操作", Enum = new[] { "on", "off", "status", "start", "stop", "record" })]
-public sealed class VoiceCommand : ToggleCommandBase
-{
+public sealed class VoiceCommand : ToggleCommandBase {
     /// <summary>
     /// 获取命令名称
     /// </summary>
@@ -35,11 +34,9 @@ public sealed class VoiceCommand : ToggleCommandBase
     /// </summary>
     /// <param name="args">原始参数字符串</param>
     /// <returns>解析得到的切换动作，无法识别时返回 null</returns>
-    protected override ToggleAction? ResolveToggleAction(string args)
-    {
+    protected override ToggleAction? ResolveToggleAction(string args) {
         var lower = args.ToLowerInvariant();
-        return lower switch
-        {
+        return lower switch {
             "start" or "record" => ToggleAction.On,
             "stop" => ToggleAction.Off,
             _ => ToggleActionExtensions.FromValue(args),
@@ -55,18 +52,14 @@ public sealed class VoiceCommand : ToggleCommandBase
     /// 启用语音录制 — 调用 IVoiceService.StartRecordingAsync 开始录音
     /// </summary>
     /// <param name="context">命令执行上下文，包含取消令牌</param>
-    protected override async Task OnEnabledAsync(ChatCommandContext context)
-    {
+    protected override async Task OnEnabledAsync(ChatCommandContext context) {
         var voiceService = GetService<IVoiceService>(context);
         if (voiceService is null) return;
 
-        try
-        {
+        try {
             await voiceService.StartRecordingAsync(context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("语音录制已开始，请说话...");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             HandleError("启动语音录制", ex);
         }
     }
@@ -75,22 +68,17 @@ public sealed class VoiceCommand : ToggleCommandBase
     /// 停止语音录制 — 调用 IVoiceService.StopRecordingAsync 停止录音并输出识别结果
     /// </summary>
     /// <param name="context">命令执行上下文，包含取消令牌</param>
-    protected override async Task OnDisabledAsync(ChatCommandContext context)
-    {
+    protected override async Task OnDisabledAsync(ChatCommandContext context) {
         var voiceService = GetService<IVoiceService>(context);
         if (voiceService is null) return;
 
-        try
-        {
+        try {
             var result = await voiceService.StopRecordingAsync(context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("语音录制已停止");
-            if (!string.IsNullOrEmpty(result.Transcription))
-            {
+            if (!string.IsNullOrEmpty(result.Transcription)) {
                 TerminalHelper.WriteLine($"识别结果: {result.Transcription}");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             HandleError("停止语音录制", ex);
         }
     }
@@ -99,8 +87,7 @@ public sealed class VoiceCommand : ToggleCommandBase
     /// 打印语音服务当前状态 — 输出服务状态、录制状态及使用提示
     /// </summary>
     /// <param name="context">命令执行上下文</param>
-    protected override Task PrintStatusAsync(ChatCommandContext context)
-    {
+    protected override Task PrintStatusAsync(ChatCommandContext context) {
         var voiceService = GetService<IVoiceService>(context);
         if (voiceService is null) return Task.CompletedTask;
 

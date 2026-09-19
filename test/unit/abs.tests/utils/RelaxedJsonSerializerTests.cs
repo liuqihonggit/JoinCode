@@ -3,8 +3,7 @@ namespace Abs.Tests.Utils;
 /// <summary>
 /// RelaxedJsonSerializer 单元测试 — 验证真实中文输出（非 \uXXXX 转义）与命名策略继承。
 /// </summary>
-public sealed partial class RelaxedJsonSerializerTests
-{
+public sealed partial class RelaxedJsonSerializerTests {
     private sealed record TestDto(string DisplayName, string Description);
 
     [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = false, PropertyNameCaseInsensitive = true)]
@@ -16,8 +15,7 @@ public sealed partial class RelaxedJsonSerializerTests
     private sealed partial class TestDefaultContext : JsonSerializerContext;
 
     [Fact]
-    public void Serialize_WithRelaxedOptions_OutputsRealChineseNotEscaped()
-    {
+    public void Serialize_WithRelaxedOptions_OutputsRealChineseNotEscaped() {
         var dto = new TestDto("轻量多模态", "这是一个中文描述");
 
         var json = RelaxedJsonSerializer.Serialize(dto, TestCamelCaseContext.Default);
@@ -28,8 +26,7 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void Serialize_WithCamelCaseContext_UsesCamelCaseFieldNames()
-    {
+    public void Serialize_WithCamelCaseContext_UsesCamelCaseFieldNames() {
         var dto = new TestDto("test", "desc");
 
         var json = RelaxedJsonSerializer.Serialize(dto, TestCamelCaseContext.Default);
@@ -40,8 +37,7 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void Serialize_WithDefaultContext_PreservesPascalCaseButStillRealChinese()
-    {
+    public void Serialize_WithDefaultContext_PreservesPascalCaseButStillRealChinese() {
         var dto = new TestDto("轻量", "描述");
 
         var json = RelaxedJsonSerializer.Serialize(dto, TestDefaultContext.Default);
@@ -53,8 +49,7 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void RelaxedOptions_CachesByContext_SameInstanceReturned()
-    {
+    public void RelaxedOptions_CachesByContext_SameInstanceReturned() {
         var opts1 = TestCamelCaseContext.Default.RelaxedOptions();
         var opts2 = TestCamelCaseContext.Default.RelaxedOptions();
 
@@ -63,8 +58,7 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void RelaxedOptions_DifferentContexts_ReturnDifferentInstances()
-    {
+    public void RelaxedOptions_DifferentContexts_ReturnDifferentInstances() {
         var opts1 = TestCamelCaseContext.Default.RelaxedOptions();
         var opts2 = TestDefaultContext.Default.RelaxedOptions();
 
@@ -72,8 +66,7 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void Serialize_DefaultSerializerProducesEscaped_ProvingHelperMakesDifference()
-    {
+    public void Serialize_DefaultSerializerProducesEscaped_ProvingHelperMakesDifference() {
         var dto = new TestDto("中文", "描述");
 
         var defaultJson = JsonSerializer.Serialize(dto, TestCamelCaseContext.Default.Options);
@@ -86,8 +79,7 @@ public sealed partial class RelaxedJsonSerializerTests
     // ── Deserialize ──
 
     [Fact]
-    public void Deserialize_ValidJson_ReturnsObject()
-    {
+    public void Deserialize_ValidJson_ReturnsObject() {
         var json = """{"displayName":"测试","description":"中文描述"}""";
 
         var result = RelaxedJsonSerializer.Deserialize<TestDto>(json, TestCamelCaseContext.Default);
@@ -98,8 +90,7 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void Deserialize_WithBom_StripsBomAndDeserializes()
-    {
+    public void Deserialize_WithBom_StripsBomAndDeserializes() {
         var json = "\uFEFF" + """{"displayName":"BOM测试","description":"去BOM"}""";
 
         var result = RelaxedJsonSerializer.Deserialize<TestDto>(json, TestCamelCaseContext.Default);
@@ -109,8 +100,7 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void Deserialize_WithWhitespace_TrimsAndDeserializes()
-    {
+    public void Deserialize_WithWhitespace_TrimsAndDeserializes() {
         var json = "  \n  " + """{"displayName":"空白测试","description":"去空白"}""" + "  \n  ";
 
         var result = RelaxedJsonSerializer.Deserialize<TestDto>(json, TestCamelCaseContext.Default);
@@ -120,24 +110,21 @@ public sealed partial class RelaxedJsonSerializerTests
     }
 
     [Fact]
-    public void Deserialize_EmptyString_ReturnsDefault()
-    {
+    public void Deserialize_EmptyString_ReturnsDefault() {
         var result = RelaxedJsonSerializer.Deserialize<TestDto>("", TestCamelCaseContext.Default);
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public void Deserialize_NullString_ReturnsDefault()
-    {
+    public void Deserialize_NullString_ReturnsDefault() {
         var result = RelaxedJsonSerializer.Deserialize<TestDto>(null!, TestCamelCaseContext.Default);
 
         result.Should().BeNull();
     }
 
     [Fact]
-    public void Deserialize_PascalCaseInput_WithCaseInsensitive_ReadsCorrectly()
-    {
+    public void Deserialize_PascalCaseInput_WithCaseInsensitive_ReadsCorrectly() {
         var json = """{"DisplayName":"大写","Description":"兼容"}""";
 
         var result = RelaxedJsonSerializer.Deserialize<TestDto>(json, TestCamelCaseContext.Default);

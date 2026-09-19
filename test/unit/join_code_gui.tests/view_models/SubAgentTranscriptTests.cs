@@ -5,11 +5,9 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// tracker 必须为每个 agent 保留完整时间线（不受尾部 3 条活动缓冲影响），
 /// MainViewModel.OpenAgentTranscriptCommand 必须携带对应运行记录请求打开回放。
 /// </summary>
-public class SubAgentTranscriptTests
-{
+public class SubAgentTranscriptTests {
     [Fact]
-    public void Tracker_ShouldRecordFullTimeline_InOrder()
-    {
+    public void Tracker_ShouldRecordFullTimeline_InOrder() {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(ChatStreamEvent.AgentStarted("a1", "explore", "调研", "executor"));
         tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "grep", AgentId = "a1" });
@@ -30,8 +28,7 @@ public class SubAgentTranscriptTests
     }
 
     [Fact]
-    public void Transcript_ShouldCarryMonotonicTimestamps()
-    {
+    public void Transcript_ShouldCarryMonotonicTimestamps() {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(ChatStreamEvent.AgentStarted("a2"));
         tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "Read", AgentId = "a2" });
@@ -41,8 +38,7 @@ public class SubAgentTranscriptTests
     }
 
     [Fact]
-    public void OpenTranscriptCommand_ShouldRaiseRequestWithRun()
-    {
+    public void OpenTranscriptCommand_ShouldRaiseRequestWithRun() {
         var vm = new MainViewModel(
             new JoinCode.Gui.Hosting.PlaceholderChatSession(),
             new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"),

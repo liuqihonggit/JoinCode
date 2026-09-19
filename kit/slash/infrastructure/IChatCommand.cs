@@ -3,13 +3,11 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 命令服务容器扩展 — 从 ChatCommandContext.Services (IServiceProvider) 获取强类型 CommandServices
 /// </summary>
-public static class ChatCommandContextExtensions
-{
+public static class ChatCommandContextExtensions {
     /// <summary>
     /// 从 DI 容器获取 CommandServices 强类型服务包
     /// </summary>
-    public static CommandServices GetCommandServices(this ChatCommandContext context)
-    {
+    public static CommandServices GetCommandServices(this ChatCommandContext context) {
         return context.Services.GetService<CommandServices>()
             ?? throw new InvalidOperationException("CommandServices 未注册到 DI 容器");
     }
@@ -17,8 +15,7 @@ public static class ChatCommandContextExtensions
     /// <summary>
     /// 尝试获取 CommandServices — 未注册时返回 null（用于 ?. 模式）
     /// </summary>
-    public static CommandServices? TryGetCommandServices(this ChatCommandContext context)
-    {
+    public static CommandServices? TryGetCommandServices(this ChatCommandContext context) {
         return context.Services.GetService<CommandServices>();
     }
 }
@@ -27,15 +24,13 @@ public static class ChatCommandContextExtensions
 /// 聊天命令抽象基类 — 从 ChatCommandAttribute 特性读取命令元数据（名称、描述、用法、别名等），
 /// 子类只需 override ExecuteAsync 实现具体逻辑，可选 override 各属性实现动态门控
 /// </summary>
-public abstract class ChatCommandBase : IChatCommand
-{
+public abstract class ChatCommandBase : IChatCommand {
     private readonly ChatCommandAttribute? _attr;
 
     /// <summary>
     /// 构造 — 反射读取类型上的 ChatCommandAttribute 特性缓存到 _attr
     /// </summary>
-    protected ChatCommandBase()
-    {
+    protected ChatCommandBase() {
         _attr = GetType().GetCustomAttributes(typeof(ChatCommandAttribute), false).Cast<ChatCommandAttribute>().FirstOrDefault();
     }
 
@@ -78,11 +73,9 @@ public abstract class ChatCommandBase : IChatCommand
     /// <summary>
     /// 从 ServiceProvider 获取服务，未注册时输出错误并返回 null
     /// </summary>
-    internal static T? GetService<T>(ChatCommandContext context) where T : class
-    {
+    internal static T? GetService<T>(ChatCommandContext context) where T : class {
         var service = context.Services.GetService<T>();
-        if (service is null && !TerminalHelper.IsInputRedirected)
-        {
+        if (service is null && !TerminalHelper.IsInputRedirected) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{typeof(T).Name} 服务未初始化{AnsiStyleEnumConstants.Reset}");
         }
         return service;
@@ -91,11 +84,9 @@ public abstract class ChatCommandBase : IChatCommand
     /// <summary>
     /// 从 ServiceProvider 获取服务（非泛型版本），未注册时输出错误并返回 null
     /// </summary>
-    internal static T? GetService<T>(ChatCommandContext context, Type serviceType) where T : class
-    {
+    internal static T? GetService<T>(ChatCommandContext context, Type serviceType) where T : class {
         var service = context.Services.GetService(serviceType) as T;
-        if (service is null && !TerminalHelper.IsInputRedirected)
-        {
+        if (service is null && !TerminalHelper.IsInputRedirected) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{serviceType.Name} 服务未初始化{AnsiStyleEnumConstants.Reset}");
         }
         return service;
@@ -104,8 +95,7 @@ public abstract class ChatCommandBase : IChatCommand
     /// <summary>
     /// 统一错误处理
     /// </summary>
-    internal static void HandleError(string operation, Exception ex)
-    {
+    internal static void HandleError(string operation, Exception ex) {
         TerminalHelper.WriteLine($"{TerminalColors.Error}{operation}失败: {ex.Message}{AnsiStyleEnumConstants.Reset}");
     }
 

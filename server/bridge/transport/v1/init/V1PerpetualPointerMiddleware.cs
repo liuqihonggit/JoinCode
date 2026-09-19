@@ -6,8 +6,7 @@ namespace Core.Bridge.Init.V1;
 /// best-effort: 读取失败不阻塞主流程
 /// </summary>
 [Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
-internal sealed partial class V1PerpetualPointerMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
-{
+internal sealed partial class V1PerpetualPointerMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext> {
     /// <summary>错误行为 — 继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
@@ -18,14 +17,11 @@ internal sealed partial class V1PerpetualPointerMiddleware : ServiceEntity, IMid
     /// <param name="next">下一中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
-    {
-        if (ctx.Parameters.Perpetual)
-        {
+    public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct) {
+        if (ctx.Parameters.Perpetual) {
             var pointerService = new BridgePointerService(ctx.FileSystem, ctx.Logger);
             var rawPrior = await pointerService.ReadAsync(ctx.Parameters.Dir, ct).ConfigureAwait(false);
-            if (rawPrior?.Pointer.Source == BridgePointerSource.Repl.ToValue())
-            {
+            if (rawPrior?.Pointer.Source == BridgePointerSource.Repl.ToValue()) {
                 ctx.PriorPointer = rawPrior.Pointer;
                 ctx.Logger?.LogInformation("Bridge v1: Perpetual 模式发现已有指针: env={EnvId} session={SessionId}",
                     rawPrior.Pointer.EnvironmentId, rawPrior.Pointer.SessionId);

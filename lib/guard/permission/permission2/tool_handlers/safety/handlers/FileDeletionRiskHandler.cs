@@ -7,8 +7,7 @@ namespace Core.Permission;
 /// Ask 模式: 提示确认 + 建议移动到 .xxx/ 目录
 /// </summary>
 [Register(typeof(ICommandRiskHandler), ServiceLifetime.Singleton)]
-public sealed partial class FileDeletionRiskHandler : DeletionRiskHandlerBase
-{
+public sealed partial class FileDeletionRiskHandler : DeletionRiskHandlerBase {
     /// <inheritdoc />
     public override CommandRisk RiskType => CommandRisk.FileDeletion;
 

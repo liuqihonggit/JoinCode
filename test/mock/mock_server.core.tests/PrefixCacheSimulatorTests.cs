@@ -18,16 +18,13 @@ namespace MockServer.Core.Tests;
 /// 3. 已缓存 prefix 以新 prefix 为前缀 → 完全命中 (新请求完全在已缓存范围内)
 /// 4. 完全无交集 → 完全 miss
 /// </summary>
-public sealed class PrefixCacheSimulatorTests
-{
-    private static JsonElement MakeRequest(string systemPrompt, int messageChars = 100)
-    {
+public sealed class PrefixCacheSimulatorTests {
+    private static JsonElement MakeRequest(string systemPrompt, int messageChars = 100) {
         var json = $$"""{"system":"{{systemPrompt}}","messages":[{"role":"user","content":"{{new string('x', messageChars)}}"}]}""";
         return JsonDocument.Parse(json).RootElement.Clone();
     }
 
-    private static JsonElement MakeRequestWithPrefix(string prefix, int totalTokens = 100)
-    {
+    private static JsonElement MakeRequestWithPrefix(string prefix, int totalTokens = 100) {
         // 简单构造: prefix 直接作为 system, tokens 通过 messages 长度模拟
         var json = $$"""{"system":"{{prefix}}","messages":[{"role":"user","content":"{{new string('x', totalTokens * 4)}}"}]}""";
         return JsonDocument.Parse(json).RootElement.Clone();
@@ -37,8 +34,7 @@ public sealed class PrefixCacheSimulatorTests
         => new(TokenEstimator.ExtractSystemPrefix, TokenEstimator.EstimateFromMessages);
 
     [Fact]
-    public void FirstCall_IsAlwaysCacheMiss()
-    {
+    public void FirstCall_IsAlwaysCacheMiss() {
         var sim = CreateSimulator();
         var req = MakeRequest("system prompt A", 100);
 
@@ -49,8 +45,7 @@ public sealed class PrefixCacheSimulatorTests
     }
 
     [Fact]
-    public void SamePrefix_SecondCall_FullCacheHit()
-    {
+    public void SamePrefix_SecondCall_FullCacheHit() {
         var sim = CreateSimulator();
         var req1 = MakeRequest("system prompt A", 100);
         var req2 = MakeRequest("system prompt A", 100);
@@ -64,8 +59,7 @@ public sealed class PrefixCacheSimulatorTests
     }
 
     [Fact]
-    public void DifferentSystemPrompt_SecondCall_CacheMiss()
-    {
+    public void DifferentSystemPrompt_SecondCall_CacheMiss() {
         var sim = CreateSimulator();
         var req1 = MakeRequest("system prompt A", 100);
         var req2 = MakeRequest("system prompt B", 100);
@@ -79,8 +73,7 @@ public sealed class PrefixCacheSimulatorTests
     }
 
     [Fact]
-    public void GrowingPrefix_SecondCall_PartialCacheHit()
-    {
+    public void GrowingPrefix_SecondCall_PartialCacheHit() {
         // 多轮对话场景: 第2轮 prefix 比第1轮长 (包含第1轮的内容)
         // 但 ExtractSystemPrefix 只提取 system, 所以这个测试用扩展的 system 模拟
         var sim = CreateSimulator();
@@ -98,8 +91,7 @@ public sealed class PrefixCacheSimulatorTests
     }
 
     [Fact]
-    public void ShrinkingPrefix_SecondCall_FullCacheHit()
-    {
+    public void ShrinkingPrefix_SecondCall_FullCacheHit() {
         // 新 prefix 比已缓存 prefix 短, 但已缓存 prefix 以新 prefix 为前缀 → 完全命中
         var sim = CreateSimulator();
         var req1 = MakeRequest("long system prompt with extension", 100);
@@ -114,8 +106,7 @@ public sealed class PrefixCacheSimulatorTests
     }
 
     [Fact]
-    public void ThreeTurnProgressiveGrowth_EachTurnHasPartialHit()
-    {
+    public void ThreeTurnProgressiveGrowth_EachTurnHasPartialHit() {
         // 三轮对话, prefix 逐步增长
         var sim = CreateSimulator();
         var req1 = MakeRequest("turn1", 100);
@@ -140,8 +131,7 @@ public sealed class PrefixCacheSimulatorTests
     }
 
     [Fact]
-    public void ResetCache_NextCallIsAlwaysMiss()
-    {
+    public void ResetCache_NextCallIsAlwaysMiss() {
         var sim = CreateSimulator();
         var req = MakeRequest("system prompt A", 100);
 

@@ -3,14 +3,12 @@ namespace Hands.Tests.ToolHandlers;
 /// <summary>
 /// QuadtreeSplitAnimator 单元测试 — 验证四叉树分裂计算(框坐标/颜色淡化/线宽)
 /// </summary>
-public sealed class QuadtreeSplitAnimatorTests
-{
+public sealed class QuadtreeSplitAnimatorTests {
     private const int ScreenW = 1920;
     private const int ScreenH = 1080;
 
     [Fact]
-    public void GetLayerRects_Depth0_ReturnsSingleFullScreenRect()
-    {
+    public void GetLayerRects_Depth0_ReturnsSingleFullScreenRect() {
         var rects = QuadtreeSplitAnimator.GetLayerRects(0, 0, ScreenW, ScreenH, 0);
 
         rects.Should().HaveCount(1);
@@ -18,8 +16,7 @@ public sealed class QuadtreeSplitAnimatorTests
     }
 
     [Fact]
-    public void GetLayerRects_Depth1_Returns4Quadrants()
-    {
+    public void GetLayerRects_Depth1_Returns4Quadrants() {
         var rects = QuadtreeSplitAnimator.GetLayerRects(0, 0, ScreenW, ScreenH, 1);
 
         rects.Should().HaveCount(4);
@@ -33,27 +30,23 @@ public sealed class QuadtreeSplitAnimatorTests
     }
 
     [Fact]
-    public void GetLayerRects_Depth2_Returns16Rects()
-    {
+    public void GetLayerRects_Depth2_Returns16Rects() {
         var rects = QuadtreeSplitAnimator.GetLayerRects(0, 0, ScreenW, ScreenH, 2);
         rects.Should().HaveCount(16);
     }
 
     [Fact]
-    public void GetLayerRects_Depth3_Returns64Rects()
-    {
+    public void GetLayerRects_Depth3_Returns64Rects() {
         var rects = QuadtreeSplitAnimator.GetLayerRects(0, 0, ScreenW, ScreenH, 3);
         rects.Should().HaveCount(64);
     }
 
     [Fact]
-    public void GetLayerRects_ChildRectsCoverParentExactly()
-    {
+    public void GetLayerRects_ChildRectsCoverParentExactly() {
         var parents = QuadtreeSplitAnimator.GetLayerRects(0, 0, ScreenW, ScreenH, 1);
         var children = QuadtreeSplitAnimator.GetLayerRects(0, 0, ScreenW, ScreenH, 2);
 
-        foreach (var p in parents)
-        {
+        foreach (var p in parents) {
             var pChildren = children.Where(c => c.X >= p.X && c.X + c.Width <= p.X + p.Width &&
                                                 c.Y >= p.Y && c.Y + c.Height <= p.Y + p.Height).ToList();
             pChildren.Should().HaveCount(4, "每个父框应恰好分裂为4个子框");
@@ -65,8 +58,7 @@ public sealed class QuadtreeSplitAnimatorTests
     }
 
     [Fact]
-    public void GetLayerRects_OddScreenSize_HandlesRoundingCorrectly()
-    {
+    public void GetLayerRects_OddScreenSize_HandlesRoundingCorrectly() {
         var rects = QuadtreeSplitAnimator.GetLayerRects(0, 0, 1001, 501, 1);
 
         rects.Should().HaveCount(4);
@@ -78,16 +70,14 @@ public sealed class QuadtreeSplitAnimatorTests
     }
 
     [Fact]
-    public void FadeColor_Depth0_ReturnsBaseColor()
-    {
+    public void FadeColor_Depth0_ReturnsBaseColor() {
         const uint blue = 0x00FF0000;
         var result = QuadtreeSplitAnimator.FadeColor(blue, 0, 3);
         result.Should().Be(blue);
     }
 
     [Fact]
-    public void FadeColor_MaxDepth_ReturnsNearWhite()
-    {
+    public void FadeColor_MaxDepth_ReturnsNearWhite() {
         const uint blue = 0x00FF0000;
         var result = QuadtreeSplitAnimator.FadeColor(blue, 3, 3);
         var r = result & 0xFF;
@@ -99,8 +89,7 @@ public sealed class QuadtreeSplitAnimatorTests
     }
 
     [Fact]
-    public void FadeColor_IntermediateDepth_ReturnsInterpolated()
-    {
+    public void FadeColor_IntermediateDepth_ReturnsInterpolated() {
         const uint red = 0x000000FF;
         var result = QuadtreeSplitAnimator.FadeColor(red, 1, 2);
         var r = result & 0xFF;
@@ -112,41 +101,35 @@ public sealed class QuadtreeSplitAnimatorTests
     }
 
     [Fact]
-    public void FadeColor_MaxDepthZero_ReturnsBaseColor()
-    {
+    public void FadeColor_MaxDepthZero_ReturnsBaseColor() {
         const uint color = 0x0000FFFF;
         var result = QuadtreeSplitAnimator.FadeColor(color, 0, 0);
         result.Should().Be(color);
     }
 
     [Fact]
-    public void GetPenWidth_Depth0_Returns5()
-    {
+    public void GetPenWidth_Depth0_Returns5() {
         QuadtreeSplitAnimator.GetPenWidth(0).Should().Be(5);
     }
 
     [Fact]
-    public void GetPenWidth_Depth4_Returns1()
-    {
+    public void GetPenWidth_Depth4_Returns1() {
         QuadtreeSplitAnimator.GetPenWidth(4).Should().Be(1);
     }
 
     [Fact]
-    public void GetPenWidth_DeepDepth_Returns1()
-    {
+    public void GetPenWidth_DeepDepth_Returns1() {
         QuadtreeSplitAnimator.GetPenWidth(10).Should().Be(1, "深度超过5时线宽应钳制为1");
     }
 
     [Fact]
-    public void GetRectColor_Depth0_ReturnsWhite()
-    {
+    public void GetRectColor_Depth0_ReturnsWhite() {
         var color = QuadtreeSplitAnimator.GetRectColor(0, 1, 0, 3);
         color.Should().Be(0x00FFFFFF, "第0层(外框)应为白色");
     }
 
     [Fact]
-    public void GetRectColor_DifferentIndices_ReturnDifferentColors()
-    {
+    public void GetRectColor_DifferentIndices_ReturnDifferentColors() {
         var c0 = QuadtreeSplitAnimator.GetRectColor(0, 4, 1, 3);
         var c1 = QuadtreeSplitAnimator.GetRectColor(1, 4, 1, 3);
         var c2 = QuadtreeSplitAnimator.GetRectColor(2, 4, 1, 3);
@@ -157,8 +140,7 @@ public sealed class QuadtreeSplitAnimatorTests
     }
 
     [Fact]
-    public void GetRectColor_DeeperDepth_IsLighter()
-    {
+    public void GetRectColor_DeeperDepth_IsLighter() {
         var shallow = QuadtreeSplitAnimator.GetRectColor(0, 4, 1, 3);
         var deep = QuadtreeSplitAnimator.GetRectColor(0, 64, 3, 3);
 

@@ -1,20 +1,17 @@
 namespace Core.Tests.Query.StopHooks;
 
-public class QueryStopHookManagerTests
-{
+public class QueryStopHookManagerTests {
     private readonly QueryStopHookManager _manager = new(NullLogger<QueryStopHookManager>.Instance);
 
     [Fact]
-    public async Task ExecuteStopHooksAsync_NoHooks_ShouldReturnStop()
-    {
+    public async Task ExecuteStopHooksAsync_NoHooks_ShouldReturnStop() {
         var result = await _manager.ExecuteStopHooksAsync("session-1", "timeout").ConfigureAwait(true);
 
         result.ShouldStop.Should().BeTrue();
     }
 
     [Fact]
-    public async Task ExecuteStopHooksAsync_WithContinueHook_ShouldReturnStop()
-    {
+    public async Task ExecuteStopHooksAsync_WithContinueHook_ShouldReturnStop() {
         var hook = CreateMockHook("hook-1", 10, StopHookResult.Continue());
         _manager.RegisterStopHook(hook.Object);
 
@@ -24,8 +21,7 @@ public class QueryStopHookManagerTests
     }
 
     [Fact]
-    public async Task ExecuteStopHooksAsync_WithStopHook_ShouldShortCircuit()
-    {
+    public async Task ExecuteStopHooksAsync_WithStopHook_ShouldShortCircuit() {
         var stopHook = CreateMockHook("stop-hook", 5, StopHookResult.Stop("budget exceeded"));
         var continueHook = CreateMockHook("continue-hook", 10, StopHookResult.Continue());
 
@@ -40,8 +36,7 @@ public class QueryStopHookManagerTests
     }
 
     [Fact]
-    public async Task ExecuteStopHooksAsync_HookPriority_ShouldExecuteLowerPriorityFirst()
-    {
+    public async Task ExecuteStopHooksAsync_HookPriority_ShouldExecuteLowerPriorityFirst() {
         var executionOrder = new List<string>();
         var hook1 = CreateMockHook("hook-p1", 1, StopHookResult.Continue());
         var hook2 = CreateMockHook("hook-p5", 5, StopHookResult.Continue());
@@ -67,24 +62,21 @@ public class QueryStopHookManagerTests
     }
 
     [Fact]
-    public void RegisterStopHook_NullHook_ShouldThrowArgumentNullException()
-    {
+    public void RegisterStopHook_NullHook_ShouldThrowArgumentNullException() {
         var act = () => _manager.RegisterStopHook(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void UnregisterStopHook_NullHookName_ShouldThrowArgumentNullException()
-    {
+    public void UnregisterStopHook_NullHookName_ShouldThrowArgumentNullException() {
         var act = () => _manager.UnregisterStopHook(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task UnregisterStopHook_ExistingHook_ShouldRemoveHook()
-    {
+    public async Task UnregisterStopHook_ExistingHook_ShouldRemoveHook() {
         var hook = CreateMockHook("removable-hook", 1, StopHookResult.Stop("stopped"));
         _manager.RegisterStopHook(hook.Object);
 
@@ -96,24 +88,21 @@ public class QueryStopHookManagerTests
     }
 
     [Fact]
-    public async Task ExecuteStopHooksAsync_NullSessionId_ShouldThrowArgumentNullException()
-    {
+    public async Task ExecuteStopHooksAsync_NullSessionId_ShouldThrowArgumentNullException() {
         var act = async () => await _manager.ExecuteStopHooksAsync(null!, "timeout").ConfigureAwait(true);
 
         await act.Should().ThrowAsync<ArgumentNullException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ExecuteStopHooksAsync_NullReason_ShouldThrowArgumentNullException()
-    {
+    public async Task ExecuteStopHooksAsync_NullReason_ShouldThrowArgumentNullException() {
         var act = async () => await _manager.ExecuteStopHooksAsync("session-1", null!).ConfigureAwait(true);
 
         await act.Should().ThrowAsync<ArgumentNullException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ExecuteStopHooksAsync_HookThrowsException_ShouldContinueToNextHook()
-    {
+    public async Task ExecuteStopHooksAsync_HookThrowsException_ShouldContinueToNextHook() {
         var failingHook = CreateMockHook("failing-hook", 1, StopHookResult.Continue());
         failingHook.Setup(h => h.OnStopAsync(It.IsAny<StopHookContext>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("hook failed"));
@@ -129,8 +118,7 @@ public class QueryStopHookManagerTests
     }
 
     [Fact]
-    public void RegisterStopHook_DuplicateName_ShouldOverwrite()
-    {
+    public void RegisterStopHook_DuplicateName_ShouldOverwrite() {
         var hook1 = CreateMockHook("same-name", 1, StopHookResult.Stop("first"));
         var hook2 = CreateMockHook("same-name", 5, StopHookResult.Continue("second"));
 
@@ -140,8 +128,7 @@ public class QueryStopHookManagerTests
         hook2.Verify(h => h.Name, Times.AtLeastOnce());
     }
 
-    private static Mock<IQueryStopHook> CreateMockHook(string name, int priority, StopHookResult result)
-    {
+    private static Mock<IQueryStopHook> CreateMockHook(string name, int priority, StopHookResult result) {
         var mock = new Mock<IQueryStopHook>();
         mock.SetupGet(h => h.Name).Returns(name);
         mock.SetupGet(h => h.Priority).Returns(priority);

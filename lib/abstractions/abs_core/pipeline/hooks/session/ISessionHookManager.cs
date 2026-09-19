@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Hooks.Session;
 /// <summary>
 /// 会话钩子管理器接口 — 管理会话级函数钩子的注册和移除
 /// </summary>
-public interface ISessionHookManager : IHookManager
-{
+public interface ISessionHookManager : IHookManager {
     /// <summary>
     /// 添加会话钩子
     /// </summary>

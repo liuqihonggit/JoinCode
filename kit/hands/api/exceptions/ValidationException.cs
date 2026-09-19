@@ -4,8 +4,7 @@ namespace Services.Api;
 /// <summary>
 /// 验证错误异常 - 当 API 返回 400/422 状态码时抛出
 /// </summary>
-public sealed class ValidationException : ApiException
-{
+public sealed class ValidationException : ApiException {
     private readonly Dictionary<string, List<string>> _errors;
 
     /// <summary>
@@ -33,8 +32,7 @@ public sealed class ValidationException : ApiException
             statusCode: 400,
             endpoint: endpoint,
             responseContent: responseContent,
-            errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiValidation.ToValue())
-    {
+            errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiValidation.ToValue()) {
         _errors = errors ?? new Dictionary<string, List<string>>();
     }
 

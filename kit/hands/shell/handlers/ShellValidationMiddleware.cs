@@ -4,8 +4,7 @@ namespace Tools.Shell;
 /// Shell 命令参数验证中间件 — 检查命令、超时、工作目录等参数的有效性
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellValidationMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellValidationMiddleware : ServiceEntity, IShellMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
@@ -16,16 +15,14 @@ public sealed partial class ShellValidationMiddleware : ServiceEntity, IShellMid
     public ShellValidationMiddleware() { }
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(context.Command, "command"),
             ValidationHelper.ValidateStringLength(context.Command, 8192, "command"),
             ValidationHelper.ValidateRange(context.Timeout, 1000, 600000, "timeout"),
             ValidationHelper.ValidateStringLength(context.WorkingDirectory, 4096, "working_directory"));
 
-        if (validationError != null)
-        {
+        if (validationError != null) {
             context.ValidationError = validationError;
             var diagnostic = BuildValidationErrorDiagnostic(validationError);
             context.Result = ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();

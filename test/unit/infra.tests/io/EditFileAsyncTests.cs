@@ -4,21 +4,17 @@ namespace Infra.IO.Tests;
 /// IFileSystem.EditFileAsync 并发安全与原子性测试。
 /// 验证 per-file AsyncLock 串行化：同一文件无丢失更新，不同文件可并行。
 /// </summary>
-public class EditFileAsyncTests
-{
+public class EditFileAsyncTests {
     [Fact]
-    public async Task EditFileAsync_ConcurrentSameFile_NoLostUpdates()
-    {
+    public async Task EditFileAsync_ConcurrentSameFile_NoLostUpdates() {
         var fs = new InMemoryFileSystem();
         var path = "/test/concurrent.txt";
         fs.WriteAllText(path, "");
 
         const int taskCount = 50;
         var tasks = new Task[taskCount];
-        for (var i = 0; i < taskCount; i++)
-        {
-            tasks[i] = fs.EditFileAsync<int>(path, async (bytes, ct) =>
-            {
+        for (var i = 0; i < taskCount; i++) {
+            tasks[i] = fs.EditFileAsync<int>(path, async (bytes, ct) => {
                 var content = Encoding.UTF8.GetString(bytes);
                 var lineCount = string.IsNullOrEmpty(content) ? 0 : content.Split('\n').Length;
                 var newContent = lineCount == 0 ? "0" : content + "\n" + lineCount;
@@ -34,21 +30,18 @@ public class EditFileAsyncTests
     }
 
     [Fact]
-    public async Task EditFileAsync_DifferentFiles_Parallel()
-    {
+    public async Task EditFileAsync_DifferentFiles_Parallel() {
         var fs = new InMemoryFileSystem();
         var path1 = "/test/file1.txt";
         var path2 = "/test/file2.txt";
         fs.WriteAllText(path1, "a");
         fs.WriteAllText(path2, "b");
 
-        var task1 = fs.EditFileAsync<int>(path1, async (bytes, ct) =>
-        {
+        var task1 = fs.EditFileAsync<int>(path1, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
             return (Encoding.UTF8.GetBytes(content + "1"), 1);
         }, default);
-        var task2 = fs.EditFileAsync<int>(path2, async (bytes, ct) =>
-        {
+        var task2 = fs.EditFileAsync<int>(path2, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
             return (Encoding.UTF8.GetBytes(content + "2"), 2);
         }, default);
@@ -60,8 +53,7 @@ public class EditFileAsyncTests
     }
 
     [Fact]
-    public async Task EditFileAsync_FileNotFound_ThrowsFileNotFoundException()
-    {
+    public async Task EditFileAsync_FileNotFound_ThrowsFileNotFoundException() {
         var fs = new InMemoryFileSystem();
         var path = "/test/nonexistent.txt";
 
@@ -70,8 +62,7 @@ public class EditFileAsyncTests
     }
 
     [Fact]
-    public async Task EditFileAsync_TransformReturnsNull_NoWrite()
-    {
+    public async Task EditFileAsync_TransformReturnsNull_NoWrite() {
         var fs = new InMemoryFileSystem();
         var path = "/test/skip.txt";
         fs.WriteAllText(path, "original");
@@ -83,14 +74,12 @@ public class EditFileAsyncTests
     }
 
     [Fact]
-    public async Task EditFileAsync_TransformReceivesCurrentContent()
-    {
+    public async Task EditFileAsync_TransformReceivesCurrentContent() {
         var fs = new InMemoryFileSystem();
         var path = "/test/receive.txt";
         fs.WriteAllText(path, "hello world");
 
-        var receivedContent = await fs.EditFileAsync<string>(path, async (bytes, ct) =>
-        {
+        var receivedContent = await fs.EditFileAsync<string>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
             return (null, content);
         }, default);
@@ -99,26 +88,22 @@ public class EditFileAsyncTests
     }
 
     [Fact]
-    public async Task EditFileAsync_SequentialEdits_ComposeCorrectly()
-    {
+    public async Task EditFileAsync_SequentialEdits_ComposeCorrectly() {
         var fs = new InMemoryFileSystem();
         var path = "/test/sequential.txt";
         fs.WriteAllText(path, "0");
 
-        await fs.EditFileAsync<int>(path, async (bytes, ct) =>
-        {
+        await fs.EditFileAsync<int>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
             return (Encoding.UTF8.GetBytes(content + "1"), 1);
         }, default);
 
-        await fs.EditFileAsync<int>(path, async (bytes, ct) =>
-        {
+        await fs.EditFileAsync<int>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
             return (Encoding.UTF8.GetBytes(content + "2"), 2);
         }, default);
 
-        await fs.EditFileAsync<int>(path, async (bytes, ct) =>
-        {
+        await fs.EditFileAsync<int>(path, async (bytes, ct) => {
             var content = Encoding.UTF8.GetString(bytes);
             return (Encoding.UTF8.GetBytes(content + "3"), 3);
         }, default);

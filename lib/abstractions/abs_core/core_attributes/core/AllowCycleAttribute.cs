@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// 用于已知的、通过延迟解析打破的合法循环（如 TeamManager ↔ ITeammateObserver）
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class AllowCycleAttribute : Attribute
-{
+public sealed class AllowCycleAttribute : Attribute {
     /// <summary>
     /// 允许循环的原因 — 必须说明为何此循环是安全的
     /// </summary>

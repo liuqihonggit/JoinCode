@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Worktree 事件参数
 /// </summary>
-public sealed class WorktreeEventArgs : EventArgs
-{
+public sealed class WorktreeEventArgs : EventArgs {
     /// <summary>
     /// 智能体 ID
     /// </summary>
@@ -25,8 +24,7 @@ public sealed class WorktreeEventArgs : EventArgs
 /// <summary>
 /// Worktree 清理模式 — 驱动清理状态机决策
 /// </summary>
-public enum WorktreeCleanupMode
-{
+public enum WorktreeCleanupMode {
     /// <summary>任务自然完成:无变更删除,有变更保留(对齐 TS cleanupWorktreeIfNeeded)</summary>
     OnTaskComplete,
     /// <summary>强制删除:不管有无变更(worktree_remove 工具调用)</summary>
@@ -36,8 +34,7 @@ public enum WorktreeCleanupMode
 /// <summary>
 /// Worktree 清理详情 — 对齐 TS cleanupWorktreeIfNeeded 返回值
 /// </summary>
-public sealed class WorktreeCleanupDetail
-{
+public sealed class WorktreeCleanupDetail {
     /// <summary>
     /// Worktree 是否被保留（有变更或清理失败）
     /// </summary>
@@ -82,8 +79,7 @@ public sealed class WorktreeCleanupDetail
 /// <summary>
 /// Agent Worktree 管理器接口 - 负责 Worktree 的创建和清理
 /// </summary>
-public interface IAgentWorktreeManager
-{
+public interface IAgentWorktreeManager {
     /// <summary>
     /// 为 Agent 创建 Worktree（全局隔离模式 — 依赖 EnableWorktreeIsolation 开关）
     /// </summary>

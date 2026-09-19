@@ -5,8 +5,7 @@ public sealed record BashSemanticCheckIdMap(
     BashSecurityCheckId IncompleteFragment,
     BashSecurityCheckId ShellKeywords,
     BashSecurityCheckId ZshDangerousBuiltins,
-    BashSecurityCheckId EvalLikeBuiltins)
-{
+    BashSecurityCheckId EvalLikeBuiltins) {
     public static readonly BashSemanticCheckIdMap Default = new(
         BashSecurityCheckId.EmptyCommandName,
         BashSecurityCheckId.IncompleteFragment,

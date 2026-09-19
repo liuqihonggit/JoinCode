@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// <summary>
 /// 配置变更事件参数
 /// </summary>
-public sealed class ConfigChangeEventArgs : EventArgs
-{
+public sealed class ConfigChangeEventArgs : EventArgs {
     /// <summary>
     /// 变更文件路径
     /// </summary>
@@ -24,8 +23,7 @@ public sealed class ConfigChangeEventArgs : EventArgs
 /// <summary>
 /// 配置变更通知器接口
 /// </summary>
-public interface IConfigChangeNotifier
-{
+public interface IConfigChangeNotifier {
     /// <summary>
     /// 配置文件变更事件
     /// </summary>
@@ -53,8 +51,7 @@ public interface IConfigChangeNotifier
 /// <summary>
 /// 设置变更应用器接口 — 对齐 TS 版 applySettingsChange
 /// </summary>
-public interface ISettingsChangeApplier
-{
+public interface ISettingsChangeApplier {
     /// <summary>
     /// 手动触发设置重新加载
     /// </summary>

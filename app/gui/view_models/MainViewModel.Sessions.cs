@@ -3,8 +3,7 @@ namespace JoinCode.Gui.ViewModels;
 /// <summary>
 /// MainViewModel 会话管理 partial — 侧边栏会话列表、新建/选中/删除/清空、重命名、持久化加载/保存。
 /// </summary>
-public sealed partial class MainViewModel
-{
+public sealed partial class MainViewModel {
     /// <summary>侧边栏会话列表（占位阶段）</summary>
     public ObservableCollection<SessionItem> Sessions { get; } = [];
 
@@ -17,12 +16,9 @@ public sealed partial class MainViewModel
     public SessionItem? SelectedSession => Sessions.FirstOrDefault(s => s.IsSelected);
 
     /// <summary>启动时从同一 sessions 目录恢复历史会话到侧边栏（CLI 与 GUI 共享会话文件）</summary>
-    private void LoadPersistedSessions()
-    {
-        foreach (var summary in _sessionStore.ListSessions())
-        {
-            Sessions.Add(new SessionItem
-            {
+    private void LoadPersistedSessions() {
+        foreach (var summary in _sessionStore.ListSessions()) {
+            Sessions.Add(new SessionItem {
                 Id = summary.Id,
                 Title = summary.Title
             });
@@ -31,14 +27,12 @@ public sealed partial class MainViewModel
 
     /// <summary>新建一个会话（加入侧边栏并选中）</summary>
     [RelayCommand]
-    private void NewConversation()
-    {
+    private void NewConversation() {
         _sessionCounter++;
-        var item = new SessionItem
-        {
+        var item = new SessionItem {
             Title = $"会话 {_sessionCounter}",
             IsSelected = true
-        };        foreach (var s in Sessions)
+        }; foreach (var s in Sessions)
             s.IsSelected = false;
         Sessions.Add(item);
         _activeSession = item;
@@ -48,20 +42,17 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>将当前会话消息持久化到 ~/.jcc/sessions/{Id}.json（含自动命名标题）</summary>
-    private void SaveActiveSession()
-    {
+    private void SaveActiveSession() {
         if (_activeSession is null)
             return;
 
-        var data = new Persistence.GuiSessionData
-        {
+        var data = new Persistence.GuiSessionData {
             Id = _activeSession.Id,
             CustomTitle = _activeSession.Title,
             CreatedAt = DateTime.UtcNow,
             Messages = Messages
                 .Where(m => m.Role is MessageRole.User or MessageRole.Assistant && !string.IsNullOrWhiteSpace(m.Content))
-                .Select(m => new Persistence.GuiSessionMessage
-                {
+                .Select(m => new Persistence.GuiSessionMessage {
                     Role = m.Role.ToValue(),
                     Content = m.Content,
                     Timestamp = m.Timestamp
@@ -69,28 +60,20 @@ public sealed partial class MainViewModel
                 .ToList()
         };
 
-        try
-        {
+        try {
             _sessionStore.Save(data);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话持久化失败: {ex.Message}");
         }
     }
 
     /// <summary>清空全部会话（会话列表与消息一并重置，持久化文件同步删除）</summary>
     [RelayCommand]
-    private void ClearAllSessions()
-    {
-        foreach (var s in Sessions.ToList())
-        {
-            try
-            {
+    private void ClearAllSessions() {
+        foreach (var s in Sessions.ToList()) {
+            try {
                 _sessionStore.Delete(s.Id);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话删除失败: {ex.Message}");
             }
         }
@@ -102,17 +85,13 @@ public sealed partial class MainViewModel
 
     /// <summary>从会话列表删除指定会话（同步删除持久化文件）</summary>
     [RelayCommand]
-    private void RemoveSession(SessionItem? session)
-    {
+    private void RemoveSession(SessionItem? session) {
         if (session is null)
             return;
         Sessions.Remove(session);
-        try
-        {
+        try {
             _sessionStore.Delete(session.Id);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Diagnostics.Debug.WriteLine($"[MainViewModel] 会话删除失败: {ex.Message}");
         }
         if (session.IsSelected && Sessions.Count > 0)
@@ -121,8 +100,7 @@ public sealed partial class MainViewModel
 
     /// <summary>选中指定会话（单击切换当前会话，同一时刻仅一个选中；未选中态用作未可选区分）</summary>
     [RelayCommand]
-    private async Task SelectSession(SessionItem? session)
-    {
+    private async Task SelectSession(SessionItem? session) {
         if (session is null)
             return;
         if (session == _activeSession)
@@ -134,8 +112,7 @@ public sealed partial class MainViewModel
         _session.SwitchSession(session.Id);
 
         // 需求11：子会话点击展示内容（SubSessionMessages 缓存或引擎加载）
-        if (session.IsSubSession)
-        {
+        if (session.IsSubSession) {
             await LoadSubSessionContentAsync(session);
             return;
         }
@@ -144,15 +121,12 @@ public sealed partial class MainViewModel
         var data = _sessionStore.Load(session.Id);
         Messages.Clear();
         var historyForEngine = new List<(MessageRole Role, string Content)>();
-        if (data is not null)
-        {
-            foreach (var msg in data.Messages)
-            {
+        if (data is not null) {
+            foreach (var msg in data.Messages) {
                 if (string.IsNullOrWhiteSpace(msg.Content))
                     continue;
                 var role = MessageRoleExtensions.FromValue(msg.Role) ?? MessageRole.User;
-                Messages.Add(new ChatUiMessage
-                {
+                Messages.Add(new ChatUiMessage {
                     Role = role,
                     Content = msg.Content,
                     Timestamp = msg.Timestamp
@@ -168,8 +142,7 @@ public sealed partial class MainViewModel
 
     /// <summary>重命名指定会话（标题由视图双击触发，空标题忽略）</summary>
     [RelayCommand]
-    private void RenameSession(string? title)
-    {
+    private void RenameSession(string? title) {
         if (string.IsNullOrWhiteSpace(title))
             return;
         var active = SelectedSession;
@@ -179,8 +152,7 @@ public sealed partial class MainViewModel
 
     /// <summary>进入重命名编辑态（双击会话条目）</summary>
     [RelayCommand]
-    private void BeginRenameSession(SessionItem? session)
-    {
+    private void BeginRenameSession(SessionItem? session) {
         if (session is null)
             return;
         foreach (var s in Sessions)
@@ -191,8 +163,7 @@ public sealed partial class MainViewModel
 
     /// <summary>提交重命名（Enter 触发），空标题则保留原名</summary>
     [RelayCommand]
-    private void CommitRenameSession(SessionItem? session)
-    {
+    private void CommitRenameSession(SessionItem? session) {
         if (session is null)
             return;
         session.IsRenaming = false;
@@ -202,15 +173,13 @@ public sealed partial class MainViewModel
 
     /// <summary>取消重命名（Esc 触发），恢复原标题</summary>
     [RelayCommand]
-    private void CancelRenameSession(SessionItem? session)
-    {
+    private void CancelRenameSession(SessionItem? session) {
         if (session is not null)
             session.IsRenaming = false;
     }
 
     /// <summary>用首条用户消息为会话自动命名（截断避免过长）</summary>
-    private void RenameActiveSessionTo(string message)
-    {
+    private void RenameActiveSessionTo(string message) {
         if (_activeSession is null)
             return;
         var title = message.Trim().Length > 18

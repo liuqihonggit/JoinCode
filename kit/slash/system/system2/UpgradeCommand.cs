@@ -6,110 +6,88 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Upgrade, Description = "检查并执行自升级", Usage = "/upgrade [check|force|download|apply|auto]", Category = ChatCommandCategory.System, ArgumentHint = "[check|force|download|apply|auto]")]
 [ChatCommandArg("action", Type = "string", Description = "升级操作", Enum = new[] { "check", "force", "download", "apply", "auto" })]
-public sealed class UpgradeCommand : ChatCommandBase
-{
+public sealed class UpgradeCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /upgrade 命令 — 根据子参数分发检查、强制检查、下载、应用、自动更新操作
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数、服务容器、取消令牌等</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var upgradeService = context.Services?.GetService<IUpgradeService>();
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 
         var currentVersion = upgradeService?.GetCurrentVersion() ?? GetFallbackVersion();
         TerminalHelper.WriteLine($"当前版本: {currentVersion}");
 
-        if (upgradeService is null)
-        {
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+        if (upgradeService is null) {
+            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 TerminalHelper.WriteLine("升级服务未初始化");
             }
             TerminalHelper.WriteLine("请手动访问 GitHub Releases 获取最新版本");
             return ChatCommandResult.Continue();
         }
 
-        switch (args)
-        {
+        switch (args) {
             case "":
             case "check":
-                await CheckUpdateAsync(upgradeService, currentVersion, context.CancellationToken).ConfigureAwait(false);
-                break;
+            await CheckUpdateAsync(upgradeService, currentVersion, context.CancellationToken).ConfigureAwait(false);
+            break;
             case "force":
-                await ForceCheckAsync(upgradeService, context.CancellationToken).ConfigureAwait(false);
-                break;
+            await ForceCheckAsync(upgradeService, context.CancellationToken).ConfigureAwait(false);
+            break;
             case "download":
-                await DownloadUpdateAsync(upgradeService, currentVersion, context.CancellationToken).ConfigureAwait(false);
-                break;
+            await DownloadUpdateAsync(upgradeService, currentVersion, context.CancellationToken).ConfigureAwait(false);
+            break;
             case "apply":
-                await ApplyUpdateAsync(upgradeService, currentVersion, context.CancellationToken).ConfigureAwait(false);
-                break;
+            await ApplyUpdateAsync(upgradeService, currentVersion, context.CancellationToken).ConfigureAwait(false);
+            break;
             case "auto":
-                await AutoUpdateAsync(upgradeService, currentVersion, context.CancellationToken).ConfigureAwait(false);
-                break;
+            await AutoUpdateAsync(upgradeService, currentVersion, context.CancellationToken).ConfigureAwait(false);
+            break;
             default:
-                TerminalHelper.WriteLine($"未知参数: {args}");
-                TerminalHelper.WriteLine("用法: /upgrade [check|force|download|apply|auto]");
-                break;
+            TerminalHelper.WriteLine($"未知参数: {args}");
+            TerminalHelper.WriteLine("用法: /upgrade [check|force|download|apply|auto]");
+            break;
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static async Task CheckUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct)
-    {
+    private static async Task CheckUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct) {
         TerminalHelper.WriteLine("正在检查更新...");
-        try
-        {
+        try {
             var latest = await service.GetLatestVersionAsync(ct).ConfigureAwait(false);
-            if (latest is not null)
-            {
+            if (latest is not null) {
                 TerminalHelper.WriteLine($"最新版本: {latest}");
-                if (latest > currentVersion)
-                {
+                if (latest > currentVersion) {
                     TerminalHelper.WriteLine("有新版本可用! 使用 /upgrade download 下载，/upgrade apply 安装");
-                }
-                else
-                {
+                } else {
                     TerminalHelper.WriteLine("已是最新版本");
                 }
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine("无法获取最新版本信息");
                 TerminalHelper.WriteLine("请手动访问 GitHub Releases 获取最新版本");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("检查更新", ex);
         }
     }
 
-    private static async Task ForceCheckAsync(IUpgradeService service, CancellationToken ct)
-    {
+    private static async Task ForceCheckAsync(IUpgradeService service, CancellationToken ct) {
         TerminalHelper.WriteLine("正在强制检查更新...");
-        try
-        {
+        try {
             var isAvailable = await service.IsUpdateAvailableAsync(ct).ConfigureAwait(false);
             TerminalHelper.WriteLine(isAvailable ? "有新版本可用" : "已是最新版本");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("检查更新", ex);
         }
     }
 
-    private static async Task DownloadUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct)
-    {
+    private static async Task DownloadUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct) {
         TerminalHelper.WriteLine("正在获取更新信息...");
-        try
-        {
+        try {
             var entry = await service.GetUpdateEntryAsync(ct).ConfigureAwait(false);
-            if (entry is null)
-            {
+            if (entry is null) {
                 TerminalHelper.WriteLine("无可用更新或未配置更新源");
                 return;
             }
@@ -118,31 +96,23 @@ public sealed class UpgradeCommand : ChatCommandBase
             TerminalHelper.WriteLine("正在下载...");
 
             var result = await service.DownloadUpdateAsync(entry, null, ct).ConfigureAwait(false);
-            if (result.Success)
-            {
+            if (result.Success) {
                 TerminalHelper.WriteLine($"下载完成: {result.DownloadedPath}");
                 TerminalHelper.WriteLine("SHA256 校验通过");
                 TerminalHelper.WriteLine("使用 /upgrade apply 安装更新");
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"下载失败: {result.ErrorMessage}");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("下载更新", ex);
         }
     }
 
-    private static async Task ApplyUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct)
-    {
+    private static async Task ApplyUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct) {
         TerminalHelper.WriteLine("正在获取并下载更新...");
-        try
-        {
+        try {
             var entry = await service.GetUpdateEntryAsync(ct).ConfigureAwait(false);
-            if (entry is null)
-            {
+            if (entry is null) {
                 TerminalHelper.WriteLine("无可用更新或未配置更新源");
                 return;
             }
@@ -151,51 +121,39 @@ public sealed class UpgradeCommand : ChatCommandBase
             TerminalHelper.WriteLine("正在下载...");
 
             var downloadResult = await service.DownloadUpdateAsync(entry, null, ct).ConfigureAwait(false);
-            if (!downloadResult.Success)
-            {
+            if (!downloadResult.Success) {
                 TerminalHelper.WriteLine($"下载失败: {downloadResult.ErrorMessage}");
                 return;
             }
 
             TerminalHelper.WriteLine("下载完成，正在安装...");
             var applyResult = await service.ApplyUpdateAsync(downloadResult.DownloadedPath!, ct).ConfigureAwait(false);
-            if (applyResult.Success)
-            {
+            if (applyResult.Success) {
                 TerminalHelper.WriteLine("更新安装成功! 请重启 jcc 生效");
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"安装失败: {applyResult.ErrorMessage}");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("应用更新", ex);
         }
     }
 
-    private static async Task AutoUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct)
-    {
+    private static async Task AutoUpdateAsync(IUpgradeService service, Version currentVersion, CancellationToken ct) {
         TerminalHelper.WriteLine("自动更新模式...");
-        try
-        {
+        try {
             var isAvailable = await service.IsUpdateAvailableAsync(ct).ConfigureAwait(false);
-            if (!isAvailable)
-            {
+            if (!isAvailable) {
                 TerminalHelper.WriteLine("已是最新版本");
                 return;
             }
 
             await ApplyUpdateAsync(service, currentVersion, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("自动更新", ex);
         }
     }
 
-    private static Version GetFallbackVersion()
-    {
+    private static Version GetFallbackVersion() {
         return typeof(UpgradeCommand).Assembly.GetName().Version ?? new Version(0, 1, 0);
     }
 }

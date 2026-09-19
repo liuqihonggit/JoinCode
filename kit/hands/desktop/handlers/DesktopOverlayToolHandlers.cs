@@ -5,8 +5,7 @@ namespace Tools.Handlers;
 /// 用 GDI 在桌面 DC 画框，超时自动清除，供 LLM 向用户实际标注桌面位置
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public class DesktopOverlayToolHandlers
-{
+public class DesktopOverlayToolHandlers {
     private readonly IScreenCaptureService _capture;
     private readonly ILogger<DesktopOverlayToolHandlers>? _logger;
 
@@ -15,8 +14,7 @@ public class DesktopOverlayToolHandlers
     /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
     public DesktopOverlayToolHandlers(
         IScreenCaptureService capture,
-        ILogger<DesktopOverlayToolHandlers>? logger = null)
-    {
+        ILogger<DesktopOverlayToolHandlers>? logger = null) {
         _capture = capture;
         _logger = logger;
     }
@@ -30,8 +28,7 @@ public class DesktopOverlayToolHandlers
         [McpToolParameter("高亮框高度（像素）", Required = true)] int height,
         [McpToolParameter("显示时长（毫秒），超时自动清除，默认3000", Required = false)] int durationMs = 3000,
         [McpToolParameter("边框颜色: red/green/blue/yellow/cyan/magenta，默认yellow", Required = false)] string color = "yellow",
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         if (width <= 0 || height <= 0)
             return ToolResultBuilder.Error().WithText("[OVL100] 高亮框尺寸必须为正").Build();
         if (durationMs <= 0)
@@ -43,8 +40,7 @@ public class DesktopOverlayToolHandlers
             return ToolResultBuilder.Error().WithText("[OVL102] 无法获取桌面设备上下文").Build();
 
         var cancelled = false;
-        try
-        {
+        try {
             var hPen = Gdi32NativeMethods.CreatePen(NativeConstants.PS_SOLID, 4, colorRef);
             var hBrush = Gdi32NativeMethods.GetStockObject(NativeConstants.NULL_BRUSH);
             using var penScope = new GdiSelectScope(hdc, hPen);
@@ -52,17 +48,13 @@ public class DesktopOverlayToolHandlers
 
             // 定期重画防止 DWM 合成擦掉(DWM 下 GDI 直接画桌面 DC 非持久,一帧后消失)
             var intervals = Math.Max(1, durationMs / 50);
-            for (var i = 0; i < intervals; i++)
-            {
+            for (var i = 0; i < intervals; i++) {
                 Gdi32NativeMethods.Rectangle(hdc, x, y, x + width, y + height);
-                try { await Task.Delay(50, ct).ConfigureAwait(false); }
-                catch (TaskCanceledException) { cancelled = true; break; }
+                try { await Task.Delay(50, ct).ConfigureAwait(false); } catch (TaskCanceledException) { cancelled = true; break; }
             }
 
             Gdi32NativeMethods.DeleteObject(hPen);
-        }
-        finally
-        {
+        } finally {
             User32NativeMethods.ReleaseDC(IntPtr.Zero, hdc);
         }
 
@@ -76,8 +68,7 @@ public class DesktopOverlayToolHandlers
     }
 
     /// <summary>清除桌面高亮框 — 触发桌面重绘</summary>
-    private static void ClearOverlay()
-    {
+    private static void ClearOverlay() {
         User32NativeMethods.InvalidateRect(IntPtr.Zero, IntPtr.Zero, true);
         User32NativeMethods.UpdateWindow(IntPtr.Zero);
     }
@@ -92,8 +83,7 @@ public class DesktopOverlayToolHandlers
         [McpToolParameter("动画总时长（毫秒），超时自动关闭，默认5000", Required = false)] int? durationMs = 5000,
         [McpToolParameter("帧间隔（毫秒），默认33约30fps", Required = false)] int? frameMs = 33,
         [McpToolParameter("圆颜色: red/green/blue/yellow/cyan/magenta，默认yellow", Required = false)] string color = "yellow",
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var maxR = maxRadius ?? 120;
         var minR = minRadius ?? 30;
         var duration = durationMs ?? 5000;
@@ -112,12 +102,9 @@ public class DesktopOverlayToolHandlers
         using var overlay = new DesktopPulseOverlay();
         var runTask = Task.Run(() => overlay.Run(centerX, centerY, maxR, minR, duration, frame, colorRef), ct);
 
-        try
-        {
+        try {
             await Task.Delay(duration, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             overlay.Close();
             await runTask.ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText($"桌面脉冲圆已取消: 中心({centerX},{centerY}) 半径{minR}-{maxR}").Build();
@@ -137,8 +124,7 @@ public class DesktopOverlayToolHandlers
         [McpToolParameter("是否显示四叉树分裂动画,默认true", Required = false)] bool? showAnimation = true,
         [McpToolParameter("动画时长(毫秒),默认2000", Required = false)] int? animationDurationMs = 2000,
         [McpToolParameter("基础颜色: red/green/blue/yellow/cyan/magenta,默认cyan", Required = false)] string baseColor = "cyan",
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var d = depth ?? 1;
         var minP = minPixels ?? 100;
         var showAnim = showAnimation ?? true;
@@ -167,17 +153,14 @@ public class DesktopOverlayToolHandlers
                 .WithText($"[CUR104] 截图范围太小({cellW}x{cellH}),小于最小像素{minP}。建议减小depth重试(当前depth={d},尝试depth={Math.Max(0, d - 1)})")
                 .Build();
 
-        if (showAnim && d > 0)
-        {
+        if (showAnim && d > 0) {
             var colorRef = ParseColor(baseColor);
             var highlightRect = new QuadtreeRect(cellX, cellY, cellW, cellH);
 
             using var overlay = new QuadtreeSplitOverlay();
             var runTask = Task.Run(() => overlay.Run(screenW, screenH, d, animDuration, 33, colorRef, highlightRect), ct);
 
-            try { await Task.Delay(animDuration, ct).ConfigureAwait(false); }
-            catch (OperationCanceledException)
-            {
+            try { await Task.Delay(animDuration, ct).ConfigureAwait(false); } catch (OperationCanceledException) {
                 overlay.Close();
                 await runTask.ConfigureAwait(false);
                 return ToolResultBuilder.Success().WithText($"鼠标指向识别已取消: 鼠标({pt.X},{pt.Y}) 深度={d}").Build();
@@ -200,13 +183,11 @@ public class DesktopOverlayToolHandlers
     }
 
     /// <summary>计算鼠标位置的四叉树编码路径(如 L0.2.1),象限 SW=0/SE=1/NW=2/NE=3</summary>
-    private static string GetQuadtreePath(int mx, int my, int screenW, int screenH, int depth)
-    {
+    private static string GetQuadtreePath(int mx, int my, int screenW, int screenH, int depth) {
         if (depth == 0) return "L0";
         var sb = new StringBuilder("L0");
         var curX = 0; var curY = 0; var curW = screenW; var curH = screenH;
-        for (var i = 0; i < depth; i++)
-        {
+        for (var i = 0; i < depth; i++) {
             var halfW = curW / 2;
             var halfH = curH / 2;
             int quadrant;
@@ -217,17 +198,13 @@ public class DesktopOverlayToolHandlers
 
             sb.Append('.').Append(quadrant);
 
-            if (quadrant == 2) { curW = halfW; curH = halfH; }
-            else if (quadrant == 3) { curX += halfW; curW -= halfW; curH = halfH; }
-            else if (quadrant == 0) { curY += halfH; curW = halfW; curH -= halfH; }
-            else { curX += halfW; curY += halfH; curW -= halfW; curH -= halfH; }
+            if (quadrant == 2) { curW = halfW; curH = halfH; } else if (quadrant == 3) { curX += halfW; curW -= halfW; curH = halfH; } else if (quadrant == 0) { curY += halfH; curW = halfW; curH -= halfH; } else { curX += halfW; curY += halfH; curW -= halfW; curH -= halfH; }
         }
         return sb.ToString();
     }
 
     /// <summary>颜色名称 → Win32 COLORREF (0x00BBGGRR)</summary>
-    private static uint ParseColor(string color) => color.ToLowerInvariant() switch
-    {
+    private static uint ParseColor(string color) => color.ToLowerInvariant() switch {
         "red" => 0x000000FF,
         "green" => 0x0000FF00,
         "blue" => 0x00FF0000,

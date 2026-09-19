@@ -1,13 +1,10 @@
 namespace Llm.Tests.Adapters.LLM.QueryServices.OpenAI;
 
 
-public class OpenAIQueryServiceTests
-{
-    private static OpenAIQueryService CreateService(string provider = "openai")
-    {
+public class OpenAIQueryServiceTests {
+    private static OpenAIQueryService CreateService(string provider = "openai") {
         var kind = ProtocolKind.OpenAiCompatible;
-        var config = new ProviderConfig
-        {
+        var config = new ProviderConfig {
             Vendor = provider,
             ApiKey = "sk-test",
             ModelId = "gpt-4o",
@@ -19,8 +16,7 @@ public class OpenAIQueryServiceTests
     #region CreateRequest
 
     [Fact]
-    public void CreateRequest_DefaultSettings_UsesConfigModelId()
-    {
+    public void CreateRequest_DefaultSettings_UsesConfigModelId() {
         var service = CreateService();
         var history = new MessageList { new(MessageRole.User, "hi") };
 
@@ -32,12 +28,10 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_FastMode_UsesFastModelId()
-    {
+    public void CreateRequest_FastMode_UsesFastModelId() {
         var service = CreateService();
         var history = new MessageList();
-        var options = new ChatOptions
-        {
+        var options = new ChatOptions {
             FastMode = true,
             FastModelId = "gpt-4o-mini"
         };
@@ -48,8 +42,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_FastModeWithoutFastModelId_KeepsConfigModel()
-    {
+    public void CreateRequest_FastModeWithoutFastModelId_KeepsConfigModel() {
         var service = CreateService();
         var options = new ChatOptions { FastMode = true };
 
@@ -59,8 +52,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_StreamEnabled_IncludesUsageOption()
-    {
+    public void CreateRequest_StreamEnabled_IncludesUsageOption() {
         var service = CreateService();
 
         var request = service.CreateRequest(new MessageList(), null, stream: true, null);
@@ -70,8 +62,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_EffortLevel_SetsReasoningEffort()
-    {
+    public void CreateRequest_EffortLevel_SetsReasoningEffort() {
         var service = CreateService();
         var options = new ChatOptions { EffortLevel = EffortLevel.Medium };
 
@@ -81,8 +72,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ThinkingEnabled_SetsThinkingField()
-    {
+    public void CreateRequest_ThinkingEnabled_SetsThinkingField() {
         var service = CreateService();
         var options = new ChatOptions { ThinkingEnabled = true };
 
@@ -94,8 +84,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ThinkingDisabled_DoesNotSetThinking()
-    {
+    public void CreateRequest_ThinkingDisabled_DoesNotSetThinking() {
         var service = CreateService();
         var options = new ChatOptions { ThinkingEnabled = false };
 
@@ -105,8 +94,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools()
-    {
+    public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup("tools", [new ToolDef("TestTool", "A test tool")]));
@@ -121,8 +109,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ToolChoiceAutoWithoutKernel_DoesNotAddTools()
-    {
+    public void CreateRequest_ToolChoiceAutoWithoutKernel_DoesNotAddTools() {
         var service = CreateService();
         var options = new ChatOptions { ToolChoice = ToolChoice.AutoInvoke };
 
@@ -132,11 +119,9 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_TransfersTemperatureMaxTokensTopP()
-    {
+    public void CreateRequest_TransfersTemperatureMaxTokensTopP() {
         var service = CreateService();
-        var options = new ChatOptions
-        {
+        var options = new ChatOptions {
             Temperature = 0.5f,
             MaxTokens = 100,
             TopP = 0.9f,
@@ -158,8 +143,7 @@ public class OpenAIQueryServiceTests
     #region ConvertToOpenAIMessage
 
     [Fact]
-    public void ConvertToOpenAIMessage_UserMessage_MapsRoleAndContent()
-    {
+    public void ConvertToOpenAIMessage_UserMessage_MapsRoleAndContent() {
         var message = new ApiMessage(MessageRole.User, "hello");
 
         var result = OpenAIQueryService.ConvertToOpenAIMessage(message);
@@ -169,8 +153,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToOpenAIMessage_AssistantMessage_MapsRoleAndContent()
-    {
+    public void ConvertToOpenAIMessage_AssistantMessage_MapsRoleAndContent() {
         var message = new ApiMessage(MessageRole.Assistant, "hi there");
 
         var result = OpenAIQueryService.ConvertToOpenAIMessage(message);
@@ -180,8 +163,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToOpenAIMessage_AssistantWithToolCalls_MapsToolCallsAndClearsContent()
-    {
+    public void ConvertToOpenAIMessage_AssistantWithToolCalls_MapsToolCallsAndClearsContent() {
         var entries = new[]
         {
             new ToolCallEntry { Id = "1", Name = "ToolA", Arguments = "{}" }
@@ -199,8 +181,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToOpenAIMessage_ToolMessage_MapsToolCallId()
-    {
+    public void ConvertToOpenAIMessage_ToolMessage_MapsToolCallId() {
         var metadata = ToolCallEntry.BuildToolResultMetadata("call-1", "ToolA");
         var message = new ApiMessage(MessageRole.Tool, "result", metadata);
 
@@ -217,15 +198,12 @@ public class OpenAIQueryServiceTests
     #region ConvertToApiMessage
 
     [Fact]
-    public void ConvertToApiMessage_WithUsage_IncludesUsageMetadata()
-    {
-        var choice = new OpenAIChoice
-        {
+    public void ConvertToApiMessage_WithUsage_IncludesUsageMetadata() {
+        var choice = new OpenAIChoice {
             Message = new OpenAIApiMessage { Role = "assistant", Content = "ok" },
             FinishReason = "stop"
         };
-        var usage = new OpenAIUsage
-        {
+        var usage = new OpenAIUsage {
             PromptTokens = 10,
             CompletionTokens = 5,
             TotalTokens = 15
@@ -239,12 +217,9 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessage_WithReasoningContent_IncludesMetadata()
-    {
-        var choice = new OpenAIChoice
-        {
-            Message = new OpenAIApiMessage
-            {
+    public void ConvertToApiMessage_WithReasoningContent_IncludesMetadata() {
+        var choice = new OpenAIChoice {
+            Message = new OpenAIApiMessage {
                 Role = "assistant",
                 Content = "ok",
                 ReasoningContent = "thinking"
@@ -259,12 +234,9 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessage_WithToolCalls_IncludesToolCallMetadata()
-    {
-        var choice = new OpenAIChoice
-        {
-            Message = new OpenAIApiMessage
-            {
+    public void ConvertToApiMessage_WithToolCalls_IncludesToolCallMetadata() {
+        var choice = new OpenAIChoice {
+            Message = new OpenAIApiMessage {
                 Role = "assistant",
                 Content = "calling",
                 ToolCalls =
@@ -287,10 +259,8 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessage_InvalidRole_FallsBackToAssistant()
-    {
-        var choice = new OpenAIChoice
-        {
+    public void ConvertToApiMessage_InvalidRole_FallsBackToAssistant() {
+        var choice = new OpenAIChoice {
             Message = new OpenAIApiMessage { Role = "unknown", Content = "ok" },
             FinishReason = "stop"
         };
@@ -305,8 +275,7 @@ public class OpenAIQueryServiceTests
     #region Two-Phase Tool Loading — BuildToolsFromKernel
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty()
-    {
+    public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file"),
@@ -321,8 +290,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated()
-    {
+    public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),
@@ -338,8 +306,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups()
-    {
+    public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file")
@@ -362,16 +329,14 @@ public class OpenAIQueryServiceTests
     #region Two-Phase Tool Loading — CreateSecondRequestWithDescriptions
 
     [Fact]
-    public void CreateSecondRequestWithDescriptions_ValidToolNames_BuildsDescriptions()
-    {
+    public void CreateSecondRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1"),
             new ToolDef("mcp.tool2", "MCP tool 2")
         ]));
 
-        var originalRequest = new OpenAIChatRequest
-        {
+        var originalRequest = new OpenAIChatRequest {
             Model = "gpt-4o",
             Messages = [new OpenAIApiMessage { Role = "user", Content = "hi" }],
             Stream = true
@@ -387,8 +352,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateSecondRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty()
-    {
+    public void CreateSecondRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
@@ -403,15 +367,13 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void CreateSecondRequestWithDescriptions_PreservesOriginalFields()
-    {
+    public void CreateSecondRequestWithDescriptions_PreservesOriginalFields() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
 
-        var originalRequest = new OpenAIChatRequest
-        {
+        var originalRequest = new OpenAIChatRequest {
             Model = "gpt-4o",
             Messages = [new OpenAIApiMessage { Role = "user", Content = "test" }],
             Stream = true,
@@ -437,10 +399,8 @@ public class OpenAIQueryServiceTests
     #region ConvertToOpenAIMessage — 多模态 ContentBlocks → image_url
 
     [Fact]
-    public void ConvertToOpenAIMessage_ImageContentBlock_ConvertsToImageUrlPart()
-    {
-        var msg = new ApiMessage(MessageRole.User, "What is in this image?")
-        {
+    public void ConvertToOpenAIMessage_ImageContentBlock_ConvertsToImageUrlPart() {
+        var msg = new ApiMessage(MessageRole.User, "What is in this image?") {
             ContentBlocks = [new ToolContent { Type = ToolContentType.Image, Data = "iVBORw0KGgo=", MimeType = "image/png" }]
         };
 
@@ -455,8 +415,7 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToOpenAIMessage_TextOnly_NoContentBlocks_SerializesAsString()
-    {
+    public void ConvertToOpenAIMessage_TextOnly_NoContentBlocks_SerializesAsString() {
         var msg = new ApiMessage(MessageRole.User, "plain text");
 
         var result = OpenAIQueryService.ConvertToOpenAIMessage(msg);
@@ -466,10 +425,8 @@ public class OpenAIQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToOpenAIMessage_TextContentBlock_AddsTextPart()
-    {
-        var msg = new ApiMessage(MessageRole.User, "prefix")
-        {
+    public void ConvertToOpenAIMessage_TextContentBlock_AddsTextPart() {
+        var msg = new ApiMessage(MessageRole.User, "prefix") {
             ContentBlocks = [new ToolContent { Type = ToolContentType.Text, Text = "block text" }]
         };
 

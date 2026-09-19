@@ -1,27 +1,22 @@
 namespace Infra.Tests.EntityTests;
 
-public sealed class EntityLifecycleTests
-{
-    private sealed class TestEntity : JoinCode.Abstractions.Entity.Entity
-    {
+public sealed class EntityLifecycleTests {
+    private sealed class TestEntity : JoinCode.Abstractions.Entity.Entity {
         public static readonly ConcurrentDictionary<ObjectId, TestEntity> Registry = new();
 
         public TestEntity(string? displayName = null)
-            : base(ObjectType.Agent, displayName: displayName)
-        {
+            : base(ObjectType.Agent, displayName: displayName) {
             Registry.TryAdd(ObjectId, this);
         }
 
-        public override void Dispose()
-        {
+        public override void Dispose() {
             Registry.TryRemove(ObjectId, out _);
             base.Dispose();
         }
     }
 
     [Fact]
-    public void Entity_Created_HasCorrectDefaults()
-    {
+    public void Entity_Created_HasCorrectDefaults() {
         using var entity = new TestEntity("test");
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
         entity.IsPersisted.Should().BeFalse();
@@ -32,8 +27,7 @@ public sealed class EntityLifecycleTests
     }
 
     [Fact]
-    public void Entity_MarkPersisted_TransitionsToPersisted()
-    {
+    public void Entity_MarkPersisted_TransitionsToPersisted() {
         using var entity = new TestEntity();
         entity.LifecycleState = EntityLifecycle.Completed;
         entity.MarkPersisted();
@@ -42,8 +36,7 @@ public sealed class EntityLifecycleTests
     }
 
     [Fact]
-    public void Entity_CanReclaim_DefaultRequiresPersistedAndCompleted()
-    {
+    public void Entity_CanReclaim_DefaultRequiresPersistedAndCompleted() {
         using var entity = new TestEntity();
         entity.CanReclaim().Should().BeFalse();
 
@@ -56,8 +49,7 @@ public sealed class EntityLifecycleTests
     }
 
     [Fact]
-    public async Task Entity_Touch_RefreshesLastActivityAt()
-    {
+    public async Task Entity_Touch_RefreshesLastActivityAt() {
         using var entity = new TestEntity();
         var before = entity.LastActivityAt;
         await Task.Delay(10);
@@ -66,8 +58,7 @@ public sealed class EntityLifecycleTests
     }
 
     [Fact]
-    public void Entity_IsTimedOut_WhenExceeded()
-    {
+    public void Entity_IsTimedOut_WhenExceeded() {
         using var entity = new TestEntity();
         entity.IsTimedOut.Should().BeFalse();
 
@@ -76,8 +67,7 @@ public sealed class EntityLifecycleTests
     }
 
     [Fact]
-    public void Entity_Dispose_SetsLifecycleToDisposed()
-    {
+    public void Entity_Dispose_SetsLifecycleToDisposed() {
         var entity = new TestEntity();
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
         entity.Dispose();

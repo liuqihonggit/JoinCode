@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Weight.Bayesian;
 /// <summary>
 /// 后验分布 — 高斯共轭模型
 /// </summary>
-public sealed class Posterior
-{
+public sealed class Posterior {
     /// <summary>
     /// 均值
     /// </summary>

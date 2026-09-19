@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务文件元数据，用于JSON序列化存储
 /// </summary>
-public sealed record FileTaskMetadata
-{
+public sealed record FileTaskMetadata {
     /// <summary>
     /// 任务ID
     /// </summary>
@@ -75,10 +74,8 @@ public sealed record FileTaskMetadata
     /// <summary>
     /// 从 TaskItem 创建 FileTaskMetadata
     /// </summary>
-    public static FileTaskMetadata FromTaskItem(TaskItem item)
-    {
-        return new FileTaskMetadata
-        {
+    public static FileTaskMetadata FromTaskItem(TaskItem item) {
+        return new FileTaskMetadata {
             Id = item.Id,
             Title = item.Title,
             Description = item.Description,
@@ -94,10 +91,8 @@ public sealed record FileTaskMetadata
     /// <summary>
     /// 转换为 TaskItem
     /// </summary>
-    public TaskItem ToTaskItem()
-    {
-        return new TaskItem
-        {
+    public TaskItem ToTaskItem() {
+        return new TaskItem {
             Id = Id,
             Title = Title,
             Description = Description,
@@ -113,24 +108,19 @@ public sealed record FileTaskMetadata
     /// <summary>
     /// 序列化为 JSON
     /// </summary>
-    public string ToJson()
-    {
+    public string ToJson() {
         return RelaxedJsonSerializer.Serialize(this, SchedulingIndentedJsonContext.Default);
     }
 
     /// <summary>
     /// 从 JSON 反序列化
     /// </summary>
-    public static FileTaskMetadata? FromJson(string json)
-    {
+    public static FileTaskMetadata? FromJson(string json) {
         if (string.IsNullOrWhiteSpace(json))
             return null;
-        try
-        {
+        try {
             return RelaxedJsonSerializer.Deserialize(json, SchedulingJsonContext.Default.FileTaskMetadata);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -139,8 +129,7 @@ public sealed record FileTaskMetadata
 /// <summary>
 /// 任务状态转换帮助类 — 委托给 TaskExecutionStatusExtensions（源码生成器自动生成）
 /// </summary>
-public static class TaskStateConverter
-{
+public static class TaskStateConverter {
     /// <summary>
     /// 将 TaskState 枚举转换为小写字符串
     /// </summary>

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Transport;
 /// <summary>
 /// 传输协议类型
 /// </summary>
-public enum TransportProtocol
-{
+public enum TransportProtocol {
     [EnumValue("websocket")] WebSocket,
     [EnumValue("sse")] Sse
 }
@@ -12,8 +11,7 @@ public enum TransportProtocol
 /// <summary>
 /// 传输连接状态
 /// </summary>
-public enum TransportConnectionState
-{
+public enum TransportConnectionState {
     [EnumValue("disconnected")] Disconnected,
     [EnumValue("connecting")] Connecting,
     [EnumValue("connected")] Connected,

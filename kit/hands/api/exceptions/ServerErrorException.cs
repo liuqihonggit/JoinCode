@@ -4,8 +4,7 @@ namespace Services.Api;
 /// <summary>
 /// 服务器错误异常 - 当 API 返回 5xx 状态码时抛出
 /// </summary>
-public sealed class ServerErrorException : ApiException
-{
+public sealed class ServerErrorException : ApiException {
     /// <summary>
     /// 创建 ServerErrorException
     /// </summary>
@@ -21,8 +20,7 @@ public sealed class ServerErrorException : ApiException
             statusCode: statusCode,
             endpoint: endpoint,
             responseContent: responseContent,
-            errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiServerError.ToValue())
-    {
+            errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiServerError.ToValue()) {
     }
 
     /// <inheritdoc />

@@ -6,18 +6,15 @@ namespace Core.Permission;
 /// 对齐 TS 版 ConfigTool.checkPermissions: GET 操作自动允许
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ConfigGetOperationMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class ConfigGetOperationMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         if (context.CurrentMode == PermissionMode.Auto &&
-            PermissionCheckContext.IsConfigGetOperation(context.ToolName, context.Arguments))
-        {
+            PermissionCheckContext.IsConfigGetOperation(context.ToolName, context.Arguments)) {
             context.Result = ToolPermissionCheckResult.Approved();
             return Task.CompletedTask;
         }

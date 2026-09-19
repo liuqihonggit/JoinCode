@@ -13,8 +13,7 @@ public sealed record HealthCheckTickCmd : IProcessHealthCommand;
 /// <summary>
 /// 进程健康监控器 — 基于定时器周期性检查交互式进程存活状态，连续失败达阈值时触发 Unhealthy 事件
 /// </summary>
-public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit>
-{
+public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit> {
     private readonly IInteractiveProcess _process;
     private readonly HealthCheckConfig _config;
     private readonly ILogger? _logger;
@@ -33,10 +32,8 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
     /// <summary>
     /// 获取最近一次健康检查时间（尚未检查过则返回 null）
     /// </summary>
-    public DateTimeOffset? LastCheckTime
-    {
-        get
-        {
+    public DateTimeOffset? LastCheckTime {
+        get {
             if (_lastCheckTime == DateTimeOffset.MinValue) return null;
             return _lastCheckTime;
         }
@@ -62,8 +59,7 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
         IInteractiveProcess process,
         HealthCheckConfig config,
         ILogger? logger = null)
-        : base()
-    {
+        : base() {
         _process = process ?? throw new ArgumentNullException(nameof(process));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
@@ -78,10 +74,8 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
     /// <summary>处理健康检查命令</summary>
     /// <param name="command">健康检查命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override ValueTask HandleAsync(IProcessHealthCommand command, CancellationToken ct)
-    {
-        if (command is HealthCheckTickCmd)
-        {
+    protected override ValueTask HandleAsync(IProcessHealthCommand command, CancellationToken ct) {
+        if (command is HealthCheckTickCmd) {
             PerformCheck();
         }
         return ValueTask.CompletedTask;
@@ -89,43 +83,34 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
 
     /// <summary>消费者异常回调 — 记录日志</summary>
     /// <param name="ex">异常对象</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogWarning(ex, "[ProcessHealth] 健康检查异常");
     }
 
-    private void PerformCheck()
-    {
+    private void PerformCheck() {
         if (Volatile.Read(ref _isDisposed) == 1) return;
 
-        try
-        {
+        try {
             var isAlive = !_process.HasExited;
             _lastCheckTime = DateTimeOffset.UtcNow;
 
-            if (isAlive)
-            {
+            if (isAlive) {
                 var wasUnhealthy = !_isHealthy;
                 Volatile.Write(ref _consecutiveFailures, 0);
                 Volatile.Write(ref _isHealthy, true);
 
-                if (wasUnhealthy)
-                {
+                if (wasUnhealthy) {
                     _logger?.LogInformation("[ProcessHealth] 进程 {Pid} 恢复健康", _process.Id);
                 }
-            }
-            else
-            {
+            } else {
                 Interlocked.Increment(ref _consecutiveFailures);
                 Volatile.Write(ref _isHealthy, false);
 
                 _logger?.LogWarning("[ProcessHealth] 进程 {Pid} 已退出 (consecutiveFailures={Failures})",
                     _process.Id, ConsecutiveFailures);
 
-                if (ConsecutiveFailures >= _config.FailureThreshold)
-                {
-                    Unhealthy?.Invoke(this, new ProcessUnhealthyEventArgs
-                    {
+                if (ConsecutiveFailures >= _config.FailureThreshold) {
+                    Unhealthy?.Invoke(this, new ProcessUnhealthyEventArgs {
                         ProcessId = _process.Id,
                         ConsecutiveFailures = ConsecutiveFailures,
                         Action = _config.Action,
@@ -133,9 +118,7 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
                     });
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ProcessHealth] 健康检查异常");
         }
     }
@@ -143,8 +126,7 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
     /// <summary>
     /// 异步释放监控器 — 停止定时器并等待 Actor 队列排空
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return;
         _timer.Change(Timeout.Infinite, Timeout.Infinite);
         _timer.Dispose();
@@ -155,8 +137,7 @@ public sealed class ProcessHealthMonitor : ActorBase<IProcessHealthCommand, Unit
 /// <summary>
 /// 进程不健康事件参数 — 携带进程 ID、连续失败次数、处置动作和原因
 /// </summary>
-public sealed class ProcessUnhealthyEventArgs : EventArgs
-{
+public sealed class ProcessUnhealthyEventArgs : EventArgs {
     /// <summary>不健康的进程 ID</summary>
     public required int ProcessId { get; init; }
     /// <summary>连续失败次数</summary>

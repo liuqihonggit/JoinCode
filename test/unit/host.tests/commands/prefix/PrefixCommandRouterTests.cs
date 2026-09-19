@@ -3,8 +3,7 @@ namespace JoinCode.Host.Tests.Commands.Prefix;
 /// <summary>
 /// PrefixCommandRouter 单元测试 — 验证 ! / !! 前缀命令的解析与路由逻辑。
 /// </summary>
-public class PrefixCommandRouterTests
-{
+public class PrefixCommandRouterTests {
     #region IsPrefixCommand
 
     [Theory]
@@ -23,8 +22,7 @@ public class PrefixCommandRouterTests
     [InlineData("!! ", false)]           // trim 后为空
     [InlineData("@mention", false)]
     [InlineData("  !cmd", false)]        // 前导空格不算前缀命令
-    public void IsPrefixCommand_ShouldDetectCorrectly(string input, bool expected)
-    {
+    public void IsPrefixCommand_ShouldDetectCorrectly(string input, bool expected) {
         PrefixCommandRouter.IsPrefixCommand(input).Should().Be(expected);
     }
 
@@ -33,8 +31,7 @@ public class PrefixCommandRouterTests
     #region Parse
 
     [Fact]
-    public void Parse_SingleExclamation_ReturnsPrefixAndCommand()
-    {
+    public void Parse_SingleExclamation_ReturnsPrefixAndCommand() {
         var result = PrefixCommandRouter.Parse("!git status");
         result.Should().NotBeNull();
         result!.Value.Prefix.Should().Be("!");
@@ -42,8 +39,7 @@ public class PrefixCommandRouterTests
     }
 
     [Fact]
-    public void Parse_DoubleExclamation_ReturnsPrefixAndCommand()
-    {
+    public void Parse_DoubleExclamation_ReturnsPrefixAndCommand() {
         var result = PrefixCommandRouter.Parse("!!dir");
         result.Should().NotBeNull();
         result!.Value.Prefix.Should().Be("!!");
@@ -51,8 +47,7 @@ public class PrefixCommandRouterTests
     }
 
     [Fact]
-    public void Parse_DoubleExclamation_TakesPriorityOverSingle()
-    {
+    public void Parse_DoubleExclamation_TakesPriorityOverSingle() {
         var result = PrefixCommandRouter.Parse("!!echo hello");
         result.Should().NotBeNull();
         result!.Value.Prefix.Should().Be("!!");
@@ -60,16 +55,14 @@ public class PrefixCommandRouterTests
     }
 
     [Fact]
-    public void Parse_NonPrefixCommand_ReturnsNull()
-    {
+    public void Parse_NonPrefixCommand_ReturnsNull() {
         PrefixCommandRouter.Parse("/cmd").Should().BeNull();
         PrefixCommandRouter.Parse("hello").Should().BeNull();
         PrefixCommandRouter.Parse("").Should().BeNull();
     }
 
     [Fact]
-    public void Parse_EmptyPrefix_ReturnsNull()
-    {
+    public void Parse_EmptyPrefix_ReturnsNull() {
         PrefixCommandRouter.Parse("!").Should().BeNull();
         PrefixCommandRouter.Parse("!!").Should().BeNull();
         PrefixCommandRouter.Parse("! ").Should().BeNull();
@@ -77,8 +70,7 @@ public class PrefixCommandRouterTests
     }
 
     [Fact]
-    public void Parse_TrimLeadingWhitespace_AfterPrefix()
-    {
+    public void Parse_TrimLeadingWhitespace_AfterPrefix() {
         var single = PrefixCommandRouter.Parse("!  cmd");
         single.Should().NotBeNull();
         single!.Value.Prefix.Should().Be("!");
@@ -95,16 +87,14 @@ public class PrefixCommandRouterTests
     #region Handler Properties
 
     [Fact]
-    public void ShellPrefixCommandHandler_Properties_ShouldBeCorrect()
-    {
+    public void ShellPrefixCommandHandler_Properties_ShouldBeCorrect() {
         var handler = new ShellPrefixCommandHandler();
         handler.Prefix.Should().Be("!");
         handler.TriggersAi.Should().BeTrue();
     }
 
     [Fact]
-    public void SilentShellPrefixCommandHandler_Properties_ShouldBeCorrect()
-    {
+    public void SilentShellPrefixCommandHandler_Properties_ShouldBeCorrect() {
         var handler = new SilentShellPrefixCommandHandler();
         handler.Prefix.Should().Be("!!");
         handler.TriggersAi.Should().BeFalse();
@@ -115,16 +105,14 @@ public class PrefixCommandRouterTests
     #region ExecuteAsync
 
     [Fact]
-    public async Task ExecuteAsync_EmptyCommand_ReturnsNotHandled()
-    {
+    public async Task ExecuteAsync_EmptyCommand_ReturnsNotHandled() {
         var context = new PrefixCommandContext { CancellationToken = CancellationToken.None };
         var result = await PrefixCommandRouter.ExecuteAsync("!", context);
         result.Handled.Should().BeFalse();
     }
 
     [Fact]
-    public async Task ExecuteAsync_SilentCommand_Url_ShouldNotInjectToAi()
-    {
+    public async Task ExecuteAsync_SilentCommand_Url_ShouldNotInjectToAi() {
         var context = new PrefixCommandContext { CancellationToken = CancellationToken.None };
         var result = await PrefixCommandRouter.ExecuteAsync("!!echo test", context);
         result.Handled.Should().BeTrue();

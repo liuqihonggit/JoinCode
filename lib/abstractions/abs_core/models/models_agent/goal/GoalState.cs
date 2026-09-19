@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Goal;
 /// <summary>
 /// 目标状态数据模型
 /// </summary>
-public sealed class GoalState
-{
+public sealed class GoalState {
     public string GoalId { get; init; } = string.Empty;
     public string Objective { get; init; } = string.Empty;
     public GoalStatus Status { get; set; } = GoalStatus.Pursuing;
@@ -34,8 +33,7 @@ public sealed class GoalState
 /// <summary>
 /// 目标评估结果
 /// </summary>
-public sealed record GoalEvaluationResult
-{
+public sealed record GoalEvaluationResult {
     public required bool IsCompleted { get; init; }
     public required string Reason { get; init; }
 

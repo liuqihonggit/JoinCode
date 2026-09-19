@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// Env-less 桥配置 — 对齐 TS 端 envLessBridgeConfig.ts EnvLessBridgeConfig
 /// 定义 v2 路径（无环境层）的所有计时参数
 /// </summary>
-public sealed class V2BridgeConfig
-{
+public sealed class V2BridgeConfig {
     /// <summary>初始化重试最大次数 — 默认 3</summary>
     [JsonPropertyName("init_retry_max_attempts")]
     public int InitRetryMaxAttempts { get; init; } = 3;
@@ -66,8 +65,7 @@ public sealed class V2BridgeConfig
     /// 验证配置 — 对齐 TS 端 Zod schema 验证
     /// 任何一个字段不合法，整个配置回退到默认值（整体拒绝策略）
     /// </summary>
-    public static V2BridgeConfig Validate(V2BridgeConfig config)
-    {
+    public static V2BridgeConfig Validate(V2BridgeConfig config) {
         ArgumentNullException.ThrowIfNull(config);
 
         if (config.InitRetryMaxAttempts < 1) return Defaults;
@@ -90,8 +88,7 @@ public sealed class V2BridgeConfig
     /// 获取配置 — 对齐 TS 端 getEnvLessBridgeConfig()
     /// 从环境变量读取并验证，验证失败回退到默认值
     /// </summary>
-    public static V2BridgeConfig GetConfig()
-    {
+    public static V2BridgeConfig GetConfig() {
         var config = ReadFromEnvironment();
         return Validate(config);
     }
@@ -100,14 +97,12 @@ public sealed class V2BridgeConfig
     /// 检查最低版本 — 对齐 TS 端 checkEnvLessBridgeMinVersion()
     /// 返回 null 表示通过，否则返回错误消息
     /// </summary>
-    public static string? CheckMinVersion(string currentVersion)
-    {
+    public static string? CheckMinVersion(string currentVersion) {
         var cfg = GetConfig();
         if (cfg.MinVersion == "0.0.0") return null;
 
         // 简单版本比较：按点分隔逐段比较
-        if (IsVersionLessThan(currentVersion, cfg.MinVersion))
-        {
+        if (IsVersionLessThan(currentVersion, cfg.MinVersion)) {
             return $"Bridge requires version >= {cfg.MinVersion}, current: {currentVersion}";
         }
 
@@ -115,16 +110,13 @@ public sealed class V2BridgeConfig
     }
 
     /// <summary>是否提示用户升级 — 对齐 TS 端 shouldShowAppUpgradeMessage()</summary>
-    public static bool QueryAppUpgradeMessage()
-    {
+    public static bool QueryAppUpgradeMessage() {
         return GetConfig().ShouldShowAppUpgradeMessage;
     }
 
     /// <summary>从环境变量读取配置</summary>
-    private static V2BridgeConfig ReadFromEnvironment()
-    {
-        return new V2BridgeConfig
-        {
+    private static V2BridgeConfig ReadFromEnvironment() {
+        return new V2BridgeConfig {
             InitRetryMaxAttempts = TryGetEnvInt("JCC_BRIDGE_INIT_RETRY_MAX", out var p1) ? p1 : 3,
             InitRetryBaseDelayMs = TryGetEnvInt("JCC_BRIDGE_INIT_RETRY_BASE_MS", out var p2) ? p2 : 500,
             InitRetryMaxDelayMs = TryGetEnvInt("JCC_BRIDGE_INIT_RETRY_MAX_MS", out var p3) ? p3 : 4000,
@@ -137,21 +129,18 @@ public sealed class V2BridgeConfig
         };
     }
 
-    private static bool TryGetEnvInt(string name, out int value)
-    {
+    private static bool TryGetEnvInt(string name, out int value) {
         value = 0;
         var env = Environment.GetEnvironmentVariable(name);
         return env is not null && int.TryParse(env, out value);
     }
 
     /// <summary>简单版本比较: a &lt; b</summary>
-    private static bool IsVersionLessThan(string a, string b)
-    {
+    private static bool IsVersionLessThan(string a, string b) {
         var aParts = a.Split('.');
         var bParts = b.Split('.');
 
-        for (var i = 0; i < Math.Max(aParts.Length, bParts.Length); i++)
-        {
+        for (var i = 0; i < Math.Max(aParts.Length, bParts.Length); i++) {
             var aVal = i < aParts.Length && int.TryParse(aParts[i], out var av) ? av : 0;
             var bVal = i < bParts.Length && int.TryParse(bParts[i], out var bv) ? bv : 0;
 

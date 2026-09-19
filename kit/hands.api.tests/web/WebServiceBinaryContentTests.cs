@@ -3,28 +3,22 @@ namespace Hands.Tests.Web;
 /// <summary>
 /// WebService 二进制内容持久化集成测试 — 对齐TS版 WebFetchTool/utils.ts 的二进制处理链路
 /// </summary>
-public class WebServiceBinaryContentTests
-{
+public class WebServiceBinaryContentTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
-    private static Mock<IApiClient> CreateMockApiClient(byte[] content, string contentType)
-    {
+    private static Mock<IApiClient> CreateMockApiClient(byte[] content, string contentType) {
         var apiClient = new Mock<IApiClient>();
 
         apiClient.Setup(c => c.SendAsync(It.IsAny<ApiRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ApiRequest req, CancellationToken _) =>
-            {
+            .ReturnsAsync((ApiRequest req, CancellationToken _) => {
                 // 域名黑名单检查URL以 api.anthropic.com 开头
-                if (req.Path.StartsWith("https://api.anthropic.com", StringComparison.OrdinalIgnoreCase))
-                {
-                    return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-                    {
+                if (req.Path.StartsWith("https://api.anthropic.com", StringComparison.OrdinalIgnoreCase)) {
+                    return new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                         Content = new StringContent("{\"can_fetch\":true}")
                     };
                 }
 
                 // 内容获取请求 — 返回实际内容
-                var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-                {
+                var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                     Content = new ByteArrayContent(content)
                 };
                 response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
@@ -34,8 +28,7 @@ public class WebServiceBinaryContentTests
         return apiClient;
     }
 
-    private WebService CreateService(Mock<IApiClient> apiClient)
-    {
+    private WebService CreateService(Mock<IApiClient> apiClient) {
         var cache = new WebFetchCache();
         var domainChecker = new DomainBlocklistChecker(apiClient.Object, cache);
         var binaryStorage = new BinaryContentStorage(_fs);
@@ -56,8 +49,7 @@ public class WebServiceBinaryContentTests
     }
 
     [Fact]
-    public async Task FetchAsync_BinaryContent_PersistsFile()
-    {
+    public async Task FetchAsync_BinaryContent_PersistsFile() {
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E }; // %PDF-1.
         var service = CreateService(CreateMockApiClient(pdfBytes, "application/pdf"));
         var result = await service.FetchAsync("https://example.com/doc.pdf", CancellationToken.None).ConfigureAwait(true);
@@ -71,8 +63,7 @@ public class WebServiceBinaryContentTests
     }
 
     [Fact]
-    public async Task FetchAsync_TextContent_DoesNotPersist()
-    {
+    public async Task FetchAsync_TextContent_DoesNotPersist() {
         var htmlBytes = "<html><body>Hello</body></html>"u8.ToArray();
         var service = CreateService(CreateMockApiClient(htmlBytes, "text/html"));
         var result = await service.FetchAsync("https://example.com/page.html", CancellationToken.None).ConfigureAwait(true);
@@ -83,8 +74,7 @@ public class WebServiceBinaryContentTests
     }
 
     [Fact]
-    public async Task FetchAsync_JsonContent_DoesNotPersist()
-    {
+    public async Task FetchAsync_JsonContent_DoesNotPersist() {
         var jsonBytes = "{\"key\":\"value\"}"u8.ToArray();
         var service = CreateService(CreateMockApiClient(jsonBytes, "application/json"));
         var result = await service.FetchAsync("https://example.com/data.json", CancellationToken.None).ConfigureAwait(true);
@@ -95,8 +85,7 @@ public class WebServiceBinaryContentTests
     }
 
     [Fact]
-    public async Task FetchAsync_ImageContent_PersistsWithCorrectExtension()
-    {
+    public async Task FetchAsync_ImageContent_PersistsWithCorrectExtension() {
         var pngBytes = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A }; // PNG header
         var service = CreateService(CreateMockApiClient(pngBytes, "image/png"));
         var result = await service.FetchAsync("https://example.com/image.png", CancellationToken.None).ConfigureAwait(true);
@@ -107,8 +96,7 @@ public class WebServiceBinaryContentTests
     }
 
     [Fact]
-    public async Task FetchAsync_BinaryContent_StillReturnsTextContent()
-    {
+    public async Task FetchAsync_BinaryContent_StillReturnsTextContent() {
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF
         var service = CreateService(CreateMockApiClient(pdfBytes, "application/pdf"));
         var result = await service.FetchAsync("https://example.com/doc.pdf", CancellationToken.None).ConfigureAwait(true);
@@ -120,8 +108,7 @@ public class WebServiceBinaryContentTests
     }
 
     [Fact]
-    public async Task FetchAsync_BinaryContent_CacheContainsPersistedPath()
-    {
+    public async Task FetchAsync_BinaryContent_CacheContainsPersistedPath() {
         var pdfBytes = new byte[] { 0x25, 0x50, 0x44, 0x46 };
         var apiClient = CreateMockApiClient(pdfBytes, "application/pdf");
         var service = CreateService(apiClient);

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Transport;
 /// <summary>
 /// 命名管道传输配置 — 替代旧 PipeEndpointConfig，统一到 Transport 契约层
 /// </summary>
-public sealed record PipeTransportConfig
-{
+public sealed record PipeTransportConfig {
     /// <summary>
     /// 管道名称
     /// </summary>

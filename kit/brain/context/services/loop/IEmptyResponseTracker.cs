@@ -5,8 +5,7 @@ namespace Core.Context;
 /// 跨对话轮次持久化，用户新消息或LLM从无声变有声时重置
 /// CLI 和 GUI 共享此内核组件，与 InformationEntropyGuardian 同级
 /// </summary>
-public interface IEmptyResponseTracker
-{
+public interface IEmptyResponseTracker {
     /// <summary>
     /// 当前连续空响应次数（工具调用后LLM返回空白回复的连续计数）
     /// </summary>

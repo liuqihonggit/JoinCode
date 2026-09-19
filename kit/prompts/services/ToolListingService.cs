@@ -6,8 +6,7 @@ namespace Core.Prompts.Services;
 /// 增量机制：只发送新增/移除的列表项，避免重复注入
 /// </summary>
 [Register(typeof(ToolListingService), ServiceLifetime.Singleton)]
-public sealed partial class ToolListingService : ServiceEntity
-{
+public sealed partial class ToolListingService : ServiceEntity {
 
     /// <summary>
     /// 构造工具列表注入服务。
@@ -17,8 +16,7 @@ public sealed partial class ToolListingService : ServiceEntity
     /// <param name="roleRegistry">Agent 角色注册表，可选。</param>
     /// <param name="skillService">技能服务，可选。</param>
     /// <param name="logger">日志记录器，可选。</param>
-    public ToolListingService(ISystemReminderManager reminderManager, IAgentDefinitionProvider? agentProvider = null, JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? roleRegistry = null, ISkillService? skillService = null, ILogger<ToolListingService>? logger = null)
-    {
+    public ToolListingService(ISystemReminderManager reminderManager, IAgentDefinitionProvider? agentProvider = null, JoinCode.Abstractions.Interfaces.IAgentRoleRegistry? roleRegistry = null, ISkillService? skillService = null, ILogger<ToolListingService>? logger = null) {
         _reminderManager = reminderManager;
         _agentProvider = agentProvider;
         _roleRegistry = roleRegistry;
@@ -45,15 +43,12 @@ public sealed partial class ToolListingService : ServiceEntity
     /// 注入 Agent 列表（增量） — 对齐 TS getAgentListingDeltaAttachment
     /// 计算当前 Agent 列表与已宣布列表的差量，只发送新增/移除的项
     /// </summary>
-    public async Task InjectAgentListingAsync(string? workingDirectory = null, CancellationToken ct = default)
-    {
+    public async Task InjectAgentListingAsync(string? workingDirectory = null, CancellationToken ct = default) {
         List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> agents;
 
-        if (_roleRegistry is not null)
-        {
+        if (_roleRegistry is not null) {
             var profiles = _roleRegistry.GetAllProfiles();
-            agents = profiles.Select(p => new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-            {
+            agents = profiles.Select(p => new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
                 Role = p.Role,
                 Variant = p.Variant,
                 WhenToUse = p.WhenToUse,
@@ -65,13 +60,9 @@ public sealed partial class ToolListingService : ServiceEntity
                 OmitGitStatus = p.OmitGitStatus,
                 PermissionMode = p.PermissionMode,
             }).ToList();
-        }
-        else if (_agentProvider is not null)
-        {
+        } else if (_agentProvider is not null) {
             agents = await _agentProvider.GetAgentDefinitionsAsync(workingDirectory, ct).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             return;
         }
 
@@ -89,26 +80,20 @@ public sealed partial class ToolListingService : ServiceEntity
         var isInitial = _announcedAgentTypes.Count == 0;
         var sb = new System.Text.StringBuilder();
 
-        if (isInitial)
-        {
+        if (isInitial) {
             sb.AppendLine("可用代理类型及其可访问的工具：");
-        }
-        else
-        {
-            if (added.Count > 0)
-            {
+        } else {
+            if (added.Count > 0) {
                 sb.AppendLine("新增代理类型：");
             }
         }
 
-        foreach (var agent in added)
-        {
+        foreach (var agent in added) {
             var toolsDesc = AgentToolSection.GetToolsDescription(agent);
             sb.AppendLine($"- {agent.DisplayId}: {agent.WhenToUse} (工具: {toolsDesc})");
         }
 
-        if (removed.Count > 0 && !isInitial)
-        {
+        if (removed.Count > 0 && !isInitial) {
             sb.AppendLine();
             sb.AppendLine($"已移除代理类型：{string.Join(", ", removed)}");
         }
@@ -128,8 +113,7 @@ public sealed partial class ToolListingService : ServiceEntity
     /// 只发送新增的 Skill，已发送的不重复
     /// 使用 SkillDescriptionTruncator.FormatSkillsWithinBudget 进行预算内截断
     /// </summary>
-    public async Task InjectSkillListingAsync(int? contextWindowTokens = null, CancellationToken ct = default)
-    {
+    public async Task InjectSkillListingAsync(int? contextWindowTokens = null, CancellationToken ct = default) {
         if (_skillService is null) return;
 
         var skills = await _skillService.GetAvailableSkillsAsync(ct).ConfigureAwait(false);
@@ -149,16 +133,14 @@ public sealed partial class ToolListingService : ServiceEntity
 
         var sb = new System.Text.StringBuilder();
 
-        if (isInitial)
-        {
+        if (isInitial) {
             sb.AppendLine("可用技能列表：");
         }
 
         sb.Append(formattedList);
 
         // 标记已发送的技能
-        foreach (var skill in newSkills)
-        {
+        foreach (var skill in newSkills) {
             _sentSkillNames.Add(skill.Name);
         }
 
@@ -172,8 +154,7 @@ public sealed partial class ToolListingService : ServiceEntity
     /// <summary>
     /// 重置追踪状态（新会话时调用）
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _announcedAgentTypes = [];
         _sentSkillNames = [];
     }

@@ -4,24 +4,19 @@ namespace Testing.Common.Services;
 /// 测试用 IModelConfigLoader 工厂 — 构建含基础模型定价数据的 ModelConfigLoader 实例
 /// 供 CostTracker/FallbackProviderDefinition 等需要默认定价/模型列表的测试使用
 /// </summary>
-public static class TestModelConfigLoaderFactory
-{
+public static class TestModelConfigLoaderFactory {
     /// <summary>
     /// 创建含 openai/anthropic 基础模型定价的 loader
     /// </summary>
-    public static IModelConfigLoader CreateWithDefaultPricing()
-    {
+    public static IModelConfigLoader CreateWithDefaultPricing() {
         var loader = new ModelConfigLoader();
         loader.ApplyProviders(BuildDefaultProviders());
         return loader;
     }
 
-    private static Dictionary<string, ModelProviderConfig> BuildDefaultProviders()
-    {
-        return new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["openai"] = new ModelProviderConfig
-            {
+    private static Dictionary<string, ModelProviderConfig> BuildDefaultProviders() {
+        return new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase) {
+            ["openai"] = new ModelProviderConfig {
                 DefaultModelId = "gpt-4o",
                 DefaultFastModelId = "gpt-4o-mini",
                 Models =
@@ -46,8 +41,7 @@ public static class TestModelConfigLoaderFactory
                     }
                 ]
             },
-            ["anthropic"] = new ModelProviderConfig
-            {
+            ["anthropic"] = new ModelProviderConfig {
                 DefaultModelId = "claude-opus-4-7",
                 DefaultFastModelId = "claude-haiku-4-5",
                 Models =

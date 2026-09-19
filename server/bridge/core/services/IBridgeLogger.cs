@@ -7,8 +7,7 @@ namespace Core.Bridge;
 /// Bridge 显示接口 — 对齐 TS 端 BridgeLogger 的 TUI 渲染方法
 /// 日志方法已迁移到 ILogger，此接口仅保留 UI 控制方法
 /// </summary>
-public interface IBridgeLogger
-{
+public interface IBridgeLogger {
     /// <summary>打印启动横幅</summary>
     void PrintBanner(BridgeConfig config, string environmentId);
 
@@ -64,8 +63,7 @@ public interface IBridgeLogger
 /// <summary>
 /// 空实现 — 非 Bridge 模式使用，避免空引用
 /// </summary>
-public sealed class NullBridgeLogger : IBridgeLogger
-{
+public sealed class NullBridgeLogger : IBridgeLogger {
     /// <summary>打印启动横幅 — 空实现</summary>
     public void PrintBanner(BridgeConfig config, string environmentId) { }
     /// <summary>更新空闲状态 — 空实现</summary>
@@ -106,14 +104,12 @@ public sealed class NullBridgeLogger : IBridgeLogger
 /// Headless 模式显示适配器 — 对齐 TS 端 createHeadlessBridgeLogger
 /// TUI 渲染方法全部 noop，日志已迁移到 ILogger
 /// </summary>
-public sealed class HeadlessBridgeLogger : IBridgeLogger
-{
+public sealed class HeadlessBridgeLogger : IBridgeLogger {
     private readonly Action<string> _log;
 
     /// <summary>初始化 Headless 显示适配器</summary>
     /// <param name="log">输出回调 — 对齐 TS 端 opts.log</param>
-    public HeadlessBridgeLogger(Action<string> log)
-    {
+    public HeadlessBridgeLogger(Action<string> log) {
         _log = log ?? throw new ArgumentNullException(nameof(log));
     }
 

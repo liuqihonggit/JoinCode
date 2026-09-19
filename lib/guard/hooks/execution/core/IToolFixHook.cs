@@ -9,8 +9,7 @@ namespace Core.Hooks.Execution;
 /// 3. 自动添加超时参数
 /// </para>
 /// </summary>
-public interface IToolFixHook
-{
+public interface IToolFixHook {
     /// <summary>
     /// 判断是否可以修正该工具的错误
     /// </summary>
@@ -35,8 +34,7 @@ public interface IToolFixHook
 /// <summary>
 /// 工具修正结果
 /// </summary>
-public sealed class ToolFixResult
-{
+public sealed class ToolFixResult {
     /// <summary>修正是否成功</summary>
     public required bool Success { get; init; }
     /// <summary>修正后的命令，失败时为空</summary>

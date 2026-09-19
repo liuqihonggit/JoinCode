@@ -4,23 +4,20 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// MainViewModel 补全统一框架测试 — 验证 @ 代理补全、# 文件补全通过 Registry 走通，
 /// SlashModeLabel 从 Provider.Label 获取，CompleteSlashSuggestion 回填正确。
 /// </summary>
-public class MainViewModelCompletionTests
-{
+public class MainViewModelCompletionTests {
     private static MainViewModel CreateVm() => new(
         new JoinCode.Gui.Hosting.PlaceholderChatSession(),
         new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions"),
         new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
-    private static void SetInput(MainViewModel vm, string text)
-    {
+    private static void SetInput(MainViewModel vm, string text) {
         vm.InputText = text;
         vm.InputCaretIndex = text.Length;
         vm.RefreshSlashSuggestions();
     }
 
     [Fact]
-    public void AtTrigger_OpensPopupWithAgentSuggestions()
-    {
+    public void AtTrigger_OpensPopupWithAgentSuggestions() {
         var vm = CreateVm();
         SetInput(vm, "@");
         vm.IsSlashPopupOpen.Should().BeTrue();
@@ -29,8 +26,7 @@ public class MainViewModelCompletionTests
     }
 
     [Fact]
-    public void AtTrigger_PrefixFiltersAgents()
-    {
+    public void AtTrigger_PrefixFiltersAgents() {
         var vm = CreateVm();
         SetInput(vm, "@ex");
         vm.IsSlashPopupOpen.Should().BeTrue();
@@ -40,8 +36,7 @@ public class MainViewModelCompletionTests
     }
 
     [Fact]
-    public void AtTrigger_NonMatchingPrefix_ClosesPopup()
-    {
+    public void AtTrigger_NonMatchingPrefix_ClosesPopup() {
         var vm = CreateVm();
         SetInput(vm, "@zzz-no-such-agent");
         vm.IsSlashPopupOpen.Should().BeFalse();
@@ -49,8 +44,7 @@ public class MainViewModelCompletionTests
     }
 
     [Fact]
-    public void HashTrigger_OpensPopupWithFileSuggestions()
-    {
+    public void HashTrigger_OpensPopupWithFileSuggestions() {
         var vm = CreateVm();
         SetInput(vm, "#");
         vm.IsSlashPopupOpen.Should().BeTrue();
@@ -58,8 +52,7 @@ public class MainViewModelCompletionTests
     }
 
     [Fact]
-    public void CompleteAgentSuggestion_ReplacesPrefixWithAgentName()
-    {
+    public void CompleteAgentSuggestion_ReplacesPrefixWithAgentName() {
         var vm = CreateVm();
         SetInput(vm, "@co");
         vm.SlashSuggestions.Should().NotBeEmpty();
@@ -69,8 +62,7 @@ public class MainViewModelCompletionTests
     }
 
     [Fact]
-    public void CompleteFileSuggestion_ReplacesPrefixWithFileName()
-    {
+    public void CompleteFileSuggestion_ReplacesPrefixWithFileName() {
         var vm = CreateVm();
         SetInput(vm, "#");
         vm.SlashSuggestions.Should().NotBeEmpty();
@@ -81,16 +73,14 @@ public class MainViewModelCompletionTests
     }
 
     [Fact]
-    public void AtTrigger_SpaceTerminatesCompletion()
-    {
+    public void AtTrigger_SpaceTerminatesCompletion() {
         var vm = CreateVm();
         SetInput(vm, "@agent message");
         vm.IsSlashPopupOpen.Should().BeFalse();
     }
 
     [Fact]
-    public void HashTrigger_SpaceTerminatesCompletion()
-    {
+    public void HashTrigger_SpaceTerminatesCompletion() {
         var vm = CreateVm();
         SetInput(vm, "#file message");
         vm.IsSlashPopupOpen.Should().BeFalse();

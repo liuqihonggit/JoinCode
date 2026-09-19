@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Engine;
 
-public sealed class BudgetStatusEdgeCaseTests
-{
+public sealed class BudgetStatusEdgeCaseTests {
     [Fact]
-    public void IsRoundsExhausted_WhenUsedExceedsBudget_ReturnsTrue()
-    {
+    public void IsRoundsExhausted_WhenUsedExceedsBudget_ReturnsTrue() {
         var status = new BudgetStatus { RoundsUsed = 10, RoundsBudget = 5 };
 
         Assert.True(status.IsRoundsExhausted);
@@ -12,8 +10,7 @@ public sealed class BudgetStatusEdgeCaseTests
     }
 
     [Fact]
-    public void IsTokensExhausted_WhenUsedExceedsBudget_ReturnsTrue()
-    {
+    public void IsTokensExhausted_WhenUsedExceedsBudget_ReturnsTrue() {
         var status = new BudgetStatus { TokensUsed = 2000, TokensBudget = 1000 };
 
         Assert.True(status.IsTokensExhausted);
@@ -21,40 +18,35 @@ public sealed class BudgetStatusEdgeCaseTests
     }
 
     [Fact]
-    public void IsAnyExhausted_WhenNeitherExhausted_ReturnsFalse()
-    {
+    public void IsAnyExhausted_WhenNeitherExhausted_ReturnsFalse() {
         var status = new BudgetStatus { RoundsUsed = 0, RoundsBudget = 5, TokensUsed = 0, TokensBudget = 1000 };
 
         Assert.False(status.IsAnyExhausted);
     }
 
     [Fact]
-    public void ExhaustionCause_WhenTokensOnlyExhausted_ReturnsTokens()
-    {
+    public void ExhaustionCause_WhenTokensOnlyExhausted_ReturnsTokens() {
         var status = new BudgetStatus { RoundsUsed = 1, RoundsBudget = 5, TokensUsed = 1000, TokensBudget = 1000 };
 
         Assert.Equal(BudgetExhaustionCause.Tokens, status.ExhaustionCause);
     }
 
     [Fact]
-    public void RoundsRemaining_WhenUnderBudget_ReturnsDifference()
-    {
+    public void RoundsRemaining_WhenUnderBudget_ReturnsDifference() {
         var status = new BudgetStatus { RoundsUsed = 2, RoundsBudget = 5 };
 
         Assert.Equal(3, status.RoundsRemaining);
     }
 
     [Fact]
-    public void TokensRemaining_WhenUnderBudget_ReturnsDifference()
-    {
+    public void TokensRemaining_WhenUnderBudget_ReturnsDifference() {
         var status = new BudgetStatus { TokensUsed = 3000, TokensBudget = 10000 };
 
         Assert.Equal(7000, status.TokensRemaining);
     }
 
     [Fact]
-    public void BudgetStatus_DefaultValues_AreZero()
-    {
+    public void BudgetStatus_DefaultValues_AreZero() {
         var status = new BudgetStatus();
 
         Assert.Equal(0, status.RoundsUsed);
@@ -64,8 +56,7 @@ public sealed class BudgetStatusEdgeCaseTests
     }
 
     [Fact]
-    public void BudgetStatus_ZeroBudget_IsExhausted()
-    {
+    public void BudgetStatus_ZeroBudget_IsExhausted() {
         var status = new BudgetStatus { RoundsUsed = 0, RoundsBudget = 0, TokensUsed = 0, TokensBudget = 0 };
 
         Assert.True(status.IsRoundsExhausted);

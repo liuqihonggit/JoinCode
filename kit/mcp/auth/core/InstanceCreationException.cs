@@ -4,8 +4,7 @@ namespace McpClient;
 /// <summary>
 /// 实例创建失败时抛出的异常
 /// </summary>
-public sealed class InstanceCreationException : WorkflowException
-{
+public sealed class InstanceCreationException : WorkflowException {
     /// <summary>
     /// 目标类型
     /// </summary>
@@ -31,8 +30,7 @@ public sealed class InstanceCreationException : WorkflowException
         Type? targetType = null,
         InstanceCreationStrategy? strategy = null,
         ExceptionContext? context = null)
-        : base(message, global::JoinCode.Abstractions.Exceptions.ErrorCode.McpInstanceCreation.ToValue(), ErrorCategory.Mcp, context)
-    {
+        : base(message, global::JoinCode.Abstractions.Exceptions.ErrorCode.McpInstanceCreation.ToValue(), ErrorCategory.Mcp, context) {
         TargetType = targetType;
         Strategy = strategy;
     }
@@ -51,8 +49,7 @@ public sealed class InstanceCreationException : WorkflowException
         Type? targetType = null,
         InstanceCreationStrategy? strategy = null,
         ExceptionContext? context = null)
-        : base(message, innerException, global::JoinCode.Abstractions.Exceptions.ErrorCode.McpInstanceCreation.ToValue(), ErrorCategory.Mcp, context)
-    {
+        : base(message, innerException, global::JoinCode.Abstractions.Exceptions.ErrorCode.McpInstanceCreation.ToValue(), ErrorCategory.Mcp, context) {
         TargetType = targetType;
         Strategy = strategy;
     }
@@ -62,8 +59,7 @@ public sealed class InstanceCreationException : WorkflowException
     /// </summary>
     /// <param name="type">无法实例化的类型</param>
     /// <returns>InstanceCreationException 实例</returns>
-    public static InstanceCreationException AbstractOrInterface(Type type)
-    {
+    public static InstanceCreationException AbstractOrInterface(Type type) {
         return new InstanceCreationException(
             $"无法创建抽象类或接口的实例: {type.FullName}",
             targetType: type,
@@ -76,8 +72,7 @@ public sealed class InstanceCreationException : WorkflowException
     /// <param name="type">目标类型</param>
     /// <param name="strategy">使用的创建策略</param>
     /// <returns>InstanceCreationException 实例</returns>
-    public static InstanceCreationException MissingConstructor(Type type, InstanceCreationStrategy strategy)
-    {
+    public static InstanceCreationException MissingConstructor(Type type, InstanceCreationStrategy strategy) {
         return new InstanceCreationException(
             $"类型 '{type.FullName}' 没有公共构造函数",
             targetType: type,
@@ -90,8 +85,7 @@ public sealed class InstanceCreationException : WorkflowException
     /// <param name="type">目标类型</param>
     /// <param name="innerException">构造函数抛出的异常</param>
     /// <returns>InstanceCreationException 实例</returns>
-    public static InstanceCreationException ConstructorFailed(Type type, Exception innerException)
-    {
+    public static InstanceCreationException ConstructorFailed(Type type, Exception innerException) {
         return new InstanceCreationException(
             $"调用类型 '{type.FullName}' 的构造函数时失败",
             innerException,

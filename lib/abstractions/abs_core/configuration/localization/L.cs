@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Localization;
 /// 测试环境：L.T() 首次调用时通过 LazyInitializer 自动初始化
 /// 线程安全：Initialize 和 EnsureInitialized 通过 lock 保护，T() 读取 FrozenDictionary 是线程安全的
 /// </summary>
-public static class L
-{
+public static class L {
     private static readonly AsyncLock s_lock = new("L");
     private static IReadOnlyDictionary<string, string> _entries =
         FrozenDictionary<string, string>.Empty;
@@ -23,10 +22,8 @@ public static class L
     /// <summary>
     /// 初始化本地化系统。可多次调用（后者覆盖前者）。线程安全。
     /// </summary>
-    public static void Initialize(string language, IReadOnlyDictionary<string, string> entries)
-    {
-        using (s_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{s_lock.Name}' 等待超时"))
-        {
+    public static void Initialize(string language, IReadOnlyDictionary<string, string> entries) {
+        using (s_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{s_lock.Name}' 等待超时")) {
             CurrentLanguage = language;
             _entries = entries;
             _initialized = true;
@@ -42,16 +39,14 @@ public static class L
     /// 获取本地化字符串。未找到 key 时返回 key 本身。
     /// 首次调用时自动初始化本地化系统（默认中文）。线程安全。
     /// </summary>
-    public static string T(string key)
-    {
+    public static string T(string key) {
         if (!_initialized)
             EnsureInitialized();
         // _entries 是 FrozenDictionary，读取是线程安全的
         return _entries.TryGetValue(key, out var value) ? value : key;
     }
 
-    private static void EnsureInitialized()
-    {
+    private static void EnsureInitialized() {
         if (_initialized) return;
         // 不持锁调用 — LazyInitializer 内部 L.Initialize 自己获取锁。
         // 持锁调用会导致重入死锁（EnsureInitialized → LazyInitializer → L.Initialize 获取同一锁）。

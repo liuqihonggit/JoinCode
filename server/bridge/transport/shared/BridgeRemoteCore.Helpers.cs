@@ -1,8 +1,7 @@
 
 namespace Core.Bridge;
 
-public static partial class BridgeRemoteCore
-{
+public static partial class BridgeRemoteCore {
     #region 辅助方法
 
     /// <summary>
@@ -10,17 +9,12 @@ public static partial class BridgeRemoteCore
     /// </summary>
     internal static async Task<BridgeRemoteCredentials?> FetchCredentialsWithDeviceTokenAsync(
         string sessionId, V2BridgeParams parameters, int httpTimeoutMs,
-        HttpClient httpClient, string accessToken, CancellationToken ct, ILogger? logger = null)
-    {
+        HttpClient httpClient, string accessToken, CancellationToken ct, ILogger? logger = null) {
         string? trustedDeviceToken = null;
-        if (parameters.GetTrustedDeviceToken is not null)
-        {
-            try
-            {
+        if (parameters.GetTrustedDeviceToken is not null) {
+            try {
                 trustedDeviceToken = await parameters.GetTrustedDeviceToken().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // best-effort: 获取设备令牌失败不阻塞主流程
                 logger?.LogWarning(ex, "[BridgeRemoteCore] Failed to get trusted device token");
             }
@@ -46,8 +40,7 @@ public static partial class BridgeRemoteCore
         int baseDelayMs = 500,
         int maxDelayMs = 4000,
         double jitterFraction = 0.25,
-        CancellationToken ct = default) where T : class
-    {
+        CancellationToken ct = default) where T : class {
         ArgumentNullException.ThrowIfNull(fn);
         ct.ThrowIfCancellationRequested();
         return await fn().ConfigureAwait(false);
@@ -61,8 +54,7 @@ public static partial class BridgeRemoteCore
     /// 从原始文本派生占位标题 — 对齐 TS 端 deriveTitle
     /// 去标签、取首句、截断50字符
     /// </summary>
-    public static string DeriveTitle(string raw)
-    {
+    public static string DeriveTitle(string raw) {
         if (string.IsNullOrEmpty(raw)) return string.Empty;
 
         // 去除标签（XML 标签）
@@ -70,14 +62,12 @@ public static partial class BridgeRemoteCore
 
         // 取第一行
         var newlineIdx = text.IndexOf('\n');
-        if (newlineIdx > 0)
-        {
+        if (newlineIdx > 0) {
             text = text[..newlineIdx];
         }
 
         // 截断到 50 字符
-        if (text.Length > 50)
-        {
+        if (text.Length > 50) {
             text = string.Concat(text.AsSpan(0, 47), "...");
         }
 

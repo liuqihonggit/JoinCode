@@ -5,11 +5,9 @@ namespace Core.Tests.Memdir;
 /// EditorModeService fire-and-forget CancellationToken 保护测试
 /// 验证 Dispose 后取消令牌传播，以及已取消令牌不会导致崩溃
 /// </summary>
-public sealed class EditorModeServicePersistenceTests
-{
+public sealed class EditorModeServicePersistenceTests {
     [Fact]
-    public async Task Dispose_CancelsPendingPersistence()
-    {
+    public async Task Dispose_CancelsPendingPersistence() {
         // Arrange: 使用慢速 mock 让 PersistAsync 挂起
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -19,8 +17,7 @@ public sealed class EditorModeServicePersistenceTests
         using var completionSemaphore = new SemaphoreSlim(0, 1);
         configMock.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns((string key, string value, CancellationToken ct) =>
-                slowSemaphore.WaitAsync(ct).ContinueWith(t =>
-                {
+                slowSemaphore.WaitAsync(ct).ContinueWith(t => {
                     completionSemaphore.Release();
                     return true;
                 }));
@@ -38,16 +35,14 @@ public sealed class EditorModeServicePersistenceTests
     }
 
     [Fact]
-    public async Task PersistAsync_WithCancelledToken_DoesNotCrash()
-    {
+    public async Task PersistAsync_WithCancelledToken_DoesNotCrash() {
         // Arrange: 使用已取消的 CancellationTokenSource
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);
         using var completionSemaphore = new SemaphoreSlim(0, 1);
         configMock.Setup(c => c.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns((string key, string value, CancellationToken ct) =>
-            {
+            .Returns((string key, string value, CancellationToken ct) => {
                 completionSemaphore.Release();
                 return Task.FromResult(true);
             });
@@ -75,8 +70,7 @@ public sealed class EditorModeServicePersistenceTests
     }
 
     [Fact]
-    public async Task Dispose_BeforeSetMode_ThenSetMode_DoesNotCrash()
-    {
+    public async Task Dispose_BeforeSetMode_ThenSetMode_DoesNotCrash() {
         // Arrange: 验证 Dispose 后调用 SetMode 的行为
         var configMock = new Mock<IConfigurationService>();
         configMock.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

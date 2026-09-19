@@ -1,8 +1,7 @@
 namespace JoinCode.Gui.ViewModels;
 
 /// <summary>卡死检测状态机状态 — 规则8风格显式枚举</summary>
-public enum StallDetectionState
-{
+public enum StallDetectionState {
     /// <summary>正常监测（回合未开始或心跳新鲜/有活跃工具）</summary>
     [EnumValue("monitoring")]
     Monitoring,
@@ -12,8 +11,7 @@ public enum StallDetectionState
 }
 
 /// <summary>走马灯停止原因 — 驱动弹窗策略（Normal/UserAborted 不弹，Abnormal/Stalled 弹模态）（需求9）</summary>
-public enum MarqueeStopReason
-{
+public enum MarqueeStopReason {
     /// <summary>正常完成 — 不弹窗</summary>
     [EnumValue("normal")]
     Normal,
@@ -34,8 +32,7 @@ public enum MarqueeStopReason
 /// 时钟经构造注入（测试可控）；定时回调由 View 层 DispatcherTimer 驱动
 /// <see cref="OnHeartbeatTick"/>，热路径只有此小控件，不进消息列表绑定。
 /// </summary>
-public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
-{
+public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged {
     /// <summary>属性变更事件</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -61,11 +58,9 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
 
     private StallDetectionState _stallState = StallDetectionState.Monitoring;
     /// <summary>卡死检测状态机当前状态</summary>
-    public StallDetectionState StallState
-    {
+    public StallDetectionState StallState {
         get => _stallState;
-        private set
-        {
+        private set {
             if (_stallState == value)
                 return;
             _stallState = value;
@@ -104,17 +99,14 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
 
     private string? _latestActivity;
     /// <summary>最近一次活动标签（工具名/子代理名/转发目标），走马灯内容源之一</summary>
-    public string? LatestActivity
-    {
+    public string? LatestActivity {
         get => _latestActivity;
         set { if (_latestActivity != value) { _latestActivity = value; Raise(nameof(LatestActivity)); Raise(nameof(MarqueeText)); } }
     }
 
     /// <summary>走马灯文本 — 状态/动词/最近活动/耗时/token 的滚动摘要流（F1）；空闲时显示默认欢迎语</summary>
-    public string MarqueeText
-    {
-        get
-        {
+    public string MarqueeText {
+        get {
             var parts = new List<string>(5);
             if (IsBusy)
                 parts.Add(Verb);
@@ -148,8 +140,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
     // === 回合生命周期 ===
 
     /// <summary>回合开始 — 采样动词、复位状态机与统计</summary>
-    public void StartTurn()
-    {
+    public void StartTurn() {
         _turnStartedAtUtc = _clock();
         _lastHeartbeatUtc = _turnStartedAtUtc;
         _hasActiveTool = false;
@@ -163,8 +154,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
     }
 
     /// <summary>回合结束 — 定格耗时、退出卡死态；触发 MarqueeStopped 事件供弹窗（需求9）</summary>
-    public void EndTurn(MarqueeStopReason reason = MarqueeStopReason.Normal)
-    {
+    public void EndTurn(MarqueeStopReason reason = MarqueeStopReason.Normal) {
         RefreshElapsed();
         var wasBusy = IsBusy;
         IsBusy = false;
@@ -178,8 +168,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
     /// 心跳上报 — 每条引擎事件到达时调用。
     /// hasActiveTool=true（工具执行中）豁免卡死检测；label 为活动标签（工具/子代理名）进走马灯
     /// </summary>
-    public void ReportActivity(bool hasActiveTool, string? label = null)
-    {
+    public void ReportActivity(bool hasActiveTool, string? label = null) {
         _lastHeartbeatUtc = _clock();
         _hasActiveTool = hasActiveTool;
         if (!string.IsNullOrWhiteSpace(label))
@@ -189,8 +178,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
     }
 
     /// <summary>聚合 token（Complete 事件的真实用量累加）</summary>
-    public void AddTokens(long totalTokens)
-    {
+    public void AddTokens(long totalTokens) {
         if (totalTokens <= 0)
             return;
         _totalTokens += totalTokens;
@@ -202,8 +190,7 @@ public sealed class GlobalRunStatusViewModel : INotifyPropertyChanged
         => BackgroundPillText = count > 0 ? $"{count} 个后台代理" : string.Empty;
 
     /// <summary>定时器回调（View 层 ~500ms 调度）：刷新耗时 + 卡死判定转移 + 走马灯内容刷新</summary>
-    public void OnHeartbeatTick()
-    {
+    public void OnHeartbeatTick() {
         if (!IsBusy)
             return;
 

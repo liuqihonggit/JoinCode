@@ -5,14 +5,12 @@ namespace Core.Agents;
 /// 合并自路径 B 的 SpawnCoordRecordContextMiddleware
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class RecordContextMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class RecordContextMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 RecordContextMiddleware 实例，注入时钟服务
     /// </summary>
-    public RecordContextMiddleware(IClockService clock)
-    {
+    public RecordContextMiddleware(IClockService clock) {
         _clock = clock;
     }
     private readonly IClockService _clock;
@@ -26,14 +24,11 @@ public sealed partial class RecordContextMiddleware : ServiceEntity, IUnifiedSpa
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (context.Agent is not null)
-        {
+    public Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (context.Agent is not null) {
             var now = _clock.GetUtcNow();
             context.SpawnedAt = now;
-            context.ExecutionContext = new AgentExecutionContext
-            {
+            context.ExecutionContext = new AgentExecutionContext {
                 AgentId = context.AgentId,
                 Task = context.Task,
                 SpawnedAt = now,

@@ -3,8 +3,7 @@ namespace JoinCode.CodeIndex.Ast;
 /// <summary>
 /// C# 依赖关系提取器 — 基于 Tree-sitter AST 提取类型声明、基类、泛型参数、特性、using 等依赖边
 /// </summary>
-public sealed class CSharpDependencyExtractor
-{
+public sealed class CSharpDependencyExtractor {
     private static readonly FrozenSet<string> BclTypes = new HashSet<string>(StringComparer.Ordinal)
     {
         "var", "void", "object", "string", "int", "bool", "long", "double",
@@ -74,8 +73,7 @@ public sealed class CSharpDependencyExtractor
     /// <param name="filePath">文件路径</param>
     /// <param name="symbols">已知符号列表</param>
     /// <returns>依赖边列表</returns>
-    public IReadOnlyList<DependencyEdge> ExtractDependencies(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols)
-    {
+    public IReadOnlyList<DependencyEdge> ExtractDependencies(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols) {
         ArgumentNullException.ThrowIfNull(sourceCode);
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(symbols);
@@ -93,8 +91,7 @@ public sealed class CSharpDependencyExtractor
     /// <param name="filePath">文件路径</param>
     /// <param name="symbols">已知符号列表</param>
     /// <returns>依赖边列表</returns>
-    public IReadOnlyList<DependencyEdge> ExtractDependenciesFromTree(Node rootNode, string filePath, IReadOnlyList<SymbolInfo> symbols)
-    {
+    public IReadOnlyList<DependencyEdge> ExtractDependenciesFromTree(Node rootNode, string filePath, IReadOnlyList<SymbolInfo> symbols) {
         var deps = new List<DependencyEdge>();
         var interfaceNames = CollectInterfaceNames(rootNode);
         var typeFqnMap = BuildTypeFqnMap(symbols);
@@ -105,15 +102,11 @@ public sealed class CSharpDependencyExtractor
         return deps;
     }
 
-    private static Dictionary<string, string> BuildTypeFqnMap(IReadOnlyList<SymbolInfo> symbols)
-    {
+    private static Dictionary<string, string> BuildTypeFqnMap(IReadOnlyList<SymbolInfo> symbols) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var symbol in symbols)
-        {
-            if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Enum or SymbolKind.Delegate or SymbolKind.Record or SymbolKind.RecordStruct)
-            {
-                if (!map.ContainsKey(symbol.Name))
-                {
+        foreach (var symbol in symbols) {
+            if (symbol.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface or SymbolKind.Enum or SymbolKind.Delegate or SymbolKind.Record or SymbolKind.RecordStruct) {
+                if (!map.ContainsKey(symbol.Name)) {
                     map[symbol.Name] = symbol.FullyQualifiedName;
                 }
             }
@@ -121,68 +114,56 @@ public sealed class CSharpDependencyExtractor
         return map;
     }
 
-    private static string BuildFileFqn(string filePath, IReadOnlyList<SymbolInfo> symbols)
-    {
+    private static string BuildFileFqn(string filePath, IReadOnlyList<SymbolInfo> symbols) {
         var ns = symbols.FirstOrDefault(s => s.Kind == SymbolKind.Namespace);
         return ns is not null ? $"<{ns.Name}>.{Path.GetFileName(filePath)}" : $"<global>.{Path.GetFileName(filePath)}";
     }
 
-    private static HashSet<string> CollectInterfaceNames(Node node)
-    {
+    private static HashSet<string> CollectInterfaceNames(Node node) {
         var names = new HashSet<string>(StringComparer.Ordinal);
         CollectInterfaceNamesRecursive(node, names);
         return names;
     }
 
-    private static void CollectInterfaceNamesRecursive(Node node, HashSet<string> names)
-    {
-        if (node.Type == "interface_declaration")
-        {
+    private static void CollectInterfaceNamesRecursive(Node node, HashSet<string> names) {
+        if (node.Type == "interface_declaration") {
             var nameNode = node.GetChildForField("name");
-            if (nameNode is not null)
-            {
+            if (nameNode is not null) {
                 names.Add(nameNode.Text);
             }
         }
 
-        foreach (var child in node.NamedChildren)
-        {
+        foreach (var child in node.NamedChildren) {
             CollectInterfaceNamesRecursive(child, names);
         }
     }
 
-    private static void CollectDependencies(Node node, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap)
-    {
-        if (node.IsError)
-        {
+    private static void CollectDependencies(Node node, string fileFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
+        if (node.IsError) {
             return;
         }
 
-        switch (node.Type)
-        {
+        switch (node.Type) {
             case "class_declaration":
             case "struct_declaration":
             case "record_declaration":
             case "record_struct_declaration":
             case "interface_declaration":
-                ExtractTypeDeclarationDependencies(node, filePath, deps, interfaceNames, typeFqnMap);
-                break;
+            ExtractTypeDeclarationDependencies(node, filePath, deps, interfaceNames, typeFqnMap);
+            break;
             case "using_directive":
-                ExtractUsingDependency(node, fileFqn, filePath, deps);
-                break;
+            ExtractUsingDependency(node, fileFqn, filePath, deps);
+            break;
         }
 
-        foreach (var child in node.NamedChildren)
-        {
+        foreach (var child in node.NamedChildren) {
             CollectDependencies(child, fileFqn, filePath, deps, interfaceNames, typeFqnMap);
         }
     }
 
-    private static void ExtractTypeDeclarationDependencies(Node typeDeclNode, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap)
-    {
+    private static void ExtractTypeDeclarationDependencies(Node typeDeclNode, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
         var nameNode = typeDeclNode.GetChildForField("name");
-        if (nameNode is null)
-        {
+        if (nameNode is null) {
             return;
         }
 
@@ -190,10 +171,8 @@ public sealed class CSharpDependencyExtractor
         var sourceFqn = typeFqnMap.TryGetValue(sourceName, out var fqn) ? fqn : sourceName;
 
         var baseList = FindChildByType(typeDeclNode, "base_list");
-        if (baseList is not null)
-        {
-            foreach (var child in baseList.NamedChildren)
-            {
+        if (baseList is not null) {
+            foreach (var child in baseList.NamedChildren) {
                 ExtractBaseListEntry(child, sourceFqn, filePath, deps, interfaceNames, typeFqnMap);
             }
         }
@@ -204,17 +183,13 @@ public sealed class CSharpDependencyExtractor
         ExtractContainsDependencies(typeDeclNode, sourceFqn, filePath, deps, typeFqnMap);
     }
 
-    private static void ExtractBaseListEntry(Node baseEntry, string sourceFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap)
-    {
-        if (baseEntry.Type == "generic_name")
-        {
+    private static void ExtractBaseListEntry(Node baseEntry, string sourceFqn, string filePath, List<DependencyEdge> deps, HashSet<string> interfaceNames, Dictionary<string, string> typeFqnMap) {
+        if (baseEntry.Type == "generic_name") {
             var genericName = GetGenericNameIdentifier(baseEntry);
-            if (genericName is not null)
-            {
+            if (genericName is not null) {
                 var targetFqn = typeFqnMap.TryGetValue(genericName, out var fqnVal) ? fqnVal : genericName;
                 var kind = interfaceNames.Contains(genericName) ? DependencyKind.Implements : DependencyKind.Inherits;
-                deps.Add(new DependencyEdge
-                {
+                deps.Add(new DependencyEdge {
                     SourceSymbol = sourceFqn,
                     TargetSymbol = targetFqn,
                     DependencyKind = kind,
@@ -223,14 +198,11 @@ public sealed class CSharpDependencyExtractor
             }
 
             ExtractGenericTypeArguments(baseEntry, sourceFqn, filePath, deps, typeFqnMap);
-        }
-        else
-        {
+        } else {
             var targetName = baseEntry.Text;
             var targetFqn = typeFqnMap.TryGetValue(targetName, out var targetFqnVal) ? targetFqnVal : targetName;
             var kind = interfaceNames.Contains(targetName) ? DependencyKind.Implements : DependencyKind.Inherits;
-            deps.Add(new DependencyEdge
-            {
+            deps.Add(new DependencyEdge {
                 SourceSymbol = sourceFqn,
                 TargetSymbol = targetFqn,
                 DependencyKind = kind,
@@ -239,25 +211,18 @@ public sealed class CSharpDependencyExtractor
         }
     }
 
-    private static void ExtractGenericTypeArguments(Node genericNameNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap)
-    {
+    private static void ExtractGenericTypeArguments(Node genericNameNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
         var typeArgList = FindChildByType(genericNameNode, "type_argument_list");
-        if (typeArgList is null)
-        {
+        if (typeArgList is null) {
             return;
         }
 
-        foreach (var arg in typeArgList.NamedChildren)
-        {
-            if (arg.Type == "identifier" || arg.Type == "type_identifier")
-            {
+        foreach (var arg in typeArgList.NamedChildren) {
+            if (arg.Type == "identifier" || arg.Type == "type_identifier") {
                 AddTypeDependency(arg.Text, sourceFqn, filePath, deps, typeFqnMap);
-            }
-            else if (arg.Type == "generic_name")
-            {
+            } else if (arg.Type == "generic_name") {
                 var innerName = GetGenericNameIdentifier(arg);
-                if (innerName is not null)
-                {
+                if (innerName is not null) {
                     AddTypeDependency(innerName, sourceFqn, filePath, deps, typeFqnMap);
                 }
                 ExtractGenericTypeArguments(arg, sourceFqn, filePath, deps, typeFqnMap);
@@ -265,27 +230,17 @@ public sealed class CSharpDependencyExtractor
         }
     }
 
-    private static void ExtractGenericConstraintDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap)
-    {
-        foreach (var child in typeDeclNode.Children)
-        {
-            if (child.Type == "type_parameter_constraints_clause")
-            {
-                foreach (var constraint in child.NamedChildren)
-                {
-                    if (constraint.Type == "type_parameter_constraint")
-                    {
-                        foreach (var typeNode in constraint.NamedChildren)
-                        {
-                            if (typeNode.Type == "identifier" || typeNode.Type == "type_identifier")
-                            {
+    private static void ExtractGenericConstraintDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
+        foreach (var child in typeDeclNode.Children) {
+            if (child.Type == "type_parameter_constraints_clause") {
+                foreach (var constraint in child.NamedChildren) {
+                    if (constraint.Type == "type_parameter_constraint") {
+                        foreach (var typeNode in constraint.NamedChildren) {
+                            if (typeNode.Type == "identifier" || typeNode.Type == "type_identifier") {
                                 AddTypeDependency(typeNode.Text, sourceFqn, filePath, deps, typeFqnMap);
-                            }
-                            else if (typeNode.Type == "generic_name")
-                            {
+                            } else if (typeNode.Type == "generic_name") {
                                 var genericName = GetGenericNameIdentifier(typeNode);
-                                if (genericName is not null)
-                                {
+                                if (genericName is not null) {
                                     AddTypeDependency(genericName, sourceFqn, filePath, deps, typeFqnMap);
                                 }
                                 ExtractGenericTypeArguments(typeNode, sourceFqn, filePath, deps, typeFqnMap);
@@ -297,60 +252,44 @@ public sealed class CSharpDependencyExtractor
         }
     }
 
-    private static void ExtractAttributeDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap)
-    {
+    private static void ExtractAttributeDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
         CollectAttributeDependencies(typeDeclNode, sourceFqn, filePath, deps, typeFqnMap);
     }
 
-    private static void CollectAttributeDependencies(Node node, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap)
-    {
-        foreach (var child in node.Children)
-        {
-            if (child.Type == "attribute_list")
-            {
-                foreach (var attr in child.NamedChildren)
-                {
-                    if (attr.Type == "attribute")
-                    {
+    private static void CollectAttributeDependencies(Node node, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
+        foreach (var child in node.Children) {
+            if (child.Type == "attribute_list") {
+                foreach (var attr in child.NamedChildren) {
+                    if (attr.Type == "attribute") {
                         var attrNameNode = attr.NamedChildren.FirstOrDefault();
-                        if (attrNameNode is not null)
-                        {
+                        if (attrNameNode is not null) {
                             var attrName = attrNameNode.Text;
-                            if (attrName.EndsWith("Attribute", StringComparison.Ordinal))
-                            {
+                            if (attrName.EndsWith("Attribute", StringComparison.Ordinal)) {
                                 attrName = attrName[..^"Attribute".Length];
                             }
                             AddTypeDependency(attrName, sourceFqn, filePath, deps, typeFqnMap);
                         }
                     }
                 }
-            }
-            else if (!TypeDeclNodeTypes.Contains(child.Type))
-            {
+            } else if (!TypeDeclNodeTypes.Contains(child.Type)) {
                 CollectAttributeDependencies(child, sourceFqn, filePath, deps, typeFqnMap);
             }
         }
     }
 
-    private static void ExtractContainsDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap)
-    {
+    private static void ExtractContainsDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
         var declList = FindChildByType(typeDeclNode, "declaration_list");
-        if (declList is null)
-        {
+        if (declList is null) {
             return;
         }
 
-        foreach (var child in declList.NamedChildren)
-        {
-            if (TypeDeclNodeTypes.Contains(child.Type))
-            {
+        foreach (var child in declList.NamedChildren) {
+            if (TypeDeclNodeTypes.Contains(child.Type)) {
                 var childNameNode = child.GetChildForField("name");
-                if (childNameNode is not null)
-                {
+                if (childNameNode is not null) {
                     var childName = childNameNode.Text;
                     var childFqn = typeFqnMap.TryGetValue(childName, out var fqnVal) ? fqnVal : $"{sourceFqn}.{childName}";
-                    deps.Add(new DependencyEdge
-                    {
+                    deps.Add(new DependencyEdge {
                         SourceSymbol = sourceFqn,
                         TargetSymbol = childFqn,
                         DependencyKind = DependencyKind.Contains,
@@ -361,16 +300,13 @@ public sealed class CSharpDependencyExtractor
         }
     }
 
-    private static void ExtractTypeUsageDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap)
-    {
+    private static void ExtractTypeUsageDependencies(Node typeDeclNode, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
         var usedTypes = new HashSet<string>(StringComparer.Ordinal);
         CollectTypeReferences(typeDeclNode, usedTypes);
 
-        deps.AddRange(usedTypes.Select(usedType =>
-        {
+        deps.AddRange(usedTypes.Select(usedType => {
             var targetFqn = typeFqnMap.TryGetValue(usedType, out var fqnVal) ? fqnVal : usedType;
-            return new DependencyEdge
-            {
+            return new DependencyEdge {
                 SourceSymbol = sourceFqn,
                 TargetSymbol = targetFqn,
                 DependencyKind = DependencyKind.Uses,
@@ -379,136 +315,108 @@ public sealed class CSharpDependencyExtractor
         }));
     }
 
-    private static void CollectTypeReferences(Node node, HashSet<string> usedTypes)
-    {
-        switch (node.Type)
-        {
+    private static void CollectTypeReferences(Node node, HashSet<string> usedTypes) {
+        switch (node.Type) {
             case "type_identifier":
-                AddIfUserDefinedType(node, node.Text, usedTypes);
-                break;
+            AddIfUserDefinedType(node, node.Text, usedTypes);
+            break;
             case "generic_name":
-                ExtractGenericNameTypeReferences(node, usedTypes);
-                break;
+            ExtractGenericNameTypeReferences(node, usedTypes);
+            break;
             case "variable_declaration":
-                ExtractTypeFromVariableDeclaration(node, usedTypes);
-                break;
+            ExtractTypeFromVariableDeclaration(node, usedTypes);
+            break;
             case "parameter":
-                ExtractTypeFromParameter(node, usedTypes);
-                break;
+            ExtractTypeFromParameter(node, usedTypes);
+            break;
             case "method_declaration":
-                ExtractTypeFromMethodReturn(node, usedTypes);
-                break;
+            ExtractTypeFromMethodReturn(node, usedTypes);
+            break;
             case "property_declaration":
-                ExtractTypeFromProperty(node, usedTypes);
-                break;
+            ExtractTypeFromProperty(node, usedTypes);
+            break;
         }
 
-        foreach (var child in node.NamedChildren)
-        {
+        foreach (var child in node.NamedChildren) {
             CollectTypeReferences(child, usedTypes);
         }
     }
 
-    private static void ExtractGenericNameTypeReferences(Node genericNameNode, HashSet<string> usedTypes)
-    {
+    private static void ExtractGenericNameTypeReferences(Node genericNameNode, HashSet<string> usedTypes) {
         var nameIdentifier = GetGenericNameIdentifier(genericNameNode);
-        if (nameIdentifier is not null)
-        {
+        if (nameIdentifier is not null) {
             AddIfUserDefinedType(genericNameNode, nameIdentifier, usedTypes);
         }
 
         var typeArgList = FindChildByType(genericNameNode, "type_argument_list");
-        if (typeArgList is null)
-        {
+        if (typeArgList is null) {
             return;
         }
 
-        foreach (var arg in typeArgList.NamedChildren)
-        {
-            if (arg.Type == "identifier" || arg.Type == "type_identifier")
-            {
+        foreach (var arg in typeArgList.NamedChildren) {
+            if (arg.Type == "identifier" || arg.Type == "type_identifier") {
                 AddIfUserDefinedType(arg, arg.Text, usedTypes);
-            }
-            else if (arg.Type == "generic_name")
-            {
+            } else if (arg.Type == "generic_name") {
                 ExtractGenericNameTypeReferences(arg, usedTypes);
             }
         }
     }
 
-    private static void ExtractTypeFromVariableDeclaration(Node varDecl, HashSet<string> usedTypes)
-    {
+    private static void ExtractTypeFromVariableDeclaration(Node varDecl, HashSet<string> usedTypes) {
         var typeNode = varDecl.GetChildForField("type");
-        if (typeNode is not null)
-        {
+        if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }
     }
 
-    private static void ExtractTypeFromParameter(Node param, HashSet<string> usedTypes)
-    {
+    private static void ExtractTypeFromParameter(Node param, HashSet<string> usedTypes) {
         var typeNode = param.GetChildForField("type");
-        if (typeNode is not null)
-        {
+        if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }
     }
 
-    private static void ExtractTypeFromMethodReturn(Node methodDecl, HashSet<string> usedTypes)
-    {
+    private static void ExtractTypeFromMethodReturn(Node methodDecl, HashSet<string> usedTypes) {
         var returnTypeNode = methodDecl.GetChildForField("returns");
-        if (returnTypeNode is not null)
-        {
+        if (returnTypeNode is not null) {
             AddTypeFromNode(returnTypeNode, usedTypes);
         }
     }
 
-    private static void ExtractTypeFromProperty(Node propDecl, HashSet<string> usedTypes)
-    {
+    private static void ExtractTypeFromProperty(Node propDecl, HashSet<string> usedTypes) {
         var typeNode = propDecl.GetChildForField("type");
-        if (typeNode is not null)
-        {
+        if (typeNode is not null) {
             AddTypeFromNode(typeNode, usedTypes);
         }
     }
 
-    private static void AddTypeFromNode(Node typeNode, HashSet<string> usedTypes)
-    {
-        if (typeNode.Type == "generic_name")
-        {
+    private static void AddTypeFromNode(Node typeNode, HashSet<string> usedTypes) {
+        if (typeNode.Type == "generic_name") {
             ExtractGenericNameTypeReferences(typeNode, usedTypes);
-        }
-        else
-        {
+        } else {
             AddIfUserDefinedType(typeNode, typeNode.Text, usedTypes);
         }
     }
 
-    private static void AddIfUserDefinedType(Node typeNode, string typeName, HashSet<string> usedTypes)
-    {
-        if (typeName.Length == 0 || BclTypes.Contains(typeName))
-        {
+    private static void AddIfUserDefinedType(Node typeNode, string typeName, HashSet<string> usedTypes) {
+        if (typeName.Length == 0 || BclTypes.Contains(typeName)) {
             return;
         }
 
-        if (typeNode.Parent is not null && SkipParentTypes.Contains(typeNode.Parent.Type))
-        {
+        if (typeNode.Parent is not null && SkipParentTypes.Contains(typeNode.Parent.Type)) {
             return;
         }
 
         usedTypes.Add(typeName);
     }
 
-    private static void AddTypeDependency(string typeName, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap)
-    {
-        if (string.IsNullOrEmpty(typeName) || BclTypes.Contains(typeName))
-        {
+    private static void AddTypeDependency(string typeName, string sourceFqn, string filePath, List<DependencyEdge> deps, Dictionary<string, string> typeFqnMap) {
+        if (string.IsNullOrEmpty(typeName) || BclTypes.Contains(typeName)) {
             return;
         }
 
         var targetFqn = typeFqnMap.TryGetValue(typeName, out var fqnVal) ? fqnVal : typeName;
-        deps.Add(new DependencyEdge
-        {
+        deps.Add(new DependencyEdge {
             SourceSymbol = sourceFqn,
             TargetSymbol = targetFqn,
             DependencyKind = DependencyKind.Uses,
@@ -516,28 +424,22 @@ public sealed class CSharpDependencyExtractor
         });
     }
 
-    private static string? GetGenericNameIdentifier(Node genericNameNode)
-    {
-        foreach (var child in genericNameNode.NamedChildren)
-        {
-            if (child.Type == "identifier")
-            {
+    private static string? GetGenericNameIdentifier(Node genericNameNode) {
+        foreach (var child in genericNameNode.NamedChildren) {
+            if (child.Type == "identifier") {
                 return child.Text;
             }
         }
         return null;
     }
 
-    private static void ExtractUsingDependency(Node usingNode, string fileFqn, string filePath, List<DependencyEdge> deps)
-    {
+    private static void ExtractUsingDependency(Node usingNode, string fileFqn, string filePath, List<DependencyEdge> deps) {
         var nameChild = usingNode.NamedChildren.FirstOrDefault();
-        if (nameChild is null)
-        {
+        if (nameChild is null) {
             return;
         }
 
-        deps.Add(new DependencyEdge
-        {
+        deps.Add(new DependencyEdge {
             SourceSymbol = fileFqn,
             TargetSymbol = nameChild.Text,
             DependencyKind = DependencyKind.Imports,
@@ -545,8 +447,7 @@ public sealed class CSharpDependencyExtractor
         });
     }
 
-    private static Node? FindChildByType(Node node, string type)
-    {
+    private static Node? FindChildByType(Node node, string type) {
         return node.Children.FirstOrDefault(child => child.Type == type);
     }
 }

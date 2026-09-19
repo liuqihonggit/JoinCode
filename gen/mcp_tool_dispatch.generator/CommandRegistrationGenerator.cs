@@ -2,17 +2,14 @@
 namespace McpToolDispatch.Generator;
 
 [Generator]
-public sealed class CommandRegistrationGenerator : IIncrementalGenerator
-{
+public sealed class CommandRegistrationGenerator : IIncrementalGenerator {
     private const string ChatCommandAttributeFullName = "JoinCode.ChatCommands.ChatCommandAttribute";
     private const string ChatCommandArgAttributeFullName = "JoinCode.ChatCommands.ChatCommandArgAttribute";
     private const string IChatCommandFullName = "JoinCode.ChatCommands.IChatCommand";
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
         var commandTypes = context.CompilationProvider
-            .SelectMany(static (compilation, _) =>
-            {
+            .SelectMany(static (compilation, _) => {
                 var chatCommandAttr = compilation.GetTypeByMetadataName(ChatCommandAttributeFullName);
 
                 if (chatCommandAttr is null)
@@ -25,8 +22,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
             })
             .Collect();
 
-        context.RegisterSourceOutput(commandTypes, static (ctx, commands) =>
-        {
+        context.RegisterSourceOutput(commandTypes, static (ctx, commands) => {
             GenerateRegistrationCode(ctx, commands);
             GenerateSlashCommandCatalog(ctx, commands);
             GenerateSlashCommandSchemaCatalog(ctx, commands);
@@ -37,21 +33,17 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         INamespaceSymbol namespaceSymbol,
         INamedTypeSymbol? chatCommandAttr,
         INamedTypeSymbol? chatCommandArgAttr,
-        List<CommandInfo> results)
-    {
-        foreach (var member in namespaceSymbol.GetMembers())
-        {
+        List<CommandInfo> results) {
+        foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespaces(childNamespace, chatCommandAttr, chatCommandArgAttr, results);
-            else if (member is INamedTypeSymbol typeSymbol && chatCommandAttr is not null)
-            {
+            else if (member is INamedTypeSymbol typeSymbol && chatCommandAttr is not null) {
                 if (!typeSymbol.Locations.Any(static loc => loc.IsInSource))
                     continue;
 
                 var attr = typeSymbol.GetAttributes()
                     .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, chatCommandAttr));
-                if (attr is not null)
-                {
+                if (attr is not null) {
                     var namedArgs = attr.NamedArguments.ToDictionary(n => n.Key, n => n.Value);
                     var name = GetNamedArgString(namedArgs, "Name")
                         ?? attr.ConstructorArguments.ElementAtOrDefault(0).Value as string
@@ -60,19 +52,14 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                     // 提取 Category — 特性解耦，每个命令自己声明分类
                     var categoryValue = GetNamedArg(namedArgs, "Category");
                     string? categoryEnumName = null;
-                    if (!categoryValue.IsNull)
-                    {
+                    if (!categoryValue.IsNull) {
                         // 从枚举值获取成员名（如 ChatCommandCategory.Session → "Session"）
-                        if (categoryValue.Value is int categoryInt && categoryInt >= 0)
-                        {
+                        if (categoryValue.Value is int categoryInt && categoryInt >= 0) {
                             // 遍历枚举成员找到匹配的名称
                             var categoryType = categoryValue.Type;
-                            if (categoryType is INamedTypeSymbol enumType)
-                            {
-                                foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>())
-                                {
-                                    if (field.ConstantValue is int fieldValue && fieldValue == categoryInt)
-                                    {
+                            if (categoryType is INamedTypeSymbol enumType) {
+                                foreach (var field in enumType.GetMembers().OfType<IFieldSymbol>()) {
+                                    if (field.ConstantValue is int fieldValue && fieldValue == categoryInt) {
                                         categoryEnumName = field.Name;
                                         break;
                                     }
@@ -88,20 +75,16 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
                     var isEnabled = GetNamedArg(namedArgs, "IsEnabled").Value is bool enabledVal ? enabledVal : true;
                     var aliases = new List<string>();
                     var aliasesValue = GetNamedArg(namedArgs, "Aliases");
-                    if (!aliasesValue.IsNull && aliasesValue.Kind == TypedConstantKind.Array)
-                    {
-                        foreach (var element in aliasesValue.Values)
-                        {
+                    if (!aliasesValue.IsNull && aliasesValue.Kind == TypedConstantKind.Array) {
+                        foreach (var element in aliasesValue.Values) {
                             if (element.Value is string alias)
                                 aliases.Add(alias);
                         }
                     }
 
                     var args = new List<ChatCommandArgInfo>();
-                    if (chatCommandArgAttr is not null)
-                    {
-                        foreach (var a in typeSymbol.GetAttributes())
-                        {
+                    if (chatCommandArgAttr is not null) {
+                        foreach (var a in typeSymbol.GetAttributes()) {
                             if (SymbolEqualityComparer.Default.Equals(a.AttributeClass, chatCommandArgAttr))
                                 args.Add(ExtractArgInfo(a));
                         }
@@ -130,8 +113,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
     private static TypedConstant GetNamedArg(IReadOnlyDictionary<string, TypedConstant> namedArgs, string key)
         => namedArgs.TryGetValue(key, out var v) ? v : default;
 
-    private static ChatCommandArgInfo ExtractArgInfo(AttributeData a)
-    {
+    private static ChatCommandArgInfo ExtractArgInfo(AttributeData a) {
         // Name 是构造函数参数，Type/Description/Required 等是 init 命名参数
         var argName = a.ConstructorArguments.ElementAtOrDefault(0).Value as string ?? "";
         var namedArgs = a.NamedArguments.ToDictionary(n => n.Key, n => n.Value);
@@ -144,11 +126,9 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 
         string[]? argEnum = null;
         var enumValue = GetNamedArg(namedArgs, "Enum");
-        if (!enumValue.IsNull && enumValue.Kind == TypedConstantKind.Array)
-        {
+        if (!enumValue.IsNull && enumValue.Kind == TypedConstantKind.Array) {
             var enumList = new List<string>();
-            foreach (var element in enumValue.Values)
-            {
+            foreach (var element in enumValue.Values) {
                 if (element.Value is string enumItem)
                     enumList.Add(enumItem);
             }
@@ -158,8 +138,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         return new ChatCommandArgInfo(argName, argType, argDesc, argRequired, argDefault, argEnum, argItemsType, argItemsDesc);
     }
 
-    private static void GenerateRegistrationCode(SourceProductionContext context, ImmutableArray<CommandInfo> commands)
-    {
+    private static void GenerateRegistrationCode(SourceProductionContext context, ImmutableArray<CommandInfo> commands) {
         var validCommands = commands.OrderBy(c => c.Name).ToList();
 
         if (validCommands.Count == 0)
@@ -181,8 +160,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 
         var chatCommands = validCommands.Where(c => c.Type == CommandType.ChatCommand).ToList();
 
-        if (chatCommands.Count > 0)
-        {
+        if (chatCommands.Count > 0) {
             GenerateRegisterChatCommandsMethod(sb, chatCommands);
             sb.AppendLine();
         }
@@ -192,8 +170,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         context.AddSource("GeneratedCommandRegistration.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static void GenerateRegisterChatCommandsMethod(StringBuilder sb, List<CommandInfo> commands)
-    {
+    private static void GenerateRegisterChatCommandsMethod(StringBuilder sb, List<CommandInfo> commands) {
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// 将所有由源码生成器发现的 ChatCommand 实例注册到注册表,并设置各自的分类。");
         sb.AppendLine("    /// </summary>");
@@ -201,13 +178,11 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine("    public static void RegisterAllChatCommands(ChatCommandRegistry registry)");
         sb.AppendLine("    {");
 
-        foreach (var cmd in commands)
-        {
+        foreach (var cmd in commands) {
             sb.AppendLine($"        registry.Register(new {cmd.FullyQualifiedName}());");
 
             // 生成 SetCategory 调用 — 特性解耦，源码生成器自动提取
-            if (cmd.CategoryEnumName is not null)
-            {
+            if (cmd.CategoryEnumName is not null) {
                 sb.AppendLine($"        registry.SetCategory(\"{EscapeString(cmd.Name)}\", JoinCode.Abstractions.Utils.ChatCommandCategory.{cmd.CategoryEnumName});");
             }
         }
@@ -216,8 +191,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
     }
 
     /// <summary>生成 GeneratedSlashCommandCatalog — 从 [ChatCommand] 特性提取的命令元数据目录</summary>
-    private static void GenerateSlashCommandCatalog(SourceProductionContext context, ImmutableArray<CommandInfo> commands)
-    {
+    private static void GenerateSlashCommandCatalog(SourceProductionContext context, ImmutableArray<CommandInfo> commands) {
         var chatCommands = commands.Where(c => c.Type == CommandType.ChatCommand).OrderBy(c => c.Name).ToList();
         if (chatCommands.Count == 0)
             return;
@@ -245,13 +219,11 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
 
         var byCategory = chatCommands.GroupBy(c => c.CategoryEnumName ?? "Other").OrderBy(g => g.Key);
-        foreach (var grp in byCategory)
-        {
+        foreach (var grp in byCategory) {
             var catName = grp.Key;
             var orderedCmds = grp.OrderBy(c => c.Name).ToList();
             sb.AppendLine($"            [\"{EscapeString(catName)}\"] = [");
-            foreach (var cmd in orderedCmds)
-            {
+            foreach (var cmd in orderedCmds) {
                 var aliases = string.Join(", ", cmd.Aliases.Select(a => $"\"{EscapeString(a)}\""));
                 sb.AppendLine($"                new SlashCommandMetadata {{ Name = \"/{EscapeString(cmd.Name)}\", Description = \"{EscapeString(cmd.Description)}\", Usage = \"{EscapeString(cmd.Usage)}\", Aliases = [{aliases}], IsHidden = {cmd.IsHidden.ToString().ToLowerInvariant()}, IsEnabled = {cmd.IsEnabled.ToString().ToLowerInvariant()}, Category = \"{EscapeString(catName)}\" }},");
             }
@@ -270,8 +242,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
     }
 
     /// <summary>生成 GeneratedSlashCommandSchemaCatalog — 从 [ChatCommandArg] 特性提取的参数 schema 目录</summary>
-    private static void GenerateSlashCommandSchemaCatalog(SourceProductionContext context, ImmutableArray<CommandInfo> commands)
-    {
+    private static void GenerateSlashCommandSchemaCatalog(SourceProductionContext context, ImmutableArray<CommandInfo> commands) {
         var chatCommands = commands.Where(c => c.Type == CommandType.ChatCommand).OrderBy(c => c.Name).ToList();
         if (chatCommands.Count == 0)
             return;
@@ -296,14 +267,10 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine("        new Dictionary<string, SlashCommandSchemaEntry>(StringComparer.OrdinalIgnoreCase)");
         sb.AppendLine("        {");
 
-        foreach (var cmd in chatCommands)
-        {
-            if (cmd.Args.Length > 0)
-            {
+        foreach (var cmd in chatCommands) {
+            if (cmd.Args.Length > 0) {
                 sb.AppendLine($"            [\"{EscapeString(cmd.Name)}\"] = new SlashCommandSchemaEntry {{ CommandName = \"{EscapeString(cmd.Name)}\", Schema = {GenerateToolSchemaLiteral(cmd.Args)} }},");
-            }
-            else
-            {
+            } else {
                 var hint = string.IsNullOrEmpty(cmd.ArgumentHint) ? "null" : $"\"{EscapeString(cmd.ArgumentHint)}\"";
                 sb.AppendLine($"            [\"{EscapeString(cmd.Name)}\"] = new SlashCommandSchemaEntry {{ CommandName = \"{EscapeString(cmd.Name)}\", Schema = null, ArgumentHint = {hint} }},");
             }
@@ -331,23 +298,20 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         context.AddSource("GeneratedSlashCommandSchemaCatalog.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private static string GenerateToolSchemaLiteral(ChatCommandArgInfo[] args)
-    {
+    private static string GenerateToolSchemaLiteral(ChatCommandArgInfo[] args) {
         var sb = new StringBuilder();
         sb.Append("new ToolSchema { Properties = new() {");
 
         var first = true;
         var required = new List<string>();
 
-        foreach (var arg in args)
-        {
+        foreach (var arg in args) {
             if (!first) sb.Append(",");
             first = false;
 
             sb.Append($" [\"{EscapeString(arg.Name)}\"] = new ToolSchemaProperty {{ Type = \"{EscapeString(arg.Type)}\", Description = \"{EscapeString(arg.Description)}\"");
 
-            if (arg.Enum is not null && arg.Enum.Length > 0)
-            {
+            if (arg.Enum is not null && arg.Enum.Length > 0) {
                 var enumItems = string.Join(", ", arg.Enum.Select(e => $"\"{EscapeString(e)}\""));
                 sb.Append($", Enum = [{enumItems}]");
             }
@@ -355,8 +319,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
             if (arg.Default is not null)
                 sb.Append($", Default = \"{EscapeString(arg.Default)}\"");
 
-            if (arg.ItemsType is not null)
-            {
+            if (arg.ItemsType is not null) {
                 sb.Append($", Items = new ToolSchemaProperty {{ Type = \"{EscapeString(arg.ItemsType)}\"");
                 if (arg.ItemsDescription is not null)
                     sb.Append($", Description = \"{EscapeString(arg.ItemsDescription)}\"");
@@ -371,8 +334,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 
         sb.Append(" }");
 
-        if (required.Count > 0)
-        {
+        if (required.Count > 0) {
             var reqList = string.Join(", ", required.Select(r => $"\"{EscapeString(r)}\""));
             sb.Append($", Required = [{reqList}]");
         }
@@ -383,13 +345,11 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
 
     private static string EscapeString(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
-    private enum CommandType
-    {
+    private enum CommandType {
         ChatCommand
     }
 
-    private sealed class CommandInfo
-    {
+    private sealed class CommandInfo {
         public string FullyQualifiedName { get; }
         public string Name { get; }
         public CommandType Type { get; }
@@ -413,8 +373,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
             bool isHidden = false,
             bool isEnabled = true,
             string argumentHint = "",
-            ChatCommandArgInfo[]? args = null)
-        {
+            ChatCommandArgInfo[]? args = null) {
             FullyQualifiedName = fullyQualifiedName;
             Name = name;
             Type = type;
@@ -429,8 +388,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
         }
     }
 
-    private sealed class ChatCommandArgInfo
-    {
+    private sealed class ChatCommandArgInfo {
         public string Name { get; }
         public string Type { get; }
         public string Description { get; }
@@ -448,8 +406,7 @@ public sealed class CommandRegistrationGenerator : IIncrementalGenerator
             string? defaultVal,
             string[]? enumVal,
             string? itemsType,
-            string? itemsDescription)
-        {
+            string? itemsDescription) {
             Name = name;
             Type = type;
             Description = description;

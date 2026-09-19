@@ -5,13 +5,11 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 核心功能: 34个命令的路径提取 + 操作类型映射 + 危险路径检查 + 重定向验证
 /// </summary>
 [Register(typeof(IPathConstraintValidator), ServiceLifetime.Singleton)]
-public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstraintValidator
-{
+public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstraintValidator {
     /// <summary>
     /// 命令操作类型映射 — 对齐 TS COMMAND_OPERATION_TYPE
     /// </summary>
-    private static readonly FrozenDictionary<PathCommand, FileOperationType> CommandOperationTypeMap = new Dictionary<PathCommand, FileOperationType>
-    {
+    private static readonly FrozenDictionary<PathCommand, FileOperationType> CommandOperationTypeMap = new Dictionary<PathCommand, FileOperationType> {
         // 读取操作
         [PathCommand.Cd] = FileOperationType.Read,
         [PathCommand.Ls] = FileOperationType.Read,
@@ -58,8 +56,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 命令动作描述映射 — 对齐 TS ACTION_VERBS
     /// </summary>
-    private static readonly FrozenDictionary<PathCommand, string> ActionVerbs = new Dictionary<PathCommand, string>
-    {
+    private static readonly FrozenDictionary<PathCommand, string> ActionVerbs = new Dictionary<PathCommand, string> {
         [PathCommand.Cd] = "change directory to",
         [PathCommand.Ls] = "list files in",
         [PathCommand.Find] = "search for files in",
@@ -132,8 +129,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 构造路径约束验证器
     /// </summary>
-    public PathConstraintValidator(IPathValidator pathValidator)
-    {
+    public PathConstraintValidator(IPathValidator pathValidator) {
         _pathValidator = pathValidator;
     }
 
@@ -143,16 +139,13 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     public PathConstraintResult CheckPathConstraints(
         string command,
         string workingDirectory,
-        bool compoundCommandHasCd = false)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
+        bool compoundCommandHasCd = false) {
+        if (string.IsNullOrWhiteSpace(command)) {
             return new PathConstraintResult(PermissionBehavior.Passthrough);
         }
 
         // 1. 进程替换检测 — 对齐 TS: >>(cmd) 或 <(...) 要求手动审批
-        if (ProcessSubstitutionPattern.IsMatch(command))
-        {
+        if (ProcessSubstitutionPattern.IsMatch(command)) {
             return new PathConstraintResult(
                 PermissionBehavior.Ask,
                 "Process substitution detected — requires manual approval");
@@ -160,13 +153,10 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
 
         // 2. 提取输出重定向
         var redirections = ExtractOutputRedirections(command);
-        if (redirections.Count > 0)
-        {
+        if (redirections.Count > 0) {
             // 危险重定向检测: 重定向目标含 shell 展开语法
-            foreach (var redirect in redirections)
-            {
-                if (ShellExpansionPattern.IsMatch(redirect.Target))
-                {
+            foreach (var redirect in redirections) {
+                if (ShellExpansionPattern.IsMatch(redirect.Target)) {
                     return new PathConstraintResult(
                         PermissionBehavior.Ask,
                         $"Shell expansion in redirection target: {redirect.Target}");
@@ -176,16 +166,14 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             // 验证输出重定向路径
             var redirectResult = ValidateOutputRedirections(
                 redirections, workingDirectory, compoundCommandHasCd);
-            if (redirectResult.Behavior != PermissionBehavior.Passthrough)
-            {
+            if (redirectResult.Behavior != PermissionBehavior.Passthrough) {
                 return redirectResult;
             }
         }
 
         // 3. 解析命令并验证路径
         var (cmdName, args) = ParseCommandParts(command);
-        if (string.IsNullOrEmpty(cmdName))
-        {
+        if (string.IsNullOrEmpty(cmdName)) {
             return new PathConstraintResult(PermissionBehavior.Passthrough);
         }
 
@@ -194,8 +182,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
 
         // 查找匹配的 PathCommand
         var pathCommand = PathCommandExtensions.FromValue(innerCmd);
-        if (pathCommand is null)
-        {
+        if (pathCommand is null) {
             return new PathConstraintResult(PermissionBehavior.Passthrough);
         }
 
@@ -211,15 +198,13 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         IReadOnlyList<string> args,
         string workingDirectory,
         bool compoundCommandHasCd = false,
-        FileOperationType? operationTypeOverride = null)
-    {
+        FileOperationType? operationTypeOverride = null) {
         var operationType = operationTypeOverride
             ?? CommandOperationTypeMap.GetValueOrDefault(command);
 
         // 1. 命令特定验证器: mv/cp 带标志时拒绝（--target-directory 可绕过路径提取）
         if ((command == PathCommand.Mv || command == PathCommand.Cp)
-            && args.Any(a => a.StartsWith('-')))
-        {
+            && args.Any(a => a.StartsWith('-'))) {
             return new PathConstraintResult(
                 PermissionBehavior.Ask,
                 $"{command.ToValue()} with flags may bypass path extraction — requires manual approval",
@@ -228,8 +213,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         }
 
         // 2. cd + 写操作拦截 — 防止 cd .claude/ && mv test.txt settings.json 绕过
-        if (compoundCommandHasCd && operationType != FileOperationType.Read)
-        {
+        if (compoundCommandHasCd && operationType != FileOperationType.Read) {
             return new PathConstraintResult(
                 PermissionBehavior.Ask,
                 $"cd + write operation ({command.ToValue()}) requires manual approval",
@@ -241,10 +225,8 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         var paths = ExtractPaths(command, args, workingDirectory);
 
         // 4. 验证每个路径
-        foreach (var path in paths)
-        {
-            if (!_pathValidator.IsPathWithinWorkspace(path, workingDirectory))
-            {
+        foreach (var path in paths) {
+            if (!_pathValidator.IsPathWithinWorkspace(path, workingDirectory)) {
                 return new PathConstraintResult(
                     PermissionBehavior.Ask,
                     $"Cannot {ActionVerbs.GetValueOrDefault(command, "access")} '{path}' — outside working directory",
@@ -255,11 +237,9 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
         }
 
         // 5. 危险删除路径检查（rm/rmdir）
-        if (command == PathCommand.Rm || command == PathCommand.Rmdir)
-        {
+        if (command == PathCommand.Rm || command == PathCommand.Rmdir) {
             var removalResult = CheckDangerousRemovalPaths(command, args, workingDirectory);
-            if (removalResult.Behavior != PermissionBehavior.Passthrough)
-            {
+            if (removalResult.Behavior != PermissionBehavior.Passthrough) {
                 return removalResult;
             }
         }
@@ -273,17 +253,14 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     public PathConstraintResult CheckDangerousRemovalPaths(
         PathCommand command,
         IReadOnlyList<string> args,
-        string workingDirectory)
-    {
+        string workingDirectory) {
         var paths = FilterOutFlags(args);
 
-        foreach (var rawPath in paths)
-        {
+        foreach (var rawPath in paths) {
             var expandedPath = ExpandTilde(rawPath);
             var absolutePath = ResolvePath(expandedPath, workingDirectory);
 
-            if (IsDangerousRemovalPath(absolutePath))
-            {
+            if (IsDangerousRemovalPath(absolutePath)) {
                 return new PathConstraintResult(
                     PermissionBehavior.Ask,
                     $"Dangerous {command.ToValue()} operation detected — removing from system path: {absolutePath}",
@@ -304,12 +281,10 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// 提取命令中的路径 — 对齐 TS PATH_EXTRACTORS[command]
     /// </summary>
     private static IReadOnlyList<string> ExtractPaths(
-        PathCommand command, IReadOnlyList<string> args, string workingDirectory)
-    {
-        return command switch
-        {
+        PathCommand command, IReadOnlyList<string> args, string workingDirectory) {
+        return command switch {
             PathCommand.Cd => ExtractCdPaths(args),
-            PathCommand.Ls => FilterOutFlags(args, defaultPaths: [ "." ]),
+            PathCommand.Ls => FilterOutFlags(args, defaultPaths: ["."]),
             PathCommand.Find => ExtractFindPaths(args),
             PathCommand.Grep => ExtractGrepPaths(args),
             PathCommand.Rg => ExtractRgPaths(args),
@@ -325,10 +300,8 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// cd 路径提取 — 对齐 TS: 所有参数拼接为单个路径，无参数则返回 home
     /// </summary>
-    private static IReadOnlyList<string> ExtractCdPaths(IReadOnlyList<string> args)
-    {
-        if (args.Count == 0)
-        {
+    private static IReadOnlyList<string> ExtractCdPaths(IReadOnlyList<string> args) {
+        if (args.Count == 0) {
             return [Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)];
         }
 
@@ -339,21 +312,17 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// find 路径提取 — 对齐 TS: 收集路径直到遇到非全局标志
     /// </summary>
-    private static IReadOnlyList<string> ExtractFindPaths(IReadOnlyList<string> args)
-    {
+    private static IReadOnlyList<string> ExtractFindPaths(IReadOnlyList<string> args) {
         var paths = new List<string>();
         var i = 0;
 
-        while (i < args.Count)
-        {
+        while (i < args.Count) {
             var arg = args[i];
 
             // -- 定界符后全是路径
-            if (arg == "--")
-            {
+            if (arg == "--") {
                 i++;
-                while (i < args.Count)
-                {
+                while (i < args.Count) {
                     paths.Add(args[i]);
                     i++;
                 }
@@ -362,8 +331,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             }
 
             // 以 - 开头的是标志（find 的标志如 -name, -type 等）
-            if (arg.StartsWith('-'))
-            {
+            if (arg.StartsWith('-')) {
                 break;
             }
 
@@ -371,14 +339,13 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             i++;
         }
 
-        return paths.Count > 0 ? paths : [ "." ];
+        return paths.Count > 0 ? paths : ["."];
     }
 
     /// <summary>
     /// grep 路径提取 — 对齐 TS parsePatternCommand
     /// </summary>
-    private static IReadOnlyList<string> ExtractGrepPaths(IReadOnlyList<string> args)
-    {
+    private static IReadOnlyList<string> ExtractGrepPaths(IReadOnlyList<string> args) {
         var grepFlagsWithArgs = FrozenSet.Create(
             StringComparer.OrdinalIgnoreCase,
             "-e", "--regexp", "-f", "--file", "--include", "--exclude",
@@ -392,8 +359,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// rg 路径提取 — 对齐 TS parsePatternCommand
     /// </summary>
-    private static IReadOnlyList<string> ExtractRgPaths(IReadOnlyList<string> args)
-    {
+    private static IReadOnlyList<string> ExtractRgPaths(IReadOnlyList<string> args) {
         var rgFlagsWithArgs = FrozenSet.Create(
             StringComparer.OrdinalIgnoreCase,
             "-e", "--regexp", "-f", "--file", "-g", "--glob",
@@ -401,45 +367,38 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             "--max-columns", "--max-count", "--max-depth",
             "--max-filesize", "--mmap", "--sort", "--sort-path");
 
-        return ParsePatternCommand(args, rgFlagsWithArgs, [ "." ]);
+        return ParsePatternCommand(args, rgFlagsWithArgs, ["."]);
     }
 
     /// <summary>
     /// sed 路径提取 — 对齐 TS: 处理 -e/-f 标志，支持 -- 定界符
     /// </summary>
-    private static IReadOnlyList<string> ExtractSedPaths(IReadOnlyList<string> args)
-    {
+    private static IReadOnlyList<string> ExtractSedPaths(IReadOnlyList<string> args) {
         var paths = new List<string>();
         var pastFlags = false;
         var i = 0;
 
-        while (i < args.Count)
-        {
+        while (i < args.Count) {
             var arg = args[i];
 
-            if (arg == "--")
-            {
+            if (arg == "--") {
                 pastFlags = true;
                 i++;
                 continue;
             }
 
-            if (!pastFlags)
-            {
-                if (arg is "-e" or "--expression")
-                {
+            if (!pastFlags) {
+                if (arg is "-e" or "--expression") {
                     i += 2; // 跳过标志和值
                     continue;
                 }
 
-                if (arg is "-f" or "--file")
-                {
+                if (arg is "-f" or "--file") {
                     i += 2; // 跳过标志和值
                     continue;
                 }
 
-                if (arg.StartsWith('-'))
-                {
+                if (arg.StartsWith('-')) {
                     i++;
                     continue;
                 }
@@ -460,8 +419,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// jq 路径提取 — 对齐 TS: filter 后跟文件路径
     /// </summary>
-    private static IReadOnlyList<string> ExtractJqPaths(IReadOnlyList<string> args)
-    {
+    private static IReadOnlyList<string> ExtractJqPaths(IReadOnlyList<string> args) {
         var jqFlagsWithArgs = FrozenSet.Create(
             StringComparer.OrdinalIgnoreCase,
             "-f", "--from-file", "-L", "--arg", "--argjson",
@@ -473,12 +431,10 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// git 路径提取 — 对齐 TS: 仅处理 git diff --no-index
     /// </summary>
-    private static IReadOnlyList<string> ExtractGitPaths(IReadOnlyList<string> args)
-    {
+    private static IReadOnlyList<string> ExtractGitPaths(IReadOnlyList<string> args) {
         if (args.Count > 0
             && args[0].Equals("diff", StringComparison.OrdinalIgnoreCase)
-            && args.Any(a => a.Equals("--no-index", StringComparison.OrdinalIgnoreCase)))
-        {
+            && args.Any(a => a.Equals("--no-index", StringComparison.OrdinalIgnoreCase))) {
             // git diff --no-index: 提取前2个非标志路径
             var paths = FilterOutFlags(args.Skip(1).ToList());
             return paths.Take(2).ToList();
@@ -491,8 +447,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// tr 路径提取 — 对齐 TS: 跳过字符集
     /// </summary>
-    private static IReadOnlyList<string> ExtractTrPaths(IReadOnlyList<string> args)
-    {
+    private static IReadOnlyList<string> ExtractTrPaths(IReadOnlyList<string> args) {
         // tr 命令: tr [选项] 字符集1 [字符集2] — 通常从 stdin 读取，无文件路径
         // 仅当有 -d 标志时跳1个字符集，否则跳2个
         var hasDelete = args.Any(a => a is "-d" or "--delete");
@@ -511,27 +466,22 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// 正确处理 POSIX -- 端标志定界符
     /// </summary>
     private static IReadOnlyList<string> FilterOutFlags(
-        IReadOnlyList<string> args, IReadOnlyList<string>? defaultPaths = null)
-    {
+        IReadOnlyList<string> args, IReadOnlyList<string>? defaultPaths = null) {
         var positional = new List<string>();
         var pastDelimiter = false;
 
-        foreach (var arg in args)
-        {
-            if (pastDelimiter)
-            {
+        foreach (var arg in args) {
+            if (pastDelimiter) {
                 positional.Add(arg);
                 continue;
             }
 
-            if (arg == "--")
-            {
+            if (arg == "--") {
                 pastDelimiter = true;
                 continue;
             }
 
-            if (!arg.StartsWith('-'))
-            {
+            if (!arg.StartsWith('-')) {
                 positional.Add(arg);
             }
         }
@@ -545,48 +495,41 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     private static IReadOnlyList<string> ParsePatternCommand(
         IReadOnlyList<string> args,
         FrozenSet<string> flagsWithArgs,
-        IReadOnlyList<string> defaults)
-    {
+        IReadOnlyList<string> defaults) {
         var paths = new List<string>();
         var pastDelimiter = false;
         var pastPattern = false;
         var i = 0;
 
-        while (i < args.Count)
-        {
+        while (i < args.Count) {
             var arg = args[i];
 
-            if (pastDelimiter)
-            {
+            if (pastDelimiter) {
                 paths.Add(arg);
                 i++;
                 continue;
             }
 
-            if (arg == "--")
-            {
+            if (arg == "--") {
                 pastDelimiter = true;
                 i++;
                 continue;
             }
 
             // 跳过带参数的标志
-            if (flagsWithArgs.Contains(arg) && i + 1 < args.Count)
-            {
+            if (flagsWithArgs.Contains(arg) && i + 1 < args.Count) {
                 i += 2;
                 continue;
             }
 
             // 跳过标志
-            if (arg.StartsWith('-'))
-            {
+            if (arg.StartsWith('-')) {
                 i++;
                 continue;
             }
 
             // 第一个非标志参数是 pattern，跳过
-            if (!pastPattern)
-            {
+            if (!pastPattern) {
                 pastPattern = true;
                 i++;
                 continue;
@@ -605,35 +548,29 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     private static PathConstraintResult ValidateOutputRedirections(
         IReadOnlyList<OutputRedirection> redirections,
         string workingDirectory,
-        bool compoundCommandHasCd)
-    {
+        bool compoundCommandHasCd) {
         // cd + 重定向 → 要求手动审批
-        if (compoundCommandHasCd && redirections.Count > 0)
-        {
+        if (compoundCommandHasCd && redirections.Count > 0) {
             return new PathConstraintResult(
                 PermissionBehavior.Ask,
                 "cd + output redirection requires manual approval");
         }
 
-        foreach (var redirect in redirections)
-        {
+        foreach (var redirect in redirections) {
             // /dev/null 始终安全
-            if (redirect.Target.Equals("/dev/null", StringComparison.OrdinalIgnoreCase))
-            {
+            if (redirect.Target.Equals("/dev/null", StringComparison.OrdinalIgnoreCase)) {
                 continue;
             }
 
             // NUL 重定向需确认 — git bash 中会创建名为 nul 的文件（Windows 保留设备名）— ADR 0012
-            if (redirect.Target.Equals("NUL", StringComparison.OrdinalIgnoreCase))
-            {
+            if (redirect.Target.Equals("NUL", StringComparison.OrdinalIgnoreCase)) {
                 return new PathConstraintResult(
                     PermissionBehavior.Ask,
                     "检测到 NUL 重定向 — 在 git bash 中会创建名为 nul 的文件（Windows 保留设备名）。若本意是丢弃输出，请改用 /dev/null");
             }
 
             // 检查路径是否在工作区内
-            if (!IsPathWithinWorkspaceSimple(redirect.Target, workingDirectory))
-            {
+            if (!IsPathWithinWorkspaceSimple(redirect.Target, workingDirectory)) {
                 return new PathConstraintResult(
                     PermissionBehavior.Ask,
                     $"Cannot write to '{redirect.Target}' — outside working directory",
@@ -648,20 +585,16 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 提取输出重定向 — 对齐 TS extractOutputRedirections
     /// </summary>
-    private static IReadOnlyList<OutputRedirection> ExtractOutputRedirections(string command)
-    {
+    private static IReadOnlyList<OutputRedirection> ExtractOutputRedirections(string command) {
         var results = new List<OutputRedirection>();
         var i = 0;
 
-        while (i < command.Length)
-        {
+        while (i < command.Length) {
             // 跳过引号内容
-            if (command[i] is '"' or '\'')
-            {
+            if (command[i] is '"' or '\'') {
                 var quote = command[i];
                 i++;
-                while (i < command.Length && command[i] != quote)
-                {
+                while (i < command.Length && command[i] != quote) {
                     i++;
                 }
 
@@ -670,14 +603,12 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             }
 
             // 检测 >> 或 >
-            if (command[i] == '>')
-            {
+            if (command[i] == '>') {
                 var isAppend = i + 1 < command.Length && command[i + 1] == '>';
                 var start = isAppend ? i + 2 : i + 1;
 
                 // 跳过空格
-                while (start < command.Length && char.IsWhiteSpace(command[start]))
-                {
+                while (start < command.Length && char.IsWhiteSpace(command[start])) {
                     start++;
                 }
 
@@ -685,13 +616,11 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
                 var end = start;
                 while (end < command.Length && !char.IsWhiteSpace(command[end])
                        && command[end] != '|' && command[end] != ';'
-                       && command[end] != '&' && command[end] != '>')
-                {
+                       && command[end] != '&' && command[end] != '>') {
                     end++;
                 }
 
-                if (end > start)
-                {
+                if (end > start) {
                     var target = command[start..end].Trim('"', '\'');
                     results.Add(new OutputRedirection(
                         target,
@@ -712,108 +641,87 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// 剥离安全包装命令 — 对齐 TS stripSafeWrappers / stripWrappersFromArgv
     /// </summary>
     private static (string Command, IReadOnlyList<string> Args) StripSafeWrappers(
-        string command, IReadOnlyList<string> args)
-    {
+        string command, IReadOnlyList<string> args) {
         var currentCmd = command;
         var currentArgs = args.ToList();
 
         // 循环剥离包装命令
-        while (SafeWrapperCommands.Contains(currentCmd) && currentArgs.Count > 0)
-        {
-            switch (currentCmd.ToLowerInvariant())
-            {
+        while (SafeWrapperCommands.Contains(currentCmd) && currentArgs.Count > 0) {
+            switch (currentCmd.ToLowerInvariant()) {
                 case "time":
                 case "nohup":
-                    // 直接剥离，支持 -- 定界符
-                    if (currentArgs.Count > 0 && currentArgs[0] == "--")
-                    {
-                        currentArgs = currentArgs.Skip(1).ToList();
-                    }
+                // 直接剥离，支持 -- 定界符
+                if (currentArgs.Count > 0 && currentArgs[0] == "--") {
+                    currentArgs = currentArgs.Skip(1).ToList();
+                }
 
-                    if (currentArgs.Count > 0)
-                    {
-                        currentCmd = currentArgs[0];
-                        currentArgs = currentArgs.Skip(1).ToList();
-                    }
+                if (currentArgs.Count > 0) {
+                    currentCmd = currentArgs[0];
+                    currentArgs = currentArgs.Skip(1).ToList();
+                }
 
-                    break;
+                break;
 
                 case "timeout":
-                    // 跳过 timeout 的 GNU 标志，找到 duration 参数后的命令
-                    var timeoutIdx = SkipTimeoutFlags(currentArgs);
-                    if (timeoutIdx >= 0 && timeoutIdx + 1 < currentArgs.Count)
-                    {
-                        currentCmd = currentArgs[timeoutIdx + 1];
-                        currentArgs = currentArgs.Skip(timeoutIdx + 2).ToList();
-                    }
-                    else
-                    {
-                        // 无法解析，返回原始
-                        return (currentCmd, currentArgs);
-                    }
+                // 跳过 timeout 的 GNU 标志，找到 duration 参数后的命令
+                var timeoutIdx = SkipTimeoutFlags(currentArgs);
+                if (timeoutIdx >= 0 && timeoutIdx + 1 < currentArgs.Count) {
+                    currentCmd = currentArgs[timeoutIdx + 1];
+                    currentArgs = currentArgs.Skip(timeoutIdx + 2).ToList();
+                } else {
+                    // 无法解析，返回原始
+                    return (currentCmd, currentArgs);
+                }
 
-                    break;
+                break;
 
                 case "nice":
-                    // nice cmd / nice -N cmd / nice -n N cmd
-                    var niceIdx = 0;
-                    if (currentArgs.Count > 0 && currentArgs[0].StartsWith("-")
-                        && !currentArgs[0].Equals("--", StringComparison.Ordinal))
-                    {
-                        if (currentArgs[0] == "-n" && currentArgs.Count > 1)
-                        {
-                            niceIdx = 2;
-                        }
-                        else
-                        {
-                            niceIdx = 1;
-                        }
+                // nice cmd / nice -N cmd / nice -n N cmd
+                var niceIdx = 0;
+                if (currentArgs.Count > 0 && currentArgs[0].StartsWith("-")
+                    && !currentArgs[0].Equals("--", StringComparison.Ordinal)) {
+                    if (currentArgs[0] == "-n" && currentArgs.Count > 1) {
+                        niceIdx = 2;
+                    } else {
+                        niceIdx = 1;
                     }
+                }
 
-                    if (niceIdx + 1 <= currentArgs.Count && niceIdx < currentArgs.Count)
-                    {
-                        currentCmd = currentArgs[niceIdx];
-                        currentArgs = currentArgs.Skip(niceIdx + 1).ToList();
-                    }
-                    else
-                    {
-                        return (currentCmd, currentArgs);
-                    }
+                if (niceIdx + 1 <= currentArgs.Count && niceIdx < currentArgs.Count) {
+                    currentCmd = currentArgs[niceIdx];
+                    currentArgs = currentArgs.Skip(niceIdx + 1).ToList();
+                } else {
+                    return (currentCmd, currentArgs);
+                }
 
-                    break;
+                break;
 
                 case "stdbuf":
-                    // 跳过 -i/-o/-e 标志
-                    var stdbufIdx = SkipStdbufFlags(currentArgs);
-                    if (stdbufIdx < currentArgs.Count)
-                    {
-                        currentCmd = currentArgs[stdbufIdx];
-                        currentArgs = currentArgs.Skip(stdbufIdx + 1).ToList();
-                    }
-                    else
-                    {
-                        return (currentCmd, currentArgs);
-                    }
+                // 跳过 -i/-o/-e 标志
+                var stdbufIdx = SkipStdbufFlags(currentArgs);
+                if (stdbufIdx < currentArgs.Count) {
+                    currentCmd = currentArgs[stdbufIdx];
+                    currentArgs = currentArgs.Skip(stdbufIdx + 1).ToList();
+                } else {
+                    return (currentCmd, currentArgs);
+                }
 
-                    break;
+                break;
 
                 case "env":
-                    // 跳过 VAR=val 和安全标志
-                    var envIdx = SkipEnvFlags(currentArgs);
-                    if (envIdx < currentArgs.Count)
-                    {
-                        currentCmd = currentArgs[envIdx];
-                        currentArgs = currentArgs.Skip(envIdx + 1).ToList();
-                    }
-                    else
-                    {
-                        return (currentCmd, currentArgs);
-                    }
+                // 跳过 VAR=val 和安全标志
+                var envIdx = SkipEnvFlags(currentArgs);
+                if (envIdx < currentArgs.Count) {
+                    currentCmd = currentArgs[envIdx];
+                    currentArgs = currentArgs.Skip(envIdx + 1).ToList();
+                } else {
+                    return (currentCmd, currentArgs);
+                }
 
-                    break;
+                break;
 
                 default:
-                    return (currentCmd, currentArgs);
+                return (currentCmd, currentArgs);
             }
         }
 
@@ -823,28 +731,23 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 跳过 timeout 的 GNU 标志 — 对齐 TS skipTimeoutFlags
     /// </summary>
-    private static int SkipTimeoutFlags(IReadOnlyList<string> args)
-    {
+    private static int SkipTimeoutFlags(IReadOnlyList<string> args) {
         var i = 0;
-        while (i < args.Count)
-        {
+        while (i < args.Count) {
             var arg = args[i];
 
-            if (arg == "--foreground")
-            {
+            if (arg == "--foreground") {
                 i++;
                 continue;
             }
 
-            if (arg is "--kill-after" or "-k" or "--signal" or "-s" or "-v")
-            {
+            if (arg is "--kill-after" or "-k" or "--signal" or "-s" or "-v") {
                 i += 2; // 标志 + 值
                 continue;
             }
 
             // duration 参数: 数字+[smhd]?
-            if (Regex.IsMatch(arg, @"^\d+(?:\.\d+)?[smhd]?$"))
-            {
+            if (Regex.IsMatch(arg, @"^\d+(?:\.\d+)?[smhd]?$")) {
                 return i;
             }
 
@@ -858,17 +761,14 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 跳过 stdbuf 的 -i/-o/-e 标志 — 对齐 TS skipStdbufFlags
     /// </summary>
-    private static int SkipStdbufFlags(IReadOnlyList<string> args)
-    {
+    private static int SkipStdbufFlags(IReadOnlyList<string> args) {
         var i = 0;
-        while (i < args.Count)
-        {
+        while (i < args.Count) {
             var arg = args[i];
 
             // -iVAL, -oVAL, -eVAL (融合选项)
             if (arg.Length >= 3 && arg[0] == '-'
-                && (arg[1] is 'i' or 'o' or 'e'))
-            {
+                && (arg[1] is 'i' or 'o' or 'e')) {
                 i++;
                 continue;
             }
@@ -876,15 +776,13 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             // --input=VAL, --output=VAL, --error=VAL (长选项)
             if (arg.StartsWith("--input=", StringComparison.Ordinal)
                 || arg.StartsWith("--output=", StringComparison.Ordinal)
-                || arg.StartsWith("--error=", StringComparison.Ordinal))
-            {
+                || arg.StartsWith("--error=", StringComparison.Ordinal)) {
                 i++;
                 continue;
             }
 
             // -i VAL, -o VAL, -e VAL (短选项+空格)
-            if (arg is "-i" or "-o" or "-e" && i + 1 < args.Count)
-            {
+            if (arg is "-i" or "-o" or "-e" && i + 1 < args.Count) {
                 i += 2;
                 continue;
             }
@@ -899,30 +797,25 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 跳过 env 的 VAR=val 和安全标志 — 对齐 TS skipEnvFlags
     /// </summary>
-    private static int SkipEnvFlags(IReadOnlyList<string> args)
-    {
+    private static int SkipEnvFlags(IReadOnlyList<string> args) {
         var i = 0;
-        while (i < args.Count)
-        {
+        while (i < args.Count) {
             var arg = args[i];
 
             // VAR=val 形式
-            if (arg.Contains('=') && !arg.StartsWith('-'))
-            {
+            if (arg.Contains('=') && !arg.StartsWith('-')) {
                 i++;
                 continue;
             }
 
             // 安全标志
-            if (arg is "-i" or "-0" or "-v" or "-u")
-            {
+            if (arg is "-i" or "-0" or "-v" or "-u") {
                 i += arg is "-u" ? 2 : 1;
                 continue;
             }
 
             // 拒绝危险标志
-            if (arg is "-S" or "-C" or "-P")
-            {
+            if (arg is "-S" or "-C" or "-P") {
                 return args.Count; // fail-closed
             }
 
@@ -936,21 +829,17 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 展开 tilde — 对齐 TS expandTilde
     /// </summary>
-    private static string ExpandTilde(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
+    private static string ExpandTilde(string path) {
+        if (string.IsNullOrEmpty(path)) {
             return path;
         }
 
-        if (path.StartsWith("~/", StringComparison.Ordinal))
-        {
+        if (path.StartsWith("~/", StringComparison.Ordinal)) {
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             return home + path[1..];
         }
 
-        if (path == "~")
-        {
+        if (path == "~") {
             return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
 
@@ -960,27 +849,21 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 解析为绝对路径（不解析符号链接）— 对齐 TS resolve(path, cwd)
     /// </summary>
-    private static string ResolvePath(string path, string workingDirectory)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
+    private static string ResolvePath(string path, string workingDirectory) {
+        if (string.IsNullOrEmpty(path)) {
             return workingDirectory;
         }
 
         // 去除引号
         path = path.Trim('"', '\'');
 
-        if (Path.IsPathRooted(path))
-        {
+        if (Path.IsPathRooted(path)) {
             return Path.GetFullPath(path);
         }
 
-        try
-        {
+        try {
             return Path.GetFullPath(Path.Combine(workingDirectory, path));
-        }
-        catch
-        {
+        } catch {
             return path;
         }
     }
@@ -988,17 +871,14 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 检查是否为危险删除路径 — 对齐 TS isDangerousRemovalPath
     /// </summary>
-    private static bool IsDangerousRemovalPath(string absolutePath)
-    {
-        if (string.IsNullOrEmpty(absolutePath))
-        {
+    private static bool IsDangerousRemovalPath(string absolutePath) {
+        if (string.IsNullOrEmpty(absolutePath)) {
             return false;
         }
 
         var normalized = absolutePath.Replace('\\', '/').TrimEnd('/');
 
-        return DangerousRemovalPaths.Any(dangerous =>
-        {
+        return DangerousRemovalPaths.Any(dangerous => {
             var normalizedDangerous = dangerous.Replace('\\', '/').TrimEnd('/');
             return string.Equals(normalized, normalizedDangerous, StringComparison.OrdinalIgnoreCase)
                 || normalized.StartsWith(normalizedDangerous + "/", StringComparison.OrdinalIgnoreCase);
@@ -1008,24 +888,19 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 简化版路径工作区检查（不依赖 IPathValidator）
     /// </summary>
-    private static bool IsPathWithinWorkspaceSimple(string path, string workingDirectory)
-    {
-        if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(workingDirectory))
-        {
+    private static bool IsPathWithinWorkspaceSimple(string path, string workingDirectory) {
+        if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(workingDirectory)) {
             return false;
         }
 
-        try
-        {
+        try {
             var fullPath = Path.IsPathRooted(path)
                 ? Path.GetFullPath(path)
                 : Path.GetFullPath(Path.Combine(workingDirectory, path));
             var fullWorkDir = Path.GetFullPath(workingDirectory);
 
             return fullPath.StartsWith(fullWorkDir, StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
@@ -1034,11 +909,9 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// 解析命令部分 — 提取命令名和参数
     /// </summary>
     private static (string CommandName, IReadOnlyList<string> Arguments) ParseCommandParts(
-        string command)
-    {
+        string command) {
         var parts = SplitCommandTokens(command);
-        if (parts.Count == 0)
-        {
+        if (parts.Count == 0) {
             return (string.Empty, Array.Empty<string>());
         }
 
@@ -1048,36 +921,30 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
     /// <summary>
     /// 分割命令为 token — 对齐 TS tryParseShellCommand
     /// </summary>
-    private static List<string> SplitCommandTokens(string command)
-    {
+    private static List<string> SplitCommandTokens(string command) {
         var parts = new List<string>();
         var current = new StringBuilder();
         var inQuotes = false;
         var quoteChar = '\0';
 
-        for (var i = 0; i < command.Length; i++)
-        {
+        for (var i = 0; i < command.Length; i++) {
             var c = command[i];
 
-            if ((c == '"' || c == '\'') && !inQuotes)
-            {
+            if ((c == '"' || c == '\'') && !inQuotes) {
                 inQuotes = true;
                 quoteChar = c;
                 continue;
             }
 
-            if (c == quoteChar && inQuotes)
-            {
+            if (c == quoteChar && inQuotes) {
                 inQuotes = false;
                 quoteChar = '\0';
                 continue;
             }
 
             // 遇到管道/分号/&& 结束当前命令
-            if (!inQuotes && (c == '|' || c == ';' || c == '&'))
-            {
-                if (current.Length > 0)
-                {
+            if (!inQuotes && (c == '|' || c == ';' || c == '&')) {
+                if (current.Length > 0) {
                     parts.Add(current.ToString());
                     current.Clear();
                 }
@@ -1085,10 +952,8 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
                 break;
             }
 
-            if (char.IsWhiteSpace(c) && !inQuotes)
-            {
-                if (current.Length > 0)
-                {
+            if (char.IsWhiteSpace(c) && !inQuotes) {
+                if (current.Length > 0) {
                     parts.Add(current.ToString());
                     current.Clear();
                 }
@@ -1099,8 +964,7 @@ public sealed partial class PathConstraintValidator : ServiceEntity, IPathConstr
             current.Append(c);
         }
 
-        if (current.Length > 0)
-        {
+        if (current.Length > 0) {
             parts.Add(current.ToString());
         }
 

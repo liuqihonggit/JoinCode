@@ -1,7 +1,6 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class MessageHealingTests
-{
+public sealed class MessageHealingTests {
     private static ApiMessage SystemMsg(string content) =>
         new(MessageRole.System, content);
 
@@ -12,8 +11,7 @@ public sealed class MessageHealingTests
         new(MessageRole.Assistant, content);
 
     private static ApiMessage AssistantToolCallMsg(string toolCallId, string toolName) =>
-        new(MessageRole.Assistant, null, new Dictionary<string, JsonElement>
-        {
+        new(MessageRole.Assistant, null, new Dictionary<string, JsonElement> {
             ["ToolCalls"] = JsonElementHelper.FromJson($"[{{\"Id\":\"{toolCallId}\",\"Name\":\"{toolName}\"}}]")
         });
 
@@ -21,8 +19,7 @@ public sealed class MessageHealingTests
         new(MessageRole.Tool, content, new Dictionary<string, JsonElement> { ["ToolCallId"] = JsonElementHelper.FromString(toolCallId) });
 
     [Fact]
-    public void Heal_TrailingAssistantToolCallWithoutResult_InsertsSyntheticToolResult()
-    {
+    public void Heal_TrailingAssistantToolCallWithoutResult_InsertsSyntheticToolResult() {
         var messages = new List<ApiMessage>
         {
             SystemMsg("system"),
@@ -43,8 +40,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_TrailingAssistantToolCallWithText_PreservesTextInsertsSyntheticResult()
-    {
+    public void Heal_TrailingAssistantToolCallWithText_PreservesTextInsertsSyntheticResult() {
         var messages = new List<ApiMessage>
         {
             UserMsg("hello"),
@@ -65,8 +61,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_PairedToolCallAndResult_PreservesBoth()
-    {
+    public void Heal_PairedToolCallAndResult_PreservesBoth() {
         var messages = new List<ApiMessage>
         {
             UserMsg("hello"),
@@ -82,8 +77,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_OrphanedToolResultWithoutToolCall_RemovesOrphan()
-    {
+    public void Heal_OrphanedToolResultWithoutToolCall_RemovesOrphan() {
         var messages = new List<ApiMessage>
         {
             UserMsg("hello"),
@@ -99,8 +93,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_MultipleTrailingToolCallsWithoutResults_InsertsSyntheticResultsForAll()
-    {
+    public void Heal_MultipleTrailingToolCallsWithoutResults_InsertsSyntheticResultsForAll() {
         var messages = new List<ApiMessage>
         {
             UserMsg("hello"),
@@ -120,16 +113,14 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_EmptyMessages_ReturnsEmpty()
-    {
+    public void Heal_EmptyMessages_ReturnsEmpty() {
         var healed = MessageHealer.Heal([]);
 
         healed.Should().BeEmpty();
     }
 
     [Fact]
-    public void Heal_NoToolCalls_ReturnsSameMessages()
-    {
+    public void Heal_NoToolCalls_ReturnsSameMessages() {
         var messages = new List<ApiMessage>
         {
             SystemMsg("system"),
@@ -143,8 +134,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_LargeToolResult_TruncatesToMaxChars()
-    {
+    public void Heal_LargeToolResult_TruncatesToMaxChars() {
         var largeContent = new string('x', 10000);
         var messages = new List<ApiMessage>
         {
@@ -161,8 +151,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_ToolResultUnderLimit_NotTruncated()
-    {
+    public void Heal_ToolResultUnderLimit_NotTruncated() {
         var content = "short content";
         var messages = new List<ApiMessage>
         {
@@ -177,8 +166,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_MiddleToolCallWithResult_PreservesMiddle()
-    {
+    public void Heal_MiddleToolCallWithResult_PreservesMiddle() {
         var messages = new List<ApiMessage>
         {
             UserMsg("hello"),
@@ -194,8 +182,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_ConsecutiveUserMessages_PreservesAll()
-    {
+    public void Heal_ConsecutiveUserMessages_PreservesAll() {
         var messages = new List<ApiMessage>
         {
             UserMsg("hello"),
@@ -208,8 +195,7 @@ public sealed class MessageHealingTests
     }
 
     [Fact]
-    public void Heal_MixedPairedAndUnpaired_InsertsSyntheticForUnpaired()
-    {
+    public void Heal_MixedPairedAndUnpaired_InsertsSyntheticForUnpaired() {
         var messages = new List<ApiMessage>
         {
             UserMsg("hello"),

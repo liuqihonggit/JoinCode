@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.OAuth;
 /// <summary>
 /// OAuth2 令牌响应 — 统一 MCP 客户端、PKCE 认证、Guard OAuth 三处重复定义
 /// </summary>
-public sealed class OAuth2TokenResponse
-{
+public sealed class OAuth2TokenResponse {
     [JsonPropertyName("access_token")]
     public string AccessToken { get; set; } = string.Empty;
 

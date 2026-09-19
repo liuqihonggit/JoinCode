@@ -3,14 +3,12 @@ namespace Core.Configuration.ModelFetch.Tests;
 /// <summary>
 /// 模型列表智能合并器单元测试
 /// </summary>
-public class ModelListMergerTests
-{
+public class ModelListMergerTests {
     /// <summary>构造仅有 Id 的远程模型信息 — 用于不需要元数据的测试</summary>
     private static RemoteModelInfo Remote(string id) => new() { Id = id };
 
     [Fact]
-    public void Merge_RemoteHasNewModel_AddsWithGeneratedDisplayName()
-    {
+    public void Merge_RemoteHasNewModel_AddsWithGeneratedDisplayName() {
         var local = new List<ModelItemConfig>
         {
             new() { Id = "gpt-4o", DisplayName = "GPT-4o", ContextWindow = 128000 }
@@ -28,8 +26,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_RemoteMissingLocalModel_RemovesIt()
-    {
+    public void Merge_RemoteMissingLocalModel_RemovesIt() {
         var local = new List<ModelItemConfig>
         {
             new() { Id = "gpt-4o", DisplayName = "GPT-4o" },
@@ -44,8 +41,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_BothHave_PreservesLocalMetadata()
-    {
+    public void Merge_BothHave_PreservesLocalMetadata() {
         var local = new List<ModelItemConfig>
         {
             new() { Id = "gpt-4o", DisplayName = "GPT-4o", ContextWindow = 128000, Description = "多模态模型" }
@@ -61,8 +57,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_EmptyRemote_ReturnsLocal()
-    {
+    public void Merge_EmptyRemote_ReturnsLocal() {
         var local = new List<ModelItemConfig>
         {
             new() { Id = "gpt-4o", DisplayName = "GPT-4o" }
@@ -75,8 +70,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_NullLocal_AllNewWithGeneratedNames()
-    {
+    public void Merge_NullLocal_AllNewWithGeneratedNames() {
         IReadOnlyList<RemoteModelInfo> remote = [Remote("gpt-4o"), Remote("gpt-5")];
 
         var result = ModelListMerger.Merge(null, remote);
@@ -87,8 +81,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_CaseInsensitiveMatch_PreservesLocal()
-    {
+    public void Merge_CaseInsensitiveMatch_PreservesLocal() {
         var local = new List<ModelItemConfig>
         {
             new() { Id = "GPT-4O", DisplayName = "GPT-4o" }
@@ -109,8 +102,7 @@ public class ModelListMergerTests
     [InlineData("deepseek-v4-flash-vision-exp", "含 vision 不应推断 ReadImage")]
     [InlineData("deepseek-v4-pro", "含 pro 不应推断 Thinking")]
     [InlineData("deepseek-reasoner", "含 reasoner 不应推断 Thinking")]
-    public void Merge_NewModel_DoesNotInferModalitiesFromId(string remoteId, string reason)
-    {
+    public void Merge_NewModel_DoesNotInferModalitiesFromId(string remoteId, string reason) {
         IReadOnlyList<RemoteModelInfo> remote = [Remote(remoteId)];
 
         var result = ModelListMerger.Merge(null, remote);
@@ -122,8 +114,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_ExistingModelWithManualModalities_PreservesLocalModalities()
-    {
+    public void Merge_ExistingModelWithManualModalities_PreservesLocalModalities() {
         var local = new List<ModelItemConfig>
         {
             new()
@@ -146,8 +137,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_NewModelWithRemoteMetadata_FillsDescriptionAndContextWindow()
-    {
+    public void Merge_NewModelWithRemoteMetadata_FillsDescriptionAndContextWindow() {
         IReadOnlyList<RemoteModelInfo> remote =
         [
             new()
@@ -171,8 +161,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_ExistingModelWithZeroContextWindow_SupplementsFromRemote()
-    {
+    public void Merge_ExistingModelWithZeroContextWindow_SupplementsFromRemote() {
         var local = new List<ModelItemConfig>
         {
             new() { Id = "glm-5.2", DisplayName = "Glm 5.2", ContextWindow = 0, Description = "本地描述" }
@@ -190,8 +179,7 @@ public class ModelListMergerTests
     }
 
     [Fact]
-    public void Merge_ExistingModelWithEmptyDescription_SupplementsFromRemote()
-    {
+    public void Merge_ExistingModelWithEmptyDescription_SupplementsFromRemote() {
         var local = new List<ModelItemConfig>
         {
             new() { Id = "glm-5.2", DisplayName = "Glm 5.2", ContextWindow = 200000, Description = "" }

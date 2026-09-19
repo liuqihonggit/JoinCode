@@ -7,13 +7,11 @@ namespace JccAuditCli.Tests;
 /// <summary>
 /// ConstructorParamCounter 的单元测试 — 验证胖构造函数检测逻辑
 /// </summary>
-public sealed class ConstructorParamCounterTests
-{
+public sealed class ConstructorParamCounterTests {
     /// <summary>
     /// 辅助方法：从源码创建 Compilation 并运行 Extract
     /// </summary>
-    private static List<ConstructorParamInfo> ExtractFrom(string source, int threshold = ConstructorParamCounter.DefaultThreshold)
-    {
+    private static List<ConstructorParamInfo> ExtractFrom(string source, int threshold = ConstructorParamCounter.DefaultThreshold) {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
         syntaxTree = syntaxTree.WithFilePath("TestSource.cs");
 
@@ -31,8 +29,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_ClassWith9Parameters_FoundWhenThresholdIs8()
-    {
+    public void Extract_ClassWith9Parameters_FoundWhenThresholdIs8() {
         var source = """
             public class FatService
             {
@@ -49,8 +46,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_ClassWith8Parameters_NotFoundWhenThresholdIs8()
-    {
+    public void Extract_ClassWith8Parameters_NotFoundWhenThresholdIs8() {
         var source = """
             public class BorderlineService
             {
@@ -64,8 +60,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_InfrastructureTypesFiltered()
-    {
+    public void Extract_InfrastructureTypesFiltered() {
         var source = """
             using Microsoft.Extensions.Logging;
             using Microsoft.Extensions.Options;
@@ -91,8 +86,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_MultipleConstructors_PicksFattest()
-    {
+    public void Extract_MultipleConstructors_PicksFattest() {
         var source = """
             public class MultiCtorService
             {
@@ -109,8 +103,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_StaticClass_Skipped()
-    {
+    public void Extract_StaticClass_Skipped() {
         var source = """
             public static class StaticHelper
             {
@@ -124,8 +117,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_AbstractClass_Skipped()
-    {
+    public void Extract_AbstractClass_Skipped() {
         var source = """
             public abstract class AbstractBase
             {
@@ -139,8 +131,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_TestClass_Skipped()
-    {
+    public void Extract_TestClass_Skipped() {
         var source = """
             public class MyServiceTests
             {
@@ -154,8 +145,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_CustomThreshold()
-    {
+    public void Extract_CustomThreshold() {
         var source = """
             public class SmallService
             {
@@ -170,8 +160,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_ConstructorSignature_ContainsAllParams()
-    {
+    public void Extract_ConstructorSignature_ContainsAllParams() {
         var source = """
             public class SigService
             {
@@ -191,8 +180,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_NoConstructors_EmptyResult()
-    {
+    public void Extract_NoConstructors_EmptyResult() {
         var source = """
             public class NoCtor
             {
@@ -205,8 +193,7 @@ public sealed class ConstructorParamCounterTests
     }
 
     [Fact]
-    public void Extract_MultipleFatClasses_AllFound()
-    {
+    public void Extract_MultipleFatClasses_AllFound() {
         var source = """
             public class FatServiceA
             {

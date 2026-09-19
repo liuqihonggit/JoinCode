@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 上下文检查工具处理器 — 提供当前上下文窗口使用情况的检查功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Context, Optional = true)]
-public partial class CtxInspectToolHandlers
-{
+public partial class CtxInspectToolHandlers {
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<CtxInspectToolHandlers>? _logger;
 
@@ -16,8 +15,7 @@ public partial class CtxInspectToolHandlers
     /// </summary>
     /// <param name="contextManager">聊天上下文管理器</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public CtxInspectToolHandlers(IChatContextManager contextManager, ILogger<CtxInspectToolHandlers>? logger = null)
-    {
+    public CtxInspectToolHandlers(IChatContextManager contextManager, ILogger<CtxInspectToolHandlers>? logger = null) {
         _contextManager = contextManager ?? throw new ArgumentNullException(nameof(contextManager));
         _logger = logger;
     }
@@ -31,11 +29,9 @@ public partial class CtxInspectToolHandlers
     [McpTool(SystemToolNameEnumConstants.CtxInspect, "Inspect current context window usage", "context")]
     public async Task<ToolResult> InspectContextAsync(
         [McpToolParameter("Inspection type: summary/detailed/layers (optional, default summary)", Required = false)] string? inspect_type = "summary",
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var inspectType = InspectTypeExtensions.FromValue(inspect_type) ?? InspectType.Summary;
-        try
-        {
+        try {
             var maxTokens = _contextManager.GetContextMaxTokens();
             var history = await _contextManager.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
             var deferredTools = _contextManager.GetDeferredTools();
@@ -49,22 +45,18 @@ public partial class CtxInspectToolHandlers
             response.AppendLine(L.T(StringKey.CtxMessageCount, messageCount));
             response.AppendLine(L.T(StringKey.CtxDeferredToolCount, deferredTools.Count()));
 
-            if (inspectType == InspectType.Detailed || inspectType == InspectType.Layers)
-            {
+            if (inspectType == InspectType.Detailed || inspectType == InspectType.Layers) {
                 response.AppendLine();
                 response.AppendLine(L.T(StringKey.CtxDeferredToolDetails));
-                foreach (var tool in deferredTools)
-                {
+                foreach (var tool in deferredTools) {
                     response.AppendLine($"  {tool.Name}: {tool.Description ?? L.T(StringKey.CtxNoDescription)}{(tool.IsMcp ? " (MCP)" : "")}");
                 }
             }
 
-            if (inspectType == InspectType.Detailed && history != null)
-            {
+            if (inspectType == InspectType.Detailed && history != null) {
                 response.AppendLine();
                 response.AppendLine(L.T(StringKey.CtxRecentMessages));
-                foreach (var msg in history.TakeLast(5))
-                {
+                foreach (var msg in history.TakeLast(5)) {
                     var role = msg.Role.ToString();
                     var content = msg.Content ?? "";
                     var truncated = content.Length > 80 ? content[..80] + "..." : content;
@@ -73,10 +65,7 @@ public partial class CtxInspectToolHandlers
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.CtxInspectFailedLog));
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CtxInspectFailed, ex.Message)).Build();
         }

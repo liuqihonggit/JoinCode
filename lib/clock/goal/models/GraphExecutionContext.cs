@@ -3,8 +3,7 @@ namespace Core.Goal;
 /// <summary>
 /// 节点执行状态枚举
 /// </summary>
-public enum NodeStatus
-{
+public enum NodeStatus {
     /// <summary>待执行（含重试中）</summary>
     [EnumValue("pending")]
     Pending,
@@ -19,8 +18,7 @@ public enum NodeStatus
 /// <summary>
 /// 节点执行状态 — 合并重试计数与完成/失败标记
 /// </summary>
-public sealed record NodeExecutionState
-{
+public sealed record NodeExecutionState {
     /// <summary>节点状态</summary>
     public NodeStatus Status { get; init; } = NodeStatus.Pending;
     /// <summary>重试次数</summary>
@@ -32,8 +30,7 @@ public sealed record NodeExecutionState
 /// Graph 执行的运行时上下文 — 持有可变状态、队列、重试计数
 /// </summary>
 /// <remarks>由 <see cref="IGraphScheduler"/> 实现访问，public 以支持自定义调度器。</remarks>
-public sealed class GraphExecutionContext
-{
+public sealed class GraphExecutionContext {
     /// <summary>目标图定义</summary>
     public required GoalGraph Graph { get; init; }
     /// <summary>目标状态</summary>
@@ -78,30 +75,26 @@ public sealed class GraphExecutionContext
     public int FailedCount => NodeStates.Count(static kvp => kvp.Value.Status == NodeStatus.Failed);
 
     /// <summary>标记节点完成（保留已有重试计数）</summary>
-    public void MarkNodeCompleted(string nodeId)
-    {
+    public void MarkNodeCompleted(string nodeId) {
         NodeStates.AddOrUpdate(nodeId,
             new NodeExecutionState { Status = NodeStatus.Completed },
             (_, existing) => existing with { Status = NodeStatus.Completed });
     }
 
     /// <summary>标记节点失败（保留已有重试计数）</summary>
-    public void MarkNodeFailed(string nodeId)
-    {
+    public void MarkNodeFailed(string nodeId) {
         NodeStates.AddOrUpdate(nodeId,
             new NodeExecutionState { Status = NodeStatus.Failed },
             (_, existing) => existing with { Status = NodeStatus.Failed });
     }
 
     /// <summary>重置节点状态（移除记录，回到初始）</summary>
-    public void ResetNodeState(string nodeId)
-    {
+    public void ResetNodeState(string nodeId) {
         NodeStates.TryRemove(nodeId, out _);
     }
 
     /// <summary>设置节点重试次数（状态置为 Pending）</summary>
-    public void SetRetryCount(string nodeId, int count)
-    {
+    public void SetRetryCount(string nodeId, int count) {
         NodeStates[nodeId] = new NodeExecutionState { Status = NodeStatus.Pending, RetryCount = count };
     }
 
@@ -131,13 +124,11 @@ public sealed class GraphExecutionContext
     /// </summary>
     /// <param name="nodeId">节点 ID</param>
     /// <returns>全部上游已完成或失败返回 true；否则 false</returns>
-    public bool AreAllUpstreamsCompleted(string nodeId)
-    {
+    public bool AreAllUpstreamsCompleted(string nodeId) {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
             return false;
 
-        foreach (var edgeId in node.InEdgeIds)
-        {
+        foreach (var edgeId in node.InEdgeIds) {
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
 
@@ -156,14 +147,12 @@ public sealed class GraphExecutionContext
     /// </summary>
     /// <param name="nodeId">节点 ID</param>
     /// <returns>已完成或失败的上游数</returns>
-    public int CountCompletedUpstreams(string nodeId)
-    {
+    public int CountCompletedUpstreams(string nodeId) {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
             return 0;
 
         var count = 0;
-        foreach (var edgeId in node.InEdgeIds)
-        {
+        foreach (var edgeId in node.InEdgeIds) {
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
             if (edge.Label.Length > 0)
@@ -180,14 +169,12 @@ public sealed class GraphExecutionContext
     /// </summary>
     /// <param name="nodeId">节点 ID</param>
     /// <returns>成功完成的上游数</returns>
-    public int CountSuccessfulUpstreams(string nodeId)
-    {
+    public int CountSuccessfulUpstreams(string nodeId) {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
             return 0;
 
         var count = 0;
-        foreach (var edgeId in node.InEdgeIds)
-        {
+        foreach (var edgeId in node.InEdgeIds) {
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
             if (edge.Label.Length > 0)
@@ -204,14 +191,12 @@ public sealed class GraphExecutionContext
     /// </summary>
     /// <param name="nodeId">节点 ID</param>
     /// <returns>总上游数</returns>
-    public int CountTotalUpstreams(string nodeId)
-    {
+    public int CountTotalUpstreams(string nodeId) {
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
             return 0;
 
         var count = 0;
-        foreach (var edgeId in node.InEdgeIds)
-        {
+        foreach (var edgeId in node.InEdgeIds) {
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
             if (edge.Label.Length > 0)
@@ -227,20 +212,17 @@ public sealed class GraphExecutionContext
     /// </summary>
     /// <param name="nodeId">节点 ID</param>
     /// <returns>上游 ID → 输出 的字典</returns>
-    public Dictionary<string, string?> CollectUpstreamOutputs(string nodeId)
-    {
+    public Dictionary<string, string?> CollectUpstreamOutputs(string nodeId) {
         var outputs = new Dictionary<string, string?>(StringComparer.Ordinal);
         if (!Graph.Dag.Nodes.TryGetValue(nodeId, out var node))
             return outputs;
 
-        foreach (var edgeId in node.InEdgeIds)
-        {
+        foreach (var edgeId in node.InEdgeIds) {
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
             if (edge.Label.Length > 0)
                 continue;
-            if (Graph.Dag.Nodes.TryGetValue(edge.FromId, out var upstream))
-            {
+            if (Graph.Dag.Nodes.TryGetValue(edge.FromId, out var upstream)) {
                 outputs[edge.FromId] = upstream.Payload.Output;
             }
         }
@@ -255,8 +237,7 @@ public sealed class GraphExecutionContext
     /// <param name="routes">路由标签数组（null 表示无路由）</param>
     /// <param name="matchMode">路由匹配模式</param>
     /// <returns>后继节点 ID 列表</returns>
-    public IReadOnlyList<string> GetNextNodeIds(string fromNodeId, string[]? routes, RouteMatchMode matchMode)
-    {
+    public IReadOnlyList<string> GetNextNodeIds(string fromNodeId, string[]? routes, RouteMatchMode matchMode) {
         var nextIds = new List<string>();
         if (!Graph.Dag.Nodes.TryGetValue(fromNodeId, out var node))
             return nextIds;
@@ -267,39 +248,30 @@ public sealed class GraphExecutionContext
 
         var hasConditionalMatch = false;
 
-        foreach (var edgeId in node.OutEdgeIds)
-        {
+        foreach (var edgeId in node.OutEdgeIds) {
             if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                 continue;
 
-            if (edge.Label.Length == 0)
-            {
-                switch (matchMode)
-                {
+            if (edge.Label.Length == 0) {
+                switch (matchMode) {
                     case RouteMatchMode.UnconditionalOnly:
                     case RouteMatchMode.All:
-                        nextIds.Add(edge.ToId);
-                        break;
+                    nextIds.Add(edge.ToId);
+                    break;
                 }
-            }
-            else
-            {
-                if (routeSet.Contains(edge.Label))
-                {
+            } else {
+                if (routeSet.Contains(edge.Label)) {
                     nextIds.Add(edge.ToId);
                     hasConditionalMatch = true;
                 }
             }
         }
 
-        if (!hasConditionalMatch && matchMode == RouteMatchMode.ConditionalOnly)
-        {
-            foreach (var edgeId in node.OutEdgeIds)
-            {
+        if (!hasConditionalMatch && matchMode == RouteMatchMode.ConditionalOnly) {
+            foreach (var edgeId in node.OutEdgeIds) {
                 if (!Graph.Dag.Edges.TryGetValue(edgeId, out var edge))
                     continue;
-                if (edge.Label.Length == 0)
-                {
+                if (edge.Label.Length == 0) {
                     nextIds.Add(edge.ToId);
                 }
             }

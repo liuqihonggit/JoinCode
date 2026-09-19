@@ -3,8 +3,7 @@ namespace Core.Agents;
 /// <summary>
 /// 子智能体摘要状态 — L2 自摘要结果
 /// </summary>
-public enum SubAgentSummaryStatus
-{
+public enum SubAgentSummaryStatus {
     /// <summary>
     /// 输出在预算内，不需要摘要
     /// </summary>
@@ -33,8 +32,7 @@ public enum SubAgentSummaryStatus
 /// <summary>
 /// 子智能体摘要结果
 /// </summary>
-public sealed record SubAgentSummaryResult(SubAgentSummaryStatus Status, string? Summary = null)
-{
+public sealed record SubAgentSummaryResult(SubAgentSummaryStatus Status, string? Summary = null) {
     /// <summary>
     /// 跳过（配置关或客户端不可用）
     /// </summary>
@@ -52,8 +50,7 @@ public sealed record SubAgentSummaryResult(SubAgentSummaryStatus Status, string?
 /// <para>失败时返回 Failed，调用方应走 L3 落盘指针兜底。</para>
 /// </summary>
 [Register(typeof(SubAgentSummaryGenerator), ServiceLifetime.Singleton)]
-public sealed partial class SubAgentSummaryGenerator : ServiceEntity
-{
+public sealed partial class SubAgentSummaryGenerator : ServiceEntity {
     private readonly ILogger<SubAgentSummaryGenerator>? _logger;
     private readonly ISubAgentSummaryClient? _client;
     private readonly SubAgentSummaryConfig _config;
@@ -67,8 +64,7 @@ public sealed partial class SubAgentSummaryGenerator : ServiceEntity
     public SubAgentSummaryGenerator(
         ISubAgentSummaryClient? client = null,
         SubAgentSummaryConfig? config = null,
-        ILogger<SubAgentSummaryGenerator>? logger = null)
-    {
+        ILogger<SubAgentSummaryGenerator>? logger = null) {
         _client = client;
         _config = config ?? new SubAgentSummaryConfig();
         _logger = logger;
@@ -85,8 +81,7 @@ public sealed partial class SubAgentSummaryGenerator : ServiceEntity
         string agentId,
         string output,
         int remainingTokenBudget,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_client is null || !_config.Auto)
             return SubAgentSummaryResult.Skipped;
 
@@ -96,15 +91,13 @@ public sealed partial class SubAgentSummaryGenerator : ServiceEntity
 
         var summary = await CallWithRetriesAsync(agentId, output, remainingTokenBudget, cancellationToken).ConfigureAwait(false);
 
-        if (string.IsNullOrEmpty(summary))
-        {
+        if (string.IsNullOrEmpty(summary)) {
             _logger?.LogWarning("子智能体 {AgentId} L2 自摘要失败：LLM 返回空", agentId);
             return new SubAgentSummaryResult(SubAgentSummaryStatus.Failed);
         }
 
         var summaryTokens = SubAgentOutputTruncator.EstimateTokens(summary);
-        if (summaryTokens > remainingTokenBudget)
-        {
+        if (summaryTokens > remainingTokenBudget) {
             _logger?.LogWarning("子智能体 {AgentId} L2 自摘要仍超预算：{SummaryTokens} > {Budget}", agentId, summaryTokens, remainingTokenBudget);
             return new SubAgentSummaryResult(SubAgentSummaryStatus.Failed);
         }
@@ -117,25 +110,18 @@ public sealed partial class SubAgentSummaryGenerator : ServiceEntity
         string agentId,
         string output,
         int maxOutputTokens,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var maxAttempts = Math.Max(1, _config.MaxRetries + 1);
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            try
-            {
+        for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
                 var result = await _client!.SummarizeAsync(output, agentId, maxOutputTokens, cancellationToken).ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(result))
                     return result;
 
                 _logger?.LogDebug("子智能体 {AgentId} L2 自摘要第 {Attempt} 次返回空", agentId, attempt);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 throw;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "子智能体 {AgentId} L2 自摘要第 {Attempt} 次异常", agentId, attempt);
             }
         }

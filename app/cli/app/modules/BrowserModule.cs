@@ -4,8 +4,7 @@ namespace JoinCode.App.Modules;
 /// 浏览器模块 — 注册 PuppeteerSharp 浏览器自动化服务
 /// </summary>
 [AppModule(Order = 60)]
-public sealed class BrowserModule : IAppModule
-{
+public sealed class BrowserModule : IAppModule {
     /// <summary>模块加载顺序</summary>
     public int Order => 60;
 
@@ -14,8 +13,7 @@ public sealed class BrowserModule : IAppModule
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="context">应用模块上下文</param>
-    public void ConfigureServices(IServiceCollection services, AppModuleContext context)
-    {
+    public void ConfigureServices(IServiceCollection services, AppModuleContext context) {
         services.AddBrowserServices();
     }
 

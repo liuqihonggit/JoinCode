@@ -1,8 +1,7 @@
 
 namespace Core.Tests.Memdir;
 
-public sealed class MemoryRelevanceSelectorTests
-{
+public sealed class MemoryRelevanceSelectorTests {
     private readonly FakeClockService _clock = new();
     private readonly Mock<IMemoryAgeCalculator> _ageCalculatorMock = new();
 
@@ -13,8 +12,7 @@ public sealed class MemoryRelevanceSelectorTests
         => MemoryEntry.Create(type, content, title: title, tags: tags, ttl: ttl) with { AccessCount = accessCount };
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_EmptyMemories_ReturnsEmpty()
-    {
+    public async Task SelectRelevantMemoriesAsync_EmptyMemories_ReturnsEmpty() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -25,8 +23,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_Archived_IsExcluded()
-    {
+    public async Task SelectRelevantMemoriesAsync_Archived_IsExcluded() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -38,8 +35,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_Expired_IsExcluded()
-    {
+    public async Task SelectRelevantMemoriesAsync_Expired_IsExcluded() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -52,8 +48,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_ContentMatch_ReturnsScoredMemory()
-    {
+    public async Task SelectRelevantMemoriesAsync_ContentMatch_ReturnsScoredMemory() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -67,8 +62,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_NoMatch_ReturnsEmpty()
-    {
+    public async Task SelectRelevantMemoriesAsync_NoMatch_ReturnsEmpty() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.0);
@@ -80,8 +74,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_TagMatch_BoostsScore()
-    {
+    public async Task SelectRelevantMemoriesAsync_TagMatch_BoostsScore() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -96,8 +89,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_TitleMatch_BoostsScore()
-    {
+    public async Task SelectRelevantMemoriesAsync_TitleMatch_BoostsScore() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -111,8 +103,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_TypeWeight_AffectsOrdering()
-    {
+    public async Task SelectRelevantMemoriesAsync_TypeWeight_AffectsOrdering() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -126,8 +117,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_AccessCount_BoostsScore()
-    {
+    public async Task SelectRelevantMemoriesAsync_AccessCount_BoostsScore() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -141,8 +131,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_MaxResults_IsRespected()
-    {
+    public async Task SelectRelevantMemoriesAsync_MaxResults_IsRespected() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(0.5);
@@ -154,8 +143,7 @@ public sealed class MemoryRelevanceSelectorTests
     }
 
     [Fact]
-    public async Task SelectRelevantMemoriesAsync_Score_IsCappedAtOne()
-    {
+    public async Task SelectRelevantMemoriesAsync_Score_IsCappedAtOne() {
         var sut = CreateSut();
         _ageCalculatorMock.Setup(a => a.CalculateAgedRelevance(It.IsAny<MemoryEntry>(), It.IsAny<DateTime?>()))
             .Returns(1.0);

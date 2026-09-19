@@ -5,8 +5,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 仅承载展示所需字段，不直接暴露引擎内部类型。
 /// 实现 <see cref="INotifyPropertyChanged"/> 以便思考消息折叠/展开时刷新 UI。
 /// </summary>
-public sealed class ChatUiMessage : INotifyPropertyChanged
-{
+public sealed class ChatUiMessage : INotifyPropertyChanged {
     /// <summary>属性变更事件</summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -16,11 +15,9 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     public required MessageRole Role { get; init; }
     private string _content = string.Empty;
     /// <summary>消息正文内容</summary>
-    public required string Content
-    {
+    public required string Content {
         get => _content;
-        set
-        {
+        set {
             if (_content == value)
                 return;
             _content = value;
@@ -34,8 +31,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     public bool IsStreaming { get; set; }
 
     /// <summary>角色显示名（User/Assistant/System 的中文标签）</summary>
-    public string RoleLabel => Role switch
-    {
+    public string RoleLabel => Role switch {
         MessageRole.User => "你",
         MessageRole.Assistant => "AI",
         MessageRole.System => "系统",
@@ -66,11 +62,9 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     /// <summary>工具是否仍在运行（驱动倒计时显示；ToolCallEnd 后置 false）</summary>
     private bool _isToolRunning;
     /// <summary>工具是否仍在运行（驱动倒计时显示；ToolCallEnd 后置 false）</summary>
-    public bool IsToolRunning
-    {
+    public bool IsToolRunning {
         get => _isToolRunning;
-        set
-        {
+        set {
             if (_isToolRunning == value)
                 return;
             _isToolRunning = value;
@@ -81,11 +75,9 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     /// <summary>已运行时长展示文本（如 "⏱ 1.2s"，由 View 层计时器定期刷新）</summary>
     private string _toolElapsedText = string.Empty;
     /// <summary>已运行时长展示文本（如 "⏱ 1.2s"，由 View 层计时器定期刷新）</summary>
-    public string ToolElapsedText
-    {
+    public string ToolElapsedText {
         get => _toolElapsedText;
-        set
-        {
+        set {
             if (_toolElapsedText == value)
                 return;
             _toolElapsedText = value;
@@ -94,10 +86,8 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     }
 
     /// <summary>根据 ToolStartTime 刷新已运行时长文本（由 View 层计时器调用）</summary>
-    public void RefreshElapsed()
-    {
-        if (ToolStartTime is { } start)
-        {
+    public void RefreshElapsed() {
+        if (ToolStartTime is { } start) {
             var elapsed = DateTime.Now - start;
             ToolElapsedText = elapsed.TotalSeconds < 60
                 ? $"⏱ {elapsed.TotalSeconds:F1}s"
@@ -135,11 +125,9 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     /// <summary>思考消息是否已展开（终端式默认全展开，实时可见思考流；可手动收起）</summary>
     private bool _isThinkingExpanded = true;
     /// <summary>思考消息是否已展开（终端式默认全展开，实时可见思考流；可手动收起）</summary>
-    public bool IsThinkingExpanded
-    {
+    public bool IsThinkingExpanded {
         get => _isThinkingExpanded;
-        set
-        {
+        set {
             if (_isThinkingExpanded == value)
                 return;
             _isThinkingExpanded = value;
@@ -157,11 +145,9 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     /// <summary>系统提示词卡片是否展开（默认折叠=false，点击展开看全文）</summary>
     private bool _isPromptExpanded;
     /// <summary>系统提示词卡片是否展开（默认折叠=false，点击展开看全文）</summary>
-    public bool IsPromptExpanded
-    {
+    public bool IsPromptExpanded {
         get => _isPromptExpanded;
-        set
-        {
+        set {
             if (_isPromptExpanded == value)
                 return;
             _isPromptExpanded = value;
@@ -185,8 +171,7 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     public string ThinkingSummary => IsThinking ? $"点击展开，思考 {Content.Length} 字" : string.Empty;
 
     /// <summary>类型标签（思考🧠 / 工具🛠 / 结果✅ / 子代理组🤖，正文为空）</summary>
-    public string KindLabel => Kind switch
-    {
+    public string KindLabel => Kind switch {
         ChatUiMessageKind.Thinking => "🧠 思考",
         ChatUiMessageKind.ToolCall => "🛠 工具调用",
         ChatUiMessageKind.ToolResult => "✅ 工具结果",
@@ -206,53 +191,40 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
         || Content.TrimStart().StartsWith("using System", StringComparison.Ordinal);
 
     /// <summary>完整终端式纯文本（穿透容器：角色标签+时间 → 思考 → 工具名/参数/结果 → diff 行 → 正文），供整块复制</summary>
-    public string CopyAllText
-    {
-        get
-        {
+    public string CopyAllText {
+        get {
             var sb = new System.Text.StringBuilder();
 
-            if (IsThinking)
-            {
+            if (IsThinking) {
                 AppendHeader(sb);
                 sb.AppendLine(KindLabel);
                 if (!string.IsNullOrWhiteSpace(Content))
                     sb.AppendLine(Content);
-            }
-            else if (IsToolCall)
-            {
+            } else if (IsToolCall) {
                 AppendHeader(sb);
                 sb.Append(KindLabel).Append(": ").AppendLine(ToolName ?? string.Empty);
                 if (IsToolCallStart && !string.IsNullOrWhiteSpace(ToolArguments))
                     sb.AppendLine(ToolArguments);
-                if (IsToolResultMessage)
-                {
+                if (IsToolResultMessage) {
                     var formattedResult = ToolErrorFormatter.ExtractMessage(ToolResultText, IsToolError);
                     if (!string.IsNullOrWhiteSpace(formattedResult))
                         sb.AppendLine(formattedResult);
                     AppendDiff(sb);
                 }
-            }
-            else if (IsAgentRunGroup)
-            {
+            } else if (IsAgentRunGroup) {
                 AppendHeader(sb);
                 sb.AppendLine(KindLabel);
-                foreach (var run in AgentRuns ?? [])
-                {
+                foreach (var run in AgentRuns ?? []) {
                     sb.AppendLine($"  {run.StateGlyph} {run.HeaderText}  {run.StatsText}");
                     foreach (var line in run.ActivityLines)
                         sb.Append("    ").AppendLine(line);
                 }
-            }
-            else if (IsSystemPromptInjection)
-            {
+            } else if (IsSystemPromptInjection) {
                 AppendHeader(sb);
                 sb.AppendLine(KindLabel);
                 if (!string.IsNullOrWhiteSpace(Content))
                     sb.AppendLine(Content);
-            }
-            else if (!string.IsNullOrWhiteSpace(Content))
-            {
+            } else if (!string.IsNullOrWhiteSpace(Content)) {
                 AppendHeader(sb);
                 sb.AppendLine(Content);
             }
@@ -262,24 +234,19 @@ public sealed class ChatUiMessage : INotifyPropertyChanged
     }
 
     /// <summary>追加角色+时间头行（仅在有实际内容时调用）</summary>
-    private void AppendHeader(System.Text.StringBuilder sb)
-    {
+    private void AppendHeader(System.Text.StringBuilder sb) {
         sb.Append('[').Append(RoleLabel).Append(" · ")
           .Append(Timestamp.ToString("yyyy-MM-dd HH:mm:ss")).AppendLine("]");
     }
 
     /// <summary>追加结构化 diff 到纯文本（带 +/- 前缀与 hunk 头），终端式可整体复制</summary>
-    private void AppendDiff(System.Text.StringBuilder sb)
-    {
+    private void AppendDiff(System.Text.StringBuilder sb) {
         if (StructuredPatch is not { Length: > 0 })
             return;
-        foreach (var hunk in StructuredPatch)
-        {
+        foreach (var hunk in StructuredPatch) {
             sb.AppendLine(hunk.Header);
-            foreach (var line in hunk.Lines)
-            {
-                var prefix = line.Type switch
-                {
+            foreach (var line in hunk.Lines) {
+                var prefix = line.Type switch {
                     PatchLineType.Added => "+",
                     PatchLineType.Removed => "-",
                     _ => " "

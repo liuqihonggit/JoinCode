@@ -7,33 +7,28 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.AddDir, Description = "添加额外的工作目录", Usage = "/add-dir <path> [--remember]", Category = ChatCommandCategory.Code, ArgumentHint = "<path> [--remember]")]
 [ChatCommandArg("path", Type = "string", Description = "要添加的工作目录路径", Required = true)]
 [ChatCommandArg("remember", Type = "boolean", Description = "是否记住此目录供后续会话使用", Default = "false")]
-public sealed class AddDirCommand : ChatCommandBase
-{
+public sealed class AddDirCommand : ChatCommandBase {
     /// <summary>
     /// 异步执行 /add-dir 命令
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args))
-        {
+        if (string.IsNullOrEmpty(args)) {
             ShowCurrentDirectories(context);
             return ChatCommandResult.Continue();
         }
 
         var remember = false;
         var pathPart = args;
-        if (args.EndsWith(" --remember", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.EndsWith(" --remember", StringComparison.OrdinalIgnoreCase)) {
             remember = true;
             pathPart = args[..^11].Trim();
         }
 
-        if (!context.GetCommandServices().FileSystem.DirectoryExists(pathPart))
-        {
+        if (!context.GetCommandServices().FileSystem.DirectoryExists(pathPart)) {
             TerminalHelper.WriteLine($"目录不存在: {pathPart}");
             return ChatCommandResult.Continue();
         }
@@ -41,10 +36,8 @@ public sealed class AddDirCommand : ChatCommandBase
         var fullPath = Path.GetFullPath(pathPart);
 
         var workspaceService = context.GetCommandServices().WorkspaceService;
-        if (workspaceService is null)
-        {
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+        if (workspaceService is null) {
+            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 TerminalHelper.WriteLine("工作区服务未初始化");
             }
             return ChatCommandResult.Continue();
@@ -52,24 +45,18 @@ public sealed class AddDirCommand : ChatCommandBase
 
         var added = workspaceService.AddDirectory(fullPath);
 
-        if (added)
-        {
+        if (added) {
             TrustDirectory(context, fullPath);
 
-            if (remember)
-            {
+            if (remember) {
                 await PersistDirectoryAsync(context, fullPath).ConfigureAwait(false);
                 TerminalHelper.WriteLine($"已添加工作目录: {fullPath} (已保存到本地设置)");
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"已添加工作目录: {fullPath} (仅本次会话)");
             }
 
             TerminalHelper.WriteLine("使用 /permissions workspace 管理工作区目录");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"目录已存在: {fullPath}");
         }
 
@@ -77,54 +64,44 @@ public sealed class AddDirCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static void TrustDirectory(ChatCommandContext context, string fullPath)
-    {
+    private static void TrustDirectory(ChatCommandContext context, string fullPath) {
         var trustManager = ChatCommandBase.GetService<ITrustFolderManager>(context, typeof(ITrustFolderManager));
         if (trustManager is null) return;
 
-        if (!trustManager.IsTrusted(fullPath))
-        {
+        if (!trustManager.IsTrusted(fullPath)) {
             trustManager.Trust(fullPath);
         }
     }
 
-    private static async Task PersistDirectoryAsync(ChatCommandContext context, string fullPath, ILogger? logger = null)
-    {
+    private static async Task PersistDirectoryAsync(ChatCommandContext context, string fullPath, ILogger? logger = null) {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
         if (configService is null) return;
 
-        try
-        {
+        try {
             var existing = await configService.GetAsync("permissions.additionalDirectories",
                 context.CancellationToken).ConfigureAwait(false);
             var dirs = string.IsNullOrEmpty(existing) ? [] : existing.Split(';', StringSplitOptions.RemoveEmptyEntries);
             var dirSet = new HashSet<string>(dirs, StringComparer.OrdinalIgnoreCase);
-            if (!dirSet.Contains(fullPath))
-            {
+            if (!dirSet.Contains(fullPath)) {
                 dirs = [.. dirs, fullPath];
                 await configService.SetAsync("permissions.additionalDirectories",
                     string.Join(";", dirs), context.CancellationToken).ConfigureAwait(false);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 持久化失败不影响主流程
             logger?.LogWarning(ex, "持久化目录设置失败");
         }
     }
 
-    private static void ShowCurrentDirectories(ChatCommandContext context)
-    {
+    private static void ShowCurrentDirectories(ChatCommandContext context) {
         var workspaceService = context.GetCommandServices().WorkspaceService;
         if (workspaceService is null) return;
 
         var dirs = workspaceService.GetAdditionalDirectories();
-        if (dirs.Any())
-        {
+        if (dirs.Any()) {
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("当前额外工作目录:");
-            foreach (var dir in dirs)
-            {
+            foreach (var dir in dirs) {
                 TerminalHelper.WriteLine($"  {dir}");
             }
         }

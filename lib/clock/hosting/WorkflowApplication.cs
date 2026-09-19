@@ -4,8 +4,7 @@ namespace Core.Hosting;
 /// <summary>
 /// Workflow 应用程序 - 统一管理和启动所有服务
 /// </summary>
-public sealed partial class WorkflowApplication : IAsyncDisposable
-{
+public sealed partial class WorkflowApplication : IAsyncDisposable {
     private readonly ServiceHost _serviceHost;
     private readonly ServiceMessageBus _messageBus;
     private readonly ICronTaskStore? _cronTaskStore;
@@ -28,12 +27,11 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     public WorkflowApplication(
         ILogger<ServiceHost>? hostLogger = null,
         ICronTaskStore? cronTaskStore = null,
-        
+
         INotificationService? notificationService = null,
         ILogger<CronSchedulerService>? cronLogger = null,
         ILogger<WorkflowApplication>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _cronTaskStore = cronTaskStore;
         _notificationService = notificationService;
         _cronLogger = cronLogger;
@@ -60,12 +58,10 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     /// <summary>
     /// 初始化并注册所有服务
     /// </summary>
-    public void Initialize()
-    {
+    public void Initialize() {
         _logger?.LogInformation(L.T(StringKey.WorkflowAppInitializing));
 
-        if (_cronTaskStore is not null)
-        {
+        if (_cronTaskStore is not null) {
             var cronService = new CronSchedulerService(
                 _cronTaskStore,
                 _messageBus,
@@ -84,8 +80,7 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     /// <summary>
     /// 启动应用程序
     /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task StartAsync(CancellationToken cancellationToken = default) {
         _logger?.LogInformation(L.T(StringKey.WorkflowAppStarting));
 
         _startedAt = _clock.GetUtcNow();
@@ -105,8 +100,7 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     /// <summary>
     /// 停止应用程序
     /// </summary>
-    public async Task StopAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task StopAsync(CancellationToken cancellationToken = default) {
         _logger?.LogInformation(L.T(StringKey.WorkflowAppStopping));
 
         // 发布系统停止消息
@@ -124,21 +118,15 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     /// <summary>
     /// 运行应用程序直到取消
     /// </summary>
-    public async Task RunAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task RunAsync(CancellationToken cancellationToken = default) {
         await StartAsync(cancellationToken).ConfigureAwait(false);
 
-        try
-        {
+        try {
             // 等待取消信号
             await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             // 正常取消
-        }
-        finally
-        {
+        } finally {
             await StopAsync(CancellationToken.None).ConfigureAwait(false);
         }
     }
@@ -146,12 +134,10 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     /// <summary>
     /// 获取应用程序状态报告
     /// </summary>
-    public ApplicationStatusReport GetStatusReport()
-    {
+    public ApplicationStatusReport GetStatusReport() {
         var serviceStatuses = _serviceHost.GetAllServiceStatuses();
 
-        return new ApplicationStatusReport
-        {
+        return new ApplicationStatusReport {
             IsRunning = _serviceHost.IsRunning,
             ServiceCount = serviceStatuses.Count,
             RunningServices = serviceStatuses.Count(s => s.Value == ServiceStatus.Running),
@@ -161,8 +147,7 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
         };
     }
 
-    private void OnServiceStatusChanged(object? sender, ServiceEventArgs e)
-    {
+    private void OnServiceStatusChanged(object? sender, ServiceEventArgs e) {
         _logger?.LogInformation(L.T(StringKey.WorkflowAppStatusChanged),
             e.ServiceName,
             e.OldStatus,
@@ -172,8 +157,7 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
         _ = _messageBus.PublishAsync(ServiceMessage.Create(
             ServiceMessageType.ServiceStatusChanged.ToValue(),
             "WorkflowApplication",
-            new ServiceStatusChangePayload
-            {
+            new ServiceStatusChangePayload {
                 ServiceName = e.ServiceName,
                 OldStatus = e.OldStatus.ToStatusName(),
                 NewStatus = e.NewStatus.ToStatusName(),
@@ -185,8 +169,7 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
     /// <summary>
     /// 异步释放 — 停止应用、解绑事件并释放服务主机与消息总线
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _serviceHost.ServiceStatusChanged -= OnServiceStatusChanged;
@@ -198,8 +181,7 @@ public sealed partial class WorkflowApplication : IAsyncDisposable
 /// <summary>
 /// 应用程序状态报告
 /// </summary>
-public sealed record ApplicationStatusReport
-{
+public sealed record ApplicationStatusReport {
     /// <summary>应用是否正在运行</summary>
     public required bool IsRunning { get; init; }
     /// <summary>服务总数</summary>
@@ -217,8 +199,7 @@ public sealed record ApplicationStatusReport
 /// <summary>
 /// 服务状态变更消息载荷
 /// </summary>
-public sealed partial class ServiceStatusChangePayload
-{
+public sealed partial class ServiceStatusChangePayload {
     /// <summary>服务名称</summary>
     public required string ServiceName { get; init; }
     /// <summary>旧状态名称</summary>

@@ -4,16 +4,14 @@ namespace Tools.Handlers;
 /// 桌面输入工具处理器 — 鼠标键盘操作暴露为 MCP 工具
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public class DesktopInputToolHandlers
-{
+public class DesktopInputToolHandlers {
     private readonly IDesktopInputService _input;
     private readonly ILogger<DesktopInputToolHandlers>? _logger;
 
     /// <summary>构造桌面输入工具处理器实例。</summary>
     /// <param name="input">桌面输入服务，用于执行鼠标点击、移动、拖拽、按键与文本输入。</param>
     /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
-    public DesktopInputToolHandlers(IDesktopInputService input, ILogger<DesktopInputToolHandlers>? logger = null)
-    {
+    public DesktopInputToolHandlers(IDesktopInputService input, ILogger<DesktopInputToolHandlers>? logger = null) {
         _input = input;
         _logger = logger;
     }
@@ -24,8 +22,7 @@ public class DesktopInputToolHandlers
         [McpToolParameter("X 坐标（像素）", Required = true)] int x,
         [McpToolParameter("Y 坐标（像素）", Required = true)] int y,
         [McpToolParameter("动作: click/right_click/double_click/middle", Required = false)] string action = "click",
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var mouseAction = ParseMouseAction(action);
         var op = await _input.ClickAsync(x, y, mouseAction, ct).ConfigureAwait(false);
         return ToolResultBuilder.Success().WithText($"鼠标{action} ({x},{y}): {(op.Succeeded ? "成功" : op.Error)}").Build();
@@ -36,8 +33,7 @@ public class DesktopInputToolHandlers
     public async Task<ToolResult> MouseMoveAsync(
         [McpToolParameter("X 坐标", Required = true)] int x,
         [McpToolParameter("Y 坐标", Required = true)] int y,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var op = await _input.MoveToAsync(x, y, ct).ConfigureAwait(false);
         return ToolResultBuilder.Success().WithText($"移动到 ({x},{y}): {(op.Succeeded ? "成功" : "失败")}").Build();
     }
@@ -50,8 +46,7 @@ public class DesktopInputToolHandlers
         [McpToolParameter("终点 X", Required = true)] int toX,
         [McpToolParameter("终点 Y", Required = true)] int toY,
         [McpToolParameter("终点悬停毫秒（等待弹出）", Required = false)] int? hoverMs = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var op = await _input.DragAsync(fromX, fromY, toX, toY, hoverMs, ct).ConfigureAwait(false);
         return ToolResultBuilder.Success().WithText($"拖拽 ({fromX},{fromY})→({toX},{toY}): {(op.Succeeded ? "成功" : "失败")}").Build();
     }
@@ -61,8 +56,7 @@ public class DesktopInputToolHandlers
     public async Task<ToolResult> KeyPressAsync(
         [McpToolParameter("Win32 虚拟键码（如 0x0D=回车）", Required = true)] int virtualKey,
         [McpToolParameter("修饰键: none/shift/control/alt/win（可组合用 |）", Required = false)] string modifiers = "none",
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var mod = ParseKeyModifier(modifiers);
         var op = await _input.KeyPressAsync(virtualKey, mod, ct).ConfigureAwait(false);
         return ToolResultBuilder.Success().WithText($"按键 VK_{virtualKey:X2}+{modifiers}: {(op.Succeeded ? "成功" : "失败")}").Build();
@@ -72,15 +66,13 @@ public class DesktopInputToolHandlers
     [McpTool("type_text", "输入文本（支持 Unicode 中文）", "desktop")]
     public async Task<ToolResult> TypeTextAsync(
         [McpToolParameter("要输入的文本", Required = true)] string text,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var op = await _input.TypeTextAsync(text, ct).ConfigureAwait(false);
         return ToolResultBuilder.Success().WithText($"输入文本「{text}」: {(op.Succeeded ? "成功" : "失败")}").Build();
     }
 
     /// <summary>解析鼠标动作字符串</summary>
-    internal static MouseAction ParseMouseAction(string action) => action.ToLowerInvariant() switch
-    {
+    internal static MouseAction ParseMouseAction(string action) => action.ToLowerInvariant() switch {
         "click" => MouseAction.Click,
         "right_click" or "rightclick" => MouseAction.RightClick,
         "double_click" or "doubleclick" => MouseAction.DoubleClick,
@@ -91,14 +83,11 @@ public class DesktopInputToolHandlers
     };
 
     /// <summary>解析修饰键字符串（支持 shift|control 组合）</summary>
-    internal static KeyModifier ParseKeyModifier(string modifiers)
-    {
+    internal static KeyModifier ParseKeyModifier(string modifiers) {
         var result = KeyModifier.None;
         var parts = modifiers.ToLowerInvariant().Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
-        {
-            result |= part switch
-            {
+        foreach (var part in parts) {
+            result |= part switch {
                 "shift" => KeyModifier.Shift,
                 "control" or "ctrl" => KeyModifier.Control,
                 "alt" => KeyModifier.Alt,

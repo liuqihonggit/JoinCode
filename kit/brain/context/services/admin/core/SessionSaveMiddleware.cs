@@ -5,15 +5,13 @@ namespace Core.Context;
 /// 无业务服务依赖，仅使用 context.ContextManager
 /// </summary>
 [Register(typeof(IChatAdminMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class SessionSaveMiddleware : ServiceEntity, IChatAdminMiddleware
-{
+public sealed partial class SessionSaveMiddleware : ServiceEntity, IChatAdminMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="SessionSaveMiddleware"/> 实例
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    public SessionSaveMiddleware(ILogger<SessionSaveMiddleware>? logger = null)
-    {
+    public SessionSaveMiddleware(ILogger<SessionSaveMiddleware>? logger = null) {
         _logger = logger;
     }
     private readonly ILogger<SessionSaveMiddleware>? _logger;
@@ -22,20 +20,15 @@ public sealed partial class SessionSaveMiddleware : ServiceEntity, IChatAdminMid
     /// <summary>
     /// 先执行下游中间件，再统一保存上下文
     /// </summary>
-    public async Task InvokeAsync(ChatAdminContext context, MiddlewareDelegate<ChatAdminContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ChatAdminContext context, MiddlewareDelegate<ChatAdminContext> next, CancellationToken ct) {
         // 先执行下游（终端处理器或其他中间件）
         await next(context, ct).ConfigureAwait(false);
 
         // 仅在无错误时保存上下文
-        if (context.Error is null)
-        {
-            try
-            {
+        if (context.Error is null) {
+            try {
                 await context.ContextManager.SaveContextAsync(ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[SessionSave] 保存上下文失败");
             }
         }

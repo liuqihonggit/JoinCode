@@ -3,8 +3,7 @@ namespace Infrastructure.Windows.JobObject;
 /// <summary>
 /// Windows Job Object 原生 API P/Invoke 声明 — 用于进程组限制与终止
 /// </summary>
-public static class JobObjectNative
-{
+public static class JobObjectNative {
     /// <summary>Job 关闭时终止所有关联进程的限制标志</summary>
     public const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
     /// <summary>限制 Job 内活动进程数的限制标志</summary>
@@ -74,8 +73,7 @@ public static class JobObjectNative
 
     /// <summary>Job Object 基本限制信息</summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct JOBOBJECT_BASIC_LIMIT_INFORMATION
-    {
+    public struct JOBOBJECT_BASIC_LIMIT_INFORMATION {
         /// <summary>每进程用户态时间限制</summary>
         public long PerProcessUserTimeLimit;
         /// <summary>每 Job 用户态时间限制</summary>
@@ -98,8 +96,7 @@ public static class JobObjectNative
 
     /// <summary>IO 计数器</summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct IO_COUNTERS
-    {
+    public struct IO_COUNTERS {
         /// <summary>读操作计数</summary>
         public long ReadOperationCount;
         /// <summary>写操作计数</summary>
@@ -116,8 +113,7 @@ public static class JobObjectNative
 
     /// <summary>Job Object 扩展限制信息</summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
-    {
+    public struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION {
         /// <summary>基本限制信息</summary>
         public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
         /// <summary>IO 计数器</summary>

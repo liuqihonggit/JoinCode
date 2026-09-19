@@ -1,12 +1,10 @@
 namespace Mcp.Tests;
 
-public sealed class GitHubToolHandlersTests
-{
+public sealed class GitHubToolHandlersTests {
     private readonly FakeGitHubApiClient _api = new();
     private readonly GitHubToolHandlers _handler;
 
-    public GitHubToolHandlersTests()
-    {
+    public GitHubToolHandlersTests() {
         MemoryCache.Default.Trim(100);
         _handler = new GitHubToolHandlers(
             new FakeDownloader(),
@@ -18,10 +16,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrView_Success_ReturnsOutput()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task PrView_Success_ReturnsOutput() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"number":123,"title":"feat: add","state":"open","url":"https://github.com/o/r/pull/123"}""",
@@ -36,10 +32,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrView_Failure_ReturnsError()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task PrView_Failure_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = false,
             StatusCode = 404,
             Error = "could not find pr",
@@ -52,10 +46,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrCreate_Success_ReturnsCreatedPr()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task PrCreate_Success_ReturnsCreatedPr() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 201,
             Body = """{"number":42,"title":"feat: new","state":"open","html_url":"https://github.com/o/r/pull/42"}""",
@@ -74,10 +66,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrCreate_DraftTrue_IncludesDraftField()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task PrCreate_DraftTrue_IncludesDraftField() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 201,
             Body = """{"number":43,"title":"draft","state":"open","draft":true}""",
@@ -90,10 +80,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrCreate_WithBaseAndBody_ProducesValidJsonBody()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task PrCreate_WithBaseAndBody_ProducesValidJsonBody() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 201,
             Body = """{"number":44,"title":"t","state":"open"}""",
@@ -110,10 +98,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrCreate_WithBaseOnly_ProducesValidJsonBody()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task PrCreate_WithBaseOnly_ProducesValidJsonBody() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 201,
             Body = """{"number":45,"title":"t","state":"open"}""",
@@ -129,16 +115,13 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrMerge_AutoMergeTrue_CallsGraphQLEnableAutomerge()
-    {
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+    public async Task PrMerge_AutoMergeTrue_CallsGraphQLEnableAutomerge() {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"number":206,"node_id":"PR_kwDOTVZE0c8AAAABCsFVdw"}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":206}}}}""",
@@ -155,10 +138,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrMerge_AutoMergeFalse_CallsMergeEndpoint()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task PrMerge_AutoMergeFalse_CallsMergeEndpoint() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = "{}",
@@ -172,10 +153,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrCreate_Failure_ReturnsError()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task PrCreate_Failure_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = false,
             StatusCode = 422,
             Error = "Validation failed",
@@ -188,16 +167,13 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrChecks_Skipping_NotCountedAsFail()
-    {
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+    public async Task PrChecks_Skipping_NotCountedAsFail() {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"head":{"sha":"abc123"}}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"check_runs":[{"name":"build","conclusion":"success"},{"name":"lint","conclusion":"skipped"},{"name":"test","conclusion":"failure"}]}""",
@@ -213,8 +189,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_Log_TruncatesToMaxLines()
-    {
+    public async Task RunView_Log_TruncatesToMaxLines() {
         var lines = Enumerable.Range(0, 300).Select(i => $"line {i}").ToArray();
         _api.NextLogLines = lines;
 
@@ -228,10 +203,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_NoLog_ReturnsFullDetail()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task RunView_NoLog_ReturnsFullDetail() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"databaseId":42,"status":"completed","conclusion":"success"}""",
@@ -244,8 +217,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_LogWithErrorFilter_ReturnsOnlyErrorLines()
-    {
+    public async Task RunView_LogWithErrorFilter_ReturnsOnlyErrorLines() {
         _api.NextLogLines = "##[group]Run tests\n##[command]dotnet test\n##[error]Test failed: assert\n##[warning]deprecated\n##[error]Another error\nnormal line".Split('\n');
 
         var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10, repo: "owner/repo");
@@ -261,8 +233,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_LogWithWarningFilter_ReturnsErrorAndWarningLines()
-    {
+    public async Task RunView_LogWithWarningFilter_ReturnsErrorAndWarningLines() {
         _api.NextLogLines = "##[error]err\n##[warning]warn\n##[command]cmd\nnormal".Split('\n');
 
         var result = await _handler.GhRunViewAsync("42", log: true, filter: "warning", max_lines: 10, repo: "owner/repo");
@@ -276,8 +247,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_LogWithErrorFilter_NoMatch_ReturnsEmptyMessage()
-    {
+    public async Task RunView_LogWithErrorFilter_NoMatch_ReturnsEmptyMessage() {
         _api.NextLogLines = "##[warning]just a warning\nnormal line\n##[command]dotnet build".Split('\n');
 
         var result = await _handler.GhRunViewAsync("42", log: true, filter: "error", max_lines: 10, repo: "owner/repo");
@@ -287,8 +257,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandSteps_ReturnsStepListFromCache()
-    {
+    public async Task RunView_ExpandSteps_ReturnsStepListFromCache() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tSet up job\t2026-01-01T00:00:00Z line1\nJob\tCheckout\t2026-01-01T00:00:01Z line2\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[error]failed".Split('\n');
 
@@ -303,8 +272,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandSteps_RestApiLogFormat_ExtractsStepNamesFromEntryName()
-    {
+    public async Task RunView_ExpandSteps_RestApiLogFormat_ExtractsStepNamesFromEntryName() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "[0_Set up job.txt] 2026-01-01T00:00:00Z line1\n[1_Checkout.txt] 2026-01-01T00:00:01Z line2\n[2_Test.txt] 2026-01-01T00:00:02Z ##[error]failed".Split('\n');
 
@@ -321,8 +289,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandSteps_ParallelDownload_RestApiLogFormat_ExtractsStepNames()
-    {
+    public async Task RunView_ExpandSteps_ParallelDownload_RestApiLogFormat_ExtractsStepNames() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "[0_Checkout.txt] 2026-01-01T00:00:00Z line1\n[1_Build.txt] 2026-01-01T00:00:01Z line2".Split('\n');
 
@@ -336,8 +303,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandStepName_ReturnsSectionSummaryForThatStepOnly()
-    {
+    public async Task RunView_ExpandStepName_ReturnsSectionSummaryForThatStepOnly() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tSet up job\t2026-01-01T00:00:00Z setup line\nJob\tTest - Brain\t2026-01-01T00:00:01Z ##[error]failed\nJob\tTest - Brain\t2026-01-01T00:00:02Z test output".Split('\n');
@@ -353,8 +319,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandStepName_ReturnsSectionSummary()
-    {
+    public async Task RunView_ExpandStepName_ReturnsSectionSummary() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line".Split('\n');
@@ -370,8 +335,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandStepSection_ReturnsSectionContent()
-    {
+    public async Task RunView_ExpandStepSection_ReturnsSectionContent() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = "Job\tTest - Brain\t2026-01-01T00:00:00Z ##[error]err line\nJob\tTest - Brain\t2026-01-01T00:00:01Z normal line\nJob\tTest - Brain\t2026-01-01T00:00:02Z ##[warning]warn line".Split('\n');
@@ -386,8 +350,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_LogWithSkipLines_ReturnsLinesAfterSkip()
-    {
+    public async Task RunView_LogWithSkipLines_ReturnsLinesAfterSkip() {
         var lines = Enumerable.Range(0, 100).Select(i => $"line {i}").ToArray();
         _api.NextLogLines = lines;
 
@@ -401,8 +364,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_SkipLinesExceedsTotal_ReturnsNoMoreMessage()
-    {
+    public async Task RunView_SkipLinesExceedsTotal_ReturnsNoMoreMessage() {
         _api.NextLogLines = "line 0\nline 1\nline 2".Split('\n');
 
         var result = await _handler.GhRunViewAsync("42", log: true, max_lines: 10, skip_lines: 100, repo: "owner/repo");
@@ -412,8 +374,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task RunView_ExpandStepSectionWithSkipLines_ReturnsLinesAfterSkipInSection()
-    {
+    public async Task RunView_ExpandStepSectionWithSkipLines_ReturnsLinesAfterSkipInSection() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"jobs":[]}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"updated_at":"2026-01-01T00:00:00Z"}""" });
         _api.NextLogLines = Enumerable.Range(0, 50).Select(i => $"Job\tTest\t2026-01-01T00:00:00Z line {i}").ToArray();
@@ -428,10 +389,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task IssueCreate_QuotesTitleWithSpaces()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task IssueCreate_QuotesTitleWithSpaces() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 201,
             Body = """{"number":1,"html_url":"https://github.com/o/r/issues/1"}""",
@@ -446,8 +405,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested()
-    {
+    public async Task PrMerge_DefaultSquash_AppendsAutoWhenRequested() {
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"number":5,"node_id":"PR_test123"}""" });
         _api.EnqueueResponse(new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"data":{"enablePullRequestAutoMerge":{"pullRequest":{"number":5}}}}""" });
 
@@ -460,8 +418,7 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task Api_Get_DisablesJq_PassesMethod()
-    {
+    public async Task Api_Get_DisablesJq_PassesMethod() {
         _api.NextResponse = new GitHubApiResponse { Success = true, StatusCode = 200, Body = """{"id":1,"name":"repo"}""" };
 
         var result = await _handler.GhApiAsync("repos/owner/repo", method: "GET");
@@ -472,10 +429,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task ReleaseDownload_NoMatchingAsset_ReturnsError()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task ReleaseDownload_NoMatchingAsset_ReturnsError() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"assets":[{"name":"file.zip","browser_download_url":"https://x/file.zip"}]}""",
@@ -488,10 +443,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task ReleaseDownload_Success_DownloadsAllAssets()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task ReleaseDownload_Success_DownloadsAllAssets() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"assets":[{"name":"a.zip","browser_download_url":"https://x/a.zip"},{"name":"b.tar.gz","browser_download_url":"https://x/b.tar.gz"}]}""",
@@ -509,10 +462,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task ReleaseDownload_ViewFails_PropagatesError()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task ReleaseDownload_ViewFails_PropagatesError() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = false,
             StatusCode = 404,
             Error = "release not found",
@@ -525,10 +476,8 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task ReleaseList_Success_ReturnsSummarizedJson()
-    {
-        _api.NextResponse = new GitHubApiResponse
-        {
+    public async Task ReleaseList_Success_ReturnsSummarizedJson() {
+        _api.NextResponse = new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """[{"id":123,"tag_name":"v1.0","name":"Release v1.0","draft":false,"prerelease":false,"created_at":"2026-09-01T00:00:00Z","published_at":"2026-09-01T00:00:00Z","body":"notes","url":"https://api.github.com/repos/o/r/releases/123","assets_url":"https://api.github.com/repos/o/r/releases/123/assets","upload_url":"https://uploads.github.com/repos/o/r/releases/123/assets{?name,label}","html_url":"https://github.com/o/r/releases/tag/v1.0","author":{"login":"user","url":"https://api.github.com/users/user","avatar_url":"https://avatars.githubusercontent.com/u/1?v=4"},"assets":[{"name":"file.zip","size":1024,"browser_download_url":"https://github.com/o/r/releases/download/v1.0/file.zip"}]}]""",
@@ -548,28 +497,23 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task BranchSyncProtection_Success_UpdatesRequiredStatusChecks()
-    {
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+    public async Task BranchSyncProtection_Success_UpdatesRequiredStatusChecks() {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"head":{"sha":"abc123"}}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"check_runs":[{"name":"build / Build"},{"name":"unit-tests / test"},{"name":"e2e / smoke"}]}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"strict":true,"contexts":["Build","unit-tests"]}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"strict":true,"contexts":["build / Build","unit-tests / test","e2e / smoke"]}""",
@@ -589,22 +533,18 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task BranchSyncProtection_NoProtection_ReturnsError()
-    {
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+    public async Task BranchSyncProtection_NoProtection_ReturnsError() {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"head":{"sha":"abc123"}}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"check_runs":[{"name":"build"}]}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = false,
             StatusCode = 404,
             Error = "Branch not protected",
@@ -617,16 +557,13 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task BranchSyncProtection_NoChecks_ReturnsError()
-    {
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+    public async Task BranchSyncProtection_NoChecks_ReturnsError() {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"head":{"sha":"abc123"}}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"check_runs":[]}""",
@@ -639,28 +576,23 @@ public sealed class GitHubToolHandlersTests
     }
 
     [Fact]
-    public async Task BranchSyncProtection_PutBodyContainsAllCheckNames()
-    {
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+    public async Task BranchSyncProtection_PutBodyContainsAllCheckNames() {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"head":{"sha":"abc123"}}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"check_runs":[{"name":"build"},{"name":"test"},{"name":"lint"}]}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"strict":false,"contexts":["old-check"]}""",
         });
-        _api.EnqueueResponse(new GitHubApiResponse
-        {
+        _api.EnqueueResponse(new GitHubApiResponse {
             Success = true,
             StatusCode = 200,
             Body = """{"strict":false,"contexts":["build","test","lint"]}""",
@@ -678,11 +610,9 @@ public sealed class GitHubToolHandlersTests
     }
 }
 
-internal sealed class FakeGitHubApiClient : IGitHubApiClient
-{
+internal sealed class FakeGitHubApiClient : IGitHubApiClient {
     private readonly Queue<GitHubApiResponse> _responses = new();
-    public GitHubApiResponse NextResponse
-    {
+    public GitHubApiResponse NextResponse {
         get => _responses.Count > 0 ? _responses.Peek() : _default;
         set { _responses.Clear(); _responses.Enqueue(value); }
     }
@@ -693,8 +623,7 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient
     public void EnqueueResponse(GitHubApiResponse response) => _responses.Enqueue(response);
     public IEnumerable<string> NextLogLines { get; set; } = Array.Empty<string>();
 
-    public Task<GitHubApiResponse> SendAsync(HttpMethod method, string path, string? body = null, IReadOnlyDictionary<string, string>? query = null, bool paginate = false, CancellationToken ct = default)
-    {
+    public Task<GitHubApiResponse> SendAsync(HttpMethod method, string path, string? body = null, IReadOnlyDictionary<string, string>? query = null, bool paginate = false, CancellationToken ct = default) {
         LastMethod = method;
         LastPath = path;
         LastBody = body;
@@ -702,45 +631,37 @@ internal sealed class FakeGitHubApiClient : IGitHubApiClient
         return Task.FromResult(response);
     }
 
-    public async IAsyncEnumerable<string> GetRunLogsAsync(string owner, string repo, long runId, [EnumeratorCancellation] CancellationToken ct = default)
-    {
-        foreach (var line in NextLogLines)
-        {
+    public async IAsyncEnumerable<string> GetRunLogsAsync(string owner, string repo, long runId, [EnumeratorCancellation] CancellationToken ct = default) {
+        foreach (var line in NextLogLines) {
             ct.ThrowIfCancellationRequested();
             yield return line;
         }
     }
 
-    public async IAsyncEnumerable<string> GetJobLogsAsync(string owner, string repo, long jobId, [EnumeratorCancellation] CancellationToken ct = default)
-    {
-        foreach (var line in NextLogLines)
-        {
+    public async IAsyncEnumerable<string> GetJobLogsAsync(string owner, string repo, long jobId, [EnumeratorCancellation] CancellationToken ct = default) {
+        foreach (var line in NextLogLines) {
             ct.ThrowIfCancellationRequested();
             yield return line;
         }
     }
 
-    public Task<GitHubApiResponse> UploadAssetAsync(string owner, string repo, long releaseId, string fileName, Stream fileStream, CancellationToken ct = default)
-    {
+    public Task<GitHubApiResponse> UploadAssetAsync(string owner, string repo, long releaseId, string fileName, Stream fileStream, CancellationToken ct = default) {
         LastMethod = HttpMethod.Post;
         LastPath = $"repos/{owner}/{repo}/releases/{releaseId}/assets";
         return Task.FromResult(NextResponse);
     }
 }
 
-internal sealed class FakeDownloader : IDownloader
-{
+internal sealed class FakeDownloader : IDownloader {
     public DownloadResult NextResult { get; set; } = new(true, "", 100, 100, TimeSpan.Zero, DownloadState.Completed);
     public int StartCallCount { get; private set; }
-    public IDownloadSession StartDownload(string url, string filePath, DownloadOptions? options = null, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
-    {
+    public IDownloadSession StartDownload(string url, string filePath, DownloadOptions? options = null, IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default) {
         StartCallCount++;
         return new FakeDownloadSession { Result = NextResult with { FilePath = filePath } };
     }
 }
 
-internal sealed class FakeDownloadSession : IDownloadSession
-{
+internal sealed class FakeDownloadSession : IDownloadSession {
     public DownloadResult Result { get; set; } = new(true, "", 0, 0, TimeSpan.Zero, DownloadState.Completed);
     public DownloadState State => Result.FinalState;
     public Task PauseAsync(CancellationToken ct = default) => Task.CompletedTask;

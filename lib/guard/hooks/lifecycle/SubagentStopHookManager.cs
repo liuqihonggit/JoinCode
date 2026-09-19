@@ -5,8 +5,7 @@ namespace Core.Hooks.Lifecycle;
 /// 带 60 秒超时保护,超时后自动放行避免阻塞释放
 /// </summary>
 [Register(typeof(ISubagentStopHookManager), ServiceLifetime.Singleton)]
-public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentStopHookManager
-{
+public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentStopHookManager {
     private readonly IHookOrchestrator _orchestrator;
     private readonly ILogger<SubagentStopHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -15,21 +14,18 @@ public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentSt
     /// <summary>
     /// 构造函数 — 注入 Hook 编排器、可选的日志器和遥测服务
     /// </summary>
-    public SubagentStopHookManager(IHookOrchestrator orchestrator, ILogger<SubagentStopHookManager>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public SubagentStopHookManager(IHookOrchestrator orchestrator, ILogger<SubagentStopHookManager>? logger = null, ITelemetryService? telemetryService = null) {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _logger = logger;
         _telemetryService = telemetryService;
     }
 
     /// <inheritdoc />
-    public async Task<SubagentStopHookResult> OnSubagentStopAsync(SubagentStopHookContext context, CancellationToken ct = default)
-    {
+    public async Task<SubagentStopHookResult> OnSubagentStopAsync(SubagentStopHookContext context, CancellationToken ct = default) {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(HookTimeout);
 
-        var payload = new Dictionary<string, JsonElement>
-        {
+        var payload = new Dictionary<string, JsonElement> {
             ["sessionId"] = JsonElementHelper.FromString(context.SessionId),
             ["agentId"] = JsonElementHelper.FromString(context.AgentId),
             ["agentType"] = JsonElementHelper.FromString(context.AgentType),
@@ -38,30 +34,25 @@ public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentSt
             ["executionTimeMs"] = JsonElementHelper.FromInt64(context.ExecutionTimeMs ?? 0),
         };
 
-        if (context.WorktreePath is not null)
-        {
+        if (context.WorktreePath is not null) {
             payload["worktreePath"] = JsonElementHelper.FromString(context.WorktreePath);
         }
 
-        if (context.Metadata.Count > 0)
-        {
+        if (context.Metadata.Count > 0) {
             payload["metadata"] = JsonSerializer.SerializeToElement(context.Metadata, HooksJsonContext.Default.DictionaryStringJsonElement);
         }
 
         var additionalData = new Dictionary<string, JsonElement>();
         var wasBlocked = false;
 
-        try
-        {
+        try {
             await foreach (var result in _orchestrator.ExecuteHooksAsync(
                 HookEvent.SubagentStop,
                 payload,
                 matcher: context.AgentType,
                 sessionId: context.SessionId,
-                cancellationToken: timeoutCts.Token).ConfigureAwait(false))
-            {
-                if (result.Outcome == HookOutcome.Blocking)
-                {
+                cancellationToken: timeoutCts.Token).ConfigureAwait(false)) {
+                if (result.Outcome == HookOutcome.Blocking) {
                     _logger?.LogInformation("SubagentStop hook blocked disposal for agent {AgentId}: {Message}",
                         context.AgentId, result.Message);
 
@@ -70,24 +61,19 @@ public sealed partial class SubagentStopHookManager : ServiceEntity, ISubagentSt
                     return SubagentStopHookResult.Block(result.Message);
                 }
 
-                if (result.PreventContinuation)
-                {
+                if (result.PreventContinuation) {
                     wasBlocked = true;
                     RecordSubagentStopHookMetrics(context.AgentType, true);
                     return SubagentStopHookResult.Block(result.Message);
                 }
 
-                if (result.UpdatedInput != null)
-                {
-                    foreach (var kvp in result.UpdatedInput)
-                    {
+                if (result.UpdatedInput != null) {
+                    foreach (var kvp in result.UpdatedInput) {
                         additionalData[kvp.Key] = kvp.Value;
                     }
                 }
             }
-        }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested) {
             _logger?.LogWarning("SubagentStop hook timed out after {TimeoutMs}ms for agent {AgentId}, auto-proceeding",
                 HookTimeout.TotalMilliseconds, context.AgentId);
         }

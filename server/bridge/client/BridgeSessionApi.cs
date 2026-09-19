@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// 独立的服务层，提供会话 CRUD 操作
 /// 使用 StringBuilder 构建 JSON（AOT 兼容）
 /// </summary>
-public static class BridgeSessionApi
-{
+public static class BridgeSessionApi {
     private const string BetaHeader = "ccr-byoc-2025-07-29";
     private const int DefaultTimeoutMs = 10_000;
 
@@ -28,10 +27,8 @@ public static class BridgeSessionApi
         string orgUUID,
         string? permissionMode,
         HttpClient httpClient,
-        CancellationToken ct = default)
-    {
-        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(orgUUID))
-        {
+        CancellationToken ct = default) {
+        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(orgUUID)) {
             return null;
         }
 
@@ -43,8 +40,7 @@ public static class BridgeSessionApi
         sb.Append("{\"environment_id\":\"").Append(EscapeJsonString(environmentId)).Append("\",");
         sb.Append("\"source\":\"remote-control\",");
 
-        if (!string.IsNullOrEmpty(title))
-        {
+        if (!string.IsNullOrEmpty(title)) {
             sb.Append("\"title\":").Append(EscapeJsonString(title)).Append(',');
         }
 
@@ -52,27 +48,22 @@ public static class BridgeSessionApi
 
         var hasSources = !string.IsNullOrEmpty(gitSourceJson);
         sb.Append(",\"session_context\":{\"sources\":");
-        if (hasSources)
-        {
+        if (hasSources) {
             sb.Append('[').Append(gitSourceJson).Append(']');
-        }
-        else
-        {
+        } else {
             sb.Append("[]");
         }
 
         sb.Append(",\"outcomes\":[]");
         sb.Append("}");
 
-        if (!string.IsNullOrEmpty(permissionMode))
-        {
+        if (!string.IsNullOrEmpty(permissionMode)) {
             sb.Append(",\"permission_mode\":").Append(EscapeJsonString(permissionMode));
         }
 
         var jsonBody = sb.ToString();
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl.TrimEnd('/')}/v1/code/sessions")
-        {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl.TrimEnd('/')}/v1/code/sessions") {
             Content = new StringContent(jsonBody, Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -81,71 +72,56 @@ public static class BridgeSessionApi
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
-        try
-        {
+        try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
 
             var status = (int)response.StatusCode;
-            if (status >= 500 || status < 200 || status > 201)
-            {
+            if (status >= 500 || status < 200 || status > 201) {
                 return null;
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             return ExtractSessionId(responseJson);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
     /// <summary>构建 git source JSON 字符串 — 对齐 TS 端 parseGitRemote</summary>
-    private static string? BuildGitSource(string? gitRepoUrl, string branch)
-    {
-        if (string.IsNullOrEmpty(gitRepoUrl))
-        {
+    private static string? BuildGitSource(string? gitRepoUrl, string branch) {
+        if (string.IsNullOrEmpty(gitRepoUrl)) {
             return null;
         }
 
         var url = gitRepoUrl.Trim();
         string? owner = null, name = null;
-        string host = "github.com";
+        var host = "github.com";
 
         var repoMatch = System.Text.RegularExpressions.Regex.Match(url, @"(?:[^/]+/){3}([^/]+)/([^/.]+)");
-        if (repoMatch.Success)
-        {
+        if (repoMatch.Success) {
             owner = repoMatch.Groups[1].Value;
             name = repoMatch.Groups[2].Value;
             var hm = System.Text.RegularExpressions.Regex.Match(url, @"^https?://([^/]+)");
-            if (hm.Success)
-            {
+            if (hm.Success) {
                 host = hm.Groups[1].Value;
             }
-        }
-        else
-        {
+        } else {
             var sm = System.Text.RegularExpressions.Regex.Match(url, @"^([^/]+)/([^/]+)$");
-            if (sm.Success)
-            {
+            if (sm.Success) {
                 owner = sm.Groups[1].Value;
                 name = sm.Groups[2].Value;
-            }
-            else
-            {
+            } else {
                 return null;
             }
         }
 
-        if (string.IsNullOrEmpty(owner) || string.IsNullOrEmpty(name))
-        {
+        if (string.IsNullOrEmpty(owner) || string.IsNullOrEmpty(name)) {
             return null;
         }
 
         var sb = new StringBuilder(128);
         sb.Append("{\"type\":\"git_repository\",\"url\":\"https://").Append(EscapeJsonString($"{host}/{owner}/{name}"));
-        if (!string.IsNullOrEmpty(branch))
-        {
+        if (!string.IsNullOrEmpty(branch)) {
             sb.Append("\",\"revision\":").Append(EscapeJsonString(branch));
         }
         sb.Append('}');
@@ -153,17 +129,14 @@ public static class BridgeSessionApi
     }
 
     /// <summary>构建 events JSON 字符串 — 对齐 TS 端 SessionEvent[]</summary>
-    private static string BuildEventsJson(string[] events)
-    {
-        if (events is null or { Length: 0 })
-        {
+    private static string BuildEventsJson(string[] events) {
+        if (events is null or { Length: 0 }) {
             return "[]";
         }
 
         var sb = new StringBuilder(events.Length * 64);
         sb.Append('[');
-        for (var i = 0; i < events.Length; i++)
-        {
+        for (var i = 0; i < events.Length; i++) {
             if (i > 0) sb.Append(',');
             sb.Append("{\"type\":\"event\",\"data\":").Append(events[i]).Append('}');
         }
@@ -185,10 +158,8 @@ public static class BridgeSessionApi
         string accessToken,
         string orgUUID,
         HttpClient httpClient,
-        CancellationToken ct = default)
-    {
-        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(orgUUID))
-        {
+        CancellationToken ct = default) {
+        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(orgUUID)) {
             return (null, null);
         }
 
@@ -202,11 +173,9 @@ public static class BridgeSessionApi
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
-        try
-        {
+        try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
+            if (response.StatusCode != HttpStatusCode.OK) {
                 return (null, null);
             }
 
@@ -214,9 +183,7 @@ public static class BridgeSessionApi
             var envId = ExtractJsonString(responseJson, "environment_id");
             var title = ExtractJsonString(responseJson, "title");
             return (envId, title);
-        }
-        catch
-        {
+        } catch {
             return (null, null);
         }
     }
@@ -237,10 +204,8 @@ public static class BridgeSessionApi
         string orgUUID,
         HttpClient httpClient,
         CancellationToken ct = default,
-        ILogger? logger = null)
-    {
-        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(title))
-        {
+        ILogger? logger = null) {
+        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(title)) {
             return;
         }
 
@@ -248,8 +213,7 @@ public static class BridgeSessionApi
         var url = $"{baseUrl.TrimEnd('/')}/v1/sessions/{compatId}";
 
         var body = "{\"title\":" + EscapeJsonString(title) + '}';
-        var request = new HttpRequestMessage(new HttpMethod("PATCH"), url)
-        {
+        var request = new HttpRequestMessage(new HttpMethod("PATCH"), url) {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -258,13 +222,10 @@ public static class BridgeSessionApi
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
-        try
-        {
+        try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
             _ = response;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // best-effort
             logger?.LogWarning(ex, "[BridgeSessionApi] Send request failed");
         }
@@ -285,18 +246,15 @@ public static class BridgeSessionApi
         string? orgUUID,
         int timeoutMs,
         HttpClient httpClient,
-        CancellationToken ct = default)
-    {
-        if (string.IsNullOrEmpty(accessToken))
-        {
+        CancellationToken ct = default) {
+        if (string.IsNullOrEmpty(accessToken)) {
             return "skipped_no_token";
         }
 
         var compatId = SessionIdCompat.ToCompatSessionId(sessionId);
         var url = $"{baseUrl.TrimEnd('/')}/v1/sessions/{compatId}/archive";
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url)
-        {
+        var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent("{}", Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -306,30 +264,23 @@ public static class BridgeSessionApi
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(timeoutMs));
 
-        try
-        {
+        try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
 
             var statusCode = (int)response.StatusCode;
-            if (response.IsSuccessStatusCode)
-            {
+            if (response.IsSuccessStatusCode) {
                 return "ok";
             }
 
             // 409 = 已归档
-            if (statusCode == 409)
-            {
+            if (statusCode == 409) {
                 return "already_archived";
             }
 
             return statusCode >= 400 && statusCode < 500 ? "server_4xx" : "server_5xx";
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             return "timeout";
-        }
-        catch (HttpRequestException)
-        {
+        } catch (HttpRequestException) {
             return "network_error";
         }
     }
@@ -349,18 +300,15 @@ public static class BridgeSessionApi
         string accessToken,
         string orgUUID,
         HttpClient httpClient,
-        CancellationToken ct = default)
-    {
-        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(orgUUID))
-        {
+        CancellationToken ct = default) {
+        if (string.IsNullOrEmpty(accessToken) || string.IsNullOrEmpty(orgUUID)) {
             return null;
         }
 
         var url = $"{baseUrl.TrimEnd('/')}/v1/environments/{environmentId}/bridge/reconnect";
 
         var body = "{\"session_id\":" + EscapeJsonString(sessionId) + '}';
-        var request = new HttpRequestMessage(HttpMethod.Post, url)
-        {
+        var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -369,21 +317,17 @@ public static class BridgeSessionApi
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
-        try
-        {
+        try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
 
             var status = (int)response.StatusCode;
-            if (status >= 500 || status != 200)
-            {
+            if (status >= 500 || status != 200) {
                 return null;
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             return ExtractJsonString(responseJson, "sdk_url");
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -397,8 +341,7 @@ public static class BridgeSessionApi
         string environmentId,
         string sessionId,
         HttpClient httpClient,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(httpClient);
 
         var url = $"/v1/environments/bridge/{environmentId}/sessions/{sessionId}/bridge/reconnect";
@@ -408,19 +351,16 @@ public static class BridgeSessionApi
             .Append(EscapeJsonString(sessionId))
             .Append("\"}");
 
-        var request = new HttpRequestMessage(HttpMethod.Post, url)
-        {
+        var request = new HttpRequestMessage(HttpMethod.Post, url) {
             Content = new StringContent(body.ToString(), Encoding.UTF8, "application/json"),
         };
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(DefaultTimeoutMs));
 
-        try
-        {
+        try {
             using var response = await httpClient.SendAsync(request, cts.Token).ConfigureAwait(false);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            {
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
                 return null; // caller 处理 401
             }
 
@@ -428,9 +368,7 @@ public static class BridgeSessionApi
 
             var responseJson = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(responseJson, BridgeJsonContext.Default.BridgeReconnectResponse);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -440,12 +378,10 @@ public static class BridgeSessionApi
     #region JSON 辅助方法
 
     /// <summary>提取 session ID 字段 — 对齐 TS 端: sessionData.id</summary>
-    private static string? ExtractSessionId(string json)
-    {
+    private static string? ExtractSessionId(string json) {
         const string key = "\"id\":";
         var idx = json.IndexOf(key, StringComparison.Ordinal);
-        if (idx < 0)
-        {
+        if (idx < 0) {
             return null;
         }
 
@@ -453,8 +389,7 @@ public static class BridgeSessionApi
         // 跳过空白
         while (idx < json.Length && char.IsWhiteSpace(json[idx])) idx++;
 
-        if (idx >= json.Length || json[idx] != '"')
-        {
+        if (idx >= json.Length || json[idx] != '"') {
             return null;
         }
 
@@ -466,20 +401,17 @@ public static class BridgeSessionApi
     }
 
     /// <summary>从 JSON 字符串中提取字段值（简单解析，AOT 兼容）</summary>
-    private static string? ExtractJsonString(string json, string fieldName)
-    {
+    private static string? ExtractJsonString(string json, string fieldName) {
         var key = $"\"{fieldName}\":";
         var idx = json.IndexOf(key, StringComparison.Ordinal);
-        if (idx < 0)
-        {
+        if (idx < 0) {
             return null;
         }
 
         idx += key.Length;
         while (idx < json.Length && char.IsWhiteSpace(json[idx])) idx++;
 
-        if (idx >= json.Length || json[idx] != '"')
-        {
+        if (idx >= json.Length || json[idx] != '"') {
             return null;
         }
 
@@ -491,34 +423,27 @@ public static class BridgeSessionApi
     }
 
     /// <summary>转义 JSON 字符串值 — 防止注入</summary>
-    private static string EscapeJsonString(ReadOnlySpan<char> value)
-    {
-        if (value.Length == 0)
-        {
+    private static string EscapeJsonString(ReadOnlySpan<char> value) {
+        if (value.Length == 0) {
             return "\"\"";
         }
 
         var needsEscape = false;
-        foreach (var c in value)
-        {
-            if (c is '"' or '\\' or '\n' or '\r' or '\t')
-            {
+        foreach (var c in value) {
+            if (c is '"' or '\\' or '\n' or '\r' or '\t') {
                 needsEscape = true;
                 break;
             }
         }
 
-        if (!needsEscape)
-        {
+        if (!needsEscape) {
             return "\"" + value.ToString() + "\"";
         }
 
         var sb = new StringBuilder(value.Length + 16);
         sb.Append('"');
-        foreach (var c in value)
-        {
-            switch (c)
-            {
+        foreach (var c in value) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;

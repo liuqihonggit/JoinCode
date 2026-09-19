@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Agent 通道信息 — 合并通道偏好 + 聊天室角色为单一不可变记录
 /// </summary>
-internal sealed record AgentChannelInfo
-{
+internal sealed record AgentChannelInfo {
     /// <summary>通道类型</summary>
     public required MailboxKind Channel { get; init; }
 
@@ -16,8 +15,7 @@ internal sealed record AgentChannelInfo
 /// Agent 通道注册表 — 管理 agent 的通道偏好和聊天室角色
 /// 持有以 agentId 为 key 的合并字典，提供注册、注销、查询、遍历操作
 /// </summary>
-internal sealed class AgentChannelRegistry
-{
+internal sealed class AgentChannelRegistry {
     private readonly ConcurrentDictionary<string, AgentChannelInfo> _entries = new();
 
     // ── 查询 ──
@@ -48,10 +46,8 @@ internal sealed class AgentChannelRegistry
             (_, old) => old with { Channel = channel });
 
     /// <summary>注销 agent（返回是否找到，并输出通道类型用于后续清理）</summary>
-    public bool Unregister(string agentId, out MailboxKind channel)
-    {
-        if (_entries.TryRemove(agentId, out var info))
-        {
+    public bool Unregister(string agentId, out MailboxKind channel) {
+        if (_entries.TryRemove(agentId, out var info)) {
             channel = info.Channel;
             return true;
         }

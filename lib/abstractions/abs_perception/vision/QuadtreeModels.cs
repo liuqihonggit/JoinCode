@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 四叉树象限 — 左下起算（对齐"格子左下角编号"原则）
 /// </summary>
-public enum Quadrant
-{
+public enum Quadrant {
     [EnumValue("SW")] SW,
     [EnumValue("SE")] SE,
     [EnumValue("NW")] NW,
@@ -14,8 +13,7 @@ public enum Quadrant
 /// <summary>
 /// 八方位方向 — 用于格子间邻居导航，补四叉树数字编码缺乏的四周感知
 /// </summary>
-public enum CardinalDirection
-{
+public enum CardinalDirection {
     [EnumValue("N")] N,
     [EnumValue("S")] S,
     [EnumValue("W")] W,

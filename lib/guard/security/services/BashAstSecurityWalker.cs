@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// Bash AST 安全步行器实现 — 基于 TreeSitter 解析 Bash 命令并提取简单命令列表,FAIL-CLOSED 设计
 /// </summary>
 [Register(typeof(IBashAstSecurityWalker), ServiceLifetime.Singleton)]
-public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecurityWalker, IDisposable
-{
+public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecurityWalker, IDisposable {
     private const string CmdsubPlaceholder = "__CMDSUB_OUTPUT__";
     private const string VarPlaceholder = "__TRACKED_VAR__";
 
@@ -20,15 +19,13 @@ public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecur
     /// <summary>
     /// 构造 Bash AST 安全步行器,初始化 TreeSitter Bash 语言解析器
     /// </summary>
-    public BashAstSecurityWalker()
-    {
+    public BashAstSecurityWalker() {
         _language = new TreeSitter.Language("bash");
         _parser = new TreeSitter.Parser(_language);
     }
 
     /// <inheritdoc />
-    public BashAstSecurityResult ParseForSecurity(string command)
-    {
+    public BashAstSecurityResult ParseForSecurity(string command) {
         if (string.IsNullOrEmpty(command))
             return new BashAstSecurityResult.Simple([]);
 
@@ -40,13 +37,10 @@ public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecur
             return new BashAstSecurityResult.Simple([]);
 
         Node? root;
-        try
-        {
+        try {
             var tree = _parser.Parse(command);
             root = tree?.RootNode;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return new BashAstSecurityResult.TooComplex(
                 $"Bash解析异常: {ex.Message}", "PARSE_EXCEPTION");
         }
@@ -60,8 +54,7 @@ public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecur
         return WalkProgram(root);
     }
 
-    private static BashAstSecurityResult WalkProgram(Node root)
-    {
+    private static BashAstSecurityResult WalkProgram(Node root) {
         var commands = new List<BashSimpleCommandInfo>();
         var varScope = new Dictionary<string, string>();
 
@@ -72,11 +65,10 @@ public sealed partial class BashAstSecurityWalker : ServiceEntity, IBashAstSecur
     }
 
     /// <inheritdoc />
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _parser.Dispose();
         _language.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }

@@ -3,8 +3,7 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// P3 复合操作 + 进程干预单元测试
 /// </summary>
-public sealed class P3CompoundOperationTests
-{
+public sealed class P3CompoundOperationTests {
     private static DesktopOperation SuccessOp() =>
         new(DesktopOperationKind.Click, 0, 0, null, MouseAction.Click, null, DateTimeOffset.UtcNow, true, null);
 
@@ -14,8 +13,7 @@ public sealed class P3CompoundOperationTests
     #region ParseCoordinateList
 
     [Fact]
-    public void ParseCoordinateList_ValidInput_ReturnsPoints()
-    {
+    public void ParseCoordinateList_ValidInput_ReturnsPoints() {
         var result = CompoundOperationToolHandlers.ParseCoordinateList("100,200;300,400;500,600");
 
         result.Should().HaveCount(3);
@@ -25,24 +23,21 @@ public sealed class P3CompoundOperationTests
     }
 
     [Fact]
-    public void ParseCoordinateList_SinglePair_ReturnsOnePoint()
-    {
+    public void ParseCoordinateList_SinglePair_ReturnsOnePoint() {
         var result = CompoundOperationToolHandlers.ParseCoordinateList("50,75");
         result.Should().HaveCount(1);
         result[0].Should().Be((50, 75));
     }
 
     [Fact]
-    public void ParseCoordinateList_InvalidInput_ReturnsEmpty()
-    {
+    public void ParseCoordinateList_InvalidInput_ReturnsEmpty() {
         CompoundOperationToolHandlers.ParseCoordinateList("").Should().BeEmpty();
         CompoundOperationToolHandlers.ParseCoordinateList("abc").Should().BeEmpty();
         CompoundOperationToolHandlers.ParseCoordinateList("1,2;abc;3,4").Should().HaveCount(2);
     }
 
     [Fact]
-    public void ParseCoordinateList_WithSpaces_ParsesCorrectly()
-    {
+    public void ParseCoordinateList_WithSpaces_ParsesCorrectly() {
         var result = CompoundOperationToolHandlers.ParseCoordinateList(" 100 , 200 ; 300 , 400 ");
         result.Should().HaveCount(2);
         result[0].Should().Be((100, 200));
@@ -53,8 +48,7 @@ public sealed class P3CompoundOperationTests
     #region RightClickMenuAsync
 
     [Fact]
-    public async Task RightClickMenu_BothClicksSucceed_ReturnsSuccess()
-    {
+    public async Task RightClickMenu_BothClicksSucceed_ReturnsSuccess() {
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SuccessOp());
@@ -72,8 +66,7 @@ public sealed class P3CompoundOperationTests
     }
 
     [Fact]
-    public async Task RightClickMenu_RightClickFails_ReturnsError()
-    {
+    public async Task RightClickMenu_RightClickFails_ReturnsError() {
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), MouseAction.RightClick, It.IsAny<CancellationToken>()))
             .ReturnsAsync(FailOp("右键失败"));
@@ -90,8 +83,7 @@ public sealed class P3CompoundOperationTests
     #region DragWithHoverAsync
 
     [Fact]
-    public async Task DragWithHover_DragSucceeds_NoPopupItem_ReturnsSuccess()
-    {
+    public async Task DragWithHover_DragSucceeds_NoPopupItem_ReturnsSuccess() {
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.DragAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SuccessOp());
@@ -105,8 +97,7 @@ public sealed class P3CompoundOperationTests
     }
 
     [Fact]
-    public async Task DragWithHover_WithPopupItem_ClicksPopupItem()
-    {
+    public async Task DragWithHover_WithPopupItem_ClicksPopupItem() {
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.DragAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SuccessOp());
@@ -122,8 +113,7 @@ public sealed class P3CompoundOperationTests
     }
 
     [Fact]
-    public async Task DragWithHover_DragFails_ReturnsError()
-    {
+    public async Task DragWithHover_DragFails_ReturnsError() {
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.DragAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(FailOp("拖拽失败"));
@@ -140,8 +130,7 @@ public sealed class P3CompoundOperationTests
     #region MultiClickAsync
 
     [Fact]
-    public async Task MultiClick_ValidCoordinates_ClicksAllPoints()
-    {
+    public async Task MultiClick_ValidCoordinates_ClicksAllPoints() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         var inputMock = new Mock<IDesktopInputService>();
         inputMock.Setup(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()))
@@ -150,22 +139,18 @@ public sealed class P3CompoundOperationTests
 
         var result = await handler.MultiClickAsync("100,200;300,400;500,600", 100);
 
-        if (env.IsInteractive)
-        {
+        if (env.IsInteractive) {
             result.IsError.Should().BeFalse();
             result.Content[0].Text.Should().Contain("3 步点击序列");
             inputMock.Verify(i => i.ClickAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<MouseAction>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
-        }
-        else
-        {
+        } else {
             result.IsError.Should().BeTrue("非交互式环境应返回错误");
             result.Content[0].Text.Should().Contain("非交互式桌面环境");
         }
     }
 
     [Fact]
-    public async Task MultiClick_InvalidCoordinates_ReturnsError()
-    {
+    public async Task MultiClick_InvalidCoordinates_ReturnsError() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
         var inputMock = new Mock<IDesktopInputService>();
         var handler = new CompoundOperationToolHandlers(inputMock.Object);
@@ -184,8 +169,7 @@ public sealed class P3CompoundOperationTests
     #region ProcessToolHandlers
 
     [Fact]
-    public async Task ListProcesses_NoFilter_ReturnsNonEmptyList()
-    {
+    public async Task ListProcesses_NoFilter_ReturnsNonEmptyList() {
         var handler = new ProcessToolHandlers();
 
         var result = await handler.ListProcessesAsync();
@@ -195,8 +179,7 @@ public sealed class P3CompoundOperationTests
     }
 
     [Fact]
-    public async Task ListProcesses_WithNameFilter_ReturnsFiltered()
-    {
+    public async Task ListProcesses_WithNameFilter_ReturnsFiltered() {
         var handler = new ProcessToolHandlers();
 
         var result = await handler.ListProcessesAsync("notepad");
@@ -207,8 +190,7 @@ public sealed class P3CompoundOperationTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task StartAndKillProcess_Notepad_StartedThenKilled()
-    {
+    public async Task StartAndKillProcess_Notepad_StartedThenKilled() {
         var handler = new ProcessToolHandlers();
 
         var startResult = await handler.StartProcessAsync("notepad.exe");
@@ -227,8 +209,7 @@ public sealed class P3CompoundOperationTests
     }
 
     [Fact]
-    public async Task KillProcess_NonExistentName_ReturnsError()
-    {
+    public async Task KillProcess_NonExistentName_ReturnsError() {
         var handler = new ProcessToolHandlers();
 
         var result = await handler.KillProcessAsync(name: "nonexistent_process_xyz_12345");

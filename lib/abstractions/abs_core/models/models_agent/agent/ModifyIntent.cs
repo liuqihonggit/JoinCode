@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 文件修改意图 — 热点识别的双意图基础
 /// [EnumValue] 由 EnumMetadataGenerator 自动生成 ModifyIntentEnumConstants + ModifyIntentExtensions
 /// </summary>
-public enum ModifyIntent
-{
+public enum ModifyIntent {
     /// <summary>
     /// 内部修改 — 实现细节变更，不改变对外契约（如方法体重构、私有字段调整、注释补充）
     /// 允许多 Worker 并行修改同一文件，不触发热点

@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Hooks;
 /// 派生接口: ISessionStartHookManager, ISubagentStopHookManager
 /// 不适用: ICompactHookManager（双事件）, IPostSamplingCallbackManager（注册+触发）, ISessionHookManager（集合管理）, IQueryStopHookManager（注册+执行）
 /// </summary>
-public interface IHookHandler<TContext, TResult>
-{
+public interface IHookHandler<TContext, TResult> {
     /// <summary>
     /// 执行钩子 — 返回结果含 ShouldProceed 标记
     /// </summary>

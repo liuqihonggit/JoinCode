@@ -3,8 +3,7 @@ namespace MockServer.Core;
 /// <summary>
 /// MockServer 配置文件模型 — 通过 JSON 文件配置端口和预设响应脚本
 /// </summary>
-public sealed class MockServerConfig : MockServerConfigBase<MockServerConfig>
-{
+public sealed class MockServerConfig : MockServerConfigBase<MockServerConfig> {
     /// <summary>
     /// 预设响应脚本序列 — 按请求顺序返回，支持工具调用
     /// </summary>
@@ -38,8 +37,7 @@ public sealed class MockServerConfig : MockServerConfigBase<MockServerConfig>
 /// <summary>
 /// 预设响应轮次 — 对应一次 LLM 请求的响应
 /// </summary>
-public sealed class ScriptedTurn
-{
+public sealed class ScriptedTurn {
     /// <summary>
     /// 文本响应（与 ToolCalls 互斥，ToolCalls 优先）
     /// </summary>
@@ -69,8 +67,7 @@ public sealed class ScriptedTurn
 /// <summary>
 /// 工具调用配置 — 模拟 LLM 返回的工具调用请求
 /// </summary>
-public sealed class ToolCallConfig
-{
+public sealed class ToolCallConfig {
     /// <summary>
     /// 工具名称（如 "read"、"write"）
     /// </summary>

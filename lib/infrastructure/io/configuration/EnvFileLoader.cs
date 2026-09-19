@@ -5,8 +5,7 @@ namespace Infrastructure.IO.Configuration;
 /// 轻量 .env 文件加载器 — 不依赖第三方包，兼容 NativeAOT
 /// 格式: KEY=VALUE，支持 # 注释，忽略空行和引号包裹
 /// </summary>
-public static class EnvFileLoader
-{
+public static class EnvFileLoader {
     /// <summary>
     /// 从指定 .env 文件加载环境变量到当前进程
     /// </summary>
@@ -14,14 +13,12 @@ public static class EnvFileLoader
     /// <param name="fs">文件系统抽象</param>
     /// <param name="overwrite">是否覆盖已存在的环境变量（默认 false）</param>
     /// <returns>实际加载的变量数量</returns>
-    public static int Load(string envFilePath, IFileSystem fs, bool overwrite = false)
-    {
+    public static int Load(string envFilePath, IFileSystem fs, bool overwrite = false) {
         if (!fs.FileExists(envFilePath))
             return 0;
 
         var count = 0;
-        foreach (var line in fs.ReadAllLines(envFilePath))
-        {
+        foreach (var line in fs.ReadAllLines(envFilePath)) {
             var trimmed = line.AsSpan().Trim();
 
             // 跳过空行和注释
@@ -38,8 +35,7 @@ public static class EnvFileLoader
             // 去除引号包裹
             if (value.Length >= 2 &&
                 ((value[0] == '"' && value[^1] == '"') ||
-                 (value[0] == '\'' && value[^1] == '\'')))
-            {
+                 (value[0] == '\'' && value[^1] == '\''))) {
                 value = value[1..^1];
             }
 
@@ -60,11 +56,9 @@ public static class EnvFileLoader
     /// <param name="overwrite">是否覆盖已存在的环境变量</param>
     /// <param name="maxParentLevels">向上查找的最大父目录层级</param>
     /// <returns>实际加载的变量数量</returns>
-    public static int LoadFromDirectory(IFileSystem fs, bool overwrite = false, int maxParentLevels = 5)
-    {
+    public static int LoadFromDirectory(IFileSystem fs, bool overwrite = false, int maxParentLevels = 5) {
         var dir = fs.GetCurrentDirectory();
-        for (var i = 0; i <= maxParentLevels; i++)
-        {
+        for (var i = 0; i <= maxParentLevels; i++) {
             // 检查 .env 文件（直接文件）
             var envPath = fs.CombinePath(dir, ".env");
             if (fs.FileExists(envPath))
@@ -88,8 +82,7 @@ public static class EnvFileLoader
     /// <summary>
     /// 获取环境变量值
     /// </summary>
-    public static string? Get(string key, string? defaultValue = null)
-    {
+    public static string? Get(string key, string? defaultValue = null) {
         return Environment.GetEnvironmentVariable(key) ?? defaultValue;
     }
 }

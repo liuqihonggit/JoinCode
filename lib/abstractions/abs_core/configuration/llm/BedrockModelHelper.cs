@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 /// <para>Bedrock 跨区域前缀: us / eu / apac / global — IAM 权限可能限定特定区域</para>
 /// <para>子代理继承父级前缀,避免区域不匹配导致权限错误</para>
 /// </summary>
-public static class BedrockModelHelper
-{
+public static class BedrockModelHelper {
     /// <summary>
     /// Bedrock 跨区域推理前缀列表 — 对齐 TS 原版 BEDROCK_REGION_PREFIXES
     /// <para>us: 美国区域, eu: 欧洲区域, apac: 亚太区域, global: 全球</para>
@@ -18,8 +17,7 @@ public static class BedrockModelHelper
     /// 判断模型 ID 是否是 Bedrock foundation model — 对齐 TS 原版 isFoundationModel
     /// <para>foundation model 以 "anthropic." 开头(如 "anthropic.claude-sonnet-4-5-20250929-v1:0")</para>
     /// </summary>
-    public static bool IsFoundationModel(string modelId)
-    {
+    public static bool IsFoundationModel(string modelId) {
         return !string.IsNullOrEmpty(modelId) && modelId.StartsWith("anthropic.", StringComparison.Ordinal);
     }
 
@@ -30,8 +28,7 @@ public static class BedrockModelHelper
     /// <para>也处理: arn:aws:bedrock:{region}:{account}:application-inference-profile/{profile-id}</para>
     /// <para>以及 foundation model ARN: arn:aws:bedrock:{region}::foundation-model/{model-id}</para>
     /// </summary>
-    public static string ExtractModelIdFromArn(string modelId)
-    {
+    public static string ExtractModelIdFromArn(string modelId) {
         if (string.IsNullOrEmpty(modelId) || !modelId.StartsWith("arn:", StringComparison.Ordinal))
             return modelId;
 
@@ -52,15 +49,13 @@ public static class BedrockModelHelper
     /// <para>  "anthropic.claude-3-5-sonnet-20241022-v2:0" → null(foundation model,无前缀)</para>
     /// <para>  "claude-sonnet-4-5-20250929" → null(第一方格式,无前缀)</para>
     /// </summary>
-    public static string? GetBedrockRegionPrefix(string modelId)
-    {
+    public static string? GetBedrockRegionPrefix(string modelId) {
         if (string.IsNullOrEmpty(modelId))
             return null;
 
         var effectiveModelId = ExtractModelIdFromArn(modelId);
 
-        foreach (var prefix in RegionPrefixes)
-        {
+        foreach (var prefix in RegionPrefixes) {
             if (effectiveModelId.StartsWith($"{prefix}.anthropic.", StringComparison.Ordinal))
                 return prefix;
         }
@@ -77,8 +72,7 @@ public static class BedrockModelHelper
     /// <para>  Apply("anthropic.claude-sonnet-4-5-v1:0", "eu") → "eu.anthropic.claude-sonnet-4-5-v1:0"</para>
     /// <para>  Apply("claude-sonnet-4-5-20250929", "eu") → "claude-sonnet-4-5-20250929"(非 Bedrock 模型)</para>
     /// </summary>
-    public static string ApplyBedrockRegionPrefix(string modelId, string prefix)
-    {
+    public static string ApplyBedrockRegionPrefix(string modelId, string prefix) {
         if (string.IsNullOrEmpty(modelId) || string.IsNullOrEmpty(prefix))
             return modelId;
 
@@ -106,8 +100,7 @@ public static class BedrockModelHelper
         string resolvedModel,
         string originalSpec,
         string? parentRegionPrefix,
-        bool isBedrockProvider)
-    {
+        bool isBedrockProvider) {
         if (string.IsNullOrEmpty(parentRegionPrefix) || !isBedrockProvider)
             return resolvedModel;
 

@@ -4,8 +4,7 @@ namespace Core.Goal;
 /// <summary>
 /// FunctionNode 执行上下文 — 提供上游输出、全局状态、服务访问
 /// </summary>
-public sealed class NodeContext
-{
+public sealed class NodeContext {
     /// <summary>当前节点 ID</summary>
     public required string NodeId { get; init; }
     /// <summary>当前节点负载</summary>
@@ -25,8 +24,7 @@ public sealed class NodeContext
 /// <summary>
 /// 节点执行结果
 /// </summary>
-public sealed class NodeResult
-{
+public sealed class NodeResult {
     /// <summary>节点输出文本</summary>
     public string? Output { get; init; }
     /// <summary>路由目标节点 ID 数组，可选</summary>

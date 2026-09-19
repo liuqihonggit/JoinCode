@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 编译队列服务 — 编译请求串行化 + 结果缓冲区
 /// </summary>
-public interface IBuildQueueService : IAsyncDisposable
-{
+public interface IBuildQueueService : IAsyncDisposable {
     /// <summary>
     /// 提交编译请求 → 立即返回 buildId，不阻塞 LLM
     /// </summary>

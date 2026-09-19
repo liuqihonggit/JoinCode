@@ -1,13 +1,11 @@
 namespace Bridge.Tests.Phase7D;
 
 
-public sealed class BridgeInitTests
-{
+public sealed class BridgeInitTests {
     #region InitBridgeOptions
 
     [Fact]
-    public void InitBridgeOptions_Defaults_AreSet()
-    {
+    public void InitBridgeOptions_Defaults_AreSet() {
         var options = new BridgeInitOptions();
         Assert.Null(options.OnInboundMessage);
         Assert.Null(options.OnPermissionResponse);
@@ -34,15 +32,13 @@ public sealed class BridgeInitTests
     #region deriveTitle
 
     [Fact]
-    public void DeriveTitle_ShortText_ReturnsAsIs()
-    {
+    public void DeriveTitle_ShortText_ReturnsAsIs() {
         var result = BridgeInit.DeriveTitle("Hello world");
         Assert.Equal("Hello world", result);
     }
 
     [Fact]
-    public void DeriveTitle_LongText_TruncatesWithEllipsis()
-    {
+    public void DeriveTitle_LongText_TruncatesWithEllipsis() {
         var longText = new string('a', 200);
         var result = BridgeInit.DeriveTitle(longText);
         Assert.True(result!.Length <= 50);
@@ -51,22 +47,19 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public void DeriveTitle_Multiline_CollapsesToSingleLine()
-    {
+    public void DeriveTitle_Multiline_CollapsesToSingleLine() {
         var result = BridgeInit.DeriveTitle("First line\nSecond line");
         Assert.DoesNotContain("\n", result);
     }
 
     [Fact]
-    public void DeriveTitle_FirstSentence_StopsAtPeriod()
-    {
+    public void DeriveTitle_FirstSentence_StopsAtPeriod() {
         var result = BridgeInit.DeriveTitle("This is a test. And more text.");
         Assert.Equal("This is a test.", result);
     }
 
     [Fact]
-    public void DeriveTitle_EmptyAfterStrip_ReturnsNull()
-    {
+    public void DeriveTitle_EmptyAfterStrip_ReturnsNull() {
         var result = BridgeInit.DeriveTitle("");
         Assert.Null(result);
     }
@@ -76,8 +69,7 @@ public sealed class BridgeInitTests
     #region initReplBridge — 前置条件检查
 
     [Fact]
-    public async Task InitReplBridge_BridgeNotEnabled_ReturnsNull()
-    {
+    public async Task InitReplBridge_BridgeNotEnabled_ReturnsNull() {
         var result = await BridgeInit.InitReplBridgeAsync(
             new BridgeInitOptions(),
             bridgeEnabled: false,
@@ -89,12 +81,10 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_NoOAuthToken_ReturnsNull()
-    {
+    public async Task InitReplBridge_NoOAuthToken_ReturnsNull() {
         var stateChanges = new List<(CoreBridgeState, string?)>();
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 OnStateChange = (state, detail) => stateChanges.Add((state, detail)),
             },
             bridgeEnabled: true,
@@ -107,12 +97,10 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_NoOrgUUID_ReturnsNull()
-    {
+    public async Task InitReplBridge_NoOrgUUID_ReturnsNull() {
         var stateChanges = new List<(CoreBridgeState, string?)>();
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 OnStateChange = (state, detail) => stateChanges.Add((state, detail)),
             },
             bridgeEnabled: true,
@@ -125,13 +113,11 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_PolicyDenied_ReturnsNull()
-    {
+    public async Task InitReplBridge_PolicyDenied_ReturnsNull() {
         // 对齐 TS 端: isPolicyAllowed('allow_remote_control') === false
         var stateChanges = new List<(CoreBridgeState, string?)>();
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 OnStateChange = (state, detail) => stateChanges.Add((state, detail)),
                 IsPolicyAllowed = policy => false,
             },
@@ -145,12 +131,10 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_PolicyAllowed_Proceeds()
-    {
+    public async Task InitReplBridge_PolicyAllowed_Proceeds() {
         // 对齐 TS 端: isPolicyAllowed('allow_remote_control') === true → 不阻塞
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 IsPolicyAllowed = policy => true,
             },
             bridgeEnabled: true,
@@ -164,12 +148,10 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_PolicyNull_FailOpen()
-    {
+    public async Task InitReplBridge_PolicyNull_FailOpen() {
         // 对齐 TS 端: IsPolicyAllowed 为 null → fail-open，视为允许
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 IsPolicyAllowed = null, // fail-open
             },
             bridgeEnabled: true,
@@ -181,15 +163,13 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_CrossProcessBackoff_SkipsDeadToken()
-    {
+    public async Task InitReplBridge_CrossProcessBackoff_SkipsDeadToken() {
         // 对齐 TS 端 2a: 同一 expiresAt 的死令牌 failCount >= 3 → 跳过
         var deadExpiry = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var deadState = new TestDeadTokenState(deadExpiry, 3);
 
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 GetOAuthTokenExpiry = () => deadExpiry,
                 DeadTokenState = deadState,
             },
@@ -202,16 +182,14 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_CrossProcessBackoff_DifferentToken_Proceeds()
-    {
+    public async Task InitReplBridge_CrossProcessBackoff_DifferentToken_Proceeds() {
         // 对齐 TS 端 2a: 不同 expiresAt → 退避不匹配，继续
         var deadExpiry = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var newExpiry = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
         var deadState = new TestDeadTokenState(deadExpiry, 3);
 
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 GetOAuthTokenExpiry = () => newExpiry, // 不同 token
                 DeadTokenState = deadState,
             },
@@ -225,16 +203,14 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_ExpiredTokenAfterRefresh_ReturnsNull()
-    {
+    public async Task InitReplBridge_ExpiredTokenAfterRefresh_ReturnsNull() {
         // 对齐 TS 端 2c: 刷新后仍过期 → 死令牌，记录到 DeadTokenState
         var pastExpiry = DateTimeOffset.UtcNow.AddMinutes(-1);
         var deadState = new TestDeadTokenState(null, 0);
 
         var stateChanges = new List<(CoreBridgeState, string?)>();
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 OnStateChange = (state, detail) => stateChanges.Add((state, detail)),
                 GetOAuthTokenExpiry = () => pastExpiry,
                 CheckAndRefreshOAuthToken = () => Task.FromResult(false),
@@ -252,12 +228,10 @@ public sealed class BridgeInitTests
     }
 
     [Fact]
-    public async Task InitReplBridge_NullExpiry_NeverSkips()
-    {
+    public async Task InitReplBridge_NullExpiry_NeverSkips() {
         // 对齐 TS 端 2c: env-var/FD 令牌 expiresAt=null → 永远不触发过期跳过
         var result = await BridgeInit.InitReplBridgeAsync(
-            new BridgeInitOptions
-            {
+            new BridgeInitOptions {
                 GetOAuthTokenExpiry = () => null, // env-var 令牌
                 CheckAndRefreshOAuthToken = () => Task.FromResult(true),
             },
@@ -275,10 +249,8 @@ public sealed class BridgeInitTests
     /// <summary>
     /// 测试用死令牌状态实现
     /// </summary>
-    private sealed class TestDeadTokenState : IBridgeOAuthDeadTokenState
-    {
-        public TestDeadTokenState(DateTimeOffset? deadExpiresAt, int deadFailCount)
-        {
+    private sealed class TestDeadTokenState : IBridgeOAuthDeadTokenState {
+        public TestDeadTokenState(DateTimeOffset? deadExpiresAt, int deadFailCount) {
             DeadExpiresAt = deadExpiresAt;
             DeadFailCount = deadFailCount;
         }
@@ -287,8 +259,7 @@ public sealed class BridgeInitTests
         public int DeadFailCount { get; }
         public DateTimeOffset? RecordedExpiry { get; private set; }
 
-        public Task RecordDeadTokenAsync(DateTimeOffset expiresAt)
-        {
+        public Task RecordDeadTokenAsync(DateTimeOffset expiresAt) {
             RecordedExpiry = expiresAt;
             return Task.CompletedTask;
         }

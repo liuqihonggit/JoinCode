@@ -5,8 +5,7 @@ namespace Bridge.Tests;
 /// BridgeSessionTracker 单元测试
 /// 测试会话注册、查询、清理、标题标记等状态管理逻辑
 /// </summary>
-public sealed class BridgeSessionTrackerTests
-{
+public sealed class BridgeSessionTrackerTests {
     private static BridgeSessionTracker CreateSut() => new();
 
     private static BridgeSessionState CreateState(
@@ -15,8 +14,7 @@ public sealed class BridgeSessionTrackerTests
         string? worktreePath = null,
         string? compatId = null,
         bool isV2 = false)
-        => new()
-        {
+        => new() {
             Handle = null,
             StartTime = DateTime.UtcNow,
             WorkId = workId,
@@ -32,8 +30,7 @@ public sealed class BridgeSessionTrackerTests
         => sut.Sessions.Register(sessionId, CreateState(workId, ingressToken, worktreePath, compatId, isV2));
 
     [Fact]
-    public void RegisterSession_AddsSessionWithAllOptionalFields()
-    {
+    public void RegisterSession_AddsSessionWithAllOptionalFields() {
         var sut = CreateSut();
 
         RegisterSession(sut, "session-1", "work-1",
@@ -53,8 +50,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void RegisterSession_WithoutOptionalFields_StillTracksSession()
-    {
+    public void RegisterSession_WithoutOptionalFields_StillTracksSession() {
         var sut = CreateSut();
 
         RegisterSession(sut, "session-1", "work-1");
@@ -66,24 +62,21 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void GetCompatId_UnknownSession_ReturnsSessionId()
-    {
+    public void GetCompatId_UnknownSession_ReturnsSessionId() {
         var sut = CreateSut();
 
         sut.Sessions.GetCompatId("unknown").Should().Be("unknown");
     }
 
     [Fact]
-    public void GetHandle_UnknownSession_ReturnsNull()
-    {
+    public void GetHandle_UnknownSession_ReturnsNull() {
         var sut = CreateSut();
 
         sut.Sessions.GetHandle("unknown").Should().BeNull();
     }
 
     [Fact]
-    public void MarkTitled_ThenHasTitle_ReturnsTrue()
-    {
+    public void MarkTitled_ThenHasTitle_ReturnsTrue() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1", compatId: "compat-1");
 
@@ -93,8 +86,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void MarkWorkCompleted_IsWorkCompleted_ReturnsTrue()
-    {
+    public void MarkWorkCompleted_IsWorkCompleted_ReturnsTrue() {
         var sut = CreateSut();
 
         sut.WorkCompletion.Mark("work-1");
@@ -104,8 +96,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void MarkTimedOut_RemoveTimedOut_RoundTrip()
-    {
+    public void MarkTimedOut_RemoveTimedOut_RoundTrip() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1");
 
@@ -115,8 +106,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void UpdateIngressToken_ChangesStoredToken()
-    {
+    public void UpdateIngressToken_ChangesStoredToken() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1", ingressToken: "old-token");
 
@@ -126,8 +116,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void GetDurationMs_KnownSession_ReturnsElapsed()
-    {
+    public void GetDurationMs_KnownSession_ReturnsElapsed() {
         var clock = new FakeClockService();
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1");
@@ -139,8 +128,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void GetDurationMs_UnknownSession_ReturnsZero()
-    {
+    public void GetDurationMs_UnknownSession_ReturnsZero() {
         var sut = CreateSut();
         var clock = new FakeClockService();
 
@@ -148,8 +136,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void GetAllSessionIds_ReturnsRegisteredSessionIds()
-    {
+    public void GetAllSessionIds_ReturnsRegisteredSessionIds() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1");
         RegisterSession(sut, "session-2", "work-2");
@@ -160,8 +147,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void GetAllWorkIds_ReturnsRegisteredWorkIds()
-    {
+    public void GetAllWorkIds_ReturnsRegisteredWorkIds() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1");
 
@@ -169,8 +155,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void GetLastSession_WithSessions_ReturnsLast()
-    {
+    public void GetLastSession_WithSessions_ReturnsLast() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1");
         sut.Sessions.Register("session-2", CreateState("work-2") with { StartTime = DateTime.UtcNow.AddSeconds(1) });
@@ -182,16 +167,14 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void GetLastSession_Empty_ReturnsNull()
-    {
+    public void GetLastSession_Empty_ReturnsNull() {
         var sut = CreateSut();
 
         sut.Sessions.GetLastSession().Should().BeNull();
     }
 
     [Fact]
-    public void CleanupSession_RemovesAllRelatedState()
-    {
+    public void CleanupSession_RemovesAllRelatedState() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1", ingressToken: "token", compatId: "compat-1");
         sut.Titles.Mark("compat-1");
@@ -207,8 +190,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void RemoveWorktree_RemovesAndReturnsPath()
-    {
+    public void RemoveWorktree_RemovesAndReturnsPath() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1", worktreePath: "C:\\work");
 
@@ -218,8 +200,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void ClearAll_RemovesEverything()
-    {
+    public void ClearAll_RemovesEverything() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1", compatId: "compat-1");
         sut.Titles.Mark("compat-1");
@@ -235,8 +216,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public void Sessions_RegistryExposedForMiddleware()
-    {
+    public void Sessions_RegistryExposedForMiddleware() {
         var sut = CreateSut();
         RegisterSession(sut, "session-1", "work-1");
 
@@ -247,8 +227,7 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public async Task Concurrent_Register_And_Enumerate_DoesNotThrow()
-    {
+    public async Task Concurrent_Register_And_Enumerate_DoesNotThrow() {
         var sut = CreateSut();
         for (var i = 0; i < 100; i++)
             RegisterSession(sut, $"session-{i}", "work");
@@ -256,39 +235,29 @@ public sealed class BridgeSessionTrackerTests
         var exceptions = new ConcurrentQueue<Exception>();
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(800));
 
-        var enumeratorTask = Task.Run(() =>
-        {
-            try
-            {
-                while (!cts.IsCancellationRequested)
-                {
+        var enumeratorTask = Task.Run(() => {
+            try {
+                while (!cts.IsCancellationRequested) {
                     foreach (var _ in sut.Sessions.GetAllHandles()) { }
                     foreach (var _ in sut.Sessions.GetAllSessionIds()) { }
                 }
-            }
-            catch (Exception ex) { exceptions.Enqueue(ex); }
+            } catch (Exception ex) { exceptions.Enqueue(ex); }
         });
 
-        var modifierTask = Task.Run(() =>
-        {
-            try
-            {
+        var modifierTask = Task.Run(() => {
+            try {
                 var i = 100;
                 while (!cts.IsCancellationRequested)
                     RegisterSession(sut, $"session-{i++}", "work");
-            }
-            catch (Exception ex) { exceptions.Enqueue(ex); }
+            } catch (Exception ex) { exceptions.Enqueue(ex); }
         });
 
-        var cleanupTask = Task.Run(() =>
-        {
-            try
-            {
+        var cleanupTask = Task.Run(() => {
+            try {
                 var i = 0;
                 while (!cts.IsCancellationRequested)
                     sut.CleanupSession($"session-{i++ % 200}");
-            }
-            catch (Exception ex) { exceptions.Enqueue(ex); }
+            } catch (Exception ex) { exceptions.Enqueue(ex); }
         });
 
         await Task.WhenAll(enumeratorTask, modifierTask, cleanupTask);
@@ -296,32 +265,25 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public async Task Concurrent_MarkCompleted_And_Check_DoesNotThrow()
-    {
+    public async Task Concurrent_MarkCompleted_And_Check_DoesNotThrow() {
         var sut = CreateSut();
         var exceptions = new ConcurrentQueue<Exception>();
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-        var writerTask = Task.Run(() =>
-        {
-            try
-            {
+        var writerTask = Task.Run(() => {
+            try {
                 var i = 0;
                 while (!cts.IsCancellationRequested)
                     sut.WorkCompletion.Mark($"work-{i++}");
-            }
-            catch (Exception ex) { exceptions.Enqueue(ex); }
+            } catch (Exception ex) { exceptions.Enqueue(ex); }
         });
 
-        var readerTask = Task.Run(() =>
-        {
-            try
-            {
+        var readerTask = Task.Run(() => {
+            try {
                 var i = 0;
                 while (!cts.IsCancellationRequested)
                     sut.WorkCompletion.IsCompleted($"work-{i++ % 1000}");
-            }
-            catch (Exception ex) { exceptions.Enqueue(ex); }
+            } catch (Exception ex) { exceptions.Enqueue(ex); }
         });
 
         await Task.WhenAll(writerTask, readerTask);
@@ -329,31 +291,24 @@ public sealed class BridgeSessionTrackerTests
     }
 
     [Fact]
-    public async Task Concurrent_ClearAll_And_Register_DoesNotThrow()
-    {
+    public async Task Concurrent_ClearAll_And_Register_DoesNotThrow() {
         var sut = CreateSut();
         var exceptions = new ConcurrentQueue<Exception>();
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
-        var clearTask = Task.Run(() =>
-        {
-            try
-            {
+        var clearTask = Task.Run(() => {
+            try {
                 while (!cts.IsCancellationRequested)
                     sut.ClearAll();
-            }
-            catch (Exception ex) { exceptions.Enqueue(ex); }
+            } catch (Exception ex) { exceptions.Enqueue(ex); }
         });
 
-        var registerTask = Task.Run(() =>
-        {
-            try
-            {
+        var registerTask = Task.Run(() => {
+            try {
                 var i = 0;
                 while (!cts.IsCancellationRequested)
                     RegisterSession(sut, $"session-{i++}", "work");
-            }
-            catch (Exception ex) { exceptions.Enqueue(ex); }
+            } catch (Exception ex) { exceptions.Enqueue(ex); }
         });
 
         await Task.WhenAll(clearTask, registerTask);

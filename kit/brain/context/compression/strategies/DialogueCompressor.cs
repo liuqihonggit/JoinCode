@@ -5,8 +5,7 @@ namespace Core.Context.Compression;
 /// 对话历史压缩策略
 /// </summary>
 [Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
-public sealed partial class DialogueCompressor : CompressionStrategyBase
-{
+public sealed partial class DialogueCompressor : CompressionStrategyBase {
     /// <summary>
     /// 策略名称
     /// </summary>
@@ -82,20 +81,17 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
     public override Task<string> CompressAsync(
         string content,
         CompressionOptions options,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ValidateOptions(options);
 
-        if (string.IsNullOrWhiteSpace(content))
-        {
+        if (string.IsNullOrWhiteSpace(content)) {
             return Task.FromResult(content);
         }
 
         var messages = ParseMessages(content);
 
         var rounds = GroupIntoRounds(messages);
-        if (rounds.Count <= options.DialogueRoundsToPreserve)
-        {
+        if (rounds.Count <= options.DialogueRoundsToPreserve) {
             return Task.FromResult(content);
         }
 
@@ -110,27 +106,22 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (options.UseSummarization && messagesToSummarize.Count > 0)
-        {
+        if (options.UseSummarization && messagesToSummarize.Count > 0) {
             var summary = GenerateSummary(messagesToSummarize, options);
             cancellationToken.ThrowIfCancellationRequested();
-            if (!string.IsNullOrWhiteSpace(summary))
-            {
+            if (!string.IsNullOrWhiteSpace(summary)) {
                 result.AppendLine("[对话摘要 - 早期内容]");
                 result.AppendLine(summary);
                 result.AppendLine();
             }
         }
 
-        if (options.PreserveKeyDecisions)
-        {
+        if (options.PreserveKeyDecisions) {
             cancellationToken.ThrowIfCancellationRequested();
             var keyDecisions = ExtractKeyDecisions(messagesToSummarize);
-            if (keyDecisions.Count > 0)
-            {
+            if (keyDecisions.Count > 0) {
                 result.AppendLine("[关键决策点]");
-                foreach (var decision in keyDecisions)
-                {
+                foreach (var decision in keyDecisions) {
                     result.AppendLine($"- {decision}");
                 }
                 result.AppendLine();
@@ -138,8 +129,7 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         }
 
         result.AppendLine("[最近对话]");
-        foreach (var message in messagesToPreserve)
-        {
+        foreach (var message in messagesToPreserve) {
             cancellationToken.ThrowIfCancellationRequested();
             result.AppendLine(message);
             result.AppendLine();
@@ -156,8 +146,7 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
     /// <param name="content">原始内容</param>
     /// <param name="options">压缩选项</param>
     /// <returns>预估压缩比率 (0-1)</returns>
-    public override double EstimateCompressionRatio(string content, CompressionOptions options)
-    {
+    public override double EstimateCompressionRatio(string content, CompressionOptions options) {
         if (string.IsNullOrWhiteSpace(content))
             return 1.0;
 
@@ -184,27 +173,22 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         return Math.Min((double)estimatedCompressedLength / content.Length, 1.0);
     }
 
-    private static List<string> ParseMessages(string content)
-    {
+    private static List<string> ParseMessages(string content) {
         var messages = new List<string>();
 
         var currentMessage = new StringBuilder();
         var lines = content.Split(["\r\n", "\n", "\r"], StringSplitOptions.None);
 
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             var isNewMessage = false;
-            foreach (var regex in MessagePatterns)
-            {
-                if (regex.IsMatch(line))
-                {
+            foreach (var regex in MessagePatterns) {
+                if (regex.IsMatch(line)) {
                     isNewMessage = true;
                     break;
                 }
             }
 
-            if (isNewMessage && currentMessage.Length > 0)
-            {
+            if (isNewMessage && currentMessage.Length > 0) {
                 messages.Add(currentMessage.ToString().AsSpan().Trim().ToString());
                 currentMessage.Clear();
             }
@@ -212,40 +196,32 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
             currentMessage.AppendLine(line);
         }
 
-        if (currentMessage.Length > 0)
-        {
+        if (currentMessage.Length > 0) {
             messages.Add(currentMessage.ToString().AsSpan().Trim().ToString());
         }
 
-        if (messages.Count == 0 && !string.IsNullOrWhiteSpace(content))
-        {
+        if (messages.Count == 0 && !string.IsNullOrWhiteSpace(content)) {
             messages.Add(content.Trim());
         }
 
         return messages;
     }
 
-    private static List<DialogueRound> GroupIntoRounds(List<string> messages)
-    {
+    private static List<DialogueRound> GroupIntoRounds(List<string> messages) {
         var rounds = new List<DialogueRound>();
 
         DialogueRound? currentRound = null;
-        foreach (var message in messages)
-        {
+        foreach (var message in messages) {
             var isUserMessage = false;
-            foreach (var regex in UserMessagePatterns)
-            {
-                if (regex.IsMatch(message))
-                {
+            foreach (var regex in UserMessagePatterns) {
+                if (regex.IsMatch(message)) {
                     isUserMessage = true;
                     break;
                 }
             }
 
-            if (isUserMessage)
-            {
-                if (currentRound != null)
-                {
+            if (isUserMessage) {
+                if (currentRound != null) {
                     rounds.Add(currentRound);
                 }
                 currentRound = new DialogueRound();
@@ -254,38 +230,32 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
             currentRound?.Messages.Add(message);
         }
 
-        if (currentRound != null)
-        {
+        if (currentRound != null) {
             rounds.Add(currentRound);
         }
 
         // 如果没有识别出任何轮次，将每条消息作为一个独立轮次
-        if (rounds.Count == 0 && messages.Count > 0)
-        {
+        if (rounds.Count == 0 && messages.Count > 0) {
             rounds = messages.Select(m => new DialogueRound { Messages = { m } }).ToList();
         }
 
         return rounds;
     }
 
-    private sealed class DialogueRound
-    {
+    private sealed class DialogueRound {
         public List<string> Messages { get; } = new();
     }
 
-    private static string GenerateSummary(List<string> messages, CompressionOptions options)
-    {
+    private static string GenerateSummary(List<string> messages, CompressionOptions options) {
         var summary = new StringBuilder();
         var topics = ExtractTopics(messages);
         var actions = ExtractActions(messages);
 
-        if (topics.Count > 0)
-        {
+        if (topics.Count > 0) {
             summary.AppendLine($"主题: {string.Join(", ", topics.Take(3))}");
         }
 
-        if (actions.Count > 0)
-        {
+        if (actions.Count > 0) {
             summary.AppendLine($"主要操作: {string.Join(", ", actions.Take(3))}");
         }
 
@@ -293,30 +263,23 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         summary.AppendLine($"共 {totalExchanges} 轮对话");
 
         var resultSpan = summary.ToString().AsSpan().TrimEnd();
-        if (resultSpan.Length > options.MaxSummaryLength)
-        {
+        if (resultSpan.Length > options.MaxSummaryLength) {
             return string.Concat(resultSpan[..(options.MaxSummaryLength - 3)].ToString(), "...");
         }
 
         return resultSpan.ToString();
     }
 
-    private static List<string> ExtractKeyDecisions(List<string> messages)
-    {
+    private static List<string> ExtractKeyDecisions(List<string> messages) {
         var decisions = new List<string>();
 
-        foreach (var message in messages)
-        {
-            foreach (var regex in DecisionPatterns)
-            {
+        foreach (var message in messages) {
+            foreach (var regex in DecisionPatterns) {
                 var matches = regex.Matches(message);
-                foreach (Match match in matches)
-                {
-                    if (match.Groups.Count > 1)
-                    {
+                foreach (Match match in matches) {
+                    if (match.Groups.Count > 1) {
                         var decision = match.Groups[match.Groups.Count - 1].Value.Trim();
-                        if (!string.IsNullOrWhiteSpace(decision) && decision.Length > 5)
-                        {
+                        if (!string.IsNullOrWhiteSpace(decision) && decision.Length > 5) {
                             decisions.Add(decision);
                         }
                     }
@@ -327,20 +290,15 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         return decisions.Distinct().Take(5).ToList();
     }
 
-    private static List<string> ExtractTopics(List<string> messages)
-    {
+    private static List<string> ExtractTopics(List<string> messages) {
         var topics = new List<string>();
 
-        foreach (var message in messages)
-        {
-            foreach (var regex in TopicPatterns)
-            {
+        foreach (var message in messages) {
+            foreach (var regex in TopicPatterns) {
                 var match = regex.Match(message);
-                if (match.Success && match.Groups.Count > 1)
-                {
+                if (match.Success && match.Groups.Count > 1) {
                     var topic = match.Groups[match.Groups.Count - 1].Value.Trim();
-                    if (!string.IsNullOrWhiteSpace(topic) && topic.Length > 3)
-                    {
+                    if (!string.IsNullOrWhiteSpace(topic) && topic.Length > 3) {
                         topics.Add(topic);
                     }
                 }
@@ -350,22 +308,16 @@ public sealed partial class DialogueCompressor : CompressionStrategyBase
         return topics.Distinct().ToList();
     }
 
-    private static List<string> ExtractActions(List<string> messages)
-    {
+    private static List<string> ExtractActions(List<string> messages) {
         var actions = new List<string>();
 
-        foreach (var message in messages)
-        {
-            foreach (var regex in ActionPatterns)
-            {
+        foreach (var message in messages) {
+            foreach (var regex in ActionPatterns) {
                 var matches = regex.Matches(message);
-                foreach (Match match in matches)
-                {
-                    if (match.Groups.Count > 1)
-                    {
+                foreach (Match match in matches) {
+                    if (match.Groups.Count > 1) {
                         var action = match.Groups[1].Value.Trim();
-                        if (!string.IsNullOrWhiteSpace(action))
-                        {
+                        if (!string.IsNullOrWhiteSpace(action)) {
                             actions.Add(action);
                         }
                     }

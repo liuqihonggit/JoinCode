@@ -1,9 +1,7 @@
 namespace Integration.Tests.McpTools;
 
-public sealed class McpToolRegistrationValidationTests
-{
-    private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools, List<string> RegistrationFailures)> BuildAndRegisterAllToolsAsync()
-    {
+public sealed class McpToolRegistrationValidationTests {
+    private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools, List<string> RegistrationFailures)> BuildAndRegisterAllToolsAsync() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
         var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
@@ -32,16 +30,12 @@ public sealed class McpToolRegistrationValidationTests
 
         var registrationFailures = new List<string>();
 
-        foreach (var handlerType in handlerTypes)
-        {
-            try
-            {
+        foreach (var handlerType in handlerTypes) {
+            try {
                 var handler = provider.GetService(handlerType);
                 if (handler is null)
                     registrationFailures.Add($"{handlerType.Name}: GetService returned null (missing DI dependencies)");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 registrationFailures.Add($"{handlerType.Name}: {ex.InnerException?.Message ?? ex.Message}");
             }
         }
@@ -50,8 +44,7 @@ public sealed class McpToolRegistrationValidationTests
     }
 
     [Fact]
-    public async Task All_Tools_Should_Register_Successfully()
-    {
+    public async Task All_Tools_Should_Register_Successfully() {
         var (_, allTools, registrationErrors) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         allTools.Should().NotBeEmpty("至少应注册一个工具");
@@ -65,8 +58,7 @@ public sealed class McpToolRegistrationValidationTests
         var errors = new List<string>();
         var warnings = new List<string>();
 
-        foreach (var tool in allTools.OrderBy(t => t.Name))
-        {
+        foreach (var tool in allTools.OrderBy(t => t.Name)) {
             var toolErrors = new List<string>();
             var toolWarnings = new List<string>();
 
@@ -79,19 +71,15 @@ public sealed class McpToolRegistrationValidationTests
             else if (tool.InputSchema.Properties.Count == 0)
                 toolWarnings.Add($"工具 '{tool.Name}' 没有定义任何参数");
 
-            if (tool.InputSchema?.Required != null)
-            {
-                foreach (var req in tool.InputSchema.Required)
-                {
+            if (tool.InputSchema?.Required != null) {
+                foreach (var req in tool.InputSchema.Required) {
                     if (!tool.InputSchema.Properties!.ContainsKey(req))
                         toolErrors.Add($"工具 '{tool.Name}' Required 参数 '{req}' 不在 Properties 中");
                 }
             }
 
-            if (tool.InputSchema?.Properties != null)
-            {
-                foreach (var prop in tool.InputSchema.Properties)
-                {
+            if (tool.InputSchema?.Properties != null) {
+                foreach (var prop in tool.InputSchema.Properties) {
                     if (string.IsNullOrWhiteSpace(prop.Key))
                         toolErrors.Add($"工具 '{tool.Name}' 有空属性名");
                     if (string.IsNullOrWhiteSpace(prop.Value.Description))
@@ -112,16 +100,14 @@ public sealed class McpToolRegistrationValidationTests
         report.AppendLine($"- 错误数: {errors.Count}");
         report.AppendLine($"- 警告数: {warnings.Count}");
 
-        if (errors.Count > 0)
-        {
+        if (errors.Count > 0) {
             report.AppendLine();
             report.AppendLine("## 错误详情");
             foreach (var e in errors)
                 report.AppendLine($"- {e}");
         }
 
-        if (warnings.Count > 0)
-        {
+        if (warnings.Count > 0) {
             report.AppendLine();
             report.AppendLine("## 警告详情（前50条）");
             foreach (var w in warnings.Take(50))
@@ -130,8 +116,7 @@ public sealed class McpToolRegistrationValidationTests
 
         Console.WriteLine(report.ToString());
 
-        if (registrationErrors.Count > 0)
-        {
+        if (registrationErrors.Count > 0) {
             Console.WriteLine();
             Console.WriteLine("## Handler 注册失败详情");
             foreach (var e in registrationErrors)
@@ -142,8 +127,7 @@ public sealed class McpToolRegistrationValidationTests
     }
 
     [Fact]
-    public async Task No_Duplicate_Tool_Names()
-    {
+    public async Task No_Duplicate_Tool_Names() {
         var (_, allTools, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var names = allTools.Select(t => t.Name).ToList();
         var duplicates = names.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
@@ -152,16 +136,13 @@ public sealed class McpToolRegistrationValidationTests
     }
 
     [Fact]
-    public async Task All_Required_Parameters_Have_Descriptions()
-    {
+    public async Task All_Required_Parameters_Have_Descriptions() {
         var (_, allTools, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
         var missingDescParams = new List<string>();
 
-        foreach (var tool in allTools)
-        {
+        foreach (var tool in allTools) {
             if (tool.InputSchema?.Required == null) continue;
-            foreach (var reqParam in tool.InputSchema.Required)
-            {
+            foreach (var reqParam in tool.InputSchema.Required) {
                 if (tool.InputSchema.Properties.TryGetValue(reqParam, out var prop) && string.IsNullOrWhiteSpace(prop.Description))
                     missingDescParams.Add($"{tool.Name}.{reqParam}");
             }

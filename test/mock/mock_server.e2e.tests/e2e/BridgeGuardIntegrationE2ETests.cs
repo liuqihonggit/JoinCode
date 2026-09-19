@@ -10,12 +10,10 @@ namespace MockServer.E2E.Tests;
 /// 决策: 仅测试早期返回路径，不测试 BridgeMain.RunAsync（需真实 API）
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
-{
+public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
 
-    public BridgeGuardIntegrationE2ETests(ITestOutputHelper output)
-    {
+    public BridgeGuardIntegrationE2ETests(ITestOutputHelper output) {
         _output = output;
     }
 
@@ -27,8 +25,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
     /// 未设置 JCC_BRIDGE_MODE 环境变量时，应输出 "Bridge 功能未启用" 并以 exit 1 退出
     /// </summary>
     [Fact]
-    public async Task Bridge_WhenBridgeModeNotSet_ShouldExit1WithFeatureDisabledMessage()
-    {
+    public async Task Bridge_WhenBridgeModeNotSet_ShouldExit1WithFeatureDisabledMessage() {
         var (exitCode, stdout) = await RunJccRemoteControlAsync(
             envVars: new Dictionary<string, string?> { ["JCC_BRIDGE_MODE"] = null },
             args: [],
@@ -44,11 +41,9 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
     /// 应输出 "无法初始化 Bridge 依赖" 并以 exit 1 退出
     /// </summary>
     [Fact]
-    public async Task Bridge_WhenNoAccessToken_ShouldExit1WithNoDepsMessage()
-    {
+    public async Task Bridge_WhenNoAccessToken_ShouldExit1WithNoDepsMessage() {
         var (exitCode, stdout) = await RunJccRemoteControlAsync(
-            envVars: new Dictionary<string, string?>
-            {
+            envVars: new Dictionary<string, string?> {
                 ["JCC_BRIDGE_MODE"] = "1",
                 [JccEnvVar.OAuthToken.ToValue()] = null,
                 [JccEnvVar.SessionAccessToken.ToValue()] = null,
@@ -67,11 +62,9 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
     /// 进入 BridgeMain.RunAsync 后会因 API 不可达失败，但不应在 Guard 阶段失败
     /// </summary>
     [Fact]
-    public async Task Bridge_WithApiToken_ShouldPassGuardChecks_AndEnterBridgeMain()
-    {
+    public async Task Bridge_WithApiToken_ShouldPassGuardChecks_AndEnterBridgeMain() {
         var (exitCode, stdout) = await RunJccRemoteControlAsync(
-            envVars: new Dictionary<string, string?>
-            {
+            envVars: new Dictionary<string, string?> {
                 ["JCC_BRIDGE_MODE"] = "1",
                 [JccEnvVar.SessionAccessToken.ToValue()] = "test-token-xxx",
                 ["JCC_API_BASE_URL"] = "http://localhost:1", // 不可达端口，加速失败
@@ -93,8 +86,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
     /// --help 应输出帮助文本并以 exit 0 退出（在 Guard 检查之前）
     /// </summary>
     [Fact]
-    public async Task Bridge_WithHelpFlag_ShouldExit0WithHelpText()
-    {
+    public async Task Bridge_WithHelpFlag_ShouldExit0WithHelpText() {
         var (exitCode, stdout) = await RunJccRemoteControlAsync(
             envVars: new Dictionary<string, string?> { ["JCC_BRIDGE_MODE"] = null },
             args: ["--help"],
@@ -112,13 +104,11 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
     private async Task<(int ExitCode, string Stdout)> RunJccRemoteControlAsync(
         Dictionary<string, string?> envVars,
         string[] args,
-        int timeoutSeconds)
-    {
+        int timeoutSeconds) {
         var exePath = ResolveJccExePath();
         _output.WriteLine($"[BridgeE2E] jcc.exe 路径: {exePath}");
 
-        var startInfo = new ProcessStartInfo
-        {
+        var startInfo = new ProcessStartInfo {
             FileName = exePath,
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -131,20 +121,15 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
 
         // 子命令 remote-control
         startInfo.ArgumentList.Add("remote-control");
-        foreach (var arg in args)
-        {
+        foreach (var arg in args) {
             startInfo.ArgumentList.Add(arg);
         }
 
         // 清理可能干扰的 env vars，然后设置测试需要的
-        foreach (var (key, value) in envVars)
-        {
-            if (value is null)
-            {
+        foreach (var (key, value) in envVars) {
+            if (value is null) {
                 startInfo.Environment.Remove(key);
-            }
-            else
-            {
+            } else {
                 startInfo.Environment[key] = value;
             }
         }
@@ -152,12 +137,10 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
         using var process = new Process { StartInfo = startInfo };
         var stdoutBuilder = new StringBuilder();
         var stderrBuilder = new StringBuilder();
-        process.OutputDataReceived += (_, e) =>
-        {
+        process.OutputDataReceived += (_, e) => {
             if (e.Data is not null) stdoutBuilder.AppendLine(e.Data);
         };
-        process.ErrorDataReceived += (_, e) =>
-        {
+        process.ErrorDataReceived += (_, e) => {
             if (e.Data is not null) stderrBuilder.AppendLine(e.Data);
         };
 
@@ -166,10 +149,8 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
         process.BeginErrorReadLine();
 
         var exited = process.WaitForExit(timeoutSeconds * 1000);
-        if (!exited)
-        {
-            try { process.Kill(true); }
-            catch (Exception ex) { _output.WriteLine($"[BridgeE2E] Kill failed: {ex.Message}"); }
+        if (!exited) {
+            try { process.Kill(true); } catch (Exception ex) { _output.WriteLine($"[BridgeE2E] Kill failed: {ex.Message}"); }
             await process.WaitForExitAsync().ConfigureAwait(true);
             throw new TimeoutException($"[GEN032] jcc.exe 未在 {timeoutSeconds}s 内退出");
         }
@@ -183,8 +164,7 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
         return (process.ExitCode, stdout);
     }
 
-    private static string ResolveJccExePath()
-    {
+    private static string ResolveJccExePath() {
         var baseDir = AppContext.BaseDirectory;
         var artifactsBin = FindArtifactsBinRoot(baseDir)
             ?? throw new FileNotFoundException($"[GEN033] 未找到 artifacts/bin 目录 (从 {baseDir})");
@@ -201,11 +181,9 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
         throw new FileNotFoundException($"[GEN034] 未找到 jcc.exe (artifacts/bin={artifactsBin})");
     }
 
-    private static string? FindArtifactsBinRoot(string baseDir)
-    {
+    private static string? FindArtifactsBinRoot(string baseDir) {
         var dir = baseDir;
-        for (var i = 0; i < 10; i++)
-        {
+        for (var i = 0; i < 10; i++) {
 #pragma warning disable JCC9001
             // E2E 测试基础设施：查找 artifacts/bin 目录
             var candidate = Path.Combine(dir, "artifacts", "bin");
@@ -219,17 +197,13 @@ public sealed class BridgeGuardIntegrationE2ETests : IAsyncLifetime
         return null;
     }
 
-    private static string? SearchExeUnderDir(string rootDir, string exeName)
-    {
-        try
-        {
+    private static string? SearchExeUnderDir(string rootDir, string exeName) {
+        try {
 #pragma warning disable JCC9001
             // E2E 测试基础设施：搜索 exe 文件
             return Directory.GetFiles(rootDir, exeName, SearchOption.AllDirectories).FirstOrDefault();
 #pragma warning restore JCC9001
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Diagnostics.Trace.WriteLine($"[BridgeE2E] SearchExeUnderDir 失败: {ex.Message}");
             return null;
         }

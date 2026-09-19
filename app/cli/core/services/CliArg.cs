@@ -4,8 +4,7 @@ namespace JoinCode;
 /// 命令行参数枚举 — [CliOption] 由 CliOptionGenerator 自动生成 CliArgParser + CliArgParseResult
 /// 参数名引用 JccCliArgEnumConstants（由 JccCliArg 枚举 + [EnumValue] 生成），确保参数名单一数据源
 /// </summary>
-public enum CliArg
-{
+public enum CliArg {
     /// <summary>显示帮助信息</summary>
     [CliOption(JccCliArgEnumConstants.Help, "-h", "显示帮助信息", Category = "基础")]
     Help,

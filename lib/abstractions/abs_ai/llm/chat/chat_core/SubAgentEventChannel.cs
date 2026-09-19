@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// QueryLoop 在回合开始时进入作用域并持续排空；子代理中间件在作用域内发射带身份的事件。
 /// 无作用域时发射静默丢弃 — CLI 纯文本等无显示消费方场景零影响。
 /// </summary>
-public sealed class SubAgentEventChannel
-{
+public sealed class SubAgentEventChannel {
     private static readonly AsyncLocal<SubAgentEventChannel?> CurrentAccessor = new();
 
     /// <summary>当前异步流绑定的通道（无作用域时为 null）</summary>
@@ -27,10 +26,8 @@ public sealed class SubAgentEventChannel
     /// 发射事件到本通道 — 完成后再发射静默丢弃（不抛异常，进度类事件允许有损）；
     /// 调用方通常经 <c>Current?.Emit(evt)</c> 无作用域时自然跳过
     /// </summary>
-    public void Emit(ChatStreamEvent evt)
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void Emit(ChatStreamEvent evt) {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             if (_completed)
                 return;
             _buffer.Add(evt);
@@ -40,12 +37,9 @@ public sealed class SubAgentEventChannel
     /// <summary>
     /// 尝试读取单条事件（FIFO）
     /// </summary>
-    public bool TryRead(out ChatStreamEvent evt)
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
-            if (_buffer.Count == 0)
-            {
+    public bool TryRead(out ChatStreamEvent evt) {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            if (_buffer.Count == 0) {
                 evt = null!;
                 return false;
             }
@@ -58,10 +52,8 @@ public sealed class SubAgentEventChannel
     /// <summary>
     /// 排空全部缓冲事件（按发射顺序返回），随后缓冲清空
     /// </summary>
-    public IReadOnlyList<ChatStreamEvent> TryDrain()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public IReadOnlyList<ChatStreamEvent> TryDrain() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             if (_buffer.Count == 0)
                 return [];
             var drained = _buffer.ToArray();
@@ -73,10 +65,8 @@ public sealed class SubAgentEventChannel
     /// <summary>
     /// 标记完成 — 完成后的 Emit 静默丢弃，防止迟到的子代理事件泄漏到下一回合
     /// </summary>
-    public void Complete()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void Complete() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _completed = true;
             _buffer.Clear();
         }

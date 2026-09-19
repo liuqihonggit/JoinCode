@@ -11,16 +11,14 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// </para>
 /// </summary>
 [Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
-public sealed partial class GhPrBodyGuard : ICommandGuard
-{
+public sealed partial class GhPrBodyGuard : ICommandGuard {
     private readonly ILogger<GhPrBodyGuard>? _logger;
 
     /// <summary>
     /// 构造 gh pr body 守卫
     /// </summary>
     /// <param name="logger">日志器(可选)</param>
-    public GhPrBodyGuard(ILogger<GhPrBodyGuard>? logger = null)
-    {
+    public GhPrBodyGuard(ILogger<GhPrBodyGuard>? logger = null) {
         _logger = logger;
     }
 
@@ -31,24 +29,20 @@ public sealed partial class GhPrBodyGuard : ICommandGuard
     public int Priority => 100;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, GuardContext context)
-    {
+    public bool CanHandle(string command, GuardContext context) {
         var normalized = command.TrimStart();
         return normalized.StartsWith("gh pr create", StringComparison.OrdinalIgnoreCase)
                || normalized.StartsWith("gh.exe pr create", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, GuardContext context)
-    {
-        if (HasBodyParameter(command))
-        {
+    public CommandDecision Evaluate(string command, GuardContext context) {
+        if (HasBodyParameter(command)) {
             return new CommandDecision.Allow();
         }
 
         var body = GetBodyFromContext(context);
-        if (string.IsNullOrWhiteSpace(body))
-        {
+        if (string.IsNullOrWhiteSpace(body)) {
             body = GenerateDefaultBody(context);
         }
 
@@ -63,8 +57,7 @@ public sealed partial class GhPrBodyGuard : ICommandGuard
     /// <summary>
     /// 检查命令是否已包含 --body 参数
     /// </summary>
-    private static bool HasBodyParameter(string command)
-    {
+    private static bool HasBodyParameter(string command) {
         return command.Contains("--body", StringComparison.OrdinalIgnoreCase)
                || command.Contains("-b ", StringComparison.OrdinalIgnoreCase);
     }
@@ -72,16 +65,14 @@ public sealed partial class GhPrBodyGuard : ICommandGuard
     /// <summary>
     /// 从上下文获取 body 内容
     /// </summary>
-    private static string? GetBodyFromContext(GuardContext context)
-    {
+    private static string? GetBodyFromContext(GuardContext context) {
         return context.PrBody;
     }
 
     /// <summary>
     /// 生成默认 body 模板
     /// </summary>
-    private static string GenerateDefaultBody(GuardContext context)
-    {
+    private static string GenerateDefaultBody(GuardContext context) {
         var title = context.PrTitle ?? "变更内容";
         var branch = context.HeadBranch is not null ? $"分支: `{context.HeadBranch}`" : null;
         var description = branch;
@@ -91,8 +82,7 @@ public sealed partial class GhPrBodyGuard : ICommandGuard
     /// <summary>
     /// 转义 body 内容中的特殊字符
     /// </summary>
-    private static string EscapeBody(string body)
-    {
+    private static string EscapeBody(string body) {
         return body
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")

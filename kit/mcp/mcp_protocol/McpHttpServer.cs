@@ -5,8 +5,7 @@ namespace McpProtocol;
 /// 支持无状态(不分配 session)和有状态(分配 MCP-Session-Id + session 存储)双模式。
 /// 复用 McpServer.ProcessMessageAsync 处理 JSON-RPC 消息。使用 HttpListener(无需 AspNetCore 依赖)。
 /// </summary>
-public sealed class McpHttpServer : ServiceEntity
-{
+public sealed class McpHttpServer : ServiceEntity {
     private readonly McpServer _server;
     private readonly HttpListener _listener;
     private readonly McpSessionRegistry _sessions = new();
@@ -22,8 +21,7 @@ public sealed class McpHttpServer : ServiceEntity
     /// <param name="statelessMode">无状态模式(默认 true):不分配 MCP-Session-Id,每个请求自包含</param>
     /// <param name="allowedOrigins">允许的 Origin 列表(Origin 校验防 DNS rebinding);null/空则允许所有</param>
     public McpHttpServer(McpServer server, string prefix, bool statelessMode = true, IEnumerable<string>? allowedOrigins = null)
-        : base(nameof(McpHttpServer))
-    {
+        : base(nameof(McpHttpServer)) {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         if (string.IsNullOrWhiteSpace(prefix)) throw new ArgumentException("监听前缀不能为空", nameof(prefix));
         _statelessMode = statelessMode;
@@ -33,26 +31,20 @@ public sealed class McpHttpServer : ServiceEntity
     }
 
     /// <summary>启动监听(不进入循环)— 用于探测 HttpListener 是否可用</summary>
-    public void Start()
-    {
+    public void Start() {
         _listener.Start();
     }
 
     /// <summary>运行服务端,直到 cancellationToken 取消</summary>
-    public async Task RunAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task RunAsync(CancellationToken cancellationToken = default) {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         if (!_listener.IsListening) _listener.Start();
 
-        while (!_cts.Token.IsCancellationRequested)
-        {
+        while (!_cts.Token.IsCancellationRequested) {
             HttpListenerContext? context;
-            try
-            {
+            try {
                 context = await _listener.GetContextAsync().ConfigureAwait(false);
-            }
-            catch (HttpListenerException) when (_cts.Token.IsCancellationRequested)
-            {
+            } catch (HttpListenerException) when (_cts.Token.IsCancellationRequested) {
                 break;
             }
 
@@ -61,8 +53,7 @@ public sealed class McpHttpServer : ServiceEntity
     }
 
     /// <summary>停止服务端</summary>
-    public void Stop()
-    {
+    public void Stop() {
         _cts?.Cancel();
         if (_listener.IsListening) _listener.Stop();
     }
@@ -73,68 +64,54 @@ public sealed class McpHttpServer : ServiceEntity
     /// <summary>是否无状态模式</summary>
     public bool IsStatelessMode => _statelessMode;
 
-    private async Task HandleRequestAsync(HttpListenerContext ctx, CancellationToken ct)
-    {
-        try
-        {
-            if (!ValidateOrigin(ctx))
-            {
+    private async Task HandleRequestAsync(HttpListenerContext ctx, CancellationToken ct) {
+        try {
+            if (!ValidateOrigin(ctx)) {
                 ctx.Response.StatusCode = 403;
                 ctx.Response.Close();
                 return;
             }
 
             var method = ctx.Request.HttpMethod.ToUpperInvariant();
-            switch (method)
-            {
+            switch (method) {
                 case "POST":
-                    await HandlePostAsync(ctx, ct).ConfigureAwait(false);
-                    break;
+                await HandlePostAsync(ctx, ct).ConfigureAwait(false);
+                break;
                 case "GET":
-                    await HandleGetAsync(ctx, ct).ConfigureAwait(false);
-                    break;
+                await HandleGetAsync(ctx, ct).ConfigureAwait(false);
+                break;
                 case "DELETE":
-                    HandleDelete(ctx);
-                    break;
+                HandleDelete(ctx);
+                break;
                 default:
-                    ctx.Response.StatusCode = 405;
-                    ctx.Response.Close();
-                    break;
+                ctx.Response.StatusCode = 405;
+                ctx.Response.Close();
+                break;
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception) {
             Console.WriteLine("McpHttpServer: 处理请求异常,尝试返回 500");
-            try
-            {
+            try {
                 ctx.Response.StatusCode = 500;
                 ctx.Response.Close();
-            }
-            catch (Exception)
-            {
+            } catch (Exception) {
                 Console.WriteLine("McpHttpServer: 响应关闭失败已忽略");
             }
         }
     }
 
-    private async Task HandlePostAsync(HttpListenerContext ctx, CancellationToken ct)
-    {
+    private async Task HandlePostAsync(HttpListenerContext ctx, CancellationToken ct) {
         var sessionId = ctx.Request.Headers["Mcp-Session-Id"];
 
         // 有状态模式:带 session 但不存在 → 404(会话过期)
-        if (!_statelessMode && !string.IsNullOrEmpty(sessionId) && !_sessions.Contains(sessionId))
-        {
+        if (!_statelessMode && !string.IsNullOrEmpty(sessionId) && !_sessions.Contains(sessionId)) {
             ctx.Response.StatusCode = 404;
             ctx.Response.Close();
             return;
         }
 
         var body = await ReadRequestBodyAsync(ctx.Request, ct).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(body))
-        {
+        if (string.IsNullOrWhiteSpace(body)) {
             ctx.Response.StatusCode = 400;
             ctx.Response.Close();
             return;
@@ -142,16 +119,14 @@ public sealed class McpHttpServer : ServiceEntity
 
         var response = await _server.ProcessMessageAsync(body, ct).ConfigureAwait(false);
 
-        if (response == null)
-        {
+        if (response == null) {
             ctx.Response.StatusCode = 202;
             ctx.Response.Close();
             return;
         }
 
         // 有状态模式:initialize 请求响应分配新 session
-        if (!_statelessMode && IsInitializeRequest(body))
-        {
+        if (!_statelessMode && IsInitializeRequest(body)) {
             var newSessionId = GenerateSessionId();
             _sessions.Register(newSessionId);
             ctx.Response.Headers["Mcp-Session-Id"] = newSessionId;
@@ -165,19 +140,16 @@ public sealed class McpHttpServer : ServiceEntity
         ctx.Response.Close();
     }
 
-    private async Task HandleGetAsync(HttpListenerContext ctx, CancellationToken ct)
-    {
+    private async Task HandleGetAsync(HttpListenerContext ctx, CancellationToken ct) {
         // 无状态模式或无 session → 不支持 GET SSE 推送
         var sessionId = ctx.Request.Headers["Mcp-Session-Id"];
-        if (_statelessMode || string.IsNullOrEmpty(sessionId))
-        {
+        if (_statelessMode || string.IsNullOrEmpty(sessionId)) {
             ctx.Response.StatusCode = 405;
             ctx.Response.Close();
             return;
         }
 
-        if (!_sessions.Contains(sessionId))
-        {
+        if (!_sessions.Contains(sessionId)) {
             ctx.Response.StatusCode = 404;
             ctx.Response.Close();
             return;
@@ -190,86 +162,70 @@ public sealed class McpHttpServer : ServiceEntity
 
         var eventQueue = new System.Collections.Concurrent.ConcurrentQueue<string>();
         var eventId = 0;
-        void OnNotification(object? s, McpServerNotificationEventArgs e)
-        {
+        void OnNotification(object? s, McpServerNotificationEventArgs e) {
             var notification = new JsonRpcNotification { Method = e.Method };
             eventQueue.Enqueue(McpJsonSerializer.Serialize(notification));
         }
 
         _server.NotificationReceived += OnNotification;
-        try
-        {
+        try {
             using var writer = ctx.Response.OutputStream.AsUtf8Writer();
             writer.AutoFlush = true;
             await writer.WriteLineAsync("retry: 3000").ConfigureAwait(false);
             await writer.FlushAsync(ct).ConfigureAwait(false);
 
-            while (!ct.IsCancellationRequested)
-            {
-                if (eventQueue.TryDequeue(out var json))
-                {
+            while (!ct.IsCancellationRequested) {
+                if (eventQueue.TryDequeue(out var json)) {
                     eventId++;
                     await writer.WriteLineAsync($"id: {eventId}").ConfigureAwait(false);
                     await writer.WriteLineAsync($"data: {json}").ConfigureAwait(false);
                     await writer.WriteLineAsync().ConfigureAwait(false);
                     await writer.FlushAsync(ct).ConfigureAwait(false);
-                }
-                else
-                {
+                } else {
                     await Task.Delay(100, ct).ConfigureAwait(false);
                 }
             }
-        }
-        catch (OperationCanceledException) { }
-        finally
-        {
+        } catch (OperationCanceledException) { } finally {
             _server.NotificationReceived -= OnNotification;
         }
         ctx.Response.Close();
     }
 
-    private void HandleDelete(HttpListenerContext ctx)
-    {
+    private void HandleDelete(HttpListenerContext ctx) {
         var sessionId = ctx.Request.Headers["Mcp-Session-Id"];
-        if (!string.IsNullOrEmpty(sessionId))
-        {
+        if (!string.IsNullOrEmpty(sessionId)) {
             _sessions.Remove(sessionId);
         }
         ctx.Response.StatusCode = 204;
         ctx.Response.Close();
     }
 
-    private bool ValidateOrigin(HttpListenerContext ctx)
-    {
+    private bool ValidateOrigin(HttpListenerContext ctx) {
         if (_allowedOrigins.Count == 0) return true;
         var origin = ctx.Request.Headers["Origin"];
         if (string.IsNullOrEmpty(origin)) return true;
         return _allowedOrigins.Contains(origin);
     }
 
-    private static bool IsInitializeRequest(string body)
-    {
+    private static bool IsInitializeRequest(string body) {
         return body.Contains("\"method\"", StringComparison.Ordinal)
             && body.Contains("\"initialize\"", StringComparison.Ordinal);
     }
 
-    private static string GenerateSessionId()
-    {
+    private static string GenerateSessionId() {
         return Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     }
 
-    private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request, CancellationToken ct)
-    {
+    private static async Task<string> ReadRequestBodyAsync(HttpListenerRequest request, CancellationToken ct) {
         using var reader = request.InputStream.AsUtf8Reader();
         return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>释放资源 — 停止监听器、释放取消令牌并关闭 HttpListener。</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         Stop();
         _cts?.Dispose();
         _listener.Close();
-            base.Dispose();
+        base.Dispose();
     }
 }

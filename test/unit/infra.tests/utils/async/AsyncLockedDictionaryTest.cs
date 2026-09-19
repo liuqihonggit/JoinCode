@@ -7,13 +7,11 @@ namespace Infra.Tests.Utils.Async;
 /// 核心不变量:不同 key 的异步 factory 可并行执行(分片锁语义),同 key 仍串行互斥。
 /// 每个测试限时 10s,关键 await 加 WaitAsync 兜底防死锁。
 /// </summary>
-public class AsyncLockedDictionaryTest
-{
+public class AsyncLockedDictionaryTest {
     // ===== 1. 基本功能 (Basic Functionality) =====
 
     [Fact(Timeout = 10000)]
-    public async Task GetOrAddAsync_SyncFactory_NewKey_AddsAndReturns()
-    {
+    public async Task GetOrAddAsync_SyncFactory_NewKey_AddsAndReturns() {
         var dict = new AsyncLockedDictionary<string, int>();
         var v = await dict.GetOrAddAsync("a", _ => 42);
         v.Should().Be(42);
@@ -23,8 +21,7 @@ public class AsyncLockedDictionaryTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task GetOrAddAsync_AsyncFactory_NewKey_AddsAndReturns()
-    {
+    public async Task GetOrAddAsync_AsyncFactory_NewKey_AddsAndReturns() {
         var dict = new AsyncLockedDictionary<string, int>();
         var v = await dict.GetOrAddAsync("a", _ => Task.FromResult(42));
         v.Should().Be(42);
@@ -34,16 +31,14 @@ public class AsyncLockedDictionaryTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task TryAddAsync_NewKey_ReturnsTrue_DuplicateReturnsFalse()
-    {
+    public async Task TryAddAsync_NewKey_ReturnsTrue_DuplicateReturnsFalse() {
         var dict = new AsyncLockedDictionary<string, int>();
         (await dict.TryAddAsync("a", 1)).Should().BeTrue();
         (await dict.TryAddAsync("a", 2)).Should().BeFalse();
     }
 
     [Fact(Timeout = 10000)]
-    public async Task RemoveAsync_ExistingKey_ReturnsValue_Removes()
-    {
+    public async Task RemoveAsync_ExistingKey_ReturnsValue_Removes() {
         var dict = new AsyncLockedDictionary<string, int>();
         await dict.TryAddAsync("a", 42);
 
@@ -54,8 +49,7 @@ public class AsyncLockedDictionaryTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task SnapshotAsync_ReturnsIndependentCopy()
-    {
+    public async Task SnapshotAsync_ReturnsIndependentCopy() {
         var dict = new AsyncLockedDictionary<string, int>();
         await dict.TryAddAsync("a", 1);
         await dict.TryAddAsync("b", 2);
@@ -69,8 +63,7 @@ public class AsyncLockedDictionaryTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task AddOrUpdateAsync_NewKey_UsesDefaultExisting()
-    {
+    public async Task AddOrUpdateAsync_NewKey_UsesDefaultExisting() {
         var dict = new AsyncLockedDictionary<string, int>();
         var v = await dict.AddOrUpdateAsync("a", (_, existing) => existing + 1);
         v.Should().Be(1, "新 key 时 existing=default(int)=0, 返回 0+1=1");
@@ -80,8 +73,7 @@ public class AsyncLockedDictionaryTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task AddOrUpdateAsync_RespectsComparer()
-    {
+    public async Task AddOrUpdateAsync_RespectsComparer() {
         var dict = new AsyncLockedDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         await dict.TryAddAsync("ABC", 1);
         var v = await dict.AddOrUpdateAsync("abc", (_, existing) => existing + 10);
@@ -91,18 +83,15 @@ public class AsyncLockedDictionaryTest
     // ===== 2. 并发正确性 (Concurrent Correctness) =====
 
     [Fact(Timeout = 10000)]
-    public async Task AddOrUpdateAsync_ConcurrentSameKey_NoLostUpdates()
-    {
+    public async Task AddOrUpdateAsync_ConcurrentSameKey_NoLostUpdates() {
         var dict = new AsyncLockedDictionary<string, int>();
         const int N = 50;
         const int M = 20;
 
         var startGate = new TaskCompletionSource<bool>();
-        var tasks = Enumerable.Range(0, N).Select(async _ =>
-        {
+        var tasks = Enumerable.Range(0, N).Select(async _ => {
             await startGate.Task;
-            for (var i = 0; i < M; i++)
-            {
+            for (var i = 0; i < M; i++) {
                 await dict.AddOrUpdateAsync("counter", (_, existing) => existing + 1);
             }
         }).ToArray();
@@ -115,14 +104,12 @@ public class AsyncLockedDictionaryTest
     }
 
     [Fact(Timeout = 10000)]
-    public async Task TryAddAsync_ConcurrentDistinctKeys_AllPresent()
-    {
+    public async Task TryAddAsync_ConcurrentDistinctKeys_AllPresent() {
         var dict = new AsyncLockedDictionary<int, int>();
         const int N = 100;
 
         var startGate = new TaskCompletionSource<bool>();
-        var tasks = Enumerable.Range(0, N).Select(async i =>
-        {
+        var tasks = Enumerable.Range(0, N).Select(async i => {
             await startGate.Task;
             await dict.TryAddAsync(i, i * 10);
         }).ToArray();
@@ -145,19 +132,16 @@ public class AsyncLockedDictionaryTest
     /// ConcurrentDictionary 分片锁下两个 factory 并行, 互相 SetResult 后都完成 → 绿。
     /// </summary>
     [Fact(Timeout = 10000)]
-    public async Task GetOrAddAsync_DifferentKeys_AsyncFactoriesExecuteInParallel()
-    {
+    public async Task GetOrAddAsync_DifferentKeys_AsyncFactoriesExecuteInParallel() {
         var dict = new AsyncLockedDictionary<string, int>();
         var tcs1 = new TaskCompletionSource<int>();
         var tcs2 = new TaskCompletionSource<int>();
 
-        var task1 = dict.GetOrAddAsync("a", async _ =>
-        {
+        var task1 = dict.GetOrAddAsync("a", async _ => {
             tcs2.TrySetResult(2);
             return await tcs1.Task;
         });
-        var task2 = dict.GetOrAddAsync("b", async _ =>
-        {
+        var task2 = dict.GetOrAddAsync("b", async _ => {
             tcs1.TrySetResult(1);
             return await tcs2.Task;
         });
@@ -171,18 +155,15 @@ public class AsyncLockedDictionaryTest
     /// 不同 key 的同步 AddOrUpdate 在高并发下应全部成功且值正确(分片锁不改变正确性, 只提升并行度)。
     /// </summary>
     [Fact(Timeout = 10000)]
-    public async Task AddOrUpdateAsync_ConcurrentDistinctKeys_AllCorrect()
-    {
+    public async Task AddOrUpdateAsync_ConcurrentDistinctKeys_AllCorrect() {
         var dict = new AsyncLockedDictionary<int, int>();
         const int N = 100;
         const int M = 10;
 
         var startGate = new TaskCompletionSource<bool>();
-        var tasks = Enumerable.Range(0, N).Select(async i =>
-        {
+        var tasks = Enumerable.Range(0, N).Select(async i => {
             await startGate.Task;
-            for (var j = 0; j < M; j++)
-            {
+            for (var j = 0; j < M; j++) {
                 await dict.AddOrUpdateAsync(i, (_, existing) => existing + 1);
             }
         }).ToArray();
@@ -196,4 +177,3 @@ public class AsyncLockedDictionaryTest
             snap[i].Should().Be(M);
     }
 }
-

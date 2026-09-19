@@ -4,14 +4,12 @@ namespace Core.Query;
 /// 空闲提醒中间件 — 每次迭代后记录助手轮次
 /// </summary>
 [Register(typeof(IQueryMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddleware
-{
+public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddleware {
     /// <summary>
     /// 构造函数 — 注入工具空闲提醒服务（可选）
     /// </summary>
     /// <param name="toolIdleReminder">工具空闲提醒服务</param>
-    public IdleReminderMiddleware(IToolIdleReminderService? toolIdleReminder = null)
-    {
+    public IdleReminderMiddleware(IToolIdleReminderService? toolIdleReminder = null) {
         _toolIdleReminder = toolIdleReminder;
     }
     private readonly IToolIdleReminderService? _toolIdleReminder;
@@ -29,10 +27,8 @@ public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddle
     /// <param name="next">下一委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct)
-    {
-        if (_toolIdleReminder is not null)
-        {
+    public Task InvokeAsync(QueryMiddlewareContext context, MiddlewareDelegate<QueryMiddlewareContext> next, CancellationToken ct) {
+        if (_toolIdleReminder is not null) {
             context.AfterToolCallHooks.Add(RecordToolCallTurnAsync);
             context.OnCompleteHooks.Add(RecordCompletionTurnAsync);
         }
@@ -40,14 +36,12 @@ public sealed partial class IdleReminderMiddleware : ServiceEntity, IQueryMiddle
         return next(context, ct);
     }
 
-    private Task RecordToolCallTurnAsync(QueryMiddlewareContext context, CancellationToken ct)
-    {
+    private Task RecordToolCallTurnAsync(QueryMiddlewareContext context, CancellationToken ct) {
         (_toolIdleReminder ?? throw new InvalidOperationException("Tool idle reminder not available.")).RecordAssistantTurn(context.ToolName);
         return Task.CompletedTask;
     }
 
-    private Task RecordCompletionTurnAsync(QueryMiddlewareContext context, CancellationToken ct)
-    {
+    private Task RecordCompletionTurnAsync(QueryMiddlewareContext context, CancellationToken ct) {
         (_toolIdleReminder ?? throw new InvalidOperationException("Tool idle reminder not available.")).RecordAssistantTurn();
         return Task.CompletedTask;
     }

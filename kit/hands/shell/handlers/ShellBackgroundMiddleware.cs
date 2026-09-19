@@ -6,16 +6,14 @@ namespace Tools.Shell;
 /// 统一走 SystemActuatorCommandContext 路径，复用溢出文件机制，不再独立启动新进程
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMiddleware {
 
     /// <summary>
     /// 构造后台任务中间件
     /// </summary>
     /// <param name="registry">系统执行器注册表</param>
     /// <param name="telemetryService">遥测服务（可选）</param>
-    public ShellBackgroundMiddleware(ISystemActuatorRegistry registry, ITelemetryService? telemetryService = null)
-    {
+    public ShellBackgroundMiddleware(ISystemActuatorRegistry registry, ITelemetryService? telemetryService = null) {
         _registry = registry;
         _telemetryService = telemetryService;
     }
@@ -25,10 +23,8 @@ public sealed partial class ShellBackgroundMiddleware : ServiceEntity, IShellMid
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
-        if (context.Background != true)
-        {
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
+        if (context.Background != true) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }

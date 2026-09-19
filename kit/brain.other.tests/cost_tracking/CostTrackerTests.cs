@@ -1,37 +1,32 @@
 
 namespace Core.Tests.CostTracking;
 
-public class CostTrackerTests : IDisposable, IAsyncLifetime
-{
+public class CostTrackerTests : IDisposable, IAsyncLifetime {
     private string _tempStoragePath = null!;
     private Core.CostTracking.CostTracker _costTracker = null!;
     private Mock<IFileOperationService> _fileOperationServiceMock = null!;
     private bool _disposed;
 
-    public Task InitializeAsync()
-    {
+    public Task InitializeAsync() {
         _tempStoragePath = "/test/costs.json";
         _fileOperationServiceMock = new Mock<IFileOperationService>();
         _costTracker = new Core.CostTracking.CostTracker(_fileOperationServiceMock.Object, storagePath: _tempStoragePath, NullLogger<Core.CostTracking.CostTracker>.Instance, modelConfigLoader: Testing.Common.Services.TestModelConfigLoaderFactory.CreateWithDefaultPricing());
         return Task.CompletedTask;
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
     }
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         if (_disposed) return Task.CompletedTask;
         _disposed = true;
         return Task.CompletedTask;
     }
 
     [Fact]
-    public void RecordUsage_WithValidData_ShouldRecordSuccessfully()
-    {
+    public void RecordUsage_WithValidData_ShouldRecordSuccessfully() {
         var model = "test-model";
         var promptTokens = 1000;
         var completionTokens = 500;
@@ -46,8 +41,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void RecordUsage_MultipleRecords_ShouldAccumulateCorrectly()
-    {
+    public void RecordUsage_MultipleRecords_ShouldAccumulateCorrectly() {
         _costTracker.RecordUsage("model-a", 1000, 500);
         _costTracker.RecordUsage("model-a", 2000, 1000);
         _costTracker.RecordUsage("model-b", 500, 200);
@@ -60,8 +54,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void RecordUsage_WithSessionId_ShouldTrackBySession()
-    {
+    public void RecordUsage_WithSessionId_ShouldTrackBySession() {
         var sessionId = "test-session-001";
 
         _costTracker.RecordUsage("model-a", 1000, 500, sessionId);
@@ -77,8 +70,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void RecordUsage_ShouldCalculateCostCorrectly()
-    {
+    public void RecordUsage_ShouldCalculateCostCorrectly() {
         var customModel = "pricing-test-model";
         var promptCost = 0.02m;
         var completionCost = 0.06m;
@@ -92,8 +84,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void GetTodayStatistics_ShouldReturnOnlyTodayRecords()
-    {
+    public void GetTodayStatistics_ShouldReturnOnlyTodayRecords() {
         _costTracker.RecordUsage("model-a", 1000, 500);
 
         var todayStats = _costTracker.GetTodayStatistics();
@@ -101,8 +92,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void GetStatistics_WithDateRange_ShouldFilterCorrectly()
-    {
+    public void GetStatistics_WithDateRange_ShouldFilterCorrectly() {
         _costTracker.RecordUsage("model-a", 1000, 500);
 
         var startDate = DateTime.UtcNow.AddDays(-1);
@@ -112,8 +102,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void SetModelCost_ShouldOverrideDefaultPricing()
-    {
+    public void SetModelCost_ShouldOverrideDefaultPricing() {
         // Arrange
         var customModel = "custom-model";
         var customPromptCost = 0.05m;
@@ -135,8 +124,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void GetModelCost_UnknownModel_ShouldReturnNull()
-    {
+    public void GetModelCost_UnknownModel_ShouldReturnNull() {
         // Act
         var costInfo = _costTracker.GetModelCost("completely-unknown-model-xyz");
 
@@ -145,8 +133,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void CalculateCost_UnknownModel_ShouldUseDefaultPricing()
-    {
+    public void CalculateCost_UnknownModel_ShouldUseDefaultPricing() {
         // Act - RecordUsage with unknown model should still calculate cost using defaults
         _costTracker.RecordUsage("completely-unknown-model", 1000, 1000);
 
@@ -157,15 +144,13 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void GetAllModelCosts_ShouldNotBeEmpty()
-    {
+    public void GetAllModelCosts_ShouldNotBeEmpty() {
         var allCosts = _costTracker.GetAllModelCosts();
         allCosts.Should().NotBeEmpty();
     }
 
     [Fact]
-    public void GetTotalStatistics_NoRecords_ShouldReturnEmptyStats()
-    {
+    public void GetTotalStatistics_NoRecords_ShouldReturnEmptyStats() {
         // Arrange - fresh CostTracker with no records
         var freshTracker = new CostTracker(_fileOperationServiceMock.Object, storagePath: "/test/empty_costs.json");
 
@@ -182,11 +167,9 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void ModelCostStatistics_TotalTokens_ShouldCalculateCorrectly()
-    {
+    public void ModelCostStatistics_TotalTokens_ShouldCalculateCorrectly() {
         // Arrange
-        var modelStats = new ModelCostStatistics
-        {
+        var modelStats = new ModelCostStatistics {
             Model = "test-model",
             PromptTokens = 1000,
             CompletionTokens = 500,
@@ -198,8 +181,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void GetSessionStatistics_UnknownSession_ShouldReturnEmptyStats()
-    {
+    public void GetSessionStatistics_UnknownSession_ShouldReturnEmptyStats() {
         // Act
         var stats = _costTracker.GetSessionStatistics("non-existent-session");
 
@@ -209,8 +191,7 @@ public class CostTrackerTests : IDisposable, IAsyncLifetime
     }
 
     [Fact]
-    public void RecordUsage_ModelBreakdown_ShouldGroupByModel()
-    {
+    public void RecordUsage_ModelBreakdown_ShouldGroupByModel() {
         var model1 = "test-model-a";
         var model2 = "test-model-b";
 

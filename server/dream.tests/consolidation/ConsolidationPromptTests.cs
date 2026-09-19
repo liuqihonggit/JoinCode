@@ -4,11 +4,9 @@ namespace Dream.Tests;
 /// <summary>
 /// 提示词构建器测试
 /// </summary>
-public sealed class ConsolidationPromptTests
-{
+public sealed class ConsolidationPromptTests {
     [Fact]
-    public void BuildPrompt_ShouldContainMemoryRoot()
-    {
+    public void BuildPrompt_ShouldContainMemoryRoot() {
         // Arrange
         const string memoryRoot = "/path/to/memory";
         const string transcriptDir = "/path/to/transcripts";
@@ -21,8 +19,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildPrompt_ShouldContainTranscriptDir()
-    {
+    public void BuildPrompt_ShouldContainTranscriptDir() {
         // Arrange
         const string memoryRoot = "/path/to/memory";
         const string transcriptDir = "/path/to/transcripts";
@@ -35,8 +32,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildPrompt_ShouldContainAllFourPhases()
-    {
+    public void BuildPrompt_ShouldContainAllFourPhases() {
         // Arrange
         const string memoryRoot = "/path/to/memory";
         const string transcriptDir = "/path/to/transcripts";
@@ -56,8 +52,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildPrompt_ShouldContainEntrypointName()
-    {
+    public void BuildPrompt_ShouldContainEntrypointName() {
         // Arrange
         const string memoryRoot = "/path/to/memory";
         const string transcriptDir = "/path/to/transcripts";
@@ -70,8 +65,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildPrompt_WithExtraContext_ShouldContainExtra()
-    {
+    public void BuildPrompt_WithExtraContext_ShouldContainExtra() {
         // Arrange
         const string memoryRoot = "/path/to/memory";
         const string transcriptDir = "/path/to/transcripts";
@@ -86,8 +80,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildPrompt_WithoutExtraContext_ShouldNotContainAdditionalContextSection()
-    {
+    public void BuildPrompt_WithoutExtraContext_ShouldNotContainAdditionalContextSection() {
         // Arrange
         const string memoryRoot = "/path/to/memory";
         const string transcriptDir = "/path/to/transcripts";
@@ -100,8 +93,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildExtraContext_ShouldContainSessionCount()
-    {
+    public void BuildExtraContext_ShouldContainSessionCount() {
         // Arrange
         var sessionIds = new[] { "session1", "session2", "session3" };
         const string toolConstraints = "Tool constraints";
@@ -117,8 +109,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildExtraContext_WithEmptySessions_ShouldShowNone()
-    {
+    public void BuildExtraContext_WithEmptySessions_ShouldShowNone() {
         // Arrange
         var sessionIds = Array.Empty<string>();
         const string toolConstraints = "Tool constraints";
@@ -131,8 +122,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildExtraContext_ShouldContainToolConstraints()
-    {
+    public void BuildExtraContext_ShouldContainToolConstraints() {
         // Arrange
         var sessionIds = new[] { "session1" };
         const string toolConstraints = "Tool constraints here";
@@ -145,8 +135,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void ToolConstraints_ShouldContainReadOnlyCommands()
-    {
+    public void ToolConstraints_ShouldContainReadOnlyCommands() {
         // Arrange & Act
         var constraints = ConsolidationPrompt.ToolConstraints;
 
@@ -159,8 +148,7 @@ public sealed class ConsolidationPromptTests
     }
 
     [Fact]
-    public void BuildPrompt_ShouldContainMaxEntrypointLines()
-    {
+    public void BuildPrompt_ShouldContainMaxEntrypointLines() {
         // Arrange
         const string memoryRoot = "/path/to/memory";
         const string transcriptDir = "/path/to/transcripts";

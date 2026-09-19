@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// 提示词 Section 注入条件标志
 /// </summary>
 [Flags]
-public enum PromptSectionInject
-{
+public enum PromptSectionInject {
     None = 0,
     Keyword = 1,
     AgentMode = 2,
@@ -17,8 +16,7 @@ public enum PromptSectionInject
 /// 源码生成器扫描此特性，自动生成：关键词枚举、正则检测、映射、注册代码
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class PromptSectionAttribute : Attribute
-{
+public sealed class PromptSectionAttribute : Attribute {
     /// <summary>
     /// Section 名称（用于 SystemPromptSection.Create 的 name 参数）
     /// </summary>

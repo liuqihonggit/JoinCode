@@ -5,8 +5,7 @@ namespace McpClient.Transports;
 /// HTTP (Streamable HTTP) 客户端传输 — 继承 TransportBase 共享连接管理内核，实现 IMcpTransport 桥接 JSON-RPC 协议
 /// 对齐 TS StreamableHTTPClientTransport: 通过 HTTP POST 发送 JSON-RPC 消息，支持 SSE 响应流
 /// </summary>
-public sealed partial class HttpTransport : TransportBase, IMcpTransport
-{
+public sealed partial class HttpTransport : TransportBase, IMcpTransport {
     private readonly HttpTransportOptions _options;
     private readonly ILogger<HttpTransport>? _logger;
     private readonly HttpClient _httpClient;
@@ -38,14 +37,12 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     /// <param name="options">HTTP 传输选项(端点、请求头、协议版本等)</param>
     /// <param name="authProvider">认证提供者,用于获取认证令牌;可为 null</param>
     /// <param name="logger">日志记录器,可为 null</param>
-    public HttpTransport(HttpTransportOptions options, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null)
-    {
+    public HttpTransport(HttpTransportOptions options, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null) {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _authProvider = authProvider;
         _logger = logger;
 
-        _httpClient = new HttpClient
-        {
+        _httpClient = new HttpClient {
             Timeout = TimeSpan.FromMilliseconds(PostTimeoutMs)
         };
 
@@ -64,29 +61,24 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     /// <param name="authProvider">认证提供者,用于获取认证令牌;可为 null</param>
     /// <param name="logger">日志记录器,可为 null</param>
     public HttpTransport(McpServerConnectionConfig config, IMcpAuthProvider? authProvider = null, ILogger<HttpTransport>? logger = null)
-        : this(CreateOptionsFromConfig(config), authProvider, logger)
-    {
+        : this(CreateOptionsFromConfig(config), authProvider, logger) {
     }
 
     /// <inheritdoc/>
-    protected override Task ConnectCoreAsync(CancellationToken ct)
-    {
+    protected override Task ConnectCoreAsync(CancellationToken ct) {
         // HTTP 传输不需要初始连接，首次 SendMessage 时建立
         return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    protected override Task DisconnectCoreAsync(CancellationToken ct)
-    {
+    protected override Task DisconnectCoreAsync(CancellationToken ct) {
         _sessionId = null;
         return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    protected override async Task SendCoreAsync(ReadOnlyMemory<byte> payload, CancellationToken ct)
-    {
-        if (!IsRunning)
-        {
+    protected override async Task SendCoreAsync(ReadOnlyMemory<byte> payload, CancellationToken ct) {
+        if (!IsRunning) {
             throw new InvalidOperationException(McpErrorMessages.TransportNotRunning);
         }
 
@@ -99,66 +91,53 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/event-stream"));
 
-        if (!string.IsNullOrEmpty(_sessionId))
-        {
+        if (!string.IsNullOrEmpty(_sessionId)) {
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", _sessionId);
         }
 
         request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _options.ProtocolVersion);
 
         var combinedHeaders = await GetCombinedHeadersAsync(ct).ConfigureAwait(false);
-        foreach (var (key, value) in combinedHeaders)
-        {
+        foreach (var (key, value) in combinedHeaders) {
             request.Headers.TryAddWithoutValidation(key, value);
         }
 
         using var response = await _httpClient.SendAsync(
             request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-        {
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) {
             var wasStateful = !string.IsNullOrEmpty(_sessionId);
             _sessionId = null;
             _logger?.LogWarning("MCP 会话过期(404),下次请求将重新握手");
-            if (wasStateful)
-            {
+            if (wasStateful) {
                 SessionExpired?.Invoke(this, EventArgs.Empty);
             }
         }
 
         var stepUpScope = StepUpDetector.DetectStepUp(response, _authProvider);
-        if (stepUpScope is not null)
-        {
+        if (stepUpScope is not null) {
             _logger?.LogWarning("Step-Up 认证检测: 需要 scope={Scope}", stepUpScope);
             StepUpDetected?.Invoke(this, new StepUpDetectedEventArgs { Scope = stepUpScope });
         }
 
         response.EnsureSuccessStatusCode();
 
-        if (response.Headers.TryGetValues("Mcp-Session-Id", out var sessionIds))
-        {
+        if (response.Headers.TryGetValues("Mcp-Session-Id", out var sessionIds)) {
             _sessionId = sessionIds.FirstOrDefault();
             _logger?.LogDebug("MCP 会话 ID: {SessionId}", _sessionId);
-        }
-        else if (!_options.StatelessMode)
-        {
+        } else if (!_options.StatelessMode) {
             _logger?.LogInformation("服务器未分配 MCP-Session-Id,以无状态模式运行");
         }
 
         var contentType = response.Content.Headers.ContentType?.MediaType;
 
-        if (contentType is not null && contentType.Contains("text/event-stream"))
-        {
+        if (contentType is not null && contentType.Contains("text/event-stream")) {
             BackgroundTask = ProcessSseResponseAsync(response, ct);
-        }
-        else
-        {
+        } else {
             var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            if (!string.IsNullOrWhiteSpace(responseBody))
-            {
+            if (!string.IsNullOrWhiteSpace(responseBody)) {
                 var responseMessage = ParseMessage(responseBody);
-                if (responseMessage is not null)
-                {
+                if (responseMessage is not null) {
                     OnPayloadReceived(Encoding.UTF8.GetBytes(responseBody));
                     MessageReceived?.Invoke(this, new McpMessageReceivedEventArgs { Message = responseMessage });
                 }
@@ -167,8 +146,7 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     }
 
     /// <summary>IMcpTransport: 发送 JSON-RPC 消息（序列化为字节后委托给基类）</summary>
-    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
-    {
+    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(message);
         var json = message.ToJson();
         var bytes = Encoding.UTF8.GetBytes(json);
@@ -176,8 +154,7 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    public override Task StartAsync(CancellationToken ct = default)
-    {
+    public override Task StartAsync(CancellationToken ct = default) {
         if (IsRunning) return Task.CompletedTask;
 
         CreateCtsAndToken();
@@ -188,13 +165,11 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    public override async Task StopAsync(CancellationToken ct = default)
-    {
+    public override async Task StopAsync(CancellationToken ct = default) {
         if (!IsRunning) return;
         IsRunning = false;
 
-        if (!string.IsNullOrEmpty(_sessionId))
-        {
+        if (!string.IsNullOrEmpty(_sessionId)) {
             await SendDeleteSessionAsync(ct).ConfigureAwait(false);
         }
 
@@ -206,18 +181,14 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     /// 发送 HTTP DELETE 终止会话 — 对齐 2025-11-25 规范 Session Management:
     /// 客户端 SHOULD 发送 DELETE + MCP-Session-Id 显式终止会话
     /// </summary>
-    private async Task SendDeleteSessionAsync(CancellationToken ct)
-    {
-        try
-        {
+    private async Task SendDeleteSessionAsync(CancellationToken ct) {
+        try {
             using var request = new HttpRequestMessage(HttpMethod.Delete, _options.Endpoint);
             request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _options.ProtocolVersion);
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", _sessionId);
             using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
             _logger?.LogDebug("DELETE 会话终止响应: {StatusCode}", response.StatusCode);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "DELETE 会话终止失败");
         }
     }
@@ -225,31 +196,22 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     /// <summary>
     /// 处理 SSE 响应流 — 使用 SseStreamParser 解析事件
     /// </summary>
-    private async Task ProcessSseResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task ProcessSseResponseAsync(HttpResponseMessage response, CancellationToken cancellationToken) {
+        try {
             using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
-            await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, cancellationToken).ConfigureAwait(false))
-            {
-                if (!string.IsNullOrEmpty(sseEvent.Id))
-                {
+            await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, cancellationToken).ConfigureAwait(false)) {
+                if (!string.IsNullOrEmpty(sseEvent.Id)) {
                     _lastEventId = sseEvent.Id;
                 }
                 var message = ParseMessage(sseEvent.Data);
-                if (message is not null)
-                {
+                if (message is not null) {
                     OnPayloadReceived(Encoding.UTF8.GetBytes(sseEvent.Data));
                     MessageReceived?.Invoke(this, new McpMessageReceivedEventArgs { Message = message });
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "SSE 响应流处理异常");
             OnErrorOccurred(ex);
         }
@@ -259,19 +221,16 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     /// 通过 GET 打开 SSE 流 — 对齐 2025-11-25 规范:客户端 MAY GET 开 SSE 流接收服务端推送,
     /// 断线后用 Last-Event-ID 重连恢复。服务器 MAY 用 Last-Event-ID 重放丢失消息。
     /// </summary>
-    public async Task OpenSseStreamAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task OpenSseStreamAsync(CancellationToken cancellationToken = default) {
         if (!IsRunning) return;
 
         using var request = new HttpRequestMessage(HttpMethod.Get, _options.Endpoint);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
         request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _options.ProtocolVersion);
-        if (!string.IsNullOrEmpty(_sessionId))
-        {
+        if (!string.IsNullOrEmpty(_sessionId)) {
             request.Headers.TryAddWithoutValidation("Mcp-Session-Id", _sessionId);
         }
-        if (!string.IsNullOrEmpty(_lastEventId))
-        {
+        if (!string.IsNullOrEmpty(_lastEventId)) {
             request.Headers.TryAddWithoutValidation("Last-Event-ID", _lastEventId);
         }
 
@@ -283,22 +242,16 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
         await ProcessSseResponseAsync(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private static JsonRpcMessage? ParseMessage(string json)
-    {
-        try
-        {
+    private static JsonRpcMessage? ParseMessage(string json) {
+        try {
             return McpMessageExtensions.FromJson(json);
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return null;
         }
     }
 
-    private async Task<Dictionary<string, string>> GetCombinedHeadersAsync(CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(_options.HeadersHelper))
-        {
+    private async Task<Dictionary<string, string>> GetCombinedHeadersAsync(CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(_options.HeadersHelper)) {
             return _options.Headers;
         }
 
@@ -308,38 +261,32 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
         return McpHeadersHelper.CombineHeaders(_options.Headers, dynamicHeaders);
     }
 
-    private static HttpTransportOptions CreateOptionsFromConfig(McpServerConnectionConfig config)
-    {
+    private static HttpTransportOptions CreateOptionsFromConfig(McpServerConnectionConfig config) {
         var headers = new Dictionary<string, string>();
 
-        if (config.Headers is not null)
-        {
-            foreach (var kvp in config.Headers)
-            {
+        if (config.Headers is not null) {
+            foreach (var kvp in config.Headers) {
                 headers[kvp.Key] = kvp.Value;
             }
         }
 
-        if (config.Auth is not null)
-        {
-            switch (config.Auth.Type)
-            {
+        if (config.Auth is not null) {
+            switch (config.Auth.Type) {
                 case McpAuthType.Bearer when !string.IsNullOrEmpty(config.Auth.BearerToken):
-                    headers["Authorization"] = $"Bearer {config.Auth.BearerToken}";
-                    break;
+                headers["Authorization"] = $"Bearer {config.Auth.BearerToken}";
+                break;
                 case McpAuthType.ApiKey when !string.IsNullOrEmpty(config.Auth.ApiKey):
-                    headers["X-API-Key"] = config.Auth.ApiKey;
-                    break;
+                headers["X-API-Key"] = config.Auth.ApiKey;
+                break;
                 case McpAuthType.Basic when !string.IsNullOrEmpty(config.Auth.Username):
-                    var credentials = Convert.ToBase64String(
-                        Encoding.UTF8.GetBytes($"{config.Auth.Username}:{config.Auth.Password}"));
-                    headers["Authorization"] = $"Basic {credentials}";
-                    break;
+                var credentials = Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes($"{config.Auth.Username}:{config.Auth.Password}"));
+                headers["Authorization"] = $"Basic {credentials}";
+                break;
             }
         }
 
-        return new HttpTransportOptions
-        {
+        return new HttpTransportOptions {
             Name = config.Name,
             Endpoint = config.Endpoint,
             Headers = headers,
@@ -350,8 +297,7 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         _httpClient.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);
     }
@@ -360,8 +306,7 @@ public sealed partial class HttpTransport : TransportBase, IMcpTransport
 /// <summary>
 /// HTTP 传输选项
 /// </summary>
-public sealed partial class HttpTransportOptions
-{
+public sealed partial class HttpTransportOptions {
     /// <summary>传输名称</summary>
     public string Name { get; init; } = McpClientTransportTypeEnumConstants.Http;
 

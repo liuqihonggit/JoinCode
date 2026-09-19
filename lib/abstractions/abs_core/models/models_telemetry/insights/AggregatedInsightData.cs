@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Insights;
 /// <summary>
 /// 聚合洞察数据 — 对齐 TS insights.ts AggregatedData
 /// </summary>
-public sealed class AggregatedInsightData
-{
+public sealed class AggregatedInsightData {
     public int TotalSessions { get; init; }
     public int TotalSessionsScanned { get; init; }
     public DateOnly? StartDate { get; init; }
@@ -76,8 +75,7 @@ public sealed class AggregatedInsightData
 /// <summary>
 /// 每日活动数据 — 对齐 TS stats DailyActivity
 /// </summary>
-public sealed class DailyActivity
-{
+public sealed class DailyActivity {
     public DateOnly Date { get; init; }
     public int MessageCount { get; init; }
     public int SessionCount { get; init; }

@@ -4,11 +4,9 @@ namespace Tui.Tests.Snapshot;
 /// QueuedCommandsView 快照测试 — 验证投递预览组件的显示/隐藏行为。
 /// P0-3 组件接入：队列有内容时可见，空时隐藏。
 /// </summary>
-public class QueuedCommandsViewSnapshotTests
-{
+public class QueuedCommandsViewSnapshotTests {
     [Fact]
-    public void EmptyQueue_Hidden()
-    {
+    public void EmptyQueue_Hidden() {
         var queue = new CommandQueue();
         var view = new QueuedCommandsView(queue);
         view.OnQueueChanged(queue.GetSnapshot());
@@ -18,8 +16,7 @@ public class QueuedCommandsViewSnapshotTests
     }
 
     [Fact]
-    public void WithPendingCommands_VisibleWithItems()
-    {
+    public void WithPendingCommands_VisibleWithItems() {
         var queue = new CommandQueue();
         queue.Enqueue(new QueuedCommand("hello", CommandOrigin.User, QueuePriority.Next));
         queue.Enqueue(new QueuedCommand("world", CommandOrigin.User, QueuePriority.Later));

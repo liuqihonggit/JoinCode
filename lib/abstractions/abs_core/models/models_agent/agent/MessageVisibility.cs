@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// 消息可见性 — 控制消息投递范围，对标 QQ 系统消息/私信/撤回 — ADR 0109 决策8。
 /// </summary>
-public enum MessageVisibility
-{
+public enum MessageVisibility {
     /// <summary>所有人可见（普通聊天消息）</summary>
     [EnumValue("public")] Public = 0,
 

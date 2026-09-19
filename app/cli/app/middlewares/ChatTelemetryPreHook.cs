@@ -4,8 +4,7 @@ namespace JoinCode.App.Middlewares;
 /// Chat 管道 Pre Hook — 遥测 StartSpan + UserPromptSubmit Hook 拦截
 /// </summary>
 [Register(typeof(IPipelinePreHook<Core.Context.ChatMiddlewareContext>), ServiceLifetime.Singleton)]
-internal sealed partial class ChatTelemetryPreHook : ServiceEntity, IPipelinePreHook<Core.Context.ChatMiddlewareContext>
-{
+internal sealed partial class ChatTelemetryPreHook : ServiceEntity, IPipelinePreHook<Core.Context.ChatMiddlewareContext> {
     private readonly ITelemetryService? _telemetryService;
     private readonly IHookOrchestrator? _hookOrchestrator;
     private readonly ILogger<ChatTelemetryPreHook>? _logger;
@@ -13,28 +12,23 @@ internal sealed partial class ChatTelemetryPreHook : ServiceEntity, IPipelinePre
     public ChatTelemetryPreHook(
         ITelemetryService? telemetryService,
         IHookOrchestrator? hookOrchestrator,
-        ILogger<ChatTelemetryPreHook>? logger)
-    {
+        ILogger<ChatTelemetryPreHook>? logger) {
         _telemetryService = telemetryService;
         _hookOrchestrator = hookOrchestrator;
         _logger = logger;
     }
 
-    public async Task<bool> InvokeAsync(Core.Context.ChatMiddlewareContext context, CancellationToken ct)
-    {
+    public async Task<bool> InvokeAsync(Core.Context.ChatMiddlewareContext context, CancellationToken ct) {
         // 1. 遥测: StartSpan
-        if (_telemetryService is not null)
-        {
+        if (_telemetryService is not null) {
             var span = _telemetryService.StartSpan(context.SpanName, TelemetrySpanKind.Server);
             span.SetTag("chat.message_length", context.Message.Length);
             context.Span = span;
         }
 
         // 2. UserPromptSubmit Hook — 对齐 TS processUserInput.ts:182
-        if (_hookOrchestrator is not null)
-        {
-            var payload = new Dictionary<string, JsonElement>
-            {
+        if (_hookOrchestrator is not null) {
+            var payload = new Dictionary<string, JsonElement> {
                 ["prompt"] = JsonElementHelper.FromString(context.Message),
                 ["session_id"] = JsonElementHelper.FromString("unknown")
             };
@@ -43,16 +37,13 @@ internal sealed partial class ChatTelemetryPreHook : ServiceEntity, IPipelinePre
                 HookEvent.UserPromptSubmit,
                 payload,
                 sessionId: "unknown",
-                cancellationToken: ct).ConfigureAwait(false))
-            {
-                if (result.Outcome == HookOutcome.Blocking)
-                {
+                cancellationToken: ct).ConfigureAwait(false)) {
+                if (result.Outcome == HookOutcome.Blocking) {
                     _logger?.LogWarning("[ChatPipeline] UserPromptSubmit Hook 阻止了请求: {Message}", result.Message);
                     return false;
                 }
 
-                if (result.PreventContinuation)
-                {
+                if (result.PreventContinuation) {
                     return false;
                 }
             }

@@ -1,10 +1,8 @@
 namespace Infra.Tests.Utils.Collections;
 
-public class CachedRegistryTests
-{
+public class CachedRegistryTests {
     [Fact]
-    public void Register_And_TryGetValue_ShouldWork()
-    {
+    public void Register_And_TryGetValue_ShouldWork() {
         var registry = new CachedRegistry<string, int>();
         registry.Register("a", 1);
         registry.TryGetValue("a", out var value).Should().BeTrue();
@@ -12,15 +10,13 @@ public class CachedRegistryTests
     }
 
     [Fact]
-    public void TryGetValue_MissingKey_ShouldReturnFalse()
-    {
+    public void TryGetValue_MissingKey_ShouldReturnFalse() {
         var registry = new CachedRegistry<string, int>();
         registry.TryGetValue("a", out _).Should().BeFalse();
     }
 
     [Fact]
-    public void RegisterAlias_ShouldMapToValue()
-    {
+    public void RegisterAlias_ShouldMapToValue() {
         var registry = new CachedRegistry<string, int>();
         registry.Register("a", 1);
         registry.RegisterAlias("alias_a", 1);
@@ -29,8 +25,7 @@ public class CachedRegistryTests
     }
 
     [Fact]
-    public void Unregister_ShouldRemoveKey()
-    {
+    public void Unregister_ShouldRemoveKey() {
         var registry = new CachedRegistry<string, int>();
         registry.Register("a", 1);
         registry.Unregister("a").Should().BeTrue();
@@ -38,15 +33,13 @@ public class CachedRegistryTests
     }
 
     [Fact]
-    public void Unregister_MissingKey_ShouldReturnFalse()
-    {
+    public void Unregister_MissingKey_ShouldReturnFalse() {
         var registry = new CachedRegistry<string, int>();
         registry.Unregister("a").Should().BeFalse();
     }
 
     [Fact]
-    public void Count_ShouldReturnCorrectCount()
-    {
+    public void Count_ShouldReturnCorrectCount() {
         var registry = new CachedRegistry<string, int>();
         registry.Count.Should().Be(0);
         registry.Register("a", 1);
@@ -54,8 +47,7 @@ public class CachedRegistryTests
     }
 
     [Fact]
-    public void ContainsKey_ShouldWork()
-    {
+    public void ContainsKey_ShouldWork() {
         var registry = new CachedRegistry<string, int>();
         registry.Register("a", 1);
         registry.ContainsKey("a").Should().BeTrue();
@@ -63,11 +55,9 @@ public class CachedRegistryTests
     }
 }
 
-public class CategorizedRegistryTests
-{
+public class CategorizedRegistryTests {
     [Fact]
-    public void TryGetValue_ShouldWork()
-    {
+    public void TryGetValue_ShouldWork() {
         var registry = new CategorizedRegistry<string, int, string>("default");
         registry.Register("a", 1);
         registry.TryGetValue("a", out var value).Should().BeTrue();
@@ -75,16 +65,14 @@ public class CategorizedRegistryTests
     }
 
     [Fact]
-    public void TryGetValue_DisabledItem_ShouldReturnFalse()
-    {
+    public void TryGetValue_DisabledItem_ShouldReturnFalse() {
         var registry = new CategorizedRegistry<string, int, string>("default", isEnabled: v => v > 0);
         registry.Register("a", -1);
         registry.TryGetValue("a", out _).Should().BeFalse();
     }
 
     [Fact]
-    public void SetCategory_ShouldAssignCategory()
-    {
+    public void SetCategory_ShouldAssignCategory() {
         var registry = new CategorizedRegistry<string, int, string>("default");
         registry.Register("a", 1);
         registry.SetCategory("a", "cat1");
@@ -93,8 +81,7 @@ public class CategorizedRegistryTests
     }
 
     [Fact]
-    public void GetCategorizedEntries_DefaultCategory_ShouldBeUsed()
-    {
+    public void GetCategorizedEntries_DefaultCategory_ShouldBeUsed() {
         var registry = new CategorizedRegistry<string, int, string>("uncategorized");
         registry.Register("a", 1);
         var entries = registry.GetCategorizedEntries();
@@ -102,8 +89,7 @@ public class CategorizedRegistryTests
     }
 
     [Fact]
-    public void Unregister_ShouldRemoveKey()
-    {
+    public void Unregister_ShouldRemoveKey() {
         var registry = new CategorizedRegistry<string, int, string>("default");
         registry.Register("a", 1);
         registry.Unregister("a").Should().BeTrue();

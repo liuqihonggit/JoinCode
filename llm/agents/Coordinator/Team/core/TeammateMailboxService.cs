@@ -6,8 +6,7 @@ namespace Core.Agents.Coordinator;
 /// <para>写操作通过 Actor 邮箱消息传递串行化，读操作直接读文件（幂等）。</para>
 /// </summary>
 [Register(typeof(ITeammateMailboxService), ServiceLifetime.Singleton)]
-public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMailboxService, IDisposable
-{
+public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMailboxService, IDisposable {
     private readonly IFileSystem _fs;
     private readonly string _mailboxRoot;
     private readonly ILogger<TeammateMailboxService>? _logger;
@@ -30,8 +29,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         string? mailboxRoot = null,
         ILogger<TeammateMailboxService>? logger = null,
         IClockService? clock = null,
-        bool crossProcess = false)
-    {
+        bool crossProcess = false) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _mailboxRoot = mailboxRoot
             ?? Path.Combine(
@@ -52,13 +50,11 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="request">发送请求</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>已发送的邮箱消息</returns>
-    public async ValueTask<MailboxMessage> SendAsync(MailboxSendRequest request, CancellationToken ct = default)
-    {
+    public async ValueTask<MailboxMessage> SendAsync(MailboxSendRequest request, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(request.ToAgentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.SessionId);
 
-        var message = new MailboxMessage
-        {
+        var message = new MailboxMessage {
             MessageId = GenerateMessageId(),
             FromAgentId = request.FromAgentId,
             ToAgentId = request.ToAgentId,
@@ -72,13 +68,10 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         EnsureMailboxDirectoryExists(request.SessionId, request.ToAgentId);
         var actor = GetOrCreateActor(request.SessionId, request.ToAgentId);
         var tcs = new TaskCompletionSource<MailboxMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-        try
-        {
+        try {
             await actor.SendAsync(new AppendMessageCmd(message, tcs), ct).ConfigureAwait(false);
             return await tcs.Task.ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "Failed to send mailbox message to {AgentId}", request.ToAgentId);
             return message;
         }
@@ -92,8 +85,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="ct">取消令牌</param>
     /// <returns>未读消息只读列表</returns>
     public async ValueTask<IReadOnlyList<MailboxMessage>> ReadUnreadAsync(
-        string agentId, string sessionId, CancellationToken ct = default)
-    {
+        string agentId, string sessionId, CancellationToken ct = default) {
         var cursor = await GetOrCreateCursorAsync(agentId, sessionId, ct).ConfigureAwait(false);
         return await ReadSinceAsync(agentId, sessionId, cursor.LastReadLineIndex, ct).ConfigureAwait(false);
     }
@@ -107,11 +99,9 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="ct">取消令牌</param>
     /// <returns>消息只读列表</returns>
     public async ValueTask<IReadOnlyList<MailboxMessage>> ReadSinceAsync(
-        string agentId, string sessionId, int sinceLineIndex, CancellationToken ct = default)
-    {
+        string agentId, string sessionId, int sinceLineIndex, CancellationToken ct = default) {
         var filePath = GetMailboxFilePath(sessionId, agentId);
-        if (!_fs.FileExists(filePath))
-        {
+        if (!_fs.FileExists(filePath)) {
             return Array.Empty<MailboxMessage>();
         }
 
@@ -128,11 +118,9 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <returns>表示异步操作的任务</returns>
     public async ValueTask MarkAsReadAsync(
         string agentId, string sessionId, IEnumerable<string> messageIds,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var filePath = GetMailboxFilePath(sessionId, agentId);
-        if (!_fs.FileExists(filePath))
-        {
+        if (!_fs.FileExists(filePath)) {
             return;
         }
 
@@ -148,9 +136,10 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
         var lastLineIndex = lines.Length;
         var cursorKey = GetCursorKey(agentId, sessionId);
         _cursors.AddOrUpdate(cursorKey,
-            _ => new MailboxReadCursor
-            {
-                AgentId = agentId, SessionId = sessionId, LastReadLineIndex = lastLineIndex
+            _ => new MailboxReadCursor {
+                AgentId = agentId,
+                SessionId = sessionId,
+                LastReadLineIndex = lastLineIndex
             },
             (_, existing) => existing with { LastReadLineIndex = lastLineIndex });
     }
@@ -163,8 +152,7 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="ct">取消令牌</param>
     /// <returns>未读消息数量</returns>
     public async ValueTask<int> GetUnreadCountAsync(
-        string agentId, string sessionId, CancellationToken ct = default)
-    {
+        string agentId, string sessionId, CancellationToken ct = default) {
         var messages = await ReadUnreadAsync(agentId, sessionId, ct).ConfigureAwait(false);
         return messages.Count(m => !m.IsRead);
     }
@@ -177,17 +165,14 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="ct">取消令牌</param>
     /// <returns>邮箱读取游标</returns>
     public ValueTask<MailboxReadCursor> GetOrCreateCursorAsync(
-        string agentId, string sessionId, CancellationToken ct = default)
-    {
+        string agentId, string sessionId, CancellationToken ct = default) {
         var cursorKey = GetCursorKey(agentId, sessionId);
 
-        if (_cursors.TryGetValue(cursorKey, out var cursor))
-        {
+        if (_cursors.TryGetValue(cursorKey, out var cursor)) {
             return ValueTask.FromResult(cursor);
         }
 
-        cursor = new MailboxReadCursor
-        {
+        cursor = new MailboxReadCursor {
             AgentId = agentId,
             SessionId = sessionId,
             LastReadLineIndex = 0
@@ -205,100 +190,78 @@ public sealed partial class TeammateMailboxService : ServiceEntity, ITeammateMai
     /// <param name="ct">取消令牌</param>
     /// <returns>消息只读列表</returns>
     public async ValueTask<IReadOnlyList<MailboxMessage>> ReadAllAsync(
-        string agentId, string sessionId, CancellationToken ct = default)
-    {
+        string agentId, string sessionId, CancellationToken ct = default) {
         return await ReadSinceAsync(agentId, sessionId, 0, ct).ConfigureAwait(false);
     }
 
     private async Task<IReadOnlyList<MailboxMessage>> ReadMessagesFromFileAsync(
-        string filePath, int sinceLineIndex, CancellationToken ct)
-    {
-        try
-        {
+        string filePath, int sinceLineIndex, CancellationToken ct) {
+        try {
             var lines = await _fs.ReadAllLinesAsync(filePath, ct).ConfigureAwait(false);
             var messages = new List<MailboxMessage>();
 
-            for (var i = sinceLineIndex; i < lines.Length; i++)
-            {
+            for (var i = sinceLineIndex; i < lines.Length; i++) {
                 var line = lines[i];
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
-                try
-                {
+                try {
                     var msg = RelaxedJsonSerializer.Deserialize(line, MailboxJsonContext.Default.CoordinatorMessage);
-                    if (msg is not null)
-                    {
+                    if (msg is not null) {
                         messages.Add(msg);
                     }
-                }
-                catch (JsonException ex)
-                {
+                } catch (JsonException ex) {
                     _logger?.LogWarning(ex, "Skipping malformed mailbox line at index {LineIndex}", i);
                 }
             }
 
             return messages;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "Failed to read mailbox file: {FilePath}", filePath);
             return Array.Empty<MailboxMessage>();
         }
     }
 
-    private MailboxActor GetOrCreateActor(string sessionId, string agentId)
-    {
+    private MailboxActor GetOrCreateActor(string sessionId, string agentId) {
         var key = GetCursorKey(agentId, sessionId);
-        return _actors.GetOrAdd(key, _ =>
-        {
+        return _actors.GetOrAdd(key, _ => {
             var filePath = GetMailboxFilePath(sessionId, agentId);
             return new MailboxActor(_fs, filePath, _crossProcess, _logger);
         });
     }
 
-    private string GetMailboxFilePath(string sessionId, string agentId)
-    {
+    private string GetMailboxFilePath(string sessionId, string agentId) {
         ValidateId(sessionId, nameof(sessionId));
         ValidateId(agentId, nameof(agentId));
         return Path.Combine(_mailboxRoot, sessionId, $"{agentId}.json");
     }
 
-    private void EnsureMailboxDirectoryExists(string sessionId, string agentId)
-    {
+    private void EnsureMailboxDirectoryExists(string sessionId, string agentId) {
         var dir = Path.Combine(_mailboxRoot, sessionId);
-        if (!_fs.DirectoryExists(dir))
-        {
+        if (!_fs.DirectoryExists(dir)) {
             _fs.CreateDirectory(dir);
         }
     }
 
-    private static string GetCursorKey(string agentId, string sessionId)
-    {
+    private static string GetCursorKey(string agentId, string sessionId) {
         return $"{sessionId}:{agentId}";
     }
 
-    private string GenerateMessageId()
-    {
+    private string GenerateMessageId() {
         var counter = Interlocked.Increment(ref _messageCounter);
         return $"mail_{counter:D6}_{_clock.GetUtcNow():yyyyMMddHHmmssfff}";
     }
 
-    private static void ValidateId(string id, string paramName)
-    {
-        foreach (var c in id)
-        {
-            if (!char.IsLetterOrDigit(c) && c != '-' && c != '_')
-            {
+    private static void ValidateId(string id, string paramName) {
+        foreach (var c in id) {
+            if (!char.IsLetterOrDigit(c) && c != '-' && c != '_') {
                 throw new ArgumentException($"ID contains invalid character: '{c}'", paramName);
             }
         }
     }
 
     /// <summary>异步释放资源 — 释放所有 MailboxActor</summary>
-    public override async ValueTask DisposeAsync()
-    {
-        foreach (var actor in _actors.Values)
-        {
+    public override async ValueTask DisposeAsync() {
+        foreach (var actor in _actors.Values) {
             await actor.DisposeAsync().ConfigureAwait(false);
         }
         _actors.Clear();

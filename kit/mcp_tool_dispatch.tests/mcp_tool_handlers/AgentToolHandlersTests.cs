@@ -1,18 +1,15 @@
 namespace Sync.Tests.ToolHandlers;
 
-public class AgentToolHandlersTests
-{
+public class AgentToolHandlersTests {
     private readonly Mock<IAgentService> _agentService = new();
     private readonly Mock<IAgentService> _coordinator = new();
     private readonly AgentToolHandlers _handler;
 
-    public AgentToolHandlersTests()
-    {
+    public AgentToolHandlersTests() {
         CleanupDryRunAgentFiles();
 
         _agentService.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((AgentSpawnOptions opt, CancellationToken _) => new JoinCode.Abstractions.Interfaces.AgentInfo
-            {
+            .ReturnsAsync((AgentSpawnOptions opt, CancellationToken _) => new JoinCode.Abstractions.Interfaces.AgentInfo {
                 Id = Guid.NewGuid().ToString("N")[..8],
                 Description = opt.Description,
                 Role = AgentRole.Executor,
@@ -23,16 +20,14 @@ public class AgentToolHandlersTests
             });
 
         _agentService.Setup(x => x.WaitForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new AgentResult
-            {
+            .ReturnsAsync(new AgentResult {
                 AgentId = "test-agent",
                 Success = true,
                 Output = "代理执行完成"
             });
 
         _agentService.Setup(x => x.GetAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string id, CancellationToken _) => id == "nonexistent" ? null : new JoinCode.Abstractions.Interfaces.AgentInfo
-            {
+            .ReturnsAsync((string id, CancellationToken _) => id == "nonexistent" ? null : new JoinCode.Abstractions.Interfaces.AgentInfo {
                 Id = id,
                 Description = "测试代理",
                 Status = AgentStatus.Running
@@ -79,8 +74,7 @@ public class AgentToolHandlersTests
     }
 
     [Fact]
-    public async Task AgentListAsync_ReturnsRunningAgents()
-    {
+    public async Task AgentListAsync_ReturnsRunningAgents() {
         var result = await _handler.AgentListAsync(CancellationToken.None).ConfigureAwait(true);
 
         Assert.False(result.IsError);
@@ -91,8 +85,7 @@ public class AgentToolHandlersTests
     }
 
     [Fact]
-    public async Task AgentListAsync_NoCoordinator_ReturnsError()
-    {
+    public async Task AgentListAsync_NoCoordinator_ReturnsError() {
         var pipeline = new MiddlewarePipeline<Tools.Handlers.AgentToolContext>([]);
         var handler = new AgentToolHandlers(pipeline, _agentService.Object, coordinator: null,
             NullLogger<AgentToolHandlers>.Instance, null);
@@ -104,8 +97,7 @@ public class AgentToolHandlersTests
     }
 
     [Fact]
-    public async Task AgentListAsync_EmptyList_ReturnsNoAgentsMessage()
-    {
+    public async Task AgentListAsync_EmptyList_ReturnsNoAgentsMessage() {
         _coordinator.Setup(x => x.GetRunningAgentsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<RunningAgentInfo>());
 
@@ -116,8 +108,7 @@ public class AgentToolHandlersTests
     }
 
     [Fact]
-    public async Task ForwardUserInputAsync_ValidInput_ReturnsSuccess()
-    {
+    public async Task ForwardUserInputAsync_ValidInput_ReturnsSuccess() {
         _agentService.Setup(x => x.ForwardUserInputToAgentAsync("agent-1", "hello", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
@@ -128,8 +119,7 @@ public class AgentToolHandlersTests
     }
 
     [Fact]
-    public async Task ForwardUserInputAsync_EmptyAgentId_ReturnsError()
-    {
+    public async Task ForwardUserInputAsync_EmptyAgentId_ReturnsError() {
         var result = await _handler.ForwardUserInputAsync("", "hello", CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
@@ -137,8 +127,7 @@ public class AgentToolHandlersTests
     }
 
     [Fact]
-    public async Task ForwardUserInputAsync_EmptyUserInput_ReturnsError()
-    {
+    public async Task ForwardUserInputAsync_EmptyUserInput_ReturnsError() {
         var result = await _handler.ForwardUserInputAsync("agent-1", "", CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
@@ -146,8 +135,7 @@ public class AgentToolHandlersTests
     }
 
     [Fact]
-    public async Task ForwardUserInputAsync_ForwardFails_ReturnsError()
-    {
+    public async Task ForwardUserInputAsync_ForwardFails_ReturnsError() {
         _agentService.Setup(x => x.ForwardUserInputToAgentAsync("nonexistent", "hello", It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
@@ -160,18 +148,15 @@ public class AgentToolHandlersTests
     /// <summary>
     /// 清理 E2E 测试残留的 dry-run agent 文件，避免单元测试隔离失败
     /// </summary>
-    private static void CleanupDryRunAgentFiles()
-    {
+    private static void CleanupDryRunAgentFiles() {
         var agentDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".jcc", "agents");
 #pragma warning disable JCC9001
         if (!Directory.Exists(agentDir))
             return;
-        foreach (var file in Directory.EnumerateFiles(agentDir, "*.json"))
-        {
-            try { File.Delete(file); }
-            catch (IOException ex) { System.Diagnostics.Trace.WriteLine($"Failed to delete {file}: {ex.Message}"); }
+        foreach (var file in Directory.EnumerateFiles(agentDir, "*.json")) {
+            try { File.Delete(file); } catch (IOException ex) { System.Diagnostics.Trace.WriteLine($"Failed to delete {file}: {ex.Message}"); }
         }
 #pragma warning restore JCC9001
     }

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public enum DisclosureLevel
-{
+public enum DisclosureLevel {
     [EnumValue("index")]
     Index = 0,
     [EnumValue("relationships")]

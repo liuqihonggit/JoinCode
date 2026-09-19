@@ -6,8 +6,7 @@ namespace McpClient;
 /// 管道: 验证 → 哈希 → 缓存检查 → 解压 → 解析清单
 /// </summary>
 [Register(typeof(McpbLoader), ServiceLifetime.Singleton)]
-public sealed partial class McpbLoader : ServiceEntity
-{
+public sealed partial class McpbLoader : ServiceEntity {
     private readonly MiddlewarePipeline<McpbLoadContext> _pipeline;
 
     /// <summary>
@@ -21,8 +20,7 @@ public sealed partial class McpbLoader : ServiceEntity
         IEnumerable<IMcpbMiddleware> middlewares,
         IFileSystem fs,
         ILoggerFactory? loggerFactory = null,
-        ILogger<McpbLoader>? logger = null)
-    {
+        ILogger<McpbLoader>? logger = null) {
         ArgumentNullException.ThrowIfNull(fs);
         _pipeline = loggerFactory is not null
             ? new PipelineBuilder<McpbLoadContext>()
@@ -37,8 +35,7 @@ public sealed partial class McpbLoader : ServiceEntity
     /// </summary>
     /// <param name="source">源路径或 URL</param>
     /// <returns>若为 MCPB 包返回 true；否则 false</returns>
-    public static bool IsMcpbSource(string source)
-    {
+    public static bool IsMcpbSource(string source) {
         return source.EndsWith(".mcpb", StringComparison.OrdinalIgnoreCase)
             || source.EndsWith(".dxt", StringComparison.OrdinalIgnoreCase);
     }
@@ -51,10 +48,8 @@ public sealed partial class McpbLoader : ServiceEntity
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>MCPB 加载结果</returns>
     /// <exception cref="InvalidOperationException">加载失败或未产生结果时抛出</exception>
-    public async Task<McpbLoadResult> LoadFromLocalAsync(string mcpbPath, string extractBasePath, CancellationToken cancellationToken = default)
-    {
-        var context = new McpbLoadContext
-        {
+    public async Task<McpbLoadResult> LoadFromLocalAsync(string mcpbPath, string extractBasePath, CancellationToken cancellationToken = default) {
+        var context = new McpbLoadContext {
             Source = mcpbPath,
             ExtractBasePath = extractBasePath,
             IsUrlSource = false,
@@ -78,10 +73,8 @@ public sealed partial class McpbLoader : ServiceEntity
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>MCPB 加载结果</returns>
     /// <exception cref="InvalidOperationException">加载失败或未产生结果时抛出</exception>
-    public async Task<McpbLoadResult> LoadFromUrlAsync(string url, string extractBasePath, HttpClient httpClient, CancellationToken cancellationToken = default)
-    {
-        var context = new McpbLoadContext
-        {
+    public async Task<McpbLoadResult> LoadFromUrlAsync(string url, string extractBasePath, HttpClient httpClient, CancellationToken cancellationToken = default) {
+        var context = new McpbLoadContext {
             Source = url,
             ExtractBasePath = extractBasePath,
             IsUrlSource = true,
@@ -104,14 +97,12 @@ public sealed partial class McpbLoader : ServiceEntity
     /// <param name="extractedPath">解压后的插件路径</param>
     /// <param name="userConfig">用户自定义配置（可选，键名大写后加 USER_CONFIG_ 前缀注入环境变量）</param>
     /// <returns>MCP 服务器连接配置；清单缺少 Server 时抛出异常</returns>
-    public McpServerConnectionConfig? GenerateMcpConfig(McpbManifest manifest, string extractedPath, Dictionary<string, string>? userConfig = null)
-    {
+    public McpServerConnectionConfig? GenerateMcpConfig(McpbManifest manifest, string extractedPath, Dictionary<string, string>? userConfig = null) {
         ArgumentNullException.ThrowIfNull(manifest);
         ArgumentNullException.ThrowIfNull(manifest.Server);
 
         var server = manifest.Server;
-        var transportType = server.Type?.ToLowerInvariant() switch
-        {
+        var transportType = server.Type?.ToLowerInvariant() switch {
             "sse" or "http" or "streamable-http" => McpClientTransportType.Http,
             "websocket" or "ws" => McpClientTransportType.WebSocket,
             _ => McpClientTransportType.Stdio
@@ -119,12 +110,9 @@ public sealed partial class McpbLoader : ServiceEntity
 
         var env = new Dictionary<string, string>();
 
-        if (server.Env.Count > 0)
-        {
-            foreach (var kvp in server.Env)
-            {
-                if (kvp.Value.ValueKind == JsonValueKind.String)
-                {
+        if (server.Env.Count > 0) {
+            foreach (var kvp in server.Env) {
+                if (kvp.Value.ValueKind == JsonValueKind.String) {
                     env[kvp.Key] = kvp.Value.GetString()?.Replace("${EXTENSION_PATH}", extractedPath) ?? string.Empty;
                 }
             }
@@ -133,16 +121,13 @@ public sealed partial class McpbLoader : ServiceEntity
         env[ClaudeCompatConstants.EnvPluginRoot] = extractedPath;
         env[ClaudeCompatConstants.EnvPluginData] = Path.Combine(extractedPath, ".data");
 
-        if (userConfig != null)
-        {
-            foreach (var kvp in userConfig)
-            {
+        if (userConfig != null) {
+            foreach (var kvp in userConfig) {
                 env[$"USER_CONFIG_{kvp.Key.ToUpperInvariant()}"] = kvp.Value;
             }
         }
 
-        return new McpServerConnectionConfig
-        {
+        return new McpServerConnectionConfig {
             Name = manifest.Name ?? "unknown",
             TransportType = transportType,
             Environment = env,

@@ -5,14 +5,12 @@ namespace Core.Goal;
 /// <para>从 GoalGraphEngine 提取，消除 Engine 对锁的直接依赖。</para>
 /// <para>职责单一：只做 StateLock 临界区内的快速赋值，不执行任何外部 IO。</para>
 /// </summary>
-internal sealed class GoalStateUpdater
-{
+internal sealed class GoalStateUpdater {
     private readonly IClockService _clock;
 
     /// <summary>初始化目标状态更新器</summary>
     /// <param name="clock">时钟服务，用于 AchievedAt 时间戳</param>
-    public GoalStateUpdater(IClockService clock)
-    {
+    public GoalStateUpdater(IClockService clock) {
         _clock = clock;
     }
 
@@ -21,8 +19,7 @@ internal sealed class GoalStateUpdater
     /// <param name="status">目标最终状态</param>
     /// <param name="context">图执行上下文（提供 StateLock）</param>
     /// <param name="ct">取消令牌</param>
-    public async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct)
-    {
+    public async Task SetGoalStatusAsync(GoalState goalState, GoalStatus status, GraphExecutionContext context, CancellationToken ct) {
         var lk = context.StateLock;
         using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false)
             ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");
@@ -32,12 +29,10 @@ internal sealed class GoalStateUpdater
 
     /// <summary>更新目标累计 token 和轮次统计，在 StateLock 保护下写入 State</summary>
     /// <param name="context">图执行上下文</param>
-    public async Task UpdateGoalStateAsync(GraphExecutionContext context)
-    {
+    public async Task UpdateGoalStateAsync(GraphExecutionContext context) {
         var totalTokens = 0;
         var totalTurns = 0;
-        foreach (var node in context.Graph.Dag.Nodes.Values)
-        {
+        foreach (var node in context.Graph.Dag.Nodes.Values) {
             totalTokens += node.Payload.TokensUsed;
             if (node.Payload.Status == GoalNodeStatus.Completed)
                 totalTurns++;
@@ -54,8 +49,7 @@ internal sealed class GoalStateUpdater
     /// <param name="context">图执行上下文</param>
     /// <param name="message">助手消息文本</param>
     /// <param name="ct">取消令牌</param>
-    public async Task AppendChatMessageAsync(GraphExecutionContext context, string message, CancellationToken ct)
-    {
+    public async Task AppendChatMessageAsync(GraphExecutionContext context, string message, CancellationToken ct) {
         var lk = context.StateLock;
         using var guard = await lk.TryLockAsync(ct).ConfigureAwait(false)
             ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时");

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Tools;
 /// <summary>
 /// 工具信息
 /// </summary>
-public class ToolInfo
-{
+public class ToolInfo {
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
 
@@ -32,8 +31,7 @@ public class ToolInfo
 /// <summary>
 /// 工具注解
 /// </summary>
-public class ToolAnnotations
-{
+public class ToolAnnotations {
     [JsonPropertyName("title")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Title { get; init; }
@@ -58,8 +56,7 @@ public class ToolAnnotations
 /// <summary>
 /// 工具参数模式
 /// </summary>
-public class ToolSchema
-{
+public class ToolSchema {
     [JsonPropertyName("type")]
     public string Type { get; init; } = "object";
 
@@ -74,8 +71,7 @@ public class ToolSchema
 /// <summary>
 /// 工具模式属性
 /// </summary>
-public class ToolSchemaProperty
-{
+public class ToolSchemaProperty {
     [JsonPropertyName("type")]
     public string Type { get; init; } = "string";
 
@@ -101,8 +97,7 @@ public class ToolSchemaProperty
 /// <summary>
 /// 工具调用请求
 /// </summary>
-public class ToolCallRequest
-{
+public class ToolCallRequest {
     [JsonPropertyName("toolName")]
     public string ToolName { get; set; } = string.Empty;
 
@@ -113,8 +108,7 @@ public class ToolCallRequest
 /// <summary>
 /// 工具内容
 /// </summary>
-public class ToolContent
-{
+public class ToolContent {
     [JsonPropertyName("type")]
     [JsonConverter(typeof(ToolContentTypeJsonConverter))]
     public ToolContentType Type { get; init; } = ToolContentType.Text;
@@ -135,8 +129,7 @@ public class ToolContent
 /// <summary>
 /// 工具调用结果
 /// </summary>
-public sealed record ToolResult
-{
+public sealed record ToolResult {
     [JsonPropertyName("content")]
     public List<ToolContent> Content { get; init; } = new();
 
@@ -226,8 +219,7 @@ public sealed record ToolResult
     /// <summary>
     /// 获取文本内容
     /// </summary>
-    public string GetTextContent()
-    {
+    public string GetTextContent() {
         return string.Join("\n", Content
             .Where(c => c.Type == ToolContentType.Text && !string.IsNullOrEmpty(c.Text))
             .Select(c => c.Text).ToArray());
@@ -237,8 +229,7 @@ public sealed record ToolResult
 /// <summary>
 /// 工具注册事件参数
 /// </summary>
-public class ToolRegisteredEventArgs : EventArgs
-{
+public class ToolRegisteredEventArgs : EventArgs {
     public required string ToolName { get; init; }
     public required string Description { get; init; }
 }
@@ -246,16 +237,14 @@ public class ToolRegisteredEventArgs : EventArgs
 /// <summary>
 /// 工具注销事件参数
 /// </summary>
-public class ToolUnregisteredEventArgs : EventArgs
-{
+public class ToolUnregisteredEventArgs : EventArgs {
     public required string ToolName { get; init; }
 }
 
 /// <summary>
 /// 扫描到的工具信息
 /// </summary>
-public sealed class ScannedTool
-{
+public sealed class ScannedTool {
     public required string Name { get; init; }
     public required string Description { get; init; }
     public required ToolSchema InputSchema { get; init; }
@@ -267,8 +256,7 @@ public sealed class ScannedTool
 /// 记录子智能体执行技能时的工具调用进度
 /// TS 仅在消息包含 tool_use/tool_result 时触发 onProgress
 /// </summary>
-public sealed class SkillProgressMessage
-{
+public sealed class SkillProgressMessage {
     /// <summary>
     /// 进度类型
     /// </summary>
@@ -293,8 +281,7 @@ public sealed class SkillProgressMessage
 /// <summary>
 /// fork 技能进度类型 — 对齐 TS SkillTool Progress.type
 /// </summary>
-public enum SkillProgressType
-{
+public enum SkillProgressType {
     /// <summary>工具调用开始 — 对齐 TS tool_use</summary>
     [EnumValue("tool_call_start")] ToolCallStart,
     /// <summary>工具调用结束 — 对齐 TS tool_result</summary>
@@ -304,8 +291,7 @@ public enum SkillProgressType
 /// <summary>
 /// 工具执行实体元数据条目 — AOT 安全的 key-value 对，用于回填子类 Entity 特有字段
 /// </summary>
-public sealed record EntityMetadataEntry
-{
+public sealed record EntityMetadataEntry {
     public required string Key { get; init; }
     public int? IntValue { get; init; }
     public long? LongValue { get; init; }

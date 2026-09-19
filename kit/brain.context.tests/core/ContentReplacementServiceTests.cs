@@ -4,15 +4,13 @@ namespace Brain.Tests.Context;
 /// ContentReplacementService 单元测试 — 对齐 TS enforceToolResultBudget + maybePersistLargeToolResult
 /// TDD 红测试: per-message 预算机制
 /// </summary>
-public sealed class ContentReplacementServiceTests
-{
+public sealed class ContentReplacementServiceTests {
     /// <summary>
     /// 红测试: 单个工具结果超过 per-message 预算时应被持久化
     /// 对齐 TS: enforceToolResultBudget — frozenSize + freshSize > limit 时选择最大结果持久化
     /// </summary>
     [Fact]
-    public async Task ApplyToolResultBudget_SingleToolExceedsBudget_PersistsResult()
-    {
+    public async Task ApplyToolResultBudget_SingleToolExceedsBudget_PersistsResult() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
         var state = new ContentReplacementState();
@@ -46,8 +44,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: selectFreshToReplace — 按大小降序贪心选择
     /// </summary>
     [Fact]
-    public async Task ApplyToolResultBudget_MultipleToolsExceedBudget_PersistsLargest()
-    {
+    public async Task ApplyToolResultBudget_MultipleToolsExceedBudget_PersistsLargest() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
         var state = new ContentReplacementState();
@@ -81,8 +78,7 @@ public sealed class ContentReplacementServiceTests
     /// 红测试: 工具结果总和在预算内时，不应持久化任何结果
     /// </summary>
     [Fact]
-    public async Task ApplyToolResultBudget_WithinBudget_NoPersistence()
-    {
+    public async Task ApplyToolResultBudget_WithinBudget_NoPersistence() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
         var state = new ContentReplacementState();
@@ -115,8 +111,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: mustReapply — 从 state.replacements 取缓存字符串
     /// </summary>
     [Fact]
-    public async Task ApplyToolResultBudget_AlreadyReplaced_ReappliesSameReplacement()
-    {
+    public async Task ApplyToolResultBudget_AlreadyReplaced_ReappliesSameReplacement() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
         var state = new ContentReplacementState();
@@ -150,8 +145,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: skipToolNames — maxResultSizeChars: Infinity 的工具跳过
     /// </summary>
     [Fact]
-    public async Task ApplyToolResultBudget_NeverPersistTools_SkipsSpecifiedTools()
-    {
+    public async Task ApplyToolResultBudget_NeverPersistTools_SkipsSpecifiedTools() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
         var state = new ContentReplacementState();
@@ -183,8 +177,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: collectCandidatesByMessage — 按 user message 分组
     /// </summary>
     [Fact]
-    public async Task ApplyToolResultBudget_DifferentUserMessages_IndependentBudgets()
-    {
+    public async Task ApplyToolResultBudget_DifferentUserMessages_IndependentBudgets() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
         var state = new ContentReplacementState();
@@ -217,8 +210,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: REPL.tsx useState(() => provisionContentReplacementState())
     /// </summary>
     [Fact]
-    public void ProvisionContentReplacementState_ColdStart_ReturnsNewState()
-    {
+    public void ProvisionContentReplacementState_ColdStart_ReturnsNewState() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -234,8 +226,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: initialMessages 非空时调用 reconstructContentReplacementState
     /// </summary>
     [Fact]
-    public async Task ProvisionContentReplacementState_WithMessages_ReconstructsState()
-    {
+    public async Task ProvisionContentReplacementState_WithMessages_ReconstructsState() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -265,8 +256,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: parentState 为 undefined 时直接返回 undefined
     /// </summary>
     [Fact]
-    public void ReconstructForSubagentResume_NullParent_ReturnsNull()
-    {
+    public void ReconstructForSubagentResume_NullParent_ReturnsNull() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -282,8 +272,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: resumeAgent.ts — parentState.replacements 作为 inheritedReplacements
     /// </summary>
     [Fact]
-    public void ReconstructForSubagentResume_WithParent_InheritsReplacements()
-    {
+    public void ReconstructForSubagentResume_WithParent_InheritsReplacements() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -312,8 +301,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: reconstructContentReplacementState — 4步重建
     /// </summary>
     [Fact]
-    public void ReconstructState_WithMessagesAndRecords_RebuildsCorrectly()
-    {
+    public void ReconstructState_WithMessagesAndRecords_RebuildsCorrectly() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -334,8 +322,7 @@ public sealed class ContentReplacementServiceTests
             },
         };
 
-        var inherited = new Dictionary<string, string>
-        {
+        var inherited = new Dictionary<string, string> {
             ["tool_2"] = "<persisted-output>inherited2</persisted-output>",
         };
 
@@ -359,8 +346,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: r.kind === 'tool-result' 过滤
     /// </summary>
     [Fact]
-    public void ReconstructState_RecordsOnly_FiltersByKind()
-    {
+    public void ReconstructState_RecordsOnly_FiltersByKind() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -385,8 +371,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: isToolResultContentEmpty — 空结果替换为标记文本
     /// </summary>
     [Fact]
-    public void MaybePersistLargeToolResult_EmptyContent_ReturnsNoOutputTemplate()
-    {
+    public void MaybePersistLargeToolResult_EmptyContent_ReturnsNoOutputTemplate() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -401,8 +386,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: content.Length &lt;= threshold → 不持久化
     /// </summary>
     [Fact]
-    public void MaybePersistLargeToolResult_BelowThreshold_ReturnsNull()
-    {
+    public void MaybePersistLargeToolResult_BelowThreshold_ReturnsNull() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -417,8 +401,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: content.Length > threshold → 持久化并返回 persisted-output
     /// </summary>
     [Fact]
-    public void MaybePersistLargeToolResult_ExceedsThreshold_ReturnsReplacement()
-    {
+    public void MaybePersistLargeToolResult_ExceedsThreshold_ReturnsReplacement() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -435,8 +418,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: getFeatureValue_CACHED_MAY_BE_STALE('tengu_hawthorn_steeple', false) → undefined
     /// </summary>
     [Fact]
-    public void ProvisionContentReplacementState_FeatureDisabled_ReturnsNull()
-    {
+    public void ProvisionContentReplacementState_FeatureDisabled_ReturnsNull() {
         var fileService = new MockToolResultFileService();
         var service = CreateService(enabled: false);
 
@@ -450,8 +432,7 @@ public sealed class ContentReplacementServiceTests
     /// 对齐 TS: getPersistenceThreshold 返回 Infinity(-1) 的工具永不持久化
     /// </summary>
     [Fact]
-    public void MaybePersistLargeToolResult_NeverPersistTool_ReturnsNull()
-    {
+    public void MaybePersistLargeToolResult_NeverPersistTool_ReturnsNull() {
         var fileService = new MockToolResultFileService();
         var service = CreateService();
 
@@ -464,13 +445,10 @@ public sealed class ContentReplacementServiceTests
 
     private static ContentReplacementService CreateService(
         bool enabled = true,
-        int maxToolResultsPerMessageChars = 200000)
-    {
+        int maxToolResultsPerMessageChars = 200000) {
         var fileService = new MockToolResultFileService();
-        var config = new Core.Configuration.QueryEngineConfig
-        {
-            ContentReplacement = new()
-            {
+        var config = new Core.Configuration.QueryEngineConfig {
+            ContentReplacement = new() {
                 Enabled = enabled,
                 MaxToolResultsPerMessageChars = maxToolResultsPerMessageChars,
             }
@@ -480,10 +458,8 @@ public sealed class ContentReplacementServiceTests
             Microsoft.Extensions.Options.Options.Create(config));
     }
 
-    private static ApiMessage CreateToolMessage(string toolCallId, string content, string toolName = "TestTool")
-    {
-        var metadata = new Dictionary<string, JsonElement>
-        {
+    private static ApiMessage CreateToolMessage(string toolCallId, string content, string toolName = "TestTool") {
+        var metadata = new Dictionary<string, JsonElement> {
             ["ToolCallId"] = JsonSerializer.SerializeToElement(toolCallId),
             ["ToolName"] = JsonSerializer.SerializeToElement(toolName),
         };
@@ -493,13 +469,10 @@ public sealed class ContentReplacementServiceTests
     /// <summary>
     /// Mock IToolResultFileService — 模拟持久化到磁盘
     /// </summary>
-    private sealed class MockToolResultFileService : IToolResultFileService
-    {
-        public PersistedToolResult PersistToolResult(string sessionId, string toolUseId, string content)
-        {
+    private sealed class MockToolResultFileService : IToolResultFileService {
+        public PersistedToolResult PersistToolResult(string sessionId, string toolUseId, string content) {
             var (preview, hasMore) = GeneratePreview(content, ContentReplacementConstants.PreviewSizeChars);
-            return new PersistedToolResult
-            {
+            return new PersistedToolResult {
                 Filepath = $"/mock/tool-results/{sessionId}/{SanitizeFilename(toolUseId)}.txt",
                 OriginalSize = content.Length,
                 IsJson = false,
@@ -508,15 +481,13 @@ public sealed class ContentReplacementServiceTests
             };
         }
 
-        public Task<PersistedToolResult> PersistToolResultAsync(string sessionId, string toolUseId, string content, CancellationToken cancellationToken = default)
-        {
+        public Task<PersistedToolResult> PersistToolResultAsync(string sessionId, string toolUseId, string content, CancellationToken cancellationToken = default) {
             return Task.FromResult(PersistToolResult(sessionId, toolUseId, content));
         }
 
         public string? ReadToolResult(string sessionId, string toolUseId) => null;
 
-        private static (string Preview, bool HasMore) GeneratePreview(string content, int maxChars)
-        {
+        private static (string Preview, bool HasMore) GeneratePreview(string content, int maxChars) {
             if (content.Length <= maxChars) return (content, false);
             var truncated = content.AsSpan(0, maxChars);
             var lastNewline = truncated.LastIndexOf('\n');
@@ -524,11 +495,9 @@ public sealed class ContentReplacementServiceTests
             return (content.AsSpan(0, cutPoint).ToString(), true);
         }
 
-        private static string SanitizeFilename(string id)
-        {
+        private static string SanitizeFilename(string id) {
             var chars = id.ToCharArray();
-            for (var i = 0; i < chars.Length; i++)
-            {
+            for (var i = 0; i < chars.Length; i++) {
                 if (!char.IsLetterOrDigit(chars[i]) && chars[i] != '-' && chars[i] != '_')
                     chars[i] = '_';
             }

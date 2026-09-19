@@ -3,17 +3,14 @@ namespace Dream.Tests.Client;
 /// <summary>
 /// 聊天完成客户端单元测试
 /// </summary>
-public sealed class ChatCompletionClientTests
-{
+public sealed class ChatCompletionClientTests {
     [Fact]
-    public void Constructor_NullKernel_ThrowsArgumentNullException()
-    {
+    public void Constructor_NullKernel_ThrowsArgumentNullException() {
         Assert.Throws<ArgumentNullException>(() => new ChatCompletionClient(null!));
     }
 
     [Fact]
-    public async Task GetCompletionAsync_WithSingleResult_ReturnsContent()
-    {
+    public async Task GetCompletionAsync_WithSingleResult_ReturnsContent() {
         var kernel = new Mock<IChatClient>();
         var queryService = new Mock<IQueryService>();
         kernel.Setup(k => k.GetChatCompletionService()).Returns(queryService.Object);
@@ -29,8 +26,7 @@ public sealed class ChatCompletionClientTests
     }
 
     [Fact]
-    public async Task GetCompletionAsync_WithMultipleResults_ReturnsFirstContent()
-    {
+    public async Task GetCompletionAsync_WithMultipleResults_ReturnsFirstContent() {
         var kernel = new Mock<IChatClient>();
         var queryService = new Mock<IQueryService>();
         kernel.Setup(k => k.GetChatCompletionService()).Returns(queryService.Object);
@@ -50,8 +46,7 @@ public sealed class ChatCompletionClientTests
     }
 
     [Fact]
-    public async Task GetCompletionAsync_WithEmptyResults_ReturnsEmptyString()
-    {
+    public async Task GetCompletionAsync_WithEmptyResults_ReturnsEmptyString() {
         var kernel = new Mock<IChatClient>();
         var queryService = new Mock<IQueryService>();
         kernel.Setup(k => k.GetChatCompletionService()).Returns(queryService.Object);
@@ -67,8 +62,7 @@ public sealed class ChatCompletionClientTests
     }
 
     [Fact]
-    public async Task GetCompletionAsync_WithNullContent_ReturnsEmptyString()
-    {
+    public async Task GetCompletionAsync_WithNullContent_ReturnsEmptyString() {
         var kernel = new Mock<IChatClient>();
         var queryService = new Mock<IQueryService>();
         kernel.Setup(k => k.GetChatCompletionService()).Returns(queryService.Object);
@@ -84,8 +78,7 @@ public sealed class ChatCompletionClientTests
     }
 
     [Fact]
-    public async Task GetCompletionAsync_PassesCancellationToken()
-    {
+    public async Task GetCompletionAsync_PassesCancellationToken() {
         var kernel = new Mock<IChatClient>();
         var queryService = new Mock<IQueryService>();
         kernel.Setup(k => k.GetChatCompletionService()).Returns(queryService.Object);

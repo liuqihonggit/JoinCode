@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>生产环境: PhysicalFileSystem (委托给 System.IO)</para>
 /// <para>测试环境: InMemoryFileSystem (纯内存, 0磁盘IO)</para>
 /// </summary>
-public interface IFileSystem
-{
+public interface IFileSystem {
     // === File 写操作 ===
 
     /// <summary>异步写入文件全部文本 — 对齐 File.WriteAllTextAsync</summary>

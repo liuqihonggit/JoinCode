@@ -11,19 +11,16 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("goal", Type = "string", Description = "规划目标描述")]
 [ChatCommandArg("steps", Type = "number", Description = "规划步骤数")]
 [ChatCommandArg("execute", Type = "boolean", Description = "是否自动执行计划", Default = "false")]
-public sealed class UltraplanCommand : ChatCommandBase
-{
+public sealed class UltraplanCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /ultraplan 命令，深度规划目标并可选自动执行计划步骤
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
 
-        if (args.Length == 0)
-        {
+        if (args.Length == 0) {
             ShowHelp();
             return ChatCommandResult.Continue();
         }
@@ -32,24 +29,17 @@ public sealed class UltraplanCommand : ChatCommandBase
         var steps = 5;
         var autoExecute = false;
 
-        foreach (var arg in args)
-        {
-            if (arg.StartsWith("--steps", StringComparison.OrdinalIgnoreCase) && int.TryParse(arg["--steps".Length..].TrimStart('='), out var s))
-            {
+        foreach (var arg in args) {
+            if (arg.StartsWith("--steps", StringComparison.OrdinalIgnoreCase) && int.TryParse(arg["--steps".Length..].TrimStart('='), out var s)) {
                 steps = s;
-            }
-            else if (arg is "--execute" or "-e")
-            {
+            } else if (arg is "--execute" or "-e") {
                 autoExecute = true;
-            }
-            else if (!arg.StartsWith("-"))
-            {
+            } else if (!arg.StartsWith("-")) {
                 goal = string.IsNullOrEmpty(goal) ? arg : $"{goal} {arg}";
             }
         }
 
-        if (string.IsNullOrEmpty(goal))
-        {
+        if (string.IsNullOrEmpty(goal)) {
             ShowHelp();
             return ChatCommandResult.Continue();
         }
@@ -60,62 +50,47 @@ public sealed class UltraplanCommand : ChatCommandBase
         TerminalHelper.WriteLine($"自动执行: {(autoExecute ? "是" : "否")}");
         TerminalHelper.NewLine();
 
-        try
-        {
-            if (autoExecute)
-            {
+        try {
+            if (autoExecute) {
                 // --execute: 复用 PlanService.ExecutePlanWithResultAsync（已配置 ToolChoice.AutoInvoke）
                 // LLM 会自动调用工具执行步骤，无需在命令层重复实现执行器
                 await ExecutePlanViaPlanServiceAsync(context, goal).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 // 默认: 仅生成并展示计划文本
                 var prompt = $"Create a detailed step-by-step plan (maximum {steps} steps) to accomplish the following goal. For each step, specify: 1) What to do, 2) Why it's needed, 3) How to verify it succeeded.\n\nGoal: {goal}";
 
                 var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine(result);
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine("计划已取消");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("超级计划", ex);
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static async Task ExecutePlanViaPlanServiceAsync(ChatCommandContext context, string goal)
-    {
+    private static async Task ExecutePlanViaPlanServiceAsync(ChatCommandContext context, string goal) {
         var planService = context.GetCommandServices().PlanService;
         var executionResult = await planService.ExecutePlanWithResultAsync(goal, context.CancellationToken).ConfigureAwait(false);
 
         TerminalHelper.NewLine();
-        if (executionResult.Success)
-        {
+        if (executionResult.Success) {
             TerminalHelper.WriteLine($"{TerminalColors.Success}=== 计划执行完成 ==={AnsiStyleEnumConstants.Reset}");
-            if (!string.IsNullOrEmpty(executionResult.Result))
-            {
+            if (!string.IsNullOrEmpty(executionResult.Result)) {
                 TerminalHelper.WriteLine(executionResult.Result);
             }
             TerminalHelper.WriteLine($"{TerminalColors.Secondary}耗时: {executionResult.ExecutionTimeMs}ms{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}=== 计划执行失败 ==={AnsiStyleEnumConstants.Reset}");
-            if (!string.IsNullOrEmpty(executionResult.Error))
-            {
+            if (!string.IsNullOrEmpty(executionResult.Error)) {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}{executionResult.Error}{AnsiStyleEnumConstants.Reset}");
             }
         }
     }
 
-    private static void ShowHelp()
-    {
+    private static void ShowHelp() {
         TerminalHelper.WriteLine("=== 超级计划模式 ===\n");
         TerminalHelper.WriteLine("用法: /ultraplan <goal> [--steps N] [--execute]");
         TerminalHelper.NewLine();

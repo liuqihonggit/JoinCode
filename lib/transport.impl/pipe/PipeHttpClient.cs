@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// 基于命名管道的 HTTP 客户端
 /// </summary>
-public sealed class PipeHttpClient : IDisposable
-{
+public sealed class PipeHttpClient : IDisposable {
     private readonly HttpClient _httpClient;
     private readonly ILogger? _logger;
     private bool _disposed;
@@ -14,8 +13,7 @@ public sealed class PipeHttpClient : IDisposable
     /// </summary>
     /// <param name="pipeName">管道名称</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public PipeHttpClient(string pipeName, ILogger? logger = null)
-    {
+    public PipeHttpClient(string pipeName, ILogger? logger = null) {
         ArgumentException.ThrowIfNullOrEmpty(pipeName);
 
         _logger = logger;
@@ -31,8 +29,7 @@ public sealed class PipeHttpClient : IDisposable
     /// </summary>
     public Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(request);
 
@@ -48,8 +45,7 @@ public sealed class PipeHttpClient : IDisposable
         string requestUri,
         TValue value,
         JsonTypeInfo<TValue> jsonTypeInfo,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrEmpty(requestUri);
         ArgumentNullException.ThrowIfNull(jsonTypeInfo);
@@ -64,8 +60,7 @@ public sealed class PipeHttpClient : IDisposable
     /// </summary>
     public Task<HttpResponseMessage> GetAsync(
         string requestUri,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrEmpty(requestUri);
 
@@ -80,8 +75,7 @@ public sealed class PipeHttpClient : IDisposable
     public async Task<T?> GetFromJsonAsync<T>(
         string requestUri,
         JsonTypeInfo<T> jsonTypeInfo,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrEmpty(requestUri);
         ArgumentNullException.ThrowIfNull(jsonTypeInfo);
@@ -97,17 +91,13 @@ public sealed class PipeHttpClient : IDisposable
     /// <summary>
     /// 设置默认请求头
     /// </summary>
-    public void SetDefaultHeader(string name, string? value)
-    {
+    public void SetDefaultHeader(string name, string? value) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentException.ThrowIfNullOrEmpty(name);
 
-        if (value == null)
-        {
+        if (value == null) {
             _httpClient.DefaultRequestHeaders.Remove(name);
-        }
-        else
-        {
+        } else {
             _httpClient.DefaultRequestHeaders.Remove(name);
             _httpClient.DefaultRequestHeaders.Add(name, value);
         }
@@ -118,8 +108,7 @@ public sealed class PipeHttpClient : IDisposable
     /// <summary>
     /// 设置超时时间
     /// </summary>
-    public void SetTimeout(TimeSpan timeout)
-    {
+    public void SetTimeout(TimeSpan timeout) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         _httpClient.Timeout = timeout;
@@ -129,8 +118,7 @@ public sealed class PipeHttpClient : IDisposable
     /// <summary>
     /// 设置基础地址
     /// </summary>
-    public void SetBaseAddress(Uri baseAddress)
-    {
+    public void SetBaseAddress(Uri baseAddress) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(baseAddress);
 
@@ -141,10 +129,8 @@ public sealed class PipeHttpClient : IDisposable
     /// <summary>
     /// 释放资源
     /// </summary>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
+    public void Dispose() {
+        if (_disposed) {
             return;
         }
 

@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Utils.Diagnostics;
 /// 默认隐藏，JCC_DEBUGLOG=1/true/yes 或 --debuglog CLI 参数时显示
 /// 对齐 TS 版 debuglog 模式，避免污染用户控制台
 /// </summary>
-public static class Diag
-{
+public static class Diag {
     private static readonly bool _envEnabled = IsTruthy(Environment.GetEnvironmentVariable(JccEnvVar.DebugLog.ToValue()));
 
     private static readonly bool _diTraceEnabled = Environment.GetEnvironmentVariable(JccEnvVar.DiTrace.ToValue()) == "1";
@@ -30,35 +29,28 @@ public static class Diag
 
     public static void EnableDebugLog() => _runtimeEnabled = true;
 
-    public static void WriteLifecycle(string message)
-    {
+    public static void WriteLifecycle(string message) {
         WriteToTargets(message);
         DiagnosticLineWritten?.Invoke(null, message);
     }
 
-    public static void WriteLine(string? message = null)
-    {
-        if (message is null)
-        {
+    public static void WriteLine(string? message = null) {
+        if (message is null) {
             if (IsDebugLog) WriteToTargets(string.Empty);
             DiagnosticLineWritten?.Invoke(null, string.Empty);
-        }
-        else
-        {
+        } else {
             if (IsDebugLog) WriteToTargets(message);
             DiagnosticLineWritten?.Invoke(null, message);
         }
     }
 
-    public static void WriteLine(FormattableString message)
-    {
+    public static void WriteLine(FormattableString message) {
         var formatted = message.ToString();
         if (IsDebugLog) WriteToTargets(formatted);
         DiagnosticLineWritten?.Invoke(null, formatted);
     }
 
-    public static void WriteDiTrace(string message)
-    {
+    public static void WriteDiTrace(string message) {
         if (!_diTraceEnabled) return;
         WriteToTargets(message);
     }
@@ -70,11 +62,9 @@ public static class Diag
     /// </summary>
     /// <param name="context">错误上下文描述（如 "[ChatErrorHandling] Turn=1"）</param>
     /// <param name="exception">异常对象（null 时只输出 context）</param>
-    public static void WriteError(string context, Exception? exception = null)
-    {
+    public static void WriteError(string context, Exception? exception = null) {
         var timestamp = DateTime.UtcNow.ToString("HH:mm:ss.fff");
-        if (exception is null)
-        {
+        if (exception is null) {
             var line = $"[DIAG-ERR] {timestamp} {context}";
             WriteToTargets(line);
             DiagnosticLineWritten?.Invoke(null, line);
@@ -88,8 +78,7 @@ public static class Diag
 
         // 堆栈（截断到 2000 字符避免 stderr 爆炸）
         var stack = exception.StackTrace;
-        if (!string.IsNullOrEmpty(stack))
-        {
+        if (!string.IsNullOrEmpty(stack)) {
             var stackPreview = stack.Length > 2000 ? stack[..2000] + "...(truncated)" : stack;
             WriteToTargets($"[DIAG-ERR-STACK] {stackPreview}");
         }
@@ -97,32 +86,29 @@ public static class Diag
         // 内部异常链（最多 5 层）
         var inner = exception.InnerException;
         var depth = 0;
-        while (inner is not null && depth < 5)
-        {
+        while (inner is not null && depth < 5) {
             depth++;
             WriteToTargets($"[DIAG-ERR-INNER-{depth}] {inner.GetType().Name}: {inner.Message}");
             inner = inner.InnerException;
         }
     }
 
-    private static void WriteToTargets(string message)
-    {
-        switch (_diagTarget)
-        {
+    private static void WriteToTargets(string message) {
+        switch (_diagTarget) {
             case "stdout":
-                Console.Out.WriteLine(message);
-                Console.Out.Flush();
-                break;
+            Console.Out.WriteLine(message);
+            Console.Out.Flush();
+            break;
             case "both":
-                Console.Error.WriteLine(message);
-                Console.Error.Flush();
-                Console.Out.WriteLine(message);
-                Console.Out.Flush();
-                break;
+            Console.Error.WriteLine(message);
+            Console.Error.Flush();
+            Console.Out.WriteLine(message);
+            Console.Out.Flush();
+            break;
             default:
-                Console.Error.WriteLine(message);
-                Console.Error.Flush();
-                break;
+            Console.Error.WriteLine(message);
+            Console.Error.Flush();
+            break;
         }
     }
 

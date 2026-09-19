@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 聊天初始化上下文 — 在初始化管道中间件之间传递数据
 /// </summary>
-public sealed class ChatInitContext
-{
+public sealed class ChatInitContext {
     // === 输入 ===
 
     /// <summary>

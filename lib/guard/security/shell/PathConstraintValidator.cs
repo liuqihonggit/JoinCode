@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// 路径约束验证器接口 — 对齐 TS pathValidation.ts checkPathConstraints
 /// </summary>
-public interface IPathConstraintValidator
-{
+public interface IPathConstraintValidator {
     /// <summary>
     /// 检查命令的路径约束 — 主入口，对齐 TS checkPathConstraints
     /// </summary>

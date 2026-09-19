@@ -4,8 +4,7 @@ namespace Infrastructure.HotSpot;
 /// 契约变更广播监听器 — 队长改热文件后自动广播 ContractChanged 给依赖 Worker
 /// 仅队长改热文件时触发，Worker 改文件不触发
 /// </summary>
-public sealed class ContractChangeBroadcastListener : IFileWriteListener
-{
+public sealed class ContractChangeBroadcastListener : IFileWriteListener {
     private readonly IContractChangeBroadcaster _broadcaster;
     private readonly IHotFileDetector _hotFileDetector;
     private readonly IHotSpotTracker _hotSpotTracker;
@@ -28,8 +27,7 @@ public sealed class ContractChangeBroadcastListener : IFileWriteListener
         IHotSpotTracker hotSpotTracker,
         IContractChangeNotificationRouter router,
         string captainId,
-        ILogger<ContractChangeBroadcastListener>? logger = null)
-    {
+        ILogger<ContractChangeBroadcastListener>? logger = null) {
         _broadcaster = broadcaster ?? throw new ArgumentNullException(nameof(broadcaster));
         _hotFileDetector = hotFileDetector ?? throw new ArgumentNullException(nameof(hotFileDetector));
         _hotSpotTracker = hotSpotTracker ?? throw new ArgumentNullException(nameof(hotSpotTracker));
@@ -39,8 +37,7 @@ public sealed class ContractChangeBroadcastListener : IFileWriteListener
     }
 
     /// <inheritdoc/>
-    public void OnFileWrite(FileWriteEventArgs e)
-    {
+    public void OnFileWrite(FileWriteEventArgs e) {
         ArgumentNullException.ThrowIfNull(e);
 
         var isCaptain = string.Equals(e.AgentId, _captainId, StringComparison.OrdinalIgnoreCase);
@@ -58,14 +55,10 @@ public sealed class ContractChangeBroadcastListener : IFileWriteListener
         _logger?.LogInformation("[ContractBroadcast] 队长改热文件 {FilePath}，广播通知 {Count} 个 Worker", e.FilePath, dependentWorkers.Count);
     }
 
-    private async Task BroadcastAsync(string filePath, IReadOnlyList<string> workers)
-    {
-        try
-        {
+    private async Task BroadcastAsync(string filePath, IReadOnlyList<string> workers) {
+        try {
             await _broadcaster.BroadcastContractChangeAsync(_captainId, filePath, workers).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning("[ContractBroadcast] 广播失败: {Message}", ex.Message);
         }
     }

@@ -6,8 +6,7 @@ namespace JoinCode.Gui.SlashCommands;
 /// # 触发符调用，限制候选数量避免大目录卡顿。
 /// 实现 ICompletionProvider 统一接口，注册到 CompletionTriggerRegistry。
 /// </summary>
-public sealed class FileCompletionProvider : ICompletionProvider
-{
+public sealed class FileCompletionProvider : ICompletionProvider {
     private const int MaxResults = 50;
 
     /// <inheritdoc/>
@@ -24,32 +23,25 @@ public sealed class FileCompletionProvider : ICompletionProvider
         => GetFiles(prefix);
 
     /// <summary>获取文件补全候选（扫描当前工作目录）</summary>
-    public static IReadOnlyList<SlashCommandItem> GetFiles(string prefix)
-    {
-        try
-        {
+    public static IReadOnlyList<SlashCommandItem> GetFiles(string prefix) {
+        try {
             var baseDir = Environment.CurrentDirectory;
             return GetFiles(prefix, baseDir);
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return [];
         }
     }
 
     /// <summary>获取文件补全候选（扫描指定目录，支持子目录路径前缀）</summary>
-    public static IReadOnlyList<SlashCommandItem> GetFiles(string prefix, string baseDir)
-    {
-        try
-        {
+    public static IReadOnlyList<SlashCommandItem> GetFiles(string prefix, string baseDir) {
+        try {
             var (scanDir, filePrefix, pathPrefix) = ResolveScanTarget(prefix, baseDir);
             var dir = new DirectoryInfo(scanDir);
             if (!dir.Exists)
                 return [];
 
             var items = new List<SlashCommandItem>(MaxResults);
-            foreach (var entry in dir.EnumerateFileSystemInfos())
-            {
+            foreach (var entry in dir.EnumerateFileSystemInfos()) {
                 if (items.Count >= MaxResults)
                     break;
                 var name = entry.Name;
@@ -58,23 +50,19 @@ public sealed class FileCompletionProvider : ICompletionProvider
                     continue;
                 var isDir = (entry.Attributes & FileAttributes.Directory) != 0;
                 var displayPath = pathPrefix + name;
-                items.Add(new SlashCommandItem
-                {
+                items.Add(new SlashCommandItem {
                     Name = displayPath,
                     Description = isDir ? "文件夹" : "文件"
                 });
             }
             return items;
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return [];
         }
     }
 
     /// <summary>解析前缀为扫描目录、文件前缀、路径前缀（用于回填相对路径）</summary>
-    private static (string scanDir, string filePrefix, string pathPrefix) ResolveScanTarget(string prefix, string baseDir)
-    {
+    private static (string scanDir, string filePrefix, string pathPrefix) ResolveScanTarget(string prefix, string baseDir) {
         var sepIdx = Math.Max(prefix.LastIndexOf('/'), prefix.LastIndexOf('\\'));
         if (sepIdx < 0)
             return (baseDir, prefix, string.Empty);

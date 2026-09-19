@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// AgentTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = AgentToolName.Agent, Category = ToolPromptCategory.Agent)]
-public static class AgentToolPrompt
-{
+public static class AgentToolPrompt {
     public const string ToolName = AgentToolNameEnumConstants.Agent;
 
     /// <summary>
@@ -15,16 +14,12 @@ public static class AgentToolPrompt
         List<AgentDefinition> agentDefinitions,
         bool isCoordinator = false,
         List<string>? allowedAgentTypes = null,
-        bool forkEnabled = false)
-    {
+        bool forkEnabled = false) {
         List<AgentDefinition> effectiveAgents;
-        if (allowedAgentTypes != null && allowedAgentTypes.Count > 0)
-        {
+        if (allowedAgentTypes != null && allowedAgentTypes.Count > 0) {
             var allowedSet = new HashSet<string>(allowedAgentTypes);
             effectiveAgents = agentDefinitions.Where(a => allowedSet.Contains(a.DisplayId)).ToList();
-        }
-        else
-        {
+        } else {
             effectiveAgents = agentDefinitions;
         }
 
@@ -158,8 +153,7 @@ assistant: ""我将使用 {AgentToolNameEnumConstants.Agent} 工具启动 greeti
     : $@"使用 {AgentToolNameEnumConstants.Agent} 工具时，指定 subagent_type 参数以选择要使用的代理类型。如果省略，则使用通用代理。");
 
         // 协调器模式获得精简提示词
-        if (isCoordinator)
-        {
+        if (isCoordinator) {
             return shared;
         }
 
@@ -188,8 +182,7 @@ assistant: ""我将使用 {AgentToolNameEnumConstants.Agent} 工具启动 greeti
     /// <summary>
     /// 格式化代理行
     /// </summary>
-    private static string FormatAgentLine(AgentDefinition agent)
-    {
+    private static string FormatAgentLine(AgentDefinition agent) {
         var toolsDescription = GetToolsDescription(agent);
         return $"- {agent.DisplayId}: {agent.WhenToUse} (工具: {toolsDescription})";
     }
@@ -197,27 +190,20 @@ assistant: ""我将使用 {AgentToolNameEnumConstants.Agent} 工具启动 greeti
     /// <summary>
     /// 获取工具描述
     /// </summary>
-    private static string GetToolsDescription(AgentDefinition agent)
-    {
+    private static string GetToolsDescription(AgentDefinition agent) {
         var hasAllowlist = agent.Tools != null && agent.Tools.Count > 0;
         var hasDenylist = agent.DisallowedTools != null && agent.DisallowedTools.Count > 0;
 
-        if (hasAllowlist && hasDenylist)
-        {
+        if (hasAllowlist && hasDenylist) {
             var denySet = new HashSet<string>(agent.DisallowedTools ?? []);
             var effectiveTools = (agent.Tools ?? []).Where(t => !denySet.Contains(t)).ToList();
-            if (effectiveTools.Count == 0)
-            {
+            if (effectiveTools.Count == 0) {
                 return "无";
             }
             return string.Join(", ", effectiveTools);
-        }
-        else if (hasAllowlist)
-        {
+        } else if (hasAllowlist) {
             return string.Join(", ", agent.Tools ?? []);
-        }
-        else if (hasDenylist)
-        {
+        } else if (hasDenylist) {
             return $"除 {string.Join(", ", agent.DisallowedTools!)} 外的所有工具";
         }
 
@@ -228,8 +214,7 @@ assistant: ""我将使用 {AgentToolNameEnumConstants.Agent} 工具启动 greeti
 /// <summary>
 /// 代理定义
 /// </summary>
-public class AgentDefinition
-{
+public class AgentDefinition {
     public required AgentRole Role { get; set; }
     public ExecutorVariant? Variant { get; set; }
     public required string WhenToUse { get; set; }
@@ -283,8 +268,7 @@ public class AgentDefinition
 /// <summary>
 /// Agent Hook 匹配器配置 - frontmatter 中的 hooks 定义
 /// </summary>
-public sealed class AgentHookMatcher
-{
+public sealed class AgentHookMatcher {
     public string? Matcher { get; set; }
     public required List<AgentHookCommand> Hooks { get; set; }
 }
@@ -292,8 +276,7 @@ public sealed class AgentHookMatcher
 /// <summary>
 /// Agent Hook 命令配置
 /// </summary>
-public sealed class AgentHookCommand
-{
+public sealed class AgentHookCommand {
     public required string Type { get; set; }
     public string? Command { get; set; }
     public string? Prompt { get; set; }
@@ -301,8 +284,7 @@ public sealed class AgentHookCommand
     public int? Timeout { get; set; }
 }
 
-public sealed class AgentMcpServerSpec
-{
+public sealed class AgentMcpServerSpec {
     public string? ServerNameRef { get; init; }
     public AgentMcpServerInlineConfig? InlineConfig { get; init; }
 
@@ -313,8 +295,7 @@ public sealed class AgentMcpServerSpec
         new() { ServerNameRef = name, InlineConfig = config };
 }
 
-public sealed class AgentMcpServerInlineConfig
-{
+public sealed class AgentMcpServerInlineConfig {
     public string? Command { get; init; }
     public List<string> Args { get; init; } = [];
     public Dictionary<string, string> Env { get; init; } = [];

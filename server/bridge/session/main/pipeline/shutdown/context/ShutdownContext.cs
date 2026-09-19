@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 关闭管道上下文 — 承载 Bridge 关闭流程的所有共享状态
 /// </summary>
-public sealed class ShutdownContext : IPipelineContext
-{
+public sealed class ShutdownContext : IPipelineContext {
     /// <summary>是否处于恢复（resume）模式</summary>
     public bool IsResuming { get; init; }
 
@@ -61,8 +60,7 @@ public sealed class ShutdownContext : IPipelineContext
     /// 标记管道失败并记录错误消息
     /// </summary>
     /// <param name="message">错误消息</param>
-    void IPipelineContext.Fail(string message)
-    {
+    void IPipelineContext.Fail(string message) {
         ((IPipelineContext)this).Failed = true;
         ((IPipelineContext)this).ErrorMessage = message;
     }

@@ -5,25 +5,18 @@ namespace JoinCode.Entry;
 /// 横切关注点示例：通过 Order = int.MinValue 排在最外层，包裹所有后续中间件
 /// </summary>
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
-internal sealed partial class StartupLoggingMiddleware : ServiceEntity, IMiddleware<StartupContext>
-{
+internal sealed partial class StartupLoggingMiddleware : ServiceEntity, IMiddleware<StartupContext> {
 
-    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        try
-        {
+        try {
             await next(context, ct);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             // 用户取消 — 设置中断退出码，避免误报为成功（对齐 Program.cs 的 130 = 128+SIGINT）
             context.ExitCode = (int)ExitCode.Interrupted;
             return;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             sw.Stop();
             Cli.TerminalHelper.WriteLine($"[启动失败] {ex.GetType().Name}: {ex.Message} ({sw.ElapsedMilliseconds}ms)");
             context.ExitCode = (int)ExitCode.GeneralError;

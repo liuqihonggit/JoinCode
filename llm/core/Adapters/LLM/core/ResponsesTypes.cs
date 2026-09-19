@@ -5,8 +5,7 @@ namespace Api.LLM;
 /// Responses API 请求 — OpenAI/DeepSeek Responses API 格式(POST /responses)
 /// 用 input + instructions 而非 messages,支持 reasoning effort
 /// </summary>
-internal sealed class ResponsesRequest
-{
+internal sealed class ResponsesRequest {
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
@@ -62,14 +61,12 @@ internal sealed class ResponsesRequest
     public ResponsesReasoning? Reasoning { get; set; }
 }
 
-internal sealed class ResponsesReasoning
-{
+internal sealed class ResponsesReasoning {
     [JsonPropertyName("effort")]
     public string Effort { get; set; } = string.Empty;
 }
 
-internal sealed class ResponsesTool
-{
+internal sealed class ResponsesTool {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "function";
 
@@ -89,8 +86,7 @@ internal sealed class ResponsesTool
 /// <summary>
 /// Responses API 响应 — output 数组(message/reasoning/function_call items)+ output_text 便捷字段
 /// </summary>
-internal sealed class ResponsesResponse
-{
+internal sealed class ResponsesResponse {
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
@@ -122,8 +118,7 @@ internal sealed class ResponsesResponse
 /// <summary>
 /// Responses API 输出 item — type 为 message/reasoning/function_call
 /// </summary>
-internal sealed class ResponsesOutputItem
-{
+internal sealed class ResponsesOutputItem {
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
 
@@ -148,8 +143,7 @@ internal sealed class ResponsesOutputItem
     public string? CallId { get; set; }
 }
 
-internal sealed class ResponsesContent
-{
+internal sealed class ResponsesContent {
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
 
@@ -158,8 +152,7 @@ internal sealed class ResponsesContent
     public string? Text { get; set; }
 }
 
-internal sealed class ResponsesUsage
-{
+internal sealed class ResponsesUsage {
     [JsonPropertyName("input_tokens")]
     public int InputTokens { get; set; }
 
@@ -175,8 +168,7 @@ internal sealed class ResponsesUsage
     public ResponsesTokenDetails? OutputTokensDetails { get; set; }
 }
 
-internal sealed class ResponsesTokenDetails
-{
+internal sealed class ResponsesTokenDetails {
     [JsonPropertyName("cached_tokens")]
     public int CachedTokens { get; set; }
 

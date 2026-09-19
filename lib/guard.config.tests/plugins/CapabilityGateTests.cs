@@ -1,18 +1,15 @@
 namespace Core.Tests.Plugins;
 
-public sealed class CapabilityGateTests
-{
+public sealed class CapabilityGateTests {
     [Fact]
-    public void RequireService_Declared_ReturnsService()
-    {
+    public void RequireService_Declared_ReturnsService() {
         var gate = new CapabilityGate(new[] { "tools", "sessions" });
         var result = gate.RequireService<string>("tools", () => "resolved");
         Assert.Equal("resolved", result);
     }
 
     [Fact]
-    public void RequireService_NotDeclared_ThrowsWithFixHint()
-    {
+    public void RequireService_NotDeclared_ThrowsWithFixHint() {
         var gate = new CapabilityGate(new[] { "tools" });
         var ex = Assert.Throws<ServiceNotDeclaredException>(() =>
             gate.RequireService<string>("sessions", () => "x"));
@@ -23,31 +20,27 @@ public sealed class CapabilityGateTests
     }
 
     [Fact]
-    public void IsDeclared_TrueForDeclared()
-    {
+    public void IsDeclared_TrueForDeclared() {
         var gate = new CapabilityGate(new[] { "tools", "sessions" });
         Assert.True(gate.IsDeclared("tools"));
         Assert.True(gate.IsDeclared("sessions"));
     }
 
     [Fact]
-    public void IsDeclared_FalseForNotDeclared()
-    {
+    public void IsDeclared_FalseForNotDeclared() {
         var gate = new CapabilityGate(new[] { "tools" });
         Assert.False(gate.IsDeclared("sessions"));
     }
 
     [Fact]
-    public void DeclaredServices_ReturnsAllDeclared()
-    {
+    public void DeclaredServices_ReturnsAllDeclared() {
         var gate = new CapabilityGate(new[] { "tools", "sessions", "llm" });
         Assert.Equal(3, gate.DeclaredServices.Count);
         Assert.Contains("llm", gate.DeclaredServices);
     }
 
     [Fact]
-    public void Exception_DeclaredInjects_StoredCorrectly()
-    {
+    public void Exception_DeclaredInjects_StoredCorrectly() {
         var gate = new CapabilityGate(new[] { "a", "b" });
         var ex = Assert.Throws<ServiceNotDeclaredException>(() =>
             gate.RequireService<string>("c", () => "x"));
@@ -55,8 +48,7 @@ public sealed class CapabilityGateTests
     }
 
     [Fact]
-    public void EmptyGate_RejectsAll()
-    {
+    public void EmptyGate_RejectsAll() {
         var gate = new CapabilityGate(Array.Empty<string>());
         Assert.Throws<ServiceNotDeclaredException>(() =>
             gate.RequireService<string>("any", () => "x"));
@@ -64,22 +56,19 @@ public sealed class CapabilityGateTests
     }
 
     [Fact]
-    public void InjectAttribute_StoresServices()
-    {
+    public void InjectAttribute_StoresServices() {
         var attr = new InjectAttribute("tools", "sessions");
         Assert.Equal(new[] { "tools", "sessions" }, attr.Services);
     }
 
     [Fact]
-    public void InjectAttribute_EmptyServices()
-    {
+    public void InjectAttribute_EmptyServices() {
         var attr = new InjectAttribute();
         Assert.Empty(attr.Services);
     }
 
     [Fact]
-    public void RequireService_NullResolve_ThrowsNre()
-    {
+    public void RequireService_NullResolve_ThrowsNre() {
         var gate = new CapabilityGate(new[] { "tools" });
         Assert.Throws<NullReferenceException>(() => gate.RequireService<string>("tools", null!));
     }

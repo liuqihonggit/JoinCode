@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 聚合 IFileWriteListenerRegistry/IIntentCollector/IHotFileDetector/IContractChangeBroadcaster/IHotSpotTracker/IContractChangeNotificationRouter 六个依赖
 /// ForkSpawnMiddleware 只需注入此一个可选参数
 /// </summary>
-public interface IHotSpotSpawnIntegration
-{
+public interface IHotSpotSpawnIntegration {
     /// <summary>
     /// 确保 listener 已注册到 FileWriteListenerRegistry（幂等，首次调用注册，后续 no-op）
     /// IntentReportFileWriteListener: Worker 改文件自动上报意图

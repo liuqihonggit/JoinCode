@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 光标状态 — 对应 Win32 GetCursorInfo 的光标类型（PRD E-03 异步等待感知）
 /// </summary>
-public enum CursorState
-{
+public enum CursorState {
     /// <summary>正常箭头光标</summary>
     [EnumValue("normal")]
     Normal,

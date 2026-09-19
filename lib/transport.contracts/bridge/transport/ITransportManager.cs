@@ -4,8 +4,7 @@ namespace JoinCode.Transport.Bridge;
 /// 传输管理器接口 — 协调连接管理和消息路由
 /// 作为 ConnectionManager 和 MessageRouter 的外观
 /// </summary>
-public interface ITransportManager : IAsyncDisposable
-{
+public interface ITransportManager : IAsyncDisposable {
     /// <summary>当前连接状态</summary>
     TransportConnectionState ConnectionState { get; }
 

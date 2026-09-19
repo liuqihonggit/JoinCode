@@ -1,15 +1,13 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class ProgressiveDisclosureServiceTests
-{
+public sealed class ProgressiveDisclosureServiceTests {
     private readonly Mock<ICodeIndexer> _mockIndexer;
     private readonly Mock<ISymbolSearcher> _mockSearcher;
     private readonly Mock<ICallGraph> _mockCallGraph;
     private readonly Mock<IDependencyGraph> _mockDepGraph;
     private readonly ProgressiveDisclosureService _service;
 
-    public ProgressiveDisclosureServiceTests()
-    {
+    public ProgressiveDisclosureServiceTests() {
         _mockIndexer = new Mock<ICodeIndexer>();
         _mockSearcher = new Mock<ISymbolSearcher>();
         _mockCallGraph = new Mock<ICallGraph>();
@@ -22,10 +20,8 @@ public sealed class ProgressiveDisclosureServiceTests
         _service = new ProgressiveDisclosureService(_mockIndexer.Object, new IO.FileSystem.PhysicalFileSystem());
     }
 
-    private static SymbolInfo CreateSymbol(string name, SymbolKind kind = SymbolKind.Method, string filePath = "/src/Test.cs", int startLine = 10, int endLine = 20, string? parent = null)
-    {
-        return new SymbolInfo
-        {
+    private static SymbolInfo CreateSymbol(string name, SymbolKind kind = SymbolKind.Method, string filePath = "/src/Test.cs", int startLine = 10, int endLine = 20, string? parent = null) {
+        return new SymbolInfo {
             Name = name,
             FullyQualifiedName = parent is not null ? $"{parent}.{name}" : name,
             Kind = kind,
@@ -38,10 +34,8 @@ public sealed class ProgressiveDisclosureServiceTests
         };
     }
 
-    private void SetupSearchResults(params SymbolInfo[] symbols)
-    {
-        var searchResult = new SearchResult<SymbolInfo>
-        {
+    private void SetupSearchResults(params SymbolInfo[] symbols) {
+        var searchResult = new SearchResult<SymbolInfo> {
             Items = symbols,
             TotalCount = symbols.Length,
             ElapsedMs = 1
@@ -52,8 +46,7 @@ public sealed class ProgressiveDisclosureServiceTests
     }
 
     [Fact]
-    public async Task DiscloseAsync_IndexLevel_ReturnsSymbolIndex()
-    {
+    public async Task DiscloseAsync_IndexLevel_ReturnsSymbolIndex() {
         SetupSearchResults(
             CreateSymbol("ValidateUser", SymbolKind.Method, parent: "UserService"),
             CreateSymbol("UserService", SymbolKind.Class)
@@ -73,10 +66,8 @@ public sealed class ProgressiveDisclosureServiceTests
     }
 
     [Fact]
-    public async Task DiscloseAsync_NoResults_ReturnsEmptyResult()
-    {
-        var searchResult = new SearchResult<SymbolInfo>
-        {
+    public async Task DiscloseAsync_NoResults_ReturnsEmptyResult() {
+        var searchResult = new SearchResult<SymbolInfo> {
             Items = [],
             TotalCount = 0,
             ElapsedMs = 1
@@ -94,8 +85,7 @@ public sealed class ProgressiveDisclosureServiceTests
     }
 
     [Fact]
-    public async Task DiscloseAsync_RelationshipsLevel_IncludesCallGraph()
-    {
+    public async Task DiscloseAsync_RelationshipsLevel_IncludesCallGraph() {
         SetupSearchResults(CreateSymbol("ValidateUser"));
 
         _mockCallGraph.Setup(x => x.GetCallersAsync("ValidateUser", It.IsAny<CancellationToken>()))
@@ -131,14 +121,12 @@ public sealed class ProgressiveDisclosureServiceTests
     }
 
     [Fact]
-    public async Task DiscloseAsync_SourceLevel_IncludesSourceCode()
-    {
+    public async Task DiscloseAsync_SourceLevel_IncludesSourceCode() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ExpandAsync_UpgradeFromIndexToRelationships()
-    {
+    public async Task ExpandAsync_UpgradeFromIndexToRelationships() {
         SetupSearchResults(CreateSymbol("MyMethod"));
 
         _mockCallGraph.Setup(x => x.GetCallersAsync("MyMethod", It.IsAny<CancellationToken>()))
@@ -159,21 +147,18 @@ public sealed class ProgressiveDisclosureServiceTests
     }
 
     [Fact]
-    public async Task ExpandAsync_SourceLevel_CannotExpand()
-    {
+    public async Task ExpandAsync_SourceLevel_CannotExpand() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task DiscloseAsync_NullQuery_Throws()
-    {
+    public async Task DiscloseAsync_NullQuery_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _service.DiscloseAsync(null!, DisclosureLevel.Index, CancellationToken.None)).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task DiscloseAsync_EstimatedTokens_IsPositive()
-    {
+    public async Task DiscloseAsync_EstimatedTokens_IsPositive() {
         SetupSearchResults(CreateSymbol("TokenTest", SymbolKind.Class));
 
         var result = await _service.DiscloseAsync("TokenTest", DisclosureLevel.Index, CancellationToken.None).ConfigureAwait(true);
@@ -182,8 +167,7 @@ public sealed class ProgressiveDisclosureServiceTests
     }
 
     [Fact]
-    public async Task DiscloseAsync_IndexLevel_LimitsTo20Symbols()
-    {
+    public async Task DiscloseAsync_IndexLevel_LimitsTo20Symbols() {
         var symbols = Enumerable.Range(0, 30)
             .Select(i => CreateSymbol($"Symbol{i}", SymbolKind.Method))
             .ToArray();
@@ -196,8 +180,7 @@ public sealed class ProgressiveDisclosureServiceTests
     }
 
     [Fact]
-    public async Task DiscloseAsync_RelationshipsLevel_IncludesInheritors()
-    {
+    public async Task DiscloseAsync_RelationshipsLevel_IncludesInheritors() {
         SetupSearchResults(CreateSymbol("IRepository", SymbolKind.Interface));
 
         _mockCallGraph.Setup(x => x.GetCallersAsync("IRepository", It.IsAny<CancellationToken>()))

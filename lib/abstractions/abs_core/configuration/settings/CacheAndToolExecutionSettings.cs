@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Configuration.Settings;
 /// <summary>
 /// 缓存配置设置
 /// </summary>
-public class CacheSettings
-{
+public class CacheSettings {
     /// <summary>
     /// 缓存过期时间（分钟）
     /// </summary>
@@ -29,8 +28,7 @@ public class CacheSettings
 /// <summary>
 /// 工具执行配置设置
 /// </summary>
-public class ToolExecutionSettings
-{
+public class ToolExecutionSettings {
     /// <summary>
     /// 工具执行超时时间（秒）
     /// </summary>
@@ -102,8 +100,7 @@ public class ToolExecutionSettings
 /// <summary>
 /// 超边配置 — 定义一组语义关联的工具共享评分空间
 /// </summary>
-public class HyperedgeSettings
-{
+public class HyperedgeSettings {
     /// <summary>
     /// 超边标识
     /// </summary>
@@ -127,8 +124,7 @@ public class HyperedgeSettings
     /// <summary>
     /// 转换为 ToolHyperedge
     /// </summary>
-    public ToolHyperedge ToHyperedge() => new()
-    {
+    public ToolHyperedge ToHyperedge() => new() {
         Id = Id,
         ToolNames = FrozenSet.Create(StringComparer.OrdinalIgnoreCase, [.. ToolNames]),
         Weight = Weight,
@@ -139,8 +135,7 @@ public class HyperedgeSettings
 /// <summary>
 /// 工具健康评分配置 — 控制奖惩幅度、熔断阈值、时间衰减率
 /// </summary>
-public class ToolScoreSettings
-{
+public class ToolScoreSettings {
     /// <summary>
     /// 成功执行评分增量
     /// </summary>
@@ -179,8 +174,7 @@ public class ToolScoreSettings
     /// <summary>
     /// 转换为 ToolScoreConfig
     /// </summary>
-    public ToolScoreConfig ToToolScoreConfig() => new()
-    {
+    public ToolScoreConfig ToToolScoreConfig() => new() {
         SuccessDelta = SuccessDelta,
         FailDelta = FailDelta,
         WarningThreshold = WarningThreshold,
@@ -194,8 +188,7 @@ public class ToolScoreSettings
 /// <summary>
 /// LLM 执行配置设置
 /// </summary>
-public class LlmExecutionSettings
-{
+public class LlmExecutionSettings {
     /// <summary>
     /// 温度参数 (0-2)
     /// </summary>
@@ -246,8 +239,7 @@ public class LlmExecutionSettings
 /// 搜索范围安全配置 — 控制搜索命令的危险标志和过大路径检测
 /// 支持热重载：settings.json 变更时自动更新 SearchScopeValidator
 /// </summary>
-public class SearchScopeSettings
-{
+public class SearchScopeSettings {
     /// <summary>
     /// 是否启用搜索范围检测（默认启用）
     /// </summary>

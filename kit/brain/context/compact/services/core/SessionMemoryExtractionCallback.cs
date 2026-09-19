@@ -7,8 +7,7 @@ namespace Core.Context.Compact;
 /// 核心消费链路：ISessionMemoryExtractionService.BuildExtractionPromptAsync() → IForkSubAgentManager.ForkAsync()
 /// </summary>
 [Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
-public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPostSamplingCallback
-{
+public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPostSamplingCallback {
 
     private readonly ISessionMemoryExtractionService _extractionService;
     private readonly IForkSubAgentManager? _forkManager;
@@ -23,8 +22,7 @@ public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPo
     public SessionMemoryExtractionCallback(
         ISessionMemoryExtractionService extractionService,
         IForkSubAgentManager? forkManager = null,
-        ILogger<SessionMemoryExtractionCallback>? logger = null)
-    {
+        ILogger<SessionMemoryExtractionCallback>? logger = null) {
         _extractionService = extractionService ?? throw new ArgumentNullException(nameof(extractionService));
         _forkManager = forkManager;
         _logger = logger;
@@ -34,29 +32,24 @@ public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPo
     /// 采样后回调：判断是否需要提取会话记忆，必要时派生子代理更新记忆文件
     /// </summary>
     /// <param name="context">采样后上下文，包含 token 估算、会话 ID 等</param>
-    public async Task OnPostSamplingAsync(PostSamplingContext context)
-    {
+    public async Task OnPostSamplingAsync(PostSamplingContext context) {
         if (context.QuerySource != "repl_main_thread") return;
 
-        if (!_extractionService.ShouldExtract(context.EstimatedTokenCount, context.ToolCallsSinceLastExtraction))
-        {
+        if (!_extractionService.ShouldExtract(context.EstimatedTokenCount, context.ToolCallsSinceLastExtraction)) {
             return;
         }
 
-        try
-        {
+        try {
             await _extractionService.InitializeSessionMemoryFileAsync(context.CancellationToken).ConfigureAwait(false);
 
             var prompt = await _extractionService.BuildExtractionPromptAsync(context.CancellationToken).ConfigureAwait(false);
 
             _logger?.LogDebug("SessionMemory 提取提示词已构建，长度={Length}", prompt.Length);
 
-            if (_forkManager is not null && context.SessionId is not null)
-            {
+            if (_forkManager is not null && context.SessionId is not null) {
                 var memoryPath = _extractionService.GetMemoryFilePath();
 
-                var forkOptions = new ForkOptions
-                {
+                var forkOptions = new ForkOptions {
                     ParentSessionId = context.SessionId,
                     TaskDescription = "session_memory",
                     AllowedTools = [FileToolNameEnumConstants.FileEdit],
@@ -72,16 +65,12 @@ public sealed partial class SessionMemoryExtractionCallback : ServiceEntity, IPo
 
                 _logger?.LogDebug("SessionMemory forked agent 完成: ForkId={ForkId}, State={State}",
                     result.ForkId, result.State);
-            }
-            else
-            {
+            } else {
                 _logger?.LogDebug("SessionMemory forked agent 不可用（IForkSubAgentManager 或 SessionId 缺失），跳过执行");
             }
 
             _extractionService.RecordExtractionCompleted(context.EstimatedTokenCount);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "SessionMemory 提取回调执行失败");
         }
     }

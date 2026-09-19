@@ -67,8 +67,7 @@ public class IdleDetectionConfig {
 /// <summary>
 /// 子智能体输出防护配置 — L0-L3 炸窗防护
 /// </summary>
-public class SubAgentConfig
-{
+public class SubAgentConfig {
     /// <summary>
     /// L2 自摘要配置
     /// </summary>
@@ -93,8 +92,7 @@ public class SubAgentConfig
 /// <summary>
 /// L2 自摘要配置
 /// </summary>
-public class SubAgentSummaryConfig
-{
+public class SubAgentSummaryConfig {
     /// <summary>
     /// 是否启用 L2 自摘要（默认 true）。关则跳过 L2，中等超限直接落盘
     /// </summary>
@@ -109,8 +107,7 @@ public class SubAgentSummaryConfig
 /// <summary>
 /// L3 落盘存档配置
 /// </summary>
-public class SubAgentArchiveConfig
-{
+public class SubAgentArchiveConfig {
     /// <summary>
     /// 落盘目录（相对路径，基于当前工作目录）
     /// </summary>

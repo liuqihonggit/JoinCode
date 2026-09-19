@@ -4,8 +4,7 @@ namespace IO.Services;
 /// Release Notes 服务 — 拉取 GitHub Releases 并提供本地缓存
 /// </summary>
 [Register(typeof(IReleaseNotesService), ServiceLifetime.Singleton)]
-public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesService, IDisposable
-{
+public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesService, IDisposable {
     private readonly HttpClient _httpClient;
     private readonly string _repoOwner;
     private readonly string _repoName;
@@ -29,8 +28,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     /// <param name="cacheDuration">缓存有效期，缺省 1 小时</param>
     /// <param name="timeProvider">时间提供器，用于测试注入</param>
     public ReleaseNotesService(HttpClient httpClient, string? repoOwner = null, string? repoName = null,
-        TimeSpan? requestTimeout = null, TimeSpan? cacheDuration = null, TimeProvider? timeProvider = null)
-    {
+        TimeSpan? requestTimeout = null, TimeSpan? cacheDuration = null, TimeProvider? timeProvider = null) {
         _httpClient = httpClient;
         _repoOwner = repoOwner ?? JccEndpointsResolver.RepoOwner;
         _repoName = repoName ?? JccEndpointsResolver.RepoName;
@@ -45,15 +43,13 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     /// <param name="count">要获取的 Release 数量，缺省 5</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>Release 信息列表；拉取失败且无缓存时返回空列表</returns>
-    public async Task<IReadOnlyList<ReleaseInfo>> GetRecentReleasesAsync(int count = 5, CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyList<ReleaseInfo>> GetRecentReleasesAsync(int count = 5, CancellationToken ct = default) {
         if (TryGetCachedReleases(count, out var cached))
             return cached;
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, _requestTimeout);
 
-        try
-        {
+        try {
             var url = $"{JccEndpointsResolver.GitHubApiBase}/repos/{_repoOwner}/{_repoName}/releases?per_page={count}";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Add("User-Agent", "JoinCode");
@@ -65,8 +61,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
             var doc = System.Text.Json.JsonDocument.Parse(json);
 
             var releases = new List<ReleaseInfo>();
-            foreach (var element in doc.RootElement.EnumerateArray())
-            {
+            foreach (var element in doc.RootElement.EnumerateArray()) {
                 var tagName = element.GetProperty("tag_name").GetString() ?? "unknown";
                 var body = element.GetProperty("body").GetString() ?? "";
                 var publishedAt = element.GetProperty("published_at").GetDateTime();
@@ -74,8 +69,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
                 if (tagName.StartsWith('v'))
                     tagName = tagName[1..];
 
-                releases.Add(new ReleaseInfo
-                {
+                releases.Add(new ReleaseInfo {
                     Version = tagName,
                     Notes = StringTruncator.Truncate(body, 503),
                     PublishedAt = publishedAt
@@ -85,9 +79,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
             var result = releases.AsReadOnly();
             UpdateCache(result, ct);
             return result;
-        }
-        catch
-        {
+        } catch {
             if (TryGetCachedReleases(count, out var fallback))
                 return fallback;
 
@@ -96,11 +88,9 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     }
 
     /// <summary>尝试从缓存获取 release 列表，缓存有效返回 true</summary>
-    private bool TryGetCachedReleases(int count, out IReadOnlyList<ReleaseInfo> result)
-    {
+    private bool TryGetCachedReleases(int count, out IReadOnlyList<ReleaseInfo> result) {
         using var guard = _cacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cacheLock.Name}' 等待超时");
-        if (_releasesCached && _timeProvider.GetUtcNow() - _cacheTimestamp < _cacheDuration)
-        {
+        if (_releasesCached && _timeProvider.GetUtcNow() - _cacheTimestamp < _cacheDuration) {
             result = _cachedReleases.Count <= count ? _cachedReleases : _cachedReleases.Take(count).ToList();
             return true;
         }
@@ -109,8 +99,7 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     }
 
     /// <summary>更新 release 缓存</summary>
-    private void UpdateCache(IReadOnlyList<ReleaseInfo> releases, CancellationToken ct)
-    {
+    private void UpdateCache(IReadOnlyList<ReleaseInfo> releases, CancellationToken ct) {
         using var guard = _cacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_cacheLock.Name}' 等待超时");
         _cachedReleases = releases;
         _releasesCached = true;
@@ -118,12 +107,11 @@ public sealed partial class ReleaseNotesService : ServiceEntity, IReleaseNotesSe
     }
 
     /// <summary>释放资源 — P2-2: 补全 IDisposable 释放 SemaphoreSlim 避免资源累积</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _cacheLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 
 }

@@ -10,8 +10,7 @@ namespace IO.ProcessService;
 /// 不拦截的字符：空格、-、/、\、:、.、=、_ 等 — 这些是路径和参数的合法字符。
 /// </para>
 /// </summary>
-public static class CommandArgumentValidator
-{
+public static class CommandArgumentValidator {
     /// <summary>
     /// 危险字符黑名单 — shell 元字符，可能导致命令注入
     /// </summary>
@@ -24,14 +23,11 @@ public static class CommandArgumentValidator
     /// </summary>
     /// <param name="argument">待校验的参数字符串</param>
     /// <exception cref="ArgumentException">参数包含危险字符时抛出</exception>
-    public static void ValidateString(string argument)
-    {
+    public static void ValidateString(string argument) {
         if (string.IsNullOrEmpty(argument)) return;
 
-        foreach (var ch in argument)
-        {
-            if (DangerousChars.Contains(ch))
-            {
+        foreach (var ch in argument) {
+            if (DangerousChars.Contains(ch)) {
                 throw new ArgumentException(
                     $"参数包含危险字符 '{ch}' (U+{(int)ch:X4})，可能导致命令注入。参数值: \"{argument}\"。" +
                     "如需允许该字符，请设置 SkipArgumentValidation=true。",
@@ -45,19 +41,15 @@ public static class CommandArgumentValidator
     /// </summary>
     /// <param name="arguments">待校验的参数列表，null 或空则跳过</param>
     /// <exception cref="ArgumentException">任一参数包含危险字符时抛出</exception>
-    public static void ValidateList(IReadOnlyList<string>? arguments)
-    {
+    public static void ValidateList(IReadOnlyList<string>? arguments) {
         if (arguments is null || arguments.Count == 0) return;
 
-        for (var i = 0; i < arguments.Count; i++)
-        {
+        for (var i = 0; i < arguments.Count; i++) {
             var arg = arguments[i];
             if (string.IsNullOrEmpty(arg)) continue;
 
-            foreach (var ch in arg)
-            {
-                if (DangerousChars.Contains(ch))
-                {
+            foreach (var ch in arg) {
+                if (DangerousChars.Contains(ch)) {
                     throw new ArgumentException(
                         $"参数列表第 {i} 项包含危险字符 '{ch}' (U+{(int)ch:X4})，可能导致命令注入。参数值: \"{arg}\"。" +
                         "如需允许该字符，请设置 SkipArgumentValidation=true。",

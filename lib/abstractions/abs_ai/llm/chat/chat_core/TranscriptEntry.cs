@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed record TranscriptEntry
-{
+public sealed record TranscriptEntry {
     public string SessionId { get; init; } = string.Empty;
     public string Role { get; init; } = string.Empty;
     public string Content { get; init; } = string.Empty;
@@ -49,8 +48,7 @@ public sealed record TranscriptEntry
         this with { SessionId = sessionId, AgentId = agentId, IsSidechain = true };
 }
 
-public sealed class TranscriptSummary
-{
+public sealed class TranscriptSummary {
     public string SessionId { get; init; } = string.Empty;
     public DateTime CreatedAt { get; init; }
     public DateTime LastModifiedAt { get; init; }

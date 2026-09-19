@@ -5,16 +5,14 @@ namespace Core.DependencyInjection;
 /// 核心服务注册器 — 注册 Composition 层的核心服务（API 客户端、代码安全、提示、文件操作、工具、基础设施）。
 /// <para>本类为 partial，与 <see cref="ServiceRegistration"/> 的其他 partial 定义（Kernel/NewServices/Brain/Bridge/CodeIndex/Mcp/Skills）共同组成完整的 DI 注册入口。</para>
 /// </summary>
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     /// <summary>
     /// 注册核心服务：API 客户端、代码安全、提示服务、系统提示提供者等。
     /// <para>大部分服务通过 [Register] 特性自动注册，本方法仅补充未被自动注册覆盖的部分。</para>
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddCoreServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddCoreServices(this IServiceCollection services) {
         // HttpClient — [Register] 自动注册（SharedHttpClient）
 
         // LspServiceDeps — [Register] 自动注册（构造函数参数均为可选 DI 接口）
@@ -47,8 +45,7 @@ public static partial class ServiceRegistration
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddFileOperationServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddFileOperationServices(this IServiceCollection services) {
         // IFileSystem — 根据 JCC_FILE_SYSTEM_MODE 环境变量决定后端
         // 默认 Physical（真实磁盘），InMemory=纯内存0磁盘IO（调试/E2E测试用）
         // 注意: [Register] 自动注册的 IFileSystem 转发已在此处被覆盖（后注册 wins）
@@ -59,8 +56,7 @@ public static partial class ServiceRegistration
 
         services.AddOptions<FileOperationConfig>()
             .BindConfiguration("Workflow:FileOperation")
-            .Validate(config =>
-            {
+            .Validate(config => {
                 if (config.MaxReadSize < 1024 || config.MaxReadSize > 1024L * 1024 * 1024) return false;
                 if (config.MaxWriteSize < 1024 || config.MaxWriteSize > 1024 * 1024 * 1024) return false;
                 if (config.BufferSize < 512 || config.BufferSize > 1024 * 1024) return false;
@@ -71,8 +67,7 @@ public static partial class ServiceRegistration
 
         // FileOperationConfig — 直接注册供 FileOperationService 构造函数使用
         // （FileOperationService 有手动构造函数，不使用 生成器）
-        services.AddSingleton(sp =>
-        {
+        services.AddSingleton(sp => {
             var options = sp.GetRequiredService<IOptions<FileOperationConfig>>();
             return options.Value;
         });
@@ -86,12 +81,10 @@ public static partial class ServiceRegistration
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddToolServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddToolServices(this IServiceCollection services) {
         services.AddOptions<ShellExecutionConfig>()
             .BindConfiguration("Workflow:ShellExecution")
-            .Validate(config =>
-            {
+            .Validate(config => {
                 if (config.MaxOutputBytes < 1024 || config.MaxOutputBytes > 1024 * 1024) return false;
                 if (config.DefaultTimeoutSeconds < 1 || config.DefaultTimeoutSeconds > 3600) return false;
                 return true;
@@ -101,8 +94,7 @@ public static partial class ServiceRegistration
         // ShellExecutionConfig — 直接注册供 SystemActuatorBase 构造函数使用
         // （SystemActuatorBase 构造函数取 ShellExecutionConfig 而非 IOptions<>）
         // 支持环境变量覆盖: JCC_ABSOLUTE_TIMEOUT_SECONDS, JCC_RESUME_TIMEOUT_SECONDS
-        services.AddSingleton(sp =>
-        {
+        services.AddSingleton(sp => {
             var options = sp.GetRequiredService<IOptions<ShellExecutionConfig>>();
             var config = options.Value;
 
@@ -133,8 +125,7 @@ public static partial class ServiceRegistration
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services) {
         // TelemetryConfig — [Register] 自动注册（无参构造函数从环境变量初始化）
 
         // P1-5 推广 HttpClientFactory — 启用 IHttpClientFactory（已在 P1-3 卫星项目 aot-httpclientfactory-test 验证 NativeAOT 兼容）
@@ -155,23 +146,17 @@ public static partial class ServiceRegistration
         // 所有注入 IResilientHttpClientProvider 的消费方自动获得超时+重试+熔断保护
         // 注入 IHttpClientProvider 的消费方仍获取原始客户端（向后兼容，无韧性）
         var resilienceEnabled = EnvHelper.Get(JccEnvVar.ResilienceEnabled) is not "0";
-        if (resilienceEnabled)
-        {
-            services.AddSingleton<IResilientHttpClientProvider>(sp =>
-            {
+        if (resilienceEnabled) {
+            services.AddSingleton<IResilientHttpClientProvider>(sp => {
                 var inner = sp.GetRequiredService<IHttpClientProvider>();
                 var logger = sp.GetService<ILogger<Infrastructure.Http.ResilientHttpClientProvider>>();
                 return new Infrastructure.Http.ResilientHttpClientProvider(inner, logger: logger);
             });
-        }
-        else
-        {
-            services.AddSingleton<IResilientHttpClientProvider>(sp =>
-            {
+        } else {
+            services.AddSingleton<IResilientHttpClientProvider>(sp => {
                 var inner = sp.GetRequiredService<IHttpClientProvider>();
                 return new Infrastructure.Http.ResilientHttpClientProvider(inner,
-                    policy: new Infrastructure.Utils.Resilience.ResiliencePolicy
-                    {
+                    policy: new Infrastructure.Utils.Resilience.ResiliencePolicy {
                         Name = "disabled",
                         Retry = new Infrastructure.Utils.Resilience.RetryConfig { MaxRetries = 0 },
                     });
@@ -187,8 +172,7 @@ public static partial class ServiceRegistration
         // IBrowserAutomationService — 根据 JCC_BROWSER_AUTOMATION 环境变量决定后端
         // 默认 None（NoOp），Puppeteer=启用浏览器自动化
         var browserMode = EnvHelper.Get(JccEnvVar.BrowserAutomation);
-        if (!string.Equals(browserMode, "Puppeteer", StringComparison.OrdinalIgnoreCase))
-        {
+        if (!string.Equals(browserMode, "Puppeteer", StringComparison.OrdinalIgnoreCase)) {
             services.AddSingleton<IBrowserAutomationService>(sp =>
                 EnvSwitchRegistrar.TraceFactory(_ => new NoOpBrowserAutomationService(), "IBrowserAutomationService", "NoOp", sp));
         }

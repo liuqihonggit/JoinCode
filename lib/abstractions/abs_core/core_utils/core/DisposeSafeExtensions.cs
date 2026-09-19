@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 详见 ADR-0093、AGENTS.md「代码风格规范」。
 /// </para>
 /// </summary>
-public static class DisposeSafeExtensions
-{
+public static class DisposeSafeExtensions {
     /// <summary>
     /// 安全释放 <see cref="IDisposable"/> 对象：吞 <see cref="ObjectDisposedException"/>（幂等），其他异常可选记录日志。
     /// </summary>
@@ -18,12 +17,9 @@ public static class DisposeSafeExtensions
     public static void DisposeSafe(
         this IDisposable? obj,
         ILogger? logger = null,
-        [CallerMemberName] string? caller = null)
-    {
+        [CallerMemberName] string? caller = null) {
         if (obj is null) return;
-        try { obj.Dispose(); }
-        catch (ObjectDisposedException ex) { logger?.LogDebug(ex, "[{Caller}] 对象已释放，幂等忽略", caller); }
-        catch (Exception ex) { logger?.LogWarning(ex, "[{Caller}] Dispose 失败", caller); }
+        try { obj.Dispose(); } catch (ObjectDisposedException ex) { logger?.LogDebug(ex, "[{Caller}] 对象已释放，幂等忽略", caller); } catch (Exception ex) { logger?.LogWarning(ex, "[{Caller}] Dispose 失败", caller); }
     }
 
     /// <summary>
@@ -35,12 +31,9 @@ public static class DisposeSafeExtensions
     public static async ValueTask DisposeSafeAsync(
         this IAsyncDisposable? obj,
         ILogger? logger = null,
-        [CallerMemberName] string? caller = null)
-    {
+        [CallerMemberName] string? caller = null) {
         if (obj is null) return;
-        try { await obj.DisposeAsync().ConfigureAwait(false); }
-        catch (ObjectDisposedException ex) { logger?.LogDebug(ex, "[{Caller}] 对象已释放，幂等忽略", caller); }
-        catch (Exception ex) { logger?.LogWarning(ex, "[{Caller}] DisposeAsync 失败", caller); }
+        try { await obj.DisposeAsync().ConfigureAwait(false); } catch (ObjectDisposedException ex) { logger?.LogDebug(ex, "[{Caller}] 对象已释放，幂等忽略", caller); } catch (Exception ex) { logger?.LogWarning(ex, "[{Caller}] DisposeAsync 失败", caller); }
     }
 
     /// <summary>
@@ -52,12 +45,9 @@ public static class DisposeSafeExtensions
     public static void CancelAndDisposeSafe(
         this CancellationTokenSource? cts,
         ILogger? logger = null,
-        [CallerMemberName] string? caller = null)
-    {
+        [CallerMemberName] string? caller = null) {
         if (cts is null) return;
-        try { cts.Cancel(); }
-        catch (ObjectDisposedException ex) { logger?.LogDebug(ex, "[{Caller}] 对象已释放，幂等忽略", caller); }
-        catch (Exception ex) { logger?.LogWarning(ex, "[{Caller}] Cancel 失败", caller); }
+        try { cts.Cancel(); } catch (ObjectDisposedException ex) { logger?.LogDebug(ex, "[{Caller}] 对象已释放，幂等忽略", caller); } catch (Exception ex) { logger?.LogWarning(ex, "[{Caller}] Cancel 失败", caller); }
         cts.DisposeSafe(logger, caller);
     }
 }

@@ -1,10 +1,8 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginAsyncDisposerTests
-{
+public sealed class PluginAsyncDisposerTests {
     [Fact]
-    public async Task LoadAsync_WithAsyncEffect_DisposeAsyncExecutedOnUnload()
-    {
+    public async Task LoadAsync_WithAsyncEffect_DisposeAsyncExecutedOnUnload() {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -21,15 +19,13 @@ public sealed class PluginAsyncDisposerTests
         Assert.True(plugin.AsyncDisposed);
     }
 
-    private sealed class AsyncEffectPlugin : WorkflowPluginBase
-    {
+    private sealed class AsyncEffectPlugin : WorkflowPluginBase {
         public bool AsyncDisposed { get; private set; }
         public AsyncEffectPlugin() : base("async-effect") { }
         public override string Name => "async-effect";
         public override string Version => "1.0.0";
         public override string Description => "async effect测试";
-        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default)
-        {
+        public override Task<OperationResult> LoadAsync(PluginContext ctx, CancellationToken cancellationToken = default) {
             ctx.Effect(() => new AsyncDisposable(() => AsyncDisposed = true));
             return Task.FromResult(OperationResult.Ok());
         }
@@ -37,13 +33,11 @@ public sealed class PluginAsyncDisposerTests
             => Task.FromResult(OperationResult.Ok());
     }
 
-    private sealed class AsyncDisposable : IAsyncDisposable
-    {
+    private sealed class AsyncDisposable : IAsyncDisposable {
         private readonly Action _onDispose;
         private bool _disposed;
         public AsyncDisposable(Action onDispose) => _onDispose = onDispose;
-        public ValueTask DisposeAsync()
-        {
+        public ValueTask DisposeAsync() {
             if (_disposed) return ValueTask.CompletedTask;
             _disposed = true;
             _onDispose();

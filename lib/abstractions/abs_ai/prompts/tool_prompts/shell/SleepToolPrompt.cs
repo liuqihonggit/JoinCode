@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// SleepTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = SystemToolName.Sleep, Category = ToolPromptCategory.Shell)]
-public static class SleepToolPrompt
-{
+public static class SleepToolPrompt {
     public const string ToolName = SystemToolNameEnumConstants.Sleep;
     public const string Description = "等待指定持续时间";
 

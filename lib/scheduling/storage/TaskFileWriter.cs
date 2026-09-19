@@ -5,16 +5,14 @@ namespace Core.Scheduling;
 /// 任务文件写入工具类
 /// </summary>
 [Register(typeof(ITaskFileWriter), ServiceLifetime.Singleton)]
-public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
-{
+public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter {
 
     /// <summary>
     /// 初始化任务文件写入器
     /// </summary>
     /// <param name="fileOperationService">文件操作服务</param>
     /// <param name="logger">日志记录器</param>
-    public TaskFileWriter(IFileOperationService fileOperationService, ILogger<TaskFileWriter>? logger = null)
-    {
+    public TaskFileWriter(IFileOperationService fileOperationService, ILogger<TaskFileWriter>? logger = null) {
         _fileOperationService = fileOperationService;
         _logger = logger;
     }
@@ -30,11 +28,9 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
     public async Task WriteAsync(
         string filePath,
         FileTaskMetadata metadata,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !_fileOperationService.DirectoryExists(directory))
-        {
+        if (!string.IsNullOrEmpty(directory) && !_fileOperationService.DirectoryExists(directory)) {
             _fileOperationService.CreateDirectory(directory);
         }
 
@@ -48,27 +44,21 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
     public async Task WriteAtomicAsync(
         string filePath,
         FileTaskMetadata metadata,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var directory = Path.GetDirectoryName(filePath);
-        if (!string.IsNullOrEmpty(directory) && !_fileOperationService.DirectoryExists(directory))
-        {
+        if (!string.IsNullOrEmpty(directory) && !_fileOperationService.DirectoryExists(directory)) {
             _fileOperationService.CreateDirectory(directory);
         }
 
         var tempPath = filePath + ".tmp";
         var json = RelaxedJsonSerializer.Serialize(metadata, SchedulingIndentedJsonContext.Default);
 
-        try
-        {
+        try {
             await _fileOperationService.WriteFileAsync(tempPath, json, cancellationToken).ConfigureAwait(false);
             await _fileOperationService.MoveFileAsync(tempPath, filePath, overwrite: true, cancellationToken).ConfigureAwait(false);
-        }
-        catch
-        {
+        } catch {
             // 清理临时文件
-            if (_fileOperationService.FileExists(tempPath))
-            {
+            if (_fileOperationService.FileExists(tempPath)) {
                 try { await _fileOperationService.DeleteFileAsync(tempPath, cancellationToken).ConfigureAwait(false); } catch (Exception ex) {
                     _logger?.LogWarning(ex, L.T(StringKey.DeleteTempFileFailedLog, ex.Message));
                 }
@@ -80,30 +70,24 @@ public sealed partial class TaskFileWriter : ServiceEntity, ITaskFileWriter
     /// <summary>
     /// 删除任务文件
     /// </summary>
-    public async Task<bool> DeleteAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> DeleteAsync(string filePath, CancellationToken cancellationToken = default) {
         return await _fileOperationService.DeleteFileAsync(filePath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 序列化任务为JSON
     /// </summary>
-    public static string Serialize(FileTaskMetadata metadata)
-    {
+    public static string Serialize(FileTaskMetadata metadata) {
         return RelaxedJsonSerializer.Serialize(metadata, SchedulingIndentedJsonContext.Default);
     }
 
     /// <summary>
     /// 反序列化为任务
     /// </summary>
-    public static FileTaskMetadata? Deserialize(string json)
-    {
-        try
-        {
+    public static FileTaskMetadata? Deserialize(string json) {
+        try {
             return RelaxedJsonSerializer.Deserialize(json, SchedulingJsonContext.Default.FileTaskMetadata);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }

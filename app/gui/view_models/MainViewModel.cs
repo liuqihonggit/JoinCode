@@ -4,8 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 主窗口 ViewModel — 承载引擎会话门面与基础对话占位。
 /// 依赖注入仅走 <see cref="IJccChatSession"/>，不触碰引擎内部实现。
 /// </summary>
-public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
-{
+public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable {
     private IJccChatSession? _realSession;
     private IJccChatSession? _mockSession;
     private IJccChatSession _session;
@@ -89,8 +88,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private string _selectedEffort;
 
-    partial void OnSelectedEffortChanged(string value)
-    {
+    partial void OnSelectedEffortChanged(string value) {
         var effort = EffortLevelHelper.ParseEffortLevel(value) ?? EffortLevel.Auto;
         if (_session.EffortLevel == effort)
             return;
@@ -120,8 +118,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     private double _fontSize = 14;
 
     /// <summary>状态三态类别（就绪/思考/错误，驱动顶栏状态指示器配色）</summary>
-    public StatusKind StatusKind => StatusText switch
-    {
+    public StatusKind StatusKind => StatusText switch {
         var s when s.StartsWith("错误", StringComparison.Ordinal) => StatusKind.Error,
         var s when s is "思考中…" or "已停止生成" or "已停止" => StatusKind.Busy,
         _ => StatusKind.Ready
@@ -144,24 +141,21 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     /// <summary>填充建议提问到输入框（不直接发送）</summary>
     [RelayCommand]
-    private void UseSuggestion(string? prompt)
-    {
+    private void UseSuggestion(string? prompt) {
         if (!string.IsNullOrWhiteSpace(prompt))
             InputText = prompt;
     }
 
     /// <summary>切换思考消息的折叠/展开状态（点击思考气泡标题触发）</summary>
     [RelayCommand]
-    private void ToggleThinking(object? parameter)
-    {
+    private void ToggleThinking(object? parameter) {
         if (parameter is ChatUiMessage msg && msg.IsThinking)
             msg.IsThinkingExpanded = !msg.IsThinkingExpanded;
     }
 
     /// <summary>切换系统提示词注入卡片的折叠/展开状态（需求10）</summary>
     [RelayCommand]
-    private void TogglePrompt(object? parameter)
-    {
+    private void TogglePrompt(object? parameter) {
         if (parameter is ChatUiMessage msg && msg.IsSystemPromptInjection)
             msg.IsPromptExpanded = !msg.IsPromptExpanded;
     }
@@ -191,8 +185,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
     public bool IsInputTooLong => CharsCount > MaxInputChars;
 
     /// <summary>输入框变化时同步字符计数并退出历史回看游标（斜杠刷新由 View 层防抖触发）</summary>
-    partial void OnInputTextChanged(string value)
-    {
+    partial void OnInputTextChanged(string value) {
         CharsCount = value.Length;
         OnPropertyChanged(nameof(IsInputTooLong));
         if (!_isNavigating)
@@ -201,8 +194,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     /// <summary>↑/↓ 翻看输入历史（-1 上一条，1 下一条；到底/顶时忽略）</summary>
     [RelayCommand]
-    private void NavigateHistory(int direction)
-    {
+    private void NavigateHistory(int direction) {
         if (_inputHistory.Count == 0)
             return;
         if (_historyIndex == -1 && direction > 0)
@@ -224,8 +216,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     /// <summary>恢复设置面板默认值（温度/最大长度/流式/系统提示词）</summary>
     [RelayCommand]
-    private void ResetSettings()
-    {
+    private void ResetSettings() {
         Temperature = 0.7;
         MaxTokens = 4096;
         StreamingEnabled = true;
@@ -251,8 +242,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     /// <summary>回放请求（agent 卡片"回放"按钮触发）</summary>
     [RelayCommand]
-    private void OpenAgentTranscript(AgentRunVm? runVm)
-    {
+    private void OpenAgentTranscript(AgentRunVm? runVm) {
         if (runVm is null)
             return;
         TranscriptRequested?.Invoke(runVm.Run);
@@ -277,8 +267,7 @@ public sealed partial class MainViewModel : ViewModelBase, IAsyncDisposable
 
     /// <summary>跳到最新消息（回底按钮命令）</summary>
     [RelayCommand]
-    private void ScrollToBottom()
-    {
+    private void ScrollToBottom() {
         IsBackToBottomVisible = false;
         ScrollToBottomRequested?.Invoke();
     }

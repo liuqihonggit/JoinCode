@@ -4,15 +4,13 @@ namespace JoinCode.Abstractions.Utils;
 /// 本地语言检测器 — 读取当前电脑配置的 UI 语言，AOT安全，InvariantGlobalization安全
 /// 检测链: JCC_LANGUAGE环境变量 → Windows GetUserDefaultUILanguage → CultureInfo → fallback "en"
 /// </summary>
-public static class LocalLanguageDetector
-{
+public static class LocalLanguageDetector {
     private static readonly FrozenDictionary<ushort, string> WindowsLangIdToIso = CreateWindowsLangMap();
 
     /// <summary>
     /// 检测当前本地语言，返回两字母ISO代码（如 "zh", "en", "ja"）
     /// </summary>
-    public static string Detect()
-    {
+    public static string Detect() {
         var envLang = Environment.GetEnvironmentVariable("JCC_LANGUAGE");
         if (!string.IsNullOrWhiteSpace(envLang))
             return NormalizeIsoCode(envLang);
@@ -31,8 +29,7 @@ public static class LocalLanguageDetector
     /// <summary>
     /// 获取当前本地语言的母语名称（如 "中文", "English", "日本語"）— 供 LLM 提示词使用
     /// </summary>
-    public static string GetNativeLanguageName(string isoCode) => isoCode switch
-    {
+    public static string GetNativeLanguageName(string isoCode) => isoCode switch {
         "zh" => "中文",
         "en" => "English",
         "ja" => "日本語",
@@ -60,48 +57,38 @@ public static class LocalLanguageDetector
     /// </summary>
     public static string DetectNativeLanguageName() => GetNativeLanguageName(Detect());
 
-    private static string? TryDetectWindowsLanguage()
-    {
+    private static string? TryDetectWindowsLanguage() {
         if (!OperatingSystem.IsWindows())
             return null;
 
-        try
-        {
+        try {
             var langId = GetUserDefaultUILanguage();
             if (langId == 0)
                 return null;
             var primaryLangId = (ushort)(langId & 0x3FF);
             return WindowsLangIdToIso.TryGetValue(primaryLangId, out var iso) ? iso : null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private static string? TryDetectCultureLanguage()
-    {
-        try
-        {
+    private static string? TryDetectCultureLanguage() {
+        try {
             var name = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
             return string.IsNullOrEmpty(name) || name == "iv" ? null : name;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private static string NormalizeIsoCode(string code)
-    {
+    private static string NormalizeIsoCode(string code) {
         var trimmed = code.Trim().ToLowerInvariant();
         if (trimmed.Length >= 2)
             return trimmed.Substring(0, 2);
         return "en";
     }
 
-    private static FrozenDictionary<ushort, string> CreateWindowsLangMap() => new Dictionary<ushort, string>
-    {
+    private static FrozenDictionary<ushort, string> CreateWindowsLangMap() => new Dictionary<ushort, string> {
         [0x04] = "zh",
         [0x09] = "en",
         [0x11] = "ja",

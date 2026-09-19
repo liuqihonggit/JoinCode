@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 对等会话状态枚举
 /// </summary>
-public enum PeerSessionStatus
-{
+public enum PeerSessionStatus {
     /// <summary>正在连接</summary>
     [EnumValue("connecting")] Connecting,
     /// <summary>已连接</summary>
@@ -17,8 +16,7 @@ public enum PeerSessionStatus
 /// <summary>
 /// 对等会话 - 表示两个 Bridge 节点之间的 P2P 连接
 /// </summary>
-public sealed partial class PeerSession
-{
+public sealed partial class PeerSession {
     /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
@@ -44,8 +42,7 @@ public sealed partial class PeerSession
 /// 对等会话管理器 - 管理 Bridge 节点间的 P2P 会话
 /// </summary>
 [Register(typeof(PeerSessionManager), ServiceLifetime.Singleton)]
-public sealed partial class PeerSessionManager : ServiceEntity
-{
+public sealed partial class PeerSessionManager : ServiceEntity {
     private readonly ILogger<PeerSessionManager>? _logger;
     private readonly ConcurrentDictionary<string, PeerSession> _sessions;
     private readonly AsyncLock _stateLock = new();
@@ -63,8 +60,7 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// </summary>
     /// <param name="logger">日志记录器（可选）</param>
     public PeerSessionManager(ILogger<PeerSessionManager>? logger = null)
-        : base(nameof(PeerSessionManager))
-    {
+        : base(nameof(PeerSessionManager)) {
         _logger = logger;
         _sessions = new ConcurrentDictionary<string, PeerSession>();
     }
@@ -79,17 +75,14 @@ public sealed partial class PeerSessionManager : ServiceEntity
     public async Task<PeerSession> CreatePeerSessionAsync(
         string localPeerId,
         string remotePeerId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(localPeerId);
         ArgumentNullException.ThrowIfNull(remotePeerId);
 
-                using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时"))
-        {
+        using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) {
             ObjectDisposedException.ThrowIf(_asyncDisposed != 0, this);
 
-            var session = new PeerSession
-            {
+            var session = new PeerSession {
                 SessionId = Guid.NewGuid().ToString("N"),
                 LocalPeerId = localPeerId,
                 RemotePeerId = remotePeerId,
@@ -112,14 +105,11 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// </summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="ct">取消令牌</param>
-    public async Task ClosePeerSessionAsync(string sessionId, CancellationToken ct = default)
-    {
+    public async Task ClosePeerSessionAsync(string sessionId, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-                using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时"))
-        {
-            if (_sessions.TryRemove(sessionId, out var session))
-            {
+        using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) {
+            if (_sessions.TryRemove(sessionId, out var session)) {
                 session.Status = PeerSessionStatus.Disconnected;
 
                 _logger?.LogInformation(
@@ -135,8 +125,7 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// </summary>
     /// <param name="sessionId">会话 ID</param>
     /// <returns>对等会话，不存在则返回 null</returns>
-    public PeerSession? GetPeerSession(string sessionId)
-    {
+    public PeerSession? GetPeerSession(string sessionId) {
         _sessions.TryGetValue(sessionId, out var session);
         return session;
     }
@@ -144,8 +133,7 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// <summary>
     /// 获取所有活跃的对等会话（遍历器，不分配新集合）
     /// </summary>
-    public IEnumerable<PeerSession> GetActivePeerSessions()
-    {
+    public IEnumerable<PeerSession> GetActivePeerSessions() {
         return _sessions.Values
             .Where(s => s.Status == PeerSessionStatus.Connected);
     }
@@ -155,14 +143,10 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// </summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="ct">取消令牌</param>
-    public async Task MarkConnectedAsync(string sessionId, CancellationToken ct = default)
-    {
-        using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时"))
-        {
-            if (_sessions.TryGetValue(sessionId, out var session))
-            {
-                if (session.Status != PeerSessionStatus.Connecting)
-                {
+    public async Task MarkConnectedAsync(string sessionId, CancellationToken ct = default) {
+        using (await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) {
+            if (_sessions.TryGetValue(sessionId, out var session)) {
+                if (session.Status != PeerSessionStatus.Connecting) {
                     _logger?.LogDebug(
                         "[PeerSessionManager] 对等会话已非 Connecting 状态,跳过: {SessionId}, 当前: {Status}",
                         sessionId, session.Status);
@@ -188,18 +172,15 @@ public sealed partial class PeerSessionManager : ServiceEntity
     public async Task SendMessageToPeerAsync(
         string sessionId,
         BridgeMessage message,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(message);
 
-        if (!_sessions.TryGetValue(sessionId, out var session))
-        {
+        if (!_sessions.TryGetValue(sessionId, out var session)) {
             _logger?.LogWarning("[PeerSessionManager] 会话不存在: {SessionId}", sessionId);
             return;
         }
 
-        if (session.Status != PeerSessionStatus.Connected)
-        {
+        if (session.Status != PeerSessionStatus.Connected) {
             _logger?.LogWarning("[PeerSessionManager] 会话未连接: {SessionId}, 状态: {Status}", sessionId, session.Status);
             return;
         }
@@ -218,15 +199,12 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// 异步释放管理器，关闭所有对等会话
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public override async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0)
-        {
+    public override async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _asyncDisposed, 1) != 0) {
             return;
         }
 
-        foreach (var session in _sessions.Values)
-        {
+        foreach (var session in _sessions.Values) {
             session.Status = PeerSessionStatus.Disconnected;
         }
 
@@ -239,19 +217,17 @@ public sealed partial class PeerSessionManager : ServiceEntity
     /// <summary>
     /// 释放托管资源
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_asyncDisposed == 1) return;
         _stateLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }
 
 /// <summary>
 /// 对等会话事件参数
 /// </summary>
-public sealed partial class PeerSessionEventArgs : EventArgs
-{
+public sealed partial class PeerSessionEventArgs : EventArgs {
     /// <summary>对等会话</summary>
     public PeerSession Session { get; }
 
@@ -259,8 +235,7 @@ public sealed partial class PeerSessionEventArgs : EventArgs
     /// 构造对等会话事件参数
     /// </summary>
     /// <param name="session">对等会话</param>
-    public PeerSessionEventArgs(PeerSession session)
-    {
+    public PeerSessionEventArgs(PeerSession session) {
         Session = session;
     }
 }
@@ -268,8 +243,7 @@ public sealed partial class PeerSessionEventArgs : EventArgs
 /// <summary>
 /// 对等消息事件参数 - P2P 消息发送时触发
 /// </summary>
-public sealed partial class PeerMessageEventArgs : EventArgs
-{
+public sealed partial class PeerMessageEventArgs : EventArgs {
     /// <summary>会话 ID</summary>
     public string SessionId { get; }
 
@@ -281,8 +255,7 @@ public sealed partial class PeerMessageEventArgs : EventArgs
     /// </summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="message">Bridge 消息</param>
-    public PeerMessageEventArgs(string sessionId, BridgeMessage message)
-    {
+    public PeerMessageEventArgs(string sessionId, BridgeMessage message) {
         SessionId = sessionId;
         Message = message;
     }
@@ -291,8 +264,7 @@ public sealed partial class PeerMessageEventArgs : EventArgs
 /// <summary>
 /// 对等节点路由表 - 管理节点 ID 到端点的映射
 /// </summary>
-public sealed partial class PeerSessionRouter
-{
+public sealed partial class PeerSessionRouter {
     private readonly ConcurrentDictionary<string, string> _routes = new(StringComparer.Ordinal);
 
     /// <summary>当前路由数量</summary>
@@ -303,8 +275,7 @@ public sealed partial class PeerSessionRouter
     /// </summary>
     /// <param name="peerId">对等节点 ID</param>
     /// <param name="endpoint">端点地址</param>
-    public void RegisterRoute(string peerId, string endpoint)
-    {
+    public void RegisterRoute(string peerId, string endpoint) {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
         _routes[peerId] = endpoint;
@@ -314,8 +285,7 @@ public sealed partial class PeerSessionRouter
     /// 注销节点路由
     /// </summary>
     /// <param name="peerId">对等节点 ID</param>
-    public void UnregisterRoute(string peerId)
-    {
+    public void UnregisterRoute(string peerId) {
         _routes.TryRemove(peerId, out _);
     }
 
@@ -324,8 +294,7 @@ public sealed partial class PeerSessionRouter
     /// </summary>
     /// <param name="peerId">对等节点 ID</param>
     /// <returns>端点地址，不存在则返回 null</returns>
-    public string? GetRoute(string peerId)
-    {
+    public string? GetRoute(string peerId) {
         _routes.TryGetValue(peerId, out var endpoint);
         return endpoint;
     }

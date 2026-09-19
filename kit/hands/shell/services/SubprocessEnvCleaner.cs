@@ -5,8 +5,7 @@ namespace Services.Shell;
 /// 在 CI/GitHub Actions 环境中清理敏感环境变量（API Key、Secret 等）
 /// 由 JCC_SUBPROCESS_ENV_SCRUB 环境变量控制是否启用
 /// </summary>
-public static class SubprocessEnvCleaner
-{
+public static class SubprocessEnvCleaner {
     /// <summary>
     /// 环境变量名 — 对齐 TS CLAUDE_CODE_SUBPROCESS_ENV_SCRUB
     /// </summary>
@@ -56,23 +55,19 @@ public static class SubprocessEnvCleaner
     /// TS 源码从 process.env 副本中删除敏感项，CS 直接在 psi.EnvironmentVariables 上操作
     /// 因为 psi.EnvironmentVariables 默认继承当前进程环境，只需删除不需要的
     /// </summary>
-    public static void ScrubProcessEnvironment(ProcessStartInfo psi)
-    {
+    public static void ScrubProcessEnvironment(ProcessStartInfo psi) {
         if (!IsScrubbingEnabled) return;
 
         var keysToRemove = new List<string>();
-        foreach (string? key in psi.EnvironmentVariables.Keys)
-        {
+        foreach (string? key in psi.EnvironmentVariables.Keys) {
             if (key is null) continue;
 
-            if (IsSensitiveKey(key))
-            {
+            if (IsSensitiveKey(key)) {
                 keysToRemove.Add(key);
             }
         }
 
-        foreach (var key in keysToRemove)
-        {
+        foreach (var key in keysToRemove) {
             psi.EnvironmentVariables.Remove(key);
         }
     }
@@ -81,34 +76,27 @@ public static class SubprocessEnvCleaner
     /// 从环境变量字典中移除敏感变量 — 供 IProcessService 路径使用
     /// 对齐 TS subprocessEnv: 从 process.env 副本中删除敏感项后返回
     /// </summary>
-    public static Dictionary<string, string> ScrubDictionaryEnv(Dictionary<string, string> env)
-    {
+    public static Dictionary<string, string> ScrubDictionaryEnv(Dictionary<string, string> env) {
         if (!IsScrubbingEnabled) return env;
 
         var keysToRemove = new List<string>();
-        foreach (var key in env.Keys)
-        {
-            if (IsSensitiveKey(key))
-            {
+        foreach (var key in env.Keys) {
+            if (IsSensitiveKey(key)) {
                 keysToRemove.Add(key);
             }
         }
 
-        foreach (var key in keysToRemove)
-        {
+        foreach (var key in keysToRemove) {
             env.Remove(key);
         }
 
         return env;
     }
 
-    private static bool IsSensitiveKey(string key)
-    {
-        foreach (var sensitive in SensitiveEnvVars)
-        {
+    private static bool IsSensitiveKey(string key) {
+        foreach (var sensitive in SensitiveEnvVars) {
             if (key.Equals(sensitive, StringComparison.OrdinalIgnoreCase)
-                || key.Equals($"INPUT_{sensitive}", StringComparison.OrdinalIgnoreCase))
-            {
+                || key.Equals($"INPUT_{sensitive}", StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
         }

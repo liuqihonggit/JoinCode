@@ -4,8 +4,7 @@ namespace Core.CostTracking;
 /// <summary>
 /// 成本告警事件参数类
 /// </summary>
-public sealed class CostAlertEventArgs : EventArgs
-{
+public sealed class CostAlertEventArgs : EventArgs {
     /// <summary>
     /// 成本告警信息
     /// </summary>
@@ -17,10 +16,8 @@ public sealed class CostAlertEventArgs : EventArgs
     /// </summary>
     /// <param name="alert">成本告警信息</param>
     /// <returns>事件参数实例</returns>
-    public static CostAlertEventArgs Create(CostAlert alert)
-    {
-        return new CostAlertEventArgs
-        {
+    public static CostAlertEventArgs Create(CostAlert alert) {
+        return new CostAlertEventArgs {
             Alert = alert
         };
     }

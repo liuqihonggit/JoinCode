@@ -1,16 +1,13 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginResourceScannerTests
-{
-    private sealed class TestEntity : Entity
-    {
+public sealed class PluginResourceScannerTests {
+    private sealed class TestEntity : Entity {
         public TestEntity(string displayName) : base(ObjectType.Resource, displayName: displayName) { }
         public override void Dispose() => base.Dispose();
     }
 
     [Fact]
-    public void ScanPluginResources_AllUnregistered_NoLeaks()
-    {
+    public void ScanPluginResources_AllUnregistered_NoLeaks() {
         var scanner = new PluginResourceScanner();
         var e1 = new TestEntity("res1");
         var e2 = new TestEntity("res2");
@@ -25,8 +22,7 @@ public sealed class PluginResourceScannerTests
     }
 
     [Fact]
-    public void ScanPluginResources_WithLeak_DetectsLeak()
-    {
+    public void ScanPluginResources_WithLeak_DetectsLeak() {
         var scanner = new PluginResourceScanner();
         var e1 = new TestEntity("res1");
         using var e2 = new TestEntity("res2");
@@ -41,8 +37,7 @@ public sealed class PluginResourceScannerTests
     }
 
     [Fact]
-    public void ScanPluginResources_EmptyList_NoLeaks()
-    {
+    public void ScanPluginResources_EmptyList_NoLeaks() {
         var scanner = new PluginResourceScanner();
 
         var report = scanner.ScanPluginResources("pluginA", []);
@@ -51,8 +46,7 @@ public sealed class PluginResourceScannerTests
     }
 
     [Fact]
-    public void ScanPluginRecords_PluginNameInReport()
-    {
+    public void ScanPluginRecords_PluginNameInReport() {
         var scanner = new PluginResourceScanner();
 
         var report = scanner.ScanPluginResources("my-plugin", []);

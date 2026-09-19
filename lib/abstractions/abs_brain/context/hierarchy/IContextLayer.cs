@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Brain.Context.Hierarchy;
 
-public interface IContextLayer
-{
+public interface IContextLayer {
     ContextLayerType LayerType { get; }
 
     LayerMetadata Metadata { get; }

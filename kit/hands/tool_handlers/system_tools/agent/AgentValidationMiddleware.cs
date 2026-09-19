@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// Agent 参数验证中间件 — 检查 description 和 prompt 的有效性
 /// </summary>
 [Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class AgentValidationMiddleware : ServiceEntity, IAgentToolMiddleware
-{
+public sealed partial class AgentValidationMiddleware : ServiceEntity, IAgentToolMiddleware {
     /// <inheritdoc />
     public int Order => 100;
 
@@ -17,10 +16,8 @@ public sealed partial class AgentValidationMiddleware : ServiceEntity, IAgentToo
     public AgentValidationMiddleware() { }
 
     /// <inheritdoc />
-    public Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(context.Description))
-        {
+    public Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct) {
+        if (string.IsNullOrWhiteSpace(context.Description)) {
             context.ValidationError = "description cannot be empty";
             var diagnostic = BuildEmptyDescriptionDiagnostic();
             context.Result = ToolResultBuilder.Error()
@@ -30,8 +27,7 @@ public sealed partial class AgentValidationMiddleware : ServiceEntity, IAgentToo
             return Task.CompletedTask; // 短路
         }
 
-        if (string.IsNullOrWhiteSpace(context.Prompt))
-        {
+        if (string.IsNullOrWhiteSpace(context.Prompt)) {
             context.ValidationError = "prompt cannot be empty";
             var diagnostic = BuildEmptyPromptDiagnostic();
             context.Result = ToolResultBuilder.Error()
@@ -43,11 +39,9 @@ public sealed partial class AgentValidationMiddleware : ServiceEntity, IAgentToo
 
         // 解析 Agent(worker,researcher) 语法 — 对齐 TS 原版 resolveAgentTools allowedAgentTypes
         // SubagentType 含逗号时,提取 PrimaryType 作为实际 spawn 类型,AllowedTypes 限制可递归 spawn 的子类型
-        if (!string.IsNullOrWhiteSpace(context.SubagentType))
-        {
+        if (!string.IsNullOrWhiteSpace(context.SubagentType)) {
             var (primaryType, allowedTypes) = AgentTypeSpecParser.Parse(context.SubagentType);
-            if (allowedTypes is not null)
-            {
+            if (allowedTypes is not null) {
                 context.ResolvedPrimaryType = primaryType;
                 context.AllowedAgentTypes = allowedTypes;
             }

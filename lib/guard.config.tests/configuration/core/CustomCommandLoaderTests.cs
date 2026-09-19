@@ -1,10 +1,8 @@
 namespace Core.Tests.Configuration;
 
-public sealed class CustomCommandLoaderTests
-{
+public sealed class CustomCommandLoaderTests {
     [Fact]
-    public void ParseCommandFile_SimpleFile_Should_Create_Command()
-    {
+    public void ParseCommandFile_SimpleFile_Should_Create_Command() {
         var result = CustomCommandLoader.ParseCommandFile("test.md", "Hello $ARGUMENTS", "/path/test.md");
 
         Assert.NotNull(result);
@@ -15,8 +13,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ParseCommandFile_WithNamespace_Should_Set_Namespace()
-    {
+    public void ParseCommandFile_WithNamespace_Should_Set_Namespace() {
         var result = CustomCommandLoader.ParseCommandFile("deploy\\staging.md", "Deploy to staging", "/path/deploy/staging.md");
 
         Assert.NotNull(result);
@@ -26,8 +23,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ParseCommandFile_WithFrontmatter_Should_Parse_Metadata()
-    {
+    public void ParseCommandFile_WithFrontmatter_Should_Parse_Metadata() {
         var content = "---\ndescription: Deploy command\ndisable-model-invocation: true\n---\nDeploy $ARGUMENTS";
         var result = CustomCommandLoader.ParseCommandFile("deploy.md", content, "/path/deploy.md");
 
@@ -38,8 +34,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ParseCommandFile_FrontmatterWithoutEnd_Should_Return_Raw_Content()
-    {
+    public void ParseCommandFile_FrontmatterWithoutEnd_Should_Return_Raw_Content() {
         var content = "---\ndescription: test\nNo closing frontmatter";
         var result = CustomCommandLoader.ParseCommandFile("test.md", content, "/path/test.md");
 
@@ -48,8 +43,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ParseCommandFile_NoFrontmatter_Should_Return_Raw_Content()
-    {
+    public void ParseCommandFile_NoFrontmatter_Should_Return_Raw_Content() {
         var content = "Just a plain command";
         var result = CustomCommandLoader.ParseCommandFile("plain.md", content, "/path/plain.md");
 
@@ -60,8 +54,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ApplyArguments_Should_Replace_Placeholder()
-    {
+    public void ApplyArguments_Should_Replace_Placeholder() {
         var cmd = new CustomCommand { Name = "review", Content = "Review $ARGUMENTS please" };
         var result = cmd.ApplyArguments("my-code.cs");
 
@@ -69,8 +62,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ApplyArguments_NoPlaceholder_Should_Return_Original()
-    {
+    public void ApplyArguments_NoPlaceholder_Should_Return_Original() {
         var cmd = new CustomCommand { Name = "test", Content = "No placeholder here" };
         var result = cmd.ApplyArguments("args");
 
@@ -78,8 +70,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ApplyArguments_EmptyArguments_Should_Replace_With_Empty()
-    {
+    public void ApplyArguments_EmptyArguments_Should_Replace_With_Empty() {
         var cmd = new CustomCommand { Name = "greet", Content = "Hello $ARGUMENTS" };
         var result = cmd.ApplyArguments("");
 
@@ -87,8 +78,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ParseFrontmatter_WithQuotedDescription_Should_Strip_Quotes()
-    {
+    public void ParseFrontmatter_WithQuotedDescription_Should_Strip_Quotes() {
         var content = "---\ndescription: \"My custom command\"\n---\nBody";
         var (body, desc, _) = CustomCommandLoader.ParseFrontmatter(content);
 
@@ -97,8 +87,7 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void ParseFrontmatter_WithSingleQuotedDescription_Should_Strip_Quotes()
-    {
+    public void ParseFrontmatter_WithSingleQuotedDescription_Should_Strip_Quotes() {
         var content = "---\ndescription: 'My command'\n---\nBody";
         var (_, desc, _) = CustomCommandLoader.ParseFrontmatter(content);
 
@@ -106,15 +95,13 @@ public sealed class CustomCommandLoaderTests
     }
 
     [Fact]
-    public void CustomCommand_FullName_WithoutNamespace_Should_Be_Name()
-    {
+    public void CustomCommand_FullName_WithoutNamespace_Should_Be_Name() {
         var cmd = new CustomCommand { Name = "test", Content = "test" };
         Assert.Equal("test", cmd.FullName);
     }
 
     [Fact]
-    public void CustomCommand_FullName_WithNamespace_Should_Combine()
-    {
+    public void CustomCommand_FullName_WithNamespace_Should_Combine() {
         var cmd = new CustomCommand { Name = "staging", Content = "test", Namespace = "deploy" };
         Assert.Equal("deploy:staging", cmd.FullName);
     }

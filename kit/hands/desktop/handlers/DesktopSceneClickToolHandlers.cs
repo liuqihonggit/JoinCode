@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 桌面情景模式 click 工具处理器 — 点击指定坐标，场景完成后推荐 look 继续下一步
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public sealed class DesktopSceneClickToolHandlers
-{
+public sealed class DesktopSceneClickToolHandlers {
     private readonly IDesktopInputService _inputService;
     private readonly IDesktopSceneStateStore _stateStore;
 
@@ -14,8 +13,7 @@ public sealed class DesktopSceneClickToolHandlers
     /// </summary>
     /// <param name="inputService">桌面输入服务</param>
     /// <param name="stateStore">场景状态存储</param>
-    public DesktopSceneClickToolHandlers(IDesktopInputService inputService, IDesktopSceneStateStore stateStore)
-    {
+    public DesktopSceneClickToolHandlers(IDesktopInputService inputService, IDesktopSceneStateStore stateStore) {
         _inputService = inputService ?? throw new ArgumentNullException(nameof(inputService));
         _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
     }
@@ -33,19 +31,16 @@ public sealed class DesktopSceneClickToolHandlers
         [McpToolParameter("场景 ID", Required = true)] string sceneId,
         [McpToolParameter("X 坐标", Required = true)] int x,
         [McpToolParameter("Y 坐标", Required = true)] int y,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var op = await _inputService.ClickAsync(x, y, MouseAction.Click, cancellationToken).ConfigureAwait(false);
 
         var state = await _stateStore.LoadAsync(sceneId, cancellationToken).ConfigureAwait(false);
-        if (state is not null)
-        {
+        if (state is not null) {
             var newState = state with { LastAction = $"click({x},{y})" };
             await _stateStore.SaveAsync(newState, cancellationToken).ConfigureAwait(false);
         }
 
-        if (!op.Succeeded)
-        {
+        if (!op.Succeeded) {
             var errorJson = $$"""
                 {
                   "scene_id": "{{sceneId}}",

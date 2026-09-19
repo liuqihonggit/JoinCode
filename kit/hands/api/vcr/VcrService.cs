@@ -6,8 +6,7 @@ namespace Services.Api.Vcr;
 /// </summary>
 [Register(typeof(IVcrService), ServiceLifetime.Singleton)]
 [Register(typeof(JoinCode.Abstractions.Interfaces.IVcrService), ServiceLifetime.Singleton)]
-public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Abstractions.Interfaces.IVcrService, IDisposable
-{
+public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Abstractions.Interfaces.IVcrService, IDisposable {
     private readonly VcrOptions _options;
     private readonly ILogger<VcrService>? _logger;
     private readonly IFileSystem _fs;
@@ -32,8 +31,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="options">VCR 配置选项</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public VcrService(VcrOptions options, IFileSystem fs, ILogger<VcrService>? logger = null)
-    {
+    public VcrService(VcrOptions options, IFileSystem fs, ILogger<VcrService>? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(fs);
         _options = options;
@@ -50,13 +48,11 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="directory">可选目录覆盖</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>加载到的 cassette 实例</returns>
-    public async Task<VcrCassette> LoadCassetteAsync(string name, string? directory = null, CancellationToken cancellationToken = default)
-    {
+    public async Task<VcrCassette> LoadCassetteAsync(string name, string? directory = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(name);
 
         var cacheKey = GetCassettePath(name, directory);
-        if (_cassetteCache.TryGetValue(cacheKey, out var cached))
-        {
+        if (_cassetteCache.TryGetValue(cacheKey, out var cached)) {
             return cached;
         }
 
@@ -72,10 +68,8 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="name">cassette 名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>加载到的 cassette 实例</returns>
-    private async Task<VcrCassette> LoadCassetteInternalAsync(string filePath, string name, CancellationToken cancellationToken)
-    {
-        if (!_fs.FileExists(filePath))
-        {
+    private async Task<VcrCassette> LoadCassetteInternalAsync(string filePath, string name, CancellationToken cancellationToken) {
+        if (!_fs.FileExists(filePath)) {
             var cassette = new VcrCassette { Name = name };
             _cassetteCache[filePath] = cassette;
             _logger?.LogDebug("创建新 cassette: {Name}", name);
@@ -83,8 +77,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         }
 
         var loaded = await _fs.ReadAndDeserializeAsync(filePath, VcrJsonContext.Default.VcrCassette, cancellationToken).ConfigureAwait(false);
-        if (loaded == null)
-        {
+        if (loaded == null) {
             loaded = new VcrCassette { Name = name };
         }
 
@@ -100,8 +93,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="directory">可选目录覆盖</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步保存操作的任务</returns>
-    public async Task SaveCassetteAsync(VcrCassette cassette, string? directory = null, CancellationToken cancellationToken = default)
-    {
+    public async Task SaveCassetteAsync(VcrCassette cassette, string? directory = null, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(cassette);
         ArgumentException.ThrowIfNullOrEmpty(cassette.Name);
 
@@ -118,8 +110,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="cassette">cassette 实例</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步保存操作的任务</returns>
-    private async Task SaveCassetteInternalAsync(string filePath, VcrCassette cassette, CancellationToken cancellationToken)
-    {
+    private async Task SaveCassetteInternalAsync(string filePath, VcrCassette cassette, CancellationToken cancellationToken) {
         var dir = Path.GetDirectoryName(filePath);
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
@@ -139,29 +130,25 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="directory">可选目录覆盖</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步录制操作的任务</returns>
-    public async Task RecordInteractionAsync(string cassetteName, VcrRequest request, VcrResponse response, string? directory = null, CancellationToken cancellationToken = default)
-    {
+    public async Task RecordInteractionAsync(string cassetteName, VcrRequest request, VcrResponse response, string? directory = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(cassetteName);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(response);
 
-        if (_currentMode != VcrMode.Record)
-        {
+        if (_currentMode != VcrMode.Record) {
             _logger?.LogWarning("当前模式非录制模式，跳过录制");
             return;
         }
 
         var cassette = await LoadCassetteAsync(cassetteName, directory, cancellationToken).ConfigureAwait(false);
 
-        var interaction = new VcrInteraction
-        {
+        var interaction = new VcrInteraction {
             Request = _options.RecordHeaders ? request : request with { Headers = new Dictionary<string, string>() },
             Response = _options.RecordHeaders ? response : response with { Headers = new Dictionary<string, string>() },
             RecordedAt = DateTime.UtcNow
         };
 
-        if (!_options.RecordContent)
-        {
+        if (!_options.RecordContent) {
             interaction.Request.Body = null;
             interaction.Response.Body = null;
         }
@@ -180,30 +167,25 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="directory">可选目录覆盖</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>匹配到的响应；非回放模式或未匹配时返回 null</returns>
-    public async Task<VcrResponse?> FindMatchingInteractionAsync(string cassetteName, VcrRequest request, string? directory = null, CancellationToken cancellationToken = default)
-    {
+    public async Task<VcrResponse?> FindMatchingInteractionAsync(string cassetteName, VcrRequest request, string? directory = null, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(cassetteName);
         ArgumentNullException.ThrowIfNull(request);
 
-        if (_currentMode != VcrMode.Playback)
-        {
+        if (_currentMode != VcrMode.Playback) {
             _logger?.LogWarning("当前模式非回放模式，返回 null");
             return null;
         }
 
         var cassette = await LoadCassetteAsync(cassetteName, directory, cancellationToken).ConfigureAwait(false);
 
-        foreach (var interaction in cassette.Interactions)
-        {
-            if (MatchesRequest(interaction.Request, request))
-            {
+        foreach (var interaction in cassette.Interactions) {
+            if (MatchesRequest(interaction.Request, request)) {
                 _logger?.LogDebug("回放匹配: {Method} {Uri} -> {Status}", request.Method, request.Uri, interaction.Response.Status);
                 return interaction.Response;
             }
         }
 
-        if (_options.StrictPlayback)
-        {
+        if (_options.StrictPlayback) {
             throw new InvalidOperationException($"[HND002] 未找到匹配的录制交互: {request.Method} {request.Uri}");
         }
 
@@ -215,8 +197,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// 切换 VCR 运行模式
     /// </summary>
     /// <param name="mode">目标模式</param>
-    public void SetMode(VcrMode mode)
-    {
+    public void SetMode(VcrMode mode) {
         _currentMode = mode;
         _logger?.LogInformation("VCR 模式切换为: {Mode}", mode);
     }
@@ -227,8 +208,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="name">cassette 名称</param>
     /// <param name="directory">可选目录覆盖，为 null 时使用默认目录</param>
     /// <returns>cassette 文件绝对路径</returns>
-    public string GetCassettePath(string name, string? directory = null)
-    {
+    public string GetCassettePath(string name, string? directory = null) {
         ArgumentException.ThrowIfNullOrEmpty(name);
         var baseDir = directory ?? _options.CassettesDirectory;
         var safeName = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
@@ -239,15 +219,12 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         return fullPath;
     }
 
-    private static bool MatchesRequest(VcrRequest recorded, VcrRequest incoming)
-    {
-        if (!string.Equals(recorded.Method, incoming.Method, StringComparison.OrdinalIgnoreCase))
-        {
+    private static bool MatchesRequest(VcrRequest recorded, VcrRequest incoming) {
+        if (!string.Equals(recorded.Method, incoming.Method, StringComparison.OrdinalIgnoreCase)) {
             return false;
         }
 
-        if (!string.Equals(recorded.Uri, incoming.Uri, StringComparison.OrdinalIgnoreCase))
-        {
+        if (!string.Equals(recorded.Uri, incoming.Uri, StringComparison.OrdinalIgnoreCase)) {
             return false;
         }
 
@@ -257,8 +234,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <summary>
     /// 异步释放资源 — await Actor 完全退出
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
@@ -267,13 +243,11 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// VCR 文件操作 Actor — 串行化 cassette 加载/保存，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
-    private sealed class VcrActor : ActorBase<VcrCommand, Unit>
-    {
+    private sealed class VcrActor : ActorBase<VcrCommand, Unit> {
         private readonly VcrService _owner;
         private readonly ILogger<VcrService>? _logger;
 
-        public VcrActor(VcrService owner, ILogger<VcrService>? logger) : base()
-        {
+        public VcrActor(VcrService owner, ILogger<VcrService>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -286,27 +260,19 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(VcrCommand cmd, CancellationToken ct)
-        {
-            switch (cmd)
-            {
+        protected override async ValueTask HandleAsync(VcrCommand cmd, CancellationToken ct) {
+            switch (cmd) {
                 case LoadCassetteCmd(var filePath, var name, var reply):
-                    try
-                    {
-                        reply.SetResult(await _owner.LoadCassetteInternalAsync(filePath, name, ct).ConfigureAwait(false));
-                    }
-                    catch (OperationCanceledException) { throw; }
-                    catch (Exception ex) { reply.SetException(ex); }
-                    break;
+                try {
+                    reply.SetResult(await _owner.LoadCassetteInternalAsync(filePath, name, ct).ConfigureAwait(false));
+                } catch (OperationCanceledException) { throw; } catch (Exception ex) { reply.SetException(ex); }
+                break;
                 case SaveCassetteCmd(var filePath, var cassette, var reply):
-                    try
-                    {
-                        await _owner.SaveCassetteInternalAsync(filePath, cassette, ct).ConfigureAwait(false);
-                        reply.SetResult();
-                    }
-                    catch (OperationCanceledException) { throw; }
-                    catch (Exception ex) { reply.SetException(ex); }
-                    break;
+                try {
+                    await _owner.SaveCassetteInternalAsync(filePath, cassette, ct).ConfigureAwait(false);
+                    reply.SetResult();
+                } catch (OperationCanceledException) { throw; } catch (Exception ex) { reply.SetException(ex); }
+                break;
             }
         }
 
@@ -335,11 +301,9 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// <param name="directory">可选目录覆盖</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>抽象层 cassette 模型</returns>
-    async Task<JoinCode.Abstractions.Models.Vcr.VcrCassette> JoinCode.Abstractions.Interfaces.IVcrService.LoadCassetteAsync(string name, string? directory, CancellationToken cancellationToken)
-    {
+    async Task<JoinCode.Abstractions.Models.Vcr.VcrCassette> JoinCode.Abstractions.Interfaces.IVcrService.LoadCassetteAsync(string name, string? directory, CancellationToken cancellationToken) {
         var cassette = await LoadCassetteAsync(name, directory, cancellationToken).ConfigureAwait(false);
-        return new JoinCode.Abstractions.Models.Vcr.VcrCassette
-        {
+        return new JoinCode.Abstractions.Models.Vcr.VcrCassette {
             Name = cassette.Name,
             CreatedAt = cassette.RecordedAt,
             UpdatedAt = cassette.RecordedAt,
@@ -357,8 +321,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     /// 显式接口实现：切换 VCR 模式
     /// </summary>
     /// <param name="mode">抽象层模式</param>
-    void JoinCode.Abstractions.Interfaces.IVcrService.SetMode(JoinCode.Abstractions.Models.Vcr.VcrMode mode)
-    {
+    void JoinCode.Abstractions.Interfaces.IVcrService.SetMode(JoinCode.Abstractions.Models.Vcr.VcrMode mode) {
         SetMode((VcrMode)mode);
     }
 }

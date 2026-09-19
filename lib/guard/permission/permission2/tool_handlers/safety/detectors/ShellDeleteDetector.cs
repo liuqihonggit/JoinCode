@@ -6,8 +6,7 @@ namespace Core.Permission;
 /// 利用已有的 IDestructiveCommandDetector 检测 CommandRisk.FileDeletion 风险
 /// </summary>
 [Register(typeof(IDeleteOperationDetector), ServiceLifetime.Singleton)]
-public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperationDetector
-{
+public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperationDetector {
     private static readonly FrozenSet<string> DeleteToolNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
         ShellToolNameEnumConstants.Bash,
@@ -24,14 +23,12 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
     /// <summary>
     /// 构造函数 — 注入可选的破坏性命令检测器,缺失时降级为命令名匹配
     /// </summary>
-    public ShellDeleteDetector(IDestructiveCommandDetector? destructiveCommandDetector = null)
-    {
+    public ShellDeleteDetector(IDestructiveCommandDetector? destructiveCommandDetector = null) {
         _destructiveCommandDetector = destructiveCommandDetector;
     }
 
     /// <inheritdoc />
-    public DeleteOperationInfo? Detect(string toolName, Dictionary<string, JsonElement>? arguments)
-    {
+    public DeleteOperationInfo? Detect(string toolName, Dictionary<string, JsonElement>? arguments) {
         if (!DeleteToolNames.Contains(toolName))
             return null;
 
@@ -45,10 +42,8 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
     /// <summary>
     /// 检测命令是否为删除操作
     /// </summary>
-    private DeleteOperationInfo? DetectDeleteCommand(string command)
-    {
-        if (_destructiveCommandDetector is not null)
-        {
+    private DeleteOperationInfo? DetectDeleteCommand(string command) {
+        if (_destructiveCommandDetector is not null) {
             var shellCommand = ShellCommand.Parse(command);
             var result = _destructiveCommandDetector.Detect(shellCommand);
 
@@ -57,8 +52,7 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
 
             var targetPath = shellCommand.ReferencedPaths.FirstOrDefault();
 
-            return new DeleteOperationInfo
-            {
+            return new DeleteOperationInfo {
                 TargetPath = targetPath,
                 SourceDescription = $"Shell {shellCommand.CommandName} 命令"
             };
@@ -70,8 +64,7 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
     /// <summary>
     /// 降级检测 — 无 IDestructiveCommandDetector 时通过命令名匹配
     /// </summary>
-    private DeleteOperationInfo? DetectByCommandName(string command)
-    {
+    private DeleteOperationInfo? DetectByCommandName(string command) {
         var firstWord = command.Split(' ', 2)[0];
         var commandName = firstWord.TrimStart('-', '/');
 
@@ -81,8 +74,7 @@ public sealed partial class ShellDeleteDetector : ServiceEntity, IDeleteOperatio
         var paths = ShellCommand.Parse(command).ReferencedPaths;
         var targetPath = paths.FirstOrDefault();
 
-        return new DeleteOperationInfo
-        {
+        return new DeleteOperationInfo {
             TargetPath = targetPath,
             SourceDescription = $"Shell {commandName} 命令"
         };

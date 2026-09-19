@@ -4,15 +4,13 @@ namespace McpClient.Mcpb;
 /// MCPB 清单解析中间件 — 解析 manifest.json 并构建最终结果
 /// </summary>
 [Register(typeof(IMcpbMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class McpbManifestMiddleware : ServiceEntity, IMcpbMiddleware
-{
+public sealed partial class McpbManifestMiddleware : ServiceEntity, IMcpbMiddleware {
 
     /// <summary>
     /// 初始化 MCPB 清单解析中间件
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
-    public McpbManifestMiddleware(IFileSystem fs)
-    {
+    public McpbManifestMiddleware(IFileSystem fs) {
         _fs = fs;
     }
     private readonly IFileSystem _fs;
@@ -25,31 +23,26 @@ public sealed partial class McpbManifestMiddleware : ServiceEntity, IMcpbMiddlew
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct) {
         var extractPath = context.ExtractPath;
         var manifestPath = Path.Combine(extractPath, "manifest.json");
 
-        if (!_fs.FileExists(manifestPath))
-        {
+        if (!_fs.FileExists(manifestPath)) {
             throw new InvalidOperationException("[MPB001] MCPB 缺少 manifest.json");
         }
 
         var manifest = await _fs.ReadAndDeserializeAsync(manifestPath, McpClientJsonContext.Default.McpbManifest, ct).ConfigureAwait(false);
 
-        if (manifest == null)
-        {
+        if (manifest == null) {
             throw new InvalidOperationException("[MPB002] 无法解析 MCPB manifest.json");
         }
 
-        if (manifest.Server == null)
-        {
+        if (manifest.Server == null) {
             throw new InvalidOperationException("[MPB003] MCPB manifest 缺少 server 配置");
         }
 
         context.Manifest = manifest;
-        context.Result = new McpbLoadResult
-        {
+        context.Result = new McpbLoadResult {
             Manifest = manifest,
             ExtractedPath = extractPath,
             ContentHash = context.ContentHash

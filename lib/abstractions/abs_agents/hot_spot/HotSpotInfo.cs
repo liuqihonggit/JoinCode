@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 热点信息 — 某文件的修改认领统计和热点判定结果
 /// 不可变 record，由 HotSpotTracker 生成
 /// </summary>
-public sealed record HotSpotInfo
-{
+public sealed record HotSpotInfo {
     /// <summary>
     /// 文件路径
     /// </summary>

@@ -4,8 +4,7 @@ namespace Core.Skills;
 /// 代码生成系统提示词
 /// </summary>
 [PromptTemplate(Name = "code_generation", Category = PromptTemplateCategory.Skill, Description = "C#代码生成系统提示词", ContentMember = nameof(SystemPrompt))]
-public static class CodeGenerationPrompt
-{
+public static class CodeGenerationPrompt {
     /// <summary>
     /// 系统提示词文本
     /// </summary>
@@ -17,8 +16,7 @@ public static class CodeGenerationPrompt
 /// 代码分析系统提示词
 /// </summary>
 [PromptTemplate(Name = "code_analysis", Category = PromptTemplateCategory.Skill, Description = "C#代码分析系统提示词", ContentMember = nameof(SystemPrompt))]
-public static class CodeAnalysisPrompt
-{
+public static class CodeAnalysisPrompt {
     /// <summary>
     /// 系统提示词文本
     /// </summary>

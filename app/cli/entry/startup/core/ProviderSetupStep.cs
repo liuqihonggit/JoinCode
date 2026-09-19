@@ -4,22 +4,18 @@ namespace JoinCode.Entry;
 /// 供应商配置中间件 — 配置无效时展示供应商菜单
 /// </summary>
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
-internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<StartupContext>
-{
+internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<StartupContext> {
     private readonly IProviderDefinitionRegistry _registry;
     private readonly IConsoleOutput _console;
 
-    public ProviderSetupStep(IProviderDefinitionRegistry registry, IConsoleOutput console)
-    {
+    public ProviderSetupStep(IProviderDefinitionRegistry registry, IConsoleOutput console) {
         _registry = registry;
         _console = console;
     }
 
-    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         context.HasApiKey = !string.IsNullOrEmpty(context.Config.Provider.ApiKey);
-        if (context.HasApiKey)
-        {
+        if (context.HasApiKey) {
             await next(context, ct);
             return;
         }
@@ -31,10 +27,8 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
         await next(context, ct);
     }
 
-    private async Task<bool> ShowProviderMenuAsync(WorkflowConfig config, IFileSystem fs, CancellationToken ct)
-    {
-        while (true)
-        {
+    private async Task<bool> ShowProviderMenuAsync(WorkflowConfig config, IFileSystem fs, CancellationToken ct) {
+        while (true) {
             Cli.TerminalHelper.NewLine();
             Cli.TerminalHelper.WriteLine("═══════════════════════════════════════");
             Cli.TerminalHelper.WriteLine("  JoinCode - AI 智能体命令行工具");
@@ -48,8 +42,7 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
                 .OfType<IProviderDefinition>()
                 .ToList();
 
-            for (var i = 0; i < providers.Count; i++)
-            {
+            for (var i = 0; i < providers.Count; i++) {
                 Cli.TerminalHelper.WriteLine($"  {i + 1}. {providers[i].DisplayName}");
             }
 
@@ -58,16 +51,14 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
             Cli.TerminalHelper.NewLine();
             Cli.TerminalHelper.WriteRaw($"  请选择 [1-{exitIdx}]: ");
 
-            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+            if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 Cli.TerminalHelper.WriteLine("非交互环境，跳过配置。");
                 return false;
             }
 
             var choice = Cli.TerminalHelper.ReadLine()?.Trim();
 
-            if (int.TryParse(choice, out var idx) && idx >= 1 && idx <= providers.Count)
-            {
+            if (int.TryParse(choice, out var idx) && idx >= 1 && idx <= providers.Count) {
                 await ConfigureProviderAsync(config, fs, providers[idx - 1].ProviderName);
                 if (!string.IsNullOrEmpty(config.Provider.ApiKey)) return true;
                 continue;
@@ -80,8 +71,7 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
         }
     }
 
-    private async Task ConfigureProviderAsync(WorkflowConfig config, IFileSystem fs, string provider)
-    {
+    private async Task ConfigureProviderAsync(WorkflowConfig config, IFileSystem fs, string provider) {
         var definition = _registry.TryGet(provider);
         var displayName = definition?.DisplayName ?? provider;
         var envVarHint = definition?.ApiKeyEnvironmentVariable is not null
@@ -104,20 +94,17 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
 
         // 多态：通过 IProviderDefinition.RequiresInteractiveEndpoint 消除 `if (provider == "azure")` 硬编码
         // Azure 覆写为 true + EndpointPromptText + EndpointRequiredMessage；其余 Provider 默认 false（空实现）
-        if (definition?.RequiresInteractiveEndpoint == true)
-        {
+        if (definition?.RequiresInteractiveEndpoint == true) {
             Cli.TerminalHelper.WriteLine();
             Cli.TerminalHelper.WriteLine(definition.EndpointPromptText ?? "请输入 Endpoint:");
             var endpoint = Cli.TerminalHelper.ReadLine();
 
-            if (string.IsNullOrWhiteSpace(endpoint))
-            {
+            if (string.IsNullOrWhiteSpace(endpoint)) {
                 Cli.TerminalHelper.WriteLine($"  {definition.EndpointRequiredMessage ?? "Endpoint 必填，配置已取消。"}");
                 return;
             }
 
-            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _))
-            {
+            if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _)) {
                 Cli.TerminalHelper.WriteLine($"  Endpoint '{endpoint}' 不是有效的 URI 格式，配置已取消。");
                 return;
             }
@@ -128,8 +115,7 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
 
         config.Provider.Vendor = provider;
         config.Provider.ApiKey = apiKey;
-        if (definition is not null)
-        {
+        if (definition is not null) {
             config.Provider.Definition = definition;
             config.Provider.Protocol = definition.Protocol.ToValue();
             config.Provider.ModelId = definition.DefaultModelId;

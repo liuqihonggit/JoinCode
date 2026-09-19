@@ -6,12 +6,11 @@ namespace Core.Planning;
 /// 格式: {adjective}-{verb}-{noun}，如 gleaming-brewing-phoenix
 /// 同一 session 内缓存 slug，保证进出 plan mode 覆盖同一文件
 /// </summary>
-internal static class PlanSlugGenerator
-{
+internal static class PlanSlugGenerator {
     private const int MaxSlugRetries = 10;
 
     private static readonly string[] Adjectives =
-    new[] { 
+    new[] {
         "amber", "azure", "blazing", "calm", "cosmic", "crimson", "crystal", "dazzling",
         "deep", "drifting", "ember", "ethereal", "fierce", "flickering", "flowing", "frosty",
         "gentle", "gleaming", "golden", "graceful", "harmonic", "hidden", "hollow", "icy",
@@ -25,7 +24,7 @@ internal static class PlanSlugGenerator
      };
 
     private static readonly string[] Verbs =
-    new[] { 
+    new[] {
         "baking", "balancing", "blazing", "blooming", "brewing", "building", "burning", "carving",
         "casting", "charting", "chasing", "crafting", "creating", "cruising", "dancing", "designing",
         "discovering", "dreaming", "driving", "echoing", "emerging", "evolving", "exploring", "fading",
@@ -39,7 +38,7 @@ internal static class PlanSlugGenerator
      };
 
     private static readonly string[] Nouns =
-    new[] { 
+    new[] {
         "aurora", "badger", "beacon", "bluebird", "butterfly", "canyon", "cascade", "cedar",
         "chameleon", "citadel", "comet", "coral", "crane", "crystal", "dolphin", "dragon",
         "eagle", "elm", "falcon", "firefly", "flame", "fox", "galaxy", "gazelle",
@@ -58,29 +57,22 @@ internal static class PlanSlugGenerator
     /// <summary>
     /// 对齐 TS getPlanSlug(): 获取或生成 session 级别的 slug 缓存
     /// </summary>
-    public static string GetOrCreateSlug(string sessionId, IFileSystem fs, ILogger? logger = null)
-    {
-        return SlugCache.GetOrAdd(sessionId, (id, fileSystem) =>
-        {
+    public static string GetOrCreateSlug(string sessionId, IFileSystem fs, ILogger? logger = null) {
+        return SlugCache.GetOrAdd(sessionId, (id, fileSystem) => {
             var slug = GenerateWordSlug();
 
-            try
-            {
+            try {
                 var plansDir = GetPlansDirectory();
                 fileSystem.CreateDirectory(plansDir);
 
-                for (var i = 0; i < MaxSlugRetries; i++)
-                {
+                for (var i = 0; i < MaxSlugRetries; i++) {
                     var filePath = Path.Combine(plansDir, $"{slug}.md");
-                    if (!fileSystem.FileExists(filePath))
-                    {
+                    if (!fileSystem.FileExists(filePath)) {
                         return slug;
                     }
                     slug = GenerateWordSlug();
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 目录创建失败时直接返回 slug，不检查文件冲突
                 logger?.LogWarning("计划 slug 目录检查失败: {Error}", ex.Message);
             }
@@ -92,24 +84,21 @@ internal static class PlanSlugGenerator
     /// <summary>
     /// 对齐 TS clearPlanSlug(): 清除指定 session 的 slug 缓存
     /// </summary>
-    public static void ClearSlug(string sessionId)
-    {
+    public static void ClearSlug(string sessionId) {
         SlugCache.TryRemove(sessionId, out _);
     }
 
     /// <summary>
     /// 对齐 TS clearAllPlanSlugs(): 清除所有 slug 缓存
     /// </summary>
-    public static void ClearAllSlugs()
-    {
+    public static void ClearAllSlugs() {
         SlugCache.Clear();
     }
 
     /// <summary>
     /// 对齐 TS generateWordSlug(): 生成 {adjective}-{verb}-{noun} 格式的随机 slug
     /// </summary>
-    internal static string GenerateWordSlug()
-    {
+    internal static string GenerateWordSlug() {
         var adjective = Adjectives[Random.Shared.Next(Adjectives.Length)];
         var verb = Verbs[Random.Shared.Next(Verbs.Length)];
         var noun = Nouns[Random.Shared.Next(Nouns.Length)];
@@ -119,8 +108,7 @@ internal static class PlanSlugGenerator
     /// <summary>
     /// 获取 plans 目录路径
     /// </summary>
-    internal static string GetPlansDirectory()
-    {
+    internal static string GetPlansDirectory() {
         return Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,

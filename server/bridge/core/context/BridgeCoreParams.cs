@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// v1 env-based 桥核心参数 — 对齐 TS 端 replBridge.ts BridgeCoreParams
 /// v1 路径需要注入式 createSession/archiveSession 等回调
 /// </summary>
-public sealed class BridgeCoreParams
-{
+public sealed class BridgeCoreParams {
     /// <summary>工作目录 — 对齐 TS 端 dir</summary>
     public required string Dir { get; init; }
 
@@ -107,8 +106,7 @@ public sealed class BridgeCoreParams
 /// <summary>
 /// v2 env-less 桥核心参数 — 对齐 TS 端 remoteBridgeCore.ts EnvLessBridgeParams
 /// </summary>
-public sealed class V2BridgeParams
-{
+public sealed class V2BridgeParams {
     /// <summary>API 基础 URL</summary>
     public required string BaseUrl { get; init; }
 

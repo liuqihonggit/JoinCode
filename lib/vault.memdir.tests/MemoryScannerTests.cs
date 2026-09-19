@@ -1,21 +1,18 @@
 
 namespace Core.Tests.Memdir;
 
-public sealed class MemoryScannerTests
-{
+public sealed class MemoryScannerTests {
     private readonly IO.FileSystem.InMemoryFileSystem _fs = new();
     private readonly Mock<IMemoryPaths> _pathsMock = new();
 
     private MemoryScanner CreateSut() => new(_fs, _pathsMock.Object);
 
-    private static string MemoryJson(MemoryEntry entry)
-    {
+    private static string MemoryJson(MemoryEntry entry) {
         return JsonSerializer.Serialize(entry, MemdirJsonContext.Default.MemoryEntry);
     }
 
     [Fact]
-    public async Task ScanDirectoryAsync_NonExistentDirectory_ReturnsEmpty()
-    {
+    public async Task ScanDirectoryAsync_NonExistentDirectory_ReturnsEmpty() {
         var sut = CreateSut();
 
         var result = await sut.ScanDirectoryAsync("/does/not/exist").ConfigureAwait(true);
@@ -24,8 +21,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public async Task ScanDirectoryAsync_ValidJsonFiles_ReturnsMemories()
-    {
+    public async Task ScanDirectoryAsync_ValidJsonFiles_ReturnsMemories() {
         var sut = CreateSut();
         var entry = MemoryEntry.Create(MemoryType.User, "hello world", now: DateTime.UtcNow) with { Id = "abc" };
         _fs.WriteAllText("/mem/user/abc.json", MemoryJson(entry));
@@ -36,8 +32,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public async Task ScanDirectoryAsync_InvalidJson_IsIgnoredAndReturnsEmpty()
-    {
+    public async Task ScanDirectoryAsync_InvalidJson_IsIgnoredAndReturnsEmpty() {
         var sut = CreateSut();
         _fs.WriteAllText("/mem/user/bad.json", "not json");
 
@@ -47,8 +42,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public async Task ScanDirectoryAsync_IdMismatch_ReturnsMemory()
-    {
+    public async Task ScanDirectoryAsync_IdMismatch_ReturnsMemory() {
         var sut = CreateSut();
         var entry = MemoryEntry.Create(MemoryType.User, "content", now: DateTime.UtcNow) with { Id = "realid" };
         _fs.WriteAllText("/mem/user/wrongname.json", MemoryJson(entry));
@@ -59,8 +53,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public async Task ScanByTypeAsync_UsesMemoryPathsDirectory()
-    {
+    public async Task ScanByTypeAsync_UsesMemoryPathsDirectory() {
         var sut = CreateSut();
         _pathsMock.Setup(p => p.GetMemoryDirectoryByType(MemoryType.Project, null)).Returns("/mem/project");
         var entry = MemoryEntry.Create(MemoryType.Project, "project memory", now: DateTime.UtcNow) with { Id = "p1" };
@@ -72,8 +65,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public async Task ScanAllAsync_ScansAllTypes()
-    {
+    public async Task ScanAllAsync_ScansAllTypes() {
         var sut = CreateSut();
         _pathsMock.Setup(p => p.GetMemoryDirectoryByType(It.IsAny<MemoryType>(), null))
             .Returns<MemoryType, string?>((type, _) => $"/mem/{type.ToString().ToLowerInvariant()}");
@@ -90,8 +82,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public void BuildIndex_GroupsByTypeTagAndSource()
-    {
+    public void BuildIndex_GroupsByTypeTagAndSource() {
         var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
@@ -109,8 +100,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public void BuildIndex_FindByType_ReturnsReadOnlyList()
-    {
+    public void BuildIndex_FindByType_ReturnsReadOnlyList() {
         var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
@@ -124,8 +114,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public void BuildIndex_FindByTag_ReturnsReadOnlyList()
-    {
+    public void BuildIndex_FindByTag_ReturnsReadOnlyList() {
         var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {
@@ -139,8 +128,7 @@ public sealed class MemoryScannerTests
     }
 
     [Fact]
-    public void BuildIndex_FindBySource_ReturnsReadOnlyList()
-    {
+    public void BuildIndex_FindBySource_ReturnsReadOnlyList() {
         var sut = CreateSut();
         var memories = new List<MemoryEntry>
         {

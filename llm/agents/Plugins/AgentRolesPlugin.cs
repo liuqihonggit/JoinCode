@@ -6,8 +6,7 @@ namespace Core.Agents;
 /// <para>卸载时撤销内置 Profile,实现可逆效应</para>
 /// </summary>
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
-public sealed partial class AgentRolesPlugin : WorkflowPluginBase
-{
+public sealed partial class AgentRolesPlugin : WorkflowPluginBase {
     private AgentRoleProfileRegistry? _registry;
 
     /// <summary>构造 Agent 角色插件</summary>
@@ -27,16 +26,14 @@ public sealed partial class AgentRolesPlugin : WorkflowPluginBase
         => Task.FromResult(OperationResult.Ok());
 
     /// <summary>初始化插件 — 从 DI 获取 AgentRoleProfileRegistry,注册内置角色</summary>
-    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
+    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         _registry = serviceProvider.GetRequiredService<AgentRoleProfileRegistry>();
         _registry.RegisterBuiltInProfiles();
         return Task.FromResult(OperationResult.Ok());
     }
 
     /// <summary>插件特定清理 — 撤销内置角色 Profile</summary>
-    protected override void OnUnload()
-    {
+    protected override void OnUnload() {
         _registry?.UnregisterBuiltInProfiles();
         _registry = null;
     }

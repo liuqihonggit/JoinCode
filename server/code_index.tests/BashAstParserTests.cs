@@ -1,10 +1,8 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public class BashAstParserTests
-{
+public class BashAstParserTests {
     [Fact]
-    public void Parse_SimpleCommand_ReturnsCorrectArgv()
-    {
+    public void Parse_SimpleCommand_ReturnsCorrectArgv() {
         using var parser = new BashAstParser();
         var root = parser.Parse("echo hello world");
         Assert.NotNull(root);
@@ -17,8 +15,7 @@ public class BashAstParserTests
     }
 
     [Fact]
-    public void Parse_Pipeline_ReturnsTwoCommands()
-    {
+    public void Parse_Pipeline_ReturnsTwoCommands() {
         using var parser = new BashAstParser();
         var root = parser.Parse("cat file.txt | grep pattern");
         Assert.NotNull(root);
@@ -30,8 +27,7 @@ public class BashAstParserTests
     }
 
     [Fact]
-    public void Parse_AndOrChain_ReturnsThreeCommands()
-    {
+    public void Parse_AndOrChain_ReturnsThreeCommands() {
         using var parser = new BashAstParser();
         var root = parser.Parse("cd /repo && make build || echo failed");
         Assert.NotNull(root);
@@ -44,8 +40,7 @@ public class BashAstParserTests
     }
 
     [Fact]
-    public void Parse_Redirect_ExtractsRedirects()
-    {
+    public void Parse_Redirect_ExtractsRedirects() {
         using var parser = new BashAstParser();
         var root = parser.Parse("echo hello > output.txt");
         Assert.NotNull(root);
@@ -57,8 +52,7 @@ public class BashAstParserTests
     }
 
     [Fact]
-    public void Parse_VariableAssignment_ExtractsEnvVars()
-    {
+    public void Parse_VariableAssignment_ExtractsEnvVars() {
         using var parser = new BashAstParser();
         var root = parser.Parse("VAR=value echo hello");
         Assert.NotNull(root);
@@ -71,8 +65,7 @@ public class BashAstParserTests
     }
 
     [Fact]
-    public void Parse_CommandSubstitution_Detected()
-    {
+    public void Parse_CommandSubstitution_Detected() {
         using var parser = new BashAstParser();
         var root = parser.Parse("echo $(date)");
         Assert.NotNull(root);
@@ -84,8 +77,7 @@ public class BashAstParserTests
     }
 
     [Fact]
-    public void Parse_QuotedString_StripsQuotes()
-    {
+    public void Parse_QuotedString_StripsQuotes() {
         using var parser = new BashAstParser();
         var root = parser.Parse("echo 'hello world'");
         Assert.NotNull(root);
@@ -97,24 +89,21 @@ public class BashAstParserTests
     }
 
     [Fact]
-    public void Parse_EmptyInput_ReturnsNull()
-    {
+    public void Parse_EmptyInput_ReturnsNull() {
         using var parser = new BashAstParser();
         var result = parser.Parse("");
         Assert.Null(result);
     }
 
     [Fact]
-    public void Parse_NullInput_ReturnsNull()
-    {
+    public void Parse_NullInput_ReturnsNull() {
         using var parser = new BashAstParser();
         var result = parser.Parse(null!);
         Assert.Null(result);
     }
 
     [Fact]
-    public void Parse_DangerousRm_ExtractsArgv()
-    {
+    public void Parse_DangerousRm_ExtractsArgv() {
         using var parser = new BashAstParser();
         var root = parser.Parse("rm -rf /");
         Assert.NotNull(root);
@@ -127,8 +116,7 @@ public class BashAstParserTests
     }
 
     [Fact]
-    public void Parse_ComplexPipeline_ExtractsAllCommands()
-    {
+    public void Parse_ComplexPipeline_ExtractsAllCommands() {
         using var parser = new BashAstParser();
         var root = parser.Parse("find . -name '*.cs' | xargs grep 'TODO' | sort | uniq -c");
         Assert.NotNull(root);

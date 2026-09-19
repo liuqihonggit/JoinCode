@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 工具调用执行结果 — ChatToolOrchestrator.ExecuteToolCallAsync 的返回值
 /// </summary>
-public sealed record ToolCallResult
-{
+public sealed record ToolCallResult {
     /// <summary>工具结果文本</summary>
     public required string ResultText { get; init; }
 
@@ -44,8 +43,7 @@ public sealed record ToolCallResult
 /// 负责权限检查、Hook 编排、工具执行
 /// </summary>
 [Register(typeof(IChatToolOrchestrator), ServiceLifetime.Singleton)]
-public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrchestrator
-{
+public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrchestrator {
     private readonly IToolRegistry? _toolRegistry;
     private readonly IToolExecutionGateway? _toolExecutionGateway;
     private readonly ICmdMap? _cmdMap;
@@ -65,8 +63,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
         IToolExecutionGateway? toolExecutionGateway = null,
         ICmdMap? cmdMap = null,
         IServiceProvider? serviceProvider = null,
-        ILogger<ChatToolOrchestrator>? logger = null)
-    {
+        ILogger<ChatToolOrchestrator>? logger = null) {
         _toolRegistry = toolRegistry;
         _toolExecutionGateway = toolExecutionGateway;
         _cmdMap = cmdMap;
@@ -89,29 +86,22 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
         string toolCallName,
         string? toolCallId,
         Dictionary<string, JsonElement>? toolCallArguments,
-        CancellationToken ct)
-    {
-        if (_toolExecutionGateway is null && _cmdMap is null)
-        {
-            return new ToolCallResult
-            {
+        CancellationToken ct) {
+        if (_toolExecutionGateway is null && _cmdMap is null) {
+            return new ToolCallResult {
                 ResultText = FormatToolError($"工具执行网关不可用: {toolCallName}"),
                 IsError = true
             };
         }
 
-        try
-        {
+        try {
             var arguments = toolCallArguments ?? new Dictionary<string, JsonElement>();
 
             // 先检查是否是斜杠命令（通过 CmdMap）— AI 调 ExposeToMcp=true 的斜杠命令时走此路径
-            if (_cmdMap is not null && _serviceProvider is not null)
-            {
+            if (_cmdMap is not null && _serviceProvider is not null) {
                 var descriptor = await _cmdMap.ResolveAsync(toolCallName, ct).ConfigureAwait(false);
-                if (descriptor is { Source: CmdSource.Slash })
-                {
-                    var cmdCtx = new CmdContext
-                    {
+                if (descriptor is { Source: CmdSource.Slash }) {
+                    var cmdCtx = new CmdContext {
                         CancellationToken = ct,
                         TriggerSource = CmdSource.Mcp,
                         JsonArgs = arguments,
@@ -120,8 +110,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                     var cmdResult = await descriptor.ExecuteAsync(cmdCtx).ConfigureAwait(false);
 
                     var sb = new StringBuilder();
-                    foreach (var c in cmdResult.Content)
-                    {
+                    foreach (var c in cmdResult.Content) {
                         if (string.IsNullOrEmpty(c.Text)) continue;
                         if (sb.Length > 0) sb.Append('\n');
                         sb.Append(c.Text);
@@ -130,8 +119,7 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                     _logger?.LogInformation("[ChatToolOrchestrator] 斜杠命令调用: {ToolName} → {Result}",
                         toolCallName, cmdResult.IsError ? "ERROR" : "OK");
 
-                    return new ToolCallResult
-                    {
+                    return new ToolCallResult {
                         ResultText = sb.ToString(),
                         IsError = cmdResult.IsError,
                     };
@@ -139,14 +127,11 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
             }
 
             string? argumentRepairHint = null;
-            if (arguments.Count > 0 && _toolRegistry is not null)
-            {
+            if (arguments.Count > 0 && _toolRegistry is not null) {
                 var handler = await _toolRegistry.GetToolAsync(toolCallName, ct).ConfigureAwait(false);
-                if (handler is not null)
-                {
+                if (handler is not null) {
                     var argRepair = LlmJsonHelper.RepairArguments(toolCallName, arguments, handler.InputSchema, _logger);
-                    if (argRepair.RepairHint is not null)
-                    {
+                    if (argRepair.RepairHint is not null) {
                         arguments = argRepair.RepairedArguments;
                         argumentRepairHint = argRepair.RepairHint;
                     }
@@ -155,10 +140,8 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
 
             var combinedRepairHint = argumentRepairHint;
 
-            if (_toolExecutionGateway is null)
-            {
-                return new ToolCallResult
-                {
+            if (_toolExecutionGateway is null) {
+                return new ToolCallResult {
                     ResultText = FormatToolError($"工具执行网关不可用: {toolCallName}"),
                     IsError = true
                 };
@@ -168,28 +151,20 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
 
             // 构建结果文本
             string resultText;
-            if (toolResult.IsImage)
-            {
+            if (toolResult.IsImage) {
                 resultText = "[Image data detected and sent to model]";
-            }
-            else
-            {
-                if (toolResult.IsError)
-                {
+            } else {
+                if (toolResult.IsError) {
                     var sb = new StringBuilder();
-                    foreach (var c in toolResult.Content)
-                    {
+                    foreach (var c in toolResult.Content) {
                         if (string.IsNullOrEmpty(c.Text)) continue;
                         if (sb.Length > 0) sb.Append('\n');
                         sb.Append("Error: ").Append(c.Text);
                     }
                     resultText = sb.ToString();
-                }
-                else
-                {
+                } else {
                     var sb = new StringBuilder();
-                    foreach (var c in toolResult.Content)
-                    {
+                    foreach (var c in toolResult.Content) {
                         if (string.IsNullOrEmpty(c.Text)) continue;
                         if (sb.Length > 0) sb.Append('\n');
                         sb.Append(c.Text);
@@ -198,16 +173,14 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                 }
             }
 
-            if (combinedRepairHint is not null)
-            {
+            if (combinedRepairHint is not null) {
                 resultText = $"[ToolCallRepair] {combinedRepairHint}\n{resultText}";
             }
 
             _logger?.LogInformation("[ChatToolOrchestrator] 工具调用: {ToolName} → {Result}",
                 toolCallName, toolResult.IsError ? "ERROR" : "OK");
 
-            return new ToolCallResult
-            {
+            return new ToolCallResult {
                 ResultText = resultText,
                 IsError = toolResult.IsError,
                 StructuredPatch = toolResult.StructuredPatch,
@@ -218,14 +191,11 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
                 ConfirmationPrompt = toolResult.ConfirmationPrompt,
                 PermissionRuleContent = toolResult.PermissionRuleContent
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 多级报错分类：可重试的基础设施故障（限流/超时/5xx）在错误文本中标注，
             // 让 LLM 知道可以重试；致命/逻辑错误保持原样。不 rethrow — 保持工具循环契约，
             // 由模型自行决定修复或放弃（对齐 TS tool_use_error 行为）。
-            if (ex is WorkflowException { IsRetryable: true } retryableEx)
-            {
+            if (ex is WorkflowException { IsRetryable: true } retryableEx) {
                 _logger?.LogWarning(retryableEx, "[ChatToolOrchestrator] 工具调用可重试失败: {ToolName}, Code={Code}, Retry={Retry}",
                     toolCallName, retryableEx.ErrorCode, retryableEx.SuggestedRetryCount);
                 return new ToolCallResult { ResultText = FormatToolError($"工具调用失败（可重试）: {ex.Message}"), IsError = true };
@@ -241,10 +211,8 @@ public sealed partial class ChatToolOrchestrator : ServiceEntity, IChatToolOrche
     /// 格式化工具错误消息 — 对齐 TS formatError + tool_use_error 标签
     /// 超过 10000 字符时截断：保留前 5000 + 后 5000
     /// </summary>
-    private static string FormatToolError(string message)
-    {
-        if (message.Length > 10000)
-        {
+    private static string FormatToolError(string message) {
+        if (message.Length > 10000) {
             var halfLength = 5000;
             var truncated = message.Length - 10000;
             message = $"{message[..halfLength]}\n\n... [{truncated} characters truncated] ...\n\n{message[^halfLength..]}";

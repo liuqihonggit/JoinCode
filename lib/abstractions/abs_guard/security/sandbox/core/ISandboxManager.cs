@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Sandbox;
 
-public interface ISandboxManager : IDisposable
-{
+public interface ISandboxManager : IDisposable {
     ISandboxProvider? ActiveProvider { get; }
     SandboxType ActiveSandboxType { get; }
     bool IsInSandbox { get; }

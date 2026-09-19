@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 桥连接状态 — 对齐 TS 端 BridgeState: 'ready' | 'connected' | 'reconnecting' | 'failed'
 /// </summary>
-public enum BridgeState
-{
+public enum BridgeState {
     /// <summary>传输已创建但尚未连接 — 对齐 TS 端 'ready'</summary>
     [EnumValue("ready")] Ready,
     /// <summary>已连接 — 对齐 TS 端 'connected'</summary>
@@ -23,8 +22,7 @@ public enum BridgeState
 /// REPL 桥句柄接口 — 对齐 TS 端 ReplBridgeHandle
 /// 供 React 树外的调用者（工具、斜杠命令）访问桥方法
 /// </summary>
-public interface IReplBridgeHandle
-{
+public interface IReplBridgeHandle {
     /// <summary>会话 ID（cse_* 格式）— 对齐 TS 端 bridgeSessionId</summary>
     string SessionId { get; }
 

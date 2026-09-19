@@ -4,15 +4,13 @@ namespace McpToolDispatch;
 /// <summary>
 /// 工具分发服务注册扩展方法集合
 /// </summary>
-public static class ToolHandlerExtensions
-{
+public static class ToolHandlerExtensions {
     /// <summary>
     /// 注册 MCP 工具分发所需的全部单例服务 — 委托源码生成器生成的注册方法
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <returns>原服务集合，便于链式调用</returns>
-    public static IServiceCollection AddMcpToolDispatch(this IServiceCollection services)
-    {
+    public static IServiceCollection AddMcpToolDispatch(this IServiceCollection services) {
         GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch.AddMcpToolDispatchSingletons(services);
         return services;
     }
@@ -27,8 +25,7 @@ public static class ToolHandlerExtensions
     public static async Task<IMcpToolRegistry> RegisterAllToolDispatchAsync(
         this IMcpToolRegistry registry,
         IServiceProvider serviceProvider,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var result = await GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch.RegisterAllMcpToolDispatchAsync(registry, serviceProvider, cancellationToken);
         return result;
     }

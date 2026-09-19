@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Brain.Context.Resolution;
 
-public interface IReferenceResolver
-{
+public interface IReferenceResolver {
     Task<CodeReference> ResolveCodeReferenceAsync(
         string reference,
         ReferenceResolutionOptions? options = null,

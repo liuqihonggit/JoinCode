@@ -1,8 +1,7 @@
 
 namespace Core.Tests.Agents.Coordinator;
 
-public class AgentCoordinatorSecretaryTests : IAsyncLifetime
-{
+public class AgentCoordinatorSecretaryTests : IAsyncLifetime {
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly Mock<IAgentWorktreeManager> _worktreeManagerMock;
@@ -10,8 +9,7 @@ public class AgentCoordinatorSecretaryTests : IAsyncLifetime
     private readonly Mock<IAgentExecutionEngine> _executionEngineMock;
     private readonly AgentCoordinator _coordinator;
 
-    public AgentCoordinatorSecretaryTests()
-    {
+    public AgentCoordinatorSecretaryTests() {
         _queryEngineMock = new Mock<IQueryEngine>();
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _worktreeManagerMock = new Mock<IAgentWorktreeManager>();
@@ -58,8 +56,7 @@ public class AgentCoordinatorSecretaryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task EnsureSecretary_ShouldSpawnTeammateVariantAgent()
-    {
+    public async Task EnsureSecretary_ShouldSpawnTeammateVariantAgent() {
         var fakeAgent = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
         _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(fakeAgent);
@@ -74,8 +71,7 @@ public class AgentCoordinatorSecretaryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task EnsureSecretary_CalledTwice_ShouldNotRespawn()
-    {
+    public async Task EnsureSecretary_CalledTwice_ShouldNotRespawn() {
         var fakeAgent = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
         _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(fakeAgent);
@@ -88,8 +84,7 @@ public class AgentCoordinatorSecretaryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task EnsureSecretary_DifferentOwners_ShouldSpawnSeparateSecretaries()
-    {
+    public async Task EnsureSecretary_DifferentOwners_ShouldSpawnSeparateSecretaries() {
         var agent1 = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
         var agent2 = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
         _lifecycleManagerMock.SetupSequence(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
@@ -104,21 +99,18 @@ public class AgentCoordinatorSecretaryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task EnsureSecretary_EmptyOwnerId_ShouldThrow()
-    {
+    public async Task EnsureSecretary_EmptyOwnerId_ShouldThrow() {
         var act = () => _coordinator.EnsureSecretaryAsync("");
         await act.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]
-    public void GetSecretaryId_WhenNotSpawned_ShouldReturnNull()
-    {
+    public void GetSecretaryId_WhenNotSpawned_ShouldReturnNull() {
         _coordinator.GetSecretaryId("captain-1").Should().BeNull();
     }
 
     [Fact]
-    public async Task GetSecretaryId_WhenSpawned_ShouldReturnId()
-    {
+    public async Task GetSecretaryId_WhenSpawned_ShouldReturnId() {
         var fakeAgent = new AgentBase("等待队长指令", null, _queryEngineMock.Object, null);
         _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(It.IsAny<string>(), It.IsAny<SubAgentOptions>(), It.IsAny<CancellationToken>(), It.IsAny<string?>()))
             .ReturnsAsync(fakeAgent);
@@ -129,14 +121,12 @@ public class AgentCoordinatorSecretaryTests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         _coordinator.DisposeSafe();
         return Task.CompletedTask;
     }
 }
 
-file sealed class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext>
-{
+sealed file class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext> {
     public Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct) => invoke(context, next, ct);
 }

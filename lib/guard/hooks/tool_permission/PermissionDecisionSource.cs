@@ -3,8 +3,7 @@ namespace Core.Hooks.ToolPermission;
 /// <summary>
 /// 权限决策来源类型
 /// </summary>
-public enum PermissionDecisionSourceType
-{
+public enum PermissionDecisionSourceType {
     /// <summary>通过 Hook 自动批准</summary>
     [EnumValue("hook")] Hook,
 
@@ -30,8 +29,7 @@ public enum PermissionDecisionSourceType
 /// <summary>
 /// 权限批准来源
 /// </summary>
-public sealed record PermissionApprovalSource
-{
+public sealed record PermissionApprovalSource {
     /// <summary>
     /// 决策来源类型
     /// </summary>
@@ -51,8 +49,7 @@ public sealed record PermissionApprovalSource
 /// <summary>
 /// 权限拒绝来源
 /// </summary>
-public sealed record PermissionRejectionSource
-{
+public sealed record PermissionRejectionSource {
     /// <summary>
     /// 决策来源类型
     /// </summary>
@@ -77,8 +74,7 @@ public sealed record PermissionRejectionSource
 /// <summary>
 /// 分类器决策原因
 /// </summary>
-public sealed record ClassifierDecisionReason
-{
+public sealed record ClassifierDecisionReason {
     /// <summary>
     /// 决策类型标识
     /// </summary>
@@ -98,8 +94,7 @@ public sealed record ClassifierDecisionReason
 /// <summary>
 /// 权限决策原因
 /// </summary>
-public abstract record PermissionDecisionReason
-{
+public abstract record PermissionDecisionReason {
     /// <summary>
     /// 决策类型标识
     /// </summary>
@@ -109,8 +104,7 @@ public abstract record PermissionDecisionReason
 /// <summary>
 /// Hook 决策原因
 /// </summary>
-public sealed record HookDecisionReason : PermissionDecisionReason
-{
+public sealed record HookDecisionReason : PermissionDecisionReason {
     /// <summary>
     /// 决策类型标识 — 固定为 "hook"
     /// </summary>
@@ -130,8 +124,7 @@ public sealed record HookDecisionReason : PermissionDecisionReason
 /// <summary>
 /// 分类器决策原因
 /// </summary>
-public sealed record ClassifierPermissionDecisionReason : PermissionDecisionReason
-{
+public sealed record ClassifierPermissionDecisionReason : PermissionDecisionReason {
     /// <summary>
     /// 决策类型标识 — 固定为 "classifier"
     /// </summary>

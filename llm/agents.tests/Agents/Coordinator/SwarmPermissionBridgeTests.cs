@@ -1,14 +1,12 @@
 
 namespace Sync.Tests.Agents.Coordinator;
 
-public class SwarmPermissionBridgeTests : IAsyncLifetime
-{
+public class SwarmPermissionBridgeTests : IAsyncLifetime {
     private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly Mock<IAgentPermissionManager> _permissionManagerMock;
     private readonly SwarmPermissionBridge _bridge;
 
-    public SwarmPermissionBridgeTests()
-    {
+    public SwarmPermissionBridgeTests() {
         _messageBrokerMock = new Mock<IMailbox>();
         _permissionManagerMock = new Mock<IAgentPermissionManager>();
         _bridge = new SwarmPermissionBridge(
@@ -18,8 +16,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SyncPermissionsAsync_ShouldSyncPermissionsAndFireEvent()
-    {
+    public async Task SyncPermissionsAsync_ShouldSyncPermissionsAndFireEvent() {
         _permissionManagerMock
             .Setup(x => x.AddRuleAsync(It.IsAny<AgentPermissionRule>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -30,8 +27,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
         PermissionSyncEventArgs? capturedArgs = null;
         _bridge.PermissionChanged += (_, args) => capturedArgs = args;
 
-        var request = new PermissionSyncRequest
-        {
+        var request = new PermissionSyncRequest {
             AgentId = "agent-1",
             CoordinatorId = "coordinator-1",
             Mode = PermissionMode.Auto,
@@ -54,8 +50,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SyncPermissionsAsync_ShouldStorePermissionState()
-    {
+    public async Task SyncPermissionsAsync_ShouldStorePermissionState() {
         _permissionManagerMock
             .Setup(x => x.AddRuleAsync(It.IsAny<AgentPermissionRule>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -63,8 +58,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
             .Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var request = new PermissionSyncRequest
-        {
+        var request = new PermissionSyncRequest {
             AgentId = "agent-2",
             CoordinatorId = "coordinator-1",
             Mode = PermissionMode.Ask,
@@ -81,10 +75,8 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetPermissionStateAsync_NoSyncedState_ShouldFallbackToPermissionManager()
-    {
-        var rule = new AgentPermissionRule
-        {
+    public async Task GetPermissionStateAsync_NoSyncedState_ShouldFallbackToPermissionManager() {
+        var rule = new AgentPermissionRule {
             AgentPattern = "agent-3",
             Mode = PermissionMode.Plan,
             AllowedTools = new List<string> { "plan_tool" }
@@ -102,8 +94,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetPermissionStateAsync_NoRuleFound_ShouldReturnAutoMode()
-    {
+    public async Task GetPermissionStateAsync_NoRuleFound_ShouldReturnAutoMode() {
         _permissionManagerMock
             .Setup(x => x.GetRuleForAgentAsync("agent-unknown", It.IsAny<CancellationToken>()))
             .ReturnsAsync((AgentPermissionRule?)null);
@@ -115,8 +106,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RevokePermissionsAsync_ShouldRemoveRuleAndFireEvent()
-    {
+    public async Task RevokePermissionsAsync_ShouldRemoveRuleAndFireEvent() {
         _permissionManagerMock
             .Setup(x => x.RemoveRuleAsync("agent-4", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -136,8 +126,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RevokePermissionsAsync_ShouldRemoveCachedState()
-    {
+    public async Task RevokePermissionsAsync_ShouldRemoveCachedState() {
         _permissionManagerMock
             .Setup(x => x.AddRuleAsync(It.IsAny<AgentPermissionRule>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -148,8 +137,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
             .Setup(x => x.SendAsync(It.IsAny<string>(), It.IsAny<AgentMsg>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var request = new PermissionSyncRequest
-        {
+        var request = new PermissionSyncRequest {
             AgentId = "agent-5",
             CoordinatorId = "coordinator-1",
             Mode = PermissionMode.Auto
@@ -168,16 +156,14 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
     }
 
     [Fact]
-    public void Constructor_NullMessageBroker_ShouldThrowArgumentNullException()
-    {
+    public void Constructor_NullMessageBroker_ShouldThrowArgumentNullException() {
         var act = () => new SwarmPermissionBridge(null!, _permissionManagerMock.Object);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("messageBroker");
     }
 
     [Fact]
-    public void Constructor_NullPermissionManager_ShouldThrowArgumentNullException()
-    {
+    public void Constructor_NullPermissionManager_ShouldThrowArgumentNullException() {
         var act = () => new SwarmPermissionBridge(_messageBrokerMock.Object, null!);
 
         act.Should().Throw<ArgumentNullException>().WithParameterName("permissionManager");
@@ -185,8 +171,7 @@ public class SwarmPermissionBridgeTests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         _bridge.DisposeSafe();
         return Task.CompletedTask;
     }

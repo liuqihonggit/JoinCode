@@ -13,8 +13,7 @@ public sealed class NetworkRetryBudgetExhaustedException(string message) : Excep
 /// <summary>
 /// 退避策略 — 重试间隔的计算方式
 /// </summary>
-public enum BackoffStrategy
-{
+public enum BackoffStrategy {
     /// <summary>固定间隔 — 每次重试等待 BaseDelay</summary>
     [EnumValue("fixed")]
     Fixed,
@@ -32,8 +31,7 @@ public enum BackoffStrategy
 /// <summary>
 /// 重试配置 — 控制最大重试次数、退避策略和重试预算
 /// </summary>
-public sealed class RetryConfig
-{
+public sealed class RetryConfig {
     /// <summary>最大重试次数，默认 3</summary>
     public int MaxRetries { get; init; } = 3;
 
@@ -67,8 +65,7 @@ public sealed class RetryConfig
 /// <summary>
 /// 熔断器配置 — 控制失败阈值、开启时长和半开探测数
 /// </summary>
-public sealed class CircuitBreakerConfig
-{
+public sealed class CircuitBreakerConfig {
     /// <summary>连续失败阈值，达到后熔断器开启，默认 5</summary>
     public int FailureThreshold { get; init; } = 5;
 
@@ -85,8 +82,7 @@ public sealed class CircuitBreakerConfig
 /// <summary>
 /// 健康检查配置 — 控制检查间隔、超时、失败阈值和不健康处置动作
 /// </summary>
-public sealed class HealthCheckConfig
-{
+public sealed class HealthCheckConfig {
     /// <summary>健康检查间隔，默认 10 秒</summary>
     public TimeSpan Interval { get; init; } = TimeSpan.FromSeconds(10);
 
@@ -106,8 +102,7 @@ public sealed class HealthCheckConfig
 /// <summary>
 /// 不健康处置动作 — 进程连续失败达阈值后采取的操作
 /// </summary>
-public enum UnhealthyAction
-{
+public enum UnhealthyAction {
     /// <summary>仅记录日志，不干预进程</summary>
     [EnumValue("log_only")]
     LogOnly,
@@ -122,8 +117,7 @@ public enum UnhealthyAction
 /// <summary>
 /// 韧性策略 — 组合超时、重试、熔断和健康检查配置，描述单个通讯点的完整韧性策略
 /// </summary>
-public sealed class ResiliencePolicy
-{
+public sealed class ResiliencePolicy {
     /// <summary>策略名称 — 用于日志和遥测标识</summary>
     public required string Name { get; init; }
 
@@ -147,8 +141,7 @@ public sealed class ResiliencePolicy
     /// </summary>
     /// <param name="name">策略名称</param>
     /// <returns>HTTP 默认韧性策略</returns>
-    public static ResiliencePolicy HttpDefault(string name) => new()
-    {
+    public static ResiliencePolicy HttpDefault(string name) => new() {
         Name = name,
         TotalTimeout = TimeSpan.FromSeconds(60),
         OperationTimeout = TimeSpan.FromSeconds(30),
@@ -161,8 +154,7 @@ public sealed class ResiliencePolicy
     /// </summary>
     /// <param name="name">策略名称</param>
     /// <returns>LLM 默认韧性策略</returns>
-    public static ResiliencePolicy LlmDefault(string name) => new()
-    {
+    public static ResiliencePolicy LlmDefault(string name) => new() {
         Name = name,
         TotalTimeout = TimeSpan.FromSeconds(120),
         OperationTimeout = TimeSpan.FromSeconds(30),
@@ -175,8 +167,7 @@ public sealed class ResiliencePolicy
     /// </summary>
     /// <param name="name">策略名称</param>
     /// <returns>子进程默认韧性策略</returns>
-    public static ResiliencePolicy SubprocessDefault(string name) => new()
-    {
+    public static ResiliencePolicy SubprocessDefault(string name) => new() {
         Name = name,
         OperationTimeout = TimeSpan.FromSeconds(30),
         CircuitBreaker = new CircuitBreakerConfig { FailureThreshold = 5, OpenDuration = TimeSpan.FromSeconds(60) },

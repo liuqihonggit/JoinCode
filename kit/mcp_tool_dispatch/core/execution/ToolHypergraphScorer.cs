@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 定时更新超边共享评分（每小时），支持从配置文件热加载超边定义
 /// </summary>
 [Register(typeof(IHyperedgeReloadable), ServiceLifetime.Singleton)]
-public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, IDisposable
-{
+public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, IDisposable {
     private readonly ILogger<ToolHypergraphScorer>? _logger;
     private readonly IToolHealthMonitor? _monitor;
     private ToolHypergraph _graph;
@@ -19,14 +18,12 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="monitor">可选工具健康监控器，用于定时同步超边共享评分</param>
-    public ToolHypergraphScorer(ILogger<ToolHypergraphScorer>? logger = null, IToolHealthMonitor? monitor = null)
-    {
+    public ToolHypergraphScorer(ILogger<ToolHypergraphScorer>? logger = null, IToolHealthMonitor? monitor = null) {
         _logger = logger;
         _monitor = monitor;
         _graph = BuildGraph(ToolHypergraphPresets.GetPresets());
 
-        if (_monitor is not null)
-        {
+        if (_monitor is not null) {
             _syncTimer = new Timer(async _ => await SyncSharedScoresAsync().ConfigureAwait(false),
                 null, TimeSpan.FromHours(1), TimeSpan.FromHours(1));
         }
@@ -36,16 +33,14 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// 从配置加载自定义超边 — 合并预设超边和用户自定义超边
     /// 用户自定义超边通过 Id 覆盖同名预设超边
     /// </summary>
-    public void LoadCustomHyperedges(List<HyperedgeSettings> customHyperedges)
-    {
+    public void LoadCustomHyperedges(List<HyperedgeSettings> customHyperedges) {
         if (customHyperedges is null || customHyperedges.Count == 0) return;
 
         var presets = ToolHypergraphPresets.GetPresets();
         var presetById = presets.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
         var customEdges = customHyperedges.Select(c => c.ToHyperedge()).ToList();
 
-        foreach (var custom in customEdges)
-        {
+        foreach (var custom in customEdges) {
             presetById[custom.Id] = custom;
         }
 
@@ -59,8 +54,7 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// 重新加载超边定义 — 用给定超边数组重建工具到超边的映射图
     /// </summary>
     /// <param name="edges">新的超边数组</param>
-    public void ReloadHyperedges(ToolHyperedge[] edges)
-    {
+    public void ReloadHyperedges(ToolHyperedge[] edges) {
         _graph = BuildGraph(edges);
         _logger?.LogInformation("超图已重新加载，{Count} 条超边", edges.Length);
     }
@@ -68,16 +62,14 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// <summary>
     /// 计算工具最终评分 — 融合独立评分与超边共享评分
     /// </summary>
-    public int CalculateFinalScore(string toolName, int independentScore)
-    {
+    public int CalculateFinalScore(string toolName, int independentScore) {
         if (!_graph.ToolToEdges.TryGetValue(toolName, out var edges) || edges.Count == 0)
             return independentScore;
 
         var totalEdgeWeight = 0.0;
         var weightedSharedSum = 0.0;
 
-        foreach (var edge in edges)
-        {
+        foreach (var edge in edges) {
             totalEdgeWeight += edge.Weight;
             weightedSharedSum += edge.Weight * edge.SharedScore;
         }
@@ -93,16 +85,12 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// <summary>
     /// 更新超边共享评分 — 根据成员工具的独立评分加权平均
     /// </summary>
-    public void UpdateSharedScores(IReadOnlyDictionary<string, ToolHealthRecord> healthRecords)
-    {
-        foreach (var edge in _graph.Hyperedges)
-        {
+    public void UpdateSharedScores(IReadOnlyDictionary<string, ToolHealthRecord> healthRecords) {
+        foreach (var edge in _graph.Hyperedges) {
             var sum = 0;
             var count = 0;
-            foreach (var toolName in edge.ToolNames)
-            {
-                if (healthRecords.TryGetValue(toolName, out var record))
-                {
+            foreach (var toolName in edge.ToolNames) {
+                if (healthRecords.TryGetValue(toolName, out var record)) {
                     sum += record.Score;
                     count++;
                 }
@@ -115,13 +103,11 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// <summary>
     /// 获取工具的链路后续推荐 — LLM使用工具A后，推荐链路中的后续工具
     /// </summary>
-    public string[]? GetChainRecommendations(string toolName)
-    {
+    public string[]? GetChainRecommendations(string toolName) {
         if (!_graph.ToolToEdges.TryGetValue(toolName, out var edges))
             return null;
 
-        foreach (var edge in edges)
-        {
+        foreach (var edge in edges) {
             if (edge.ChainOrder is null) continue;
 
             var idx = Array.FindIndex(edge.ChainOrder, n => string.Equals(n, toolName, StringComparison.OrdinalIgnoreCase));
@@ -135,39 +121,30 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// <summary>
     /// 获取工具所属的所有超边
     /// </summary>
-    public IReadOnlyList<ToolHyperedge> GetEdges(string toolName)
-    {
+    public IReadOnlyList<ToolHyperedge> GetEdges(string toolName) {
         if (!_graph.ToolToEdges.TryGetValue(toolName, out var edges))
             return [];
         return edges;
     }
 
-    private async Task SyncSharedScoresAsync()
-    {
+    private async Task SyncSharedScoresAsync() {
         if (_monitor is null) return;
 
-        try
-        {
+        try {
             var allRecords = await _monitor.GetAllRecordsAsync().ConfigureAwait(false);
             UpdateSharedScores(allRecords);
             _logger?.LogDebug("超图共享评分已同步更新");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "超图共享评分同步更新失败");
         }
     }
 
-    private static ToolHypergraph BuildGraph(ToolHyperedge[] edges)
-    {
+    private static ToolHypergraph BuildGraph(ToolHyperedge[] edges) {
         var toolToEdges = new Dictionary<string, List<ToolHyperedge>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var edge in edges)
-        {
-            foreach (var toolName in edge.ToolNames)
-            {
-                if (!toolToEdges.TryGetValue(toolName, out var list))
-                {
+        foreach (var edge in edges) {
+            foreach (var toolName in edge.ToolNames) {
+                if (!toolToEdges.TryGetValue(toolName, out var list)) {
                     list = [];
                     toolToEdges[toolName] = list;
                 }
@@ -175,8 +152,7 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
             }
         }
 
-        return new ToolHypergraph
-        {
+        return new ToolHypergraph {
             Hyperedges = [.. edges],
             ToolToEdges = toolToEdges.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase)
         };
@@ -185,11 +161,10 @@ public sealed class ToolHypergraphScorer : ServiceEntity, IHyperedgeReloadable, 
     /// <summary>
     /// 释放同步定时器资源。
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _syncTimer?.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }

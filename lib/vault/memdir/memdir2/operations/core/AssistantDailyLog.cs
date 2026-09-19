@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 日志条目分类枚举
 /// 定义助手日志条目的四种分类
 /// </summary>
-public enum DailyLogCategory
-{
+public enum DailyLogCategory {
     /// <summary>
     /// 动作 - 助手执行的操作
     /// </summary>
@@ -35,10 +34,8 @@ public enum DailyLogCategory
 /// <summary>
 /// 日志条目分类扩展方法
 /// </summary>
-public static class DailyLogCategoryExtensions
-{
-    private static readonly FrozenDictionary<string, DailyLogCategory> __reverseMap = new Dictionary<string, DailyLogCategory>
-    {
+public static class DailyLogCategoryExtensions {
+    private static readonly FrozenDictionary<string, DailyLogCategory> __reverseMap = new Dictionary<string, DailyLogCategory> {
         ["action"] = DailyLogCategory.Action,
         ["observation"] = DailyLogCategory.Observation,
         ["decision"] = DailyLogCategory.Decision,
@@ -46,8 +43,7 @@ public static class DailyLogCategoryExtensions
     }.ToFrozenDictionary();
 
     private static readonly FrozenDictionary<DailyLogCategory, string> CategoryLabels =
-        new Dictionary<DailyLogCategory, string>
-        {
+        new Dictionary<DailyLogCategory, string> {
             [DailyLogCategory.Action] = "动作",
             [DailyLogCategory.Observation] = "观察",
             [DailyLogCategory.Decision] = "决策",
@@ -63,8 +59,7 @@ public static class DailyLogCategoryExtensions
     /// <summary>
     /// 获取分类的显示标签
     /// </summary>
-    public static string GetLabel(this DailyLogCategory category)
-    {
+    public static string GetLabel(this DailyLogCategory category) {
         return CategoryLabels.GetValueOrDefault(category, category.ToString());
     }
 }
@@ -73,8 +68,7 @@ public static class DailyLogCategoryExtensions
 /// 日志条目模型
 /// 描述助手日志中的单条记录
 /// </summary>
-public sealed record DailyLogEntry
-{
+public sealed record DailyLogEntry {
     /// <summary>
     /// 条目时间戳
     /// </summary>
@@ -104,8 +98,7 @@ public sealed record DailyLogEntry
 /// 日志文件模型
 /// 描述一天的完整日志
 /// </summary>
-public sealed record DailyLogFile
-{
+public sealed record DailyLogFile {
     /// <summary>
     /// 日志日期（格式: yyyy-MM-dd）
     /// </summary>
@@ -123,8 +116,7 @@ public sealed record DailyLogFile
 /// 助手日志服务接口
 /// 管理助手每日日志的追加式记录与查询
 /// </summary>
-public interface IAssistantDailyLogService : IDisposable
-{
+public interface IAssistantDailyLogService : IDisposable {
     /// <summary>
     /// 追加一条日志到今日日志
     /// </summary>
@@ -170,8 +162,7 @@ public interface IAssistantDailyLogService : IDisposable
 /// 使用 Actor 邮箱管道串行化写操作，消除显式锁 — TASK001
 /// </summary>
 [Register(typeof(IAssistantDailyLogService), ServiceLifetime.Singleton)]
-public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistantDailyLogService, IDisposable
-{
+public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistantDailyLogService, IDisposable {
     private const string DailyLogsDirectoryName = "daily-logs";
     private const string DateFormat = "yyyy-MM-dd";
 
@@ -195,8 +186,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         IMemoryPaths memoryPaths,
         IFileOperationService fileOperationService,
         ILogger<AssistantDailyLogService>? logger = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
         _memoryPaths = memoryPaths ?? throw new ArgumentNullException(nameof(memoryPaths));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
@@ -210,8 +200,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         string content,
         DailyLogCategory category = DailyLogCategory.Action,
         string? relatedMemoryId = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(content);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -227,10 +216,8 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         string content,
         DailyLogCategory category,
         string? relatedMemoryId,
-        CancellationToken cancellationToken)
-    {
-        var entry = new DailyLogEntry
-        {
+        CancellationToken cancellationToken) {
+        var entry = new DailyLogEntry {
             Timestamp = _clock.GetUtcNow(),
             Content = content,
             Category = category,
@@ -239,8 +226,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
 
         var logFile = await LoadDailyLogCoreAsync(_clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
 
-        var updatedLog = logFile with
-        {
+        var updatedLog = logFile with {
             Entries = logFile.Entries.Add(entry)
         };
 
@@ -255,24 +241,20 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     }
 
     /// <inheritdoc />
-    public async Task<DailyLogFile> GetDailyLogAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<DailyLogFile> GetDailyLogAsync(CancellationToken cancellationToken = default) {
         return await LoadDailyLogCoreAsync(_clock.GetUtcNow(), cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task<DailyLogFile> GetDailyLogForDateAsync(DateTime date, CancellationToken cancellationToken = default)
-    {
+    public async Task<DailyLogFile> GetDailyLogForDateAsync(DateTime date, CancellationToken cancellationToken = default) {
         return await LoadDailyLogCoreAsync(date, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task<string> BuildDailyLogPromptAsync(int maxEntries = 20, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> BuildDailyLogPromptAsync(int maxEntries = 20, CancellationToken cancellationToken = default) {
         var logFile = await GetDailyLogAsync(cancellationToken).ConfigureAwait(false);
 
-        if (logFile.Entries.IsEmpty)
-        {
+        if (logFile.Entries.IsEmpty) {
             return string.Empty;
         }
 
@@ -284,8 +266,7 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
             .OrderByDescending(e => e.Timestamp)
             .Take(maxEntries);
 
-        foreach (var entry in entries)
-        {
+        foreach (var entry in entries) {
             var timeStr = entry.Timestamp.ToString("HH:mm:ss");
             var categoryLabel = entry.Category.GetLabel();
             sb.AppendLine($"- [{timeStr}] [{categoryLabel}] {entry.Content}");
@@ -299,16 +280,13 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
             .Take(5)
             .ToList();
 
-        if (relatedMemoryIds.Count > 0)
-        {
+        if (relatedMemoryIds.Count > 0) {
             sb.AppendLine();
             sb.AppendLine("### 关联记忆");
 
-            foreach (var memoryId in relatedMemoryIds)
-            {
+            foreach (var memoryId in relatedMemoryIds) {
                 var memory = _memoryStore.GetMemory(memoryId);
-                if (memory != null)
-                {
+                if (memory != null) {
                     var contentPreview = memory.Content[..Math.Min(80, memory.Content.Length)];
                     sb.AppendLine($"- [{memory.Type}] {contentPreview}");
                 }
@@ -321,13 +299,11 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     /// <summary>
     /// 获取日志文件路径
     /// </summary>
-    private string GetDailyLogFilePath(DateTime date)
-    {
+    private string GetDailyLogFilePath(DateTime date) {
         var userDir = _memoryPaths.GetUserMemoryDirectory();
         var dailyLogsDir = Path.Combine(userDir, DailyLogsDirectoryName);
 
-        if (!_fileOperationService.DirectoryExists(dailyLogsDir))
-        {
+        if (!_fileOperationService.DirectoryExists(dailyLogsDir)) {
             _fileOperationService.CreateDirectory(dailyLogsDir);
         }
 
@@ -337,30 +313,24 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     /// <summary>
     /// 加载日志文件（核心实现）
     /// </summary>
-    private async Task<DailyLogFile> LoadDailyLogCoreAsync(DateTime date, CancellationToken cancellationToken)
-    {
+    private async Task<DailyLogFile> LoadDailyLogCoreAsync(DateTime date, CancellationToken cancellationToken) {
         var filePath = GetDailyLogFilePath(date);
         var dateStr = date.ToString(DateFormat);
 
-        if (!_fileOperationService.FileExists(filePath))
-        {
+        if (!_fileOperationService.FileExists(filePath)) {
             return new DailyLogFile { Date = dateStr };
         }
 
-        try
-        {
+        try {
             var result = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 _logger?.LogWarning("[DailyLog] 读取日志文件失败: {Path}", filePath);
                 return new DailyLogFile { Date = dateStr };
             }
 
             var logFile = RelaxedJsonSerializer.Deserialize(result.Content, DailyLogJsonContext.Default.DailyLogFile);
             return logFile ?? new DailyLogFile { Date = dateStr };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[DailyLog] 解析日志文件异常: {Path}", filePath);
             return new DailyLogFile { Date = dateStr };
         }
@@ -369,30 +339,24 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     /// <summary>
     /// 保存日志文件（核心实现）
     /// </summary>
-    private async Task SaveDailyLogCoreAsync(DailyLogFile logFile, CancellationToken cancellationToken)
-    {
+    private async Task SaveDailyLogCoreAsync(DailyLogFile logFile, CancellationToken cancellationToken) {
         var date = DateTime.ParseExact(logFile.Date, DateFormat, null);
         var filePath = GetDailyLogFilePath(date);
 
-        try
-        {
+        try {
             var json = RelaxedJsonSerializer.Serialize(logFile, DailyLogJsonContext.Default);
             var result = await _fileOperationService.WriteFileAsync(filePath, json, cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 _logger?.LogError("[DailyLog] 保存日志文件失败: {Path}, 错误: {Error}", filePath, result.ErrorMessage);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[DailyLog] 保存日志文件异常: {Path}", filePath);
         }
     }
 
     /// <summary>异步释放资源 — await Actor 完全退出，禁止 fire-and-forget（JCC9200）</summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
@@ -401,13 +365,11 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
     /// 助手日志 Actor — 串行化所有写操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
-    private sealed class DailyLogActor : ActorBase<AssistantDailyLogCommand, Unit>
-    {
+    private sealed class DailyLogActor : ActorBase<AssistantDailyLogCommand, Unit> {
         private readonly AssistantDailyLogService _owner;
         private readonly ILogger<AssistantDailyLogService>? _logger;
 
-        public DailyLogActor(AssistantDailyLogService owner, ILogger<AssistantDailyLogService>? logger) : base()
-        {
+        public DailyLogActor(AssistantDailyLogService owner, ILogger<AssistantDailyLogService>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -416,13 +378,11 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(AssistantDailyLogCommand cmd, CancellationToken ct)
-        {
-            switch (cmd)
-            {
+        protected override async ValueTask HandleAsync(AssistantDailyLogCommand cmd, CancellationToken ct) {
+            switch (cmd) {
                 case AppendEntryCmd(var content, var category, var relatedMemoryId, var reply):
-                    reply.SetResult(await _owner.AppendEntryInternalAsync(content, category, relatedMemoryId, ct).ConfigureAwait(false));
-                    break;
+                reply.SetResult(await _owner.AppendEntryInternalAsync(content, category, relatedMemoryId, ct).ConfigureAwait(false));
+                break;
             }
         }
 
@@ -430,4 +390,3 @@ public sealed partial class AssistantDailyLogService : ServiceEntity, IAssistant
             => _logger?.LogWarning(ex, "DailyLogActor 命令处理异常");
     }
 }
-

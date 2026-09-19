@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 同义词注入中间件 — 检测同义词并注入补充上下文
 /// </summary>
 [Register(typeof(IAnalyzePreprocessMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class SynonymInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware
-{
+public sealed partial class SynonymInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware {
     private readonly ISynonymMap _synonymMap;
     private readonly ISystemReminderManager _reminderManager;
     private readonly ILogger<SynonymInjectionMiddleware>? _logger;
@@ -22,28 +21,24 @@ public sealed partial class SynonymInjectionMiddleware : ServiceEntity, IAnalyze
     public SynonymInjectionMiddleware(
         ISynonymMap synonymMap,
         ISystemReminderManager reminderManager,
-        ILogger<SynonymInjectionMiddleware>? logger = null)
-    {
+        ILogger<SynonymInjectionMiddleware>? logger = null) {
         _synonymMap = synonymMap;
         _reminderManager = reminderManager;
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
         var synonymMatches = SynonymAnalyzer.Analyze(context.Message, _synonymMap);
         var synonymInjectionIds = new List<string>();
 
-        foreach (var match in synonymMatches)
-        {
+        foreach (var match in synonymMatches) {
             var synonymId = $"synonym-injection-{Guid.NewGuid():N}";
             synonymInjectionIds.Add(synonymId);
             _logger?.LogInformation("[SynonymInjection] 检测到同义词 '{Key}'，已注入补充内容", match.MatchedKey);
         }
 
-        if (synonymMatches.Count > 0)
-        {
+        if (synonymMatches.Count > 0) {
             await Task.WhenAll(synonymMatches.Zip(synonymInjectionIds, (match, id) =>
                 _reminderManager.AddReminderAsync(id, match.SupplementaryContent, priority: 50, ct: ct))).ConfigureAwait(false);
 
@@ -54,9 +49,7 @@ public sealed partial class SynonymInjectionMiddleware : ServiceEntity, IAnalyze
 
             context.SynonymPromptInjectionInfo = synonymInfo;
             context.PromptInjectionInfo = synonymInfo;
-        }
-        else
-        {
+        } else {
             context.PromptInjectionInfo = context.KeywordPromptInjectionInfo;
         }
 

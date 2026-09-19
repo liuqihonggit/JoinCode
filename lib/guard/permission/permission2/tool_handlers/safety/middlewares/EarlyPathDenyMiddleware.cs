@@ -6,8 +6,7 @@ namespace Core.Permission;
 /// 防止路径级 deny 规则被工具级 auto-approved 绕过
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class EarlyPathDenyMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class EarlyPathDenyMiddleware : ServiceEntity, IPermissionMiddleware {
     private readonly IPathPermissionChecker? _pathPermissionChecker;
 
     /// <inheritdoc />
@@ -17,14 +16,12 @@ public sealed partial class EarlyPathDenyMiddleware : ServiceEntity, IPermission
     /// <summary>
     /// 创建 EarlyPathDenyMiddleware
     /// </summary>
-    public EarlyPathDenyMiddleware(IPathPermissionChecker? pathPermissionChecker = null)
-    {
+    public EarlyPathDenyMiddleware(IPathPermissionChecker? pathPermissionChecker = null) {
         _pathPermissionChecker = pathPermissionChecker;
     }
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         if (context.CurrentMode != PermissionMode.Auto || _pathPermissionChecker is null || context.Arguments is null)
             return next(context, ct);
 
@@ -40,8 +37,7 @@ public sealed partial class EarlyPathDenyMiddleware : ServiceEntity, IPermission
             : _pathPermissionChecker.CheckWritePermission(path);
 
         // 仅拦截 deny，allow/ask 由后续完整检查处理
-        if (result.Decision == PermissionBehavior.Deny)
-        {
+        if (result.Decision == PermissionBehavior.Deny) {
             context.Result = PermissionCheckContext.MapPathResult(result);
             return Task.CompletedTask;
         }

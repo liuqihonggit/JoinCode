@@ -3,8 +3,7 @@ namespace Core.Hooks.Execution.Interception;
 /// <summary>
 /// 守卫确认模式 — 替代 bool AntiCharLossConfirm，强类型枚举 — ADR 0012
 /// </summary>
-public enum GuardConfirmMode
-{
+public enum GuardConfirmMode {
     /// <summary>
     /// 无确认模式 — 默认行为
     /// </summary>

@@ -4,8 +4,7 @@ namespace Core.Context.Collapse;
 /// <summary>
 /// 上下文折叠策略
 /// </summary>
-public enum CollapseStrategy
-{
+public enum CollapseStrategy {
     /// <summary>
     /// 激进策略：优先折叠更多段，压缩比更高
     /// </summary>

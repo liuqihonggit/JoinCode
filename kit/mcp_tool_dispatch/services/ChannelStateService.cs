@@ -7,8 +7,7 @@ namespace Sync.McpToolDispatch.Services;
 /// 后续实现 --channels 命令行参数和 MCP channel 注册时扩展
 /// </summary>
 [Register(typeof(IChannelStateService), ServiceLifetime.Singleton)]
-public sealed partial class ChannelStateService : ServiceEntity, IChannelStateService
-{
+public sealed partial class ChannelStateService : ServiceEntity, IChannelStateService {
     private volatile IReadOnlyList<ChannelEntry> _allowedChannels = Array.Empty<ChannelEntry>();
 
     /// <inheritdoc />
@@ -18,8 +17,7 @@ public sealed partial class ChannelStateService : ServiceEntity, IChannelStateSe
     public IReadOnlyList<ChannelEntry> GetAllowedChannels() => _allowedChannels;
 
     /// <inheritdoc />
-    public void SetAllowedChannels(IReadOnlyList<ChannelEntry> channels)
-    {
+    public void SetAllowedChannels(IReadOnlyList<ChannelEntry> channels) {
         ArgumentNullException.ThrowIfNull(channels);
         _allowedChannels = channels;
     }

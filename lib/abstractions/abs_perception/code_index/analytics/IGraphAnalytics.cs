@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 /// 图分析接口 — 社区检测、枢纽分析、死代码检测、环检测、拓扑排序、子图提取、变更影响
 /// 复用 Structura DAG 算法: 环检测(WouldCreateCycle/FindAllCycles)、拓扑排序(TopologicalSort)、增量子图(GetAffectedSubgraph)
 /// </summary>
-public interface IGraphAnalytics
-{
+public interface IGraphAnalytics {
     /// <summary>
     /// 社区检测 — 基于标签传播算法将符号聚类为社区(模块/子系统)
     /// 对齐 graphify 的 community detection

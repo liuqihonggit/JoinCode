@@ -1,12 +1,10 @@
 namespace Llm.Tests.Adapters.CacheProtocol;
 
-public sealed class AnthropicCacheControlPlacementTests
-{
+public sealed class AnthropicCacheControlPlacementTests {
     private readonly AnthropicCacheProtocol _protocol = new();
 
     [Fact]
-    public void PlaceCacheControlOnSystemBlocks_LastStaticBlock_GetsCacheControl()
-    {
+    public void PlaceCacheControlOnSystemBlocks_LastStaticBlock_GetsCacheControl() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "Static prefix", IsStatic = true },
@@ -22,8 +20,7 @@ public sealed class AnthropicCacheControlPlacementTests
     }
 
     [Fact]
-    public void PlaceCacheControlOnSystemBlocks_AllDynamic_LastBlock_GetsCacheControl()
-    {
+    public void PlaceCacheControlOnSystemBlocks_AllDynamic_LastBlock_GetsCacheControl() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "Dynamic 1", IsStatic = false },
@@ -38,8 +35,7 @@ public sealed class AnthropicCacheControlPlacementTests
     }
 
     [Fact]
-    public void PlaceCacheControlOnSystemBlocks_WithMcpTools_ScopeShouldBeOrg()
-    {
+    public void PlaceCacheControlOnSystemBlocks_WithMcpTools_ScopeShouldBeOrg() {
         var systemBlocks = new List<AnthropicSystemContentBlock>
         {
             new() { Text = "Static prefix", IsStatic = true }
@@ -53,8 +49,7 @@ public sealed class AnthropicCacheControlPlacementTests
     }
 
     [Fact]
-    public void PlaceCacheControlOnTools_LastTool_GetsCacheControl()
-    {
+    public void PlaceCacheControlOnTools_LastTool_GetsCacheControl() {
         var tools = new List<AnthropicToolDefinition>
         {
             new() { Name = "read" },
@@ -70,8 +65,7 @@ public sealed class AnthropicCacheControlPlacementTests
     }
 
     [Fact]
-    public void PlaceCacheControlOnTools_WithMcpTools_ScopeShouldBeOrg()
-    {
+    public void PlaceCacheControlOnTools_WithMcpTools_ScopeShouldBeOrg() {
         var tools = new List<AnthropicToolDefinition>
         {
             new() { Name = "mcp.search" }
@@ -85,8 +79,7 @@ public sealed class AnthropicCacheControlPlacementTests
     }
 
     [Fact]
-    public void PlaceCacheControlOnToolResults_LastResult_GetsCacheControl()
-    {
+    public void PlaceCacheControlOnToolResults_LastResult_GetsCacheControl() {
         var toolResults = new List<AnthropicToolResultBlock>
         {
             new() { ToolUseId = "id1", Content = JsonElementHelper.FromString("result1") },
@@ -102,8 +95,7 @@ public sealed class AnthropicCacheControlPlacementTests
     }
 
     [Fact]
-    public void PlaceCacheControlOnToolResults_WithMcpTools_ScopeShouldBeOrg()
-    {
+    public void PlaceCacheControlOnToolResults_WithMcpTools_ScopeShouldBeOrg() {
         var toolResults = new List<AnthropicToolResultBlock>
         {
             new() { ToolUseId = "id1", Content = JsonElementHelper.FromString("result") }
@@ -118,8 +110,7 @@ public sealed class AnthropicCacheControlPlacementTests
     }
 
     [Fact]
-    public void PlaceCacheControlOnToolResults_WithoutMcpTools_ScopeShouldBeNull()
-    {
+    public void PlaceCacheControlOnToolResults_WithoutMcpTools_ScopeShouldBeNull() {
         var toolResults = new List<AnthropicToolResultBlock>
         {
             new() { ToolUseId = "id1", Content = JsonElementHelper.FromString("result") }

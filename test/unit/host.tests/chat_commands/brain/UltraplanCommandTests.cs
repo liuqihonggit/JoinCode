@@ -6,22 +6,19 @@ namespace Core.Tests.ChatCommands;
 /// 验证 --execute 标志应触发 PlanService.ExecutePlanWithResultAsync
 /// 而非当前的"自动执行模式尚未实现"警告
 /// </summary>
-public class UltraplanCommandTests
-{
+public class UltraplanCommandTests {
     private readonly Mock<IChatService> _chatServiceMock;
     private readonly Mock<IPlanService> _planServiceMock;
     private readonly UltraplanCommand _command;
 
-    public UltraplanCommandTests()
-    {
+    public UltraplanCommandTests() {
         _chatServiceMock = new Mock<IChatService>();
         _chatServiceMock.Setup(c => c.SendMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("模拟计划文本");
 
         _planServiceMock = new Mock<IPlanService>();
         _planServiceMock.Setup(p => p.ExecutePlanWithResultAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PlanExecutionResult
-            {
+            .ReturnsAsync(new PlanExecutionResult {
                 Success = true,
                 Result = "模拟执行结果",
                 ExecutionTimeMs = 100
@@ -30,12 +27,10 @@ public class UltraplanCommandTests
         _command = new UltraplanCommand();
     }
 
-    private ChatCommandContext CreateContext(string args) => new()
-    {
+    private ChatCommandContext CreateContext(string args) => new() {
         Arguments = args,
         CancellationToken = CancellationToken.None,
-        Services = new CommandServiceProvider(new CommandServices
-        {
+        Services = new CommandServiceProvider(new CommandServices {
             ChatService = _chatServiceMock.Object,
             CodeService = Mock.Of<ICodeService>(),
             PlanService = _planServiceMock.Object,
@@ -44,8 +39,7 @@ public class UltraplanCommandTests
     };
 
     [Fact]
-    public async Task Execute_WithExecuteFlag_ShouldInvokePlanServiceExecutePlanWithResultAsync()
-    {
+    public async Task Execute_WithExecuteFlag_ShouldInvokePlanServiceExecutePlanWithResultAsync() {
         var context = CreateContext("test-goal --execute");
 
         await _command.ExecuteAsync(context).ConfigureAwait(true);
@@ -58,8 +52,7 @@ public class UltraplanCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithExecuteFlag_ShouldNotInvokeChatServiceSendMessage()
-    {
+    public async Task Execute_WithExecuteFlag_ShouldNotInvokeChatServiceSendMessage() {
         var context = CreateContext("test-goal --execute");
 
         await _command.ExecuteAsync(context).ConfigureAwait(true);
@@ -70,8 +63,7 @@ public class UltraplanCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithoutExecuteFlag_ShouldInvokeChatServiceSendMessage()
-    {
+    public async Task Execute_WithoutExecuteFlag_ShouldInvokeChatServiceSendMessage() {
         var context = CreateContext("test-goal");
 
         await _command.ExecuteAsync(context).ConfigureAwait(true);
@@ -84,8 +76,7 @@ public class UltraplanCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithoutExecuteFlag_ShouldNotInvokePlanService()
-    {
+    public async Task Execute_WithoutExecuteFlag_ShouldNotInvokePlanService() {
         var context = CreateContext("test-goal");
 
         await _command.ExecuteAsync(context).ConfigureAwait(true);
@@ -96,8 +87,7 @@ public class UltraplanCommandTests
     }
 
     [Fact]
-    public async Task Execute_WhenPlanServiceThrows_ShouldReturnContinueAndNotCrash()
-    {
+    public async Task Execute_WhenPlanServiceThrows_ShouldReturnContinueAndNotCrash() {
         _planServiceMock
             .Setup(p => p.ExecutePlanWithResultAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("模拟执行失败"));
@@ -111,28 +101,24 @@ public class UltraplanCommandTests
     }
 
     [Fact]
-    public void Name_ShouldReturnUltraplan()
-    {
+    public void Name_ShouldReturnUltraplan() {
         _command.Name.Should().Be("ultraplan");
     }
 
     [Fact]
-    public void Description_ShouldNotBeEmpty()
-    {
+    public void Description_ShouldNotBeEmpty() {
         _command.Description.Should().NotBeEmpty();
     }
 
     [Fact]
-    public void Usage_ShouldNotBeEmpty()
-    {
+    public void Usage_ShouldNotBeEmpty() {
         _command.Usage.Should().NotBeEmpty();
     }
 
     [Theory]
     [InlineData("--execute")]
     [InlineData("-e")]
-    public async Task Execute_WithExecuteAlias_ShouldInvokePlanService(string alias)
-    {
+    public async Task Execute_WithExecuteAlias_ShouldInvokePlanService(string alias) {
         var context = CreateContext($"goal {alias}");
 
         await _command.ExecuteAsync(context).ConfigureAwait(true);
@@ -145,8 +131,7 @@ public class UltraplanCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithEmptyArguments_ShouldShowHelpAndContinue()
-    {
+    public async Task Execute_WithEmptyArguments_ShouldShowHelpAndContinue() {
         var context = CreateContext("");
 
         var result = await _command.ExecuteAsync(context).ConfigureAwait(true);

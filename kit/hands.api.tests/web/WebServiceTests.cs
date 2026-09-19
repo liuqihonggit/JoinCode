@@ -1,8 +1,7 @@
 namespace Core.Tests.Web;
 
 
-public sealed class WebServiceTests
-{
+public sealed class WebServiceTests {
     private static readonly IModelConfigLoader Loader = new ModelConfigLoader();
     private static readonly string DefaultAnthropicModelId = Loader.GetDefaultModelId("anthropic");
     private static readonly string DefaultAnthropicFastModelId = Loader.GetDefaultFastModelId("anthropic");
@@ -10,8 +9,7 @@ public sealed class WebServiceTests
     private readonly Mock<IApiClient> _apiClientMock = new();
     private readonly Mock<IQueryService> _queryServiceMock = new();
 
-    private static ProviderConfig CreateProviderConfig(bool supportsWebSearch = true)
-    {
+    private static ProviderConfig CreateProviderConfig(bool supportsWebSearch = true) {
         var definitionMock = new Mock<IProviderDefinition>();
         definitionMock.SetupGet(d => d.SupportsWebSearch).Returns(supportsWebSearch);
         definitionMock.SetupGet(d => d.DefaultFastModelId).Returns(DefaultAnthropicFastModelId);
@@ -24,15 +22,13 @@ public sealed class WebServiceTests
         definitionMock.Setup(d => d.GetChatEndpoint(It.IsAny<ProviderConfig>())).Returns("v1/messages");
         definitionMock.Setup(d => d.ConfigureHttpClient(It.IsAny<HttpClient>(), It.IsAny<ProviderConfig>()));
 
-        return new ProviderConfig
-        {
+        return new ProviderConfig {
             Vendor = VendorKind.Anthropic.ToValue(),
             Definition = definitionMock.Object
         };
     }
 
-    private WebService CreateService(bool supportsWebSearch = true)
-    {
+    private WebService CreateService(bool supportsWebSearch = true) {
         var cache = new WebFetchCache();
         var domainChecker = new DomainBlocklistChecker(_apiClientMock.Object, cache);
         var binaryStorage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem());
@@ -59,8 +55,7 @@ public sealed class WebServiceTests
     #region SearchAsync - 输入验证
 
     [Fact]
-    public async Task SearchAsync_EmptyQuery_ReturnsError()
-    {
+    public async Task SearchAsync_EmptyQuery_ReturnsError() {
         var service = CreateService();
         var result = await service.SearchAsync("").ConfigureAwait(true);
         result.Success.Should().BeFalse();
@@ -68,8 +63,7 @@ public sealed class WebServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_WhitespaceQuery_ReturnsError()
-    {
+    public async Task SearchAsync_WhitespaceQuery_ReturnsError() {
         var service = CreateService();
         var result = await service.SearchAsync("   ").ConfigureAwait(true);
         result.Success.Should().BeFalse();
@@ -77,8 +71,7 @@ public sealed class WebServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_BothAllowedAndBlockedDomains_ReturnsError()
-    {
+    public async Task SearchAsync_BothAllowedAndBlockedDomains_ReturnsError() {
         var service = CreateService();
         var result = await service.SearchAsync("test",
             allowedDomains: ["example.com"],
@@ -92,8 +85,7 @@ public sealed class WebServiceTests
     #region SearchAsync - Provider 检查
 
     [Fact]
-    public async Task SearchAsync_ProviderNotSupportWebSearch_ReturnsError()
-    {
+    public async Task SearchAsync_ProviderNotSupportWebSearch_ReturnsError() {
         var service = CreateService(supportsWebSearch: false);
         var result = await service.SearchAsync("test query").ConfigureAwait(true);
         result.Success.Should().BeFalse();
@@ -101,8 +93,7 @@ public sealed class WebServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_NoQueryService_ReturnsError()
-    {
+    public async Task SearchAsync_NoQueryService_ReturnsError() {
         var service = new WebService(
             new MiddlewarePipeline<WebContext>(Enumerable.Empty<IMiddleware<WebContext>>()),
             new WebFetchCache(),
@@ -117,11 +108,9 @@ public sealed class WebServiceTests
     #region SearchAsync - 结构化搜索结果提取
 
     [Fact]
-    public async Task SearchAsync_WithWebSearchResultsMetadata_ExtractsStructuredResults()
-    {
+    public async Task SearchAsync_WithWebSearchResultsMetadata_ExtractsStructuredResults() {
         var searchResultsJson = /*lang=json,strict*/ """[{"title":"Example","url":"https://example.com"}]""";
-        var metadata = new Dictionary<string, JsonElement>
-        {
+        var metadata = new Dictionary<string, JsonElement> {
             ["web_search_results"] = JsonDocument.Parse($"[{searchResultsJson}]").RootElement.Clone()
         };
 
@@ -144,11 +133,9 @@ public sealed class WebServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_WithMultipleSearchResults_DeduplicatesByUrl()
-    {
+    public async Task SearchAsync_WithMultipleSearchResults_DeduplicatesByUrl() {
         var searchResultsJson = /*lang=json,strict*/ """[{"title":"Example","url":"https://example.com"},{"title":"Example Again","url":"https://example.com"}]""";
-        var metadata = new Dictionary<string, JsonElement>
-        {
+        var metadata = new Dictionary<string, JsonElement> {
             ["web_search_results"] = JsonDocument.Parse($"[{searchResultsJson}]").RootElement.Clone()
         };
 
@@ -173,8 +160,7 @@ public sealed class WebServiceTests
     #region SearchAsync - 回退到文本解析
 
     [Fact]
-    public async Task SearchAsync_NoMetadata_FallsBackToTextExtraction()
-    {
+    public async Task SearchAsync_NoMetadata_FallsBackToTextExtraction() {
         _queryServiceMock
             .Setup(q => q.GetApiMessageContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),
@@ -196,8 +182,7 @@ public sealed class WebServiceTests
     #region SearchAsync - 系统提示词注入
 
     [Fact]
-    public async Task SearchAsync_IncludesSystemPromptInRequest()
-    {
+    public async Task SearchAsync_IncludesSystemPromptInRequest() {
         MessageList? capturedHistory = null;
         _queryServiceMock
             .Setup(q => q.GetApiMessageContentsAsync(
@@ -223,8 +208,7 @@ public sealed class WebServiceTests
     #region SearchAsync - ExtensionData 传递
 
     [Fact]
-    public async Task SearchAsync_PassesWebSearchToolInExtensionData()
-    {
+    public async Task SearchAsync_PassesWebSearchToolInExtensionData() {
         ChatOptions? capturedOptions = null;
         _queryServiceMock
             .Setup(q => q.GetApiMessageContentsAsync(
@@ -246,8 +230,7 @@ public sealed class WebServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_WithAllowedDomains_PassesInExtensionData()
-    {
+    public async Task SearchAsync_WithAllowedDomains_PassesInExtensionData() {
         ChatOptions? capturedOptions = null;
         _queryServiceMock
             .Setup(q => q.GetApiMessageContentsAsync(
@@ -269,8 +252,7 @@ public sealed class WebServiceTests
     #region SearchAsync - 错误处理
 
     [Fact]
-    public async Task SearchAsync_QueryServiceThrows_ReturnsError()
-    {
+    public async Task SearchAsync_QueryServiceThrows_ReturnsError() {
         _queryServiceMock
             .Setup(q => q.GetApiMessageContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions>(),

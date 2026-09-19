@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// Agent 角色档案 — 值对象，封装角色的提示词/工具集/权限等配置
 /// 通过 IAgentRoleRegistry.GetProfile(role, variant) 获取
 /// </summary>
-public sealed class AgentRoleProfile
-{
+public sealed class AgentRoleProfile {
     /// <summary>
     /// 角色 — Coordinator 或 Executor
     /// </summary>

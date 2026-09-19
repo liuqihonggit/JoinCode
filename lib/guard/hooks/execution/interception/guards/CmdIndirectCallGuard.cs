@@ -14,16 +14,14 @@ namespace Core.Hooks.Execution.Interception.Guards;
 /// </para>
 /// </summary>
 [Register(typeof(ICommandGuard), ServiceLifetime.Singleton)]
-public sealed partial class CmdIndirectCallGuard : ICommandGuard
-{
+public sealed partial class CmdIndirectCallGuard : ICommandGuard {
     private readonly ICommandDangerClassifier _classifier;
 
     /// <summary>
     /// 构造间接调用守卫 — DI 注入分类器
     /// </summary>
     /// <param name="classifier">命令危险分类器（用于递归分类内层命令）</param>
-    public CmdIndirectCallGuard(ICommandDangerClassifier classifier)
-    {
+    public CmdIndirectCallGuard(ICommandDangerClassifier classifier) {
         _classifier = classifier ?? throw new ArgumentNullException(nameof(classifier));
     }
 
@@ -34,8 +32,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
     public int Priority => 800;
 
     /// <inheritdoc/>
-    public bool CanHandle(string command, GuardContext context)
-    {
+    public bool CanHandle(string command, GuardContext context) {
         if (string.IsNullOrWhiteSpace(command))
             return false;
 
@@ -43,16 +40,14 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
     }
 
     /// <inheritdoc/>
-    public CommandDecision Evaluate(string command, GuardContext context)
-    {
+    public CommandDecision Evaluate(string command, GuardContext context) {
         var innerCommand = ExtractInnerCommand(command);
         if (innerCommand is null)
             return new CommandDecision.Allow();
 
         var innerLevel = _classifier.Classify(innerCommand);
 
-        if (innerLevel.Level == CommandDangerLevel.Dangerous)
-        {
+        if (innerLevel.Level == CommandDangerLevel.Dangerous) {
             return new CommandDecision.Deny(
                 ToolDiagnostic.Create(
                     "JCC9003",
@@ -60,8 +55,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
                     "建议", "请直接执行内层命令（不通过 cmd /c 间接调用），以便命令拦截系统正确分类"));
         }
 
-        if (innerLevel.Level == CommandDangerLevel.Execution)
-        {
+        if (innerLevel.Level == CommandDangerLevel.Execution) {
             return new CommandDecision.Deny(
                 ToolDiagnostic.Create(
                     "JCC9004",
@@ -77,8 +71,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
     /// </summary>
     /// <param name="command">完整命令字符串</param>
     /// <returns>内层命令字符串，非间接调用返回 null</returns>
-    public static string? ExtractInnerCommand(string command)
-    {
+    public static string? ExtractInnerCommand(string command) {
         if (string.IsNullOrWhiteSpace(command))
             return null;
 
@@ -93,8 +86,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
         return null;
     }
 
-    private static bool TryExtractCmdInner(ReadOnlySpan<char> span, out string? inner)
-    {
+    private static bool TryExtractCmdInner(ReadOnlySpan<char> span, out string? inner) {
         inner = null;
 
         if (!span.StartsWith("cmd", StringComparison.OrdinalIgnoreCase))
@@ -116,8 +108,7 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
         return true;
     }
 
-    private static bool TryExtractPwshInner(ReadOnlySpan<char> span, out string? inner)
-    {
+    private static bool TryExtractPwshInner(ReadOnlySpan<char> span, out string? inner) {
         inner = null;
 
         var isPwsh = span.StartsWith("powershell", StringComparison.OrdinalIgnoreCase) ||
@@ -142,13 +133,11 @@ public sealed partial class CmdIndirectCallGuard : ICommandGuard
         return true;
     }
 
-    private static string ExtractQuotedOrRaw(ReadOnlySpan<char> span)
-    {
+    private static string ExtractQuotedOrRaw(ReadOnlySpan<char> span) {
         if (span.IsEmpty)
             return string.Empty;
 
-        if (span[0] == '"')
-        {
+        if (span[0] == '"') {
             var end = span.Slice(1).IndexOf('"');
             return end >= 0 ? span.Slice(1, end).ToString() : span.Slice(1).ToString();
         }

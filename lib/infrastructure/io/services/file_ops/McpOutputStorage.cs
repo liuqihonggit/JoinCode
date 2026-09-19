@@ -7,8 +7,7 @@ namespace Infrastructure.IO;
 /// 静态辅助方法见 JoinCode.Abstractions.LLM.Chat.McpBinaryHelper
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage), ServiceLifetime.Singleton)]
-public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage
-{
+public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IMcpOutputStorage {
     private readonly ILogger<McpOutputStorage>? _logger;
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
@@ -18,8 +17,7 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public McpOutputStorage(IFileSystem fs, ILogger<McpOutputStorage>? logger = null)
-    {
+    public McpOutputStorage(IFileSystem fs, ILogger<McpOutputStorage>? logger = null) {
         _fs = fs;
         _logger = logger;
         _baseDir = Path.Combine(
@@ -35,8 +33,7 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
     /// <param name="mimeType">可选 MIME 类型,用于推断扩展名</param>
     /// <param name="persistId">持久化标识,用于生成文件名</param>
     /// <returns>持久化成功时返回结果对象,失败时返回 null</returns>
-    public JoinCode.Abstractions.LLM.Chat.PersistBinaryResult? PersistBinaryContent(ReadOnlySpan<byte> bytes, string? mimeType, string persistId)
-    {
+    public JoinCode.Abstractions.LLM.Chat.PersistBinaryResult? PersistBinaryContent(ReadOnlySpan<byte> bytes, string? mimeType, string persistId) {
         var ext = ExtensionForMimeType(mimeType);
         var dir = _baseDir;
         _fs.CreateDirectory(dir);
@@ -44,20 +41,16 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
         var filename = $"{SanitizePersistId(persistId)}.{ext}";
         var filepath = Path.Combine(dir, filename);
 
-        try
-        {
+        try {
             _fs.WriteAllBytes(filepath, bytes.ToArray());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to persist binary content to {Filepath}", filepath);
             return null;
         }
 
         _logger?.LogDebug("Persisted binary content to {Filepath}, size={Size}, ext={Ext}", filepath, bytes.Length, ext);
 
-        return new JoinCode.Abstractions.LLM.Chat.PersistBinaryResult
-        {
+        return new JoinCode.Abstractions.LLM.Chat.PersistBinaryResult {
             Filepath = filepath,
             Size = bytes.Length,
             Ext = ext
@@ -67,8 +60,7 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
     /// <summary>
     /// MIME 类型到扩展名映射 — 对齐 TS extensionForMimeType
     /// </summary>
-    private static string ExtensionForMimeType(string? mimeType)
-    {
+    private static string ExtensionForMimeType(string? mimeType) {
         if (string.IsNullOrEmpty(mimeType))
             return "bin";
 
@@ -78,21 +70,18 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
             mt = mt[..semiIndex];
         mt = mt.Trim();
 
-        foreach (var (mime, ext) in MimeTypeExtensions)
-        {
+        foreach (var (mime, ext) in MimeTypeExtensions) {
             if (mt.SequenceEqual(mime.Span))
                 return ext;
         }
 
         // 未知类型用子类型作为扩展名
         var slashIndex = mt.IndexOf('/');
-        if (slashIndex >= 0 && slashIndex < mt.Length - 1)
-        {
+        if (slashIndex >= 0 && slashIndex < mt.Length - 1) {
             var subType = mt[(slashIndex + 1)..];
             var extChars = new char[subType.Length];
             subType.CopyTo(extChars);
-            for (var i = 0; i < extChars.Length; i++)
-            {
+            for (var i = 0; i < extChars.Length; i++) {
                 if (extChars[i] == '+')
                     extChars[i] = '-';
             }
@@ -102,11 +91,9 @@ public sealed partial class McpOutputStorage : ServiceEntity, JoinCode.Abstracti
         return "bin";
     }
 
-    private static string SanitizePersistId(string id)
-    {
+    private static string SanitizePersistId(string id) {
         var chars = id.ToCharArray();
-        for (var i = 0; i < chars.Length; i++)
-        {
+        for (var i = 0; i < chars.Length; i++) {
             var c = chars[i];
             if (char.IsLetterOrDigit(c) || c == '-' || c == '_' || c == '.')
                 continue;

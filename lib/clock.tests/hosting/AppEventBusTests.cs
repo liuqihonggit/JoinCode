@@ -1,10 +1,8 @@
 namespace Clock.Tests.Unit.Hosting;
 
-public sealed class AppEventBusTests
-{
+public sealed class AppEventBusTests {
     [Fact]
-    public async Task PublishAsync_SubscriberReceivesEvent()
-    {
+    public async Task PublishAsync_SubscriberReceivesEvent() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
@@ -20,8 +18,7 @@ public sealed class AppEventBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_MultipleSubscribers_AllReceive()
-    {
+    public async Task PublishAsync_MultipleSubscribers_AllReceive() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         var count = 0;
@@ -35,8 +32,7 @@ public sealed class AppEventBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_UnsubscribedKind_NotReceived()
-    {
+    public async Task PublishAsync_UnsubscribedKind_NotReceived() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
@@ -48,8 +44,7 @@ public sealed class AppEventBusTests
     }
 
     [Fact]
-    public async Task SubscribeAsync_Unsubscribe_StopsReceiving()
-    {
+    public async Task SubscribeAsync_Unsubscribe_StopsReceiving() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         var count = 0;
@@ -64,8 +59,7 @@ public sealed class AppEventBusTests
     }
 
     [Fact]
-    public async Task SubscribeAllAsync_ReceivesAllKinds()
-    {
+    public async Task SubscribeAllAsync_ReceivesAllKinds() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         var received = new List<AppEvent>();
@@ -80,8 +74,7 @@ public sealed class AppEventBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_WithSessionId_PreservedInEvent()
-    {
+    public async Task PublishAsync_WithSessionId_PreservedInEvent() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;
@@ -94,8 +87,7 @@ public sealed class AppEventBusTests
     }
 
     [Fact]
-    public async Task PublishAsync_WithDataPayload_PreservedInEvent()
-    {
+    public async Task PublishAsync_WithDataPayload_PreservedInEvent() {
         var messageBus = new ServiceMessageBus();
         var eventBus = new AppEventBus(messageBus);
         AppEvent? received = null;

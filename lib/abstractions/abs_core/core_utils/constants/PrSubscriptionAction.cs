@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// PR订阅操作类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 PrSubscriptionActionEnumConstants + PrSubscriptionActionExtensions
 /// </summary>
-public enum PrSubscriptionAction
-{
+public enum PrSubscriptionAction {
     /// <summary>订阅PR</summary>
     [EnumValue("subscribe")] Subscribe = 0,
 

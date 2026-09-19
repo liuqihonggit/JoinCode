@@ -4,26 +4,22 @@ namespace Infrastructure.Pipeline.Tests;
 /// <summary>
 /// LoggingScopeMiddleware 单元测试 — 验证 scope 传播、ObjectId.Empty、Func 选择器
 /// </summary>
-public sealed class LoggingScopeMiddlewareTests
-{
+public sealed class LoggingScopeMiddlewareTests {
     // === ObjectId.Empty ===
 
     [Fact]
-    public void ObjectId_Empty_IsEmpty_IsTrue()
-    {
+    public void ObjectId_Empty_IsEmpty_IsTrue() {
         ObjectId.Empty.IsEmpty.Should().BeTrue();
         default(ObjectId).IsEmpty.Should().BeTrue();
     }
 
     [Fact]
-    public void ObjectId_Empty_ToString_IsNone0()
-    {
+    public void ObjectId_Empty_ToString_IsNone0() {
         ObjectId.Empty.ToString().Should().Be("None:0");
     }
 
     [Fact]
-    public void ObjectId_Assigned_IsEmpty_IsFalse()
-    {
+    public void ObjectId_Assigned_IsEmpty_IsFalse() {
         var id = new ObjectId(ObjectType.Agent, "test");
         id.IsEmpty.Should().BeFalse();
     }
@@ -31,8 +27,7 @@ public sealed class LoggingScopeMiddlewareTests
     // === LogScopeState ===
 
     [Fact]
-    public void LogScopeState_AllFields_SetCorrectly()
-    {
+    public void LogScopeState_AllFields_SetCorrectly() {
         var objectId = new ObjectId(ObjectType.Agent, "test-agent");
 
         var state = new LogScopeState("trace123", "span456", objectId);
@@ -49,8 +44,7 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public void LogScopeState_EmptyObjectId_OutputsNull()
-    {
+    public void LogScopeState_EmptyObjectId_OutputsNull() {
         var state = new LogScopeState(null, null, ObjectId.Empty);
 
         state[0].Value.Should().BeNull();
@@ -60,8 +54,7 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public void LogScopeState_ToString_WithAllFields()
-    {
+    public void LogScopeState_ToString_WithAllFields() {
         var objectId = new ObjectId(ObjectType.Agent, "test-agent");
         var state = new LogScopeState("trace123", "span456", objectId);
 
@@ -75,8 +68,7 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public void LogScopeState_ToString_WithEmptyObjectId_NoTrailingSpace()
-    {
+    public void LogScopeState_ToString_WithEmptyObjectId_NoTrailingSpace() {
         var state = new LogScopeState("trace123", null, ObjectId.Empty);
 
         var str = state.ToString();
@@ -85,8 +77,7 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public void LogScopeState_EnumeratesAllFields()
-    {
+    public void LogScopeState_EnumeratesAllFields() {
         var objectId = new ObjectId(ObjectType.Session, "my-session");
         var state = new LogScopeState("t", "s", objectId);
 
@@ -100,15 +91,13 @@ public sealed class LoggingScopeMiddlewareTests
     // === 中间件默认选择器 ===
 
     [Fact]
-    public async Task Middleware_DefaultSelector_Entity_GetsObjectId()
-    {
+    public async Task Middleware_DefaultSelector_Entity_GetsObjectId() {
         var entity = new TestEntity(ObjectType.Agent, "test-entity");
         var logScopeStates = new List<LogScopeState>();
 
         var middleware = new LoggingScopeMiddleware<TestEntity>(
             logger: null,
-            objectIdSelector: ctx =>
-            {
+            objectIdSelector: ctx => {
                 var s = new LogScopeState(null, null, ctx.ObjectId);
                 logScopeStates.Add(s);
                 return ctx.ObjectId;
@@ -121,9 +110,8 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public async Task Middleware_DefaultSelector_NonEntity_GetsEmpty()
-    {
-        ObjectId capturedObjectId = ObjectId.Empty;
+    public async Task Middleware_DefaultSelector_NonEntity_GetsEmpty() {
+        var capturedObjectId = ObjectId.Empty;
 
         var middleware = new LoggingScopeMiddleware<string>();
 
@@ -133,8 +121,7 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public async Task Middleware_CustomSelector_ExtractsObjectId()
-    {
+    public async Task Middleware_CustomSelector_ExtractsObjectId() {
         var entity = new TestEntity(ObjectType.Session, "my-session");
         var context = new TestContextWithObjectId(entity.ObjectId);
 
@@ -149,8 +136,7 @@ public sealed class LoggingScopeMiddlewareTests
     // === Pipeline 集成 ===
 
     [Fact]
-    public async Task WithLoggingScope_DefaultSelector_WorksInPipeline()
-    {
+    public async Task WithLoggingScope_DefaultSelector_WorksInPipeline() {
         var executionLog = new List<string>();
 
         var pipeline = new PipelineBuilder<TestEntity>()
@@ -165,8 +151,7 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public async Task WithLoggingScope_CustomSelector_WorksInPipeline()
-    {
+    public async Task WithLoggingScope_CustomSelector_WorksInPipeline() {
         var executionLog = new List<string>();
 
         var pipeline = new PipelineBuilder<TestContextWithObjectId>()
@@ -183,8 +168,7 @@ public sealed class LoggingScopeMiddlewareTests
     // === LogScope 静态工具 ===
 
     [Fact]
-    public void LogScope_Begin_WithObjectId_ReturnsScope()
-    {
+    public void LogScope_Begin_WithObjectId_ReturnsScope() {
         var objectId = new ObjectId(ObjectType.Agent, "logscope-test");
         var logger = NullLogger.Instance;
 
@@ -195,8 +179,7 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public void LogScope_Begin_WithEmptyObjectId_ReturnsScope()
-    {
+    public void LogScope_Begin_WithEmptyObjectId_ReturnsScope() {
         var logger = NullLogger.Instance;
 
         var scope = LogScope.Begin(logger, ObjectId.Empty);
@@ -206,8 +189,7 @@ public sealed class LoggingScopeMiddlewareTests
     }
 
     [Fact]
-    public void LogScope_BeginTrace_WithNoActivity_ReturnsNull()
-    {
+    public void LogScope_BeginTrace_WithNoActivity_ReturnsNull() {
         var logger = NullLogger.Instance;
 
         var scope = LogScope.BeginTrace(logger);
@@ -217,29 +199,23 @@ public sealed class LoggingScopeMiddlewareTests
 
     // === 测试辅助类 ===
 
-    private sealed class TestEntity(ObjectType type, string? displayName = null) : Entity(type, displayName: displayName)
-    {
+    private sealed class TestEntity(ObjectType type, string? displayName = null) : Entity(type, displayName: displayName) {
         public override void Dispose() => base.Dispose();
     }
 
-    private sealed class TestContextWithObjectId(ObjectId objectId)
-    {
+    private sealed class TestContextWithObjectId(ObjectId objectId) {
         public ObjectId ObjectId { get; } = objectId;
     }
 
-    private sealed class TrackingMiddleware(string label, List<string> log) : IMiddleware<TestEntity>
-    {
-        public async Task InvokeAsync(TestEntity context, MiddlewareDelegate<TestEntity> next, CancellationToken ct)
-        {
+    private sealed class TrackingMiddleware(string label, List<string> log) : IMiddleware<TestEntity> {
+        public async Task InvokeAsync(TestEntity context, MiddlewareDelegate<TestEntity> next, CancellationToken ct) {
             log.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }
     }
 
-    private sealed class TrackingContextMiddleware(string label, List<string> log) : IMiddleware<TestContextWithObjectId>
-    {
-        public async Task InvokeAsync(TestContextWithObjectId context, MiddlewareDelegate<TestContextWithObjectId> next, CancellationToken ct)
-        {
+    private sealed class TrackingContextMiddleware(string label, List<string> log) : IMiddleware<TestContextWithObjectId> {
+        public async Task InvokeAsync(TestContextWithObjectId context, MiddlewareDelegate<TestContextWithObjectId> next, CancellationToken ct) {
             log.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }

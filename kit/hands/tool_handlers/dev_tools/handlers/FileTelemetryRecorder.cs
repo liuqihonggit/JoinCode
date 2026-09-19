@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 文件遥测记录器 — 封装文件操作的遥测上报
 /// 从 FileToolHandlers 提取,统一管理 4 类遥测: 操作指标/读取详情/PDF读取/操作哈希
 /// </summary>
-internal sealed class FileTelemetryRecorder
-{
+internal sealed class FileTelemetryRecorder {
     private readonly ITelemetryService? _telemetry;
 
     /// <summary>构造 FileTelemetryRecorder</summary>
@@ -22,8 +21,7 @@ internal sealed class FileTelemetryRecorder
     /// </summary>
     public void RecordFileReadTelemetry(
         string filePath, string content, int totalLines, int readLines,
-        int? offset, int? limit)
-    {
+        int? offset, int? limit) {
         if (_telemetry is null) return;
 
         var ext = Path.GetExtension(filePath).TrimStart('.');
@@ -35,8 +33,7 @@ internal sealed class FileTelemetryRecorder
         var isSessionTranscript = filePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
             && filePath.Contains("projects", StringComparison.OrdinalIgnoreCase);
 
-        var tags = new Dictionary<string, string>
-        {
+        var tags = new Dictionary<string, string> {
             ["total_lines"] = totalLines.ToString(CultureInfo.InvariantCulture),
             ["read_lines"] = readLines.ToString(CultureInfo.InvariantCulture),
             ["total_bytes"] = content.Length.ToString(CultureInfo.InvariantCulture),
@@ -45,12 +42,10 @@ internal sealed class FileTelemetryRecorder
             ["is_session_memory"] = isSessionMemory.ToString(),
             ["is_session_transcript"] = isSessionTranscript.ToString(),
         };
-        if (limit.HasValue)
-        {
+        if (limit.HasValue) {
             tags["limit"] = limit.Value.ToString(CultureInfo.InvariantCulture);
         }
-        if (analyticsExt is not null)
-        {
+        if (analyticsExt is not null) {
             tags["ext"] = analyticsExt;
         }
 
@@ -66,12 +61,10 @@ internal sealed class FileTelemetryRecorder
     /// 记录 PDF 读取遥测。
     /// 对齐 TS: tengu_pdf_page_extraction — PDF 页面提取事件
     /// </summary>
-    public void RecordPdfReadTelemetry(string filePath, long fileSize, bool success)
-    {
+    public void RecordPdfReadTelemetry(string filePath, long fileSize, bool success) {
         if (_telemetry is null) return;
 
-        var tags = new Dictionary<string, string>
-        {
+        var tags = new Dictionary<string, string> {
             ["success"] = success.ToString(),
             ["file_size"] = fileSize.ToString(CultureInfo.InvariantCulture),
         };
@@ -83,8 +76,7 @@ internal sealed class FileTelemetryRecorder
     /// 记录文件操作遥测（路径哈希脱敏）。
     /// 对齐 TS: tengu_file_operation — 通用文件操作事件
     /// </summary>
-    public void RecordFileOperationTelemetry(string filePath, string operation)
-    {
+    public void RecordFileOperationTelemetry(string filePath, string operation) {
         if (_telemetry is null) return;
 
         var pathHash = SecurityPatterns.ComputeShortHash(filePath);

@@ -10,15 +10,13 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("constraint", Type = "array", Description = "约束条件,可多次指定 --constraint", ItemsType = "string", ItemsDescription = "单条约束文本")]
 [ChatCommandArg("budget", Type = "number", Description = "Token 预算上限")]
 [ChatCommandArg("cron", Type = "string", Description = "Cron 表达式(5 字段),启用定时目标模式")]
-public sealed partial class GoalCommand : ChatCommandBase
-{
+public sealed partial class GoalCommand : ChatCommandBase {
     private readonly ILogger<GoalCommand>? _logger;
     /// <summary>
     /// 构造 GoalCommand 实例。
     /// </summary>
     /// <param name="logger">可选的日志器。</param>
-    public GoalCommand(ILogger<GoalCommand>? logger = null)
-    {
+    public GoalCommand(ILogger<GoalCommand>? logger = null) {
         _logger = logger;
     }
 
@@ -27,32 +25,25 @@ public sealed partial class GoalCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>命令执行结果。</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var registry = context.GetCommandServices().GoalRegistry;
-        if (registry is not null)
-        {
+        if (registry is not null) {
             return await ExecuteViaRegistryAsync(registry, context).ConfigureAwait(false);
         }
 
         var goalEngine = context.GetCommandServices().GoalEngine;
-        if (goalEngine is null)
-        {
+        if (goalEngine is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}错误: 目标引擎未注册{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args))
-        {
+        if (string.IsNullOrEmpty(args)) {
             await goalEngine.RehydrateAsync(context.CancellationToken).ConfigureAwait(false);
-            if (goalEngine.CurrentState is not null)
-            {
+            if (goalEngine.CurrentState is not null) {
                 ShowStatus(goalEngine);
-            }
-            else
-            {
+            } else {
                 await StartGoalSpecCollectionAsync(goalEngine, context, null, null, null).ConfigureAwait(false);
             }
             return ChatCommandResult.Continue();
@@ -61,65 +52,55 @@ public sealed partial class GoalCommand : ChatCommandBase
         var parts = args.Split(' ', 2);
         var subCommand = parts[0].ToLowerInvariant();
 
-        switch (subCommand)
-        {
+        switch (subCommand) {
             case ResumeLifecycleEnumConstants.Pause:
-                await goalEngine.PauseAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleEnumConstants.Reset}");
-                break;
+            await goalEngine.PauseAsync(context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleEnumConstants.Reset}");
+            break;
 
             case ResumeLifecycleEnumConstants.Resume:
-                if (goalEngine.CurrentState is null)
-                {
-                    await goalEngine.RehydrateAsync(context.CancellationToken).ConfigureAwait(false);
-                }
-                await goalEngine.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleEnumConstants.Reset}");
-                break;
+            if (goalEngine.CurrentState is null) {
+                await goalEngine.RehydrateAsync(context.CancellationToken).ConfigureAwait(false);
+            }
+            await goalEngine.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleEnumConstants.Reset}");
+            break;
 
             case ResumeLifecycleEnumConstants.Clear:
             case ResumeLifecycleEnumConstants.Stop:
             case ResumeLifecycleEnumConstants.Off:
             case ResumeLifecycleEnumConstants.Reset:
             case ResumeLifecycleEnumConstants.Cancel:
-                await goalEngine.ClearAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine("目标已清除");
-                break;
+            await goalEngine.ClearAsync(context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine("目标已清除");
+            break;
 
             default:
-                var parsed = ParseGoalArgs(args);
-                if (parsed.IsCron)
-                {
-                    await ExecuteCronGoalAsync(goalEngine, context, parsed).ConfigureAwait(false);
-                }
-                else
-                {
-                    await StartGoalSpecCollectionAsync(
-                        goalEngine, context,
-                        parsed.Objective,
-                        parsed.Constraints,
-                        parsed.TokenBudget).ConfigureAwait(false);
-                }
-                break;
+            var parsed = ParseGoalArgs(args);
+            if (parsed.IsCron) {
+                await ExecuteCronGoalAsync(goalEngine, context, parsed).ConfigureAwait(false);
+            } else {
+                await StartGoalSpecCollectionAsync(
+                    goalEngine, context,
+                    parsed.Objective,
+                    parsed.Constraints,
+                    parsed.TokenBudget).ConfigureAwait(false);
+            }
+            break;
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private async Task<ChatCommandResult> ExecuteViaRegistryAsync(IGoalRegistry registry, ChatCommandContext context)
-    {
+    private async Task<ChatCommandResult> ExecuteViaRegistryAsync(IGoalRegistry registry, ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args))
-        {
+        if (string.IsNullOrEmpty(args)) {
             await registry.RehydrateAllAsync(context.CancellationToken).ConfigureAwait(false);
             var goals = await registry.ListActiveGoalsAsync(context.CancellationToken).ConfigureAwait(false);
-            if (goals.Count > 0)
-            {
+            if (goals.Count > 0) {
                 ShowGoalsList(goals);
-            }
-            else
-            {
+            } else {
                 await StartGoalSpecCollectionViaRegistryAsync(registry, context, null, null, null).ConfigureAwait(false);
             }
             return ChatCommandResult.Continue();
@@ -128,44 +109,40 @@ public sealed partial class GoalCommand : ChatCommandBase
         var parts = args.Split(' ', 2);
         var subCommand = parts[0].ToLowerInvariant();
 
-        switch (subCommand)
-        {
+        switch (subCommand) {
             case ResumeLifecycleEnumConstants.Pause:
-                await registry.PauseAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleEnumConstants.Reset}");
-                break;
+            await registry.PauseAsync(context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine($"{TerminalColors.Warning}◎ /goal 已暂停{AnsiStyleEnumConstants.Reset}");
+            break;
 
             case ResumeLifecycleEnumConstants.Resume:
-                await registry.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleEnumConstants.Reset}");
-                break;
+            await registry.ResumeAsync(context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine($"{TerminalColors.Success}◎ /goal 已恢复{AnsiStyleEnumConstants.Reset}");
+            break;
 
             case ResumeLifecycleEnumConstants.Clear:
             case ResumeLifecycleEnumConstants.Stop:
             case ResumeLifecycleEnumConstants.Off:
             case ResumeLifecycleEnumConstants.Reset:
             case ResumeLifecycleEnumConstants.Cancel:
-                await registry.ClearAsync(context.CancellationToken).ConfigureAwait(false);
-                TerminalHelper.WriteLine("目标已清除");
-                break;
+            await registry.ClearAsync(context.CancellationToken).ConfigureAwait(false);
+            TerminalHelper.WriteLine("目标已清除");
+            break;
 
             default:
-                var parsed = ParseGoalArgs(args);
-                if (parsed.IsCron)
-                {
-                    var goalEngine = context.GetCommandServices().GoalEngine;
-                    if (goalEngine is not null)
-                        await ExecuteCronGoalAsync(goalEngine, context, parsed).ConfigureAwait(false);
-                }
-                else
-                {
-                    await StartGoalSpecCollectionViaRegistryAsync(
-                        registry, context,
-                        parsed.Objective,
-                        parsed.Constraints,
-                        parsed.TokenBudget).ConfigureAwait(false);
-                }
-                break;
+            var parsed = ParseGoalArgs(args);
+            if (parsed.IsCron) {
+                var goalEngine = context.GetCommandServices().GoalEngine;
+                if (goalEngine is not null)
+                    await ExecuteCronGoalAsync(goalEngine, context, parsed).ConfigureAwait(false);
+            } else {
+                await StartGoalSpecCollectionViaRegistryAsync(
+                    registry, context,
+                    parsed.Objective,
+                    parsed.Constraints,
+                    parsed.TokenBudget).ConfigureAwait(false);
+            }
+            break;
         }
 
         return ChatCommandResult.Continue();
@@ -176,8 +153,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         ChatCommandContext context,
         string? initialHint,
         List<string>? presetConstraints,
-        int? tokenBudget)
-    {
+        int? tokenBudget) {
         var prompt = GoalSpecPromptBuilder.Build(initialHint, presetConstraints);
 
         _logger?.LogInformation("启动 GoalSpec 收集流程 via Registry (初始提示: {Hint}, 预填约束: {Count}, 预算: {Budget})",
@@ -193,26 +169,21 @@ public sealed partial class GoalCommand : ChatCommandBase
         if (tokenBudget.HasValue)
             TerminalHelper.WriteLine($"  预算: {tokenBudget.Value} Token");
 
-        try
-        {
+        try {
             var state = await registry.StartAsync(
                 prompt,
                 tokenBudget: tokenBudget,
                 cancellationToken: context.CancellationToken).ConfigureAwait(false);
             ShowGoalState(state);
-        }
-        catch (InvalidOperationException ex)
-        {
+        } catch (InvalidOperationException ex) {
             ChatCommandBase.HandleError("目标执行", ex);
         }
     }
 
-    private static void ShowGoalsList(IReadOnlyList<GoalState> goals)
-    {
+    private static void ShowGoalsList(IReadOnlyList<GoalState> goals) {
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"{TerminalColors.Info}◎ 活跃目标列表 ({goals.Count}){AnsiStyleEnumConstants.Reset}");
-        foreach (var state in goals)
-        {
+        foreach (var state in goals) {
             TerminalHelper.WriteLine($"  [{state.GoalId}] {state.Objective} — {FormatStatus(state.Status)}");
         }
         TerminalHelper.NewLine();
@@ -223,8 +194,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         ChatCommandContext context,
         string? initialHint,
         List<string>? presetConstraints,
-        int? tokenBudget)
-    {
+        int? tokenBudget) {
         var prompt = GoalSpecPromptBuilder.Build(initialHint, presetConstraints);
 
         _logger?.LogInformation("启动 GoalSpec 收集流程 (初始提示: {Hint}, 预填约束: {Count}, 预算: {Budget})",
@@ -233,52 +203,42 @@ public sealed partial class GoalCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal active — GoalSpec 收集模式{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine("  LLM 将逐个询问目标规格字段，收集完成后开始自主工作。");
 
-        if (!string.IsNullOrWhiteSpace(initialHint))
-        {
+        if (!string.IsNullOrWhiteSpace(initialHint)) {
             TerminalHelper.WriteLine($"  初始提示: {initialHint}");
         }
 
-        if (presetConstraints is { Count: > 0 })
-        {
+        if (presetConstraints is { Count: > 0 }) {
             TerminalHelper.WriteLine($"  预填约束: {string.Join(", ", presetConstraints)}");
         }
 
-        if (tokenBudget.HasValue)
-        {
+        if (tokenBudget.HasValue) {
             TerminalHelper.WriteLine($"  预算: {tokenBudget.Value} Token");
         }
 
-        try
-        {
+        try {
             var state = await goalEngine.StartAsync(
                 prompt,
                 tokenBudget: tokenBudget,
                 cancellationToken: context.CancellationToken).ConfigureAwait(false);
             ShowGoalState(state);
-        }
-        catch (InvalidOperationException ex)
-        {
+        } catch (InvalidOperationException ex) {
             ChatCommandBase.HandleError("目标执行", ex);
         }
     }
 
-    private async Task ExecuteCronGoalAsync(IGoalEngine goalEngine, ChatCommandContext context, GoalParseResult parsed)
-    {
-        if (string.IsNullOrWhiteSpace(parsed.CronExpression))
-        {
+    private async Task ExecuteCronGoalAsync(IGoalEngine goalEngine, ChatCommandContext context, GoalParseResult parsed) {
+        if (string.IsNullOrWhiteSpace(parsed.CronExpression)) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}错误: 定时模式需要指定 Cron 表达式{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var cronTaskStore = context.GetCommandServices().CronTaskStore;
-        if (cronTaskStore is null)
-        {
+        if (cronTaskStore is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}错误: Cron 任务存储未注册{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        var request = new CreateCronTaskRequest
-        {
+        var request = new CreateCronTaskRequest {
             CronExpression = parsed.CronExpression,
             Prompt = parsed.Objective,
             IsRecurring = true,
@@ -292,18 +252,15 @@ public sealed partial class GoalCommand : ChatCommandBase
         TerminalHelper.WriteLine($"  任务ID: {cronTask.Id}");
     }
 
-    internal static GoalParseResult ParseGoalArgs(string args)
-    {
+    internal static GoalParseResult ParseGoalArgs(string args) {
         if (args.StartsWith("--cron ", StringComparison.OrdinalIgnoreCase) ||
-            args.StartsWith("-c ", StringComparison.OrdinalIgnoreCase))
-        {
+            args.StartsWith("-c ", StringComparison.OrdinalIgnoreCase)) {
             var rest = args.StartsWith("--cron ", StringComparison.OrdinalIgnoreCase)
                 ? args["--cron ".Length..]
                 : args["-c ".Length..];
 
             var tokens = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (tokens.Length < 5)
-            {
+            if (tokens.Length < 5) {
                 return new GoalParseResult(string.Empty, [], null, null, true);
             }
 
@@ -316,30 +273,22 @@ public sealed partial class GoalCommand : ChatCommandBase
         int? tokenBudget = null;
         var remaining = args;
 
-        while (true)
-        {
-            if (remaining.StartsWith("--constraint ", StringComparison.OrdinalIgnoreCase))
-            {
+        while (true) {
+            if (remaining.StartsWith("--constraint ", StringComparison.OrdinalIgnoreCase)) {
                 var rest = remaining["--constraint ".Length..];
                 var constraint = ExtractQuotedOrWord(rest, out var afterConstraint);
-                if (!string.IsNullOrWhiteSpace(constraint))
-                {
+                if (!string.IsNullOrWhiteSpace(constraint)) {
                     constraints.Add(constraint);
                 }
                 remaining = afterConstraint.TrimStart();
-            }
-            else if (remaining.StartsWith("--budget ", StringComparison.OrdinalIgnoreCase))
-            {
+            } else if (remaining.StartsWith("--budget ", StringComparison.OrdinalIgnoreCase)) {
                 var rest = remaining["--budget ".Length..];
                 var budgetStr = ExtractQuotedOrWord(rest, out var afterBudget);
-                if (int.TryParse(budgetStr, out var budget))
-                {
+                if (int.TryParse(budgetStr, out var budget)) {
                     tokenBudget = budget;
                 }
                 remaining = afterBudget.TrimStart();
-            }
-            else
-            {
+            } else {
                 break;
             }
         }
@@ -347,28 +296,23 @@ public sealed partial class GoalCommand : ChatCommandBase
         return new GoalParseResult(remaining.Trim(), constraints, tokenBudget, null, false);
     }
 
-    private static string ExtractQuotedOrWord(string input, out string remaining)
-    {
-        if (string.IsNullOrEmpty(input))
-        {
+    private static string ExtractQuotedOrWord(string input, out string remaining) {
+        if (string.IsNullOrEmpty(input)) {
             remaining = string.Empty;
             return string.Empty;
         }
 
-        if (input[0] is '\'' or '"')
-        {
+        if (input[0] is '\'' or '"') {
             var quote = input[0];
             var endIdx = input.IndexOf(quote, 1);
-            if (endIdx > 0)
-            {
+            if (endIdx > 0) {
                 remaining = input[(endIdx + 1)..];
                 return input[1..endIdx];
             }
         }
 
         var spaceIdx = input.IndexOf(' ');
-        if (spaceIdx > 0)
-        {
+        if (spaceIdx > 0) {
             remaining = input[(spaceIdx + 1)..];
             return input[..spaceIdx];
         }
@@ -377,11 +321,9 @@ public sealed partial class GoalCommand : ChatCommandBase
         return input;
     }
 
-    private static void ShowStatus(IGoalEngine goalEngine)
-    {
+    private static void ShowStatus(IGoalEngine goalEngine) {
         var state = goalEngine.CurrentState;
-        if (state is null)
-        {
+        if (state is null) {
             TerminalHelper.WriteLine("当前没有活跃目标");
             return;
         }
@@ -389,8 +331,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         ShowGoalState(state);
     }
 
-    private static void ShowGoalState(GoalState state)
-    {
+    private static void ShowGoalState(GoalState state) {
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"{TerminalColors.Info}◎ /goal {FormatStatus(state.Status)}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine($"  目标: {state.Objective}");
@@ -400,13 +341,11 @@ public sealed partial class GoalCommand : ChatCommandBase
         TerminalHelper.WriteLine($"  Token: {state.TokensUsed}{(state.TokenBudget.HasValue ? $" / {state.TokenBudget.Value}" : "")}");
         TerminalHelper.WriteLine($"  已用时间: {state.Elapsed:hh\\:mm\\:ss}");
 
-        if (state.Constraints.Count > 0)
-        {
+        if (state.Constraints.Count > 0) {
             TerminalHelper.WriteLine($"  约束: {string.Join(", ", state.Constraints)}");
         }
 
-        if (state.LastEvaluation is not null)
-        {
+        if (state.LastEvaluation is not null) {
             var evalColor = state.LastEvaluation.IsCompleted ? TerminalColors.Success : TerminalColors.Warning;
             TerminalHelper.WriteLine($"  评估器: {evalColor}{state.LastEvaluation.Reason}{AnsiStyleEnumConstants.Reset}");
         }
@@ -414,8 +353,7 @@ public sealed partial class GoalCommand : ChatCommandBase
         TerminalHelper.NewLine();
     }
 
-    private static string FormatStatus(GoalStatus status) => status switch
-    {
+    private static string FormatStatus(GoalStatus status) => status switch {
         GoalStatus.Pursuing => $"{TerminalColors.Success}运行中{AnsiStyleEnumConstants.Reset}",
         GoalStatus.Paused => $"{TerminalColors.Warning}已暂停{AnsiStyleEnumConstants.Reset}",
         GoalStatus.Achieved => $"{TerminalColors.Success}已完成{AnsiStyleEnumConstants.Reset}",

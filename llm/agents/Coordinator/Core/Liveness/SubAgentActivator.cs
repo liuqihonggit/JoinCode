@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator.Liveness;
 /// <summary>
 /// 子代理激活结果
 /// </summary>
-public sealed record ActivationResult
-{
+public sealed record ActivationResult {
     /// <summary>子代理 ID</summary>
     public required string AgentId { get; init; }
     /// <summary>是否成功激活</summary>
@@ -29,16 +28,14 @@ public sealed record ActivationResult
 /// 3. Touch() 刷新 LastActivityAt
 /// </para>
 /// </summary>
-public sealed class SubAgentActivator
-{
+public sealed class SubAgentActivator {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly ILogger? _logger;
 
     /// <summary>
     /// 构造子代理激活器
     /// </summary>
-    public SubAgentActivator(IAgentLifecycleManager lifecycleManager, ILogger? logger = null)
-    {
+    public SubAgentActivator(IAgentLifecycleManager lifecycleManager, ILogger? logger = null) {
         _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));
         _logger = logger;
     }
@@ -49,13 +46,11 @@ public sealed class SubAgentActivator
     /// <param name="agentId">卡死的子代理 ID</param>
     /// <param name="idleSeconds">无活动时长（秒），用于提示消息</param>
     /// <param name="ct">取消令牌</param>
-    public async Task<ActivationResult> ActivateAsync(string agentId, int idleSeconds = 30, CancellationToken ct = default)
-    {
+    public async Task<ActivationResult> ActivateAsync(string agentId, int idleSeconds = 30, CancellationToken ct = default) {
         _logger?.LogDebug("[SubAgentActivator] 尝试激活 Agent {AgentId}，无活动 {Seconds}s", agentId, idleSeconds);
 
         var agent = await _lifecycleManager.GetAgentAsync(agentId, ct).ConfigureAwait(false);
-        if (agent is null)
-        {
+        if (agent is null) {
             _logger?.LogWarning("[SubAgentActivator] Agent {AgentId} 不存在，无法激活", agentId);
             return ActivationResult.AgentNotFound(agentId);
         }
@@ -65,8 +60,7 @@ public sealed class SubAgentActivator
         agent.ChatHistory.AddSystemMessage(prompt);
 
         // 恢复执行（如果处于 Paused 状态）
-        if (agent.Status == TaskExecutionStatus.Paused)
-        {
+        if (agent.Status == TaskExecutionStatus.Paused) {
             await _lifecycleManager.ResumeAgentAsync(agentId, ct).ConfigureAwait(false);
             _logger?.LogInformation("[SubAgentActivator] Agent {AgentId} 已从 Paused 恢复", agentId);
         }

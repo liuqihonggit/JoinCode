@@ -4,14 +4,12 @@ namespace Core.Agents.Worktree;
 /// Worktree Git 根查找中间件 — 查找当前 git 工作区目录(不解析到主仓库)
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktreeCreateMiddleware
-{
+public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktreeCreateMiddleware {
 
     /// <summary>
     /// 构造 WorktreeGitRootMiddleware 实例，注入文件操作服务、文件系统及日志器
     /// </summary>
-    public WorktreeGitRootMiddleware(IFileOperationService fs, IFileSystem fileSystem, ILogger<WorktreeGitRootMiddleware>? logger = null)
-    {
+    public WorktreeGitRootMiddleware(IFileOperationService fs, IFileSystem fileSystem, ILogger<WorktreeGitRootMiddleware>? logger = null) {
         _fs = fs;
         _fileSystem = fileSystem;
         _logger = logger;
@@ -32,24 +30,20 @@ public sealed partial class WorktreeGitRootMiddleware : ServiceEntity, IWorktree
     /// <param name="context">worktree 创建上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
-    {
-        if (!string.IsNullOrEmpty(context.GitRoot))
-        {
+    public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct) {
+        if (!string.IsNullOrEmpty(context.GitRoot)) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
         var gitRoot = context.GitRootPath ?? GitWorkspaceResolver.FindGitWorkspaceDir(_fileSystem.GetCurrentDirectory(), _fileSystem);
-        if (string.IsNullOrEmpty(gitRoot))
-        {
+        if (string.IsNullOrEmpty(gitRoot)) {
             context.Fail("未找到 Git 工作区目录");
             return;
         }
 
         context.GitRoot = gitRoot;
-        if (string.IsNullOrEmpty(context.OriginalCwd))
-        {
+        if (string.IsNullOrEmpty(context.OriginalCwd)) {
             context.OriginalCwd = _fs.GetCurrentDirectory();
         }
 

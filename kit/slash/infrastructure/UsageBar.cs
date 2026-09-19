@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 使用量进度条 — CLI 简化版
 /// </summary>
-public sealed class UsageBar
-{
+public sealed class UsageBar {
     private readonly double _percentage;
     private readonly int _width;
     private readonly string _filledColor;
@@ -19,8 +18,7 @@ public sealed class UsageBar
     /// <param name="width">进度条宽度，默认 20</param>
     /// <param name="filledColor">已填充部分颜色，可选，默认使用主色</param>
     /// <param name="emptyColor">未填充部分颜色，可选，默认使用弱化色</param>
-    public UsageBar(double percentage, int width = 20, string? filledColor = null, string? emptyColor = null)
-    {
+    public UsageBar(double percentage, int width = 20, string? filledColor = null, string? emptyColor = null) {
         _percentage = percentage;
         _width = width;
         _filledColor = filledColor ?? TerminalColors.Primary;
@@ -31,8 +29,7 @@ public sealed class UsageBar
     /// 渲染进度条为带颜色的文本
     /// </summary>
     /// <returns>带 ANSI 颜色的进度条文本</returns>
-    public string Render()
-    {
+    public string Render() {
         var filled = (int)Math.Round(_percentage * _width);
         if (filled < 0) filled = 0;
         if (filled > _width) filled = _width;
@@ -46,8 +43,7 @@ public sealed class UsageBar
     /// <param name="percentage">百分比，0 到 100</param>
     /// <param name="width">进度条宽度，默认 20</param>
     /// <returns>带 ANSI 颜色和百分比的进度条文本</returns>
-    public static string Render(double percentage, int width = 20)
-    {
+    public static string Render(double percentage, int width = 20) {
         var filled = (int)Math.Round(percentage / 100 * width);
         if (filled < 0) filled = 0;
         if (filled > width) filled = width;
@@ -56,4 +52,3 @@ public sealed class UsageBar
         return $"{color}{bar}{AnsiStyleEnumConstants.Reset} {percentage:F1}%";
     }
 }
-

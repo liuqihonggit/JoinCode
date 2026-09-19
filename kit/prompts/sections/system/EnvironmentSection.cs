@@ -27,15 +27,13 @@ public static class EnvironmentSection {
             $"平台: {snapshot.OsDescription}",
         };
 
-        if (snapshot.ConsoleEncoding is not null)
-        {
+        if (snapshot.ConsoleEncoding is not null) {
             var isUtf8 = snapshot.ConsoleEncoding.Equals("utf-8", StringComparison.OrdinalIgnoreCase);
             items.Add($"控制台编码: {snapshot.ConsoleEncoding}{(isUtf8 ? "" : " (非UTF-8，中文输出可能乱码)")}");
         }
 
         var devTools = DetectDevTools();
-        if (devTools.Count > 0)
-        {
+        if (devTools.Count > 0) {
             items.Add($"开发工具: {string.Join(", ", devTools)}");
         }
 
@@ -60,8 +58,7 @@ public static class EnvironmentSection {
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("environment", GetContent);
 
-    private static List<string> DetectDevTools()
-    {
+    private static List<string> DetectDevTools() {
         var tools = new List<string>();
         var detectors = new (string Name, string Cmd, string VersionArg)[]
         {
@@ -76,20 +73,17 @@ public static class EnvironmentSection {
             ("Ruby", "ruby", "--version"),
         };
 
-        foreach (var (name, cmd, arg) in detectors)
-        {
+        foreach (var (name, cmd, arg) in detectors) {
             var version = TryDetectTool(cmd, [arg]);
             if (version is not null)
                 tools.Add($"{name} {version}");
         }
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
             var psVersion = TryDetectTool("pwsh", ["-Command", "$PSVersionTable.PSVersion.ToString()"]);
             if (psVersion is not null)
                 tools.Add($"PowerShell 7+ {psVersion}");
-            else
-            {
+            else {
                 var ps5 = TryDetectTool("powershell", ["-Command", "$PSVersionTable.PSVersion.ToString()"]);
                 if (ps5 is not null)
                     tools.Add($"Windows PowerShell {ps5}");
@@ -99,14 +93,10 @@ public static class EnvironmentSection {
         return tools;
     }
 
-    private static string? TryDetectTool(string fileName, string[] args, IProcessService? processService = null)
-    {
-        try
-        {
-            if (processService is not null)
-            {
-                var options = new ProcessOptions
-                {
+    private static string? TryDetectTool(string fileName, string[] args, IProcessService? processService = null) {
+        try {
+            if (processService is not null) {
+                var options = new ProcessOptions {
                     FileName = fileName,
                     ArgumentList = args,
                     TimeoutMs = 3000
@@ -117,8 +107,7 @@ public static class EnvironmentSection {
                 return string.IsNullOrWhiteSpace(procOutput) ? null : procOutput.Trim();
             }
 
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
+            var psi = new System.Diagnostics.ProcessStartInfo {
                 FileName = fileName,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -134,9 +123,7 @@ public static class EnvironmentSection {
             process.WaitForExit(3000);
             var output = string.IsNullOrWhiteSpace(stdout) ? errOutput : stdout;
             return string.IsNullOrWhiteSpace(output) ? null : output.Trim();
-        }
-        catch (System.ComponentModel.Win32Exception)
-        {
+        } catch (System.ComponentModel.Win32Exception) {
             return null;
         }
     }

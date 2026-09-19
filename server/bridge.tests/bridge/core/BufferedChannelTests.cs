@@ -4,11 +4,9 @@ namespace Bridge.Tests;
 /// BufferedChannel 单元测试
 /// 测试缓冲通道的添加、读取、增量读取、清空、谓词判断和并发安全性
 /// </summary>
-public sealed class BufferedChannelTests
-{
+public sealed class BufferedChannelTests {
     [Fact]
-    public async Task AddAsync_GetAllAsync_ReturnsAllLines()
-    {
+    public async Task AddAsync_GetAllAsync_ReturnsAllLines() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("line1").ConfigureAwait(true);
@@ -23,8 +21,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task GetAllAsync_EmptyBuffer_ReturnsEmptyString()
-    {
+    public async Task GetAllAsync_EmptyBuffer_ReturnsEmptyString() {
         // Arrange
         using var channel = new BufferedChannel();
 
@@ -36,8 +33,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task GetAllAsync_SingleLine_ReturnsSingleLine()
-    {
+    public async Task GetAllAsync_SingleLine_ReturnsSingleLine() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("only-line").ConfigureAwait(true);
@@ -50,8 +46,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task GetIncrementalAsync_FirstCall_ReturnsAllContent()
-    {
+    public async Task GetIncrementalAsync_FirstCall_ReturnsAllContent() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("a").ConfigureAwait(true);
@@ -65,8 +60,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task GetIncrementalAsync_SecondCall_ReturnsOnlyNewContent()
-    {
+    public async Task GetIncrementalAsync_SecondCall_ReturnsOnlyNewContent() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("a").ConfigureAwait(true);
@@ -82,8 +76,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task GetIncrementalAsync_NoNewContent_ReturnsEmptyString()
-    {
+    public async Task GetIncrementalAsync_NoNewContent_ReturnsEmptyString() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("a").ConfigureAwait(true);
@@ -97,8 +90,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task GetIncrementalAsync_EmptyBuffer_ReturnsEmptyString()
-    {
+    public async Task GetIncrementalAsync_EmptyBuffer_ReturnsEmptyString() {
         // Arrange
         using var channel = new BufferedChannel();
 
@@ -110,8 +102,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task ClearAsync_RemovesAllContent()
-    {
+    public async Task ClearAsync_RemovesAllContent() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("x").ConfigureAwait(true);
@@ -126,8 +117,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task ClearAsync_ResetsIncrementalIndex()
-    {
+    public async Task ClearAsync_ResetsIncrementalIndex() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("a").ConfigureAwait(true);
@@ -143,8 +133,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task TryPredicateAsync_WithMatchingPredicate_ReturnsTrue()
-    {
+    public async Task TryPredicateAsync_WithMatchingPredicate_ReturnsTrue() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("hello").ConfigureAwait(true);
@@ -158,8 +147,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task TryPredicateAsync_WithNonMatchingPredicate_ReturnsFalse()
-    {
+    public async Task TryPredicateAsync_WithNonMatchingPredicate_ReturnsFalse() {
         // Arrange
         using var channel = new BufferedChannel();
         await channel.AddAsync("hello").ConfigureAwait(true);
@@ -172,8 +160,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task TryPredicateAsync_EmptyBuffer_PredicateReceivesEmptyString()
-    {
+    public async Task TryPredicateAsync_EmptyBuffer_PredicateReceivesEmptyString() {
         // Arrange
         using var channel = new BufferedChannel();
 
@@ -185,8 +172,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task Concurrent_AddAndGetAll_SucceedWithoutCorruption()
-    {
+    public async Task Concurrent_AddAndGetAll_SucceedWithoutCorruption() {
         // Arrange
         using var channel = new BufferedChannel();
         const int concurrency = 20;
@@ -204,8 +190,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task Concurrent_AddAndIncremental_AllLinesConsumedExactlyOnce()
-    {
+    public async Task Concurrent_AddAndIncremental_AllLinesConsumedExactlyOnce() {
         // Arrange
         using var channel = new BufferedChannel();
         const int totalLines = 50;
@@ -214,10 +199,8 @@ public sealed class BufferedChannelTests
         using var doneGate = new SemaphoreSlim(0, 1);
 
         // Producer: add lines one by one
-        var producer = Task.Run(async () =>
-        {
-            for (var i = 0; i < totalLines; i++)
-            {
+        var producer = Task.Run(async () => {
+            for (var i = 0; i < totalLines; i++) {
                 await channel.AddAsync($"item{i}").ConfigureAwait(true);
             }
 
@@ -225,20 +208,15 @@ public sealed class BufferedChannelTests
         });
 
         // Consumer: read incrementally until all lines consumed
-        var consumer = Task.Run(async () =>
-        {
+        var consumer = Task.Run(async () => {
             var consumedCount = 0;
-            while (consumedCount < totalLines)
-            {
+            while (consumedCount < totalLines) {
                 var incremental = await channel.GetIncrementalAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(true);
-                if (!string.IsNullOrEmpty(incremental))
-                {
+                if (!string.IsNullOrEmpty(incremental)) {
                     var lines = incremental.Split('\n', StringSplitOptions.RemoveEmptyEntries);
                     consumed.AddRange(lines);
                     consumedCount += lines.Length;
-                }
-                else
-                {
+                } else {
                     await Task.Delay(10).ConfigureAwait(true);
                 }
             }
@@ -252,14 +230,12 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public async Task GetAllAsync_Timeout_ThrowsOperationCanceledException()
-    {
+    public async Task GetAllAsync_Timeout_ThrowsOperationCanceledException() {
         // Arrange
         using var channel = new BufferedChannel();
         using var cts = new CancellationTokenSource();
         // Hold the lock externally to force timeout
-        var holdTask = Task.Run(async () =>
-        {
+        var holdTask = Task.Run(async () => {
             await channel.AddAsync("blocking").ConfigureAwait(true);
             // AddAsync acquires and releases the lock, so we need a different approach
             // Use a very short timeout that will expire
@@ -271,15 +247,13 @@ public sealed class BufferedChannelTests
 
         // Assert — may succeed (lock was released) or throw; both are acceptable
         // The key is that the method doesn't hang or corrupt state
-        if (ex is not null)
-        {
+        if (ex is not null) {
             ex.Should().BeAssignableTo<OperationCanceledException>();
         }
     }
 
     [Fact]
-    public async Task AddAsync_Cancelled_ThrowsOperationCanceledException()
-    {
+    public async Task AddAsync_Cancelled_ThrowsOperationCanceledException() {
         // Arrange
         using var channel = new BufferedChannel();
         using var cts = new CancellationTokenSource();
@@ -294,8 +268,7 @@ public sealed class BufferedChannelTests
     }
 
     [Fact]
-    public void Dispose_DoesNotThrow()
-    {
+    public void Dispose_DoesNotThrow() {
         // Arrange
         var channel = new BufferedChannel();
 

@@ -1,14 +1,11 @@
 namespace Core.Agents;
 
 
-public sealed class AgentPromptBuilderTests
-{
+public sealed class AgentPromptBuilderTests {
     [Fact]
-    public async Task BuildSystemPromptAsync_WithMcpServers_InjectsServerNames()
-    {
+    public async Task BuildSystemPromptAsync_WithMcpServers_InjectsServerNames() {
         var builder = CreateBuilder();
-        var promptContext = new AgentPromptContext
-        {
+        var promptContext = new AgentPromptContext {
             McpServers = ["filesystem", "git"],
         };
 
@@ -21,11 +18,9 @@ public sealed class AgentPromptBuilderTests
     }
 
     [Fact]
-    public async Task BuildSystemPromptAsync_WithAvailableSkills_InjectsSkillNames()
-    {
+    public async Task BuildSystemPromptAsync_WithAvailableSkills_InjectsSkillNames() {
         var builder = CreateBuilder();
-        var promptContext = new AgentPromptContext
-        {
+        var promptContext = new AgentPromptContext {
             AvailableSkills = ["commit", "verify"],
         };
 
@@ -38,11 +33,9 @@ public sealed class AgentPromptBuilderTests
     }
 
     [Fact]
-    public async Task BuildSystemPromptAsync_WithSettingsSummary_InjectsSummary()
-    {
+    public async Task BuildSystemPromptAsync_WithSettingsSummary_InjectsSummary() {
         var builder = CreateBuilder();
-        var promptContext = new AgentPromptContext
-        {
+        var promptContext = new AgentPromptContext {
             SettingsSummary = "权限模式: auto, 模型: gpt-4o",
         };
 
@@ -54,8 +47,7 @@ public sealed class AgentPromptBuilderTests
     }
 
     [Fact]
-    public async Task BuildSystemPromptAsync_WithNullPromptContext_BehavesAsBaseOverload()
-    {
+    public async Task BuildSystemPromptAsync_WithNullPromptContext_BehavesAsBaseOverload() {
         var builder = CreateBuilder();
 
         var resultWithContext = await builder.BuildSystemPromptAsync(
@@ -67,11 +59,9 @@ public sealed class AgentPromptBuilderTests
     }
 
     [Fact]
-    public async Task BuildSystemPromptAsync_WithCriticalSystemReminder_NotInSystemPrompt()
-    {
+    public async Task BuildSystemPromptAsync_WithCriticalSystemReminder_NotInSystemPrompt() {
         // CriticalSystemReminder 改为每轮注入消息流(对齐 TS 原版),不在 system prompt 中
-        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-        {
+        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
             Role = AgentRole.Executor,
             Variant = ExecutorVariant.Code,
             WhenToUse = "code agent",
@@ -87,10 +77,8 @@ public sealed class AgentPromptBuilderTests
     }
 
     [Fact]
-    public async Task BuildSystemPromptAsync_WithoutCriticalSystemReminder_OmitsReminder()
-    {
-        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition
-        {
+    public async Task BuildSystemPromptAsync_WithoutCriticalSystemReminder_OmitsReminder() {
+        var definition = new JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition {
             Role = AgentRole.Executor,
             Variant = ExecutorVariant.Code,
             WhenToUse = "code agent",
@@ -105,8 +93,7 @@ public sealed class AgentPromptBuilderTests
     }
 
     private static AgentPromptBuilder CreateBuilder(
-        JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition = null)
-    {
+        JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition = null) {
         var definitionProviderMock = new Mock<IAgentDefinitionProvider>();
         definitionProviderMock
             .Setup(x => x.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))

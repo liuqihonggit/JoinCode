@@ -5,14 +5,12 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// 契约对齐 GUI 运行面板需求：状态机流转、尾部 N 条活动环形缓冲、连续同类工具折叠、
 /// 展开上限 LRU 驱逐（移植旧 TUI SubAgentCardManager 语义）。
 /// </summary>
-public class SubAgentRunTrackerTests
-{
+public class SubAgentRunTrackerTests {
     private static ChatStreamEvent AgentStarted(string id, string name = "explore", string desc = "调研") =>
         ChatStreamEvent.AgentStarted(id, name, desc, "executor");
 
     [Fact]
-    public void OnStarted_ShouldCreateRunningEntry()
-    {
+    public void OnStarted_ShouldCreateRunningEntry() {
         var tracker = new SubAgentRunTracker();
 
         tracker.Observe(AgentStarted("a1"));
@@ -26,8 +24,7 @@ public class SubAgentRunTrackerTests
     }
 
     [Fact]
-    public void ToolCallStartAndEnd_ShouldTrackCount_AndLastToolName()
-    {
+    public void ToolCallStartAndEnd_ShouldTrackCount_AndLastToolName() {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(AgentStarted("a1"));
 
@@ -40,8 +37,7 @@ public class SubAgentRunTrackerTests
     }
 
     [Fact]
-    public void Finished_ShouldFreezeStatistics_AndSetTerminalState()
-    {
+    public void Finished_ShouldFreezeStatistics_AndSetTerminalState() {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(AgentStarted("a1"));
         tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallEnd, ToolName = "FileRead", AgentId = "a1" });
@@ -60,8 +56,7 @@ public class SubAgentRunTrackerTests
     }
 
     [Fact]
-    public void Finished_WhenFailed_ShouldBeFailedState()
-    {
+    public void Finished_WhenFailed_ShouldBeFailedState() {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(AgentStarted("a1"));
         tracker.Observe(ChatStreamEvent.AgentFinished("a1", success: false, finalOutput: "boom"));
@@ -71,13 +66,11 @@ public class SubAgentRunTrackerTests
     }
 
     [Fact]
-    public void ActivityBuffer_ShouldKeepOnlyTailThree()
-    {
+    public void ActivityBuffer_ShouldKeepOnlyTailThree() {
         var tracker = new SubAgentRunTracker(maxVisibleActivities: 3);
         tracker.Observe(AgentStarted("a1"));
         for (var i = 1; i <= 5; i++)
-            tracker.Observe(new ChatStreamEvent
-            {
+            tracker.Observe(new ChatStreamEvent {
                 Type = ChatStreamEventType.ToolCallStart,
                 ToolName = $"T{i}",
                 AgentId = "a1",
@@ -90,8 +83,7 @@ public class SubAgentRunTrackerTests
     }
 
     [Fact]
-    public void ConsecutiveSearchRead_ShouldCollapseIntoSummary()
-    {
+    public void ConsecutiveSearchRead_ShouldCollapseIntoSummary() {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(AgentStarted("a1"));
         tracker.Observe(new ChatStreamEvent { Type = ChatStreamEventType.ToolCallStart, ToolName = "grep", AgentId = "a1", ToolCallId = "c1" });
@@ -105,8 +97,7 @@ public class SubAgentRunTrackerTests
     }
 
     [Fact]
-    public void ExpandLimit_ShouldEvictOldestExpanded()
-    {
+    public void ExpandLimit_ShouldEvictOldestExpanded() {
         var tracker = new SubAgentRunTracker(maxExpanded: 3);
         foreach (var id in new[] { "a1", "a2", "a3" })
             tracker.Observe(AgentStarted(id));
@@ -122,12 +113,10 @@ public class SubAgentRunTrackerTests
     }
 
     [Fact]
-    public void UnknownAgentEvents_ShouldBeIgnoredGracefully()
-    {
+    public void UnknownAgentEvents_ShouldBeIgnoredGracefully() {
         var tracker = new SubAgentRunTracker();
 
-        var act = () => tracker.Observe(new ChatStreamEvent
-        {
+        var act = () => tracker.Observe(new ChatStreamEvent {
             Type = ChatStreamEventType.ToolCallEnd,
             ToolName = "bash",
             AgentId = "ghost"
@@ -138,8 +127,7 @@ public class SubAgentRunTrackerTests
     }
 
     [Fact]
-    public void ParallelAgents_ShouldMaintainIndependentRuns()
-    {
+    public void ParallelAgents_ShouldMaintainIndependentRuns() {
         var tracker = new SubAgentRunTracker();
         tracker.Observe(AgentStarted("a1", "explore", "任务A"));
         tracker.Observe(AgentStarted("a2", "plan", "任务B"));

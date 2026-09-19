@@ -4,8 +4,7 @@ namespace Core.Summary;
 /// <summary>
 /// 离开摘要生成结果
 /// </summary>
-public sealed class AwaySummaryResult
-{
+public sealed class AwaySummaryResult {
     /// <summary>
     /// 获取一个值，指示摘要生成是否成功。
     /// </summary>
@@ -70,8 +69,7 @@ public sealed class AwaySummaryResult
 /// <summary>
 /// 离开事件 — 记录用户离开期间发生的单个事件
 /// </summary>
-public sealed class AwayEvent
-{
+public sealed class AwayEvent {
     /// <summary>
     /// 获取事件发生的时间戳。
     /// </summary>
@@ -96,8 +94,7 @@ public sealed class AwayEvent
 /// <summary>
 /// 离开事件类型枚举
 /// </summary>
-public enum AwayEventType
-{
+public enum AwayEventType {
     /// <summary>
     /// 工具调用事件。
     /// </summary>

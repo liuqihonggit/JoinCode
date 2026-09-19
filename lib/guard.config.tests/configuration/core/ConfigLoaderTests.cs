@@ -70,8 +70,7 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_WithRealApiKeyFromEnv_ShouldHaveApiKey()
-    {
+    public async Task LoadConfig_WithRealApiKeyFromEnv_ShouldHaveApiKey() {
         // 使用真实 API Key（从环境变量或 ~/.jcc/auth.json 读取）
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, realKey);
@@ -83,8 +82,7 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_ShouldHaveValidProvider()
-    {
+    public async Task LoadConfig_ShouldHaveValidProvider() {
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, realKey);
 
@@ -108,8 +106,7 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_ShouldHaveDefaultBridgeConfig()
-    {
+    public async Task LoadConfig_ShouldHaveDefaultBridgeConfig() {
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, realKey);
 
@@ -119,8 +116,7 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_JccEnvVarsOverrideDefaults()
-    {
+    public async Task LoadConfig_JccEnvVarsOverrideDefaults() {
         // 设置环境变量覆盖 Provider 和 ModelId
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.Vendor, "anthropic");
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.ModelId, "claude-opus-4-7");
@@ -138,8 +134,7 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_CodeExecutionEnvVars()
-    {
+    public async Task LoadConfig_CodeExecutionEnvVars() {
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.CodeExecutionTimeout, "60");
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.CodeExecutionMaxMemory, "512");
         var realKey = TestConfiguration.GetRealApiKey();
@@ -152,8 +147,7 @@ public class ConfigLoaderTests : IDisposable {
     }
 
     [Fact]
-    public async Task LoadConfig_ProviderEnvKeyUsed()
-    {
+    public async Task LoadConfig_ProviderEnvKeyUsed() {
         // Provider 专属环境变量提供 API Key
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, realKey);
@@ -167,8 +161,7 @@ public class ConfigLoaderTests : IDisposable {
     /// JCC_MODEL_ID 指定未在 settings.json models 列表注册的模型 → 无条件抛 ConfigurationException[GRD016]
     /// </summary>
     [Fact]
-    public async Task LoadConfig_UnknownModelId_ThrowsConfigurationException()
-    {
+    public async Task LoadConfig_UnknownModelId_ThrowsConfigurationException() {
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.ModelId, "gpt-5-turbo-test-unregistered");
         var realKey = TestConfiguration.GetRealApiKey();
         Environment.SetEnvironmentVariable(ProviderEnvVarEnumConstants.OpenAiApiKey, realKey);
@@ -188,15 +181,11 @@ public class ConfigLoaderTests : IDisposable {
     /// 首次运行时骨架 models 为空,AutoFetchModels 会在后台异步拉取填充
     /// </summary>
     [Fact]
-    public async Task LoadConfig_EmptyModelsWithAutoFetch_ShouldNotThrow()
-    {
+    public async Task LoadConfig_EmptyModelsWithAutoFetch_ShouldNotThrow() {
         // Given: settings.json 中 models 为空，autoFetchModels=true
-        var settingsJson = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>
-            {
-                ["openai"] = new ProfileSettings
-                {
+        var settingsJson = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["openai"] = new ProfileSettings {
                     Provider = "openai",
                     Protocol = "openai-compatible",
                     Endpoint = "https://api.openai.com/v1",
@@ -234,20 +223,17 @@ public class ConfigLoaderTests : IDisposable {
     /// <summary>
     /// 测试专用 Provider 注册表 — 不依赖全局 settings.json，注册所有测试需要的 Provider
     /// </summary>
-    private sealed class TestProviderDefinitionRegistry : IProviderDefinitionRegistry
-    {
+    private sealed class TestProviderDefinitionRegistry : IProviderDefinitionRegistry {
         private readonly Dictionary<string, IProviderDefinition> _definitions;
 
-        public TestProviderDefinitionRegistry() : this(new ModelConfigLoader()) {}
+        public TestProviderDefinitionRegistry() : this(new ModelConfigLoader()) { }
 
         /// <summary>
         /// 用外部传入的 ModelConfigLoader 构造 — 用于 EnsureEnvModelInConfig 测试，
         /// 使 ConfigLoader._modelConfigLoader 与 ProviderDefinition 共享同一实例
         /// </summary>
-        public TestProviderDefinitionRegistry(IModelConfigLoader loader)
-        {
-            _definitions = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase)
-            {
+        public TestProviderDefinitionRegistry(IModelConfigLoader loader) {
+            _definitions = new Dictionary<string, IProviderDefinition>(StringComparer.OrdinalIgnoreCase) {
                 ["openai"] = new OpenAiCompatibleProviderDefinition(loader, "openai", "OPENAI_API_KEY"),
                 ["anthropic"] = new AnthropicCompatibleProviderDefinition(loader, "anthropic", "ANTHROPIC_API_KEY"),
                 ["deepseek"] = new OpenAiCompatibleProviderDefinition(loader, "deepseek", "DEEPSEEK_API_KEY"),

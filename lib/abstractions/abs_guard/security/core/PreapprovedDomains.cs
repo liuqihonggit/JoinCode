@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils.Web;
 /// 预批准域名白名单，支持主机名匹配和路径前缀匹配
 /// 对齐TS版 preapproved.ts 的 HOSTNAME_ONLY + PATH_PREFIXES
 /// </summary>
-public static class PreapprovedDomains
-{
+public static class PreapprovedDomains {
     /// <summary>
     /// 仅主机名匹配（无路径限制）
     /// </summary>
@@ -16,8 +15,7 @@ public static class PreapprovedDomains
     /// </summary>
     public static readonly FrozenDictionary<string, string[]> PathPrefixes = CreatePathPrefixMap();
 
-    private static FrozenSet<string> CreateHostSet()
-    {
+    private static FrozenSet<string> CreateHostSet() {
         var hosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             // Anthropic 自家
@@ -143,10 +141,8 @@ public static class PreapprovedDomains
         return hosts.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static FrozenDictionary<string, string[]> CreatePathPrefixMap()
-    {
-        var map = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-        {
+    private static FrozenDictionary<string, string[]> CreatePathPrefixMap() {
+        var map = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase) {
             // TS版有路径前缀限制的域名
             ["github.com"] = ["/anthropics"],
             ["vercel.com"] = ["/docs"],
@@ -158,8 +154,7 @@ public static class PreapprovedDomains
     /// <summary>
     /// 检查主机名是否为预批准域名
     /// </summary>
-    public static bool IsPreapprovedHost(string hostname)
-    {
+    public static bool IsPreapprovedHost(string hostname) {
         var stripped = hostname.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
             ? hostname[4..]
             : hostname;
@@ -170,8 +165,7 @@ public static class PreapprovedDomains
     /// 检查URL是否为预批准URL（主机名+路径前缀匹配）
     /// 对齐TS版 isPreapprovedHost(hostname, pathname)
     /// </summary>
-    public static bool IsPreapprovedUrl(string url)
-    {
+    public static bool IsPreapprovedUrl(string url) {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var parsed))
             return false;
 
@@ -185,14 +179,11 @@ public static class PreapprovedDomains
 
         // 再查路径前缀映射
         if (PathPrefixes.TryGetValue(hostname, out var prefixes) ||
-            PathPrefixes.TryGetValue(parsed.Host, out prefixes))
-        {
+            PathPrefixes.TryGetValue(parsed.Host, out prefixes)) {
             var path = parsed.AbsolutePath;
-            foreach (var prefix in prefixes)
-            {
+            foreach (var prefix in prefixes) {
                 // 强制路径段边界：/anthropics 不匹配 /anthropics-evil/malware
-                if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
+                if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
                     if (path.Length == prefix.Length || path[prefix.Length] == '/')
                         return true;
                 }

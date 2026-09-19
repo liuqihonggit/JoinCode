@@ -5,23 +5,20 @@ namespace Core.Configuration.ConfigPipeline;
 /// Step 3: 用环境变量覆盖配置 — 环境变量优先级高于 settings.json
 /// </summary>
 [Register(typeof(IConfigLoadMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class EnvOverrideMiddleware : ServiceEntity, IConfigLoadMiddleware
-{
+public sealed partial class EnvOverrideMiddleware : ServiceEntity, IConfigLoadMiddleware {
     private readonly SettingsMapper _mapper;
 
     /// <summary>
     /// 初始化环境变量覆盖中间件
     /// </summary>
     /// <param name="mapper">设置映射器</param>
-    public EnvOverrideMiddleware(SettingsMapper mapper)
-    {
+    public EnvOverrideMiddleware(SettingsMapper mapper) {
         _mapper = mapper;
     }
 
 
     /// <inheritdoc />
-    public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct) {
         _mapper.SkipProviderValidation = context.SkipProviderValidation;
         _mapper.ApplyEnvOverrides(context.Config, context.Settings);
 

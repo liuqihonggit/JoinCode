@@ -4,15 +4,13 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// ExitPlanModeTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = PlanToolName.ExitPlanMode, Category = ToolPromptCategory.Planning)]
-public static class ExitPlanModeToolPrompt
-{
+public static class ExitPlanModeToolPrompt {
     public const string ToolName = PlanToolNameEnumConstants.ExitPlanMode;
 
     /// <summary>
     /// 获取工具提示词
     /// </summary>
-    public static string GetPrompt(string askUserQuestionToolName)
-    {
+    public static string GetPrompt(string askUserQuestionToolName) {
         return $@"当你处于计划模式并且已完成将计划写入计划文件并准备等待用户批准时使用此工具。
 
 ## 此工具的工作原理

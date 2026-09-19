@@ -4,8 +4,7 @@ namespace JoinCode.Hands.Desktop.QuadtreeOverlay;
 /// 四叉树分裂动画器 — 从屏幕边界开始递归四等分,逐层展开,颜色从外到内淡化
 /// 纯计算层,不依赖 GDI,可独立单元测试
 /// </summary>
-internal static class QuadtreeSplitAnimator
-{
+internal static class QuadtreeSplitAnimator {
     /// <summary>计算第 depth 层的所有框坐标(第0层=1个框=屏幕边界)</summary>
     /// <param name="screenX">屏幕左上角X</param>
     /// <param name="screenY">屏幕左上角Y</param>
@@ -13,15 +12,13 @@ internal static class QuadtreeSplitAnimator
     /// <param name="screenH">屏幕高度</param>
     /// <param name="depth">分裂深度(0=外框,1=4框,2=16框...)</param>
     /// <returns>该层所有框的坐标列表</returns>
-    public static List<QuadtreeRect> GetLayerRects(int screenX, int screenY, int screenW, int screenH, int depth)
-    {
+    public static List<QuadtreeRect> GetLayerRects(int screenX, int screenY, int screenW, int screenH, int depth) {
         if (depth == 0)
             return [new QuadtreeRect(screenX, screenY, screenW, screenH)];
 
         var parents = GetLayerRects(screenX, screenY, screenW, screenH, depth - 1);
         var result = new List<QuadtreeRect>(parents.Count * 4);
-        foreach (var p in parents)
-        {
+        foreach (var p in parents) {
             var halfW = p.Width / 2;
             var halfH = p.Height / 2;
             result.Add(new QuadtreeRect(p.X, p.Y, halfW, halfH));
@@ -37,8 +34,7 @@ internal static class QuadtreeSplitAnimator
     /// <param name="depth">当前层深度</param>
     /// <param name="maxDepth">最大层深度</param>
     /// <returns>淡化后的 COLORREF</returns>
-    public static uint FadeColor(uint baseColor, int depth, int maxDepth)
-    {
+    public static uint FadeColor(uint baseColor, int depth, int maxDepth) {
         if (maxDepth <= 0) return baseColor;
         var t = (double)depth / maxDepth;
         var r = baseColor & 0xFF;
@@ -59,8 +55,7 @@ internal static class QuadtreeSplitAnimator
     /// <param name="depth">当前层深度</param>
     /// <param name="maxDepth">最大层深度</param>
     /// <returns>独特颜色的 COLORREF</returns>
-    public static uint GetRectColor(int index, int totalRects, int depth, int maxDepth)
-    {
+    public static uint GetRectColor(int index, int totalRects, int depth, int maxDepth) {
         if (depth == 0) return 0x00FFFFFF;
         if (totalRects <= 0) return 0x00FFFFFF;
 
@@ -72,8 +67,7 @@ internal static class QuadtreeSplitAnimator
     }
 
     /// <summary>HSV → Win32 COLORREF (0x00BBGGRR)</summary>
-    private static uint HsvToColorRef(double h, double s, double v)
-    {
+    private static uint HsvToColorRef(double h, double s, double v) {
         h = h % 360;
         if (h < 0) h += 360;
         var c = v * s;
@@ -81,12 +75,7 @@ internal static class QuadtreeSplitAnimator
         var m = v - c;
 
         double r, g, b;
-        if (h < 60) { r = c; g = x; b = 0; }
-        else if (h < 120) { r = x; g = c; b = 0; }
-        else if (h < 180) { r = 0; g = c; b = x; }
-        else if (h < 240) { r = 0; g = x; b = c; }
-        else if (h < 300) { r = x; g = 0; b = c; }
-        else { r = c; g = 0; b = x; }
+        if (h < 60) { r = c; g = x; b = 0; } else if (h < 120) { r = x; g = c; b = 0; } else if (h < 180) { r = 0; g = c; b = x; } else if (h < 240) { r = 0; g = x; b = c; } else if (h < 300) { r = x; g = 0; b = c; } else { r = c; g = 0; b = x; }
 
         var ri = (uint)Math.Round((r + m) * 255);
         var gi = (uint)Math.Round((g + m) * 255);

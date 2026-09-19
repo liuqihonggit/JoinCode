@@ -1,57 +1,49 @@
 namespace Host.Tests.ChatCommands;
 
-public sealed class FilesCommandTests
-{
+public sealed class FilesCommandTests {
     [Fact]
-    public void Name_Should_Be_files()
-    {
+    public void Name_Should_Be_files() {
         var cmd = new FilesCommand();
         cmd.Name.Should().Be("files");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new FilesCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new FilesCommand();
         cmd.Usage.Should().StartWith("/files");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new FilesCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public void Aliases_Should_Be_Empty()
-    {
+    public void Aliases_Should_Be_Empty() {
         var cmd = new FilesCommand();
         cmd.Aliases.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Execute_WhenTrackerIsNull_Should_Return_Continue()
-    {
+    public async Task Execute_WhenTrackerIsNull_Should_Return_Continue() {
         var cmd = new FilesCommand();
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 FileOperationTracker = null,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -61,8 +53,7 @@ public sealed class FilesCommandTests
     }
 
     [Fact]
-    public async Task Execute_WhenNoEntries_Should_Return_Continue()
-    {
+    public async Task Execute_WhenNoEntries_Should_Return_Continue() {
         var cmd = new FilesCommand();
         var tracker = new Mock<IFileOperationTracker>();
         tracker.Setup(t => t.GetAllEntries()).Returns(Array.Empty<FileOperationEntry>().ToList().AsReadOnly());
@@ -71,14 +62,13 @@ public sealed class FilesCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 FileOperationTracker = tracker.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -88,8 +78,7 @@ public sealed class FilesCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithEntries_Should_Return_Continue()
-    {
+    public async Task Execute_WithEntries_Should_Return_Continue() {
         var cmd = new FilesCommand();
         var entries = new List<FileOperationEntry>
         {
@@ -107,14 +96,13 @@ public sealed class FilesCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 FileOperationTracker = tracker.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

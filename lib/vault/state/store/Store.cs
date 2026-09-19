@@ -5,8 +5,7 @@ namespace State;
 /// 响应式状态存储实现
 /// 使用不可变数据结构 + 无锁原子操作确保线程安全
 /// </summary>
-public partial class Store<TState> : IStore<TState>, IDisposable where TState : notnull
-{
+public partial class Store<TState> : IStore<TState>, IDisposable where TState : notnull {
     private TState _currentState;
     private ImmutableHashSet<StateChangedHandler<TState>> _subscribers = ImmutableHashSet<StateChangedHandler<TState>>.Empty;
     private readonly IStorePersistence<TState>? _persistence;
@@ -23,8 +22,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     public Store(
         TState initialState,
         IStorePersistence<TState>? persistence = null,
-        ILogger<Store<TState>>? logger = null)
-    {
+        ILogger<Store<TState>>? logger = null) {
         _currentState = initialState;
         _persistence = persistence;
         _logger = logger;
@@ -37,23 +35,17 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
         TState defaultState,
         IStorePersistence<TState>? persistence = null,
         ILogger<Store<TState>>? logger = null,
-        CancellationToken cancellationToken = default)
-    {
-        TState initialState = defaultState;
+        CancellationToken cancellationToken = default) {
+        var initialState = defaultState;
 
-        if (persistence != null)
-        {
-            try
-            {
+        if (persistence != null) {
+            try {
                 var loadedState = await persistence.LoadAsync(cancellationToken).ConfigureAwait(false);
-                if (loadedState != null)
-                {
+                if (loadedState != null) {
                     initialState = loadedState;
                     logger?.LogInformation(L.T(StringKey.VaultLogStateLoadedFromPersistStore));
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 logger?.LogError(ex, L.T(StringKey.VaultLogStateLoadFailedDefault));
             }
         }
@@ -62,39 +54,32 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
-    public TState GetState()
-    {
+    public TState GetState() {
         return Interlocked.CompareExchange(ref _currentState, default!, default!);
     }
 
     /// <inheritdoc />
-    public Task<TState> GetStateAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<TState> GetStateAsync(CancellationToken cancellationToken = default) {
         return Task.FromResult(GetState());
     }
 
     /// <inheritdoc />
-    public void SetState(Func<TState, TState> updater)
-    {
+    public void SetState(Func<TState, TState> updater) {
         ThrowIfDisposed();
 
-        while (true)
-        {
+        while (true) {
             var oldState = Interlocked.CompareExchange(ref _currentState, default!, default!);
             var newState = updater(oldState);
 
-            if (ReferenceEquals(oldState, newState))
-            {
+            if (ReferenceEquals(oldState, newState)) {
                 _logger?.LogDebug(L.T(StringKey.VaultLogStateUnchanged));
                 return;
             }
 
-            if (Interlocked.CompareExchange(ref _currentState, newState, oldState).Equals(oldState))
-            {
+            if (Interlocked.CompareExchange(ref _currentState, newState, oldState).Equals(oldState)) {
                 NotifySubscribers(oldState, newState);
 
-                if (_persistence != null)
-                {
+                if (_persistence != null) {
                     _ = PersistStateAsync(newState, _disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
                 }
 
@@ -104,27 +89,22 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
-    public async Task SetStateAsync(Func<TState, Task<TState>> updater, CancellationToken cancellationToken = default)
-    {
+    public async Task SetStateAsync(Func<TState, Task<TState>> updater, CancellationToken cancellationToken = default) {
         ThrowIfDisposed();
 
-        while (true)
-        {
+        while (true) {
             var oldState = Interlocked.CompareExchange(ref _currentState, default!, default!);
             var newState = await updater(oldState).ConfigureAwait(false);
 
-            if (ReferenceEquals(oldState, newState))
-            {
+            if (ReferenceEquals(oldState, newState)) {
                 _logger?.LogDebug(L.T(StringKey.VaultLogAsyncStateUnchanged));
                 return;
             }
 
-            if (Interlocked.CompareExchange(ref _currentState, newState, oldState).Equals(oldState))
-            {
+            if (Interlocked.CompareExchange(ref _currentState, newState, oldState).Equals(oldState)) {
                 NotifySubscribers(oldState, newState);
 
-                if (_persistence != null)
-                {
+                if (_persistence != null) {
                     _ = PersistStateAsync(newState, _disposeCts.Token).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
                 }
 
@@ -134,8 +114,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
-    public IDisposable Subscribe(StateChangedHandler<TState> handler)
-    {
+    public IDisposable Subscribe(StateChangedHandler<TState> handler) {
         ThrowIfDisposed();
 
         ImmutableInterlocked.Update(ref _subscribers, s => s.Add(handler));
@@ -144,8 +123,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     }
 
     /// <inheritdoc />
-    public IDisposable Subscribe(IStateSubscriber<TState> subscriber)
-    {
+    public IDisposable Subscribe(IStateSubscriber<TState> subscriber) {
         return Subscribe(subscriber.OnStateChanged);
     }
 
@@ -153,19 +131,14 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     /// 通知所有订阅者状态变更
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void NotifySubscribers(TState oldState, TState newState)
-    {
+    private void NotifySubscribers(TState oldState, TState newState) {
         var args = new StateChangedEventArgs<TState>(oldState, newState);
         var currentSubscribers = Volatile.Read(ref _subscribers);
 
-        foreach (var subscriber in currentSubscribers)
-        {
-            try
-            {
+        foreach (var subscriber in currentSubscribers) {
+            try {
                 subscriber(args);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, L.T(StringKey.VaultLogSubscriberError));
             }
         }
@@ -174,20 +147,15 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     /// <summary>
     /// 异步持久化状态 — 带超时和取消保护
     /// </summary>
-    private async Task PersistStateAsync(TState state, CancellationToken cancellationToken)
-    {
+    private async Task PersistStateAsync(TState state, CancellationToken cancellationToken) {
         if (_persistence == null) return;
 
-        try
-        {
+        try {
             await _persistence.SaveAsync(state, cancellationToken)
                 .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken)
                 .ConfigureAwait(false);
             _logger?.LogDebug(L.T(StringKey.VaultLogStatePersistedStore));
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogStatePersistFailedStore));
         }
     }
@@ -195,21 +163,18 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     /// <summary>
     /// 取消订阅
     /// </summary>
-    internal void Unsubscribe(StateChangedHandler<TState> handler)
-    {
+    internal void Unsubscribe(StateChangedHandler<TState> handler) {
         ImmutableInterlocked.Update(ref _subscribers, s => s.Remove(handler));
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) == 1, typeof(Store<TState>));
     }
 
     /// <summary>
     /// 释放资源,取消所有订阅并清理内部状态
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _disposeCts.CancelAndDisposeSafe(_logger);
@@ -220,20 +185,17 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
     /// <summary>
     /// 订阅可释放对象
     /// </summary>
-    private sealed class SubscriptionDisposable : IDisposable
-    {
+    private sealed class SubscriptionDisposable : IDisposable {
         private readonly Store<TState> _store;
         private readonly StateChangedHandler<TState> _handler;
         private int _disposed;
 
-        public SubscriptionDisposable(Store<TState> store, StateChangedHandler<TState> handler)
-        {
+        public SubscriptionDisposable(Store<TState> store, StateChangedHandler<TState> handler) {
             _store = store;
             _handler = handler;
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _store.Unsubscribe(_handler);
         }

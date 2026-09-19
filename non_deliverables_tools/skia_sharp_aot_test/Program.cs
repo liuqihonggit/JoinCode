@@ -4,8 +4,7 @@ var bmp = new SKBitmap(100, 100);
 using var canvas = new SKCanvas(bmp);
 canvas.Clear(SKColors.White);
 
-using var paint = new SKPaint
-{
+using var paint = new SKPaint {
     Color = SKColors.Red,
     Style = SKPaintStyle.Stroke,
     StrokeWidth = 2,

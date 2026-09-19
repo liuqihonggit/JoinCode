@@ -5,8 +5,7 @@ namespace Services.Voice;
 /// 语音服务配置选项 — 描述 Whisper API 端点、模型、采样率、静音检测等参数。
 /// </summary>
 [Register(typeof(VoiceOptions), ServiceLifetime.Singleton)]
-public sealed partial class VoiceOptions : ServiceEntity
-{
+public sealed partial class VoiceOptions : ServiceEntity {
     /// <summary>
     /// 语音转文本后端类型，默认 WhisperApi。
     /// </summary>
@@ -66,8 +65,7 @@ public sealed partial class VoiceOptions : ServiceEntity
 /// <summary>
 /// 语音转文本（STT）后端类型枚举。
 /// </summary>
-public enum SttBackend
-{
+public enum SttBackend {
     /// <summary>
     /// OpenAI Whisper HTTP API 后端。
     /// </summary>

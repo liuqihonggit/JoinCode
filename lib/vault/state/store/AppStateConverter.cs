@@ -3,25 +3,20 @@ namespace JoinCode.Abstractions.State;
 /// <summary>
 /// AppState 与 Document 之间的转换器
 /// </summary>
-public static class AppStateConverter
-{
+public static class AppStateConverter {
     /// <summary>
     /// 将 AppState 转换为可持久化的 AppStateDocument
     /// </summary>
     /// <param name="state">应用状态</param>
     /// <param name="savedAt">保存时间戳（可选，默认为当前 UTC 时间）</param>
     /// <returns>转换后的文档模型</returns>
-    public static AppStateDocument ToDocument(AppState state, DateTime? savedAt = null)
-    {
-        return new AppStateDocument
-        {
+    public static AppStateDocument ToDocument(AppState state, DateTime? savedAt = null) {
+        return new AppStateDocument {
             Id = "current",
-            Session = new SessionStateDocument
-            {
+            Session = new SessionStateDocument {
                 SessionId = state.Session.SessionId,
                 SystemPrompt = state.Session.SystemPrompt,
-                MessageList = state.Session.MessageList.Select(m => new ApiMessageDocument
-                {
+                MessageList = state.Session.MessageList.Select(m => new ApiMessageDocument {
                     Role = m.Role,
                     Content = m.Content,
                     Timestamp = m.Timestamp,
@@ -35,8 +30,7 @@ public static class AppStateConverter
             },
             Agents = state.Agents.ToDictionary(
                 kvp => kvp.Key,
-                kvp => new AgentStateDocument
-                {
+                kvp => new AgentStateDocument {
                     AgentId = kvp.Value.AgentId,
                     Name = kvp.Value.Name,
                     Role = kvp.Value.Role,
@@ -49,8 +43,7 @@ public static class AppStateConverter
                 }),
             Tasks = state.Tasks.ToDictionary(
                 kvp => kvp.Key,
-                kvp => new TaskStateDocument
-                {
+                kvp => new TaskStateDocument {
                     TaskId = kvp.Value.TaskId,
                     Name = kvp.Value.Name,
                     Description = kvp.Value.Description,
@@ -66,8 +59,7 @@ public static class AppStateConverter
                     CompletedAt = kvp.Value.CompletedAt,
                     Metadata = kvp.Value.Metadata.ToDictionary(m => m.Key, m => m.Value)
                 }),
-            Config = new ConfigStateDocument
-            {
+            Config = new ConfigStateDocument {
                 DebugLog = state.Config.DebugLog,
                 IsBriefMode = state.Config.IsBriefMode,
                 Theme = state.Config.Theme,
@@ -86,17 +78,13 @@ public static class AppStateConverter
     /// </summary>
     /// <param name="doc">文档模型</param>
     /// <returns>还原后的应用状态</returns>
-    public static AppState FromDocument(AppStateDocument doc)
-    {
-        return new AppState
-        {
-            Session = new SessionState
-            {
+    public static AppState FromDocument(AppStateDocument doc) {
+        return new AppState {
+            Session = new SessionState {
                 SessionId = doc.Session.SessionId,
                 SystemPrompt = doc.Session.SystemPrompt,
                 MessageList = doc.Session.MessageList
-                    .Select(m => new ApiMessageState
-                    {
+                    .Select(m => new ApiMessageState {
                         Role = m.Role,
                         Content = m.Content,
                         Timestamp = m.Timestamp,
@@ -111,8 +99,7 @@ public static class AppStateConverter
             },
             Agents = doc.Agents?.ToImmutableDictionary(
                 kvp => kvp.Key,
-                kvp => new AgentState
-                {
+                kvp => new AgentState {
                     AgentId = kvp.Value.AgentId,
                     Name = kvp.Value.Name,
                     Role = kvp.Value.Role,
@@ -125,8 +112,7 @@ public static class AppStateConverter
                 }) ?? ImmutableDictionary<string, AgentState>.Empty,
             Tasks = doc.Tasks?.ToImmutableDictionary(
                 kvp => kvp.Key,
-                kvp => new TaskState
-                {
+                kvp => new TaskState {
                     TaskId = kvp.Value.TaskId,
                     Name = kvp.Value.Name,
                     Description = kvp.Value.Description,
@@ -142,8 +128,7 @@ public static class AppStateConverter
                     CompletedAt = kvp.Value.CompletedAt,
                     Metadata = kvp.Value.Metadata?.ToImmutableDictionary() ?? ImmutableDictionary<string, string>.Empty
                 }) ?? ImmutableDictionary<string, TaskState>.Empty,
-            Config = new ConfigState
-            {
+            Config = new ConfigState {
                 DebugLog = doc.Config.DebugLog,
                 IsBriefMode = doc.Config.IsBriefMode,
                 Theme = doc.Config.Theme,

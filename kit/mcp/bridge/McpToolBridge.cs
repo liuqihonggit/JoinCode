@@ -4,16 +4,14 @@ namespace McpBridge;
 /// <summary>
 /// MCP 工具桥接器 — 从 IToolRegistry 提取工具并按 ToolKind 分组为工具组
 /// </summary>
-public sealed class McpToolBridge
-{
+public sealed class McpToolBridge {
     private readonly IToolRegistry _toolRegistry;
 
     /// <summary>
     /// 初始化 MCP 工具桥接器
     /// </summary>
     /// <param name="toolRegistry">工具注册表实例</param>
-    public McpToolBridge(IToolRegistry toolRegistry)
-    {
+    public McpToolBridge(IToolRegistry toolRegistry) {
         _toolRegistry = toolRegistry ?? throw new ArgumentNullException(nameof(toolRegistry));
     }
 
@@ -22,8 +20,7 @@ public sealed class McpToolBridge
     /// 两阶段工具加载：核心工具发完整 schema，其余工具首次只发分组+名称（含 OnError）
     /// OnError 工具在 tool_groups 中有名称，工具失败时由 OnErrorToolInjectionMiddleware 强行注入完整 schema
     /// </summary>
-    public async Task<IReadOnlyList<IToolGroup>> CreatePluginAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<IToolGroup>> CreatePluginAsync(CancellationToken cancellationToken = default) {
         var allTools = await _toolRegistry.GetAllToolsAsync(cancellationToken);
 
         var visibleHandlers = allTools.Values;
@@ -31,10 +28,8 @@ public sealed class McpToolBridge
         var coreFunctions = new List<IToolDef>();
         var mcpFunctions = new List<IToolDef>();
 
-        foreach (var h in visibleHandlers)
-        {
-            var toolInfo = new ToolInfo
-            {
+        foreach (var h in visibleHandlers) {
+            var toolInfo = new ToolInfo {
                 Name = h.Name,
                 Description = h.Description,
                 InputSchema = h.InputSchema
@@ -58,16 +53,13 @@ public sealed class McpToolBridge
         return groups;
     }
 
-    private static IReadOnlyList<IToolParam> BuildParameters(ToolInfo toolInfo)
-    {
+    private static IReadOnlyList<IToolParam> BuildParameters(ToolInfo toolInfo) {
         var requiredSet = (toolInfo.InputSchema.Required ?? []).ToFrozenSet();
 
         return toolInfo.InputSchema.Properties
-            .Select(kvp =>
-            {
+            .Select(kvp => {
                 var description = kvp.Value.Description ?? string.Empty;
-                if (kvp.Value.Enum is { Count: > 0 })
-                {
+                if (kvp.Value.Enum is { Count: > 0 }) {
                     description = string.IsNullOrEmpty(description)
                         ? $"Allowed values: {string.Join(", ", kvp.Value.Enum)}"
                         : $"{description} Allowed values: {string.Join(", ", kvp.Value.Enum)}";
@@ -82,10 +74,8 @@ public sealed class McpToolBridge
             .ToList();
     }
 
-    private static Type MapSchemaTypeToClrType(string schemaType)
-    {
-        return schemaType switch
-        {
+    private static Type MapSchemaTypeToClrType(string schemaType) {
+        return schemaType switch {
             "string" => typeof(string),
             "integer" => typeof(int),
             "number" => typeof(double),

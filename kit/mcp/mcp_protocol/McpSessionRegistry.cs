@@ -4,8 +4,7 @@ namespace McpProtocol;
 /// MCP 会话注册表 — 封装 sessionId→创建时间的映射,消除 McpTcpServer + McpHttpServer 重复。
 /// <para>用于有状态模式验证会话存在性、注册新会话、移除会话、查询活跃数。</para>
 /// </summary>
-internal sealed class McpSessionRegistry
-{
+internal sealed class McpSessionRegistry {
     private readonly ConcurrentDictionary<string, DateTime> _sessions = new(StringComparer.Ordinal);
 
     /// <summary>活跃会话数</summary>

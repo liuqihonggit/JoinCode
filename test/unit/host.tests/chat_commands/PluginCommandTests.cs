@@ -1,52 +1,44 @@
 namespace Host.Tests.ChatCommands;
 
-public sealed class PluginCommandTests
-{
+public sealed class PluginCommandTests {
     [Fact]
-    public void Name_Should_Be_plugin()
-    {
+    public void Name_Should_Be_plugin() {
         var cmd = new PluginCommand();
         cmd.Name.Should().Be("plugin");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new PluginCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new PluginCommand();
         cmd.Usage.Should().StartWith("/plugin");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new PluginCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public void Aliases_Should_Be_Empty()
-    {
+    public void Aliases_Should_Be_Empty() {
         var cmd = new PluginCommand();
         cmd.Aliases.Should().BeEquivalentTo("plugins", "marketplace");
     }
 
     [Fact]
-    public void ArgumentHint_Should_Not_Be_Empty()
-    {
+    public void ArgumentHint_Should_Not_Be_Empty() {
         var cmd = new PluginCommand();
         cmd.ArgumentHint.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public async Task Execute_NoArgs_Should_ListPlugins()
-    {
+    public async Task Execute_NoArgs_Should_ListPlugins() {
         var cmd = new PluginCommand();
         var pluginManager = new Mock<IPluginManager>();
         pluginManager.Setup(p => p.LoadedWorkflowPluginNames).Returns(Array.Empty<string>());
@@ -55,14 +47,13 @@ public sealed class PluginCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 PluginManager = pluginManager.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -72,8 +63,7 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_List_Should_ListPlugins()
-    {
+    public async Task Execute_List_Should_ListPlugins() {
         var cmd = new PluginCommand();
         var pluginManager = new Mock<IPluginManager>();
         pluginManager.Setup(p => p.LoadedWorkflowPluginNames).Returns(new[] { "dream" });
@@ -82,14 +72,13 @@ public sealed class PluginCommandTests
         var context = new ChatCommandContext {
             Arguments = "list",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 PluginManager = pluginManager.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -99,20 +88,18 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_List_WhenManagerIsNull_Should_ShowNotInitialized()
-    {
+    public async Task Execute_List_WhenManagerIsNull_Should_ShowNotInitialized() {
         var cmd = new PluginCommand();
         var context = new ChatCommandContext {
             Arguments = "list",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 PluginManager = null,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -122,19 +109,17 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Install_Should_Show_Usage_Info()
-    {
+    public async Task Execute_Install_Should_Show_Usage_Info() {
         var cmd = new PluginCommand();
         var context = new ChatCommandContext {
             Arguments = "install myplugin",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -144,19 +129,17 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Install_WithoutName_Should_Show_Usage()
-    {
+    public async Task Execute_Install_WithoutName_Should_Show_Usage() {
         var cmd = new PluginCommand();
         var context = new ChatCommandContext {
             Arguments = "install",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -166,19 +149,17 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Uninstall_WithoutName_Should_Show_Usage()
-    {
+    public async Task Execute_Uninstall_WithoutName_Should_Show_Usage() {
         var cmd = new PluginCommand();
         var context = new ChatCommandContext {
             Arguments = "uninstall",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -188,20 +169,18 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Uninstall_WhenManagerIsNull_Should_ShowNotInitialized()
-    {
+    public async Task Execute_Uninstall_WhenManagerIsNull_Should_ShowNotInitialized() {
         var cmd = new PluginCommand();
         var context = new ChatCommandContext {
             Arguments = "uninstall myplugin",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 PluginManager = null,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -211,8 +190,7 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Uninstall_WhenNotLoaded_Should_Return_Continue()
-    {
+    public async Task Execute_Uninstall_WhenNotLoaded_Should_Return_Continue() {
         var cmd = new PluginCommand();
         var pluginManager = new Mock<IPluginManager>();
         pluginManager.Setup(p => p.IsPluginLoaded("myplugin")).Returns(false);
@@ -220,14 +198,13 @@ public sealed class PluginCommandTests
         var context = new ChatCommandContext {
             Arguments = "uninstall myplugin",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 PluginManager = pluginManager.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -237,8 +214,7 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Uninstall_Success_Should_Return_Continue()
-    {
+    public async Task Execute_Uninstall_Success_Should_Return_Continue() {
         var cmd = new PluginCommand();
         var pluginManager = new Mock<IPluginManager>();
         pluginManager.Setup(p => p.IsPluginLoaded("myplugin")).Returns(true);
@@ -248,14 +224,13 @@ public sealed class PluginCommandTests
         var context = new ChatCommandContext {
             Arguments = "uninstall myplugin",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 PluginManager = pluginManager.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -265,8 +240,7 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Uninstall_Failure_Should_Return_Continue()
-    {
+    public async Task Execute_Uninstall_Failure_Should_Return_Continue() {
         var cmd = new PluginCommand();
         var pluginManager = new Mock<IPluginManager>();
         pluginManager.Setup(p => p.IsPluginLoaded("myplugin")).Returns(true);
@@ -276,14 +250,13 @@ public sealed class PluginCommandTests
         var context = new ChatCommandContext {
             Arguments = "uninstall myplugin",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 PluginManager = pluginManager.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -293,19 +266,17 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Enable_Should_Return_Continue()
-    {
+    public async Task Execute_Enable_Should_Return_Continue() {
         var cmd = new PluginCommand();
         var context = new ChatCommandContext {
             Arguments = "enable myplugin",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -315,19 +286,17 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Disable_Should_Return_Continue()
-    {
+    public async Task Execute_Disable_Should_Return_Continue() {
         var cmd = new PluginCommand();
         var context = new ChatCommandContext {
             Arguments = "disable myplugin",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -337,19 +306,17 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_UnknownAction_Should_Return_Continue()
-    {
+    public async Task Execute_UnknownAction_Should_Return_Continue() {
         var cmd = new PluginCommand();
         var context = new ChatCommandContext {
             Arguments = "unknown",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -359,8 +326,7 @@ public sealed class PluginCommandTests
     }
 
     [Fact]
-    public async Task Execute_Uninstall_WhenUnloadThrows_Should_Return_Continue()
-    {
+    public async Task Execute_Uninstall_WhenUnloadThrows_Should_Return_Continue() {
         var cmd = new PluginCommand();
         var pluginManager = new Mock<IPluginManager>();
         pluginManager.Setup(p => p.IsPluginLoaded("myplugin")).Returns(true);
@@ -370,14 +336,13 @@ public sealed class PluginCommandTests
         var context = new ChatCommandContext {
             Arguments = "uninstall myplugin",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 PluginManager = pluginManager.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

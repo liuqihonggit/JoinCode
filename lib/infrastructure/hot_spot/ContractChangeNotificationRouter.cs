@@ -6,8 +6,7 @@ namespace Infrastructure.HotSpot;
 /// Worker 的 AgentBase.ContractChangeNotifications 指向此路由器管理的队列
 /// </summary>
 [Register(typeof(IContractChangeNotificationRouter), ServiceLifetime.Singleton)]
-public sealed class ContractChangeNotificationRouter : IContractChangeNotificationRouter
-{
+public sealed class ContractChangeNotificationRouter : IContractChangeNotificationRouter {
     private readonly ConcurrentDictionary<string, ConcurrentQueue<string>> _queues = new(StringComparer.OrdinalIgnoreCase);
     private readonly ILogger<ContractChangeNotificationRouter>? _logger;
 
@@ -15,16 +14,14 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
     /// 构造函数 — 注入可选日志记录器
     /// </summary>
     /// <param name="logger">日志记录器，可为 null</param>
-    public ContractChangeNotificationRouter(ILogger<ContractChangeNotificationRouter>? logger = null)
-    {
+    public ContractChangeNotificationRouter(ILogger<ContractChangeNotificationRouter>? logger = null) {
         _logger = logger;
     }
 
     /// <summary>
     /// 获取或创建指定 agent 的通知队列（Worker spawn 时调用，赋给 AgentBase.ContractChangeNotifications）
     /// </summary>
-    public ConcurrentQueue<string> GetOrCreateQueue(string agentId)
-    {
+    public ConcurrentQueue<string> GetOrCreateQueue(string agentId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         return _queues.GetOrAdd(agentId, _ => new ConcurrentQueue<string>());
     }
@@ -32,8 +29,7 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
     /// <summary>
     /// 往目标 agent 的队列塞契约变更通知（队长广播时调用）
     /// </summary>
-    public void EnqueueNotification(string agentId, string notification)
-    {
+    public void EnqueueNotification(string agentId, string notification) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(notification);
 
@@ -45,11 +41,9 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
     /// <summary>
     /// 批量通知多个 agent
     /// </summary>
-    public void EnqueueNotifications(IReadOnlyList<string> agentIds, string notification)
-    {
+    public void EnqueueNotifications(IReadOnlyList<string> agentIds, string notification) {
         ArgumentNullException.ThrowIfNull(agentIds);
-        foreach (var agentId in agentIds)
-        {
+        foreach (var agentId in agentIds) {
             EnqueueNotification(agentId, notification);
         }
     }
@@ -57,8 +51,7 @@ public sealed class ContractChangeNotificationRouter : IContractChangeNotificati
     /// <summary>
     /// 移除指定 agent 的队列（Worker 结束时调用）
     /// </summary>
-    public void RemoveQueue(string agentId)
-    {
+    public void RemoveQueue(string agentId) {
         _queues.TryRemove(agentId, out _);
     }
 }

@@ -5,8 +5,7 @@ namespace Core.Bridge;
 /// Bridge 独立进程参数解析结果 — 对齐 TS 端 ParsedArgs
 /// 解析 `jcc remote-control [options]` 命令行参数
 /// </summary>
-public sealed class BridgeMainArgs
-{
+public sealed class BridgeMainArgs {
     /// <summary>调试日志 — --debuglog</summary>
     public bool DebugLog { get; init; }
 
@@ -53,23 +52,20 @@ public sealed class BridgeMainArgs
 /// <summary>
 /// Bridge 独立进程参数解析器 — 委托给 BridgeCliArgParser 并映射为 BridgeMainArgs
 /// </summary>
-public static class BridgeMainArgsParser
-{
+public static class BridgeMainArgsParser {
     /// <summary>
     /// 解析命令行参数 — 对齐 TS 端 parseArgs(args: string[])
     /// </summary>
     /// <param name="args">命令行参数（不含子命令名本身）</param>
     /// <returns>解析结果</returns>
-    public static BridgeMainArgs Parse(string[] args)
-    {
+    public static BridgeMainArgs Parse(string[] args) {
         ArgumentNullException.ThrowIfNull(args);
 
         var result = BridgeCliArgParser.Parse(args);
-        string? error = result.Error;
+        var error = result.Error;
 
         int? sessionTimeoutMs = null;
-        if (result.SessionTimeout is not null)
-        {
+        if (result.SessionTimeout is not null) {
             if (!int.TryParse(result.SessionTimeout, out var timeoutSec) || timeoutSec <= 0)
                 error ??= $"{JccCliArgEnumConstants.SessionTimeout} must be a positive integer (seconds)";
             else
@@ -77,10 +73,8 @@ public static class BridgeMainArgsParser
         }
 
         BridgeSpawnMode? spawnMode = null;
-        if (result.Spawn is not null)
-        {
-            spawnMode = result.Spawn switch
-            {
+        if (result.Spawn is not null) {
+            spawnMode = result.Spawn switch {
                 "session" => BridgeSpawnMode.SingleSession,
                 "same-dir" => BridgeSpawnMode.SameDir,
                 "worktree" => BridgeSpawnMode.Worktree,
@@ -91,8 +85,7 @@ public static class BridgeMainArgsParser
         }
 
         int? capacity = null;
-        if (result.Capacity is not null)
-        {
+        if (result.Capacity is not null) {
             if (!int.TryParse(result.Capacity, out var cap) || cap <= 0)
                 error ??= $"{JccCliArgEnumConstants.Capacity} must be a positive integer";
             else
@@ -109,8 +102,7 @@ public static class BridgeMainArgsParser
         if (result.SessionId is not null && result.Continue)
             error ??= $"{JccCliArgEnumConstants.SessionId} and {JccCliArgEnumConstants.Continue} are mutually exclusive";
 
-        return new BridgeMainArgs
-        {
+        return new BridgeMainArgs {
             DebugLog = result.DebugLog,
             Sandbox = result.Sandbox ?? false,
             DebugFile = result.DebugFile,

@@ -5,14 +5,12 @@ namespace Bridge.Tests;
 /// CapacityWakeService 单元测试
 /// 测试容量唤醒服务的默认容量、扩缩容、负载指标更新和事件触发
 /// </summary>
-public sealed class CapacityWakeServiceTests
-{
+public sealed class CapacityWakeServiceTests {
     private static CapacityWakeService CreateSut(CapacityWakeOptions? options = null) =>
         new(options, logger: null);
 
     [Fact]
-    public void Constructor_ShouldSetDefaultCapacity()
-    {
+    public void Constructor_ShouldSetDefaultCapacity() {
         // Arrange & Act
         var sut = CreateSut();
 
@@ -22,8 +20,7 @@ public sealed class CapacityWakeServiceTests
     }
 
     [Fact]
-    public async Task ScaleUpAsync_ShouldIncreaseCapacity()
-    {
+    public async Task ScaleUpAsync_ShouldIncreaseCapacity() {
         // Arrange
         var sut = CreateSut();
 
@@ -36,8 +33,7 @@ public sealed class CapacityWakeServiceTests
     }
 
     [Fact]
-    public async Task ScaleDownAsync_ShouldDecreaseCapacity()
-    {
+    public async Task ScaleDownAsync_ShouldDecreaseCapacity() {
         // Arrange
         var options = new CapacityWakeOptions { MinInstances = 1, MaxInstances = 5 };
         var sut = CreateSut(options);
@@ -51,8 +47,7 @@ public sealed class CapacityWakeServiceTests
     }
 
     [Fact]
-    public async Task ScaleUpAsync_ShouldNotExceedMaxCapacity()
-    {
+    public async Task ScaleUpAsync_ShouldNotExceedMaxCapacity() {
         // Arrange
         var options = new CapacityWakeOptions { MinInstances = 1, MaxInstances = 2 };
         var sut = CreateSut(options);
@@ -66,8 +61,7 @@ public sealed class CapacityWakeServiceTests
     }
 
     [Fact]
-    public async Task ScaleDownAsync_ShouldNotGoBelowMinCapacity()
-    {
+    public async Task ScaleDownAsync_ShouldNotGoBelowMinCapacity() {
         // Arrange
         var options = new CapacityWakeOptions { MinInstances = 1, MaxInstances = 5 };
         var sut = CreateSut(options);
@@ -80,12 +74,10 @@ public sealed class CapacityWakeServiceTests
     }
 
     [Fact]
-    public void UpdateLoadMetrics_ShouldUpdateMetrics()
-    {
+    public void UpdateLoadMetrics_ShouldUpdateMetrics() {
         // Arrange
         var sut = CreateSut();
-        var metrics = new LoadMetrics
-        {
+        var metrics = new LoadMetrics {
             ActiveConnections = 50,
             PendingRequests = 10,
             CpuUsagePercent = 65.0,
@@ -105,8 +97,7 @@ public sealed class CapacityWakeServiceTests
     }
 
     [Fact]
-    public async Task CapacityChanged_ShouldFire_WhenScaling()
-    {
+    public async Task CapacityChanged_ShouldFire_WhenScaling() {
         // Arrange
         var sut = CreateSut();
         CapacityChangedEventArgs? eventArgs = null;

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public enum DependencyKind
-{
+public enum DependencyKind {
     [EnumValue("inherits")]
     Inherits,
     [EnumValue("implements")]

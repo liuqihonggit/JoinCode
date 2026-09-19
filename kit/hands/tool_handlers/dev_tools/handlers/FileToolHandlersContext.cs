@@ -19,8 +19,7 @@ public sealed record FileToolHandlersContext(
     ILspDiagnosticProvider? LspDiagnosticProvider = null,
     ApplyPatchLogic? ApplyPatchLogic = null,
     ISubAgentContextAccessor? SubAgentContextAccessor = null,
-    WriteDefenseService? WriteDefenseService = null)
-{
+    WriteDefenseService? WriteDefenseService = null) {
     /// <summary>
     /// 从服务提供者构造文件工具处理器上下文，按需获取各依赖组件
     /// </summary>

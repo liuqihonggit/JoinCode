@@ -8,15 +8,13 @@ namespace JccAuditCli.Tests;
 /// DiRegistrationExtractor 的单元测试 — 按 DI 注册模式分组
 /// 每个测试验证一个具体的注册模式是否能被正确提取
 /// </summary>
-public sealed class DiRegistrationExtractorTests
-{
+public sealed class DiRegistrationExtractorTests {
     /// <summary>
     /// 辅助方法：创建带指定源码和 DI 引用的 Compilation，运行 Extract 并返回结果
     /// </summary>
     private static (List<ServiceRegistration>, List<ConstructorDependency>) ExtractFrom(
         string source,
-        PortableExecutableReference[] extraRefs = null!)
-    {
+        PortableExecutableReference[] extraRefs = null!) {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
         var fileName = "ServiceRegistration.Test.cs";
         syntaxTree = syntaxTree.WithFilePath(fileName);
@@ -25,8 +23,7 @@ public sealed class DiRegistrationExtractorTests
             .Cast<PortableExecutableReference>()
             .ToImmutableArray();
 
-        if (extraRefs is { Length: > 0 })
-        {
+        if (extraRefs is { Length: > 0 }) {
             references = references.AddRange(extraRefs);
         }
 
@@ -40,8 +37,7 @@ public sealed class DiRegistrationExtractorTests
     }
 
     [Fact]
-    public void InvocationAndExtract_ShouldFindOneInvocationAndExtractRegistration()
-    {
+    public void InvocationAndExtract_ShouldFindOneInvocationAndExtractRegistration() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -75,8 +71,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式1: AddSingleton<TInterface, TImpl>() — 双泛型无工厂 ====================
 
     [Fact]
-    public void AddSingleton_TwoTypeArgs_NoFactory_ShouldExtractRegistration()
-    {
+    public void AddSingleton_TwoTypeArgs_NoFactory_ShouldExtractRegistration() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -105,8 +100,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式2: AddSingleton<T>() — 单泛型无工厂 ====================
 
     [Fact]
-    public void AddSingleton_SingleTypeArg_NoFactory_ShouldExtractSelfRegistration()
-    {
+    public void AddSingleton_SingleTypeArg_NoFactory_ShouldExtractSelfRegistration() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -133,8 +127,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式3: AddSingleton<TInterface, TImpl>(sp => new TImpl()) — 双泛型+lambda工厂 ====================
 
     [Fact]
-    public void AddSingleton_TwoTypeArgs_LambdaFactory_ShouldExtractRegistration()
-    {
+    public void AddSingleton_TwoTypeArgs_LambdaFactory_ShouldExtractRegistration() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -162,8 +155,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式4: AddSingleton<T>(sp => new T(...)) — 单泛型+lambda工厂（无工厂参数） ====================
 
     [Fact]
-    public void AddSingleton_SingleTypeArgs_LambdaFactory_NoDeps_ShouldExtractRegistration()
-    {
+    public void AddSingleton_SingleTypeArgs_LambdaFactory_NoDeps_ShouldExtractRegistration() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -190,8 +182,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式5: AddSingleton<T>(sp => new T(sp.GetRequiredService<X>())) — lambda工厂+隐式依赖 ====================
 
     [Fact]
-    public void AddSingleton_LambdaFactory_GetRequiredService_ShouldExtractImplicitDependency()
-    {
+    public void AddSingleton_LambdaFactory_GetRequiredService_ShouldExtractImplicitDependency() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -220,8 +211,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式6: AddSingleton<TInterface>(sp => sp.GetRequiredService<TImpl>()) — 转型工厂 ====================
 
     [Fact]
-    public void AddSingleton_LambdaFactory_GetRequiredService_Transform_ShouldExtractRegistration()
-    {
+    public void AddSingleton_LambdaFactory_GetRequiredService_Transform_ShouldExtractRegistration() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -249,8 +239,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式7: AddSingleton<TInterface>(sp => (TInterface)sp.GetRequiredService<TImpl>()) — 转型工厂 ====================
 
     [Fact]
-    public void AddSingleton_CastFactory_GetRequiredService_ShouldExtractRegistration()
-    {
+    public void AddSingleton_CastFactory_GetRequiredService_ShouldExtractRegistration() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -278,8 +267,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式8: AddSingleton<T>(sp => new T { 复杂构造 }) — Block体lambda ====================
 
     [Fact]
-    public void AddSingleton_BlockBodyLambda_ShouldExtractRegistration()
-    {
+    public void AddSingleton_BlockBodyLambda_ShouldExtractRegistration() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -307,8 +295,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式9: AddSingleton<T>(sp => new T(复杂参数列表)) — Block体+GetRequiredService ====================
 
     [Fact]
-    public void AddSingleton_BlockBodyLambda_GetRequiredService_ShouldExtractDependency()
-    {
+    public void AddSingleton_BlockBodyLambda_GetRequiredService_ShouldExtractDependency() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -337,8 +324,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式10: AddScoped / AddTransient ====================
 
     [Fact]
-    public void AddScoped_ShouldExtractScopedLifetime()
-    {
+    public void AddScoped_ShouldExtractScopedLifetime() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -362,8 +348,7 @@ public sealed class DiRegistrationExtractorTests
     }
 
     [Fact]
-    public void AddTransient_ShouldExtractTransientLifetime()
-    {
+    public void AddTransient_ShouldExtractTransientLifetime() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -389,8 +374,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式11: AddHostedService<T> ====================
 
     [Fact]
-    public void AddHostedService_ShouldExtractAsSingleton()
-    {
+    public void AddHostedService_ShouldExtractAsSingleton() {
         var source = """
             using System;
             using System.Threading;
@@ -422,8 +406,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式12: 复杂工厂 — new T(sp.GetRequiredService<X>(), sp.GetService<Y>()) ====================
 
     [Fact]
-    public void AddSingleton_ComplexFactory_MultipleDeps_ShouldExtractAllDependencies()
-    {
+    public void AddSingleton_ComplexFactory_MultipleDeps_ShouldExtractAllDependencies() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -455,8 +438,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式13: ILogger/IOptions 应该被跳过 ====================
 
     [Fact]
-    public void AddSingleton_LoggerDep_ShouldBeSkipped()
-    {
+    public void AddSingleton_LoggerDep_ShouldBeSkipped() {
         var source = """
             using System;
             using Microsoft.Extensions.DependencyInjection;
@@ -484,8 +466,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式14: 特性标记 [Register] ====================
 
     [Fact]
-    public void RegisterAttribute_ShouldExtractRegistration()
-    {
+    public void RegisterAttribute_ShouldExtractRegistration() {
         var source = """
             using System;
 
@@ -518,8 +499,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式15: 构造函数参数分析（Class Declaration 级别） ====================
 
     [Fact]
-    public void ClassWithConstructorDeps_ShouldExtractDependencies()
-    {
+    public void ClassWithConstructorDeps_ShouldExtractDependencies() {
         var source = """
             using System;
 
@@ -556,8 +536,7 @@ public sealed class DiRegistrationExtractorTests
     // ==================== 模式16: 可选构造函数参数不应该被提取为硬依赖 ====================
 
     [Fact]
-    public void ClassWithOptionalParam_ShouldNotExtractHardDependency()
-    {
+    public void ClassWithOptionalParam_ShouldNotExtractHardDependency() {
         var source = """
             using System;
 

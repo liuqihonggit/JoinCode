@@ -5,8 +5,7 @@ namespace JoinCode.ChatCommands;
 /// 对齐 [ChatCommand] 模式，源码生成器未来可扫描此特性自动注册处理器。
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
-public sealed class PrefixCommandAttribute : Attribute
-{
+public sealed class PrefixCommandAttribute : Attribute {
     /// <summary>前缀符号（"!" 或 "!!"）</summary>
     public required string Prefix { get; init; }
 

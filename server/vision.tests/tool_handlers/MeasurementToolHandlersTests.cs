@@ -3,10 +3,8 @@ namespace Vision.Tests.ToolHandlers;
 /// <summary>
 /// MeasurementToolHandlers 单元测试 — 验证 M4 的 3 个 MCP 工具
 /// </summary>
-public sealed class MeasurementToolHandlersTests
-{
-    private static string CreateTestImageBase64(int width = 8, int height = 8)
-    {
+public sealed class MeasurementToolHandlersTests {
+    private static string CreateTestImageBase64(int width = 8, int height = 8) {
         using var image = new Image<Rgb24>(width, height, new Rgb24(100, 150, 200));
         using var ms = new MemoryStream();
         image.Save(ms, PngFormat.Instance);
@@ -14,8 +12,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureLength_HorizontalLine_ShouldCalculateCorrectly()
-    {
+    public async Task MeasureLength_HorizontalLine_ShouldCalculateCorrectly() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureLengthAsync(0, 0, 10, 0);
 
@@ -25,8 +22,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureLength_VerticalLine_ShouldCalculateCorrectly()
-    {
+    public async Task MeasureLength_VerticalLine_ShouldCalculateCorrectly() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureLengthAsync(0, 0, 0, 10);
 
@@ -36,8 +32,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureLength_Diagonal_ShouldCalculateCorrectly()
-    {
+    public async Task MeasureLength_Diagonal_ShouldCalculateCorrectly() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureLengthAsync(0, 0, 3, 4);
 
@@ -46,8 +41,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureDepth_ValidRegion_ShouldReturnAnalysis()
-    {
+    public async Task MeasureDepth_ValidRegion_ShouldReturnAnalysis() {
         var base64 = CreateTestImageBase64();
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureDepthAsync(base64, 0, 0, 4, 4);
@@ -60,8 +54,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureDepth_EmptyBase64_ShouldReturnError()
-    {
+    public async Task MeasureDepth_EmptyBase64_ShouldReturnError() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureDepthAsync("", 0, 0, 4, 4);
 
@@ -70,8 +63,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureDepth_RegionOutOfRange_ShouldReturnError()
-    {
+    public async Task MeasureDepth_RegionOutOfRange_ShouldReturnError() {
         var base64 = CreateTestImageBase64(8, 8);
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureDepthAsync(base64, 0, 0, 100, 100);
@@ -81,8 +73,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureDepth_InvalidBase64_ShouldReturnErrorNotThrow()
-    {
+    public async Task MeasureDepth_InvalidBase64_ShouldReturnErrorNotThrow() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureDepthAsync("not-valid-base64!!!", 0, 0, 4, 4);
 
@@ -91,8 +82,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureRatio_Square_ShouldReturnRatio1()
-    {
+    public async Task MeasureRatio_Square_ShouldReturnRatio1() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureRatioAsync(100, 100);
 
@@ -103,8 +93,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureRatio_Widescreen16to9_ShouldIdentifyCommonRatio()
-    {
+    public async Task MeasureRatio_Widescreen16to9_ShouldIdentifyCommonRatio() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureRatioAsync(1920, 1080);
 
@@ -113,8 +102,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureRatio_Traditional4to3_ShouldIdentifyCommonRatio()
-    {
+    public async Task MeasureRatio_Traditional4to3_ShouldIdentifyCommonRatio() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureRatioAsync(800, 600);
 
@@ -123,8 +111,7 @@ public sealed class MeasurementToolHandlersTests
     }
 
     [Fact]
-    public async Task MeasureRatio_InvalidDimensions_ShouldReturnError()
-    {
+    public async Task MeasureRatio_InvalidDimensions_ShouldReturnError() {
         var handlers = new MeasurementToolHandlers();
         var result = await handlers.MeasureRatioAsync(0, 100);
 

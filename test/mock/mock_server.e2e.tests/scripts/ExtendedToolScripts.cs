@@ -3,13 +3,11 @@ namespace MockServer.E2E.Tests.Scripts;
 /// <summary>
 /// 更多任务工具和调度工具 E2E 测试脚本
 /// </summary>
-public static class ExtendedToolScripts
-{
+public static class ExtendedToolScripts {
     // ============================================================
     // TaskList 工具
     // ============================================================
-    public static ConversationScript TaskListTest => new()
-    {
+    public static ConversationScript TaskListTest => new() {
         Name = "TaskList 工具调用",
         Turns =
         [
@@ -42,8 +40,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // TaskGet 工具
     // ============================================================
-    public static ConversationScript TaskGetTest => new()
-    {
+    public static ConversationScript TaskGetTest => new() {
         Name = "TaskGet 工具调用",
         Turns =
         [
@@ -76,8 +73,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // TaskStop 工具
     // ============================================================
-    public static ConversationScript TaskStopTest => new()
-    {
+    public static ConversationScript TaskStopTest => new() {
         Name = "TaskStop 工具调用",
         Turns =
         [
@@ -110,8 +106,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // TaskUpdate 工具
     // ============================================================
-    public static ConversationScript TaskUpdateTest => new()
-    {
+    public static ConversationScript TaskUpdateTest => new() {
         Name = "TaskUpdate 工具调用",
         Turns =
         [
@@ -144,8 +139,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // CronCreate 工具
     // ============================================================
-    public static ConversationScript CronCreateTest => new()
-    {
+    public static ConversationScript CronCreateTest => new() {
         Name = "CronCreate 工具调用",
         Turns =
         [
@@ -178,8 +172,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // CronDelete 工具
     // ============================================================
-    public static ConversationScript CronDeleteTest => new()
-    {
+    public static ConversationScript CronDeleteTest => new() {
         Name = "CronDelete 工具调用",
         Turns =
         [
@@ -212,8 +205,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // AskUserQuestion 工具
     // ============================================================
-    public static ConversationScript AskUserQuestionTest => new()
-    {
+    public static ConversationScript AskUserQuestionTest => new() {
         Name = "AskUserQuestion 工具调用",
         Turns =
         [
@@ -246,8 +238,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // web_fetch 工具 — SSRF 防护验证
     // ============================================================
-    public static ConversationScript WebFetchToolCall => new()
-    {
+    public static ConversationScript WebFetchToolCall => new() {
         Name = "web_fetch 工具调用（SSRF 防护）",
         Turns =
         [
@@ -280,8 +271,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // complete_step 工具
     // ============================================================
-    public static ConversationScript CompleteStepToolTest => new()
-    {
+    public static ConversationScript CompleteStepToolTest => new() {
         Name = "complete_step 工具调用",
         Turns =
         [
@@ -315,8 +305,7 @@ public static class ExtendedToolScripts
     // ============================================================
     // TaskOutput 工具 — 获取后台任务输出
     // ============================================================
-    public static ConversationScript TaskOutputTest => new()
-    {
+    public static ConversationScript TaskOutputTest => new() {
         Name = "TaskOutput 工具调用",
         Turns =
         [

@@ -5,8 +5,7 @@ namespace McpClient;
 /// 静态认证提供者基类 — 为不涉及令牌刷新与 Step-Up 流程的静态认证方式（ApiKey/Bearer/Basic）提供公共实现。
 /// 派生类只需重写 AuthType、IsAuthenticated、GetAuthHeadersAsync、GetAccessTokenAsync。
 /// </summary>
-public abstract class StaticAuthProviderBase : IMcpAuthProvider
-{
+public abstract class StaticAuthProviderBase : IMcpAuthProvider {
     /// <summary>认证类型 — 由派生类指定。</summary>
     public abstract McpAuthType AuthType { get; }
 

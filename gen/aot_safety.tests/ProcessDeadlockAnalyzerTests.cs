@@ -1,12 +1,9 @@
 namespace AotSafety.Tests;
 
-public class ProcessDeadlockAnalyzerTests
-{
+public class ProcessDeadlockAnalyzerTests {
     [Fact]
-    public async Task WaitForExitAsync_BeforeReadToEndAsync_ReportsJCC3003()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task WaitForExitAsync_BeforeReadToEndAsync_ReportsJCC3003() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Diagnostics;
@@ -32,10 +29,8 @@ public class ProcessDeadlockAnalyzerTests
     }
 
     [Fact]
-    public async Task ReadToEndAsync_BeforeWaitForExitAsync_NoWarning()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task ReadToEndAsync_BeforeWaitForExitAsync_NoWarning() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Diagnostics;
@@ -60,10 +55,8 @@ public class ProcessDeadlockAnalyzerTests
     }
 
     [Fact]
-    public async Task RedirectStderrTrue_Initializer_ButNeverRead_ReportsJCC3004()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task RedirectStderrTrue_Initializer_ButNeverRead_ReportsJCC3004() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Diagnostics;
@@ -88,10 +81,8 @@ public class ProcessDeadlockAnalyzerTests
     }
 
     [Fact]
-    public async Task RedirectStderrTrue_PropertyAssign_ButNeverRead_ReportsJCC3004()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task RedirectStderrTrue_PropertyAssign_ButNeverRead_ReportsJCC3004() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Diagnostics;
@@ -113,10 +104,8 @@ public class ProcessDeadlockAnalyzerTests
     }
 
     [Fact]
-    public async Task RedirectStderrTrue_AndReadStderr_NoWarning()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task RedirectStderrTrue_AndReadStderr_NoWarning() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Diagnostics;
@@ -143,10 +132,8 @@ public class ProcessDeadlockAnalyzerTests
     }
 
     [Fact]
-    public async Task NoRedirectStderr_NoWarning()
-    {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier>
-        {
+    public async Task NoRedirectStderr_NoWarning() {
+        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Diagnostics;

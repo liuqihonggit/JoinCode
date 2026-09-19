@@ -5,8 +5,7 @@ namespace Core.Context.Compression;
 /// 引用索引压缩策略
 /// </summary>
 [Register(typeof(ICompressionStrategy), ServiceLifetime.Transient)]
-public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
-{
+public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase {
     /// <summary>
     /// 策略名称
     /// </summary>
@@ -40,18 +39,15 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
     public override Task<string> CompressAsync(
         string content,
         CompressionOptions options,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ValidateOptions(options);
 
-        if (string.IsNullOrWhiteSpace(content))
-        {
+        if (string.IsNullOrWhiteSpace(content)) {
             return Task.FromResult(content);
         }
 
         var entries = ParseReferenceEntries(content);
-        if (entries.Count == 0)
-        {
+        if (entries.Count == 0) {
             return Task.FromResult(content);
         }
 
@@ -65,17 +61,14 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
 
         var groupedByFile = selectedEntries.GroupBy(e => e.FilePath).ToList();
 
-        foreach (var fileGroup in groupedByFile)
-        {
+        foreach (var fileGroup in groupedByFile) {
             cancellationToken.ThrowIfCancellationRequested();
 
             result.AppendLine($"文件: {fileGroup.Key}");
 
-            foreach (var entry in fileGroup)
-            {
+            foreach (var entry in fileGroup) {
                 var line = FormatEntry(entry, options);
-                if (!string.IsNullOrWhiteSpace(line))
-                {
+                if (!string.IsNullOrWhiteSpace(line)) {
                     result.AppendLine($"  {line}");
                 }
             }
@@ -83,8 +76,7 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
             result.AppendLine();
         }
 
-        if (entries.Count > options.MaxReferenceEntries)
-        {
+        if (entries.Count > options.MaxReferenceEntries) {
             result.AppendLine($"... 还有 {entries.Count - options.MaxReferenceEntries} 个引用未显示 ...");
         }
 
@@ -97,8 +89,7 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
     /// <param name="content">原始内容</param>
     /// <param name="options">压缩选项</param>
     /// <returns>预估压缩比率 (0-1)</returns>
-    public override double EstimateCompressionRatio(string content, CompressionOptions options)
-    {
+    public override double EstimateCompressionRatio(string content, CompressionOptions options) {
         if (string.IsNullOrWhiteSpace(content))
             return 1.0;
 
@@ -110,51 +101,40 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
         return Math.Max(ratio, options.TargetCompressionRatio);
     }
 
-    private static List<ReferenceEntry> ParseReferenceEntries(string content)
-    {
+    private static List<ReferenceEntry> ParseReferenceEntries(string content) {
         var entries = new List<ReferenceEntry>();
         var lines = content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
 
         ReferenceEntry? currentEntry = null;
 
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             var trimmedLine = line.Trim();
 
-            if (IsFilePathLine(trimmedLine, out var filePath))
-            {
-                if (currentEntry != null)
-                {
+            if (IsFilePathLine(trimmedLine, out var filePath)) {
+                if (currentEntry != null) {
                     entries.Add(currentEntry);
                 }
 
                 currentEntry = new ReferenceEntry { FilePath = filePath };
-            }
-            else if (currentEntry != null && IsIdentifierLine(trimmedLine, out var identifier))
-            {
+            } else if (currentEntry != null && IsIdentifierLine(trimmedLine, out var identifier)) {
                 currentEntry.Identifiers.Add(identifier);
-            }
-            else if (currentEntry != null && IsReferenceLine(trimmedLine, out var reference))
-            {
+            } else if (currentEntry != null && IsReferenceLine(trimmedLine, out var reference)) {
                 currentEntry.References.Add(reference);
             }
         }
 
-        if (currentEntry != null)
-        {
+        if (currentEntry != null) {
             entries.Add(currentEntry);
         }
 
-        if (entries.Count == 0)
-        {
+        if (entries.Count == 0) {
             entries = ParseAlternativeFormat(content);
         }
 
         return entries;
     }
 
-    private static bool IsFilePathLine(string line, out string filePath)
-    {
+    private static bool IsFilePathLine(string line, out string filePath) {
         filePath = string.Empty;
 
         var filePatterns = new[]
@@ -167,11 +147,9 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
             @"^[-=]{3,}\s*(.+?)\s*[-=]{3,}$"
         };
 
-        foreach (var pattern in filePatterns)
-        {
+        foreach (var pattern in filePatterns) {
             var match = Regex.Match(line, pattern, RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
+            if (match.Success) {
                 filePath = match.Groups[match.Groups.Count - 1].Value.Trim();
                 return true;
             }
@@ -180,8 +158,7 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
         return false;
     }
 
-    private static bool IsIdentifierLine(string line, out string identifier)
-    {
+    private static bool IsIdentifierLine(string line, out string identifier) {
         identifier = string.Empty;
 
         var identifierPatterns = new[]
@@ -192,11 +169,9 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
             @"^\s*[-*]\s*(\w+):"
         };
 
-        foreach (var pattern in identifierPatterns)
-        {
+        foreach (var pattern in identifierPatterns) {
             var match = Regex.Match(line, pattern, RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
+            if (match.Success) {
                 identifier = match.Groups[match.Groups.Count - 1].Value.Trim();
                 return true;
             }
@@ -205,8 +180,7 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
         return false;
     }
 
-    private static bool IsReferenceLine(string line, out string reference)
-    {
+    private static bool IsReferenceLine(string line, out string reference) {
         reference = string.Empty;
 
         var referencePatterns = new[]
@@ -217,11 +191,9 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
             @"->\s*(.+)"
         };
 
-        foreach (var pattern in referencePatterns)
-        {
+        foreach (var pattern in referencePatterns) {
             var match = Regex.Match(line, pattern, RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
+            if (match.Success) {
                 reference = match.Groups[1].Value.Trim();
                 return true;
             }
@@ -230,18 +202,15 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
         return false;
     }
 
-    private static List<ReferenceEntry> ParseAlternativeFormat(string content)
-    {
+    private static List<ReferenceEntry> ParseAlternativeFormat(string content) {
         var entries = new List<ReferenceEntry>();
         var seenPaths = new HashSet<string>(StringComparer.Ordinal);
         var filePathPattern = @"([a-zA-Z]:\\)?([\\/][^\\/:*?""<>|]+)+\.[a-zA-Z0-9]+";
         var matches = Regex.Matches(content, filePathPattern);
 
-        foreach (Match match in matches)
-        {
+        foreach (Match match in matches) {
             var filePath = match.Value;
-            if (seenPaths.Add(filePath))
-            {
+            if (seenPaths.Add(filePath)) {
                 entries.Add(new ReferenceEntry { FilePath = filePath });
             }
         }
@@ -249,27 +218,23 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
         return entries;
     }
 
-    private static List<ReferenceEntry> PrioritizeEntries(List<ReferenceEntry> entries)
-    {
+    private static List<ReferenceEntry> PrioritizeEntries(List<ReferenceEntry> entries) {
         return entries
             .OrderByDescending(e => CalculatePriority(e))
             .ToList();
     }
 
-    private static int CalculatePriority(ReferenceEntry entry)
-    {
+    private static int CalculatePriority(ReferenceEntry entry) {
         var priority = 0;
 
         if (entry.FilePath.Contains("Program.cs", StringComparison.OrdinalIgnoreCase) ||
             entry.FilePath.Contains("Main", StringComparison.OrdinalIgnoreCase) ||
-            entry.FilePath.Contains("Index", StringComparison.OrdinalIgnoreCase))
-        {
+            entry.FilePath.Contains("Index", StringComparison.OrdinalIgnoreCase)) {
             priority += 10;
         }
 
         if (entry.FilePath.Contains("Interface", StringComparison.OrdinalIgnoreCase) ||
-            entry.FilePath.Contains("Service", StringComparison.OrdinalIgnoreCase))
-        {
+            entry.FilePath.Contains("Service", StringComparison.OrdinalIgnoreCase)) {
             priority += 5;
         }
 
@@ -278,33 +243,28 @@ public sealed partial class ReferenceIndexCompressor : CompressionStrategyBase
 
         if (entry.FilePath.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||
             entry.FilePath.EndsWith(".ts", StringComparison.OrdinalIgnoreCase) ||
-            entry.FilePath.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
-        {
+            entry.FilePath.EndsWith(".js", StringComparison.OrdinalIgnoreCase)) {
             priority += 2;
         }
 
         return priority;
     }
 
-    private static string FormatEntry(ReferenceEntry entry, CompressionOptions options)
-    {
+    private static string FormatEntry(ReferenceEntry entry, CompressionOptions options) {
         var parts = new List<string>();
 
-        if (options.PreserveSignatures && entry.Identifiers.Count > 0)
-        {
+        if (options.PreserveSignatures && entry.Identifiers.Count > 0) {
             parts.Add(string.Join(", ", entry.Identifiers.Take(3)));
         }
 
-        if (entry.References.Count > 0)
-        {
+        if (entry.References.Count > 0) {
             parts.Add($"引用: {entry.References.Count}");
         }
 
         return string.Join(" | ", parts);
     }
 
-    private class ReferenceEntry
-    {
+    private class ReferenceEntry {
         public string FilePath { get; set; } = string.Empty;
         public List<string> Identifiers { get; set; } = new();
         public List<string> References { get; set; } = new();

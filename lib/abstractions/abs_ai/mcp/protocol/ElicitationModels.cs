@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public class ElicitRequestParams
-{
+public class ElicitRequestParams {
     [JsonPropertyName("message")]
     public string Message { get; set; } = string.Empty;
 
@@ -21,8 +20,7 @@ public class ElicitRequestParams
     public string? ElicitationId { get; set; }
 }
 
-public class ElicitSchema
-{
+public class ElicitSchema {
     [JsonPropertyName("properties")]
     public Dictionary<string, ElicitSchemaProperty> Properties { get; set; } = new();
 
@@ -31,8 +29,7 @@ public class ElicitSchema
     public List<string> Required { get; set; } = [];
 }
 
-public class ElicitSchemaProperty : SchemaProperty
-{
+public class ElicitSchemaProperty : SchemaProperty {
     [JsonPropertyName("title")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Title { get; set; }
@@ -70,8 +67,7 @@ public class ElicitSchemaProperty : SchemaProperty
     public ElicitSchemaProperty? Items { get; set; }
 }
 
-public class ElicitResult
-{
+public class ElicitResult {
     [JsonPropertyName("action")]
     public string Action { get; set; } = "cancel";
 
@@ -80,21 +76,18 @@ public class ElicitResult
     public Dictionary<string, JsonElement?> Content { get; set; } = [];
 }
 
-public class ElicitationCompleteNotificationParams
-{
+public class ElicitationCompleteNotificationParams {
     [JsonPropertyName("elicitationId")]
     public string ElicitationId { get; set; } = string.Empty;
 }
 
-public enum ElicitAction
-{
+public enum ElicitAction {
     [EnumValue("accept")] Accept,
     [EnumValue("decline")] Decline,
     [EnumValue("cancel")] Cancel,
 }
 
-public enum ElicitMode
-{
+public enum ElicitMode {
     [EnumValue("form")] Form,
     [EnumValue("url")] Url,
 }

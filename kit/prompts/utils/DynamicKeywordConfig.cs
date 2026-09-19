@@ -3,8 +3,7 @@ namespace Core.Prompts.Utils;
 /// <summary>
 /// 动态关键词词表配置模型 — 从 ~/.jcc/keyword-sections.json 加载
 /// </summary>
-public sealed record DynamicKeywordConfig
-{
+public sealed record DynamicKeywordConfig {
     /// <summary>
     /// 关键词 Section 配置字典 — Key 为 Section 名称，Value 为关键词列表
     /// </summary>
@@ -15,8 +14,7 @@ public sealed record DynamicKeywordConfig
 /// <summary>
 /// 单个关键词 Section 配置
 /// </summary>
-public sealed record DynamicKeywordSection
-{
+public sealed record DynamicKeywordSection {
     /// <summary>
     /// 触发关键词列表（最小词根，如 "睡觉" 而非 "我去睡觉了"）
     /// </summary>
@@ -40,8 +38,7 @@ public sealed record DynamicKeywordSection
 /// 用户输入切词器 — 将自然语言句子切分为词序列，供关键词精确匹配
 /// 两阶段策略：1) 标点/空格粗切 → 2) 关键词词表 FMM（Forward Maximum Match）精细切词
 /// </summary>
-public static class InputTokenizer
-{
+public static class InputTokenizer {
     private static readonly SearchValues<char> SegmentSeparators = SearchValues.Create(
         " \t\n\r，。！？、；：\u201C\u201D\u2018\u2019（）【】《》—…·~`!@#$%^&*()-_=+[]{}|\\;:'\",.<>?/");
 
@@ -54,8 +51,7 @@ public static class InputTokenizer
     /// </summary>
     /// <param name="input">用户原始输入</param>
     /// <param name="dictionary">关键词词表（用于 FMM 精细切词）</param>
-    public static string[] Tokenize(string input, IReadOnlySet<string> dictionary)
-    {
+    public static string[] Tokenize(string input, IReadOnlySet<string> dictionary) {
         if (string.IsNullOrWhiteSpace(input))
             return [];
 
@@ -66,12 +62,10 @@ public static class InputTokenizer
         if (dictionary.Count == 0)
             return [.. segments];
 
-        var cache = MetadataCache.GetValue(dictionary, static dict =>
-        {
+        var cache = MetadataCache.GetValue(dictionary, static dict => {
             var maxLen = 0;
             var hasMulti = false;
-            foreach (var kw in dict)
-            {
+            foreach (var kw in dict) {
                 if (kw.Length > maxLen)
                     maxLen = kw.Length;
                 if (!hasMulti && ContainsSeparator(kw.AsSpan()))
@@ -79,11 +73,9 @@ public static class InputTokenizer
             }
 
             AhoCorasick<string>? multiAc = null;
-            if (hasMulti)
-            {
+            if (hasMulti) {
                 var multiWordKws = new List<string>();
-                foreach (var kw in dict)
-                {
+                foreach (var kw in dict) {
                     if (ContainsSeparator(kw.AsSpan()))
                         multiWordKws.Add(kw);
                 }
@@ -96,16 +88,14 @@ public static class InputTokenizer
 
         var tokens = new List<string>(segments.Count * 2);
 
-        if (cache.MultiWordAc is not null)
-        {
+        if (cache.MultiWordAc is not null) {
             var matched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var match in cache.MultiWordAc.FindAll(input.AsSpan()))
                 matched.Add(match.Value);
             tokens.AddRange(matched);
         }
 
-        foreach (var seg in segments)
-        {
+        foreach (var seg in segments) {
             if (seg.Length == 0)
                 continue;
 
@@ -115,25 +105,20 @@ public static class InputTokenizer
         return tokens.ToArray();
     }
 
-    private static bool ContainsSeparator(ReadOnlySpan<char> s)
-    {
-        for (var i = 0; i < s.Length; i++)
-        {
+    private static bool ContainsSeparator(ReadOnlySpan<char> s) {
+        for (var i = 0; i < s.Length; i++) {
             if (SegmentSeparators.Contains(s[i]))
                 return true;
         }
         return false;
     }
 
-    private static List<string> CoarseSplit(ReadOnlySpan<char> input)
-    {
+    private static List<string> CoarseSplit(ReadOnlySpan<char> input) {
         var result = new List<string>();
         var start = 0;
 
-        for (var i = 0; i < input.Length; i++)
-        {
-            if (SegmentSeparators.Contains(input[i]))
-            {
+        for (var i = 0; i < input.Length; i++) {
+            if (SegmentSeparators.Contains(input[i])) {
                 if (i > start)
                     result.Add(input.Slice(start, i - start).ToString());
 
@@ -147,23 +132,19 @@ public static class InputTokenizer
         return result;
     }
 
-    private static void FmmTokenize(ReadOnlySpan<char> span, IReadOnlySet<string> dictionary, int maxDictLen, List<string> tokens)
-    {
+    private static void FmmTokenize(ReadOnlySpan<char> span, IReadOnlySet<string> dictionary, int maxDictLen, List<string> tokens) {
         var pos = 0;
 
-        while (pos < span.Length)
-        {
+        while (pos < span.Length) {
             var remaining = span.Length - pos;
             var matchLen = Math.Min(remaining, maxDictLen);
             var matched = false;
 
-            for (var len = matchLen; len >= 1; len--)
-            {
+            for (var len = matchLen; len >= 1; len--) {
                 var candidate = span.Slice(pos, len);
                 var candidateStr = candidate.ToString();
 
-                if (dictionary.Contains(candidateStr))
-                {
+                if (dictionary.Contains(candidateStr)) {
                     tokens.Add(candidateStr);
                     pos += len;
                     matched = true;
@@ -171,27 +152,21 @@ public static class InputTokenizer
                 }
             }
 
-            if (!matched)
-            {
+            if (!matched) {
                 var ch = span[pos];
-                if (char.IsAsciiLetter(ch))
-                {
+                if (char.IsAsciiLetter(ch)) {
                     var wordStart = pos;
                     while (pos < span.Length && char.IsAsciiLetter(span[pos]))
                         pos++;
 
                     tokens.Add(span.Slice(wordStart, pos - wordStart).ToString());
-                }
-                else if (char.IsAsciiDigit(ch))
-                {
+                } else if (char.IsAsciiDigit(ch)) {
                     var numStart = pos;
                     while (pos < span.Length && char.IsAsciiDigit(span[pos]))
                         pos++;
 
                     tokens.Add(span.Slice(numStart, pos - numStart).ToString());
-                }
-                else
-                {
+                } else {
                     tokens.Add(ch.ToString());
                     pos++;
                 }
@@ -204,15 +179,13 @@ public static class InputTokenizer
 /// 动态关键词匹配器 — 纯逻辑，可独立测试
 /// 匹配策略：先切词再逐词精确匹配，避免子串误匹配
 /// </summary>
-public static class DynamicKeywordMatcher
-{
+public static class DynamicKeywordMatcher {
     private static readonly ConditionalWeakTable<DynamicKeywordConfig, HashSet<string>> DictionaryCache = new();
 
     /// <summary>
     /// 在给定配置中匹配用户输入的关键词
     /// </summary>
-    public static DynamicKeywordMatchResult? TryMatch(string input, DynamicKeywordConfig config)
-    {
+    public static DynamicKeywordMatchResult? TryMatch(string input, DynamicKeywordConfig config) {
         if (string.IsNullOrWhiteSpace(input))
             return null;
 
@@ -223,24 +196,19 @@ public static class DynamicKeywordMatcher
         for (var i = 0; i < tokens.Length; i++)
             lowerTokens[i] = tokens[i].ToLowerInvariant();
 
-        foreach (var (sectionName, section) in config.Sections)
-        {
+        foreach (var (sectionName, section) in config.Sections) {
             if (!section.Enabled || section.Keywords.Count == 0)
                 continue;
 
-            foreach (var keyword in section.Keywords)
-            {
+            foreach (var keyword in section.Keywords) {
                 if (string.IsNullOrEmpty(keyword))
                     continue;
 
                 var lowerKeyword = keyword.ToLowerInvariant();
 
-                foreach (var token in lowerTokens)
-                {
-                    if (token.Equals(lowerKeyword, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return new DynamicKeywordMatchResult
-                        {
+                foreach (var token in lowerTokens) {
+                    if (token.Equals(lowerKeyword, StringComparison.OrdinalIgnoreCase)) {
+                        return new DynamicKeywordMatchResult {
                             SectionName = sectionName,
                             MatchedKeyword = keyword,
                             CustomContent = section.CustomContent
@@ -256,17 +224,13 @@ public static class DynamicKeywordMatcher
     /// <summary>
     /// 从配置构建词典（用于 FMM 切词）— 按配置引用缓存，配置热重载后旧引用被 GC 回收自动失效
     /// </summary>
-    internal static HashSet<string> BuildDictionary(DynamicKeywordConfig config)
-    {
-        return DictionaryCache.GetValue(config, static c =>
-        {
+    internal static HashSet<string> BuildDictionary(DynamicKeywordConfig config) {
+        return DictionaryCache.GetValue(config, static c => {
             var dict = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var section in c.Sections.Values)
-            {
+            foreach (var section in c.Sections.Values) {
                 if (!section.Enabled)
                     continue;
-                foreach (var keyword in section.Keywords)
-                {
+                foreach (var keyword in section.Keywords) {
                     if (!string.IsNullOrEmpty(keyword))
                         dict.Add(keyword);
                 }

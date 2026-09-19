@@ -4,8 +4,7 @@ namespace Infrastructure.Configuration;
 /// 环境变量统一读取入口 — 对齐 TS 版 envUtils.ts
 /// 所有环境变量读取必须通过此类，禁止直接调用 Environment.GetEnvironmentVariable
 /// </summary>
-public static class EnvHelper
-{
+public static class EnvHelper {
     /// <summary>
     /// 获取 JCC 专属环境变量
     /// </summary>

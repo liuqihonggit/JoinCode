@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 自定义聊天命令 — 包装用户配置的 CustomCommand，支持参数插值后发送给模型或直接输出
 /// </summary>
-public sealed class CustomChatCommand : IChatCommand
-{
+public sealed class CustomChatCommand : IChatCommand {
     private readonly CustomCommand _command;
 
     /// <summary>命令名称 — 取自 CustomCommand.FullName</summary>
@@ -29,8 +28,7 @@ public sealed class CustomChatCommand : IChatCommand
     /// 构造自定义聊天命令实例
     /// </summary>
     /// <param name="command">自定义命令配置</param>
-    public CustomChatCommand(CustomCommand command)
-    {
+    public CustomChatCommand(CustomCommand command) {
         _command = command;
     }
 
@@ -39,24 +37,19 @@ public sealed class CustomChatCommand : IChatCommand
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var arguments = ChatCommandBase.GetNormalizedArgs(context);
         var prompt = _command.ApplyArguments(arguments);
 
-        if (_command.DisableModelInvocation)
-        {
+        if (_command.DisableModelInvocation) {
             TerminalHelper.WriteLine(prompt);
             return ChatCommandResult.Continue();
         }
 
-        try
-        {
+        try {
             var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("自定义命令执行", ex);
         }
 

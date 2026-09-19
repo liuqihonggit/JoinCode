@@ -6,8 +6,7 @@ namespace Infrastructure.Configuration;
 /// <para>请求-响应型：通过 ToRetryConfig() 转换为 RetryConfig，注入 ResilientHttpExecutor</para>
 /// <para>长连接重连型：ReconnectBaseDelay/ReconnectMaxDelay 供 SSE/SSH/Bridge 等统一取用</para>
 /// </summary>
-public sealed class NetworkRetryOptions
-{
+public sealed class NetworkRetryOptions {
     /// <summary>重试总预算，默认 24h，耗尽抛 NetworkRetryBudgetExhaustedException</summary>
     public TimeSpan TotalBudget { get; init; } = TimeSpan.FromHours(24);
 
@@ -35,8 +34,7 @@ public sealed class NetworkRetryOptions
     /// <summary>
     /// 转换为 ResilientHttpExecutor 的 RetryConfig — 请求-响应型重试配置
     /// </summary>
-    public RetryConfig ToRetryConfig() => new()
-    {
+    public RetryConfig ToRetryConfig() => new() {
         TotalBudget = TotalBudget,
         BaseDelay = BaseDelay,
         MaxDelay = MaxDelay,
@@ -57,8 +55,7 @@ public sealed class NetworkRetryOptions
     /// <param name="totalBudget">测试重试预算（建议 >= 2s）</param>
     /// <param name="baseDelay">测试基础延迟（建议 >= 100ms，对齐生产量级）</param>
     /// <param name="maxDelay">测试最大延迟（默认 baseDelay*5，至少 500ms）</param>
-    public RetryConfig ToTestRetryConfig(TimeSpan totalBudget, TimeSpan baseDelay, TimeSpan? maxDelay = null) => new()
-    {
+    public RetryConfig ToTestRetryConfig(TimeSpan totalBudget, TimeSpan baseDelay, TimeSpan? maxDelay = null) => new() {
         TotalBudget = totalBudget,
         BaseDelay = baseDelay,
         MaxDelay = maxDelay ?? TimeSpan.FromMilliseconds(Math.Max(baseDelay.TotalMilliseconds * 5, 500)),
@@ -66,8 +63,7 @@ public sealed class NetworkRetryOptions
         PauseBudgetOnNetworkUnavailable = PauseBudgetOnNetworkUnavailable,
     };
 
-    private static BackoffStrategy ParseStrategy(string s) => s switch
-    {
+    private static BackoffStrategy ParseStrategy(string s) => s switch {
         "Fixed" => BackoffStrategy.Fixed,
         "Linear" => BackoffStrategy.Linear,
         "Exponential" => BackoffStrategy.Exponential,

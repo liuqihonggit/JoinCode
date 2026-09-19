@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Scanning;
 /// 敏感文件模式分类 — 对齐 TS secretScanner.ts SensitiveFilePatterns
 /// 枚举值仅作为分类标识,具体文件模式(Glob)在 SecurityPatterns.SensitiveFilePatternsByCategory 字典
 /// </summary>
-public enum SensitiveFilePattern
-{
+public enum SensitiveFilePattern {
     /// <summary>.env / .env.local / .env.production 等环境变量文件变体</summary>
     [EnumValue("env-files")] EnvFiles,
 

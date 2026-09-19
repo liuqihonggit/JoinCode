@@ -1,7 +1,6 @@
 namespace Memdir.Sync.Helpers;
 
-internal sealed class SyncFileScanner
-{
+internal sealed class SyncFileScanner {
     private readonly IFileSystem _fs;
     private readonly IFileOperationService _fileOperationService;
     private readonly TeamMemorySyncOptions _options;
@@ -17,8 +16,7 @@ internal sealed class SyncFileScanner
         TeamMemorySyncOptions options,
         ILogger? logger,
         ConcurrentDictionary<string, SyncFileEntry> localEntries,
-        ConcurrentDictionary<string, SyncFileEntry> remoteEntries)
-    {
+        ConcurrentDictionary<string, SyncFileEntry> remoteEntries) {
         _fs = fs;
         _fileOperationService = fileOperationService;
         _options = options;
@@ -27,20 +25,15 @@ internal sealed class SyncFileScanner
         _remoteEntries = remoteEntries;
     }
 
-    internal Task ScanLocalAsync(CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(_options.WatchPath) || !_fs.DirectoryExists(_options.WatchPath))
-        {
+    internal Task ScanLocalAsync(CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(_options.WatchPath) || !_fs.DirectoryExists(_options.WatchPath)) {
             return Task.CompletedTask;
         }
 
-        foreach (var pattern in _options.FilePatterns)
-        {
+        foreach (var pattern in _options.FilePatterns) {
             var files = _fs.GetFiles(_options.WatchPath, pattern, SearchOption.AllDirectories);
-            foreach (var file in files)
-            {
-                var entry = new SyncFileEntry
-                {
+            foreach (var file in files) {
+                var entry = new SyncFileEntry {
                     FilePath = file,
                     ContentHash = SyncFileHash.Compute(_fs, file),
                     LastModified = _fs.GetLastWriteTimeUtc(file),
@@ -55,35 +48,28 @@ internal sealed class SyncFileScanner
         return Task.CompletedTask;
     }
 
-    internal async Task ScanRemoteAsync(CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(_options.RemoteStoragePath))
-        {
+    internal async Task ScanRemoteAsync(CancellationToken cancellationToken) {
+        if (string.IsNullOrEmpty(_options.RemoteStoragePath)) {
             return;
         }
 
-        try
-        {
+        try {
             var result = await _fileOperationService.ReadFileAsync(
                 _options.RemoteStoragePath, cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            if (!result.Success || string.IsNullOrEmpty(result.Content))
-            {
+            if (!result.Success || string.IsNullOrEmpty(result.Content)) {
                 return;
             }
 
             var entries = RelaxedJsonSerializer.Deserialize(result.Content, JsonContext.ListSyncFileEntry);
             if (entries == null) return;
 
-            foreach (var entry in entries)
-            {
+            foreach (var entry in entries) {
                 _remoteEntries[entry.FilePath] = entry;
             }
 
             _logger?.LogDebug(L.T(StringKey.VaultLogScanRemoteComplete), _remoteEntries.Count);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogScanRemoteFailed));
         }
     }

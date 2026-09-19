@@ -6,8 +6,7 @@ namespace Core.Agents.Coordinator;
 /// 所有子代理都是 AgentBase 实例，通过 SubAgentOptions.AllowedTools/DeniedTools 过滤工具集
 /// variant 只影响系统提示词，不影响管道
 /// </summary>
-public static class AgentFactory
-{
+public static class AgentFactory {
     /// <summary>
     /// 创建 AgentBase 实例 — 主代理和子代理走同一个类、同一条管道
     /// 工具集通过 SubAgentOptions.AllowedTools/DeniedTools 过滤
@@ -30,8 +29,7 @@ public static class AgentFactory
         string? graphNodeId = null,
         ObjectId sessionId = default,
         IChatContextManager? contextManager = null,
-        string? customUniqueId = null)
-    {
+        string? customUniqueId = null) {
         return new AgentBase(
             task, options, queryEngine, logger, clock, name, role, variant,
             parentObjectId, systemPrompt, instruction, freshContext, tokenBudget,

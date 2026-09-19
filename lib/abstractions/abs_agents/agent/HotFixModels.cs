@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// <summary>
 /// 修复动作类型
 /// </summary>
-public enum HotFixActionType
-{
+public enum HotFixActionType {
     /// <summary>无需修复</summary>
     [EnumValue("none")] None,
 
@@ -24,8 +23,7 @@ public enum HotFixActionType
 /// <summary>
 /// 修复动作 — 描述一次修复操作
 /// </summary>
-public sealed record HotFixAction
-{
+public sealed record HotFixAction {
     /// <summary>修复类型</summary>
     public required HotFixActionType ActionType { get; init; }
 
@@ -48,8 +46,7 @@ public sealed record HotFixAction
 /// <summary>
 /// 修复结果
 /// </summary>
-public sealed record HotFixResult
-{
+public sealed record HotFixResult {
     /// <summary>是否成功</summary>
     public required bool Success { get; init; }
 
@@ -75,8 +72,7 @@ public sealed record HotFixResult
 /// <summary>
 /// 医生报告 — 一次完整的诊断-修复循环的结果
 /// </summary>
-public sealed record DoctorReport
-{
+public sealed record DoctorReport {
     /// <summary>报告 ID</summary>
     public string ReportId { get; init; } = Guid.NewGuid().ToString("N")[..8];
 
@@ -105,8 +101,7 @@ public sealed record DoctorReport
 /// <summary>
 /// 医生报告状态
 /// </summary>
-public enum DoctorReportStatus
-{
+public enum DoctorReportStatus {
     [EnumValue("running")] Running,
     [EnumValue("completed")] Completed,
     [EnumValue("failed")] Failed,

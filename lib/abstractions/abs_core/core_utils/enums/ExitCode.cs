@@ -36,8 +36,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 兜底 Program.cs Main catch → LlmCallTimeout(1240)。
 /// 预留值(1241-1244)对应场景在内部处理不退出进程，未来如需退出可直接引用。
 /// </remarks>
-public enum ExitCode
-{
+public enum ExitCode {
     /// <summary>成功</summary>
     [EnumValue("success")] Success = 0,
 

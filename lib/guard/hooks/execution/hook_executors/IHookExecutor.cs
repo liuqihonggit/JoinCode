@@ -4,8 +4,7 @@ namespace Core.Hooks.Execution;
 /// <summary>
 /// 钩子执行器接口
 /// </summary>
-public interface IHookExecutor
-{
+public interface IHookExecutor {
     /// <summary>
     /// 支持的钩子类型
     /// </summary>
@@ -27,8 +26,7 @@ public interface IHookExecutor
 /// <summary>
 /// 钩子执行器接口（泛型）
 /// </summary>
-public interface IHookExecutor<in THook> : IHookExecutor where THook : HookCommand
-{
+public interface IHookExecutor<in THook> : IHookExecutor where THook : HookCommand {
     /// <summary>
     /// 执行特定类型的钩子
     /// </summary>
@@ -41,8 +39,7 @@ public interface IHookExecutor<in THook> : IHookExecutor where THook : HookComma
 /// <summary>
 /// 钩子执行上下文
 /// </summary>
-public sealed record HookExecutionContext
-{
+public sealed record HookExecutionContext {
     /// <summary>
     /// 钩子输入
     /// </summary>
@@ -87,8 +84,7 @@ public sealed record HookExecutionContext
 /// <summary>
 /// 钩子执行异常
 /// </summary>
-public class HookExecutionException : WorkflowException
-{
+public class HookExecutionException : WorkflowException {
     /// <summary>
     /// 构造钩子执行异常
     /// </summary>
@@ -123,8 +119,7 @@ public class HookExecutionException : WorkflowException
 /// <summary>
 /// 钩子超时异常
 /// </summary>
-public class HookTimeoutException : HookExecutionException
-{
+public class HookTimeoutException : HookExecutionException {
     /// <summary>
     /// 构造钩子超时异常
     /// </summary>
@@ -133,5 +128,3 @@ public class HookTimeoutException : HookExecutionException
     public HookTimeoutException(string hookName, TimeSpan timeout)
         : base($"Hook '{hookName}' timed out after {timeout.TotalSeconds}s") { }
 }
-
-

@@ -3,63 +3,53 @@ namespace Abs.Tests.Tools;
 /// <summary>
 /// ToolKind 枚举单元测试 — 验证 EnumValue 特性值、源码生成器输出的 Constants 和 Extensions
 /// </summary>
-public sealed class ToolKindTest
-{
+public sealed class ToolKindTest {
     // === ToValue 正向映射 ===
 
     [Fact]
-    public void ToValue_System_ReturnsSystem()
-    {
+    public void ToValue_System_ReturnsSystem() {
         ToolKind.System.ToValue().Should().Be("system");
     }
 
     [Fact]
-    public void ToValue_Mcp_ReturnsMcp()
-    {
+    public void ToValue_Mcp_ReturnsMcp() {
         ToolKind.Mcp.ToValue().Should().Be("mcp");
     }
 
     [Fact]
-    public void ToValue_OnError_ReturnsOnError()
-    {
+    public void ToValue_OnError_ReturnsOnError() {
         ToolKind.OnError.ToValue().Should().Be("on_error");
     }
 
     // === FromValue 反向映射 ===
 
     [Fact]
-    public void FromValue_System_ReturnsSystemEnum()
-    {
+    public void FromValue_System_ReturnsSystemEnum() {
         ToolKindExtensions.FromValue("system").Should().Be(ToolKind.System);
     }
 
     [Fact]
-    public void FromValue_Mcp_ReturnsMcpEnum()
-    {
+    public void FromValue_Mcp_ReturnsMcpEnum() {
         ToolKindExtensions.FromValue("mcp").Should().Be(ToolKind.Mcp);
     }
 
     [Fact]
-    public void FromValue_OnError_ReturnsOnErrorEnum()
-    {
+    public void FromValue_OnError_ReturnsOnErrorEnum() {
         ToolKindExtensions.FromValue("on_error").Should().Be(ToolKind.OnError);
     }
 
     [Fact]
-    public void FromValue_Null_ReturnsNull()
-    {
+    public void FromValue_Null_ReturnsNull() {
         ToolKindExtensions.FromValue(null).Should().BeNull();
     }
 
     [Fact]
-    public void FromValue_Unknown_ReturnsNull()
-    {
+    public void FromValue_Unknown_ReturnsNull() {
         ToolKindExtensions.FromValue("unknown").Should().BeNull();
     }
 
     [Fact]
-    public void FromValue_CaseInsensitive_ReturnsCorrectEnum()
-    {
+    public void FromValue_CaseInsensitive_ReturnsCorrectEnum() {
         ToolKindExtensions.FromValue("SYSTEM").Should().Be(ToolKind.System);
         ToolKindExtensions.FromValue("Mcp").Should().Be(ToolKind.Mcp);
     }
@@ -67,50 +57,42 @@ public sealed class ToolKindTest
     // === IsDefined ===
 
     [Fact]
-    public void IsDefined_System_ReturnsTrue()
-    {
+    public void IsDefined_System_ReturnsTrue() {
         ToolKindExtensions.IsDefined(ToolKind.System).Should().BeTrue();
     }
 
     [Fact]
-    public void IsDefined_Mcp_ReturnsTrue()
-    {
+    public void IsDefined_Mcp_ReturnsTrue() {
         ToolKindExtensions.IsDefined(ToolKind.Mcp).Should().BeTrue();
     }
 
     [Fact]
-    public void IsDefined_OnError_ReturnsTrue()
-    {
+    public void IsDefined_OnError_ReturnsTrue() {
         ToolKindExtensions.IsDefined(ToolKind.OnError).Should().BeTrue();
     }
 
     // === Constants 常量类 ===
 
     [Fact]
-    public void Constants_System_EqualsSystem()
-    {
+    public void Constants_System_EqualsSystem() {
         ToolKindEnumConstants.System.Should().Be("system");
     }
 
     [Fact]
-    public void Constants_Mcp_EqualsMcp()
-    {
+    public void Constants_Mcp_EqualsMcp() {
         ToolKindEnumConstants.Mcp.Should().Be("mcp");
     }
 
     [Fact]
-    public void Constants_OnError_EqualsOnError()
-    {
+    public void Constants_OnError_EqualsOnError() {
         ToolKindEnumConstants.OnError.Should().Be("on_error");
     }
 
     // === 往返一致性 ===
 
     [Fact]
-    public void RoundTrip_AllValues_ToValueThenFromValue_ReturnsOriginal()
-    {
-        foreach (ToolKind kind in Enum.GetValues<ToolKind>())
-        {
+    public void RoundTrip_AllValues_ToValueThenFromValue_ReturnsOriginal() {
+        foreach (var kind in Enum.GetValues<ToolKind>()) {
             var value = kind.ToValue();
             var restored = ToolKindExtensions.FromValue(value);
             restored.Should().Be(kind, $"ToValue('{kind}') → '{value}' → FromValue should return {kind}");
@@ -118,8 +100,7 @@ public sealed class ToolKindTest
     }
 
     [Fact]
-    public void RoundTrip_AllConstants_FromValue_ReturnsCorrectEnum()
-    {
+    public void RoundTrip_AllConstants_FromValue_ReturnsCorrectEnum() {
         ToolKindExtensions.FromValue(ToolKindEnumConstants.System).Should().Be(ToolKind.System);
         ToolKindExtensions.FromValue(ToolKindEnumConstants.Mcp).Should().Be(ToolKind.Mcp);
         ToolKindExtensions.FromValue(ToolKindEnumConstants.OnError).Should().Be(ToolKind.OnError);

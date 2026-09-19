@@ -3,8 +3,7 @@ namespace Services.SystemActuator;
 /// <summary>
 /// CMD 系统执行器 — Windows 命令提示符，新增实现（原 Kind.Cmd 无实现）
 /// </summary>
-public sealed class CmdSystemActuator : SystemActuatorBase
-{
+public sealed class CmdSystemActuator : SystemActuatorBase {
     /// <summary>指定 CMD 可执行文件路径的环境变量名</summary>
     public const string CmdPathEnvVar = "JCC_CMD_PATH";
 
@@ -31,14 +30,12 @@ public sealed class CmdSystemActuator : SystemActuatorBase
     /// <summary>
     /// 检测 CMD 能力并注册到基类静态缓存
     /// </summary>
-    public static SystemActuatorCapability CreateCapability(IFileSystem fs, ILogger? logger = null)
-    {
+    public static SystemActuatorCapability CreateCapability(IFileSystem fs, ILogger? logger = null) {
         var shellPath = ResolveShellPathStatic(fs, logger);
         var version = DetectVersionStatic(shellPath, logger);
         var displayName = $"CMD {version}";
 
-        var capability = new SystemActuatorCapability
-        {
+        var capability = new SystemActuatorCapability {
             Kind = SystemActuatorKind.Cmd,
             ShellPath = shellPath,
             Version = version,
@@ -50,8 +47,7 @@ public sealed class CmdSystemActuator : SystemActuatorBase
         return capability;
     }
 
-    private static string ResolveShellPathStatic(IFileSystem fs, ILogger? logger)
-    {
+    private static string ResolveShellPathStatic(IFileSystem fs, ILogger? logger) {
         var envPath = Environment.GetEnvironmentVariable(CmdPathEnvVar);
         if (!string.IsNullOrEmpty(envPath) && fs.FileExists(envPath)) return envPath;
 
@@ -63,12 +59,9 @@ public sealed class CmdSystemActuator : SystemActuatorBase
         return "cmd.exe";
     }
 
-    private static string DetectVersionStatic(string shellPath, ILogger? logger)
-    {
-        try
-        {
-            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
-            {
+    private static string DetectVersionStatic(string shellPath, ILogger? logger) {
+        try {
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions {
                 FileName = shellPath,
                 ArgumentList = ["/c", "ver"],
                 RedirectStandardError = false,
@@ -80,14 +73,12 @@ public sealed class CmdSystemActuator : SystemActuatorBase
 
             var match = Regex.Match(output ?? "", @"\[Version\s+([^\]]+)\]", RegexOptions.IgnoreCase);
             return match.Success ? match.Groups[1].Value.Trim() : "unknown";
-        }
-        catch { return "unknown"; }
+        } catch { return "unknown"; }
     }
 
     /// <inheritdoc />
     public override Task<SystemActuatorExecCommandResult> BuildExecCommandAsync(
-        string command, SystemActuatorExecOptions options, CancellationToken cancellationToken = default)
-    {
+        string command, SystemActuatorExecOptions options, CancellationToken cancellationToken = default) {
         var tmpDir = Path.GetTempPath();
         var cwdFilePath = Path.Combine(tmpDir, $"jcc-pwd-cmd-{options.SessionId}");
 
@@ -97,8 +88,7 @@ public sealed class CmdSystemActuator : SystemActuatorBase
 
         Logger?.LogDebug("CmdSystemActuator: built command for session {SessionId}", options.SessionId);
 
-        return Task.FromResult(new SystemActuatorExecCommandResult
-        {
+        return Task.FromResult(new SystemActuatorExecCommandResult {
             CommandString = commandString,
             CwdFilePath = cwdFilePath
         });

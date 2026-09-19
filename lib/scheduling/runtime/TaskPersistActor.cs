@@ -11,62 +11,49 @@ internal sealed record RecoverCmd(string? GoalId, CancellationToken Ct, TaskComp
 /// <summary>
 /// TaskRuntime 持久化 Actor — 序列化 Persist/Recover 文件 I/O，消除 AsyncLock 锁内长 await。
 /// </summary>
-internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit>
-{
+internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit> {
     private readonly TaskRuntime _owner;
     private readonly ILogger<TaskRuntime>? _logger;
 
     public TaskPersistActor(TaskRuntime owner, ILogger<TaskRuntime>? logger)
-        : base()
-    {
+        : base() {
         _owner = owner;
         _logger = logger;
     }
 
 
-    public async Task PersistAsync(CancellationToken ct)
-    {
+    public async Task PersistAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new PersistCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
 
-    public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId, CancellationToken ct)
-    {
+    public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId, CancellationToken ct) {
         var tcs = TcsFactory.Create<IReadOnlyList<RuntimeTask>>();
         await SendAsync(new RecoverCmd(goalId, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
-    protected override async ValueTask HandleAsync(ITaskPersistCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
-            case PersistCmd cmd:
-            {
-                try
-                {
+    protected override async ValueTask HandleAsync(ITaskPersistCommand command, CancellationToken ct) {
+        switch (command) {
+            case PersistCmd cmd: {
+                try {
                     await _owner.PersistCoreAsync(cmd.Ct).ConfigureAwait(false);
                     cmd.Tcs.TrySetResult();
-                }
-                catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
+                } catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
                 break;
             }
-            case RecoverCmd cmd:
-            {
-                try
-                {
+            case RecoverCmd cmd: {
+                try {
                     var result = await _owner.RecoverTasksCoreAsync(cmd.GoalId, cmd.Ct).ConfigureAwait(false);
                     cmd.Tcs.TrySetResult(result);
-                }
-                catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
+                } catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
                 break;
             }
         }
     }
 
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[TaskRuntime] Persist Actor Consumer 异常");
     }
 }

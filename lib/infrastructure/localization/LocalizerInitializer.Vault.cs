@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterVaultEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterVaultEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === MemoryManagementToolHandlers ===
         defaultEntries[StringKey.VaultQueryCannotBeEmpty] = "query cannot be empty";
         defaultEntries[StringKey.VaultMemoryScanResult] = "Memory scan result";

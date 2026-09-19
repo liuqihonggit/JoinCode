@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Permission;
 
-public enum PermissionLevel
-{
+public enum PermissionLevel {
     [EnumValue("none")] None,
     [EnumValue("read")] Read,
     [EnumValue("write")] Write,
@@ -9,8 +8,7 @@ public enum PermissionLevel
     [EnumValue("admin")] Admin
 }
 
-public sealed record AgentPermissionRule
-{
+public sealed record AgentPermissionRule {
     public required string AgentPattern { get; init; }
     public required PermissionMode Mode { get; init; }
     public PermissionLevel Level { get; init; } = PermissionLevel.Read;
@@ -22,8 +20,7 @@ public sealed record AgentPermissionRule
     public int Priority { get; init; } = 0;
 }
 
-public sealed record PermissionCheckResult
-{
+public sealed record PermissionCheckResult {
     public bool IsAllowed { get; init; }
     public PermissionMode Mode { get; init; }
     public string? Reason { get; init; }

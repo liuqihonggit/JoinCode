@@ -6,8 +6,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 桥指针来源 — 对齐 TS 端 bridgePointer.ts source 字段
 /// </summary>
-public enum BridgePointerSource
-{
+public enum BridgePointerSource {
     /// <summary>独立模式</summary>
     [EnumValue("standalone")] Standalone,
     /// <summary>交互模式</summary>
@@ -22,8 +21,7 @@ public enum BridgePointerSource
 /// 崩溃恢复指针 — 对齐 TS 端 BridgePointer
 /// 记录活跃会话信息，用于崩溃后恢复
 /// </summary>
-public sealed class BridgePointer
-{
+public sealed class BridgePointer {
     /// <summary>会话 ID</summary>
     [JsonPropertyName("sessionId")]
     public required string SessionId { get; init; }
@@ -40,8 +38,7 @@ public sealed class BridgePointer
 /// <summary>
 /// 带年龄的指针 — 对齐 TS 端 readBridgePointer 返回值
 /// </summary>
-public sealed class BridgePointerWithAge
-{
+public sealed class BridgePointerWithAge {
     /// <summary>崩溃恢复指针</summary>
     public required BridgePointer Pointer { get; init; }
     /// <summary>指针年龄（毫秒）</summary>
@@ -54,8 +51,7 @@ public sealed class BridgePointerWithAge
 /// 崩溃恢复指针服务 — 对齐 TS 端 bridgePointer.ts
 /// 持久化活跃会话信息到文件，崩溃后可恢复
 /// </summary>
-public sealed class BridgePointerService
-{
+public sealed class BridgePointerService {
     private const int PointerTtlMs = 4 * 60 * 60 * 1000; // 4 小时
     private const int MaxWorktreeFanout = 50;
     private readonly ILogger? _logger;
@@ -68,8 +64,7 @@ public sealed class BridgePointerService
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="clock">时钟服务（可选，默认系统时钟）</param>
-    public BridgePointerService(IFileSystem fs, ILogger? logger = null, IClockService? clock = null)
-    {
+    public BridgePointerService(IFileSystem fs, ILogger? logger = null, IClockService? clock = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -81,8 +76,7 @@ public sealed class BridgePointerService
     /// </summary>
     /// <param name="dir">项目目录</param>
     /// <returns>指针文件路径</returns>
-    public static string GetPointerPath(string dir)
-    {
+    public static string GetPointerPath(string dir) {
         ArgumentNullException.ThrowIfNull(dir);
         var appData = Environment.GetEnvironmentVariable("JCC_APP_DATA_FOLDER")
                    ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), AppDataConstants.AppDataFolder);
@@ -98,16 +92,14 @@ public sealed class BridgePointerService
     /// <param name="dir">项目目录</param>
     /// <param name="pointer">崩溃恢复指针</param>
     /// <param name="ct">取消令牌</param>
-    public async Task WriteAsync(string dir, BridgePointer pointer, CancellationToken ct = default)
-    {
+    public async Task WriteAsync(string dir, BridgePointer pointer, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(dir);
         ArgumentNullException.ThrowIfNull(pointer);
 
         var path = GetPointerPath(dir);
         var directory = Path.GetDirectoryName(path)!;
 
-        if (!_fs.DirectoryExists(directory))
-        {
+        if (!_fs.DirectoryExists(directory)) {
             _fs.CreateDirectory(directory);
         }
 
@@ -124,18 +116,15 @@ public sealed class BridgePointerService
     /// <param name="dir">项目目录</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>带年龄的指针，不存在或过期则返回 null</returns>
-    public async Task<BridgePointerWithAge?> ReadAsync(string dir, CancellationToken ct = default)
-    {
+    public async Task<BridgePointerWithAge?> ReadAsync(string dir, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(dir);
 
         var path = GetPointerPath(dir);
-        if (!_fs.FileExists(path))
-        {
+        if (!_fs.FileExists(path)) {
             return null;
         }
 
-        try
-        {
+        try {
             var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
             var pointer = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgePointer);
 
@@ -145,16 +134,13 @@ public sealed class BridgePointerService
             var ageMs = (long)(_clock.GetUtcNowOffset() - lastWrite).TotalMilliseconds;
 
             // 新鲜度检查 — 超过 4 小时视为过期
-            if (ageMs > PointerTtlMs)
-            {
+            if (ageMs > PointerTtlMs) {
                 _logger?.LogDebug("[BridgePointer] 指针已过期: {AgeMs}ms > {TtlMs}ms", ageMs, PointerTtlMs);
                 return null;
             }
 
             return new BridgePointerWithAge { Pointer = pointer, AgeMs = ageMs };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[BridgePointer] 读取指针失败: {Path}", path);
             return null;
         }
@@ -168,25 +154,19 @@ public sealed class BridgePointerService
     /// <param name="ct">取消令牌</param>
     /// <returns>最新的指针与所在目录，无则返回 null</returns>
     public async Task<(BridgePointerWithAge Pointer, string Dir)?> ReadAcrossWorktreesAsync(
-        string baseDir, CancellationToken ct = default)
-    {
+        string baseDir, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(baseDir);
 
         // 查找 worktree 目录
         var worktreeDirs = new List<string>();
-        try
-        {
-            if (_fs.DirectoryExists(baseDir))
-            {
-                foreach (var dir in _fs.EnumerateDirectories(baseDir, "w*", SearchOption.TopDirectoryOnly))
-                {
+        try {
+            if (_fs.DirectoryExists(baseDir)) {
+                foreach (var dir in _fs.EnumerateDirectories(baseDir, "w*", SearchOption.TopDirectoryOnly)) {
                     if (worktreeDirs.Count >= MaxWorktreeFanout) break;
                     worktreeDirs.Add(dir);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[BridgePointer] 搜索 worktree 目录失败: {BaseDir}", baseDir);
         }
 
@@ -194,8 +174,7 @@ public sealed class BridgePointerService
         worktreeDirs.Add(baseDir);
 
         // 并行读取所有指针
-        var tasks = worktreeDirs.Select<string, Task<(BridgePointerWithAge Pointer, string Dir)?>>(async dir =>
-        {
+        var tasks = worktreeDirs.Select<string, Task<(BridgePointerWithAge Pointer, string Dir)?>>(async dir => {
             var result = await ReadAsync(dir, ct).ConfigureAwait(false);
             return result is not null ? (Pointer: result, Dir: dir) : null;
         }).ToArray();
@@ -204,11 +183,9 @@ public sealed class BridgePointerService
 
         // 选择最新的（ageMs 最小的）
         (BridgePointerWithAge Pointer, string Dir)? best = null;
-        foreach (var item in results)
-        {
+        foreach (var item in results) {
             if (item is null) continue;
-            if (best is null || item.Value.Pointer.AgeMs < best.Value.Pointer.AgeMs)
-            {
+            if (best is null || item.Value.Pointer.AgeMs < best.Value.Pointer.AgeMs) {
                 best = item;
             }
         }
@@ -221,13 +198,11 @@ public sealed class BridgePointerService
     /// </summary>
     /// <param name="dir">项目目录</param>
     /// <param name="ct">取消令牌</param>
-    public Task ClearAsync(string dir, CancellationToken ct = default)
-    {
+    public Task ClearAsync(string dir, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(dir);
 
         var path = GetPointerPath(dir);
-        if (_fs.FileExists(path))
-        {
+        if (_fs.FileExists(path)) {
             _fs.DeleteFile(path);
             _logger?.LogDebug("[BridgePointer] 清除指针: {Path}", path);
         }

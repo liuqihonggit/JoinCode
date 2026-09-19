@@ -5,8 +5,7 @@ namespace Core.Permission;
 /// 远程执行风险处理器 — CommandRisk.RemoteExecution 的拦截策略
 /// </summary>
 [Register(typeof(ICommandRiskHandler), ServiceLifetime.Singleton)]
-public sealed partial class RemoteExecutionRiskHandler : SimpleCommandRiskHandler
-{
+public sealed partial class RemoteExecutionRiskHandler : SimpleCommandRiskHandler {
     /// <inheritdoc />
     public override CommandRisk RiskType => CommandRisk.RemoteExecution;
 

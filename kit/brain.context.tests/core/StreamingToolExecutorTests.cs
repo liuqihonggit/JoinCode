@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public sealed class StreamingToolExecutorTests
-{
+public sealed class StreamingToolExecutorTests {
     [Fact]
-    public async Task AddTool_SingleSafeTool_ExecutesImmediately()
-    {
+    public async Task AddTool_SingleSafeTool_ExecutesImmediately() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
@@ -19,8 +17,7 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-    public async Task AddTool_TwoSafeTools_BothExecute()
-    {
+    public async Task AddTool_TwoSafeTools_BothExecute() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var executionOrder = new List<string>();
@@ -45,8 +42,7 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-    public async Task AddTool_NonSafeTools_ExecuteSequentially()
-    {
+    public async Task AddTool_NonSafeTools_ExecuteSequentially() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var executionOrder = new List<string>();
 
@@ -70,8 +66,7 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-    public async Task AddTool_BashError_CancelsSiblingTools()
-    {
+    public async Task AddTool_BashError_CancelsSiblingTools() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = new Mock<IToolExecutionHandler>();
@@ -93,8 +88,7 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-    public async Task GetCompletedResults_ReturnsInOriginalOrder()
-    {
+    public async Task GetCompletedResults_ReturnsInOriginalOrder() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var toolHandler = CreateToolHandler();
@@ -111,8 +105,7 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-    public async Task FindNextExecutable_SafeAfterNonSafe_ShouldNotBeStarved()
-    {
+    public async Task FindNextExecutable_SafeAfterNonSafe_ShouldNotBeStarved() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var executionOrder = new List<string>();
@@ -150,8 +143,7 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-    public async Task AddTool_PowershellError_ShouldCancelSiblingTools()
-    {
+    public async Task AddTool_PowershellError_ShouldCancelSiblingTools() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var psTcs = new TaskCompletionSource<ToolCallResult>();
 
@@ -159,8 +151,7 @@ public sealed class StreamingToolExecutorTests
         toolHandler.Setup(h => h.ExecuteToolCallAsync(ShellToolNameEnumConstants.Powershell, It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(() => psTcs.Task);
         toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
-            .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) =>
-            {
+            .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) => {
                 await Task.Delay(5000, ct);
                 return new ToolCallResult { ResultText = "read-result", IsError = false };
             });
@@ -181,8 +172,7 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-    public async Task AddTool_PowershellScriptError_ShouldCancelSiblingTools()
-    {
+    public async Task AddTool_PowershellScriptError_ShouldCancelSiblingTools() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var psTcs = new TaskCompletionSource<ToolCallResult>();
 
@@ -190,8 +180,7 @@ public sealed class StreamingToolExecutorTests
         toolHandler.Setup(h => h.ExecuteToolCallAsync(ShellToolNameEnumConstants.PowershellScript, It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Returns(() => psTcs.Task);
         toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
-            .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) =>
-            {
+            .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) => {
                 await Task.Delay(5000, ct);
                 return new ToolCallResult { ResultText = "read-result", IsError = false };
             });
@@ -212,8 +201,7 @@ public sealed class StreamingToolExecutorTests
     }
 
     [Fact]
-    public async Task UserCancellationToken_Cancelled_ShouldCancelExecutingTools()
-    {
+    public async Task UserCancellationToken_Cancelled_ShouldCancelExecutingTools() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         using var userCts = new CancellationTokenSource();
@@ -222,8 +210,7 @@ public sealed class StreamingToolExecutorTests
         var toolHandler = new Mock<IToolExecutionHandler>();
         toolHandler.Setup(h => h.ExecuteToolCallAsync("read", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .Callback(() => toolStartedTcs.SetResult(true))
-            .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) =>
-            {
+            .Returns(async (string? _, string? _, Dictionary<string, JsonElement>? _, ChatMiddlewareContext _, CancellationToken ct) => {
                 await Task.Delay(5000, ct);
                 return new ToolCallResult { ResultText = "read-result", IsError = false };
             });
@@ -248,8 +235,7 @@ public sealed class StreamingToolExecutorTests
     /// 导致 GetRemainingResultsAsync 的 Task.WhenAll 永远等待
     /// </summary>
     [Fact]
-    public async Task CascadeCancel_ShouldNotDeadlock_QueuedToolsMustStillComplete()
-    {
+    public async Task CascadeCancel_ShouldNotDeadlock_QueuedToolsMustStillComplete() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var toolHandler = new Mock<IToolExecutionHandler>();
         toolHandler.Setup(h => h.ExecuteToolCallAsync("bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
@@ -276,8 +262,7 @@ public sealed class StreamingToolExecutorTests
     /// 直接生成 synthetic error 标记 completed，不调用 runToolUse
     /// </summary>
     [Fact]
-    public async Task CascadeCancel_QueuedTool_ShouldNotInvokeHandler()
-    {
+    public async Task CascadeCancel_QueuedTool_ShouldNotInvokeHandler() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var readHandlerInvoked = false;
         var toolHandler = new Mock<IToolExecutionHandler>();
@@ -308,8 +293,7 @@ public sealed class StreamingToolExecutorTests
     /// 修复：TrySetResult 移到锁外。> ADR: 0060
     /// </summary>
     [Fact]
-    public async Task Discard_DuringGetRemaining_DoesNotDeadlock()
-    {
+    public async Task Discard_DuringGetRemaining_DoesNotDeadlock() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var slowTcs = new TaskCompletionSource<ToolCallResult>();
         var mockInvoked = new TaskCompletionSource<bool>();
@@ -333,16 +317,14 @@ public sealed class StreamingToolExecutorTests
         results.Should().NotBeNull("remainingTask 在 5s 内完成说明 Discard 未死锁");
     }
 
-    private static IToolExecutionHandler CreateToolHandler()
-    {
+    private static IToolExecutionHandler CreateToolHandler() {
         var mock = new Mock<IToolExecutionHandler>();
         mock.Setup(h => h.ExecuteToolCallAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "ok", IsError = false });
         return mock.Object;
     }
 
-    private static ChatMiddlewareContext CreateContext() => new()
-    {
+    private static ChatMiddlewareContext CreateContext() => new() {
         Message = "test",
         ToolUseContext = new ToolUseContext()
     };

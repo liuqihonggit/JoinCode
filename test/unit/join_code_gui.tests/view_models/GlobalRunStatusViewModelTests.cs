@@ -4,16 +4,13 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// 全局运行状态条 VM 测试 — 随机动词/耗时/token 聚合/后台代理计数，
 /// 以及卡死检测状态机（Monitoring → Stalled，心跳复位；规则8风格，时钟注入可测）。
 /// </summary>
-public class GlobalRunStatusViewModelTests
-{
-    private sealed class MutableClock
-    {
+public class GlobalRunStatusViewModelTests {
+    private sealed class MutableClock {
         public DateTime Now = new(2026, 8, 26, 12, 0, 0);
         public void AdvanceSeconds(int s) => Now = Now.AddSeconds(s);
     }
 
-    private static (GlobalRunStatusViewModel Vm, MutableClock Clock, Action Tick) Create()
-    {
+    private static (GlobalRunStatusViewModel Vm, MutableClock Clock, Action Tick) Create() {
         var clock = new MutableClock();
         var vm = new GlobalRunStatusViewModel(() => clock.Now);
         // 定时器回调由测试手动驱动（替代 DispatcherTimer）
@@ -21,8 +18,7 @@ public class GlobalRunStatusViewModelTests
     }
 
     [Fact]
-    public void StartTurn_ShouldSampleVerb_AndResetState()
-    {
+    public void StartTurn_ShouldSampleVerb_AndResetState() {
         var (vm, _, _) = Create();
 
         vm.StartTurn();
@@ -35,8 +31,7 @@ public class GlobalRunStatusViewModelTests
     }
 
     [Fact]
-    public void AddTokens_ShouldFormatThousands()
-    {
+    public void AddTokens_ShouldFormatThousands() {
         var (vm, _, _) = Create();
         vm.StartTurn();
 
@@ -45,8 +40,7 @@ public class GlobalRunStatusViewModelTests
     }
 
     [Fact]
-    public void Heartbeat_ActiveTool_ShouldSuppressStall()
-    {
+    public void Heartbeat_ActiveTool_ShouldSuppressStall() {
         var (vm, clock, tick) = Create();
         vm.StartTurn();
         vm.ReportActivity(hasActiveTool: true);
@@ -58,8 +52,7 @@ public class GlobalRunStatusViewModelTests
     }
 
     [Fact]
-    public void Heartbeat_NoActivityBeyondThreshold_ShouldTransitionToStalled()
-    {
+    public void Heartbeat_NoActivityBeyondThreshold_ShouldTransitionToStalled() {
         var (vm, clock, tick) = Create();
         vm.StartTurn();
         vm.ReportActivity(hasActiveTool: false);
@@ -74,8 +67,7 @@ public class GlobalRunStatusViewModelTests
     }
 
     [Fact]
-    public void Heartbeat_NewActivity_ShouldResetToNormal()
-    {
+    public void Heartbeat_NewActivity_ShouldResetToNormal() {
         var (vm, clock, tick) = Create();
         vm.StartTurn();
         vm.ReportActivity(false);
@@ -89,8 +81,7 @@ public class GlobalRunStatusViewModelTests
     }
 
     [Fact]
-    public void EndTurn_ShouldStopStall_AndFreezeElapsed()
-    {
+    public void EndTurn_ShouldStopStall_AndFreezeElapsed() {
         var (vm, clock, tick) = Create();
         vm.StartTurn();
         vm.ReportActivity(false);
@@ -104,8 +95,7 @@ public class GlobalRunStatusViewModelTests
     }
 
     [Fact]
-    public void SetBackgroundCount_ShouldDriveVisibility()
-    {
+    public void SetBackgroundCount_ShouldDriveVisibility() {
         var (vm, _, _) = Create();
         vm.SetBackgroundCount(0);
         vm.BackgroundPillText.Should().BeEmpty();

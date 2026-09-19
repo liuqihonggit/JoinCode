@@ -3,8 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Bridge 工作完成跟踪器 — 跟踪已完成的工作 ID
 /// </summary>
-internal sealed class BridgeWorkCompletionTracker
-{
+internal sealed class BridgeWorkCompletionTracker {
     private readonly ConcurrentDictionary<string, byte> _completed = new();
 
     /// <summary>是否已完成指定工作项</summary>

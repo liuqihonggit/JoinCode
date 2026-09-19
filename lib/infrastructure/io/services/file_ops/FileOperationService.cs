@@ -5,8 +5,7 @@ namespace IO;
 /// 作为 FileReader、FileWriter、FileEditor 的外观
 /// </summary>
 [Register(typeof(IFileOperationService), ServiceLifetime.Singleton)]
-public sealed partial class FileOperationService : ServiceEntity, IFileOperationService
-{
+public sealed partial class FileOperationService : ServiceEntity, IFileOperationService {
     private readonly IFileSystem _fs;
     private readonly FileReader _fileReader;
     private readonly FileWriter _fileWriter;
@@ -19,8 +18,7 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
     /// <param name="fs">文件系统抽象</param>
     /// <param name="config">文件操作配置</param>
     /// <param name="logger">可选日志记录器</param>
-    public FileOperationService(IFileSystem fs, FileOperationConfig config, ILogger<FileOperationService>? logger = null)
-    {
+    public FileOperationService(IFileSystem fs, FileOperationConfig config, ILogger<FileOperationService>? logger = null) {
         _fs = fs;
         _fileReader = new FileReader(fs, config, logger);
         _fileWriter = new FileWriter(fs, config, logger);
@@ -68,14 +66,11 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
     public async Task<DirectoryListResult> ListDirectoryAsync(
         string directoryPath,
         bool recursive = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(directoryPath);
 
-        try
-        {
-            if (!_fs.DirectoryExists(normalizedPath))
-            {
+        try {
+            if (!_fs.DirectoryExists(normalizedPath)) {
                 var message = $"Directory does not exist: {normalizedPath}\n[诊断] cwd: {_fs.GetCurrentDirectory()}";
                 return DirectoryListResult.FailureResult(normalizedPath, message);
             }
@@ -85,11 +80,9 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
             var directories = new List<DirectoryEntry>();
 
             // 获取文件
-            foreach (var file in _fs.EnumerateFiles(normalizedPath, "*", searchOption))
-            {
+            foreach (var file in _fs.EnumerateFiles(normalizedPath, "*", searchOption)) {
                 using var stream = _fs.OpenRead(file);
-                files.Add(new FileEntry
-                {
+                files.Add(new FileEntry {
                     Name = Path.GetFileName(file),
                     FullPath = file,
                     Size = stream.Length,
@@ -100,10 +93,8 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
             files = files.OrderBy(f => f.Name).ToList();
 
             // 获取目录
-            foreach (var dir in _fs.EnumerateDirectories(normalizedPath, "*", searchOption))
-            {
-                directories.Add(new DirectoryEntry
-                {
+            foreach (var dir in _fs.EnumerateDirectories(normalizedPath, "*", searchOption)) {
+                directories.Add(new DirectoryEntry {
                     Name = Path.GetFileName(dir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
                     FullPath = dir,
                     LastModified = _fs.GetDirectoryLastWriteTimeUtc(dir).ToLocalTime()
@@ -113,13 +104,9 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
             directories = directories.OrderBy(d => d.Name).ToList();
 
             return DirectoryListResult.SuccessResult(normalizedPath, files, directories);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "列出目录失败: {DirectoryPath}", normalizedPath);
             var diagnostic = ToolDiagnostic.Create("ListDirectoryFailed",
                 $"列出目录失败: {ex.Message}",
@@ -137,22 +124,19 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         => _fileReader.FileExistsAsync(filePath, cancellationToken);
 
     /// <inheritdoc />
-    public bool DirectoryExists(string directoryPath)
-    {
+    public bool DirectoryExists(string directoryPath) {
         var normalizedPath = NormalizePath(directoryPath);
         return _fs.DirectoryExists(normalizedPath);
     }
 
     /// <inheritdoc />
-    public Task<bool> DirectoryExistsAsync(string directoryPath, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> DirectoryExistsAsync(string directoryPath, CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(directoryPath);
         return Task.FromResult(_fs.DirectoryExists(normalizedPath));
     }
 
     /// <inheritdoc />
-    public DirectoryInfo CreateDirectory(string directoryPath)
-    {
+    public DirectoryInfo CreateDirectory(string directoryPath) {
         var normalizedPath = NormalizePath(directoryPath);
         return _fs.CreateDirectory(normalizedPath);
     }
@@ -170,94 +154,78 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         => _fileWriter.CreateSymbolicLink(linkPath, targetPath);
 
     /// <inheritdoc />
-    public DateTime GetDirectoryLastWriteTimeUtc(string directoryPath)
-    {
+    public DateTime GetDirectoryLastWriteTimeUtc(string directoryPath) {
         var normalizedPath = NormalizePath(directoryPath);
         return _fs.GetDirectoryLastWriteTimeUtc(normalizedPath);
     }
 
     /// <inheritdoc />
-    public void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime)
-    {
+    public void SetDirectoryLastWriteTimeUtc(string directoryPath, DateTime utcTime) {
         var normalizedPath = NormalizePath(directoryPath);
         _fs.SetDirectoryLastWriteTimeUtc(normalizedPath, utcTime);
     }
 
     /// <inheritdoc />
-    public DateTime GetFileLastWriteTime(string filePath)
-    {
+    public DateTime GetFileLastWriteTime(string filePath) {
         var normalizedPath = NormalizePath(filePath);
         return _fs.GetLastWriteTime(normalizedPath);
     }
 
     /// <inheritdoc />
-    public Task<DateTime> GetLastWriteTimeUtcAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public Task<DateTime> GetLastWriteTimeUtcAsync(string filePath, CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(filePath);
         return Task.FromResult(_fs.GetLastWriteTimeUtc(normalizedPath));
     }
 
     /// <inheritdoc />
-    public string GetCurrentDirectory()
-    {
+    public string GetCurrentDirectory() {
         return _fs.GetCurrentDirectory();
     }
 
     /// <inheritdoc />
-    public string GetFullPath(string path)
-    {
-        if (Path.IsPathFullyQualified(path))
-        {
+    public string GetFullPath(string path) {
+        if (Path.IsPathFullyQualified(path)) {
             return _fs.GetFullPath(path);
         }
         return _fs.GetFullPath(_fs.CombinePath(_fs.GetCurrentDirectory(), path));
     }
 
     /// <inheritdoc />
-    public string CombinePath(params string[] paths)
-    {
+    public string CombinePath(params string[] paths) {
         return Path.Combine(paths);
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> EnumerateFiles(string directoryPath, string searchPattern, SearchOption searchOption)
-    {
+    public IEnumerable<string> EnumerateFiles(string directoryPath, string searchPattern, SearchOption searchOption) {
         var normalizedPath = NormalizePath(directoryPath);
-        if (!_fs.DirectoryExists(normalizedPath))
-        {
+        if (!_fs.DirectoryExists(normalizedPath)) {
             return Enumerable.Empty<string>();
         }
         return _fs.EnumerateFiles(normalizedPath, searchPattern, searchOption);
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> EnumerateDirectories(string directoryPath, string searchPattern, SearchOption searchOption)
-    {
+    public IEnumerable<string> EnumerateDirectories(string directoryPath, string searchPattern, SearchOption searchOption) {
         var normalizedPath = NormalizePath(directoryPath);
-        if (!_fs.DirectoryExists(normalizedPath))
-        {
+        if (!_fs.DirectoryExists(normalizedPath)) {
             return Enumerable.Empty<string>();
         }
         return _fs.EnumerateDirectories(normalizedPath, searchPattern, searchOption);
     }
 
     /// <inheritdoc />
-    public string[] GetFiles(string directoryPath, string searchPattern, SearchOption searchOption)
-    {
+    public string[] GetFiles(string directoryPath, string searchPattern, SearchOption searchOption) {
         var normalizedPath = NormalizePath(directoryPath);
-        if (!_fs.DirectoryExists(normalizedPath))
-        {
+        if (!_fs.DirectoryExists(normalizedPath)) {
             return Array.Empty<string>();
         }
         return _fs.GetFiles(normalizedPath, searchPattern, searchOption);
     }
 
     /// <inheritdoc />
-    public string[] GetDirectories(string directoryPath, string searchPattern, SearchOption searchOption)
-    {
+    public string[] GetDirectories(string directoryPath, string searchPattern, SearchOption searchOption) {
         var normalizedPath = NormalizePath(directoryPath);
-        if (!_fs.DirectoryExists(normalizedPath))
-        {
+        if (!_fs.DirectoryExists(normalizedPath)) {
             return Array.Empty<string>();
         }
         return _fs.GetDirectories(normalizedPath, searchPattern, searchOption);
@@ -266,13 +234,10 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
     /// <inheritdoc />
     public async Task<FileMetadataResult> ReadFileWithMetadataAsync(
         string filePath,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(filePath);
-        try
-        {
-            if (!_fs.FileExists(normalizedPath))
-            {
+        try {
+            if (!_fs.FileExists(normalizedPath)) {
                 var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath, _fs);
                 return FileMetadataResult.FailureResult(normalizedPath, diagnostic);
             }
@@ -292,10 +257,7 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
             var normalizedContent = content.Replace("\r\n", "\n");
 
             return FileMetadataResult.SuccessResult(normalizedPath, normalizedContent, encoding, lineEndings);
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, "读取文件元数据失败: {FilePath}", normalizedPath);
             var diagnostic = ToolDiagnostic.Create(
                 "ReadMetadataFailed",
@@ -315,23 +277,19 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         string content,
         Encoding? encoding = null,
         string? lineEndings = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(filePath);
-        try
-        {
+        try {
             // 编码检测：优先用传入编码，其次检测文件原有编码，最后默认 UTF-8
             var effectiveEncoding = encoding;
-            if (effectiveEncoding is null && _fs.FileExists(normalizedPath))
-            {
+            if (effectiveEncoding is null && _fs.FileExists(normalizedPath)) {
                 effectiveEncoding = await FileEncodingDetector.DetectFromFileAsync(normalizedPath, _fs, cancellationToken, _logger).ConfigureAwait(false);
             }
             effectiveEncoding ??= Encoding.UTF8;
 
             // 对齐 TS: writeTextContent — 恢复换行符
             var contentToWrite = content;
-            if (string.Equals(lineEndings, "CRLF", StringComparison.OrdinalIgnoreCase))
-            {
+            if (string.Equals(lineEndings, "CRLF", StringComparison.OrdinalIgnoreCase)) {
                 var lineEndingType = LineEndingDetector.LineEndingType.CRLF;
                 contentToWrite = LineEndingDetector.RestoreLineEndings(content, lineEndingType);
             }
@@ -343,23 +301,17 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
 
             // 原子写入（临时文件 + 重命名）
             var tempPath = normalizedPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            try
-            {
+            try {
                 await _fs.WriteAllTextAsync(tempPath, contentToWrite, effectiveEncoding, cancellationToken).ConfigureAwait(false);
                 _fs.MoveFile(tempPath, normalizedPath, overwrite: true);
-            }
-            catch
-            {
+            } catch {
                 if (_fs.FileExists(tempPath)) _fs.DeleteFile(tempPath);
                 throw;
             }
 
             var operation = "update";
             return FileWriteResult.SuccessResult(normalizedPath, contentToWrite, operation);
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, "写入文件失败(带编码): {FilePath}", normalizedPath);
             var diagnostic = ToolDiagnostic.Create("WriteFailed",
                 $"写入文件失败: {ex.Message}",
@@ -369,10 +321,8 @@ public sealed partial class FileOperationService : ServiceEntity, IFileOperation
         }
     }
 
-    private string NormalizePath(string path)
-    {
-        if (Path.IsPathFullyQualified(path))
-        {
+    private string NormalizePath(string path) {
+        if (Path.IsPathFullyQualified(path)) {
             return _fs.GetFullPath(path);
         }
 

@@ -1,29 +1,25 @@
 namespace Mcp.Tests;
 
-public sealed class ModelSearchEngineTests
-{
+public sealed class ModelSearchEngineTests {
     private static ModelSearchEntry Model(string vendor, string modelId, string displayName, ModelModalityKind modalities) =>
         new(vendor, modelId, displayName, modalities);
 
     private static ModelSearchEngine Sut(params ModelSearchEntry[] models) => new(models);
 
     [Fact]
-    public void Search_ThrowsOnNullQuery()
-    {
+    public void Search_ThrowsOnNullQuery() {
         var engine = Sut();
         Assert.Throws<ArgumentNullException>(() => engine.Search(null!));
     }
 
     [Fact]
-    public void Search_ThrowsOnEmptyQuery()
-    {
+    public void Search_ThrowsOnEmptyQuery() {
         var engine = Sut();
         Assert.Throws<ArgumentException>(() => engine.Search(""));
     }
 
     [Fact]
-    public void Search_ListGroups_ReturnsSupportedFunctionalities()
-    {
+    public void Search_ListGroups_ReturnsSupportedFunctionalities() {
         var engine = Sut(
             Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ToolUse),
             Model("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.Text | ModelModalityKind.GenerateImage));
@@ -38,8 +34,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_ListGroups_EmptyModels_ReturnsEmpty()
-    {
+    public void Search_ListGroups_EmptyModels_ReturnsEmpty() {
         var engine = Sut();
         var result = engine.Search("list_groups");
 
@@ -48,8 +43,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_MapByModality_ReturnsAllModelsSupportingIt()
-    {
+    public void Search_MapByModality_ReturnsAllModelsSupportingIt() {
         var engine = Sut(
             Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ReadImage),
             Model("anthropic", "claude-3-opus", "Claude 3 Opus", ModelModalityKind.Text | ModelModalityKind.ReadImage | ModelModalityKind.ReadPdf),
@@ -65,8 +59,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_MapByModalityAndVendor_FiltersByVendor()
-    {
+    public void Search_MapByModalityAndVendor_FiltersByVendor() {
         var engine = Sut(
             Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.ReadImage),
             Model("anthropic", "claude-3-opus", "Claude 3 Opus", ModelModalityKind.ReadImage));
@@ -79,8 +72,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_MapByModality_NoModels_ReturnsEmpty()
-    {
+    public void Search_MapByModality_NoModels_ReturnsEmpty() {
         var engine = Sut(Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text));
 
         var result = engine.Search("map[generateImage]");
@@ -90,8 +82,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_MapInvalidModalityKey_ReturnsEmptyModelList()
-    {
+    public void Search_MapInvalidModalityKey_ReturnsEmptyModelList() {
         var engine = Sut(Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.ReadImage));
 
         var result = engine.Search("map[nonexistent]");
@@ -101,8 +92,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_MatchesModelId()
-    {
+    public void Search_Keyword_MatchesModelId() {
         var engine = Sut(
             Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text),
             Model("openai", "dall-e-3", "DALL-E 3", ModelModalityKind.GenerateImage));
@@ -114,8 +104,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_MatchesDisplayName()
-    {
+    public void Search_Keyword_MatchesDisplayName() {
         var engine = Sut(
             Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text),
             Model("anthropic", "claude-3-opus", "Claude 3 Opus", ModelModalityKind.Text));
@@ -127,8 +116,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_MatchesVendor()
-    {
+    public void Search_Keyword_MatchesVendor() {
         var engine = Sut(
             Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text),
             Model("anthropic", "claude-3-opus", "Claude 3 Opus", ModelModalityKind.Text));
@@ -140,8 +128,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_MaxResults_LimitsOutput()
-    {
+    public void Search_MaxResults_LimitsOutput() {
         var models = Enumerable.Range(0, 30)
             .Select(i => Model("openai", $"model{i}", $"Model {i}", ModelModalityKind.Text))
             .ToArray();
@@ -153,8 +140,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_MapByModalityKey_IsCaseInsensitive()
-    {
+    public void Search_MapByModalityKey_IsCaseInsensitive() {
         var engine = Sut(Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.ReadImage));
 
         var result = engine.Search("map[READIMAGE]");
@@ -164,8 +150,7 @@ public sealed class ModelSearchEngineTests
     }
 
     [Fact]
-    public void Search_ListGroups_OnlyListsFunctionalitiesWithModels()
-    {
+    public void Search_ListGroups_OnlyListsFunctionalitiesWithModels() {
         var engine = Sut(Model("openai", "gpt-4o", "GPT-4o", ModelModalityKind.Text | ModelModalityKind.ToolUse));
 
         var result = engine.Search("list_groups");

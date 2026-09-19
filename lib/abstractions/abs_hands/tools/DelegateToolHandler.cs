@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Tools;
 /// <summary>
 /// 委托工具处理器 - 使用委托实现工具处理
 /// </summary>
-public sealed class DelegateToolHandler : IToolHandler
-{
+public sealed class DelegateToolHandler : IToolHandler {
     private readonly ToolHandler _handler;
 
     public string Name { get; }
@@ -16,8 +15,7 @@ public sealed class DelegateToolHandler : IToolHandler
     public string? Category { get; }
     public ToolTimeoutPolicy TimeoutPolicy { get; }
 
-    public DelegateToolHandler(string name, string description, ToolSchema inputSchema, ToolHandler handler, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null)
-    {
+    public DelegateToolHandler(string name, string description, ToolSchema inputSchema, ToolHandler handler, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null) {
         ArgumentException.ThrowIfNullOrEmpty(name);
         ArgumentException.ThrowIfNullOrEmpty(description);
         ArgumentNullException.ThrowIfNull(inputSchema);
@@ -36,8 +34,7 @@ public sealed class DelegateToolHandler : IToolHandler
     public Task<ToolResult> ExecuteAsync(
         Dictionary<string, JsonElement> arguments,
         CancellationToken cancellationToken = default,
-        ToolProgressCallback? onProgress = null)
-    {
+        ToolProgressCallback? onProgress = null) {
         return _handler(Name, arguments, cancellationToken, onProgress);
     }
 }

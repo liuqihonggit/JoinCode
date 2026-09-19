@@ -1,11 +1,9 @@
 namespace Infra.Tests.Process;
 
 [Trait("Category", "Unit")]
-public sealed class ProcessEncodingProviderTests
-{
+public sealed class ProcessEncodingProviderTests {
     [Fact]
-    public void Default_IsUtf8Mode()
-    {
+    public void Default_IsUtf8Mode() {
         var provider = new ProcessEncodingProvider();
 
         provider.IsUtf8Mode.Should().BeTrue();
@@ -15,8 +13,7 @@ public sealed class ProcessEncodingProviderTests
     }
 
     [Fact]
-    public void UseLocal_SwitchesToDefaultEncoding()
-    {
+    public void UseLocal_SwitchesToDefaultEncoding() {
         var provider = new ProcessEncodingProvider();
 
         provider.UseLocal();
@@ -28,8 +25,7 @@ public sealed class ProcessEncodingProviderTests
     }
 
     [Fact]
-    public void UseUtf8_RestoresUtf8Mode()
-    {
+    public void UseUtf8_RestoresUtf8Mode() {
         var provider = new ProcessEncodingProvider();
         provider.UseLocal();
 
@@ -42,8 +38,7 @@ public sealed class ProcessEncodingProviderTests
     }
 
     [Fact]
-    public void SetEncoding_AppliesToAllChannels()
-    {
+    public void SetEncoding_AppliesToAllChannels() {
         var provider = new ProcessEncodingProvider();
         var custom = Encoding.ASCII;
 
@@ -56,8 +51,7 @@ public sealed class ProcessEncodingProviderTests
     }
 
     [Fact]
-    public void SetEncoding_WithUtf8_SetsIsUtf8ModeTrue()
-    {
+    public void SetEncoding_WithUtf8_SetsIsUtf8ModeTrue() {
         var provider = new ProcessEncodingProvider();
         provider.UseLocal();
 
@@ -67,8 +61,7 @@ public sealed class ProcessEncodingProviderTests
     }
 
     [Fact]
-    public void SetEncoding_Null_Throws()
-    {
+    public void SetEncoding_Null_Throws() {
         var provider = new ProcessEncodingProvider();
 
         var act = () => provider.SetEncoding(null!);
@@ -77,8 +70,7 @@ public sealed class ProcessEncodingProviderTests
     }
 
     [Fact]
-    public void SwitchingEncoding_DoesNotAffectAlreadyCreatedProcessStartInfo()
-    {
+    public void SwitchingEncoding_DoesNotAffectAlreadyCreatedProcessStartInfo() {
         var provider = new ProcessEncodingProvider();
         var builder = new ProcessStartInfoBuilder(provider);
 
@@ -90,8 +82,7 @@ public sealed class ProcessEncodingProviderTests
         psi2.StandardOutputEncoding.Should().BeSameAs(Encoding.Default);
     }
 
-    private static void AssertUtf8WithoutBom(Encoding encoding)
-    {
+    private static void AssertUtf8WithoutBom(Encoding encoding) {
         encoding.WebName.Should().Be("utf-8");
         encoding.Preamble.Length.Should().Be(0);
     }

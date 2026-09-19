@@ -10,8 +10,7 @@ namespace Core.Hooks.Execution.Interception;
 /// </list>
 /// </para>
 /// </summary>
-public abstract record InterceptResult
-{
+public abstract record InterceptResult {
     /// <summary>
     /// 已处理 — 短路返回此工具结果,命令不再继续管道
     /// </summary>

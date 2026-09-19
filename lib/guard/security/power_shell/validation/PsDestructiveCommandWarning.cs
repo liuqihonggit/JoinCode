@@ -7,8 +7,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// 纯信息性 — 不影响权限逻辑或自动审批。
 /// 对齐 TS: src/tools/PowerShellTool/destructiveCommandWarning.ts
 /// </summary>
-public static class PsDestructiveCommandWarning
-{
+public static class PsDestructiveCommandWarning {
     /// <summary>
     /// 破坏性模式定义
     /// </summary>
@@ -20,8 +19,7 @@ public static class PsDestructiveCommandWarning
     /// </summary>
     private static readonly DestructivePattern[] Patterns = BuildPatterns();
 
-    private static DestructivePattern[] BuildPatterns()
-    {
+    private static DestructivePattern[] BuildPatterns() {
         return
         [
             // Remove-Item 带 -Recurse 和/或 -Force（含常见别名 rm/del/rd/rmdir/ri）
@@ -73,14 +71,11 @@ public static class PsDestructiveCommandWarning
     /// 检查 PowerShell 命令是否匹配已知的破坏性模式。
     /// 返回人类可读的警告字符串，如果未检测到破坏性模式则返回 null。
     /// </summary>
-    public static string? GetDestructiveCommandWarning(string command)
-    {
+    public static string? GetDestructiveCommandWarning(string command) {
         if (string.IsNullOrEmpty(command)) return null;
 
-        foreach (var pattern in Patterns)
-        {
-            if (pattern.Pattern.IsMatch(command))
-            {
+        foreach (var pattern in Patterns) {
+            if (pattern.Pattern.IsMatch(command)) {
                 return pattern.Warning;
             }
         }

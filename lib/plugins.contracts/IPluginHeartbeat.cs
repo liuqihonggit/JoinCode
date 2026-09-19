@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>心跳停止表示插件死亡,本层自然死亡,下层也通知死亡</para>
 /// <para>只有使用时触发,不主动轮询 — 零开销,读 volatile bool 纳秒级</para>
 /// </summary>
-public interface IPluginHeartbeat
-{
+public interface IPluginHeartbeat {
     /// <summary>是否存活 — volatile bool,纳秒级读取</summary>
     bool IsAlive { get; }
 

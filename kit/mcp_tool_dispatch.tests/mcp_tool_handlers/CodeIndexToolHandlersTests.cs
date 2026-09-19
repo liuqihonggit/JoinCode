@@ -1,23 +1,19 @@
 namespace Sync.Tests.ToolHandlers;
 
-public sealed class CodeIndexToolHandlersTests
-{
+public sealed class CodeIndexToolHandlersTests {
     private readonly Mock<ICodeIndexer> _indexer = new();
     private readonly CodeIndexToolHandlers _handler;
 
-    public CodeIndexToolHandlersTests()
-    {
+    public CodeIndexToolHandlersTests() {
         _handler = new CodeIndexToolHandlers(_indexer.Object);
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_ReturnsMatchedSymbolsAndReferences()
-    {
+    public async Task SearchComprehensiveAsync_ReturnsMatchedSymbolsAndReferences() {
         // Arrange: 综合检索返回 1 个匹配符号 + 1 个引用 + 1 个调用方
         var matched = CreateSymbol("GetUser", "App.Services.GetUser", SymbolKind.Method, "svc.cs");
         var reference = CreateSymbol("GetUser", "App.Services.GetUser", SymbolKind.Method, "caller.cs");
-        var caller = new CallEdge
-        {
+        var caller = new CallEdge {
             CallerSymbol = "Controller.Handle",
             CalleeSymbol = "GetUser",
             CallSiteFilePath = "ctrl.cs",
@@ -25,8 +21,7 @@ public sealed class CodeIndexToolHandlersTests
             CallKind = CallKind.Direct
         };
 
-        var result = new ComprehensiveSearchResult
-        {
+        var result = new ComprehensiveSearchResult {
             MatchedSymbols = [matched],
             TotalMatchedCount = 1,
             References = [reference],
@@ -53,18 +48,15 @@ public sealed class CodeIndexToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_EmptyPattern_ReturnsError()
-    {
+    public async Task SearchComprehensiveAsync_EmptyPattern_ReturnsError() {
         var toolResult = await _handler.SearchComprehensiveAsync("").ConfigureAwait(true);
 
         Assert.True(toolResult.IsError);
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_Truncated_ShowTruncationHint()
-    {
-        var result = new ComprehensiveSearchResult
-        {
+    public async Task SearchComprehensiveAsync_Truncated_ShowTruncationHint() {
+        var result = new ComprehensiveSearchResult {
             MatchedSymbols = [CreateSymbol("Test", "App.Test", SymbolKind.Method, "t.cs")],
             TotalMatchedCount = 1,
             References = [],
@@ -90,10 +82,8 @@ public sealed class CodeIndexToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_NoMatches_ReturnsNotFoundMessage()
-    {
-        var result = new ComprehensiveSearchResult
-        {
+    public async Task SearchComprehensiveAsync_NoMatches_ReturnsNotFoundMessage() {
+        var result = new ComprehensiveSearchResult {
             MatchedSymbols = [],
             TotalMatchedCount = 0,
             References = [],
@@ -121,11 +111,9 @@ public sealed class CodeIndexToolHandlersTests
     /// 应显示截断提示(而非"未找到") — E2E 测试发现 Async+budget=30 错误返回"未找到匹配"
     /// </summary>
     [Fact]
-    public async Task SearchComprehensiveAsync_TinyBudget_TruncatesAllSymbols_ShowsTruncationNotNotFound()
-    {
+    public async Task SearchComprehensiveAsync_TinyBudget_TruncatesAllSymbols_ShowsTruncationNotNotFound() {
         // 场景: pattern 匹配 50 个符号,但 budget=30 载不下1个 → MatchedSymbols.Count==0 但 TotalMatchedCount=50
-        var result = new ComprehensiveSearchResult
-        {
+        var result = new ComprehensiveSearchResult {
             MatchedSymbols = [],   // 全部被截断
             TotalMatchedCount = 50, // 实际匹配 50 个
             References = [],
@@ -153,10 +141,8 @@ public sealed class CodeIndexToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_PassesCustomTokenBudget()
-    {
-        var result = new ComprehensiveSearchResult
-        {
+    public async Task SearchComprehensiveAsync_PassesCustomTokenBudget() {
+        var result = new ComprehensiveSearchResult {
             MatchedSymbols = [CreateSymbol("A", "App.A", SymbolKind.Method, "a.cs")],
             TotalMatchedCount = 1,
             References = [],
@@ -178,10 +164,8 @@ public sealed class CodeIndexToolHandlersTests
     }
 
     [Fact]
-    public async Task SearchComprehensiveAsync_IncludeAstFalse_PassesParameter()
-    {
-        var result = new ComprehensiveSearchResult
-        {
+    public async Task SearchComprehensiveAsync_IncludeAstFalse_PassesParameter() {
+        var result = new ComprehensiveSearchResult {
             MatchedSymbols = [CreateSymbol("B", "App.B", SymbolKind.Method, "b.cs")],
             TotalMatchedCount = 1,
             References = [],
@@ -202,10 +186,8 @@ public sealed class CodeIndexToolHandlersTests
         _indexer.Verify();
     }
 
-    private static SymbolInfo CreateSymbol(string name, string fqn, SymbolKind kind, string file)
-    {
-        return new SymbolInfo
-        {
+    private static SymbolInfo CreateSymbol(string name, string fqn, SymbolKind kind, string file) {
+        return new SymbolInfo {
             Name = name,
             FullyQualifiedName = fqn,
             Kind = kind,

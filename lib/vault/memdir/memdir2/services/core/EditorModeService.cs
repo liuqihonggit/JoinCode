@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(ConfigPersistentServiceBase<EditorMode>), ServiceLifetime.Singleton)]
 [Register(typeof(IEditorModeService), ServiceLifetime.Singleton)]
-public sealed partial class EditorModeService : ConfigPersistentServiceBase<EditorMode>, IEditorModeService
-{
+public sealed partial class EditorModeService : ConfigPersistentServiceBase<EditorMode>, IEditorModeService {
     /// <summary>
     /// 构造编辑器模式服务
     /// </summary>
@@ -24,10 +23,8 @@ public sealed partial class EditorModeService : ConfigPersistentServiceBase<Edit
     /// <param name="raw">原始配置值</param>
     /// <param name="result">解析结果</param>
     /// <returns>解析是否成功</returns>
-    protected override bool TryParseConfigValue(string? raw, out EditorMode result)
-    {
-        if (raw is not null && EditorModeExtensions.FromValue(raw) is { } mode)
-        {
+    protected override bool TryParseConfigValue(string? raw, out EditorMode result) {
+        if (raw is not null && EditorModeExtensions.FromValue(raw) is { } mode) {
             result = mode;
             return true;
         }
@@ -57,8 +54,7 @@ public sealed partial class EditorModeService : ConfigPersistentServiceBase<Edit
     /// 在 Normal 与 Vim 模式之间切换
     /// </summary>
     /// <returns>切换后的新模式</returns>
-    public EditorMode Toggle()
-    {
+    public EditorMode Toggle() {
         var newMode = Value == EditorMode.Normal ? EditorMode.Vim : EditorMode.Normal;
         SetValue(newMode);
         return newMode;

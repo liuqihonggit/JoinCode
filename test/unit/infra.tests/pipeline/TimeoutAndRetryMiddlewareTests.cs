@@ -4,13 +4,11 @@ namespace Infrastructure.Pipeline.Tests;
 /// <summary>
 /// TimeoutMiddleware + RetryMiddleware 单元测试
 /// </summary>
-public sealed class TimeoutAndRetryMiddlewareTests
-{
+public sealed class TimeoutAndRetryMiddlewareTests {
     // === TimeoutMiddleware ===
 
     [Fact]
-    public async Task Timeout_CompletesWithinTimeout_Succeeds()
-    {
+    public async Task Timeout_CompletesWithinTimeout_Succeeds() {
         var ctx = new TestTimeoutContext { Timeout = TimeSpan.FromSeconds(5) };
         var pipeline = new PipelineBuilder<TestTimeoutContext>()
             .Use(new TimeoutMiddleware<TestTimeoutContext>())
@@ -24,8 +22,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task Timeout_ExceedsTimeout_SetsIsTimedOutAndThrows()
-    {
+    public async Task Timeout_ExceedsTimeout_SetsIsTimedOutAndThrows() {
         var ctx = new TestTimeoutContext { Timeout = TimeSpan.FromMilliseconds(200) };
         var pipeline = new PipelineBuilder<TestTimeoutContext>()
             .Use(new TimeoutMiddleware<TestTimeoutContext>())
@@ -39,8 +36,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task Timeout_ExternalCancellation_DoesNotSetIsTimedOut()
-    {
+    public async Task Timeout_ExternalCancellation_DoesNotSetIsTimedOut() {
         var ctx = new TestTimeoutContext { Timeout = TimeSpan.FromSeconds(5) };
         var pipeline = new PipelineBuilder<TestTimeoutContext>()
             .Use(new TimeoutMiddleware<TestTimeoutContext>())
@@ -57,8 +53,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     // === RetryMiddleware ===
 
     [Fact]
-    public async Task Retry_SucceedsFirstTime_NoRetry()
-    {
+    public async Task Retry_SucceedsFirstTime_NoRetry() {
         var ctx = new TestRetryContext { MaxRetries = 3 };
         var pipeline = new PipelineBuilder<TestRetryContext>()
             .Use(new RetryMiddleware<TestRetryContext>())
@@ -73,8 +68,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task Retry_Passthrough_FailsThenSucceeds_ThrowsImmediately()
-    {
+    public async Task Retry_Passthrough_FailsThenSucceeds_ThrowsImmediately() {
         // 降级为透传：第一次失败直接抛，不重试（重试交给 Gateway）
         var ctx = new TestRetryContext { MaxRetries = 3 };
         var attempt = 0;
@@ -90,8 +84,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task Retry_Passthrough_AlwaysFails_ThrowsImmediately()
-    {
+    public async Task Retry_Passthrough_AlwaysFails_ThrowsImmediately() {
         // 降级为透传：第一次失败直接抛，RetryCount=0
         var ctx = new TestRetryContext { MaxRetries = 2 };
         var pipeline = new PipelineBuilder<TestRetryContext>()
@@ -106,8 +99,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task Retry_NonRetryableException_ThrowsImmediately()
-    {
+    public async Task Retry_NonRetryableException_ThrowsImmediately() {
         var ctx = new TestRetryContext { MaxRetries = 3, RetryableExceptionType = typeof(ArgumentException) };
         var pipeline = new PipelineBuilder<TestRetryContext>()
             .Use(new RetryMiddleware<TestRetryContext>())
@@ -123,8 +115,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     // === FixedTimeoutMiddleware ===
 
     [Fact]
-    public async Task FixedTimeout_CompletesWithinTimeout_Succeeds()
-    {
+    public async Task FixedTimeout_CompletesWithinTimeout_Succeeds() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedTimeoutMiddleware<SimpleContext>(TimeSpan.FromSeconds(5)))
             .Use(new SimpleTrackingMiddleware("work"))
@@ -137,8 +128,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task FixedTimeout_ExceedsTimeout_ThrowsTimeoutException()
-    {
+    public async Task FixedTimeout_ExceedsTimeout_ThrowsTimeoutException() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedTimeoutMiddleware<SimpleContext>(TimeSpan.FromMilliseconds(50)))
             .Use(new SimpleSlowMiddleware(TimeSpan.FromMilliseconds(500)))
@@ -153,8 +143,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     // === FixedRetryMiddleware ===
 
     [Fact]
-    public async Task FixedRetry_SucceedsFirstTime_NoRetry()
-    {
+    public async Task FixedRetry_SucceedsFirstTime_NoRetry() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedRetryMiddleware<SimpleContext>(3))
             .Use(new SimpleTrackingMiddleware("work"))
@@ -167,8 +156,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task FixedRetry_Passthrough_FailsThenSucceeds_ThrowsImmediately()
-    {
+    public async Task FixedRetry_Passthrough_FailsThenSucceeds_ThrowsImmediately() {
         // 降级为透传：第一次失败直接抛，不重试
         var attempt = 0;
         var pipeline = new PipelineBuilder<SimpleContext>()
@@ -183,8 +171,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
     }
 
     [Fact]
-    public async Task FixedRetry_NonRetryableException_ThrowsImmediately()
-    {
+    public async Task FixedRetry_NonRetryableException_ThrowsImmediately() {
         var pipeline = new PipelineBuilder<SimpleContext>()
             .Use(new FixedRetryMiddleware<SimpleContext>(3, ex => ex is ArgumentException))
             .Use(new SimpleAlwaysFailMiddleware())
@@ -198,8 +185,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
 
     // === 测试辅助类 ===
 
-    private sealed class TestTimeoutContext : ITimeoutContext
-    {
+    private sealed class TestTimeoutContext : ITimeoutContext {
         public List<string> ExecutionLog { get; } = [];
         public bool Failed { get; set; }
         public string? ErrorMessage { get; set; }
@@ -208,8 +194,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
         public bool IsTimedOut { get; set; }
     }
 
-    private sealed class TestRetryContext : IRetryContext
-    {
+    private sealed class TestRetryContext : IRetryContext {
         public List<string> ExecutionLog { get; } = [];
         public bool Failed { get; set; }
         public string? ErrorMessage { get; set; }
@@ -221,39 +206,32 @@ public sealed class TimeoutAndRetryMiddlewareTests
         public bool IsRetryable(Exception ex) => RetryableExceptionType?.IsInstanceOfType(ex) == true;
     }
 
-    private sealed class TrackingMiddleware(string label) : IMiddleware<TestTimeoutContext>, IMiddleware<TestRetryContext>
-    {
+    private sealed class TrackingMiddleware(string label) : IMiddleware<TestTimeoutContext>, IMiddleware<TestRetryContext> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
 
-        public async Task InvokeAsync(TestTimeoutContext context, MiddlewareDelegate<TestTimeoutContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(TestTimeoutContext context, MiddlewareDelegate<TestTimeoutContext> next, CancellationToken ct) {
             context.ExecutionLog.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }
 
-        public async Task InvokeAsync(TestRetryContext context, MiddlewareDelegate<TestRetryContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(TestRetryContext context, MiddlewareDelegate<TestRetryContext> next, CancellationToken ct) {
             context.ExecutionLog.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }
     }
 
-    private sealed class SlowMiddleware(TimeSpan delay) : IMiddleware<TestTimeoutContext>
-    {
+    private sealed class SlowMiddleware(TimeSpan delay) : IMiddleware<TestTimeoutContext> {
 
-        public async Task InvokeAsync(TestTimeoutContext context, MiddlewareDelegate<TestTimeoutContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(TestTimeoutContext context, MiddlewareDelegate<TestTimeoutContext> next, CancellationToken ct) {
             await Task.Delay(delay, ct).ConfigureAwait(true);
             context.ExecutionLog.Add("slow-work");
         }
     }
 
-    private sealed class FailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<TestRetryContext>
-    {
+    private sealed class FailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<TestRetryContext> {
         private int _attempts;
 
-        public async Task InvokeAsync(TestRetryContext context, MiddlewareDelegate<TestRetryContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(TestRetryContext context, MiddlewareDelegate<TestRetryContext> next, CancellationToken ct) {
             _attempts++;
             onAttempt();
             if (_attempts <= failCount)
@@ -264,8 +242,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
         }
     }
 
-    private sealed class AlwaysFailMiddleware : IMiddleware<TestRetryContext>
-    {
+    private sealed class AlwaysFailMiddleware : IMiddleware<TestRetryContext> {
 
         public Task InvokeAsync(TestRetryContext context, MiddlewareDelegate<TestRetryContext> next, CancellationToken ct)
             => throw new InvalidOperationException("always fail");
@@ -273,38 +250,31 @@ public sealed class TimeoutAndRetryMiddlewareTests
 
     // === Fixed 版本辅助类（无需接口约束） ===
 
-    private sealed class SimpleContext
-    {
+    private sealed class SimpleContext {
         public List<string> Log { get; } = [];
     }
 
-    private sealed class SimpleTrackingMiddleware(string label) : IMiddleware<SimpleContext>
-    {
+    private sealed class SimpleTrackingMiddleware(string label) : IMiddleware<SimpleContext> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
 
-        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct) {
             context.Log.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }
     }
 
-    private sealed class SimpleSlowMiddleware(TimeSpan delay) : IMiddleware<SimpleContext>
-    {
+    private sealed class SimpleSlowMiddleware(TimeSpan delay) : IMiddleware<SimpleContext> {
 
-        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct) {
             await Task.Delay(delay, ct).ConfigureAwait(true);
             context.Log.Add("slow-work");
         }
     }
 
-    private sealed class SimpleFailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<SimpleContext>
-    {
+    private sealed class SimpleFailThenSucceedMiddleware(int failCount, Action onAttempt) : IMiddleware<SimpleContext> {
         private int _attempts;
 
-        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct) {
             _attempts++;
             onAttempt();
             if (_attempts <= failCount)
@@ -315,8 +285,7 @@ public sealed class TimeoutAndRetryMiddlewareTests
         }
     }
 
-    private sealed class SimpleAlwaysFailMiddleware : IMiddleware<SimpleContext>
-    {
+    private sealed class SimpleAlwaysFailMiddleware : IMiddleware<SimpleContext> {
 
         public Task InvokeAsync(SimpleContext context, MiddlewareDelegate<SimpleContext> next, CancellationToken ct)
             => throw new InvalidOperationException("always fail");

@@ -4,13 +4,10 @@ namespace JoinCode.CliCommands;
 /// 斜杠命令直调执行器 — jcc slash_call &lt;cmd&gt; &lt;argsJson&gt;
 /// <para>ADR: 0069 — 全量暴露，所有斜杠命令都可直调，通过 ISlashCommandRegistry 路由。</para>
 /// </summary>
-internal static class SlashCallExecutor
-{
-    public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
-    {
+internal static class SlashCallExecutor {
+    public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var cmdName = FlatSubCommandRouter.GetPositional(args, 0);
-        if (string.IsNullOrEmpty(cmdName))
-        {
+        if (string.IsNullOrEmpty(cmdName)) {
             TerminalHelper.WriteError("用法: jcc slash_call <cmd> [key=value ... | <argsJson> | --args-file <path> | --args-stdin]");
             TerminalHelper.WriteError("示例: jcc slash_call compact level=2");
             TerminalHelper.WriteError("示例: jcc slash_call compact '{\"level\":2}'");
@@ -23,24 +20,20 @@ internal static class SlashCallExecutor
         if (argsJson is null)
             return 1;
 
-        return await McpCliCommand.WithHostAsync(async services =>
-        {
+        return await McpCliCommand.WithHostAsync(async services => {
             var registry = services.GetService<ISlashCommandRegistry>();
-            if (registry is null)
-            {
+            if (registry is null) {
                 TerminalHelper.WriteError("斜杠命令注册表未注册");
                 return 1;
             }
 
             var command = registry.GetCommand(cmdName);
-            if (command is null)
-            {
+            if (command is null) {
                 TerminalHelper.WriteError($"未找到斜杠命令: /{cmdName}（用 jcc slash_list 查看所有命令）");
                 return 1;
             }
 
-            var context = new ChatCommandContext
-            {
+            var context = new ChatCommandContext {
                 Arguments = argsJson,
                 CancellationToken = ct,
                 Services = services,
@@ -57,13 +50,11 @@ internal static class SlashCallExecutor
     /// <para>key=value 通过 BuildArgsJsonFromKeyValue 组装成 JSON 对象字符串,传给 ChatCommandContext.Arguments。</para>
     /// <para>优先级: key=value / argsJson(位置) > argsFile > argsStdin(与 mcp_call 一致)。</para>
     /// </summary>
-    private static async Task<string?> ResolveArgsJsonAsync(string[] args, CancellationToken ct)
-    {
+    private static async Task<string?> ResolveArgsJsonAsync(string[] args, CancellationToken ct) {
         var argsFile = FlatSubCommandRouter.GetOptionValue(args, ToolCallArgCliOptionConstants.ArgsFileLongName);
         var argsStdin = FlatSubCommandRouter.HasFlag(args, ToolCallArgCliOptionConstants.ArgsStdinLongName);
 
-        if (argsStdin)
-        {
+        if (argsStdin) {
             using var stream = System.Console.OpenStandardInput();
             using var ms = new System.IO.MemoryStream();
             await stream.CopyToAsync(ms, ct).ConfigureAwait(false);
@@ -93,16 +84,13 @@ internal static class SlashCallExecutor
     /// <para>用 JsonElement.GetRawText() 获取各值的 JSON 表示,手动拼接成 {"k1":v1,"k2":v2} 格式。</para>
     /// <para>返回 null 表示格式错误(已输出 Rust 风格报错)。</para>
     /// </summary>
-    internal static string? BuildArgsJsonFromKeyValue(string[] kvArgs)
-    {
+    internal static string? BuildArgsJsonFromKeyValue(string[] kvArgs) {
         var sb = new StringBuilder();
         sb.Append('{');
         var first = true;
-        foreach (var kv in kvArgs)
-        {
+        foreach (var kv in kvArgs) {
             var eqIdx = kv.IndexOf('=');
-            if (eqIdx <= 0 || eqIdx == kv.Length - 1)
-            {
+            if (eqIdx <= 0 || eqIdx == kv.Length - 1) {
                 var detail = eqIdx <= 0 ? "缺少 '=' 分隔符" : "'=' 后面不能为空";
                 TerminalHelper.WriteError(CliErrorCatalog.ArgInvalidKeyValueFormat(kv, detail).ToRustStyleString(kv));
                 return null;
@@ -124,10 +112,8 @@ internal static class SlashCallExecutor
 /// 斜杠命令列表执行器 — jcc slash_list [--category &lt;cat&gt;] [--json]
 /// <para>从 GeneratedSlashCommandCatalog 获取命令清单，按分类分组输出。</para>
 /// </summary>
-internal static class SlashListExecutor
-{
-    public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
-    {
+internal static class SlashListExecutor {
+    public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var category = FlatSubCommandRouter.GetOptionValue(args, JccCliArgEnumConstants.Category);
         var json = FlatSubCommandRouter.ShouldOutputJson(args);
 
@@ -135,14 +121,11 @@ internal static class SlashListExecutor
         var byCat = catalog.ByCategory;
 
         KeyValuePair<string, IReadOnlyList<SlashCommandMetadata>>[] selectedGroups;
-        if (!string.IsNullOrEmpty(category))
-        {
+        if (!string.IsNullOrEmpty(category)) {
             selectedGroups = byCat.TryGetValue(category, out var catList)
                 ? [new(category, catList)]
                 : [];
-        }
-        else
-        {
+        } else {
             selectedGroups = byCat.OrderBy(g => g.Key).ToArray();
         }
 
@@ -150,16 +133,12 @@ internal static class SlashListExecutor
             .SelectMany(g => g.Value.Where(c => !c.IsHidden))
             .ToList();
 
-        if (json)
-        {
+        if (json) {
             var items = visibleCommands.Select(c => new Cli.Output.CliSlashCommandListItem(c.Name, c.Description, c.Usage, c.Category, c.Aliases)).ToList();
             var envelope = Cli.Output.CliOutputEnvelope.Success(items, new Cli.Output.CliOutputMeta { TotalCount = items.Count });
             System.Console.WriteLine(RelaxedJsonSerializer.Serialize(envelope, Cli.Output.CliOutputJsonContext.Default));
-        }
-        else
-        {
-            foreach (var g in selectedGroups)
-            {
+        } else {
+            foreach (var g in selectedGroups) {
                 var visible = g.Value.Where(c => !c.IsHidden).OrderBy(c => c.Name).ToList();
                 if (visible.Count == 0) continue;
                 TerminalHelper.WriteLine($"{TerminalColors.Info}{g.Key}{AnsiStyleEnumConstants.Reset} ({visible.Count} 个):");
@@ -179,13 +158,10 @@ internal static class SlashListExecutor
 /// <para>从 GeneratedSlashCommandSchemaCatalog 获取参数 schema，和 mcp_schema 统一 ToolSchema 格式。</para>
 /// <para>未声明 [ChatCommandArg] 的命令降级输出 ArgumentHint。</para>
 /// </summary>
-internal static class SlashSchemaExecutor
-{
-    public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
-    {
+internal static class SlashSchemaExecutor {
+    public static Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var cmdName = FlatSubCommandRouter.GetPositional(args, 0);
-        if (string.IsNullOrEmpty(cmdName))
-        {
+        if (string.IsNullOrEmpty(cmdName)) {
             TerminalHelper.WriteError("用法: jcc slash_schema <cmd> [--json]");
             return Task.FromResult<int?>(1);
         }
@@ -196,41 +172,30 @@ internal static class SlashSchemaExecutor
         var catalog = new GeneratedSlashCommandSchemaCatalog();
         var entry = catalog.GetEntry(cmdName);
 
-        if (entry is null)
-        {
+        if (entry is null) {
             TerminalHelper.WriteError($"未找到斜杠命令: /{cmdName}");
             return Task.FromResult<int?>(1);
         }
 
-        if (entry.Schema is not null)
-        {
-            if (json)
-            {
+        if (entry.Schema is not null) {
+            if (json) {
                 var schemaJson = RelaxedJsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default);
                 var data = System.Text.Json.Nodes.JsonNode.Parse(schemaJson);
                 System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"命令: /{entry.CommandName}");
                 TerminalHelper.WriteLine("参数 Schema:");
                 System.Console.WriteLine(RelaxedJsonSerializer.Serialize(entry.Schema, ContractsJsonContext.Default));
             }
-        }
-        else
-        {
-            if (json)
-            {
-                var data = new System.Text.Json.Nodes.JsonObject
-                {
+        } else {
+            if (json) {
+                var data = new System.Text.Json.Nodes.JsonObject {
                     ["command"] = cmdName,
                     ["schema"] = null,
                     ["argumentHint"] = entry.ArgumentHint
                 };
                 System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"命令: /{entry.CommandName}");
                 if (!string.IsNullOrEmpty(entry.ArgumentHint))
                     TerminalHelper.WriteLine($"参数提示: {entry.ArgumentHint}");

@@ -1,10 +1,8 @@
 namespace Infra.Tests.EntityTests;
 
-public sealed class EntityObjectIdTests
-{
+public sealed class EntityObjectIdTests {
     [Fact]
-    public void ObjectId_SequenceId_ShouldBeAtomicIncrement()
-    {
+    public void ObjectId_SequenceId_ShouldBeAtomicIncrement() {
         var id1 = new ObjectId(ObjectType.Agent);
         var id2 = new ObjectId(ObjectType.Session);
         var id3 = new ObjectId(ObjectType.Goal);
@@ -14,37 +12,32 @@ public sealed class EntityObjectIdTests
     }
 
     [Fact]
-    public void ObjectId_UniqueId_ShouldBeGuidFormat()
-    {
+    public void ObjectId_UniqueId_ShouldBeGuidFormat() {
         var id = new ObjectId(ObjectType.Agent);
         id.UniqueId.Should().StartWith("agent-");
         id.UniqueId.Length.Should().BeGreaterThan(8);
     }
 
     [Fact]
-    public void ObjectId_DisplayName_DefaultsToUniqueId()
-    {
+    public void ObjectId_DisplayName_DefaultsToUniqueId() {
         var id = new ObjectId(ObjectType.Agent);
         id.DisplayName.Should().Be(id.UniqueId);
     }
 
     [Fact]
-    public void ObjectId_DisplayName_Custom()
-    {
+    public void ObjectId_DisplayName_Custom() {
         var id = new ObjectId(ObjectType.Agent, "my-agent");
         id.DisplayName.Should().Be("my-agent");
     }
 
     [Fact]
-    public void ObjectId_ToString_Format()
-    {
+    public void ObjectId_ToString_Format() {
         var id = new ObjectId(ObjectType.Agent);
         id.ToString().Should().StartWith("Agent:");
     }
 
     [Fact]
-    public void ObjectId_DifferentSequenceId_NotEqual()
-    {
+    public void ObjectId_DifferentSequenceId_NotEqual() {
         var id1 = new ObjectId(ObjectType.Agent);
         var id2 = new ObjectId(ObjectType.Agent);
         id1.Should().NotBe(id2);

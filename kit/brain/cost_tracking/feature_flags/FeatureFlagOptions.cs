@@ -4,8 +4,7 @@ namespace Core.CostTracking.FeatureFlags;
 /// <summary>
 /// 特性标志远程刷新配置选项
 /// </summary>
-public sealed class FeatureFlagOptions : RemoteRefreshOptionsBase
-{
+public sealed class FeatureFlagOptions : RemoteRefreshOptionsBase {
     /// <summary>
     /// 配置节名称
     /// </summary>

@@ -5,8 +5,7 @@ namespace Integration.Tests.Guard.Permission;
 /// <summary>
 /// Permission 集成测试 - 使用共享静态配置（已通过分片锁保护）
 /// </summary>
-public class PermissionIntegrationTests : IAsyncDisposable
-{
+public class PermissionIntegrationTests : IAsyncDisposable {
     private readonly FakeTimeProvider _fakeTime;
     private readonly PermissionManager _permissionManager;
     private readonly LocalToolRegistry _registryWithPermission;
@@ -14,8 +13,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     private readonly PermissionAwareToolExecutor _permissionExecutor;
     private bool _disposed;
 
-    public PermissionIntegrationTests()
-    {
+    public PermissionIntegrationTests() {
         _fakeTime = new FakeTimeProvider();
         _permissionManager = CreateManagerWithDefaultConfig(NullLogger<PermissionManager>.Instance, _fakeTime);
         _registryWithPermission = new LocalToolRegistry();
@@ -27,8 +25,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
             logger: NullLogger<PermissionAwareToolExecutor>.Instance);
     }
 
-    private static PermissionManager CreateManagerWithDefaultConfig(ILogger<PermissionManager>? logger = null, TimeProvider? timeProvider = null)
-    {
+    private static PermissionManager CreateManagerWithDefaultConfig(ILogger<PermissionManager>? logger = null, TimeProvider? timeProvider = null) {
         var config = PermissionConfig.CreateDefault();
         var configOptions = Options.Create(config);
         var middlewares = new IMiddleware<PermissionCheckContext>[]
@@ -51,8 +48,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         return new PermissionManager(checker, configOptions, logger, timeProvider);
     }
 
-    private static IEnumerable<IToolExecutionMiddleware> BuildToolExecutionMiddlewares(IToolPermissionManager permissionManager)
-    {
+    private static IEnumerable<IToolExecutionMiddleware> BuildToolExecutionMiddlewares(IToolPermissionManager permissionManager) {
         var interceptor = new PermissionCheckingInterceptor(permissionManager, NullLogger<PermissionCheckingInterceptor>.Instance);
         yield return new ArgumentRepairMiddleware(NullLogger<ArgumentRepairMiddleware>.Instance);
         yield return new RequiredParamsMiddleware(NullLogger<RequiredParamsMiddleware>.Instance);
@@ -60,8 +56,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         yield return new ToolExecutionMiddleware(NullLogger<ToolExecutionMiddleware>.Instance);
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return; _disposed = true;
         await _permissionManager.DisposeAsync();
         await _registryWithPermission.DisposeAsync();
@@ -71,13 +66,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     #region McpToolRegistry Integration Tests
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_AutoApprovedTool_ShouldExecuteSuccessfully()
-    {
+    public async Task ExecuteToolAsync_WithPermissionManager_AutoApprovedTool_ShouldExecuteSuccessfully() {
         var mockHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileRead, "Read file tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "File content" } },
                 IsError = false
             });
@@ -91,8 +84,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_DangerousTool_ShouldReturnError()
-    {
+    public async Task ExecuteToolAsync_WithPermissionManager_DangerousTool_ShouldReturnError() {
         var mockHandler = CreateMockToolHandler("file_delete", "Delete file tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
@@ -102,15 +94,13 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_BypassMode_ShouldExecuteDangerousTool()
-    {
+    public async Task ExecuteToolAsync_WithPermissionManager_BypassMode_ShouldExecuteDangerousTool() {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Bypass).ConfigureAwait(true);
 
         var mockHandler = CreateMockToolHandler("file_delete", "Delete file tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Deleted" } },
                 IsError = false
             });
@@ -123,13 +113,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithoutPermissionManager_ShouldSkipPermissionCheck()
-    {
+    public async Task ExecuteToolAsync_WithoutPermissionManager_ShouldSkipPermissionCheck() {
         var mockHandler = CreateMockToolHandler("any_tool", "Any tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Executed" } },
                 IsError = false
             });
@@ -143,15 +131,13 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_TemporarilyApprovedTool_ShouldExecute()
-    {
+    public async Task ExecuteToolAsync_WithPermissionManager_TemporarilyApprovedTool_ShouldExecute() {
         _permissionManager.ApproveToolTemporarily("custom_dangerous_tool", TimeSpan.FromMinutes(5));
 
         var mockHandler = CreateMockToolHandler("custom_dangerous_tool", "Custom dangerous tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Executed" } },
                 IsError = false
             });
@@ -164,8 +150,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_ExpiredTemporaryApproval_ShouldRequireConfirmation()
-    {
+    public async Task ExecuteToolAsync_WithPermissionManager_ExpiredTemporaryApproval_ShouldRequireConfirmation() {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
         _permissionManager.ApproveToolTemporarily("expired_tool", TimeSpan.FromMilliseconds(5));
         _fakeTime.Advance(TimeSpan.FromMilliseconds(10));
@@ -179,13 +164,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_ShellWithDangerousCommand_ShouldBeRejected()
-    {
+    public async Task ExecuteToolAsync_WithPermissionManager_ShellWithDangerousCommand_ShouldBeRejected() {
         var mockHandler = CreateMockToolHandler(ShellToolNameEnumConstants.Bash, "Shell tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var arguments = new Dictionary<string, JsonElement>
-        {
+        var arguments = new Dictionary<string, JsonElement> {
             ["command"] = JsonDocument.Parse("\"rm -rf /\"").RootElement
         };
 
@@ -195,13 +178,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_WithPermissionManager_WriteToSensitivePath_ShouldRequireConfirmation()
-    {
+    public async Task ExecuteToolAsync_WithPermissionManager_WriteToSensitivePath_ShouldRequireConfirmation() {
         var mockHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileWrite, "Write file tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
-        var arguments = new Dictionary<string, JsonElement>
-        {
+        var arguments = new Dictionary<string, JsonElement> {
             ["path"] = JsonSerializer.SerializeToElement("C:\\Windows\\system32\\test.txt")
         };
 
@@ -215,15 +196,13 @@ public class PermissionIntegrationTests : IAsyncDisposable
     #region End-to-End Permission Flow Tests
 
     [Fact]
-    public async Task EndToEnd_DefaultMode_ReadOperation_ShouldAutoApprove()
-    {
+    public async Task EndToEnd_DefaultMode_ReadOperation_ShouldAutoApprove() {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto).ConfigureAwait(true);
 
         var mockHandler = CreateMockToolHandler(SearchToolName.Glob.ToValue(), "Glob tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Files found" } },
                 IsError = false
             });
@@ -236,8 +215,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_AskMode_UnknownTool_ShouldRequireConfirmation()
-    {
+    public async Task EndToEnd_AskMode_UnknownTool_ShouldRequireConfirmation() {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Ask).ConfigureAwait(true);
 
         var mockHandler = CreateMockToolHandler("unknown_custom_tool", "Unknown tool");
@@ -249,15 +227,13 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_AutoMode_SafeOperation_ShouldAutoApprove()
-    {
+    public async Task EndToEnd_AutoMode_SafeOperation_ShouldAutoApprove() {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Auto).ConfigureAwait(true);
 
         var mockHandler = CreateMockToolHandler(WebToolNameEnumConstants.WebSearch, "Web search tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Search results" } },
                 IsError = false
             });
@@ -270,15 +246,13 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_PlanMode_ReadOperation_ShouldAutoApprove()
-    {
+    public async Task EndToEnd_PlanMode_ReadOperation_ShouldAutoApprove() {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Plan).ConfigureAwait(true);
 
         var mockHandler = CreateMockToolHandler(SearchToolName.Grep.ToValue(), "Grep tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Matches found" } },
                 IsError = false
             });
@@ -291,8 +265,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_PlanMode_WriteOperation_ShouldRequireConfirmation()
-    {
+    public async Task EndToEnd_PlanMode_WriteOperation_ShouldRequireConfirmation() {
         await _permissionManager.SetPermissionModeAsync(PermissionMode.Plan).ConfigureAwait(true);
 
         var mockHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileWrite, "Write tool");
@@ -304,13 +277,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_MultipleTools_DifferentPermissions_ShouldHandleCorrectly()
-    {
+    public async Task EndToEnd_MultipleTools_DifferentPermissions_ShouldHandleCorrectly() {
         var readHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileRead, "Read tool");
         readHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Read success" } },
                 IsError = false
             });
@@ -328,13 +299,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_ModeSwitchDuringExecution_ShouldUseNewMode()
-    {
+    public async Task EndToEnd_ModeSwitchDuringExecution_ShouldUseNewMode() {
         var mockHandler = CreateMockToolHandler("custom_test_tool", "Test tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Success" } },
                 IsError = false
             });
@@ -359,8 +328,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     #region Permission Denied Flow Tests
 
     [Fact]
-    public async Task EndToEnd_BlockedTool_ShouldReturnError()
-    {
+    public async Task EndToEnd_BlockedTool_ShouldReturnError() {
         var mockHandler = CreateMockToolHandler("blocked_tool", "Blocked tool");
         // 使用 FakeTimeProvider 推进时间使权限过期，替代 Task.Delay
         _permissionManager.ApproveToolTemporarily("blocked_tool", TimeSpan.FromMilliseconds(5));
@@ -376,8 +344,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_PermissionError_ShouldContainCorrectInfo()
-    {
+    public async Task EndToEnd_PermissionError_ShouldContainCorrectInfo() {
         var mockHandler = CreateMockToolHandler("sensitive_tool", "Sensitive tool");
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
@@ -394,13 +361,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     #region Concurrent Permission Tests
 
     [Fact]
-    public async Task EndToEnd_ConcurrentToolExecution_ShouldRespectPermissions()
-    {
+    public async Task EndToEnd_ConcurrentToolExecution_ShouldRespectPermissions() {
         var mockHandler = CreateMockToolHandler("concurrent_tool", "Concurrent tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Success" } },
                 IsError = false
             });
@@ -409,8 +374,7 @@ public class PermissionIntegrationTests : IAsyncDisposable
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
         var tasks = new List<Task<ToolResult>>();
-        for (int i = 0; i < 50; i++)
-        {
+        for (var i = 0; i < 50; i++) {
             tasks.Add(_permissionExecutor.ExecuteAsync("concurrent_tool", new Dictionary<string, JsonElement>()));
         }
 
@@ -420,13 +384,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_ConcurrentMixedPermissionTools_ShouldHandleCorrectly()
-    {
+    public async Task EndToEnd_ConcurrentMixedPermissionTools_ShouldHandleCorrectly() {
         var safeHandler = CreateMockToolHandler(FileToolNameEnumConstants.FileRead, "Safe tool");
         safeHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Safe" } },
                 IsError = false
             });
@@ -454,13 +416,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     #region Permission Cache Integration Tests
 
     [Fact]
-    public async Task EndToEnd_CachedPermission_ShouldNotRequeryManager()
-    {
+    public async Task EndToEnd_CachedPermission_ShouldNotRequeryManager() {
         var mockHandler = CreateMockToolHandler("cached_tool", "Cached tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Success" } },
                 IsError = false
             });
@@ -476,13 +436,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task EndToEnd_CacheClearAfterModeChange_ShouldReevaluatePermissions()
-    {
+    public async Task EndToEnd_CacheClearAfterModeChange_ShouldReevaluatePermissions() {
         var mockHandler = CreateMockToolHandler("reevaluated_tool", "Reevaluated tool");
         mockHandler
             .Setup(h => h.ExecuteAsync(It.IsAny<Dictionary<string, JsonElement>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolResult
-            {
+            .ReturnsAsync(new ToolResult {
                 Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "Success" } },
                 IsError = false
             });
@@ -502,13 +460,11 @@ public class PermissionIntegrationTests : IAsyncDisposable
 
     #region Helper Methods
 
-    private static Mock<IToolHandler> CreateMockToolHandler(string name, string description)
-    {
+    private static Mock<IToolHandler> CreateMockToolHandler(string name, string description) {
         var mock = new Mock<IToolHandler>();
         mock.Setup(h => h.Name).Returns(name);
         mock.Setup(h => h.Description).Returns(description);
-        mock.Setup(h => h.InputSchema).Returns(new ToolSchema
-        {
+        mock.Setup(h => h.InputSchema).Returns(new ToolSchema {
             Type = "object",
             Properties = new Dictionary<string, ToolSchemaProperty>(),
             Required = new List<string>()

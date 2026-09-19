@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 同进程用 InProcessMailbox（内存邮箱），跨进程用 TeammateMailboxService（文件邮箱）。
 /// 对齐 TS 原版 的 teammateMailbox + mailbox 双模式设计。
 /// </summary>
-public interface IMailbox
-{
+public interface IMailbox {
     /// <summary>注册 agent 邮箱。</summary>
     void RegisterAgent(string agentId, string? sessionId = null);
 

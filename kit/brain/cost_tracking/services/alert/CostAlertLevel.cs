@@ -5,8 +5,7 @@ namespace Core.CostTracking;
 /// 成本告警级别枚举
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter<CostAlertLevel>))]
-public enum CostAlertLevel
-{
+public enum CostAlertLevel {
     /// <summary>
     /// 无告警
     /// </summary>

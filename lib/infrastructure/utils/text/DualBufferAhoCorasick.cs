@@ -7,16 +7,14 @@ namespace Infrastructure.Utils.Text;
 /// 对齐架构规则3:双变量切换模式 — _staging 验证后原子交换 _active。
 /// </summary>
 /// <typeparam name="TValue">每个模式串关联的值类型。</typeparam>
-public sealed class DualBufferAhoCorasick<TValue>
-{
+public sealed class DualBufferAhoCorasick<TValue> {
     private AhoCorasick<TValue> _active;
     private readonly bool _ignoreCase;
 
     /// <summary>
     /// 从初始自动机创建双缓冲包装(复用已构建的自动机作为初始 _active)。
     /// </summary>
-    public DualBufferAhoCorasick(AhoCorasick<TValue> initial, bool ignoreCase = true)
-    {
+    public DualBufferAhoCorasick(AhoCorasick<TValue> initial, bool ignoreCase = true) {
         _active = initial;
         _ignoreCase = ignoreCase;
     }
@@ -28,8 +26,7 @@ public sealed class DualBufferAhoCorasick<TValue>
     /// <param name="ignoreCase">是否忽略大小写(默认 true)。</param>
     public DualBufferAhoCorasick(
         IEnumerable<KeyValuePair<string, TValue>> initialPatterns,
-        bool ignoreCase = true)
-    {
+        bool ignoreCase = true) {
         _ignoreCase = ignoreCase;
         _active = AhoCorasick<TValue>.Create(initialPatterns, ignoreCase);
     }
@@ -42,8 +39,7 @@ public sealed class DualBufferAhoCorasick<TValue>
     /// <summary>
     /// 原子切换模式集。构建新自动机后替换 _active,旧自动机由 GC 回收。
     /// </summary>
-    public void SwapPatterns(IEnumerable<KeyValuePair<string, TValue>> newPatterns)
-    {
+    public void SwapPatterns(IEnumerable<KeyValuePair<string, TValue>> newPatterns) {
         var staging = AhoCorasick<TValue>.Create(newPatterns, _ignoreCase);
         Interlocked.Exchange(ref _active, staging);
     }
@@ -61,20 +57,17 @@ public sealed class DualBufferAhoCorasick<TValue>
 /// <summary>
 /// 双缓冲 Aho-Corasick 便捷工厂(模式串本身作为关联值)。
 /// </summary>
-public static class DualBufferAhoCorasick
-{
+public static class DualBufferAhoCorasick {
     /// <summary>从模式串集合创建双缓冲自动机(string 关联值)。</summary>
     public static DualBufferAhoCorasick<string> Create(
-        IEnumerable<string> initialPatterns, bool ignoreCase = true)
-    {
+        IEnumerable<string> initialPatterns, bool ignoreCase = true) {
         var ac = AhoCorasick.Create(initialPatterns, ignoreCase);
         return new DualBufferAhoCorasick<string>(ac, ignoreCase);
     }
 
     /// <summary>从模式串集合创建双缓冲自动机(bool 关联值)。</summary>
     public static DualBufferAhoCorasick<bool> CreateBool(
-        IEnumerable<string> initialPatterns, bool ignoreCase = true)
-    {
+        IEnumerable<string> initialPatterns, bool ignoreCase = true) {
         var ac = AhoCorasick.CreateBool(initialPatterns, ignoreCase);
         return new DualBufferAhoCorasick<bool>(ac, ignoreCase);
     }

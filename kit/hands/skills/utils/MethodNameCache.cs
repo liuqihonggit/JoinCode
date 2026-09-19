@@ -4,8 +4,7 @@ namespace Core.Utils;
 /// <summary>
 /// 方法名缓存 - 缓存方法名的小写形式，避免重复分配
 /// </summary>
-public static class MethodNameCache
-{
+public static class MethodNameCache {
     private static readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
@@ -13,8 +12,7 @@ public static class MethodNameCache
     /// </summary>
     /// <param name="methodName">原始方法名</param>
     /// <returns>小写形式的方法名</returns>
-    public static string Normalize(string methodName)
-    {
+    public static string Normalize(string methodName) {
         if (string.IsNullOrEmpty(methodName))
             return methodName;
 
@@ -29,8 +27,7 @@ public static class MethodNameCache
     /// <summary>
     /// 获取缓存统计信息
     /// </summary>
-    public static (int Count, int ApproximateSize) GetStats()
-    {
+    public static (int Count, int ApproximateSize) GetStats() {
         var count = _cache.Count;
         // 估算每个字符串平均占用 32 字节
         var approximateSize = count * 32;

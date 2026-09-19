@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Hooks;
 /// 钩子编排器接口（消费方面）
 /// 主入口点，执行钩子并返回结果
 /// </summary>
-public interface IHookOrchestrator
-{
+public interface IHookOrchestrator {
     /// <summary>
     /// 执行钩子
     /// </summary>

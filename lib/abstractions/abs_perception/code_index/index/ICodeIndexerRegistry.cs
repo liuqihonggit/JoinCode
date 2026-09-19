@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 /// 支持多仓库图查询: 每个仓库拥有独立的 InMemoryIndexStore + CodeIndexer
 /// 对齐 code-review-graph 的 register/unregister/repos 命令
 /// </summary>
-public interface ICodeIndexerRegistry : IRegistry
-{
+public interface ICodeIndexerRegistry : IRegistry {
     /// <summary>
     /// 注册一个仓库 — 为该仓库创建独立的 ICodeIndexer 实例
     /// </summary>
@@ -46,8 +45,7 @@ public interface ICodeIndexerRegistry : IRegistry
 /// <summary>
 /// 仓库注册事件参数
 /// </summary>
-public sealed class RepoRegisteredEventArgs : EventArgs
-{
+public sealed class RepoRegisteredEventArgs : EventArgs {
     public required string RepoId { get; init; }
     public required string WorkspaceRoot { get; init; }
     public required ICodeIndexer Indexer { get; init; }
@@ -56,7 +54,6 @@ public sealed class RepoRegisteredEventArgs : EventArgs
 /// <summary>
 /// 仓库注销事件参数
 /// </summary>
-public sealed class RepoUnregisteredEventArgs : EventArgs
-{
+public sealed class RepoUnregisteredEventArgs : EventArgs {
     public required string RepoId { get; init; }
 }

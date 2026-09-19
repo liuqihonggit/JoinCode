@@ -4,8 +4,7 @@ namespace Core.Configuration;
 /// <summary>
 /// 权限检查配置
 /// </summary>
-public class PermissionConfig
-{
+public class PermissionConfig {
     /// <summary>
     /// 自动批准的工具列表
     /// </summary>
@@ -67,12 +66,9 @@ public class PermissionConfig
     /// <summary>
     /// 创建默认配置
     /// </summary>
-    public static PermissionConfig CreateDefault()
-    {
-        return new PermissionConfig
-        {
-            AutoApprovedTools = new Dictionary<string, ToolPermissionRule>(StringComparer.OrdinalIgnoreCase)
-            {
+    public static PermissionConfig CreateDefault() {
+        return new PermissionConfig {
+            AutoApprovedTools = new Dictionary<string, ToolPermissionRule>(StringComparer.OrdinalIgnoreCase) {
                 [FileToolNameEnumConstants.FileRead] = new ToolPermissionRule { ToolName = FileToolNameEnumConstants.FileRead, Description = "Read file" },
                 ["file_list"] = new ToolPermissionRule { ToolName = "file_list", Description = "List files" },
                 [FileToolNameEnumConstants.DirectoryList] = new ToolPermissionRule { ToolName = FileToolNameEnumConstants.DirectoryList, Description = "List directory" },
@@ -148,8 +144,7 @@ public class PermissionConfig
 /// 工具权限规则
 /// 对齐 TS 版 PermissionRuleValue — 支持 ToolName 级和 RuleContent 级（如 domain:xxx.com）匹配
 /// </summary>
-public class ToolPermissionRule : DescribedRule
-{
+public class ToolPermissionRule : DescribedRule {
     /// <summary>
     /// 工具名称（兼容旧配置，委托到 Value）
     /// </summary>
@@ -166,8 +161,7 @@ public class ToolPermissionRule : DescribedRule
 /// <summary>
 /// 操作模式定义
 /// </summary>
-public class OperationPattern : DescribedRule
-{
+public class OperationPattern : DescribedRule {
     /// <summary>
     /// 匹配模式（兼容旧配置，委托到 Value）
     /// </summary>
@@ -182,8 +176,7 @@ public class OperationPattern : DescribedRule
 /// <summary>
 /// 敏感路径模式
 /// </summary>
-public class SensitivePathPattern : DescribedRule
-{
+public class SensitivePathPattern : DescribedRule {
     /// <summary>
     /// 路径（兼容旧配置，委托到 Value）
     /// </summary>
@@ -198,8 +191,7 @@ public class SensitivePathPattern : DescribedRule
 /// <summary>
 /// 危险命令模式
 /// </summary>
-public class DangerousCommandPattern : DescribedRule
-{
+public class DangerousCommandPattern : DescribedRule {
     /// <summary>
     /// 匹配模式（兼容旧配置，委托到 Value）
     /// </summary>
@@ -209,8 +201,7 @@ public class DangerousCommandPattern : DescribedRule
 /// <summary>
 /// 模式匹配类型
 /// </summary>
-public enum PatternType
-{
+public enum PatternType {
     /// <summary>包含匹配 — 模式出现在目标中即匹配</summary>
     [EnumValue("contains")] Contains,
     /// <summary>前缀匹配 — 目标以模式开头</summary>
@@ -226,8 +217,7 @@ public enum PatternType
 /// <summary>
 /// 路径类型
 /// </summary>
-public enum PathType
-{
+public enum PathType {
     /// <summary>包含匹配 — 路径包含模式串</summary>
     [EnumValue("contains")] Contains,
     /// <summary>前缀匹配 — 路径以模式开头</summary>
@@ -241,8 +231,7 @@ public enum PathType
 /// <summary>
 /// 权限配置构建器 - 支持链式配置
 /// </summary>
-public sealed class PermissionConfigBuilder
-{
+public sealed class PermissionConfigBuilder {
     private readonly Dictionary<string, ToolPermissionRule> _autoApprovedTools = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ToolPermissionRule> _autoRejectedTools = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, OperationPattern> _dangerousOperationPatterns = new(StringComparer.OrdinalIgnoreCase);
@@ -252,8 +241,7 @@ public sealed class PermissionConfigBuilder
     private readonly Dictionary<string, SensitivePathPattern> _sensitivePathPatterns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DangerousCommandPattern> _dangerousCommandPatterns = new(StringComparer.OrdinalIgnoreCase);
 
-    private PermissionConfigBuilder()
-    {
+    private PermissionConfigBuilder() {
     }
 
     /// <summary>
@@ -264,11 +252,10 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 从默认配置开始
     /// </summary>
-    public static PermissionConfigBuilder CreateFromDefault()
-    {
+    public static PermissionConfigBuilder CreateFromDefault() {
         var builder = new PermissionConfigBuilder();
         var defaultConfig = PermissionConfig.CreateDefault();
-        
+
         foreach (var kvp in defaultConfig.AutoApprovedTools)
             builder._autoApprovedTools[kvp.Key] = kvp.Value;
         foreach (var p in defaultConfig.DangerousOperationPatterns)
@@ -283,15 +270,14 @@ public sealed class PermissionConfigBuilder
             builder._sensitivePathPatterns[p.Path] = p;
         foreach (var p in defaultConfig.DangerousCommandPatterns)
             builder._dangerousCommandPatterns[p.Pattern] = p;
-        
+
         return builder;
     }
 
     /// <summary>
     /// 添加自动批准的工具
     /// </summary>
-    public PermissionConfigBuilder AddAutoApprovedTool(string toolName, string description = "")
-    {
+    public PermissionConfigBuilder AddAutoApprovedTool(string toolName, string description = "") {
         _autoApprovedTools[toolName] = new ToolPermissionRule { ToolName = toolName, Description = description };
         return this;
     }
@@ -299,8 +285,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 添加自动拒绝的工具
     /// </summary>
-    public PermissionConfigBuilder AddAutoRejectedTool(string toolName, string description = "")
-    {
+    public PermissionConfigBuilder AddAutoRejectedTool(string toolName, string description = "") {
         _autoRejectedTools[toolName] = new ToolPermissionRule { ToolName = toolName, Description = description };
         return this;
     }
@@ -308,8 +293,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 添加危险操作模式
     /// </summary>
-    public PermissionConfigBuilder AddDangerousOperation(string pattern, PatternType patternType, string description = "")
-    {
+    public PermissionConfigBuilder AddDangerousOperation(string pattern, PatternType patternType, string description = "") {
         _dangerousOperationPatterns[pattern] = new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description };
         return this;
     }
@@ -317,8 +301,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 添加写操作模式
     /// </summary>
-    public PermissionConfigBuilder AddWriteOperation(string pattern, PatternType patternType, string description = "")
-    {
+    public PermissionConfigBuilder AddWriteOperation(string pattern, PatternType patternType, string description = "") {
         _writeOperationPatterns[pattern] = new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description };
         return this;
     }
@@ -326,8 +309,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 添加读操作模式
     /// </summary>
-    public PermissionConfigBuilder AddReadOperation(string pattern, PatternType patternType, string description = "")
-    {
+    public PermissionConfigBuilder AddReadOperation(string pattern, PatternType patternType, string description = "") {
         _readOperationPatterns[pattern] = new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description };
         return this;
     }
@@ -335,8 +317,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 添加 Shell 操作模式
     /// </summary>
-    public PermissionConfigBuilder AddShellOperation(string pattern, PatternType patternType, string description = "")
-    {
+    public PermissionConfigBuilder AddShellOperation(string pattern, PatternType patternType, string description = "") {
         _shellOperationPatterns[pattern] = new OperationPattern { Pattern = pattern, PatternType = patternType, Description = description };
         return this;
     }
@@ -344,8 +325,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 添加敏感路径模式
     /// </summary>
-    public PermissionConfigBuilder AddSensitivePath(string path, PathType pathType, string description = "")
-    {
+    public PermissionConfigBuilder AddSensitivePath(string path, PathType pathType, string description = "") {
         _sensitivePathPatterns[path] = new SensitivePathPattern { Path = path, PathType = pathType, Description = description };
         return this;
     }
@@ -353,8 +333,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 添加危险命令模式
     /// </summary>
-    public PermissionConfigBuilder AddDangerousCommand(string pattern, string description = "")
-    {
+    public PermissionConfigBuilder AddDangerousCommand(string pattern, string description = "") {
         _dangerousCommandPatterns[pattern] = new DangerousCommandPattern { Pattern = pattern, Description = description };
         return this;
     }
@@ -362,8 +341,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 使用严格模式（增加更多危险模式）
     /// </summary>
-    public PermissionConfigBuilder UseStrictMode()
-    {
+    public PermissionConfigBuilder UseStrictMode() {
         _dangerousOperationPatterns["exec"] = new OperationPattern { Pattern = "exec", PatternType = PatternType.Contains, Description = "执行操作" };
         _dangerousOperationPatterns["eval"] = new OperationPattern { Pattern = "eval", PatternType = PatternType.Contains, Description = "求值操作" };
         _sensitivePathPatterns["password"] = new SensitivePathPattern { Path = "password", PathType = PathType.Contains, Description = "密码文件" };
@@ -374,8 +352,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 使用宽松模式（减少一些限制）
     /// </summary>
-    public PermissionConfigBuilder UsePermissiveMode()
-    {
+    public PermissionConfigBuilder UsePermissiveMode() {
         _dangerousOperationPatterns.Remove(OperationTypeEnumConstants.Bash);
         _dangerousOperationPatterns.Remove(OperationTypeEnumConstants.Shell);
         _shellOperationPatterns.Clear();
@@ -385,8 +362,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 清除所有自动批准的工具
     /// </summary>
-    public PermissionConfigBuilder ClearAutoApprovedTools()
-    {
+    public PermissionConfigBuilder ClearAutoApprovedTools() {
         _autoApprovedTools.Clear();
         return this;
     }
@@ -394,8 +370,7 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 清除所有危险命令模式
     /// </summary>
-    public PermissionConfigBuilder ClearDangerousCommands()
-    {
+    public PermissionConfigBuilder ClearDangerousCommands() {
         _dangerousCommandPatterns.Clear();
         return this;
     }
@@ -403,10 +378,8 @@ public sealed class PermissionConfigBuilder
     /// <summary>
     /// 构建权限配置
     /// </summary>
-    public PermissionConfig Build()
-    {
-        return new PermissionConfig
-        {
+    public PermissionConfig Build() {
+        return new PermissionConfig {
             AutoApprovedTools = new Dictionary<string, ToolPermissionRule>(_autoApprovedTools, StringComparer.OrdinalIgnoreCase),
             AutoRejectedTools = new Dictionary<string, ToolPermissionRule>(_autoRejectedTools, StringComparer.OrdinalIgnoreCase),
             DangerousOperationPatterns = [.. _dangerousOperationPatterns.Values],

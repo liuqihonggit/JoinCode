@@ -4,8 +4,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 压缩服务接口 — 提供自动压缩、部分压缩和阈值判断能力
 /// </summary>
-public interface ICompactService
-{
+public interface ICompactService {
     /// <summary>
     /// 执行自动压缩
     /// </summary>
@@ -50,8 +49,7 @@ public interface ICompactService
 /// <summary>
 /// 压缩请求
 /// </summary>
-public sealed class CompactRequest
-{
+public sealed class CompactRequest {
     /// <summary>待压缩的消息列表</summary>
     public required IReadOnlyList<ApiMessage> Messages { get; init; }
     /// <summary>压缩触发方式</summary>
@@ -69,8 +67,7 @@ public sealed class CompactRequest
 /// <summary>
 /// 部分压缩请求
 /// </summary>
-public sealed class PartialCompactRequest
-{
+public sealed class PartialCompactRequest {
     /// <summary>待压缩的消息列表</summary>
     public required IReadOnlyList<ApiMessage> Messages { get; init; }
     /// <summary>枢轴消息索引</summary>
@@ -86,8 +83,7 @@ public sealed class PartialCompactRequest
 /// <summary>
 /// 压缩警告状态
 /// </summary>
-public sealed class CompactWarningState
-{
+public sealed class CompactWarningState {
     /// <summary>剩余百分比</summary>
     public required int PercentLeft { get; init; }
     /// <summary>是否超过警告阈值</summary>

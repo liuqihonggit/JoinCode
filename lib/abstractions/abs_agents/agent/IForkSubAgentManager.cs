@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IForkSubAgentManager
-{
+public interface IForkSubAgentManager {
     Task<ForkResult> ForkAsync(ForkOptions options, CancellationToken ct = default);
 
     Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default);
@@ -13,8 +12,7 @@ public interface IForkSubAgentManager
     event EventHandler<ForkCompletedEventArgs>? ForkCompleted;
 }
 
-public sealed class ForkOptions
-{
+public sealed class ForkOptions {
     public required string ParentSessionId { get; init; }
     public required string TaskDescription { get; init; }
     public bool ShareCache { get; init; } = true;
@@ -44,8 +42,7 @@ public sealed class ForkOptions
     public JoinCode.Abstractions.LLM.Chat.SubAgentEventChannel? EventChannel { get; init; }
 }
 
-public sealed class ForkSubAgent
-{
+public sealed class ForkSubAgent {
     public required string ForkId { get; init; }
     public required string ParentSessionId { get; init; }
     public required ForkState State { get; init; }
@@ -55,16 +52,14 @@ public sealed class ForkSubAgent
 
 public enum ForkState { Running, Completed, Merged, Cancelled, Failed }
 
-public sealed class ForkResult
-{
+public sealed class ForkResult {
     public required string ForkId { get; init; }
     public required ForkState State { get; init; }
     public string? Result { get; init; }
     public Dictionary<string, string> SharedCache { get; init; } = new();
 }
 
-public sealed class ForkCompletedEventArgs : EventArgs
-{
+public sealed class ForkCompletedEventArgs : EventArgs {
     public required string ForkId { get; init; }
     public required ForkState State { get; init; }
     public required string TaskDescription { get; init; }

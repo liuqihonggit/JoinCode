@@ -14,8 +14,7 @@ public static class AgentToolSection {
     /// </summary>
     public static string? GetContent() {
         var isCoordinator = PromptConfigSnapshot.Current.IsCoordinatorMode;
-        if (isCoordinator)
-        {
+        if (isCoordinator) {
             return $"使用 {AgentToolNameEnumConstants.Agent} 工具生成工作者执行任务。工作者自主完成研究、实现和验证。可用代理类型列在对话中的 <system-reminder> 消息中。";
         }
 
@@ -38,10 +37,8 @@ public static class AgentToolSection {
     /// <summary>
     /// 获取工具描述 — 供 ToolListingService 复用
     /// </summary>
-    internal static string GetToolsDescription(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition agent)
-    {
-        if (agent.Tools is { Count: > 0 } tools && agent.DisallowedTools is { Count: > 0 } disallowedTools)
-        {
+    internal static string GetToolsDescription(JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition agent) {
+        if (agent.Tools is { Count: > 0 } tools && agent.DisallowedTools is { Count: > 0 } disallowedTools) {
             var denySet = new HashSet<string>(disallowedTools);
             var effectiveTools = tools.Where(t => !denySet.Contains(t)).ToList();
             return effectiveTools.Count == 0 ? "无" : string.Join(", ", effectiveTools);

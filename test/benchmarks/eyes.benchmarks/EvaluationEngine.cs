@@ -1,9 +1,7 @@
 namespace JoinCode.CodeIndex.Benchmarks;
 
-public sealed class EvaluationEngine
-{
-    public EvaluationResult EvaluateL1(TestCase testCase, SearchResult<SymbolInfo> searchResult, long elapsedMs)
-    {
+public sealed class EvaluationEngine {
+    public EvaluationResult EvaluateL1(TestCase testCase, SearchResult<SymbolInfo> searchResult, long elapsedMs) {
         ArgumentNullException.ThrowIfNull(testCase);
         ArgumentNullException.ThrowIfNull(searchResult);
 
@@ -14,8 +12,7 @@ public sealed class EvaluationEngine
         return EvaluateCore(testCase, actualNames, elapsedMs, includeExtra: true);
     }
 
-    public EvaluationResult EvaluateL2CallGraph(TestCase testCase, IReadOnlyList<CallEdge> edges, long elapsedMs)
-    {
+    public EvaluationResult EvaluateL2CallGraph(TestCase testCase, IReadOnlyList<CallEdge> edges, long elapsedMs) {
         ArgumentNullException.ThrowIfNull(testCase);
 
         var actualNames = edges
@@ -25,8 +22,7 @@ public sealed class EvaluationEngine
         return EvaluateCore(testCase, actualNames, elapsedMs);
     }
 
-    public EvaluationResult EvaluateL2ImpactScope(TestCase testCase, IReadOnlyList<string> affectedFiles, long elapsedMs)
-    {
+    public EvaluationResult EvaluateL2ImpactScope(TestCase testCase, IReadOnlyList<string> affectedFiles, long elapsedMs) {
         ArgumentNullException.ThrowIfNull(testCase);
 
         var actualPaths = affectedFiles
@@ -36,14 +32,11 @@ public sealed class EvaluationEngine
         return EvaluateCore(testCase, actualPaths, elapsedMs);
     }
 
-    public EvaluationSummary Summarize(string layer, IReadOnlyList<EvaluationResult> results)
-    {
+    public EvaluationSummary Summarize(string layer, IReadOnlyList<EvaluationResult> results) {
         ArgumentNullException.ThrowIfNull(results);
 
-        if (results.Count == 0)
-        {
-            return new EvaluationSummary
-            {
+        if (results.Count == 0) {
+            return new EvaluationSummary {
                 Layer = layer,
                 TotalCases = 0,
                 PassedCases = 0,
@@ -63,8 +56,7 @@ public sealed class EvaluationEngine
             .OrderBy(x => x)
             .ToList();
 
-        return new EvaluationSummary
-        {
+        return new EvaluationSummary {
             Layer = layer,
             TotalCases = results.Count,
             PassedCases = passedCount,
@@ -82,8 +74,7 @@ public sealed class EvaluationEngine
         TestCase testCase,
         HashSet<string> actualNames,
         long elapsedMs,
-        bool includeExtra = false)
-    {
+        bool includeExtra = false) {
         var expectedSet = testCase.ExpectedResults.ToHashSet();
         var found = expectedSet.Intersect(actualNames).ToHashSet();
         var missing = expectedSet.Except(actualNames).ToHashSet();
@@ -92,8 +83,7 @@ public sealed class EvaluationEngine
         var precision = actualNames.Count > 0 ? (double)found.Count / actualNames.Count : 0;
         var f1 = recall + precision > 0 ? 2 * recall * precision / (recall + precision) : 0;
 
-        return new EvaluationResult
-        {
+        return new EvaluationResult {
             TestCaseId = testCase.Id,
             Category = testCase.Category,
             Passed = missing.Count == 0,
@@ -117,15 +107,13 @@ public sealed class EvaluationEngine
     private static string FormatCallEdge(CallEdge e) =>
         string.Concat(e.CallerSymbol, "→", e.CalleeSymbol);
 
-    private static string ExtractFileName(string path)
-    {
+    private static string ExtractFileName(string path) {
         var span = path.AsSpan();
         var lastSep = span.LastIndexOfAny(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return lastSep >= 0 ? span[(lastSep + 1)..].ToString() : path;
     }
 
-    private static double Percentile(List<double> sorted, int percentile)
-    {
+    private static double Percentile(List<double> sorted, int percentile) {
         if (sorted.Count == 0) return 0;
         var index = (percentile / 100.0) * (sorted.Count - 1);
         var lower = (int)Math.Floor(index);

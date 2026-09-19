@@ -1,12 +1,9 @@
 namespace AotSafety.Tests;
 
-public class ProjectStructureAndCodeStyleAnalyzerTests
-{
+public class ProjectStructureAndCodeStyleAnalyzerTests {
     [Fact]
-    public async Task PublicMethod_WithoutXmlDoc_ReportsJCC10004()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PublicMethod_WithoutXmlDoc_ReportsJCC10004() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -24,10 +21,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PublicMethod_WithXmlDoc_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PublicMethod_WithXmlDoc_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -42,10 +37,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PrivateMethod_WithoutXmlDoc_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PrivateMethod_WithoutXmlDoc_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -59,10 +52,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task OverrideMethod_WithoutXmlDoc_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task OverrideMethod_WithoutXmlDoc_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -87,10 +78,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PublicProperty_WithoutXmlDoc_ReportsJCC10004()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PublicProperty_WithoutXmlDoc_ReportsJCC10004() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -108,10 +97,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task SwitchExpressionOnString_ReportsJCC10005()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task SwitchExpressionOnString_ReportsJCC10005() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -135,10 +122,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task SwitchExpressionOnString_LessThan3Arms_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task SwitchExpressionOnString_LessThan3Arms_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -156,10 +141,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task SwitchExpressionOnInt_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task SwitchExpressionOnInt_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -179,10 +162,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task Constructor_WithoutXmlDoc_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task Constructor_WithoutXmlDoc_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -196,10 +177,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PropertyReturnsNew_ExpressionBody_ReportsJCC10008()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PropertyReturnsNew_ExpressionBody_ReportsJCC10008() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class Foo { }
@@ -218,10 +197,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PropertyReturnsNew_GetterBody_ReportsJCC10008()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PropertyReturnsNew_GetterBody_ReportsJCC10008() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class Foo { }
@@ -240,10 +217,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PropertyReturnsNew_GetterExpressionBody_ReportsJCC10008()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PropertyReturnsNew_GetterExpressionBody_ReportsJCC10008() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class Foo { }
@@ -262,10 +237,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PropertyReturnsCachedField_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PropertyReturnsCachedField_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class Foo { }
@@ -281,10 +254,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PropertyReturnsArrayEmpty_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PropertyReturnsArrayEmpty_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class TestClass
@@ -298,10 +269,8 @@ public class ProjectStructureAndCodeStyleAnalyzerTests
     }
 
     [Fact]
-    public async Task PropertyReturnsField_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier>
-        {
+    public async Task PropertyReturnsField_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<CodeOrganizationRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 class Foo { }

@@ -7,8 +7,7 @@ namespace McpToolDispatch;
 /// 工作流工具处理器 — 提供工作流执行、计划创建、代码生成、代码分析、聊天、历史管理功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Workflow)]
-public class WorkflowToolHandlers
-{
+public class WorkflowToolHandlers {
     private readonly IPlanService? _planService;
     private readonly IChatService? _chatService;
     private readonly ICodeService? _codeService;
@@ -35,8 +34,7 @@ public class WorkflowToolHandlers
         ICodeService? codeService,
         IConfiguration configuration,
         IFileSystem? fileSystem = null,
-        ILogger<WorkflowToolHandlers>? logger = null)
-    {
+        ILogger<WorkflowToolHandlers>? logger = null) {
         _planService = planService;
         _chatService = chatService;
         _codeService = codeService;
@@ -45,13 +43,11 @@ public class WorkflowToolHandlers
         _logger = logger;
     }
 
-    private bool CheckHasAiKey()
-    {
+    private bool CheckHasAiKey() {
         var apiKey = _configuration["Workflow:Provider:ApiKey"];
         if (!string.IsNullOrWhiteSpace(apiKey)) return true;
 
-        foreach (var envVar in Enum.GetValues<ProviderEnvVar>())
-        {
+        foreach (var envVar in Enum.GetValues<ProviderEnvVar>()) {
             var envValue = Environment.GetEnvironmentVariable(envVar.ToValue());
             if (!string.IsNullOrWhiteSpace(envValue)) return true;
         }
@@ -60,33 +56,26 @@ public class WorkflowToolHandlers
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.AuthFileName);
-        try
-        {
+        try {
             var fs = _fileSystem ?? new IO.FileSystem.PhysicalFileSystem();
-            if (fs.FileExists(authFilePath))
-            {
+            if (fs.FileExists(authFilePath)) {
                 var json = fs.ReadAllText(authFilePath);
                 using var doc = System.Text.Json.JsonDocument.Parse(json);
-                foreach (var prop in doc.RootElement.EnumerateObject())
-                {
+                foreach (var prop in doc.RootElement.EnumerateObject()) {
                     if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.String &&
-                        !string.IsNullOrWhiteSpace(prop.Value.GetString()))
-                    {
+                        !string.IsNullOrWhiteSpace(prop.Value.GetString())) {
                         return true;
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError("读取 auth.json 失败: {Message}", ex.Message);
         }
 
         return false;
     }
 
-    private bool IsPromptOnlyMode()
-    {
+    private bool IsPromptOnlyMode() {
         var modeConfig = _configuration?["McpServer:OperationMode"]?.ToLowerInvariant();
         var hasAiKey = CheckHasAiKey();
         var hasRequiredServices = _planService != null && _chatService != null && _codeService != null;
@@ -104,14 +93,12 @@ public class WorkflowToolHandlers
     [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowExecute, "Execute workflow tasks for running and starting various automated workflows", "execution")]
     public Task<ToolResult> WorkflowExecuteAsync(
         [McpToolParameter("Workflow task description, e.g.: Analyze code performance issues and provide optimization suggestions")] string task,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new ExecuteWorkflowCommand(task);
         return ExecuteWithValidationAsync(
             command,
             (cmd, ct) => Task.FromResult(PromptTemplates.WorkflowExecute(cmd.Task)),
-            async (cmd, ct) =>
-            {
+            async (cmd, ct) => {
                 var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Task, ct);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
@@ -127,14 +114,12 @@ public class WorkflowToolHandlers
     [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowPlanCreateAndExecute, "Create and execute plans for complex task planning", "execution")]
     public Task<ToolResult> PlanCreateAndExecuteAsync(
         [McpToolParameter("User task description, AI will create and execute a plan based on this, e.g.: Create a REST API project structure")] string prompt,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new CreatePlanCommand(prompt);
         return ExecuteWithValidationAsync(
             command,
             (cmd, ct) => Task.FromResult(PromptTemplates.PlanCreateAndExecute(cmd.Prompt)),
-            async (cmd, ct) =>
-            {
+            async (cmd, ct) => {
                 var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Prompt, ct);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
@@ -150,14 +135,12 @@ public class WorkflowToolHandlers
     [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowGenerateCode, "Generate code for writing programs, implementing features and developing modules", "code")]
     public Task<ToolResult> WorkflowGenerateCodeAsync(
         [McpToolParameter("Code requirement description, e.g.: Create a user authentication service with login and registration")] string requirement,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new GenerateCodeCommand(requirement);
         return ExecuteWithValidationAsync(
             command,
             (cmd, ct) => Task.FromResult(PromptTemplates.GenerateCode(cmd.Requirement)),
-            async (cmd, ct) =>
-            {
+            async (cmd, ct) => {
                 var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).GenerateCodeAsync(cmd.Requirement, ct);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
@@ -175,19 +158,16 @@ public class WorkflowToolHandlers
     public Task<ToolResult> WorkflowAnalyzeCodeAsync(
         [McpToolParameter("Code to analyze")] string code,
         [McpToolParameter("Analysis type: general, bugs, optimize, security", Required = false, DefaultValue = "general")] string analysisType = "general",
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var analysisTypeEnum = AnalysisTypeExtensions.FromValue(analysisType) ?? AnalysisType.General;
         var command = new AnalyzeCodeCommand(code, analysisTypeEnum.ToValue());
         return ExecuteWithValidationAsync(
             command,
-            (cmd, ct) =>
-            {
+            (cmd, ct) => {
                 var analysisPrompt = PromptTemplates.GetAnalysisPrompt(cmd.AnalysisType);
                 return Task.FromResult(PromptTemplates.AnalyzeCode(cmd.AnalysisType, analysisPrompt, cmd.Code));
             },
-            async (cmd, ct) =>
-            {
+            async (cmd, ct) => {
                 var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).AnalyzeCodeAsync(cmd.Code, ct);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
@@ -203,13 +183,11 @@ public class WorkflowToolHandlers
     [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowChat, "Chat with AI for communication and Q&A", "chat")]
     public Task<ToolResult> WorkflowChatAsync(
         [McpToolParameter("Message content")] string message,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var command = new ChatCommand(message);
         return ExecuteWithValidationAsync(
             command,
-            async (cmd, ct) =>
-            {
+            async (cmd, ct) => {
                 // 在提示词模式下，也记录对话历史
                 await RecordApiMessageAsync(MessageRoleEnumConstants.User, cmd.Message, ct);
                 var prompt = PromptTemplates.Chat(cmd.Message);
@@ -217,8 +195,7 @@ public class WorkflowToolHandlers
                 await RecordApiMessageAsync(MessageRoleEnumConstants.Assistant, L.T(StringKey.WorkflowPromptModeReceivedMessage, cmd.Message), ct);
                 return prompt;
             },
-            async (cmd, ct) =>
-            {
+            async (cmd, ct) => {
                 var result = await (_chatService ?? throw new InvalidOperationException("ChatService is not available")).SendMessageAsync(cmd.Message);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
@@ -231,17 +208,14 @@ public class WorkflowToolHandlers
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>工具执行结果</returns>
     [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowClearHistory, "Clear chat history", "chat")]
-    public async Task<ToolResult> WorkflowClearHistoryAsync(CancellationToken cancellationToken = default)
-    {
-        if (IsPromptOnlyMode())
-        {
+    public async Task<ToolResult> WorkflowClearHistoryAsync(CancellationToken cancellationToken = default) {
+        if (IsPromptOnlyMode()) {
             // 在提示词模式下，清空内存历史
             await ClearInMemoryHistoryAsync(cancellationToken);
             return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeHistoryCleared)).Build();
         }
 
-        if (_chatService == null)
-        {
+        if (_chatService == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
         }
 
@@ -255,14 +229,11 @@ public class WorkflowToolHandlers
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>包含聊天历史的工具执行结果</returns>
     [McpTool(WorkflowToolNameEnumConstants.McpAiWorkflowWorkflowGetHistory, "Get chat history records", "chat")]
-    public async Task<ToolResult> WorkflowGetHistoryAsync(CancellationToken cancellationToken = default)
-    {
-        if (IsPromptOnlyMode())
-        {
+    public async Task<ToolResult> WorkflowGetHistoryAsync(CancellationToken cancellationToken = default) {
+        if (IsPromptOnlyMode()) {
             // 在提示词模式下，返回内存中的历史
             var history = await GetInMemoryHistoryAsync(cancellationToken);
-            if (history.Count == 0)
-            {
+            if (history.Count == 0) {
                 return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeNoHistory)).Build();
             }
 
@@ -270,14 +241,12 @@ public class WorkflowToolHandlers
             return ToolResultBuilder.Success().WithText(formattedHistory).Build();
         }
 
-        if (_chatService == null)
-        {
+        if (_chatService == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
         }
 
         var serviceHistory = await _chatService.GetMessageListAsync();
-        if (serviceHistory == null || serviceHistory.Count == 0)
-        {
+        if (serviceHistory == null || serviceHistory.Count == 0) {
             return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowNoChatHistory)).Build();
         }
 
@@ -287,22 +256,19 @@ public class WorkflowToolHandlers
 
     #region In-Memory Chat History (for Prompt-Only Mode Testing)
 
-    private async Task RecordApiMessageAsync(string role, string content, CancellationToken ct = default)
-    {
+    private async Task RecordApiMessageAsync(string role, string content, CancellationToken ct = default) {
         using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时");
-            _inMemoryMessageList.Add(new ApiMessageRecord(role, content, DateTime.UtcNow));
+        _inMemoryMessageList.Add(new ApiMessageRecord(role, content, DateTime.UtcNow));
     }
 
-    private async Task ClearInMemoryHistoryAsync(CancellationToken ct = default)
-    {
+    private async Task ClearInMemoryHistoryAsync(CancellationToken ct = default) {
         using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时");
-            _inMemoryMessageList.Clear();
+        _inMemoryMessageList.Clear();
     }
 
-    private async Task<IReadOnlyList<ApiMessageRecord>> GetInMemoryHistoryAsync(CancellationToken ct = default)
-    {
+    private async Task<IReadOnlyList<ApiMessageRecord>> GetInMemoryHistoryAsync(CancellationToken ct = default) {
         using var guard = await _historyLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时");
-            return new List<ApiMessageRecord>(_inMemoryMessageList);
+        return new List<ApiMessageRecord>(_inMemoryMessageList);
     }
 
     private record ApiMessageRecord(string Role, string Content, DateTime Timestamp);
@@ -313,22 +279,18 @@ public class WorkflowToolHandlers
         TCommand command,
         Func<TCommand, CancellationToken, Task<string>> promptGenerator,
         Func<TCommand, CancellationToken, Task<ToolResult>> execution,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var validationResult = ValidateCommand(command);
-        if (validationResult != null)
-        {
+        if (validationResult != null) {
             return validationResult;
         }
 
-        if (IsPromptOnlyMode())
-        {
+        if (IsPromptOnlyMode()) {
             var prompt = await promptGenerator(command, cancellationToken);
             return ToolResultBuilder.Success().WithText(prompt).Build();
         }
 
-        if (_planService == null || _chatService == null || _codeService == null)
-        {
+        if (_planService == null || _chatService == null || _codeService == null) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.WorkflowAiServiceUnavailable))
                 .Build();
@@ -337,10 +299,8 @@ public class WorkflowToolHandlers
         return await execution(command, cancellationToken);
     }
 
-    private static ToolResult? ValidateCommand<TCommand>(TCommand command)
-    {
-        var validationError = command switch
-        {
+    private static ToolResult? ValidateCommand<TCommand>(TCommand command) {
+        var validationError = command switch {
             ExecuteWorkflowCommand cmd => string.IsNullOrWhiteSpace(cmd.Task) ? L.T(StringKey.WorkflowTaskCannotBeEmpty) : null,
             CreatePlanCommand cmd => string.IsNullOrWhiteSpace(cmd.Prompt) ? L.T(StringKey.WorkflowPromptCannotBeEmpty) : null,
             GenerateCodeCommand cmd => string.IsNullOrWhiteSpace(cmd.Requirement) ? L.T(StringKey.WorkflowRequirementCannotBeEmpty) : null,

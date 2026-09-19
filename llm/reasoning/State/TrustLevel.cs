@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.State;
 /// <summary>
 /// 证据信任度等级
 /// </summary>
-public enum TrustLevel
-{
+public enum TrustLevel {
     /// <summary>直接证据（信任度 100）</summary>
     [EnumValue("100")] DirectEvidence,
     /// <summary>强佐证（信任度 85）</summary>

@@ -6,8 +6,7 @@ namespace Core.Memdir;
 /// <summary>
 /// 记忆年龄信息
 /// </summary>
-public sealed record MemoryAgeInfo
-{
+public sealed record MemoryAgeInfo {
     /// <summary>
     /// 记忆ID
     /// </summary>
@@ -53,8 +52,7 @@ public sealed record MemoryAgeInfo
     /// </summary>
     public bool ShouldDelete => DaysSinceLastAccess > 180 && AccessCount < 2;
 
-    private double CalculateHealthScore()
-    {
+    private double CalculateHealthScore() {
         // 基于访问频率和新鲜度计算健康分数
         var recencyScore = Math.Exp(-DaysSinceLastAccess / 30.0) * 50; // 30天内访问得高分
         var frequencyScore = Math.Min(AccessCount * 10, 50); // 访问次数得分，最高50
@@ -65,8 +63,7 @@ public sealed record MemoryAgeInfo
 /// <summary>
 /// 团队内存路径
 /// </summary>
-public sealed record TeamMemoryPath
-{
+public sealed record TeamMemoryPath {
     /// <summary>
     /// 团队ID
     /// </summary>
@@ -96,8 +93,7 @@ public sealed record TeamMemoryPath
 /// <summary>
 /// 内存扫描结果
 /// </summary>
-public sealed record MemoryScanResult
-{
+public sealed record MemoryScanResult {
     /// <summary>
     /// 扫描的记忆数量
     /// </summary>
@@ -117,8 +113,7 @@ public sealed record MemoryScanResult
 /// <summary>
 /// 带分数的记忆
 /// </summary>
-public sealed record DetailedScoredMemory
-{
+public sealed record DetailedScoredMemory {
     /// <summary>
     /// 记忆条目
     /// </summary>
@@ -138,8 +133,7 @@ public sealed record DetailedScoredMemory
 /// <summary>
 /// 内存清理结果
 /// </summary>
-public sealed partial class MemoryCleanupResult
-{
+public sealed partial class MemoryCleanupResult {
     /// <summary>
     /// 检查的记忆数量
     /// </summary>
@@ -171,8 +165,7 @@ public sealed partial class MemoryCleanupResult
 /// <summary>
 /// 内存管理服务接口
 /// </summary>
-public interface IMemoryManagementService : IAsyncDisposable
-{
+public interface IMemoryManagementService : IAsyncDisposable {
     #region Async Methods (Recommended)
 
     /// <summary>
@@ -273,8 +266,7 @@ public interface IMemoryManagementService : IAsyncDisposable
 /// <summary>
 /// 内存健康报告
 /// </summary>
-public sealed record MemoryHealthReport
-{
+public sealed record MemoryHealthReport {
     /// <summary>
     /// 总记忆数
     /// </summary>
@@ -315,8 +307,7 @@ public sealed record MemoryHealthReport
 /// 内存管理服务实现
 /// </summary>
 [Register(typeof(IMemoryManagementService), ServiceLifetime.Singleton)]
-public sealed partial class MemoryManagementService : ServiceEntity, IMemoryManagementService
-{
+public sealed partial class MemoryManagementService : ServiceEntity, IMemoryManagementService {
     private readonly MemoryStore _memoryStore;
     private readonly TeamMemoryPathStore _teamPathStore;
     private readonly MemoryMgmtActor _mgmtActor;
@@ -340,8 +331,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         ILogger<MemoryManagementService>? logger = null,
         IClockService? clock = null,
         IPersistencePipeline? persistencePipeline = null,
-        IFileSystem? fs = null)
-    {
+        IFileSystem? fs = null) {
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -354,8 +344,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     #region Async Methods Implementation
 
     /// <inheritdoc />
-    public Task<string> AddMemoryAsync(string content, MemoryType type = MemoryType.User, string? title = null, List<string>? tags = null, string? source = null, CancellationToken ct = default)
-    {
+    public Task<string> AddMemoryAsync(string content, MemoryType type = MemoryType.User, string? title = null, List<string>? tags = null, string? source = null, CancellationToken ct = default) {
         if (string.IsNullOrWhiteSpace(content))
             throw new ArgumentException(L.T(StringKey.VaultContentCannotBeEmptyThrow), nameof(content));
 
@@ -372,52 +361,42 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     }
 
     /// <inheritdoc />
-    public async Task<MemoryScanResult> ScanMemoriesAsync(string query, string? category = null, int limit = 10, CancellationToken ct = default)
-    {
+    public async Task<MemoryScanResult> ScanMemoriesAsync(string query, string? category = null, int limit = 10, CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         return await _mgmtActor.ScanMemoriesAsync(query, category, limit, ct).ConfigureAwait(false);
     }
 
-    internal async Task<MemoryScanResult> ScanMemoriesCoreAsync(string query, string? category, int limit, CancellationToken ct)
-    {
+    internal async Task<MemoryScanResult> ScanMemoriesCoreAsync(string query, string? category, int limit, CancellationToken ct) {
         _logger?.LogInformation(L.T(StringKey.VaultLogScanMemory), query, category ?? L.T(StringKey.VaultAllCategory));
 
         // 将字符串 category 转换为 MemoryType
-        MemoryType? memoryType = MemoryTypeExtensions.FromValue(category);
+        var memoryType = MemoryTypeExtensions.FromValue(category);
 
         List<MemoryEntry> results;
-        if (_optional?.MemoryScanner != null)
-        {
+        if (_optional?.MemoryScanner != null) {
             // 使用 IMemoryScanner 获取记忆
-            IReadOnlyList<MemoryEntry> scanResults = memoryType.HasValue
+            var scanResults = memoryType.HasValue
                 ? await _optional.MemoryScanner.ScanByTypeAsync(memoryType.Value, ct).ConfigureAwait(false)
                 : await _optional.MemoryScanner.ScanAllAsync(ct).ConfigureAwait(false);
             results = scanResults.ToList();
-        }
-        else
-        {
+        } else {
             results = _memoryStore.Search(query, memoryType, limit * 2).ToList();
         }
 
         List<DetailedScoredMemory> scoredMemories;
-        if (_optional?.RelevanceSelector != null)
-        {
+        if (_optional?.RelevanceSelector != null) {
             // 使用 IMemoryRelevanceSelector 进行相关性选择
             var selectedMemories = await _optional.RelevanceSelector.SelectRelevantMemoriesAsync(
                 results, query, limit, ct).ConfigureAwait(false);
             scoredMemories = selectedMemories
-                .Select(sm => new DetailedScoredMemory
-                {
+                .Select(sm => new DetailedScoredMemory {
                     Memory = sm.Memory,
                     RelevanceScore = sm.RelevanceScore,
                     MatchReason = _relevanceScorer.GetMatchReason(sm.Memory, query)
                 })
                 .ToList();
-        }
-        else
-        {
-            scoredMemories = results.Select(m => new DetailedScoredMemory
-            {
+        } else {
+            scoredMemories = results.Select(m => new DetailedScoredMemory {
                 Memory = m,
                 RelevanceScore = _relevanceScorer.CalculateAdvancedRelevanceScore(m, query),
                 MatchReason = _relevanceScorer.GetMatchReason(m, query)
@@ -428,31 +407,25 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         }
 
         // 使用 IMemoryTruncator 对长内容进行截断
-        if (_optional?.MemoryTruncator != null)
-        {
+        if (_optional?.MemoryTruncator != null) {
             scoredMemories = scoredMemories
-                .Select(sm => sm with
-                {
-                    Memory = sm.Memory with
-                    {
+                .Select(sm => sm with {
+                    Memory = sm.Memory with {
                         Content = _optional.MemoryTruncator.SmartTruncate(sm.Memory.Content, query)
                     }
                 })
                 .ToList();
         }
 
-        var scanResult = new MemoryScanResult
-        {
+        var scanResult = new MemoryScanResult {
             TotalMemories = results.Count,
             RelevantMemories = scoredMemories,
             ScanTime = _clock.GetUtcNow()
         };
 
         // 记录搜索历史
-        if (_optional?.SearchHistoryService is not null)
-        {
-            try
-            {
+        if (_optional?.SearchHistoryService is not null) {
+            try {
                 var topIds = scoredMemories
                     .Take(5)
                     .Select(m => m.Memory.Id)
@@ -460,9 +433,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
                 await _optional.SearchHistoryService.RecordSearchAsync(
                     query, scanResult.TotalMemories, topIds, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, L.T(StringKey.VaultLogRecordSearchHistoryFailed), query);
             }
         }
@@ -473,29 +444,24 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     }
 
     /// <inheritdoc />
-    public async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoAsync(CancellationToken ct = default)
-    {
+    public async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoAsync(CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         return await _mgmtActor.GetMemoryAgeInfoAsync(ct).ConfigureAwait(false);
     }
 
-    internal async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoCoreAsync(CancellationToken ct)
-    {
+    internal async Task<List<MemoryAgeInfo>> GetMemoryAgeInfoCoreAsync(CancellationToken ct) {
         var stats = _memoryStore.GetStatistics();
 
         var memories = stats.RecentlyAdded
             .Concat(stats.MostAccessed)
             .DistinctBy(m => m.Id);
 
-        if (_optional?.AgeCalculator != null)
-        {
+        if (_optional?.AgeCalculator != null) {
             // 使用 IMemoryAgeCalculator 计算老化信息
-            return memories.Select(m =>
-            {
+            return memories.Select(m => {
                 var agedRelevance = _optional?.AgeCalculator.CalculateAgedRelevance(m);
                 var shouldArchive = _optional?.AgeCalculator.ShouldArchive(m);
-                return new MemoryAgeInfo
-                {
+                return new MemoryAgeInfo {
                     MemoryId = m.Id,
                     CreatedAt = m.CreatedAt,
                     LastAccessedAt = m.LastAccessedAt,
@@ -505,8 +471,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
             .ToList();
         }
 
-        return memories.Select(m => new MemoryAgeInfo
-        {
+        return memories.Select(m => new MemoryAgeInfo {
             MemoryId = m.Id,
             CreatedAt = m.CreatedAt,
             LastAccessedAt = m.LastAccessedAt,
@@ -516,13 +481,11 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     }
 
     /// <inheritdoc />
-    public async Task<MemoryHealthReport> GetHealthReportAsync(CancellationToken ct = default)
-    {
+    public async Task<MemoryHealthReport> GetHealthReportAsync(CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         var ageInfos = await GetMemoryAgeInfoAsync(ct).ConfigureAwait(false);
 
-        if (ageInfos.Count == 0)
-        {
+        if (ageInfos.Count == 0) {
             return new MemoryHealthReport();
         }
 
@@ -532,16 +495,14 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         var shouldDelete = ageInfos.Count(a => a.ShouldDelete);
 
         // 计算年龄分布
-        var ageDistribution = new Dictionary<string, int>
-        {
+        var ageDistribution = new Dictionary<string, int> {
             [L.T(StringKey.VaultAgeLess7Days)] = ageInfos.Count(a => a.AgeInDays < 7),
             [L.T(StringKey.VaultAge7To30Days)] = ageInfos.Count(a => a.AgeInDays >= 7 && a.AgeInDays < 30),
             [L.T(StringKey.VaultAge30To90Days)] = ageInfos.Count(a => a.AgeInDays >= 30 && a.AgeInDays < 90),
             [L.T(StringKey.VaultAgeMore90Days)] = ageInfos.Count(a => a.AgeInDays >= 90)
         };
 
-        return new MemoryHealthReport
-        {
+        return new MemoryHealthReport {
             TotalMemories = ageInfos.Count,
             HealthyMemories = healthy,
             NeedsAttention = needsAttention,
@@ -553,54 +514,45 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     }
 
     /// <inheritdoc />
-    public async Task AddTeamMemoryPathAsync(string teamId, string path, bool isShared = true, List<string>? allowedAgents = null, CancellationToken ct = default)
-    {
+    public async Task AddTeamMemoryPathAsync(string teamId, string path, bool isShared = true, List<string>? allowedAgents = null, CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         await _mgmtActor.AddTeamMemoryPathAsync(teamId, path, isShared, allowedAgents, ct).ConfigureAwait(false);
     }
 
-    internal Task AddTeamMemoryPathCoreAsync(string teamId, string path, bool isShared, List<string>? allowedAgents, CancellationToken ct)
-    {
+    internal Task AddTeamMemoryPathCoreAsync(string teamId, string path, bool isShared, List<string>? allowedAgents, CancellationToken ct) {
         return _teamPathStore.AddTeamMemoryPathCoreAsync(teamId, path, isShared, allowedAgents, ct);
     }
 
     /// <inheritdoc />
-    public async Task<List<TeamMemoryPath>> GetTeamMemoryPathsAsync(string? teamId = null, CancellationToken ct = default)
-    {
+    public async Task<List<TeamMemoryPath>> GetTeamMemoryPathsAsync(string? teamId = null, CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         return await _mgmtActor.GetTeamMemoryPathsAsync(teamId, ct).ConfigureAwait(false);
     }
 
-    internal Task<List<TeamMemoryPath>> GetTeamMemoryPathsCoreAsync(string? teamId, CancellationToken ct)
-    {
+    internal Task<List<TeamMemoryPath>> GetTeamMemoryPathsCoreAsync(string? teamId, CancellationToken ct) {
         return _teamPathStore.GetTeamMemoryPathsCoreAsync(teamId, ct);
     }
 
     /// <inheritdoc />
-    public async Task<bool> RemoveTeamMemoryPathAsync(string teamId, string path, CancellationToken ct = default)
-    {
+    public async Task<bool> RemoveTeamMemoryPathAsync(string teamId, string path, CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         return await _mgmtActor.RemoveTeamMemoryPathAsync(teamId, path, ct).ConfigureAwait(false);
     }
 
-    internal Task<bool> RemoveTeamMemoryPathCoreAsync(string teamId, string path, CancellationToken ct)
-    {
+    internal Task<bool> RemoveTeamMemoryPathCoreAsync(string teamId, string path, CancellationToken ct) {
         return _teamPathStore.RemoveTeamMemoryPathCoreAsync(teamId, path, ct);
     }
 
     /// <inheritdoc />
-    public async Task<MemoryScanResult> ScanTeamMemoriesAsync(string teamId, string query, int limit = 10, CancellationToken ct = default)
-    {
+    public async Task<MemoryScanResult> ScanTeamMemoriesAsync(string teamId, string query, int limit = 10, CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         return await _mgmtActor.ScanTeamMemoriesAsync(teamId, query, limit, ct).ConfigureAwait(false);
     }
 
-    internal async Task<MemoryScanResult> ScanTeamMemoriesCoreAsync(string teamId, string query, int limit, CancellationToken ct)
-    {
+    internal async Task<MemoryScanResult> ScanTeamMemoriesCoreAsync(string teamId, string query, int limit, CancellationToken ct) {
         var teamPaths = _teamPathStore.GetTeamMemoryPathsCore(teamId);
 
-        if (teamPaths.Count == 0)
-        {
+        if (teamPaths.Count == 0) {
             return new MemoryScanResult { TotalMemories = 0 };
         }
 
@@ -611,25 +563,20 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
             .ToList();
 
         List<DetailedScoredMemory> results;
-        if (_optional?.RelevanceSelector != null)
-        {
+        if (_optional?.RelevanceSelector != null) {
             // 使用 IMemoryRelevanceSelector 进行相关性选择
             var selectedMemories = await _optional.RelevanceSelector.SelectRelevantMemoriesAsync(
                 filteredMemories, query, limit, ct).ConfigureAwait(false);
             results = selectedMemories
-                .Select(sm => new DetailedScoredMemory
-                {
+                .Select(sm => new DetailedScoredMemory {
                     Memory = sm.Memory,
                     RelevanceScore = sm.RelevanceScore,
                     MatchReason = L.T(StringKey.VaultTeamShared, teamId)
                 })
                 .ToList();
-        }
-        else
-        {
+        } else {
             results = filteredMemories
-                .Select(m => new DetailedScoredMemory
-                {
+                .Select(m => new DetailedScoredMemory {
                     Memory = m,
                     RelevanceScore = _relevanceScorer.CalculateAdvancedRelevanceScore(m, query),
                     MatchReason = L.T(StringKey.VaultTeamShared, teamId)
@@ -640,21 +587,17 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         }
 
         // 使用 IMemoryTruncator 对长内容进行截断
-        if (_optional?.MemoryTruncator != null)
-        {
+        if (_optional?.MemoryTruncator != null) {
             results = results
-                .Select(sm => sm with
-                {
-                    Memory = sm.Memory with
-                    {
+                .Select(sm => sm with {
+                    Memory = sm.Memory with {
                         Content = _optional.MemoryTruncator.SmartTruncate(sm.Memory.Content, query)
                     }
                 })
                 .ToList();
         }
 
-        return new MemoryScanResult
-        {
+        return new MemoryScanResult {
             TotalMemories = results.Count,
             RelevantMemories = results,
             ScanTime = _clock.GetUtcNow()
@@ -671,8 +614,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     public async Task<MemoryCleanupResult> CleanupOldMemoriesAsync(
         int? archiveAfterDays = null,
         int? deleteAfterDays = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var archiveDays = archiveAfterDays ?? 90;
         var deleteDays = deleteAfterDays ?? 180;
 
@@ -680,49 +622,37 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
             archiveDays, deleteDays);
 
         var ageInfos = await GetMemoryAgeInfoAsync(ct).ConfigureAwait(false);
-        var result = new MemoryCleanupResult
-        {
+        var result = new MemoryCleanupResult {
             CheckedCount = ageInfos.Count
         };
 
-        foreach (var ageInfo in ageInfos)
-        {
+        foreach (var ageInfo in ageInfos) {
             ct.ThrowIfCancellationRequested();
 
-            if (ageInfo.DaysSinceLastAccess > deleteDays && ageInfo.AccessCount < 2)
-            {
+            if (ageInfo.DaysSinceLastAccess > deleteDays && ageInfo.AccessCount < 2) {
                 // 删除旧且很少访问的记忆
                 _memoryStore.DeleteMemory(ageInfo.MemoryId);
                 result.DeletedCount++;
                 result.ProcessedIds.Add(ageInfo.MemoryId);
                 _logger?.LogDebug(L.T(StringKey.VaultLogDeleteMemory), ageInfo.MemoryId);
-            }
-            else if (_optional?.AgeCalculator != null)
-            {
+            } else if (_optional?.AgeCalculator != null) {
                 // 使用 IMemoryAgeCalculator 判断是否应该归档
                 var memory = _memoryStore.GetMemory(ageInfo.MemoryId);
-                if (memory != null && _optional.AgeCalculator.ShouldArchive(memory))
-                {
+                if (memory != null && _optional.AgeCalculator.ShouldArchive(memory)) {
                     await ArchiveMemoryAsync(ageInfo.MemoryId, ct).ConfigureAwait(false);
                     result.ArchivedCount++;
                     result.ProcessedIds.Add(ageInfo.MemoryId);
                     _logger?.LogDebug(L.T(StringKey.VaultLogArchiveMemory), ageInfo.MemoryId);
-                }
-                else
-                {
+                } else {
                     result.RetainedCount++;
                 }
-            }
-            else if (ageInfo.DaysSinceLastAccess > archiveDays && ageInfo.AccessCount < 3)
-            {
+            } else if (ageInfo.DaysSinceLastAccess > archiveDays && ageInfo.AccessCount < 3) {
                 // 归档较旧且访问较少的记忆
                 await ArchiveMemoryAsync(ageInfo.MemoryId, ct).ConfigureAwait(false);
                 result.ArchivedCount++;
                 result.ProcessedIds.Add(ageInfo.MemoryId);
                 _logger?.LogDebug(L.T(StringKey.VaultLogArchiveMemory), ageInfo.MemoryId);
-            }
-            else
-            {
+            } else {
                 result.RetainedCount++;
             }
         }
@@ -736,25 +666,21 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     }
 
     /// <inheritdoc />
-    public Task<bool> ArchiveMemoryAsync(string memoryId, CancellationToken ct = default)
-    {
+    public Task<bool> ArchiveMemoryAsync(string memoryId, CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         return Task.FromResult(_memoryStore.ArchiveMemory(memoryId));
     }
 
     /// <inheritdoc />
-    public Task<bool> RestoreMemoryAsync(string memoryId, CancellationToken ct = default)
-    {
+    public Task<bool> RestoreMemoryAsync(string memoryId, CancellationToken ct = default) {
         ct.ThrowIfCancellationRequested();
         return Task.FromResult(_memoryStore.RestoreMemory(memoryId));
     }
 
     /// <inheritdoc />
     public Task<IReadOnlyList<MemoryEntry>> SearchPastConversationsAsync(
-        string query, int maxResults = 10, CancellationToken ct = default)
-    {
-        if (_optional?.SearchHistoryService is null)
-        {
+        string query, int maxResults = 10, CancellationToken ct = default) {
+        if (_optional?.SearchHistoryService is null) {
             _logger?.LogWarning(L.T(StringKey.VaultLogSearchHistoryNotRegistered));
             return Task.FromResult<IReadOnlyList<MemoryEntry>>(Array.Empty<MemoryEntry>());
         }
@@ -764,13 +690,10 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
     /// <inheritdoc />
     public Task<PastContextSection> BuildSearchingPastContextSectionAsync(
-        string currentQuery, int maxMemories = 5, CancellationToken ct = default)
-    {
-        if (_optional?.SearchHistoryService is null)
-        {
+        string currentQuery, int maxMemories = 5, CancellationToken ct = default) {
+        if (_optional?.SearchHistoryService is null) {
             _logger?.LogWarning(L.T(StringKey.VaultLogSearchHistoryNotRegisteredContext));
-            return Task.FromResult(new PastContextSection
-            {
+            return Task.FromResult(new PastContextSection {
                 PromptText = string.Empty,
                 ReferencedMemoryCount = 0
             });
@@ -784,13 +707,10 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         string content,
         DailyLogCategory category = DailyLogCategory.Action,
         string? relatedMemoryId = null,
-        CancellationToken ct = default)
-    {
-        if (_optional?.DailyLogService is null)
-        {
+        CancellationToken ct = default) {
+        if (_optional?.DailyLogService is null) {
             _logger?.LogWarning(L.T(StringKey.VaultLogDailyLogNotRegistered));
-            return Task.FromResult(new DailyLogEntry
-            {
+            return Task.FromResult(new DailyLogEntry {
                 Content = content,
                 Category = category,
                 RelatedMemoryId = relatedMemoryId
@@ -801,10 +721,8 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     }
 
     /// <inheritdoc />
-    public Task<string> BuildDailyLogPromptAsync(int maxEntries = 20, CancellationToken ct = default)
-    {
-        if (_optional?.DailyLogService is null)
-        {
+    public Task<string> BuildDailyLogPromptAsync(int maxEntries = 20, CancellationToken ct = default) {
+        if (_optional?.DailyLogService is null) {
             _logger?.LogWarning(L.T(StringKey.VaultLogDailyLogNotRegisteredPrompt));
             return Task.FromResult(string.Empty);
         }
@@ -813,13 +731,10 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     }
 
     /// <inheritdoc />
-    public Task<TeamSyncStatus> SyncTeamMemoryAsync(string teamId, CancellationToken ct = default)
-    {
-        if (_optional?.TeamMemorySyncService is null)
-        {
+    public Task<TeamSyncStatus> SyncTeamMemoryAsync(string teamId, CancellationToken ct = default) {
+        if (_optional?.TeamMemorySyncService is null) {
             _logger?.LogWarning(L.T(StringKey.VaultLogTeamSyncNotRegistered));
-            return Task.FromResult(new TeamSyncStatus
-            {
+            return Task.FromResult(new TeamSyncStatus {
                 TeamId = teamId,
                 IsWatching = false,
                 SyncedMemoryCount = 0
@@ -830,8 +745,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     }
 
     /// <inheritdoc />
-    public TeamSyncStatus? GetTeamSyncStatus(string teamId)
-    {
+    public TeamSyncStatus? GetTeamSyncStatus(string teamId) {
         return _optional?.TeamMemorySyncService?.GetSyncStatus(teamId);
     }
 
@@ -839,8 +753,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
 
     #region Private Methods
 
-    private void RecordMemoryMetrics(string operation, int totalCount, int relevantCount)
-    {
+    private void RecordMemoryMetrics(string operation, int totalCount, int relevantCount) {
         _optional?.TelemetryService?.RecordCount("memory.operation.count", new Dictionary<string, string> { ["operation"] = operation }, "count", "Memory operation count");
         _optional?.TelemetryService?.RecordHistogram("memory.operation.total", totalCount, new Dictionary<string, string> { ["operation"] = operation }, "count", "Memory operation total items");
     }
@@ -850,8 +763,7 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
     /// <summary>
     /// 异步释放内存管理 Actor 资源。
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _mgmtActor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

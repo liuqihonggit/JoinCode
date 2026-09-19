@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 升级服务 — 版本检查 + 下载更新 + 应用更新（原子替换）
 /// > ADR: 0064
 /// </summary>
-public interface IUpgradeService
-{
+public interface IUpgradeService {
     /// <summary>
     /// 获取当前版本
     /// </summary>

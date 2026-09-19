@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 文件修改意图记录 — Worker 上报的"我要改这个文件，意图是内部/契约"
 /// 不可变 record，天然线程安全，用于 IntentCollector 收集和 HotSpotTracker 统计
 /// </summary>
-public sealed record FileModifyIntent
-{
+public sealed record FileModifyIntent {
     /// <summary>
     /// 文件路径（相对或绝对，归一化为正斜杠）
     /// </summary>

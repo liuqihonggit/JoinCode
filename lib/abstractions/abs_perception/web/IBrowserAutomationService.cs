@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 浏览器自动化服务接口 — 对齐TS版 WebBrowserTool 的 screenshot/evaluate 能力
 /// 默认实现为 NoOp（不支持），安装 PuppeteerSharp 卫星包后可启用
 /// </summary>
-public interface IBrowserAutomationService
-{
+public interface IBrowserAutomationService {
     /// <summary>
     /// 浏览器自动化是否可用（PuppeteerSharp 已安装且 Chromium 已下载）
     /// </summary>
@@ -30,4 +29,3 @@ public interface IBrowserAutomationService
     /// <returns>JavaScript 执行结果</returns>
     Task<OperationResult<string?>> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default);
 }
-

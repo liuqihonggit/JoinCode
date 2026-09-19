@@ -3,11 +3,9 @@ namespace Core.Context;
 /// <summary>
 /// StreamingToolExecutorActor 单元测试 — 验证 Actor 版与锁版行为等价。
 /// </summary>
-public sealed class StreamingToolExecutorActorTests
-{
+public sealed class StreamingToolExecutorActorTests {
     [Fact]
-    public async Task AddTool_SingleSafeTool_ExecutesImmediately()
-    {
+    public async Task AddTool_SingleSafeTool_ExecutesImmediately() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
@@ -22,8 +20,7 @@ public sealed class StreamingToolExecutorActorTests
     }
 
     [Fact]
-    public async Task AddTool_TwoSafeTools_BothExecute()
-    {
+    public async Task AddTool_TwoSafeTools_BothExecute() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read", "grep"));
         var executionOrder = new ConcurrentBag<string>();
@@ -48,8 +45,7 @@ public sealed class StreamingToolExecutorActorTests
     }
 
     [Fact]
-    public async Task AddTool_NonSafeTools_ExecuteSequentially()
-    {
+    public async Task AddTool_NonSafeTools_ExecuteSequentially() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var executionOrder = new List<string>();
 
@@ -74,8 +70,7 @@ public sealed class StreamingToolExecutorActorTests
     }
 
     [Fact]
-    public async Task GetCompletedResults_ReturnsResultsInOrder()
-    {
+    public async Task GetCompletedResults_ReturnsResultsInOrder() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
@@ -92,8 +87,7 @@ public sealed class StreamingToolExecutorActorTests
     }
 
     [Fact]
-    public async Task Discard_MarksDiscarded_AndCompletesWithErrors()
-    {
+    public async Task Discard_MarksDiscarded_AndCompletesWithErrors() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var slowTcs = new TaskCompletionSource<ToolCallResult>();
         var mockInvoked = new TaskCompletionSource<bool>();
@@ -116,8 +110,7 @@ public sealed class StreamingToolExecutorActorTests
     }
 
     [Fact]
-    public async Task CombinedCancellationToken_CascadesOnShellError()
-    {
+    public async Task CombinedCancellationToken_CascadesOnShellError() {
         var classifier = new ToolConcurrencyClassifier(FrozenSet<string>.Empty);
         var toolHandler = new Mock<IToolExecutionHandler>();
         toolHandler.Setup(h => h.ExecuteToolCallAsync("bash", It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
@@ -132,16 +125,14 @@ public sealed class StreamingToolExecutorActorTests
     }
 
     [Fact]
-    public async Task ConcurrentAddTools_AllComplete_NoDeadlock()
-    {
+    public async Task ConcurrentAddTools_AllComplete_NoDeadlock() {
         var classifier = new ToolConcurrencyClassifier(
             FrozenSet.Create<string>(StringComparer.OrdinalIgnoreCase, "read"));
         var toolHandler = CreateToolHandler();
         await using var executor = new StreamingToolExecutorActor(toolHandler, classifier, CreateContext());
 
         const int count = 50;
-        var addTasks = Enumerable.Range(0, count).Select(async i =>
-        {
+        var addTasks = Enumerable.Range(0, count).Select(async i => {
             await executor.AddToolAsync(new ToolCallEntry { Id = i.ToString(), Name = "read", Arguments = "{}" }, i);
         });
 
@@ -150,16 +141,14 @@ public sealed class StreamingToolExecutorActorTests
         results.Should().HaveCount(count);
     }
 
-    private static IToolExecutionHandler CreateToolHandler()
-    {
+    private static IToolExecutionHandler CreateToolHandler() {
         var mock = new Mock<IToolExecutionHandler>();
         mock.Setup(h => h.ExecuteToolCallAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<Dictionary<string, JsonElement>?>(), It.IsAny<ChatMiddlewareContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolCallResult { ResultText = "ok", IsError = false });
         return mock.Object;
     }
 
-    private static ChatMiddlewareContext CreateContext() => new()
-    {
+    private static ChatMiddlewareContext CreateContext() => new() {
         Message = "test",
         ToolUseContext = new ToolUseContext()
     };

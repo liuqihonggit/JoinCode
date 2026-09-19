@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public sealed record DisclosureResult
-{
+public sealed record DisclosureResult {
     public required string Query { get; init; }
     public required DisclosureLevel Level { get; init; }
     public required string FormattedContent { get; init; }
@@ -15,8 +14,7 @@ public sealed record DisclosureResult
     public bool HasMoreDetails => Level < DisclosureLevel.Source && Symbols.Count > 0;
 }
 
-public sealed record SourceSnippet
-{
+public sealed record SourceSnippet {
     public required string FilePath { get; init; }
     public required int StartLine { get; init; }
     public required int EndLine { get; init; }

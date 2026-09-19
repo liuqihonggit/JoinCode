@@ -6,8 +6,7 @@ namespace IO.Services;
 /// <para>Unix 优先尝试 tmux/screen,失败则回退到 /dev/tty ANSI 查询</para>
 /// </summary>
 [Register(typeof(ITerminalCaptureService), ServiceLifetime.Singleton)]
-public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCaptureService
-{
+public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCaptureService {
     private readonly IFileSystem _fs;
     private readonly ILogger<TerminalCaptureService>? _logger;
     private readonly IClockService _clock;
@@ -18,33 +17,27 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     /// <param name="fs">文件系统抽象,用于 Unix screen hardcopy 临时文件读写</param>
     /// <param name="logger">可选日志记录器</param>
     /// <param name="clock">可选时钟服务,默认使用系统时钟,用于测试注入</param>
-    public TerminalCaptureService(IFileSystem fs, ILogger<TerminalCaptureService>? logger = null, IClockService? clock = null)
-    {
+    public TerminalCaptureService(IFileSystem fs, ILogger<TerminalCaptureService>? logger = null, IClockService? clock = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
     }
 
     /// <inheritdoc/>
-    public TerminalSnapshot CaptureScreen()
-    {
+    public TerminalSnapshot CaptureScreen() {
         var (width, height) = GetTerminalDimensions(_logger);
 
         string content;
-        try
-        {
+        try {
             content = OperatingSystem.IsWindows()
                 ? CaptureWindowsScreen(width, height)
                 : CaptureUnixScreen(width, height, _fs, _logger);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "终端屏幕捕获失败，返回元数据");
             content = FormatMetadataFallback(width, height, _logger);
         }
 
-        return new TerminalSnapshot
-        {
+        return new TerminalSnapshot {
             Content = content,
             Width = width,
             Height = height,
@@ -53,30 +46,24 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     }
 
     /// <inheritdoc/>
-    public TerminalSnapshot? CaptureBuffer(int maxLines = 50)
-    {
+    public TerminalSnapshot? CaptureBuffer(int maxLines = 50) {
         var (width, height) = GetTerminalBufferDimensions(_logger);
 
-        if (Console.IsOutputRedirected)
-        {
+        if (Console.IsOutputRedirected) {
             return null;
         }
 
         string content;
-        try
-        {
+        try {
             content = OperatingSystem.IsWindows()
                 ? CaptureWindowsBuffer(width, maxLines)
                 : CaptureUnixBuffer(width, maxLines, _fs, _logger);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "终端缓冲区捕获失败");
             return null;
         }
 
-        return new TerminalSnapshot
-        {
+        return new TerminalSnapshot {
             Content = content,
             Width = width,
             Height = height,
@@ -86,29 +73,21 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
     #region Dimension Helpers
 
-    private static (int width, int height) GetTerminalDimensions(ILogger? logger = null)
-    {
-        try
-        {
-            if (!Console.IsOutputRedirected)
-            {
+    private static (int width, int height) GetTerminalDimensions(ILogger? logger = null) {
+        try {
+            if (!Console.IsOutputRedirected) {
                 return (Console.WindowWidth, Console.WindowHeight);
             }
-        }
-        catch (PlatformNotSupportedException ex) { logger?.LogWarning(ex, "Console size query not supported"); }
+        } catch (PlatformNotSupportedException ex) { logger?.LogWarning(ex, "Console size query not supported"); }
         return (80, 24);
     }
 
-    private static (int width, int height) GetTerminalBufferDimensions(ILogger? logger = null)
-    {
-        try
-        {
-            if (!Console.IsOutputRedirected)
-            {
+    private static (int width, int height) GetTerminalBufferDimensions(ILogger? logger = null) {
+        try {
+            if (!Console.IsOutputRedirected) {
                 return (Console.BufferWidth, Console.BufferHeight);
             }
-        }
-        catch (PlatformNotSupportedException ex) { logger?.LogWarning(ex, "Console buffer query not supported"); }
+        } catch (PlatformNotSupportedException ex) { logger?.LogWarning(ex, "Console buffer query not supported"); }
         return (80, 24);
     }
 
@@ -116,13 +95,10 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
     #region Windows Implementation
 
-    private static string CaptureWindowsScreen(int width, int height)
-    {
-        try
-        {
+    private static string CaptureWindowsScreen(int width, int height) {
+        try {
             var handle = GetStdHandle(STD_OUTPUT_HANDLE);
-            if (handle == IntPtr.Zero || handle == new IntPtr(-1))
-            {
+            if (handle == IntPtr.Zero || handle == new IntPtr(-1)) {
                 return "[无法获取控制台句柄]";
             }
 
@@ -131,16 +107,13 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             var size = new Coord((short)width, (short)height);
             var rect = new SmallRect(0, 0, (short)(width - 1), (short)(height - 1));
 
-            if (!ReadConsoleOutput(handle, buffer, size, coord, ref rect))
-            {
+            if (!ReadConsoleOutput(handle, buffer, size, coord, ref rect)) {
                 return "[无法读取控制台输出]";
             }
 
             var lines = new System.Text.StringBuilder();
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
                     var ch = buffer[y * width + x].Char;
                     lines.Append(ch == '\0' ? ' ' : ch);
                 }
@@ -148,20 +121,15 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             }
 
             return lines.ToString();
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return "[Windows 控制台捕获失败]";
         }
     }
 
-    private static string CaptureWindowsBuffer(int width, int maxLines)
-    {
-        try
-        {
+    private static string CaptureWindowsBuffer(int width, int maxLines) {
+        try {
             var handle = GetStdHandle(STD_OUTPUT_HANDLE);
-            if (handle == IntPtr.Zero || handle == new IntPtr(-1))
-            {
+            if (handle == IntPtr.Zero || handle == new IntPtr(-1)) {
                 return "[无法获取控制台句柄]";
             }
 
@@ -174,16 +142,13 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             var size = new Coord((short)width, (short)readLines);
             var rect = new SmallRect(0, (short)startLine, (short)(width - 1), (short)(startLine + readLines - 1));
 
-            if (!ReadConsoleOutput(handle, buffer, size, coord, ref rect))
-            {
+            if (!ReadConsoleOutput(handle, buffer, size, coord, ref rect)) {
                 return "[无法读取控制台缓冲区]";
             }
 
             var lines = new System.Text.StringBuilder();
-            for (int y = 0; y < readLines; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
+            for (var y = 0; y < readLines; y++) {
+                for (var x = 0; x < width; x++) {
                     var ch = buffer[y * width + x].Char;
                     lines.Append(ch == '\0' ? ' ' : ch);
                 }
@@ -191,9 +156,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             }
 
             return lines.ToString();
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return "[Windows 缓冲区捕获失败]";
         }
     }
@@ -202,58 +165,47 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
     #region Unix Implementation
 
-    private static string CaptureUnixScreen(int width, int height, IFileSystem fs, ILogger? logger = null)
-    {
+    private static string CaptureUnixScreen(int width, int height, IFileSystem fs, ILogger? logger = null) {
         var tmuxContent = TryTmuxCapture();
-        if (tmuxContent != null)
-        {
+        if (tmuxContent != null) {
             return tmuxContent;
         }
 
         var screenContent = TryScreenCapture(fs, null, logger);
-        if (screenContent != null)
-        {
+        if (screenContent != null) {
             return screenContent;
         }
 
         var ansiContent = TryAnsiCapture(width, height);
-        if (ansiContent != null)
-        {
+        if (ansiContent != null) {
             return ansiContent;
         }
 
         return FormatMetadataFallback(width, height, logger);
     }
 
-    private static string CaptureUnixBuffer(int width, int maxLines, IFileSystem fs, ILogger? logger = null)
-    {
+    private static string CaptureUnixBuffer(int width, int maxLines, IFileSystem fs, ILogger? logger = null) {
         var tmuxContent = TryTmuxCapture(maxLines);
-        if (tmuxContent != null)
-        {
+        if (tmuxContent != null) {
             return tmuxContent;
         }
 
         var screenContent = TryScreenCapture(fs, maxLines, logger);
-        if (screenContent != null)
-        {
+        if (screenContent != null) {
             return screenContent;
         }
 
         var ansiContent = TryAnsiCapture(width, maxLines);
-        if (ansiContent != null)
-        {
+        if (ansiContent != null) {
             return ansiContent;
         }
 
         return FormatMetadataFallback(width, maxLines, logger);
     }
 
-    private static string? TryTmuxCapture(int? historyLines = null)
-    {
-        try
-        {
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
+    private static string? TryTmuxCapture(int? historyLines = null) {
+        try {
+            var psi = new System.Diagnostics.ProcessStartInfo {
                 FileName = "tmux",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -262,8 +214,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             psi.ArgumentList.Add("capture-pane");
             psi.ArgumentList.Add("-p");
             psi.ArgumentList.Add("-J");
-            if (historyLines.HasValue)
-            {
+            if (historyLines.HasValue) {
                 psi.ArgumentList.Add("-S");
                 psi.ArgumentList.Add($"-{historyLines.Value}");
             }
@@ -277,22 +228,17 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             return process.ExitCode == 0 && !string.IsNullOrWhiteSpace(output)
                 ? output.TrimEnd()
                 : null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private static string? TryScreenCapture(IFileSystem fs, int? maxLines = null, ILogger? logger = null)
-    {
-        try
-        {
+    private static string? TryScreenCapture(IFileSystem fs, int? maxLines = null, ILogger? logger = null) {
+        try {
             using var tmpFileScope = TempFileScope.Create(fs, "jcc_screen_", ".txt");
             var tmpFile = tmpFileScope.Path;
 
-            var hardcopyPsi = new System.Diagnostics.ProcessStartInfo
-            {
+            var hardcopyPsi = new System.Diagnostics.ProcessStartInfo {
                 FileName = "screen",
                 UseShellExecute = false,
                 CreateNoWindow = true
@@ -313,32 +259,24 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             return maxLines.HasValue
                 ? string.Join('\n', content.Split('\n').TakeLast(maxLines.Value))
                 : content.TrimEnd();
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private static string? TryAnsiCapture(int width, int height)
-    {
-        try
-        {
+    private static string? TryAnsiCapture(int width, int height) {
+        try {
             return CaptureViaDevTty(width, height);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
 
-    private static string? CaptureViaDevTty(int width, int height)
-    {
+    private static string? CaptureViaDevTty(int width, int height) {
         var fd = open("/dev/tty", O_RDWR);
         if (fd < 0) return null;
 
-        try
-        {
+        try {
             var origTermios = new Termios();
             if (tcgetattr(fd, ref origTermios) != 0) return null;
 
@@ -349,15 +287,13 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
             if (tcsetattr(fd, TCSANOW, ref rawTermios) != 0) return null;
 
-            try
-            {
+            try {
                 var cursorPos = QueryCursorPosition(fd);
 
                 var sb = new System.Text.StringBuilder();
                 sb.AppendLine($"[终端屏幕 {width}x{height}]");
 
-                if (cursorPos != null)
-                {
+                if (cursorPos != null) {
                     sb.AppendLine($"光标位置: 行{cursorPos.Value.row} 列{cursorPos.Value.col}");
                 }
 
@@ -366,20 +302,15 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
                 sb.AppendLine("提示: 在 tmux 或 screen 会话中运行可获得完整屏幕内容捕获");
 
                 return sb.ToString();
-            }
-            finally
-            {
+            } finally {
                 tcsetattr(fd, TCSANOW, ref origTermios);
             }
-        }
-        finally
-        {
+        } finally {
             close(fd);
         }
     }
 
-    private static (int row, int col)? QueryCursorPosition(int fd)
-    {
+    private static (int row, int col)? QueryCursorPosition(int fd) {
         var dsr = new byte[] { 0x1b, 0x5b, 0x36, 0x6e };
         write(fd, dsr, (nuint)dsr.Length);
 
@@ -387,8 +318,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         var totalRead = 0;
         var deadline = DateTime.UtcNow.AddMilliseconds(500);
 
-        while (DateTime.UtcNow < deadline && totalRead < buf.Length)
-        {
+        while (DateTime.UtcNow < deadline && totalRead < buf.Length) {
             var n = (int)read(fd, buf, (nuint)(buf.Length - totalRead));
             if (n <= 0) break;
             totalRead += n;
@@ -401,29 +331,24 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
 
         var response = System.Text.Encoding.ASCII.GetString(buf, 0, totalRead);
         var match = CursorPositionRegex().Match(response);
-        if (match.Success)
-        {
+        if (match.Success) {
             return (int.Parse(match.Groups[1].ValueSpan), int.Parse(match.Groups[2].ValueSpan));
         }
 
         return null;
     }
 
-    private static string FormatMetadataFallback(int width, int height, ILogger? logger = null)
-    {
+    private static string FormatMetadataFallback(int width, int height, ILogger? logger = null) {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"[终端屏幕 {width}x{height}]");
         sb.AppendLine($"终端类型: {Environment.GetEnvironmentVariable("TERM") ?? "unknown"}");
         sb.AppendLine($"Shell: {Environment.GetEnvironmentVariable("SHELL") ?? "unknown"}");
 
-        try
-        {
-            if (!Console.IsOutputRedirected)
-            {
+        try {
+            if (!Console.IsOutputRedirected) {
                 sb.AppendLine($"光标位置: ({Console.CursorLeft}, {Console.CursorTop})");
             }
-        }
-        catch (Exception ex) { logger?.LogWarning(ex, "TerminalCaptureService: failed to get cursor position"); }
+        } catch (Exception ex) { logger?.LogWarning(ex, "TerminalCaptureService: failed to get cursor position"); }
 
         return sb.ToString();
     }
@@ -436,29 +361,25 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     #region Windows P/Invoke
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct ConsoleCharInfo
-    {
+    private struct ConsoleCharInfo {
         public char Char;
         public short Attributes;
     }
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct Coord
-    {
+    private struct Coord {
         public short X;
         public short Y;
         public Coord(short x, short y) { X = x; Y = y; }
     }
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct SmallRect
-    {
+    private struct SmallRect {
         public short Left;
         public short Top;
         public short Right;
         public short Bottom;
-        public SmallRect(short left, short top, short right, short bottom)
-        { Left = left; Top = top; Right = right; Bottom = bottom; }
+        public SmallRect(short left, short top, short right, short bottom) { Left = left; Top = top; Right = right; Bottom = bottom; }
     }
 
     private const int STD_OUTPUT_HANDLE = -11;
@@ -485,8 +406,7 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
     private const int TCSANOW = 0;
 
     [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
-    private struct Termios
-    {
+    private struct Termios {
         public uint c_iflag;
         public uint c_oflag;
         public uint c_cflag;
@@ -502,14 +422,12 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
         public uint c_ispeed;
         public uint c_ospeed;
 
-        public byte c_cc_VMIN
-        {
+        public byte c_cc_VMIN {
             get => c_cc_4;
             set => c_cc_4 = value;
         }
 
-        public byte c_cc_VTIME
-        {
+        public byte c_cc_VTIME {
             get => c_cc_5;
             set => c_cc_5 = value;
         }

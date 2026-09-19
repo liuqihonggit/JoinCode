@@ -3,11 +3,9 @@ namespace Tui.Tests.Rendering;
 /// <summary>
 /// SubAgentCardManager 单元测试 — 验证展开/折叠/最多3个同时展开。
 /// </summary>
-public class SubAgentCardManagerTests
-{
+public class SubAgentCardManagerTests {
     [Fact]
-    public void Expand_SingleAgent_IsExpanded()
-    {
+    public void Expand_SingleAgent_IsExpanded() {
         var manager = new SubAgentCardManager();
         var evicted = manager.Expand("agent1");
         Assert.Null(evicted);
@@ -16,8 +14,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Expand_AlreadyExpanded_ReturnsNull()
-    {
+    public void Expand_AlreadyExpanded_ReturnsNull() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
         var evicted = manager.Expand("agent1");
@@ -26,8 +23,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Expand_ThreeAgents_AllExpanded()
-    {
+    public void Expand_ThreeAgents_AllExpanded() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
         manager.Expand("agent2");
@@ -39,8 +35,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Expand_FourthAgent_EvictsOldest()
-    {
+    public void Expand_FourthAgent_EvictsOldest() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
         manager.Expand("agent2");
@@ -54,8 +49,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Collapse_RemovesFromExpanded()
-    {
+    public void Collapse_RemovesFromExpanded() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
         manager.Expand("agent2");
@@ -68,16 +62,14 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Collapse_NotExpanded_ReturnsFalse()
-    {
+    public void Collapse_NotExpanded_ReturnsFalse() {
         var manager = new SubAgentCardManager();
         var result = manager.Collapse("agent1");
         Assert.False(result);
     }
 
     [Fact]
-    public void Toggle_Expanded_Collapses()
-    {
+    public void Toggle_Expanded_Collapses() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
 
@@ -87,8 +79,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Toggle_Collapsed_Expands()
-    {
+    public void Toggle_Collapsed_Expands() {
         var manager = new SubAgentCardManager();
         var evicted = manager.Toggle("agent1");
         Assert.Null(evicted);
@@ -96,8 +87,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Toggle_ExpandOverLimit_EvictsOldest()
-    {
+    public void Toggle_ExpandOverLimit_EvictsOldest() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
         manager.Expand("agent2");
@@ -110,8 +100,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void CollapseAll_RemovesAll()
-    {
+    public void CollapseAll_RemovesAll() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
         manager.Expand("agent2");
@@ -123,8 +112,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Expanded_ReturnsOrderedByTime()
-    {
+    public void Expanded_ReturnsOrderedByTime() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
         manager.Expand("agent2");
@@ -135,8 +123,7 @@ public class SubAgentCardManagerTests
     }
 
     [Fact]
-    public void Expand_AfterCollapse_CanReexpand()
-    {
+    public void Expand_AfterCollapse_CanReexpand() {
         var manager = new SubAgentCardManager();
         manager.Expand("agent1");
         manager.Collapse("agent1");

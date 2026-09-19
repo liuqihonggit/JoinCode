@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// Worker 可继续当前任务稍后再看或立即查看，减少中断
 /// 不可变 record，线程安全
 /// </summary>
-public sealed record DeferredMail
-{
+public sealed record DeferredMail {
     /// <summary>
     /// 收件人 Agent ID
     /// </summary>

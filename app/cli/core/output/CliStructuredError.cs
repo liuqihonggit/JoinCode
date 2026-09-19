@@ -3,8 +3,7 @@ namespace JoinCode.Cli.Output;
 /// <summary>
 /// CLI 结构化错误模型 — 对齐架构指南4字段规范
 /// </summary>
-public sealed class CliStructuredError
-{
+public sealed class CliStructuredError {
     /// <summary>机器可读错误码（如 AUTH_API_KEY_MISSING、CONFIG_INVALID_MODEL）</summary>
     public string Code { get; init; }
 
@@ -22,8 +21,7 @@ public sealed class CliStructuredError
     /// <param name="message">人类可读错误描述</param>
     /// <param name="hint">修复建议（可选）</param>
     /// <param name="retryable">是否可重试</param>
-    public CliStructuredError(string code, string message, string? hint = null, bool retryable = false)
-    {
+    public CliStructuredError(string code, string message, string? hint = null, bool retryable = false) {
         Code = code ?? throw new ArgumentNullException(nameof(code));
         Message = message ?? throw new ArgumentNullException(nameof(message));
         Hint = hint;
@@ -42,8 +40,7 @@ public sealed class CliStructuredError
     /// </summary>
     /// <param name="args">原始参数数组</param>
     /// <param name="errorArgIndex">错误参数在 args 中的索引</param>
-    public string ToRustStyleString(string[] args, int errorArgIndex)
-    {
+    public string ToRustStyleString(string[] args, int errorArgIndex) {
         ArgumentNullException.ThrowIfNull(args);
         var sb = new StringBuilder();
         sb.AppendLine($"error: {Message}");
@@ -74,8 +71,7 @@ public sealed class CliStructuredError
     /// <para>hint: 使用 key=value 传递工具参数，如 pr_number=201</para>
     /// </summary>
     /// <param name="token">格式错误的 token</param>
-    public string ToRustStyleString(string token)
-    {
+    public string ToRustStyleString(string token) {
         ArgumentNullException.ThrowIfNull(token);
         var sb = new StringBuilder();
         sb.AppendLine($"error: {Message}");

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// WebFetch专用LRU缓存接口，15分钟TTL，50MB大小上限
 /// </summary>
-public interface IWebFetchCache
-{
+public interface IWebFetchCache {
     /// <summary>
     /// 尝试获取URL缓存内容
     /// </summary>

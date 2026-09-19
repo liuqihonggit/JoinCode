@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 用量处理器接口 — 成本计算、缓存检测
 /// </summary>
-public interface IChatUsageProcessor
-{
+public interface IChatUsageProcessor {
     /// <summary>
     /// 处理用量 + 缓存检测 + 上下文折叠
     /// </summary>

@@ -4,10 +4,8 @@ namespace Dream.Tests;
 /// <summary>
 /// 做梦系统集成测试 - 测试组件间协作
 /// </summary>
-public sealed class DreamIntegrationTests
-{
-    private static void SetupChatCompletionResponse(Mock<IChatCompletionClient> mock, string content)
-    {
+public sealed class DreamIntegrationTests {
+    private static void SetupChatCompletionResponse(Mock<IChatCompletionClient> mock, string content) {
         mock.Setup(c => c.GetCompletionAsync(
                 It.IsAny<MessageList>(),
                 It.IsAny<CancellationToken>()))
@@ -18,8 +16,7 @@ public sealed class DreamIntegrationTests
     /// 测试完整流程：Feature → Registry → 状态管理
     /// </summary>
     [Fact]
-    public async Task FullFlow_FeatureToRegistry_ToTaskState()
-    {
+    public async Task FullFlow_FeatureToRegistry_ToTaskState() {
         // Arrange
         var chatCompletionClientMock = new Mock<IChatCompletionClient>();
 
@@ -29,8 +26,7 @@ public sealed class DreamIntegrationTests
 
         var taskRegistry = new InMemoryDreamTaskRegistry();
 
-        var config = new AutoDreamConfig
-        {
+        var config = new AutoDreamConfig {
             Enabled = true,
             MinHours = 1,
             MinSessions = 1
@@ -70,8 +66,7 @@ public sealed class DreamIntegrationTests
     /// 测试多任务并发执行
     /// </summary>
     [Fact]
-    public async Task ConcurrentExecutions_AllTasksTracked()
-    {
+    public async Task ConcurrentExecutions_AllTasksTracked() {
         // Arrange
         var chatCompletionClientMock = new Mock<IChatCompletionClient>();
 
@@ -111,8 +106,7 @@ public sealed class DreamIntegrationTests
     /// 测试任务生命周期：创建 → 完成 → 查询
     /// </summary>
     [Fact]
-    public async Task TaskLifecycle_CreateCompleteQuery()
-    {
+    public async Task TaskLifecycle_CreateCompleteQuery() {
         // Arrange
         var chatCompletionClientMock = new Mock<IChatCompletionClient>();
 
@@ -149,8 +143,7 @@ public sealed class DreamIntegrationTests
     /// 测试强制模式绕过门控
     /// </summary>
     [Fact]
-    public async Task ForceMode_BypassesAllGateChecks()
-    {
+    public async Task ForceMode_BypassesAllGateChecks() {
         // Arrange
         var chatCompletionClientMock = new Mock<IChatCompletionClient>();
 
@@ -160,8 +153,7 @@ public sealed class DreamIntegrationTests
 
         var taskRegistry = new InMemoryDreamTaskRegistry();
 
-        var config = new AutoDreamConfig
-        {
+        var config = new AutoDreamConfig {
             Enabled = false,
             MinSessions = 100
         };
@@ -186,8 +178,7 @@ public sealed class DreamIntegrationTests
     /// 测试会话扫描器与功能的集成
     /// </summary>
     [Fact]
-    public async Task SessionScanner_Integration_UsesCorrectTimeRange()
-    {
+    public async Task SessionScanner_Integration_UsesCorrectTimeRange() {
         // Arrange
         var chatCompletionClientMock = new Mock<IChatCompletionClient>();
 
@@ -225,8 +216,7 @@ public sealed class DreamIntegrationTests
     /// 测试持久化注册表集成
     /// </summary>
     [Fact]
-    public async Task PersistentRegistry_Integration_TaskSurvives()
-    {
+    public async Task PersistentRegistry_Integration_TaskSurvives() {
         // Arrange
         var chatCompletionClientMock = new Mock<IChatCompletionClient>();
 

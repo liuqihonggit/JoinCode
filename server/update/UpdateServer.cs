@@ -5,13 +5,12 @@ namespace Services.Update;
 /// 端点: GET /manifest.json | GET /releases/{version}/jcc.exe | GET /health | GET /shutdown
 /// > ADR: 0064
 /// </summary>
-public sealed class UpdateServer
-{
+public sealed class UpdateServer {
     private readonly int _port;
     private readonly string _contentRoot;
     private readonly IFileSystem _fs;
     private WebApplication? _app;
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
 
     /// <summary>服务器基础 URL</summary>
     public string Url => $"http://localhost:{_port}";
@@ -22,15 +21,13 @@ public sealed class UpdateServer
     /// <param name="fs">文件系统抽象</param>
     /// <param name="port">监听端口（0=自动分配）</param>
     /// <param name="contentRoot">内容根目录（包含 manifest.json 和 releases/ 子目录）</param>
-    public UpdateServer(IFileSystem fs, int port = 0, string? contentRoot = null)
-    {
+    public UpdateServer(IFileSystem fs, int port = 0, string? contentRoot = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _port = port == 0 ? GetAvailablePort() : port;
         _contentRoot = contentRoot ?? AppDataConstants.Paths.UpdateContentDirectory;
     }
 
-    private static int GetAvailablePort()
-    {
+    private static int GetAvailablePort() {
         using var tcpListener = new TcpListener(IPAddress.Loopback, 0);
         tcpListener.Start();
         var port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
@@ -41,8 +38,7 @@ public sealed class UpdateServer
     /// <summary>
     /// 启动服务器
     /// </summary>
-    public Task StartAsync()
-    {
+    public Task StartAsync() {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls(Url + "/");
         builder.Logging.ClearProviders();
@@ -51,11 +47,9 @@ public sealed class UpdateServer
 
         _app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-        _app.MapGet("/manifest.json", async (HttpContext ctx) =>
-        {
+        _app.MapGet("/manifest.json", async (HttpContext ctx) => {
             var manifestPath = _fs.CombinePath(_contentRoot, "manifest.json");
-            if (!_fs.FileExists(manifestPath))
-            {
+            if (!_fs.FileExists(manifestPath)) {
                 ctx.Response.StatusCode = 404;
                 return;
             }
@@ -64,11 +58,9 @@ public sealed class UpdateServer
             await stream.CopyToAsync(ctx.Response.Body).ConfigureAwait(false);
         });
 
-        _app.MapGet("/releases/{version}/{fileName}", async (string version, string fileName, HttpContext ctx) =>
-        {
+        _app.MapGet("/releases/{version}/{fileName}", async (string version, string fileName, HttpContext ctx) => {
             var filePath = _fs.CombinePath(_contentRoot, "releases", version, fileName);
-            if (!_fs.FileExists(filePath))
-            {
+            if (!_fs.FileExists(filePath)) {
                 ctx.Response.StatusCode = 404;
                 return;
             }
@@ -77,12 +69,10 @@ public sealed class UpdateServer
             await stream.CopyToAsync(ctx.Response.Body).ConfigureAwait(false);
         });
 
-        _app.MapGet("/shutdown", async (HttpContext ctx) =>
-        {
+        _app.MapGet("/shutdown", async (HttpContext ctx) => {
             ctx.Response.ContentType = "application/json";
             await ctx.Response.WriteAsync("""{"status":"shutting_down"}""").ConfigureAwait(false);
-            _ = Task.Run(async () =>
-            {
+            _ = Task.Run(async () => {
                 await Task.Delay(100).ConfigureAwait(false);
                 await _app!.StopAsync().ConfigureAwait(false);
             });
@@ -95,10 +85,8 @@ public sealed class UpdateServer
     /// <summary>
     /// 停止服务器
     /// </summary>
-    public async Task StopAsync()
-    {
-        if (_app is not null)
-        {
+    public async Task StopAsync() {
+        if (_app is not null) {
             await _app.StopAsync().ConfigureAwait(false);
         }
         _cts.Cancel();
@@ -110,8 +98,7 @@ public sealed class UpdateServer
     /// <param name="version">版本号</param>
     /// <param name="sha256">SHA256 校验和</param>
     /// <param name="exeContent">exe 二进制内容</param>
-    public void GenerateContent(string version, string sha256, byte[] exeContent)
-    {
+    public void GenerateContent(string version, string sha256, byte[] exeContent) {
         _fs.CreateDirectory(_contentRoot);
         var releasesDir = _fs.CombinePath(_contentRoot, "releases", version);
         _fs.CreateDirectory(releasesDir);

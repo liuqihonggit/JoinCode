@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// 路径约束命令枚举 — 对齐 TS pathValidation.ts PathCommand 联合类型
 /// [EnumValue] 由 EnumMetadataGenerator 自动生成 ToValue/FromValue 映射
 /// </summary>
-public enum PathCommand
-{
+public enum PathCommand {
     [EnumValue("cd")] Cd,
     [EnumValue("ls")] Ls,
     [EnumValue("find")] Find,
@@ -49,8 +48,7 @@ public enum PathCommand
 /// 统一枚举: 合并原 JoinCode.Abstractions.Interfaces.FileOperationType (Edit) 和 PsFileOperationType (Create)
 /// 同时用于 RecordFileMetrics 的 operation 参数
 /// </summary>
-public enum FileOperationType
-{
+public enum FileOperationType {
     /// <summary>
     /// 读取操作
     /// </summary>
@@ -130,8 +128,7 @@ public enum FileOperationType
 /// <summary>
 /// 文件操作结果 — RecordFileMetrics 的 result 参数枚举化
 /// </summary>
-public enum FileOperationResult
-{
+public enum FileOperationResult {
     [EnumValue("ok")] Ok,
     [EnumValue("failed")] Failed,
     [EnumValue("rejected")] Rejected,

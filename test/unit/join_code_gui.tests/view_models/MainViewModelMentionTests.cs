@@ -4,13 +4,11 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// F4 与子代理对话（@提及）GUI 路由测试 —
 /// 对齐 CLI ReplLoopStep 两条规则：① @name 消息直发 ② 忙时单代理自动转发。
 /// </summary>
-public class MainViewModelMentionTests
-{
+public class MainViewModelMentionTests {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
     /// <summary>记录转发的会话桩 — 运行列表可配置，流式立即完成</summary>
-    private sealed class MentionSession : IJccChatSession
-    {
+    private sealed class MentionSession : IJccChatSession {
         public List<(string AgentId, string Message)> Forwards { get; } = [];
         public List<JoinCode.Gui.ViewModels.BackgroundAgentInfo> Running { get; set; } = [];
         public Func<string, string?>? Finder { get; set; }
@@ -18,8 +16,7 @@ public class MainViewModelMentionTests
         public Task<string?> FindSubAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
             => Task.FromResult(Finder?.Invoke(name));
 
-        public async Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default)
-        {
+        public async Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default) {
             Forwards.Add((agentId, message));
             await Task.Yield();
             return true;
@@ -49,8 +46,7 @@ public class MainViewModelMentionTests
         /// <summary>放行被门控的流式回合（测试控制忙态窗口）</summary>
         public void ReleaseGate() => _release.TrySetResult();
 
-        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
+        public async IAsyncEnumerable<ChatStreamEvent> StreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
             // 门控：模拟长回合，测试显式 ReleaseGate 放行（替代盲等）
             await _release.Task.WaitAsync(cancellationToken);
             yield return ChatStreamEvent.Done();
@@ -84,10 +80,8 @@ public class MainViewModelMentionTests
         new GuiPreferencesStore(new InMemoryFileSystem(), "mem/gui-preferences.json"));
 
     [Fact]
-    public async Task Mention_WhenAgentFound_ShouldForwardWithoutNewTurn()
-    {
-        var session = new MentionSession
-        {
+    public async Task Mention_WhenAgentFound_ShouldForwardWithoutNewTurn() {
+        var session = new MentionSession {
             Finder = name => name == "explore" ? "agent-1" : null,
             Running = [new("agent-1", "explore", "调研", "running", DateTime.Now, 0, 0)]
         };
@@ -105,10 +99,8 @@ public class MainViewModelMentionTests
     }
 
     [Fact]
-    public async Task Mention_WhenNotFound_ShouldEchoRunningList()
-    {
-        var session = new MentionSession
-        {
+    public async Task Mention_WhenNotFound_ShouldEchoRunningList() {
+        var session = new MentionSession {
             Finder = _ => null,
             Running = [new("a9", "planner", "规划", "running", DateTime.Now, 0, 0)]
         };
@@ -122,10 +114,8 @@ public class MainViewModelMentionTests
     }
 
     [Fact]
-    public async Task BusySend_WithSingleRunningAgent_ShouldAutoForward()
-    {
-        var session = new MentionSession
-        {
+    public async Task BusySend_WithSingleRunningAgent_ShouldAutoForward() {
+        var session = new MentionSession {
             Running = [new("solo", "worker", "干活", "running", DateTime.Now, 0, 0)]
         };
         var vm = CreateVm(session);
@@ -148,22 +138,18 @@ public class MainViewModelMentionTests
     }
 
     /// <summary>事件驱动等待 IsBusy 到达目标态（替代 Task.Delay 盲等，JCC3010）</summary>
-    private static Task WaitBusyAsync(MainViewModel vm, bool targetBusy)
-    {
+    private static Task WaitBusyAsync(MainViewModel vm, bool targetBusy) {
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        void Handler(object? s, System.ComponentModel.PropertyChangedEventArgs e)
-        {
+        void Handler(object? s, System.ComponentModel.PropertyChangedEventArgs e) {
             if (e.PropertyName != nameof(MainViewModel.IsBusy))
                 return;
-            if (vm.IsBusy == targetBusy)
-            {
+            if (vm.IsBusy == targetBusy) {
                 vm.PropertyChanged -= Handler;
                 tcs.TrySetResult();
             }
         }
         vm.PropertyChanged += Handler;
-        if (vm.IsBusy == targetBusy)
-        {
+        if (vm.IsBusy == targetBusy) {
             vm.PropertyChanged -= Handler;
             tcs.TrySetResult();
         }

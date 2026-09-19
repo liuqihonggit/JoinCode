@@ -17,8 +17,7 @@ Console.WriteLine($"HttpClient BaseAddress: {client.BaseAddress}");
 
 // 验证 4: 命名客户端
 services = new ServiceCollection();
-services.AddHttpClient("PolicyClient", c =>
-{
+services.AddHttpClient("PolicyClient", c => {
     c.BaseAddress = new Uri("https://policy.example.com/api/");
     c.Timeout = TimeSpan.FromSeconds(30);
 });
@@ -30,8 +29,7 @@ Console.WriteLine($"Named HttpClient Timeout: {namedClient.Timeout}");
 
 // 验证 5: 类型化客户端（带 Typed HttpClient 模式）
 services = new ServiceCollection();
-services.AddHttpClient<TestTypedClient>(c =>
-{
+services.AddHttpClient<TestTypedClient>(c => {
     c.BaseAddress = new Uri("https://test.example.com/");
 });
 provider = services.BuildServiceProvider();
@@ -40,7 +38,6 @@ Console.WriteLine($"Typed HttpClient BaseAddress: {typedClient.HttpClient.BaseAd
 
 Console.WriteLine("All IHttpClientFactory checks passed.");
 
-public sealed class TestTypedClient(HttpClient httpClient)
-{
+public sealed class TestTypedClient(HttpClient httpClient) {
     public HttpClient HttpClient { get; } = httpClient;
 }

@@ -4,8 +4,7 @@ namespace Services.Api;
 /// 重试策略配置
 /// </summary>
 [Register(typeof(RetryPolicyOptions), ServiceLifetime.Singleton)]
-public sealed record RetryPolicyOptions
-{
+public sealed record RetryPolicyOptions {
     /// <summary>
     /// 最大重试次数
     /// </summary>
@@ -68,8 +67,7 @@ public sealed record RetryPolicyOptions
     /// <summary>
     /// 创建激进重试配置（更多重试次数）
     /// </summary>
-    public static RetryPolicyOptions Aggressive => new()
-    {
+    public static RetryPolicyOptions Aggressive => new() {
         MaxRetryCount = 5,
         InitialDelay = TimeSpan.FromMilliseconds(500),
         MaxDelay = TimeSpan.FromSeconds(60),
@@ -81,8 +79,7 @@ public sealed record RetryPolicyOptions
     /// <summary>
     /// 创建保守重试配置（较少重试次数）
     /// </summary>
-    public static RetryPolicyOptions Conservative => new()
-    {
+    public static RetryPolicyOptions Conservative => new() {
         MaxRetryCount = 2,
         InitialDelay = TimeSpan.FromSeconds(2),
         MaxDelay = TimeSpan.FromSeconds(10),
@@ -95,10 +92,8 @@ public sealed record RetryPolicyOptions
     /// DI 构造函数 — 从 ApiSettings 映射
     /// </summary>
     /// <param name="settings">API 设置选项；为 null 时使用默认值</param>
-    public RetryPolicyOptions(IOptions<ApiSettings>? settings = null)
-    {
-        if (settings?.Value is { } s)
-        {
+    public RetryPolicyOptions(IOptions<ApiSettings>? settings = null) {
+        if (settings?.Value is { } s) {
             MaxRetryCount = s.MaxRetryCount;
             InitialDelay = TimeSpan.FromMilliseconds(s.InitialDelayMs);
             MaxDelay = TimeSpan.FromMilliseconds(s.MaxDelayMs);
@@ -113,8 +108,7 @@ public sealed record RetryPolicyOptions
 /// 重试策略执行器
 /// </summary>
 [Register(typeof(RetryPolicy), ServiceLifetime.Singleton)]
-public sealed partial class RetryPolicy : ServiceEntity
-{
+public sealed partial class RetryPolicy : ServiceEntity {
     private readonly RetryPolicyOptions _options;
     private readonly Random _random;
 
@@ -122,8 +116,7 @@ public sealed partial class RetryPolicy : ServiceEntity
     /// 构造 RetryPolicy
     /// </summary>
     /// <param name="options">重试策略配置；为 null 时使用默认配置</param>
-    public RetryPolicy(RetryPolicyOptions? options = null)
-    {
+    public RetryPolicy(RetryPolicyOptions? options = null) {
         _options = options ?? RetryPolicyOptions.Default;
         _random = new Random();
     }
@@ -141,26 +134,20 @@ public sealed partial class RetryPolicy : ServiceEntity
         Func<CancellationToken, Task<T>> operation,
         Func<Exception, bool>? isRetryable = null,
         Action<int, TimeSpan, Exception>? onRetry = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var attempt = 0;
         Exception? lastException = null;
 
-        while (attempt <= _options.MaxRetryCount)
-        {
+        while (attempt <= _options.MaxRetryCount) {
             cancellationToken.ThrowIfCancellationRequested();
 
-            try
-            {
+            try {
                 return await operation(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ShouldRetry(ex, isRetryable))
-            {
+            } catch (Exception ex) when (ShouldRetry(ex, isRetryable)) {
                 lastException = ex;
                 attempt++;
 
-                if (attempt > _options.MaxRetryCount)
-                {
+                if (attempt > _options.MaxRetryCount) {
                     break;
                 }
 
@@ -188,11 +175,9 @@ public sealed partial class RetryPolicy : ServiceEntity
         Func<CancellationToken, Task> operation,
         Func<Exception, bool>? isRetryable = null,
         Action<int, TimeSpan, Exception>? onRetry = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         await ExecuteAsync(
-            async ct =>
-            {
+            async ct => {
                 await operation(ct).ConfigureAwait(false);
                 return true;
             },
@@ -204,16 +189,14 @@ public sealed partial class RetryPolicy : ServiceEntity
     /// <summary>
     /// 计算退避延迟
     /// </summary>
-    private TimeSpan CalculateDelay(int attempt)
-    {
+    private TimeSpan CalculateDelay(int attempt) {
         var exponentialDelay = _options.InitialDelay *
             Math.Pow(_options.BackoffMultiplier, attempt - 1);
 
         var delay = TimeSpan.FromMilliseconds(
             Math.Min(exponentialDelay.TotalMilliseconds, _options.MaxDelay.TotalMilliseconds));
 
-        if (_options.EnableJitter)
-        {
+        if (_options.EnableJitter) {
             var jitter = delay.TotalMilliseconds * _options.JitterFactor * (_random.NextDouble() * 2 - 1);
             delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds + jitter);
         }
@@ -224,20 +207,16 @@ public sealed partial class RetryPolicy : ServiceEntity
     /// <summary>
     /// 判断异常是否可重试
     /// </summary>
-    private bool ShouldRetry(Exception ex, Func<Exception, bool>? customPredicate)
-    {
-        if (customPredicate?.Invoke(ex) == true)
-        {
+    private bool ShouldRetry(Exception ex, Func<Exception, bool>? customPredicate) {
+        if (customPredicate?.Invoke(ex) == true) {
             return true;
         }
 
-        if (IsRetryableException(ex))
-        {
+        if (IsRetryableException(ex)) {
             return true;
         }
 
-        if (ex is ApiException apiEx && apiEx.IsRetryable)
-        {
+        if (ex is ApiException apiEx && apiEx.IsRetryable) {
             return true;
         }
 
@@ -247,16 +226,14 @@ public sealed partial class RetryPolicy : ServiceEntity
     /// <summary>
     /// 判断异常是否属于可重试类型（AOT安全：使用 is 模式匹配替代 IsAssignableFrom）
     /// </summary>
-    private bool IsRetryableException(Exception ex)
-    {
+    private bool IsRetryableException(Exception ex) {
         // 默认可重试异常类型：HttpRequestException, TaskCanceledException, TimeoutException, IOException
         // 使用 is 模式匹配，AOT 编译器可完全静态分析
         if (ex is HttpRequestException or TaskCanceledException or TimeoutException or IOException)
             return true;
 
         // 检查用户自定义的可重试异常类型
-        foreach (var retryableType in _options.RetryableExceptions)
-        {
+        foreach (var retryableType in _options.RetryableExceptions) {
             if (retryableType == typeof(HttpRequestException) && ex is HttpRequestException) return true;
             if (retryableType == typeof(TaskCanceledException) && ex is TaskCanceledException) return true;
             if (retryableType == typeof(TimeoutException) && ex is TimeoutException) return true;
@@ -270,15 +247,13 @@ public sealed partial class RetryPolicy : ServiceEntity
 /// <summary>
 /// 重试耗尽异常
 /// </summary>
-public sealed class RetryExhaustedException : WorkflowException
-{
+public sealed class RetryExhaustedException : WorkflowException {
     /// <summary>
     /// 创建 RetryExhaustedException
     /// </summary>
     /// <param name="message">异常消息</param>
     /// <param name="innerException">引发重试耗尽的内部异常</param>
     public RetryExhaustedException(string message, Exception innerException)
-        : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiRetryExhausted.ToValue(), category: ErrorCategory.Api)
-    {
+        : base(message, innerException, errorCode: global::JoinCode.Abstractions.Exceptions.ErrorCode.ApiRetryExhausted.ToValue(), category: ErrorCategory.Api) {
     }
 }

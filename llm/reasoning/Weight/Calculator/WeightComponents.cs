@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Weight.Calculator;
 /// <summary>
 /// 权重分量 — 5维客观权重计算的各维度得分
 /// </summary>
-public sealed class WeightComponents
-{
+public sealed class WeightComponents {
     /// <summary>
     /// 来源可信度 (权重 30%)
     /// </summary>
@@ -34,8 +33,7 @@ public sealed class WeightComponents
 /// <summary>
 /// 证据权重计算结果
 /// </summary>
-public sealed class EvidenceWeight
-{
+public sealed class EvidenceWeight {
     /// <summary>
     /// 加权总分
     /// </summary>

@@ -11,8 +11,7 @@ namespace JoinCode.Abstractions.Security.Auditing;
 /// </list>
 /// </para>
 /// </summary>
-public interface IFileSystemSnapshotService
-{
+public interface IFileSystemSnapshotService {
     /// <summary>
     /// 捕获指定目录的文件系统快照
     /// </summary>

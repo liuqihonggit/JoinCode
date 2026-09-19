@@ -11,8 +11,7 @@ public sealed record CompressionReportOptions(
     bool IsSuccess = true,
     string? ErrorMessage = null);
 
-public sealed record CompressionReport
-{
+public sealed record CompressionReport {
     public required string ReportId { get; init; }
 
     public required int OriginalTokenCount { get; init; }
@@ -45,14 +44,12 @@ public sealed record CompressionReport
         ? (1 - CompressionRatio) * 100
         : 0;
 
-    public static CompressionReport Create(CompressionReportOptions options)
-    {
+    public static CompressionReport Create(CompressionReportOptions options) {
         var ratio = options.OriginalTokenCount > 0
             ? (double)options.CompressedTokenCount / options.OriginalTokenCount
             : 0;
 
-        return new CompressionReport
-        {
+        return new CompressionReport {
             ReportId = Guid.NewGuid().ToString("N"),
             OriginalTokenCount = options.OriginalTokenCount,
             CompressedTokenCount = options.CompressedTokenCount,
@@ -72,10 +69,8 @@ public sealed record CompressionReport
     public static CompressionReport CreateFailed(
         int originalTokenCount,
         string errorMessage,
-        CompressionRequest? request = null)
-    {
-        return new CompressionReport
-        {
+        CompressionRequest? request = null) {
+        return new CompressionReport {
             ReportId = Guid.NewGuid().ToString("N"),
             OriginalTokenCount = originalTokenCount,
             CompressedTokenCount = originalTokenCount,

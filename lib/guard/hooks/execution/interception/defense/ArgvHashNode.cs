@@ -15,8 +15,7 @@ namespace Core.Hooks.Execution.Interception.Defense;
 /// </para>
 /// </summary>
 [Register(typeof(ArgvHashNode), ServiceLifetime.Singleton)]
-public sealed class ArgvHashNode
-{
+public sealed class ArgvHashNode {
     private const int HashLength = 6;
 
     /// <summary>
@@ -27,8 +26,7 @@ public sealed class ArgvHashNode
     /// </summary>
     /// <param name="command">待计算命令</param>
     /// <returns>argv hash（6 位 hex 字符串）</returns>
-    public string ComputeArgvHash(string command)
-    {
+    public string ComputeArgvHash(string command) {
         var parsed = ShellCommand.Parse(command);
         var argv = new[] { parsed.CommandName }.Concat(parsed.Arguments);
         var joined = string.Join('\0', argv);
@@ -42,8 +40,7 @@ public sealed class ArgvHashNode
     /// <param name="command">待校验命令</param>
     /// <param name="providedHash">AI 提供的 hash（null 表示未提供）</param>
     /// <returns>匹配返回 true，不匹配或未提供返回 false</returns>
-    public bool ValidateArgvHash(string command, string? providedHash)
-    {
+    public bool ValidateArgvHash(string command, string? providedHash) {
         if (string.IsNullOrEmpty(providedHash))
             return false;
         var normalized = providedHash.TrimStart('#');

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Notebook服务接口
 /// </summary>
-public interface INotebookService
-{
+public interface INotebookService {
     /// <summary>
     /// 加载Notebook文件
     /// </summary>

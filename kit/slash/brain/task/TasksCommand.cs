@@ -5,86 +5,74 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Tasks, Description = "列出和管理后台任务", Usage = "/tasks [kill|detail|create|update|complete|todo]", Category = ChatCommandCategory.Task, Aliases = ["task", "bashes"], ExposeToMcp = true)]
 [ChatCommandArg("action", Type = "string", Description = "任务操作", Enum = new[] { "kill", "detail", "create", "update", "complete", "todo" })]
-public sealed class TasksCommand : ChatCommandBase
-{
+public sealed class TasksCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /tasks 命令，根据子操作分发到对应的后台任务管理逻辑。
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>命令执行结果。</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : null;
 
-        if (action is null)
-        {
+        if (action is null) {
             await ListBackgroundTasksAsync(context).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
-        switch (action)
-        {
+        switch (action) {
             case TasksActionEnumConstants.Kill:
-                await KillTaskAsync(context, args).ConfigureAwait(false);
-                break;
+            await KillTaskAsync(context, args).ConfigureAwait(false);
+            break;
             case TasksActionEnumConstants.Detail:
-                await ShowTaskDetailAsync(context, args).ConfigureAwait(false);
-                break;
+            await ShowTaskDetailAsync(context, args).ConfigureAwait(false);
+            break;
             case CrudActionEnumConstants.Create:
             case CrudActionEnumConstants.New:
-                await CreateTaskAsync(context, args).ConfigureAwait(false);
-                break;
+            await CreateTaskAsync(context, args).ConfigureAwait(false);
+            break;
             case CrudActionEnumConstants.Update:
-                await UpdateTaskAsync(context, args).ConfigureAwait(false);
-                break;
+            await UpdateTaskAsync(context, args).ConfigureAwait(false);
+            break;
             case TasksActionEnumConstants.Complete:
-                await CompleteTaskAsync(context, args).ConfigureAwait(false);
-                break;
+            await CompleteTaskAsync(context, args).ConfigureAwait(false);
+            break;
             case TasksActionEnumConstants.Todo:
-                await ListTodosAsync(context, args).ConfigureAwait(false);
-                break;
+            await ListTodosAsync(context, args).ConfigureAwait(false);
+            break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}未知操作: {action}{AnsiStyleEnumConstants.Reset}");
-                TerminalHelper.WriteLine("可用操作: kill, detail, create, update, complete, todo");
-                break;
+            TerminalHelper.WriteLine($"{TerminalColors.Error}未知操作: {action}{AnsiStyleEnumConstants.Reset}");
+            TerminalHelper.WriteLine("可用操作: kill, detail, create, update, complete, todo");
+            break;
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static async Task ListBackgroundTasksAsync(ChatCommandContext context)
-    {
+    private static async Task ListBackgroundTasksAsync(ChatCommandContext context) {
         var allTasks = new List<(string Id, string Type, string Description, string Status)>();
 
         var shellService = ChatCommandBase.GetService<ISystemActuatorRegistry>(context, typeof(ISystemActuatorRegistry));
-        if (shellService is not null)
-        {
+        if (shellService is not null) {
             var tasks = await shellService.ListTasksAsync(context.CancellationToken).ConfigureAwait(false);
             var running = tasks.Where(t => t.Status == TaskExecutionStatus.Running || t.Status == TaskExecutionStatus.Pending).ToList();
-            foreach (var t in running)
-            {
+            foreach (var t in running) {
                 var status = t.Status == TaskExecutionStatus.Running ? "运行中" : "等待中";
                 allTasks.Add((t.TaskId, "Shell", t.Command, status));
             }
         }
 
         var agentCoordinator = ChatCommandBase.GetService<IAgentService>(context, typeof(IAgentService));
-        if (agentCoordinator is not null)
-        {
+        if (agentCoordinator is not null) {
             var agents = await agentCoordinator.GetRunningAgentsAsync(context.CancellationToken).ConfigureAwait(false);
-            foreach (var a in agents)
-            {
+            foreach (var a in agents) {
                 allTasks.Add((a.Id, "Agent", a.DisplayName ?? a.Variant?.ToValue() ?? a.Role.ToValue() ?? "Unknown", "运行中"));
             }
         }
 
-        if (allTasks.Count == 0)
-        {
+        if (allTasks.Count == 0) {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}没有正在运行的后台任务{AnsiStyleEnumConstants.Reset}");
-        }
-        else if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        } else if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             // 交互模式：PaginatedList
             var list = new PaginatedList<(string Id, string Type, string Description, string Status)>(
                 "后台任务",
@@ -93,12 +81,9 @@ public sealed class TasksCommand : ChatCommandBase
                 pageSize: 10);
 
             await list.ShowAsync(context.CancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             // 非交互模式：纯文本
-            foreach (var t in allTasks)
-            {
+            foreach (var t in allTasks) {
                 var statusColor = t.Status == "运行中" ? TerminalColors.Warning : TerminalColors.Muted;
                 TerminalHelper.WriteLine($"{statusColor}● [{t.Type}] {t.Id} — {t.Description}{AnsiStyleEnumConstants.Reset}");
             }
@@ -108,10 +93,8 @@ public sealed class TasksCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Muted}任务管理: /tasks create|update|complete|todo{AnsiStyleEnumConstants.Reset}");
     }
 
-    private static async Task KillTaskAsync(ChatCommandContext context, string[] args)
-    {
-        if (args.Length < 2)
-        {
+    private static async Task KillTaskAsync(ChatCommandContext context, string[] args) {
+        if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /tasks kill <id>{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -119,33 +102,27 @@ public sealed class TasksCommand : ChatCommandBase
         var taskId = args[1];
 
         var shellService = ChatCommandBase.GetService<ISystemActuatorRegistry>(context, typeof(ISystemActuatorRegistry));
-        if (shellService is not null)
-        {
+        if (shellService is not null) {
             var cancelled = await shellService.CancelTaskAsync(taskId, context.CancellationToken).ConfigureAwait(false);
-            if (cancelled)
-            {
+            if (cancelled) {
                 TerminalHelper.WriteLine($"{TerminalColors.Success}已停止 Shell 任务: {taskId}{AnsiStyleEnumConstants.Reset}");
                 return;
             }
         }
 
         var agentCoordinator = ChatCommandBase.GetService<IAgentService>(context, typeof(IAgentService));
-        if (agentCoordinator is not null)
-        {
+        if (agentCoordinator is not null) {
             var stopped = await agentCoordinator.StopAgentAsync(taskId, context.CancellationToken).ConfigureAwait(false);
-            if (stopped)
-            {
+            if (stopped) {
                 TerminalHelper.WriteLine($"{TerminalColors.Success}已停止 Agent: {taskId}{AnsiStyleEnumConstants.Reset}");
                 return;
             }
         }
 
         var taskService = context.GetCommandServices().TaskService;
-        if (taskService is not null)
-        {
+        if (taskService is not null) {
             var result = await taskService.StopTaskAsync(taskId, reason: "Killed by /tasks kill", cancellationToken: context.CancellationToken).ConfigureAwait(false);
-            if (result.Success)
-            {
+            if (result.Success) {
                 TerminalHelper.WriteLine($"{TerminalColors.Success}已停止任务: {taskId}{AnsiStyleEnumConstants.Reset}");
                 return;
             }
@@ -154,10 +131,8 @@ public sealed class TasksCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Error}未找到任务: {taskId}{AnsiStyleEnumConstants.Reset}");
     }
 
-    private static async Task ShowTaskDetailAsync(ChatCommandContext context, string[] args)
-    {
-        if (args.Length < 2)
-        {
+    private static async Task ShowTaskDetailAsync(ChatCommandContext context, string[] args) {
+        if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /tasks detail <id>{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -165,11 +140,9 @@ public sealed class TasksCommand : ChatCommandBase
         var taskId = args[1];
 
         var shellService = ChatCommandBase.GetService<ISystemActuatorRegistry>(context, typeof(ISystemActuatorRegistry));
-        if (shellService is not null)
-        {
+        if (shellService is not null) {
             var task = await shellService.GetTaskAsync(taskId, context.CancellationToken).ConfigureAwait(false);
-            if (task is not null)
-            {
+            if (task is not null) {
                 TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}── Shell 任务详情 ──{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine($"  ID: {task.TaskId}");
                 TerminalHelper.WriteLine($"  命令: {task.Command}");
@@ -180,8 +153,7 @@ public sealed class TasksCommand : ChatCommandBase
                     TerminalHelper.WriteLine($"  Agent: {task.AgentId}");
 
                 var output = await shellService.GetTaskOutputAsync(taskId, context.CancellationToken).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(output))
-                {
+                if (!string.IsNullOrEmpty(output)) {
                     TerminalHelper.WriteLine($"{TerminalColors.Muted}── 输出 ──{AnsiStyleEnumConstants.Reset}");
                     var lines = output.Split('\n');
                     var displayLines = lines.Length > 30 ? lines[^30..] : lines;
@@ -196,11 +168,9 @@ public sealed class TasksCommand : ChatCommandBase
         }
 
         var taskService = context.GetCommandServices().TaskService;
-        if (taskService is not null)
-        {
+        if (taskService is not null) {
             var task = await taskService.GetTaskAsync(taskId, context.CancellationToken).ConfigureAwait(false);
-            if (task is not null)
-            {
+            if (task is not null) {
                 TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}── 任务详情 ──{AnsiStyleEnumConstants.Reset}");
                 TerminalHelper.WriteLine($"  ID: {task.Id}");
                 TerminalHelper.WriteLine($"  标题: {task.Title}");
@@ -215,17 +185,14 @@ public sealed class TasksCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Error}未找到任务: {taskId}{AnsiStyleEnumConstants.Reset}");
     }
 
-    private static async Task CreateTaskAsync(ChatCommandContext context, string[] args)
-    {
+    private static async Task CreateTaskAsync(ChatCommandContext context, string[] args) {
         var taskService = context.GetCommandServices().TaskService;
-        if (taskService is null)
-        {
+        if (taskService is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}任务服务不可用{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        if (args.Length < 2)
-        {
+        if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /tasks create <标题> [--priority <high|medium|low>] [--assignee <负责人>]{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -234,15 +201,11 @@ public sealed class TasksCommand : ChatCommandBase
         var priority = "medium";
         string? assignee = null;
 
-        for (int i = 1; i < args.Length; i++)
-        {
-            if (args[i] == "--priority" && i + 1 < args.Length)
-            {
+        for (var i = 1; i < args.Length; i++) {
+            if (args[i] == "--priority" && i + 1 < args.Length) {
                 priority = args[i + 1];
                 i++;
-            }
-            else if (args[i] == "--assignee" && i + 1 < args.Length)
-            {
+            } else if (args[i] == "--assignee" && i + 1 < args.Length) {
                 assignee = args[i + 1];
                 i++;
             }
@@ -250,8 +213,7 @@ public sealed class TasksCommand : ChatCommandBase
 
         title = title.Replace($"--priority {priority}", "").Replace($"--assignee {assignee}", "").Trim();
 
-        if (string.IsNullOrWhiteSpace(title))
-        {
+        if (string.IsNullOrWhiteSpace(title)) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}标题不能为空{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -265,30 +227,24 @@ public sealed class TasksCommand : ChatCommandBase
             tags: null,
             cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
-        if (result.Success)
-        {
+        if (result.Success) {
             TerminalHelper.WriteLine($"{TerminalColors.Success}创建任务成功{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  ID: {result.Data?.Id}");
             TerminalHelper.WriteLine($"  标题: {result.Data?.Title}");
             TerminalHelper.WriteLine($"  优先级: {priority}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}创建任务失败: {result.ErrorMessage}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
-    private static async Task UpdateTaskAsync(ChatCommandContext context, string[] args)
-    {
+    private static async Task UpdateTaskAsync(ChatCommandContext context, string[] args) {
         var taskService = context.GetCommandServices().TaskService;
-        if (taskService is null)
-        {
+        if (taskService is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}任务服务不可用{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        if (args.Length < 3)
-        {
+        if (args.Length < 3) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /tasks update <id> [--title <新标题>] [--status <新状态>] [--priority <新优先级>]{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -298,28 +254,21 @@ public sealed class TasksCommand : ChatCommandBase
         string? newStatus = null;
         string? newPriority = null;
 
-        for (int i = 2; i < args.Length; i++)
-        {
-            if (args[i] == "--title" && i + 1 < args.Length)
-            {
+        for (var i = 2; i < args.Length; i++) {
+            if (args[i] == "--title" && i + 1 < args.Length) {
                 newTitle = args[i + 1];
                 i++;
-            }
-            else if (args[i] == "--status" && i + 1 < args.Length)
-            {
+            } else if (args[i] == "--status" && i + 1 < args.Length) {
                 newStatus = args[i + 1];
                 i++;
-            }
-            else if (args[i] == "--priority" && i + 1 < args.Length)
-            {
+            } else if (args[i] == "--priority" && i + 1 < args.Length) {
                 newPriority = args[i + 1];
                 i++;
             }
         }
 
         var result = await taskService.UpdateTaskAsync(
-            new UpdateTaskRequest
-            {
+            new UpdateTaskRequest {
                 TaskId = taskId,
                 Title = newTitle,
                 Status = newStatus,
@@ -327,27 +276,21 @@ public sealed class TasksCommand : ChatCommandBase
             },
             cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
-        if (result.Success)
-        {
+        if (result.Success) {
             TerminalHelper.WriteLine($"{TerminalColors.Success}更新任务 {taskId} 成功{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}更新任务失败: {result.ErrorMessage}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
-    private static async Task CompleteTaskAsync(ChatCommandContext context, string[] args)
-    {
+    private static async Task CompleteTaskAsync(ChatCommandContext context, string[] args) {
         var taskService = context.GetCommandServices().TaskService;
-        if (taskService is null)
-        {
+        if (taskService is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}任务服务不可用{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        if (args.Length < 2)
-        {
+        if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /tasks complete <id>{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -355,28 +298,22 @@ public sealed class TasksCommand : ChatCommandBase
         var taskId = args[1];
 
         var result = await taskService.UpdateTaskAsync(
-            new UpdateTaskRequest
-            {
+            new UpdateTaskRequest {
                 TaskId = taskId,
                 Status = TodoStatus.Completed.ToValue(),
             },
             cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
-        if (result.Success)
-        {
+        if (result.Success) {
             TerminalHelper.WriteLine($"{TerminalColors.Success}任务 {taskId} 已完成{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}完成任务失败: {result.ErrorMessage}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
-    private static async Task ListTodosAsync(ChatCommandContext context, string[] args)
-    {
+    private static async Task ListTodosAsync(ChatCommandContext context, string[] args) {
         var todoService = context.GetCommandServices().TodoService;
-        if (todoService is null)
-        {
+        if (todoService is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}待办服务不可用{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -389,29 +326,24 @@ public sealed class TasksCommand : ChatCommandBase
             includeCompleted: true,
             cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}获取待办列表失败{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        if (result.Todos.Count == 0)
-        {
+        if (result.Todos.Count == 0) {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}暂无待办事项{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
-        foreach (var todo in result.Todos)
-        {
+        foreach (var todo in result.Todos) {
             var todoStatus = TodoStatusExtensions.FromValue(todo.Status);
-            var statusIcon = todoStatus switch
-            {
+            var statusIcon = todoStatus switch {
                 TodoStatus.Completed => "✓",
                 TodoStatus.InProgress => "◐",
                 _ => "○"
             };
-            var statusColor = todoStatus switch
-            {
+            var statusColor = todoStatus switch {
                 TodoStatus.Completed => TerminalColors.Success,
                 TodoStatus.InProgress => TerminalColors.Warning,
                 _ => TerminalColors.Muted

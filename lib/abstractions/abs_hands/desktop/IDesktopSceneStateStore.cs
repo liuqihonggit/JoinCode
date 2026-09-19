@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 桌面场景状态存储服务 — 跨 mcp_call 进程持久化夹逼进度
 /// </summary>
-public interface IDesktopSceneStateStore
-{
+public interface IDesktopSceneStateStore {
     /// <summary>加载场景状态（跨进程文件中转）</summary>
     Task<DesktopSceneState?> LoadAsync(string sceneId, CancellationToken cancellationToken = default);
 

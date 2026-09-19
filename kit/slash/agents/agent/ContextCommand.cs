@@ -5,16 +5,14 @@ namespace JoinCode.ChatCommands;
 /// /context 命令 — 显示当前会话上下文统计信息
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Context, Description = "显示当前会话上下文统计", Usage = "/context", Category = ChatCommandCategory.Info)]
-public sealed class ContextCommand : ChatCommandBase
-{
+public sealed class ContextCommand : ChatCommandBase {
     private readonly IClockService _clock = SystemClockService.Instance;
     /// <summary>
     /// 执行 /context 命令，统计并可视化当前会话的上下文占用情况
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken);
         var sessionDuration = _clock.GetUtcNow() - context.SessionStartedAt;
 
@@ -23,8 +21,7 @@ public sealed class ContextCommand : ChatCommandBase
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
         var currentModel = fastModeService?.PrimaryModelId ?? "unknown";
         var isFastMode = fastModeService?.IsFastModeActive ?? false;
-        if (isFastMode && fastModeService?.FastModelId is not null)
-        {
+        if (isFastMode && fastModeService?.FastModelId is not null) {
             currentModel = fastModeService.FastModelId;
         }
 
@@ -35,8 +32,7 @@ public sealed class ContextCommand : ChatCommandBase
             .FirstOrDefault(m => m.Id.Equals(currentModel, StringComparison.OrdinalIgnoreCase))?.ContextWindow
             ?? 128_000;
 
-        var contextData = new ContextData
-        {
+        var contextData = new ContextData {
             Model = currentModel,
             TotalTokens = EstimateTokens(history),
             MaxTokens = maxTokens,
@@ -46,14 +42,12 @@ public sealed class ContextCommand : ChatCommandBase
             .GroupBy(m => m.Role)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        foreach (var (role, count) in roleCounts)
-        {
+        foreach (var (role, count) in roleCounts) {
             var tokens = EstimateTokensForRole(role, count);
             contextData.Categories.Add(new ContextCategory(
                 role.ToUpperInvariant(),
                 tokens,
-                role.ToLower() switch
-                {
+                role.ToLower() switch {
                     MessageRoleEnumConstants.System => 0,
                     MessageRoleEnumConstants.User => 1,
                     MessageRoleEnumConstants.Assistant => 2,
@@ -74,24 +68,20 @@ public sealed class ContextCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context)
-    {
+    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context) {
         return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
             ?? throw new InvalidOperationException("[APP001] 模型目录服务未初始化");
     }
 
-    private static int EstimateTokens(IReadOnlyList<ApiMessageRecord> history)
-    {
+    private static int EstimateTokens(IReadOnlyList<ApiMessageRecord> history) {
         var totalChars = 0;
         foreach (var msg in history)
             totalChars += msg.Content?.Length ?? 0;
         return totalChars / 4;
     }
 
-    private static int EstimateTokensForRole(string role, int count)
-    {
-        var avgCharsPerMessage = role.ToLower() switch
-        {
+    private static int EstimateTokensForRole(string role, int count) {
+        var avgCharsPerMessage = role.ToLower() switch {
             MessageRoleEnumConstants.System => 200,
             MessageRoleEnumConstants.User => 150,
             MessageRoleEnumConstants.Assistant => 500,

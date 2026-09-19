@@ -6,39 +6,33 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:create/new/update (CrudAction) + kill/detail/complete/todo (TasksAction) + 未知子命令 + 默认 list
 /// 验证目标:Step 6 重构后,所有 case 标签能被正确识别
 /// </summary>
-public sealed class TasksCommandTests
-{
+public sealed class TasksCommandTests {
     [Fact]
-    public void Name_Should_Be_tasks()
-    {
+    public void Name_Should_Be_tasks() {
         var cmd = new TasksCommand();
         cmd.Name.Should().Be("tasks");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new TasksCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new TasksCommand();
         cmd.Usage.Should().StartWith("/tasks");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new TasksCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public void Aliases_Should_Contain_task_and_bashes()
-    {
+    public void Aliases_Should_Contain_task_and_bashes() {
         var cmd = new TasksCommand();
         cmd.Aliases.Should().Contain("task");
         cmd.Aliases.Should().Contain("bashes");
@@ -47,8 +41,7 @@ public sealed class TasksCommandTests
     [Theory]
     [InlineData("create")]
     [InlineData("new")]
-    public async Task Execute_WithCreateVariants_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithCreateVariants_Should_Return_Continue(string subCommand) {
         // CrudActionEnumConstants.Create/New → CreateTaskAsync
         var services = CreateServices(taskService: CreateMockTaskService());
         var cmd = new TasksCommand();
@@ -61,8 +54,7 @@ public sealed class TasksCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUpdateSubcommand_Should_Return_Continue()
-    {
+    public async Task Execute_WithUpdateSubcommand_Should_Return_Continue() {
         // CrudActionEnumConstants.Update → UpdateTaskAsync
         var services = CreateServices(taskService: CreateMockTaskService());
         var cmd = new TasksCommand();
@@ -78,8 +70,7 @@ public sealed class TasksCommandTests
     [InlineData("detail")]
     [InlineData("complete")]
     [InlineData("todo")]
-    public async Task Execute_WithTasksActionSubcommand_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithTasksActionSubcommand_Should_Return_Continue(string subCommand) {
         // TasksActionEnumConstants.Kill/Detail/Complete/Todo 枚举路由取值范围测试
         var services = CreateServices(
             taskService: CreateMockTaskService(),
@@ -93,8 +84,7 @@ public sealed class TasksCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithEmptyArgs_Should_Default_To_List()
-    {
+    public async Task Execute_WithEmptyArgs_Should_Default_To_List() {
         // 空 args → 走默认 list 分支
         var services = CreateServices(taskService: CreateMockTaskService());
         var cmd = new TasksCommand();
@@ -106,8 +96,7 @@ public sealed class TasksCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUnknownSubcommand_Should_NotThrow()
-    {
+    public async Task Execute_WithUnknownSubcommand_Should_NotThrow() {
         var services = CreateServices(taskService: CreateMockTaskService());
         var cmd = new TasksCommand();
         var context = CreateContext("unknown-action", services);
@@ -125,8 +114,7 @@ public sealed class TasksCommandTests
     [InlineData("DETAIL")]
     [InlineData("COMPLETE")]
     [InlineData("TODO")]
-    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand)
-    {
+    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand) {
         var services = CreateServices(
             taskService: CreateMockTaskService(),
             todoService: CreateMockTodoService());
@@ -139,8 +127,7 @@ public sealed class TasksCommandTests
     }
 
     [Fact]
-    public async Task Execute_CreateWithTaskServiceNull_Should_Return_Continue()
-    {
+    public async Task Execute_CreateWithTaskServiceNull_Should_Return_Continue() {
         // TaskService null 时,CreateTaskAsync 输出警告
         var services = CreateServices(taskService: null);
         var cmd = new TasksCommand();
@@ -158,14 +145,12 @@ public sealed class TasksCommandTests
     [InlineData("detail", TasksAction.Detail)]
     [InlineData("complete", TasksAction.Complete)]
     [InlineData("todo", TasksAction.Todo)]
-    public void TasksAction_FromValue_ValidString_Should_Resolve_Correctly(string input, TasksAction expected)
-    {
+    public void TasksAction_FromValue_ValidString_Should_Resolve_Correctly(string input, TasksAction expected) {
         TasksActionExtensions.FromValue(input).Should().Be(expected);
     }
 
     [Fact]
-    public void TasksActionEnumConstants_Values_Should_Match_Route()
-    {
+    public void TasksActionEnumConstants_Values_Should_Match_Route() {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
         TasksActionEnumConstants.Kill.Should().Be("kill");
         TasksActionEnumConstants.Detail.Should().Be("detail");
@@ -173,31 +158,26 @@ public sealed class TasksCommandTests
         TasksActionEnumConstants.Todo.Should().Be("todo");
     }
 
-    private static ChatCommandContext CreateContext(string arguments, CommandServices services)
-    {
-        return new ChatCommandContext
-        {
+    private static ChatCommandContext CreateContext(string arguments, CommandServices services) {
+        return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(services),
         };
     }
 
-    private static CommandServices CreateServices(ITaskService? taskService, ITodoService? todoService = null)
-    {
-        return new CommandServices
-        {
+    private static CommandServices CreateServices(ITaskService? taskService, ITodoService? todoService = null) {
+        return new CommandServices {
             ChatService = Mock.Of<IChatService>(),
             CodeService = Mock.Of<ICodeService>(),
             PlanService = Mock.Of<IPlanService>(),
             TaskService = taskService,
             TodoService = todoService,
-        FileSystem = TestFileSystem.Current,
+            FileSystem = TestFileSystem.Current,
         };
     }
 
-    private static ITaskService CreateMockTaskService()
-    {
+    private static ITaskService CreateMockTaskService() {
         var mock = new Mock<ITaskService>();
 
         mock.Setup(s => s.CreateTaskAsync(
@@ -229,8 +209,7 @@ public sealed class TasksCommandTests
         return mock.Object;
     }
 
-    private static ITodoService CreateMockTodoService()
-    {
+    private static ITodoService CreateMockTodoService() {
         var mock = new Mock<ITodoService>();
 
         mock.Setup(s => s.ListTodosAsync(

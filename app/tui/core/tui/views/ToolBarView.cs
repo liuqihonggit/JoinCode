@@ -3,8 +3,7 @@ namespace JoinCode.Tui.Views;
 /// <summary>
 /// 工具栏操作类型 — 对应 F1-F5 快捷键。
 /// </summary>
-public enum ToolBarAction
-{
+public enum ToolBarAction {
     /// <summary>新建会话（F1）</summary>
     [EnumValue("new")] New,
     /// <summary>暂停/恢复（F2）</summary>
@@ -22,8 +21,7 @@ public enum ToolBarAction
 /// 按钮用 Pos.Right 链式水平排列（相对定位），支持 F1-F5 快捷键。
 /// 对齐 Agent TUI 设计规范的工具栏区域。
 /// </summary>
-public sealed class ToolBarView : ITuiComponent
-{
+public sealed class ToolBarView : ITuiComponent {
     private readonly View _container;
     private readonly Button _newButton;
     private readonly Button _pauseButton;
@@ -34,10 +32,8 @@ public sealed class ToolBarView : ITuiComponent
     /// <summary>
     /// 创建 ToolBarView。
     /// </summary>
-    public ToolBarView()
-    {
-        _container = new View
-        {
+    public ToolBarView() {
+        _container = new View {
             Width = Dim.Fill(),
             Height = 1,
         };
@@ -69,20 +65,17 @@ public sealed class ToolBarView : ITuiComponent
 
     /// <summary>设置运行状态——运行中禁用 New，启用 Pause/Stop；空闲反之。</summary>
     /// <param name="running">true 表示 Agent 运行中。</param>
-    public void SetRunning(bool running)
-    {
+    public void SetRunning(bool running) {
         _newButton.Enabled = !running;
         _pauseButton.Enabled = running;
         _stopButton.Enabled = running;
     }
 
     /// <inheritdoc />
-    public void OnQueueChanged(QueueSnapshot snapshot)
-    {
+    public void OnQueueChanged(QueueSnapshot snapshot) {
     }
 
     /// <inheritdoc />
-    public void OnResize(int cols, int rows)
-    {
+    public void OnResize(int cols, int rows) {
     }
 }

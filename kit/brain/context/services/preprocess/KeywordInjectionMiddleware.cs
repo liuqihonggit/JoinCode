@@ -6,8 +6,7 @@ namespace Core.Context;
 /// 未命中时记录 miss 事件，供后台 Agent 分析优化词表
 /// </summary>
 [Register(typeof(IAnalyzePreprocessMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware
-{
+public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyzePreprocessMiddleware {
 
     /// <summary>
     /// 初始化关键词注入中间件
@@ -16,8 +15,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
     /// <param name="dynamicKeywordService">动态关键词配置服务</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public KeywordInjectionMiddleware(ISystemReminderManager reminderManager, IDynamicKeywordConfigService dynamicKeywordService, IFileSystem fs, ILogger<KeywordInjectionMiddleware>? logger = null)
-    {
+    public KeywordInjectionMiddleware(ISystemReminderManager reminderManager, IDynamicKeywordConfigService dynamicKeywordService, IFileSystem fs, ILogger<KeywordInjectionMiddleware>? logger = null) {
         _reminderManager = reminderManager;
         _dynamicKeywordService = dynamicKeywordService;
         _fs = fs;
@@ -35,20 +33,15 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>
-    public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(PreprocessContext context, MiddlewareDelegate<PreprocessContext> next, CancellationToken ct) {
         var dynamicMatch = _dynamicKeywordService.TryMatch(context.Message);
-        if (dynamicMatch is not null)
-        {
+        if (dynamicMatch is not null) {
             await InjectDynamicKeywordAsync(context, dynamicMatch, ct).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             var keywordResult = UserPromptKeywordAnalyzer.AnalyzeInput(context.Message);
             context.KeywordResult = keywordResult;
 
-            if (keywordResult.HasPromptInjection)
-            {
+            if (keywordResult.HasPromptInjection) {
                 _logger?.LogDebug("[UserPromptInjection] 检测到关键词 '{Keyword}'，类型: {Type}",
                     keywordResult.MatchedKeyword, keywordResult.Type);
 
@@ -60,8 +53,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
                     ct: ct).ConfigureAwait(false);
 
                 var sectionContent = KeywordSectionMapper.GetSectionContentForKeywordType(keywordResult.Type);
-                if (sectionContent != null)
-                {
+                if (sectionContent != null) {
                     var sectionId = $"section-injection-{keywordResult.Type}";
                     await _reminderManager.AddReminderAsync(
                         sectionId,
@@ -73,9 +65,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
                 _logger?.LogInformation("[UserPromptInjection] 已注入 {Type} 提示词", keywordResult.Type);
 
                 context.KeywordPromptInjectionInfo = $"[系统提示: 检测到 '{keywordResult.MatchedKeyword}' 关键词，已自动注入 {keywordResult.Type} 提示词]";
-            }
-            else
-            {
+            } else {
                 RecordKeywordMiss(context.Message);
             }
         }
@@ -86,8 +76,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
     /// <summary>
     /// 动态关键词注入
     /// </summary>
-    private async Task InjectDynamicKeywordAsync(PreprocessContext context, DynamicKeywordMatchResult dynamicMatch, CancellationToken ct)
-    {
+    private async Task InjectDynamicKeywordAsync(PreprocessContext context, DynamicKeywordMatchResult dynamicMatch, CancellationToken ct) {
         _logger?.LogDebug("[DynamicKeyword] 检测到动态关键词 '{Keyword}'，Section: {Section}",
             dynamicMatch.MatchedKeyword, dynamicMatch.SectionName);
 
@@ -95,8 +84,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
             ? dynamicMatch.CustomContent!
             : KeywordSectionMapper.GetSectionContentForName(dynamicMatch.SectionName);
 
-        if (string.IsNullOrEmpty(sectionContent))
-        {
+        if (string.IsNullOrEmpty(sectionContent)) {
             _logger?.LogDebug("[DynamicKeyword] Section '{Section}' 无内容，跳过注入", dynamicMatch.SectionName);
             return;
         }
@@ -117,13 +105,11 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
     /// <summary>
     /// 记录关键词未命中事件 — 供后台 Agent 分析优化词表
     /// </summary>
-    private void RecordKeywordMiss(string input)
-    {
+    private void RecordKeywordMiss(string input) {
         if (string.IsNullOrWhiteSpace(input) || input.Length > 200)
             return;
 
-        try
-        {
+        try {
             var dir = AppDataConstants.Paths.SessionsDirectory;
             var filePath = Path.Combine(dir, MissLogFileName);
 
@@ -135,9 +121,7 @@ public sealed partial class KeywordInjectionMiddleware : ServiceEntity, IAnalyze
 
             var entry = $"{{\"timestamp\":\"{DateTime.UtcNow:O}\",\"input\":\"{JsonEncode(input)}\"}}\n";
             _fs.AppendAllText(filePath, entry);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "记录关键词 miss 失败");
         }
     }

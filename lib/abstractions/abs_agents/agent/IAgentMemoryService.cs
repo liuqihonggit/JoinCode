@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Agent 记忆服务接口 — 对齐 TS agentMemory.ts + agentMemorySnapshot.ts
 /// 管理 Agent 的三种作用域记忆（user/project/local）和快照机制
 /// </summary>
-public interface IAgentMemoryService
-{
+public interface IAgentMemoryService {
     /// <summary>
     /// 获取 Agent 记忆目录路径
     /// </summary>

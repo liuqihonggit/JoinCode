@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("SESSIONS")  → BridgeAction.Sessions (OrdinalIgnoreCase)
 /// - BridgeAction.Status.ToValue() → "status"
 /// </summary>
-public enum BridgeAction
-{
+public enum BridgeAction {
     /// <summary>显示 QR 码用于移动端连接</summary>
     [EnumValue("qr")] Qr,
 

@@ -8,8 +8,7 @@ namespace Tools.Shell;
 /// 配置: ShellExecutionConfig.AbsoluteTimeoutSeconds 覆盖默认120s，0=禁用
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMiddleware {
     private readonly ShellExecutionConfig _config;
     private readonly ILogger<AbsoluteTimeoutMiddleware>? _logger;
 
@@ -18,8 +17,7 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
     /// </summary>
     /// <param name="config">Shell 执行配置</param>
     /// <param name="logger">日志器（可选）</param>
-    public AbsoluteTimeoutMiddleware(ShellExecutionConfig config, ILogger<AbsoluteTimeoutMiddleware>? logger = null)
-    {
+    public AbsoluteTimeoutMiddleware(ShellExecutionConfig config, ILogger<AbsoluteTimeoutMiddleware>? logger = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
     }
@@ -28,12 +26,10 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var policy = context.TimeoutPolicy;
 
-        if (policy.AbsoluteTimeoutSeconds is not { } policySeconds || policySeconds <= 0)
-        {
+        if (policy.AbsoluteTimeoutSeconds is not { } policySeconds || policySeconds <= 0) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -50,24 +46,18 @@ public sealed partial class AbsoluteTimeoutMiddleware : ServiceEntity, IShellMid
         var absoluteTimeout = TimeSpan.FromSeconds(effectiveSeconds);
         using var cts = TimeoutHelper.CreateLinkedTimeout(ct, absoluteTimeout);
 
-        try
-        {
+        try {
             await next(context, cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             _logger?.LogWarning("Shell 命令绝对超时 ({Seconds}s): {Command}", effectiveSeconds, context.Command);
             SetTimeoutResult(context, effectiveSeconds);
-        }
-        catch (TimeoutException ex) when (!ct.IsCancellationRequested)
-        {
+        } catch (TimeoutException ex) when (!ct.IsCancellationRequested) {
             _logger?.LogWarning("Shell 命令超时: {Command} - {Message}", context.Command, ex.Message);
             SetTimeoutResult(context, effectiveSeconds);
         }
     }
 
-    private static void SetTimeoutResult(ShellPipelineContext context, int seconds)
-    {
+    private static void SetTimeoutResult(ShellPipelineContext context, int seconds) {
         var toolName = context.Provider.Kind == SystemActuatorKind.PowerShell ? ShellToolNameEnumConstants.Powershell : ShellToolNameEnumConstants.Bash;
         var sb = new StringBuilder(512);
         sb.AppendLine($"命令执行超时（{seconds}秒）。");

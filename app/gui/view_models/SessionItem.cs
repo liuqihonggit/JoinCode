@@ -4,8 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 侧边栏会话条目 — 占位阶段仅展示结构，P1 接入引擎后映射真实会话。
 /// 需求11：支持树形展示（主会话展开后显示子会话），ParentId=null 为顶层主会话。
 /// </summary>
-public sealed partial class SessionItem : ObservableObject
-{
+public sealed partial class SessionItem : ObservableObject {
     /// <summary>会话唯一 ID（持久化到 ~/.jcc/sessions/{Id}.json，用于恢复与删除）</summary>
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
 

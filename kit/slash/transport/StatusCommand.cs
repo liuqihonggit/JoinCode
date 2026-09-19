@@ -11,16 +11,14 @@ internal record class RenderOverviewContext(
 /// 渲染包含版本、工作目录、会话信息、Provider、模型、API 密钥、MCP 工具等信息的双标签面板
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Status, Description = "显示版本、模型、账户、API连接和工具状态", Usage = "/status", Category = ChatCommandCategory.Info, ExposeToMcp = true)]
-public sealed class StatusCommand : ChatCommandBase
-{
+public sealed class StatusCommand : ChatCommandBase {
     private readonly IClockService _clock = SystemClockService.Instance;
     /// <summary>
     /// 执行 /status 命令，渲染概览与 Token 用量双标签面板
     /// </summary>
     /// <param name="context">命令执行上下文，提供会话、服务与取消令牌</param>
     /// <returns>表示命令执行结果的 <see cref="ChatCommandResult"/>，始终为 Continue</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
         // 预收集数据
         var version = GetType().Assembly.GetName().Version?.ToString() ?? "unknown";
@@ -30,8 +28,7 @@ public sealed class StatusCommand : ChatCommandBase
         var fastModeService = ChatCommandBase.GetService<IFastModeService>(context, typeof(IFastModeService));
         var currentModel = fastModeService?.PrimaryModelId ?? "unknown";
         var isFastMode = fastModeService?.IsFastModeActive ?? false;
-        if (isFastMode && fastModeService?.FastModelId is not null)
-        {
+        if (isFastMode && fastModeService?.FastModelId is not null) {
             currentModel = fastModeService.FastModelId;
         }
 
@@ -51,8 +48,7 @@ public sealed class StatusCommand : ChatCommandBase
 
         // 获取消息历史
         string messageInfo;
-        try
-        {
+        try {
             var history = await services.ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
             var userCount = history.Count(m =>
                 string.Equals(m.Role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase));
@@ -63,37 +59,27 @@ public sealed class StatusCommand : ChatCommandBase
                 : "无";
 
             messageInfo = $"  总消息数:   {history.Count}\n  用户输入:   {userCount}\n  AI回复:     {assistantCount}\n  最后活动:   {lastMsg}";
-        }
-        catch
-        {
+        } catch {
             messageInfo = $"  {TerminalColors.Muted}无法获取对话历史{AnsiStyleEnumConstants.Reset}";
         }
 
         // 获取 Token 用量
         string tokenInfo;
-        if (services.UsageTracker is not null)
-        {
+        if (services.UsageTracker is not null) {
             var stats = services.UsageTracker.GetSessionStatistics(context.SessionId);
-            if (stats.TotalInputTokens > 0 || stats.TotalOutputTokens > 0)
-            {
+            if (stats.TotalInputTokens > 0 || stats.TotalOutputTokens > 0) {
                 tokenInfo = $"  输入: {stats.TotalInputTokens:N0}\n  输出: {stats.TotalOutputTokens:N0}\n  总计: {stats.TotalInputTokens + stats.TotalOutputTokens:N0}";
-            }
-            else
-            {
+            } else {
                 tokenInfo = $"  {TerminalColors.Muted}暂无 Token 用量数据{AnsiStyleEnumConstants.Reset}";
             }
-        }
-        else
-        {
+        } else {
             tokenInfo = $"  {TerminalColors.Muted}用量追踪器不可用{AnsiStyleEnumConstants.Reset}";
         }
 
         // 获取费用
-        if (services.CostTracker is not null)
-        {
+        if (services.CostTracker is not null) {
             var costStats = services.CostTracker.GetTotalStatistics();
-            if (costStats.TotalCostUsd > 0)
-            {
+            if (costStats.TotalCostUsd > 0) {
                 tokenInfo += $"\n  费用: ${costStats.TotalCostUsd:F4} USD";
             }
         }
@@ -103,8 +89,7 @@ public sealed class StatusCommand : ChatCommandBase
 
         var panel = new TabPanel(
             ["概览", "Token用量"],
-            tabIndex => tabIndex switch
-            {
+            tabIndex => tabIndex switch {
                 0 => RenderOverview(new RenderOverviewContext(version, cwd, context.SessionId, context.SessionStartedAt, duration, providerName, currentModel, isFastMode, effortLevel, apiStatus, mcpStatus, messageInfo)),
                 1 => RenderTokenUsage(tokenInfo),
                 _ => string.Empty
@@ -115,8 +100,7 @@ public sealed class StatusCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static string RenderOverview(RenderOverviewContext ctx)
-    {
+    private static string RenderOverview(RenderOverviewContext ctx) {
         var sb = new StringBuilder();
         sb.AppendLine($"  版本:       {ctx.Version}");
         sb.AppendLine($"  工作目录:   {ctx.Cwd}");
@@ -127,8 +111,7 @@ public sealed class StatusCommand : ChatCommandBase
         sb.AppendLine($"  当前模型:   {ctx.CurrentModel}");
         sb.AppendLine($"  快速模式:   {(ctx.IsFastMode ? "开启" : "关闭")}");
 
-        if (!string.IsNullOrEmpty(ctx.EffortLevel))
-        {
+        if (!string.IsNullOrEmpty(ctx.EffortLevel)) {
             sb.AppendLine($"  推理力度:   {ctx.EffortLevel}");
         }
 
@@ -139,8 +122,7 @@ public sealed class StatusCommand : ChatCommandBase
         return sb.ToString();
     }
 
-    private static string RenderTokenUsage(string tokenInfo)
-    {
+    private static string RenderTokenUsage(string tokenInfo) {
         var sb = new StringBuilder();
         sb.AppendLine($"{TerminalColors.Accent}Token 用量{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
@@ -148,14 +130,12 @@ public sealed class StatusCommand : ChatCommandBase
         return sb.ToString();
     }
 
-    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string provider)
-    {
+    private static IProviderDefinition? ResolveProviderDefinition(ChatCommandContext context, string provider) {
         var registry = ChatCommandBase.GetService<IProviderDefinitionRegistry>(context, typeof(IProviderDefinitionRegistry));
         return registry?.TryGet(provider);
     }
 
-    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context)
-    {
+    private static IModelCatalog ResolveModelCatalog(ChatCommandContext context) {
         return ChatCommandBase.GetService<IModelCatalog>(context, typeof(IModelCatalog))
             ?? throw new InvalidOperationException("[APP006] 模型目录服务未初始化");
     }

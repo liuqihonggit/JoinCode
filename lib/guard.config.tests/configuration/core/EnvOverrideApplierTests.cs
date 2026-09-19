@@ -5,8 +5,7 @@ namespace Core.Tests.Configuration;
 /// EnvOverrideApplier 推断逻辑单元测试 — 锁定 vendor → protocol/apiKeyEnvVar 映射行为
 /// 覆盖: 7 个已知 vendor + null/空/未知 + 大小写不敏感
 /// </summary>
-public class EnvOverrideApplierTests
-{
+public class EnvOverrideApplierTests {
     [Theory]
     [InlineData(null, null)]
     [InlineData("", null)]
@@ -20,8 +19,7 @@ public class EnvOverrideApplierTests
     [InlineData("azure", "azure")]
     [InlineData("ANTHROPIC", "anthropic")]
     [InlineData("Azure", "azure")]
-    public void InferProtocol_ReturnsExpected(string? vendor, string? expected)
-    {
+    public void InferProtocol_ReturnsExpected(string? vendor, string? expected) {
         EnvOverrideApplier.InferProtocol(vendor).Should().Be(expected);
     }
 
@@ -38,8 +36,7 @@ public class EnvOverrideApplierTests
     [InlineData("sensenova", "SENSENOVA_API_KEY")]
     [InlineData("OpenAI", "OPENAI_API_KEY")]
     [InlineData("DeepSeek", "DEEPSEEK_API_KEY")]
-    public void InferApiKeyEnvVar_ReturnsExpected(string? vendor, string? expected)
-    {
+    public void InferApiKeyEnvVar_ReturnsExpected(string? vendor, string? expected) {
         EnvOverrideApplier.InferApiKeyEnvVar(vendor).Should().Be(expected);
     }
 }

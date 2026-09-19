@@ -7,8 +7,7 @@ namespace JoinCode.Transport;
 /// 用 byte[] 载荷替代 JsonRpcMessage/string，使传输层完全不感知上层协议。
 /// MCP 传输层可在此接口上构建 JSON-RPC 协议适配。
 /// </remarks>
-public interface ITransport : IAsyncDisposable
-{
+public interface ITransport : IAsyncDisposable {
     /// <summary>建立传输连接</summary>
     Task StartAsync(CancellationToken ct = default);
 
@@ -34,8 +33,7 @@ public interface ITransport : IAsyncDisposable
 /// <summary>
 /// 字节载荷消息事件参数
 /// </summary>
-public sealed class TransportPayloadEventArgs(ReadOnlyMemory<byte> payload) : EventArgs
-{
+public sealed class TransportPayloadEventArgs(ReadOnlyMemory<byte> payload) : EventArgs {
     /// <summary>原始字节载荷</summary>
     public ReadOnlyMemory<byte> Payload { get; } = payload;
 }
@@ -43,8 +41,7 @@ public sealed class TransportPayloadEventArgs(ReadOnlyMemory<byte> payload) : Ev
 /// <summary>
 /// 传输错误事件参数
 /// </summary>
-public sealed class TransportErrorEventArgs : EventArgs
-{
+public sealed class TransportErrorEventArgs : EventArgs {
     /// <summary>错误异常</summary>
     public Exception Exception { get; }
 
@@ -55,8 +52,7 @@ public sealed class TransportErrorEventArgs : EventArgs
     /// 初始化传输错误事件参数
     /// </summary>
     /// <param name="exception">错误异常</param>
-    public TransportErrorEventArgs(Exception exception)
-    {
+    public TransportErrorEventArgs(Exception exception) {
         Exception = exception;
     }
 
@@ -65,8 +61,7 @@ public sealed class TransportErrorEventArgs : EventArgs
     /// </summary>
     /// <param name="exception">错误异常</param>
     /// <param name="message">错误描述消息</param>
-    public TransportErrorEventArgs(Exception exception, string message)
-    {
+    public TransportErrorEventArgs(Exception exception, string message) {
         Exception = exception;
         Message = message;
     }

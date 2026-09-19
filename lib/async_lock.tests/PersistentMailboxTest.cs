@@ -3,11 +3,9 @@ namespace Core.Utils;
 /// <summary>
 /// PersistentMailbox 单元测试 — 验证持久化发送、确认、崩溃恢复。
 /// </summary>
-public class PersistentMailboxTest
-{
+public class PersistentMailboxTest {
     [Fact]
-    public async Task PersistentSendAsync_PersistsAndEnqueues()
-    {
+    public async Task PersistentSendAsync_PersistsAndEnqueues() {
         var store = new InMemoryPersistentStore<string>();
         await using var actor = new SimpleTestActor();
         await using var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
@@ -19,8 +17,7 @@ public class PersistentMailboxTest
     }
 
     [Fact]
-    public async Task AckAsync_DecreasesPendingCount()
-    {
+    public async Task AckAsync_DecreasesPendingCount() {
         var store = new InMemoryPersistentStore<string>();
         await using var actor = new SimpleTestActor();
         await using var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
@@ -32,8 +29,7 @@ public class PersistentMailboxTest
     }
 
     [Fact]
-    public async Task RecoverAsync_ReplaysPendingMessages()
-    {
+    public async Task RecoverAsync_ReplaysPendingMessages() {
         var store = new InMemoryPersistentStore<string>();
         await using var actor = new SimpleTestActor();
         await using var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
@@ -52,8 +48,7 @@ public class PersistentMailboxTest
     }
 
     [Fact]
-    public async Task DisposeAsync_DisposesUnderlyingActor()
-    {
+    public async Task DisposeAsync_DisposesUnderlyingActor() {
         var store = new InMemoryPersistentStore<string>();
         var actor = new SimpleTestActor();
         var mailbox = new PersistentMailbox<string, Unit>(actor, store, "actor-1");
@@ -65,8 +60,7 @@ public class PersistentMailboxTest
     }
 
     [Fact]
-    public async Task InMemoryStore_LoadPending_ReturnsAllPersisted()
-    {
+    public async Task InMemoryStore_LoadPending_ReturnsAllPersisted() {
         var store = new InMemoryPersistentStore<string>();
         await store.PersistAsync("a", "msg-1", default);
         await store.PersistAsync("a", "msg-2", default);
@@ -80,12 +74,10 @@ public class PersistentMailboxTest
 }
 
 /// <summary>简单测试 Actor — 接收 string 命令,可选回调</summary>
-internal sealed class SimpleTestActor : ActorBase<string, Unit>
-{
+internal sealed class SimpleTestActor : ActorBase<string, Unit> {
     public Action<string>? OnMessage;
 
-    protected override ValueTask HandleAsync(string command, CancellationToken ct)
-    {
+    protected override ValueTask HandleAsync(string command, CancellationToken ct) {
         OnMessage?.Invoke(command);
         return ValueTask.CompletedTask;
     }

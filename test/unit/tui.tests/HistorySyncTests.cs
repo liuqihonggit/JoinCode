@@ -5,11 +5,9 @@ namespace Tui.Tests;
 /// 回归背景（T1）：/resume 在引擎层装入历史、/clear 清空上下文，但 TUI 本地 chatHistory 不刷新，
 /// 导致后续对话上下文与引擎不一致（恢复的会话对模型不可见）。
 /// </summary>
-public class HistorySyncTests
-{
+public class HistorySyncTests {
     [Fact]
-    public void SyncHistoryFromEngine_MapsRolesAndContents_ReplacesHistory()
-    {
+    public void SyncHistoryFromEngine_MapsRolesAndContents_ReplacesHistory() {
         var history = new MessageList();
         history.AddUserMessage("旧内容");
 
@@ -34,8 +32,7 @@ public class HistorySyncTests
     }
 
     [Fact]
-    public void SyncHistoryFromEngine_EmptyRecords_ClearsHistory()
-    {
+    public void SyncHistoryFromEngine_EmptyRecords_ClearsHistory() {
         // /clear 后引擎返回空列表 — chatHistory 必须同步清空
         var history = new MessageList();
         history.AddUserMessage("将被清空");
@@ -47,8 +44,7 @@ public class HistorySyncTests
     }
 
     [Fact]
-    public void SyncHistoryFromEngine_UnknownRole_FallsBackToTool()
-    {
+    public void SyncHistoryFromEngine_UnknownRole_FallsBackToTool() {
         var history = new MessageList();
 
         TuiModeRunner.SyncHistoryFromEngine(

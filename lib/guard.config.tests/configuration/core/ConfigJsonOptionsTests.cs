@@ -6,17 +6,12 @@ namespace Guard.Tests.Configuration;
 /// 且 ModelItemConfig 无 [JsonPropertyName] 导致字段名 PascalCase（Id/DisplayName/Description），
 /// 与顶层 [JsonPropertyName("vendor")] 的 camelCase 混用，用户阅读困难。
 /// </summary>
-public class ConfigJsonOptionsTests
-{
+public class ConfigJsonOptionsTests {
     [Fact]
-    public void SerializeIndented_含中文Description_输出真实中文而非Unicode转义()
-    {
-        var settings = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>
-            {
-                ["sensenova"] = new ProfileSettings
-                {
+    public void SerializeIndented_含中文Description_输出真实中文而非Unicode转义() {
+        var settings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["sensenova"] = new ProfileSettings {
                     Provider = "sensenova",
                     Model = "sensenova-6.7-flash-lite",
                     Models =
@@ -40,14 +35,10 @@ public class ConfigJsonOptionsTests
     }
 
     [Fact]
-    public void SerializeIndented_模型字段_输出camelCase而非PascalCase()
-    {
-        var settings = new SettingsJson
-        {
-            Vendor = new Dictionary<string, ProfileSettings>
-            {
-                ["test"] = new ProfileSettings
-                {
+    public void SerializeIndented_模型字段_输出camelCase而非PascalCase() {
+        var settings = new SettingsJson {
+            Vendor = new Dictionary<string, ProfileSettings> {
+                ["test"] = new ProfileSettings {
                     Models =
                     [
                         new ModelItemConfig { Id = "m1", DisplayName = "Model1", Description = "描述" }
@@ -68,10 +59,8 @@ public class ConfigJsonOptionsTests
     }
 
     [Fact]
-    public void SerializeCompact_含中文_输出真实中文()
-    {
-        var data = new Dictionary<string, string>
-        {
+    public void SerializeCompact_含中文_输出真实中文() {
+        var data = new Dictionary<string, string> {
             ["endpoint"] = "https://example.com",
             ["note"] = "中文备注"
         };

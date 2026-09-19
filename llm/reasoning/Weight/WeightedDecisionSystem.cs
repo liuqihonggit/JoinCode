@@ -4,8 +4,7 @@ namespace JoinCode.Reasoning.Weight;
 /// <summary>
 /// 裁决结果 — 含加权决策的详细分解
 /// </summary>
-public sealed class WeightedVerdictResult
-{
+public sealed class WeightedVerdictResult {
     /// <summary>
     /// 控方证据链评分
     /// </summary>
@@ -45,8 +44,7 @@ public sealed class WeightedVerdictResult
 /// <summary>
 /// 加权决策系统 — 整合5维权重、链式传播、贝叶斯更新、拓扑分析
 /// </summary>
-public sealed class WeightedDecisionSystem
-{
+public sealed class WeightedDecisionSystem {
     private readonly EvidenceWeightCalculator _weightCalculator = new();
     private readonly ChainWeightPropagator _propagator = new();
     private readonly BayesianEvidenceUpdater _bayesianUpdater = new();
@@ -67,15 +65,13 @@ public sealed class WeightedDecisionSystem
     /// </summary>
     public WeightedVerdictResult MakeWeightedDecision(
         IReadOnlyList<EvidenceRecord> prosecutionEvidence,
-        IReadOnlyList<EvidenceRecord> defenseEvidence)
-    {
+        IReadOnlyList<EvidenceRecord> defenseEvidence) {
         var prosecutionScore = _propagator.CalculateChainScore(prosecutionEvidence);
         var defenseScore = _propagator.CalculateChainScore(defenseEvidence);
 
         var allEvidence = prosecutionEvidence.Concat(defenseEvidence).ToList();
 
-        foreach (var evidence in allEvidence)
-        {
+        foreach (var evidence in allEvidence) {
             _bayesianUpdater.UpdateFromEvidence(evidence);
         }
 
@@ -89,8 +85,7 @@ public sealed class WeightedDecisionSystem
             topologyScore.TotalScore,
             _bayesianUpdater.GetAverageVariance());
 
-        return new WeightedVerdictResult
-        {
+        return new WeightedVerdictResult {
             ProsecutionChainScore = prosecutionScore,
             DefenseChainScore = defenseScore,
             ProsecutionWeight = prosWeight,
@@ -103,8 +98,7 @@ public sealed class WeightedDecisionSystem
 
     private static double CalculateFinalConfidence(
         double prosWeight, double defWeight,
-        double topologyScore, double beliefVariance)
-    {
+        double topologyScore, double beliefVariance) {
         var weightGap = Math.Abs(prosWeight - defWeight);
         var gapScore = Math.Min(1.0, weightGap / 0.5);
 

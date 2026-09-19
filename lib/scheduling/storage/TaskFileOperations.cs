@@ -8,13 +8,11 @@ public sealed record TaskFileOperations(
     IFileOperationService FileOperationService,
     ITaskFileWriter TaskFileWriter,
     ITaskFileReader TaskFileReader,
-    IFileSystem FileSystem)
-{
+    IFileSystem FileSystem) {
     /// <summary>
     /// 从服务提供者创建 TaskFileOperations 实例，用于 DI 注册
     /// </summary>
-    public static TaskFileOperations FromServiceProvider(IServiceProvider sp)
-    {
+    public static TaskFileOperations FromServiceProvider(IServiceProvider sp) {
         return new TaskFileOperations(
             sp.GetRequiredService<IFileOperationService>(),
             sp.GetRequiredService<ITaskFileWriter>(),

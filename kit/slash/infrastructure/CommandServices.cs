@@ -3,8 +3,7 @@ namespace JoinCode.ChatCommands;
 /// <summary>
 /// 命令服务容器 — 聚合所有可选服务引用，从 ChatCommandContext 中拆分
 /// </summary>
-public sealed class CommandServices
-{
+public sealed class CommandServices {
     /// <summary>DI 服务提供者</summary>
     public IServiceProvider? ServiceProvider { get; init; }
 

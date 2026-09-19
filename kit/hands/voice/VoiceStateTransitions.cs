@@ -5,8 +5,7 @@ namespace Services.Voice;
 /// <para>原 VoiceService.SetState 无转换校验,现统一提取为转换表</para>
 /// <para>Idle→Recording, Recording→Processing/Error/Idle, Processing→Idle/Error, Error→Idle</para>
 /// </summary>
-public static class VoiceStateTransitions
-{
+public static class VoiceStateTransitions {
     /// <summary>
     /// 状态转换位掩码表 — 索引为 (int)VoiceRecordingState，值为目标状态位掩码。
     /// 替代 FrozenDictionary&lt;VoiceRecordingState, FrozenSet&lt;VoiceRecordingState&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
@@ -22,10 +21,8 @@ public static class VoiceStateTransitions
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
     /// </summary>
-    public static bool CanTransitionTo(VoiceRecordingState current, VoiceRecordingState target)
-    {
-        if (current == target)
-        {
+    public static bool CanTransitionTo(VoiceRecordingState current, VoiceRecordingState target) {
+        if (current == target) {
             return true;
         }
 

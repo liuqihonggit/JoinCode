@@ -1,10 +1,8 @@
 namespace Host.Tests.Cli;
 
-public sealed class CommandLineOptionsTests
-{
+public sealed class CommandLineOptionsTests {
     [Fact]
-    public void DefaultOptions_ShouldHaveExpectedDefaults()
-    {
+    public void DefaultOptions_ShouldHaveExpectedDefaults() {
         var options = new CommandLineOptions();
 
         options.ShowHelp.Should().BeFalse();
@@ -21,56 +19,49 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void IsNonInteractiveMode_WithPrompt_ShouldBeTrue()
-    {
+    public void IsNonInteractiveMode_WithPrompt_ShouldBeTrue() {
         var options = new CommandLineOptions { Prompt = "hello" };
 
         options.IsNonInteractiveMode.Should().BeTrue();
     }
 
     [Fact]
-    public void IsNonInteractiveMode_WithNonInteractiveFlag_ShouldBeTrue()
-    {
+    public void IsNonInteractiveMode_WithNonInteractiveFlag_ShouldBeTrue() {
         var options = new CommandLineOptions { NonInteractive = true };
 
         options.IsNonInteractiveMode.Should().BeTrue();
     }
 
     [Fact]
-    public void IsNonInteractiveMode_WithForceInteractive_ShouldOverrideNonInteractive()
-    {
+    public void IsNonInteractiveMode_WithForceInteractive_ShouldOverrideNonInteractive() {
         var options = new CommandLineOptions { NonInteractive = true, ForceInteractive = true };
 
         options.IsNonInteractiveMode.Should().BeFalse();
     }
 
     [Fact]
-    public void IsPipeMode_WithPipeName_ShouldBeTrue()
-    {
+    public void IsPipeMode_WithPipeName_ShouldBeTrue() {
         var options = new CommandLineOptions { PipeName = "test-pipe" };
 
         options.IsPipeMode.Should().BeTrue();
     }
 
     [Fact]
-    public void IsPipeMode_WithEmptyPipeName_ShouldBeFalse()
-    {
+    public void IsPipeMode_WithEmptyPipeName_ShouldBeFalse() {
         var options = new CommandLineOptions { PipeName = "" };
 
         options.IsPipeMode.Should().BeFalse();
     }
 
     [Fact]
-    public void AwaitTimeoutSeconds_WithValidValue_ShouldBeSet()
-    {
+    public void AwaitTimeoutSeconds_WithValidValue_ShouldBeSet() {
         var options = new CommandLineOptions { AwaitTimeoutSeconds = 5 };
 
         options.AwaitTimeoutSeconds.Should().Be(5);
     }
 
     [Fact]
-    public void CliArgParser_ParseHelp_ShouldSetHelp()
-    {
+    public void CliArgParser_ParseHelp_ShouldSetHelp() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Help });
 
         result.Help.Should().BeTrue();
@@ -78,8 +69,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseVersion_ShouldSetVersion()
-    {
+    public void CliArgParser_ParseVersion_ShouldSetVersion() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Version });
 
         result.Version.Should().BeTrue();
@@ -87,8 +77,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParsePrompt_ShouldSetPrompt()
-    {
+    public void CliArgParser_ParsePrompt_ShouldSetPrompt() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Prompt, "hello world" });
 
         result.Prompt.Should().Be("hello world");
@@ -96,8 +85,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseShortPrompt_ShouldSetPrompt()
-    {
+    public void CliArgParser_ParseShortPrompt_ShouldSetPrompt() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.PromptAlias__p, "test" });
 
         result.Prompt.Should().Be("test");
@@ -105,8 +93,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseModel_ShouldSetModel()
-    {
+    public void CliArgParser_ParseModel_ShouldSetModel() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Model, "gpt-4o" });
 
         result.Model.Should().Be("gpt-4o");
@@ -114,8 +101,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseTrust_ShouldSetTrust()
-    {
+    public void CliArgParser_ParseTrust_ShouldSetTrust() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Trust });
 
         result.Trust.Should().BeTrue();
@@ -123,8 +109,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseNonInteractive_ShouldSetNonInteractive()
-    {
+    public void CliArgParser_ParseNonInteractive_ShouldSetNonInteractive() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.NonInteractive });
 
         result.NonInteractive.Should().BeTrue();
@@ -132,8 +117,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseForceInteractive_ShouldSetForceInteractive()
-    {
+    public void CliArgParser_ParseForceInteractive_ShouldSetForceInteractive() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.ForceInteractive });
 
         result.ForceInteractive.Should().BeTrue();
@@ -141,8 +125,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseAwait_ShouldSetAwait()
-    {
+    public void CliArgParser_ParseAwait_ShouldSetAwait() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Await, "10" });
 
         result.Await.Should().Be("10");
@@ -150,8 +133,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseDebugLog_ShouldSetDebugLog()
-    {
+    public void CliArgParser_ParseDebugLog_ShouldSetDebugLog() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.DebugLog });
 
         result.DebugLog.Should().BeTrue();
@@ -159,8 +141,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParsePipe_ShouldSetPipe()
-    {
+    public void CliArgParser_ParsePipe_ShouldSetPipe() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Pipe, "my-pipe" });
 
         result.Pipe.Should().Be("my-pipe");
@@ -168,8 +149,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseMultipleOptions_ShouldSetAll()
-    {
+    public void CliArgParser_ParseMultipleOptions_ShouldSetAll() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Trust, JccCliArgEnumConstants.Model, "gpt-4o" });
 
         result.Trust.Should().BeTrue();
@@ -178,8 +158,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseEmpty_ShouldHaveNoErrors()
-    {
+    public void CliArgParser_ParseEmpty_ShouldHaveNoErrors() {
         var result = CliArgParser.Parse(Array.Empty<string>());
 
         result.HasError.Should().BeFalse();
@@ -188,8 +167,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseContinue_ShouldSetContinue()
-    {
+    public void CliArgParser_ParseContinue_ShouldSetContinue() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Continue });
 
         result.Continue.Should().BeTrue();
@@ -197,8 +175,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseShortContinue_ShouldSetContinue()
-    {
+    public void CliArgParser_ParseShortContinue_ShouldSetContinue() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.ContinueAlias__c });
 
         result.Continue.Should().BeTrue();
@@ -206,8 +183,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseResume_ShouldSetResume()
-    {
+    public void CliArgParser_ParseResume_ShouldSetResume() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.Resume, "session-abc" });
 
         result.Resume.Should().Be("session-abc");
@@ -215,8 +191,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseShortResume_ShouldSetResume()
-    {
+    public void CliArgParser_ParseShortResume_ShouldSetResume() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.ResumeAlias__r, "abc-123" });
 
         result.Resume.Should().Be("abc-123");
@@ -224,8 +199,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParsePermissionMode_ShouldSetPermissionMode()
-    {
+    public void CliArgParser_ParsePermissionMode_ShouldSetPermissionMode() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.PermissionMode, "plan" });
 
         result.PermissionMode.Should().Be("plan");
@@ -233,8 +207,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseDangerouslySkipPermissions_ShouldSetFlag()
-    {
+    public void CliArgParser_ParseDangerouslySkipPermissions_ShouldSetFlag() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.DangerouslySkipPermissions });
 
         result.DangerouslySkipPermissions.Should().BeTrue();
@@ -242,8 +215,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CommandLineOptions_DefaultPermissionMode_ShouldBeNull()
-    {
+    public void CommandLineOptions_DefaultPermissionMode_ShouldBeNull() {
         var options = new CommandLineOptions();
 
         options.PermissionMode.Should().BeNull();
@@ -251,8 +223,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CommandLineOptions_DefaultContinueSession_ShouldBeFalse()
-    {
+    public void CommandLineOptions_DefaultContinueSession_ShouldBeFalse() {
         var options = new CommandLineOptions();
 
         options.ContinueSession.Should().BeFalse();
@@ -260,8 +231,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseAllowedTools_ShouldSetAllowedTools()
-    {
+    public void CliArgParser_ParseAllowedTools_ShouldSetAllowedTools() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.AllowedTools, "Read,Edit,Bash(git:*)" });
 
         result.AllowedTools.Should().Be("Read,Edit,Bash(git:*)");
@@ -269,8 +239,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseDisallowedTools_ShouldSetDisallowedTools()
-    {
+    public void CliArgParser_ParseDisallowedTools_ShouldSetDisallowedTools() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.DisallowedTools, "WebFetch Write" });
 
         result.DisallowedTools.Should().Be("WebFetch Write");
@@ -278,8 +247,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CommandLineOptions_DefaultAllowedTools_ShouldBeEmpty()
-    {
+    public void CommandLineOptions_DefaultAllowedTools_ShouldBeEmpty() {
         var options = new CommandLineOptions();
 
         options.AllowedTools.Should().NotBeNull();
@@ -289,8 +257,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseSystemPrompt_ShouldSetSystemPrompt()
-    {
+    public void CliArgParser_ParseSystemPrompt_ShouldSetSystemPrompt() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.SystemPrompt, "你是一个测试助手" });
 
         result.SystemPrompt.Should().Be("你是一个测试助手");
@@ -298,8 +265,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CliArgParser_ParseAppendSystemPrompt_ShouldSetAppendSystemPrompt()
-    {
+    public void CliArgParser_ParseAppendSystemPrompt_ShouldSetAppendSystemPrompt() {
         var result = CliArgParser.Parse(new[] { JccCliArgEnumConstants.AppendSystemPrompt, "使用简洁回复" });
 
         result.AppendSystemPrompt.Should().Be("使用简洁回复");
@@ -307,8 +273,7 @@ public sealed class CommandLineOptionsTests
     }
 
     [Fact]
-    public void CommandLineOptions_DefaultSystemPrompt_ShouldBeNull()
-    {
+    public void CommandLineOptions_DefaultSystemPrompt_ShouldBeNull() {
         var options = new CommandLineOptions();
 
         options.SystemPrompt.Should().BeNull();

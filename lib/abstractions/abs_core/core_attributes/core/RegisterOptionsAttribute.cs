@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// 标记 Options 类自动绑定到 Configuration — 源码生成器据此生成 BindConfiguration 调用
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class RegisterOptionsAttribute : Attribute
-{
+public sealed class RegisterOptionsAttribute : Attribute {
     /// <summary>
     /// Configuration 路径（如 "Workflow:FileOperation"）
     /// </summary>

@@ -3,8 +3,7 @@ namespace JoinCode.Gui.ViewModels;
 /// <summary>
 /// MainViewModel 错误 toast partial — 错误弹出提示文案、复制、关闭。
 /// </summary>
-public sealed partial class MainViewModel
-{
+public sealed partial class MainViewModel {
     /// <summary>错误 toast 文案（非空时显示错误弹出提示）</summary>
     [ObservableProperty]
     private string? _errorToastText;
@@ -21,8 +20,7 @@ public sealed partial class MainViewModel
 
     /// <summary>复制错误内容到剪贴板并关闭 toast</summary>
     [RelayCommand]
-    private void CopyErrorToast()
-    {
+    private void CopyErrorToast() {
         if (string.IsNullOrEmpty(ErrorToastText))
             return;
         ErrorToastCopy = ErrorToastText;

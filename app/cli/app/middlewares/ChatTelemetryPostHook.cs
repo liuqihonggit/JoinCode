@@ -4,17 +4,14 @@ namespace JoinCode.App.Middlewares;
 /// Chat 管道 Post Hook — 遥测 Dispose Span + 指标记录
 /// </summary>
 [Register(typeof(IPipelinePostHook<Core.Context.ChatMiddlewareContext>), ServiceLifetime.Singleton)]
-internal sealed partial class ChatTelemetryPostHook : ServiceEntity, IPipelinePostHook<Core.Context.ChatMiddlewareContext>
-{
+internal sealed partial class ChatTelemetryPostHook : ServiceEntity, IPipelinePostHook<Core.Context.ChatMiddlewareContext> {
     private readonly ITelemetryService? _telemetryService;
 
-    public ChatTelemetryPostHook(ITelemetryService? telemetryService)
-    {
+    public ChatTelemetryPostHook(ITelemetryService? telemetryService) {
         _telemetryService = telemetryService;
     }
 
-    public async Task InvokeAsync(Core.Context.ChatMiddlewareContext context, CancellationToken ct)
-    {
+    public async Task InvokeAsync(Core.Context.ChatMiddlewareContext context, CancellationToken ct) {
         if (_telemetryService is null)
             return;
 
@@ -28,8 +25,7 @@ internal sealed partial class ChatTelemetryPostHook : ServiceEntity, IPipelinePo
         if (context.Span is not null) await context.Span.DisposeAsync().ConfigureAwait(false);
 
         _telemetryService.RecordCount("chat.send.count", new() { ["mode"] = "events" }, "count", "Chat message send count");
-        if (context.FinalUsage is not null)
-        {
+        if (context.FinalUsage is not null) {
             var tokenCounter = _telemetryService.GetCounter("chat.send.tokens", "tokens", "Chat token usage");
             tokenCounter.Add(context.FinalUsage.PromptTokens, new Dictionary<string, string> { ["mode"] = "events", ["type"] = "prompt" });
             tokenCounter.Add(context.FinalUsage.CompletionTokens, new Dictionary<string, string> { ["mode"] = "events", ["type"] = "completion" });

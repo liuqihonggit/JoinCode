@@ -13,8 +13,7 @@ internal sealed record ProbeEnvCmd(bool ForceRescan, CancellationToken Ct, TaskC
 /// 5分钟缓存，IFileSystem抽象，路径归一化
 /// </summary>
 [Register(typeof(IEnvironmentProbeService), ServiceLifetime.Singleton)]
-public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>, IEnvironmentProbeService
-{
+public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>, IEnvironmentProbeService {
     private readonly ILogger<EnvironmentProbeService>? _logger;
     private readonly IToolHealthMonitor _healthMonitor;
     private EnvironmentReport? _cachedReport;
@@ -26,24 +25,21 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     /// <param name="healthMonitor">工具健康监控</param>
     /// <param name="logger">日志器（可选）</param>
     public EnvironmentProbeService(IToolHealthMonitor healthMonitor, ILogger<EnvironmentProbeService>? logger = null)
-        : base()
-    {
+        : base() {
         _healthMonitor = healthMonitor;
         _logger = logger;
     }
 
 
     /// <inheritdoc/>
-    public async Task<EnvironmentReport> ProbeEnvironmentAsync(bool forceRescan = false, CancellationToken ct = default)
-    {
+    public async Task<EnvironmentReport> ProbeEnvironmentAsync(bool forceRescan = false, CancellationToken ct = default) {
         var tcs = TcsFactory.Create<EnvironmentReport>();
         await SendAsync(new ProbeEnvCmd(forceRescan, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyDictionary<string, ExecutorScore>> GetExecutorScoresAsync(CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyDictionary<string, ExecutorScore>> GetExecutorScoresAsync(CancellationToken ct = default) {
         var report = await ProbeEnvironmentAsync(false, ct).ConfigureAwait(false);
         var healthRecords = await _healthMonitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
         var scores = new Dictionary<string, ExecutorScore>(StringComparer.OrdinalIgnoreCase);
@@ -51,8 +47,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
 
         var git = compById["git"].FirstOrDefault();
         var wsl = compById["wsl"].FirstOrDefault();
-        scores["git_bash"] = new ExecutorScore
-        {
+        scores["git_bash"] = new ExecutorScore {
             ExecutorId = "git_bash",
             Score = (git?.IsInstalled == true ? 60 : 0) + (wsl?.IsInstalled == true ? 20 : 0) + (git?.Score ?? 0),
             FailCount = healthRecords.GetValueOrDefault("git_bash_fail")?.FailCount ?? 0,
@@ -62,8 +57,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
 
         var ps = compById["powershell"].FirstOrDefault();
         var dotnet = compById["dotnet"].FirstOrDefault();
-        scores["powershell"] = new ExecutorScore
-        {
+        scores["powershell"] = new ExecutorScore {
             ExecutorId = "powershell",
             Score = (ps?.IsInstalled == true ? 40 : 0) + (dotnet?.IsInstalled == true ? 15 : 0) + (ps?.Score ?? 0),
             FailCount = healthRecords.GetValueOrDefault("powershell_fail")?.FailCount ?? 0,
@@ -71,8 +65,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
             Reason = ps?.IsInstalled == true ? "Windows原生PowerShell" : "无PowerShellD"
         };
 
-        scores["cmd"] = new ExecutorScore
-        {
+        scores["cmd"] = new ExecutorScore {
             ExecutorId = "cmd",
             Score = 30,
             FailCount = healthRecords.GetValueOrDefault("cmd_fail")?.FailCount ?? 0,
@@ -81,8 +74,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
         };
 
         var python = compById["python"].FirstOrDefault();
-        scores["python_script"] = new ExecutorScore
-        {
+        scores["python_script"] = new ExecutorScore {
             ExecutorId = "python_script",
             Score = (python?.IsInstalled == true ? 50 : 0) + (python?.Score ?? 0),
             FailCount = healthRecords.GetValueOrDefault("python_fail")?.FailCount ?? 0,
@@ -90,8 +82,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
             Reason = python?.IsInstalled == true ? $"Python {python.Version}" : "无Python"
         };
 
-        scores["wsl_bash"] = new ExecutorScore
-        {
+        scores["wsl_bash"] = new ExecutorScore {
             ExecutorId = "wsl_bash",
             Score = (wsl?.IsInstalled == true ? 70 : 0) + (wsl?.Score ?? 0),
             FailCount = healthRecords.GetValueOrDefault("wsl_fail")?.FailCount ?? 0,
@@ -100,8 +91,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
         };
 
         var docker = compById["docker"].FirstOrDefault();
-        scores["docker"] = new ExecutorScore
-        {
+        scores["docker"] = new ExecutorScore {
             ExecutorId = "docker",
             Score = (docker?.IsInstalled == true ? 80 : 0) + (docker?.Score ?? 0),
             FailCount = healthRecords.GetValueOrDefault("docker_fail")?.FailCount ?? 0,
@@ -115,12 +105,9 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     /// <summary>
     /// Actor Consumer — 线程独占 _cachedReport/_lastProbeTime，串行处理命令，无需锁。
     /// </summary>
-    protected override async ValueTask HandleAsync(IEnvProbeCommand command, CancellationToken ct)
-    {
-        if (command is ProbeEnvCmd cmd)
-        {
-            if (!cmd.ForceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5))
-            {
+    protected override async ValueTask HandleAsync(IEnvProbeCommand command, CancellationToken ct) {
+        if (command is ProbeEnvCmd cmd) {
+            if (!cmd.ForceRescan && _cachedReport is not null && _lastProbeTime > DateTime.UtcNow.AddMinutes(-5)) {
                 cmd.Tcs.TrySetResult(_cachedReport);
                 return;
             }
@@ -136,8 +123,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
                 await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version"),
             };
 
-            var report = new EnvironmentReport
-            {
+            var report = new EnvironmentReport {
                 ProbeTime = DateTime.UtcNow,
                 Components = components,
                 RecommendedShell = GetRecommendedShell(components)
@@ -153,17 +139,13 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     /// Actor Consumer 异常回调 — 记录警告日志，不向上抛出
     /// </summary>
     /// <param name="ex">Consumer 处理命令时抛出的异常</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogWarning(ex, "EnvironmentProbe Actor Consumer 命令处理异常");
     }
 
-    private async Task<ComponentScore> ProbeComponentAsync(string command, string name, string[] args, string? versionPrefix)
-    {
-        try
-        {
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
+    private async Task<ComponentScore> ProbeComponentAsync(string command, string name, string[] args, string? versionPrefix) {
+        try {
+            var psi = new System.Diagnostics.ProcessStartInfo {
                 FileName = command,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -187,29 +169,24 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
                 ? ExtractVersion(versionText, versionPrefix)
                 : isInstalled ? versionText.Split('\n').FirstOrDefault() : null;
 
-            return new ComponentScore
-            {
+            return new ComponentScore {
                 Id = command,
                 Name = name,
                 Version = version,
                 IsInstalled = isInstalled,
                 Score = isInstalled ? 10 : -5
             };
-        }
-        catch
-        {
+        } catch {
             return new ComponentScore { Id = command, Name = name, IsInstalled = false, Score = -5 };
         }
     }
 
-    private static string ExtractVersion(string output, string prefix)
-    {
+    private static string ExtractVersion(string output, string prefix) {
         var match = System.Text.RegularExpressions.Regex.Match(output, $@"{System.Text.RegularExpressions.Regex.Escape(prefix)}\s*([\d.]+)");
         return match.Success ? match.Groups[1].Value : output.Trim();
     }
 
-    private static string GetRecommendedShell(List<ComponentScore> components)
-    {
+    private static string GetRecommendedShell(List<ComponentScore> components) {
         var compById = components.ToLookup(c => c.Id, StringComparer.OrdinalIgnoreCase);
         var wsl = compById["wsl"].FirstOrDefault();
         if (wsl?.IsInstalled == true && wsl.Score > 0) return "wsl-bash";

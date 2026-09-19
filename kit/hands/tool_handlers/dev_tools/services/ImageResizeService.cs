@@ -5,15 +5,13 @@ namespace Infrastructure.IO;
 /// 对齐 TS maybeResizeAndDownsampleImageBuffer
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.LLM.Chat.IImageResizeService), ServiceLifetime.Singleton)]
-public sealed partial class ImageResizeService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IImageResizeService
-{
+public sealed partial class ImageResizeService : ServiceEntity, JoinCode.Abstractions.LLM.Chat.IImageResizeService {
 
     /// <summary>
     /// 构造图片降采样服务
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
-    public ImageResizeService(ILogger<ImageResizeService>? logger = null)
-    {
+    public ImageResizeService(ILogger<ImageResizeService>? logger = null) {
         _logger = logger;
     }
     private readonly ILogger<ImageResizeService>? _logger;
@@ -25,12 +23,10 @@ public sealed partial class ImageResizeService : ServiceEntity, JoinCode.Abstrac
     /// <param name="originalSize">原始文件大小</param>
     /// <param name="extension">文件扩展名</param>
     /// <returns>缩放/压缩后的结果</returns>
-    public async Task<JoinCode.Abstractions.LLM.Chat.McpImageResizeResult> ResizeAsync(byte[] imageBuffer, long originalSize, string extension)
-    {
+    public async Task<JoinCode.Abstractions.LLM.Chat.McpImageResizeResult> ResizeAsync(byte[] imageBuffer, long originalSize, string extension) {
         var result = await IO.Services.FileOps.ImageResizer.ResizeAsync(imageBuffer, originalSize, extension).ConfigureAwait(false);
 
-        return new JoinCode.Abstractions.LLM.Chat.McpImageResizeResult
-        {
+        return new JoinCode.Abstractions.LLM.Chat.McpImageResizeResult {
             Buffer = result.Buffer,
             MediaType = result.MediaType,
             OriginalWidth = result.OriginalWidth,

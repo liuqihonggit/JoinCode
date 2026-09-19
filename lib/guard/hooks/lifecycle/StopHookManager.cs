@@ -1,15 +1,13 @@
 namespace Core.Hooks.Lifecycle;
 
 /// <summary>停止 Hook 管理器接口 — 在会话停止前执行 Stop Hook</summary>
-public interface IStopHookManager
-{
+public interface IStopHookManager {
     /// <summary>触发 Stop Hook,返回是否允许停止</summary>
     Task<StopHookResult> OnStopAsync(StopHookContext context, CancellationToken ct = default);
 }
 
 /// <summary>Stop Hook 上下文 — 包含会话 ID、停止原因和元数据</summary>
-public sealed partial class StopHookContext
-{
+public sealed partial class StopHookContext {
     /// <summary>会话 ID</summary>
     public required string SessionId { get; init; }
     /// <summary>停止原因</summary>
@@ -19,8 +17,7 @@ public sealed partial class StopHookContext
 }
 
 /// <summary>Stop Hook 执行结果 — 包含是否允许停止、消息和附加数据</summary>
-public sealed partial class StopHookResult
-{
+public sealed partial class StopHookResult {
     /// <summary>是否应该停止</summary>
     public bool ShouldStop { get; init; } = true;
     /// <summary>结果消息</summary>
@@ -38,8 +35,7 @@ public sealed partial class StopHookResult
 /// Stop Hook 管理器实现 — 通过 IHookOrchestrator 执行 Stop Hook,支持阻止停止
 /// </summary>
 [Register(typeof(IStopHookManager), ServiceLifetime.Singleton)]
-public sealed partial class StopHookManager : ServiceEntity, IStopHookManager
-{
+public sealed partial class StopHookManager : ServiceEntity, IStopHookManager {
     private readonly IHookOrchestrator _orchestrator;
     private readonly ILogger<StopHookManager>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -47,18 +43,15 @@ public sealed partial class StopHookManager : ServiceEntity, IStopHookManager
     /// <summary>
     /// 构造函数 — 注入 Hook 编排器、可选的日志器和遥测服务
     /// </summary>
-    public StopHookManager(IHookOrchestrator orchestrator, ILogger<StopHookManager>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public StopHookManager(IHookOrchestrator orchestrator, ILogger<StopHookManager>? logger = null, ITelemetryService? telemetryService = null) {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _logger = logger;
         _telemetryService = telemetryService;
     }
 
     /// <inheritdoc />
-    public async Task<StopHookResult> OnStopAsync(StopHookContext context, CancellationToken ct = default)
-    {
-        var payload = new Dictionary<string, JsonElement>
-        {
+    public async Task<StopHookResult> OnStopAsync(StopHookContext context, CancellationToken ct = default) {
+        var payload = new Dictionary<string, JsonElement> {
             ["sessionId"] = JsonElementHelper.FromString(context.SessionId),
             ["reason"] = JsonElementHelper.FromString(context.Reason),
             ["metadata"] = JsonSerializer.SerializeToElement(context.Metadata, HooksJsonContext.Default.DictionaryStringJsonElement)
@@ -70,10 +63,8 @@ public sealed partial class StopHookManager : ServiceEntity, IStopHookManager
             HookEvent.Stop,
             payload,
             sessionId: context.SessionId,
-            cancellationToken: ct).ConfigureAwait(false))
-        {
-            if (result.Outcome == HookOutcome.Blocking)
-            {
+            cancellationToken: ct).ConfigureAwait(false)) {
+            if (result.Outcome == HookOutcome.Blocking) {
                 _logger?.LogInformation("Stop hook prevented stop for session {SessionId}: {Message}",
                     context.SessionId, result.Message);
 
@@ -81,15 +72,12 @@ public sealed partial class StopHookManager : ServiceEntity, IStopHookManager
                 return StopHookResult.Continue(result.Message);
             }
 
-            if (result.PreventContinuation)
-            {
+            if (result.PreventContinuation) {
                 return StopHookResult.Continue(result.Message);
             }
 
-            if (result.UpdatedInput != null)
-            {
-                foreach (var kvp in result.UpdatedInput)
-                {
+            if (result.UpdatedInput != null) {
+                foreach (var kvp in result.UpdatedInput) {
                     additionalData[kvp.Key] = kvp.Value;
                 }
             }

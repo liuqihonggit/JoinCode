@@ -6,8 +6,7 @@ namespace Infrastructure.HotSpot;
 /// 规则：目录约定 + 命名约定 + 配置文件 + 可配扩展
 /// </summary>
 [Register(typeof(IHotFileDetector), ServiceLifetime.Singleton)]
-public sealed class HotFileDetector : IHotFileDetector
-{
+public sealed class HotFileDetector : IHotFileDetector {
     private readonly FrozenSet<string> _hotDirectoryKeywords;
     private readonly FrozenSet<string> _configExtensions;
     private readonly FrozenSet<string> _extraHotFiles;
@@ -38,8 +37,7 @@ public sealed class HotFileDetector : IHotFileDetector
     /// <param name="extraPatterns">额外的匹配模式字符串集合</param>
     public HotFileDetector(
         IReadOnlyCollection<string>? extraHotFiles = null,
-        IReadOnlyCollection<string>? extraPatterns = null)
-    {
+        IReadOnlyCollection<string>? extraPatterns = null) {
         _hotDirectoryKeywords = DefaultHotDirectoryKeywords;
         _configExtensions = DefaultConfigExtensions;
         _extraHotFiles = extraHotFiles is null
@@ -53,8 +51,7 @@ public sealed class HotFileDetector : IHotFileDetector
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>是热文件返回 true，否则 false</returns>
-    public bool IsHotFile(string filePath)
-    {
+    public bool IsHotFile(string filePath) {
         if (string.IsNullOrWhiteSpace(filePath))
             return false;
 
@@ -89,34 +86,28 @@ public sealed class HotFileDetector : IHotFileDetector
     /// </summary>
     /// <param name="filePaths">待检测的文件路径集合</param>
     /// <returns>被判定为热文件的路径集合</returns>
-    public IReadOnlySet<string> DetectHotFiles(IEnumerable<string> filePaths)
-    {
+    public IReadOnlySet<string> DetectHotFiles(IEnumerable<string> filePaths) {
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var path in filePaths)
-        {
+        foreach (var path in filePaths) {
             if (IsHotFile(path))
                 result.Add(path);
         }
         return result;
     }
 
-    private static string GetFileName(string normalizedPath)
-    {
+    private static string GetFileName(string normalizedPath) {
         var idx = normalizedPath.LastIndexOf('/');
         return idx < 0 ? normalizedPath : normalizedPath[(idx + 1)..];
     }
 
-    private static string GetExtension(string fileName)
-    {
+    private static string GetExtension(string fileName) {
         var idx = fileName.LastIndexOf('.');
         return idx < 0 ? string.Empty : fileName[idx..];
     }
 
-    private bool IsHotByDirectory(string normalizedPath)
-    {
+    private bool IsHotByDirectory(string normalizedPath) {
         var parts = normalizedPath.Split('/');
-        foreach (var part in parts)
-        {
+        foreach (var part in parts) {
             if (_hotDirectoryKeywords.Contains(part))
                 return true;
         }
@@ -126,19 +117,16 @@ public sealed class HotFileDetector : IHotFileDetector
     /// <summary>
     /// 检查路径是否在排除目录中（bin/obj/.vs/node_modules 等编译/缓存目录）
     /// </summary>
-    private static bool IsExcludedPath(string normalizedPath)
-    {
+    private static bool IsExcludedPath(string normalizedPath) {
         var parts = normalizedPath.Split('/');
-        foreach (var part in parts)
-        {
+        foreach (var part in parts) {
             if (ExcludedDirectories.Contains(part))
                 return true;
         }
         return false;
     }
 
-    private static bool IsHotByName(string fileName, string extension)
-    {
+    private static bool IsHotByName(string fileName, string extension) {
         if (fileName.StartsWith("I", StringComparison.Ordinal) &&
             extension.Equals(".cs", StringComparison.OrdinalIgnoreCase) &&
             fileName.Length > 1 &&
@@ -161,8 +149,7 @@ public sealed class HotFileDetector : IHotFileDetector
         return false;
     }
 
-    private bool IsHotByConfig(string extension, string fileName)
-    {
+    private bool IsHotByConfig(string extension, string fileName) {
         if (_configExtensions.Contains(extension))
             return true;
 
@@ -174,10 +161,8 @@ public sealed class HotFileDetector : IHotFileDetector
         return false;
     }
 
-    private bool IsHotByExtraPattern(string normalizedPath, string fileName)
-    {
-        foreach (var pattern in _extraPatterns)
-        {
+    private bool IsHotByExtraPattern(string normalizedPath, string fileName) {
+        foreach (var pattern in _extraPatterns) {
             if (normalizedPath.Contains(pattern, StringComparison.OrdinalIgnoreCase) ||
                 fileName.Contains(pattern, StringComparison.OrdinalIgnoreCase))
                 return true;

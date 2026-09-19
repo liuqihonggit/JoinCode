@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 斜杠命令接口
 /// </summary>
-public interface ICommand
-{
+public interface ICommand {
     /// <summary>
     /// 命令名称 (不含斜杠)
     /// </summary>
@@ -30,8 +29,7 @@ public interface ICommand
 /// <summary>
 /// 命令上下文接口 - 插件通过此接口与命令系统交互
 /// </summary>
-public interface ICommandContext
-{
+public interface ICommandContext {
     /// <summary>
     /// 原始输入
     /// </summary>
@@ -107,8 +105,7 @@ public interface ICommandContext
 /// 命令特性 - 用于自动注册
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
-public sealed class CommandAttribute : Attribute
-{
+public sealed class CommandAttribute : Attribute {
     public required string Name { get; init; }
     public string Description { get; init; } = string.Empty;
     public string Usage { get; init; } = string.Empty;

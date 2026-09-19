@@ -4,14 +4,12 @@ namespace Infrastructure.Http;
 /// 模拟 HTTP 客户端提供者 — 拦截所有请求返回预设响应，0网络IO，调试/E2E测试用
 /// 通过 JCC_HTTP_MODE=Mock 环境变量激活
 /// </summary>
-public sealed class MockHttpClientProvider : IHttpClientProvider
-{
+public sealed class MockHttpClientProvider : IHttpClientProvider {
     private readonly MockHttpMessageHandler _handler = new();
     private readonly HttpClient _client;
 
     /// <summary>构造模拟 HTTP 客户端提供者,初始化基础地址为 http://mock.local</summary>
-    public MockHttpClientProvider()
-    {
+    public MockHttpClientProvider() {
         _client = new HttpClient(_handler) { BaseAddress = new Uri("http://mock.local") };
     }
 
@@ -24,16 +22,14 @@ public sealed class MockHttpClientProvider : IHttpClientProvider
     /// <summary>
     /// 设置指定 URL 的模拟响应
     /// </summary>
-    public void SetupResponse(Uri requestUri, HttpStatusCode statusCode, string content)
-    {
+    public void SetupResponse(Uri requestUri, HttpStatusCode statusCode, string content) {
         _handler.SetupResponse(requestUri, statusCode, content);
     }
 
     /// <summary>
     /// 设置任意请求的默认模拟响应
     /// </summary>
-    public void SetupDefaultResponse(HttpStatusCode statusCode, string content)
-    {
+    public void SetupDefaultResponse(HttpStatusCode statusCode, string content) {
         _handler.SetupDefaultResponse(statusCode, content);
     }
 }
@@ -41,8 +37,7 @@ public sealed class MockHttpClientProvider : IHttpClientProvider
 /// <summary>
 /// 模拟 HTTP 消息处理器 — 拦截 HTTP 请求并返回预设响应，0网络IO
 /// </summary>
-internal sealed class MockHttpMessageHandler : HttpMessageHandler
-{
+internal sealed class MockHttpMessageHandler : HttpMessageHandler {
     private readonly Dictionary<string, (HttpStatusCode Status, string Content)> _responses = new();
     private (HttpStatusCode Status, string Content)? _defaultResponse;
 
@@ -50,16 +45,14 @@ internal sealed class MockHttpMessageHandler : HttpMessageHandler
     /// <param name="requestUri">请求 URI</param>
     /// <param name="statusCode">HTTP 状态码</param>
     /// <param name="content">响应内容</param>
-    public void SetupResponse(Uri requestUri, HttpStatusCode statusCode, string content)
-    {
+    public void SetupResponse(Uri requestUri, HttpStatusCode statusCode, string content) {
         _responses[requestUri.AbsoluteUri] = (statusCode, content);
     }
 
     /// <summary>设置任意请求的默认模拟响应</summary>
     /// <param name="statusCode">HTTP 状态码</param>
     /// <param name="content">响应内容</param>
-    public void SetupDefaultResponse(HttpStatusCode statusCode, string content)
-    {
+    public void SetupDefaultResponse(HttpStatusCode statusCode, string content) {
         _defaultResponse = (statusCode, content);
     }
 
@@ -67,28 +60,22 @@ internal sealed class MockHttpMessageHandler : HttpMessageHandler
     /// <param name="request">HTTP 请求消息</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>预设的 HTTP 响应消息</returns>
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        if (_responses.TryGetValue(request.RequestUri?.AbsoluteUri ?? "", out var response))
-        {
-            return Task.FromResult(new HttpResponseMessage(response.Status)
-            {
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+        if (_responses.TryGetValue(request.RequestUri?.AbsoluteUri ?? "", out var response)) {
+            return Task.FromResult(new HttpResponseMessage(response.Status) {
                 Content = new StringContent(response.Content),
                 RequestMessage = request
             });
         }
 
-        if (_defaultResponse is { } defaultResp)
-        {
-            return Task.FromResult(new HttpResponseMessage(defaultResp.Status)
-            {
+        if (_defaultResponse is { } defaultResp) {
+            return Task.FromResult(new HttpResponseMessage(defaultResp.Status) {
                 Content = new StringContent(defaultResp.Content),
                 RequestMessage = request
             });
         }
 
-        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotImplemented)
-        {
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotImplemented) {
             ReasonPhrase = "MockHttpClient: 未设置匹配的响应",
             RequestMessage = request
         });

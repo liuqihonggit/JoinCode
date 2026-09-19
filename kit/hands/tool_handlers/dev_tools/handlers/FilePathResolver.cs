@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 文件路径解析器 — 封装沙箱路径解析与设备路径黑名单检查
 /// 从 FileToolHandlers 提取,统一管理路径安全验证
 /// </summary>
-internal sealed class FilePathResolver
-{
+internal sealed class FilePathResolver {
     private static readonly FrozenSet<string> BlockedDevicePaths = CreateBlockedDevicePathSet();
     private readonly ISandboxManager? _sandboxManager;
 
@@ -13,8 +12,7 @@ internal sealed class FilePathResolver
     public FilePathResolver(ISandboxManager? sandboxManager = null) => _sandboxManager = sandboxManager;
 
     /// <summary>是否为阻塞的设备路径</summary>
-    public static bool IsBlockedDevicePath(string filePath)
-    {
+    public static bool IsBlockedDevicePath(string filePath) {
         if (BlockedDevicePaths.Contains(filePath))
             return true;
 
@@ -28,31 +26,26 @@ internal sealed class FilePathResolver
     }
 
     /// <summary>解析沙箱路径 — 非沙箱环境直接返回原路径</summary>
-    public async Task<string> ResolveSandboxPathAsync(string path, CancellationToken cancellationToken)
-    {
-        if (_sandboxManager == null || !_sandboxManager.IsInSandbox)
-        {
+    public async Task<string> ResolveSandboxPathAsync(string path, CancellationToken cancellationToken) {
+        if (_sandboxManager == null || !_sandboxManager.IsInSandbox) {
             return path;
         }
 
         var sandboxId = _sandboxManager.CurrentSandboxId;
-        if (sandboxId is null)
-        {
+        if (sandboxId is null) {
             return path;
         }
 
         var resolvedPath = _sandboxManager.ResolvePath(path, sandboxId);
         var isInSandbox = await _sandboxManager.ActiveProvider!.IsPathInSandboxAsync(resolvedPath, sandboxId, cancellationToken).ConfigureAwait(false);
-        if (!isInSandbox)
-        {
+        if (!isInSandbox) {
             throw new UnauthorizedAccessException($"Path '{path}' is outside the sandbox scope");
         }
 
         return resolvedPath;
     }
 
-    private static FrozenSet<string> CreateBlockedDevicePathSet()
-    {
+    private static FrozenSet<string> CreateBlockedDevicePathSet() {
         return FrozenSet.ToFrozenSet(
         [
             "/dev/zero", "/dev/random", "/dev/urandom", "/dev/full",

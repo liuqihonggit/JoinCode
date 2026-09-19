@@ -5,8 +5,7 @@ namespace JoinCode.Gui.Hosting;
 /// 替代骨架阶段的占位回显。UI 与引擎解耦的唯一边界仍为 <c>IJccChatSession</c>。
 /// 引擎具体组装收敛在本类，不蔓延到 Views/ViewModels。
 /// </summary>
-internal sealed class JccChatSession : IJccChatSession
-{
+internal sealed class JccChatSession : IJccChatSession {
     /// <summary>权限确认最大重试次数（同一消息连续触发确认）</summary>
     private const int MaxPermissionRetries = 3;
 
@@ -30,8 +29,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// AskUserQuestion 弹窗回调 — 由 MainWindow 在初始化时设置。
     /// AvaloniaInteractiveService 通过此回调在 UI 线程弹出对话框。
     /// </summary>
-    public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback
-    {
+    public Func<QuestionItem, Task<AskUserQuestionResult>>? AskUserQuestionDialogCallback {
         get => _interactiveService?.ShowDialogCallback;
         set { if (_interactiveService is not null) _interactiveService.ShowDialogCallback = value; }
     }
@@ -44,8 +42,7 @@ internal sealed class JccChatSession : IJccChatSession
         JoinCode.Abstractions.Configuration.WorkflowConfig config,
         IExecutionSettingsProvider? executionSettings = null,
         IModelConfigLoader? modelConfigLoader = null,
-        Func<ValueTask>? disposeAsync = null)
-    {
+        Func<ValueTask>? disposeAsync = null) {
         _services = services;
         _chat = chat;
         _config = config;
@@ -69,15 +66,12 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>
     /// 获取后台子代理快照 — IAgentService 运行列表 + 活跃 fork 归并（forkId 亦为合法终止键）
     /// </summary>
-    public async Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<ViewModels.BackgroundAgentInfo>> GetBackgroundAgentsAsync(CancellationToken cancellationToken = default) {
         var result = new List<ViewModels.BackgroundAgentInfo>();
 
         var agentService = _services.GetService<IAgentService>();
-        if (agentService is not null)
-        {
-            foreach (var info in await agentService.GetRunningAgentsAsync(cancellationToken))
-            {
+        if (agentService is not null) {
+            foreach (var info in await agentService.GetRunningAgentsAsync(cancellationToken)) {
                 result.Add(new ViewModels.BackgroundAgentInfo(
                     info.Id,
                     Name: info.DisplayName ?? info.Variant?.ToString() ?? info.Role.ToString().ToLowerInvariant(),
@@ -90,10 +84,8 @@ internal sealed class JccChatSession : IJccChatSession
         }
 
         var forkManager = _services.GetService<IForkSubAgentManager>();
-        if (forkManager is not null)
-        {
-            foreach (var fork in await forkManager.GetActiveForksAsync(cancellationToken))
-            {
+        if (forkManager is not null) {
+            foreach (var fork in await forkManager.GetActiveForksAsync(cancellationToken)) {
                 if (fork.State != ForkState.Running)
                     continue;
                 result.Add(new ViewModels.BackgroundAgentInfo(
@@ -111,29 +103,24 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <summary>终止后台代理 — 先按 agentId 停止；未命中且是活跃 teammate 时停止之；再未命中且是活跃 fork 时取消之</summary>
-    public async Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> StopBackgroundAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         var agentService = _services.GetService<IAgentService>();
         if (agentService is not null && await agentService.StopAgentAsync(agentId, cancellationToken))
             return true;
 
         var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
-        if (teammateExecutor is not null)
-        {
+        if (teammateExecutor is not null) {
             var teammates = await teammateExecutor.GetActiveTeammatesAsync(cancellationToken);
-            if (teammates.Contains(agentId))
-            {
+            if (teammates.Contains(agentId)) {
                 await teammateExecutor.StopTeammateAsync(agentId, cancellationToken);
                 return true;
             }
         }
 
         var forkManager = _services.GetService<IForkSubAgentManager>();
-        if (forkManager is not null)
-        {
+        if (forkManager is not null) {
             var forks = await forkManager.GetActiveForksAsync(cancellationToken);
-            if (forks.Any(f => f.ForkId == agentId))
-            {
+            if (forks.Any(f => f.ForkId == agentId)) {
                 await forkManager.CancelForkAsync(agentId, cancellationToken);
                 return true;
             }
@@ -143,8 +130,7 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <summary>中断子代理当前 work（非终止）— 委托 teammateExecutor.InterruptTeammateAsync，teammate 进 idle 等 next prompt</summary>
-    public async Task<bool> InterruptSubAgentAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> InterruptSubAgentAsync(string agentId, CancellationToken cancellationToken = default) {
         var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
         if (teammateExecutor is null)
             return false;
@@ -152,8 +138,7 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <inheritdoc />
-    public async Task<string?> FindSubAgentIdByNameAsync(string name, CancellationToken cancellationToken = default)
-    {
+    public async Task<string?> FindSubAgentIdByNameAsync(string name, CancellationToken cancellationToken = default) {
         var agentService = _services.GetService<IAgentService>();
         if (agentService is null)
             return null;
@@ -161,8 +146,7 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <inheritdoc />
-    public async Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> ForwardInputToSubAgentAsync(string agentId, string message, CancellationToken cancellationToken = default) {
         var agentService = _services.GetService<IAgentService>();
         if (agentService is null)
             return false;
@@ -170,8 +154,7 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <inheritdoc />
-    public async Task<string?> GetSubAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default)
-    {
+    public async Task<string?> GetSubAgentWorktreePathAsync(string agentId, CancellationToken cancellationToken = default) {
         var agentService = _services.GetService<IAgentService>();
         if (agentService is null)
             return null;
@@ -179,17 +162,14 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<SubSessionInfo>> GetSubSessionsAsync(string parentSessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<SubSessionInfo>> GetSubSessionsAsync(string parentSessionId, CancellationToken cancellationToken = default) {
         var result = new List<SubSessionInfo>();
 
         // teammate 子会话（GUI 子代理走 teammate 模型，支持 Interrupt 中断 + idle 恢复）
         var teammateExecutor = _services.GetService<IInProcessTeammateTaskExecutor>();
-        if (teammateExecutor is not null)
-        {
+        if (teammateExecutor is not null) {
             var snapshots = await teammateExecutor.GetActiveTeammateSnapshotsAsync(cancellationToken);
-            foreach (var s in snapshots)
-            {
+            foreach (var s in snapshots) {
                 if (s.ParentSessionId != parentSessionId)
                     continue;
                 var title = $"子会话 {s.TeammateId.AsSpan(0, Math.Min(8, s.TeammateId.Length)).ToString()}";
@@ -201,11 +181,9 @@ internal sealed class JccChatSession : IJccChatSession
 
         // fork 子会话（保留 — fork 其他消费方如 MagicDocsManager 创建的仍需显示）
         var forkManager = _services.GetService<IForkSubAgentManager>();
-        if (forkManager is not null)
-        {
+        if (forkManager is not null) {
             var forks = await forkManager.GetActiveForksAsync(cancellationToken);
-            foreach (var f in forks)
-            {
+            foreach (var f in forks) {
                 if (f.ParentSessionId != parentSessionId)
                     continue;
                 var title = $"子会话 {f.ForkId.AsSpan(0, Math.Min(8, f.ForkId.Length)).ToString()}";
@@ -218,10 +196,8 @@ internal sealed class JccChatSession : IJccChatSession
     }
 
     /// <summary>settings.json 变更转发 — theme 键变更时解析为 ThemeKind 并触发 ThemeChanged</summary>
-    private void OnSettingChanged(object? sender, SettingChangeEventArgs e)
-    {
-        if (e.Key == ConfigKeyEnumConstants.Theme && e.NewValue is not null)
-        {
+    private void OnSettingChanged(object? sender, SettingChangeEventArgs e) {
+        if (e.Key == ConfigKeyEnumConstants.Theme && e.NewValue is not null) {
             var theme = ThemeKindExtensions.FromValue(e.NewValue) ?? ThemeKind.Auto;
             ThemeChanged?.Invoke(this, theme);
         }
@@ -232,8 +208,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// 消除 GUI 和 CLI 的双引擎初始化差异。
     /// </summary>
     public static async Task<IJccChatSession> CreateAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
         var result = await EngineSessionFactory.CreateGuiSessionAsync(
             [new GuiInteractionModule()], cancellationToken);
@@ -263,14 +238,12 @@ internal sealed class JccChatSession : IJccChatSession
     public IReadOnlyDictionary<string, IReadOnlyList<string>> VendorModelMap { get; private set; }
 
     /// <summary>刷新 VendorModelMap（热重载入口）</summary>
-    public void RefreshVendorModelMap()
-    {
+    public void RefreshVendorModelMap() {
         VendorModelMap = BuildVendorModelMap();
     }
 
     /// <summary>切换会话 — 通过 IChatContextManager.SwitchSession 按 sessionId 隔离对话历史</summary>
-    public void SwitchSession(string sessionId)
-    {
+    public void SwitchSession(string sessionId) {
         var ctxMgr = _services.GetService<IChatContextManager>();
         ctxMgr?.SwitchSession(sessionId);
     }
@@ -280,40 +253,35 @@ internal sealed class JccChatSession : IJccChatSession
     /// 先 ClearMessagesAsync 清空当前桶，再逐条灌入历史消息到 IChatContextManager。
     /// 对齐 CLI /resume 的 LoadContextAsync 语义。
     /// </summary>
-    public async Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default)
-    {
+    public async Task LoadHistoryAsync(IReadOnlyList<(MessageRole Role, string Content)> messages, CancellationToken cancellationToken = default) {
         var ctxMgr = _services.GetService<IChatContextManager>();
         if (ctxMgr is null)
             return;
 
         await ctxMgr.ClearMessagesAsync(cancellationToken);
-        foreach (var (role, content) in messages)
-        {
+        foreach (var (role, content) in messages) {
             if (string.IsNullOrWhiteSpace(content))
                 continue;
-            switch (role)
-            {
+            switch (role) {
                 case MessageRole.User:
-                    await ctxMgr.AddUserMessageAsync(content, cancellationToken: cancellationToken);
-                    break;
+                await ctxMgr.AddUserMessageAsync(content, cancellationToken: cancellationToken);
+                break;
                 case MessageRole.Assistant:
-                    await ctxMgr.AddAssistantMessageAsync(content, cancellationToken);
-                    break;
+                await ctxMgr.AddAssistantMessageAsync(content, cancellationToken);
+                break;
                 case MessageRole.System:
-                    await ctxMgr.AddSystemMessageAsync(content, cancellationToken);
-                    break;
+                await ctxMgr.AddSystemMessageAsync(content, cancellationToken);
+                break;
                 case MessageRole.Tool:
-                    await ctxMgr.AddToolResultMessageAsync(content, new Dictionary<string, JsonElement>(), cancellationToken);
-                    break;
+                await ctxMgr.AddToolResultMessageAsync(content, new Dictionary<string, JsonElement>(), cancellationToken);
+                break;
             }
         }
     }
 
-    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap()
-    {
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> BuildVendorModelMap() {
         var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in _modelConfigLoader.Config.Providers)
-        {
+        foreach (var kvp in _modelConfigLoader.Config.Providers) {
             map[kvp.Key] = kvp.Value.Models.Select(m => m.Id).ToArray();
         }
         return map;
@@ -322,8 +290,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>
     /// 切换当前模型 — 回写 WorkflowConfig + 持久化 vendor[profile].model 到 settings.json
     /// </summary>
-    public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default)
-    {
+    public async Task SetModelAsync(string modelId, CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(modelId))
             throw new System.ArgumentException("模型 ID 不能为空", nameof(modelId));
         _config.Provider.ModelId = modelId;
@@ -341,8 +308,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>
     /// 切换当前供应商 — 回写 WorkflowConfig + 持久化 profile 到 settings.json
     /// </summary>
-    public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default)
-    {
+    public async Task SetVendorAsync(string vendor, CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(vendor))
             throw new System.ArgumentException("供应商名称不能为空", nameof(vendor));
 
@@ -353,8 +319,7 @@ internal sealed class JccChatSession : IJccChatSession
             _config.Provider.ModelId = defaultModelId;
 
         var configService = _services.GetService<IConfigurationService>();
-        if (configService is not null)
-        {
+        if (configService is not null) {
             await configService.SetAsync("profile", vendor, cancellationToken);
         }
 
@@ -365,30 +330,25 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>
     /// 更新 settings.json 的 vendor[profile].model — 直接用 JsonNode 操作嵌套键
     /// </summary>
-    private async Task UpdateVendorProfileModelAsync(string profileName, string modelId, CancellationToken ct)
-    {
+    private async Task UpdateVendorProfileModelAsync(string profileName, string modelId, CancellationToken ct) {
         var fs = _services.GetService<IFileSystem>() ?? new IO.FileSystem.PhysicalFileSystem();
         var path = System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             AppDataConstants.AppDataFolder,
             AppDataConstants.SettingsFileName);
         if (!fs.FileExists(path)) return;
-        try
-        {
-            await fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) =>
-            {
+        try {
+            await fs.EditFileAsync<bool>(path, async (bytes, cancellationToken) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 var node = System.Text.Json.Nodes.JsonNode.Parse(content);
                 if (node is null) return (null, false);
                 var vendorNode = node["vendor"];
-                if (vendorNode is null)
-                {
+                if (vendorNode is null) {
                     vendorNode = new System.Text.Json.Nodes.JsonObject();
                     node["vendor"] = vendorNode;
                 }
                 var profileNode = vendorNode[profileName];
-                if (profileNode is null)
-                {
+                if (profileNode is null) {
                     profileNode = new System.Text.Json.Nodes.JsonObject();
                     vendorNode[profileName] = profileNode;
                 }
@@ -397,9 +357,7 @@ internal sealed class JccChatSession : IJccChatSession
                 var newBytes = FileEncodingDetector.EncodeString(newJson, encoding);
                 return (newBytes, true);
             }, ct);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             System.Console.Error.WriteLine($"更新 vendor profile model 失败: {profileName} - {ex.Message}");
         }
     }
@@ -407,8 +365,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>
     /// 更新当前 profile 的 model — 用 _config.CurrentProfile 推导 profile 名
     /// </summary>
-    private Task UpdateVendorProfileModelAsync(string modelId, CancellationToken ct)
-    {
+    private Task UpdateVendorProfileModelAsync(string modelId, CancellationToken ct) {
         var profile = _config.CurrentProfile;
         if (string.IsNullOrEmpty(profile))
             profile = _config.Provider.Vendor;
@@ -427,22 +384,16 @@ internal sealed class JccChatSession : IJccChatSession
     /// 设置推理力度并持久化 — 对齐 CLI EffortCommand.PersistEffortAsync：
     /// auto 移除 effortLevel 键，其它级别写入 settings.json。
     /// </summary>
-    public async Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default)
-    {
-        if (_executionSettings is not null)
-        {
+    public async Task SetEffortLevelAsync(EffortLevel effortLevel, CancellationToken cancellationToken = default) {
+        if (_executionSettings is not null) {
             _executionSettings.EffortLevel = effortLevel;
         }
 
         var configService = _services.GetService<IConfigurationService>();
-        if (configService is not null)
-        {
-            if (effortLevel is EffortLevel.Auto)
-            {
+        if (configService is not null) {
+            if (effortLevel is EffortLevel.Auto) {
                 await configService.RemoveAsync(ConfigKeyEnumConstants.EffortLevel, cancellationToken);
-            }
-            else
-            {
+            } else {
                 await configService.SetAsync(ConfigKeyEnumConstants.EffortLevel, effortLevel.ToValue(), cancellationToken);
             }
         }
@@ -464,10 +415,8 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>
     /// 设置温度并即时生效 — 写入共享 ExecutionSettingsProvider，ChatOptionsFactory 下次创建即覆盖默认值。
     /// </summary>
-    public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default)
-    {
-        if (_executionSettings is not null)
-        {
+    public Task SetTemperatureAsync(float temperature, CancellationToken cancellationToken = default) {
+        if (_executionSettings is not null) {
             _executionSettings.Temperature = temperature;
         }
         return Task.CompletedTask;
@@ -476,10 +425,8 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>
     /// 设置最大长度并即时生效 — 写入共享 ExecutionSettingsProvider，ChatOptionsFactory 下次创建即覆盖默认值。
     /// </summary>
-    public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default)
-    {
-        if (_executionSettings is not null)
-        {
+    public Task SetMaxTokensAsync(int maxTokens, CancellationToken cancellationToken = default) {
+        if (_executionSettings is not null) {
             _executionSettings.MaxTokens = maxTokens;
         }
         return Task.CompletedTask;
@@ -498,8 +445,7 @@ internal sealed class JccChatSession : IJccChatSession
 
     public event Action? ExitRequested;
 
-    public async Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> ExecuteSlashCommandAsync(string input, CancellationToken cancellationToken = default) {
         var result = await SlashCommandRunner.RunAsync(
             input,
             _services,
@@ -517,30 +463,23 @@ internal sealed class JccChatSession : IJccChatSession
     /// </summary>
     private async IAsyncEnumerable<ChatStreamEvent> StreamWithPermissionRetryAsync(
         string message,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
         var retries = 0;
-        while (true)
-        {
+        while (true) {
             // 手动枚举器：yield return 不能出现在 try/catch 内（CS1626），
             // 因此 try 只包住 MoveNextAsync，yield return 在 try 外。
             PermissionPendingConfirmationException? pending = null;
             await using var enumerator = _chat.StreamWithEventsAsync(message, cancellationToken).GetAsyncEnumerator(cancellationToken);
-            while (true)
-            {
+            while (true) {
                 bool hasNext;
-                try
-                {
+                try {
                     hasNext = await enumerator.MoveNextAsync();
-                }
-                catch (PermissionPendingConfirmationException ex)
-                {
+                } catch (PermissionPendingConfirmationException ex) {
                     pending = ex;
                     break;
                 }
 
-                if (!hasNext)
-                {
+                if (!hasNext) {
                     // 正常完成，无权限异常
                     yield break;
                 }
@@ -548,8 +487,7 @@ internal sealed class JccChatSession : IJccChatSession
                 yield return enumerator.Current;
             }
 
-            if (retries >= MaxPermissionRetries)
-            {
+            if (retries >= MaxPermissionRetries) {
                 yield return ChatStreamEvent.ToolEnd(pending!.ToolName,
                     $"权限确认重试次数超限: {pending.ConfirmationPrompt}", isError: true);
                 yield break;
@@ -557,17 +495,14 @@ internal sealed class JccChatSession : IJccChatSession
 
             var decision = PermissionConfirmationDecision.Deny;
             var dangerLevel = DangerLevelPromptParser.ParseLevelFromPrompt(pending.ConfirmationPrompt);
-            if (PermissionConfirmationHandler is not null)
-            {
+            if (PermissionConfirmationHandler is not null) {
                 decision = await PermissionConfirmationHandler(
                     new PermissionConfirmationRequest(
-                        pending.ToolName, pending.ConfirmationPrompt, pending.RequestId, pending.RuleContent)
-                    { DangerLevel = dangerLevel })
+                        pending.ToolName, pending.ConfirmationPrompt, pending.RequestId, pending.RuleContent) { DangerLevel = dangerLevel })
                     ;
             }
 
-            if (decision == PermissionConfirmationDecision.Deny)
-            {
+            if (decision == PermissionConfirmationDecision.Deny) {
                 yield return ChatStreamEvent.ToolEnd(pending.ToolName,
                     $"权限确认被拒绝: {pending.ConfirmationPrompt}", isError: true);
                 yield break;
@@ -575,8 +510,7 @@ internal sealed class JccChatSession : IJccChatSession
 
             // 允许/始终允许 → 批准工具（共享 PermissionManager，与 CLI 同源）
             var permissionManager = _services.GetService<IToolPermissionManager>();
-            if (permissionManager is not null)
-            {
+            if (permissionManager is not null) {
                 var duration = decision == PermissionConfirmationDecision.AlwaysAllow
                     ? AlwaysAllowDuration
                     : AllowDuration;
@@ -608,8 +542,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// 当前主题 — 从 settings.json 读取（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand。
     /// 未设置或损坏返回 <see cref="ThemeKind.Auto"/>（对齐 CLI GetCurrentThemeAsync 默认回退）。
     /// </summary>
-    public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<ThemeKind> GetThemeAsync(CancellationToken cancellationToken = default) {
         var configService = _services.GetService<IConfigurationService>();
         if (configService is null)
             return ThemeKind.Auto;
@@ -621,8 +554,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// <summary>
     /// 设置主题并持久化到 settings.json（键 ConfigKeyEnumConstants.Theme），对齐 CLI ThemeCommand。
     /// </summary>
-    public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default)
-    {
+    public async Task SetThemeAsync(ThemeKind theme, CancellationToken cancellationToken = default) {
         var configService = _services.GetService<IConfigurationService>();
         if (configService is not null)
             await configService.SetAsync(ConfigKeyEnumConstants.Theme, theme.ToValue(), cancellationToken);
@@ -638,8 +570,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// 获取可用斜杠命令清单 — 从 DI 解析 <c>ISlashCommandCatalog</c>（源码生成器在 Composition 中生成）。
     /// 未注册时返回空列表（兜底）。
     /// </summary>
-    public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands()
-    {
+    public IReadOnlyList<SlashCommandMetadata> GetAvailableSlashCommands() {
         var catalog = _services.GetService<ISlashCommandCatalog>();
         if (catalog is null)
             return [];
@@ -650,8 +581,7 @@ internal sealed class JccChatSession : IJccChatSession
     /// 获取可用工具清单 — 从 DI 解析 IToolRegistry，提取全部工具名与描述。
     /// 未注册时返回空列表（兜底）。
     /// </summary>
-    public async Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<ToolSummary>> GetAvailableToolsAsync(CancellationToken cancellationToken = default) {
         var registry = _services.GetService<IToolRegistry>();
         if (registry is null)
             return [];
@@ -666,15 +596,13 @@ internal sealed class JccChatSession : IJccChatSession
     /// 获取可用子代理清单 — 从 DI 解析 IAgentDefinitionProvider，提取全部代理定义的
     /// DisplayId 与 Description（Description 为空回退 WhenToUse）。未注册时返回空列表。
     /// </summary>
-    public async Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<SubAgentSummary>> GetAvailableSubAgentsAsync(CancellationToken cancellationToken = default) {
         var provider = _services.GetService<IAgentDefinitionProvider>();
         if (provider is null)
             return [];
         var definitions = await provider.GetAgentDefinitionsAsync(null, cancellationToken);
         var list = new List<SubAgentSummary>(definitions.Count);
-        foreach (var def in definitions)
-        {
+        foreach (var def in definitions) {
             var displayId = def.DisplayId;
             var description = !string.IsNullOrWhiteSpace(def.Description) ? def.Description! : def.WhenToUse;
             list.Add(new SubAgentSummary(displayId, description, displayId));
@@ -682,10 +610,8 @@ internal sealed class JccChatSession : IJccChatSession
         return list;
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        if (_disposeAsync is not null)
-        {
+    public async ValueTask DisposeAsync() {
+        if (_disposeAsync is not null) {
             await _disposeAsync().ConfigureAwait(false);
         }
     }

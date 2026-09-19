@@ -4,8 +4,7 @@ namespace JoinCode.Hands.Desktop.Native;
 /// Win32 POINT 结构
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct POINT
-{
+internal struct POINT {
     public int X;
     public int Y;
 }
@@ -14,8 +13,7 @@ internal struct POINT
 /// Win32 RECT 结构
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct RECT
-{
+internal struct RECT {
     public int Left;
     public int Top;
     public int Right;
@@ -29,8 +27,7 @@ internal struct RECT
 /// 鼠标输入结构
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct MOUSEINPUT
-{
+internal struct MOUSEINPUT {
     public int dx;
     public int dy;
     public uint mouseData;
@@ -43,8 +40,7 @@ internal struct MOUSEINPUT
 /// 键盘输入结构
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct KEYBDINPUT
-{
+internal struct KEYBDINPUT {
     public ushort wVk;
     public ushort wScan;
     public uint dwFlags;
@@ -56,8 +52,7 @@ internal struct KEYBDINPUT
 /// 硬件输入结构（暂未使用，保留以完备 INPUT 联合体）
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct HARDWAREINPUT
-{
+internal struct HARDWAREINPUT {
     public uint uMsg;
     public ushort wParamL;
     public ushort wParamH;
@@ -67,8 +62,7 @@ internal struct HARDWAREINPUT
 /// INPUT 联合体
 /// </summary>
 [StructLayout(LayoutKind.Explicit)]
-internal struct InputUnion
-{
+internal struct InputUnion {
     [FieldOffset(0)]
     public MOUSEINPUT mi;
 
@@ -83,8 +77,7 @@ internal struct InputUnion
 /// SendInput 顶层输入结构
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct INPUT
-{
+internal struct INPUT {
     public uint type;
     public InputUnion u;
 }
@@ -93,8 +86,7 @@ internal struct INPUT
 /// BITMAPINFOHEADER — GetDIBits 位图信息头
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct BITMAPINFOHEADER
-{
+internal struct BITMAPINFOHEADER {
     public uint biSize;
     public int biWidth;
     public int biHeight;
@@ -112,8 +104,7 @@ internal struct BITMAPINFOHEADER
 /// BITMAPINFO — GetDIBits 位图信息（32位色深无需调色板）
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct BITMAPINFO
-{
+internal struct BITMAPINFO {
     public BITMAPINFOHEADER bmiHeader;
     public uint bmiColors;
 }

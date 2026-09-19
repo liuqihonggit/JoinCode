@@ -3,22 +3,19 @@ namespace JoinCode.Vision.Tests;
 /// <summary>
 /// 四叉树桌面叠加坐标转换器单元测试 — 格子坐标→屏幕坐标转换(ADR 0032 延伸应用)
 /// </summary>
-public sealed class QuadtreeDesktopOverlayMapperTests
-{
+public sealed class QuadtreeDesktopOverlayMapperTests {
     private readonly QuadtreeEncoder _encoder = new();
     private readonly QuadtreeDesktopOverlayMapper _mapper = new();
 
     [Fact]
-    public void MapToScreen_AllHiddenCells_ReturnsEmpty()
-    {
+    public void MapToScreen_AllHiddenCells_ReturnsEmpty() {
         var grid = _encoder.BuildGrid(100, 100, 1);
         var result = _mapper.MapToScreen(grid, 0, 0);
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public void MapToScreen_SingleVisibleCell_AtOrigin_ReturnsCellCoordinates()
-    {
+    public void MapToScreen_SingleVisibleCell_AtOrigin_ReturnsCellCoordinates() {
         var grid = _encoder.BuildGrid(100, 100, 1);
         var painted = _encoder.PaintCells(grid, new Dictionary<string, double> { ["L0.2"] = 1.0 });
         var result = _mapper.MapToScreen(painted, 0, 0);
@@ -33,8 +30,7 @@ public sealed class QuadtreeDesktopOverlayMapperTests
     }
 
     [Fact]
-    public void MapToScreen_WithScreenOffset_AddsOffsetToCoordinates()
-    {
+    public void MapToScreen_WithScreenOffset_AddsOffsetToCoordinates() {
         var grid = _encoder.BuildGrid(100, 100, 1);
         var painted = _encoder.PaintCells(grid, new Dictionary<string, double> { ["L0.2"] = 0.5 });
         var result = _mapper.MapToScreen(painted, 200, 300);
@@ -46,11 +42,9 @@ public sealed class QuadtreeDesktopOverlayMapperTests
     }
 
     [Fact]
-    public void MapToScreen_MultipleVisibleCells_ReturnsAllVisibleInGridOrder()
-    {
+    public void MapToScreen_MultipleVisibleCells_ReturnsAllVisibleInGridOrder() {
         var grid = _encoder.BuildGrid(100, 100, 1);
-        var painted = _encoder.PaintCells(grid, new Dictionary<string, double>
-        {
+        var painted = _encoder.PaintCells(grid, new Dictionary<string, double> {
             ["L0.0"] = 1.0,
             ["L0.1"] = 0.8,
         });
@@ -61,8 +55,7 @@ public sealed class QuadtreeDesktopOverlayMapperTests
     }
 
     [Fact]
-    public void MapToScreen_AlphaZero_IsVisible()
-    {
+    public void MapToScreen_AlphaZero_IsVisible() {
         var grid = _encoder.BuildGrid(100, 100, 0);
         var painted = _encoder.PaintCells(grid, new Dictionary<string, double> { ["L0"] = 0.0 });
         var result = _mapper.MapToScreen(painted, 0, 0);
@@ -72,15 +65,13 @@ public sealed class QuadtreeDesktopOverlayMapperTests
     }
 
     [Fact]
-    public void MapToScreen_NullGrid_ThrowsArgumentNullException()
-    {
+    public void MapToScreen_NullGrid_ThrowsArgumentNullException() {
         var act = () => _mapper.MapToScreen(null!, 0, 0);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void MapToScreen_PreservesCellDimensionsAndOffset()
-    {
+    public void MapToScreen_PreservesCellDimensionsAndOffset() {
         var grid = _encoder.BuildGrid(200, 100, 1);
         var painted = _encoder.PaintCells(grid, new Dictionary<string, double> { ["L0.3"] = 1.0 });
         var result = _mapper.MapToScreen(painted, 50, 60);

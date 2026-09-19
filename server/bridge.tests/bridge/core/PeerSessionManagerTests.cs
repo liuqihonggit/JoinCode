@@ -5,17 +5,15 @@ namespace Bridge.Tests;
 /// PeerSessionManager 单元测试
 /// 测试对等会话创建、状态转换、事件触发和查询
 /// </summary>
-public sealed class PeerSessionManagerTests : IAsyncDisposable
-{
-    private PeerSessionManager _sut = new(NullLogger<PeerSessionManager>.Instance);
+public sealed class PeerSessionManagerTests : IAsyncDisposable {
+    private readonly PeerSessionManager _sut = new(NullLogger<PeerSessionManager>.Instance);
 
     private static PeerSessionManager CreateSut() => new(NullLogger<PeerSessionManager>.Instance);
 
     public ValueTask DisposeAsync() => _sut.DisposeAsync();
 
     [Fact]
-    public async Task CreatePeerSessionAsync_ShouldCreateSession_WithConnectingStatus()
-    {
+    public async Task CreatePeerSessionAsync_ShouldCreateSession_WithConnectingStatus() {
         // Arrange
         await using var sut = CreateSut();
         var localPeerId = "peer-local-001";
@@ -34,8 +32,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task MarkConnectedAsync_ShouldUpdateStatus_ToConnected()
-    {
+    public async Task MarkConnectedAsync_ShouldUpdateStatus_ToConnected() {
         // Arrange
         await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-002", "remote-002").ConfigureAwait(true);
@@ -50,8 +47,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ClosePeerSessionAsync_ShouldUpdateStatus_ToDisconnected()
-    {
+    public async Task ClosePeerSessionAsync_ShouldUpdateStatus_ToDisconnected() {
         // Arrange
         await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-003", "remote-003").ConfigureAwait(true);
@@ -67,8 +63,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetPeerSession_ShouldReturnSession_WhenExists()
-    {
+    public async Task GetPeerSession_ShouldReturnSession_WhenExists() {
         // Arrange
         await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-004", "remote-004").ConfigureAwait(true);
@@ -82,8 +77,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetPeerSession_ShouldReturnNull_WhenNotExists()
-    {
+    public async Task GetPeerSession_ShouldReturnNull_WhenNotExists() {
         // Arrange
         await using var sut = CreateSut();
 
@@ -95,8 +89,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetActivePeerSessions_ShouldReturnOnlyConnectedSessions()
-    {
+    public async Task GetActivePeerSessions_ShouldReturnOnlyConnectedSessions() {
         // Arrange
         await using var sut = CreateSut();
         var session1 = await sut.CreatePeerSessionAsync("local-005a", "remote-005a").ConfigureAwait(true);
@@ -114,8 +107,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task PeerSessionConnected_ShouldFire_WhenMarkedConnected()
-    {
+    public async Task PeerSessionConnected_ShouldFire_WhenMarkedConnected() {
         // Arrange
         await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-006", "remote-006").ConfigureAwait(true);
@@ -133,8 +125,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task PeerSessionDisconnected_ShouldFire_WhenClosed()
-    {
+    public async Task PeerSessionDisconnected_ShouldFire_WhenClosed() {
         // Arrange
         await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-007", "remote-007").ConfigureAwait(true);
@@ -153,8 +144,7 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task MarkConnectedAsync_OnAlreadyConnected_ShouldBeIdempotent_NoDuplicateEvent()
-    {
+    public async Task MarkConnectedAsync_OnAlreadyConnected_ShouldBeIdempotent_NoDuplicateEvent() {
         // Arrange
         await using var sut = CreateSut();
         var session = await sut.CreatePeerSessionAsync("local-008", "remote-008").ConfigureAwait(true);
@@ -172,11 +162,9 @@ public sealed class PeerSessionManagerTests : IAsyncDisposable
     }
 }
 
-public sealed class PeerSessionRouterTests
-{
+public sealed class PeerSessionRouterTests {
     [Fact]
-    public void RegisterRoute_ShouldAddRoute()
-    {
+    public void RegisterRoute_ShouldAddRoute() {
         // Arrange
         var router = new PeerSessionRouter();
 
@@ -190,8 +178,7 @@ public sealed class PeerSessionRouterTests
     }
 
     [Fact]
-    public void UnregisterRoute_ShouldRemoveRoute()
-    {
+    public void UnregisterRoute_ShouldRemoveRoute() {
         // Arrange
         var router = new PeerSessionRouter();
         router.RegisterRoute("peer-002", "ws://localhost:8080/peer-002");
@@ -206,8 +193,7 @@ public sealed class PeerSessionRouterTests
     }
 
     [Fact]
-    public void GetRoute_ShouldReturnNull_WhenNotExists()
-    {
+    public void GetRoute_ShouldReturnNull_WhenNotExists() {
         // Arrange
         var router = new PeerSessionRouter();
 
@@ -219,8 +205,7 @@ public sealed class PeerSessionRouterTests
     }
 
     [Fact]
-    public void GetAllPeerIds_ShouldReturnAllRegisteredPeerIds()
-    {
+    public void GetAllPeerIds_ShouldReturnAllRegisteredPeerIds() {
         // Arrange
         var router = new PeerSessionRouter();
         router.RegisterRoute("peer-003a", "ws://localhost:8080/a");
@@ -235,8 +220,7 @@ public sealed class PeerSessionRouterTests
     }
 
     [Fact]
-    public void Clear_ShouldRemoveAllRoutes()
-    {
+    public void Clear_ShouldRemoveAllRoutes() {
         // Arrange
         var router = new PeerSessionRouter();
         router.RegisterRoute("peer-004a", "ws://localhost:8080/a");
@@ -250,8 +234,7 @@ public sealed class PeerSessionRouterTests
     }
 
     [Fact]
-    public void RegisterRoute_ShouldUpdateExistingRoute()
-    {
+    public void RegisterRoute_ShouldUpdateExistingRoute() {
         // Arrange
         var router = new PeerSessionRouter();
         router.RegisterRoute("peer-005", "ws://localhost:8080/old");

@@ -6,8 +6,7 @@ namespace Core.Bridge.Init.V1;
 /// best-effort: 验证失败不阻塞主流程
 /// </summary>
 [Register(typeof(IMiddleware<V1BridgeInitContext>), ServiceLifetime.Singleton)]
-internal sealed partial class V1PerpetualSessionValidationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext>
-{
+internal sealed partial class V1PerpetualSessionValidationMiddleware : ServiceEntity, IMiddleware<V1BridgeInitContext> {
     /// <summary>错误行为策略 — 验证失败不阻塞主流程，继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
@@ -17,10 +16,8 @@ internal sealed partial class V1PerpetualSessionValidationMiddleware : ServiceEn
     /// <param name="ctx">V1 Bridge 初始化上下文</param>
     /// <param name="next">管道下一个委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct)
-    {
-        if (ctx.PriorPointer is not null && ctx.Parameters.Perpetual)
-        {
+    public async Task InvokeAsync(V1BridgeInitContext ctx, MiddlewareDelegate<V1BridgeInitContext> next, CancellationToken ct) {
+        if (ctx.PriorPointer is not null && ctx.Parameters.Perpetual) {
             var (envId, title) = await BridgeSessionApi.GetAsync(
                 ctx.PriorPointer.SessionId,
                 ctx.Parameters.BaseUrl,
@@ -28,14 +25,11 @@ internal sealed partial class V1PerpetualSessionValidationMiddleware : ServiceEn
                 orgUUID: "",
                 ctx.HttpClient,
                 ct).ConfigureAwait(false);
-            if (envId is not null)
-            {
+            if (envId is not null) {
                 ctx.PriorSessionEnvId = envId;
                 ctx.Logger?.LogInformation("Bridge v1: Perpetual 模式验证已有会话存活: env={EnvId} title={Title}",
                     envId, title ?? "(null)");
-            }
-            else
-            {
+            } else {
                 ctx.Logger?.LogWarning("Bridge v1: Perpetual 模式验证已有会话失败（可能已过期或被删除）");
             }
         }

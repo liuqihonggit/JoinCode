@@ -5,8 +5,7 @@ namespace Core.Context;
 /// 负责费率限制提取、成本计算、Usage 处理、指标记录
 /// </summary>
 [Register(typeof(IChatUsageProcessor), ServiceLifetime.Singleton)]
-public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProcessor
-{
+public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProcessor {
     private readonly ISessionStats _sessionStats;
     private readonly IChatContextManager _contextManager;
     private readonly ICostTracker? _costTracker;
@@ -29,8 +28,7 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
         ICostTracker? costTracker = null,
         IRateLimitTracker? rateLimitTracker = null,
         IModelConfigLoader? modelConfigLoader = null,
-        ILogger<ChatUsageProcessor>? logger = null)
-    {
+        ILogger<ChatUsageProcessor>? logger = null) {
         _sessionStats = sessionStats;
         _contextManager = contextManager;
         _costTracker = costTracker;
@@ -42,36 +40,27 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
     /// <summary>
     /// 处理 Usage 数据：计算成本、记录统计、检查缓存失效、上下文折叠
     /// </summary>
-    public async Task ProcessUsageAsync(TokenUsage usage, string? modelId, PromptStateSnapshot promptSnapshot, string? agentId = null, CancellationToken ct = default)
-    {
+    public async Task ProcessUsageAsync(TokenUsage usage, string? modelId, PromptStateSnapshot promptSnapshot, string? agentId = null, CancellationToken ct = default) {
         var costUsd = ComputeCostUsd(modelId, usage);
 
         var cacheBreakResult = await _contextManager.CheckCacheBreakAsync(promptSnapshot, usage, agentId, ct).ConfigureAwait(false);
-        if (cacheBreakResult.BreakDetected)
-        {
+        if (cacheBreakResult.BreakDetected) {
             _logger?.LogWarning("缓存失效: Kind={Kind}, Detail={Detail}", cacheBreakResult.Kind, cacheBreakResult.Detail);
         }
 
         _sessionStats.RecordTurn(usage, costUsd, cacheBreakResult);
 
         var foldDecision = _contextManager.DecideAfterUsage(usage);
-        if (foldDecision != ContextFoldDecision.None)
-        {
-            try
-            {
+        if (foldDecision != ContextFoldDecision.None) {
+            try {
                 var foldResult = await _contextManager.FoldIfNeededAsync(foldDecision, agentId, ct).ConfigureAwait(false);
-                if (foldResult.Folded)
-                {
+                if (foldResult.Folded) {
                     _logger?.LogInformation("上下文折叠已执行: {Decision}, 原始 {Original} 条 → 保留 {Tail} 条 + 摘要",
                         foldDecision, foldResult.OriginalMessageCount, foldResult.TailMessageCount);
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 throw;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "上下文折叠失败（决策={Decision}），保留原始历史继续对话", foldDecision);
             }
         }
@@ -80,8 +69,7 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
     /// <summary>
     /// 从流式响应元数据中提取费率限制数据
     /// </summary>
-    public void TryExtractRateLimitData(IReadOnlyDictionary<string, JsonElement> metadata)
-    {
+    public void TryExtractRateLimitData(IReadOnlyDictionary<string, JsonElement> metadata) {
         var snapshot = new RateLimitSnapshot();
         var rateLimitTracker = _rateLimitTracker ?? throw new InvalidOperationException("RateLimitTracker not available.");
 
@@ -103,8 +91,7 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
         if (metadata.TryGetValue("ratelimit_x-ratelimit-reset-tokens", out var resetTokEl) && resetTokEl.ValueKind == JsonValueKind.String && DateTime.TryParse(resetTokEl.GetString(), out var resetTok))
             snapshot = snapshot with { TokenResetsAt = resetTok.ToUniversalTime() };
 
-        if (snapshot.RequestLimit.HasValue || snapshot.TokenLimit.HasValue)
-        {
+        if (snapshot.RequestLimit.HasValue || snapshot.TokenLimit.HasValue) {
             rateLimitTracker.Update(snapshot);
         }
     }
@@ -112,15 +99,12 @@ public sealed partial class ChatUsageProcessor : ServiceEntity, IChatUsageProces
     /// <summary>
     /// 计算成本（美元）
     /// </summary>
-    public decimal ComputeCostUsd(string? modelId, TokenUsage usage)
-    {
-        if (string.IsNullOrEmpty(modelId))
-        {
+    public decimal ComputeCostUsd(string? modelId, TokenUsage usage) {
+        if (string.IsNullOrEmpty(modelId)) {
             return 0;
         }
 
-        if (_costTracker is not null)
-        {
+        if (_costTracker is not null) {
             _costTracker.RecordUsage(
                 modelId,
                 usage.PromptTokens,

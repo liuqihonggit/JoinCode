@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 代表运行时目标（区别于 GoalState，后者是数据模型）
 /// ObjectId + 目标描述 + 创建时间 + 独立注册器 + 静态属性暴露
 /// </summary>
-public sealed class Goal : Entity
-{
+public sealed class Goal : Entity {
     public string Objective { get; }
     public GoalStatus Status { get; set; } = GoalStatus.Pursuing;
     public List<string> Constraints { get; init; } = [];
@@ -29,8 +28,7 @@ public sealed class Goal : Entity
         int? tokenBudget = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(ObjectType.Goal, sessionId, displayName ?? objective)
-    {
+        : base(ObjectType.Goal, sessionId, displayName ?? objective) {
         Objective = objective;
         Constraints = constraints ?? [];
         TokenBudget = tokenBudget;
@@ -41,8 +39,7 @@ public sealed class Goal : Entity
     /// <summary>
     /// 惰性释放 — 持久化服务确认数据全部写入后才调用
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
@@ -50,8 +47,7 @@ public sealed class Goal : Entity
     /// <summary>
     /// 转换为 GoalState DTO（供 IGoalEngine 等消费方使用）
     /// </summary>
-    public GoalState ToGoalState() => new()
-    {
+    public GoalState ToGoalState() => new() {
         GoalId = UniqueId,
         Objective = Objective,
         Status = Status,
@@ -74,8 +70,7 @@ public sealed class Goal : Entity
         constraints: state.Constraints,
         tokenBudget: state.TokenBudget,
         displayName: state.GoalId,
-        sessionId: sessionId)
-    {
+        sessionId: sessionId) {
         Status = state.Status,
         TokensUsed = state.TokensUsed,
         TurnsCompleted = state.TurnsCompleted,
@@ -95,15 +90,13 @@ public sealed class Goal : Entity
     /// <summary>
     /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
     /// </summary>
-    public override Entity Clone(CloneContext context)
-    {
+    public override Entity Clone(CloneContext context) {
         var cloned = new Goal(
             objective: Objective,
             constraints: new List<string>(Constraints),
             tokenBudget: TokenBudget,
             displayName: DisplayName,
-            sessionId: context.TargetSessionId)
-        {
+            sessionId: context.TargetSessionId) {
             Status = Status,
             TokensUsed = TokensUsed,
             TurnsCompleted = TurnsCompleted,

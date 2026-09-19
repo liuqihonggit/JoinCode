@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 意图上报器 — Worker 执行中检测要改的文件，热文件契约改实时通过 IMailbox 上报队长
 /// 与 IntentCollector 互补：Collector 收集所有意图供 HotSpotTracker 统计，Reporter 对热文件契约改额外发邮箱通知队长
 /// </summary>
-public interface IIntentReporter
-{
+public interface IIntentReporter {
     /// <summary>
     /// Worker 上报修改意图：收集到 IntentCollector + 热文件契约改发 IMailbox 通知队长
     /// </summary>

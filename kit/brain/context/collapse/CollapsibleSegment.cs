@@ -4,8 +4,7 @@ namespace Core.Context.Collapse;
 /// <summary>
 /// 可折叠的上下文段
 /// </summary>
-public sealed class CollapsibleSegment
-{
+public sealed class CollapsibleSegment {
     /// <summary>
     /// 段唯一标识
     /// </summary>
@@ -47,8 +46,7 @@ public sealed class CollapsibleSegment
 /// <summary>
 /// 可折叠段的类型
 /// </summary>
-public enum CollapsibleSegmentType
-{
+public enum CollapsibleSegmentType {
     /// <summary>
     /// 代码块
     /// </summary>

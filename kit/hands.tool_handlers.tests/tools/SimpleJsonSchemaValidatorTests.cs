@@ -1,14 +1,12 @@
 namespace Core.Tests.Tools;
 
-public sealed class SimpleJsonSchemaValidatorTests
-{
+public sealed class SimpleJsonSchemaValidatorTests {
     private readonly SimpleJsonSchemaValidator _validator = new();
 
     #region Type Validation
 
     [Fact]
-    public void Validate_ValidStringType_ShouldPass()
-    {
+    public void Validate_ValidStringType_ShouldPass() {
         var schema = """{"type": "string"}""";
         var result = _validator.Validate("\"hello\"", schema);
         result.IsValid.Should().BeTrue();
@@ -16,8 +14,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_InvalidStringType_ShouldFail()
-    {
+    public void Validate_InvalidStringType_ShouldFail() {
         var schema = """{"type": "string"}""";
         var result = _validator.Validate("42", schema);
         result.IsValid.Should().BeFalse();
@@ -25,64 +22,56 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_ValidNumberType_ShouldPass()
-    {
+    public void Validate_ValidNumberType_ShouldPass() {
         var schema = """{"type": "number"}""";
         var result = _validator.Validate("3.14", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_IntegerAsNumberType_ShouldPass()
-    {
+    public void Validate_IntegerAsNumberType_ShouldPass() {
         var schema = """{"type": "number"}""";
         var result = _validator.Validate("42", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_ValidIntegerType_ShouldPass()
-    {
+    public void Validate_ValidIntegerType_ShouldPass() {
         var schema = """{"type": "integer"}""";
         var result = _validator.Validate("42", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_FloatAsIntegerType_ShouldFail()
-    {
+    public void Validate_FloatAsIntegerType_ShouldFail() {
         var schema = """{"type": "integer"}""";
         var result = _validator.Validate("3.14", schema);
         result.IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Validate_ValidBooleanType_ShouldPass()
-    {
+    public void Validate_ValidBooleanType_ShouldPass() {
         var schema = """{"type": "boolean"}""";
         var result = _validator.Validate("true", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_ValidArrayType_ShouldPass()
-    {
+    public void Validate_ValidArrayType_ShouldPass() {
         var schema = """{"type": "array"}""";
         var result = _validator.Validate("[1, 2, 3]", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_ValidObjectType_ShouldPass()
-    {
+    public void Validate_ValidObjectType_ShouldPass() {
         var schema = """{"type": "object"}""";
         var result = _validator.Validate("""{"key": "value"}""", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_NullType_ShouldPass()
-    {
+    public void Validate_NullType_ShouldPass() {
         var schema = """{"type": "null"}""";
         var result = _validator.Validate("null", schema);
         result.IsValid.Should().BeTrue();
@@ -93,8 +82,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Required Properties
 
     [Fact]
-    public void Validate_AllRequiredPropertiesPresent_ShouldPass()
-    {
+    public void Validate_AllRequiredPropertiesPresent_ShouldPass() {
         var schema = """
             {
                 "type": "object",
@@ -111,8 +99,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_MissingRequiredProperty_ShouldFail()
-    {
+    public void Validate_MissingRequiredProperty_ShouldFail() {
         var schema = """
             {
                 "type": "object",
@@ -130,8 +117,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_MissingMultipleRequiredProperties_ShouldReportAllErrors()
-    {
+    public void Validate_MissingMultipleRequiredProperties_ShouldReportAllErrors() {
         var schema = """
             {
                 "type": "object",
@@ -154,16 +140,14 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region String Constraints
 
     [Fact]
-    public void Validate_StringMinLengthSatisfied_ShouldPass()
-    {
+    public void Validate_StringMinLengthSatisfied_ShouldPass() {
         var schema = """{"type": "string", "minLength": 3}""";
         var result = _validator.Validate("\"hello\"", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_StringMinLengthViolated_ShouldFail()
-    {
+    public void Validate_StringMinLengthViolated_ShouldFail() {
         var schema = """{"type": "string", "minLength": 5}""";
         var result = _validator.Validate("\"hi\"", schema);
         result.IsValid.Should().BeFalse();
@@ -171,16 +155,14 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_StringMaxLengthSatisfied_ShouldPass()
-    {
+    public void Validate_StringMaxLengthSatisfied_ShouldPass() {
         var schema = """{"type": "string", "maxLength": 10}""";
         var result = _validator.Validate("\"hello\"", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_StringMaxLengthViolated_ShouldFail()
-    {
+    public void Validate_StringMaxLengthViolated_ShouldFail() {
         var schema = """{"type": "string", "maxLength": 3}""";
         var result = _validator.Validate("\"hello\"", schema);
         result.IsValid.Should().BeFalse();
@@ -192,16 +174,14 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Number Constraints
 
     [Fact]
-    public void Validate_NumberMinimumSatisfied_ShouldPass()
-    {
+    public void Validate_NumberMinimumSatisfied_ShouldPass() {
         var schema = """{"type": "integer", "minimum": 0}""";
         var result = _validator.Validate("5", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_NumberMinimumViolated_ShouldFail()
-    {
+    public void Validate_NumberMinimumViolated_ShouldFail() {
         var schema = """{"type": "integer", "minimum": 10}""";
         var result = _validator.Validate("5", schema);
         result.IsValid.Should().BeFalse();
@@ -209,16 +189,14 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_NumberMaximumSatisfied_ShouldPass()
-    {
+    public void Validate_NumberMaximumSatisfied_ShouldPass() {
         var schema = """{"type": "integer", "maximum": 100}""";
         var result = _validator.Validate("50", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_NumberMaximumViolated_ShouldFail()
-    {
+    public void Validate_NumberMaximumViolated_ShouldFail() {
         var schema = """{"type": "integer", "maximum": 10}""";
         var result = _validator.Validate("50", schema);
         result.IsValid.Should().BeFalse();
@@ -230,16 +208,14 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Array Constraints
 
     [Fact]
-    public void Validate_ArrayMinItemsSatisfied_ShouldPass()
-    {
+    public void Validate_ArrayMinItemsSatisfied_ShouldPass() {
         var schema = """{"type": "array", "minItems": 2}""";
         var result = _validator.Validate("[1, 2, 3]", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_ArrayMinItemsViolated_ShouldFail()
-    {
+    public void Validate_ArrayMinItemsViolated_ShouldFail() {
         var schema = """{"type": "array", "minItems": 5}""";
         var result = _validator.Validate("[1, 2, 3]", schema);
         result.IsValid.Should().BeFalse();
@@ -247,16 +223,14 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_ArrayMaxItemsSatisfied_ShouldPass()
-    {
+    public void Validate_ArrayMaxItemsSatisfied_ShouldPass() {
         var schema = """{"type": "array", "maxItems": 5}""";
         var result = _validator.Validate("[1, 2, 3]", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_ArrayMaxItemsViolated_ShouldFail()
-    {
+    public void Validate_ArrayMaxItemsViolated_ShouldFail() {
         var schema = """{"type": "array", "maxItems": 2}""";
         var result = _validator.Validate("[1, 2, 3]", schema);
         result.IsValid.Should().BeFalse();
@@ -264,16 +238,14 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_ArrayItemsSchema_ShouldValidateEachItem()
-    {
+    public void Validate_ArrayItemsSchema_ShouldValidateEachItem() {
         var schema = """{"type": "array", "items": {"type": "string"}}""";
         var result = _validator.Validate("""["a", "b", "c"]""", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_ArrayItemsSchemaViolation_ShouldFail()
-    {
+    public void Validate_ArrayItemsSchemaViolation_ShouldFail() {
         var schema = """{"type": "array", "items": {"type": "string"}}""";
         var result = _validator.Validate("""["a", 42, "c"]""", schema);
         result.IsValid.Should().BeFalse();
@@ -285,8 +257,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Nested Object Validation
 
     [Fact]
-    public void Validate_NestedObjectValid_ShouldPass()
-    {
+    public void Validate_NestedObjectValid_ShouldPass() {
         var schema = """
             {
                 "type": "object",
@@ -309,8 +280,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_NestedObjectMissingRequired_ShouldFail()
-    {
+    public void Validate_NestedObjectMissingRequired_ShouldFail() {
         var schema = """
             {
                 "type": "object",
@@ -333,8 +303,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_NestedObjectWrongType_ShouldFail()
-    {
+    public void Validate_NestedObjectWrongType_ShouldFail() {
         var schema = """
             {
                 "type": "object",
@@ -359,16 +328,14 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Enum Validation
 
     [Fact]
-    public void Validate_EnumValueInList_ShouldPass()
-    {
+    public void Validate_EnumValueInList_ShouldPass() {
         var schema = """{"type": "string", "enum": ["red", "green", "blue"]}""";
         var result = _validator.Validate("\"red\"", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_EnumValueNotInList_ShouldFail()
-    {
+    public void Validate_EnumValueNotInList_ShouldFail() {
         var schema = """{"type": "string", "enum": ["red", "green", "blue"]}""";
         var result = _validator.Validate("\"yellow\"", schema);
         result.IsValid.Should().BeFalse();
@@ -376,8 +343,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_EnumWithMixedTypes_ShouldPass()
-    {
+    public void Validate_EnumWithMixedTypes_ShouldPass() {
         var schema = """{"enum": ["active", 1, true, null]}""";
         var result = _validator.Validate("1", schema);
         result.IsValid.Should().BeTrue();
@@ -388,8 +354,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Additional Properties (Strict Mode)
 
     [Fact]
-    public void Validate_AdditionalPropertiesAllowed_ShouldPass()
-    {
+    public void Validate_AdditionalPropertiesAllowed_ShouldPass() {
         var schema = """
             {
                 "type": "object",
@@ -405,8 +370,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_AdditionalPropertiesForbidden_ShouldFail()
-    {
+    public void Validate_AdditionalPropertiesForbidden_ShouldFail() {
         var schema = """
             {
                 "type": "object",
@@ -423,8 +387,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_NoAdditionalProperties_ShouldPass()
-    {
+    public void Validate_NoAdditionalProperties_ShouldPass() {
         var schema = """
             {
                 "type": "object",
@@ -444,8 +407,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Invalid Input
 
     [Fact]
-    public void Validate_InvalidJsonInstance_ShouldReturnError()
-    {
+    public void Validate_InvalidJsonInstance_ShouldReturnError() {
         var schema = """{"type": "string"}""";
         var result = _validator.Validate("not valid json{", schema);
         result.IsValid.Should().BeFalse();
@@ -453,23 +415,20 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_InvalidSchemaJson_ShouldReturnError()
-    {
+    public void Validate_InvalidSchemaJson_ShouldReturnError() {
         var result = _validator.Validate("\"hello\"", "not valid schema{");
         result.IsValid.Should().BeFalse();
         result.Errors.Should().ContainSingle(e => e.Message.Contains("无效的JSON Schema"));
     }
 
     [Fact]
-    public void Validate_NullInstance_ShouldThrowArgumentNullException()
-    {
+    public void Validate_NullInstance_ShouldThrowArgumentNullException() {
         var act = () => _validator.Validate(null!, """{"type": "string"}""");
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void Validate_NullSchema_ShouldThrowArgumentNullException()
-    {
+    public void Validate_NullSchema_ShouldThrowArgumentNullException() {
         var act = () => _validator.Validate("\"hello\"", null!);
         act.Should().Throw<ArgumentNullException>();
     }
@@ -479,8 +438,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Complex Schema
 
     [Fact]
-    public void Validate_ComplexSchemaValidInstance_ShouldPass()
-    {
+    public void Validate_ComplexSchemaValidInstance_ShouldPass() {
         var schema = """
             {
                 "type": "object",
@@ -514,8 +472,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_ComplexSchemaMultipleViolations_ShouldReportAllErrors()
-    {
+    public void Validate_ComplexSchemaMultipleViolations_ShouldReportAllErrors() {
         var schema = """
             {
                 "type": "object",
@@ -542,8 +499,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_DeeplyNestedObject_ShouldPass()
-    {
+    public void Validate_DeeplyNestedObject_ShouldPass() {
         var schema = """
             {
                 "type": "object",
@@ -568,8 +524,7 @@ public sealed class SimpleJsonSchemaValidatorTests
     }
 
     [Fact]
-    public void Validate_DeeplyNestedObjectViolation_ShouldFail()
-    {
+    public void Validate_DeeplyNestedObjectViolation_ShouldFail() {
         var schema = """
             {
                 "type": "object",
@@ -599,56 +554,49 @@ public sealed class SimpleJsonSchemaValidatorTests
     #region Edge Cases
 
     [Fact]
-    public void Validate_EmptyObjectWithNoRequired_ShouldPass()
-    {
+    public void Validate_EmptyObjectWithNoRequired_ShouldPass() {
         var schema = """{"type": "object"}""";
         var result = _validator.Validate("{}", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_EmptyArrayWithNoConstraints_ShouldPass()
-    {
+    public void Validate_EmptyArrayWithNoConstraints_ShouldPass() {
         var schema = """{"type": "array"}""";
         var result = _validator.Validate("[]", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_EmptyStringWithMinLength_ShouldFail()
-    {
+    public void Validate_EmptyStringWithMinLength_ShouldFail() {
         var schema = """{"type": "string", "minLength": 1}""";
         var result = _validator.Validate("\"\"", schema);
         result.IsValid.Should().BeFalse();
     }
 
     [Fact]
-    public void Validate_SchemaWithNoType_ShouldNotError()
-    {
+    public void Validate_SchemaWithNoType_ShouldNotError() {
         var schema = """{"minLength": 1}""";
         var result = _validator.Validate("\"hello\"", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_BooleanFalseValue_ShouldBeValidBoolean()
-    {
+    public void Validate_BooleanFalseValue_ShouldBeValidBoolean() {
         var schema = """{"type": "boolean"}""";
         var result = _validator.Validate("false", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_ZeroInteger_ShouldBeValid()
-    {
+    public void Validate_ZeroInteger_ShouldBeValid() {
         var schema = """{"type": "integer", "minimum": 0}""";
         var result = _validator.Validate("0", schema);
         result.IsValid.Should().BeTrue();
     }
 
     [Fact]
-    public void Validate_NegativeNumber_ShouldBeValid()
-    {
+    public void Validate_NegativeNumber_ShouldBeValid() {
         var schema = """{"type": "number"}""";
         var result = _validator.Validate("-3.14", schema);
         result.IsValid.Should().BeTrue();

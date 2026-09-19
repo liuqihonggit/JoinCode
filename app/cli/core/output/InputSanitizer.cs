@@ -4,8 +4,7 @@ namespace JoinCode.Cli.Output;
 /// 输入硬化器 — 防范路径穿越、控制字符、特殊字符注入
 /// 对齐架构指南安全设计：输入硬化防幻觉
 /// </summary>
-public static class InputSanitizer
-{
+public static class InputSanitizer {
     /// <summary>路径穿越模式 AC 自动机 — 一次扫描检测所有穿越模式。</summary>
     private static readonly AhoCorasick<string> PathTraversalAc = AhoCorasick.Create(
         new[] { "../", "..\\", "..", "%2e%2e", "%2E%2E", "..%2f", "..%5c", "....//", "..;/" },
@@ -28,8 +27,7 @@ public static class InputSanitizer
     /// 检查路径是否包含穿越模式
     /// </summary>
     /// <returns>如果路径安全返回 null，否则返回错误描述</returns>
-    public static string? ValidatePath(string path)
-    {
+    public static string? ValidatePath(string path) {
         if (string.IsNullOrWhiteSpace(path))
             return "路径不能为空";
 
@@ -44,13 +42,11 @@ public static class InputSanitizer
     /// 检查输入是否包含控制字符
     /// </summary>
     /// <returns>如果输入安全返回 null，否则返回错误描述</returns>
-    public static string? ValidateNoControlChars(string input)
-    {
+    public static string? ValidateNoControlChars(string input) {
         if (string.IsNullOrEmpty(input))
             return null;
 
-        foreach (var c in input)
-        {
+        foreach (var c in input) {
             if (ControlChars.Contains(c))
                 return $"输入包含非法控制字符: 0x{((int)c):X2}";
         }
@@ -61,14 +57,12 @@ public static class InputSanitizer
     /// <summary>
     /// 清理输入 — 移除控制字符，规范化路径分隔符
     /// </summary>
-    public static string Sanitize(string input)
-    {
+    public static string Sanitize(string input) {
         if (string.IsNullOrEmpty(input))
             return input;
 
         var sb = new System.Text.StringBuilder(input.Length);
-        foreach (var c in input)
-        {
+        foreach (var c in input) {
             if (!ControlChars.Contains(c))
                 sb.Append(c);
         }
@@ -79,8 +73,7 @@ public static class InputSanitizer
     /// 检查命令参数是否包含注入风险
     /// 防范 shell 注入：分号、管道符、反引号、$() 等
     /// </summary>
-    public static string? ValidateShellArgument(string argument)
-    {
+    public static string? ValidateShellArgument(string argument) {
         if (string.IsNullOrEmpty(argument))
             return null;
 

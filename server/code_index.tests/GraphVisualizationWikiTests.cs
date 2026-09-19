@@ -1,28 +1,24 @@
 #pragma warning disable JCC9001, JCC9002
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class GraphVisualizationWikiTests : IDisposable
-{
+public sealed class GraphVisualizationWikiTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly GraphVisualization _viz;
     private bool _disposed;
 
-    public GraphVisualizationWikiTests()
-    {
+    public GraphVisualizationWikiTests() {
         _store = new InMemoryIndexStore();
         _viz = new GraphVisualization(_store);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _store.DisposeSafe();
     }
 
     [Fact]
-    public async Task ExportWikiAsync_EmptyStore_ReturnsHeaderWithNoCommunities()
-    {
+    public async Task ExportWikiAsync_EmptyStore_ReturnsHeaderWithNoCommunities() {
         var wiki = await _viz.ExportWikiAsync(CancellationToken.None);
 
         Assert.Contains("# Code Architecture Wiki", wiki);
@@ -30,8 +26,7 @@ public sealed class GraphVisualizationWikiTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportWikiAsync_SingleCommunity_ContainsCommunitySection()
-    {
+    public async Task ExportWikiAsync_SingleCommunity_ContainsCommunitySection() {
         InsertSymbol("AuthService", "Core.Auth.AuthService", SymbolKind.Class, "src/auth.cs", "Core.Auth");
         InsertSymbol("Login", "Core.Auth.AuthService.Login", SymbolKind.Method, "src/auth.cs", "Core.Auth");
         InsertCallEdge("Core.Auth.AuthService.Login", "Core.Auth.AuthService.Login", "src/auth.cs", 10, CallKind.Direct);
@@ -43,8 +38,7 @@ public sealed class GraphVisualizationWikiTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportWikiAsync_MultipleCommunities_ContainsAllSections()
-    {
+    public async Task ExportWikiAsync_MultipleCommunities_ContainsAllSections() {
         InsertSymbol("AuthService", "Core.Auth.AuthService", SymbolKind.Class, "src/auth.cs", "Core.Auth");
         InsertSymbol("OrderService", "Core.Orders.OrderService", SymbolKind.Class, "src/orders.cs", "Core.Orders");
         InsertCallEdge("Core.Auth.AuthService", "Core.Auth.AuthService", "src/auth.cs", 5, CallKind.Direct);
@@ -57,8 +51,7 @@ public sealed class GraphVisualizationWikiTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportWikiAsync_CrossCommunityDependency_ShowsDependencySection()
-    {
+    public async Task ExportWikiAsync_CrossCommunityDependency_ShowsDependencySection() {
         InsertSymbol("AuthService", "Core.Auth.AuthService", SymbolKind.Class, "src/auth.cs", "Core.Auth");
         InsertSymbol("OrderService", "Core.Orders.OrderService", SymbolKind.Class, "src/orders.cs", "Core.Orders");
         InsertCallEdge("Core.Auth.AuthService", "Core.Auth.AuthService", "src/auth.cs", 5, CallKind.Direct);
@@ -71,8 +64,7 @@ public sealed class GraphVisualizationWikiTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportWikiAsync_SymbolDetails_ContainsKindAndFile()
-    {
+    public async Task ExportWikiAsync_SymbolDetails_ContainsKindAndFile() {
         InsertSymbol("AuthService", "Core.Auth.AuthService", SymbolKind.Class, "src/auth.cs", "Core.Auth");
         InsertSymbol("Login", "Core.Auth.AuthService.Login", SymbolKind.Method, "src/auth.cs", "Core.Auth");
         InsertCallEdge("Core.Auth.AuthService", "Core.Auth.AuthService.Login", "src/auth.cs", 5, CallKind.Direct);
@@ -83,8 +75,7 @@ public sealed class GraphVisualizationWikiTests : IDisposable
     }
 
     [Fact]
-    public async Task ExportWikiAsync_StatsHeader_ContainsSymbolAndEdgeCount()
-    {
+    public async Task ExportWikiAsync_StatsHeader_ContainsSymbolAndEdgeCount() {
         InsertSymbol("Foo", "Ns.Foo", SymbolKind.Class, "src/foo.cs", "Ns");
         InsertSymbol("Bar", "Ns.Bar", SymbolKind.Method, "src/bar.cs", "Ns");
         InsertCallEdge("Ns.Foo", "Ns.Bar", "src/foo.cs", 10, CallKind.Direct);
@@ -95,10 +86,8 @@ public sealed class GraphVisualizationWikiTests : IDisposable
         Assert.Contains("**Call edges**: 1", wiki);
     }
 
-    private void InsertSymbol(string name, string fqn, SymbolKind kind, string filePath, string ns)
-    {
-        var symbol = new SymbolInfo
-        {
+    private void InsertSymbol(string name, string fqn, SymbolKind kind, string filePath, string ns) {
+        var symbol = new SymbolInfo {
             Name = name,
             FullyQualifiedName = fqn,
             Kind = kind,
@@ -114,24 +103,20 @@ public sealed class GraphVisualizationWikiTests : IDisposable
         using var scope = _store.EnterWriteLock();
         _store.SymbolsByFqn[fqn] = symbol;
 
-        if (!_store.SymbolsByName.TryGetValue(name, out var nameList))
-        {
+        if (!_store.SymbolsByName.TryGetValue(name, out var nameList)) {
             nameList = new List<SymbolInfo>();
             _store.SymbolsByName[name] = nameList;
         }
         nameList.Add(symbol);
-        if (!_store.SymbolsByFile.TryGetValue(filePath, out var fileList))
-        {
+        if (!_store.SymbolsByFile.TryGetValue(filePath, out var fileList)) {
             fileList = new List<SymbolInfo>();
             _store.SymbolsByFile[filePath] = fileList;
         }
         fileList.Add(symbol);
     }
 
-    private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind)
-    {
-        var edge = new CallEdge
-        {
+    private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind) {
+        var edge = new CallEdge {
             CallerSymbol = caller,
             CalleeSymbol = callee,
             CallSiteFilePath = file,
@@ -145,10 +130,8 @@ public sealed class GraphVisualizationWikiTests : IDisposable
         AddToBucket(_store.CallsByFile, file, edge);
     }
 
-    private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull
-    {
-        if (!dict.TryGetValue(key, out var list))
-        {
+    private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
+        if (!dict.TryGetValue(key, out var list)) {
             list = new List<CallEdge>();
             dict[key] = list;
         }

@@ -5,8 +5,7 @@ namespace Core.Agents.Coordinator;
 /// <para>桥接 [Register] 自动注册与运行时条件选择逻辑</para>
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IPaneBackend), ServiceLifetime.Singleton)]
-public sealed partial class PaneBackendSelector : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend
-{
+public sealed partial class PaneBackendSelector : ServiceEntity, JoinCode.Abstractions.Interfaces.IPaneBackend {
     private readonly JoinCode.Abstractions.Interfaces.IPaneBackend _backend;
 
     /// <summary>
@@ -18,8 +17,7 @@ public sealed partial class PaneBackendSelector : ServiceEntity, JoinCode.Abstra
     public PaneBackendSelector(
         TmuxPaneBackend tmuxBackend,
         ITerm2PaneBackend iterm2Backend,
-        InProcessPaneBackend inProcessBackend)
-    {
+        InProcessPaneBackend inProcessBackend) {
         _backend = tmuxBackend.IsAvailable ? tmuxBackend
             : iterm2Backend.IsAvailable ? iterm2Backend
             : inProcessBackend;

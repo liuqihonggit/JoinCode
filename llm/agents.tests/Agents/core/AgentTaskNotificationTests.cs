@@ -1,12 +1,9 @@
 namespace Core.Agents;
 
-public sealed class AgentTaskNotificationTests
-{
+public sealed class AgentTaskNotificationTests {
     [Fact]
-    public void ToXml_ContainsAllFields()
-    {
-        var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification
-        {
+    public void ToXml_ContainsAllFields() {
+        var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification {
             TaskId = "agent-123",
             Status = "completed",
             Description = "Check README",
@@ -38,10 +35,8 @@ public sealed class AgentTaskNotificationTests
     }
 
     [Fact]
-    public void ToXml_WithoutWorktree_NoWorktreeElement()
-    {
-        var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification
-        {
+    public void ToXml_WithoutWorktree_NoWorktreeElement() {
+        var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification {
             TaskId = "agent-456",
             Status = "failed",
             Description = "Search code",
@@ -57,10 +52,8 @@ public sealed class AgentTaskNotificationTests
     }
 
     [Fact]
-    public void ToXml_WithWorktreePathOnly_NoBranch()
-    {
-        var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification
-        {
+    public void ToXml_WithWorktreePathOnly_NoBranch() {
+        var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification {
             TaskId = "agent-789",
             Status = "completed",
             Description = "Build check",
@@ -75,10 +68,8 @@ public sealed class AgentTaskNotificationTests
     }
 
     [Fact]
-    public void ToXml_FailedAgent_ContainsErrorNotResult()
-    {
-        var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification
-        {
+    public void ToXml_FailedAgent_ContainsErrorNotResult() {
+        var notification = new JoinCode.Abstractions.Interfaces.AgentTaskNotification {
             TaskId = "agent-fail",
             Status = "failed",
             Description = "Broken task",

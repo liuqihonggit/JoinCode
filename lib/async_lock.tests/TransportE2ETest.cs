@@ -4,20 +4,16 @@ namespace Core.Utils;
 /// 传输层 E2E 集成测试 — 同进程内模拟两个进程，通过有名管道实际通信。
 /// <para>用可注入 PID 创建两个 transport 实例，验证完整握手→选举→消息传递链路。</para>
 /// </summary>
-public class TransportE2ETest
-{
+public class TransportE2ETest {
     private static async Task<TransportFrame?> ReceiveWithTimeoutAsync(
         IAsyncEnumerable<TransportFrame> source,
-        TimeSpan timeout)
-    {
+        TimeSpan timeout) {
         using var cts = new CancellationTokenSource(timeout);
-        try { return await source.FirstOrDefaultAsync(cts.Token); }
-        catch (OperationCanceledException) { return null; }
+        try { return await source.FirstOrDefaultAsync(cts.Token); } catch (OperationCanceledException) { return null; }
     }
 
     [Fact]
-    public async Task BusTransport_HostSlave_MessageRoundTrip()
-    {
+    public async Task BusTransport_HostSlave_MessageRoundTrip() {
         var pipeName = $"e2e-bus-{Guid.NewGuid():N}";
         var hostPid = "100001";
         var slavePid = "100002";
@@ -42,8 +38,7 @@ public class TransportE2ETest
     }
 
     [Fact]
-    public async Task BusTransport_TwoInstances_HostElectionWorks()
-    {
+    public async Task BusTransport_TwoInstances_HostElectionWorks() {
         var pipeName = $"e2e-bus-elect-{Guid.NewGuid():N}";
         var lowPid = "200001";
         var highPid = "200002";
@@ -63,8 +58,7 @@ public class TransportE2ETest
     }
 
     [Fact]
-    public async Task MeshTransport_TwoPeers_PointToPointMessage()
-    {
+    public async Task MeshTransport_TwoPeers_PointToPointMessage() {
         var baseName = $"e2e-mesh-{Guid.NewGuid():N}";
         var pid1 = "300001";
         var pid2 = "300002";
@@ -90,8 +84,7 @@ public class TransportE2ETest
     }
 
     [Fact]
-    public async Task MeshTransport_Bidirectional_BothDirectionsWork()
-    {
+    public async Task MeshTransport_Bidirectional_BothDirectionsWork() {
         var baseName = $"e2e-mesh-bi-{Guid.NewGuid():N}";
         var pid1 = "400001";
         var pid2 = "400002";
@@ -122,8 +115,7 @@ public class TransportE2ETest
     }
 
     [Fact]
-    public async Task NamedPipeTransport_HostSlave_MessageRoundTrip()
-    {
+    public async Task NamedPipeTransport_HostSlave_MessageRoundTrip() {
         var pipeName = $"e2e-np-{Guid.NewGuid():N}";
         var hostPid = "500001";
         var slavePid = "500002";
@@ -150,8 +142,7 @@ public class TransportE2ETest
     }
 
     [Fact]
-    public async Task BusTransport_Broadcast_MultipleSlavesReceive()
-    {
+    public async Task BusTransport_Broadcast_MultipleSlavesReceive() {
         var pipeName = $"e2e-bus-multi-{Guid.NewGuid():N}";
         var hostPid = "600001";
         var slave1Pid = "600002";
@@ -181,11 +172,9 @@ public class TransportE2ETest
         Encoding.UTF8.GetString(recv2!.Data.Span).Should().Be("broadcast-all");
     }
 
-    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan timeout)
-    {
+    private static async Task WaitUntilAsync(Func<Task<bool>> predicate, TimeSpan timeout) {
         var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
+        while (DateTime.UtcNow < deadline) {
             if (await predicate()) return;
             await Task.Delay(50);
         }

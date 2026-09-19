@@ -11,8 +11,7 @@ namespace JoinCode.Abstractions.Utils;
 /// - FromValue("rg")             → CliSubCommand.Rg
 /// - CliSubCommand.RemoteControl.ToValue() → "remote-control"
 /// </summary>
-public enum CliSubCommand
-{
+public enum CliSubCommand {
     /// <summary>Schema 自省 — 输出 CLI 参数定义 JSON，供 Agent 动态查询</summary>
     [EnumValue("schema")]
     [SubCommandInfo("输出 CLI 参数定义 JSON, 供 Agent 动态查询", "自省", Example = "jcc schema")]

@@ -7,8 +7,7 @@ namespace Core.Plugins;
 /// <para>卸载: plugin_unload + NativeLibrary.Free</para>
 /// <para>线程安全: 非线程安全,调用方需自行同步(Actor 模式下单线程访问)</para>
 /// </summary>
-public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
-{
+public sealed unsafe class NativePluginHost : IDisposable, IPluginHost {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int PluginLoadDelegate(byte* configPtr, int configLen);
 
@@ -50,8 +49,7 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
     /// <param name="pluginName">插件名(唯一标识)</param>
     /// <param name="fs">文件系统抽象(用于检查 DLL 是否存在)</param>
     /// <param name="logger">可选日志</param>
-    public NativePluginHost(string pluginPath, string pluginName, IFileSystem fs, ILogger? logger = null)
-    {
+    public NativePluginHost(string pluginPath, string pluginName, IFileSystem fs, ILogger? logger = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
         ArgumentNullException.ThrowIfNull(fs);
@@ -67,8 +65,7 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
     /// </summary>
     /// <param name="configJson">JSON 配置(传给 plugin_load)</param>
     /// <returns>加载结果</returns>
-    public NativePluginLoadResult Load(string? configJson = null)
-    {
+    public NativePluginLoadResult Load(string? configJson = null) {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
         if (_isLoaded) return NativePluginLoadResult.Ok();
 
@@ -79,16 +76,14 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
         if (_handle == IntPtr.Zero)
             return NativePluginLoadResult.Fail(NativePluginError.NotLoaded, $"NativeLibrary.Load 失败: {_pluginPath}");
 
-        if (!TryGetExports())
-        {
+        if (!TryGetExports()) {
             NativeLibrary.Free(_handle);
             _handle = IntPtr.Zero;
             return NativePluginLoadResult.Fail(NativePluginError.Generic, $"缺少必要导出函数 ({NativePluginAbi.EntryLoad}/{NativePluginAbi.EntryInvoke}/{NativePluginAbi.EntryUnload})");
         }
 
         var loadResult = CallLoad(configJson);
-        if (loadResult != 0)
-        {
+        if (loadResult != 0) {
             NativeLibrary.Free(_handle);
             _handle = IntPtr.Zero;
             return NativePluginLoadResult.Fail((NativePluginError)loadResult, $"plugin_load 返回错误码 {loadResult}");
@@ -106,8 +101,7 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
     /// <param name="requestJson">JSON 请求</param>
     /// <param name="responseCapacity">响应缓冲区初始容量(默认 64KB)</param>
     /// <returns>调用结果</returns>
-    public NativePluginInvokeResult Invoke(string requestJson, int responseCapacity = NativePluginAbi.DefaultResponseCapacity)
-    {
+    public NativePluginInvokeResult Invoke(string requestJson, int responseCapacity = NativePluginAbi.DefaultResponseCapacity) {
         ObjectDisposedException.ThrowIf(_isDisposed, this);
         if (!_isLoaded || _invokeFn is null)
             return NativePluginInvokeResult.Fail(NativePluginError.NotLoaded, "插件未加载");
@@ -116,28 +110,23 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
         var cap = responseCapacity;
         if (cap < 256) cap = 256;
 
-        while (cap <= NativePluginAbi.MaxResponseCapacity)
-        {
+        while (cap <= NativePluginAbi.MaxResponseCapacity) {
             var respBytes = new byte[cap];
             int written;
 
-            unsafe
-            {
+            unsafe {
                 fixed (byte* reqPtr = reqBytes)
-                fixed (byte* respPtr = respBytes)
-                {
+                fixed (byte* respPtr = respBytes) {
                     written = _invokeFn(reqPtr, reqBytes.Length, respPtr, cap);
                 }
             }
 
-            if (written >= 0)
-            {
+            if (written >= 0) {
                 var responseJson = Encoding.UTF8.GetString(respBytes, 0, written);
                 return NativePluginInvokeResult.Ok(responseJson);
             }
 
-            if (written == (int)NativePluginError.BufferTooSmall)
-            {
+            if (written == (int)NativePluginError.BufferTooSmall) {
                 cap *= 2;
                 _logger?.LogDebug("[NativePlugin] {Name} 响应缓冲区不足,重试 {Cap} bytes", _pluginName, cap);
                 continue;
@@ -154,16 +143,12 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
     /// 卸载插件 — plugin_unload + NativeLibrary.Free
     /// <para>未加载时返回成功(幂等)</para>
     /// </summary>
-    public void Unload()
-    {
+    public void Unload() {
         if (_isDisposed || !_isLoaded) return;
 
-        try
-        {
+        try {
             _unloadFn?.Invoke();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[NativePlugin] {Name} plugin_unload 抛异常", _pluginName);
         }
 
@@ -177,21 +162,18 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
     ~NativePluginHost() => Dispose(false);
 
     /// <summary>释放 — 卸载插件 + 释放 native handle</summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
 
-    private void Dispose(bool disposing)
-    {
+    private void Dispose(bool disposing) {
         if (_isDisposed) return;
         Unload();
         _isDisposed = true;
     }
 
-    private bool TryGetExports()
-    {
+    private bool TryGetExports() {
         var loadAddr = NativeLibrary.GetExport(_handle, NativePluginAbi.EntryLoad);
         var invokeAddr = NativeLibrary.GetExport(_handle, NativePluginAbi.EntryInvoke);
         var unloadAddr = NativeLibrary.GetExport(_handle, NativePluginAbi.EntryUnload);
@@ -205,18 +187,14 @@ public sealed unsafe class NativePluginHost : IDisposable, IPluginHost
         return true;
     }
 
-    private int CallLoad(string? configJson)
-    {
-        if (string.IsNullOrEmpty(configJson) || _loadFn is null)
-        {
+    private int CallLoad(string? configJson) {
+        if (string.IsNullOrEmpty(configJson) || _loadFn is null) {
             unsafe { return _loadFn?.Invoke(null, 0) ?? (int)NativePluginError.NotLoaded; }
         }
 
         var configBytes = Encoding.UTF8.GetBytes(configJson);
-        unsafe
-        {
-            fixed (byte* configPtr = configBytes)
-            {
+        unsafe {
+            fixed (byte* configPtr = configBytes) {
                 return _loadFn(configPtr, configBytes.Length);
             }
         }

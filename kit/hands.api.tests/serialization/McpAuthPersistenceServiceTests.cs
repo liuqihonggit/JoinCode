@@ -1,19 +1,16 @@
 namespace Hands.Tests.Serialization;
 
-public sealed class McpAuthPersistenceServiceTests
-{
+public sealed class McpAuthPersistenceServiceTests {
     private readonly Mock<IConfigurationService> _configMock;
     private readonly McpAuthPersistenceService _service;
 
-    public McpAuthPersistenceServiceTests()
-    {
+    public McpAuthPersistenceServiceTests() {
         _configMock = new Mock<IConfigurationService>();
         _service = new McpAuthPersistenceService(_configMock.Object);
     }
 
     [Fact]
-    public async Task SaveAsync_WithoutConfigService_DoesNothing()
-    {
+    public async Task SaveAsync_WithoutConfigService_DoesNothing() {
         var service = new McpAuthPersistenceService();
 
         var act = async () => await service.SaveAsync("name", "type", "data").ConfigureAwait(true);
@@ -22,8 +19,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task SaveAsync_NewEntry_AddsToConfig()
-    {
+    public async Task SaveAsync_NewEntry_AddsToConfig() {
         _configMock.Setup(c => c.GetAsync("mcp.auth_entries", It.IsAny<CancellationToken>())).ReturnsAsync((string?)null);
 
         await _service.SaveAsync("auth1", "apiKey", "secret").ConfigureAwait(true);
@@ -32,8 +28,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task SaveAsync_ExistingEntry_UpdatesIt()
-    {
+    public async Task SaveAsync_ExistingEntry_UpdatesIt() {
         var existing = JsonSerializer.Serialize(new List<AuthConfigEntry>
         {
             new() { Name = "auth1", AuthType = "oldType", Data = "oldData", SavedAt = DateTime.UtcNow.AddDays(-1) }
@@ -46,8 +41,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task LoadAsync_ExistingEntry_ReturnsEntry()
-    {
+    public async Task LoadAsync_ExistingEntry_ReturnsEntry() {
         var existing = JsonSerializer.Serialize(new List<AuthConfigEntry>
         {
             new() { Name = "auth1", AuthType = "apiKey", Data = "secret", SavedAt = DateTime.UtcNow }
@@ -62,8 +56,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task LoadAsync_MissingEntry_ReturnsNull()
-    {
+    public async Task LoadAsync_MissingEntry_ReturnsNull() {
         _configMock.Setup(c => c.GetAsync("mcp.auth_entries", It.IsAny<CancellationToken>())).ReturnsAsync((string?)null);
 
         var result = await _service.LoadAsync("missing").ConfigureAwait(true);
@@ -72,8 +65,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task LoadAsync_WithoutConfigService_ReturnsNull()
-    {
+    public async Task LoadAsync_WithoutConfigService_ReturnsNull() {
         var service = new McpAuthPersistenceService();
 
         var result = await service.LoadAsync("auth1").ConfigureAwait(true);
@@ -82,8 +74,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task ListAsync_ReturnsAllEntries()
-    {
+    public async Task ListAsync_ReturnsAllEntries() {
         var existing = JsonSerializer.Serialize(new List<AuthConfigEntry>
         {
             new() { Name = "auth1", AuthType = "apiKey", Data = "secret", SavedAt = DateTime.UtcNow },
@@ -97,8 +88,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task ListAsync_WithoutConfigService_ReturnsEmpty()
-    {
+    public async Task ListAsync_WithoutConfigService_ReturnsEmpty() {
         var service = new McpAuthPersistenceService();
 
         var result = await service.ListAsync().ConfigureAwait(true);
@@ -107,8 +97,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task RemoveAsync_ExistingEntry_RemovesIt()
-    {
+    public async Task RemoveAsync_ExistingEntry_RemovesIt() {
         var existing = JsonSerializer.Serialize(new List<AuthConfigEntry>
         {
             new() { Name = "auth1", AuthType = "apiKey", Data = "secret", SavedAt = DateTime.UtcNow }
@@ -121,8 +110,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task RemoveAsync_WithoutConfigService_DoesNothing()
-    {
+    public async Task RemoveAsync_WithoutConfigService_DoesNothing() {
         var service = new McpAuthPersistenceService();
 
         var act = async () => await service.RemoveAsync("auth1").ConfigureAwait(true);
@@ -131,8 +119,7 @@ public sealed class McpAuthPersistenceServiceTests
     }
 
     [Fact]
-    public async Task LoadAsync_InvalidJson_ReturnsNullAndDoesNotThrow()
-    {
+    public async Task LoadAsync_InvalidJson_ReturnsNullAndDoesNotThrow() {
         _configMock.Setup(c => c.GetAsync("mcp.auth_entries", It.IsAny<CancellationToken>())).ReturnsAsync("not json");
 
         var result = await _service.LoadAsync("auth1").ConfigureAwait(true);

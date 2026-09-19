@@ -1,11 +1,9 @@
 
 namespace Core.Tests.Query;
 
-public class QueryEngineTests
-{
+public class QueryEngineTests {
     [Fact]
-    public void QueryEngineConfig_DefaultValues_ShouldBeCorrect()
-    {
+    public void QueryEngineConfig_DefaultValues_ShouldBeCorrect() {
         var options = new QueryEngineConfig();
 
         options.Temperature.Should().Be(0.7f);
@@ -16,10 +14,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_CreateContentChunk_ShouldHaveCorrectType()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_CreateContentChunk_ShouldHaveCorrectType() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.Content,
             Content = "Test content"
         };
@@ -29,10 +25,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_CreateToolCallChunk_ShouldHaveToolInfo()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_CreateToolCallChunk_ShouldHaveToolInfo() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.ToolCallStart,
             ToolName = "test_tool",
             ToolCallNumber = 1
@@ -44,10 +38,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_CreateCompleteChunk_ShouldHaveStats()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_CreateCompleteChunk_ShouldHaveStats() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             Content = "Final response",
             ExecutionTimeMs = 1500,
@@ -71,15 +63,13 @@ public class QueryEngineTests
     [InlineData(AgentStreamChunkType.TimingSummary)]
     [InlineData(AgentStreamChunkType.Complete)]
     [InlineData(AgentStreamChunkType.Error)]
-    public void AgentStreamChunkType_AllTypes_ShouldBeDefined(AgentStreamChunkType type)
-    {
+    public void AgentStreamChunkType_AllTypes_ShouldBeDefined(AgentStreamChunkType type) {
         // 确保所有类型都能被正确解析
         Enum.IsDefined(typeof(AgentStreamChunkType), type).Should().BeTrue();
     }
 
     [Fact]
-    public void QueryEngineConfig_RetrySettings_ShouldHaveDefaults()
-    {
+    public void QueryEngineConfig_RetrySettings_ShouldHaveDefaults() {
         var config = new QueryEngineConfig();
 
         config.Retry.Should().NotBeNull();
@@ -89,10 +79,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_CreateErrorChunk_ShouldHaveContent()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_CreateErrorChunk_ShouldHaveContent() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.Error,
             Content = "An error occurred"
         };
@@ -102,10 +90,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_CreateThinkingChunk_ShouldHaveCorrectType()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_CreateThinkingChunk_ShouldHaveCorrectType() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.Thinking,
             Content = "Thinking about the problem..."
         };
@@ -114,10 +100,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_CreateToolCallEndChunk_ShouldHaveResult()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_CreateToolCallEndChunk_ShouldHaveResult() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.ToolCallEnd,
             ToolName = FileToolName.FileRead.ToValue(),
             ToolCallNumber = 2,
@@ -130,8 +114,7 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_DefaultValues_ShouldBeZeroOrNull()
-    {
+    public void QueryStreamChunk_DefaultValues_ShouldBeZeroOrNull() {
         var chunk = new QueryStreamChunk();
 
         chunk.Type.Should().Be(default(AgentStreamChunkType));
@@ -157,10 +140,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_NewFields_ShouldBeSettable()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_NewFields_ShouldBeSettable() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.ToolProgress,
             ToolName = "WebSearch",
             ToolCallId = "call_123",
@@ -176,10 +157,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_LoopDetectedFields_ShouldBeSettable()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_LoopDetectedFields_ShouldBeSettable() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.LoopDetected,
             LoopTriggerCount = 3,
             LoopStartIndex = 5,
@@ -196,8 +175,7 @@ public class QueryEngineTests
     [InlineData(0.0f)]
     [InlineData(0.5f)]
     [InlineData(1.0f)]
-    public void QueryEngineConfig_Temperature_ShouldAcceptValidValues(float temperature)
-    {
+    public void QueryEngineConfig_Temperature_ShouldAcceptValidValues(float temperature) {
         var config = new QueryEngineConfig { Temperature = temperature };
         config.Temperature.Should().Be(temperature);
     }
@@ -206,15 +184,13 @@ public class QueryEngineTests
     [InlineData(100)]
     [InlineData(1000)]
     [InlineData(8000)]
-    public void QueryEngineConfig_MaxTokens_ShouldAcceptValidValues(int maxTokens)
-    {
+    public void QueryEngineConfig_MaxTokens_ShouldAcceptValidValues(int maxTokens) {
         var config = new QueryEngineConfig { MaxTokens = maxTokens };
         config.MaxTokens.Should().Be(maxTokens);
     }
 
     [Fact]
-    public void QueryEngineConfig_EnableThinkingMode_ShouldBeConfigurable()
-    {
+    public void QueryEngineConfig_EnableThinkingMode_ShouldBeConfigurable() {
         var config = new QueryEngineConfig { EnableThinkingMode = true };
         config.EnableThinkingMode.Should().BeTrue();
 
@@ -223,10 +199,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_CostUsd_ShouldBeSettable()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_CostUsd_ShouldBeSettable() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.Complete,
             CostUsd = 0.05m
         };
@@ -235,10 +209,8 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryStreamChunk_ExecutionTimeMs_ShouldBeNullable()
-    {
-        var chunk = new QueryStreamChunk
-        {
+    public void QueryStreamChunk_ExecutionTimeMs_ShouldBeNullable() {
+        var chunk = new QueryStreamChunk {
             Type = AgentStreamChunkType.Content,
             ExecutionTimeMs = null
         };
@@ -247,8 +219,7 @@ public class QueryEngineTests
     }
 
     [Fact]
-    public void QueryEngineConfig_MaxToolCallIterations_ShouldHaveReasonableDefault()
-    {
+    public void QueryEngineConfig_MaxToolCallIterations_ShouldHaveReasonableDefault() {
         var config = new QueryEngineConfig();
 
         // 默认128次应该足够大多数场景

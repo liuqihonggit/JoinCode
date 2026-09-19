@@ -1,11 +1,9 @@
 
 namespace Core.Tests.Scheduling;
 
-public class ExecutionContextTests
-{
+public class ExecutionContextTests {
     [Fact]
-    public async Task AddRunningTaskAsync_And_GetRunningTasksSnapshotAsync_ShouldWork()
-    {
+    public async Task AddRunningTaskAsync_And_GetRunningTasksSnapshotAsync_ShouldWork() {
         await using var context = new Core.Scheduling.ExecutionContext(new ExecutionOptions { MaxConcurrentTasks = 2 }, CancellationToken.None);
 
         var t1 = Task.CompletedTask;
@@ -19,8 +17,7 @@ public class ExecutionContextTests
     }
 
     [Fact]
-    public async Task CleanupCompletedTasksAsync_ShouldRemoveCompletedTasks()
-    {
+    public async Task CleanupCompletedTasksAsync_ShouldRemoveCompletedTasks() {
         await using var context = new Core.Scheduling.ExecutionContext(new ExecutionOptions { MaxConcurrentTasks = 2 }, CancellationToken.None);
 
         var completed = Task.CompletedTask;
@@ -38,8 +35,7 @@ public class ExecutionContextTests
     }
 
     [Fact]
-    public async Task TryMarkCompleted_ShouldReturnTrueOnlyOnce()
-    {
+    public async Task TryMarkCompleted_ShouldReturnTrueOnlyOnce() {
         await using var context = new Core.Scheduling.ExecutionContext(new ExecutionOptions { MaxConcurrentTasks = 2 }, CancellationToken.None);
 
         context.TryMarkCompleted("id-1").Should().BeTrue();
@@ -48,8 +44,7 @@ public class ExecutionContextTests
     }
 
     [Fact]
-    public async Task GetCompletedTaskIds_ShouldReturnSnapshot()
-    {
+    public async Task GetCompletedTaskIds_ShouldReturnSnapshot() {
         await using var context = new Core.Scheduling.ExecutionContext(new ExecutionOptions { MaxConcurrentTasks = 1 }, CancellationToken.None);
 
         context.TryMarkCompleted("a");
@@ -59,8 +54,7 @@ public class ExecutionContextTests
     }
 
     [Fact]
-    public async Task Options_And_CancellationToken_ShouldBeSet()
-    {
+    public async Task Options_And_CancellationToken_ShouldBeSet() {
         var options = new ExecutionOptions { MaxConcurrentTasks = 5 };
         using var cts = new CancellationTokenSource();
 

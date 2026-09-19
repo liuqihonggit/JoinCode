@@ -5,14 +5,12 @@ namespace Sync.Tests.Agents.Coordinator;
 /// ForkSubAgentManagerActor 单元测试 — 验证 Actor 版与旧版行为等价。
 /// 所有测试用例对齐 ForkSubAgentManagerTests，仅替换 Manager 实例为 Actor 版。
 /// </summary>
-public class ForkSubAgentManagerActorTests : IAsyncLifetime
-{
+public class ForkSubAgentManagerActorTests : IAsyncLifetime {
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly ForkSubAgentManagerActor _manager;
 
-    public ForkSubAgentManagerActorTests()
-    {
+    public ForkSubAgentManagerActorTests() {
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _messageBrokerMock = new Mock<IMailbox>();
 
@@ -23,8 +21,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
         _manager = new ForkSubAgentManagerActor(pipeline, deps, NullLogger<ForkSubAgentManagerActor>.Instance);
     }
 
-    private MiddlewarePipeline<ForkContext> CreatePipeline()
-    {
+    private MiddlewarePipeline<ForkContext> CreatePipeline() {
         var middlewares = new IForkMiddleware[]
         {
             new ForkValidationMiddleware(),
@@ -36,13 +33,11 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ForkAsync_ShouldCreateForkedAgentWithSharedCache()
-    {
+    public async Task ForkAsync_ShouldCreateForkedAgentWithSharedCache() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var agent = new AgentBase("Fork task", null, queryEngineMock.Object, null);
 
-        var agentResult = new SubAgentResult
-        {
+        var agentResult = new SubAgentResult {
             AgentId = "fork-agent-1",
             IsSuccess = true,
             Output = "Fork completed"
@@ -55,8 +50,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
             .ReturnsAsync(agentResult);
 
-        var options = new ForkOptions
-        {
+        var options = new ForkOptions {
             ParentSessionId = "parent-session-1",
             TaskDescription = "Fork task",
             ShareCache = true
@@ -72,13 +66,11 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ForkAsync_ShareCacheFalse_ShouldCreateIndependentCache()
-    {
+    public async Task ForkAsync_ShareCacheFalse_ShouldCreateIndependentCache() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var agent = new AgentBase("Independent fork", null, queryEngineMock.Object, null);
 
-        var agentResult = new SubAgentResult
-        {
+        var agentResult = new SubAgentResult {
             AgentId = "fork-agent-2",
             IsSuccess = true,
             Output = "Independent fork completed"
@@ -91,8 +83,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
             .ReturnsAsync(agentResult);
 
-        var options = new ForkOptions
-        {
+        var options = new ForkOptions {
             ParentSessionId = "parent-session-2",
             TaskDescription = "Independent fork task",
             ShareCache = false
@@ -106,13 +97,11 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ForkAsync_FailedAgentExecution_ShouldReturnFailedForkResult()
-    {
+    public async Task ForkAsync_FailedAgentExecution_ShouldReturnFailedForkResult() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var agent = new AgentBase("Failing fork", null, queryEngineMock.Object, null);
 
-        var agentResult = new SubAgentResult
-        {
+        var agentResult = new SubAgentResult {
             AgentId = "fork-agent-3",
             IsSuccess = false,
             Output = "",
@@ -126,8 +115,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
             .ReturnsAsync(agentResult);
 
-        var options = new ForkOptions
-        {
+        var options = new ForkOptions {
             ParentSessionId = "parent-session-3",
             TaskDescription = "Failing fork task",
             ShareCache = true
@@ -140,8 +128,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ForkAsync_NullPipeline_ShouldThrowArgumentNullException()
-    {
+    public async Task ForkAsync_NullPipeline_ShouldThrowArgumentNullException() {
         var deps = new ForkManagerDependencies(
             _lifecycleManagerMock.Object,
             _messageBrokerMock.Object);
@@ -151,8 +138,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ForkAsync_NullDeps_ShouldThrowArgumentNullException()
-    {
+    public async Task ForkAsync_NullDeps_ShouldThrowArgumentNullException() {
         var pipeline = CreatePipeline();
         var act = () => new ForkSubAgentManagerActor(pipeline, null!);
 
@@ -160,21 +146,18 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetActiveForksAsync_NoForks_ShouldReturnEmptyList()
-    {
+    public async Task GetActiveForksAsync_NoForks_ShouldReturnEmptyList() {
         var forks = await _manager.GetActiveForksAsync().ConfigureAwait(true);
 
         forks.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task GetActiveForksAsync_AfterFork_ShouldReturnFork()
-    {
+    public async Task GetActiveForksAsync_AfterFork_ShouldReturnFork() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var agent = new AgentBase("Task", null, queryEngineMock.Object, null);
 
-        var agentResult = new SubAgentResult
-        {
+        var agentResult = new SubAgentResult {
             AgentId = "fork-agent-4",
             IsSuccess = true,
             Output = "Done"
@@ -187,8 +170,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
             .ReturnsAsync(agentResult);
 
-        var options = new ForkOptions
-        {
+        var options = new ForkOptions {
             ParentSessionId = "parent-session-4",
             TaskDescription = "Task",
             ShareCache = true
@@ -203,16 +185,14 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CancelForkAsync_NonExistentFork_ShouldNotThrow()
-    {
+    public async Task CancelForkAsync_NonExistentFork_ShouldNotThrow() {
         var act = () => _manager.CancelForkAsync("nonexistent");
 
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task DisposeAsync_ShouldCleanupResources()
-    {
+    public async Task DisposeAsync_ShouldCleanupResources() {
         var act = () => _manager.DisposeAsync().AsTask();
 
         await act.Should().NotThrowAsync().ConfigureAwait(true);
@@ -224,8 +204,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     /// 修复: 先读取 forkCts.Token 到局部变量,避免 dispose 后访问
     /// </summary>
     [Fact]
-    public async Task ForkAsync_BackgroundMode_ExecuteAsyncThrows_ShouldNotThrowObjectDisposedException()
-    {
+    public async Task ForkAsync_BackgroundMode_ExecuteAsyncThrows_ShouldNotThrowObjectDisposedException() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var agent = new AgentBase("Background task that throws", null, queryEngineMock.Object, null);
 
@@ -237,8 +216,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
             .Setup(x => x.ExecuteAsync(agent, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new FormatException("Input string was not in a correct format."));
 
-        var options = new ForkOptions
-        {
+        var options = new ForkOptions {
             ParentSessionId = "parent-bg-throw",
             TaskDescription = "Background fork that throws",
             ShareCache = true,
@@ -253,8 +231,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ForkAsync_BackgroundWithEventChannel_ShouldEmitAgentFinishedOnCompletion()
-    {
+    public async Task ForkAsync_BackgroundWithEventChannel_ShouldEmitAgentFinishedOnCompletion() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var agent = new AgentBase("Fork with channel", null, queryEngineMock.Object, null);
 
@@ -266,8 +243,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
             .ReturnsAsync(new SubAgentResult { AgentId = "fork-agent-ch", IsSuccess = true, Output = "Fork completed" });
 
         var channel = new SubAgentEventChannel();
-        var options = new ForkOptions
-        {
+        var options = new ForkOptions {
             ParentSessionId = "parent-session-ch",
             TaskDescription = "Fork task",
             RunInBackground = true,
@@ -278,8 +254,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
         result.State.Should().Be(ForkState.Running);
 
         ChatStreamEvent? finished = null;
-        for (var i = 0; i < 100 && finished is null; i++)
-        {
+        for (var i = 0; i < 100 && finished is null; i++) {
             await Task.Delay(20).ConfigureAwait(true);
             finished = channel.TryDrain().FirstOrDefault(e => e.Type == ChatStreamEventType.AgentFinished);
         }
@@ -295,8 +270,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     /// MaxConcurrentForks=1 时，后台 fork 运行期间第二个 fork 应被阻塞，后台 fork 完成后第二个 fork 才能执行。
     /// </summary>
     [Fact]
-    public async Task ForkAsync_BackgroundFork_HoldsSemaphoreUntilBackgroundCompletes()
-    {
+    public async Task ForkAsync_BackgroundFork_HoldsSemaphoreUntilBackgroundCompletes() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var bgAgent = new AgentBase("Background fork", null, queryEngineMock.Object, null);
         var syncAgent = new AgentBase("Sync fork", null, queryEngineMock.Object, null);
@@ -322,8 +296,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
             null,
             new SubAgentConcurrencyOptions { MaxConcurrentForks = 1 });
 
-        var bgResult = await manager.ForkAsync(new ForkOptions
-        {
+        var bgResult = await manager.ForkAsync(new ForkOptions {
             ParentSessionId = "parent-bg",
             TaskDescription = "BG",
             RunInBackground = true,
@@ -331,10 +304,8 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
         bgResult.State.Should().Be(ForkState.Running);
 
         var secondForkCompleted = false;
-        var secondForkTask = Task.Run(async () =>
-        {
-            var r = await manager.ForkAsync(new ForkOptions
-            {
+        var secondForkTask = Task.Run(async () => {
+            var r = await manager.ForkAsync(new ForkOptions {
                 ParentSessionId = "parent-sync",
                 TaskDescription = "Sync",
             }).ConfigureAwait(true);
@@ -354,8 +325,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     /// Actor 专属测试: Consumer 异常不终止循环,后续命令仍可处理
     /// </summary>
     [Fact]
-    public async Task Actor_ConsumerError_DoesNotTerminateLoop()
-    {
+    public async Task Actor_ConsumerError_DoesNotTerminateLoop() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var agent = new AgentBase("Task1", null, queryEngineMock.Object, null);
 
@@ -387,8 +357,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
     /// Actor 专属测试: 并发 Fork 1000 次无死锁(全局超时 10s)
     /// </summary>
     [Fact]
-    public async Task Actor_ConcurrentForks_NoDeadlock()
-    {
+    public async Task Actor_ConcurrentForks_NoDeadlock() {
         var queryEngineMock = new Mock<JoinCode.Abstractions.Interfaces.IQueryEngine>();
         var agent = new AgentBase("Concurrent", null, queryEngineMock.Object, null);
 
@@ -409,8 +378,7 @@ public class ForkSubAgentManagerActorTests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public async Task DisposeAsync()
-    {
+    public async Task DisposeAsync() {
         await _manager.DisposeSafeAsync();
     }
 }

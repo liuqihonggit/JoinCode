@@ -4,11 +4,9 @@ namespace Bridge.Tests;
 /// CapacityWakeSignal 单元测试
 /// 测试容量唤醒信号的正常唤醒、超时返回 false、取消返回 false
 /// </summary>
-public sealed class CapacityWakeSignalTests
-{
+public sealed class CapacityWakeSignalTests {
     [Fact]
-    public async Task SleepUntilCapacityWakesAsync_AfterWakeUp_ReturnsTrue()
-    {
+    public async Task SleepUntilCapacityWakesAsync_AfterWakeUp_ReturnsTrue() {
         // Arrange
         using var signal = new CapacityWakeSignal();
         signal.WakeUp();
@@ -21,8 +19,7 @@ public sealed class CapacityWakeSignalTests
     }
 
     [Fact]
-    public async Task SleepUntilCapacityWakesAsync_WakeUpWhileSleeping_ReturnsTrue()
-    {
+    public async Task SleepUntilCapacityWakesAsync_WakeUpWhileSleeping_ReturnsTrue() {
         // Arrange
         using var signal = new CapacityWakeSignal();
         using var cts = new CancellationTokenSource();
@@ -40,8 +37,7 @@ public sealed class CapacityWakeSignalTests
     }
 
     [Fact]
-    public async Task SleepUntilCapacityWakesAsync_Timeout_ReturnsFalse()
-    {
+    public async Task SleepUntilCapacityWakesAsync_Timeout_ReturnsFalse() {
         // Arrange
         using var signal = new CapacityWakeSignal();
 
@@ -53,8 +49,7 @@ public sealed class CapacityWakeSignalTests
     }
 
     [Fact]
-    public async Task SleepUntilCapacityWakesAsync_Cancelled_ReturnsFalse()
-    {
+    public async Task SleepUntilCapacityWakesAsync_Cancelled_ReturnsFalse() {
         // Arrange
         using var signal = new CapacityWakeSignal();
         using var cts = new CancellationTokenSource();
@@ -68,8 +63,7 @@ public sealed class CapacityWakeSignalTests
     }
 
     [Fact]
-    public async Task SleepUntilCapacityWakesAsync_CancelledDuringWait_ReturnsFalse()
-    {
+    public async Task SleepUntilCapacityWakesAsync_CancelledDuringWait_ReturnsFalse() {
         // Arrange
         using var signal = new CapacityWakeSignal();
         using var cts = new CancellationTokenSource();
@@ -87,28 +81,24 @@ public sealed class CapacityWakeSignalTests
     }
 
     [Fact]
-    public async Task WakeUp_MultipleTimes_AllWakeupsConsumed()
-    {
+    public async Task WakeUp_MultipleTimes_AllWakeupsConsumed() {
         // Arrange
         using var signal = new CapacityWakeSignal();
         const int wakeCount = 3;
 
-        for (var i = 0; i < wakeCount; i++)
-        {
+        for (var i = 0; i < wakeCount; i++) {
             signal.WakeUp();
         }
 
         // Act & Assert — each sleep should succeed
-        for (var i = 0; i < wakeCount; i++)
-        {
+        for (var i = 0; i < wakeCount; i++) {
             var result = await signal.SleepUntilCapacityWakesAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(true);
             result.Should().BeTrue($"第 {i + 1} 次唤醒应返回 true");
         }
     }
 
     [Fact]
-    public async Task SleepUntilCapacityWakesAsync_AfterAllWakeupsConsumed_TimeoutReturnsFalse()
-    {
+    public async Task SleepUntilCapacityWakesAsync_AfterAllWakeupsConsumed_TimeoutReturnsFalse() {
         // Arrange
         using var signal = new CapacityWakeSignal();
         signal.WakeUp();
@@ -125,8 +115,7 @@ public sealed class CapacityWakeSignalTests
     }
 
     [Fact]
-    public void Dispose_DoesNotThrow()
-    {
+    public void Dispose_DoesNotThrow() {
         // Arrange
         var signal = new CapacityWakeSignal();
 

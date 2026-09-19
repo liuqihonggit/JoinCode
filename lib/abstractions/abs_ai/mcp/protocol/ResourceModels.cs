@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Protocol;
 
-public class McpResource
-{
+public class McpResource {
     [JsonPropertyName("uri")]
     public string Uri { get; init; } = string.Empty;
 
@@ -17,8 +16,7 @@ public class McpResource
     public string? MimeType { get; init; }
 }
 
-public class McpResourceContent
-{
+public class McpResourceContent {
     [JsonPropertyName("uri")]
     public string Uri { get; init; } = string.Empty;
 
@@ -35,20 +33,17 @@ public class McpResourceContent
     public string? Blob { get; init; }
 }
 
-public class McpResourcesListResponse
-{
+public class McpResourcesListResponse {
     [JsonPropertyName("resources")]
     public List<McpResource> Resources { get; init; } = new();
 }
 
-public class McpResourceReadRequestParams
-{
+public class McpResourceReadRequestParams {
     [JsonPropertyName("uri")]
     public string Uri { get; init; } = string.Empty;
 }
 
-public class McpResourceReadResponse
-{
+public class McpResourceReadResponse {
     [JsonPropertyName("contents")]
     public List<McpResourceContent> Contents { get; init; } = new();
 }

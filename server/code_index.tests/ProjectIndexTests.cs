@@ -1,29 +1,25 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class ProjectIndexTests : IDisposable
-{
+public sealed class ProjectIndexTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly ProjectIndex _projectIndex;
     private readonly IO.FileSystem.InMemoryFileSystem _fs;
     private bool _disposed;
 
-    public ProjectIndexTests()
-    {
+    public ProjectIndexTests() {
         _store = new InMemoryIndexStore();
         _fs = new IO.FileSystem.InMemoryFileSystem();
         _projectIndex = new ProjectIndex(_store, _fs);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _store.DisposeSafe();
     }
 
     [Fact]
-    public async Task IndexProjectAsync_ExistingFile_AddsProject()
-    {
+    public async Task IndexProjectAsync_ExistingFile_AddsProject() {
         var dir = CreateTempDir();
         var csproj = Path.Combine(dir, "Core.csproj");
         _fs.WriteAllText(csproj,
@@ -49,23 +45,20 @@ public sealed class ProjectIndexTests : IDisposable
     }
 
     [Fact]
-    public async Task IndexProjectAsync_NonExistentFile_DoesNothing()
-    {
+    public async Task IndexProjectAsync_NonExistentFile_DoesNothing() {
         await _projectIndex.IndexProjectAsync("missing.csproj", "", CancellationToken.None).ConfigureAwait(true);
 
         Assert.Empty(_store.Projects);
     }
 
     [Fact]
-    public async Task IndexProjectAsync_NullFilePath_Throws()
-    {
+    public async Task IndexProjectAsync_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _projectIndex.IndexProjectAsync(null!, "", CancellationToken.None)).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task IndexSolutionAsync_SlnFile_IndexesProjects()
-    {
+    public async Task IndexSolutionAsync_SlnFile_IndexesProjects() {
         var dir = CreateTempDir();
         var slnPath = Path.Combine(dir, "Test.sln");
         var coreProj = Path.Combine(dir, "Core", "Core.csproj");
@@ -91,8 +84,7 @@ public sealed class ProjectIndexTests : IDisposable
     }
 
     [Fact]
-    public async Task IndexSolutionAsync_SlnxFile_IndexesProjects()
-    {
+    public async Task IndexSolutionAsync_SlnxFile_IndexesProjects() {
         var dir = CreateTempDir();
         var slnxPath = Path.Combine(dir, "Test.slnx");
         var coreProj = Path.Combine(dir, "Core", "Core.csproj");
@@ -115,23 +107,20 @@ public sealed class ProjectIndexTests : IDisposable
     }
 
     [Fact]
-    public async Task IndexSolutionAsync_NonExistentFile_DoesNothing()
-    {
+    public async Task IndexSolutionAsync_NonExistentFile_DoesNothing() {
         await _projectIndex.IndexSolutionAsync("missing.sln", CancellationToken.None).ConfigureAwait(true);
 
         Assert.Empty(_store.Projects);
     }
 
     [Fact]
-    public async Task IndexSolutionAsync_NullFilePath_Throws()
-    {
+    public async Task IndexSolutionAsync_NullFilePath_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _projectIndex.IndexSolutionAsync(null!, CancellationToken.None)).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task RemoveProjectAsync_RemovesProjectAndReferences()
-    {
+    public async Task RemoveProjectAsync_RemovesProjectAndReferences() {
         var dir = CreateTempDir();
         var csproj = Path.Combine(dir, "Core.csproj");
         _fs.WriteAllText(csproj,
@@ -154,8 +143,7 @@ public sealed class ProjectIndexTests : IDisposable
     }
 
     [Fact]
-    public async Task ClearAsync_RemovesAllProjects()
-    {
+    public async Task ClearAsync_RemovesAllProjects() {
         var dir = CreateTempDir();
         var csproj = Path.Combine(dir, "Core.csproj");
         _fs.WriteAllText(csproj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
@@ -169,8 +157,7 @@ public sealed class ProjectIndexTests : IDisposable
     }
 
     [Fact]
-    public async Task GetProjectCountAsync_ReturnsCount()
-    {
+    public async Task GetProjectCountAsync_ReturnsCount() {
         var dir = CreateTempDir();
         var csproj = Path.Combine(dir, "Core.csproj");
         _fs.WriteAllText(csproj, "<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
@@ -182,19 +169,16 @@ public sealed class ProjectIndexTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_NullStore_Throws()
-    {
+    public void Constructor_NullStore_Throws() {
         Assert.Throws<ArgumentNullException>(() => new ProjectIndex(null!, _fs));
     }
 
     [Fact]
-    public void Constructor_NullFileSystem_Throws()
-    {
+    public void Constructor_NullFileSystem_Throws() {
         Assert.Throws<ArgumentNullException>(() => new ProjectIndex(_store, null!));
     }
 
-    private string CreateTempDir()
-    {
+    private string CreateTempDir() {
         var dir = Path.Combine(Path.GetTempPath(), $"projidx_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         return dir;

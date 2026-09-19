@@ -4,8 +4,7 @@ namespace IO;
 /// <summary>
 /// 文件读取服务 - 提供文件读取功能
 /// </summary>
-public sealed class FileReader
-{
+public sealed class FileReader {
     private readonly IFileSystem _fs;
     private readonly ILogger? _logger;
     private readonly FileOperationConfig _config;
@@ -16,8 +15,7 @@ public sealed class FileReader
     /// <param name="fs">文件系统抽象</param>
     /// <param name="config">文件操作配置</param>
     /// <param name="logger">可选日志记录器</param>
-    public FileReader(IFileSystem fs, FileOperationConfig config, ILogger? logger = null)
-    {
+    public FileReader(IFileSystem fs, FileOperationConfig config, ILogger? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
@@ -28,14 +26,11 @@ public sealed class FileReader
         string filePath,
         int? offset = null,
         int? limit = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(filePath);
 
-        try
-        {
-            if (_fs.DirectoryExists(normalizedPath))
-            {
+        try {
+            if (_fs.DirectoryExists(normalizedPath)) {
                 var dirDiagnostic = ToolDiagnostic.Create(
                     "IsDirectoryNotFile",
                     $"Cannot read '{normalizedPath}': it is a directory, not a file.",
@@ -44,15 +39,13 @@ public sealed class FileReader
                 return FileReadResult.FailureResult(normalizedPath, dirDiagnostic);
             }
 
-            if (!_fs.FileExists(normalizedPath))
-            {
+            if (!_fs.FileExists(normalizedPath)) {
                 var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(normalizedPath, _fs);
                 return FileReadResult.FailureResult(normalizedPath, diagnostic);
             }
 
             var fileLength = _fs.GetFileLength(normalizedPath);
-            if (fileLength > _config.MaxReadSize)
-            {
+            if (fileLength > _config.MaxReadSize) {
                 var sizeDiagnostic = ToolDiagnostic.Create(
                     "FileTooLarge",
                     $"File content ({fileLength} bytes) exceeds maximum allowed size ({_config.MaxReadSize} bytes).",
@@ -66,8 +59,7 @@ public sealed class FileReader
             }
 
             var (isBinary, binaryReason) = await IsBinaryFileAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
-            if (isBinary)
-            {
+            if (isBinary) {
                 var binaryDiagnostic = ToolDiagnostic.Create(
                     "BinaryFileDetected",
                     binaryReason,
@@ -85,13 +77,9 @@ public sealed class FileReader
                 numLines,
                 startLine,
                 totalLines);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to read file: {FilePath}", normalizedPath);
             var exDiagnostic = ToolDiagnostic.Create(
                 "ReadFailed",
@@ -109,15 +97,14 @@ public sealed class FileReader
         string filePath,
         int? offset,
         int? limit,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var startIndex = offset ?? 0;
         if (startIndex < 0) startIndex = 0;
 
         var lines = new List<string>();
-        int totalLines = 0;
-        int linesToSkip = startIndex;
-        int? linesToTake = limit;
+        var totalLines = 0;
+        var linesToSkip = startIndex;
+        var linesToTake = limit;
 
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken, _logger).ConfigureAwait(false);
         var rawContent = await _fs.ReadAllTextAsync(filePath, encoding, cancellationToken).ConfigureAwait(false);
@@ -127,16 +114,13 @@ public sealed class FileReader
 
         var ranges = LineSpanIndexer.BuildLineRanges(rawContent.AsSpan(), cancellationToken);
         totalLines = ranges.Count;
-        for (var i = 0; i < ranges.Count; i++)
-        {
+        for (var i = 0; i < ranges.Count; i++) {
             if (linesToSkip > 0) { linesToSkip--; continue; }
             var (start, length) = ranges[i];
             var line = rawContent.Substring(start, length);
-            if (linesToTake.HasValue)
-            {
+            if (linesToTake.HasValue) {
                 if (linesToTake.Value > 0) { lines.Add(line); linesToTake--; }
-            }
-            else { lines.Add(line); }
+            } else { lines.Add(line); }
         }
 
         // 重新计算实际的行号范围
@@ -147,8 +131,7 @@ public sealed class FileReader
         var actualNumLines = actualEndLine - actualStartLine;
 
         // 如果超出了实际行数，调整结果
-        if (lines.Count > actualNumLines)
-        {
+        if (lines.Count > actualNumLines) {
             lines = lines.Take(actualNumLines).ToList();
         }
 
@@ -157,8 +140,7 @@ public sealed class FileReader
     }
 
     /// <inheritdoc />
-    public bool FileExists(string filePath)
-    {
+    public bool FileExists(string filePath) {
         var normalizedPath = NormalizePath(filePath);
         return _fs.FileExists(normalizedPath);
     }
@@ -166,8 +148,7 @@ public sealed class FileReader
     /// <summary>
     /// 异步检查文件是否存在
     /// </summary>
-    public Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> FileExistsAsync(string filePath, CancellationToken cancellationToken = default) {
         var normalizedPath = NormalizePath(filePath);
         return Task.FromResult(File.Exists(normalizedPath));
     }
@@ -177,54 +158,43 @@ public sealed class FileReader
     /// 返回 (isBinary, reason) — reason 描述检测结论或失败原因。
     /// 不再吞异常：IO 失败时返回 (false, reason) 让上层报告真正的 IO 错误，而非误报为二进制。
     /// </summary>
-    private async Task<(bool IsBinary, string Reason)> IsBinaryFileAsync(string filePath, CancellationToken cancellationToken)
-    {
-        try
-        {
+    private async Task<(bool IsBinary, string Reason)> IsBinaryFileAsync(string filePath, CancellationToken cancellationToken) {
+        try {
             using var stream = _fs.CreateStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var buffer = new byte[_config.BinaryDetectionBufferSize];
             var bytesRead = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
 
             if (bytesRead == 0) return (false, "Empty file");
 
-            int nonPrintableCount = 0;
-            for (var i = 0; i < bytesRead; i++)
-            {
+            var nonPrintableCount = 0;
+            for (var i = 0; i < bytesRead; i++) {
                 var b = buffer[i];
                 // Null byte is always binary
                 if (b == 0) return (true, $"Null byte detected at offset {i} (checked {bytesRead} bytes).");
                 // Count non-printable characters (excluding common whitespace: TAB=9, LF=10, CR=13)
-                if (b < 0x20 && b is not (9 or 10 or 13))
-                {
+                if (b < 0x20 && b is not (9 or 10 or 13)) {
                     nonPrintableCount++;
                 }
             }
 
             // If more than 10% non-printable characters, treat as binary
-            if (nonPrintableCount > bytesRead / 10)
-            {
+            if (nonPrintableCount > bytesRead / 10) {
                 var ratio = (double)nonPrintableCount / bytesRead * 100;
                 return (true, $"High non-printable ratio: {ratio:F1}% ({nonPrintableCount}/{bytesRead} bytes in first {bytesRead} bytes).");
             }
 
             return (false, $"Text file (0 non-printable bytes in first {bytesRead} bytes).");
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 不再吞异常误报为二进制 — 让上层报告真正的 IO 错误
             _logger?.LogWarning(ex, "二进制检测读取失败，跳过检测: {FilePath}", filePath);
             return (false, $"Binary detection skipped due to IO error: {ex.Message}");
         }
     }
 
-    private string NormalizePath(string path)
-    {
-        if (Path.IsPathFullyQualified(path))
-        {
+    private string NormalizePath(string path) {
+        if (Path.IsPathFullyQualified(path)) {
             return _fs.GetFullPath(path);
         }
 
@@ -234,10 +204,8 @@ public sealed class FileReader
     /// <summary>
     /// Find a file with the same base name but different extension in the same directory.
     /// </summary>
-    private string? FindSimilarFile(string filePath)
-    {
-        try
-        {
+    private string? FindSimilarFile(string filePath) {
+        try {
             var dir = Path.GetDirectoryName(filePath);
             if (string.IsNullOrEmpty(dir) || !_fs.DirectoryExists(dir))
                 return null;
@@ -245,22 +213,18 @@ public sealed class FileReader
             var fileBaseName = Path.GetFileNameWithoutExtension(filePath);
             var extension = Path.GetExtension(filePath);
 
-            foreach (var file in _fs.EnumerateFiles(dir, $"{fileBaseName}*", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var file in _fs.EnumerateFiles(dir, $"{fileBaseName}*", SearchOption.TopDirectoryOnly)) {
                 if (string.Equals(file, filePath, StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 var fileExt = Path.GetExtension(file);
-                if (!string.Equals(fileExt, extension, StringComparison.OrdinalIgnoreCase))
-                {
+                if (!string.Equals(fileExt, extension, StringComparison.OrdinalIgnoreCase)) {
                     return Path.GetFileName(file);
                 }
             }
 
             return null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -270,10 +234,8 @@ public sealed class FileReader
     /// is not found. Detects the "dropped repo folder" pattern where the path
     /// is missing the repo directory component.
     /// </summary>
-    private string? SuggestPathUnderCwd(string requestedPath)
-    {
-        try
-        {
+    private string? SuggestPathUnderCwd(string requestedPath) {
+        try {
             var cwd = _fs.GetCurrentDirectory();
             var cwdParent = Path.GetDirectoryName(cwd);
             if (string.IsNullOrEmpty(cwdParent))
@@ -286,8 +248,7 @@ public sealed class FileReader
 
             if (!requestedPath.StartsWith(cwdParentPrefix, StringComparison.OrdinalIgnoreCase) ||
                 requestedPath.StartsWith(cwd + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(requestedPath, cwd, StringComparison.OrdinalIgnoreCase))
-            {
+                string.Equals(requestedPath, cwd, StringComparison.OrdinalIgnoreCase)) {
                 return null;
             }
 
@@ -296,15 +257,12 @@ public sealed class FileReader
 
             // Check if the same relative path exists under cwd
             var correctedPath = Path.GetFullPath(Path.Combine(cwd, relFromParent));
-            if (_fs.FileExists(correctedPath))
-            {
+            if (_fs.FileExists(correctedPath)) {
                 return correctedPath;
             }
 
             return null;
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }

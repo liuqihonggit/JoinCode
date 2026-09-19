@@ -3,13 +3,11 @@ namespace Sync.Tests.Agents.Coordinator.Liveness;
 /// <summary>
 /// SubAgentIdleDetector 单元测试 — 验证状态机转换 + 时间窗口二次确认（ADR 0106 L2）
 /// </summary>
-public sealed class SubAgentIdleDetectorTests
-{
+public sealed class SubAgentIdleDetectorTests {
     private static DateTimeOffset Time(int seconds) => DateTimeOffset.FromUnixTimeSeconds(seconds);
 
     [Fact]
-    public void Record_ActivityWhenMonitoring_StaysMonitoring()
-    {
+    public void Record_ActivityWhenMonitoring_StaysMonitoring() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -24,8 +22,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void Record_IdleWhenMonitoring_TransitionsToSuspected()
-    {
+    public void Record_IdleWhenMonitoring_TransitionsToSuspected() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -41,8 +38,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void Record_IdleAgainInWindow_TransitionsToConfirmed()
-    {
+    public void Record_IdleAgainInWindow_TransitionsToConfirmed() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -62,8 +58,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void Record_ActiveInWindow_TransitionsBackToMonitoring()
-    {
+    public void Record_ActiveInWindow_TransitionsBackToMonitoring() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -81,8 +76,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void Record_IdleAfterWindowExceeds_TransitionsToConfirmed()
-    {
+    public void Record_IdleAfterWindowExceeds_TransitionsToConfirmed() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -101,8 +95,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void Record_ActiveAfterWindow_TransitionsToMonitoring()
-    {
+    public void Record_ActiveAfterWindow_TransitionsToMonitoring() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -120,8 +113,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void Record_HasGrandchildren_NotConsideredIdle()
-    {
+    public void Record_HasGrandchildren_NotConsideredIdle() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -136,8 +128,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void MarkRecovered_FromConfirmed_TransitionsToMonitoring()
-    {
+    public void MarkRecovered_FromConfirmed_TransitionsToMonitoring() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -156,8 +147,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void Reset_AlwaysGoesToMonitoring()
-    {
+    public void Reset_AlwaysGoesToMonitoring() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),
@@ -175,8 +165,7 @@ public sealed class SubAgentIdleDetectorTests
     }
 
     [Fact]
-    public void Record_ConfirmedAndStillIdle_StaysConfirmed()
-    {
+    public void Record_ConfirmedAndStillIdle_StaysConfirmed() {
         var now = Time(100);
         var detector = new SubAgentIdleDetector(
             idleThreshold: TimeSpan.FromSeconds(30),

@@ -1,24 +1,20 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed class BridgeHandleTests
-{
-    public BridgeHandleTests()
-    {
+public sealed class BridgeHandleTests {
+    public BridgeHandleTests() {
         // 每个测试前清理全局句柄
         BridgeHandle.SetHandle(null);
     }
 
     [Fact]
-    public void GetHandle_Default_ReturnsNull()
-    {
+    public void GetHandle_Default_ReturnsNull() {
         var handle = BridgeHandle.GetHandle();
         Assert.Null(handle);
     }
 
     [Fact]
-    public void SetHandle_SetsValue()
-    {
+    public void SetHandle_SetsValue() {
         var mockHandle = new TestBridgeHandle { SessionId = "cse_test123" };
         BridgeHandle.SetHandle(mockHandle);
 
@@ -28,8 +24,7 @@ public sealed class BridgeHandleTests
     }
 
     [Fact]
-    public void SetHandle_Null_Clears()
-    {
+    public void SetHandle_Null_Clears() {
         var mockHandle = new TestBridgeHandle { SessionId = "cse_test123" };
         BridgeHandle.SetHandle(mockHandle);
         BridgeHandle.SetHandle(null);
@@ -38,8 +33,7 @@ public sealed class BridgeHandleTests
     }
 
     [Fact]
-    public void GetSelfCompatId_WithHandle_ReturnsCompatId()
-    {
+    public void GetSelfCompatId_WithHandle_ReturnsCompatId() {
         var mockHandle = new TestBridgeHandle { SessionId = "cse_test123" };
         BridgeHandle.SetHandle(mockHandle);
 
@@ -48,15 +42,13 @@ public sealed class BridgeHandleTests
     }
 
     [Fact]
-    public void GetSelfCompatId_NoHandle_ReturnsNull()
-    {
+    public void GetSelfCompatId_NoHandle_ReturnsNull() {
         var compatId = BridgeHandle.GetSelfCompatId();
         Assert.Null(compatId);
     }
 
     /// <summary>测试用桥句柄</summary>
-    private sealed class TestBridgeHandle : IReplBridgeHandle
-    {
+    private sealed class TestBridgeHandle : IReplBridgeHandle {
         public required string SessionId { get; init; }
         public string EnvironmentId { get; } = string.Empty;
         public string SessionIngressUrl { get; } = string.Empty;

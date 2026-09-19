@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 通用支持 C#/Java/Python/JS/Go 等，不依赖目标项目的源码标记
 /// 热文件 = 接口/公共契约/配置/模块入口，改了会触发热点识别收口
 /// </summary>
-public interface IHotFileDetector
-{
+public interface IHotFileDetector {
     /// <summary>
     /// 判断单个文件是否为热文件
     /// </summary>

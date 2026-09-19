@@ -1,61 +1,51 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class ParallelIndexTests : IDisposable
-{
+public sealed class ParallelIndexTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private bool _disposed;
 
-    public ParallelIndexTests()
-    {
+    public ParallelIndexTests() {
         _store = new InMemoryIndexStore();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _store.DisposeSafe();
     }
 
     [Fact]
-    public async Task BuildIndexAsync_LargeProject_IndexesAllFiles()
-    {
+    public async Task BuildIndexAsync_LargeProject_IndexesAllFiles() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_SecondRun_SkipsUnchangedFiles()
-    {
+    public async Task BuildIndexAsync_SecondRun_SkipsUnchangedFiles() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_PartialChange_OnlyUpdatesChangedFiles()
-    {
+    public async Task BuildIndexAsync_PartialChange_OnlyUpdatesChangedFiles() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_DeletedFiles_RemovedFromIndex()
-    {
+    public async Task BuildIndexAsync_DeletedFiles_RemovedFromIndex() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_SearchWorksAfterIndex()
-    {
+    public async Task BuildIndexAsync_SearchWorksAfterIndex() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_CallGraphWorksAfterIndex()
-    {
+    public async Task BuildIndexAsync_CallGraphWorksAfterIndex() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BuildIndexAsync_WithProgress_ReportsProgress()
-    {
+    public async Task BuildIndexAsync_WithProgress_ReportsProgress() {
         await Task.CompletedTask.ConfigureAwait(true);
     }
 }

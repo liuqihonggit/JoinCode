@@ -3,10 +3,8 @@ namespace Sync.Tests.Agents.Coordinator.Liveness;
 /// <summary>
 /// ProgressiveCompactor 单元测试 — 验证渐进式压缩 Light→Aggressive→ExitWithSummary（ADR 0106 L4）
 /// </summary>
-public sealed class ProgressiveCompactorTests
-{
-    private static Mock<IChatContextManager> CreateContextMock()
-    {
+public sealed class ProgressiveCompactorTests {
+    private static Mock<IChatContextManager> CreateContextMock() {
         var mock = new Mock<IChatContextManager>();
         mock.Setup(x => x.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MessageList());
@@ -14,8 +12,7 @@ public sealed class ProgressiveCompactorTests
     }
 
     [Fact]
-    public async Task CompactProgressiveAsync_LightFoldSucceeds_ReturnsLightLevel()
-    {
+    public async Task CompactProgressiveAsync_LightFoldSucceeds_ReturnsLightLevel() {
         var ctxMock = CreateContextMock();
         ctxMock
             .Setup(x => x.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -32,8 +29,7 @@ public sealed class ProgressiveCompactorTests
     }
 
     [Fact]
-    public async Task CompactProgressiveAsync_LightFails_AggressiveSucceeds_ReturnsAggressiveLevel()
-    {
+    public async Task CompactProgressiveAsync_LightFails_AggressiveSucceeds_ReturnsAggressiveLevel() {
         var ctxMock = CreateContextMock();
         ctxMock.SetupSequence(x => x.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ContextFoldResult { Folded = false, Decision = ContextFoldDecision.FoldNormal })
@@ -50,8 +46,7 @@ public sealed class ProgressiveCompactorTests
     }
 
     [Fact]
-    public async Task CompactProgressiveAsync_BothFoldFail_ReturnsExitWithSummary()
-    {
+    public async Task CompactProgressiveAsync_BothFoldFail_ReturnsExitWithSummary() {
         var ctxMock = CreateContextMock();
         ctxMock.SetupSequence(x => x.FoldIfNeededAsync(It.IsAny<ContextFoldDecision>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ContextFoldResult { Folded = false, Decision = ContextFoldDecision.FoldNormal })
@@ -67,8 +62,7 @@ public sealed class ProgressiveCompactorTests
     }
 
     [Fact]
-    public async Task CompactProgressiveAsync_ExitWithSummary_ContainsRecentMessages()
-    {
+    public async Task CompactProgressiveAsync_ExitWithSummary_ContainsRecentMessages() {
         var messages = new MessageList();
         messages.AddUserMessage("do task A");
         messages.AddAssistantMessage("working on A");
@@ -89,8 +83,7 @@ public sealed class ProgressiveCompactorTests
     }
 
     [Fact]
-    public async Task CompactProgressiveAsync_NullAgentId_ThrowsArgumentNullException()
-    {
+    public async Task CompactProgressiveAsync_NullAgentId_ThrowsArgumentNullException() {
         var compactor = new ProgressiveCompactor(CreateContextMock().Object);
 
         var act = () => compactor.CompactProgressiveAsync(null!);

@@ -6,8 +6,7 @@ namespace IO.Services;
 /// IO 限流服务实现 - 全局单例
 /// 结合 SemaphoreSlim（并发限制）和 Token Bucket（速率限制）
 /// </summary>
-public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
-{
+public sealed partial class IOThrottleService : IIOThrottleService, IDisposable {
     private readonly IOThrottleOptions _options;
     private readonly ILogger<IOThrottleService>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -33,16 +32,14 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         IOptions<IOThrottleOptions> options,
         ILogger<IOThrottleService>? logger = null,
         ITelemetryService? telemetryService = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _options = options.Value;
         _logger = logger;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
 
         var validationError = _options.Validate();
-        if (validationError != null)
-        {
+        if (validationError != null) {
             throw new InvalidOperationException($"[INF023] IOThrottleOptions 验证失败: {validationError}");
         }
 
@@ -79,8 +76,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     /// <returns>IO 执行许可，使用完毕需 Dispose</returns>
     public async Task<IIOExecutionLease> AcquireAsync(
         IOOperationType operationType = IOOperationType.Read,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var lockObj = GetLock(operationType);
         var tokenCost = _options.GetTokenCost(operationType);
 
@@ -93,8 +89,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
         var releaser = await lockObj.TryLockAsync(cancellationToken).ConfigureAwait(false)
             ?? throw new System.TimeoutException($"锁 '{lockObj.Name}' 等待超时");
 
-        try
-        {
+        try {
             await _tokenBucket.WaitForTokensAsync(tokenCost, cancellationToken).ConfigureAwait(false);
 
             Interlocked.Increment(ref _currentConcurrentOperations);
@@ -109,9 +104,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
                 stopwatch.ElapsedMilliseconds);
 
             return new IOExecutionLease(this, operationType, _clock, releaser);
-        }
-        catch
-        {
+        } catch {
             RecordAcquireMetrics(operationType, stopwatch.ElapsedMilliseconds, false);
             releaser.Dispose();
             throw;
@@ -126,23 +119,19 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     /// <returns>获取成功返回 true，否则返回 false</returns>
     public bool TryAcquire(
         IOOperationType operationType,
-        out IIOExecutionLease? lease)
-    {
+        out IIOExecutionLease? lease) {
         var lockObj = GetLock(operationType);
         var tokenCost = _options.GetTokenCost(operationType);
 
         var releaser = lockObj.TryLock(TimeSpan.Zero, default);
-        if (releaser is null)
-        {
+        if (releaser is null) {
             RecordAcquireMetrics(operationType, 0, false);
             lease = null;
             return false;
         }
 
-        try
-        {
-            if (!_tokenBucket.TryConsume(tokenCost))
-            {
+        try {
+            if (!_tokenBucket.TryConsume(tokenCost)) {
                 releaser.Dispose();
                 RecordAcquireMetrics(operationType, 0, false);
                 lease = null;
@@ -153,9 +142,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
             RecordAcquireMetrics(operationType, 0, true);
             lease = new IOExecutionLease(this, operationType, _clock, releaser);
             return true;
-        }
-        catch
-        {
+        } catch {
             releaser.Dispose();
             RecordAcquireMetrics(operationType, 0, false);
             lease = null;
@@ -167,8 +154,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     /// 释放指定操作类型的执行许可，递减当前并发计数
     /// </summary>
     /// <param name="operationType">IO 操作类型</param>
-    internal void Release(IOOperationType operationType)
-    {
+    internal void Release(IOOperationType operationType) {
         Interlocked.Decrement(ref _currentConcurrentOperations);
 
         _logger?.LogDebug(
@@ -176,16 +162,14 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
             operationType);
     }
 
-    private AsyncLock GetLock(IOOperationType operationType) => operationType switch
-    {
+    private AsyncLock GetLock(IOOperationType operationType) => operationType switch {
         IOOperationType.Read => _readSemaphore,
         IOOperationType.Write => _writeSemaphore,
         IOOperationType.Delete => _deleteSemaphore,
         _ => throw new ArgumentOutOfRangeException(nameof(operationType))
     };
 
-    private void RecordAcquireMetrics(IOOperationType operationType, long elapsedMs, bool isSuccess)
-    {
+    private void RecordAcquireMetrics(IOOperationType operationType, long elapsedMs, bool isSuccess) {
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "io.throttle.acquire.count", operationType.ToString(), isSuccess, "IO throttle acquire count");
         if (isSuccess)
             _telemetryService?.RecordHistogram("io.throttle.acquire.duration", elapsedMs, new Dictionary<string, string> { ["operation"] = operationType.ToString() }, "ms", "IO throttle acquire wait duration");
@@ -194,8 +178,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
     /// <summary>
     /// 释放限流服务持有的所有资源
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return; _disposed = true;
         _readSemaphore.Dispose();
         _writeSemaphore.Dispose();
@@ -207,8 +190,7 @@ public sealed partial class IOThrottleService : IIOThrottleService, IDisposable
 /// <summary>
 /// IO 执行许可实现
 /// </summary>
-internal sealed class IOExecutionLease : IIOExecutionLease
-{
+internal sealed class IOExecutionLease : IIOExecutionLease {
     private readonly IOThrottleService _service;
     private readonly IDisposable? _releaser;
     private int _disposed;
@@ -225,8 +207,7 @@ internal sealed class IOExecutionLease : IIOExecutionLease
     /// <param name="operationType">IO 操作类型</param>
     /// <param name="clock">时钟服务</param>
     /// <param name="releaser">并发锁释放器</param>
-    public IOExecutionLease(IOThrottleService service, IOOperationType operationType, IClockService clock, IDisposable? releaser = null)
-    {
+    public IOExecutionLease(IOThrottleService service, IOOperationType operationType, IClockService clock, IDisposable? releaser = null) {
         _service = service;
         OperationType = operationType;
         AcquiredAt = clock.GetUtcNow();
@@ -236,8 +217,7 @@ internal sealed class IOExecutionLease : IIOExecutionLease
     /// <summary>
     /// 释放许可，归还并发槽
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _releaser?.Dispose();
         _service.Release(OperationType);

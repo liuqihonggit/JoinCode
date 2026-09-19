@@ -1,13 +1,11 @@
 namespace Brain.Tests.Context.Compact.Guard;
 
 [Trait("Category", "Unit")]
-public class CompactOutputGuardTests
-{
+public class CompactOutputGuardTests {
     private readonly CompactOutputGuard _guard = new(NullLogger<CompactOutputGuard>.Instance);
 
     [Fact]
-    public void Validate_NormalSummary_ReturnsValid()
-    {
+    public void Validate_NormalSummary_ReturnsValid() {
         var summary = "The user asked about implementing a new feature.\n" +
                       "The assistant provided a detailed response with code examples.\n" +
                       "They discussed multiple approaches and chose the simplest one.";
@@ -19,8 +17,7 @@ public class CompactOutputGuardTests
     }
 
     [Fact]
-    public void Validate_GibberishSummary_ReturnsInvalidWithMicrocompactFallback()
-    {
+    public void Validate_GibberishSummary_ReturnsInvalidWithMicrocompactFallback() {
         var random = new Random(42);
         var chars = new char[500];
         for (var i = 0; i < chars.Length; i++)
@@ -35,8 +32,7 @@ public class CompactOutputGuardTests
     }
 
     [Fact]
-    public void Validate_CollapsedSummary_ReturnsInvalidWithTruncateFallback()
-    {
+    public void Validate_CollapsedSummary_ReturnsInvalidWithTruncateFallback() {
         var result = _guard.Validate("ok", originalMessageChars: 5000);
 
         result.IsValid.Should().BeFalse();
@@ -45,8 +41,7 @@ public class CompactOutputGuardTests
     }
 
     [Fact]
-    public void Validate_RepetitiveSummary_ReturnsSanitizeFallback()
-    {
+    public void Validate_RepetitiveSummary_ReturnsSanitizeFallback() {
         var paragraph = "The user asked about implementing a new feature.";
         var repeated = string.Join("\n", Enumerable.Repeat(paragraph, 10));
 
@@ -59,8 +54,7 @@ public class CompactOutputGuardTests
     }
 
     [Fact]
-    public void Validate_InterventionContamination_ReturnsSanitizeFallback()
-    {
+    public void Validate_InterventionContamination_ReturnsSanitizeFallback() {
         var summary = "请用序号箭头方式总结当前回答再继续推理\n" +
                       "Some actual summary content here that is long enough for the collapse check. " +
                       "The user asked about implementing a new feature and the assistant provided " +
@@ -74,8 +68,7 @@ public class CompactOutputGuardTests
     }
 
     [Fact]
-    public void Validate_EmptySummary_ReturnsTruncateFallback()
-    {
+    public void Validate_EmptySummary_ReturnsTruncateFallback() {
         var result = _guard.Validate("", originalMessageChars: 5000);
 
         result.IsValid.Should().BeFalse();

@@ -3,8 +3,7 @@ namespace Services.SystemActuator;
 /// <summary>
 /// PowerShell 系统执行器 — 合并原 PowerShellProvider + PowerShellCapabilityProvider
 /// </summary>
-public sealed class PowerShellSystemActuator : SystemActuatorBase
-{
+public sealed class PowerShellSystemActuator : SystemActuatorBase {
     /// <summary>指定 PowerShell 可执行文件路径的环境变量名</summary>
     public const string PowerShellPathEnvVar = "JCC_POWERSHELL_PATH";
 
@@ -36,16 +35,14 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
     /// <summary>
     /// 检测 PowerShell 能力并注册到基类静态缓存
     /// </summary>
-    public static SystemActuatorCapability CreateCapability(IFileSystem fs, ILogger? logger = null)
-    {
+    public static SystemActuatorCapability CreateCapability(IFileSystem fs, ILogger? logger = null) {
         var shellPath = ResolveShellPathStatic(fs, logger);
         var version = DetectVersionStatic(shellPath, logger);
         var isCore = shellPath.Contains("pwsh", StringComparison.OrdinalIgnoreCase)
             || version.StartsWith('7') || version.StartsWith('6');
         var displayName = isCore ? $"PowerShell Core {version}" : $"PowerShell Desktop {version}";
 
-        var capability = new SystemActuatorCapability
-        {
+        var capability = new SystemActuatorCapability {
             Kind = SystemActuatorKind.PowerShell,
             ShellPath = shellPath,
             Version = version,
@@ -58,32 +55,26 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
         return capability;
     }
 
-    private static string ResolveShellPathStatic(IFileSystem fs, ILogger? logger)
-    {
+    private static string ResolveShellPathStatic(IFileSystem fs, ILogger? logger) {
         var envPath = Environment.GetEnvironmentVariable(PowerShellPathEnvVar);
         if (!string.IsNullOrEmpty(envPath) && fs.FileExists(envPath)) return envPath;
 
-        try
-        {
-            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
-            {
+        try {
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions {
                 FileName = "where.exe",
                 ArgumentList = ["pwsh.exe"],
                 RedirectStandardError = false,
             });
             using var p = Process.Start(psi);
-            if (p is not null)
-            {
+            if (p is not null) {
                 var output = p.StandardOutput.ReadToEnd();
                 p.WaitForExit(5000);
-                if (p.ExitCode == 0)
-                {
+                if (p.ExitCode == 0) {
                     var paths = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
                     if (paths.Length > 0) return paths[0].Trim();
                 }
             }
-        }
-        catch (Exception ex) { logger?.LogDebug(ex, "where.exe pwsh.exe failed"); }
+        } catch (Exception ex) { logger?.LogDebug(ex, "where.exe pwsh.exe failed"); }
 
         var commonPath = @"C:\Program Files\PowerShell\7\pwsh.exe";
         if (fs.FileExists(commonPath)) return commonPath;
@@ -92,12 +83,9 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
         return "powershell.exe";
     }
 
-    private static string DetectVersionStatic(string shellPath, ILogger? logger)
-    {
-        try
-        {
-            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions
-            {
+    private static string DetectVersionStatic(string shellPath, ILogger? logger) {
+        try {
+            var psi = SystemActuatorBase.SharedBuilder.Build(new ProcessOptions {
                 FileName = shellPath,
                 ArgumentList = ["-NoProfile", "-NonInteractive", "-Command", "$PSVersionTable.PSVersion.ToString()"],
                 RedirectStandardError = false,
@@ -109,14 +97,12 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
             p.WaitForExit(5000);
             var version = output?.Trim();
             return string.IsNullOrEmpty(version) ? "unknown" : version;
-        }
-        catch { return "unknown"; }
+        } catch { return "unknown"; }
     }
 
     /// <inheritdoc />
     public override Task<SystemActuatorExecCommandResult> BuildExecCommandAsync(
-        string command, SystemActuatorExecOptions options, CancellationToken cancellationToken = default)
-    {
+        string command, SystemActuatorExecOptions options, CancellationToken cancellationToken = default) {
         _currentSandboxTmpDir = options.UseSandbox ? options.SandboxTmpDir : null;
 
         var cwdFilePath = options.UseSandbox && options.SandboxTmpDir is not null
@@ -138,8 +124,7 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
         Logger?.LogDebug("PowerShellSystemActuator: built command for session {SessionId}, sandbox={UseSandbox}",
             options.SessionId, options.UseSandbox);
 
-        return Task.FromResult(new SystemActuatorExecCommandResult
-        {
+        return Task.FromResult(new SystemActuatorExecCommandResult {
             CommandString = commandString,
             CwdFilePath = cwdFilePath
         });
@@ -151,24 +136,20 @@ public sealed class PowerShellSystemActuator : SystemActuatorBase
 
     /// <inheritdoc />
     protected override void AppendExtraEnvironmentVariables(
-        Dictionary<string, string> env, string command)
-    {
-        if (_currentSandboxTmpDir is not null)
-        {
+        Dictionary<string, string> env, string command) {
+        if (_currentSandboxTmpDir is not null) {
             env["TMPDIR"] = _currentSandboxTmpDir;
             env["JCC_TMPDIR"] = _currentSandboxTmpDir;
         }
     }
 
-    private string BuildSandboxEncodedCommand(string psCommand)
-    {
+    private string BuildSandboxEncodedCommand(string psCommand) {
         var encoded = EncodePowerShellCommand(psCommand);
         var escapedPath = ShellPath.Replace("'", "'\\''");
         return $"'{escapedPath}' -NoProfile -NonInteractive -EncodedCommand {encoded}";
     }
 
-    internal static string EncodePowerShellCommand(string psCommand)
-    {
+    internal static string EncodePowerShellCommand(string psCommand) {
         var utf16LeBytes = Encoding.Unicode.GetBytes(psCommand);
         return Convert.ToBase64String(utf16LeBytes);
     }

@@ -5,15 +5,13 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// CronCreateTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = CronToolName.CronCreate, Category = ToolPromptCategory.System)]
-public static class CronCreateToolPrompt
-{
+public static class CronCreateToolPrompt {
     public const string ToolName = CronToolNameEnumConstants.CronCreate;
 
     /// <summary>
     /// 获取工具描述
     /// </summary>
-    public static string GetDescription(bool durableEnabled)
-    {
+    public static string GetDescription(bool durableEnabled) {
         return durableEnabled
             ? $"安排一个提示在未来时间运行 —— 要么在 cron 计划上重复，要么在特定时间运行一次。传递 durable: true 以持久化到 {AppDataConstants.AppDataFolder}/{AppDataConstants.ScheduledTasksFileName}；否则仅会话。"
             : "安排一个提示在未来时间在此 JoinCode 会话中运行 —— 要么在 cron 计划上重复，要么在特定时间运行一次。";
@@ -22,8 +20,7 @@ public static class CronCreateToolPrompt
     /// <summary>
     /// 获取工具提示词
     /// </summary>
-    public static string GetPrompt(bool durableEnabled, double defaultMaxAgeDays = WorkflowConstants.Worktree.StaleTimeoutDays)
-    {
+    public static string GetPrompt(bool durableEnabled, double defaultMaxAgeDays = WorkflowConstants.Worktree.StaleTimeoutDays) {
         var durabilitySection = durableEnabled
             ? $@"## 持久性
 
@@ -77,16 +74,14 @@ public static class CronCreateToolPrompt
 /// CronDeleteTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = CronToolName.CronDelete, Category = ToolPromptCategory.System)]
-public static class CronDeleteToolPrompt
-{
+public static class CronDeleteToolPrompt {
     public const string ToolName = CronToolNameEnumConstants.CronDelete;
     public const string Description = "通过 ID 取消计划的 cron 作业";
 
     /// <summary>
     /// 获取工具提示词
     /// </summary>
-    public static string GetPrompt(bool durableEnabled)
-    {
+    public static string GetPrompt(bool durableEnabled) {
         return durableEnabled
             ? $"取消先前使用 CronCreate 安排的 cron 作业。从 {AppDataConstants.AppDataFolder}/{AppDataConstants.ScheduledTasksFileName}（持久化作业）或内存会话存储（仅会话作业）中删除它。"
             : "取消先前使用 CronCreate 安排的 cron 作业。从内存会话存储中删除它。";
@@ -97,16 +92,14 @@ public static class CronDeleteToolPrompt
 /// CronListTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = CronToolName.CronList, Category = ToolPromptCategory.System)]
-public static class CronListToolPrompt
-{
+public static class CronListToolPrompt {
     public const string ToolName = CronToolNameEnumConstants.CronList;
     public const string Description = "列出计划的 cron 作业";
 
     /// <summary>
     /// 获取工具提示词
     /// </summary>
-    public static string GetPrompt(bool durableEnabled)
-    {
+    public static string GetPrompt(bool durableEnabled) {
         return durableEnabled
             ? $"列出通过 CronCreate 安排的所有 cron 作业，包括持久化（{AppDataConstants.AppDataFolder}/{AppDataConstants.ScheduledTasksFileName}）和仅会话。"
             : "列出此会话中通过 CronCreate 安排的所有 cron 作业。";

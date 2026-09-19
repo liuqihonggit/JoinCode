@@ -4,8 +4,7 @@ namespace Core.Skills.Discovery;
 /// <summary>
 /// 技能发现服务接口 — 扫描技能目录、加载技能定义、监控文件变更
 /// </summary>
-public interface ISkillDiscoveryService : IAsyncDisposable
-{
+public interface ISkillDiscoveryService : IAsyncDisposable {
     /// <summary>
     /// 异步发现所有技能
     /// </summary>
@@ -60,8 +59,7 @@ public interface ISkillDiscoveryService : IAsyncDisposable
 /// <summary>
 /// 技能发现事件参数
 /// </summary>
-public sealed class SkillDiscoveredEventArgs : EventArgs
-{
+public sealed class SkillDiscoveredEventArgs : EventArgs {
     /// <summary>
     /// 已发现的技能
     /// </summary>
@@ -71,8 +69,7 @@ public sealed class SkillDiscoveredEventArgs : EventArgs
 /// <summary>
 /// 技能变更事件参数
 /// </summary>
-public sealed class SkillChangedEventArgs : EventArgs
-{
+public sealed class SkillChangedEventArgs : EventArgs {
     /// <summary>
     /// 变更后的技能
     /// </summary>
@@ -82,8 +79,7 @@ public sealed class SkillChangedEventArgs : EventArgs
 /// <summary>
 /// 技能移除事件参数
 /// </summary>
-public sealed class SkillRemovedEventArgs : EventArgs
-{
+public sealed class SkillRemovedEventArgs : EventArgs {
     /// <summary>
     /// 被移除的技能名称
     /// </summary>
@@ -97,8 +93,7 @@ public sealed class SkillRemovedEventArgs : EventArgs
 /// <summary>
 /// 技能验证结果
 /// </summary>
-public sealed class SkillValidationResult
-{
+public sealed class SkillValidationResult {
     /// <summary>
     /// 文件路径
     /// </summary>
@@ -128,8 +123,7 @@ public sealed class SkillValidationResult
     /// <param name="warnings">警告列表</param>
     /// <returns>验证成功结果</returns>
     public static SkillValidationResult Success(string filePath, SkillDefinition definition, IReadOnlyList<string>? warnings = null)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             IsValid = true,
             SkillDefinition = definition,
@@ -144,8 +138,7 @@ public sealed class SkillValidationResult
     /// <param name="warnings">警告列表</param>
     /// <returns>验证失败结果</returns>
     public static SkillValidationResult Failure(string filePath, IReadOnlyList<string> errors, IReadOnlyList<string>? warnings = null)
-        => new()
-        {
+        => new() {
             FilePath = filePath,
             IsValid = false,
             Errors = errors,

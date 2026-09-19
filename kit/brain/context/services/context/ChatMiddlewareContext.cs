@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 对话管道计时数据 — 追踪每轮对话各阶段耗时
 /// </summary>
-public sealed class ChatTiming
-{
+public sealed class ChatTiming {
     private readonly System.Diagnostics.Stopwatch _total = new();
     private readonly System.Diagnostics.Stopwatch _preprocess = new();
     private readonly System.Diagnostics.Stopwatch _llmCall = new();
@@ -49,8 +48,7 @@ public sealed class ChatTiming
     /// 格式化计时摘要 — 用于 CLI 输出
     /// </summary>
     /// <param name="usage">可选 token 用量 — 传入时追加前缀缓存统计（省钱刚需可见性）</param>
-    public string FormatSummary(TokenUsage? usage = null)
-    {
+    public string FormatSummary(TokenUsage? usage = null) {
         var base_summary = $"[Timing] 总耗时={TotalMs}ms | 预处理={PreprocessMs}ms | LLM={LlmTotalMs}ms(首token={FirstTokenLatencyMs}ms, 调用{LlmCallCount}次) | 后处理={PostProcessMs}ms";
         if (usage is null)
             return base_summary;
@@ -61,8 +59,7 @@ public sealed class ChatTiming
 /// <summary>
 /// 中间件共享上下文 — 携带管道各阶段的状态
 /// </summary>
-public sealed class ChatMiddlewareContext
-{
+public sealed class ChatMiddlewareContext {
     // === 输入 ===
 
     /// <summary>

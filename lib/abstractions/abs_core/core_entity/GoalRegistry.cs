@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <summary>
 /// Goal 注册器 — 基于 MapRegistry，内部字典，对外暴露遍历器 + 字典视图
 /// </summary>
-public sealed class GoalRegistry : MapRegistry<ObjectId, Goal>
-{
+public sealed class GoalRegistry : MapRegistry<ObjectId, Goal> {
     /// <summary>注册目标（internal，Goal构造时自动调用）</summary>
     internal void Add(ObjectId id, Goal goal) => AddCore(id, goal);
 

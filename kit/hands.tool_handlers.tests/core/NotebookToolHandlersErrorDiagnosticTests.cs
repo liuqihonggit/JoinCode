@@ -5,11 +5,9 @@ namespace Hands.Tests.ToolHandlers;
 /// 验证每个 BuildXxxDiagnostic 方法返回的 ToolDiagnostic 结构正确，
 /// 且 FormattedMessage 与原有错误文本完全一致（向后兼容）。
 /// </summary>
-public class NotebookToolHandlersErrorDiagnosticTests
-{
+public class NotebookToolHandlersErrorDiagnosticTests {
     [Fact]
-    public void BuildNotebookPathEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildNotebookPathEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildNotebookPathEmptyDiagnostic();
         diag.Reason.Should().Be("NotebookPathEmpty");
         diag.FormattedMessage.Should().Be("notebook_path cannot be empty");
@@ -17,8 +15,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildUncPathNotAllowedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildUncPathNotAllowedDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildUncPathNotAllowedDiagnostic();
         diag.Reason.Should().Be("UncPathNotAllowed");
         diag.FormattedMessage.Should().Be("UNC paths are not allowed for security reasons (potential NTLM credential leakage). Use a local path instead.");
@@ -26,8 +23,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildNotIpynbFileDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildNotIpynbFileDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildNotIpynbFileDiagnostic();
         diag.Reason.Should().Be("NotIpynbFile");
         diag.FormattedMessage.Should().Be("File must be a Jupyter notebook (.ipynb file). For editing other file types, use the FileEdit tool.");
@@ -35,8 +31,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildEditModeInvalidDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildEditModeInvalidDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildEditModeInvalidDiagnostic();
         diag.Reason.Should().Be("EditModeInvalid");
         diag.FormattedMessage.Should().Be("edit_mode must be replace, insert, or delete");
@@ -45,8 +40,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildCellTypeRequiredForInsertDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildCellTypeRequiredForInsertDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildCellTypeRequiredForInsertDiagnostic();
         diag.Reason.Should().Be("CellTypeRequiredForInsert");
         diag.FormattedMessage.Should().Be("cell_type is required when using edit_mode=insert");
@@ -55,8 +49,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildCellIdRequiredDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildCellIdRequiredDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildCellIdRequiredDiagnostic();
         diag.Reason.Should().Be("CellIdRequired");
         diag.FormattedMessage.Should().Be("cell_id must be specified when not inserting a new cell");
@@ -64,8 +57,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildPlanModeForbiddenDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildPlanModeForbiddenDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildPlanModeForbiddenDiagnostic();
         diag.Reason.Should().Be("PlanModeForbidden");
         diag.FormattedMessage.Should().Be("Cannot edit notebook in plan mode. Exit plan mode first before editing files.");
@@ -73,8 +65,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildFileNotReadDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildFileNotReadDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildFileNotReadDiagnostic();
         diag.Reason.Should().Be("FileNotRead");
         diag.FormattedMessage.Should().Be("File has not been read yet. Read it first before writing to it.");
@@ -82,8 +73,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildFileModifiedSinceReadDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildFileModifiedSinceReadDiagnostic_ReturnsCorrectStructure() {
         var filePath = @"/tmp/sample.md";
         var lastWriteMs = DateTimeOffset.Parse("2026-08-11T12:03:09.950Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
         var readTimestampMs = DateTimeOffset.Parse("2026-08-11T12:02:04.486Z", System.Globalization.CultureInfo.InvariantCulture).ToUnixTimeMilliseconds();
@@ -97,8 +87,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildNotebookInvalidJsonDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildNotebookInvalidJsonDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildNotebookInvalidJsonDiagnostic();
         diag.Reason.Should().Be("NotebookInvalidJson");
         diag.FormattedMessage.Should().Be("Notebook is not valid JSON");
@@ -106,8 +95,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildCellOperationFailedDiagnostic_WithErrorMessage_UsesProvidedMessage()
-    {
+    public void BuildCellOperationFailedDiagnostic_WithErrorMessage_UsesProvidedMessage() {
         var diag = NotebookToolHandlers.BuildCellOperationFailedDiagnostic("DeleteCell", "cell index out of range", "Failed to delete cell");
         diag.Reason.Should().Be("DeleteCellFailed");
         diag.FormattedMessage.Should().Be("cell index out of range");
@@ -116,8 +104,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildCellOperationFailedDiagnostic_WithNullErrorMessage_UsesFallbackMessage()
-    {
+    public void BuildCellOperationFailedDiagnostic_WithNullErrorMessage_UsesFallbackMessage() {
         var diag = NotebookToolHandlers.BuildCellOperationFailedDiagnostic("InsertCell", null, "Failed to insert cell");
         diag.Reason.Should().Be("InsertCellFailed");
         diag.FormattedMessage.Should().Be("Failed to insert cell");
@@ -126,8 +113,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildSaveNotebookFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildSaveNotebookFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildSaveNotebookFailedDiagnostic();
         diag.Reason.Should().Be("SaveNotebookFailed");
         diag.FormattedMessage.Should().Be("Failed to save notebook");
@@ -135,8 +121,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildFilePathEmptyDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildFilePathEmptyDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildFilePathEmptyDiagnostic();
         diag.Reason.Should().Be("NotebookFilePathEmpty");
         diag.FormattedMessage.Should().Be(L.T(StringKey.NotebookFilePathCannotBeEmpty));
@@ -144,8 +129,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildFileNotExistDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildFileNotExistDiagnostic_ReturnsCorrectStructure() {
         const string path = "/tmp/missing.ipynb";
         var diag = NotebookToolHandlers.BuildFileNotExistDiagnostic(path);
         diag.Reason.Should().Be("NotebookFileNotExist");
@@ -154,8 +138,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildNotebookParseFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildNotebookParseFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildNotebookParseFailedDiagnostic();
         diag.Reason.Should().Be("NotebookParseFailed");
         diag.FormattedMessage.Should().Be(L.T(StringKey.NotebookParseFailed));
@@ -163,8 +146,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildNotebookSaveFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildNotebookSaveFailedDiagnostic_ReturnsCorrectStructure() {
         var diag = NotebookToolHandlers.BuildNotebookSaveFailedDiagnostic();
         diag.Reason.Should().Be("NotebookSaveFailed");
         diag.FormattedMessage.Should().Be(L.T(StringKey.NotebookSaveFailed));
@@ -172,8 +154,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildFileAlreadyExistsDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildFileAlreadyExistsDiagnostic_ReturnsCorrectStructure() {
         const string path = "/tmp/existing.ipynb";
         var diag = NotebookToolHandlers.BuildFileAlreadyExistsDiagnostic(path);
         diag.Reason.Should().Be("NotebookFileAlreadyExists");
@@ -182,8 +163,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildInvalidCellTypeDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildInvalidCellTypeDiagnostic_ReturnsCorrectStructure() {
         const string cellType = "invalid";
         var diag = NotebookToolHandlers.BuildInvalidCellTypeDiagnostic(cellType);
         diag.Reason.Should().Be("NotebookInvalidCellType");
@@ -193,8 +173,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildInvalidTypeDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildInvalidTypeDiagnostic_ReturnsCorrectStructure() {
         const string newType = "unknown";
         var diag = NotebookToolHandlers.BuildInvalidTypeDiagnostic(newType);
         diag.Reason.Should().Be("NotebookInvalidType");
@@ -204,8 +183,7 @@ public class NotebookToolHandlersErrorDiagnosticTests
     }
 
     [Fact]
-    public void BuildInvalidCellIndexDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildInvalidCellIndexDiagnostic_ReturnsCorrectStructure() {
         const int index = 42;
         var diag = NotebookToolHandlers.BuildInvalidCellIndexDiagnostic(index);
         diag.Reason.Should().Be("NotebookInvalidCellIndex");

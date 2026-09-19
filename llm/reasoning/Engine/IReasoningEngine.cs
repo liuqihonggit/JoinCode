@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Engine;
 /// <summary>
 /// 推理引擎接口 — 基于 DAG 的结构化推理
 /// </summary>
-public interface IReasoningEngine
-{
+public interface IReasoningEngine {
     /// <summary>
     /// 添加假定
     /// </summary>

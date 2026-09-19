@@ -6,8 +6,7 @@ namespace JoinCode.Tui.Interaction;
 /// 对齐 GUI AvaloniaInteractiveService 的线程模型：工具线程阻塞等待，
 /// UI 操作经 painter.Invoke 切到 Terminal.Gui 主循环。
 /// </summary>
-public sealed class TerminalGuiInteractiveService : IInteractiveService
-{
+public sealed class TerminalGuiInteractiveService : IInteractiveService {
     private TerminalPainter? _painter;
 
     private AskUserDialogView? _dialogView;
@@ -15,8 +14,7 @@ public sealed class TerminalGuiInteractiveService : IInteractiveService
     /// <summary>
     /// 绑定 TUI 运行期实例 — TuiModeRunner 启动时调用；未绑定前提问返回失败（不可交互）。
     /// </summary>
-    public void Attach(TerminalPainter painter, AskUserDialogView dialogView)
-    {
+    public void Attach(TerminalPainter painter, AskUserDialogView dialogView) {
         _painter = painter;
         _dialogView = dialogView;
     }
@@ -26,13 +24,11 @@ public sealed class TerminalGuiInteractiveService : IInteractiveService
         string question,
         List<string>? options = null,
         bool multiSelect = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(question))
             return Task.FromResult(AskUserQuestionResult.FailureResult("Question cannot be empty"));
 
-        var item = new QuestionItem
-        {
+        var item = new QuestionItem {
             Header = "提问",
             Question = question,
             Options = (options ?? []).Select(o => new QuestionOption { Label = o, Description = string.Empty }).ToList(),
@@ -44,8 +40,7 @@ public sealed class TerminalGuiInteractiveService : IInteractiveService
     /// <inheritdoc />
     public async Task<AskUserQuestionResult> AskUserQuestionsAsync(
         List<QuestionItem> questions,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (questions.Count == 0)
             return AskUserQuestionResult.FailureResult("No questions provided");
 
@@ -53,8 +48,7 @@ public sealed class TerminalGuiInteractiveService : IInteractiveService
             return AskUserQuestionResult.FailureResult("Maximum 4 questions allowed");
 
         // 校验对齐 CLI TerminalInteractiveService（空问题/选项数/重复标签）
-        foreach (var q in questions)
-        {
+        foreach (var q in questions) {
             if (string.IsNullOrWhiteSpace(q.Question))
                 return AskUserQuestionResult.FailureResult("Question text cannot be empty");
             if (q.Options.Count is < 2 or > 4)
@@ -65,8 +59,7 @@ public sealed class TerminalGuiInteractiveService : IInteractiveService
         }
 
         var answers = new Dictionary<string, string>();
-        foreach (var q in questions)
-        {
+        foreach (var q in questions) {
             cancellationToken.ThrowIfCancellationRequested();
             var result = await ShowSingleAsync(q, cancellationToken).ConfigureAwait(false);
             if (!result.Success)
@@ -79,8 +72,7 @@ public sealed class TerminalGuiInteractiveService : IInteractiveService
     }
 
     /// <summary>经 painter 在 TUI 主循环显示对话框并等待作答。</summary>
-    private Task<AskUserQuestionResult> ShowSingleAsync(QuestionItem item, CancellationToken cancellationToken)
-    {
+    private Task<AskUserQuestionResult> ShowSingleAsync(QuestionItem item, CancellationToken cancellationToken) {
         if (_painter is null || _dialogView is null)
             return Task.FromResult(AskUserQuestionResult.FailureResult("TUI 交互服务未就绪"));
 

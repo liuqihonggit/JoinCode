@@ -3,8 +3,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// <summary>
 /// oldString 匹配失败的分类原因。
 /// </summary>
-public enum EditMismatchReason
-{
+public enum EditMismatchReason {
     /// <summary>oldString 在文件中完全不存在（连首行都找不到）。</summary>
     [EnumValue("stringNotFound")]
     StringNotFound,
@@ -25,8 +24,7 @@ public enum EditMismatchReason
 /// <summary>
 /// 文件编辑匹配失败的纵深诊断结果。
 /// </summary>
-public sealed record EditDiagnostic
-{
+public sealed record EditDiagnostic {
     /// <summary>失败原因分类。</summary>
     public required EditMismatchReason Reason { get; init; }
 
@@ -63,8 +61,7 @@ public sealed record EditDiagnostic
     /// <summary>
     /// 转换为 Abstractions 层的通用 ToolDiagnostic，供 FileEditResult.Diagnostic 和 GUI 使用。
     /// </summary>
-    public ToolDiagnostic ToToolDiagnostic()
-    {
+    public ToolDiagnostic ToToolDiagnostic() {
         var details = new List<DiagnosticDetail>(8);
         if (MatchedLine.HasValue) details.Add(new DiagnosticDetail("matchedLine", MatchedLine.Value.ToString()));
         if (MatchedLineCount.HasValue) details.Add(new DiagnosticDetail("matchedLineCount", MatchedLineCount.Value.ToString()));
@@ -75,8 +72,7 @@ public sealed record EditDiagnostic
         if (SimilarEndLine.HasValue) details.Add(new DiagnosticDetail("similarEndLine", SimilarEndLine.Value.ToString()));
         if (SimilarityScore.HasValue) details.Add(new DiagnosticDetail("similarityScore", $"{SimilarityScore.Value:P1}"));
 
-        var suggestions = Reason switch
-        {
+        var suggestions = Reason switch {
             EditMismatchReason.StringNotFound => new[] { "检查拼写、大小写、编码(BOM/UTF-16)，或先 Read 文件确认当前内容。" },
             EditMismatchReason.PartialMatch => new[] { "检查分叉处的空白/缩进/大小写差异，或扩大上下文范围使匹配唯一。" },
             EditMismatchReason.WhitespaceMismatch => new[] { "先 Read 文件查看实际缩进（空格 vs Tab），复制精确文本作为 oldString。" },
@@ -96,8 +92,7 @@ public sealed record EditDiagnostic
 /// 当 oldString 在文件内容中找不到时，生成增强诊断信息。
 /// 对齐 FileSuggestionHelper 的模式 — 为匹配失败提供可操作的定位信息。
 /// </summary>
-public static class EditDiagnosticBuilder
-{
+public static class EditDiagnosticBuilder {
     /// <summary>超过此行数的文件跳过相似度计算（性能保护）。</summary>
     private const int MaxFileLinesForSimilarity = 5000;
 
@@ -114,16 +109,13 @@ public static class EditDiagnosticBuilder
     /// <param name="fileContent">文件内容（已归一化 CRLF → LF）。</param>
     /// <param name="oldString">待匹配字符串（已归一化 CRLF → LF）。</param>
     /// <returns>诊断结果，包含失败原因和定位信息。</returns>
-    public static EditDiagnostic BuildDiagnostic(string fileContent, string oldString)
-    {
+    public static EditDiagnostic BuildDiagnostic(string fileContent, string oldString) {
         var fileLines = SplitLines(fileContent);
         var oldLines = SplitLines(oldString);
 
         // 策略1: 空白差异检测 — 去除所有空白后能匹配
-        if (TryDetectWhitespaceMismatch(fileContent, oldString))
-        {
-            return new EditDiagnostic
-            {
+        if (TryDetectWhitespaceMismatch(fileContent, oldString)) {
+            return new EditDiagnostic {
                 Reason = EditMismatchReason.WhitespaceMismatch,
                 FormattedMessage = BuildWhitespaceMismatchMessage(oldLines),
             };
@@ -131,24 +123,20 @@ public static class EditDiagnosticBuilder
 
         // 策略2: 部分匹配定位 — 首行在文件中存在，后续行分叉
         var partialMatch = TryDetectPartialMatch(fileLines, oldLines);
-        if (partialMatch is not null)
-        {
+        if (partialMatch is not null) {
             return partialMatch;
         }
 
         // 策略3: 最相似片段 — 滑动窗口 Jaccard 相似度
-        if (fileLines.Length <= MaxFileLinesForSimilarity && oldLines.Length > 0)
-        {
+        if (fileLines.Length <= MaxFileLinesForSimilarity && oldLines.Length > 0) {
             var similar = TryFindSimilarSnippet(fileLines, oldLines);
-            if (similar is not null)
-            {
+            if (similar is not null) {
                 return similar;
             }
         }
 
         // 兜底: 完全找不到
-        return new EditDiagnostic
-        {
+        return new EditDiagnostic {
             Reason = EditMismatchReason.StringNotFound,
             FormattedMessage = BuildStringNotFoundMessage(oldLines),
         };
@@ -157,26 +145,22 @@ public static class EditDiagnosticBuilder
     /// <summary>
     /// 将文本按 \n 分割为行数组（不保留行尾符）。
     /// </summary>
-    private static string[] SplitLines(string text)
-    {
+    private static string[] SplitLines(string text) {
         if (string.IsNullOrEmpty(text))
             return [];
 
         // 优化：大多数情况不需要分配 List
         var lines = new List<string>(capacity: Math.Min(text.Length / 32 + 1, 256));
         var start = 0;
-        for (var i = 0; i < text.Length; i++)
-        {
-            if (text[i] == '\n')
-            {
+        for (var i = 0; i < text.Length; i++) {
+            if (text[i] == '\n') {
                 lines.Add(text.Substring(start, i - start));
                 start = i + 1;
             }
         }
 
         // 末尾无换行符的最后一行
-        if (start < text.Length)
-        {
+        if (start < text.Length) {
             lines.Add(text.Substring(start, text.Length - start));
         }
 
@@ -186,8 +170,7 @@ public static class EditDiagnosticBuilder
     /// <summary>
     /// 空白差异检测：去除所有空白字符后，fileContent 是否包含 oldString。
     /// </summary>
-    private static bool TryDetectWhitespaceMismatch(string fileContent, string oldString)
-    {
+    private static bool TryDetectWhitespaceMismatch(string fileContent, string oldString) {
         // 快速检查：如果去空白后长度差距太大，跳过（避免无谓的分配）
         var oldNonSpaceLength = CountNonWhitespace(oldString.AsSpan());
         if (oldNonSpaceLength == 0)
@@ -199,22 +182,18 @@ public static class EditDiagnosticBuilder
         return strippedFile.Contains(strippedOld, StringComparison.Ordinal);
     }
 
-    private static int CountNonWhitespace(ReadOnlySpan<char> span)
-    {
+    private static int CountNonWhitespace(ReadOnlySpan<char> span) {
         var count = 0;
-        foreach (var c in span)
-        {
+        foreach (var c in span) {
             if (!char.IsWhiteSpace(c))
                 count++;
         }
         return count;
     }
 
-    private static string StripWhitespace(string text)
-    {
+    private static string StripWhitespace(string text) {
         var sb = new StringBuilder(text.Length);
-        foreach (var c in text)
-        {
+        foreach (var c in text) {
             if (!char.IsWhiteSpace(c))
                 sb.Append(c);
         }
@@ -225,16 +204,14 @@ public static class EditDiagnosticBuilder
     /// 部分匹配检测：取 oldString 首行，在文件中搜索精确匹配，
     /// 找到后逐行比较，报告连续匹配行数和分叉位置。
     /// </summary>
-    private static EditDiagnostic? TryDetectPartialMatch(string[] fileLines, string[] oldLines)
-    {
+    private static EditDiagnostic? TryDetectPartialMatch(string[] fileLines, string[] oldLines) {
         if (oldLines.Length == 0)
             return null;
 
         var firstOldLine = oldLines[0];
 
         // 在文件中搜索首行精确匹配
-        for (var fileIdx = 0; fileIdx < fileLines.Length; fileIdx++)
-        {
+        for (var fileIdx = 0; fileIdx < fileLines.Length; fileIdx++) {
             if (!fileLines[fileIdx].Equals(firstOldLine, StringComparison.Ordinal))
                 continue;
 
@@ -242,22 +219,17 @@ public static class EditDiagnosticBuilder
             var matchedCount = 1;
             var divergeIdx = -1;
 
-            for (var i = 1; i < oldLines.Length && fileIdx + i < fileLines.Length; i++)
-            {
-                if (fileLines[fileIdx + i].Equals(oldLines[i], StringComparison.Ordinal))
-                {
+            for (var i = 1; i < oldLines.Length && fileIdx + i < fileLines.Length; i++) {
+                if (fileLines[fileIdx + i].Equals(oldLines[i], StringComparison.Ordinal)) {
                     matchedCount++;
-                }
-                else
-                {
+                } else {
                     divergeIdx = i;
                     break;
                 }
             }
 
             // 如果匹配了至少 1 行但未全部匹配，报告部分匹配
-            if (matchedCount >= 1 && matchedCount < oldLines.Length)
-            {
+            if (matchedCount >= 1 && matchedCount < oldLines.Length) {
                 var divergeFileLine = fileIdx + matchedCount + 1; // 1-based
                 var fileLineAtDiverge = fileIdx + matchedCount < fileLines.Length
                     ? fileLines[fileIdx + matchedCount]
@@ -266,8 +238,7 @@ public static class EditDiagnosticBuilder
                     ? oldLines[matchedCount]
                     : null;
 
-                return new EditDiagnostic
-                {
+                return new EditDiagnostic {
                     Reason = EditMismatchReason.PartialMatch,
                     MatchedLine = fileIdx + 1, // 1-based
                     MatchedLineCount = matchedCount,
@@ -291,8 +262,7 @@ public static class EditDiagnosticBuilder
     /// 最相似片段检测：滑动窗口 + 行级 Jaccard 相似度。
     /// 窗口大小 = oldString 行数，在文件上滑动，找相似度最高的窗口。
     /// </summary>
-    private static EditDiagnostic? TryFindSimilarSnippet(string[] fileLines, string[] oldLines)
-    {
+    private static EditDiagnostic? TryFindSimilarSnippet(string[] fileLines, string[] oldLines) {
         if (oldLines.Length == 0 || fileLines.Length < oldLines.Length)
             return null;
 
@@ -303,11 +273,9 @@ public static class EditDiagnosticBuilder
         // 构建 oldLines 的行集合（用于 Jaccard 交集计算）
         var oldLineSet = new HashSet<string>(oldLines, StringComparer.Ordinal);
 
-        for (var start = 0; start <= fileLines.Length - windowSize; start++)
-        {
+        for (var start = 0; start <= fileLines.Length - windowSize; start++) {
             var score = ComputeJaccardSimilarity(fileLines, start, windowSize, oldLineSet, oldLines.Length);
-            if (score > bestScore)
-            {
+            if (score > bestScore) {
                 bestScore = score;
                 bestStartIdx = start;
             }
@@ -323,8 +291,7 @@ public static class EditDiagnosticBuilder
         Array.Copy(fileLines, snippetStart, snippetLines, 0, snippetLines.Length);
         var snippet = string.Join("\n", snippetLines);
 
-        return new EditDiagnostic
-        {
+        return new EditDiagnostic {
             Reason = EditMismatchReason.SimilarFound,
             SimilarStartLine = bestStartIdx + 1, // 1-based
             SimilarEndLine = bestStartIdx + windowSize,
@@ -343,11 +310,9 @@ public static class EditDiagnosticBuilder
     /// </summary>
     private static double ComputeJaccardSimilarity(
         string[] fileLines, int start, int windowSize,
-        HashSet<string> oldLineSet, int oldLineCount)
-    {
+        HashSet<string> oldLineSet, int oldLineCount) {
         var intersection = 0;
-        for (var i = 0; i < windowSize; i++)
-        {
+        for (var i = 0; i < windowSize; i++) {
             if (oldLineSet.Contains(fileLines[start + i]))
                 intersection++;
         }
@@ -362,8 +327,7 @@ public static class EditDiagnosticBuilder
 
     // ── 消息格式化 ──
 
-    private static string BuildStringNotFoundMessage(string[] oldLines)
-    {
+    private static string BuildStringNotFoundMessage(string[] oldLines) {
         var sb = new StringBuilder(256);
         sb.Append("String to replace not found in file.");
         sb.Append("\n[诊断] 失败原因: StringNotFound");
@@ -374,19 +338,16 @@ public static class EditDiagnosticBuilder
 
     private static string BuildPartialMatchMessage(
         int matchedLine, int matchedCount, int totalOldLines,
-        int divergeLine, string? fileLineAtDiverge, string? oldLineAtDiverge)
-    {
+        int divergeLine, string? fileLineAtDiverge, string? oldLineAtDiverge) {
         var sb = new StringBuilder(512);
         sb.Append("String to replace not found in file.");
         sb.Append("\n[诊断] 失败原因: PartialMatch");
         sb.Append($"\noldString 首行在文件第 {matchedLine} 行找到，前 {matchedCount}/{totalOldLines} 行匹配，从第 {divergeLine} 行开始分叉:");
 
-        if (fileLineAtDiverge is not null)
-        {
+        if (fileLineAtDiverge is not null) {
             sb.Append($"\n  文件第 {divergeLine} 行: {TruncateForDisplay(fileLineAtDiverge)}");
         }
-        if (oldLineAtDiverge is not null)
-        {
+        if (oldLineAtDiverge is not null) {
             sb.Append($"\n  oldString 第 {matchedCount + 1} 行: {TruncateForDisplay(oldLineAtDiverge)}");
         }
 
@@ -394,8 +355,7 @@ public static class EditDiagnosticBuilder
         return sb.ToString();
     }
 
-    private static string BuildWhitespaceMismatchMessage(string[] oldLines)
-    {
+    private static string BuildWhitespaceMismatchMessage(string[] oldLines) {
         var sb = new StringBuilder(256);
         sb.Append("String to replace not found in file.");
         sb.Append("\n[诊断] 失败原因: WhitespaceMismatch");
@@ -406,8 +366,7 @@ public static class EditDiagnosticBuilder
     }
 
     private static string BuildSimilarFoundMessage(
-        int startLine, int endLine, double score, string snippet)
-    {
+        int startLine, int endLine, double score, string snippet) {
         var sb = new StringBuilder(512 + snippet.Length);
         sb.Append("String to replace not found in file.");
         sb.Append("\n[诊断] 失败原因: SimilarFound");
@@ -420,8 +379,7 @@ public static class EditDiagnosticBuilder
     /// <summary>
     /// 截断过长的行用于错误消息显示（避免单行 10KB 把消息撑爆）。
     /// </summary>
-    private static string TruncateForDisplay(string line, int maxLength = 200)
-    {
+    private static string TruncateForDisplay(string line, int maxLength = 200) {
         if (line.Length <= maxLength)
             return line;
 

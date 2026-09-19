@@ -5,8 +5,7 @@ namespace JoinCode.Gui.SlashCommands;
 /// 命令存储不带前置 /，终端节点挂载命令完整元数据。
 /// 支持运行时动态增删，单次查询 O(m)（m 为前缀长度），可流畅支撑 200+ 命令。
 /// </summary>
-public sealed class SlashCommandTrie
-{
+public sealed class SlashCommandTrie {
     private readonly TrieNode _root = new();
     private readonly Dictionary<string, SlashCommandItem> _items = new(StringComparer.OrdinalIgnoreCase);
 
@@ -23,14 +22,11 @@ public sealed class SlashCommandTrie
     public IReadOnlyList<SlashCommandItem> Match(string prefix) => Search(prefix);
 
     /// <summary>插入命令（重复命令名覆盖旧值）</summary>
-    public void Insert(SlashCommandItem item)
-    {
+    public void Insert(SlashCommandItem item) {
         var key = NormalizeKey(item.Name);
         var node = _root;
-        foreach (var ch in key)
-        {
-            if (!node.Children.TryGetValue(ch, out var next))
-            {
+        foreach (var ch in key) {
+            if (!node.Children.TryGetValue(ch, out var next)) {
                 next = new TrieNode();
                 node.Children[ch] = next;
             }
@@ -41,15 +37,13 @@ public sealed class SlashCommandTrie
     }
 
     /// <summary>批量插入命令（用于初始化或重建）</summary>
-    public void InsertRange(IEnumerable<SlashCommandItem> items)
-    {
+    public void InsertRange(IEnumerable<SlashCommandItem> items) {
         foreach (var item in items)
             Insert(item);
     }
 
     /// <summary>删除命令，返回是否删除成功</summary>
-    public bool Remove(string name)
-    {
+    public bool Remove(string name) {
         var key = NormalizeKey(name);
         if (!_items.Remove(key))
             return false;
@@ -58,8 +52,7 @@ public sealed class SlashCommandTrie
     }
 
     /// <summary>清空所有命令</summary>
-    public void Clear()
-    {
+    public void Clear() {
         _root.Children.Clear();
         _root.Item = null;
         _items.Clear();
@@ -69,15 +62,13 @@ public sealed class SlashCommandTrie
     /// 按前缀查询命令。空前缀或仅 / 返回全部命令，无匹配返回空数组。
     /// 大小写不敏感匹配，返回的命令保留原始大小写。
     /// </summary>
-    public IReadOnlyList<SlashCommandItem> Search(string prefix)
-    {
+    public IReadOnlyList<SlashCommandItem> Search(string prefix) {
         var key = NormalizeKey(prefix);
         if (key.Length == 0)
             return _items.Values.ToList();
 
         var node = _root;
-        foreach (var ch in key)
-        {
+        foreach (var ch in key) {
             if (!node.Children.TryGetValue(ch, out node))
                 return Array.Empty<SlashCommandItem>();
         }
@@ -86,18 +77,15 @@ public sealed class SlashCommandTrie
         return results;
     }
 
-    private static void Collect(TrieNode node, List<SlashCommandItem> results)
-    {
+    private static void Collect(TrieNode node, List<SlashCommandItem> results) {
         if (node.Item is not null)
             results.Add(node.Item);
         foreach (var child in node.Children.Values)
             Collect(child, results);
     }
 
-    private static bool RemoveNode(TrieNode node, ReadOnlySpan<char> key, int depth)
-    {
-        if (depth == key.Length)
-        {
+    private static bool RemoveNode(TrieNode node, ReadOnlySpan<char> key, int depth) {
+        if (depth == key.Length) {
             node.Item = null;
             return node.Children.Count == 0;
         }
@@ -111,16 +99,14 @@ public sealed class SlashCommandTrie
     }
 
     /// <summary>规范化 key：去掉前导 /，转小写（大小写不敏感匹配）</summary>
-    private static string NormalizeKey(string name)
-    {
+    private static string NormalizeKey(string name) {
         var span = name.AsSpan();
         if (span.Length > 0 && span[0] == '/')
             span = span[1..];
         return span.ToString().ToLowerInvariant();
     }
 
-    private sealed class TrieNode
-    {
+    private sealed class TrieNode {
         public readonly Dictionary<char, TrieNode> Children = new();
         public SlashCommandItem? Item;
     }

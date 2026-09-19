@@ -4,8 +4,7 @@ namespace MockServer.E2E.Tests.Triggers;
 /// <summary>
 /// 注入检测结果
 /// </summary>
-public sealed class InjectionDetectionResult
-{
+public sealed class InjectionDetectionResult {
     /// <summary>
     /// 是否检测到注入
     /// </summary>
@@ -36,8 +35,7 @@ public sealed class InjectionDetectionResult
         InjectionType type,
         IReadOnlyList<string>? matchedKeywords = null,
         string? details = null,
-        string? detectedInContent = null)
-    {
+        string? detectedInContent = null) {
         HasInjection = hasInjection;
         Type = type;
         MatchedKeywords = matchedKeywords ?? Array.Empty<string>();
@@ -48,8 +46,7 @@ public sealed class InjectionDetectionResult
     /// <summary>
     /// 无注入的结果
     /// </summary>
-    public static InjectionDetectionResult Clean(string? content = null)
-    {
+    public static InjectionDetectionResult Clean(string? content = null) {
         return new InjectionDetectionResult(false, InjectionType.None, Array.Empty<string>(), "未检测到注入", content);
     }
 
@@ -60,8 +57,7 @@ public sealed class InjectionDetectionResult
         InjectionType type,
         IReadOnlyList<string> keywords,
         string details,
-        string? content = null)
-    {
+        string? content = null) {
         return new InjectionDetectionResult(true, type, keywords, details, content);
     }
 }
@@ -69,8 +65,7 @@ public sealed class InjectionDetectionResult
 /// <summary>
 /// 注入类型
 /// </summary>
-public enum InjectionType
-{
+public enum InjectionType {
     /// <summary>
     /// 无注入
     /// </summary>
@@ -111,11 +106,9 @@ public enum InjectionType
 /// 用户提示词注入验证器
 /// 检测用户输入中的注入关键词并验证注入的提示词是否正确添加到请求中
 /// </summary>
-public sealed class UserPromptInjectionValidator
-{
+public sealed class UserPromptInjectionValidator {
     // 注入检测关键词字典
-    private static readonly Dictionary<InjectionType, string[]> InjectionKeywords = new()
-    {
+    private static readonly Dictionary<InjectionType, string[]> InjectionKeywords = new() {
         [InjectionType.SystemPromptOverride] = new[]
         {
             "ignore previous instructions",
@@ -193,31 +186,25 @@ public sealed class UserPromptInjectionValidator
     /// </summary>
     /// <param name="userInput">用户输入内容</param>
     /// <returns>检测结果</returns>
-    public InjectionDetectionResult DetectInjection(string? userInput)
-    {
-        if (string.IsNullOrWhiteSpace(userInput))
-        {
+    public InjectionDetectionResult DetectInjection(string? userInput) {
+        if (string.IsNullOrWhiteSpace(userInput)) {
             return InjectionDetectionResult.Clean(userInput);
         }
 
         var lowerInput = userInput.ToLowerInvariant();
         var matchedKeywords = new List<string>();
-        InjectionType detectedType = InjectionType.None;
+        var detectedType = InjectionType.None;
 
-        foreach (var (type, keywords) in InjectionKeywords)
-        {
-            foreach (var keyword in keywords)
-            {
-                if (lowerInput.Contains(keyword.ToLowerInvariant()))
-                {
+        foreach (var (type, keywords) in InjectionKeywords) {
+            foreach (var keyword in keywords) {
+                if (lowerInput.Contains(keyword.ToLowerInvariant())) {
                     matchedKeywords.Add(keyword);
                     detectedType = type;
                 }
             }
         }
 
-        if (matchedKeywords.Count == 0)
-        {
+        if (matchedKeywords.Count == 0) {
             return InjectionDetectionResult.Clean(userInput);
         }
 
@@ -230,10 +217,8 @@ public sealed class UserPromptInjectionValidator
     /// </summary>
     /// <param name="request">聊天完成请求</param>
     /// <returns>检测结果</returns>
-    public InjectionDetectionResult DetectInjection(ChatCompletionRequest? request)
-    {
-        if (request?.Messages is null)
-        {
+    public InjectionDetectionResult DetectInjection(ChatCompletionRequest? request) {
+        if (request?.Messages is null) {
             return InjectionDetectionResult.Clean();
         }
 
@@ -242,11 +227,9 @@ public sealed class UserPromptInjectionValidator
             .Select(m => m.Content)
             .ToList();
 
-        foreach (var message in userMessages)
-        {
+        foreach (var message in userMessages) {
             var result = DetectInjection(message);
-            if (result.HasInjection)
-            {
+            if (result.HasInjection) {
                 return result;
             }
         }
@@ -257,16 +240,14 @@ public sealed class UserPromptInjectionValidator
     /// <summary>
     /// 检查请求中是否包含注入
     /// </summary>
-    public bool ContainsInjection(ChatCompletionRequest? request)
-    {
+    public bool ContainsInjection(ChatCompletionRequest? request) {
         return DetectInjection(request).HasInjection;
     }
 
     /// <summary>
     /// 检查用户输入是否包含注入
     /// </summary>
-    public bool ContainsInjection(string? userInput)
-    {
+    public bool ContainsInjection(string? userInput) {
         return DetectInjection(userInput).HasInjection;
     }
 
@@ -278,8 +259,7 @@ public sealed class UserPromptInjectionValidator
     /// <returns>是否验证通过</returns>
     public bool ValidateInjectionPresent(
         ChatCompletionRequest? request,
-        string? expectedInjectionContent = null)
-    {
+        string? expectedInjectionContent = null) {
         if (request?.Messages is null)
             return false;
 
@@ -299,8 +279,7 @@ public sealed class UserPromptInjectionValidator
             return false;
 
         // 如果指定了预期内容，检查是否包含
-        if (!string.IsNullOrWhiteSpace(expectedInjectionContent))
-        {
+        if (!string.IsNullOrWhiteSpace(expectedInjectionContent)) {
             return fullSystemPrompt.Contains(expectedInjectionContent, StringComparison.OrdinalIgnoreCase);
         }
 
@@ -310,8 +289,7 @@ public sealed class UserPromptInjectionValidator
     /// <summary>
     /// 验证特定类型的注入是否存在于请求中
     /// </summary>
-    public bool ValidateInjectionTypePresent(ChatCompletionRequest? request, InjectionType type)
-    {
+    public bool ValidateInjectionTypePresent(ChatCompletionRequest? request, InjectionType type) {
         var detectionResult = DetectInjection(request);
         return detectionResult.HasInjection && detectionResult.Type == type;
     }
@@ -319,8 +297,7 @@ public sealed class UserPromptInjectionValidator
     /// <summary>
     /// 获取所有检测到的注入
     /// </summary>
-    public IReadOnlyList<InjectionDetectionResult> GetAllInjections(ChatCompletionRequest? request)
-    {
+    public IReadOnlyList<InjectionDetectionResult> GetAllInjections(ChatCompletionRequest? request) {
         if (request?.Messages is null)
             return Array.Empty<InjectionDetectionResult>();
 
@@ -330,11 +307,9 @@ public sealed class UserPromptInjectionValidator
             .Select(m => m.Content)
             .ToList();
 
-        foreach (var message in userMessages)
-        {
+        foreach (var message in userMessages) {
             var result = DetectInjection(message);
-            if (result.HasInjection)
-            {
+            if (result.HasInjection) {
                 results.Add(result);
             }
         }
@@ -345,8 +320,7 @@ public sealed class UserPromptInjectionValidator
     /// <summary>
     /// 获取注入统计信息
     /// </summary>
-    public InjectionStatistics GetStatistics(ChatCompletionRequest? request)
-    {
+    public InjectionStatistics GetStatistics(ChatCompletionRequest? request) {
         var injections = GetAllInjections(request);
         var byType = injections
             .GroupBy(i => i.Type)
@@ -366,11 +340,9 @@ public sealed class UserPromptInjectionValidator
     /// 断言请求中不包含注入
     /// </summary>
     /// <exception cref="AssertException">当检测到注入时抛出</exception>
-    public void AssertNoInjection(ChatCompletionRequest? request, string? message = null)
-    {
+    public void AssertNoInjection(ChatCompletionRequest? request, string? message = null) {
         var result = DetectInjection(request);
-        if (result.HasInjection)
-        {
+        if (result.HasInjection) {
             var errorMessage = message ??
                 $"检测到提示词注入: 类型={result.Type}, 关键词={string.Join(", ", result.MatchedKeywords)}";
             throw new AssertException(errorMessage);
@@ -384,11 +356,9 @@ public sealed class UserPromptInjectionValidator
     public void AssertHasInjectionType(
         ChatCompletionRequest? request,
         InjectionType expectedType,
-        string? message = null)
-    {
+        string? message = null) {
         var result = DetectInjection(request);
-        if (!result.HasInjection || result.Type != expectedType)
-        {
+        if (!result.HasInjection || result.Type != expectedType) {
             var errorMessage = message ??
                 $"期望检测到类型为 {expectedType} 的注入，但实际: {result.Type}";
             throw new AssertException(errorMessage);
@@ -402,10 +372,8 @@ public sealed class UserPromptInjectionValidator
     public void AssertInjectionPresent(
         ChatCompletionRequest? request,
         string? expectedContent = null,
-        string? message = null)
-    {
-        if (!ValidateInjectionPresent(request, expectedContent))
-        {
+        string? message = null) {
+        if (!ValidateInjectionPresent(request, expectedContent)) {
             var errorMessage = message ??
                 (expectedContent is null
                     ? "未在系统提示词中找到注入标记"
@@ -418,8 +386,7 @@ public sealed class UserPromptInjectionValidator
 /// <summary>
 /// 注入统计信息
 /// </summary>
-public sealed class InjectionStatistics
-{
+public sealed class InjectionStatistics {
     public int TotalInjections { get; }
     public int SystemPromptOverrideCount { get; }
     public int RolePlayInjectionCount { get; }
@@ -435,8 +402,7 @@ public sealed class InjectionStatistics
         int ignoreInstructions,
         int delimiterInjection,
         int encodingObfuscation,
-        int other)
-    {
+        int other) {
         TotalInjections = total;
         SystemPromptOverrideCount = systemPromptOverride;
         RolePlayInjectionCount = rolePlayInjection;
@@ -446,8 +412,7 @@ public sealed class InjectionStatistics
         OtherCount = other;
     }
 
-    public override string ToString()
-    {
+    public override string ToString() {
         return $"总注入数: {TotalInjections}, 系统覆盖: {SystemPromptOverrideCount}, " +
                $"角色扮演: {RolePlayInjectionCount}, 指令忽略: {IgnoreInstructionsCount}, " +
                $"分隔符: {DelimiterInjectionCount}, 编码混淆: {EncodingObfuscationCount}, 其他: {OtherCount}";

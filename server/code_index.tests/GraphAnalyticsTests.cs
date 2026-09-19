@@ -1,28 +1,24 @@
 #pragma warning disable JCC9001, JCC9002
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class GraphAnalyticsTests : IDisposable
-{
+public sealed class GraphAnalyticsTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly GraphAnalytics _analytics;
     private bool _disposed;
 
-    public GraphAnalyticsTests()
-    {
+    public GraphAnalyticsTests() {
         _store = new InMemoryIndexStore();
         _analytics = new GraphAnalytics(_store);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _store.DisposeSafe();
     }
 
     [Fact]
-    public async Task QueryAsync_MatchesBySymbolName_ReturnsResults()
-    {
+    public async Task QueryAsync_MatchesBySymbolName_ReturnsResults() {
         InsertSymbol("AuthService", "Core.Auth.AuthService", SymbolKind.Class, "auth.cs", "Core.Auth");
         InsertSymbol("AuthController", "Web.AuthController", SymbolKind.Class, "controller.cs", "Web");
         InsertSymbol("TokenStore", "Core.Auth.TokenStore", SymbolKind.Class, "token.cs", "Core.Auth");
@@ -35,8 +31,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task QueryAsync_MatchesByFilePath_ReturnsResults()
-    {
+    public async Task QueryAsync_MatchesByFilePath_ReturnsResults() {
         InsertSymbol("Process", "Svc.Process", SymbolKind.Method, "handlers/request.cs", "Svc");
         InsertSymbol("Validate", "Svc.Validate", SymbolKind.Method, "validators/check.cs", "Svc");
 
@@ -47,8 +42,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task QueryAsync_NoMatches_ReturnsEmpty()
-    {
+    public async Task QueryAsync_NoMatches_ReturnsEmpty() {
         InsertSymbol("Foo", "Svc.Foo", SymbolKind.Class, "foo.cs", "Svc");
 
         var result = await _analytics.QueryAsync("nonexistent", 10, CancellationToken.None).ConfigureAwait(true);
@@ -58,9 +52,8 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task QueryAsync_RespectsMaxResults()
-    {
-        for (int i = 0; i < 10; i++)
+    public async Task QueryAsync_RespectsMaxResults() {
+        for (var i = 0; i < 10; i++)
             InsertSymbol($"Handler{i}", $"Svc.Handler{i}", SymbolKind.Class, $"h{i}.cs", "Svc");
 
         var result = await _analytics.QueryAsync("Handler", 3, CancellationToken.None).ConfigureAwait(true);
@@ -70,8 +63,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task QueryAsync_IncludesRelatedSymbols()
-    {
+    public async Task QueryAsync_IncludesRelatedSymbols() {
         InsertSymbol("Processor", "Svc.Processor", SymbolKind.Class, "processor.cs", "Svc");
         InsertSymbol("Repository", "Svc.Repository", SymbolKind.Class, "repo.cs", "Svc");
         InsertCallEdge("Svc.Processor", "Svc.Repository", "processor.cs", 1, CallKind.Direct);
@@ -83,8 +75,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task FindPathAsync_DirectCall_ReturnsPath()
-    {
+    public async Task FindPathAsync_DirectCall_ReturnsPath() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
 
         var result = await _analytics.FindPathAsync("A", "B", CancellationToken.None).ConfigureAwait(true);
@@ -95,8 +86,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task FindPathAsync_TwoHopPath_ReturnsPath()
-    {
+    public async Task FindPathAsync_TwoHopPath_ReturnsPath() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
         InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
 
@@ -110,8 +100,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task FindPathAsync_NoPath_ReturnsNotFound()
-    {
+    public async Task FindPathAsync_NoPath_ReturnsNotFound() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
         InsertCallEdge("C", "D", "c.cs", 1, CallKind.Direct);
 
@@ -122,8 +111,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task FindPathAsync_SameSymbol_ReturnsZeroLengthPath()
-    {
+    public async Task FindPathAsync_SameSymbol_ReturnsZeroLengthPath() {
         var result = await _analytics.FindPathAsync("A", "A", CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.PathFound);
@@ -132,8 +120,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task FindPathAsync_ReverseDirection_ReturnsPath()
-    {
+    public async Task FindPathAsync_ReverseDirection_ReturnsPath() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
         InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
 
@@ -146,8 +133,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplainAsync_ReturnsAllRelationships()
-    {
+    public async Task ExplainAsync_ReturnsAllRelationships() {
         InsertSymbol("Service", "Svc.Service", SymbolKind.Class, "svc.cs", "Svc");
         InsertSymbol("Repo", "Svc.Repo", SymbolKind.Class, "svc.cs", "Svc");
         InsertCallEdge("Ctrl.Controller", "Svc.Service", "ctrl.cs", 1, CallKind.Direct);
@@ -165,8 +151,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplainAsync_UnknownSymbol_ReturnsEmptyRelationships()
-    {
+    public async Task ExplainAsync_UnknownSymbol_ReturnsEmptyRelationships() {
         var result = await _analytics.ExplainAsync("NonExistent", CancellationToken.None).ConfigureAwait(true);
 
         Assert.Equal("NonExistent", result.SymbolName);
@@ -177,8 +162,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplainAsync_SameFileSymbols_IncludedInSameFile()
-    {
+    public async Task ExplainAsync_SameFileSymbols_IncludedInSameFile() {
         InsertSymbol("Alpha", "Svc.Alpha", SymbolKind.Class, "shared.cs", "Svc");
         InsertSymbol("Beta", "Svc.Beta", SymbolKind.Class, "shared.cs", "Svc");
         InsertSymbol("Gamma", "Svc.Gamma", SymbolKind.Class, "other.cs", "Svc");
@@ -190,8 +174,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplainAsync_ByNameLookup_ReturnsRelationships()
-    {
+    public async Task ExplainAsync_ByNameLookup_ReturnsRelationships() {
         InsertSymbol("Service", "Svc.Service", SymbolKind.Class, "svc.cs", "Svc");
         InsertCallEdge("Cli.Client", "Svc.Service", "client.cs", 1, CallKind.Direct);
 
@@ -201,10 +184,8 @@ public sealed class GraphAnalyticsTests : IDisposable
         Assert.Contains("Cli.Client", result.Callers);
     }
 
-    private void InsertSymbol(string name, string fqn, SymbolKind kind, string filePath, string ns)
-    {
-        var symbol = new SymbolInfo
-        {
+    private void InsertSymbol(string name, string fqn, SymbolKind kind, string filePath, string ns) {
+        var symbol = new SymbolInfo {
             Name = name,
             FullyQualifiedName = fqn,
             Kind = kind,
@@ -218,24 +199,20 @@ public sealed class GraphAnalyticsTests : IDisposable
 
         using var scope = _store.EnterWriteLock();
         _store.SymbolsByFqn[fqn] = symbol;
-        if (!_store.SymbolsByName.TryGetValue(name, out var nameList))
-        {
+        if (!_store.SymbolsByName.TryGetValue(name, out var nameList)) {
             nameList = new List<SymbolInfo>();
             _store.SymbolsByName[name] = nameList;
         }
         nameList.Add(symbol);
-        if (!_store.SymbolsByFile.TryGetValue(filePath, out var fileList))
-        {
+        if (!_store.SymbolsByFile.TryGetValue(filePath, out var fileList)) {
             fileList = new List<SymbolInfo>();
             _store.SymbolsByFile[filePath] = fileList;
         }
         fileList.Add(symbol);
     }
 
-    private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind)
-    {
-        var edge = new CallEdge
-        {
+    private void InsertCallEdge(string caller, string callee, string file, int line, CallKind kind) {
+        var edge = new CallEdge {
             CallerSymbol = caller,
             CalleeSymbol = callee,
             CallSiteFilePath = file,
@@ -250,8 +227,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task DetectCommunitiesAsync_TwoClusters_ReturnsTwoCommunities()
-    {
+    public async Task DetectCommunitiesAsync_TwoClusters_ReturnsTwoCommunities() {
         InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
         InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
         InsertSymbol("C", "Ns.C", SymbolKind.Method, "c.cs", "Ns");
@@ -265,8 +241,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task GetHubNodesAsync_TopTwo_ReturnsOrderedByDegree()
-    {
+    public async Task GetHubNodesAsync_TopTwo_ReturnsOrderedByDegree() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
         InsertCallEdge("C", "B", "c.cs", 1, CallKind.Direct);
         InsertCallEdge("B", "D", "b.cs", 1, CallKind.Direct);
@@ -279,14 +254,12 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task GetHubNodesAsync_TopNZero_Throws()
-    {
+    public async Task GetHubNodesAsync_TopNZero_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.GetHubNodesAsync(0, CancellationToken.None)).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task DetectDeadCodeAsync_PrivateMethodWithNoCaller_IsReported()
-    {
+    public async Task DetectDeadCodeAsync_PrivateMethodWithNoCaller_IsReported() {
         InsertMethod("Unused", "Ns.Unused", "file.cs", "private");
 
         var dead = await _analytics.DetectDeadCodeAsync(CancellationToken.None).ConfigureAwait(true);
@@ -296,8 +269,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task DetectDeadCodeAsync_PublicMethod_IsNotReported()
-    {
+    public async Task DetectDeadCodeAsync_PublicMethod_IsNotReported() {
         InsertMethod("PublicApi", "Ns.PublicApi", "file.cs", "public");
 
         var dead = await _analytics.DetectDeadCodeAsync(CancellationToken.None).ConfigureAwait(true);
@@ -306,8 +278,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task DetectDeadCodeAsync_MethodWithCaller_IsNotReported()
-    {
+    public async Task DetectDeadCodeAsync_MethodWithCaller_IsNotReported() {
         InsertMethod("Used", "Ns.Used", "file.cs", "private");
         InsertCallEdge("Ns.Caller", "Ns.Used", "file.cs", 1, CallKind.Direct);
 
@@ -317,8 +288,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task ExtractSubgraphAsync_TwoHops_ReturnsExpectedNodes()
-    {
+    public async Task ExtractSubgraphAsync_TwoHops_ReturnsExpectedNodes() {
         InsertCallEdge("A", "B", "a.cs", 1, CallKind.Direct);
         InsertCallEdge("B", "C", "b.cs", 1, CallKind.Direct);
 
@@ -331,8 +301,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task AnalyzeChangeImpactAsync_ChangedFile_ReachesCallers()
-    {
+    public async Task AnalyzeChangeImpactAsync_ChangedFile_ReachesCallers() {
         InsertMethod("Changed", "Ns.Changed", "changed.cs", "public");
         InsertMethod("Caller", "Ns.Caller", "caller.cs", "public");
         InsertCallEdge("Ns.Caller", "Ns.Changed", "caller.cs", 1, CallKind.Direct);
@@ -346,8 +315,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task DetectCyclesAsync_NoCycles_ReturnsFalse()
-    {
+    public async Task DetectCyclesAsync_NoCycles_ReturnsFalse() {
         InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
         InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
         InsertCallEdge("Ns.A", "Ns.B", "a.cs", 1, CallKind.Direct);
@@ -359,8 +327,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task DetectCyclesAsync_CallCycle_Detected()
-    {
+    public async Task DetectCyclesAsync_CallCycle_Detected() {
         InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
         InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
         InsertCallEdge("Ns.A", "Ns.B", "a.cs", 1, CallKind.Direct);
@@ -372,8 +339,7 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task TopologicalSortByLevelsAsync_LinearChain_ReturnsLevels()
-    {
+    public async Task TopologicalSortByLevelsAsync_LinearChain_ReturnsLevels() {
         InsertSymbol("A", "Ns.A", SymbolKind.Method, "a.cs", "Ns");
         InsertSymbol("B", "Ns.B", SymbolKind.Method, "b.cs", "Ns");
         InsertSymbol("C", "Ns.C", SymbolKind.Method, "c.cs", "Ns");
@@ -386,27 +352,22 @@ public sealed class GraphAnalyticsTests : IDisposable
     }
 
     [Fact]
-    public async Task QueryAsync_NullQuery_Throws()
-    {
+    public async Task QueryAsync_NullQuery_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.QueryAsync(null!, 10, CancellationToken.None)).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task FindPathAsync_NullFrom_Throws()
-    {
+    public async Task FindPathAsync_NullFrom_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.FindPathAsync(null!, "B", CancellationToken.None)).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ExplainAsync_NullSymbolName_Throws()
-    {
+    public async Task ExplainAsync_NullSymbolName_Throws() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _analytics.ExplainAsync(null!, CancellationToken.None)).ConfigureAwait(true);
     }
 
-    private void InsertMethod(string name, string fqn, string file, string accessibility)
-    {
-        var symbol = new SymbolInfo
-        {
+    private void InsertMethod(string name, string fqn, string file, string accessibility) {
+        var symbol = new SymbolInfo {
             Name = name,
             FullyQualifiedName = fqn,
             Kind = SymbolKind.Method,
@@ -420,24 +381,20 @@ public sealed class GraphAnalyticsTests : IDisposable
 
         using var scope = _store.EnterWriteLock();
         _store.SymbolsByFqn[fqn] = symbol;
-        if (!_store.SymbolsByName.TryGetValue(name, out var nameList))
-        {
+        if (!_store.SymbolsByName.TryGetValue(name, out var nameList)) {
             nameList = new List<SymbolInfo>();
             _store.SymbolsByName[name] = nameList;
         }
         nameList.Add(symbol);
-        if (!_store.SymbolsByFile.TryGetValue(file, out var fileList))
-        {
+        if (!_store.SymbolsByFile.TryGetValue(file, out var fileList)) {
             fileList = new List<SymbolInfo>();
             _store.SymbolsByFile[file] = fileList;
         }
         fileList.Add(symbol);
     }
 
-    private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull
-    {
-        if (!dict.TryGetValue(key, out var list))
-        {
+    private static void AddToBucket<TKey>(Dictionary<TKey, List<CallEdge>> dict, TKey key, CallEdge edge) where TKey : notnull {
+        if (!dict.TryGetValue(key, out var list)) {
             list = new List<CallEdge>();
             dict[key] = list;
         }

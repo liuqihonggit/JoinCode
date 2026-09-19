@@ -1,11 +1,9 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed class BridgeFlushGateTests
-{
+public sealed class BridgeFlushGateTests {
     [Fact]
-    public void Start_SetsActive()
-    {
+    public void Start_SetsActive() {
         var gate = new BridgeFlushGate<string>();
         Assert.False(gate.Active);
 
@@ -14,8 +12,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void Enqueue_WhenActive_QueuesAndReturnsTrue()
-    {
+    public void Enqueue_WhenActive_QueuesAndReturnsTrue() {
         var gate = new BridgeFlushGate<string>();
         gate.Start();
 
@@ -25,8 +22,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void Enqueue_WhenInactive_ReturnsFalse()
-    {
+    public void Enqueue_WhenInactive_ReturnsFalse() {
         var gate = new BridgeFlushGate<string>();
         // 未 start，默认 inactive
 
@@ -36,8 +32,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void End_ReturnsQueuedItemsAndClears()
-    {
+    public void End_ReturnsQueuedItemsAndClears() {
         var gate = new BridgeFlushGate<string>();
         gate.Start();
         gate.Enqueue("msg1", "msg2");
@@ -51,8 +46,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void Drop_DiscardsItemsAndReturnsCount()
-    {
+    public void Drop_DiscardsItemsAndReturnsCount() {
         var gate = new BridgeFlushGate<string>();
         gate.Start();
         gate.Enqueue("msg1", "msg2", "msg3");
@@ -64,8 +58,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void Deactivate_ClearsActiveButKeepsItems()
-    {
+    public void Deactivate_ClearsActiveButKeepsItems() {
         var gate = new BridgeFlushGate<string>();
         gate.Start();
         gate.Enqueue("msg1");
@@ -76,8 +69,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void FullLifecycle_StartEnqueueEndEnqueue()
-    {
+    public void FullLifecycle_StartEnqueueEndEnqueue() {
         var gate = new BridgeFlushGate<string>();
 
         // 第一次 flush

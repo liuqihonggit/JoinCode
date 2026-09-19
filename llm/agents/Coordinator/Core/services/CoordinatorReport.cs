@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// 协调器报告
 /// </summary>
-public sealed class CoordinatorReport
-{
+public sealed class CoordinatorReport {
     /// <summary>Agent 总数</summary>
     public int TotalAgents { get; init; }
     /// <summary>待执行 Agent 数量</summary>
@@ -41,8 +40,7 @@ public sealed class CoordinatorReport
 /// <summary>
 /// 备用执行结果
 /// </summary>
-public sealed class FallbackExecutionResult
-{
+public sealed class FallbackExecutionResult {
     /// <summary>
     /// 所有执行结果（包括主Agent和备用Agent）
     /// </summary>
@@ -72,8 +70,7 @@ public sealed class FallbackExecutionResult
 /// <summary>
 /// 执行统计信息
 /// </summary>
-public sealed class ExecutionStatistics
-{
+public sealed class ExecutionStatistics {
     /// <summary>Agent 总数</summary>
     public int TotalAgents { get; init; }
     /// <summary>成功 Agent 数量</summary>
@@ -100,8 +97,7 @@ public sealed class ExecutionStatistics
 /// <summary>
 /// Agent信息
 /// </summary>
-public sealed class AgentInfo
-{
+public sealed class AgentInfo {
     /// <summary>Agent 标识</summary>
     public required string Id { get; init; }
     /// <summary>任务描述</summary>
@@ -111,4 +107,3 @@ public sealed class AgentInfo
     /// <summary>执行耗时（毫秒）</summary>
     public long? ExecutionTimeMs { get; init; }
 }
-

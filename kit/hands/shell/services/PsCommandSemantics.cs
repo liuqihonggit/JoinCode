@@ -7,13 +7,11 @@ namespace JoinCode.Hands.Shell;
 /// 但外部可执行文件（如 grep.exe、robocopy.exe）使用非零退出码传达信息而非失败。
 /// 对齐 TS: src/tools/PowerShellTool/commandSemantics.ts
 /// </summary>
-public static class PsCommandSemantics
-{
+public static class PsCommandSemantics {
     /// <summary>
     /// 命令语义解释结果
     /// </summary>
-    public sealed record CommandSemanticResult
-    {
+    public sealed record CommandSemanticResult {
         /// <summary>
         /// 是否为错误
         /// </summary>
@@ -53,23 +51,19 @@ public static class PsCommandSemantics
     /// <param name="stdout">标准输出</param>
     /// <param name="stderr">标准错误</param>
     /// <returns>语义解释结果</returns>
-    public static CommandSemanticResult InterpretCommandResult(string command, int exitCode, string stdout, string stderr)
-    {
-        if (string.IsNullOrEmpty(command))
-        {
+    public static CommandSemanticResult InterpretCommandResult(string command, int exitCode, string stdout, string stderr) {
+        if (string.IsNullOrEmpty(command)) {
             return new CommandSemanticResult { IsError = exitCode != 0, Message = exitCode != 0 ? $"Command failed with exit code {exitCode}" : null };
         }
 
         var baseCommand = HeuristicallyExtractBaseCommand(command);
 
         // PS 原生 cmdlet 不需要退出码语义
-        if (NativeCmdlets.Contains(baseCommand))
-        {
+        if (NativeCmdlets.Contains(baseCommand)) {
             return new CommandSemanticResult { IsError = exitCode != 0, Message = exitCode != 0 ? $"Command failed with exit code {exitCode}" : null };
         }
 
-        return baseCommand switch
-        {
+        return baseCommand switch {
             // grep / ripgrep / findstr: 0=匹配, 1=无匹配, 2+=错误
             "grep" or "rg" or "findstr" when exitCode >= 2 =>
                 new CommandSemanticResult { IsError = true, Message = null },
@@ -97,8 +91,7 @@ public static class PsCommandSemantics
     /// 启发式分割 ; 和 | — 对引号字符串或复杂构造可能不准确。
     /// 不用于安全判断，仅用于退出码解释。
     /// </summary>
-    private static string HeuristicallyExtractBaseCommand(string command)
-    {
+    private static string HeuristicallyExtractBaseCommand(string command) {
         // 按 ; 和 | 分割，取最后一段
         var segments = command.Split(';', '|');
         var lastSegment = segments[^1].Trim();
@@ -110,13 +103,11 @@ public static class PsCommandSemantics
     /// 从单个管道段提取命令名。
     /// 去除前导 &amp; / . 调用运算符和 .exe 后缀，转小写。
     /// </summary>
-    private static string ExtractBaseCommand(string segment)
-    {
+    private static string ExtractBaseCommand(string segment) {
         var trimmed = segment.TrimStart();
 
         // 去除 PS 调用运算符: & "cmd", . "cmd"
-        if (trimmed.Length > 1 && (trimmed[0] == '&' || trimmed[0] == '.') && char.IsWhiteSpace(trimmed[1]))
-        {
+        if (trimmed.Length > 1 && (trimmed[0] == '&' || trimmed[0] == '.') && char.IsWhiteSpace(trimmed[1])) {
             trimmed = trimmed[1..].TrimStart();
         }
 
@@ -125,21 +116,18 @@ public static class PsCommandSemantics
         var firstToken = spaceIndex > 0 ? trimmed[..spaceIndex] : trimmed;
 
         // 去除引号
-        if (firstToken.Length >= 2 && ((firstToken[0] == '"' && firstToken[^1] == '"') || (firstToken[0] == '\'' && firstToken[^1] == '\'')))
-        {
+        if (firstToken.Length >= 2 && ((firstToken[0] == '"' && firstToken[^1] == '"') || (firstToken[0] == '\'' && firstToken[^1] == '\''))) {
             firstToken = firstToken[1..^1];
         }
 
         // 去除路径: C:\bin\grep.exe → grep.exe, .\rg.exe → rg.exe
         var lastSlash = firstToken.LastIndexOfAny(['\\', '/']);
-        if (lastSlash >= 0)
-        {
+        if (lastSlash >= 0) {
             firstToken = firstToken[(lastSlash + 1)..];
         }
 
         // 去除 .exe 后缀
-        if (firstToken.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-        {
+        if (firstToken.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) {
             firstToken = firstToken[..^4];
         }
 

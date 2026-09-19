@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 记忆条目模型
 /// 包含类型、内容、相关性分数和 TTL
 /// </summary>
-public sealed record MemoryEntry
-{
+public sealed record MemoryEntry {
     /// <summary>
     /// 记忆唯一标识符
     /// </summary>
@@ -98,13 +97,11 @@ public sealed record MemoryEntry
         string? source = null,
         TimeSpan? ttl = null,
         ImmutableDictionary<string, string>? metadata = null,
-        DateTime? now = null)
-    {
+        DateTime? now = null) {
         var actualTtl = ttl ?? type.GetDefaultTtl();
         var currentTime = now ?? DateTime.UtcNow;
 
-        return new MemoryEntry
-        {
+        return new MemoryEntry {
             Id = Guid.NewGuid().ToString("N")[..16],
             Type = type,
             Content = content,
@@ -124,10 +121,8 @@ public sealed record MemoryEntry
     /// <summary>
     /// 更新访问信息
     /// </summary>
-    public MemoryEntry WithAccessed(DateTime? now = null)
-    {
-        return this with
-        {
+    public MemoryEntry WithAccessed(DateTime? now = null) {
+        return this with {
             LastAccessedAt = now ?? DateTime.UtcNow,
             AccessCount = AccessCount + 1
         };
@@ -136,18 +131,15 @@ public sealed record MemoryEntry
     /// <summary>
     /// 更新相关性分数
     /// </summary>
-    public MemoryEntry WithRelevanceScore(double score)
-    {
+    public MemoryEntry WithRelevanceScore(double score) {
         return this with { RelevanceScore = Math.Clamp(score, 0.0, 1.0) };
     }
 
     /// <summary>
     /// 归档记忆
     /// </summary>
-    public MemoryEntry WithArchived(DateTime? now = null)
-    {
-        return this with
-        {
+    public MemoryEntry WithArchived(DateTime? now = null) {
+        return this with {
             IsArchived = true,
             ArchivedAt = now ?? DateTime.UtcNow
         };
@@ -156,10 +148,8 @@ public sealed record MemoryEntry
     /// <summary>
     /// 取消归档记忆
     /// </summary>
-    public MemoryEntry WithUnarchived()
-    {
-        return this with
-        {
+    public MemoryEntry WithUnarchived() {
+        return this with {
             IsArchived = false,
             ArchivedAt = null
         };
@@ -168,8 +158,7 @@ public sealed record MemoryEntry
     /// <summary>
     /// 检查是否已过期
     /// </summary>
-    public bool IsExpired(DateTime? now = null)
-    {
+    public bool IsExpired(DateTime? now = null) {
         var currentTime = now ?? DateTime.UtcNow;
         return ExpiresAt.HasValue && ExpiresAt.Value < currentTime;
     }
@@ -177,8 +166,7 @@ public sealed record MemoryEntry
     /// <summary>
     /// 获取剩余生存时间
     /// </summary>
-    public TimeSpan GetRemainingTtl(DateTime? now = null)
-    {
+    public TimeSpan GetRemainingTtl(DateTime? now = null) {
         var currentTime = now ?? DateTime.UtcNow;
         if (!ExpiresAt.HasValue) return TimeSpan.Zero;
         return ExpiresAt.Value > currentTime ? ExpiresAt.Value - currentTime : TimeSpan.Zero;

@@ -8,17 +8,14 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Theme, Description = "切换控制台主题", Usage = "/theme [dark|light|auto|dark-daltonized|light-daltonized|dark-ansi|light-ansi]", Category = ChatCommandCategory.Config)]
 [ChatCommandArg("theme", Type = "string", Description = "主题名称", Enum = new[] { "dark", "light", "auto", "dark-daltonized", "light-daltonized", "dark-ansi", "light-ansi" })]
-public sealed class ThemeCommand : ChatCommandBase
-{
+public sealed class ThemeCommand : ChatCommandBase {
     /// <summary>
     /// 主题显示标签映射 — 仅 UI 显示字符串,不参与序列化
     /// </summary>
     private static readonly FrozenDictionary<ThemeKind, string> ThemeLabels = BuildThemeLabels();
 
-    private static FrozenDictionary<ThemeKind, string> BuildThemeLabels()
-    {
-        return new Dictionary<ThemeKind, string>
-        {
+    private static FrozenDictionary<ThemeKind, string> BuildThemeLabels() {
+        return new Dictionary<ThemeKind, string> {
             [ThemeKind.Auto] = L.T(StringKey.ThemeLabelAuto),
             [ThemeKind.Dark] = L.T(StringKey.ThemeLabelDark),
             [ThemeKind.Light] = L.T(StringKey.ThemeLabelLight),
@@ -37,8 +34,7 @@ public sealed class ThemeCommand : ChatCommandBase
     /// <summary>
     /// 从 ThemeKind 枚举构建主题选项数组 — 单一数据源
     /// </summary>
-    private static (string Value, string Label)[] BuildThemeOptions()
-    {
+    private static (string Value, string Label)[] BuildThemeOptions() {
         return Enum.GetValues<ThemeKind>()
             .Select(kind => (Value: kind.ToValue(), Label: ThemeLabels[kind]))
             .ToArray();
@@ -50,8 +46,7 @@ public sealed class ThemeCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var theme = args.Length > 0 ? args[0].ToLowerInvariant() : "show";
 
@@ -59,18 +54,13 @@ public sealed class ThemeCommand : ChatCommandBase
 
         // 查找匹配的主题 — 使用 FromValue 解析
         var matchedKind = ThemeKindExtensions.FromValue(theme);
-        if (matchedKind is not null && ThemeLabels.TryGetValue(matchedKind.Value, out var label))
-        {
+        if (matchedKind is not null && ThemeLabels.TryGetValue(matchedKind.Value, out var label)) {
             var themeValue = matchedKind.Value.ToValue();
             await SetThemeAsync(configService, themeValue, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine($"{TerminalColors.Success}{string.Format(L.T(StringKey.ThemeSetTo), label)}{AnsiStyleEnumConstants.Reset}");
-        }
-        else if (theme == "show")
-        {
+        } else if (theme == "show") {
             await ShowThemePickerAsync(configService, context.CancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine(string.Format(L.T(StringKey.ThemeSetUnknown), theme));
             TerminalHelper.NewLine();
             await ShowThemePickerAsync(configService, context.CancellationToken).ConfigureAwait(false);
@@ -83,13 +73,11 @@ public sealed class ThemeCommand : ChatCommandBase
     /// 显示主题选择器(交互式)
     /// 对齐 TS: ThemePicker — 上下键选择主题+Enter切换+Esc取消
     /// </summary>
-    private async Task ShowThemePickerAsync(IConfigurationService? configService, CancellationToken ct)
-    {
+    private async Task ShowThemePickerAsync(IConfigurationService? configService, CancellationToken ct) {
         var currentTheme = await GetCurrentThemeAsync(configService).ConfigureAwait(false);
 
         // 交互模式:使用 Selector 组件
-        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             var selector = new Selector<(string Value, string Label)>(
                 L.T(StringKey.ThemeSelectorTitle),
                 [.. ThemeOptions],
@@ -99,8 +87,7 @@ public sealed class ThemeCommand : ChatCommandBase
 
             var result = await selector.ShowAsync(ct).ConfigureAwait(false);
 
-            if (result.Cancelled || result.Selected.Equals(default))
-            {
+            if (result.Cancelled || result.Selected.Equals(default)) {
                 TerminalHelper.WriteLine(L.T(StringKey.ThemeCancelled));
                 return;
             }
@@ -120,8 +107,7 @@ public sealed class ThemeCommand : ChatCommandBase
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine(L.T(StringKey.ThemeAvailableHeader));
 
-        foreach (var (value, label) in ThemeOptions)
-        {
+        foreach (var (value, label) in ThemeOptions) {
             var marker = value == currentTheme ? " *" : "";
             TerminalHelper.WriteLine($"  {value,-20} {label}{marker}");
         }
@@ -130,20 +116,16 @@ public sealed class ThemeCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Muted}{L.T(StringKey.ThemeUsageHint)}{AnsiStyleEnumConstants.Reset}");
     }
 
-    private async Task SetThemeAsync(IConfigurationService? configService, string theme, CancellationToken ct)
-    {
-        if (configService is not null)
-        {
+    private async Task SetThemeAsync(IConfigurationService? configService, string theme, CancellationToken ct) {
+        if (configService is not null) {
             await configService.SetAsync(ConfigKeyEnumConstants.Theme, theme, ct).ConfigureAwait(false);
         }
 
         ApplyTheme(theme);
     }
 
-    private static async Task<string> GetCurrentThemeAsync(IConfigurationService? configService)
-    {
-        if (configService is not null)
-        {
+    private static async Task<string> GetCurrentThemeAsync(IConfigurationService? configService) {
+        if (configService is not null) {
             var theme = await configService.GetAsync(ConfigKeyEnumConstants.Theme).ConfigureAwait(false);
             if (!string.IsNullOrEmpty(theme)) return theme;
         }
@@ -151,12 +133,10 @@ public sealed class ThemeCommand : ChatCommandBase
         return ThemeKindEnumConstants.Auto;
     }
 
-    private void ApplyTheme(string theme)
-    {
+    private void ApplyTheme(string theme) {
         // 解析 auto 主题
         var resolvedTheme = theme;
-        if (theme == ThemeKindEnumConstants.Auto)
-        {
+        if (theme == ThemeKindEnumConstants.Auto) {
             var hour = DateTime.Now.Hour;
             resolvedTheme = hour >= 6 && hour < 18
                 ? ThemeKindEnumConstants.Light
@@ -170,20 +150,16 @@ public sealed class ThemeCommand : ChatCommandBase
         var isAnsi = theme.Contains("ansi");
         var isDark = resolvedTheme.Contains("dark") || (!resolvedTheme.Contains("light") && theme.Contains("dark"));
 
-        if (isDark)
-        {
+        if (isDark) {
             TerminalHelper.BackgroundColor = ConsoleColor.Black;
             TerminalHelper.ForegroundColor = isDaltonized ? ConsoleColor.Cyan : ConsoleColor.White;
-        }
-        else
-        {
+        } else {
             TerminalHelper.BackgroundColor = ConsoleColor.White;
             TerminalHelper.ForegroundColor = isDaltonized ? ConsoleColor.DarkCyan : ConsoleColor.Black;
         }
 
         // 仅在输出未重定向时执行 Console.Clear()
-        if (!TerminalHelper.IsOutputRedirected)
-        {
+        if (!TerminalHelper.IsOutputRedirected) {
             TerminalHelper.ClearScreen();
         }
     }

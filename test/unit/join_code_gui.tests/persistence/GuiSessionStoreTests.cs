@@ -4,18 +4,15 @@ namespace JoinCode.Gui.Tests.Persistence;
 /// GuiSessionStore 持久化测试 — 验证会话写入/读取/列表/删除，
 /// 与 CLI SessionData JSON 形状兼容（PascalCase 字段），使用 InMemoryFileSystem 无磁盘 IO。
 /// </summary>
-public class GuiSessionStoreTests
-{
+public class GuiSessionStoreTests {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
     [Fact]
-    public async Task SaveThenLoad_RoundTripsMessages()
-    {
+    public async Task SaveThenLoad_RoundTripsMessages() {
         var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
-        var saved = new GuiSessionData
-        {
+        var saved = new GuiSessionData {
             Id = "sess-001",
             CustomTitle = "斐波那契",
             CreatedAt = DateTime.UtcNow,
@@ -38,8 +35,7 @@ public class GuiSessionStoreTests
     }
 
     [Fact]
-    public async Task ListSessions_ReturnsSummariesSortedByLastModified()
-    {
+    public async Task ListSessions_ReturnsSummariesSortedByLastModified() {
         var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
@@ -55,8 +51,7 @@ public class GuiSessionStoreTests
     }
 
     [Fact]
-    public void Delete_RemovesSessionFile()
-    {
+    public void Delete_RemovesSessionFile() {
         var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
@@ -68,8 +63,7 @@ public class GuiSessionStoreTests
     }
 
     [Fact]
-    public void Save_WithoutId_Throws()
-    {
+    public void Save_WithoutId_Throws() {
         var fs = new InMemoryFileSystem();
         var store = new GuiSessionStore(fs, fs.CombinePath("mem", "sessions"));
 
@@ -81,13 +75,11 @@ public class GuiSessionStoreTests
     // === T8：统一入口收敛 — Save 不再覆盖消息（消息落盘由引擎 TranscriptPersistMiddleware 负责） ===
 
     [Fact]
-    public void TranscriptBacked_Save_PersistsMetaWithoutTouchingMessages()
-    {
+    public void TranscriptBacked_Save_PersistsMetaWithoutTouchingMessages() {
         var transcript = new Moq.Mock<JoinCode.Abstractions.Interfaces.ITranscriptService>();
         var store = new GuiSessionStore(new InMemoryFileSystem(), "mem/sessions", transcript.Object);
 
-        var ok = store.Save(new GuiSessionData
-        {
+        var ok = store.Save(new GuiSessionData {
             Id = "engine-session",
             CustomTitle = "重命名的标题",
             CreatedAt = DateTime.UtcNow,

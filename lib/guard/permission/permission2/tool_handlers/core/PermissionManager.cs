@@ -5,8 +5,7 @@ namespace Core.Permission;
 /// 权限管理器实现，提供线程安全的权限检查和缓存机制
 /// </summary>
 [Register(typeof(IToolPermissionManager), ServiceLifetime.Singleton)]
-public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDisposable
-{
+public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDisposable {
     private readonly PermissionChecker _permissionChecker;
     private readonly ILogger<PermissionManager>? _logger;
     private readonly ConcurrentDictionary<string, DateTimeOffset> _approvedTools;
@@ -30,8 +29,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// <param name="logger">日志记录器</param>
     /// <param name="timeProvider">时间提供器，用于控制时间推进（测试可注入 FakeTimeProvider）</param>
     /// <param name="fs">文件系统（用于检查 settings.json 中的 disableBypassPermissionsMode）；DI 自动注入，测试可省略</param>
-    public PermissionManager(PermissionChecker permissionChecker, IOptions<PermissionConfig> configOptions, ILogger<PermissionManager>? logger = null, TimeProvider? timeProvider = null, IFileSystem? fs = null)
-    {
+    public PermissionManager(PermissionChecker permissionChecker, IOptions<PermissionConfig> configOptions, ILogger<PermissionManager>? logger = null, TimeProvider? timeProvider = null, IFileSystem? fs = null) {
         _config = configOptions.Value;
         _permissionChecker = permissionChecker;
         _logger = logger;
@@ -41,8 +39,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     }
 
     /// <inheritdoc />
-    public async Task<PermissionResult> CheckPermissionAsync(PermissionRequest request, CancellationToken cancellationToken = default)
-    {
+    public async Task<PermissionResult> CheckPermissionAsync(PermissionRequest request, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         ArgumentNullException.ThrowIfNull(request);
@@ -52,21 +49,18 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
         var cacheKey = GenerateCacheKey(request);
 
-        if (TryGetCachedResult(cacheKey, out var cachedResult))
-        {
+        if (TryGetCachedResult(cacheKey, out var cachedResult)) {
             _logger?.LogDebug("使用缓存的权限结果: Tool={ToolName}, IsGranted={IsGranted}",
                 request.ToolName, cachedResult.IsGranted);
             return cachedResult;
         }
 
         PermissionMode currentMode;
-                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时"))
-        {
+        using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时")) {
             currentMode = _currentMode;
         }
 
-        if (IsToolTemporarilyApproved(request.ToolName))
-        {
+        if (IsToolTemporarilyApproved(request.ToolName)) {
             var grantedResult = PermissionResult.Granted();
             CacheResult(cacheKey, grantedResult);
             return grantedResult;
@@ -75,20 +69,15 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         var checkResult = await _permissionChecker.CheckPermissionAsync(request.ToolName, request.Arguments, cancellationToken).ConfigureAwait(false);
 
         PermissionResult result;
-        if (checkResult.IsApproved)
-        {
+        if (checkResult.IsApproved) {
             result = PermissionResult.Granted();
             _logger?.LogInformation("权限已批准: Tool={ToolName}, RequestId={RequestId}",
                 request.ToolName, request.RequestId);
-        }
-        else if (checkResult.ConfirmationRequired)
-        {
+        } else if (checkResult.ConfirmationRequired) {
             result = PermissionResult.PendingConfirmation(checkResult.Reason ?? $"工具 '{request.ToolName}' 需要确认");
             _logger?.LogInformation("权限需要确认: Tool={ToolName}, RequestId={RequestId}, Reason={Reason}",
                 request.ToolName, request.RequestId, checkResult.Reason);
-        }
-        else
-        {
+        } else {
             result = PermissionResult.Denied(checkResult.Reason ?? "权限被拒绝");
             _logger?.LogWarning("权限被拒绝: Tool={ToolName}, RequestId={RequestId}, Reason={Reason}",
                 request.ToolName, request.RequestId, checkResult.Reason);
@@ -100,12 +89,10 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     }
 
     /// <inheritdoc />
-    public async Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default)
-    {
+    public async Task SetPermissionModeAsync(PermissionMode mode, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时"))
-        {
+        using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时")) {
             _currentMode = mode;
             _permissionChecker.CurrentMode = mode;
         }
@@ -116,19 +103,16 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     }
 
     /// <inheritdoc />
-    public async Task<PermissionMode> GetCurrentModeAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<PermissionMode> GetCurrentModeAsync(CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-                using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时"))
-        {
+        using (await _modeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_modeLock.Name}' 等待超时")) {
             return _currentMode;
         }
     }
 
     /// <inheritdoc />
-    public Task AddAllowedPromptAsync(string prompt, CancellationToken cancellationToken = default)
-    {
+    public Task AddAllowedPromptAsync(string prompt, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         // 对齐 TS allowedPrompts: 将语义级Bash权限注册为临时批准
@@ -145,8 +129,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <param name="duration">批准持续时间</param>
-    public void ApproveToolTemporarily(string toolName, TimeSpan duration)
-    {
+    public void ApproveToolTemporarily(string toolName, TimeSpan duration) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var expirationTime = _timeProvider.GetUtcNow().Add(duration);
@@ -160,15 +143,13 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// 移除工具的临时批准
     /// </summary>
     /// <param name="toolName">工具名称</param>
-    public void RemoveTemporaryApproval(string toolName)
-    {
+    public void RemoveTemporaryApproval(string toolName) {
         _approvedTools.TryRemove(toolName, out _);
         _logger?.LogInformation("工具临时批准已移除: Tool={ToolName}", toolName);
     }
 
     /// <inheritdoc />
-    public void ApproveLevelTemporarily(CommandDangerLevel level)
-    {
+    public void ApproveLevelTemporarily(CommandDangerLevel level) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _permissionChecker.ApproveLevelTemporarily(level);
     }
@@ -176,8 +157,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// <summary>
     /// 清除所有缓存
     /// </summary>
-    public void ClearCache()
-    {
+    public void ClearCache() {
         foreach (var scope in SessionRouter.GetAllScopes())
             scope.Cache.Clear();
         _logger?.LogDebug("权限缓存已清除");
@@ -186,8 +166,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// <summary>
     /// 清理过期的缓存项
     /// </summary>
-    public void CleanupExpiredCache()
-    {
+    public void CleanupExpiredCache() {
         var now = _timeProvider.GetUtcNow();
 
         var expiredTools = _approvedTools
@@ -196,15 +175,13 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
             .ToList();
         expiredTools.ForEach(tool => _approvedTools.TryRemove(tool, out _));
 
-        if (expiredTools.Count > 0)
-        {
+        if (expiredTools.Count > 0) {
             _logger?.LogDebug("已清理过期临时批准: {ToolCount}", expiredTools.Count);
         }
     }
 
     /// <inheritdoc />
-    public Task<int> StripDangerousRulesAsync(CancellationToken cancellationToken = default)
-    {
+    public Task<int> StripDangerousRulesAsync(CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         // 对齐 TS stripDangerousPermissionsForAutoMode:
@@ -219,16 +196,14 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
             .Where(r => dangerousToolNames.Contains(r.ToolName))
             .ToList();
 
-        foreach (var rule in strippedRules)
-        {
+        foreach (var rule in strippedRules) {
             _config.AutoApprovedTools.Remove(rule.ToolName);
         }
 
         // 保存剥离的规则，供恢复时使用
         _strippedRules = strippedRules;
 
-        if (strippedRules.Count > 0)
-        {
+        if (strippedRules.Count > 0) {
             _logger?.LogInformation("已剥离 {Count} 条危险权限规则", strippedRules.Count);
         }
 
@@ -236,15 +211,12 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     }
 
     /// <inheritdoc />
-    public Task RestoreDangerousRulesAsync(int ruleCount, CancellationToken cancellationToken = default)
-    {
+    public Task RestoreDangerousRulesAsync(int ruleCount, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         // 对齐 TS restoreDangerousPermissions: 恢复之前剥离的危险权限规则
-        if (_strippedRules.Count > 0)
-        {
-            foreach (var rule in _strippedRules)
-            {
+        if (_strippedRules.Count > 0) {
+            foreach (var rule in _strippedRules) {
                 _config.AutoApprovedTools[rule.ToolName] = rule;
             }
             _logger?.LogInformation("已恢复 {Count} 条危险权限规则", _strippedRules.Count);
@@ -255,10 +227,8 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     }
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        if (_disposed)
-        {
+    public async ValueTask DisposeAsync() {
+        if (_disposed) {
             return;
         }
 
@@ -272,10 +242,8 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
 
     #region Private Methods
 
-    private string GenerateCacheKey(PermissionRequest request)
-    {
-        if (request.Arguments == null || request.Arguments.Count == 0)
-        {
+    private string GenerateCacheKey(PermissionRequest request) {
+        if (request.Arguments == null || request.Arguments.Count == 0) {
             return $"{request.ToolName}:noargs";
         }
 
@@ -287,8 +255,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         return $"{request.ToolName}:{string.Join("|", keyParams)}";
     }
 
-    private static bool IsKeyParameter(string paramName)
-    {
+    private static bool IsKeyParameter(string paramName) {
         var keyParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "path",
@@ -300,8 +267,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         return keyParams.Contains(paramName);
     }
 
-    private bool TryGetCachedResult(string cacheKey, [NotNullWhen(true)] out PermissionResult? result)
-    {
+    private bool TryGetCachedResult(string cacheKey, [NotNullWhen(true)] out PermissionResult? result) {
         result = null;
         var sessionId = SessionContext.Current;
         if (sessionId is null) return false;
@@ -316,8 +282,7 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         return true;
     }
 
-    private void CacheResult(string cacheKey, PermissionResult result)
-    {
+    private void CacheResult(string cacheKey, PermissionResult result) {
         if (result.RequiresConfirmation) return;
 
         var sessionId = SessionContext.Current;
@@ -328,15 +293,12 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
         scope.Cache.Set(cacheKey, cached, CacheExpiration);
     }
 
-    private bool IsToolTemporarilyApproved(string toolName)
-    {
-        if (!_approvedTools.TryGetValue(toolName, out var expirationTime))
-        {
+    private bool IsToolTemporarilyApproved(string toolName) {
+        if (!_approvedTools.TryGetValue(toolName, out var expirationTime)) {
             return false;
         }
 
-        if (_timeProvider.GetUtcNow() > expirationTime)
-        {
+        if (_timeProvider.GetUtcNow() > expirationTime) {
             _approvedTools.TryRemove(toolName, out _);
             return false;
         }
@@ -349,13 +311,11 @@ public sealed partial class PermissionManager : IToolPermissionManager, IAsyncDi
     /// <summary>
     /// 缓存的权限结果
     /// </summary>
-    private sealed class CachedPermissionResult
-    {
+    private sealed class CachedPermissionResult {
         public PermissionResult Result { get; }
         public DateTimeOffset ExpirationTime { get; }
 
-        public CachedPermissionResult(PermissionResult result, DateTimeOffset expirationTime)
-        {
+        public CachedPermissionResult(PermissionResult result, DateTimeOffset expirationTime) {
             Result = result;
             ExpirationTime = expirationTime;
         }

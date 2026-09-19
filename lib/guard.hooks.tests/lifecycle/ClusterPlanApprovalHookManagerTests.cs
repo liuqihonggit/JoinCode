@@ -1,20 +1,17 @@
 namespace Core.Tests.Hooks.Lifecycle;
 
 
-public class ClusterPlanApprovalHookManagerTests
-{
+public class ClusterPlanApprovalHookManagerTests {
     private readonly Mock<IHookOrchestrator> _orchestratorMock;
     private readonly ClusterPlanApprovalHookManager _sut;
 
-    public ClusterPlanApprovalHookManagerTests()
-    {
+    public ClusterPlanApprovalHookManagerTests() {
         _orchestratorMock = new Mock<IHookOrchestrator>();
         _sut = new ClusterPlanApprovalHookManager(_orchestratorMock.Object);
     }
 
     [Fact]
-    public async Task OnClusterPlanApprovalAsync_NoHooksRegistered_ShouldProceed()
-    {
+    public async Task OnClusterPlanApprovalAsync_NoHooksRegistered_ShouldProceed() {
         var context = CreateContext();
         SetupOrchestrator([]);
 
@@ -24,8 +21,7 @@ public class ClusterPlanApprovalHookManagerTests
     }
 
     [Fact]
-    public async Task OnClusterPlanApprovalAsync_BlockingHook_ShouldReturnBlock()
-    {
+    public async Task OnClusterPlanApprovalAsync_BlockingHook_ShouldReturnBlock() {
         var context = CreateContext();
         SetupOrchestrator([new HookResult { Outcome = HookOutcome.Blocking, Message = "plan rejected" }]);
 
@@ -36,8 +32,7 @@ public class ClusterPlanApprovalHookManagerTests
     }
 
     [Fact]
-    public async Task OnClusterPlanApprovalAsync_PreventContinuation_ShouldReturnBlock()
-    {
+    public async Task OnClusterPlanApprovalAsync_PreventContinuation_ShouldReturnBlock() {
         var context = CreateContext();
         SetupOrchestrator([new HookResult { PreventContinuation = true, Outcome = HookOutcome.Blocking, Message = "prevented" }]);
 
@@ -48,8 +43,7 @@ public class ClusterPlanApprovalHookManagerTests
     }
 
     [Fact]
-    public async Task OnClusterPlanApprovalAsync_NonBlockingHook_ShouldProceed()
-    {
+    public async Task OnClusterPlanApprovalAsync_NonBlockingHook_ShouldProceed() {
         var context = CreateContext();
         SetupOrchestrator([new HookResult { Outcome = HookOutcome.Success, Message = "ok" }]);
 
@@ -59,8 +53,7 @@ public class ClusterPlanApprovalHookManagerTests
     }
 
     [Fact]
-    public async Task OnClusterPlanApprovalAsync_ShouldPassPlanInfoInPayload()
-    {
+    public async Task OnClusterPlanApprovalAsync_ShouldPassPlanInfoInPayload() {
         var context = CreateContext();
         Dictionary<string, JsonElement>? capturedPayload = null;
 
@@ -70,8 +63,7 @@ public class ClusterPlanApprovalHookManagerTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((HookEvent _, Dictionary<string, JsonElement> payload, string? _, string? _, CancellationToken _) =>
-            {
+            .Returns((HookEvent _, Dictionary<string, JsonElement> payload, string? _, string? _, CancellationToken _) => {
                 capturedPayload = payload;
                 return AsyncEnumerable.Empty<HookResult>();
             });
@@ -86,12 +78,10 @@ public class ClusterPlanApprovalHookManagerTests
     }
 
     [Fact]
-    public async Task OnClusterPlanApprovalAsync_WithValidationResult_ShouldIncludeInPayload()
-    {
+    public async Task OnClusterPlanApprovalAsync_WithValidationResult_ShouldIncludeInPayload() {
         var plan = CreatePlan();
         plan.ValidationResult = ClusterPlanValidationResult.Valid([]);
-        var context = new ClusterPlanApprovalHookContext
-        {
+        var context = new ClusterPlanApprovalHookContext {
             SessionId = "session-001",
             Objective = "test",
             Plan = plan
@@ -104,8 +94,7 @@ public class ClusterPlanApprovalHookManagerTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns((HookEvent _, Dictionary<string, JsonElement> payload, string? _, string? _, CancellationToken _) =>
-            {
+            .Returns((HookEvent _, Dictionary<string, JsonElement> payload, string? _, string? _, CancellationToken _) => {
                 capturedPayload = payload;
                 return AsyncEnumerable.Empty<HookResult>();
             });
@@ -118,26 +107,21 @@ public class ClusterPlanApprovalHookManagerTests
     }
 
     [Fact]
-    public async Task OnClusterPlanApprovalAsync_NullContext_ShouldThrow()
-    {
+    public async Task OnClusterPlanApprovalAsync_NullContext_ShouldThrow() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _sut.OnClusterPlanApprovalAsync(null!));
     }
 
-    private static ClusterPlanApprovalHookContext CreateContext()
-    {
-        return new ClusterPlanApprovalHookContext
-        {
+    private static ClusterPlanApprovalHookContext CreateContext() {
+        return new ClusterPlanApprovalHookContext {
             SessionId = "session-001",
             Objective = "test objective",
             Plan = CreatePlan()
         };
     }
 
-    private static ClusterPlan CreatePlan()
-    {
-        return new ClusterPlan
-        {
+    private static ClusterPlan CreatePlan() {
+        return new ClusterPlan {
             Objective = "test objective",
             Decomposition = DecompositionResult.Decomposable("test", [
                 new SubTaskDefinition { Id = "sub_1", Title = "A", Description = "DA", OwnedFiles = ["a.cs"] },
@@ -147,8 +131,7 @@ public class ClusterPlanApprovalHookManagerTests
         };
     }
 
-    private void SetupOrchestrator(IReadOnlyList<HookResult> results)
-    {
+    private void SetupOrchestrator(IReadOnlyList<HookResult> results) {
         _orchestratorMock.Setup(o => o.ExecuteHooksAsync(
                 HookEvent.ClusterPlanApproval,
                 It.IsAny<Dictionary<string, JsonElement>>(),
@@ -158,10 +141,8 @@ public class ClusterPlanApprovalHookManagerTests
             .Returns(ToAsyncEnumerable(results));
     }
 
-    private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IReadOnlyList<T> list)
-    {
-        foreach (var item in list)
-        {
+    private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IReadOnlyList<T> list) {
+        foreach (var item in list) {
             await Task.Yield();
             yield return item;
         }

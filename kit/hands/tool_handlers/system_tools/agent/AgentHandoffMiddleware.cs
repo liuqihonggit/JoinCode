@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// 对齐 TS cleanupWorktreeIfNeeded — 输出 worktree 信息（worktreePath/branch）
 /// </summary>
 [Register(typeof(IAgentToolMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMiddleware
-{
+public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMiddleware {
 
     /// <summary>
     /// 构造 Agent Handoff 安全审查中间件
@@ -16,8 +15,7 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
     /// <param name="worktreeManager">可选 worktree 管理器，用于输出 worktree 隔离信息</param>
     /// <param name="telemetryService">可选遥测服务</param>
     /// <param name="logger">可选日志记录器</param>
-    public AgentHandoffMiddleware(IHandoffClassifier? handoffClassifier = null, JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? worktreeManager = null, ITelemetryService? telemetryService = null, ILogger<AgentHandoffMiddleware>? logger = null)
-    {
+    public AgentHandoffMiddleware(IHandoffClassifier? handoffClassifier = null, JoinCode.Abstractions.Interfaces.IAgentWorktreeManager? worktreeManager = null, ITelemetryService? telemetryService = null, ILogger<AgentHandoffMiddleware>? logger = null) {
         _handoffClassifier = handoffClassifier;
         _worktreeManager = worktreeManager;
         _telemetryService = telemetryService;
@@ -35,18 +33,15 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(AgentToolContext context, MiddlewareDelegate<AgentToolContext> next, CancellationToken ct) {
         // 执行 handoff 安全审查
-        var handoffInfo = new AgentInfo
-        {
+        var handoffInfo = new AgentInfo {
             Id = context.AgentId ?? "unknown",
             Description = context.Description,
             Role = context.SubagentRole,
             Variant = context.SubagentVariant
         };
-        var handoffResult = new JoinCode.Abstractions.Interfaces.AgentResult
-        {
+        var handoffResult = new JoinCode.Abstractions.Interfaces.AgentResult {
             AgentId = context.AgentId ?? "unknown",
             Success = context.Succeeded,
             Output = context.Succeeded ? context.ContentBuilder.ToString() : string.Empty,
@@ -61,8 +56,7 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
         responseBuilder.AppendLine($"Description: {context.Description}");
 
         var displayType = context.ResolvedPrimaryType ?? context.SubagentType;
-        if (!string.IsNullOrEmpty(displayType))
-        {
+        if (!string.IsNullOrEmpty(displayType)) {
             responseBuilder.AppendLine($"Type: {displayType}");
         }
 
@@ -72,24 +66,19 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
         responseBuilder.AppendLine();
         responseBuilder.AppendLine("Agent execution result:");
 
-        if (context.Succeeded)
-        {
-            if (context.HandoffWarning is not null)
-            {
+        if (context.Succeeded) {
+            if (context.HandoffWarning is not null) {
                 responseBuilder.AppendLine(context.HandoffWarning);
                 responseBuilder.AppendLine();
             }
             responseBuilder.AppendLine(context.ContentBuilder.ToString());
-        }
-        else
-        {
+        } else {
             responseBuilder.AppendLine($"[Failed] {context.ErrorMessage}");
         }
 
         // 对齐 TS ONE_SHOT_BUILTIN_AGENT_TYPES — 一次性代理省略 agentId/SendMessage 提示
         var isOneShot = !string.IsNullOrEmpty(context.SubagentType) && OneShotExecutorVariants.IsOneShot(context.SubagentType);
-        if (!isOneShot)
-        {
+        if (!isOneShot) {
             responseBuilder.AppendLine();
             responseBuilder.AppendLine($"Agent ID: {context.AgentId}");
             responseBuilder.AppendLine($"Use {AgentToolName.AgentSendMessage.ToValue()} to continue this agent by providing the agent ID.");
@@ -107,16 +96,13 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
     /// 子智能体交接安全审查 — 对齐 TS classifyHandoffIfNeeded
     /// 在 auto 模式下审查子智能体的操作是否违反安全策略
     /// </summary>
-    private async Task<string?> ClassifyHandoffAsync(AgentInfo agentInfo, JoinCode.Abstractions.Interfaces.AgentResult agentResult, CancellationToken cancellationToken)
-    {
+    private async Task<string?> ClassifyHandoffAsync(AgentInfo agentInfo, JoinCode.Abstractions.Interfaces.AgentResult agentResult, CancellationToken cancellationToken) {
         if (_handoffClassifier is null) return null;
 
-        try
-        {
+        try {
             // 构建工具调用记录 — 从 AgentResult 中提取
             // 当前 AgentResult 不包含详细工具调用记录，使用简化版审查
-            var request = new HandoffClassificationRequest
-            {
+            var request = new HandoffClassificationRequest {
                 AgentId = agentInfo.Id,
                 AgentType = agentInfo.Variant?.ToValue() ?? agentInfo.Role.ToValue(),
                 ToolInvocations = [], // AgentResult 暂无工具调用明细
@@ -126,13 +112,9 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
 
             var result = await _handoffClassifier.ClassifyAsync(request, cancellationToken).ConfigureAwait(false);
             return result?.WarningMessage;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 对齐 TS: 分类器不可用时温和提示，不阻塞输出
             _logger?.LogWarning(ex, "Handoff classifier failed for agent {AgentId}", agentInfo.Id);
             return "Note: The safety classifier was unavailable when reviewing this sub-agent's work. Please carefully verify the sub-agent's actions and output before acting on them.";
@@ -142,25 +124,20 @@ public sealed partial class AgentHandoffMiddleware : ServiceEntity, IAgentToolMi
     /// <summary>
     /// 追加 worktree 信息到响应 — 对齐 TS LocalAgentTask worktreeSection
     /// </summary>
-    private async Task AppendWorktreeInfoAsync(AgentToolContext context, StringBuilder responseBuilder, CancellationToken ct)
-    {
+    private async Task AppendWorktreeInfoAsync(AgentToolContext context, StringBuilder responseBuilder, CancellationToken ct) {
         if (context.AgentId is null || _worktreeManager is null || !_worktreeManager.IsWorktreeIsolationEnabled)
             return;
 
-        try
-        {
+        try {
             var session = await _worktreeManager.GetWorktreeSessionAsync(context.AgentId, ct).ConfigureAwait(false);
-            if (session is not null)
-            {
+            if (session is not null) {
                 context.WorktreePath = session.WorktreePath;
                 context.WorktreeBranch = session.BranchName;
 
                 responseBuilder.AppendLine($"worktreePath: {session.WorktreePath}");
                 responseBuilder.AppendLine($"worktreeBranch: {session.BranchName}");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to get worktree info for agent {AgentId}", context.AgentId);
         }
     }

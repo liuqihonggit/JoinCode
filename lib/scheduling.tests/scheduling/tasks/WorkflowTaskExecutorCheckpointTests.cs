@@ -1,8 +1,7 @@
 
 namespace Sync.Tests.Scheduling.Tasks;
 
-public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
-{
+public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable {
     private readonly Mock<JoinCode.Abstractions.Tools.IToolExecutionGateway> _toolGatewayMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly InMemoryFileOperationService _fileOperationService;
@@ -10,16 +9,14 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     private const string PersistDir = "/test/workflow-checkpoint";
     private bool _disposed;
 
-    public WorkflowTaskExecutorCheckpointTests()
-    {
+    public WorkflowTaskExecutorCheckpointTests() {
         _toolGatewayMock = new Mock<JoinCode.Abstractions.Tools.IToolExecutionGateway>();
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _fileOperationService = new InMemoryFileOperationService();
         _stateStore = new WorkflowStateStore(_fileOperationService, PersistDir);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOperationService.DisposeSafe();
@@ -31,17 +28,14 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
         NullLogger<WorkflowTaskExecutor>.Instance,
         stateStore: _stateStore);
 
-    private void SetupToolSuccess(string resultText = "ok")
-    {
+    private void SetupToolSuccess(string resultText = "ok") {
         _toolGatewayMock
             .Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ReturnsAsync(new ToolResult { Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = resultText } } });
     }
 
-    private static WorkflowDefinition CreateDagWorkflow(string workflowId = "wf-dag")
-    {
-        return new WorkflowDefinition
-        {
+    private static WorkflowDefinition CreateDagWorkflow(string workflowId = "wf-dag") {
+        return new WorkflowDefinition {
             WorkflowId = workflowId,
             ExecutionMode = WorkflowExecutionMode.Dag,
             Steps = new List<WorkflowStep>
@@ -54,8 +48,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_WithStateStore_ShouldSaveSnapshot()
-    {
+    public async Task ExecuteDagAsync_WithStateStore_ShouldSaveSnapshot() {
         SetupToolSuccess();
         var executor = CreateExecutor();
 
@@ -67,8 +60,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_Snapshot_ShouldContainAllCompletedSteps()
-    {
+    public async Task ExecuteDagAsync_Snapshot_ShouldContainAllCompletedSteps() {
         SetupToolSuccess();
         var executor = CreateExecutor();
 
@@ -82,8 +74,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_WithoutStateStore_ShouldNotThrow()
-    {
+    public async Task ExecuteDagAsync_WithoutStateStore_ShouldNotThrow() {
         SetupToolSuccess();
         var executor = new WorkflowTaskExecutor(
             _toolGatewayMock.Object,
@@ -96,8 +87,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_StepFailure_ShouldRecordFailedInSnapshot()
-    {
+    public async Task ExecuteDagAsync_StepFailure_ShouldRecordFailedInSnapshot() {
         _toolGatewayMock
             .Setup(x => x.ExecuteAsync("tool_a", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ReturnsAsync(new ToolResult { Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "ok" } } });
@@ -107,8 +97,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
 
         var executor = CreateExecutor();
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-fail",
             ExecutionMode = WorkflowExecutionMode.Dag,
             Steps = new List<WorkflowStep>
@@ -126,21 +115,18 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_WithExistingSnapshot_ShouldSkipCompletedSteps()
-    {
+    public async Task ExecuteDagAsync_WithExistingSnapshot_ShouldSkipCompletedSteps() {
         SetupToolSuccess();
         var executor = CreateExecutor();
 
-        var snapshot = new WorkflowSnapshot
-        {
+        var snapshot = new WorkflowSnapshot {
             WorkflowId = "wf-resume",
             StepStates = new Dictionary<string, StepState> { ["step-a"] = StepState.Completed },
             LastUpdated = DateTimeOffset.UtcNow
         };
         await _stateStore.SaveSnapshotAsync("wf-resume", snapshot).ConfigureAwait(true);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-resume",
             ExecutionMode = WorkflowExecutionMode.Dag,
             Steps = new List<WorkflowStep>
@@ -157,21 +143,18 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_WithExistingSnapshot_ShouldProduceCompletedResult()
-    {
+    public async Task ExecuteDagAsync_WithExistingSnapshot_ShouldProduceCompletedResult() {
         SetupToolSuccess();
         var executor = CreateExecutor();
 
-        var snapshot = new WorkflowSnapshot
-        {
+        var snapshot = new WorkflowSnapshot {
             WorkflowId = "wf-resume-result",
             StepStates = new Dictionary<string, StepState> { ["step-a"] = StepState.Completed },
             LastUpdated = DateTimeOffset.UtcNow
         };
         await _stateStore.SaveSnapshotAsync("wf-resume-result", snapshot).ConfigureAwait(true);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-resume-result",
             ExecutionMode = WorkflowExecutionMode.Dag,
             Steps = new List<WorkflowStep>
@@ -187,8 +170,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_RestartWithSameStore_ShouldSkipAllCompletedSteps()
-    {
+    public async Task ExecuteDagAsync_RestartWithSameStore_ShouldSkipAllCompletedSteps() {
         SetupToolSuccess();
 
         var executor1 = CreateExecutor();
@@ -208,21 +190,18 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_SnapshotInconsistent_ShouldDiscardAndExecuteFromScratch()
-    {
+    public async Task ExecuteDagAsync_SnapshotInconsistent_ShouldDiscardAndExecuteFromScratch() {
         SetupToolSuccess();
         var executor = CreateExecutor();
 
-        var snapshot = new WorkflowSnapshot
-        {
+        var snapshot = new WorkflowSnapshot {
             WorkflowId = "wf-inconsistent",
             StepStates = new Dictionary<string, StepState> { ["non-existent-step"] = StepState.Completed },
             LastUpdated = DateTimeOffset.UtcNow
         };
         await _stateStore.SaveSnapshotAsync("wf-inconsistent", snapshot).ConfigureAwait(true);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-inconsistent",
             ExecutionMode = WorkflowExecutionMode.Dag,
             Steps = new List<WorkflowStep>
@@ -238,12 +217,10 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteSequentialAsync_RestartWithSameStore_ShouldSkipCompletedSteps()
-    {
+    public async Task ExecuteSequentialAsync_RestartWithSameStore_ShouldSkipCompletedSteps() {
         SetupToolSuccess();
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-seq-restart",
             ExecutionMode = WorkflowExecutionMode.Sequential,
             Steps = new List<WorkflowStep>
@@ -267,12 +244,10 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteParallelAsync_RestartWithSameStore_ShouldSkipCompletedSteps()
-    {
+    public async Task ExecuteParallelAsync_RestartWithSameStore_ShouldSkipCompletedSteps() {
         SetupToolSuccess();
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-par-restart",
             ExecutionMode = WorkflowExecutionMode.Parallel,
             Steps = new List<WorkflowStep>
@@ -296,8 +271,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_WithProgressSink_ShouldPushStartedAndCompleted()
-    {
+    public async Task ExecuteDagAsync_WithProgressSink_ShouldPushStartedAndCompleted() {
         SetupToolSuccess();
         var sink = new RecordingWorkflowProgressSink();
         var executor = new WorkflowTaskExecutor(
@@ -314,8 +288,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteDagAsync_WithProgressSink_ShouldPushFailedOnFailure()
-    {
+    public async Task ExecuteDagAsync_WithProgressSink_ShouldPushFailedOnFailure() {
         _toolGatewayMock
             .Setup(x => x.ExecuteAsync("tool_a", It.IsAny<Dictionary<string, System.Text.Json.JsonElement>>(), It.IsAny<CancellationToken>(), It.IsAny<ToolProgressCallback?>()))
             .ReturnsAsync(new ToolResult { Content = new List<ToolContent> { new() { Type = ToolContentType.Text, Text = "ok" } } });
@@ -331,8 +304,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
             stateStore: _stateStore,
             progressSink: sink);
 
-        var definition = new WorkflowDefinition
-        {
+        var definition = new WorkflowDefinition {
             WorkflowId = "wf-progress-fail",
             ExecutionMode = WorkflowExecutionMode.Dag,
             Steps = new List<WorkflowStep>
@@ -347,8 +319,7 @@ public sealed class WorkflowTaskExecutorCheckpointTests : IDisposable
         sink.Events.Should().Contain("Failed:step-fail");
     }
 
-    private sealed class RecordingWorkflowProgressSink : IWorkflowProgressSink
-    {
+    private sealed class RecordingWorkflowProgressSink : IWorkflowProgressSink {
         public List<string> Events { get; } = new();
 
         public void OnStepStarted(string workflowId, string stepId, string stepName) => Events.Add($"Started:{stepId}");

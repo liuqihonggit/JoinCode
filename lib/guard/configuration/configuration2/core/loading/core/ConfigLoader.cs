@@ -23,21 +23,17 @@ public class ConfigLoader {
     /// <param name="registry">Provider 定义注册表(可选),默认创建内置注册表</param>
     /// <param name="settingsMapper">Settings 映射器(可选),默认创建内置映射器</param>
     /// <param name="modelConfigLoader">模型配置加载器(可选),用于灌入 vendor 模型数据</param>
-    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null)
-    {
+    public ConfigLoader(IEnumerable<IConfigLoadMiddleware>? middlewares = null, ILoggerFactory? loggerFactory = null, IProviderDefinitionRegistry? registry = null, SettingsMapper? settingsMapper = null, IModelConfigLoader? modelConfigLoader = null) {
         _logger = loggerFactory?.CreateLogger<ConfigLoader>();
         _registry = registry ?? new ProviderDefinitionRegistry(modelConfigLoader ?? new ModelConfigLoader(), logger: loggerFactory?.CreateLogger<ProviderDefinitionRegistry>());
         _settingsMapper = settingsMapper ?? new SettingsMapper(_registry);
         _modelConfigLoader = modelConfigLoader;
-        if (middlewares is not null && loggerFactory is not null)
-        {
+        if (middlewares is not null && loggerFactory is not null) {
             _pipeline = new PipelineBuilder<ConfigLoadContext>()
                 .WithLoggingScope(loggerFactory)
                 .UseRange(middlewares)
                 .Build();
-        }
-        else if (middlewares is not null)
-        {
+        } else if (middlewares is not null) {
             _pipeline = new MiddlewarePipeline<ConfigLoadContext>(middlewares);
         }
     }
@@ -45,38 +41,29 @@ public class ConfigLoader {
     /// <summary>
     /// 管道化加载配置 — 通过中间件管道执行7步配置加载
     /// </summary>
-    public async Task<WorkflowConfig> LoadAsync(IFileSystem fs, CancellationToken cancellationToken = default)
-    {
-        if (_pipeline is null)
-        {
+    public async Task<WorkflowConfig> LoadAsync(IFileSystem fs, CancellationToken cancellationToken = default) {
+        if (_pipeline is null) {
             return await LoadConfigAsync(fs, cancellationToken).ConfigureAwait(false);
         }
 
-        var context = new ConfigLoadContext
-        {
+        var context = new ConfigLoadContext {
             FileSystem = fs,
             ProjectDirectory = fs.GetCurrentDirectory(),
             CancellationToken = cancellationToken,
             SkipProviderValidation = SkipProviderValidation
         };
 
-        try
-        {
+        try {
             await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-            if (context.Failed)
-            {
+            if (context.Failed) {
                 throw new ConfigurationException(context.ErrorMessage ?? "[GRD004] 加载配置失败");
             }
 
             return context.Result ?? throw new ConfigurationException("[GRD001] 配置加载未产生结果");
-        }
-        catch (ConfigurationException)
-        {
+        } catch (ConfigurationException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             throw new ConfigurationException("[GRD005] 加载配置失败", ex);
         }
     }
@@ -106,8 +93,7 @@ public class ConfigLoader {
             var preloadedAuthData = await authTask.ConfigureAwait(false);
 
             // Step 1.5: 将 SettingsJson.Vendor 模型数据灌入 ModelConfigLoader（唯一数据入口）
-            if (_modelConfigLoader is not null)
-            {
+            if (_modelConfigLoader is not null) {
                 var providers = VendorModelMapper.BuildProviders(settings);
                 _modelConfigLoader.ApplyProviders(providers);
             }
@@ -139,11 +125,9 @@ public class ConfigLoader {
 
             // Step 7: 验证 Provider 配置 — Provider 必须有 API Key
             // 元命令模式（mcp_list/slash_call 等）跳过验证，CI 环境无 API Key 时也能运行
-            if (!SkipProviderValidation)
-            {
+            if (!SkipProviderValidation) {
                 var definition = _registry.TryGet(config.Provider.Vendor);
-                if (definition is not null && !definition.IsValid(config.Provider))
-                {
+                if (definition is not null && !definition.IsValid(config.Provider)) {
                     throw new ConfigurationException(
                         $"Provider '{config.Provider.Vendor}' 配置无效: 缺少 API Key。" +
                         $"请设置环境变量 {definition.ApiKeyEnvironmentVariable ?? "供应商专属变量"}" +
@@ -160,8 +144,7 @@ public class ConfigLoader {
     /// <summary>
     /// 从 ~/.jcc/settings.json 加载强类型配置
     /// </summary>
-    public static async Task<SettingsJson?> LoadSettingsJsonAsync(IFileSystem fs, CancellationToken cancellationToken = default)
-    {
+    public static async Task<SettingsJson?> LoadSettingsJsonAsync(IFileSystem fs, CancellationToken cancellationToken = default) {
         var settingsPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
@@ -169,13 +152,10 @@ public class ConfigLoader {
         if (!fs.FileExists(settingsPath))
             return null;
 
-        try
-        {
+        try {
             var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Diag.WriteLifecycle($"[WARN] 全局配置文件解析失败，使用默认值: {settingsPath} | 错误: {ex.Message}");
             return null;
         }
@@ -184,8 +164,7 @@ public class ConfigLoader {
     /// <summary>
     /// 保存 SettingsJson 到 ~/.jcc/settings.json
     /// </summary>
-    public static async Task SaveSettingsJsonAsync(SettingsJson settings, IFileSystem fs, CancellationToken cancellationToken = default)
-    {
+    public static async Task SaveSettingsJsonAsync(SettingsJson settings, IFileSystem fs, CancellationToken cancellationToken = default) {
         var settingsPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
@@ -200,8 +179,7 @@ public class ConfigLoader {
     /// <summary>
     /// 统一 API Key 解析 — 按优先级从低到高: auth.json → Provider 专属环境变量
     /// </summary>
-    public async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default, Dictionary<string, string>? preloadedAuthData = null)
-    {
+    public async Task<string> ResolveApiKeyAsync(string provider, IProviderDefinition? definition, IFileSystem fs, CancellationToken cancellationToken = default, Dictionary<string, string>? preloadedAuthData = null) {
         var sources = new List<(string Source, string Key)>(2);
 
         // 优先级 1 (最低): auth.json（若调用方已预读则直接用，避免重复 I/O）
@@ -213,25 +191,19 @@ public class ConfigLoader {
 
         // 优先级 2 (最高): Provider 专属环境变量（如 DEEPSEEK_API_KEY、OPENAI_API_KEY）
         string? providerEnvVarName = null;
-        if (definition is not null)
-        {
+        if (definition is not null) {
             var providerApiKey = definition.ResolveApiKeyFromEnv();
-            if (!string.IsNullOrEmpty(providerApiKey))
-            {
+            if (!string.IsNullOrEmpty(providerApiKey)) {
                 providerEnvVarName = definition.ApiKeyEnvironmentVariable ?? "provider-specific";
                 sources.Add(($"{providerEnvVarName} 环境变量", providerApiKey));
                 apiKey = providerApiKey;
             }
-        }
-        else
-        {
+        } else {
             // 回退: definition 为 null（无 settings.json）时，根据 provider 名推断 API Key 环境变量名
             var inferredEnvVar = EnvOverrideApplier.InferApiKeyEnvVar(provider);
-            if (inferredEnvVar is not null)
-            {
+            if (inferredEnvVar is not null) {
                 var envValue = Environment.GetEnvironmentVariable(inferredEnvVar);
-                if (!string.IsNullOrEmpty(envValue))
-                {
+                if (!string.IsNullOrEmpty(envValue)) {
                     sources.Add(($"{inferredEnvVar} 环境变量", envValue));
                     apiKey = envValue;
                 }
@@ -246,8 +218,7 @@ public class ConfigLoader {
     /// <summary>
     /// 当多个 API Key 来源同时设置且值不同时，输出警告 — 避免静默覆盖导致 401 难以排查
     /// </summary>
-    private static void WarnOnApiKeyConflict(string provider, List<(string Source, string Key)> sources)
-    {
+    private static void WarnOnApiKeyConflict(string provider, List<(string Source, string Key)> sources) {
         if (sources.Count <= 1) return;
 
         var distinctKeys = sources.Select(s => s.Key).Distinct(StringComparer.Ordinal).ToList();
@@ -265,8 +236,7 @@ public class ConfigLoader {
     /// <summary>
     /// 脱敏 API Key — 仅显示前 8 位和后 4 位，中间用 ... 替代
     /// </summary>
-    private static string MaskKey(string key)
-    {
+    private static string MaskKey(string key) {
         if (string.IsNullOrEmpty(key)) return "<empty>";
         if (key.Length <= 12) return $"{key[..4]}...";
         return $"{key[..8]}...{key[^4..]}";
@@ -275,17 +245,13 @@ public class ConfigLoader {
     /// <summary>
     /// 读取 auth.json 文件内容 — 供并行预加载使用，与 settings/rules 并行避免串行 I/O
     /// </summary>
-    private static async Task<Dictionary<string, string>?> LoadAuthFileAsync(IFileSystem fs, CancellationToken cancellationToken)
-    {
+    private static async Task<Dictionary<string, string>?> LoadAuthFileAsync(IFileSystem fs, CancellationToken cancellationToken) {
         var authPath = AppDataConstants.Paths.AuthFilePath;
         if (!fs.FileExists(authPath)) return null;
-        try
-        {
+        try {
             var json = await fs.ReadAllTextAsync(authPath, cancellationToken).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringString);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Diag.WriteLifecycle($"[WARN] auth.json 解析失败: {authPath} | 错误: {ex.Message}");
             return null;
         }
@@ -294,15 +260,13 @@ public class ConfigLoader {
     /// <summary>
     /// 从已加载的 auth 数据中解析指定 provider 的 API Key（同步，无 I/O）
     /// </summary>
-    private string ResolveApiKeyFromAuth(Dictionary<string, string>? authData, string provider)
-    {
+    private string ResolveApiKeyFromAuth(Dictionary<string, string>? authData, string provider) {
         if (authData is null || !authData.TryGetValue(provider, out var apiKey))
             return string.Empty;
 
         // Azure 等复合格式：auth.json 中存储的是 JSON 对象而非纯 API Key
         var definition = _registry.TryGet(provider);
-        if (definition is not null && definition.IsCompoundAuthFormat(apiKey))
-        {
+        if (definition is not null && definition.IsCompoundAuthFormat(apiKey)) {
             var compoundData = RelaxedJsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
             return definition.ExtractApiKeyFromCompound(apiKey)
                 ?? compoundData?.GetValueOrDefault("apiKey", string.Empty)
@@ -315,8 +279,7 @@ public class ConfigLoader {
     /// <summary>
     /// 从 ~/.jcc/auth.json 加载指定 provider 的 API Key
     /// </summary>
-    public async Task<string> LoadApiKeyFromJccAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> LoadApiKeyFromJccAsync(string provider, IFileSystem fs, CancellationToken cancellationToken = default) {
         var authData = await LoadAuthFileAsync(fs, cancellationToken).ConfigureAwait(false);
         return ResolveApiKeyFromAuth(authData, provider);
     }
@@ -324,26 +287,20 @@ public class ConfigLoader {
     /// <summary>
     /// 保存 API Key 到 ~/.jcc/auth.json
     /// </summary>
-    public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task SaveApiKeyToJccAsync(string provider, string apiKey, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var authPath = AppDataConstants.Paths.AuthFilePath;
         var directory = Path.GetDirectoryName(authPath);
 
         if (!string.IsNullOrEmpty(directory) && !fs.DirectoryExists(directory))
             fs.CreateDirectory(directory);
 
-        try
-        {
-            await fs.EditFileAsync<bool>(authPath, async (bytes, ct) =>
-            {
+        try {
+            await fs.EditFileAsync<bool>(authPath, async (bytes, ct) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 var authData = new Dictionary<string, string>();
-                try
-                {
+                try {
                     authData = RelaxedJsonSerializer.Deserialize(content, ConfigJsonContext.Default.DictionaryStringString) ?? new Dictionary<string, string>();
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     logger?.LogWarning(ex, "Failed to read auth file '{AuthPath}'", authPath);
                 }
                 authData[provider] = apiKey;
@@ -351,9 +308,7 @@ public class ConfigLoader {
                 var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
                 return (newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (FileNotFoundException)
-        {
+        } catch (FileNotFoundException) {
             var authData = new Dictionary<string, string> { [provider] = apiKey };
             var outputJson = RelaxedJsonSerializer.SerializeCompact(authData, ConfigJsonContext.Default);
             await fs.WriteAllTextAsync(authPath, outputJson, cancellationToken).ConfigureAwait(false);
@@ -363,8 +318,7 @@ public class ConfigLoader {
     /// <summary>
     /// 从 ~/.jcc/settings.json 读取指定键的值（兼容旧版扁平 KV 格式）
     /// </summary>
-    public static async Task<string?> LoadSettingFromSettingsJsonAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task<string?> LoadSettingFromSettingsJsonAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var settingsPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
@@ -372,13 +326,10 @@ public class ConfigLoader {
         if (!fs.FileExists(settingsPath))
             return null;
 
-        try
-        {
+        try {
             var json = await fs.ReadAllTextAsync(settingsPath, cancellationToken).ConfigureAwait(false);
             return TryGetSettingFromJson(json, key);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 文件损坏或格式错误，忽略
             logger?.LogWarning(ex, "Failed to load setting '{Key}' from settings.json", key);
         }
@@ -390,8 +341,7 @@ public class ConfigLoader {
     /// 从 ~/.jcc/settings.json 同步读取指定键的值（兼容旧版扁平 KV 格式）
     /// P1-3: 为 Lazy&lt;T&gt; 加载场景提供同步入口，避免 sync-over-async 阻塞
     /// </summary>
-    public static string? LoadSettingFromSettingsJson(string key, IFileSystem fs, ILogger? logger = null)
-    {
+    public static string? LoadSettingFromSettingsJson(string key, IFileSystem fs, ILogger? logger = null) {
         var settingsPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
@@ -399,13 +349,10 @@ public class ConfigLoader {
         if (!fs.FileExists(settingsPath))
             return null;
 
-        try
-        {
+        try {
             var json = fs.ReadAllText(settingsPath);
             return TryGetSettingFromJson(json, key);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 文件损坏或格式错误，忽略
             logger?.LogWarning(ex, "Failed to load setting '{Key}' from settings.json", key);
         }
@@ -417,11 +364,9 @@ public class ConfigLoader {
     /// 从 settings.json 文本中按键名获取值（兼容旧版扁平 KV 格式）
     /// 优先尝试强类型反序列化，回退到扁平 KV 格式
     /// </summary>
-    private static string? TryGetSettingFromJson(string json, string key)
-    {
+    private static string? TryGetSettingFromJson(string json, string key) {
         var settings = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.SettingsJson);
-        if (settings is not null)
-        {
+        if (settings is not null) {
             var value = GetSettingByKey(settings, key);
             if (value is not null) return value;
         }
@@ -432,8 +377,7 @@ public class ConfigLoader {
     /// <summary>
     /// 将指定键值对写入 ~/.jcc/settings.json — 对齐 TS updateSettingsForSource
     /// </summary>
-    public static async Task SaveSettingToSettingsJsonAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task SaveSettingToSettingsJsonAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var settingsPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             AppDataConstants.SettingsFileName);
@@ -441,18 +385,13 @@ public class ConfigLoader {
         var directory = Path.GetDirectoryName(settingsPath);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        try
-        {
-            await fs.EditFileAsync<bool>(settingsPath, async (bytes, ct) =>
-            {
+        try {
+            await fs.EditFileAsync<bool>(settingsPath, async (bytes, ct) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 SettingsJson? existingSettings = null;
-                try
-                {
+                try {
                     existingSettings = RelaxedJsonSerializer.Deserialize(content, ConfigJsonContext.Default.SettingsJson);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     logger?.LogWarning(ex, "Failed to read settings file '{SettingsPath}'", settingsPath);
                 }
                 existingSettings ??= new SettingsJson();
@@ -461,9 +400,7 @@ public class ConfigLoader {
                 var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
                 return (newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (FileNotFoundException)
-        {
+        } catch (FileNotFoundException) {
             var existingSettings = new SettingsJson();
             var updatedSettings = UpdateSettingByKey(existingSettings, key, value);
             var outputJson = RelaxedJsonSerializer.SerializeIndented(updatedSettings, ConfigIndentedJsonContext.Default);
@@ -476,8 +413,7 @@ public class ConfigLoader {
     /// <summary>
     /// 从 ~/.jcc/global.json 读取全局配置值 — 对齐 TS getGlobalConfig
     /// </summary>
-    public static async Task<string?> LoadSettingFromGlobalConfigAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task<string?> LoadSettingFromGlobalConfigAsync(string key, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var globalPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             AppDataConstants.GlobalConfigFileName);
@@ -485,14 +421,11 @@ public class ConfigLoader {
         if (!fs.FileExists(globalPath))
             return null;
 
-        try
-        {
+        try {
             var json = await fs.ReadAllTextAsync(globalPath, cancellationToken).ConfigureAwait(false);
             var data = RelaxedJsonSerializer.Deserialize(json, ConfigJsonContext.Default.DictionaryStringJsonElement);
-            if (data is not null && data.TryGetValue(key, out var element))
-            {
-                return element.ValueKind switch
-                {
+            if (data is not null && data.TryGetValue(key, out var element)) {
+                return element.ValueKind switch {
                     JsonValueKind.String => element.GetString(),
                     JsonValueKind.Number => element.GetRawText(),
                     JsonValueKind.True => "true",
@@ -501,9 +434,7 @@ public class ConfigLoader {
                     _ => element.GetRawText(),
                 };
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "Failed to load setting from global.json");
         }
 
@@ -513,8 +444,7 @@ public class ConfigLoader {
     /// <summary>
     /// 将键值对写入 ~/.jcc/global.json — 对齐 TS saveGlobalConfig
     /// </summary>
-    public static async Task SaveSettingToGlobalConfigAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null)
-    {
+    public static async Task SaveSettingToGlobalConfigAsync(string key, string? value, IFileSystem fs, CancellationToken cancellationToken = default, ILogger? logger = null) {
         var globalPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             AppDataConstants.GlobalConfigFileName);
@@ -522,27 +452,19 @@ public class ConfigLoader {
         var directory = Path.GetDirectoryName(globalPath);
         DirectoryHelper.EnsureDirectoryExists(fs, directory);
 
-        try
-        {
-            await fs.EditFileAsync<bool>(globalPath, async (bytes, ct) =>
-            {
+        try {
+            await fs.EditFileAsync<bool>(globalPath, async (bytes, ct) => {
                 var (content, encoding) = FileEncodingDetector.DecodeBytes(bytes);
                 Dictionary<string, JsonElement> data = new(StringComparer.Ordinal);
-                try
-                {
+                try {
                     data = RelaxedJsonSerializer.Deserialize(content, ConfigJsonContext.Default.DictionaryStringJsonElement) ?? new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     logger?.LogWarning(ex, "Failed to read global config file '{GlobalPath}'", globalPath);
                 }
 
-                if (value is not null)
-                {
+                if (value is not null) {
                     data[key] = ParseJsonValueElement(value);
-                }
-                else
-                {
+                } else {
                     data.Remove(key);
                 }
 
@@ -550,12 +472,9 @@ public class ConfigLoader {
                 var newBytes = FileEncodingDetector.EncodeString(outputJson, encoding);
                 return (newBytes, true);
             }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (FileNotFoundException)
-        {
+        } catch (FileNotFoundException) {
             Dictionary<string, JsonElement> data = new(StringComparer.Ordinal);
-            if (value is not null)
-            {
+            if (value is not null) {
                 data[key] = ParseJsonValueElement(value);
             }
             var outputJson = RelaxedJsonSerializer.SerializeIndented(data, ConfigIndentedJsonContext.Default);
@@ -566,11 +485,9 @@ public class ConfigLoader {
     /// <summary>
     /// 将字符串值解析为 JsonElement，智能推断类型（boolean/number/string）。
     /// </summary>
-    private static JsonElement ParseJsonValueElement(string value)
-    {
+    private static JsonElement ParseJsonValueElement(string value) {
         var lower = value.ToLowerInvariant().Trim();
-        var jsonText = lower switch
-        {
+        var jsonText = lower switch {
             "true" => "true",
             "false" => "false",
             "null" => "null",
@@ -581,13 +498,10 @@ public class ConfigLoader {
         return doc.RootElement.Clone();
     }
 
-    private static string JsonEncodeValue(string value)
-    {
+    private static string JsonEncodeValue(string value) {
         var sb = new StringBuilder(value.Length);
-        foreach (var c in value)
-        {
-            switch (c)
-            {
+        foreach (var c in value) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;
@@ -608,14 +522,12 @@ public class ConfigLoader {
     /// <summary>
     /// 更新强类型 SettingsJson 中指定键的值，返回新对象（不可变）— 路由到 CurrentSettings.UpdateSettingByKey
     /// </summary>
-    private static SettingsJson UpdateSettingByKey(SettingsJson settings, string key, string? value)
-    {
+    private static SettingsJson UpdateSettingByKey(SettingsJson settings, string key, string? value) {
         var updatedCurrent = settings.Current is not null
             ? settings.Current.UpdateSettingByKey(key, value)
             : new CurrentSettings().UpdateSettingByKey(key, value);
 
-        return new SettingsJson
-        {
+        return new SettingsJson {
             Vendor = settings.Vendor,
             Current = updatedCurrent,
         };
@@ -629,8 +541,7 @@ public class ConfigLoader {
     /// <para>未注册时无条件抛 ConfigurationException[GRD016] — 配置大于代码，不从模型 ID 推断模态</para>
     /// <para>例外: models 列表为空且 autoFetchModels=true 时跳过检查 — 首次运行时骨架 models 为空，由 AutoFetchModels 异步填充</para>
     /// </summary>
-    private void EnsureEnvModelInConfig(SettingsJson settings)
-    {
+    private void EnsureEnvModelInConfig(SettingsJson settings) {
         if (_modelConfigLoader is null) return;
         if (settings.Vendor is null || settings.Current?.Profile is not { Length: > 0 } profile) return;
         if (!settings.Vendor.TryGetValue(profile, out var profileSettings)) return;
@@ -646,8 +557,7 @@ public class ConfigLoader {
             return;
 
         // 元命令模式跳过模型注册检查 — slash_call/mcp_list 等不需要 LLM 服务
-        if (SkipProviderValidation)
-        {
+        if (SkipProviderValidation) {
             Diag.WriteLifecycle($"[WARN] 跳过模型注册检查 — 模型 '{modelId}' 未在 vendor.{profile}.models 中注册。元命令模式降级运行。");
             return;
         }

@@ -3,8 +3,7 @@ namespace Core.Security.Services;
 /// <summary>
 /// 真实路径解析器 — 返回文件系统真实大小写路径,用于大小写不敏感文件系统(Windows)的路径大小写守卫
 /// </summary>
-public interface IRealPathResolver
-{
+public interface IRealPathResolver {
     /// <summary>
     /// 获取指定路径在文件系统中的真实大小写路径
     /// </summary>
@@ -17,21 +16,18 @@ public interface IRealPathResolver
 /// 文件系统真实路径解析器 — 枚举父目录获取条目真实大小写
 /// </summary>
 [Register(typeof(IRealPathResolver), ServiceLifetime.Singleton)]
-public sealed class FileSystemRealPathResolver : IRealPathResolver
-{
+public sealed class FileSystemRealPathResolver : IRealPathResolver {
     private readonly IFileSystem _fs;
 
     /// <summary>
     /// 创建 FileSystemRealPathResolver
     /// </summary>
-    public FileSystemRealPathResolver(IFileSystem fs)
-    {
+    public FileSystemRealPathResolver(IFileSystem fs) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
     }
 
     /// <inheritdoc />
-    public string? GetRealPath(string path)
-    {
+    public string? GetRealPath(string path) {
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
@@ -40,12 +36,9 @@ public sealed class FileSystemRealPathResolver : IRealPathResolver
             return null;
 
         string fullPath;
-        try
-        {
+        try {
             fullPath = _fs.GetFullPath(trimmed);
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return null;
         }
 
@@ -57,22 +50,17 @@ public sealed class FileSystemRealPathResolver : IRealPathResolver
         if (!_fs.DirectoryExists(parent))
             return null;
 
-        try
-        {
-            foreach (var entry in _fs.EnumerateFiles(parent, "*", SearchOption.TopDirectoryOnly))
-            {
+        try {
+            foreach (var entry in _fs.EnumerateFiles(parent, "*", SearchOption.TopDirectoryOnly)) {
                 if (string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase))
                     return entry;
             }
 
-            foreach (var entry in _fs.EnumerateDirectories(parent, "*", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var entry in _fs.EnumerateDirectories(parent, "*", SearchOption.TopDirectoryOnly)) {
                 if (string.Equals(Path.GetFileName(entry), name, StringComparison.OrdinalIgnoreCase))
                     return entry;
             }
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return null;
         }
 

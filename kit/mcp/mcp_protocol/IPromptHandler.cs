@@ -3,8 +3,7 @@ namespace McpProtocol;
 /// <summary>
 /// MCP 提示处理器接口 — 实现 prompts/get 请求的提示模板渲染
 /// </summary>
-public interface IPromptHandler
-{
+public interface IPromptHandler {
     /// <summary>提示名称(唯一标识,作为提示字典键)</summary>
     string Name { get; }
     /// <summary>提示描述,可为 null</summary>

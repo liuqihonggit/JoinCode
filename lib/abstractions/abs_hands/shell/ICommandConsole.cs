@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// CLI 中实现（包装 TerminalHelper），通过 DI 注入或静态设置。
 /// 命令类移到共享库后通过此接口输出，不直接引用 CLI。
 /// </summary>
-public interface ICommandConsole
-{
+public interface ICommandConsole {
     /// <summary>输出一行文本</summary>
     void WriteLine(string message);
 

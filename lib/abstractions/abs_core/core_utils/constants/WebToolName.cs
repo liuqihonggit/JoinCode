@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Web 工具名称枚举
 /// </summary>
-public enum WebToolName
-{
+public enum WebToolName {
     [EnumValue("web_fetch")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     WebFetch,

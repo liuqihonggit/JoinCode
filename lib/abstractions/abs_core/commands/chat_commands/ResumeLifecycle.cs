@@ -11,8 +11,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - ResumeLifecycle.Clear.ToValue() → "clear"
 /// - clear 在 GoalCommand 中有 stop/off/reset/cancel 4 个别名
 /// </summary>
-public enum ResumeLifecycle
-{
+public enum ResumeLifecycle {
     /// <summary>暂停主动循环(保留状态,可 Resume 恢复)</summary>
     [EnumValue("pause")] Pause,
 

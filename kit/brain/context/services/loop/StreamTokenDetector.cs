@@ -5,8 +5,7 @@ namespace Core.Context;
 /// 架构类似麦克风采集: 生产者(Ingest)写入共享 RingBuffer(SeqLock 无锁),后台单线程周期性采样快照进行检测
 /// 串行多分析器(尾重复→n-gram),漏斗式触发: 先廉价检测后昂贵检测,任一触发即返回
 /// </summary>
-public sealed class StreamTokenDetector : IDisposable
-{
+public sealed class StreamTokenDetector : IDisposable {
     private readonly RingBuffer<string> _tokenWindow;
     private readonly Thread _detectThread;
     private readonly CancellationTokenSource _cts;
@@ -31,8 +30,7 @@ public sealed class StreamTokenDetector : IDisposable
         TimeSpan? detectInterval = null,
         int minPatternLength = 3,
         int requiredRepeats = 4,
-        int maxPatternLength = 50)
-    {
+        int maxPatternLength = 50) {
         ArgumentOutOfRangeException.ThrowIfLessThan(windowCapacity, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(minPatternLength, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(requiredRepeats, 2);
@@ -50,8 +48,7 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 生产者: 写入共享无锁环形队列(O(1),非阻塞,SeqLock 内部保证安全)
     /// </summary>
-    public void Ingest(string token)
-    {
+    public void Ingest(string token) {
         ArgumentNullException.ThrowIfNull(token);
         _tokenWindow.Add(token);
     }
@@ -59,13 +56,10 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 后台消费者: 像麦克风一样持续轮询检测,周期性采样 RingBuffer 快照
     /// </summary>
-    private void DetectLoop()
-    {
-        while (!_cts.IsCancellationRequested)
-        {
+    private void DetectLoop() {
+        while (!_cts.IsCancellationRequested) {
             var result = DetectNow();
-            if (result.IsLoopDetected)
-            {
+            if (result.IsLoopDetected) {
                 Interlocked.Increment(ref _triggerCount);
                 _latestResult = result;
             }
@@ -78,8 +72,7 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 同步检测: 获取无锁快照(SeqLock 保证一致性),串行运行多分析器(漏斗式触发)
     /// </summary>
-    public LoopDetectionResult DetectNow()
-    {
+    public LoopDetectionResult DetectNow() {
         var snapshot = _tokenWindow.ToArray();
         if (snapshot.Length == 0)
             return LoopDetectionResult.NoLoop;
@@ -94,18 +87,15 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 分析器1(最廉价): 尾重复检测 — 检查 token 序列尾部是否有连续重复模式
     /// </summary>
-    private LoopDetectionResult DetectTailRepetition(string[] tokens)
-    {
+    private LoopDetectionResult DetectTailRepetition(string[] tokens) {
         var count = tokens.Length;
         if (count < _minPatternLength * _requiredRepeats)
             return LoopDetectionResult.NoLoop;
 
         var maxLen = Math.Min(_maxPatternLength, count / _requiredRepeats);
-        for (var patternLen = maxLen; patternLen >= _minPatternLength; patternLen--)
-        {
+        for (var patternLen = maxLen; patternLen >= _minPatternLength; patternLen--) {
             var repeatCount = CountTailRepeats(tokens, patternLen, count);
-            if (repeatCount >= _requiredRepeats)
-            {
+            if (repeatCount >= _requiredRepeats) {
                 var pattern = string.Join("→", tokens, count - patternLen, patternLen);
                 var loopStart = count - patternLen * repeatCount;
                 return new LoopDetectionResult(true, pattern, repeatCount, loopStart, _triggerCount + 1);
@@ -118,12 +108,10 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 从尾部往回数连续重复次数
     /// </summary>
-    private int CountTailRepeats(string[] tokens, int patternLen, int count)
-    {
+    private int CountTailRepeats(string[] tokens, int patternLen, int count) {
         var repeatCount = 1;
         var pos = count;
-        while (pos >= patternLen * 2)
-        {
+        while (pos >= patternLen * 2) {
             var currentStart = pos - patternLen;
             var prevStart = currentStart - patternLen;
             if (!RangeEquals(tokens, prevStart, currentStart, patternLen))
@@ -134,10 +122,8 @@ public sealed class StreamTokenDetector : IDisposable
         return repeatCount;
     }
 
-    private static bool RangeEquals(string[] tokens, int offset1, int offset2, int length)
-    {
-        for (var i = 0; i < length; i++)
-        {
+    private static bool RangeEquals(string[] tokens, int offset1, int offset2, int length) {
+        for (var i = 0; i < length; i++) {
             if (tokens[offset1 + i] != tokens[offset2 + i])
                 return false;
         }
@@ -147,23 +133,20 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 分析器2(中等): n-gram 频率检测 — 统计 n-gram 出现频率,高频表示非连续重复
     /// </summary>
-    private LoopDetectionResult DetectNgramRepetition(string[] tokens)
-    {
+    private LoopDetectionResult DetectNgramRepetition(string[] tokens) {
         var count = tokens.Length;
         var ngramLen = _minPatternLength;
         if (count < ngramLen * 2)
             return LoopDetectionResult.NoLoop;
 
         var freq = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (var i = 0; i <= count - ngramLen; i++)
-        {
+        for (var i = 0; i <= count - ngramLen; i++) {
             var ngram = string.Join("→", tokens, i, ngramLen);
             ref var f = ref CollectionsMarshal.GetValueRefOrAddDefault(freq, ngram, out _);
             f++;
         }
 
-        foreach (var kvp in freq)
-        {
+        foreach (var kvp in freq) {
             if (kvp.Value >= _requiredRepeats)
                 return new LoopDetectionResult(true, kvp.Key, kvp.Value, 0, _triggerCount + 1);
         }
@@ -194,8 +177,7 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 重置检测器: 清空环形队列和检测结果
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _tokenWindow.Clear();
         _latestResult = null;
         Interlocked.Exchange(ref _triggerCount, 0);
@@ -204,8 +186,7 @@ public sealed class StreamTokenDetector : IDisposable
     /// <summary>
     /// 停止后台线程并释放资源
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed)
             return;
         _disposed = true;

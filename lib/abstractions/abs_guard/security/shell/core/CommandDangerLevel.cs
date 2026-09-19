@@ -14,8 +14,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// </list>
 /// ask 级别（Unknown/LightValidation/Execution）支持"同级别自动通过"标记：用户选择后当前会话内同级别操作不再 ask，不持久化，每次打开新 exe 重新提示。
 /// </remarks>
-public enum CommandDangerLevel
-{
+public enum CommandDangerLevel {
     /// <summary>
     /// 只读操作（白灯）— 自动通过，无需确认
     /// </summary>
@@ -45,15 +44,13 @@ public enum CommandDangerLevel
 /// <summary>
 /// CommandDangerLevel 确认提示解析扩展 — 从确认提示文本解析危险等级（用于确认处理器联动同级别自动通过）
 /// </summary>
-public static class DangerLevelPromptParser
-{
+public static class DangerLevelPromptParser {
     /// <summary>
     /// 从确认提示文本解析危险等级 — 中间件在 prompt 中嵌入 [黄灯ask]/[绿灯ask]/[红灯ask] 标签
     /// </summary>
     /// <param name="prompt">确认提示文本</param>
     /// <returns>解析到的等级；未包含标签时返回 null</returns>
-    public static CommandDangerLevel? ParseLevelFromPrompt(string? prompt)
-    {
+    public static CommandDangerLevel? ParseLevelFromPrompt(string? prompt) {
         if (string.IsNullOrEmpty(prompt))
             return null;
 

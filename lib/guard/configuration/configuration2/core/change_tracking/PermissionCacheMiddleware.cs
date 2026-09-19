@@ -5,14 +5,12 @@ namespace Core.Configuration;
 /// settings.json 中的 permissions 规则变更后需要热同步
 /// </summary>
 [Register(typeof(ISettingsMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PermissionCacheMiddleware : ServiceEntity, ISettingsMiddleware
-{
+public sealed partial class PermissionCacheMiddleware : ServiceEntity, ISettingsMiddleware {
 
     /// <summary>
     /// 构造权限缓存清除中间件
     /// </summary>
-    public PermissionCacheMiddleware(IToolPermissionManager? toolPermissionManager = null)
-    {
+    public PermissionCacheMiddleware(IToolPermissionManager? toolPermissionManager = null) {
         _toolPermissionManager = toolPermissionManager;
     }
     private readonly IToolPermissionManager? _toolPermissionManager;
@@ -23,11 +21,9 @@ public sealed partial class PermissionCacheMiddleware : ServiceEntity, ISettings
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc />
-    public Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(SettingsContext context, MiddlewareDelegate<SettingsContext> next, CancellationToken ct) {
         _toolPermissionManager?.ClearCache();
-        if (_toolPermissionManager is not null)
-        {
+        if (_toolPermissionManager is not null) {
             context.Logger?.LogDebug("权限规则缓存已清除");
         }
 

@@ -6,13 +6,11 @@ namespace Core.Tests.Memdir;
 /// 验证 IMemoryScanner、IMemoryTruncator、IMemoryRelevanceSelector、IMemoryAgeCalculator
 /// 可以通过 DI 容器正确解析
 /// </summary>
-public sealed class MemoryComponentIntegrationTests : IDisposable
-{
+public sealed class MemoryComponentIntegrationTests : IDisposable {
     private readonly ServiceProvider _serviceProvider;
     private bool _disposed;
 
-    public MemoryComponentIntegrationTests()
-    {
+    public MemoryComponentIntegrationTests() {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<IFileSystem>(_ => TestFileSystem.Current);
@@ -30,16 +28,14 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
         _serviceProvider = services.BuildServiceProvider();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _serviceProvider.DisposeSafe();
     }
 
     [Fact]
-    public void MemoryScanner_IsResolvableFromDI()
-    {
+    public void MemoryScanner_IsResolvableFromDI() {
         // Act
         var scanner = _serviceProvider.GetRequiredService<IMemoryScanner>();
 
@@ -49,8 +45,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void MemoryTruncator_IsResolvableFromDI()
-    {
+    public void MemoryTruncator_IsResolvableFromDI() {
         // Act
         var truncator = _serviceProvider.GetRequiredService<IMemoryTruncator>();
 
@@ -60,8 +55,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void MemoryRelevanceSelector_IsResolvableFromDI()
-    {
+    public void MemoryRelevanceSelector_IsResolvableFromDI() {
         // Act
         var selector = _serviceProvider.GetRequiredService<IMemoryRelevanceSelector>();
 
@@ -71,8 +65,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void MemoryAgeCalculator_IsResolvableFromDI()
-    {
+    public void MemoryAgeCalculator_IsResolvableFromDI() {
         // Act
         var calculator = _serviceProvider.GetRequiredService<IMemoryAgeCalculator>();
 
@@ -82,8 +75,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public void AllMemoryComponents_AreSingletons()
-    {
+    public void AllMemoryComponents_AreSingletons() {
         // Act
         var scanner1 = _serviceProvider.GetRequiredService<IMemoryScanner>();
         var scanner2 = _serviceProvider.GetRequiredService<IMemoryScanner>();
@@ -102,8 +94,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task MemoryRelevanceSelector_DelegatesToMemoryAgeCalculator()
-    {
+    public async Task MemoryRelevanceSelector_DelegatesToMemoryAgeCalculator() {
         // Arrange
         var selector = _serviceProvider.GetRequiredService<IMemoryRelevanceSelector>();
         var memories = new List<MemoryEntry>
@@ -123,8 +114,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task MemoryManagementService_UsesMemoryScanner()
-    {
+    public async Task MemoryManagementService_UsesMemoryScanner() {
         // Arrange
         var fileOpService = new InMemoryFileOperationService();
         var memoryStore = new MemoryStore(
@@ -151,8 +141,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task MemoryManagementService_UsesMemoryTruncator()
-    {
+    public async Task MemoryManagementService_UsesMemoryTruncator() {
         // Arrange
         var fileOpService = new InMemoryFileOperationService();
         var memoryStore = new MemoryStore(
@@ -182,8 +171,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task MemoryManagementService_UsesRelevanceSelector()
-    {
+    public async Task MemoryManagementService_UsesRelevanceSelector() {
         // Arrange
         var fileOpService = new InMemoryFileOperationService();
         var memoryStore = new MemoryStore(
@@ -221,8 +209,7 @@ public sealed class MemoryComponentIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task MemoryManagementService_UsesAgeCalculator()
-    {
+    public async Task MemoryManagementService_UsesAgeCalculator() {
         // Arrange
         var fileOpService = new InMemoryFileOperationService();
         var memoryStore = new MemoryStore(

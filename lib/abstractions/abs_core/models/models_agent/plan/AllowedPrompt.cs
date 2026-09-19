@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Models.Plan;
 /// 对齐 TS: ExitPlanModeV2Tool.ts — AllowedPrompt
 /// { tool: 'Bash', prompt: string }
 /// </summary>
-public sealed record AllowedPrompt
-{
+public sealed record AllowedPrompt {
     /// <summary>
     /// 工具名称（当前仅支持 Bash）
     /// 对齐 TS: z.enum(['Bash'])
@@ -24,7 +23,6 @@ public sealed record AllowedPrompt
 /// AllowedPrompt.Tool 允许的工具名常量
 /// 对齐 TS: z.enum(['Bash'])
 /// </summary>
-public enum AllowedPromptTool
-{
+public enum AllowedPromptTool {
     [EnumValue("Bash")] Bash,
 }

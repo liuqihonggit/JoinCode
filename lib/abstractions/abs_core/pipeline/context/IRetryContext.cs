@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 重试上下文 — 支持通用 RetryMiddleware 复用
 /// </summary>
-public interface IRetryContext : IPipelineContext
-{
+public interface IRetryContext : IPipelineContext {
     /// <summary>最大重试次数（不含首次执行）</summary>
     int MaxRetries { get; }
 

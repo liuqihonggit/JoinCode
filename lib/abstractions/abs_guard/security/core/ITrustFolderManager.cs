@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Security;
 /// <summary>
 /// 信任目录管理接口 - 管理工作区信任目录的增删查
 /// </summary>
-public interface ITrustFolderManager
-{
+public interface ITrustFolderManager {
     /// <summary>
     /// 检查目录是否已信任
     /// </summary>

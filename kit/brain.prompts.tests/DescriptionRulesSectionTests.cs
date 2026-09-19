@@ -1,10 +1,8 @@
 namespace Core.Tests.Prompts;
 
-public sealed class DescriptionRulesSectionTests
-{
+public sealed class DescriptionRulesSectionTests {
     [Fact]
-    public void Create_With_Null_Rules_Should_Return_Null_Content()
-    {
+    public void Create_With_Null_Rules_Should_Return_Null_Content() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
@@ -15,8 +13,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_With_Empty_Rules_Should_Return_Null_Content()
-    {
+    public void Create_With_Empty_Rules_Should_Return_Null_Content() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
@@ -27,8 +24,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_With_No_User_Message_Should_Return_Null_Content()
-    {
+    public void Create_With_No_User_Message_Should_Return_Null_Content() {
         var tracker = new FileContextTracker();
         var rules = new List<ExternalRuleEntry>
         {
@@ -42,8 +38,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_With_Matching_Description_Should_Return_Content()
-    {
+    public void Create_With_Matching_Description_Should_Return_Content() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复登录页面的bug");
 
@@ -63,8 +58,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_With_Non_Matching_Description_Should_Return_Null()
-    {
+    public void Create_With_Non_Matching_Description_Should_Return_Null() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("添加新功能");
 
@@ -80,8 +74,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_Should_Skip_AlwaysApply_Rules()
-    {
+    public void Create_Should_Skip_AlwaysApply_Rules() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
 
@@ -97,8 +90,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_Should_Skip_Glob_Rules()
-    {
+    public void Create_Should_Skip_Glob_Rules() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
 
@@ -114,8 +106,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_Should_Skip_Rule_Without_Description()
-    {
+    public void Create_Should_Skip_Rule_Without_Description() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复bug");
 
@@ -131,8 +122,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_Should_Be_Dynamic_Section()
-    {
+    public void Create_Should_Be_Dynamic_Section() {
         var tracker = new FileContextTracker();
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { ExternalRules = [], FileContext = tracker });
 
@@ -142,8 +132,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_Should_Reflect_Updated_Message()
-    {
+    public void Create_Should_Reflect_Updated_Message() {
         var tracker = new FileContextTracker();
         var rules = new List<ExternalRuleEntry>
         {
@@ -163,8 +152,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_With_English_Description_Should_Match()
-    {
+    public void Create_With_English_Description_Should_Match() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("Fix the authentication bug");
 
@@ -182,8 +170,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_With_Partial_Keyword_Match_Should_Work()
-    {
+    public void Create_With_Partial_Keyword_Match_Should_Work() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("优化性能问题");
 
@@ -201,8 +188,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_With_Multiple_Matching_Rules_Should_Return_All()
-    {
+    public void Create_With_Multiple_Matching_Rules_Should_Return_All() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("修复安全漏洞");
 
@@ -222,8 +208,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void ExtractKeywords_Should_Filter_Stop_Words()
-    {
+    public void ExtractKeywords_Should_Filter_Stop_Words() {
         var keywords = DescriptionRulesSection.ExtractKeywords("这是一个 修复 的 方案");
 
         keywords.Should().NotContain("的");
@@ -231,8 +216,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void ExtractKeywords_Should_Filter_Short_Words()
-    {
+    public void ExtractKeywords_Should_Filter_Short_Words() {
         var keywords = DescriptionRulesSection.ExtractKeywords("a bug fix");
 
         keywords.Should().NotContain("a");
@@ -241,16 +225,14 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void ExtractKeywords_Should_Deduplicate()
-    {
+    public void ExtractKeywords_Should_Deduplicate() {
         var keywords = DescriptionRulesSection.ExtractKeywords("bug bug fix fix");
 
         keywords.Should().HaveCount(2);
     }
 
     [Fact]
-    public void ExtractKeywords_Should_Extract_CJK_Bigrams()
-    {
+    public void ExtractKeywords_Should_Extract_CJK_Bigrams() {
         var keywords = DescriptionRulesSection.ExtractKeywords("修复登录页面的bug");
 
         keywords.Should().Contain("修复");
@@ -260,8 +242,7 @@ public sealed class DescriptionRulesSectionTests
     }
 
     [Fact]
-    public void Create_With_Empty_User_Message_Should_Return_Null()
-    {
+    public void Create_With_Empty_User_Message_Should_Return_Null() {
         var tracker = new FileContextTracker();
         tracker.UpdateUserMessage("");
 

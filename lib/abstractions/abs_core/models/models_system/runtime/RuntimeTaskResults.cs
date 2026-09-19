@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Runtime;
 
-public sealed record RuntimeTaskListResult
-{
+public sealed record RuntimeTaskListResult {
     public bool Success { get; init; }
     public IReadOnlyList<RuntimeTask> Tasks { get; init; } = Array.Empty<RuntimeTask>();
     public int TotalCount { get; init; }

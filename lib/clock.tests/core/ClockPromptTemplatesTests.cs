@@ -1,10 +1,8 @@
 namespace Clock.Tests;
 
-public class ClockPromptTemplatesTests
-{
+public class ClockPromptTemplatesTests {
     [Fact]
-    public void GetAllTemplates_ContainsContinuation()
-    {
+    public void GetAllTemplates_ContainsContinuation() {
         var templates = ClockPromptTemplates.GetAllTemplates().ToList();
 
         var continuation = templates.FirstOrDefault(t => t.Name == "continuation");
@@ -14,8 +12,7 @@ public class ClockPromptTemplatesTests
     }
 
     [Fact]
-    public void GetContent_ReturnsNullForParameterizedTemplate()
-    {
+    public void GetContent_ReturnsNullForParameterizedTemplate() {
         var content = ClockPromptTemplates.GetContent("continuation");
 
         content.Should().BeNull();

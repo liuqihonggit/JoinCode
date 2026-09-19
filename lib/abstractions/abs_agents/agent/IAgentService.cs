@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 代理服务接口
 /// </summary>
-public interface IAgentService
-{
+public interface IAgentService {
     /// <summary>
     /// 创建并启动代理
     /// </summary>
@@ -97,8 +96,7 @@ public interface IAgentService
 /// <summary>
 /// 代理完成事件参数
 /// </summary>
-public sealed class AgentCompletedEventArgs : EventArgs
-{
+public sealed class AgentCompletedEventArgs : EventArgs {
     public required string AgentId { get; init; }
     public required AgentStatus Status { get; init; }
     public required string Description { get; init; }
@@ -117,8 +115,7 @@ public sealed class AgentCompletedEventArgs : EventArgs
 /// <summary>
 /// 代理任务通知（注入LLM对话的结构化XML通知）
 /// </summary>
-public sealed class AgentTaskNotification
-{
+public sealed class AgentTaskNotification {
     public required string TaskId { get; init; }
     public required string Status { get; init; }
     public required string Description { get; init; }
@@ -133,8 +130,7 @@ public sealed class AgentTaskNotification
     public string? WorktreePath { get; init; }
     public string? WorktreeBranch { get; init; }
 
-    public string ToXml()
-    {
+    public string ToXml() {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<task-notification>");
         sb.Append("<task-id>").Append(TaskId).AppendLine("</task-id>");
@@ -142,8 +138,7 @@ public sealed class AgentTaskNotification
             sb.Append("<tool-use-id>").Append(ToolUseId).AppendLine("</tool-use-id>");
         sb.Append("<status>").Append(Status).AppendLine("</status>");
         sb.Append("<summary>Agent \"").Append(Description).Append("\" ").Append(Status).AppendLine("</summary>");
-        if (!string.IsNullOrEmpty(Output))
-        {
+        if (!string.IsNullOrEmpty(Output)) {
             sb.AppendLine("<result>");
             sb.AppendLine(Output);
             sb.AppendLine("</result>");
@@ -162,8 +157,7 @@ public sealed class AgentTaskNotification
             sb.Append("<agent-type>").Append(Role.ToValue()).Append(":").Append(Variant.Value.ToValue()).AppendLine("</agent-type>");
         else
             sb.Append("<agent-type>").Append(Role.ToValue()).AppendLine("</agent-type>");
-        if (!string.IsNullOrEmpty(WorktreePath))
-        {
+        if (!string.IsNullOrEmpty(WorktreePath)) {
             sb.AppendLine("<worktree>");
             sb.Append("<worktreePath>").Append(WorktreePath).AppendLine("</worktreePath>");
             if (!string.IsNullOrEmpty(WorktreeBranch))
@@ -178,8 +172,7 @@ public sealed class AgentTaskNotification
 /// <summary>
 /// 代理信息
 /// </summary>
-public sealed record AgentInfo
-{
+public sealed record AgentInfo {
     public required string Id { get; init; }
     public required string Description { get; init; }
     public AgentRole Role { get; init; }
@@ -194,8 +187,7 @@ public sealed record AgentInfo
 /// <summary>
 /// 代理执行结果
 /// </summary>
-public sealed record AgentResult
-{
+public sealed record AgentResult {
     public required string AgentId { get; init; }
     public required bool Success { get; init; }
     public required string Output { get; init; }
@@ -205,8 +197,7 @@ public sealed record AgentResult
 /// <summary>
 /// 代理创建选项
 /// </summary>
-public sealed record AgentSpawnOptions
-{
+public sealed record AgentSpawnOptions {
     public required string Description { get; init; }
     public required string Prompt { get; init; }
     public AgentRole Role { get; init; } = AgentRole.Executor;
@@ -278,8 +269,7 @@ public sealed record AgentSpawnOptions
 /// <summary>
 /// 代理恢复选项 - 从已有 transcript 恢复代理执行
 /// </summary>
-public sealed record AgentResumeOptions
-{
+public sealed record AgentResumeOptions {
     public required string AgentId { get; init; }
     public required string NewPrompt { get; init; }
     public string? SessionId { get; init; }
@@ -289,8 +279,7 @@ public sealed record AgentResumeOptions
 /// <summary>
 /// 代理类型信息
 /// </summary>
-public sealed record AgentTypeInfo
-{
+public sealed record AgentTypeInfo {
     public required string Name { get; init; }
     public required string Description { get; init; }
     public List<string>? AvailableTools { get; init; }
@@ -299,8 +288,7 @@ public sealed record AgentTypeInfo
 /// <summary>
 /// 正在运行的代理信息
 /// </summary>
-public sealed record RunningAgentInfo
-{
+public sealed record RunningAgentInfo {
     public required string Id { get; init; }
     public required string Description { get; init; }
     public AgentRole Role { get; init; }
@@ -317,8 +305,7 @@ public sealed record RunningAgentInfo
 /// <summary>
 /// 代理隔离模式
 /// </summary>
-public enum AgentIsolationMode
-{
+public enum AgentIsolationMode {
     [EnumValue("none")] None,
     [EnumValue("worktree")] Worktree,
     [EnumValue("remote")] Remote
@@ -327,16 +314,14 @@ public enum AgentIsolationMode
 /// <summary>
 /// 代理消息信息
 /// </summary>
-public sealed record AgentMessageInfo
-{
+public sealed record AgentMessageInfo {
     public required string FromAgentId { get; init; }
     public required string MessageType { get; init; }
     public required string Content { get; init; }
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-public sealed record ToolActivity
-{
+public sealed record ToolActivity {
     public required string ToolName { get; init; }
     public string? ActivityDescription { get; init; }
     public bool IsSearch { get; init; }
@@ -345,8 +330,7 @@ public sealed record ToolActivity
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-public sealed record AgentProgress
-{
+public sealed record AgentProgress {
     public required int ToolUseCount { get; init; }
     public required int TokenCount { get; init; }
     public ToolActivity? LastActivity { get; init; }
@@ -354,8 +338,7 @@ public sealed record AgentProgress
     public string? Summary { get; init; }
 }
 
-public interface IProgressTracker
-{
+public interface IProgressTracker {
     void RecordToolUse(string toolName, string? activityDescription = null, Dictionary<string, string>? input = null);
     void RecordTokenUsage(int tokenCount);
     void UpdateSummary(string summary);

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Doctor;
 /// <summary>
 /// 源码仓库位置信息
 /// </summary>
-public sealed record SourceCodeLocation
-{
+public sealed record SourceCodeLocation {
     /// <summary>git 仓库根目录（包含 .git 的目录）</summary>
     public required string GitRoot { get; init; }
 
@@ -24,8 +23,7 @@ public sealed record SourceCodeLocation
 /// <summary>
 /// 全量编译结果（七层 slnx）
 /// </summary>
-public sealed record FullBuildResult
-{
+public sealed record FullBuildResult {
     /// <summary>是否全部成功</summary>
     public required bool Success { get; init; }
 
@@ -45,8 +43,7 @@ public sealed record FullBuildResult
 /// <summary>
 /// 单层 slnx 编译结果
 /// </summary>
-public sealed record SlnxBuildResult
-{
+public sealed record SlnxBuildResult {
     /// <summary>层编号（1-7）</summary>
     public required int Layer { get; init; }
 
@@ -69,8 +66,7 @@ public sealed record SlnxBuildResult
 /// <summary>
 /// exe 替换结果
 /// </summary>
-public sealed record ExeSwapResult
-{
+public sealed record ExeSwapResult {
     /// <summary>是否成功</summary>
     public required bool Success { get; init; }
 

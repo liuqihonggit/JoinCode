@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public enum ContextFoldDecision
-{
+public enum ContextFoldDecision {
     [EnumValue("none")]
     None,
     [EnumValue("deferred")]

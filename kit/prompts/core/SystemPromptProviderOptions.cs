@@ -3,8 +3,7 @@ namespace Core.Prompts;
 /// <summary>
 /// 系统提示词提供者配置选项
 /// </summary>
-public partial class SystemPromptProviderOptions
-{
+public partial class SystemPromptProviderOptions {
     #region 运行模式
 
     /// <summary>
@@ -25,8 +24,7 @@ public partial class SystemPromptProviderOptions
     /// <para>对齐 TS 原版 CLAUDE_CODE_COORDINATOR_MODE 环境变量</para>
     /// <para>支持值: 1, true, TRUE(不区分大小写)</para>
     /// </summary>
-    public static bool IsCoordinatorModeEnabledFromEnv()
-    {
+    public static bool IsCoordinatorModeEnabledFromEnv() {
         var value = Environment.GetEnvironmentVariable("JCC_COORDINATOR_MODE");
         return value is "1" or "true" or "TRUE";
     }
@@ -36,8 +34,7 @@ public partial class SystemPromptProviderOptions
     /// <para>对齐 TS 原版 CLAUDE_CODE_SUBAGENT_MODEL 环境变量</para>
     /// <para>设置后全局覆盖所有 subagent 模型,用于测试/调试</para>
     /// </summary>
-    public static string? GetSubagentModelFromEnv()
-    {
+    public static string? GetSubagentModelFromEnv() {
         return Environment.GetEnvironmentVariable("JCC_SUBAGENT_MODEL");
     }
 
@@ -268,10 +265,8 @@ public partial class SystemPromptProviderOptions
     public static SystemPromptProviderOptions ForAgentMode(
         string? projectRules = null,
         IEnumerable<string>? enabledTools = null,
-        string? languagePreference = null)
-    {
-        return new SystemPromptProviderOptions
-        {
+        string? languagePreference = null) {
+        return new SystemPromptProviderOptions {
             IsAgentMode = true,
             ProjectRules = projectRules,
             EnabledTools = enabledTools ?? [],
@@ -291,10 +286,8 @@ public partial class SystemPromptProviderOptions
         IReadOnlyList<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>? agentDefinitions = null,
         string? projectRules = null,
         IEnumerable<string>? enabledTools = null,
-        string? languagePreference = null)
-    {
-        return new SystemPromptProviderOptions
-        {
+        string? languagePreference = null) {
+        return new SystemPromptProviderOptions {
             IsCoordinatorMode = true,
             AgentDefinitions = agentDefinitions ?? [],
             ProjectRules = projectRules,

@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator.Liveness;
 /// <summary>
 /// 子代理卡死事件参数 — 检测器确认卡死时触发
 /// </summary>
-public sealed class SubAgentStalledEventArgs : EventArgs
-{
+public sealed class SubAgentStalledEventArgs : EventArgs {
     /// <summary>卡死的子代理 ID</summary>
     public required string AgentId { get; init; }
 
@@ -21,8 +20,7 @@ public sealed class SubAgentStalledEventArgs : EventArgs
 /// <summary>
 /// 卡死类型 — 区分单点卡死和链路卡死
 /// </summary>
-public enum StallKind
-{
+public enum StallKind {
     /// <summary>单点卡死 — 单个子代理无输出超时</summary>
     [EnumValue("single")]
     Single,
@@ -42,8 +40,7 @@ public enum StallKind
 /// 4. Confirmed 时触发 <see cref="AgentStalled"/> 事件，由集成层处理 L3 激活
 /// </para>
 /// </summary>
-public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
-{
+public sealed partial class SubAgentLivenessScanner : IAsyncDisposable {
     private readonly AgentStateMachine _stateMachine;
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly IForkSubAgentManager _forkManager;
@@ -73,8 +70,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
         IForkSubAgentManager forkManager,
         SubAgentLivenessOptions options,
         ILogger? logger = null,
-        Func<DateTimeOffset>? clock = null)
-    {
+        Func<DateTimeOffset>? clock = null) {
         _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
         _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));
         _forkManager = forkManager ?? throw new ArgumentNullException(nameof(forkManager));
@@ -88,8 +84,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     /// <summary>
     /// 启动扫描器 — 订阅状态变更事件 + 启动定时扫描循环
     /// </summary>
-    public void Start()
-    {
+    public void Start() {
         _stateMachine.StateChanged += OnStateChanged;
         _scanLoop = Task.Run(ScanLoopAsync);
         _logger?.LogInformation("[SubAgentLivenessScanner] 启动，扫描间隔: {Interval}s，空闲阈值: {Idle}s",
@@ -99,11 +94,9 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     /// <summary>
     /// 状态变更回调 — 检查完成率，80%时触发全量巡查；终态时清理检测器
     /// </summary>
-    private void OnStateChanged(object? sender, AgentStateChangedEventArgs e)
-    {
+    private void OnStateChanged(object? sender, AgentStateChangedEventArgs e) {
         // 终态时清理检测器
-        if (e.NewState.IsTerminal())
-        {
+        if (e.NewState.IsTerminal()) {
             if (_detectors.TryRemove(e.AgentId, out _))
                 _logger?.LogDebug("[SubAgentLivenessScanner] Agent {AgentId} 进入终态 {State}，清理检测器", e.AgentId, e.NewState);
             return;
@@ -115,8 +108,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
         if (report.TotalAgents == 0) return;
 
         var completionRate = (double)report.CompletedCount / report.TotalAgents;
-        if (completionRate >= _options.CompletionCheckThreshold)
-        {
+        if (completionRate >= _options.CompletionCheckThreshold) {
             _milestoneScanTriggered = true;
             _logger?.LogInformation("[SubAgentLivenessScanner] 完成率 {Rate:P0} ≥ {Threshold:P0}，触发全量巡查",
                 completionRate, _options.CompletionCheckThreshold);
@@ -127,19 +119,13 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     /// <summary>
     /// 定时扫描循环
     /// </summary>
-    private async Task ScanLoopAsync()
-    {
-        try
-        {
-            while (!_stopping && await _scanTimer!.WaitForNextTickAsync(CancellationToken.None).ConfigureAwait(false))
-            {
+    private async Task ScanLoopAsync() {
+        try {
+            while (!_stopping && await _scanTimer!.WaitForNextTickAsync(CancellationToken.None).ConfigureAwait(false)) {
                 if (_stopping) break;
                 await ScanAllAsync(CancellationToken.None).ConfigureAwait(false);
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, "[SubAgentLivenessScanner] 扫描循环异常");
         }
     }
@@ -147,15 +133,13 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     /// <summary>
     /// 扫描所有 Running 子代理的活性
     /// </summary>
-    public async Task ScanAllAsync(CancellationToken ct = default)
-    {
+    public async Task ScanAllAsync(CancellationToken ct = default) {
         var agents = await _lifecycleManager.GetAllAgentsAsync(ct).ConfigureAwait(false);
         var runningAgents = agents
             .Where(a => a.Status == TaskExecutionStatus.Running)
             .ToList();
 
-        if (runningAgents.Count == 0)
-        {
+        if (runningAgents.Count == 0) {
             _logger?.LogDebug("[SubAgentLivenessScanner] 扫描完成，无 Running 子代理");
             return;
         }
@@ -172,8 +156,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
         var confirmedIds = new HashSet<string>();
         var parentMap = new Dictionary<string, string>();
 
-        foreach (var agent in runningAgents)
-        {
+        foreach (var agent in runningAgents) {
             var agentId = agent.ObjectId.UniqueId;
             var lastActivity = GetLastActivityAt(agent);
             var sessionId = GetSessionId(agent);
@@ -190,8 +173,7 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
                 _logger?.LogDebug("[SubAgentLivenessScanner] Agent {AgentId} 状态转换: {Event} → {State}",
                     agentId, result.Event, result.State);
 
-            if (hasGrandchildren)
-            {
+            if (hasGrandchildren) {
                 var idleSpan = _clock() - lastActivity;
                 if (idleSpan > TimeSpan.FromSeconds(_options.IdleThresholdSeconds))
                     _logger?.LogDebug("[SubAgentLivenessScanner] Agent {AgentId} 无活动 {Seconds:F0}s 但有孙代理，豁免检测",
@@ -203,14 +185,12 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
             if (parentId is not null)
                 parentMap[agentId] = parentId;
 
-            if (result.IsStalled)
-            {
+            if (result.IsStalled) {
                 confirmedIds.Add(agentId);
                 _logger?.LogWarning("[SubAgentLivenessScanner] 子代理 {AgentId} 确认卡死，最后活动: {LastActivity}",
                     agentId, lastActivity);
 
-                AgentStalled?.Invoke(this, new SubAgentStalledEventArgs
-                {
+                AgentStalled?.Invoke(this, new SubAgentStalledEventArgs {
                     AgentId = agentId,
                     Kind = StallKind.Single,
                     LastActivityAt = lastActivity,
@@ -220,11 +200,9 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
         }
 
         // 链路卡死检测
-        if (confirmedIds.Count >= _options.ChainStallThreshold)
-        {
+        if (confirmedIds.Count >= _options.ChainStallThreshold) {
             var chainResults = _chainDetector.CheckAllChains(confirmedIds, parentMap);
-            foreach (var chainResult in chainResults.Where(r => r.IsChainStalled))
-            {
+            foreach (var chainResult in chainResults.Where(r => r.IsChainStalled)) {
                 _logger?.LogWarning("[SubAgentLivenessScanner] 链路卡死: {Chain}（{Confirmed}/{Total} 节点确认）",
                     string.Join("→", chainResult.Chain), chainResult.ConfirmedNodes, chainResult.TotalNodes);
                 ChainStalled?.Invoke(this, chainResult);
@@ -235,35 +213,29 @@ public sealed partial class SubAgentLivenessScanner : IAsyncDisposable
     /// <summary>
     /// 标记子代理已恢复 — 干预后调用
     /// </summary>
-    public void MarkRecovered(string agentId)
-    {
-        if (_detectors.TryGetValue(agentId, out var detector))
-        {
+    public void MarkRecovered(string agentId) {
+        if (_detectors.TryGetValue(agentId, out var detector)) {
             detector.MarkRecovered();
             _logger?.LogInformation("[SubAgentLivenessScanner] Agent {AgentId} 已标记恢复", agentId);
         }
     }
 
-    private static DateTimeOffset GetLastActivityAt(IAgent agent)
-    {
+    private static DateTimeOffset GetLastActivityAt(IAgent agent) {
         return agent is Entity entity ? entity.LastActivityAt : DateTimeOffset.UtcNow;
     }
 
-    private static string GetSessionId(IAgent agent)
-    {
+    private static string GetSessionId(IAgent agent) {
         return agent is AgentBase ab ? ab.Context?.SessionId ?? agent.ObjectId.UniqueId : agent.ObjectId.UniqueId;
     }
 
-    private static string? GetParentAgentId(IAgent agent)
-    {
+    private static string? GetParentAgentId(IAgent agent) {
         return agent is AgentBase ab ? ab.Context?.ParentAgentId : null;
     }
 
     /// <summary>
     /// 释放扫描器资源 — 设 _stopping 标志 + Dispose timer，PeriodicTimer.Dispose 让 WaitForNextTickAsync 返回 false，循环安全退出
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
         _logger?.LogInformation("[SubAgentLivenessScanner] 停止，清理 {Count} 个检测器", _detectors.Count);

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Composition;
 /// 注册中心聚合门面 — 统一访问通用 Registry，减少调用方依赖散落
 /// 聚合 Foundation 层通用 Registry，不聚合层特有 Registry（如 IDreamTaskRegistry、ILspDiagnosticRegistry）
 /// </summary>
-public interface IRegistryHub
-{
+public interface IRegistryHub {
     /// <summary>工具注册表</summary>
     IToolRegistry Tools { get; }
 

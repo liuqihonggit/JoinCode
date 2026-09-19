@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces.Lsp;
 /// LSP 服务类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 LspServerTypeEnumConstants + LspServerTypeExtensions
 /// </summary>
-public enum LspServerType
-{
+public enum LspServerType {
     /// <summary>C# 语言服务器</summary>
     [EnumValue("csharp")] CSharp,
 
@@ -34,8 +33,7 @@ public enum LspServerType
 /// <summary>
 /// LSP 服务配置
 /// </summary>
-public sealed record LspServiceConfig
-{
+public sealed record LspServiceConfig {
     /// <summary>
     /// 服务器类型
     /// </summary>
@@ -60,8 +58,7 @@ public sealed record LspServiceConfig
 /// <summary>
 /// LSP 服务接口 — 提供语言服务器查询能力
 /// </summary>
-public interface ILspService : IAsyncDisposable
-{
+public interface ILspService : IAsyncDisposable {
     /// <summary>
     /// 检查指定文件对应的 LSP 服务器是否可用（已安装且能启动）
     /// </summary>
@@ -130,8 +127,7 @@ public interface ILspService : IAsyncDisposable
 /// <summary>
 /// LSP 位置信息
 /// </summary>
-public sealed record LspLocation
-{
+public sealed record LspLocation {
     /// <summary>
     /// 文档 URI
     /// </summary>
@@ -148,8 +144,7 @@ public sealed record LspLocation
 /// <summary>
 /// LSP 文档符号
 /// </summary>
-public sealed record LspDocumentSymbol
-{
+public sealed record LspDocumentSymbol {
     /// <summary>
     /// 符号名称
     /// </summary>
@@ -190,8 +185,7 @@ public sealed record LspDocumentSymbol
 /// <summary>
 /// LSP 悬停结果
 /// </summary>
-public sealed record LspHoverResult
-{
+public sealed record LspHoverResult {
     /// <summary>
     /// 内容
     /// </summary>
@@ -208,8 +202,7 @@ public sealed record LspHoverResult
 /// <summary>
 /// LSP 补全项
 /// </summary>
-public sealed record LspCompletionItem
-{
+public sealed record LspCompletionItem {
     /// <summary>
     /// 标签
     /// </summary>
@@ -244,8 +237,7 @@ public sealed record LspCompletionItem
 /// <summary>
 /// LSP 符号信息
 /// </summary>
-public sealed record LspSymbolInformation
-{
+public sealed record LspSymbolInformation {
     /// <summary>
     /// 符号名称
     /// </summary>
@@ -274,8 +266,7 @@ public sealed record LspSymbolInformation
 /// <summary>
 /// LSP 调用层次项
 /// </summary>
-public sealed record LspCallHierarchyItem
-{
+public sealed record LspCallHierarchyItem {
     /// <summary>
     /// 符号名称
     /// </summary>
@@ -316,8 +307,7 @@ public sealed record LspCallHierarchyItem
 /// <summary>
 /// LSP 传入调用
 /// </summary>
-public sealed record LspCallHierarchyIncomingCall
-{
+public sealed record LspCallHierarchyIncomingCall {
     /// <summary>
     /// 调用方
     /// </summary>
@@ -334,8 +324,7 @@ public sealed record LspCallHierarchyIncomingCall
 /// <summary>
 /// LSP 传出调用
 /// </summary>
-public sealed record LspCallHierarchyOutgoingCall
-{
+public sealed record LspCallHierarchyOutgoingCall {
     /// <summary>
     /// 被调用方
     /// </summary>

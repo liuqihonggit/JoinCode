@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Configuration.Llm;
 /// <summary>
 /// LLM 参数配置 - 统一所有 LLM 调用参数
 /// </summary>
-public sealed record LlmParameters
-{
+public sealed record LlmParameters {
     /// <summary>
     /// 温度参数 (0-2)
     /// </summary>
@@ -38,8 +37,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 创意模式 - 高温度，适合头脑风暴
     /// </summary>
-    public static LlmParameters Creative => new()
-    {
+    public static LlmParameters Creative => new() {
         Temperature = 1.0f,
         TopP = 0.95f,
         MaxTokens = 4000
@@ -48,8 +46,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 平衡模式 - 默认参数
     /// </summary>
-    public static LlmParameters Balanced => new()
-    {
+    public static LlmParameters Balanced => new() {
         Temperature = 0.7f,
         TopP = 0.95f,
         MaxTokens = 4000
@@ -58,8 +55,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 精确模式 - 低温度，适合代码生成、分析
     /// </summary>
-    public static LlmParameters Precise => new()
-    {
+    public static LlmParameters Precise => new() {
         Temperature = 0.3f,
         TopP = 0.5f,
         MaxTokens = 4000
@@ -68,8 +64,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 计划 Agent 参数
     /// </summary>
-    public static LlmParameters PlanAgent => new()
-    {
+    public static LlmParameters PlanAgent => new() {
         Temperature = 0.5f,
         TopP = 0.95f,
         MaxTokens = 4000
@@ -78,8 +73,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 探索 Agent 参数
     /// </summary>
-    public static LlmParameters ExploreAgent => new()
-    {
+    public static LlmParameters ExploreAgent => new() {
         Temperature = 0.6f,
         TopP = 0.95f,
         MaxTokens = 4000
@@ -88,8 +82,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 验证 Agent 参数
     /// </summary>
-    public static LlmParameters VerificationAgent => new()
-    {
+    public static LlmParameters VerificationAgent => new() {
         Temperature = 0.3f,
         TopP = 0.95f,
         MaxTokens = 4000
@@ -98,8 +91,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 通用 Agent 参数
     /// </summary>
-    public static LlmParameters GeneralPurposeAgent => new()
-    {
+    public static LlmParameters GeneralPurposeAgent => new() {
         Temperature = 0.7f,
         TopP = 0.95f,
         MaxTokens = 4000
@@ -108,8 +100,7 @@ public sealed record LlmParameters
     /// <summary>
     /// JoinCode 引导 Agent 参数
     /// </summary>
-    public static LlmParameters JoinCodeGuideAgent => new()
-    {
+    public static LlmParameters JoinCodeGuideAgent => new() {
         Temperature = 0.4f,
         TopP = 0.95f,
         MaxTokens = 4000
@@ -118,8 +109,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 上下文压缩 Agent 参数
     /// </summary>
-    public static LlmParameters ContextCompressionAgent => new()
-    {
+    public static LlmParameters ContextCompressionAgent => new() {
         Temperature = 0.3f,
         TopP = 0.95f,
         MaxTokens = 4000
@@ -128,8 +118,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 聊天服务参数
     /// </summary>
-    public static LlmParameters Chat => new()
-    {
+    public static LlmParameters Chat => new() {
         Temperature = 0.7f,
         TopP = 0.95f,
         MaxTokens = 2000
@@ -138,8 +127,7 @@ public sealed record LlmParameters
     /// <summary>
     /// 查询引擎参数
     /// </summary>
-    public static LlmParameters QueryEngine => new()
-    {
+    public static LlmParameters QueryEngine => new() {
         Temperature = 0.7f,
         TopP = 0.95f,
         MaxTokens = 4000

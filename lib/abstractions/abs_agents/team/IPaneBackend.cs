@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 终端后端类型枚举
 /// </summary>
-public enum BackendType
-{
+public enum BackendType {
     [EnumValue("in_process")]
     InProcess,
     [EnumValue("tmux")]
@@ -16,8 +15,7 @@ public enum BackendType
 /// <summary>
 /// 创建面板结果
 /// </summary>
-public sealed record CreatePaneResult
-{
+public sealed record CreatePaneResult {
     public required string PaneId { get; init; }
     public required BackendType BackendType { get; init; }
 }
@@ -25,8 +23,7 @@ public sealed record CreatePaneResult
 /// <summary>
 /// 终端面板后端接口 - 提供终端多路复用器的面板管理功能（tmux/iTerm2/进程内）
 /// </summary>
-public interface IPaneBackend
-{
+public interface IPaneBackend {
     BackendType BackendType { get; }
 
     Task<CreatePaneResult> CreateTeammatePaneAsync(string teammateId, string command, CancellationToken cancellationToken = default);
@@ -45,8 +42,7 @@ public interface IPaneBackend
 /// <summary>
 /// 队友布局管理器接口 - 管理多 Agent 场景下的终端面板布局
 /// </summary>
-public interface ITeammateLayoutManager
-{
+public interface ITeammateLayoutManager {
     Task<CreatePaneResult> CreateTeammatePaneAsync(string teammateId, string agentType, string command, CancellationToken cancellationToken = default);
 
     string AssignTeammateColor(string teammateId);

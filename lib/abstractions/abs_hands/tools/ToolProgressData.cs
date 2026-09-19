@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Tools;
 /// 工具进度数据 — 对齐 TS ToolProgressData
 /// 所有工具进度类型的基类，通过 ProgressType 区分具体类型
 /// </summary>
-public sealed class ToolProgressData
-{
+public sealed class ToolProgressData {
     /// <summary>
     /// 进度类型标识 — 对齐 TS type 字段
     /// 如 "bash_progress", "mcp_progress", "agent_progress", "web_search_progress" 等

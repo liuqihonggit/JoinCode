@@ -1,7 +1,6 @@
 namespace Services.SystemActuator;
 
-internal sealed class ProcessOutputCollector : IAsyncDisposable
-{
+internal sealed class ProcessOutputCollector : IAsyncDisposable {
     private readonly StringBuilder _stdoutBuilder = new();
     private readonly StringBuilder _stderrBuilder = new();
     private readonly IFileSystem _fs;
@@ -12,8 +11,7 @@ internal sealed class ProcessOutputCollector : IAsyncDisposable
 
     private const int SpillThresholdChars = 100_000;
 
-    internal ProcessOutputCollector(IFileSystem fs, ILogger? logger, string taskId)
-    {
+    internal ProcessOutputCollector(IFileSystem fs, ILogger? logger, string taskId) {
         _fs = fs;
         _logger = logger;
         _taskId = taskId;
@@ -21,78 +19,59 @@ internal sealed class ProcessOutputCollector : IAsyncDisposable
 
     internal string? SpillFilePath => _spillFilePath;
 
-    internal void OnOutputDataReceived(string data)
-    {
-        if (_spillFilePath is not null)
-        {
-            try { _fs.AppendAllText(_spillFilePath, data + Environment.NewLine); }
-            catch (Exception ex) { _logger?.LogDebug(ex, "追加溢出输出失败"); }
-        }
-        else
-        {
+    internal void OnOutputDataReceived(string data) {
+        if (_spillFilePath is not null) {
+            try { _fs.AppendAllText(_spillFilePath, data + Environment.NewLine); } catch (Exception ex) { _logger?.LogDebug(ex, "追加溢出输出失败"); }
+        } else {
             _stdoutBuilder.AppendLine(data);
-            if (_stdoutBuilder.Length > SpillThresholdChars)
-            {
+            if (_stdoutBuilder.Length > SpillThresholdChars) {
                 SpillToDisk();
             }
         }
     }
 
-    internal void OnErrorDataReceived(string data)
-    {
+    internal void OnErrorDataReceived(string data) {
         _stderrBuilder.AppendLine(data);
     }
 
-    internal void SpillToDisk()
-    {
+    internal void SpillToDisk() {
         if (_spillFilePath is not null) return;
 
-        try
-        {
+        try {
             var tempDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeToolResultsDirectory;
             DirectoryHelper.EnsureDirectoryExists(_fs, tempDir);
 
             _spillFilePath = Path.Combine(tempDir, $"spill-{_taskId}.txt");
 
-            if (_stdoutBuilder.Length > 0)
-            {
+            if (_stdoutBuilder.Length > 0) {
                 _fs.WriteAllText(_spillFilePath, _stdoutBuilder.ToString());
                 _stdoutBuilder.Clear();
             }
 
             _logger?.LogDebug("任务输出已溢出到磁盘: {Path}", _spillFilePath);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "输出溢出到磁盘失败，保留内存缓冲区");
         }
     }
 
-    internal string GetCurrentStdout()
-    {
-        if (_spillFilePath is not null && _fs.FileExists(_spillFilePath))
-        {
-            try { return _fs.ReadAllText(_spillFilePath); }
-            catch { return _stdoutBuilder.ToString(); }
+    internal string GetCurrentStdout() {
+        if (_spillFilePath is not null && _fs.FileExists(_spillFilePath)) {
+            try { return _fs.ReadAllText(_spillFilePath); } catch { return _stdoutBuilder.ToString(); }
         }
         return _stdoutBuilder.ToString();
     }
 
     internal string GetCurrentStderr() => _stderrBuilder.ToString();
 
-    internal long GetCurrentStdoutLength()
-    {
-        if (_spillFilePath is not null && _fs.FileExists(_spillFilePath))
-        {
+    internal long GetCurrentStdoutLength() {
+        if (_spillFilePath is not null && _fs.FileExists(_spillFilePath)) {
             return _fs.GetFileLength(_spillFilePath);
         }
         return _stdoutBuilder.Length;
     }
 
-    internal void TruncateStdout(int startIndex)
-    {
-        if (_stdoutBuilder.Length > startIndex)
-        {
+    internal void TruncateStdout(int startIndex) {
+        if (_stdoutBuilder.Length > startIndex) {
             _stdoutBuilder.Remove(startIndex, _stdoutBuilder.Length - startIndex);
         }
     }
@@ -101,14 +80,11 @@ internal sealed class ProcessOutputCollector : IAsyncDisposable
     /// 异步释放资源 — 清理溢出到磁盘的临时输出文件
     /// </summary>
     /// <returns>已完成的值任务</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _isDisposed, 1) != 0) return ValueTask.CompletedTask;
 
-        if (_spillFilePath is not null)
-        {
-            try { if (_fs.FileExists(_spillFilePath)) _fs.DeleteFile(_spillFilePath); }
-            catch (Exception ex) { _logger?.LogDebug(ex, "清理溢出文件失败: {Path}", _spillFilePath); }
+        if (_spillFilePath is not null) {
+            try { if (_fs.FileExists(_spillFilePath)) _fs.DeleteFile(_spillFilePath); } catch (Exception ex) { _logger?.LogDebug(ex, "清理溢出文件失败: {Path}", _spillFilePath); }
         }
 
         return ValueTask.CompletedTask;

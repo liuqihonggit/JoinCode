@@ -4,16 +4,14 @@ namespace Core.Context;
 /// 添加系统提醒操作处理器
 /// </summary>
 [Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
-public sealed partial class AddSystemReminderHandler : ServiceEntity, IChatAdminOperationHandler
-{
+public sealed partial class AddSystemReminderHandler : ServiceEntity, IChatAdminOperationHandler {
     private readonly IChatPromptManager _promptManager;
 
     /// <summary>
     /// 初始化 <see cref="AddSystemReminderHandler"/> 实例
     /// </summary>
     /// <param name="promptManager">聊天提示词管理器，用于添加系统提醒</param>
-    public AddSystemReminderHandler(IChatPromptManager promptManager)
-    {
+    public AddSystemReminderHandler(IChatPromptManager promptManager) {
         _promptManager = promptManager;
     }
 
@@ -28,8 +26,7 @@ public sealed partial class AddSystemReminderHandler : ServiceEntity, IChatAdmin
     /// <param name="context">管理操作上下文，需提供 ReminderId、ReminderContent 和 ReminderPriority</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct)
-    {
+    public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct) {
         await _promptManager.AddReminderAsync(
             context.ReminderId ?? throw new InvalidOperationException("ReminderId is required."),
             context.ReminderContent ?? throw new InvalidOperationException("ReminderContent is required."),

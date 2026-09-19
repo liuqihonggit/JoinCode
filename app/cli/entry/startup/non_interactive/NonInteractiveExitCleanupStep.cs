@@ -1,21 +1,17 @@
 namespace JoinCode.Entry;
 
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
-internal sealed partial class NonInteractiveExitCleanupStep : ServiceEntity, IMiddleware<StartupContext>
-{
-    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
-    {
+internal sealed partial class NonInteractiveExitCleanupStep : ServiceEntity, IMiddleware<StartupContext> {
+    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var host = context.Host;
 
         var costSummaryHook = host.Services.GetService<Core.CostTracking.ICostSummaryHook>();
-        if (costSummaryHook is not null)
-        {
+        if (costSummaryHook is not null) {
             await costSummaryHook.PrintSummaryOnExitAsync(ct).ConfigureAwait(false);
         }
 
         var stopHookManager = host.Services.GetService<IStopHookManager>();
-        if (stopHookManager is not null)
-        {
+        if (stopHookManager is not null) {
             var stopContext = new StopHookContext { SessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId, Reason = "non-interactive-exit" };
             await stopHookManager.OnStopAsync(stopContext, ct).ConfigureAwait(false);
         }

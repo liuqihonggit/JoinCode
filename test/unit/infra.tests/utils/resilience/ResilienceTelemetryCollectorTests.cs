@@ -1,10 +1,8 @@
 namespace Infra.Tests.Utils.Resilience;
 
-public sealed class ResilienceTelemetryCollectorTests
-{
+public sealed class ResilienceTelemetryCollectorTests {
     [Fact]
-    public void Collect_WithNoProvider_ReturnsEmpty()
-    {
+    public void Collect_WithNoProvider_ReturnsEmpty() {
         var collector = new ResilienceTelemetryCollector();
         var report = collector.Collect();
 
@@ -13,13 +11,11 @@ public sealed class ResilienceTelemetryCollectorTests
     }
 
     [Fact]
-    public void Collect_WithResilientProvider_ReturnsCircuitBreakerStatus()
-    {
+    public void Collect_WithResilientProvider_ReturnsCircuitBreakerStatus() {
         var mockInner = new Mock<IHttpClientProvider>();
         mockInner.Setup(x => x.GetClient()).Returns(new HttpClient());
 
-        var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy
-        {
+        var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy {
             Name = "test-endpoint",
             OperationTimeout = TimeSpan.FromSeconds(5),
             CircuitBreaker = new CircuitBreakerConfig { FailureThreshold = 3, OpenDuration = TimeSpan.FromSeconds(30) },
@@ -38,8 +34,7 @@ public sealed class ResilienceTelemetryCollectorTests
     }
 
     [Fact]
-    public void Format_EmptyReport_ReturnsNoEndpointsMessage()
-    {
+    public void Format_EmptyReport_ReturnsNoEndpointsMessage() {
         var report = ResilienceTelemetryReport.Empty;
         var text = ResilienceTelemetryCollector.Format(report);
 
@@ -47,12 +42,9 @@ public sealed class ResilienceTelemetryCollectorTests
     }
 
     [Fact]
-    public void Format_WithHttpEndpoint_ContainsEndpointInfo()
-    {
-        var httpDict = new Dictionary<string, HttpResilienceStatus>
-        {
-            ["test"] = new HttpResilienceStatus
-            {
+    public void Format_WithHttpEndpoint_ContainsEndpointInfo() {
+        var httpDict = new Dictionary<string, HttpResilienceStatus> {
+            ["test"] = new HttpResilienceStatus {
                 Name = "test",
                 CircuitBreakerState = CircuitBreakerPhase.Closed,
                 ConsecutiveFailures = 0,
@@ -62,8 +54,7 @@ public sealed class ResilienceTelemetryCollectorTests
                 OpenedAt = null,
             }
         };
-        var report = new ResilienceTelemetryReport
-        {
+        var report = new ResilienceTelemetryReport {
             HttpEndpoints = httpDict,
             Subprocesses = new Dictionary<string, SubprocessResilienceStatus>(),
         };
@@ -74,13 +65,11 @@ public sealed class ResilienceTelemetryCollectorTests
     }
 
     [Fact]
-    public void Collect_AfterFailures_RecordsFailureCount()
-    {
+    public void Collect_AfterFailures_RecordsFailureCount() {
         var mockInner = new Mock<IHttpClientProvider>();
         mockInner.Setup(x => x.GetClient()).Returns(new HttpClient());
 
-        var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy
-        {
+        var provider = new ResilientHttpClientProvider(mockInner.Object, policy: new ResiliencePolicy {
             Name = "failing-endpoint",
             OperationTimeout = TimeSpan.FromMilliseconds(100),
             CircuitBreaker = new CircuitBreakerConfig { FailureThreshold = 5, OpenDuration = TimeSpan.FromSeconds(30) },

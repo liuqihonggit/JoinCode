@@ -4,11 +4,9 @@ namespace JoinCode.Gui.Views;
 /// 顶部工具栏 UserControl — 主题切换/重新生成/清空/全部重置按钮 +
 /// 连接选择/模型选择下拉 + 设置面板开关。纯绑定，无 code-behind 逻辑。
 /// </summary>
-public sealed partial class TopBarView : UserControl
-{
+public sealed partial class TopBarView : UserControl {
     /// <summary>初始化 TopBarView 实例</summary>
-    public TopBarView()
-    {
+    public TopBarView() {
         InitializeComponent();
     }
 }

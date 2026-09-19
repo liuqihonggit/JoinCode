@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Prompts;
 
-public sealed record ExternalRuleEntry
-{
+public sealed record ExternalRuleEntry {
     public required string Name { get; init; }
     public required string Content { get; init; }
     public string SourcePath { get; init; } = string.Empty;

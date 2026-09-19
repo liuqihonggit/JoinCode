@@ -1,13 +1,10 @@
 namespace McpToolRegistry.Tests;
 
-public sealed class PermissionAwareToolExecutorEntityTests
-{
+public sealed class PermissionAwareToolExecutorEntityTests {
     [Fact]
-    public void ToolExecutionContext_HasExecutionEntity_AfterCreation()
-    {
+    public void ToolExecutionContext_HasExecutionEntity_AfterCreation() {
         var entity = new ToolExecutionEntity("read_file");
-        var context = new ToolExecutionContext
-        {
+        var context = new ToolExecutionContext {
             ToolName = "read_file",
             Arguments = [],
             ExecutionEntity = entity,
@@ -18,10 +15,8 @@ public sealed class PermissionAwareToolExecutorEntityTests
     }
 
     [Fact]
-    public void ToolExecutionContext_ExecutionEntity_IsNullByDefault()
-    {
-        var context = new ToolExecutionContext
-        {
+    public void ToolExecutionContext_ExecutionEntity_IsNullByDefault() {
+        var context = new ToolExecutionContext {
             ToolName = "test",
             Arguments = [],
         };
@@ -30,8 +25,7 @@ public sealed class PermissionAwareToolExecutorEntityTests
     }
 
     [Fact]
-    public void ToolExecutionEntity_LifecycleFlow_MirrorsExecutorFlow()
-    {
+    public void ToolExecutionEntity_LifecycleFlow_MirrorsExecutorFlow() {
         using var entity = new ToolExecutionEntity("bash");
 
         entity.LifecycleState.Should().Be(EntityLifecycle.Created);
@@ -50,8 +44,7 @@ public sealed class PermissionAwareToolExecutorEntityTests
     }
 
     [Fact]
-    public void ToolExecutionEntity_ErrorFlow_SetsIsError()
-    {
+    public void ToolExecutionEntity_ErrorFlow_SetsIsError() {
         using var entity = new ToolExecutionEntity("grep");
 
         entity.LifecycleState = EntityLifecycle.Active;
@@ -67,35 +60,30 @@ public sealed class PermissionAwareToolExecutorEntityTests
     }
 
     [Fact]
-    public void ToolExecutionEntity_RegisteredInGlobalRegistry()
-    {
-        using var entity =  new ToolExecutionEntity("web_fetch");
+    public void ToolExecutionEntity_RegisteredInGlobalRegistry() {
+        using var entity = new ToolExecutionEntity("web_fetch");
         ToolExecutionEntity.Registry.Get(entity.ObjectId).Should().BeSameAs(entity);
         ToolExecutionEntity.Registry.GetByToolName("web_fetch").Should().Contain(entity);
-    
+
     }
 
     [Fact]
-    public void ToolExecutionEntity_SpanId_LinkedToTelemetry()
-    {
-        using var entity =  new ToolExecutionEntity("bash", spanId: "span_abc123");
+    public void ToolExecutionEntity_SpanId_LinkedToTelemetry() {
+        using var entity = new ToolExecutionEntity("bash", spanId: "span_abc123");
         entity.SpanId.Should().Be("span_abc123");
-    
+
     }
 
     [Fact]
-    public void BackfillEntityMetadata_BashProcessEntity_SetsExitCode()
-    {
-        using var bash =  new BashProcessEntity(command: "ls");
-        var result = new ToolResult
-        {
+    public void BackfillEntityMetadata_BashProcessEntity_SetsExitCode() {
+        using var bash = new BashProcessEntity(command: "ls");
+        var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
             IsError = false,
             EntityMetadata = [EntityMetadataEntry.Int("exit_code", 0)],
         };
 
-        var context = new ToolExecutionContext
-        {
+        var context = new ToolExecutionContext {
             ToolName = "bash",
             Arguments = [],
             ExecutionEntity = bash,
@@ -106,15 +94,13 @@ public sealed class PermissionAwareToolExecutorEntityTests
 
         bash.ExitCode.Should().Be(0);
         bash.Status.Should().Be(BashProcessStatus.Exited);
-    
+
     }
 
     [Fact]
-    public void BackfillEntityMetadata_BashProcessEntity_Interrupted_SetsTimedOut()
-    {
-        using var bash =  new BashProcessEntity(command: "sleep 999");
-        var result = new ToolResult
-        {
+    public void BackfillEntityMetadata_BashProcessEntity_Interrupted_SetsTimedOut() {
+        using var bash = new BashProcessEntity(command: "sleep 999");
+        var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "timeout" }],
             IsError = true,
             EntityMetadata =
@@ -124,8 +110,7 @@ public sealed class PermissionAwareToolExecutorEntityTests
             ],
         };
 
-        var context = new ToolExecutionContext
-        {
+        var context = new ToolExecutionContext {
             ToolName = "bash",
             Arguments = [],
             ExecutionEntity = bash,
@@ -136,15 +121,13 @@ public sealed class PermissionAwareToolExecutorEntityTests
 
         bash.ExitCode.Should().Be(-1);
         bash.Status.Should().Be(BashProcessStatus.TimedOut);
-    
+
     }
 
     [Fact]
-    public void BackfillEntityMetadata_WebFetchEntity_SetsHttpStatusCode()
-    {
-        using var web =  new WebFetchEntity(url: "https://example.com");
-        var result = new ToolResult
-        {
+    public void BackfillEntityMetadata_WebFetchEntity_SetsHttpStatusCode() {
+        using var web = new WebFetchEntity(url: "https://example.com");
+        var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
             IsError = false,
             EntityMetadata =
@@ -154,8 +137,7 @@ public sealed class PermissionAwareToolExecutorEntityTests
             ],
         };
 
-        var context = new ToolExecutionContext
-        {
+        var context = new ToolExecutionContext {
             ToolName = "web_fetch",
             Arguments = [],
             ExecutionEntity = web,
@@ -166,21 +148,18 @@ public sealed class PermissionAwareToolExecutorEntityTests
 
         web.HttpStatusCode.Should().Be(200);
         web.ContentLength.Should().Be(12345L);
-    
+
     }
 
     [Fact]
-    public void BackfillEntityMetadata_NoMetadata_DoesNotThrow()
-    {
-        using var entity =  new ToolExecutionEntity("read_file");
-        var result = new ToolResult
-        {
+    public void BackfillEntityMetadata_NoMetadata_DoesNotThrow() {
+        using var entity = new ToolExecutionEntity("read_file");
+        var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
             IsError = false,
         };
 
-        var context = new ToolExecutionContext
-        {
+        var context = new ToolExecutionContext {
             ToolName = "read_file",
             Arguments = [],
             ExecutionEntity = entity,
@@ -189,22 +168,19 @@ public sealed class PermissionAwareToolExecutorEntityTests
 
         var act = () => CompleteAndBackfill(context);
         act.Should().NotThrow();
-    
+
     }
 
     [Fact]
-    public void BackfillEntityMetadata_EmptyMetadata_DoesNotThrow()
-    {
-        using var entity =  new ToolExecutionEntity("read_file");
-        var result = new ToolResult
-        {
+    public void BackfillEntityMetadata_EmptyMetadata_DoesNotThrow() {
+        using var entity = new ToolExecutionEntity("read_file");
+        var result = new ToolResult {
             Content = [new ToolContent { Type = ToolContentType.Text, Text = "ok" }],
             IsError = false,
             EntityMetadata = [],
         };
 
-        var context = new ToolExecutionContext
-        {
+        var context = new ToolExecutionContext {
             ToolName = "read_file",
             Arguments = [],
             ExecutionEntity = entity,
@@ -213,12 +189,11 @@ public sealed class PermissionAwareToolExecutorEntityTests
 
         var act = () => CompleteAndBackfill(context);
         act.Should().NotThrow();
-    
+
     }
 
     [Fact]
-    public void EntityMetadataEntry_FactoryMethods_CreateCorrectEntries()
-    {
+    public void EntityMetadataEntry_FactoryMethods_CreateCorrectEntries() {
         var intEntry = EntityMetadataEntry.Int("exit_code", 42);
         intEntry.Key.Should().Be("exit_code");
         intEntry.IntValue.Should().Be(42);
@@ -240,8 +215,7 @@ public sealed class PermissionAwareToolExecutorEntityTests
     }
 
     [Fact]
-    public void ToolResultBuilder_WithEntityMetadata_PropagatesToToolResult()
-    {
+    public void ToolResultBuilder_WithEntityMetadata_PropagatesToToolResult() {
         var result = ToolResultBuilder.Success()
             .WithText("ok")
             .WithEntityMetadata(EntityMetadataEntry.Int("exit_code", 0))
@@ -254,8 +228,7 @@ public sealed class PermissionAwareToolExecutorEntityTests
     }
 
     [Fact]
-    public void ToolResultBuilder_WithEntityMetadata_MultipleEntries()
-    {
+    public void ToolResultBuilder_WithEntityMetadata_MultipleEntries() {
         var result = ToolResultBuilder.Success()
             .WithText("ok")
             .WithEntityMetadata(EntityMetadataEntry.Int("http_status_code", 200))
@@ -268,8 +241,7 @@ public sealed class PermissionAwareToolExecutorEntityTests
         result.EntityMetadata[1].Key.Should().Be("content_length");
     }
 
-    private static void CompleteAndBackfill(ToolExecutionContext context)
-    {
+    private static void CompleteAndBackfill(ToolExecutionContext context) {
         var entity = context.ExecutionEntity!;
         entity.CompletedAt = DateTime.UtcNow;
         entity.LifecycleState = EntityLifecycle.Completed;
@@ -281,31 +253,29 @@ public sealed class PermissionAwareToolExecutorEntityTests
         BackfillEntityMetadata(entity, context.Result?.EntityMetadata);
     }
 
-    private static void BackfillEntityMetadata(ToolExecutionEntity entity, List<EntityMetadataEntry>? metadata)
-    {
+    private static void BackfillEntityMetadata(ToolExecutionEntity entity, List<EntityMetadataEntry>? metadata) {
         if (metadata is null || metadata.Count == 0) return;
 
-        switch (entity)
-        {
+        switch (entity) {
             case BashProcessEntity bash:
-                var exitCodeEntry = metadata.Find(m => m.Key == "exit_code");
-                if (exitCodeEntry?.IntValue is int exitCode)
-                    bash.ExitCode = exitCode;
-                var interruptedEntry = metadata.Find(m => m.Key == "interrupted");
-                if (interruptedEntry?.BoolValue == true)
-                    bash.Status = BashProcessStatus.TimedOut;
-                else if (bash.ExitCode.HasValue)
-                    bash.Status = BashProcessStatus.Exited;
-                break;
+            var exitCodeEntry = metadata.Find(m => m.Key == "exit_code");
+            if (exitCodeEntry?.IntValue is int exitCode)
+                bash.ExitCode = exitCode;
+            var interruptedEntry = metadata.Find(m => m.Key == "interrupted");
+            if (interruptedEntry?.BoolValue == true)
+                bash.Status = BashProcessStatus.TimedOut;
+            else if (bash.ExitCode.HasValue)
+                bash.Status = BashProcessStatus.Exited;
+            break;
 
             case WebFetchEntity web:
-                var httpStatusEntry = metadata.Find(m => m.Key == "http_status_code");
-                if (httpStatusEntry?.IntValue is int statusCode)
-                    web.HttpStatusCode = statusCode;
-                var contentLengthEntry = metadata.Find(m => m.Key == "content_length");
-                if (contentLengthEntry?.LongValue is long contentLength)
-                    web.ContentLength = contentLength;
-                break;
+            var httpStatusEntry = metadata.Find(m => m.Key == "http_status_code");
+            if (httpStatusEntry?.IntValue is int statusCode)
+                web.HttpStatusCode = statusCode;
+            var contentLengthEntry = metadata.Find(m => m.Key == "content_length");
+            if (contentLengthEntry?.LongValue is long contentLength)
+                web.ContentLength = contentLength;
+            break;
         }
     }
 }

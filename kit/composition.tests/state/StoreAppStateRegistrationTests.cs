@@ -4,21 +4,18 @@ namespace Sync.Tests.State;
 /// Store&lt;AppState&gt; DI 注册测试
 /// 验证手动注册 IStore&lt;AppState&gt; 和 IStorePersistence&lt;AppState&gt; 后可正确解析
 /// </summary>
-public sealed class StoreAppStateRegistrationTests
-{
+public sealed class StoreAppStateRegistrationTests {
     /// <summary>
     /// 验证手动注册 IStore&lt;AppState&gt; 后可从 DI 容器解析
     /// </summary>
     [Fact]
-    public async Task ManualRegistration_StoreAppState_CanBeResolved()
-    {
+    public async Task ManualRegistration_StoreAppState_CanBeResolved() {
         // Arrange: 手动模拟 AddCoreServices 中的注册逻辑
         var services = new ServiceCollection();
         services.AddLogging();
 
         // 注册 Store<AppState>（不依赖 StateService，使用 null 持久化）
-        services.AddSingleton<global::State.IStore<JoinCode.Abstractions.State.AppState>>(sp =>
-        {
+        services.AddSingleton<global::State.IStore<JoinCode.Abstractions.State.AppState>>(sp => {
             var logger = sp.GetService<ILogger<global::State.Store<JoinCode.Abstractions.State.AppState>>>();
             var initialState = JoinCode.Abstractions.State.AppState.Default;
             return new global::State.Store<JoinCode.Abstractions.State.AppState>(initialState, null, logger);
@@ -39,8 +36,7 @@ public sealed class StoreAppStateRegistrationTests
     /// 验证 IStorePersistence&lt;AppState&gt; 注册后可解析
     /// </summary>
     [Fact]
-    public async Task ManualRegistration_StorePersistence_CanBeResolved()
-    {
+    public async Task ManualRegistration_StorePersistence_CanBeResolved() {
         // Arrange: 使用 mock IStorePersistence<AppState>
         var services = new ServiceCollection();
         services.AddLogging();
@@ -66,13 +62,11 @@ public sealed class StoreAppStateRegistrationTests
     /// 验证 Store&lt;AppState&gt; 无持久化时仍可正常工作
     /// </summary>
     [Fact]
-    public async Task StoreAppState_WithoutPersistence_WorksCorrectly()
-    {
+    public async Task StoreAppState_WithoutPersistence_WorksCorrectly() {
         // Arrange: 不注册 IStorePersistence，Store 应使用默认状态
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddSingleton<global::State.IStore<JoinCode.Abstractions.State.AppState>>(sp =>
-        {
+        services.AddSingleton<global::State.IStore<JoinCode.Abstractions.State.AppState>>(sp => {
             var logger = sp.GetService<ILogger<global::State.Store<JoinCode.Abstractions.State.AppState>>>();
             return new global::State.Store<JoinCode.Abstractions.State.AppState>(JoinCode.Abstractions.State.AppState.Default, null, logger);
         });

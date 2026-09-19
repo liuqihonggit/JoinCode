@@ -5,8 +5,7 @@ namespace Api.LLM;
 /// 三个派生类（OpenAIQueryService / AzureQueryService / AnthropicQueryService）各自实现具体协议
 /// 不包含任何 ProviderKind switch/if — 协议差异通过派生类多态实现
 /// </summary>
-public abstract partial class QueryServiceBase : IQueryService
-{
+public abstract partial class QueryServiceBase : IQueryService {
     /// <summary>构造时解析的 Provider 定义（永不为 null，缺失则 ctor 抛异常）</summary>
     protected readonly IProviderDefinition Definition;
 
@@ -28,8 +27,7 @@ public abstract partial class QueryServiceBase : IQueryService
     /// <summary>最近一次响应的速率限制头（流式首块注入 metadata 用）</summary>
     private volatile Dictionary<string, string?> _lastRateLimitHeaders = [];
 
-    protected QueryServiceBase(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null)
-    {
+    protected QueryServiceBase(ProviderConfig config, HttpClient? httpClient = null, ILogger? logger = null, IFileSystem? fs = null, ResilientHttpExecutor? resilientExecutor = null) {
         Config = config ?? throw new ArgumentNullException(nameof(config));
         Logger = logger;
         FileSystem = fs;
@@ -64,8 +62,7 @@ public abstract partial class QueryServiceBase : IQueryService
     /// 创建 HttpClient — 完全委托 IProviderDefinition.ConfigureHttpClient 多态配置认证头
     /// 替代原 switch (_providerKind) 分支
     /// </summary>
-    private static HttpClient CreateHttpClient(ProviderConfig config)
-    {
+    private static HttpClient CreateHttpClient(ProviderConfig config) {
         // P1-11: 设置 PooledConnectionLifetime 解决 DNS 不刷新问题
         // 决策: SocketsHttpHandler 默认 PooledConnectionLifetime=Infinity，DNS 变更不刷新
         // 替代方案已否决: 改用 IHttpClientFactory（需重构 QueryServiceFactory + 所有派生类，风险大且 QueryService 是长生命周期单例，Socket 耗尽风险低）
@@ -97,8 +94,7 @@ public abstract partial class QueryServiceBase : IQueryService
     /// <summary>
     /// 提取速率限制响应头（协议无关）— OpenAI / Azure / Anthropic 均使用
     /// </summary>
-    protected void ExtractRateLimitHeaders(HttpResponseMessage response)
-    {
+    protected void ExtractRateLimitHeaders(HttpResponseMessage response) {
         var headers = new Dictionary<string, string?>();
         var headerNames = new[]
         {
@@ -111,16 +107,13 @@ public abstract partial class QueryServiceBase : IQueryService
             "retry-after"
         };
 
-        foreach (var name in headerNames)
-        {
-            if (response.Headers.TryGetValues(name, out var values))
-            {
+        foreach (var name in headerNames) {
+            if (response.Headers.TryGetValues(name, out var values)) {
                 headers[name] = values.FirstOrDefault();
             }
         }
 
-        if (headers.Count > 0)
-        {
+        if (headers.Count > 0) {
             _lastRateLimitHeaders = headers;
         }
     }
@@ -128,22 +121,18 @@ public abstract partial class QueryServiceBase : IQueryService
     /// <summary>
     /// 将最近一次速率限制头注入流首块 metadata — 协议无关
     /// </summary>
-    protected StreamEvent? EnrichWithRateLimitMetadata(StreamEvent msg)
-    {
+    protected StreamEvent? EnrichWithRateLimitMetadata(StreamEvent msg) {
         if (_lastRateLimitHeaders.Count == 0) return null;
         var headers = _lastRateLimitHeaders;
 
         var newMetadata = new Dictionary<string, JsonElement>();
-        if (msg.Metadata != null)
-        {
-            foreach (var kvp in msg.Metadata)
-            {
+        if (msg.Metadata != null) {
+            foreach (var kvp in msg.Metadata) {
                 newMetadata[kvp.Key] = kvp.Value;
             }
         }
 
-        foreach (var kvp in headers)
-        {
+        foreach (var kvp in headers) {
             newMetadata[$"ratelimit_{kvp.Key}"] = JsonElementHelper.FromString(kvp.Value);
         }
 
@@ -160,17 +149,14 @@ public abstract partial class QueryServiceBase : IQueryService
     #region 角色转换共享助手
 
     /// <summary>字符串 → MessageRole（OpenAI / Azure 流式响应用）</summary>
-    internal static MessageRole ConvertRole(string? role)
-    {
+    internal static MessageRole ConvertRole(string? role) {
         var parsed = MessageRoleExtensions.FromValue(role);
         return parsed ?? MessageRole.Assistant;
     }
 
     /// <summary>MessageRole → 字符串（OpenAI / Azure 请求序列化用）</summary>
-    internal static string ConvertRoleToString(MessageRole role)
-    {
-        return role switch
-        {
+    internal static string ConvertRoleToString(MessageRole role) {
+        return role switch {
             MessageRole.System => "system",
             MessageRole.User => "user",
             MessageRole.Assistant => "assistant",
@@ -183,19 +169,16 @@ public abstract partial class QueryServiceBase : IQueryService
 
     #region 工具转换共享助手
 
-    protected static IEnumerable<IToolDef> EnumerateToolFunctions(IChatClient kernel)
-    {
+    protected static IEnumerable<IToolDef> EnumerateToolFunctions(IChatClient kernel) {
         return kernel.Plugins.PluginNames
             .Select(name => kernel.Plugins.GetPlugin(name))
             .OfType<IToolGroup>()
             .SelectMany(p => p.Functions);
     }
 
-    protected static string MapClrTypeToJsonSchemaType(Type? type)
-    {
+    protected static string MapClrTypeToJsonSchemaType(Type? type) {
         if (type == null) return "string";
-        return Type.GetTypeCode(type) switch
-        {
+        return Type.GetTypeCode(type) switch {
             TypeCode.Int32 or TypeCode.Int64 => "integer",
             TypeCode.Single or TypeCode.Double or TypeCode.Decimal => "number",
             TypeCode.Boolean => "boolean",
@@ -203,17 +186,13 @@ public abstract partial class QueryServiceBase : IQueryService
         };
     }
 
-    internal static List<OpenAIToolCall>? ConvertToOpenAIToolCalls(object? toolCallsObj)
-    {
-        return toolCallsObj switch
-        {
+    internal static List<OpenAIToolCall>? ConvertToOpenAIToolCalls(object? toolCallsObj) {
+        return toolCallsObj switch {
             List<OpenAIToolCall> direct => direct,
-            JsonElement je when je.ValueKind == JsonValueKind.Array => je.EnumerateArray().Select(item => new OpenAIToolCall
-            {
+            JsonElement je when je.ValueKind == JsonValueKind.Array => je.EnumerateArray().Select(item => new OpenAIToolCall {
                 Id = item.TryGetProperty("Id", out var idProp) ? idProp.GetString() : null,
                 Type = "function",
-                Function = new OpenAIToolCallFunction
-                {
+                Function = new OpenAIToolCallFunction {
                     Name = item.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null,
                     Arguments = item.TryGetProperty("Arguments", out var argsProp) ? argsProp.GetString() : null
                 }
@@ -232,15 +211,11 @@ public abstract partial class QueryServiceBase : IQueryService
     internal static async Task<HttpResponseMessage> SendWithResilienceCoreAsync(
         HttpClient httpClient, ResilientHttpExecutor? resilientExecutor,
         string json, string endpoint, string operationName, CancellationToken ct,
-        HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead)
-    {
-        if (resilientExecutor is not null)
-        {
+        HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead) {
+        if (resilientExecutor is not null) {
             return await resilientExecutor.ExecuteAsync(
-                async innerCt =>
-                {
-                    using var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
-                    {
+                async innerCt => {
+                    using var request = new HttpRequestMessage(HttpMethod.Post, endpoint) {
                         Content = new StringContent(json, Encoding.UTF8, "application/json")
                     };
                     return await httpClient.SendAsync(request, completionOption, innerCt).ConfigureAwait(false);
@@ -248,8 +223,7 @@ public abstract partial class QueryServiceBase : IQueryService
                 operationName, ct).ConfigureAwait(false);
         }
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
-        {
+        using var req = new HttpRequestMessage(HttpMethod.Post, endpoint) {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
         return await httpClient.SendAsync(req, completionOption, ct).ConfigureAwait(false);

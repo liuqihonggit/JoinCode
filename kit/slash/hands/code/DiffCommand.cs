@@ -5,21 +5,17 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Diff, Description = "View uncommitted changes and per-turn diffs", Usage = "/diff [files|cached]", Category = ChatCommandCategory.Code, ArgumentHint = "[files|cached]", ExposeToMcp = true)]
 [ChatCommandArg("scope", Type = "string", Description = "差异范围", Enum = new[] { "files", "cached" })]
-public sealed class DiffCommand : ChatCommandBase
-{
+public sealed class DiffCommand : ChatCommandBase {
     /// <summary>
     /// 异步执行 /diff 命令，浏览未提交变更或按轮次差异
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         Diag.WriteLifecycle("[DIAG-DIFF] ExecuteAsync entry");
-        try
-        {
+        try {
             var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context);
-            if (gitRunner is null)
-            {
+            if (gitRunner is null) {
                 TerminalHelper.WriteLine("Git 命令执行器未注册，无法执行 /diff");
                 Diag.WriteLifecycle("[DIAG-DIFF] gitRunner is null, returning early");
                 return ChatCommandResult.Continue();
@@ -30,32 +26,27 @@ public sealed class DiffCommand : ChatCommandBase
                 : "default";
             Diag.WriteLifecycle($"[DIAG-DIFF] subCommand={subCommand}");
 
-            switch (subCommand)
-            {
+            switch (subCommand) {
                 case DiffModeEnumConstants.Files:
-                    Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync start");
-                    await ShowChangedFilesAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
-                    Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync end");
-                    break;
+                Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync start");
+                await ShowChangedFilesAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
+                Diag.WriteLifecycle("[DIAG-DIFF] ShowChangedFilesAsync end");
+                break;
                 case DiffModeEnumConstants.Cached:
                 case DiffModeEnumConstants.Staged:
-                    Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync start");
-                    await ShowStagedDiffAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
-                    Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync end");
-                    break;
+                Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync start");
+                await ShowStagedDiffAsync(context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
+                Diag.WriteLifecycle("[DIAG-DIFF] ShowStagedDiffAsync end");
+                break;
                 default:
-                    Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync start");
-                    await ShowInteractiveDiffAsync(context.GetCommandServices().TurnDiffProvider, context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
-                    Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync end");
-                    break;
+                Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync start");
+                await ShowInteractiveDiffAsync(context.GetCommandServices().TurnDiffProvider, context.CancellationToken, context.GetCommandServices().FileSystem, gitRunner).ConfigureAwait(false);
+                Diag.WriteLifecycle("[DIAG-DIFF] ShowInteractiveDiffAsync end");
+                break;
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             Diag.WriteLifecycle("[DIAG-DIFF] OperationCanceledException caught");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Diag.WriteLifecycle($"[DIAG-DIFF] UNEXPECTED Exception: {ex.GetType().Name}: {ex.Message}");
             throw;
         }
@@ -67,8 +58,7 @@ public sealed class DiffCommand : ChatCommandBase
     /// <summary>
     /// 交互式 diff 浏览器 — 对齐 TS DiffDialog 主流程
     /// </summary>
-    private static async Task ShowInteractiveDiffAsync(ITurnDiffProvider? turnDiffProvider, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
-    {
+    private static async Task ShowInteractiveDiffAsync(ITurnDiffProvider? turnDiffProvider, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner) {
         var gitDiffService = new GitDiffService(fs, gitRunner);
         var dialogRenderer = new DiffDialogRenderer();
         var fileListRenderer = new DiffFileListRenderer();
@@ -78,10 +68,8 @@ public sealed class DiffCommand : ChatCommandBase
         var diffData = await gitDiffService.FetchDiffDataAsync(cancellationToken).ConfigureAwait(false);
 
         // 非交互模式或测试环境回退到文本输出模式
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
-            var output = dialogRenderer.Render(new DiffDialogState
-            {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
+            var output = dialogRenderer.Render(new DiffDialogState {
                 DiffData = diffData,
                 ViewMode = DiffViewMode.List,
                 SelectedIndex = 0,
@@ -97,18 +85,15 @@ public sealed class DiffCommand : ChatCommandBase
         var sources = new List<DiffSource> { new DiffSource.Current() };
         var turnDiffLookup = new Dictionary<int, TurnDiff>();
 
-        if (turnDiffService is not null)
-        {
+        if (turnDiffService is not null) {
             var turnDiffs = turnDiffService.GetFullTurnDiffs();
-            foreach (var turn in turnDiffs)
-            {
+            foreach (var turn in turnDiffs) {
                 sources.Add(new DiffSource.Turn(turn.TurnIndex, turn.UserPromptPreview));
                 turnDiffLookup[turn.TurnIndex] = turn;
             }
         }
 
-        var state = new DiffDialogState
-        {
+        var state = new DiffDialogState {
             DiffData = diffData,
             ViewMode = DiffViewMode.List,
             SelectedIndex = 0,
@@ -119,8 +104,7 @@ public sealed class DiffCommand : ChatCommandBase
 
         var escCount = 0;
 
-        while (!cancellationToken.IsCancellationRequested)
-        {
+        while (!cancellationToken.IsCancellationRequested) {
             // 根据当前源切换 DiffData
             var currentSource = state.Sources.Count > 0 ? state.Sources[state.SourceIndex] : null;
             var currentTurn = currentSource as DiffSource.Turn;
@@ -137,124 +121,104 @@ public sealed class DiffCommand : ChatCommandBase
 
             // 读取按键（非交互模式检查在方法入口处，此处为 else 分支）
             ConsoleKeyInfo key;
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 key = TerminalHelper.ReadKey(true);
-            }
-            else
-            {
+            } else {
                 break;
             }
 
-            switch (key.Key)
-            {
+            switch (key.Key) {
                 case ConsoleKey.Escape:
-                    escCount++;
-                    if (escCount >= 2 || state.ViewMode == DiffViewMode.List)
-                    {
-                        // 退出对话框
-                        TerminalHelper.WriteRaw($"{AnsiControlEnumConstants.ClearScreen}{AnsiControlEnumConstants.CursorHome}");
-                        return;
-                    }
-                    // Detail 模式下 Esc 返回 List
-                    state = state with { ViewMode = DiffViewMode.List };
-                    escCount = 0;
-                    break;
+                escCount++;
+                if (escCount >= 2 || state.ViewMode == DiffViewMode.List) {
+                    // 退出对话框
+                    TerminalHelper.WriteRaw($"{AnsiControlEnumConstants.ClearScreen}{AnsiControlEnumConstants.CursorHome}");
+                    return;
+                }
+                // Detail 模式下 Esc 返回 List
+                state = state with { ViewMode = DiffViewMode.List };
+                escCount = 0;
+                break;
 
                 case ConsoleKey.Enter:
-                    if (state.ViewMode == DiffViewMode.List && state.DiffData.Files.Count > 0)
-                    {
-                        state = state with { ViewMode = DiffViewMode.Detail };
-                    }
-                    escCount = 0;
-                    break;
+                if (state.ViewMode == DiffViewMode.List && state.DiffData.Files.Count > 0) {
+                    state = state with { ViewMode = DiffViewMode.Detail };
+                }
+                escCount = 0;
+                break;
 
                 case ConsoleKey.Backspace:
-                    if (state.ViewMode == DiffViewMode.Detail)
-                    {
-                        state = state with { ViewMode = DiffViewMode.List };
-                    }
-                    escCount = 0;
-                    break;
+                if (state.ViewMode == DiffViewMode.Detail) {
+                    state = state with { ViewMode = DiffViewMode.List };
+                }
+                escCount = 0;
+                break;
 
                 case ConsoleKey.UpArrow:
-                    if (state.ViewMode == DiffViewMode.List)
-                    {
-                        var newIdx = Math.Max(0, state.SelectedIndex - 1);
-                        var newOffset = fileListRenderer.ComputeScrollOffset(newIdx, state.DiffData.Files.Count, state.ScrollOffset);
-                        state = state with { SelectedIndex = newIdx, ScrollOffset = newOffset };
-                    }
-                    escCount = 0;
-                    break;
+                if (state.ViewMode == DiffViewMode.List) {
+                    var newIdx = Math.Max(0, state.SelectedIndex - 1);
+                    var newOffset = fileListRenderer.ComputeScrollOffset(newIdx, state.DiffData.Files.Count, state.ScrollOffset);
+                    state = state with { SelectedIndex = newIdx, ScrollOffset = newOffset };
+                }
+                escCount = 0;
+                break;
 
                 case ConsoleKey.DownArrow:
-                    if (state.ViewMode == DiffViewMode.List)
-                    {
-                        var newIdx = Math.Min(state.DiffData.Files.Count - 1, state.SelectedIndex + 1);
-                        var newOffset = fileListRenderer.ComputeScrollOffset(newIdx, state.DiffData.Files.Count, state.ScrollOffset);
-                        state = state with { SelectedIndex = newIdx, ScrollOffset = newOffset };
-                    }
-                    escCount = 0;
-                    break;
+                if (state.ViewMode == DiffViewMode.List) {
+                    var newIdx = Math.Min(state.DiffData.Files.Count - 1, state.SelectedIndex + 1);
+                    var newOffset = fileListRenderer.ComputeScrollOffset(newIdx, state.DiffData.Files.Count, state.ScrollOffset);
+                    state = state with { SelectedIndex = newIdx, ScrollOffset = newOffset };
+                }
+                escCount = 0;
+                break;
 
                 case ConsoleKey.LeftArrow:
-                    if (state.ViewMode == DiffViewMode.Detail)
-                    {
-                        state = state with { ViewMode = DiffViewMode.List };
-                    }
-                    else if (state.Sources.Count > 1 && state.SourceIndex > 0)
-                    {
-                        state = state with { SourceIndex = state.SourceIndex - 1, SelectedIndex = 0, ScrollOffset = 0 };
-                    }
-                    escCount = 0;
-                    break;
+                if (state.ViewMode == DiffViewMode.Detail) {
+                    state = state with { ViewMode = DiffViewMode.List };
+                } else if (state.Sources.Count > 1 && state.SourceIndex > 0) {
+                    state = state with { SourceIndex = state.SourceIndex - 1, SelectedIndex = 0, ScrollOffset = 0 };
+                }
+                escCount = 0;
+                break;
 
                 case ConsoleKey.RightArrow:
-                    if (state.Sources.Count > 1 && state.SourceIndex < state.Sources.Count - 1)
-                    {
-                        state = state with { SourceIndex = state.SourceIndex + 1, SelectedIndex = 0, ScrollOffset = 0 };
-                    }
-                    escCount = 0;
-                    break;
+                if (state.Sources.Count > 1 && state.SourceIndex < state.Sources.Count - 1) {
+                    state = state with { SourceIndex = state.SourceIndex + 1, SelectedIndex = 0, ScrollOffset = 0 };
+                }
+                escCount = 0;
+                break;
 
                 default:
-                    escCount = 0;
-                    break;
+                escCount = 0;
+                break;
             }
         }
     }
 
-    private static async Task ShowStagedDiffAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
-    {
+    private static async Task ShowStagedDiffAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner) {
         TerminalHelper.WriteLine("=== Staged Changes ===\n");
 
         var result = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached", cancellationToken, fs, gitRunner).ConfigureAwait(false);
 
-        if (string.IsNullOrWhiteSpace(result))
-        {
+        if (string.IsNullOrWhiteSpace(result)) {
             TerminalHelper.WriteLine("No staged changes");
-        }
-        else
-        {
+        } else {
             var diffLines = DiffParser.Parse(result);
             var renderer = new DiffViewRenderer();
             renderer.Render(diffLines);
         }
     }
 
-    private static async Task ShowChangedFilesAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
-    {
+    private static async Task ShowChangedFilesAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner) {
         TerminalHelper.WriteLine("=== Changed Files ===\n");
 
         Diag.WriteLifecycle("[DIAG-DIFF] git diff --name-only start");
         var modified = await RunGitCommandAsync("diff --name-only", cancellationToken, fs, gitRunner).ConfigureAwait(false);
         Diag.WriteLifecycle($"[DIAG-DIFF] git diff --name-only end, len={modified.Length}");
 
-        if (!string.IsNullOrWhiteSpace(modified))
-        {
+        if (!string.IsNullOrWhiteSpace(modified)) {
             TerminalHelper.WriteLine("[Modified but not staged]");
-            foreach (var file in modified.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            {
+            foreach (var file in modified.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}  M {file}{AnsiStyleEnumConstants.Reset}");
             }
         }
@@ -263,11 +227,9 @@ public sealed class DiffCommand : ChatCommandBase
         var staged = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached --name-only", cancellationToken, fs, gitRunner).ConfigureAwait(false);
         Diag.WriteLifecycle($"[DIAG-DIFF] git diff --cached --name-only end, len={staged.Length}");
 
-        if (!string.IsNullOrWhiteSpace(staged))
-        {
+        if (!string.IsNullOrWhiteSpace(staged)) {
             TerminalHelper.WriteLine("\n[Staged]");
-            foreach (var file in staged.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            {
+            foreach (var file in staged.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
                 TerminalHelper.WriteLine($"{TerminalColors.Success}  A {file}{AnsiStyleEnumConstants.Reset}");
             }
         }
@@ -276,34 +238,27 @@ public sealed class DiffCommand : ChatCommandBase
         var untracked = await RunGitCommandAsync("ls-files --others --exclude-standard", cancellationToken, fs, gitRunner).ConfigureAwait(false);
         Diag.WriteLifecycle($"[DIAG-DIFF] git ls-files --others --exclude-standard end, len={untracked.Length}");
 
-        if (!string.IsNullOrWhiteSpace(untracked))
-        {
+        if (!string.IsNullOrWhiteSpace(untracked)) {
             TerminalHelper.WriteLine("\n[Untracked]");
-            foreach (var file in untracked.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            {
+            foreach (var file in untracked.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
                 TerminalHelper.WriteLine($"{TerminalColors.Warning}  ? {file}{AnsiStyleEnumConstants.Reset}");
             }
         }
 
-        if (string.IsNullOrWhiteSpace(modified) && string.IsNullOrWhiteSpace(staged) && string.IsNullOrWhiteSpace(untracked))
-        {
+        if (string.IsNullOrWhiteSpace(modified) && string.IsNullOrWhiteSpace(staged) && string.IsNullOrWhiteSpace(untracked)) {
             TerminalHelper.WriteLine("Working tree is clean");
         }
     }
 
-    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
-    {
-        try
-        {
+    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner) {
+        try {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(15));
             Diag.WriteLifecycle($"[DIAG-DIFF] RunGitCommandAsync start: git {arguments}");
             var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cts.Token).ConfigureAwait(false);
             Diag.WriteLifecycle($"[DIAG-DIFF] RunGitCommandAsync end: git {arguments}, exitCode={result.ExitCode}, outputLen={result.Output.Length}");
             return result.Output;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Diag.WriteLifecycle($"[DIAG-DIFF] RunGitCommandAsync EXCEPTION: git {arguments}, {ex.GetType().Name}: {ex.Message}");
             ChatCommandBase.HandleError("执行diff命令", ex);
             return string.Empty;

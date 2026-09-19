@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Weight.Graph;
 /// <summary>
 /// 证据图节点 — 用于图神经网络风格的消息传递
 /// </summary>
-public sealed class EvidenceGraphNode
-{
+public sealed class EvidenceGraphNode {
     /// <summary>
     /// 证据标识
     /// </summary>
@@ -24,8 +23,7 @@ public sealed class EvidenceGraphNode
 /// <summary>
 /// 证据图边 — 节点间关系
 /// </summary>
-public sealed class EvidenceGraphEdge
-{
+public sealed class EvidenceGraphEdge {
     /// <summary>
     /// 源节点标识
     /// </summary>
@@ -50,8 +48,7 @@ public sealed class EvidenceGraphEdge
 /// <summary>
 /// 证据图 — 图神经网络风格的消息传递和信任度传播
 /// </summary>
-public sealed class EvidenceGraph
-{
+public sealed class EvidenceGraph {
     private readonly Dictionary<string, EvidenceGraphNode> _nodes = [];
     private readonly Dictionary<(string SourceId, string TargetId), EvidenceGraphEdge> _edges = [];
     private readonly EvidenceWeightCalculator _calculator = new();
@@ -74,11 +71,9 @@ public sealed class EvidenceGraph
     /// <summary>
     /// 添加节点
     /// </summary>
-    public void AddNode(EvidenceRecord evidence, int corroborationCount = 0)
-    {
+    public void AddNode(EvidenceRecord evidence, int corroborationCount = 0) {
         var weight = _calculator.CalculateWeight(evidence, corroborationCount);
-        var node = new EvidenceGraphNode
-        {
+        var node = new EvidenceGraphNode {
             EvidenceId = evidence.Id,
             InitialWeight = weight.Total,
             CurrentWeight = weight.Total,
@@ -89,10 +84,8 @@ public sealed class EvidenceGraph
     /// <summary>
     /// 添加边
     /// </summary>
-    public void AddEdge(string sourceId, string targetId, double strength = 1.0, string? label = null)
-    {
-        _edges[(sourceId, targetId)] = new EvidenceGraphEdge
-        {
+    public void AddEdge(string sourceId, string targetId, double strength = 1.0, string? label = null) {
+        _edges[(sourceId, targetId)] = new EvidenceGraphEdge {
             SourceId = sourceId,
             TargetId = targetId,
             RelationshipStrength = strength,
@@ -103,16 +96,13 @@ public sealed class EvidenceGraph
     /// <summary>
     /// 执行消息传递迭代
     /// </summary>
-    public void ApplyMessagePassing(int? iterations = null)
-    {
+    public void ApplyMessagePassing(int? iterations = null) {
         var iters = iterations ?? DefaultIterations;
 
-        for (var iter = 0; iter < iters; iter++)
-        {
+        for (var iter = 0; iter < iters; iter++) {
             var newWeights = new Dictionary<string, double>();
 
-            foreach (var node in _nodes.Values)
-            {
+            foreach (var node in _nodes.Values) {
                 var neighborMessages = GetNeighbors(node.EvidenceId)
                     .Select(n => n.CurrentWeight * GetEdgeStrength(node.EvidenceId, n.EvidenceId))
                     .ToList();
@@ -122,10 +112,8 @@ public sealed class EvidenceGraph
                     NeighborAggregation * (neighborMessages.Count > 0 ? neighborMessages.Average() : 0);
             }
 
-            foreach (var kvp in newWeights)
-            {
-                if (_nodes.ContainsKey(kvp.Key))
-                {
+            foreach (var kvp in newWeights) {
+                if (_nodes.ContainsKey(kvp.Key)) {
                     _nodes[kvp.Key].CurrentWeight = kvp.Value;
                 }
             }
@@ -135,8 +123,7 @@ public sealed class EvidenceGraph
     /// <summary>
     /// 获取节点信任评分 — 基础权重 + 图结构影响
     /// </summary>
-    public double GetNodeTrustScore(string nodeId)
-    {
+    public double GetNodeTrustScore(string nodeId) {
         if (!_nodes.TryGetValue(nodeId, out var node)) return 0;
 
         var baseWeight = node.InitialWeight;
@@ -156,8 +143,7 @@ public sealed class EvidenceGraph
     /// </summary>
     public IEnumerable<EvidenceGraphEdge> GetAllEdges() => _edges.Values;
 
-    private List<EvidenceGraphNode> GetNeighbors(string nodeId)
-    {
+    private List<EvidenceGraphNode> GetNeighbors(string nodeId) {
         var neighborIds = _edges.Values
             .Where(e => e.SourceId == nodeId || e.TargetId == nodeId)
             .Select(e => e.SourceId == nodeId ? e.TargetId : e.SourceId)
@@ -169,8 +155,7 @@ public sealed class EvidenceGraph
             .ToList();
     }
 
-    private double GetEdgeStrength(string fromId, string toId)
-    {
+    private double GetEdgeStrength(string fromId, string toId) {
         if (_edges.TryGetValue((fromId, toId), out var edge))
             return edge.RelationshipStrength;
         if (_edges.TryGetValue((toId, fromId), out var reverseEdge))
@@ -178,15 +163,13 @@ public sealed class EvidenceGraph
         return 1.0;
     }
 
-    private double CalculateGraphCentrality(string nodeId)
-    {
+    private double CalculateGraphCentrality(string nodeId) {
         var inDegree = _edges.Values.Count(e => e.TargetId == nodeId);
         var outDegree = _edges.Values.Count(e => e.SourceId == nodeId);
         return _nodes.Count > 0 ? (inDegree + outDegree) / (double)_nodes.Count : 0;
     }
 
-    private double CalculateNeighborConsensus(string nodeId)
-    {
+    private double CalculateNeighborConsensus(string nodeId) {
         var neighbors = GetNeighbors(nodeId);
         if (neighbors.Count == 0) return 0;
 

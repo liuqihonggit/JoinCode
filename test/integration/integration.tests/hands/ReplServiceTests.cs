@@ -1,29 +1,25 @@
 namespace Integration.Tests.Hands;
 
 [Trait("Category", "Integration")]
-public sealed class ReplServiceTests
-{
+public sealed class ReplServiceTests {
     private readonly Mock<ILogger<ReplService>> _loggerMock;
     private readonly IProcessService _processService;
     private readonly ReplService _service;
 
-    public ReplServiceTests()
-    {
+    public ReplServiceTests() {
         _loggerMock = new Mock<ILogger<ReplService>>();
         _processService = IO.ProcessService.ProcessServiceFactory.Create();
         _service = new ReplService(new IO.FileSystem.PhysicalFileSystem(), _processService, _loggerMock.Object);
     }
 
     [Fact]
-    public void Constructor_WithNullLogger_ShouldNotThrow()
-    {
+    public void Constructor_WithNullLogger_ShouldNotThrow() {
         var exception = Record.Exception(() => new ReplService(TestFileSystem.Current, _processService, null));
         Assert.Null(exception);
     }
 
     [Fact]
-    public void IsReplModeEnabled_Default_ShouldBeFalse()
-    {
+    public void IsReplModeEnabled_Default_ShouldBeFalse() {
         Environment.SetEnvironmentVariable("JCC_REPL_MODE", null);
         var service = new ReplService(TestFileSystem.Current, _processService, _loggerMock.Object);
 
@@ -31,16 +27,14 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void EnableReplMode_ShouldSetEnabled()
-    {
+    public void EnableReplMode_ShouldSetEnabled() {
         _service.EnableReplMode();
 
         Assert.True(_service.IsReplModeEnabled);
     }
 
     [Fact]
-    public void DisableReplMode_ShouldSetDisabled()
-    {
+    public void DisableReplMode_ShouldSetDisabled() {
         _service.EnableReplMode();
         _service.DisableReplMode();
 
@@ -48,8 +42,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void EnableReplMode_ShouldLogInformation()
-    {
+    public void EnableReplMode_ShouldLogInformation() {
         _service.EnableReplMode();
 
         _loggerMock.Verify(
@@ -63,8 +56,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void DisableReplMode_ShouldLogInformation()
-    {
+    public void DisableReplMode_ShouldLogInformation() {
         _service.DisableReplMode();
 
         _loggerMock.Verify(
@@ -78,8 +70,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_EmptyCode_ShouldReturnError()
-    {
+    public async Task ExecuteAsync_EmptyCode_ShouldReturnError() {
         var result = await _service.ExecuteAsync("", "csharp").ConfigureAwait(true);
 
         Assert.False(result.Success);
@@ -88,8 +79,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_NullCode_ShouldReturnError()
-    {
+    public async Task ExecuteAsync_NullCode_ShouldReturnError() {
         var result = await _service.ExecuteAsync(null!, "csharp").ConfigureAwait(true);
 
         Assert.False(result.Success);
@@ -97,16 +87,14 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WhitespaceCode_ShouldReturnError()
-    {
+    public async Task ExecuteAsync_WhitespaceCode_ShouldReturnError() {
         var result = await _service.ExecuteAsync("   ", "csharp").ConfigureAwait(true);
 
         Assert.False(result.Success);
     }
 
     [Fact]
-    public async Task ExecuteAsync_UnsupportedLanguage_ShouldReturnError()
-    {
+    public async Task ExecuteAsync_UnsupportedLanguage_ShouldReturnError() {
         var result = await _service.ExecuteAsync("print('hello')", "ruby").ConfigureAwait(true);
 
         Assert.False(result.Success);
@@ -115,16 +103,14 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_CSharpAliasCSharp1_ShouldRecognize()
-    {
+    public async Task ExecuteAsync_CSharpAliasCSharp1_ShouldRecognize() {
         var result = await _service.ExecuteAsync("Console.WriteLine(\"hi\")", "c#").ConfigureAwait(true);
 
         Assert.Equal("csharp", result.Language);
     }
 
     [Fact]
-    public async Task ExecuteAsync_PowerShellAliasPs1_ShouldRecognize()
-    {
+    public async Task ExecuteAsync_PowerShellAliasPs1_ShouldRecognize() {
         var result = await _service.ExecuteAsync("Write-Host 'hi'", "ps1").ConfigureAwait(true);
 
         // ReplService 中 s_languageDefinitions 使用小写 "powershell"
@@ -132,16 +118,14 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_PythonAliasPy_ShouldRecognize()
-    {
+    public async Task ExecuteAsync_PythonAliasPy_ShouldRecognize() {
         var result = await _service.ExecuteAsync("print('hi')", "py").ConfigureAwait(true);
 
         Assert.Equal("python", result.Language);
     }
 
     [Fact]
-    public void GetHiddenTools_WhenDisabled_ShouldReturnEmpty()
-    {
+    public void GetHiddenTools_WhenDisabled_ShouldReturnEmpty() {
         _service.DisableReplMode();
 
         var tools = _service.GetHiddenTools();
@@ -150,8 +134,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void GetHiddenTools_WhenEnabled_ShouldReturnExpectedTools()
-    {
+    public void GetHiddenTools_WhenEnabled_ShouldReturnExpectedTools() {
         _service.EnableReplMode();
 
         var tools = _service.GetHiddenTools();
@@ -168,8 +151,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void GetAvailableLanguages_ShouldReturnThreeLanguages()
-    {
+    public void GetAvailableLanguages_ShouldReturnThreeLanguages() {
         var languages = _service.GetAvailableLanguages();
 
         Assert.Equal(3, languages.Count);
@@ -182,20 +164,17 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void GetAvailableLanguages_ShouldHaveDisplayNames()
-    {
+    public void GetAvailableLanguages_ShouldHaveDisplayNames() {
         var languages = _service.GetAvailableLanguages();
 
-        foreach (var lang in languages)
-        {
+        foreach (var lang in languages) {
             Assert.False(string.IsNullOrEmpty(lang.DisplayName));
             Assert.False(string.IsNullOrEmpty(lang.Executable));
         }
     }
 
     [Fact]
-    public void GetAvailableLanguages_CSharp_ShouldHaveDotnetScriptExecutable()
-    {
+    public void GetAvailableLanguages_CSharp_ShouldHaveDotnetScriptExecutable() {
         var languages = _service.GetAvailableLanguages();
         var csharp = languages.First(l => l.Language == "csharp");
 
@@ -204,8 +183,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void GetAvailableLanguages_PowerShell_ShouldHavePwshExecutable()
-    {
+    public void GetAvailableLanguages_PowerShell_ShouldHavePwshExecutable() {
         var languages = _service.GetAvailableLanguages();
         // ReplService 中 s_languageDefinitions 使用小写 "powershell"
         var pwsh = languages.First(l => l.Language == "powershell");
@@ -214,8 +192,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void GetAvailableLanguages_Python_ShouldHavePythonExecutable()
-    {
+    public void GetAvailableLanguages_Python_ShouldHavePythonExecutable() {
         var languages = _service.GetAvailableLanguages();
         var python = languages.First(l => l.Language == "python");
 
@@ -223,38 +200,31 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void GetAvailableLanguages_IsAvailableShouldBeBoolean()
-    {
+    public void GetAvailableLanguages_IsAvailableShouldBeBoolean() {
         var languages = _service.GetAvailableLanguages();
 
-        foreach (var lang in languages)
-        {
+        foreach (var lang in languages) {
             Assert.True(lang.IsAvailable || !lang.IsAvailable);
         }
     }
 
     [Fact]
-    public void GetAvailableLanguages_UnavailableLanguageShouldHaveInstallHint()
-    {
+    public void GetAvailableLanguages_UnavailableLanguageShouldHaveInstallHint() {
         var languages = _service.GetAvailableLanguages();
 
-        foreach (var lang in languages)
-        {
-            if (!lang.IsAvailable)
-            {
+        foreach (var lang in languages) {
+            if (!lang.IsAvailable) {
                 Assert.False(string.IsNullOrEmpty(lang.InstallHint));
             }
         }
     }
 
     [Fact]
-    public async Task ExecuteAsync_CSharp_WhenNotInstalled_ShouldReturnInstallHint()
-    {
+    public async Task ExecuteAsync_CSharp_WhenNotInstalled_ShouldReturnInstallHint() {
         var languages = _service.GetAvailableLanguages();
         var csharp = languages.First(l => l.Language == "csharp");
 
-        if (csharp.IsAvailable)
-        {
+        if (csharp.IsAvailable) {
             return;
         }
 
@@ -265,14 +235,12 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_PowerShell_WhenNotInstalled_ShouldReturnInstallHint()
-    {
+    public async Task ExecuteAsync_PowerShell_WhenNotInstalled_ShouldReturnInstallHint() {
         var languages = _service.GetAvailableLanguages();
         // ReplService 中 s_languageDefinitions 使用小写 "powershell"
         var pwsh = languages.First(l => l.Language == "powershell");
 
-        if (pwsh.IsAvailable)
-        {
+        if (pwsh.IsAvailable) {
             return;
         }
 
@@ -283,13 +251,11 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_Python_WhenNotInstalled_ShouldReturnInstallHint()
-    {
+    public async Task ExecuteAsync_Python_WhenNotInstalled_ShouldReturnInstallHint() {
         var languages = _service.GetAvailableLanguages();
         var python = languages.First(l => l.Language == "python");
 
-        if (python.IsAvailable)
-        {
+        if (python.IsAvailable) {
             return;
         }
 
@@ -300,8 +266,7 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_Canceled_ShouldReturnCanceledError()
-    {
+    public async Task ExecuteAsync_Canceled_ShouldReturnCanceledError() {
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync().ConfigureAwait(true);
 
@@ -312,13 +277,11 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_CSharpSimpleCode_WhenAvailable_ShouldSucceed()
-    {
+    public async Task ExecuteAsync_CSharpSimpleCode_WhenAvailable_ShouldSucceed() {
         var languages = _service.GetAvailableLanguages();
         var csharp = languages.First(l => l.Language == "csharp");
 
-        if (!csharp.IsAvailable)
-        {
+        if (!csharp.IsAvailable) {
             return;
         }
 
@@ -330,13 +293,11 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_PythonSimpleCode_WhenAvailable_ShouldSucceed()
-    {
+    public async Task ExecuteAsync_PythonSimpleCode_WhenAvailable_ShouldSucceed() {
         var languages = _service.GetAvailableLanguages();
         var python = languages.First(l => l.Language == "python");
 
-        if (!python.IsAvailable)
-        {
+        if (!python.IsAvailable) {
             return;
         }
 
@@ -347,13 +308,11 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_CSharpBadCode_WhenAvailable_ShouldFail()
-    {
+    public async Task ExecuteAsync_CSharpBadCode_WhenAvailable_ShouldFail() {
         var languages = _service.GetAvailableLanguages();
         var csharp = languages.First(l => l.Language == "csharp");
 
-        if (!csharp.IsAvailable)
-        {
+        if (!csharp.IsAvailable) {
             return;
         }
 
@@ -364,46 +323,34 @@ public sealed class ReplServiceTests
     }
 
     [Fact]
-    public void IsReplModeEnabled_WithEnvVar_ShouldBeEnabled()
-    {
+    public void IsReplModeEnabled_WithEnvVar_ShouldBeEnabled() {
         Environment.SetEnvironmentVariable("JCC_REPL_MODE", "1");
-        try
-        {
+        try {
             var service = new ReplService(TestFileSystem.Current, _processService, _loggerMock.Object);
             Assert.True(service.IsReplModeEnabled);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_REPL_MODE", null);
         }
     }
 
     [Fact]
-    public void IsReplModeEnabled_WithEnvVarFalse_ShouldBeDisabled()
-    {
+    public void IsReplModeEnabled_WithEnvVarFalse_ShouldBeDisabled() {
         Environment.SetEnvironmentVariable("JCC_REPL_MODE", "false");
-        try
-        {
+        try {
             var service = new ReplService(TestFileSystem.Current, _processService, _loggerMock.Object);
             Assert.False(service.IsReplModeEnabled);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_REPL_MODE", null);
         }
     }
 
     [Fact]
-    public void IsReplModeEnabled_WithEnvVarZero_ShouldBeDisabled()
-    {
+    public void IsReplModeEnabled_WithEnvVarZero_ShouldBeDisabled() {
         Environment.SetEnvironmentVariable("JCC_REPL_MODE", "0");
-        try
-        {
+        try {
             var service = new ReplService(TestFileSystem.Current, _processService, _loggerMock.Object);
             Assert.False(service.IsReplModeEnabled);
-        }
-        finally
-        {
+        } finally {
             Environment.SetEnvironmentVariable("JCC_REPL_MODE", null);
         }
     }

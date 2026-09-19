@@ -10,8 +10,7 @@ public sealed record SubAgentSummary(string Name, string Description, string Dis
 /// JCC 引擎宿主门面 — UI 与引擎解耦的唯一边界。
 /// ViewModel 只允许依赖此接口与 Abstractions 门面类型，禁止直接触碰引擎内部实现。
 /// </summary>
-public interface IJccChatSession : IAsyncDisposable
-{
+public interface IJccChatSession : IAsyncDisposable {
     /// <summary>引擎会话是否就绪（可发送消息）</summary>
     bool IsReady { get; }
 

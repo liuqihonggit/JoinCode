@@ -7,8 +7,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Init, Description = "AI驱动初始化项目配置文件", Usage = "/init [quick]", Category = ChatCommandCategory.Config, ArgumentHint = "[quick]")]
 [ChatCommandArg("mode", Type = "string", Description = "初始化模式: quick=快速模式", Enum = new[] { "quick" })]
-public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase
-{
+public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : ChatCommandBase {
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
 
     /// <summary>
@@ -16,17 +15,13 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var isQuick = args is "quick" or "q" || IsQuickModeFromJson(args);
 
-        if (isQuick)
-        {
+        if (isQuick) {
             await QuickInitAsync(context).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await AiDrivenInitAsync(context).ConfigureAwait(false);
         }
 
@@ -36,23 +31,18 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     /// <summary>
     /// 从 JSON 参数中解析 mode 字段 — 支持 slash_call 传入 {"mode":"quick"} 格式
     /// </summary>
-    private static bool IsQuickModeFromJson(string args)
-    {
+    private static bool IsQuickModeFromJson(string args) {
         if (!args.StartsWith('{')) return false;
-        try
-        {
+        try {
             using var doc = System.Text.Json.JsonDocument.Parse(args);
             return doc.RootElement.TryGetProperty("mode", out var mode)
                 && mode.GetString() is "quick" or "q";
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
 
-    private static async Task AiDrivenInitAsync(ChatCommandContext context)
-    {
+    private static async Task AiDrivenInitAsync(ChatCommandContext context) {
         var fs = context.GetCommandServices().FileSystem;
         var cwd = fs.GetCurrentDirectory();
         // 修复: 统一使用 AppDataConstants.AppDataFolder,避免硬编码 ".jcc" 与 EnsureJccDirectory 路径不一致
@@ -64,8 +54,7 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
         TerminalHelper.NewLine();
 
         var existingContent = string.Empty;
-        if (fs.FileExists(rulesFile))
-        {
+        if (fs.FileExists(rulesFile)) {
             existingContent = await fs.ReadAllTextAsync(rulesFile, context.CancellationToken).ConfigureAwait(false);
         }
 
@@ -73,8 +62,7 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
 
-        if (result is not null)
-        {
+        if (result is not null) {
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("项目规则已生成，请检查 .jcc/project_rules.md");
         }
@@ -82,8 +70,7 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
         await RegisterProjectConfigAsync(context, cwd).ConfigureAwait(false);
     }
 
-    private async Task QuickInitAsync(ChatCommandContext context)
-    {
+    private async Task QuickInitAsync(ChatCommandContext context) {
         var fs = context.GetCommandServices().FileSystem;
         var cwd = fs.GetCurrentDirectory();
         // 修复: 统一使用 AppDataConstants.AppDataFolder,避免硬编码 ".jcc" 与 EnsureJccDirectory 路径不一致
@@ -96,24 +83,18 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
 
         EnsureJccDirectory(cwd, fs);
 
-        if (!fs.FileExists(rulesFile))
-        {
+        if (!fs.FileExists(rulesFile)) {
             await fs.WriteAllTextAsync(rulesFile, "# 项目规则\n\n在此添加项目特定的规则和指导\n", context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ 创建 project_rules.md");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("  · project_rules.md 已存在");
         }
 
-        if (!fs.FileExists(settingsFile))
-        {
+        if (!fs.FileExists(settingsFile)) {
             var settingsJson = BuildDefaultSettingsJson();
             await fs.WriteAllTextAsync(settingsFile, settingsJson, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ 创建 settings.json (骨架 — 模型列表将由 AutoFetchModels 启动时拉取)");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("  · settings.json 已存在");
         }
 
@@ -130,16 +111,14 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     /// 构建默认 settings.json 骨架 — 复用 SettingsLoader 的共享实现
     /// 含所有5个供应商的预设入口点,models 数组留空由 AutoFetchModels 启动时拉取
     /// </summary>
-    private static string BuildDefaultSettingsJson()
-    {
+    private static string BuildDefaultSettingsJson() {
         return Core.Configuration.SettingsLoader.BuildDefaultSettingsJson();
     }
 
     /// <summary>
     /// 写入配置模板文件到 .jcc/config/ — 源码生成器自动生成，改 C# 类属性后重新编译自动更新（ADR 0114）
     /// </summary>
-    private static async Task WriteConfigTemplatesAsync(ChatCommandContext context, IFileSystem fs, string jccDir)
-    {
+    private static async Task WriteConfigTemplatesAsync(ChatCommandContext context, IFileSystem fs, string jccDir) {
         var configDir = Path.Combine(jccDir, "config");
         if (!fs.DirectoryExists(configDir))
             fs.CreateDirectory(configDir);
@@ -150,37 +129,29 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
         TerminalHelper.WriteLine("  ✓ 创建 config/current.template.json (源码生成器自动生成 — 改 C# 类属性后重新编译自动更新)");
     }
 
-    private static void EnsureJccDirectory(string cwd, IFileSystem fs)
-    {
+    private static void EnsureJccDirectory(string cwd, IFileSystem fs) {
         var jccDir = Path.Combine(cwd, AppDataConstants.AppDataFolder);
-        if (!fs.DirectoryExists(jccDir))
-        {
+        if (!fs.DirectoryExists(jccDir)) {
             DirectoryHelper.EnsureDirectoryExists(fs, jccDir);
             TerminalHelper.WriteLine("  ✓ 创建 .jcc/ 目录");
         }
     }
 
-    private static async Task RegisterProjectConfigAsync(ChatCommandContext context, string cwd)
-    {
+    private static async Task RegisterProjectConfigAsync(ChatCommandContext context, string cwd) {
         var configService = context.Services.GetService<IConfigurationService>();
-        if (configService is not null)
-        {
-            try
-            {
+        if (configService is not null) {
+            try {
                 var projectDir = cwd.Replace("\\", "/");
                 await configService.SetAsync("project.directory", projectDir, context.CancellationToken).ConfigureAwait(false);
                 await configService.SetAsync("project.initialized", "true", context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine("  ✓ 项目配置已注册到全局配置");
-            }
-            catch
-            {
+            } catch {
                 TerminalHelper.WriteLine("  · 全局配置注册跳过（配置服务不可用）");
             }
         }
     }
 
-    private static string BuildInitPrompt(string cwd, string existingContent)
-    {
+    private static string BuildInitPrompt(string cwd, string existingContent) {
         var hasExisting = !string.IsNullOrEmpty(existingContent);
         var prompt = $"""
             Analyze the codebase at {cwd} and generate a comprehensive project rules file.

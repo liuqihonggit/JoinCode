@@ -16,8 +16,7 @@ public partial class RemoteSettingsJsonContext : JsonSerializerContext;
 /// <summary>
 /// 远程设置响应 — 从远程端点拉取的托管设置集合
 /// </summary>
-public sealed class RemoteSettingsResponse
-{
+public sealed class RemoteSettingsResponse {
     /// <summary>
     /// 托管设置列表
     /// </summary>

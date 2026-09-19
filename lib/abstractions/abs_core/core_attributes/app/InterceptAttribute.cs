@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// 标记需要异常拦截处理的方法
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, Inherited = true, AllowMultiple = false)]
-public sealed class InterceptAttribute : Attribute
-{
+public sealed class InterceptAttribute : Attribute {
     /// <summary>
     /// 日志级别
     /// </summary>
@@ -31,8 +30,7 @@ public sealed class InterceptAttribute : Attribute
     public InterceptAttribute(
         LogLevel logLevel = LogLevel.Error,
         bool rethrowException = true,
-        string? customErrorMessage = null)
-    {
+        string? customErrorMessage = null) {
         LogLevel = logLevel;
         RethrowException = rethrowException;
         CustomErrorMessage = customErrorMessage;

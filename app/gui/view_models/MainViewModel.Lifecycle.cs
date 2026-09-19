@@ -4,13 +4,11 @@ namespace JoinCode.Gui.ViewModels;
 /// MainViewModel partial — 生命周期管理（构造/引擎热切换/Mock回退/释放）与权限回调。
 /// 从 MainViewModel.cs 拆出以控制文件行数（关注点分离）。
 /// </summary>
-public sealed partial class MainViewModel
-{
+public sealed partial class MainViewModel {
     private bool _disposed;
 
     /// <summary>初始化 MainViewModel 实例</summary>
-    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null)
-    {
+    public MainViewModel(IJccChatSession? session = null, Persistence.GuiSessionStore? store = null, Persistence.GuiPreferencesStore? preferencesStore = null, IModelConfigLoader? modelConfigLoader = null) {
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
         _realSession = session;
         // 配置服务的文件系统跟随 preferencesStore：生产传 null → PhysicalFileSystem；
@@ -43,14 +41,12 @@ public sealed partial class MainViewModel
         // 加载 GUI 偏好并应用到 UI 属性（启动时恢复上次显示的内容）
         LoadPreferences();
 
-        if (session is not null)
-        {
+        if (session is not null) {
             RebuildConnectionOptions();
             RefreshModelOptions();
             _selectedModel = _session.CurrentModelId;
             _selectedModelOption = GetModelById(_session.CurrentModelId);
-            using (var _ = _gate.EnterRefreshingConfigScope())
-            {
+            using (var _ = _gate.EnterRefreshingConfigScope()) {
                 SelectedConnection = GetConnectionById(session.CurrentVendor)
                     ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
             }
@@ -61,14 +57,11 @@ public sealed partial class MainViewModel
             // 订阅 settings.json theme 变更 + 从 settings.json 读主题（唯一数据源，对齐 CLI /theme）
             session.ThemeChanged += OnThemeChanged;
             LoadThemeFromSettings();
-        }
-        else
-        {
+        } else {
             StatusText = "正在加载引擎…";
             RebuildConnectionOptions();
             ViewModelDiagnosticsLogger.WriteDebug($"Constructor else: currentVendor={_session.CurrentVendor} connectionCount={_connectionDropdown.ConnectionOptions.Count} ids=[{string.Join(",", _connectionDropdown.ConnectionOptions.Select(c => c.Id))}]");
-            using (var _ = _gate.EnterRefreshingConfigScope())
-            {
+            using (var _ = _gate.EnterRefreshingConfigScope()) {
                 SelectedConnection = GetConnectionById(_session.CurrentVendor)
                     ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
             }
@@ -90,8 +83,7 @@ public sealed partial class MainViewModel
     /// 后台引擎组装完成后热切换 — 将占位会话替换为真实引擎会话并刷新全部派生状态。
     /// 由 App 在后台线程完成 <see cref="JccChatSession.CreateAsync"/> 后调用（UI 线程）。
     /// </summary>
-    public void AttachRealSession(IJccChatSession session)
-    {
+    public void AttachRealSession(IJccChatSession session) {
         ViewModelDiagnosticsLogger.WriteDebug($"AttachRealSession: currentVendor={session.CurrentVendor} currentModel={session.CurrentModelId}");
         _realSession = session;
         _session = session;
@@ -103,8 +95,7 @@ public sealed partial class MainViewModel
         SelectedModel = _session.CurrentModelId;
         SelectedModelOption = GetModelById(_session.CurrentModelId);
         SelectedEffort = _session.EffortLevel.ToValue();
-        using (var _ = _gate.EnterRefreshingConfigScope())
-        {
+        using (var _ = _gate.EnterRefreshingConfigScope()) {
             SelectedConnection = GetConnectionById(session.CurrentVendor)
                 ?? _connectionDropdown.ConnectionOptions.FirstOrDefault();
         }
@@ -118,27 +109,19 @@ public sealed partial class MainViewModel
         IsEngineLoaded = true;
         // 需求11：异步填充子会话树（快照避免跨线程）
         _ = Task.Run(() => PopulateSubSessionsAsync(Sessions.ToArray()));
-        _ = Task.Run(async () =>
-        {
-            try
-            {
+        _ = Task.Run(async () => {
+            try {
                 var tools = await session.GetAvailableToolsAsync().WaitAsync(Timeout);
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => _availableToolsCache = tools);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 ViewModelDiagnosticsLogger.WriteError(ex);
             }
         });
-        _ = Task.Run(async () =>
-        {
-            try
-            {
+        _ = Task.Run(async () => {
+            try {
                 var agents = await session.GetAvailableSubAgentsAsync().WaitAsync(Timeout);
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => _availableSubAgentsCache = agents);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 ViewModelDiagnosticsLogger.WriteError(ex);
             }
         });
@@ -152,8 +135,7 @@ public sealed partial class MainViewModel
 
         // 引擎就绪后注入 ITranscriptService,切换到统一入口(.json + 子目录,与 CLI --continue 共享)
         // 构造时 LoadPersistedSessions 用旧 .json 兜底,此处切换后重新加载刷新侧边栏
-        if (session.TranscriptService is not null)
-        {
+        if (session.TranscriptService is not null) {
             _sessionStore.SetTranscriptService(session.TranscriptService);
             Sessions.Clear();
             LoadPersistedSessions();
@@ -161,8 +143,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>引擎加载失败时回退到 Mock 引擎（IsMockConnection 驱动按钮状态，供应商下拉保持真实列表）</summary>
-    public void FallbackToMock()
-    {
+    public void FallbackToMock() {
         _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
         _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
         _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
@@ -196,18 +177,14 @@ public sealed partial class MainViewModel
 
     /// <summary>切换 Mock 引擎模式 — 独立按钮命令，按下进入 Mock 演示，再按切回真实引擎</summary>
     [RelayCommand]
-    private void ToggleMock()
-    {
-        if (_session is PlaceholderChatSession && _realSession is not null)
-        {
+    private void ToggleMock() {
+        if (_session is PlaceholderChatSession && _realSession is not null) {
             _session = _realSession;
             StatusText = $"已切回真实引擎 {_session.CurrentVendor}";
-        }
-        else
-        {
+        } else {
             _session = _mockSession ??= new Hosting.PlaceholderChatSession(_configService);
-        _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
-        _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
+            _session.PermissionConfirmationHandler = OnPermissionConfirmationRequestedAsync;
+            _session.AskUserQuestionDialogCallback = AskUserQuestionCallback;
             StatusText = $"已切换到 Mock 引擎（演示），模型 {_session.CurrentModelId}";
         }
         RefreshModelOptions();
@@ -222,8 +199,7 @@ public sealed partial class MainViewModel
     /// 避免 HTTP 连接池/FileSystemWatcher/后台任务泄漏导致进程不退（孤儿进程 + 文件锁）。
     /// 异步等待真实/模拟会话释放完成，避免 fire-and-forget 丢失异常与释放顺序竞态。
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
         _modelConfigWatcher?.Dispose();

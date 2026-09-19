@@ -3,8 +3,7 @@ namespace McpClient;
 /// <summary>
 /// MCP 认证提供者接口
 /// </summary>
-public interface IMcpAuthProvider
-{
+public interface IMcpAuthProvider {
     /// <summary>
     /// 认证类型
     /// </summary>
@@ -55,8 +54,7 @@ public interface IMcpAuthProvider
 /// <summary>
 /// MCP 认证上下文
 /// </summary>
-public class McpAuthContext
-{
+public class McpAuthContext {
     /// <summary>
     /// 访问令牌
     /// </summary>

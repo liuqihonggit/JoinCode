@@ -1,10 +1,8 @@
 namespace Core.Tests.Lsp;
 
-public sealed class LspModelTests
-{
+public sealed class LspModelTests {
     [Fact]
-    public void LspPosition_Serialize_Deserialize_Roundtrip()
-    {
+    public void LspPosition_Serialize_Deserialize_Roundtrip() {
         var position = new LspPosition { Line = 10, Character = 5 };
 
         var json = JsonSerializer.Serialize(position, LspJsonContext.Default.LspPosition);
@@ -16,10 +14,8 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspRange_Serialize_Deserialize_Roundtrip()
-    {
-        var range = new LspRange
-        {
+    public void LspRange_Serialize_Deserialize_Roundtrip() {
+        var range = new LspRange {
             Start = new LspPosition { Line = 1, Character = 2 },
             End = new LspPosition { Line = 3, Character = 4 }
         };
@@ -35,13 +31,10 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspLocation_Serialize_Deserialize_Roundtrip()
-    {
-        var location = new LspLocation
-        {
+    public void LspLocation_Serialize_Deserialize_Roundtrip() {
+        var location = new LspLocation {
             Uri = "file:///src/Service.cs",
-            Range = new LspRange
-            {
+            Range = new LspRange {
                 Start = new LspPosition { Line = 5, Character = 0 },
                 End = new LspPosition { Line = 5, Character = 20 }
             }
@@ -57,18 +50,14 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspHoverResult_WithMarkdownContent_Serialize_Deserialize()
-    {
-        var hover = new LspHoverResult
-        {
+    public void LspHoverResult_WithMarkdownContent_Serialize_Deserialize() {
+        var hover = new LspHoverResult {
             Contents = JsonSerializer.SerializeToElement(
-                new Dictionary<string, JsonElement>
-                {
+                new Dictionary<string, JsonElement> {
                     ["kind"] = JsonSerializer.SerializeToElement("markdown"),
                     ["value"] = JsonSerializer.SerializeToElement("```csharp\npublic class Foo { }\n```")
                 }),
-            Range = new LspRange
-            {
+            Range = new LspRange {
                 Start = new LspPosition { Line = 10, Character = 4 },
                 End = new LspPosition { Line = 10, Character = 7 }
             }
@@ -84,8 +73,7 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspHoverResult_WithPlainText_Deserialize()
-    {
+    public void LspHoverResult_WithPlainText_Deserialize() {
         var json = """{"contents":"This is a string value","range":null}""";
 
         var result = JsonSerializer.Deserialize(json, LspJsonContext.Default.LspHoverResult);
@@ -95,10 +83,8 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspCompletionItem_Roundtrip()
-    {
-        var item = new LspCompletionItem
-        {
+    public void LspCompletionItem_Roundtrip() {
+        var item = new LspCompletionItem {
             Label = "ToString",
             Kind = 6,
             Detail = "string Object.ToString()",
@@ -116,20 +102,16 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspDocumentSymbol_Roundtrip()
-    {
-        var symbol = new LspDocumentSymbol
-        {
+    public void LspDocumentSymbol_Roundtrip() {
+        var symbol = new LspDocumentSymbol {
             Name = "MyClass",
             Detail = "class",
             Kind = 5,
-            Range = new LspRange
-            {
+            Range = new LspRange {
                 Start = new LspPosition { Line = 10, Character = 0 },
                 End = new LspPosition { Line = 20, Character = 1 }
             },
-            SelectionRange = new LspRange
-            {
+            SelectionRange = new LspRange {
                 Start = new LspPosition { Line = 10, Character = 0 },
                 End = new LspPosition { Line = 10, Character = 7 }
             },
@@ -165,17 +147,13 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspSymbolInformation_Roundtrip()
-    {
-        var info = new LspSymbolInformation
-        {
+    public void LspSymbolInformation_Roundtrip() {
+        var info = new LspSymbolInformation {
             Name = "Calculate",
             Kind = 12,
-            Location = new LspLocation
-            {
+            Location = new LspLocation {
                 Uri = "file:///src/Math.cs",
-                Range = new LspRange
-                {
+                Range = new LspRange {
                     Start = new LspPosition { Line = 42, Character = 4 },
                     End = new LspPosition { Line = 42, Character = 13 }
                 }
@@ -194,10 +172,8 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspJsonRpcRequest_Serializes_Correctly()
-    {
-        var request = new LspJsonRpcRequest
-        {
+    public void LspJsonRpcRequest_Serializes_Correctly() {
+        var request = new LspJsonRpcRequest {
             Id = "1",
             Method = "textDocument/definition",
             Params = JsonSerializer.SerializeToNode(new LspPosition { Line = 10, Character = 5 },
@@ -217,10 +193,8 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspJsonRpcNotification_Serializes_Correctly()
-    {
-        var notification = new LspJsonRpcNotification
-        {
+    public void LspJsonRpcNotification_Serializes_Correctly() {
+        var notification = new LspJsonRpcNotification {
             Method = "textDocument/didOpen",
             Params = null
         };
@@ -235,8 +209,7 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspLocationList_Serialize_Deserialize_Roundtrip()
-    {
+    public void LspLocationList_Serialize_Deserialize_Roundtrip() {
         var locations = new List<LspLocation>
         {
             new() { Uri = "file:///a.cs", Range = new LspRange() },
@@ -253,8 +226,7 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspCompletionItemList_Deserialize_FromArray()
-    {
+    public void LspCompletionItemList_Deserialize_FromArray() {
         var json = """[{"label":"Foo","kind":6},{"label":"Bar","kind":3}]""";
 
         var items = JsonSerializer.Deserialize(json, LspJsonContext.Default.ListLspCompletionItem);
@@ -268,8 +240,7 @@ public sealed class LspModelTests
     }
 
     [Fact]
-    public void LspSymbolInformationList_Deserialize_FromArray()
-    {
+    public void LspSymbolInformationList_Deserialize_FromArray() {
         var json = """[{"name":"MyFunc","kind":12,"location":{"uri":"file:///test.cs","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":6}}}}]""";
 
         var symbols = JsonSerializer.Deserialize(json, LspJsonContext.Default.ListLspSymbolInformation);
@@ -282,8 +253,7 @@ public sealed class LspModelTests
     }
 }
 
-public sealed class LspConfigTests
-{
+public sealed class LspConfigTests {
     [Theory]
     [InlineData(LspServerType.CSharp, "csharp")]
     [InlineData(LspServerType.TypeScript, "typescript")]
@@ -293,18 +263,15 @@ public sealed class LspConfigTests
     [InlineData(LspServerType.Java, "java")]
     [InlineData(LspServerType.Cpp, "cpp")]
     [InlineData(LspServerType.Generic, "generic")]
-    public void ToValue_Returns_Correct_Id(LspServerType serverType, string expected)
-    {
+    public void ToValue_Returns_Correct_Id(LspServerType serverType, string expected) {
         var result = serverType.ToValue();
 
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void LspServerConfigEntry_ToLspInstanceConfig_MapsCorrectly()
-    {
-        var entry = new LspServerConfigEntry
-        {
+    public void LspServerConfigEntry_ToLspInstanceConfig_MapsCorrectly() {
+        var entry = new LspServerConfigEntry {
             ServerId = "test-server",
             Name = "Test Server",
             Command = "test-lsp",
@@ -330,10 +297,8 @@ public sealed class LspConfigTests
     }
 
     [Fact]
-    public void LspServerConfigEntry_ToLspInstanceConfig_DefaultTimeout()
-    {
-        var entry = new LspServerConfigEntry
-        {
+    public void LspServerConfigEntry_ToLspInstanceConfig_DefaultTimeout() {
+        var entry = new LspServerConfigEntry {
             ServerId = "test",
             Name = "Test",
             Command = "test",
@@ -348,15 +313,13 @@ public sealed class LspConfigTests
     }
 }
 
-public sealed class LspServiceTests
-{
+public sealed class LspServiceTests {
     private readonly Mock<ILspManager> _mockManager;
     private readonly Mock<ILspConfigLoader> _mockConfigLoader;
     private readonly Mock<IFileOperationService> _mockFileService;
     private readonly Mock<IFileSystem> _mockFs;
 
-    public LspServiceTests()
-    {
+    public LspServiceTests() {
         _mockManager = new Mock<ILspManager>();
         _mockConfigLoader = new Mock<ILspConfigLoader>();
         _mockFileService = new Mock<IFileOperationService>();
@@ -370,16 +333,14 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public void Constructor_WithNullEngineContext_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullEngineContext_ThrowsArgumentNullException() {
         var act = () => new LspService(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void Constructor_WithNullManager_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullManager_ThrowsArgumentNullException() {
         var ctx = new LspEngineContext { LspManager = null!, ConfigLoader = _mockConfigLoader.Object };
         var act = () => new LspService(ctx);
 
@@ -387,8 +348,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public void Constructor_WithNullConfigLoader_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullConfigLoader_ThrowsArgumentNullException() {
         var ctx = new LspEngineContext { LspManager = _mockManager.Object, ConfigLoader = null! };
         var act = () => new LspService(ctx);
 
@@ -396,8 +356,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public void Constructor_WithNullFileService_ThrowsArgumentNullException()
-    {
+    public void Constructor_WithNullFileService_ThrowsArgumentNullException() {
         var ctx = CreateEngineContext();
         var act = () => new LspService(ctx, new LspServiceDeps { FileOperationService = null });
 
@@ -405,16 +364,14 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public void Constructor_WithValidParams_CreatesInstance()
-    {
+    public void Constructor_WithValidParams_CreatesInstance() {
         var act = () => new LspService(CreateEngineContext(), CreateDeps());
 
         act.Should().NotThrow();
     }
 
     [Fact]
-    public async Task GotoDefinitionAsync_NoServerForFile_ReturnsEmpty()
-    {
+    public async Task GotoDefinitionAsync_NoServerForFile_ReturnsEmpty() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
         var service = new LspService(CreateEngineContext(), CreateDeps());
 
@@ -425,8 +382,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task FindReferencesAsync_NoServerForFile_ReturnsEmpty()
-    {
+    public async Task FindReferencesAsync_NoServerForFile_ReturnsEmpty() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
         var service = new LspService(CreateEngineContext(), CreateDeps());
 
@@ -437,8 +393,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task HoverAsync_NoServerForFile_ReturnsNull()
-    {
+    public async Task HoverAsync_NoServerForFile_ReturnsNull() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
         var service = new LspService(CreateEngineContext(), CreateDeps());
 
@@ -448,8 +403,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task GetCompletionsAsync_NoServerForFile_ReturnsEmpty()
-    {
+    public async Task GetCompletionsAsync_NoServerForFile_ReturnsEmpty() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
         var service = new LspService(CreateEngineContext(), CreateDeps());
 
@@ -460,8 +414,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task GetDocumentSymbolsAsync_NoServerForFile_ReturnsEmpty()
-    {
+    public async Task GetDocumentSymbolsAsync_NoServerForFile_ReturnsEmpty() {
         _mockManager.Setup(m => m.GetServerForFile(It.IsAny<string>())).Returns((ILspServerInstance?)null);
         var service = new LspService(CreateEngineContext(), CreateDeps());
 
@@ -472,8 +425,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task SearchWorkspaceSymbolsAsync_NoServers_ReturnsEmpty()
-    {
+    public async Task SearchWorkspaceSymbolsAsync_NoServers_ReturnsEmpty() {
         var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var result = await service.SearchWorkspaceSymbolsAsync("MyClass").ConfigureAwait(true);
@@ -483,8 +435,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task CloseClientAsync_DoesNotThrow()
-    {
+    public async Task CloseClientAsync_DoesNotThrow() {
         var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var act = async () => await service.CloseClientAsync("/src/readme.md").ConfigureAwait(true);
@@ -493,8 +444,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task DisposeAsync_DoesNotThrow()
-    {
+    public async Task DisposeAsync_DoesNotThrow() {
         var service = new LspService(CreateEngineContext(), CreateDeps());
 
         var act = async () => await service.DisposeAsync().ConfigureAwait(true);
@@ -503,8 +453,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task SearchWorkspaceSymbolsAsync_ServerStopped_ReturnsEmpty()
-    {
+    public async Task SearchWorkspaceSymbolsAsync_ServerStopped_ReturnsEmpty() {
         var mockServer = new Mock<ILspServerInstance>();
         mockServer.Setup(s => s.State).Returns(LspServerState.Stopped);
         _mockManager.Setup(m => m.GetAllServers())
@@ -521,8 +470,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task SearchWorkspaceSymbolsAsync_ServerError_ReturnsEmpty()
-    {
+    public async Task SearchWorkspaceSymbolsAsync_ServerError_ReturnsEmpty() {
         var mockServer = new Mock<ILspServerInstance>();
         mockServer.Setup(s => s.State).Returns(LspServerState.Error);
         _mockManager.Setup(m => m.GetAllServers())
@@ -539,8 +487,7 @@ public sealed class LspServiceTests
     }
 
     [Fact]
-    public async Task SearchWorkspaceSymbolsAsync_ServerRunning_ReturnsSymbols()
-    {
+    public async Task SearchWorkspaceSymbolsAsync_ServerRunning_ReturnsSymbols() {
         var mockServer = new Mock<ILspServerInstance>();
         mockServer.Setup(s => s.State).Returns(LspServerState.Running);
         var jsonResponse = JsonNode.Parse(
@@ -563,14 +510,13 @@ public sealed class LspServiceTests
             Times.Once);
     }
 
-    private LspEngineContext CreateEngineContext() => new()
-    {
+    private LspEngineContext CreateEngineContext() => new() {
         LspManager = _mockManager.Object,
         ConfigLoader = _mockConfigLoader.Object
     };
 
-    private LspServiceDeps CreateDeps() => new()
-    {
+    private LspServiceDeps CreateDeps() => new() {
         FileOperationService = _mockFileService.Object,
         FileSystem = _mockFs.Object
-    };}
+    };
+}

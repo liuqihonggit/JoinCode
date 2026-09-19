@@ -5,8 +5,7 @@ namespace McpToolDispatch;
 /// 用于诊断工具评分异常、超图压制问题、链路断裂等
 /// </summary>
 [McpToolDispatch(ToolCategory.Analytics)]
-public class ToolScoreDebugToolHandlers
-{
+public class ToolScoreDebugToolHandlers {
     private readonly IToolHealthMonitor _monitor;
     private readonly ToolHypergraphScorer _scorer;
     private readonly ILogger<ToolScoreDebugToolHandlers>? _logger;
@@ -20,8 +19,7 @@ public class ToolScoreDebugToolHandlers
     public ToolScoreDebugToolHandlers(
         IToolHealthMonitor monitor,
         ToolHypergraphScorer scorer,
-        ILogger<ToolScoreDebugToolHandlers>? logger = null)
-    {
+        ILogger<ToolScoreDebugToolHandlers>? logger = null) {
         _monitor = monitor;
         _scorer = scorer;
         _logger = logger;
@@ -37,12 +35,10 @@ public class ToolScoreDebugToolHandlers
         ConcurrencySafe = true)]
     public async Task<ToolResult> GetToolScoreAsync(
         [McpToolParameter("工具名称（留空则显示所有工具）", Required = false)] string? toolName,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var allRecords = await _monitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
 
-        if (!string.IsNullOrWhiteSpace(toolName))
-        {
+        if (!string.IsNullOrWhiteSpace(toolName)) {
             var record = await _monitor.GetRecordAsync(toolName, ct).ConfigureAwait(false);
             var effectiveScore = _monitor.GetEffectiveScore(toolName);
             var penalty = _monitor.GetPenalty(toolName);
@@ -65,8 +61,7 @@ public class ToolScoreDebugToolHandlers
             if (record?.LastErrorMessage is not null)
                 sb.AppendLine($"- 最后错误: {record.LastErrorMessage}");
 
-            if (edges.Count > 0)
-            {
+            if (edges.Count > 0) {
                 sb.AppendLine("### 所属超边:");
                 foreach (var edge in edges)
                     sb.AppendLine($"- {edge.Id} (权重={edge.Weight}, 共享评分={edge.SharedScore})");
@@ -88,8 +83,7 @@ public class ToolScoreDebugToolHandlers
     /// <returns>工具执行结果</returns>
     [McpTool("tool_hypergraph", "查看工具链超图结构（所有超边+成员评分+链路顺序）", "tool_debug",
         ConcurrencySafe = true)]
-    public async Task<ToolResult> GetHypergraphAsync(CancellationToken ct = default)
-    {
+    public async Task<ToolResult> GetHypergraphAsync(CancellationToken ct = default) {
         var allRecords = await _monitor.GetAllRecordsAsync(ct).ConfigureAwait(false);
         _scorer.UpdateSharedScores(allRecords);
 
@@ -100,8 +94,7 @@ public class ToolScoreDebugToolHandlers
         sb.AppendLine($"超边总数: {presets.Length}");
         sb.AppendLine();
 
-        foreach (var edge in presets)
-        {
+        foreach (var edge in presets) {
             sb.AppendLine($"### {edge.Id} (权重={edge.Weight}, 共享评分={edge.SharedScore})");
             sb.AppendLine($"- 成员工具: {string.Join(", ", edge.ToolNames)}");
             if (edge.ChainOrder is not null)
@@ -126,15 +119,13 @@ public class ToolScoreDebugToolHandlers
     [McpTool("tool_score_reset", "重置工具评分（清除健康记录，恢复初始状态）", "tool_debug")]
     public async Task<ToolResult> ResetToolScoreAsync(
         [McpToolParameter("工具名称", Required = true)] string toolName,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         await _monitor.ResetToolAsync(toolName, ct).ConfigureAwait(false);
         return ToolResultBuilder.Success().WithText($"工具 '{toolName}' 评分已重置").Build();
     }
 
     private async Task<ToolResult> BuildAllToolsReportAsync(
-        IReadOnlyDictionary<string, ToolHealthRecord> allRecords, CancellationToken ct)
-    {
+        IReadOnlyDictionary<string, ToolHealthRecord> allRecords, CancellationToken ct) {
         if (allRecords.Count == 0)
             return ToolResultBuilder.Success().WithText("暂无工具评分记录").Build();
 
@@ -142,8 +133,7 @@ public class ToolScoreDebugToolHandlers
             .WithTitle("所有工具评分")
             .AddHeader("工具", "独立评分", "超图评分", "有效评分", "降权", "成功/失败", "熔断");
 
-        foreach (var kvp in allRecords.OrderByDescending(k => _monitor.GetEffectiveScore(k.Key)))
-        {
+        foreach (var kvp in allRecords.OrderByDescending(k => _monitor.GetEffectiveScore(k.Key))) {
             var name = kvp.Key;
             var record = kvp.Value;
             var hyperScore = _scorer.CalculateFinalScore(name, record.Score);
@@ -158,8 +148,7 @@ public class ToolScoreDebugToolHandlers
         var tableText = builder.Build().TrimEnd();
 
         var blacklisted = allRecords.Keys.Where(k => _monitor.IsBlacklisted(k)).ToList();
-        if (blacklisted.Count > 0)
-        {
+        if (blacklisted.Count > 0) {
             tableText += Environment.NewLine + Environment.NewLine + $"黑名单工具: {string.Join(", ", blacklisted)}";
         }
 

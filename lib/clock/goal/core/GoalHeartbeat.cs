@@ -40,8 +40,7 @@ public sealed record HeartbeatTickCmd : IGoalHeartbeatCommand;
 /// <summary>
 /// 目标心跳 — Actor 模型实现，管理活动引用计数与定时回调
 /// </summary>
-public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Unit>, IGoalHeartbeat
-{
+public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Unit>, IGoalHeartbeat {
     private int _disposed;
     private readonly Timer _heartbeatTimer;
     private readonly TimeSpan _heartbeatInterval;
@@ -70,8 +69,7 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// <param name="logger">可选日志记录器</param>
     /// <param name="clock">可选时钟服务，缺省使用系统时钟</param>
     public GoalHeartbeat(TimeSpan? heartbeatInterval = null, ILogger<GoalHeartbeat>? logger = null, IClockService? clock = null)
-        : base()
-    {
+        : base() {
         _heartbeatInterval = heartbeatInterval ?? TimeSpan.FromSeconds(30);
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
@@ -80,31 +78,27 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
 
 
     /// <inheritdoc />
-    public void RegisterCallback(Func<CancellationToken, ValueTask> callback)
-    {
+    public void RegisterCallback(Func<CancellationToken, ValueTask> callback) {
         ArgumentNullException.ThrowIfNull(callback);
         TrySend(new RegisterCallbackCmd(callback));
     }
 
     /// <inheritdoc />
-    public async Task StartActivityAsync(SessionActivityReason reason)
-    {
+    public async Task StartActivityAsync(SessionActivityReason reason) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StartActivityCmd(reason, tcs)).ConfigureAwait(false);
         await AskAwait(tcs, CancellationToken.None);
     }
 
     /// <inheritdoc />
-    public async Task StopActivityAsync(SessionActivityReason reason)
-    {
+    public async Task StopActivityAsync(SessionActivityReason reason) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StopActivityCmd(reason, tcs)).ConfigureAwait(false);
         await AskAwait(tcs, CancellationToken.None);
     }
 
     /// <inheritdoc />
-    public async Task ResetAsync()
-    {
+    public async Task ResetAsync() {
         var tcs = TcsFactory.Create();
         await SendAsync(new ResetHeartbeatCmd(tcs)).ConfigureAwait(false);
         await AskAwait(tcs, CancellationToken.None);
@@ -115,78 +109,66 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// </summary>
     /// <param name="command">心跳命令</param>
     /// <param name="ct">取消令牌</param>
-    protected override async ValueTask HandleAsync(IGoalHeartbeatCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override async ValueTask HandleAsync(IGoalHeartbeatCommand command, CancellationToken ct) {
+        switch (command) {
             case RegisterCallbackCmd reg:
-                _heartbeatCallback = reg.Callback;
-                break;
+            _heartbeatCallback = reg.Callback;
+            break;
 
             case StartActivityCmd start:
-                _refcount++;
-                _activeReasons[start.Reason] = _activeReasons.GetValueOrDefault(start.Reason) + 1;
-                Volatile.Write(ref _lastActivityTicks, _clock.GetUtcNow().Ticks);
+            _refcount++;
+            _activeReasons[start.Reason] = _activeReasons.GetValueOrDefault(start.Reason) + 1;
+            Volatile.Write(ref _lastActivityTicks, _clock.GetUtcNow().Ticks);
 
-                if (_refcount == 1 && !_timerActive)
-                {
-                    _timerActive = true;
-                    _heartbeatTimer.Change(_heartbeatInterval, _heartbeatInterval);
-                }
+            if (_refcount == 1 && !_timerActive) {
+                _timerActive = true;
+                _heartbeatTimer.Change(_heartbeatInterval, _heartbeatInterval);
+            }
 
-                _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStarted), start.Reason, _refcount);
-                start.Tcs.TrySetResult();
-                break;
+            _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStarted), start.Reason, _refcount);
+            start.Tcs.TrySetResult();
+            break;
 
             case StopActivityCmd stop:
-                if (_refcount > 0) _refcount--;
+            if (_refcount > 0) _refcount--;
 
-                if (_activeReasons.GetValueOrDefault(stop.Reason) > 0)
-                {
-                    _activeReasons[stop.Reason]--;
-                }
+            if (_activeReasons.GetValueOrDefault(stop.Reason) > 0) {
+                _activeReasons[stop.Reason]--;
+            }
 
-                if (_refcount == 0 && _timerActive)
-                {
-                    _timerActive = false;
-                    _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                    Volatile.Write(ref _lastActivityTicks, _clock.GetUtcNow().Ticks);
-                }
-
-                _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStopped), stop.Reason, _refcount);
-                stop.Tcs.TrySetResult();
-                break;
-
-            case ResetHeartbeatCmd reset:
+            if (_refcount == 0 && _timerActive) {
                 _timerActive = false;
                 _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                _refcount = 0;
-                _activeReasons.Clear();
-                Volatile.Write(ref _lastActivityTicks, 0);
+                Volatile.Write(ref _lastActivityTicks, _clock.GetUtcNow().Ticks);
+            }
 
-                _logger?.LogDebug(L.T(StringKey.GoalHeartbeatReset));
-                reset.Tcs.TrySetResult();
-                break;
+            _logger?.LogDebug(L.T(StringKey.GoalHeartbeatActivityStopped), stop.Reason, _refcount);
+            stop.Tcs.TrySetResult();
+            break;
 
-            case HeartbeatTickCmd:
-                {
-                    var callback = _heartbeatCallback;
-                    if (callback != null)
-                    {
-                        try
-                        {
-                            await callback(ct).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                        {
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger?.LogWarning(ex, L.T(StringKey.GoalHeartbeatCallbackFailed));
-                        }
+            case ResetHeartbeatCmd reset:
+            _timerActive = false;
+            _heartbeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            _refcount = 0;
+            _activeReasons.Clear();
+            Volatile.Write(ref _lastActivityTicks, 0);
+
+            _logger?.LogDebug(L.T(StringKey.GoalHeartbeatReset));
+            reset.Tcs.TrySetResult();
+            break;
+
+            case HeartbeatTickCmd: {
+                var callback = _heartbeatCallback;
+                if (callback != null) {
+                    try {
+                        await callback(ct).ConfigureAwait(false);
+                    } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+                    } catch (Exception ex) {
+                        _logger?.LogWarning(ex, L.T(StringKey.GoalHeartbeatCallbackFailed));
                     }
                 }
-                break;
+            }
+            break;
         }
     }
 
@@ -194,18 +176,15 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     /// 消费者异常处理 — 记录错误日志
     /// </summary>
     /// <param name="ex">异常对象</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[GoalHeartbeat] 消费者异常");
     }
 
     /// <summary>
     /// 异步释放 — 停止并释放心跳定时器，再释放基类资源
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
+    public override async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) {
             return;
         }
 

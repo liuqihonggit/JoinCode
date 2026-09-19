@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 输出循环检测器 — 检测累积文本尾部是否存在重复模式循环
 /// 通过尾部子串重复次数判定循环，配合冷却期避免重复触发
 /// </summary>
-public sealed partial class OutputLoopDetector : IOutputLoopDetector
-{
+public sealed partial class OutputLoopDetector : IOutputLoopDetector {
     private readonly int _windowSize;
     private readonly int _minPatternLength;
     private readonly int _maxPatternLength;
@@ -26,8 +25,7 @@ public sealed partial class OutputLoopDetector : IOutputLoopDetector
         int maxPatternLength = 500,
         int requiredRepeats = 10,
         int checkInterval = 50,
-        int cooldownChars = 500)
-    {
+        int cooldownChars = 500) {
         ArgumentOutOfRangeException.ThrowIfLessThan(windowSize, 100);
         ArgumentOutOfRangeException.ThrowIfLessThan(minPatternLength, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(minPatternLength, maxPatternLength);
@@ -48,8 +46,7 @@ public sealed partial class OutputLoopDetector : IOutputLoopDetector
     /// </summary>
     /// <param name="accumulatedText">累积的输出文本</param>
     /// <returns>循环检测结果，包含是否触发、重复模式、重复次数等</returns>
-    public LoopDetectionResult Detect(string accumulatedText)
-    {
+    public LoopDetectionResult Detect(string accumulatedText) {
         if (string.IsNullOrEmpty(accumulatedText))
             return LoopDetectionResult.NoLoop;
 
@@ -62,8 +59,7 @@ public sealed partial class OutputLoopDetector : IOutputLoopDetector
 
         _lastCheckedLength = len;
 
-        if (_inCooldown)
-        {
+        if (_inCooldown) {
             if (len - _cooldownStartLength >= _cooldownChars)
                 _inCooldown = false;
             else
@@ -74,29 +70,23 @@ public sealed partial class OutputLoopDetector : IOutputLoopDetector
         var tailStart = len - tailLen;
         var maxCheckablePattern = Math.Min(_maxPatternLength, tailLen / _requiredRepeats);
 
-        for (var patternLen = maxCheckablePattern; patternLen >= _minPatternLength; patternLen--)
-        {
+        for (var patternLen = maxCheckablePattern; patternLen >= _minPatternLength; patternLen--) {
             var patternStart = len - patternLen;
             var pattern = accumulatedText[patternStart..];
             var repeatCount = 1;
             var pos = patternStart;
 
-            while (pos >= patternLen)
-            {
+            while (pos >= patternLen) {
                 var prevStart = pos - patternLen;
-                if (accumulatedText[prevStart..pos] == pattern)
-                {
+                if (accumulatedText[prevStart..pos] == pattern) {
                     repeatCount++;
                     pos = prevStart;
-                }
-                else
-                {
+                } else {
                     break;
                 }
             }
 
-            if (repeatCount >= _requiredRepeats)
-            {
+            if (repeatCount >= _requiredRepeats) {
                 var loopStartIndex = pos;
                 if (loopStartIndex < tailStart)
                     loopStartIndex = tailStart;
@@ -117,8 +107,7 @@ public sealed partial class OutputLoopDetector : IOutputLoopDetector
     /// <summary>
     /// StringBuilder 重载 — 延迟 ToString() 直到通过检查间隔门控，避免每 token O(n) 拷贝。
     /// </summary>
-    public LoopDetectionResult Detect(StringBuilder accumulatedText)
-    {
+    public LoopDetectionResult Detect(StringBuilder accumulatedText) {
         var len = accumulatedText.Length;
         if (len < _minPatternLength * _requiredRepeats)
             return LoopDetectionResult.NoLoop;
@@ -132,8 +121,7 @@ public sealed partial class OutputLoopDetector : IOutputLoopDetector
     /// <summary>
     /// 重置检测器内部状态，用于开始新一轮检测。
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _lastCheckedLength = 0;
         _cooldownStartLength = 0;
         _loopTriggerCount = 0;

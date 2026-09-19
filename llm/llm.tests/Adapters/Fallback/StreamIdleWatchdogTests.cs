@@ -1,10 +1,8 @@
 namespace Llm.Tests.Adapters.Fallback;
 
-public class StreamIdleWatchdogTests
-{
+public class StreamIdleWatchdogTests {
     [Fact]
-    public void Constructor_WithDefaultParameters_CreatesWatchdog()
-    {
+    public void Constructor_WithDefaultParameters_CreatesWatchdog() {
         using var watchdog = new StreamIdleWatchdog(90_000, CancellationToken.None);
 
         watchdog.WasIdleAborted.Should().BeFalse();
@@ -13,8 +11,7 @@ public class StreamIdleWatchdogTests
     }
 
     [Fact]
-    public void Constructor_WhenDisabled_CombinedTokenEqualsOriginal()
-    {
+    public void Constructor_WhenDisabled_CombinedTokenEqualsOriginal() {
         using var cts = new CancellationTokenSource();
         using var watchdog = new StreamIdleWatchdog(90_000, cts.Token, enabled: false);
 
@@ -22,8 +19,7 @@ public class StreamIdleWatchdogTests
     }
 
     [Fact]
-    public void Reset_SetsReceivedAnyChunkToTrue()
-    {
+    public void Reset_SetsReceivedAnyChunkToTrue() {
         using var watchdog = new StreamIdleWatchdog(90_000, CancellationToken.None);
 
         watchdog.ReceivedAnyChunk.Should().BeFalse();
@@ -32,8 +28,7 @@ public class StreamIdleWatchdogTests
     }
 
     [Fact]
-    public void Constructor_WhenOriginalTokenCancelled_CombinedTokenIsCancelled()
-    {
+    public void Constructor_WhenOriginalTokenCancelled_CombinedTokenIsCancelled() {
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
@@ -43,8 +38,7 @@ public class StreamIdleWatchdogTests
     }
 
     [Fact]
-    public async Task Watchdog_TriggersIdleAbort_WhenTimeAdvances()
-    {
+    public async Task Watchdog_TriggersIdleAbort_WhenTimeAdvances() {
         using var watchdog = new StreamIdleWatchdog(1, CancellationToken.None);
 
         using var signal = new SemaphoreSlim(0, 1);
@@ -57,12 +51,10 @@ public class StreamIdleWatchdogTests
     }
 
     [Fact]
-    public async Task Watchdog_DoesNotTrigger_WhenResetBeforeTimeout()
-    {
+    public async Task Watchdog_DoesNotTrigger_WhenResetBeforeTimeout() {
         using var watchdog = new StreamIdleWatchdog(5000, CancellationToken.None);
 
-        for (var i = 0; i < 3; i++)
-        {
+        for (var i = 0; i < 3; i++) {
             watchdog.Reset();
             using var barrier = new SemaphoreSlim(0, 1);
             await barrier.WaitAsync(TimeSpan.FromMilliseconds(10));
@@ -72,8 +64,7 @@ public class StreamIdleWatchdogTests
     }
 
     [Fact]
-    public void Dispose_PreventsFurtherAborts()
-    {
+    public void Dispose_PreventsFurtherAborts() {
         using var watchdog = new StreamIdleWatchdog(1, CancellationToken.None);
 
         watchdog.WasIdleAborted.Should().BeFalse();

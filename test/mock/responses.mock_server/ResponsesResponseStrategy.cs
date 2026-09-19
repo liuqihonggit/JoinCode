@@ -5,13 +5,11 @@ namespace Responses.MockServer;
 /// 用 output 数组(message/function_call items)+ output_text 便捷字段
 /// 流式用语义化 SSE 事件(response.created/response.output_text.delta/response.completed),无 data: [DONE]
 /// </summary>
-public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
-{
+public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase {
     private readonly bool _enforceThinkingRoundTrip;
 
     public ResponsesResponseStrategy(List<ScriptedTurn>? turns, string defaultResponse, bool enforceThinkingRoundTrip = false)
-        : base(turns, defaultResponse)
-    {
+        : base(turns, defaultResponse) {
         _enforceThinkingRoundTrip = enforceThinkingRoundTrip;
     }
 
@@ -24,13 +22,11 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
     /// 模拟真实 DeepSeek 行为: thinking 模式下历史含 assistant 消息但缺失 reasoning 回传 → 400。
     /// 仅在 EnforceThinkingRoundTrip 开启且为 Responses 协议请求时生效。
     /// </summary>
-    public override int GetHttpStatusCode(JsonElement request)
-    {
+    public override int GetHttpStatusCode(JsonElement request) {
         if (!_enforceThinkingRoundTrip)
             return base.GetHttpStatusCode(request);
 
-        if (request.TryGetProperty("reasoning", out var reasoningProp) && reasoningProp.ValueKind == JsonValueKind.Object)
-        {
+        if (request.TryGetProperty("reasoning", out var reasoningProp) && reasoningProp.ValueKind == JsonValueKind.Object) {
             if (HasMissingReasoningRoundTrip(request))
                 return 400;
         }
@@ -42,27 +38,22 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
     /// 判定请求历史是否缺失 reasoning 回传:
     /// input 中存在 assistant message 但没有任何 reasoning item。
     /// </summary>
-    private static bool HasMissingReasoningRoundTrip(JsonElement request)
-    {
+    private static bool HasMissingReasoningRoundTrip(JsonElement request) {
         if (!request.TryGetProperty("input", out var inputProp) || inputProp.ValueKind != JsonValueKind.Array)
             return false;
 
         var hasAssistantMessage = false;
         var hasReasoningItem = false;
 
-        foreach (var item in inputProp.EnumerateArray())
-        {
+        foreach (var item in inputProp.EnumerateArray()) {
             if (item.ValueKind != JsonValueKind.Object) continue;
             var type = item.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : null;
 
-            if (type == "reasoning")
-            {
+            if (type == "reasoning") {
                 hasReasoningItem = true;
-            }
-            else if (type == "message"
-                     && item.TryGetProperty("role", out var roleProp)
-                     && roleProp.GetString() == "assistant")
-            {
+            } else if (type == "message"
+                       && item.TryGetProperty("role", out var roleProp)
+                       && roleProp.GetString() == "assistant") {
                 hasAssistantMessage = true;
             }
         }
@@ -70,10 +61,8 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
         return hasAssistantMessage && !hasReasoningItem;
     }
 
-    public override string BuildResponse(JsonElement request, CacheStats cacheStats)
-    {
-        if (GetHttpStatusCode(request) == 400)
-        {
+    public override string BuildResponse(JsonElement request, CacheStats cacheStats) {
+        if (GetHttpStatusCode(request) == 400) {
             return $$"""
             {
                 "error": {
@@ -89,8 +78,7 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
         var turn = CurrentTurn;
         var text = turn.TextResponse ?? DefaultResponse;
 
-        if (turn.ToolCalls is { Count: > 0 })
-        {
+        if (turn.ToolCalls is { Count: > 0 }) {
             var toolCallsJson = BuildToolCallOutputItems(turn.ToolCalls);
             return $$"""
             {
@@ -133,29 +121,25 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
         """;
     }
 
-    public override string? BuildStreamPreamble(string id)
-    {
+    public override string? BuildStreamPreamble(string id) {
         return $"event: response.created\ndata: {{\"id\":\"{id}\",\"object\":\"response\",\"status\":\"in_progress\"}}\n\n";
     }
 
-    public override string BuildStreamChunk(string id, string content, bool isLast)
-    {
+    public override string BuildStreamChunk(string id, string content, bool isLast) {
         if (isLast)
             return "";
 
         return $"event: response.output_text.delta\ndata: {{\"delta\":\"{EscapeJsonString(content)}\"}}\n\n";
     }
 
-    public override string BuildStreamFinalChunk(string id, CacheStats cacheStats)
-    {
+    public override string BuildStreamFinalChunk(string id, CacheStats cacheStats) {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(cacheStats);
 
         return $"event: response.completed\ndata: {{\"response\":{{\"id\":\"{id}\",\"object\":\"response\",\"status\":\"completed\",\"usage\":{{\"input_tokens\":{cacheStats.InputTokens},\"output_tokens\":{cacheStats.OutputTokens},\"input_tokens_details\":{{\"cached_tokens\":{cacheStats.CacheReadTokens}}}}}}}}}\n\n";
     }
 
-    public override string BuildToolCallResponse(JsonElement request, CacheStats cacheStats)
-    {
+    public override string BuildToolCallResponse(JsonElement request, CacheStats cacheStats) {
         var turn = CurrentTurn;
         var toolCalls = turn.ToolCalls ?? [];
         var toolCallsJson = BuildToolCallOutputItems(toolCalls);
@@ -178,14 +162,12 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
         """;
     }
 
-    public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats)
-    {
+    public override string BuildStreamToolCallResponse(string id, CacheStats cacheStats) {
         var turn = CurrentTurn;
         var toolCalls = turn.ToolCalls ?? [];
         var sb = new StringBuilder();
 
-        foreach (var tc in toolCalls)
-        {
+        foreach (var tc in toolCalls) {
             var callId = GenerateToolCallId(tc);
             sb.Append($"event: response.output_item.added\ndata: {{\"item\":{{\"type\":\"function_call\",\"id\":\"fc_{Guid.NewGuid():N}\",\"call_id\":\"{callId}\",\"name\":\"{tc.ToolName}\",\"arguments\":\"\"}}}}\n\n");
             sb.Append($"event: response.function_call_arguments.delta\ndata: {{\"item_id\":\"fc_{callId}\",\"delta\":\"{EscapeJsonString(tc.Arguments)}\"}}\n\n");
@@ -195,33 +177,27 @@ public sealed class ResponsesResponseStrategy : ScriptedResponseStrategyBase
         return sb.ToString();
     }
 
-    public override string BuildStreamThinkingResponse(string id)
-    {
+    public override string BuildStreamThinkingResponse(string id) {
         var thinking = CurrentTurn.ThinkingContent;
         if (string.IsNullOrEmpty(thinking)) return "";
 
         return $"event: response.reasoning_text.delta\ndata: {{\"delta\":\"{EscapeJsonString(thinking)}\"}}\n\n";
     }
 
-    private static string BuildToolCallOutputItems(List<ToolCallConfig> toolCalls)
-    {
+    private static string BuildToolCallOutputItems(List<ToolCallConfig> toolCalls) {
         var parts = new List<string>();
-        foreach (var tc in toolCalls)
-        {
+        foreach (var tc in toolCalls) {
             var callId = !string.IsNullOrEmpty(tc.ToolCallId) ? tc.ToolCallId : $"call_{Guid.NewGuid():N}";
             parts.Add($"{{\"type\":\"function_call\",\"id\":\"fc_{Guid.NewGuid():N}\",\"call_id\":\"{callId}\",\"name\":\"{tc.ToolName}\",\"arguments\":\"{EscapeJsonString(tc.Arguments)}\"}}");
         }
         return string.Join(",", parts);
     }
 
-    private static string EscapeJsonString(string s)
-    {
+    private static string EscapeJsonString(string s) {
         if (string.IsNullOrEmpty(s)) return "";
         var sb = new StringBuilder(s.Length);
-        foreach (var c in s)
-        {
-            switch (c)
-            {
+        foreach (var c in s) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;

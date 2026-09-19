@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 文件操作跟踪器 — 记录所有文件操作历史,用于审计和冲突检测
 /// </summary>
 [Register(typeof(IFileOperationTracker), ServiceLifetime.Singleton)]
-public sealed partial class FileOperationTracker : ServiceEntity, IFileOperationTracker
-{
+public sealed partial class FileOperationTracker : ServiceEntity, IFileOperationTracker {
     private readonly List<FileOperationEntry> _entries = [];
     private readonly ILogger<FileOperationTracker>? _logger;
 
@@ -14,19 +13,16 @@ public sealed partial class FileOperationTracker : ServiceEntity, IFileOperation
     /// 构造文件操作跟踪器
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    public FileOperationTracker(ILogger<FileOperationTracker>? logger = null)
-    {
+    public FileOperationTracker(ILogger<FileOperationTracker>? logger = null) {
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public void Track(string filePath, FileOperationType operationType)
-    {
+    public void Track(string filePath, FileOperationType operationType) {
         ArgumentNullException.ThrowIfNull(filePath);
 
         var fullPath = Path.GetFullPath(filePath);
-        _entries.Add(new FileOperationEntry
-        {
+        _entries.Add(new FileOperationEntry {
             FilePath = fullPath,
             OperationType = operationType
         });
@@ -35,14 +31,12 @@ public sealed partial class FileOperationTracker : ServiceEntity, IFileOperation
     }
 
     /// <inheritdoc />
-    public IEnumerable<FileOperationEntry> GetAllEntries()
-    {
+    public IEnumerable<FileOperationEntry> GetAllEntries() {
         return _entries;
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> GetOperatedFilePaths()
-    {
+    public IEnumerable<string> GetOperatedFilePaths() {
         return _entries
             .Select(e => e.FilePath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -50,8 +44,7 @@ public sealed partial class FileOperationTracker : ServiceEntity, IFileOperation
     }
 
     /// <inheritdoc />
-    public void Clear()
-    {
+    public void Clear() {
         _entries.Clear();
         _logger?.LogDebug(L.T(StringKey.VaultLogFileOperationCleared));
     }

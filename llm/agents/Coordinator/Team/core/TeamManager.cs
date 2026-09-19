@@ -6,8 +6,7 @@ namespace Core.Agents.Coordinator;
 /// 使用 Actor 邮箱管道串行化写操作，消除显式锁 — TASK001
 /// </summary>
 [Register(typeof(ITeamManager), ServiceLifetime.Singleton)]
-public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposable
-{
+public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposable {
     private readonly TeamRegistry _registry = new();
     private readonly TeamActor _actor;
     private readonly TeamMessageDispatcher _messageDispatcher;
@@ -41,8 +40,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <param name="subAgentContextAccessor">子智能体上下文访问器</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="fileSystem">文件系统（提供则启用持久化）</param>
-    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, MailboxHub? mailboxHub = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null, IFileSystem? fileSystem = null)
-    {
+    public TeamManager(IClockService clock, ITelemetryService? telemetryService = null, ITeammateMailboxService? mailboxService = null, MailboxHub? mailboxHub = null, IServiceProvider? serviceProvider = null, ISubAgentContextAccessor? subAgentContextAccessor = null, ILogger<TeamManager>? logger = null, IFileSystem? fileSystem = null) {
 
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _telemetryService = telemetryService;
@@ -72,28 +70,23 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamName,
         string? description = null,
         List<string>? initialMembers = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(teamName))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(teamName)) {
             return OperationResult<TeamInfo?>.Fail("团队名称不能为空");
         }
 
         // 单团队限制：当前会话已存在团队时不允许再创建（对齐 TS TeamCreateTool）
         var sessionId = _subAgentContextAccessor.Current?.SessionId;
-        if (sessionId is not null)
-        {
+        if (sessionId is not null) {
             var existingRoomForSession = _registry.FindRoomBySessionId(sessionId);
-            if (existingRoomForSession is not null)
-            {
+            if (existingRoomForSession is not null) {
                 return OperationResult<TeamInfo?>.Fail("已在团队中，请先使用 TeamDelete 删除当前团队");
             }
         }
 
         // 名称唯一性检查（对齐 TS generateUniqueTeamName）
         var nameConflict = _registry.FindTeamByName(teamName);
-        if (nameConflict is not null)
-        {
+        if (nameConflict is not null) {
             return OperationResult<TeamInfo?>.Fail($"团队名称 '{teamName}' 已存在，请使用其他名称");
         }
 
@@ -105,8 +98,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var leadAgentId = initialMembers?.FirstOrDefault();
 
-        var team = new TeamInfo
-        {
+        var team = new TeamInfo {
             TeamId = teamId,
             TeamName = teamName,
             Description = description,
@@ -117,24 +109,20 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
             LastActivityAt = _clock.GetUtcNow()
         };
 
-        var room = new ChatRoomState
-        {
+        var room = new ChatRoomState {
             Info = team,
             Members = members,
             MemberDetails = memberDetails,
         };
 
-        if (sessionId is not null)
-        {
+        if (sessionId is not null) {
             room.SessionId = sessionId;
         }
 
         _registry.AddRoom(teamId, room);
 
-        if (initialMembers != null)
-        {
-            foreach (var member in initialMembers)
-            {
+        if (initialMembers != null) {
+            foreach (var member in initialMembers) {
                 _registry.RegisterAgentToTeam(member, teamId);
             }
         }
@@ -151,10 +139,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <returns>删除结果（成功包含已删除团队信息）</returns>
     public async Task<OperationResult<TeamInfo?>> DeleteTeamAsync(
         string teamId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             RecordTeamMetrics("delete", false);
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
@@ -164,8 +150,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         // Active member 安全检查（对齐 TS TeamDeleteTool）
         {
             var activeMembers = room.MemberDetails.Values.Where(m => m.IsActive).ToList();
-            if (activeMembers.Count > 0)
-            {
+            if (activeMembers.Count > 0) {
                 var activeNames = string.Join(", ", activeMembers.Select(m => m.AgentId));
                 return OperationResult<TeamInfo?>.Fail($"团队仍有活跃成员: {activeNames}，请先优雅关闭所有队友再删除团队");
             }
@@ -186,8 +171,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <returns>团队信息，不存在则返回 null</returns>
     public Task<TeamInfo?> GetTeamAsync(
         string teamId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         _registry.TryGetRoom(teamId, out var room);
         return Task.FromResult(room?.Info);
     }
@@ -198,8 +182,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>团队信息只读列表</returns>
     public Task<IReadOnlyList<TeamInfo>> ListTeamsAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var teams = _registry.Rooms.Select(r => r.Info).ToList();
         return Task.FromResult<IReadOnlyList<TeamInfo>>(teams);
     }
@@ -214,26 +197,22 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     public async Task<OperationResult<TeamInfo?>> AddTeamMemberAsync(
         string teamId,
         string agentId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
         await _actor.SendAsync(new AddMemberCmd(teamId, agentId, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<OperationResult<TeamInfo?>> AddMemberInternalAsync(
-        string teamId, string agentId, CancellationToken cancellationToken)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        string teamId, string agentId, CancellationToken cancellationToken) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var members = room.Members;
         var memberDetails = room.MemberDetails;
 
-        if (members.Contains(agentId))
-        {
+        if (members.Contains(agentId)) {
             return OperationResult<TeamInfo?>.Fail($"代理 {agentId} 已经是团队成员");
         }
 
@@ -258,26 +237,22 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     public async Task<OperationResult<TeamInfo?>> RemoveTeamMemberAsync(
         string teamId,
         string agentId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
         await _actor.SendAsync(new RemoveMemberCmd(teamId, agentId, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<OperationResult<TeamInfo?>> RemoveMemberInternalAsync(
-        string teamId, string agentId, CancellationToken cancellationToken)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        string teamId, string agentId, CancellationToken cancellationToken) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var members = room.Members;
         var memberDetails = room.MemberDetails;
 
-        if (!members.Remove(agentId))
-        {
+        if (!members.Remove(agentId)) {
             return OperationResult<TeamInfo?>.Fail($"代理 {agentId} 不是团队成员");
         }
 
@@ -299,10 +274,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <returns>成员标识只读列表</returns>
     public Task<IReadOnlyList<string>> GetTeamMembersAsync(
         string teamId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
         }
 
@@ -323,23 +296,19 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string senderId,
         string content,
         string? messageType = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
         await _actor.SendAsync(new SendMsgCmd(teamId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<OperationResult<TeamInfo?>> SendMsgInternalAsync(
-        string teamId, string senderId, string content, string? messageType, CancellationToken cancellationToken)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        string teamId, string senderId, string content, string? messageType, CancellationToken cancellationToken) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
-        var message = new TeamMessage
-        {
+        var message = new TeamMessage {
             MessageId = GenerateMessageId(),
             TeamId = teamId,
             SenderId = senderId,
@@ -350,13 +319,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = room.Messages;
 
-        if (!room.Members.Contains(senderId))
-        {
+        if (!room.Members.Contains(senderId)) {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
 
-        if (!messages.TryAdd(message.MessageId, message))
-        {
+        if (!messages.TryAdd(message.MessageId, message)) {
             _logger?.LogDebug("Duplicate team message {MessageId} skipped in SendMessageAsync", message.MessageId);
             return OperationResult<TeamInfo?>.Ok(room.Info);
         }
@@ -383,30 +350,25 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string senderId,
         string content,
         string? messageType = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
         await _actor.SendAsync(new SendDirectMsgCmd(targetAgentId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<OperationResult<TeamInfo?>> SendDirectMsgInternalAsync(
-        string targetAgentId, string senderId, string content, string? messageType, CancellationToken cancellationToken)
-    {
-        if (!_registry.TryGetTeamIdForAgent(targetAgentId, out var teamId))
-        {
+        string targetAgentId, string senderId, string content, string? messageType, CancellationToken cancellationToken) {
+        if (!_registry.TryGetTeamIdForAgent(targetAgentId, out var teamId)) {
             return OperationResult<TeamInfo?>.Fail($"代理 {targetAgentId} 不属于任何团队");
         }
 
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var team = room.Info;
 
-        var message = new TeamMessage
-        {
+        var message = new TeamMessage {
             MessageId = GenerateMessageId(),
             TeamId = teamId,
             SenderId = senderId,
@@ -417,13 +379,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = room.Messages;
 
-        if (!room.Members.Contains(senderId))
-        {
+        if (!room.Members.Contains(senderId)) {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
 
-        if (!messages.TryAdd(message.MessageId, message))
-        {
+        if (!messages.TryAdd(message.MessageId, message)) {
             _logger?.LogDebug("Duplicate team message {MessageId} skipped in SendMessageToAgentAsync", message.MessageId);
             return OperationResult<TeamInfo?>.Ok(team);
         }
@@ -444,17 +404,14 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     public async Task<IReadOnlyList<TeamMessage>> GetTeamMessagesAsync(
         string teamId,
         int limit = 50,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<IReadOnlyList<TeamMessage>>();
         await _actor.SendAsync(new GetMsgsCmd(teamId, limit, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
-    private IReadOnlyList<TeamMessage> GetMsgsInternal(string teamId, int limit)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+    private IReadOnlyList<TeamMessage> GetMsgsInternal(string teamId, int limit) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return Array.Empty<TeamMessage>();
         }
 
@@ -475,23 +432,19 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string senderId,
         string content,
         string? messageType = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
         await _actor.SendAsync(new BroadcastMsgCmd(teamId, senderId, content, messageType, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<OperationResult<TeamInfo?>> BroadcastMsgInternalAsync(
-        string teamId, string senderId, string content, string? messageType, CancellationToken cancellationToken)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        string teamId, string senderId, string content, string? messageType, CancellationToken cancellationToken) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
-        var message = new TeamMessage
-        {
+        var message = new TeamMessage {
             MessageId = GenerateMessageId(),
             TeamId = teamId,
             SenderId = senderId,
@@ -502,13 +455,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
 
         var messages = room.Messages;
 
-        if (!room.Members.Contains(senderId))
-        {
+        if (!room.Members.Contains(senderId)) {
             return OperationResult<TeamInfo?>.Fail($"发送者 {senderId} 不是团队成员");
         }
 
-        if (!messages.TryAdd(message.MessageId, message))
-        {
+        if (!messages.TryAdd(message.MessageId, message)) {
             _logger?.LogDebug("Duplicate team message {MessageId} skipped in BroadcastMessageAsync", message.MessageId);
             return OperationResult<TeamInfo?>.Ok(room.Info);
         }
@@ -521,14 +472,12 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         return OperationResult<TeamInfo?>.Ok(room.Info);
     }
 
-    private string GenerateTeamId()
-    {
+    private string GenerateTeamId() {
         var counter = Interlocked.Increment(ref _teamCounter);
         return $"team_{counter:D4}_{_clock.GetUtcNow():yyyyMMddHHmmss}";
     }
 
-    private string GenerateMessageId()
-    {
+    private string GenerateMessageId() {
         var counter = Interlocked.Increment(ref _messageCounter);
         return $"msg_{counter:D6}_{_clock.GetUtcNow():yyyyMMddHHmmssfff}";
     }
@@ -545,10 +494,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <summary>
     /// 更新房间成员信息(成员列表+成员详情+最后活动时间)。
     /// </summary>
-    private void UpdateRoomMembers(ChatRoomState room)
-    {
-        room.Info = room.Info with
-        {
+    private void UpdateRoomMembers(ChatRoomState room) {
+        room.Info = room.Info with {
             Members = room.Members.ToList(),
             MemberDetails = room.MemberDetails.Values.ToList(),
             LastActivityAt = _clock.GetUtcNow()
@@ -567,33 +514,28 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         string agentId,
         bool isActive,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
         await _actor.SendAsync(new SetMemberActiveCmd(teamId, agentId, isActive, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<OperationResult<TeamInfo?>> SetMemberActiveInternalAsync(
-        string teamId, string agentId, bool isActive, CancellationToken cancellationToken)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        string teamId, string agentId, bool isActive, CancellationToken cancellationToken) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var team = room.Info;
         var memberDetails = room.MemberDetails;
 
-        if (!memberDetails.TryGetValue(agentId, out var existing))
-        {
+        if (!memberDetails.TryGetValue(agentId, out var existing)) {
             return OperationResult<TeamInfo?>.Fail($"代理 {agentId} 不是团队成员");
         }
 
         memberDetails[agentId] = existing with { IsActive = isActive };
 
-        room.Info = team with
-        {
+        room.Info = team with {
             MemberDetails = memberDetails.Values.ToList(),
             LastActivityAt = _clock.GetUtcNow()
         };
@@ -610,10 +552,8 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <returns>允许路径只读列表</returns>
     public Task<IReadOnlyList<TeamAllowedPath>> GetTeamAllowedPathsAsync(
         string teamId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return Task.FromResult<IReadOnlyList<TeamAllowedPath>>(Array.Empty<TeamAllowedPath>());
         }
 
@@ -632,41 +572,33 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string teamId,
         string path,
         AccessLevel accessLevel = AccessLevel.Read,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<OperationResult<TeamInfo?>>();
         await _actor.SendAsync(new AddAllowedPathCmd(teamId, path, accessLevel, reply), cancellationToken).ConfigureAwait(false);
         return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<OperationResult<TeamInfo?>> AddAllowedPathInternalAsync(
-        string teamId, string path, AccessLevel accessLevel, CancellationToken cancellationToken)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        string teamId, string path, AccessLevel accessLevel, CancellationToken cancellationToken) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var team = room.Info;
 
-        if (string.IsNullOrWhiteSpace(path))
-        {
+        if (string.IsNullOrWhiteSpace(path)) {
             return OperationResult<TeamInfo?>.Fail("路径不能为空");
         }
 
         var paths = room.AllowedPaths;
 
-        if (paths.TryGetValue(path, out var existing))
-        {
+        if (paths.TryGetValue(path, out var existing)) {
             paths[path] = existing with { AccessLevel = accessLevel };
-        }
-        else
-        {
+        } else {
             paths[path] = new TeamAllowedPath { Path = path, AccessLevel = accessLevel };
         }
 
-        room.Info = team with
-        {
+        room.Info = team with {
             AllowedPaths = paths.Values.ToList(),
             LastActivityAt = _clock.GetUtcNow()
         };
@@ -683,8 +615,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <returns>Teammate 状态只读列表</returns>
     public Task<IReadOnlyList<TeammateStatus>> GetTeammateStatusesAsync(
         string teamId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         return _teammateStatusBuilder.GetTeammateStatusesAsync(teamId, cancellationToken);
     }
 
@@ -694,8 +625,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>所有 Teammate 状态只读列表</returns>
     public Task<IReadOnlyList<TeammateStatus>> GetAllTeammateStatusesAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         return _teammateStatusBuilder.GetAllTeammateStatusesAsync(cancellationToken);
     }
 
@@ -704,8 +634,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// </summary>
     public Task<ChatRoomInfo?> GetChatRoomInfoAsync(
         string teamId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         return _chatRoomViewBuilder.GetChatRoomInfoAsync(teamId, cancellationToken);
     }
 
@@ -717,44 +646,37 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         string messageId,
         string revokerId,
         string? reason = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (!_registry.TryGetRoom(teamId, out var room))
-        {
+        CancellationToken cancellationToken = default) {
+        if (!_registry.TryGetRoom(teamId, out var room)) {
             return OperationResult<TeamInfo?>.Fail($"团队 {teamId} 不存在");
         }
 
         var team = room.Info;
         var msgDict = room.Messages;
 
-        if (!msgDict.TryGetValue(messageId, out var originalMsg))
-        {
+        if (!msgDict.TryGetValue(messageId, out var originalMsg)) {
             return OperationResult<TeamInfo?>.Fail($"消息 {messageId} 不存在");
         }
 
         var isSender = originalMsg.SenderId == revokerId;
         var isAdmin = TeamMessageDispatcher.IsAdminOrOwner(revokerId, room.MemberDetails, team);
-        if (!isSender && !isAdmin)
-        {
+        if (!isSender && !isAdmin) {
             return OperationResult<TeamInfo?>.Fail($"撤回者 {revokerId} 无权限：仅发送者或管理员可撤回");
         }
 
         var revokeTimeLimit = TimeSpan.FromMinutes(2);
-        if (!isAdmin && _clock.GetUtcNow() - originalMsg.Timestamp > revokeTimeLimit)
-        {
+        if (!isAdmin && _clock.GetUtcNow() - originalMsg.Timestamp > revokeTimeLimit) {
             return OperationResult<TeamInfo?>.Fail("消息发送超过 2 分钟，非管理员无法撤回");
         }
 
-        var revokedMsg = originalMsg with
-        {
+        var revokedMsg = originalMsg with {
             Visibility = MessageVisibility.Hidden,
             RevokeReason = reason ?? "撤回",
         };
         msgDict[messageId] = revokedMsg;
 
         var notice = SystemNoticeFactory.Create(SystemNoticeKind.MessageRevoked, teamId, revokerId);
-        if (msgDict.TryAdd(notice.MessageId, notice))
-        {
+        if (msgDict.TryAdd(notice.MessageId, notice)) {
             await _messageDispatcher.PersistTeamMessageToMailboxAsync(teamId, notice, cancellationToken).ConfigureAwait(false);
         }
 
@@ -764,8 +686,7 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     }
 
     /// <summary>异步释放资源 — await Actor 完全退出</summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
@@ -774,13 +695,11 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
     /// 团队管理 Actor — 串行化所有写操作，消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
-    private sealed class TeamActor : ActorBase<TeamCommand, Unit>
-    {
+    private sealed class TeamActor : ActorBase<TeamCommand, Unit> {
         private readonly TeamManager _owner;
         private readonly ILogger<TeamManager>? _logger;
 
-        public TeamActor(TeamManager owner, ILogger<TeamManager>? logger) : base()
-        {
+        public TeamActor(TeamManager owner, ILogger<TeamManager>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -789,34 +708,32 @@ public sealed partial class TeamManager : ServiceEntity, ITeamManager, IDisposab
         public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(TeamCommand cmd, CancellationToken ct)
-        {
-            switch (cmd)
-            {
+        protected override async ValueTask HandleAsync(TeamCommand cmd, CancellationToken ct) {
+            switch (cmd) {
                 case AddMemberCmd(var teamId, var agentId, var reply):
-                    reply.SetResult(await _owner.AddMemberInternalAsync(teamId, agentId, ct).ConfigureAwait(false));
-                    break;
+                reply.SetResult(await _owner.AddMemberInternalAsync(teamId, agentId, ct).ConfigureAwait(false));
+                break;
                 case RemoveMemberCmd(var teamId, var agentId, var reply):
-                    reply.SetResult(await _owner.RemoveMemberInternalAsync(teamId, agentId, ct).ConfigureAwait(false));
-                    break;
+                reply.SetResult(await _owner.RemoveMemberInternalAsync(teamId, agentId, ct).ConfigureAwait(false));
+                break;
                 case SendMsgCmd(var teamId, var senderId, var content, var msgType, var reply):
-                    reply.SetResult(await _owner.SendMsgInternalAsync(teamId, senderId, content, msgType, ct).ConfigureAwait(false));
-                    break;
+                reply.SetResult(await _owner.SendMsgInternalAsync(teamId, senderId, content, msgType, ct).ConfigureAwait(false));
+                break;
                 case SendDirectMsgCmd(var targetId, var senderId, var content, var msgType, var reply):
-                    reply.SetResult(await _owner.SendDirectMsgInternalAsync(targetId, senderId, content, msgType, ct).ConfigureAwait(false));
-                    break;
+                reply.SetResult(await _owner.SendDirectMsgInternalAsync(targetId, senderId, content, msgType, ct).ConfigureAwait(false));
+                break;
                 case GetMsgsCmd(var teamId, var limit, var reply):
-                    reply.SetResult(_owner.GetMsgsInternal(teamId, limit));
-                    break;
+                reply.SetResult(_owner.GetMsgsInternal(teamId, limit));
+                break;
                 case BroadcastMsgCmd(var teamId, var senderId, var content, var msgType, var reply):
-                    reply.SetResult(await _owner.BroadcastMsgInternalAsync(teamId, senderId, content, msgType, ct).ConfigureAwait(false));
-                    break;
+                reply.SetResult(await _owner.BroadcastMsgInternalAsync(teamId, senderId, content, msgType, ct).ConfigureAwait(false));
+                break;
                 case SetMemberActiveCmd(var teamId, var agentId, var isActive, var reply):
-                    reply.SetResult(await _owner.SetMemberActiveInternalAsync(teamId, agentId, isActive, ct).ConfigureAwait(false));
-                    break;
+                reply.SetResult(await _owner.SetMemberActiveInternalAsync(teamId, agentId, isActive, ct).ConfigureAwait(false));
+                break;
                 case AddAllowedPathCmd(var teamId, var path, var accessLevel, var reply):
-                    reply.SetResult(await _owner.AddAllowedPathInternalAsync(teamId, path, accessLevel, ct).ConfigureAwait(false));
-                    break;
+                reply.SetResult(await _owner.AddAllowedPathInternalAsync(teamId, path, accessLevel, ct).ConfigureAwait(false));
+                break;
             }
         }
 

@@ -6,8 +6,7 @@ namespace IO;
 /// Uses SHA256 hash of file path as backup filename for privacy and cross-platform safety.
 /// </summary>
 [Register(typeof(IFileHistoryService), ServiceLifetime.Singleton)]
-public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryService
-{
+public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryService {
     private readonly ILogger<FileHistoryService>? _logger;
     private readonly IFileSystem _fs;
     private readonly string _baseDir;
@@ -19,8 +18,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public FileHistoryService(IFileSystem fs, ILogger<FileHistoryService>? logger = null)
-    {
+    public FileHistoryService(IFileSystem fs, ILogger<FileHistoryService>? logger = null) {
         _fs = fs;
         _logger = logger;
         _sessionId = Environment.ProcessId.ToString();
@@ -29,8 +27,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     }
 
     /// <inheritdoc />
-    public async Task<string?> BackupBeforeWriteAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task<string?> BackupBeforeWriteAsync(string filePath, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var normalizedPath = Path.GetFullPath(filePath);
@@ -47,8 +44,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
             cancellationToken).ConfigureAwait(false);
         backupPath = GetBackupFilePath(normalizedPath, version);
 
-        try
-        {
+        try {
             var backupDir = Path.GetDirectoryName(backupPath)!;
             if (!_fs.DirectoryExists(backupDir))
                 _fs.CreateDirectory(backupDir);
@@ -62,17 +58,14 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
 
             await Task.CompletedTask.ConfigureAwait(false);
             return backupPath;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to create file history backup for: {FilePath}", normalizedPath);
             return null;
         }
     }
 
     /// <inheritdoc />
-    public string? GetBackupPath(string filePath, int version)
-    {
+    public string? GetBackupPath(string filePath, int version) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var normalizedPath = Path.GetFullPath(filePath);
@@ -82,8 +75,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<int> GetBackupVersions(string filePath)
-    {
+    public IReadOnlyList<int> GetBackupVersions(string filePath) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var normalizedPath = Path.GetFullPath(filePath);
@@ -95,8 +87,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
             return Array.Empty<int>();
 
         var versions = new List<int>();
-        foreach (var file in _fs.GetFiles(sessionDir, $"{prefix}*", SearchOption.TopDirectoryOnly))
-        {
+        foreach (var file in _fs.GetFiles(sessionDir, $"{prefix}*", SearchOption.TopDirectoryOnly)) {
             var fileName = Path.GetFileName(file);
             var versionStr = fileName.AsSpan(prefix.Length);
             if (int.TryParse(versionStr, out var v))
@@ -108,8 +99,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     }
 
     /// <inheritdoc />
-    public async Task<bool> RestoreAsync(string filePath, int version, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> RestoreAsync(string filePath, int version, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var normalizedPath = Path.GetFullPath(filePath);
@@ -118,8 +108,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
         if (!_fs.FileExists(backupPath))
             return false;
 
-        try
-        {
+        try {
             var dir = Path.GetDirectoryName(normalizedPath);
             if (!string.IsNullOrEmpty(dir) && !_fs.DirectoryExists(dir))
                 _fs.CreateDirectory(dir);
@@ -128,17 +117,14 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
 
             _logger?.LogInformation("File restored from backup: {FilePath} (v{Version})", normalizedPath, version);
             return true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Failed to restore file from backup: {FilePath} (v{Version})", normalizedPath, version);
             return false;
         }
     }
 
     /// <inheritdoc />
-    public async Task CleanupAsync(string filePath, int keepVersions = 5, CancellationToken cancellationToken = default)
-    {
+    public async Task CleanupAsync(string filePath, int keepVersions = 5, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var versions = GetBackupVersions(filePath);
@@ -148,16 +134,12 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
         var normalizedPath = Path.GetFullPath(filePath);
         var toDelete = versions.Take(versions.Count - keepVersions);
 
-        foreach (var version in toDelete)
-        {
+        foreach (var version in toDelete) {
             var backupPath = GetBackupFilePath(normalizedPath, version);
-            try
-            {
+            try {
                 if (_fs.FileExists(backupPath))
                     _fs.DeleteFile(backupPath);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "Failed to delete old backup: {BackupPath}", backupPath);
             }
         }
@@ -165,15 +147,13 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    private string GetBackupFilePath(string normalizedPath, int version)
-    {
+    private string GetBackupFilePath(string normalizedPath, int version) {
         var hash = ComputePathHash(normalizedPath);
         var fileName = $"{hash}@v{version}";
         return Path.Combine(GetSessionDir(), fileName);
     }
 
-    private string GetSessionDir()
-    {
+    private string GetSessionDir() {
         return Path.Combine(_baseDir, _sessionId);
     }
 
@@ -181,8 +161,7 @@ public sealed partial class FileHistoryService : ServiceEntity, IFileHistoryServ
     /// Compute SHA256 hash of file path, take first 16 hex chars.
     /// Mirrors TS getBackupFileName which uses sha256(path).slice(0,16).
     /// </summary>
-    private static string ComputePathHash(string path)
-    {
+    private static string ComputePathHash(string path) {
         var bytes = System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes(path));
         return Convert.ToHexString(bytes).AsSpan(0, 16).ToString();

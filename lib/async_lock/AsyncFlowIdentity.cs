@@ -10,8 +10,7 @@ namespace Core.Utils;
 /// FlowId 在 AsyncLock 入口惰性注册(EnsureFlowRegistered),ActorId 在 ActorBase.ConsumeLoopAsync 入口设置。
 /// </para>
 /// </summary>
-public sealed class AsyncFlowIdentity
-{
+public sealed class AsyncFlowIdentity {
     public int FlowId { get; init; }
     public string? ActorId { get; init; }
 
@@ -27,15 +26,13 @@ public sealed class AsyncFlowIdentity
     public static string? CurrentActorId => _current.Value?.ActorId;
 
     /// <summary>仅设置 FlowId,保留当前 ActorId</summary>
-    public static void SetFlowId(int flowId)
-    {
+    public static void SetFlowId(int flowId) {
         var prev = _current.Value;
         _current.Value = new AsyncFlowIdentity { FlowId = flowId, ActorId = prev?.ActorId };
     }
 
     /// <summary>仅设置 ActorId,保留当前 FlowId</summary>
-    public static void SetActorId(string? actorId)
-    {
+    public static void SetActorId(string? actorId) {
         var prev = _current.Value;
         _current.Value = new AsyncFlowIdentity { FlowId = prev?.FlowId ?? 0, ActorId = actorId };
     }
@@ -47,16 +44,14 @@ public sealed class AsyncFlowIdentity
     /// 进入 Actor 作用域 — 设置 ActorId(保留当前 FlowId),返回 scope(Dispose 时恢复原值)。
     /// 比 SetActorId+try-finally+ClearActorId 更安全:正确处理嵌套 Actor(恢复外层 ActorId 而非置空)。
     /// </summary>
-    public static IDisposable EnterActorScope(string actorId)
-    {
+    public static IDisposable EnterActorScope(string actorId) {
         var prev = _current.Value;
         _current.Value = new AsyncFlowIdentity { FlowId = prev?.FlowId ?? 0, ActorId = actorId };
         return new ActorScope(_current, prev);
     }
 
     /// <summary>Actor 作用域 — Dispose 时恢复原 AsyncFlowIdentity(正确处理嵌套 Actor)</summary>
-    private sealed class ActorScope(AsyncLocal<AsyncFlowIdentity?> store, AsyncFlowIdentity? previous) : IDisposable
-    {
+    private sealed class ActorScope(AsyncLocal<AsyncFlowIdentity?> store, AsyncFlowIdentity? previous) : IDisposable {
         public void Dispose() => store.Value = previous;
     }
 

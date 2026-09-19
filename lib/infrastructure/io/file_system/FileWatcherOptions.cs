@@ -5,8 +5,7 @@ namespace IO.FileSystem;
 /// <para>对齐 ADR 0101: 消除散落的硬编码防抖间隔(200ms/500ms/1s/5s),改为集中配置。</para>
 /// <para>热重载: 可通过 settings.json 调整,运行时生效(对齐 ADR 0015 双变量切换)。</para>
 /// </summary>
-public sealed class FileWatcherOptions
-{
+public sealed class FileWatcherOptions {
     /// <summary>配置热重载防抖(ConfigChangeNotifierActor) — 默认 500ms</summary>
     public TimeSpan ConfigDebounce { get; init; } = TimeSpan.FromMilliseconds(500);
 

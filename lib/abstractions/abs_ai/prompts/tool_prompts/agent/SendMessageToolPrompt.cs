@@ -4,16 +4,14 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// SendMessageTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = AgentToolName.AgentSendMessage, Category = ToolPromptCategory.Agent, HasParameters = true)]
-public static class SendMessageToolPrompt
-{
+public static class SendMessageToolPrompt {
     public const string ToolName = AgentToolNameEnumConstants.AgentSendMessage;
     public const string Description = "向另一个代理发送消息";
 
     /// <summary>
     /// 获取工具提示词
     /// </summary>
-    public static string GetPrompt(bool udsInboxEnabled = false)
-    {
+    public static string GetPrompt(bool udsInboxEnabled = false) {
         var udsRow = udsInboxEnabled
             ? @"
 | `""uds:/path/to.sock""` | 本地 JoinCode 会话的 socket（同一机器；使用 `ListPeers`） |

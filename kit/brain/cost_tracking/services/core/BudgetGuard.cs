@@ -7,8 +7,7 @@ internal readonly record struct CostSnapshot(decimal Daily, decimal Monthly, dec
 /// 预算守卫 — 封装预算配置、阈值告警、预算锁
 /// 从 CostTracker 提取,通过 getCosts 回调获取成本数据,不直接依赖用量存储
 /// </summary>
-internal sealed class BudgetGuard
-{
+internal sealed class BudgetGuard {
     private BudgetConfig? _budgetConfig;
     private readonly HashSet<double> _triggeredThresholds = [];
     private readonly AsyncLock _budgetLock = new();
@@ -18,8 +17,7 @@ internal sealed class BudgetGuard
     public event EventHandler<CostAlertEventArgs>? CostAlertTriggered;
 
     /// <summary>构造 BudgetGuard</summary>
-    public BudgetGuard(ILogger? logger = null, BudgetConfig? budgetConfig = null)
-    {
+    public BudgetGuard(ILogger? logger = null, BudgetConfig? budgetConfig = null) {
         _logger = logger;
         _budgetConfig = budgetConfig;
     }
@@ -31,19 +29,15 @@ internal sealed class BudgetGuard
     public BudgetConfig? Config => _budgetConfig;
 
     /// <summary>检查预算是否超限</summary>
-    public bool IsExceeded(Func<CostSnapshot> getCosts)
-    {
+    public bool IsExceeded(Func<CostSnapshot> getCosts) {
         if (_budgetConfig?.Enabled != true) return false;
         return GetStatus(getCosts).IsAnyBudgetExceeded();
     }
 
     /// <summary>获取预算状态</summary>
-    public BudgetStatus GetStatus(Func<CostSnapshot> getCosts)
-    {
-        if (_budgetConfig == null)
-        {
-            return new BudgetStatus
-            {
+    public BudgetStatus GetStatus(Func<CostSnapshot> getCosts) {
+        if (_budgetConfig == null) {
+            return new BudgetStatus {
                 DailyUsed = 0,
                 DailyLimit = 0,
                 MonthlyUsed = 0,
@@ -52,8 +46,7 @@ internal sealed class BudgetGuard
         }
 
         var costs = getCosts();
-        return new BudgetStatus
-        {
+        return new BudgetStatus {
             DailyUsed = costs.Daily,
             DailyLimit = _budgetConfig.DailyLimit,
             MonthlyUsed = costs.Monthly,
@@ -62,8 +55,7 @@ internal sealed class BudgetGuard
     }
 
     /// <summary>异步更新预算配置 — 加锁保护,重置已触发阈值集合</summary>
-    public async Task SetAsync(BudgetConfig config, CancellationToken ct = default)
-    {
+    public async Task SetAsync(BudgetConfig config, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(config);
         config.ValidateOrThrow();
 
@@ -77,10 +69,8 @@ internal sealed class BudgetGuard
     }
 
     /// <summary>检查预算告警 — 通过回调获取成本快照</summary>
-    public async Task CheckAlertsAsync(Func<CostSnapshot> getCosts, CancellationToken ct = default)
-    {
-        if (_budgetConfig?.Enabled != true || _budgetConfig.AlertThresholds.Count == 0)
-        {
+    public async Task CheckAlertsAsync(Func<CostSnapshot> getCosts, CancellationToken ct = default) {
+        if (_budgetConfig?.Enabled != true || _budgetConfig.AlertThresholds.Count == 0) {
             return;
         }
 
@@ -98,24 +88,19 @@ internal sealed class BudgetGuard
     /// <summary>释放预算锁</summary>
     public void Dispose() => _budgetLock.Dispose();
 
-    private void CheckThresholdAlert(decimal currentCost, decimal budgetLimit, BudgetType budgetType)
-    {
-        if (budgetLimit <= 0)
-        {
+    private void CheckThresholdAlert(decimal currentCost, decimal budgetLimit, BudgetType budgetType) {
+        if (budgetLimit <= 0) {
             return;
         }
 
         var budgetConfig = _budgetConfig ?? throw new InvalidOperationException("BudgetConfig not available.");
         var percentageUsed = (double)(currentCost / budgetLimit);
 
-        foreach (var threshold in budgetConfig.AlertThresholds)
-        {
-            if (percentageUsed >= threshold && !_triggeredThresholds.Contains(threshold))
-            {
+        foreach (var threshold in budgetConfig.AlertThresholds) {
+            if (percentageUsed >= threshold && !_triggeredThresholds.Contains(threshold)) {
                 _triggeredThresholds.Add(threshold);
 
-                var level = threshold switch
-                {
+                var level = threshold switch {
                     >= 1.0 => CostAlertLevel.Critical,
                     >= 0.8 => CostAlertLevel.Warning,
                     _ => CostAlertLevel.Info

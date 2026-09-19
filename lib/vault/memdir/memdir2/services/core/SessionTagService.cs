@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// 会话标签服务 — 管理会话的标签集合,支持增删查与持久化
 /// </summary>
 [Register(typeof(ISessionTagService), ServiceLifetime.Singleton)]
-public sealed partial class SessionTagService : ServiceEntity, ISessionTagService, IDisposable
-{
+public sealed partial class SessionTagService : ServiceEntity, ISessionTagService, IDisposable {
     private readonly ConcurrentDictionary<string, HashSet<string>> _tags = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _storagePath;
     private readonly IFileOperationService _fileOperationService;
@@ -19,8 +18,7 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     /// <param name="options">Memdir 配置选项,提供存储路径</param>
     /// <param name="fileOperationService">文件操作服务,用于持久化标签</param>
     /// <param name="logger">可选的日志记录器</param>
-    public SessionTagService(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, ILogger<SessionTagService>? logger = null)
-    {
+    public SessionTagService(IOptions<MemdirOptions> options, IFileOperationService fileOperationService, ILogger<SessionTagService>? logger = null) {
         var storagePath = options?.Value?.StoragePath ?? throw new ArgumentNullException(nameof(options));
         _storagePath = Path.Combine(storagePath, "session_tags.json");
         _fileOperationService = fileOperationService;
@@ -29,17 +27,14 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     }
 
     /// <inheritdoc />
-    public bool AddTag(string sessionId, string tag)
-    {
+    public bool AddTag(string sessionId, string tag) {
         ArgumentNullException.ThrowIfNull(sessionId);
         ArgumentNullException.ThrowIfNull(tag);
 
         var tags = _tags.GetOrAdd(sessionId, _ => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-        lock (tags)
-        {
+        lock (tags) {
             var added = tags.Add(tag);
-            if (added)
-            {
+            if (added) {
                 _logger?.LogDebug(L.T(StringKey.VaultLogSessionAddTag), sessionId, tag);
                 FireAndForgetSave();
             }
@@ -48,21 +43,17 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     }
 
     /// <inheritdoc />
-    public bool RemoveTag(string sessionId, string tag)
-    {
+    public bool RemoveTag(string sessionId, string tag) {
         ArgumentNullException.ThrowIfNull(sessionId);
         ArgumentNullException.ThrowIfNull(tag);
 
         if (!_tags.TryGetValue(sessionId, out var tags)) return false;
 
-        lock (tags)
-        {
+        lock (tags) {
             var removed = tags.Remove(tag);
-            if (removed)
-            {
+            if (removed) {
                 _logger?.LogDebug(L.T(StringKey.VaultLogSessionRemoveTag), sessionId, tag);
-                if (tags.Count == 0)
-                {
+                if (tags.Count == 0) {
                     _tags.TryRemove(sessionId, out _);
                 }
                 FireAndForgetSave();
@@ -72,28 +63,22 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> GetTags(string sessionId)
-    {
+    public IEnumerable<string> GetTags(string sessionId) {
         ArgumentNullException.ThrowIfNull(sessionId);
 
         if (!_tags.TryGetValue(sessionId, out var tags)) return [];
 
-        lock (tags)
-        {
+        lock (tags) {
             return tags.OrderBy(t => t, StringComparer.OrdinalIgnoreCase);
         }
     }
 
     /// <inheritdoc />
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> GetAllTags()
-    {
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> GetAllTags() {
         var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in _tags)
-        {
-            lock (kvp.Value)
-            {
-                if (kvp.Value.Count > 0)
-                {
+        foreach (var kvp in _tags) {
+            lock (kvp.Value) {
+                if (kvp.Value.Count > 0) {
                     result[kvp.Key] = kvp.Value.OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
                 }
             }
@@ -102,41 +87,32 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     }
 
     /// <inheritdoc />
-    public async Task LoadAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
+    public async Task LoadAsync(CancellationToken cancellationToken = default) {
+        try {
             var result = await _fileOperationService.ReadFileAsync(_storagePath, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (!result.Success || string.IsNullOrEmpty(result.Content)) return;
 
             var data = RelaxedJsonSerializer.Deserialize(result.Content, SessionTagJsonContext.Default.SessionTagData);
             if (data?.Entries == null) return;
 
-            foreach (var kvp in data.Entries)
-            {
+            foreach (var kvp in data.Entries) {
                 var tags = new HashSet<string>(kvp.Value, StringComparer.OrdinalIgnoreCase);
                 _tags[kvp.Key] = tags;
             }
 
             _logger?.LogDebug(L.T(StringKey.VaultLogLoadedSessionTags), data.Entries.Count);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.VaultLogLoadSessionTagsFailed));
         }
     }
 
-    private void FireAndForgetSave()
-    {
+    private void FireAndForgetSave() {
         _actor.TrySend(new SessionTagSaveCmd());
     }
 
-    private async Task SaveInternalAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var data = new SessionTagData
-            {
+    private async Task SaveInternalAsync(CancellationToken cancellationToken) {
+        try {
+            var data = new SessionTagData {
                 Entries = _tags.ToDictionary(
                     kvp => kvp.Key,
                     kvp => kvp.Value.ToList())
@@ -144,15 +120,13 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
 
             var json = RelaxedJsonSerializer.Serialize(data, SessionTagJsonContext.Default);
             await _fileOperationService.WriteFileAsync(_storagePath, json, cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
     }
 
     /// <summary>
     /// 异步释放资源 — await Actor 完全退出，禁止 fire-and-forget（JCC9200）
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _actor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
@@ -161,24 +135,20 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     /// 会话标签 Actor — 串行化文件写操作，消除显式锁
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// </summary>
-    private sealed class SessionTagActor : ActorBase<SessionTagCommand, Unit>
-    {
+    private sealed class SessionTagActor : ActorBase<SessionTagCommand, Unit> {
         private readonly SessionTagService _owner;
         private readonly ILogger<SessionTagService>? _logger;
 
-        public SessionTagActor(SessionTagService owner, ILogger<SessionTagService>? logger) : base()
-        {
+        public SessionTagActor(SessionTagService owner, ILogger<SessionTagService>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
 
-        protected override async ValueTask HandleAsync(SessionTagCommand cmd, CancellationToken ct)
-        {
-            switch (cmd)
-            {
+        protected override async ValueTask HandleAsync(SessionTagCommand cmd, CancellationToken ct) {
+            switch (cmd) {
                 case SessionTagSaveCmd:
-                    await _owner.SaveInternalAsync(ct).ConfigureAwait(false);
-                    break;
+                await _owner.SaveInternalAsync(ct).ConfigureAwait(false);
+                break;
             }
         }
 
@@ -187,8 +157,6 @@ public sealed partial class SessionTagService : ServiceEntity, ISessionTagServic
     }
 }
 
-internal sealed class SessionTagData
-{
+internal sealed class SessionTagData {
     public Dictionary<string, List<string>> Entries { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
-

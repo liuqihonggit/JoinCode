@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// MCP 服务接口
 /// </summary>
-public interface IMcpService
-{
+public interface IMcpService {
     /// <summary>
     /// 是否正在运行
     /// </summary>

@@ -1,38 +1,31 @@
 namespace Tools.Handlers;
 
-public partial class FileToolHandlers
-{
+public partial class FileToolHandlers {
     /// <summary>应用 unified diff patch 到一个或多个文件</summary>
     [McpTool(FileToolNameEnumConstants.FileApplyPatch, "Apply a unified diff patch to one or more files", "file")]
     public async Task<ToolResult> FileApplyPatchAsync(
         [McpToolParameter("The unified diff patch content")] string patch,
         [McpToolParameter("Preview changes without writing (default: false)", Required = false)] bool dry_run = false,
-        CancellationToken cancellationToken = default)
-    {
-        if (_ctx.ApplyPatchLogic is null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_ctx.ApplyPatchLogic is null) {
             var notAvailDiag = BuildApplyPatchNotAvailableDiagnostic();
             return ToolResultBuilder.Error().WithText(notAvailDiag.FormattedMessage).WithDiagnostic(notAvailDiag).Build();
         }
 
         // ── 参数校验 ──
         var validationError = ValidationHelper.ValidateRequired(patch, "patch");
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
 
         // ── 统一写入防御链 — dry_run 不写盘跳过防御，非 dry_run 对每个目标文件跑防御 ──
-        if (!dry_run)
-        {
+        if (!dry_run) {
             var targetPaths = ExtractPatchTargetPaths(patch);
-            if (targetPaths.Count > 0)
-            {
+            if (targetPaths.Count > 0) {
                 // 对每个目标文件并行跑防御链，任一拒绝即整体拒绝
                 var defenses = await Task.WhenAll(
-                    targetPaths.Select(async path =>
-                    {
+                    targetPaths.Select(async path => {
                         var safety = await _writeDefense
                             .Begin(path, patch, FileOperationType.Edit, "patching")
                             .Then(_writeDefense.RejectUncPath)           // UNC 路径拒绝
@@ -54,8 +47,7 @@ public partial class FileToolHandlers
         // ── 应用 patch ──
         var result = await _ctx.ApplyPatchLogic.ApplyAsync(patch, dry_run, workingDirectory: null, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             var errorText = result.ErrorMessage ?? "Patch did not apply";
             if (result.Details.Count > 0)
                 errorText += "\n" + string.Join("\n", result.Details);
@@ -70,8 +62,7 @@ public partial class FileToolHandlers
         var detailText = result.Details.Count > 0 ? "\n" + string.Join("\n", result.Details) : "";
 
         // ── 统一写入后通知（每个修改的文件） ──
-        foreach (var modifiedPath in result.ModifiedFilePaths)
-        {
+        foreach (var modifiedPath in result.ModifiedFilePaths) {
             _writeDefense.NotifyWriteComplete(modifiedPath, null, "apply-patch", FileOperationType.Edit);
         }
 
@@ -83,11 +74,9 @@ public partial class FileToolHandlers
     /// 对齐 ApplyPatchLogic.ParsePatch 的路径提取逻辑（L121-128）。
     /// 用于在应用 patch 前对每个目标文件跑写入防御链。
     /// </summary>
-    private static List<string> ExtractPatchTargetPaths(string patch)
-    {
+    private static List<string> ExtractPatchTargetPaths(string patch) {
         var paths = new List<string>();
-        foreach (var line in patch.AsSpan().EnumerateLines())
-        {
+        foreach (var line in patch.AsSpan().EnumerateLines()) {
             if (!line.StartsWith("+++".AsSpan())) continue;
             if (line.Length < 4) continue;
             var path = line.Slice(4);

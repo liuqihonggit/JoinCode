@@ -7,8 +7,7 @@ namespace Core.Context;
 /// OnError=Continue：落盘失败不影响对话继续执行。
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMiddleware
-{
+public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMiddleware {
     private readonly ITranscriptService? _transcriptService;
     private readonly IChatContextManager _contextManager;
     private readonly ILogger<TranscriptPersistMiddleware>? _logger;
@@ -22,8 +21,7 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
     public TranscriptPersistMiddleware(
         ITranscriptService? transcriptService,
         IChatContextManager contextManager,
-        ILogger<TranscriptPersistMiddleware>? logger = null)
-    {
+        ILogger<TranscriptPersistMiddleware>? logger = null) {
         _transcriptService = transcriptService;
         _contextManager = contextManager;
         _logger = logger;
@@ -39,12 +37,10 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         var startCount = _contextManager.CurrentMessageCount;
 
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }
 
@@ -61,13 +57,11 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
             yield break;
 
         var entries = new List<TranscriptEntry>(snapshot.Count - startCount);
-        for (var i = startCount; i < snapshot.Count; i++)
-        {
+        for (var i = startCount; i < snapshot.Count; i++) {
             var message = snapshot[i];
             if (string.IsNullOrEmpty(message.Content))
                 continue;
-            entries.Add(new TranscriptEntry
-            {
+            entries.Add(new TranscriptEntry {
                 Role = message.Role.ToValue(),
                 Content = message.Content,
                 Timestamp = DateTime.UtcNow,
@@ -78,16 +72,11 @@ public sealed partial class TranscriptPersistMiddleware : ServiceEntity, IChatMi
         if (entries.Count == 0)
             yield break;
 
-        try
-        {
+        try {
             await _transcriptService.AppendEntriesAsync(_contextManager.SessionId, entries, ct).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[TranscriptPersist] transcript 写入失败（会话 {SessionId}），本轮对话可能丢失", _contextManager.SessionId);
         }
     }

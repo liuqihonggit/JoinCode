@@ -5,47 +5,39 @@ namespace Services.Shell;
 /// </summary>
 [Register(typeof(MapRegistry<string, ISystemActuatorCommandContext>), ServiceLifetime.Singleton)]
 [Register(typeof(IForegroundTaskRegistry), ServiceLifetime.Singleton)]
-public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystemActuatorCommandContext>, IForegroundTaskRegistry
-{
+public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystemActuatorCommandContext>, IForegroundTaskRegistry {
 
     /// <summary>
     /// 构造前台任务注册表
     /// </summary>
     /// <param name="logger">日志器（可选）</param>
-    public ForegroundTaskRegistry(ILogger<ForegroundTaskRegistry>? logger = null)
-    {
+    public ForegroundTaskRegistry(ILogger<ForegroundTaskRegistry>? logger = null) {
         _logger = logger;
     }
     private readonly ILogger<ForegroundTaskRegistry>? _logger;
 
     /// <inheritdoc />
-    public void Register(ISystemActuatorCommandContext context)
-    {
+    public void Register(ISystemActuatorCommandContext context) {
         ArgumentNullException.ThrowIfNull(context);
         AddOrUpdateCore(context.TaskId, context);
         _logger?.LogInformation("注册前台任务: {TaskId}, 命令: {Command}", context.TaskId, context.Command);
     }
 
     /// <inheritdoc />
-    public new void Unregister(string taskId)
-    {
+    public new void Unregister(string taskId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(taskId);
         RemoveCore(taskId);
     }
 
     /// <inheritdoc />
-    public IEnumerable<string> BackgroundAll()
-    {
+    public IEnumerable<string> BackgroundAll() {
         var backgrounded = new List<string>();
 
-        foreach (var kvp in EntriesCore)
-        {
+        foreach (var kvp in EntriesCore) {
             var context = kvp.Value;
-            if (context.Status == SystemActuatorCommandStatus.Running)
-            {
+            if (context.Status == SystemActuatorCommandStatus.Running) {
                 var taskId = TaskIdGenerator.GenerateTaskId(TaskType.LocalBash);
-                if (context.Background(taskId))
-                {
+                if (context.Background(taskId)) {
                     backgrounded.Add(kvp.Key);
                     _logger?.LogInformation("Ctrl+B 后台化: {OriginalTaskId} -> {NewTaskId}, 命令: {Command}",
                         kvp.Key, taskId, context.Command);
@@ -53,8 +45,7 @@ public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystem
             }
         }
 
-        foreach (var taskId in backgrounded)
-        {
+        foreach (var taskId in backgrounded) {
             RemoveCore(taskId);
         }
 
@@ -69,28 +60,22 @@ public sealed partial class ForegroundTaskRegistry : MapRegistry<string, ISystem
         => Where(t => t.Status == SystemActuatorCommandStatus.Running);
 
     /// <inheritdoc />
-    public async Task CompactAllAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task CompactAllAsync(CancellationToken cancellationToken = default) {
         var tasks = GetAll().ToList();
         if (tasks.Count == 0) return;
 
         _logger?.LogInformation("压缩 {Count} 个 Shell 任务", tasks.Count);
 
-        foreach (var task in tasks)
-        {
-            try
-            {
+        foreach (var task in tasks) {
+            try {
                 await task.CompactAsync(cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug(ex, "压缩 Shell 任务失败: {TaskId}", task.TaskId);
             }
         }
 
         var completed = tasks.Where(t => t.LifecycleState == SystemActuatorLifecycleState.Completed).ToList();
-        foreach (var task in completed)
-        {
+        foreach (var task in completed) {
             RemoveCore(task.TaskId);
         }
     }

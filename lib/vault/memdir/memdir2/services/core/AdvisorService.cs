@@ -5,8 +5,7 @@ namespace Core.Memdir;
 /// </summary>
 [Register(typeof(ConfigPersistentServiceBase<string>), ServiceLifetime.Singleton)]
 [Register(typeof(IAdvisorService), ServiceLifetime.Singleton)]
-public sealed partial class AdvisorService : ConfigPersistentServiceBase<string>, IAdvisorService
-{
+public sealed partial class AdvisorService : ConfigPersistentServiceBase<string>, IAdvisorService {
     private const string NoneValue = "";
 
     /// <summary>
@@ -26,10 +25,8 @@ public sealed partial class AdvisorService : ConfigPersistentServiceBase<string>
     /// <param name="raw">原始配置值</param>
     /// <param name="result">解析结果</param>
     /// <returns>解析是否成功</returns>
-    protected override bool TryParseConfigValue(string? raw, out string result)
-    {
-        if (!string.IsNullOrEmpty(raw))
-        {
+    protected override bool TryParseConfigValue(string? raw, out string result) {
+        if (!string.IsNullOrEmpty(raw)) {
             result = raw;
             return true;
         }
@@ -46,10 +43,8 @@ public sealed partial class AdvisorService : ConfigPersistentServiceBase<string>
     /// <summary>
     /// 当前顾问模型 ID，未设置时返回 null
     /// </summary>
-    public string? AdvisorModel
-    {
-        get
-        {
+    public string? AdvisorModel {
+        get {
             var v = Value;
             return v == NoneValue ? null : v;
         }

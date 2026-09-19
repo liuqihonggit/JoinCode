@@ -5,8 +5,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Commit, Description = "创建 Git 提交", Usage = "/commit [message]", Category = ChatCommandCategory.Code, ArgumentHint = "[message]")]
 [ChatCommandArg("message", Type = "string", Description = "提交消息")]
-public sealed class CommitCommand : ChatCommandBase
-{
+public sealed class CommitCommand : ChatCommandBase {
     // 对齐 TS: Git Safety Protocol — 禁止提交的文件模式（FrozenSet 类型规范，子串匹配仍需遍历）
     private static readonly FrozenSet<string> SecretFilePatterns = FrozenSet.Create(
         ".env", "credentials", "secret", "password", "apikey", "token");
@@ -27,14 +26,11 @@ public sealed class CommitCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         // 渐进式披露:首次调用返回说明不执行,二次确认执行(SessionId 为空时跳过,兼容测试)
         var sessionId = context.SessionId;
-        if (!string.IsNullOrEmpty(sessionId))
-        {
-            if (!IsReadConfirmed(sessionId))
-            {
+        if (!string.IsNullOrEmpty(sessionId)) {
+            if (!IsReadConfirmed(sessionId)) {
                 ShowUsageDisclosure();
                 MarkReadConfirmed(sessionId);
                 TerminalHelper.WriteLine($"{TerminalColors.Muted}\n再次调用 /commit 确认执行(60s 内有效)。{AnsiStyleEnumConstants.Reset}");
@@ -49,8 +45,7 @@ public sealed class CommitCommand : ChatCommandBase
         var fs = context.GetCommandServices().FileSystem;
         var gitRunner = ChatCommandBase.GetService<IGitCommandRunner>(context)!;
         var status = await RunGitCommandAsync("status --porcelain", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(status))
-        {
+        if (string.IsNullOrWhiteSpace(status)) {
             // 对齐 TS: 不创建空提交
             TerminalHelper.WriteLine("没有要提交的变更");
             return ChatCommandResult.Continue();
@@ -64,14 +59,12 @@ public sealed class CommitCommand : ChatCommandBase
         var secretFiles = files.Where(f =>
             SecretFilePatterns.Any(p => f.Contains(p, StringComparison.OrdinalIgnoreCase))).ToList();
 
-        if (secretFiles.Count > 0)
-        {
+        if (secretFiles.Count > 0) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}警告: 以下文件可能包含敏感信息:{AnsiStyleEnumConstants.Reset}");
             foreach (var f in secretFiles)
                 TerminalHelper.WriteLine($"  {TerminalColors.Warning}{f}{AnsiStyleEnumConstants.Reset}");
 
-            if (!(context.Confirm?.Invoke("确认提交这些文件？") ?? false))
-            {
+            if (!(context.Confirm?.Invoke("确认提交这些文件？") ?? false)) {
                 TerminalHelper.WriteLine("取消提交");
                 return ChatCommandResult.Continue();
             }
@@ -82,33 +75,24 @@ public sealed class CommitCommand : ChatCommandBase
 
         var args = ChatCommandBase.GetSplitArgs(context);
         string message;
-        if (args.Length > 0)
-        {
+        if (args.Length > 0) {
             message = context.Arguments;
-        }
-        else
-        {
+        } else {
             message = await GenerateCommitMessageAsync(context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
             TerminalHelper.WriteLine($"\n建议的提交信息: {message}");
 
-            if (!(context.Confirm?.Invoke("使用此提交信息？") ?? false))
-            {
+            if (!(context.Confirm?.Invoke("使用此提交信息？") ?? false)) {
                 var customMessage = context.Prompt?.Invoke("请输入提交信息: ");
-                if (customMessage is null)
-                {
+                if (customMessage is null) {
                     // 非交互模式或测试环境取消提交
-                    if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-                    {
+                    if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                         TerminalHelper.WriteLine("取消提交（非交互模式）");
                         return ChatCommandResult.Continue();
-                    }
-                    else
-                    {
+                    } else {
                         customMessage = TerminalHelper.ReadLine();
                     }
                 }
-                if (string.IsNullOrWhiteSpace(customMessage))
-                {
+                if (string.IsNullOrWhiteSpace(customMessage)) {
                     TerminalHelper.WriteLine("取消提交");
                     return ChatCommandResult.Continue();
                 }
@@ -116,8 +100,7 @@ public sealed class CommitCommand : ChatCommandBase
             }
         }
 
-        if (!(context.Confirm?.Invoke("确认提交这些变更？") ?? false))
-        {
+        if (!(context.Confirm?.Invoke("确认提交这些变更？") ?? false)) {
             TerminalHelper.WriteLine("取消提交");
             return ChatCommandResult.Continue();
         }
@@ -127,12 +110,9 @@ public sealed class CommitCommand : ChatCommandBase
         var escapedMessage = message.Replace("\"", "\\\"");
         var commitResult = await RunGitCommandAsync($"commit -m \"{escapedMessage}\"", context.CancellationToken, fs, gitRunner).ConfigureAwait(false);
 
-        if (commitResult.Contains("error") || commitResult.Contains("fatal"))
-        {
+        if (commitResult.Contains("error") || commitResult.Contains("fatal")) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}提交失败: {commitResult}{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Success}提交成功！{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine(commitResult);
         }
@@ -140,21 +120,17 @@ public sealed class CommitCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static async Task<string> GenerateCommitMessageAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
-    {
-        try
-        {
+    private static async Task<string> GenerateCommitMessageAsync(CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner) {
+        try {
             var diff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --cached --stat", cancellationToken, fs, gitRunner).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(diff))
-            {
+            if (string.IsNullOrWhiteSpace(diff)) {
                 diff = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --stat", cancellationToken, fs, gitRunner).ConfigureAwait(false);
             }
 
             var files = await RunGitCommandAsync($"{GitSubCommand.Diff.ToValue()} --name-only", cancellationToken, fs, gitRunner).ConfigureAwait(false);
             var fileList = files.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
 
-            if (fileList.Count == 1)
-            {
+            if (fileList.Count == 1) {
                 var file = fileList[0];
                 var extension = Path.GetExtension(file);
 
@@ -181,24 +157,18 @@ public sealed class CommitCommand : ChatCommandBase
                 return $"更新: {string.Join(", ", fileList.Select(Path.GetFileName))}";
 
             return $"更新 {fileList.Count} 个文件";
-        }
-        catch
-        {
+        } catch {
             return "更新代码";
         }
     }
 
-    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner)
-    {
-        try
-        {
+    private static async Task<string> RunGitCommandAsync(string arguments, CancellationToken cancellationToken, IFileSystem fs, IGitCommandRunner gitRunner) {
+        try {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(TimeSpan.FromSeconds(15));
             var result = await gitRunner.ExecuteAsync(arguments, fs.GetCurrentDirectory(), cts.Token).ConfigureAwait(false);
             return string.IsNullOrEmpty(result.Output) ? result.Error : result.Output;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("执行Git命令", ex);
             return string.Empty;
         }
@@ -207,10 +177,8 @@ public sealed class CommitCommand : ChatCommandBase
     /// <summary>
     /// 是否已读说明确认(60s 窗口内)
     /// </summary>
-    private static bool IsReadConfirmed(string sessionId)
-    {
-        if (ReadConfirmedSessions.TryGetValue(sessionId, out var confirmedAt))
-        {
+    private static bool IsReadConfirmed(string sessionId) {
+        if (ReadConfirmedSessions.TryGetValue(sessionId, out var confirmedAt)) {
             if (DateTime.UtcNow - confirmedAt <= ConfirmationWindow)
                 return true;
             ReadConfirmedSessions.TryRemove(sessionId, out _);
@@ -221,16 +189,14 @@ public sealed class CommitCommand : ChatCommandBase
     /// <summary>
     /// 标记已读说明确认
     /// </summary>
-    private static void MarkReadConfirmed(string sessionId)
-    {
+    private static void MarkReadConfirmed(string sessionId) {
         ReadConfirmedSessions[sessionId] = DateTime.UtcNow;
     }
 
     /// <summary>
     /// 显示使用说明(渐进式披露)— 包含减法诚实原则
     /// </summary>
-    private static void ShowUsageDisclosure()
-    {
+    private static void ShowUsageDisclosure() {
         TerminalHelper.WriteLine($"{TerminalColors.Warning}=== /commit 使用说明(渐进式披露)==={AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine("/commit 创建 Git 提交,自动执行:");
         TerminalHelper.WriteLine("  1. 敏感文件检测(.env/credentials/secret/password/apikey/token 禁止提交)");

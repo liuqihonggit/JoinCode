@@ -1,7 +1,6 @@
 namespace Core.Tests.Context.Context;
 
-public sealed class ToolSearchEngineTests
-{
+public sealed class ToolSearchEngineTests {
     private static List<DeferredToolInfo> CreateTestTools() =>
     [
         new("mcp.search", "Search files in workspace", isMcp: true),
@@ -12,8 +11,7 @@ public sealed class ToolSearchEngineTests
     ];
 
     [Fact]
-    public void Search_SelectMode_ExactMatch()
-    {
+    public void Search_SelectMode_ExactMatch() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("select:mcp.search");
@@ -23,8 +21,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_SelectMode_MultipleNames()
-    {
+    public void Search_SelectMode_MultipleNames() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("select:mcp.search,mcp.read");
@@ -33,8 +30,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_SelectMode_NoMatch()
-    {
+    public void Search_SelectMode_NoMatch() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("select:mcp.nonexistent");
@@ -43,8 +39,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_NameMatch()
-    {
+    public void Search_Keyword_NameMatch() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("search");
@@ -54,8 +49,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_DescriptionMatch()
-    {
+    public void Search_Keyword_DescriptionMatch() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("notebook");
@@ -65,8 +59,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_ExactNameMatchBeatsContainsMatch()
-    {
+    public void Search_Keyword_ExactNameMatchBeatsContainsMatch() {
         var tools = new List<DeferredToolInfo>
         {
             new("search", "Search utility", isMcp: false),
@@ -80,8 +73,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_McpNamePartMatchScoresHigherThanDescription()
-    {
+    public void Search_Keyword_McpNamePartMatchScoresHigherThanDescription() {
         var tools = new List<DeferredToolInfo>
         {
             new("mcp.other", "A search utility for files", isMcp: true),
@@ -95,8 +87,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_PrefixMatch()
-    {
+    public void Search_Keyword_PrefixMatch() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("mcp");
@@ -106,8 +97,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_RequiredTerm()
-    {
+    public void Search_Keyword_RequiredTerm() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("+search file");
@@ -117,8 +107,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_Keyword_RequiredTermMissing()
-    {
+    public void Search_Keyword_RequiredTermMissing() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("+nonexistent file");
@@ -127,8 +116,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_MaxResults()
-    {
+    public void Search_MaxResults() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         var result = engine.Search("mcp", maxResults: 2);
@@ -137,16 +125,14 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_EmptyQuery_Throws()
-    {
+    public void Search_EmptyQuery_Throws() {
         var engine = new ToolSearchEngine(CreateTestTools());
 
         Assert.Throws<ArgumentException>(new Action(() => engine.Search(string.Empty)));
     }
 
     [Fact]
-    public void Search_NoDeferredTools()
-    {
+    public void Search_NoDeferredTools() {
         var engine = new ToolSearchEngine([]);
 
         var result = engine.Search("search");
@@ -155,8 +141,7 @@ public sealed class ToolSearchEngineTests
     }
 
     [Fact]
-    public void Search_NamePartMatch()
-    {
+    public void Search_NamePartMatch() {
         var tools = new List<DeferredToolInfo>
         {
             new("mcp_slack_send", "Send a Slack message", isMcp: true),

@@ -6,8 +6,7 @@ namespace Core.Agents;
 /// 内置 Profile 在静态构造时注册，用户/项目自定义 Profile 通过 IAgentDefinitionProvider 运行时追加
 /// </summary>
 [Register(typeof(IAgentRoleRegistry), ServiceLifetime.Singleton)]
-public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
-{
+public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry {
     private readonly IAgentDefinitionProvider? _definitionProvider;
     private readonly ILogger<AgentRoleProfileRegistry>? _logger;
 #pragma warning disable JCC4005
@@ -23,8 +22,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// </summary>
     public AgentRoleProfileRegistry(
         IAgentDefinitionProvider? definitionProvider = null,
-        ILogger<AgentRoleProfileRegistry>? logger = null)
-    {
+        ILogger<AgentRoleProfileRegistry>? logger = null) {
         _definitionProvider = definitionProvider;
         _logger = logger;
         _profiles = new List<AgentRoleProfile>();
@@ -35,10 +33,8 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// <summary>
     /// 注册内置角色 Profile — 由 AgentRolesPlugin 在 InitializeAsync 中调用(ADR 0098 万物皆插件)
     /// </summary>
-    public void RegisterBuiltInProfiles()
-    {
-        foreach (var profile in BuildBuiltInProfiles())
-        {
+    public void RegisterBuiltInProfiles() {
+        foreach (var profile in BuildBuiltInProfiles()) {
             Register(profile);
         }
     }
@@ -46,8 +42,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// <summary>
     /// 撤销内置角色 Profile — 插件卸载时调用
     /// </summary>
-    public void UnregisterBuiltInProfiles()
-    {
+    public void UnregisterBuiltInProfiles() {
         using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
         var builtIn = BuildBuiltInProfiles().ToHashSet();
         _profiles.RemoveAll(p => builtIn.Contains(p));
@@ -59,13 +54,11 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// 注册单个角色 Profile，更新索引映射
     /// </summary>
     /// <param name="profile">要注册的角色 Profile</param>
-    public void Register(AgentRoleProfile profile)
-    {
+    public void Register(AgentRoleProfile profile) {
         using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
         _profiles.Add(profile);
         _profileMap = BuildProfileMap(_profiles);
-        if (!_roleIndex.TryGetValue(profile.Role, out var list))
-        {
+        if (!_roleIndex.TryGetValue(profile.Role, out var list)) {
             list = new List<AgentRoleProfile>();
             _roleIndex[profile.Role] = list;
         }
@@ -78,8 +71,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// <param name="role">代理角色</param>
     /// <param name="variant">执行变体（可选）</param>
     /// <returns>匹配的角色 Profile；未找到时返回 null</returns>
-    public AgentRoleProfile? GetProfile(AgentRole role, ExecutorVariant? variant = null)
-    {
+    public AgentRoleProfile? GetProfile(AgentRole role, ExecutorVariant? variant = null) {
         EnsureCustomLoaded();
         return _profileMap.TryGetValue((role, variant), out var profile) ? profile : null;
     }
@@ -88,8 +80,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// 获取所有已注册的角色 Profile
     /// </summary>
     /// <returns>角色 Profile 集合</returns>
-    public IEnumerable<AgentRoleProfile> GetAllProfiles()
-    {
+    public IEnumerable<AgentRoleProfile> GetAllProfiles() {
         EnsureCustomLoaded();
         return _profiles;
     }
@@ -99,8 +90,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// </summary>
     /// <param name="role">代理角色</param>
     /// <returns>该角色下的所有 Profile</returns>
-    public IEnumerable<AgentRoleProfile> GetProfilesByRole(AgentRole role)
-    {
+    public IEnumerable<AgentRoleProfile> GetProfilesByRole(AgentRole role) {
         EnsureCustomLoaded();
         return _roleIndex.GetValueOrDefault(role) ?? [];
     }
@@ -109,8 +99,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// 获取所有可用的执行变体
     /// </summary>
     /// <returns>去重并排序后的执行变体集合</returns>
-    public IEnumerable<ExecutorVariant> GetAvailableVariants()
-    {
+    public IEnumerable<ExecutorVariant> GetAvailableVariants() {
         EnsureCustomLoaded();
         return _profiles
             .Where(p => p.Variant.HasValue)
@@ -122,8 +111,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// <summary>
     /// 清除自定义 Profile 缓存，重置为内置 Profile
     /// </summary>
-    public void ClearCache()
-    {
+    public void ClearCache() {
         using var guard = _loadLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_loadLock.Name}' 等待超时");
         _customLoaded = false;
         _profiles = BuildBuiltInProfiles();
@@ -133,14 +121,12 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     }
 
     /// <inheritdoc />
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _loadLock.Dispose();
         base.Dispose();
     }
 
-    private void EnsureCustomLoaded()
-    {
+    private void EnsureCustomLoaded() {
         if (_customLoaded || _definitionProvider is null)
             return;
 
@@ -148,17 +134,14 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         if (_customLoaded)
             return;
 
-        try
-        {
+        try {
             var definitions = _definitionProvider.GetAgentDefinitionsAsync().GetAwaiter().GetResult();
             var indexMap = _profiles
                 .Select((p, i) => (key: (p.Role, p.Variant), i))
                 .ToDictionary(x => x.key, x => x.i);
-            foreach (var def in definitions)
-            {
+            foreach (var def in definitions) {
                 var key = (def.Role, def.Variant);
-                var profile = new AgentRoleProfile
-                {
+                var profile = new AgentRoleProfile {
                     Role = def.Role,
                     Variant = def.Variant,
                     WhenToUse = def.WhenToUse,
@@ -180,12 +163,9 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
                     CriticalSystemReminder = def.CriticalSystemReminder,
                 };
 
-                if (indexMap.TryGetValue(key, out var existingIdx) && def.SourcePath is not null)
-                {
+                if (indexMap.TryGetValue(key, out var existingIdx) && def.SourcePath is not null) {
                     _profiles[existingIdx] = profile;
-                }
-                else if (!indexMap.ContainsKey(key))
-                {
+                } else if (!indexMap.ContainsKey(key)) {
                     _profiles.Add(profile);
                     indexMap[key] = _profiles.Count - 1;
                 }
@@ -193,32 +173,25 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
             _profileMap = BuildProfileMap(_profiles);
             _roleIndex = BuildRoleIndex(_profiles);
             _customLoaded = true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载自定义 AgentDefinition 失败，仅使用内置 Profile");
             _customLoaded = true;
         }
     }
 
     private static FrozenDictionary<(AgentRole, ExecutorVariant?), AgentRoleProfile> BuildProfileMap(
-        List<AgentRoleProfile> profiles)
-    {
+        List<AgentRoleProfile> profiles) {
         var builder = new Dictionary<(AgentRole, ExecutorVariant?), AgentRoleProfile>();
-        foreach (var p in profiles)
-        {
+        foreach (var p in profiles) {
             builder.TryAdd((p.Role, p.Variant), p);
         }
         return builder.ToFrozenDictionary();
     }
 
-    private static Dictionary<AgentRole, List<AgentRoleProfile>> BuildRoleIndex(List<AgentRoleProfile> profiles)
-    {
+    private static Dictionary<AgentRole, List<AgentRoleProfile>> BuildRoleIndex(List<AgentRoleProfile> profiles) {
         var index = new Dictionary<AgentRole, List<AgentRoleProfile>>();
-        foreach (var p in profiles)
-        {
-            if (!index.TryGetValue(p.Role, out var list))
-            {
+        foreach (var p in profiles) {
+            if (!index.TryGetValue(p.Role, out var list)) {
                 list = new List<AgentRoleProfile>();
                 index[p.Role] = list;
             }
@@ -227,8 +200,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
         return index;
     }
 
-    private static bool IsCoordinatorModeEnabledFromEnv()
-    {
+    private static bool IsCoordinatorModeEnabledFromEnv() {
         var value = Environment.GetEnvironmentVariable("JCC_COORDINATOR_MODE");
         return value is "1" or "true" or "True" or "TRUE";
     }
@@ -237,8 +209,7 @@ public sealed class AgentRoleProfileRegistry : ServiceEntity, IAgentRoleRegistry
     /// 构建内置角色 Profile 列表 — 包含 Coordinator 及 Executor 各变体（Code/Search/Explore/Plan/Doctor/Verification 等）
     /// </summary>
     /// <returns>内置角色 Profile 列表</returns>
-    internal static List<AgentRoleProfile> BuildBuiltInProfiles()
-    {
+    internal static List<AgentRoleProfile> BuildBuiltInProfiles() {
         var readOnlyDisallowedTools = new List<string>
         {
             AgentToolNameEnumConstants.Agent, FileToolNameEnumConstants.FileEdit, FileToolNameEnumConstants.FileWrite, NotebookToolNameEnumConstants.NotebookEdit

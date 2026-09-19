@@ -3,8 +3,7 @@ namespace JoinCode.Transport;
 /// <summary>
 /// 缓冲通道 — 线程安全的字符串行缓冲器，支持全量读取、增量读取和谓词检查
 /// </summary>
-public sealed class BufferedChannel : IDisposable
-{
+public sealed class BufferedChannel : IDisposable {
     private readonly List<string> _buffer = new();
     private readonly AsyncLock _lock = new();
     private int _consumedIndex;
@@ -14,12 +13,11 @@ public sealed class BufferedChannel : IDisposable
     /// </summary>
     /// <param name="line">要添加的行</param>
     /// <param name="ct">取消令牌</param>
-    public async Task AddAsync(string line, CancellationToken ct = default)
-    {
+    public async Task AddAsync(string line, CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         _buffer.Add(line);
-    
+
     }
 
     /// <summary>
@@ -28,13 +26,12 @@ public sealed class BufferedChannel : IDisposable
     /// <param name="lockTimeout">锁等待超时（仅用于异常消息）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>用换行符连接的全部缓冲内容</returns>
-    public async Task<string> GetAllAsync(TimeSpan lockTimeout, CancellationToken ct = default)
-    {
+    public async Task<string> GetAllAsync(TimeSpan lockTimeout, CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false)
             ?? throw new System.TimeoutException($"锁 '{_lock.Name}' BufferedChannel 等待超时 {lockTimeout}");
 
         return string.Join("\n", _buffer);
-    
+
     }
 
     /// <summary>
@@ -43,8 +40,7 @@ public sealed class BufferedChannel : IDisposable
     /// <param name="lockTimeout">锁等待超时（仅用于异常消息）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>增量内容；无新内容时返回空字符串</returns>
-    public async Task<string> GetIncrementalAsync(TimeSpan lockTimeout, CancellationToken ct = default)
-    {
+    public async Task<string> GetIncrementalAsync(TimeSpan lockTimeout, CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false)
             ?? throw new System.TimeoutException($"锁 '{_lock.Name}' BufferedChannel 等待超时 {lockTimeout}");
 
@@ -54,7 +50,7 @@ public sealed class BufferedChannel : IDisposable
         var result = string.Join("\n", _buffer[_consumedIndex..]);
         _consumedIndex = _buffer.Count;
         return result;
-    
+
     }
 
     /// <summary>
@@ -62,14 +58,13 @@ public sealed class BufferedChannel : IDisposable
     /// </summary>
     /// <param name="lockTimeout">锁等待超时（仅用于异常消息）</param>
     /// <param name="ct">取消令牌</param>
-    public async Task ClearAsync(TimeSpan lockTimeout, CancellationToken ct = default)
-    {
+    public async Task ClearAsync(TimeSpan lockTimeout, CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false)
             ?? throw new System.TimeoutException($"锁 '{_lock.Name}' BufferedChannel 等待超时 {lockTimeout}");
 
         _buffer.Clear();
         _consumedIndex = 0;
-    
+
     }
 
     /// <summary>
@@ -78,12 +73,11 @@ public sealed class BufferedChannel : IDisposable
     /// <param name="predicate">谓词函数</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>谓词返回值</returns>
-    public async Task<bool> TryPredicateAsync(Func<string, bool> predicate, CancellationToken ct = default)
-    {
+    public async Task<bool> TryPredicateAsync(Func<string, bool> predicate, CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return predicate(string.Join("\n", _buffer));
-    
+
     }
 
     /// <summary>释放内部锁资源</summary>

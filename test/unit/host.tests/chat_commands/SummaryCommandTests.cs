@@ -1,49 +1,42 @@
 namespace Host.Tests.ChatCommands;
 
-public sealed class SummaryCommandTests
-{
+public sealed class SummaryCommandTests {
     [Fact]
-    public void Name_Should_Be_summary()
-    {
+    public void Name_Should_Be_summary() {
         var cmd = new SummaryCommand();
         cmd.Name.Should().Be("summary");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new SummaryCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new SummaryCommand();
         cmd.Usage.Should().StartWith("/summary");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new SummaryCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Execute_Should_Return_Continue()
-    {
+    public async Task Execute_Should_Return_Continue() {
         var cmd = new SummaryCommand();
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -53,8 +46,7 @@ public sealed class SummaryCommandTests
     }
 
     [Fact]
-    public async Task Execute_Should_Show_Summary_Of_Chat_History()
-    {
+    public async Task Execute_Should_Show_Summary_Of_Chat_History() {
         var cmd = new SummaryCommand();
         var chatService = new Mock<IChatService>();
         chatService.Setup(cs => cs.GetMessageListAsync(It.IsAny<CancellationToken>()))
@@ -68,13 +60,12 @@ public sealed class SummaryCommandTests
             SessionId = "test-session",
             SessionStartedAt = DateTime.UtcNow.AddMinutes(-30),
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = chatService.Object,
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

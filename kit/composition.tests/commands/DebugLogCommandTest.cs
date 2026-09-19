@@ -4,8 +4,7 @@ namespace Composition.Tests.Commands;
 /// DebugLogCommand 单元测试 — 验证参数解析、默认行为、clear 功能
 /// 通过 ExecuteAsync 间接测试 ParseFlags 逻辑
 /// </summary>
-public sealed class DebugLogCommandTest
-{
+public sealed class DebugLogCommandTest {
     private readonly Mock<IDebugLogBuffer> _debugLogBuffer;
     private readonly Mock<ICrashSnapshotStore> _crashSnapshotStore;
     private readonly Mock<ISystemPromptProvider> _systemPromptProvider;
@@ -13,8 +12,7 @@ public sealed class DebugLogCommandTest
     private readonly ServiceProvider _serviceProvider;
     private readonly DebugLogCommand _command;
 
-    public DebugLogCommandTest()
-    {
+    public DebugLogCommandTest() {
         _debugLogBuffer = new Mock<IDebugLogBuffer>();
         _crashSnapshotStore = new Mock<ICrashSnapshotStore>();
         _systemPromptProvider = new Mock<ISystemPromptProvider>();
@@ -43,8 +41,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — 无参数默认显示全部
 
     [Fact]
-    public async Task NoArgs_DefaultShowsAll()
-    {
+    public async Task NoArgs_DefaultShowsAll() {
         // 无参数时 ParseFlags 返回 DebugSection.All
         // All 包含 Error 标志，因此 HasFlag(Error) 为 true，进入 AppendErrors 分支
         var context = CreateContext(string.Empty);
@@ -60,8 +57,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — -a / --all
 
     [Fact]
-    public async Task AllFlag_EntersErrorBranch()
-    {
+    public async Task AllFlag_EntersErrorBranch() {
         // -a 设置 DebugSection.All，All 包含 Error，因此进入 AppendErrors 分支
         var context = CreateContext("-a");
         var result = await _command.ExecuteAsync(context);
@@ -71,8 +67,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task AllFlag_LongForm_EntersErrorBranch()
-    {
+    public async Task AllFlag_LongForm_EntersErrorBranch() {
         var context = CreateContext(DebugLogFlagEnumConstants.All);
         var result = await _command.ExecuteAsync(context);
 
@@ -85,8 +80,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — -e / --error
 
     [Fact]
-    public async Task ErrorFlag_ShowsOnlyErrors()
-    {
+    public async Task ErrorFlag_ShowsOnlyErrors() {
         var context = CreateContext("-e");
         var result = await _command.ExecuteAsync(context);
 
@@ -98,8 +92,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task ErrorFlag_LongForm_ShowsOnlyErrors()
-    {
+    public async Task ErrorFlag_LongForm_ShowsOnlyErrors() {
         var context = CreateContext(DebugLogFlagEnumConstants.Error);
         var result = await _command.ExecuteAsync(context);
 
@@ -112,8 +105,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — -w / --warn
 
     [Fact]
-    public async Task WarnFlag_ShowsWarningsAndErrors()
-    {
+    public async Task WarnFlag_ShowsWarningsAndErrors() {
         var context = CreateContext("-w");
         var result = await _command.ExecuteAsync(context);
 
@@ -123,8 +115,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task WarnFlag_LongForm_ShowsWarningsAndErrors()
-    {
+    public async Task WarnFlag_LongForm_ShowsWarningsAndErrors() {
         var context = CreateContext(DebugLogFlagEnumConstants.Warn);
         var result = await _command.ExecuteAsync(context);
 
@@ -137,8 +128,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — -i / --init
 
     [Fact]
-    public async Task InitFlag_ShowsInitInfo()
-    {
+    public async Task InitFlag_ShowsInitInfo() {
         var context = CreateContext("-i");
         var result = await _command.ExecuteAsync(context);
 
@@ -148,8 +138,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task InitFlag_LongForm_ShowsInitInfo()
-    {
+    public async Task InitFlag_LongForm_ShowsInitInfo() {
         var context = CreateContext(DebugLogFlagEnumConstants.Init);
         var result = await _command.ExecuteAsync(context);
 
@@ -162,8 +151,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — -p / --prompt
 
     [Fact]
-    public async Task PromptFlag_ShowsSystemPrompt()
-    {
+    public async Task PromptFlag_ShowsSystemPrompt() {
         var context = CreateContext("-p");
         var result = await _command.ExecuteAsync(context);
 
@@ -172,8 +160,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task PromptFlag_LongForm_ShowsSystemPrompt()
-    {
+    public async Task PromptFlag_LongForm_ShowsSystemPrompt() {
         var context = CreateContext(DebugLogFlagEnumConstants.Prompt);
         var result = await _command.ExecuteAsync(context);
 
@@ -186,8 +173,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — -l / --log
 
     [Fact]
-    public async Task LogFlag_ShowsDiagnosticLogs()
-    {
+    public async Task LogFlag_ShowsDiagnosticLogs() {
         var context = CreateContext("-l");
         var result = await _command.ExecuteAsync(context);
 
@@ -196,8 +182,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task LogFlag_LongForm_ShowsDiagnosticLogs()
-    {
+    public async Task LogFlag_LongForm_ShowsDiagnosticLogs() {
         var context = CreateContext(DebugLogFlagEnumConstants.Log);
         var result = await _command.ExecuteAsync(context);
 
@@ -210,8 +195,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — -c / --clear
 
     [Fact]
-    public async Task ClearFlag_ClearsBuffer()
-    {
+    public async Task ClearFlag_ClearsBuffer() {
         var context = CreateContext("-c");
         var result = await _command.ExecuteAsync(context);
 
@@ -220,8 +204,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task ClearFlag_LongForm_ClearsBuffer()
-    {
+    public async Task ClearFlag_LongForm_ClearsBuffer() {
         var context = CreateContext(DebugLogFlagEnumConstants.Clear);
         var result = await _command.ExecuteAsync(context);
 
@@ -230,8 +213,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task ClearFlag_ReturnsContinue()
-    {
+    public async Task ClearFlag_ReturnsContinue() {
         var context = CreateContext("-c");
         var result = await _command.ExecuteAsync(context);
 
@@ -244,8 +226,7 @@ public sealed class DebugLogCommandTest
     #region ParseFlags — Combined flags
 
     [Fact]
-    public async Task CombinedErrorAndWarn_ErrorTakesPrecedence()
-    {
+    public async Task CombinedErrorAndWarn_ErrorTakesPrecedence() {
         // -e -w 组合时，Error 标志优先（代码中 HasFlag(Error) 先判断）
         var context = CreateContext("-e -w");
         var result = await _command.ExecuteAsync(context);
@@ -256,8 +237,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task CombinedInitAndLog_ShowsLogOnly()
-    {
+    public async Task CombinedInitAndLog_ShowsLogOnly() {
         // -i -l 组合时，Log 优先级高于 Init（原逻辑中 Log 检查在 Init 之后执行 sb.Clear() 覆盖）
         // 重构后 DebugLogCommand 直接返回 Log，跳过"先调用全部再 Clear"的浪费
         var context = CreateContext("-i -l");
@@ -273,8 +253,7 @@ public sealed class DebugLogCommandTest
     #region Missing Services
 
     [Fact]
-    public async Task NoDebugLogBuffer_DoesNotThrow()
-    {
+    public async Task NoDebugLogBuffer_DoesNotThrow() {
         var emptyServices = new ServiceCollection().BuildServiceProvider();
         var context = CreateContextWithProvider(string.Empty, emptyServices);
 
@@ -283,8 +262,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task NoCrashSnapshotStore_DoesNotThrow()
-    {
+    public async Task NoCrashSnapshotStore_DoesNotThrow() {
         var services = new ServiceCollection();
         services.AddSingleton(_debugLogBuffer.Object);
         var provider = services.BuildServiceProvider();
@@ -295,8 +273,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task NoSystemPromptProvider_DoesNotThrow()
-    {
+    public async Task NoSystemPromptProvider_DoesNotThrow() {
         var services = new ServiceCollection();
         services.AddSingleton(_debugLogBuffer.Object);
         services.AddSingleton(_crashSnapshotStore.Object);
@@ -308,8 +285,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task ClearFlag_NoDebugLogBuffer_DoesNotThrow()
-    {
+    public async Task ClearFlag_NoDebugLogBuffer_DoesNotThrow() {
         var emptyServices = new ServiceCollection().BuildServiceProvider();
         var context = CreateContextWithProvider("-c", emptyServices);
 
@@ -322,8 +298,7 @@ public sealed class DebugLogCommandTest
     #region Error Section with Crash Data
 
     [Fact]
-    public async Task ErrorFlag_WithCrashErrors_DisplaysErrors()
-    {
+    public async Task ErrorFlag_WithCrashErrors_DisplaysErrors() {
         var crashSnapshot = new CrashSnapshot("TestFence", CrashSeverity.Error, new Exception("test error"));
         _crashSnapshotStore.Setup(s => s.GetRecent(It.IsAny<int>()))
             .Returns([crashSnapshot]);
@@ -336,8 +311,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task WarnFlag_WithWarnings_DisplaysWarnings()
-    {
+    public async Task WarnFlag_WithWarnings_DisplaysWarnings() {
         var warningSnapshot = new CrashSnapshot("WarnFence", CrashSeverity.Warning, new Exception("warning"));
         _crashSnapshotStore.Setup(s => s.GetRecent(It.IsAny<int>()))
             .Returns([warningSnapshot]);
@@ -354,8 +328,7 @@ public sealed class DebugLogCommandTest
     #region Log Section with Entries
 
     [Fact]
-    public async Task LogFlag_WithEntries_DisplaysLogs()
-    {
+    public async Task LogFlag_WithEntries_DisplaysLogs() {
         var entries = new List<DebugLogEntry>
         {
             new(DateTimeOffset.UtcNow, DebugLogLevel.Info, "STEP", "[STEP] test message"),
@@ -372,8 +345,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task LogFlag_EmptyBuffer_DisplaysNoLogsMessage()
-    {
+    public async Task LogFlag_EmptyBuffer_DisplaysNoLogsMessage() {
         _debugLogBuffer.Setup(b => b.GetRecent(It.IsAny<int>())).Returns([]);
         _debugLogBuffer.Setup(b => b.Count).Returns(0);
 
@@ -388,8 +360,7 @@ public sealed class DebugLogCommandTest
     #region Prompt Section with Sections
 
     [Fact]
-    public async Task PromptFlag_WithSections_DisplaysPromptContent()
-    {
+    public async Task PromptFlag_WithSections_DisplaysPromptContent() {
         var section = SystemPromptSection.Cached("test-section", () => "test prompt content");
         _systemPromptProvider.Setup(p => p.GetSections()).Returns([section]);
 
@@ -401,8 +372,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task PromptFlag_EmptySections_DisplaysNoSectionsMessage()
-    {
+    public async Task PromptFlag_EmptySections_DisplaysNoSectionsMessage() {
         _systemPromptProvider.Setup(p => p.GetSections()).Returns([]);
 
         var context = CreateContext("-p");
@@ -416,8 +386,7 @@ public sealed class DebugLogCommandTest
     #region Init Section
 
     [Fact]
-    public async Task InitFlag_WithToolRegistry_DisplaysToolCount()
-    {
+    public async Task InitFlag_WithToolRegistry_DisplaysToolCount() {
         _toolRegistry.Setup(r => r.GetCountAsync(It.IsAny<CancellationToken>())).ReturnsAsync(42);
 
         var context = CreateContext("-i");
@@ -428,8 +397,7 @@ public sealed class DebugLogCommandTest
     }
 
     [Fact]
-    public async Task InitFlag_WithCrashStore_DisplaysCrashInfo()
-    {
+    public async Task InitFlag_WithCrashStore_DisplaysCrashInfo() {
         _crashSnapshotStore.Setup(s => s.TotalCount).Returns(5);
         _crashSnapshotStore.Setup(s => s.UnacknowledgedCount).Returns(2);
 
@@ -444,15 +412,12 @@ public sealed class DebugLogCommandTest
 
     #region Helper Methods
 
-    private ChatCommandContext CreateContext(string arguments)
-    {
+    private ChatCommandContext CreateContext(string arguments) {
         return CreateContextWithProvider(arguments, _serviceProvider);
     }
 
-    private static ChatCommandContext CreateContextWithProvider(string arguments, IServiceProvider serviceProvider)
-    {
-        return new ChatCommandContext
-        {
+    private static ChatCommandContext CreateContextWithProvider(string arguments, IServiceProvider serviceProvider) {
+        return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
             Services = serviceProvider,

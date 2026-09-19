@@ -1,13 +1,10 @@
 namespace JoinCode.Reasoning.Tests.Weight;
 
-public sealed class EvidenceGraphTests
-{
+public sealed class EvidenceGraphTests {
     [Fact]
-    public void AddNode_ShouldStoreNodeWithInitialWeight()
-    {
+    public void AddNode_ShouldStoreNodeWithInitialWeight() {
         var graph = new EvidenceGraph();
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "证据1",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -20,8 +17,7 @@ public sealed class EvidenceGraphTests
     }
 
     [Fact]
-    public void AddEdge_ShouldConnectNodes()
-    {
+    public void AddEdge_ShouldConnectNodes() {
         var graph = new EvidenceGraph();
         graph.AddNode(CreateEvidence("ev1"));
         graph.AddNode(CreateEvidence("ev2"));
@@ -31,8 +27,7 @@ public sealed class EvidenceGraphTests
     }
 
     [Fact]
-    public void ApplyMessagePassing_ShouldUpdateWeights()
-    {
+    public void ApplyMessagePassing_ShouldUpdateWeights() {
         var graph = new EvidenceGraph();
         graph.AddNode(CreateEvidence("ev1"));
         graph.AddNode(CreateEvidence("ev2"));
@@ -46,8 +41,7 @@ public sealed class EvidenceGraphTests
     }
 
     [Fact]
-    public void GetNodeTrustScore_ShouldIncludeGraphStructure()
-    {
+    public void GetNodeTrustScore_ShouldIncludeGraphStructure() {
         var graph = new EvidenceGraph();
         graph.AddNode(CreateEvidence("ev1"));
         graph.AddNode(CreateEvidence("ev2"));
@@ -61,10 +55,8 @@ public sealed class EvidenceGraphTests
         Assert.True(score > 0);
     }
 
-    private static EvidenceRecord CreateEvidence(string id)
-    {
-        return new EvidenceRecord
-        {
+    private static EvidenceRecord CreateEvidence(string id) {
+        return new EvidenceRecord {
             Id = id,
             Content = $"证据{id}",
             Category = EvidenceCategory.Documentary,

@@ -4,11 +4,9 @@ namespace Hands.Shell.Tests;
 /// SystemActuatorBase cwd 隔离单元测试 — 验证 ResolveWorkingDirectoryCore 读取 SubAgentContext.GetEffectiveCwd
 /// 缺陷修复验证(TASK002): shell 链路应优先使用 AsyncLocal CwdOverride 而非进程级 cwd
 /// </summary>
-public sealed class SystemActuatorCwdIsolationTests
-{
+public sealed class SystemActuatorCwdIsolationTests {
     [Fact]
-    public void ResolveWorkingDirectoryCore_NoCwdOverride_ReturnsProcessCwd()
-    {
+    public void ResolveWorkingDirectoryCore_NoCwdOverride_ReturnsProcessCwd() {
         var fs = new Mock<IFileSystem>();
         var processCwd = "/tmp/process-cwd";
         fs.Setup(x => x.GetCurrentDirectory()).Returns(processCwd);
@@ -20,53 +18,46 @@ public sealed class SystemActuatorCwdIsolationTests
     }
 
     [Fact]
-    public void ResolveWorkingDirectoryCore_WithCwdOverride_ReturnsOverride()
-    {
+    public void ResolveWorkingDirectoryCore_WithCwdOverride_ReturnsOverride() {
         var fs = new Mock<IFileSystem>();
         var processCwd = "/tmp/process-cwd";
         var overrideCwd = "/tmp/worktree-override";
         fs.Setup(x => x.GetCurrentDirectory()).Returns(processCwd);
 
-        var context = new SubAgentContext
-        {
+        var context = new SubAgentContext {
             AgentId = "agent-test",
             Role = AgentRole.Executor,
             Task = "test",
         };
 
-        using (context.EnterScopeWithCwd(overrideCwd))
-        {
+        using (context.EnterScopeWithCwd(overrideCwd)) {
             var result = SystemActuatorBase.ResolveWorkingDirectoryCore(null, fs.Object, null, false);
             result.Should().Be(overrideCwd, "应优先使用 SubAgentContext.CwdOverride 而非进程级 cwd");
         }
     }
 
     [Fact]
-    public void ResolveWorkingDirectoryCore_ExplicitWorkingDirectory_OverridesEverything()
-    {
+    public void ResolveWorkingDirectoryCore_ExplicitWorkingDirectory_OverridesEverything() {
         var fs = new Mock<IFileSystem>();
         var processCwd = "/tmp/process-cwd";
         var overrideCwd = "/tmp/worktree-override";
         var explicitCwd = "/tmp/explicit";
         fs.Setup(x => x.GetCurrentDirectory()).Returns(processCwd);
 
-        var context = new SubAgentContext
-        {
+        var context = new SubAgentContext {
             AgentId = "agent-test",
             Role = AgentRole.Executor,
             Task = "test",
         };
 
-        using (context.EnterScopeWithCwd(overrideCwd))
-        {
+        using (context.EnterScopeWithCwd(overrideCwd)) {
             var result = SystemActuatorBase.ResolveWorkingDirectoryCore(explicitCwd, fs.Object, null, false);
             result.Should().Be(Path.GetFullPath(explicitCwd), "显式 workingDirectory 应优先于 CwdOverride 和进程级 cwd");
         }
     }
 
     [Fact]
-    public void ResolveWorkingDirectoryCore_SandboxEnabled_ResolvesPath()
-    {
+    public void ResolveWorkingDirectoryCore_SandboxEnabled_ResolvesPath() {
         var fs = new Mock<IFileSystem>();
         var processCwd = "/tmp/process-cwd";
         var sandboxResolved = "/tmp/sandbox-resolved";

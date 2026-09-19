@@ -7,8 +7,7 @@ namespace Core.Agents.Worktree;
 /// <para>异步释放优先（IAsyncDisposable.DisposeAsync），同步 Dispose 委托异步完成。</para>
 /// <para>无终结器：worktree 删除需 git 命令（托管对象），终结器中不安全，依赖显式 DisposeAsync/Dispose。</para>
 /// </summary>
-public sealed class WorktreeLifecycleGuard : IAsyncDisposable
-{
+public sealed class WorktreeLifecycleGuard : IAsyncDisposable {
     private readonly string _worktreePath;
     private readonly string _mainPath;
     private readonly IFileOperationService _fileSystem;
@@ -34,16 +33,14 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
         IFileOperationService fileSystem,
         IGitCommandRunner? gitRunner = null,
         string? branchName = null,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         ThrowIfBlank(worktreePath, nameof(worktreePath));
         ThrowIfBlank(mainPath, nameof(mainPath));
 
         var normalizedWorktree = NormalizePath(worktreePath);
         var normalizedMain = NormalizePath(mainPath);
 
-        if (string.Equals(normalizedWorktree, normalizedMain, StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(normalizedWorktree, normalizedMain, StringComparison.OrdinalIgnoreCase)) {
             throw new ArgumentException(
                 "worktree 路径不能等于主仓库路径，拒绝操作以防误删主仓库",
                 nameof(worktreePath));
@@ -73,8 +70,7 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
     /// </summary>
     /// <param name="force">是否强制删除（有未提交变更时需 true）</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task<WorktreeGuardResult> ReleaseAsync(bool force = false, CancellationToken cancellationToken = default)
-    {
+    public async Task<WorktreeGuardResult> ReleaseAsync(bool force = false, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         return await ReleaseCoreAsync(force, cancellationToken).ConfigureAwait(false);
     }
@@ -84,22 +80,18 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
     /// worktree 生命周期由显式 worktree_remove 指令控制,不由进程退出自动清理。
     /// 删除操作通过 ReleaseAsync(force) 显式调用。
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         Interlocked.Exchange(ref _disposed, 1);
         return ValueTask.CompletedTask;
     }
 
-    private async Task<WorktreeGuardResult> ReleaseCoreAsync(bool force, CancellationToken cancellationToken)
-    {
-        if (_gitRunner is null)
-        {
+    private async Task<WorktreeGuardResult> ReleaseCoreAsync(bool force, CancellationToken cancellationToken) {
+        if (_gitRunner is null) {
             return WorktreeGuardResult.Fail("gitRunner 未注入，无法执行删除", RemovalFailureReason.GitError);
         }
 
         var exists = await _fileSystem.DirectoryExistsAsync(_worktreePath, cancellationToken).ConfigureAwait(false);
-        if (!exists)
-        {
+        if (!exists) {
             return WorktreeGuardResult.Fail($"worktree 路径不存在: {_worktreePath}", RemovalFailureReason.PathNotFound);
         }
 
@@ -109,15 +101,13 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
             _mainPath,
             cancellationToken).ConfigureAwait(false);
 
-        if (!removeResult.Success)
-        {
+        if (!removeResult.Success) {
             var diagnosed = await _diagnoser.DiagnoseAsync(_worktreePath, removeResult.Error, cancellationToken).ConfigureAwait(false);
             _logger?.LogWarning("Worktree 移除失败，根因: {Reason}，错误: {Error}", diagnosed.Reason, removeResult.Error);
             return WorktreeGuardResult.Fail($"移除 worktree 失败: {removeResult.Error}", diagnosed.Reason);
         }
 
-        if (_branchName is not null)
-        {
+        if (_branchName is not null) {
             await _gitRunner.ExecuteAsync(
                 $"branch -D {_branchName}",
                 _mainPath,
@@ -128,24 +118,18 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
         return WorktreeGuardResult.Ok(force);
     }
 
-    private static string NormalizePath(string path)
-    {
-        try
-        {
+    private static string NormalizePath(string path) {
+        try {
             return Path.GetFullPath(path.Trim())
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return path.Trim()
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
     }
 
-    private static void ThrowIfBlank(string value, string paramName)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
+    private static void ThrowIfBlank(string value, string paramName) {
+        if (string.IsNullOrWhiteSpace(value)) {
             throw new ArgumentException("路径不能为 null 或空白", paramName);
         }
     }
@@ -154,8 +138,7 @@ public sealed class WorktreeLifecycleGuard : IAsyncDisposable
 /// <summary>
 /// Worktree 守卫操作结果 — 携带删除状态 + 失败根因。
 /// </summary>
-public sealed record WorktreeGuardResult
-{
+public sealed record WorktreeGuardResult {
     /// <summary>是否成功</summary>
     public required bool Success { get; init; }
     /// <summary>错误信息（失败时填充）</summary>

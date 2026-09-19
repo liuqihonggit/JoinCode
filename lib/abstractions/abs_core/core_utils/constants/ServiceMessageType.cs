@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 服务消息类型枚举 — 替代原 ServiceMessageTypes 静态常量类
 /// 对齐 Reasonix event.EventKind: 应用级强类型事件
 /// </summary>
-public enum ServiceMessageType
-{
+public enum ServiceMessageType {
     [EnumValue("task:started")] TaskStarted,
     [EnumValue("task:completed")] TaskCompleted,
     [EnumValue("task:failed")] TaskFailed,

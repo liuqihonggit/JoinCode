@@ -3,8 +3,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 终端颜色常量 — CLI 模式下的 ANSI 颜色定义
 /// </summary>
-public static class TerminalColors
-{
+public static class TerminalColors {
     #region Brand
 
     /// <summary>JoinCode 品牌主色</summary>

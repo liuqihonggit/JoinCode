@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Runtime;
 
-public sealed record RuntimeTaskQuery
-{
+public sealed record RuntimeTaskQuery {
     public TaskExecutionStatus? Status { get; init; }
     public string? GoalId { get; init; }
     public string? AgentId { get; init; }

@@ -6,8 +6,7 @@ namespace Core.Configuration;
 /// vendor: 供应商预设字典（键为供应商名，值为 provider/model/endpoint 组合）
 /// current: 当前正在使用的运行时配置（包含 profile 指针 + 所有偏好设置）
 /// </summary>
-public sealed class SettingsJson
-{
+public sealed class SettingsJson {
     /// <summary>初始化空的 SettingsJson 实例</summary>
     public SettingsJson() { }
 
@@ -40,13 +39,11 @@ public sealed class SettingsJson
     /// 合并两个 SettingsJson（低优先级 + 高优先级）
     /// vendor 字典合并（高优先级覆盖同键），current 递归合并
     /// </summary>
-    public static SettingsJson Merge(SettingsJson? baseSettings, SettingsJson? overrideSettings)
-    {
+    public static SettingsJson Merge(SettingsJson? baseSettings, SettingsJson? overrideSettings) {
         if (baseSettings is null) return overrideSettings ?? new SettingsJson();
         if (overrideSettings is null) return baseSettings;
 
-        return new SettingsJson
-        {
+        return new SettingsJson {
             Vendor = MergeVendorDictionaries(baseSettings.Vendor, overrideSettings.Vendor) ?? [],
             Current = CurrentSettings.Merge(baseSettings.Current, overrideSettings.Current),
             AutoFetchModels = overrideSettings.AutoFetchModels,
@@ -57,8 +54,7 @@ public sealed class SettingsJson
     /// <summary>
     /// 获取当前激活的供应商预设 — 从 current.profile 指向 vendor 字典的键
     /// </summary>
-    public ProfileSettings? GetActiveProfile()
-    {
+    public ProfileSettings? GetActiveProfile() {
         if (Current is null || string.IsNullOrEmpty(Current.Profile)) return null;
         if (Vendor is null || !Vendor.TryGetValue(Current.Profile, out var profile)) return null;
         return profile;
@@ -66,8 +62,7 @@ public sealed class SettingsJson
 
     private static Dictionary<string, ProfileSettings>? MergeVendorDictionaries(
         Dictionary<string, ProfileSettings>? baseDict,
-        Dictionary<string, ProfileSettings>? overrideDict)
-    {
+        Dictionary<string, ProfileSettings>? overrideDict) {
         if (baseDict is null && overrideDict is null) return null;
         if (baseDict is null) return overrideDict;
         if (overrideDict is null) return baseDict;
@@ -86,8 +81,7 @@ public sealed class SettingsJson
 /// [SettingsMerge] 源码生成器自动生成: 拷贝构造函数、Merge、GetSettingByKey、UpdateSettingByKey
 /// </summary>
 [SettingsMerge]
-public sealed partial class CurrentSettings
-{
+public sealed partial class CurrentSettings {
     /// <summary>初始化空的 CurrentSettings 实例</summary>
     public CurrentSettings() { }
 
@@ -447,14 +441,12 @@ public sealed partial class CurrentSettings
 
     #region 自定义合并方法
 
-    private static PermissionsSettings? MergePermissions(PermissionsSettings? basePerms, PermissionsSettings? overridePerms)
-    {
+    private static PermissionsSettings? MergePermissions(PermissionsSettings? basePerms, PermissionsSettings? overridePerms) {
         if (basePerms is null && overridePerms is null) return null;
         if (basePerms is null) return overridePerms;
         if (overridePerms is null) return basePerms;
 
-        return new PermissionsSettings
-        {
+        return new PermissionsSettings {
             Allow = MergeLists(basePerms.Allow, overridePerms.Allow) ?? [],
             Deny = MergeLists(basePerms.Deny, overridePerms.Deny) ?? [],
             Ask = MergeLists(basePerms.Ask, overridePerms.Ask) ?? [],
@@ -467,21 +459,16 @@ public sealed partial class CurrentSettings
 
     private static Dictionary<string, List<HookSettings>>? MergeHookDictionaries(
         Dictionary<string, List<HookSettings>>? baseHooks,
-        Dictionary<string, List<HookSettings>>? overrideHooks)
-    {
+        Dictionary<string, List<HookSettings>>? overrideHooks) {
         if (baseHooks is null && overrideHooks is null) return null;
         if (baseHooks is null) return overrideHooks;
         if (overrideHooks is null) return baseHooks;
 
         var result = new Dictionary<string, List<HookSettings>>(baseHooks, StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in overrideHooks)
-        {
-            if (result.TryGetValue(key, out var existing))
-            {
+        foreach (var (key, value) in overrideHooks) {
+            if (result.TryGetValue(key, out var existing)) {
                 result[key] = existing.Concat(value).ToList();
-            }
-            else
-            {
+            } else {
                 result[key] = value;
             }
         }
@@ -491,25 +478,19 @@ public sealed partial class CurrentSettings
 
     private static Dictionary<string, ToolOverrideEntry>? MergeToolOverrides(
         Dictionary<string, ToolOverrideEntry>? baseOverrides,
-        Dictionary<string, ToolOverrideEntry>? overrideOverrides)
-    {
+        Dictionary<string, ToolOverrideEntry>? overrideOverrides) {
         if (baseOverrides is null && overrideOverrides is null) return null;
         if (baseOverrides is null) return overrideOverrides;
         if (overrideOverrides is null) return baseOverrides;
 
         var result = new Dictionary<string, ToolOverrideEntry>(baseOverrides, StringComparer.OrdinalIgnoreCase);
-        foreach (var (key, value) in overrideOverrides)
-        {
-            if (result.TryGetValue(key, out var existing))
-            {
-                result[key] = new ToolOverrideEntry
-                {
+        foreach (var (key, value) in overrideOverrides) {
+            if (result.TryGetValue(key, out var existing)) {
+                result[key] = new ToolOverrideEntry {
                     Allow = MergeLists(existing.Allow, value.Allow) ?? [],
                     Deny = MergeLists(existing.Deny, value.Deny) ?? [],
                 };
-            }
-            else
-            {
+            } else {
                 result[key] = value;
             }
         }
@@ -523,8 +504,7 @@ public sealed partial class CurrentSettings
 /// <summary>
 /// 权限配置 — 对齐 TS 版 PermissionsSchema
 /// </summary>
-public sealed class PermissionsSettings
-{
+public sealed class PermissionsSettings {
     /// <summary>允许的工具匹配规则列表</summary>
     [JsonPropertyName("allow")]
     public List<string> Allow { get; init; } = [];
@@ -566,8 +546,7 @@ public sealed class PermissionsSettings
 /// <summary>
 /// 单个模式的工具覆盖 — 增量合并到硬编码默认值
 /// </summary>
-public sealed class ToolOverrideEntry
-{
+public sealed class ToolOverrideEntry {
     /// <summary>该模式下额外允许的工具列表</summary>
     [JsonPropertyName("allow")]
     public List<string> Allow { get; init; } = [];
@@ -580,8 +559,7 @@ public sealed class ToolOverrideEntry
 /// <summary>
 /// Hook 配置项 — 对齐 TS 版 HookSchema
 /// </summary>
-public sealed class HookSettings
-{
+public sealed class HookSettings {
     /// <summary>Hook 类型（如 command）</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
@@ -610,8 +588,7 @@ public sealed class HookSettings
 /// <summary>
 /// MCP 服务器配置 — 对齐 TS 版 McpServerConfig
 /// </summary>
-public sealed class McpServerSettings
-{
+public sealed class McpServerSettings {
     /// <summary>服务器类型（stdio/sse/http）</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
@@ -640,8 +617,7 @@ public sealed class McpServerSettings
 /// <summary>
 /// 沙箱配置 — 对齐 TS 版 SandboxSettingsSchema
 /// </summary>
-public sealed class SandboxSettings
-{
+public sealed class SandboxSettings {
     /// <summary>是否启用沙箱</summary>
     [JsonPropertyName("enabled")]
     public bool? Enabled { get; init; }
@@ -670,8 +646,7 @@ public sealed class SandboxSettings
 /// <summary>
 /// 插件配置项 — 对齐 TS 版 PluginSettings
 /// </summary>
-public sealed class PluginSettings
-{
+public sealed class PluginSettings {
     /// <summary>是否启用该插件</summary>
     [JsonPropertyName("enabled")]
     public bool? Enabled { get; init; }
@@ -684,8 +659,7 @@ public sealed class PluginSettings
 /// <summary>
 /// Worktree 配置 — 对齐 TS 版 worktree
 /// </summary>
-public sealed class WorktreeSettings
-{
+public sealed class WorktreeSettings {
     /// <summary>需要符号链接到新 worktree 的目录列表</summary>
     [JsonPropertyName("symlinkDirectories")]
     public List<string> SymlinkDirectories { get; init; } = [];
@@ -698,8 +672,7 @@ public sealed class WorktreeSettings
 /// <summary>
 /// 活跃 Worktree 会话 — 对齐 TS 版 activeWorktreeSession，持久化到 settings.local.json
 /// </summary>
-public sealed class ActiveWorktreeSessionJson
-{
+public sealed class ActiveWorktreeSessionJson {
     /// <summary>原始工作目录</summary>
     [JsonPropertyName("originalCwd")]
     public string? OriginalCwd { get; init; }
@@ -744,8 +717,7 @@ public sealed class ActiveWorktreeSessionJson
 /// <summary>
 /// 状态栏配置 — 对齐 TS 版 statusLine
 /// </summary>
-public sealed class StatusLineSettings
-{
+public sealed class StatusLineSettings {
     /// <summary>状态栏类型（如 command）</summary>
     [JsonPropertyName("type")]
     public string? Type { get; init; }
@@ -762,8 +734,7 @@ public sealed class StatusLineSettings
 /// <summary>
 /// 工具评分配置 — 对齐 CS 版 ToolScoreSettings
 /// </summary>
-public sealed class ToolScoreSettingsJson
-{
+public sealed class ToolScoreSettingsJson {
     /// <summary>工具成功时的评分增量</summary>
     [JsonPropertyName("successDelta")]
     public int? SuccessDelta { get; init; }
@@ -796,8 +767,7 @@ public sealed class ToolScoreSettingsJson
 /// <summary>
 /// 供应商预设 — vendor 字典的值，命名的供应商/模型/端点组合
 /// </summary>
-public sealed class ProfileSettings
-{
+public sealed class ProfileSettings {
     /// <summary>供应商名称（如 openai/sensenova/agnes/deepseek/anthropic）</summary>
     [JsonPropertyName("provider")]
     public string? Provider { get; init; }

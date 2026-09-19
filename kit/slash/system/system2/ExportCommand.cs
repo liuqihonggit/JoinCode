@@ -8,30 +8,24 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Export, Description = "导出对话到文件或剪贴板", Usage = "/export [filename|--clipboard]", Category = ChatCommandCategory.System, ArgumentHint = "[filename|--clipboard]")]
 [ChatCommandArg("target", Type = "string", Description = "导出目标：文件名或 --clipboard", Enum = new[] { "--clipboard" })]
-public sealed class ExportCommand : ChatCommandBase
-{
+public sealed class ExportCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /export 命令 — 根据参数选择导出到剪贴板、指定文件或交互式选择
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数、会话 ID、取消令牌等</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
         var content = BuildExportContent(history);
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         // 对齐 TS: --clipboard 参数 → 复制到剪贴板
-        if (args.Equals("--clipboard", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.Equals("--clipboard", StringComparison.OrdinalIgnoreCase)) {
             var clipboard = context.GetCommandServices().ClipboardService;
-            if (clipboard is not null)
-            {
+            if (clipboard is not null) {
                 await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleEnumConstants.Reset}");
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleEnumConstants.Reset}");
             }
 
@@ -39,35 +33,28 @@ public sealed class ExportCommand : ChatCommandBase
         }
 
         // 有文件名参数时直接写文件
-        if (!string.IsNullOrEmpty(args) && !args.StartsWith("-"))
-        {
+        if (!string.IsNullOrEmpty(args) && !args.StartsWith("-")) {
             await WriteToFileAsync(args, content, context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
 
         // 无参数：交互式选择导出方式
         // 对齐 TS: ExportDialog — 选择导出格式和目标
-        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             var dialog = new Dialog("导出对话", "选择导出方式:", ["保存到文件", "复制到剪贴板", "取消"]);
             var result = await dialog.ShowAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (result.Cancelled || result.SelectedIndex == 2)
-            {
+            if (result.Cancelled || result.SelectedIndex == 2) {
                 TerminalHelper.WriteLine("已取消");
                 return ChatCommandResult.Continue();
             }
 
-            if (result.SelectedIndex == 1)
-            {
+            if (result.SelectedIndex == 1) {
                 var clipboard = context.GetCommandServices().ClipboardService;
-                if (clipboard is not null)
-                {
+                if (clipboard is not null) {
                     await clipboard.SetTextAsync(content, context.CancellationToken).ConfigureAwait(false);
                     TerminalHelper.WriteLine($"{TerminalColors.Success}已复制对话到剪贴板{AnsiStyleEnumConstants.Reset}");
-                }
-                else
-                {
+                } else {
                     TerminalHelper.WriteLine($"{TerminalColors.Error}剪贴板服务不可用{AnsiStyleEnumConstants.Reset}");
                 }
                 return ChatCommandResult.Continue();
@@ -85,44 +72,36 @@ public sealed class ExportCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static async Task WriteToFileAsync(string filename, string content, CancellationToken ct, IFileSystem fs)
-    {
+    private static async Task WriteToFileAsync(string filename, string content, CancellationToken ct, IFileSystem fs) {
         // 对齐 TS: 强制 .txt 后缀
-        if (!filename.EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
-        {
+        if (!filename.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) {
             var dotIndex = filename.LastIndexOf('.');
             filename = dotIndex > 0
                 ? filename[..dotIndex] + ".txt"
                 : filename + ".txt";
         }
 
-        try
-        {
+        try {
             var filePath = Path.GetFullPath(filename);
             await fs.WriteAllTextAsync(filePath, content, ct).ConfigureAwait(false);
             TerminalHelper.WriteLine($"{TerminalColors.Success}已导出到: {filePath}{AnsiStyleEnumConstants.Reset}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("导出", ex);
         }
     }
 
-    private static string BuildExportContent(IReadOnlyList<ApiMessageRecord> history)
-    {
+    private static string BuildExportContent(IReadOnlyList<ApiMessageRecord> history) {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("# 对话导出");
         sb.AppendLine($"导出时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine();
 
-        if (history is null || history.Count == 0)
-        {
+        if (history is null || history.Count == 0) {
             sb.AppendLine("(暂无对话记录)");
             return sb.ToString();
         }
 
-        foreach (var message in history)
-        {
+        foreach (var message in history) {
             var role = message.Role.Equals(MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase) ? "👤 用户"
                 : message.Role.Equals(MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase) ? "🤖 助手"
                 : message.Role.Equals(MessageRoleEnumConstants.System, StringComparison.OrdinalIgnoreCase) ? "⚙️ 系统"
@@ -135,8 +114,7 @@ public sealed class ExportCommand : ChatCommandBase
         return sb.ToString();
     }
 
-    private static string ExtractSmartFilename(IReadOnlyList<ApiMessageRecord> history)
-    {
+    private static string ExtractSmartFilename(IReadOnlyList<ApiMessageRecord> history) {
         // 对齐 TS: 时间戳格式 YYYY-MM-DD-HHmmss
         var timestamp = DateTime.Now.ToString("yyyy-MM-dd-HHmmss");
 

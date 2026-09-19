@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Weight;
 
-public sealed class BayesianEvidenceUpdaterTests
-{
+public sealed class BayesianEvidenceUpdaterTests {
     [Fact]
-    public void UpdateBelief_ShouldCreatePosteriorForNewEvidence()
-    {
+    public void UpdateBelief_ShouldCreatePosteriorForNewEvidence() {
         var updater = new BayesianEvidenceUpdater();
 
         var result = updater.UpdateBelief("ev1", 0.8, 0.1);
@@ -14,8 +12,7 @@ public sealed class BayesianEvidenceUpdaterTests
     }
 
     [Fact]
-    public void UpdateBelief_ShouldShiftMeanTowardsLikelihood()
-    {
+    public void UpdateBelief_ShouldShiftMeanTowardsLikelihood() {
         var updater = new BayesianEvidenceUpdater();
 
         var result = updater.UpdateBelief("ev1", 0.9, 0.1);
@@ -24,8 +21,7 @@ public sealed class BayesianEvidenceUpdaterTests
     }
 
     [Fact]
-    public void UpdateBelief_ShouldReduceVarianceWithMultipleUpdates()
-    {
+    public void UpdateBelief_ShouldReduceVarianceWithMultipleUpdates() {
         var updater = new BayesianEvidenceUpdater();
 
         var r1 = updater.UpdateBelief("ev1", 0.7, 0.1);
@@ -35,8 +31,7 @@ public sealed class BayesianEvidenceUpdaterTests
     }
 
     [Fact]
-    public void PropagateBelief_ShouldAdjustRelatedBeliefs()
-    {
+    public void PropagateBelief_ShouldAdjustRelatedBeliefs() {
         var updater = new BayesianEvidenceUpdater();
         updater.UpdateBelief("ev1", 0.9, 0.1);
         updater.UpdateBelief("ev2", 0.3, 0.1);
@@ -49,8 +44,7 @@ public sealed class BayesianEvidenceUpdaterTests
     }
 
     [Fact]
-    public void GetAverageVariance_ShouldReturnAverage()
-    {
+    public void GetAverageVariance_ShouldReturnAverage() {
         var updater = new BayesianEvidenceUpdater();
         updater.UpdateBelief("ev1", 0.7, 0.1);
         updater.UpdateBelief("ev2", 0.8, 0.1);
@@ -62,11 +56,9 @@ public sealed class BayesianEvidenceUpdaterTests
     }
 
     [Fact]
-    public void UpdateFromEvidence_ShouldUseWeightCalculator()
-    {
+    public void UpdateFromEvidence_ShouldUseWeightCalculator() {
         var updater = new BayesianEvidenceUpdater();
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "测试证据",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.DirectEvidence,

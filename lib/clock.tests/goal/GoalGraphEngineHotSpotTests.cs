@@ -4,10 +4,8 @@ namespace Core.Goal.Tests;
 /// <summary>
 /// T2.2: 派发前查热点表 — 热点文件契约改队长自己揽不派Worker
 /// </summary>
-public sealed partial class GoalGraphEngineTests
-{
-    private static async IAsyncEnumerable<AgentStreamChunk> CreateFakeAgentStream([EnumeratorCancellation] CancellationToken ct)
-    {
+public sealed partial class GoalGraphEngineTests {
+    private static async IAsyncEnumerable<AgentStreamChunk> CreateFakeAgentStream([EnumeratorCancellation] CancellationToken ct) {
         await Task.CompletedTask;
         ct.ThrowIfCancellationRequested();
         yield return new AgentStreamChunk { Type = AgentStreamChunkType.Content, Content = "fake output", AgentId = "fake-agent" };
@@ -15,11 +13,9 @@ public sealed partial class GoalGraphEngineTests
     }
 
     private static DagNode<GoalNodePayload> MakeAgentNode(string id, string name, string[]? ownedFiles = null)
-        => new()
-        {
+        => new() {
             Id = id,
-            Payload = new GoalNodePayload
-            {
+            Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Agent,
                 Name = name,
                 Role = AgentRole.Executor,
@@ -29,8 +25,7 @@ public sealed partial class GoalGraphEngineTests
         };
 
     [Fact]
-    public async Task HotSpotGuard_WhenCaptainShouldHandle_ShouldOverrideRoleToCoordinator()
-    {
+    public async Task HotSpotGuard_WhenCaptainShouldHandle_ShouldOverrideRoleToCoordinator() {
         AgentSpawnOptions? capturedOptions = null;
         var agentServiceMock = new Mock<IAgentService>();
         agentServiceMock.Setup(a => a.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
@@ -58,8 +53,7 @@ public sealed partial class GoalGraphEngineTests
     }
 
     [Fact]
-    public async Task HotSpotGuard_WhenWorkerCanHandle_ShouldKeepOriginalRole()
-    {
+    public async Task HotSpotGuard_WhenWorkerCanHandle_ShouldKeepOriginalRole() {
         AgentSpawnOptions? capturedOptions = null;
         var agentServiceMock = new Mock<IAgentService>();
         agentServiceMock.Setup(a => a.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
@@ -86,8 +80,7 @@ public sealed partial class GoalGraphEngineTests
     }
 
     [Fact]
-    public async Task HotSpotGuard_WhenNoOwnedFiles_ShouldNotCallGuard()
-    {
+    public async Task HotSpotGuard_WhenNoOwnedFiles_ShouldNotCallGuard() {
         var agentServiceMock = new Mock<IAgentService>();
         agentServiceMock.Setup(a => a.RunAgentStreamAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
             .Returns((AgentSpawnOptions _, CancellationToken ct) => CreateFakeAgentStream(ct));

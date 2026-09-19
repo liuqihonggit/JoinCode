@@ -8,8 +8,7 @@ namespace Core.Agents.Coordinator;
 /// <para>跨通道广播：<see cref="BroadcastAsync(CoordinatorMessage, CancellationToken)"/> 向所有已注册通道广播。</para>
 /// </summary>
 [Register(typeof(MailboxHub), ServiceLifetime.Singleton)]
-public sealed partial class MailboxHub
-{
+public sealed partial class MailboxHub {
     private readonly IMailbox _inProcess;
     private readonly ITeammateMailboxService? _fileMailbox;
     private readonly ConcurrentDictionary<MailboxKind, MailboxBase<CoordinatorMessage>> _extraChannels;
@@ -25,8 +24,7 @@ public sealed partial class MailboxHub
     public MailboxHub(
         IMailbox inProcess,
         ITeammateMailboxService? fileMailbox = null,
-        ILogger<MailboxHub>? logger = null)
-    {
+        ILogger<MailboxHub>? logger = null) {
         _inProcess = inProcess ?? throw new ArgumentNullException(nameof(inProcess));
         _fileMailbox = fileMailbox;
         _extraChannels = new ConcurrentDictionary<MailboxKind, MailboxBase<CoordinatorMessage>>();
@@ -40,8 +38,7 @@ public sealed partial class MailboxHub
     /// </summary>
     /// <param name="kind">通道类型（必须是 NamedPipe 或 Network）。</param>
     /// <param name="mailbox">邮箱实例（MailboxBase 子类）。</param>
-    public void RegisterChannel(MailboxKind kind, MailboxBase<CoordinatorMessage> mailbox)
-    {
+    public void RegisterChannel(MailboxKind kind, MailboxBase<CoordinatorMessage> mailbox) {
         ArgumentNullException.ThrowIfNull(mailbox);
         if (kind is MailboxKind.InProcess or MailboxKind.File)
             throw new ArgumentException($"Channel {kind} is managed by constructor, use RegisterChannel only for NamedPipe/Network", nameof(kind));
@@ -51,8 +48,7 @@ public sealed partial class MailboxHub
 
     /// <summary>指定通道是否已注册。</summary>
     public bool IsChannelAvailable(MailboxKind kind)
-        => kind switch
-        {
+        => kind switch {
             MailboxKind.InProcess => true,
             MailboxKind.File => _fileMailbox is not null,
             MailboxKind.NamedPipe => _extraChannels.ContainsKey(MailboxKind.NamedPipe),
@@ -68,10 +64,8 @@ public sealed partial class MailboxHub
     /// <param name="kind">通道类型。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>true=已投递；false=通道未注册或投递失败。</returns>
-    public async ValueTask<bool> SendAsync(string agentId, CoordinatorMessage message, MailboxKind kind, CancellationToken ct = default)
-    {
-        return kind switch
-        {
+    public async ValueTask<bool> SendAsync(string agentId, CoordinatorMessage message, MailboxKind kind, CancellationToken ct = default) {
+        return kind switch {
             MailboxKind.InProcess => await _inProcess.SendAsync(agentId, message, ct).ConfigureAwait(false),
             MailboxKind.File => await SendToFileMailboxAsync(agentId, message, ct).ConfigureAwait(false),
             MailboxKind.NamedPipe => await SendToExtraChannelAsync(MailboxKind.NamedPipe, agentId, message, ct).ConfigureAwait(false),
@@ -87,8 +81,7 @@ public sealed partial class MailboxHub
     /// <param name="message">消息内容。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>true=已投递；false=通道未注册或投递失败。</returns>
-    public ValueTask<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken ct = default)
-    {
+    public ValueTask<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken ct = default) {
         var kind = _agentChannels.GetChannel(agentId);
         return SendAsync(agentId, message, kind, ct);
     }
@@ -99,28 +92,25 @@ public sealed partial class MailboxHub
     /// <param name="message">消息内容。</param>
     /// <param name="kind">通道类型。</param>
     /// <param name="ct">取消令牌。</param>
-    public async ValueTask BroadcastAsync(CoordinatorMessage message, MailboxKind kind, CancellationToken ct = default)
-    {
-        switch (kind)
-        {
+    public async ValueTask BroadcastAsync(CoordinatorMessage message, MailboxKind kind, CancellationToken ct = default) {
+        switch (kind) {
             case MailboxKind.InProcess:
-                await _inProcess.BroadcastAsync(message, ct).ConfigureAwait(false);
-                break;
+            await _inProcess.BroadcastAsync(message, ct).ConfigureAwait(false);
+            break;
             case MailboxKind.File:
-                foreach (var agentId in _inProcess.GetRegisteredAgents())
-                {
-                    if (agentId != message.FromAgentId)
-                        await SendToFileMailboxAsync(agentId, message, ct).ConfigureAwait(false);
-                }
-                break;
+            foreach (var agentId in _inProcess.GetRegisteredAgents()) {
+                if (agentId != message.FromAgentId)
+                    await SendToFileMailboxAsync(agentId, message, ct).ConfigureAwait(false);
+            }
+            break;
             case MailboxKind.NamedPipe:
-                await BroadcastToExtraChannelAsync(MailboxKind.NamedPipe, message, ct).ConfigureAwait(false);
-                break;
+            await BroadcastToExtraChannelAsync(MailboxKind.NamedPipe, message, ct).ConfigureAwait(false);
+            break;
             case MailboxKind.Network:
-                await BroadcastToExtraChannelAsync(MailboxKind.Network, message, ct).ConfigureAwait(false);
-                break;
+            await BroadcastToExtraChannelAsync(MailboxKind.Network, message, ct).ConfigureAwait(false);
+            break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(kind));
+            throw new ArgumentOutOfRangeException(nameof(kind));
         }
     }
 
@@ -130,27 +120,20 @@ public sealed partial class MailboxHub
     /// </summary>
     /// <param name="message">消息内容。</param>
     /// <param name="ct">取消令牌。</param>
-    public async ValueTask BroadcastAsync(CoordinatorMessage message, CancellationToken ct = default)
-    {
+    public async ValueTask BroadcastAsync(CoordinatorMessage message, CancellationToken ct = default) {
         await _inProcess.BroadcastAsync(message, ct).ConfigureAwait(false);
 
-        if (_fileMailbox is not null)
-        {
-            foreach (var agentId in _inProcess.GetRegisteredAgents())
-            {
+        if (_fileMailbox is not null) {
+            foreach (var agentId in _inProcess.GetRegisteredAgents()) {
                 if (agentId != message.FromAgentId)
                     await SendToFileMailboxAsync(agentId, message, ct).ConfigureAwait(false);
             }
         }
 
-        foreach (var (kind, mailbox) in _extraChannels)
-        {
-            try
-            {
+        foreach (var (kind, mailbox) in _extraChannels) {
+            try {
                 await mailbox.TellBroadcastAsync(message, message.FromAgentId, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
                 _logger?.LogWarning(ex, "MailboxHub: broadcast failed on {Kind}", kind);
             }
         }
@@ -166,37 +149,33 @@ public sealed partial class MailboxHub
     /// <param name="message">消息内容（Visibility 字段决定投递范围）。</param>
     /// <param name="visibility">消息可见性（覆盖 message.Visibility，显式控制投递范围）。</param>
     /// <param name="ct">取消令牌。</param>
-    public async ValueTask BroadcastAsync(CoordinatorMessage message, MessageVisibility visibility, CancellationToken ct = default)
-    {
-        switch (visibility)
-        {
+    public async ValueTask BroadcastAsync(CoordinatorMessage message, MessageVisibility visibility, CancellationToken ct = default) {
+        switch (visibility) {
             case MessageVisibility.Hidden:
-                _logger?.LogDebug("MailboxHub: hidden message {MessageId} not delivered", message.MessageId);
-                return;
+            _logger?.LogDebug("MailboxHub: hidden message {MessageId} not delivered", message.MessageId);
+            return;
 
             case MessageVisibility.Private:
-                if (string.IsNullOrEmpty(message.ToAgentId))
-                {
-                    _logger?.LogWarning("MailboxHub: private message {MessageId} has no ToAgentId, dropped", message.MessageId);
-                    return;
-                }
-                await SendAsync(message.ToAgentId, message, ct).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(message.ToAgentId)) {
+                _logger?.LogWarning("MailboxHub: private message {MessageId} has no ToAgentId, dropped", message.MessageId);
                 return;
+            }
+            await SendAsync(message.ToAgentId, message, ct).ConfigureAwait(false);
+            return;
 
             case MessageVisibility.AdminOnly:
-                foreach (var (agentId, role) in _agentChannels.GetAllRoles())
-                {
-                    if (role > ChatRoomRole.Admin) continue;
-                    if (agentId == message.FromAgentId) continue;
-                    await SendAsync(agentId, message, ct).ConfigureAwait(false);
-                }
-                return;
+            foreach (var (agentId, role) in _agentChannels.GetAllRoles()) {
+                if (role > ChatRoomRole.Admin) continue;
+                if (agentId == message.FromAgentId) continue;
+                await SendAsync(agentId, message, ct).ConfigureAwait(false);
+            }
+            return;
 
             case MessageVisibility.Public:
             case MessageVisibility.System:
             default:
-                await BroadcastAsync(message, ct).ConfigureAwait(false);
-                return;
+            await BroadcastAsync(message, ct).ConfigureAwait(false);
+            return;
         }
     }
 
@@ -210,11 +189,9 @@ public sealed partial class MailboxHub
     /// <param name="agentId">接收 agent ID。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>消息异步流；通道未注册时返回空流。</returns>
-    public IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken ct = default)
-    {
+    public IAsyncEnumerable<CoordinatorMessage> ReceiveAsync(string agentId, CancellationToken ct = default) {
         var kind = _agentChannels.GetChannel(agentId);
-        return kind switch
-        {
+        return kind switch {
             MailboxKind.InProcess => _inProcess.ReceiveAsync(agentId, ct),
             MailboxKind.NamedPipe when _extraChannels.TryGetValue(MailboxKind.NamedPipe, out var mb)
                 => mb.ReceiveAsync(agentId, ct),
@@ -232,29 +209,26 @@ public sealed partial class MailboxHub
     /// <param name="sessionId">会话 ID（文件邮箱需要）。</param>
     /// <param name="role">聊天室角色（默认 Member）— ADR 0111 决策7，用于 AdminOnly 可见性过滤。</param>
     /// <param name="ct">取消令牌。</param>
-    public async ValueTask RegisterAgentAsync(string agentId, MailboxKind kind = MailboxKind.InProcess, string? sessionId = null, ChatRoomRole role = ChatRoomRole.Member, CancellationToken ct = default)
-    {
+    public async ValueTask RegisterAgentAsync(string agentId, MailboxKind kind = MailboxKind.InProcess, string? sessionId = null, ChatRoomRole role = ChatRoomRole.Member, CancellationToken ct = default) {
         _agentChannels.Register(agentId, kind, role);
 
-        switch (kind)
-        {
+        switch (kind) {
             case MailboxKind.InProcess:
-                _inProcess.RegisterAgent(agentId, sessionId);
-                break;
+            _inProcess.RegisterAgent(agentId, sessionId);
+            break;
             case MailboxKind.NamedPipe when _extraChannels.TryGetValue(MailboxKind.NamedPipe, out var mb):
-                await mb.RegisterAgentAsync(agentId, sessionId, ct).ConfigureAwait(false);
-                break;
+            await mb.RegisterAgentAsync(agentId, sessionId, ct).ConfigureAwait(false);
+            break;
             case MailboxKind.Network when _extraChannels.TryGetValue(MailboxKind.Network, out var mb):
-                await mb.RegisterAgentAsync(agentId, sessionId, ct).ConfigureAwait(false);
-                break;
+            await mb.RegisterAgentAsync(agentId, sessionId, ct).ConfigureAwait(false);
+            break;
         }
     }
 
     /// <summary>
     /// 注册 agent 到进程内邮箱（遗留同步重载 — InProcess 通道，同步注册）。
     /// </summary>
-    public void RegisterAgent(string agentId, string? sessionId = null)
-    {
+    public void RegisterAgent(string agentId, string? sessionId = null) {
         _agentChannels.SetChannel(agentId, MailboxKind.InProcess);
         _inProcess.RegisterAgent(agentId, sessionId);
     }
@@ -264,35 +238,31 @@ public sealed partial class MailboxHub
     /// </summary>
     /// <param name="agentId">agent ID。</param>
     /// <param name="ct">取消令牌。</param>
-    public async ValueTask UnregisterAgentAsync(string agentId, CancellationToken ct = default)
-    {
+    public async ValueTask UnregisterAgentAsync(string agentId, CancellationToken ct = default) {
         _agentChannels.Unregister(agentId, out var kind);
-        switch (kind)
-        {
+        switch (kind) {
             case MailboxKind.InProcess:
-                _inProcess.UnregisterAgent(agentId);
-                break;
+            _inProcess.UnregisterAgent(agentId);
+            break;
             case MailboxKind.NamedPipe when _extraChannels.TryGetValue(MailboxKind.NamedPipe, out var mb):
-                await mb.UnregisterAgentAsync(agentId, ct).ConfigureAwait(false);
-                break;
+            await mb.UnregisterAgentAsync(agentId, ct).ConfigureAwait(false);
+            break;
             case MailboxKind.Network when _extraChannels.TryGetValue(MailboxKind.Network, out var mb):
-                await mb.UnregisterAgentAsync(agentId, ct).ConfigureAwait(false);
-                break;
+            await mb.UnregisterAgentAsync(agentId, ct).ConfigureAwait(false);
+            break;
         }
     }
 
     /// <summary>
     /// 注销 agent 邮箱（遗留同步重载 — InProcess 通道，同步注销）。
     /// </summary>
-    public void UnregisterAgent(string agentId)
-    {
+    public void UnregisterAgent(string agentId) {
         _agentChannels.Unregister(agentId, out _);
         _inProcess.UnregisterAgent(agentId);
     }
 
     /// <summary>获取所有已注册 agent — 跨通道聚合。</summary>
-    public IEnumerable<string> GetRegisteredAgents()
-    {
+    public IEnumerable<string> GetRegisteredAgents() {
         foreach (var agentId in _inProcess.GetRegisteredAgents())
             yield return agentId;
         foreach (var (_, mailbox) in _extraChannels)
@@ -308,25 +278,20 @@ public sealed partial class MailboxHub
     public MailboxKind GetAgentChannel(string agentId)
         => _agentChannels.GetChannel(agentId);
 
-    private async ValueTask<bool> SendToFileMailboxAsync(string agentId, CoordinatorMessage message, CancellationToken ct)
-    {
-        if (_fileMailbox is null)
-        {
+    private async ValueTask<bool> SendToFileMailboxAsync(string agentId, CoordinatorMessage message, CancellationToken ct) {
+        if (_fileMailbox is null) {
             _logger?.LogWarning("File mailbox not configured, message to {AgentId} dropped", agentId);
             return false;
         }
 
         var sessionId = _inProcess.GetSessionId(agentId);
-        if (string.IsNullOrEmpty(sessionId))
-        {
+        if (string.IsNullOrEmpty(sessionId)) {
             _logger?.LogWarning("No session ID for agent {AgentId}, cannot send file mailbox message", agentId);
             return false;
         }
 
-        try
-        {
-            var request = new MailboxSendRequest
-            {
+        try {
+            var request = new MailboxSendRequest {
                 FromAgentId = message.FromAgentId,
                 ToAgentId = agentId,
                 MessageType = message.MessageType,
@@ -336,48 +301,36 @@ public sealed partial class MailboxHub
 
             await _fileMailbox.SendAsync(request, ct).ConfigureAwait(false);
             return true;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "Failed to send file mailbox message to {AgentId}", agentId);
             return false;
         }
     }
 
-    private async ValueTask<bool> SendToExtraChannelAsync(MailboxKind kind, string agentId, CoordinatorMessage message, CancellationToken ct)
-    {
-        if (!_extraChannels.TryGetValue(kind, out var mailbox))
-        {
+    private async ValueTask<bool> SendToExtraChannelAsync(MailboxKind kind, string agentId, CoordinatorMessage message, CancellationToken ct) {
+        if (!_extraChannels.TryGetValue(kind, out var mailbox)) {
             _logger?.LogWarning("Channel {Kind} not registered, message to {AgentId} dropped", kind, agentId);
             return false;
         }
 
-        try
-        {
+        try {
             await mailbox.TellAsync(agentId, message, ct).ConfigureAwait(false);
             return true;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "Failed to send {Kind} message to {AgentId}", kind, agentId);
             return false;
         }
     }
 
-    private async ValueTask BroadcastToExtraChannelAsync(MailboxKind kind, CoordinatorMessage message, CancellationToken ct)
-    {
-        if (!_extraChannels.TryGetValue(kind, out var mailbox))
-        {
+    private async ValueTask BroadcastToExtraChannelAsync(MailboxKind kind, CoordinatorMessage message, CancellationToken ct) {
+        if (!_extraChannels.TryGetValue(kind, out var mailbox)) {
             _logger?.LogWarning("Channel {Kind} not registered, broadcast dropped", kind);
             return;
         }
 
-        try
-        {
+        try {
             await mailbox.TellBroadcastAsync(message, message.FromAgentId, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "Failed to broadcast on {Kind}", kind);
         }
     }

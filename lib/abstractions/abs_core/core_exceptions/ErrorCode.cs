@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Exceptions;
 /// <summary>
 /// 标准错误码枚举 — 替代原 ErrorCodes 静态常量类
 /// </summary>
-public enum ErrorCode
-{
+public enum ErrorCode {
     // 工作流相关 (WF)
     [EnumValue("WF001")] WorkflowGeneral,
     [EnumValue("WF003")] WorkflowExecution,

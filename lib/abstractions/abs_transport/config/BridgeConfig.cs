@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Transport;
 /// <summary>
 /// 子进程生成模式 — 对齐 TS 端 SpawnMode
 /// </summary>
-public enum BridgeSpawnMode
-{
+public enum BridgeSpawnMode {
     /// <summary>单会话模式</summary>
     [EnumValue("single-session")]
     SingleSession,
@@ -19,8 +18,7 @@ public enum BridgeSpawnMode
 /// <summary>
 /// SpawnMode 来源追踪 — 对齐 TS 端 SpawnModeSource
 /// </summary>
-public enum BridgeSpawnModeSource
-{
+public enum BridgeSpawnModeSource {
     /// <summary>恢复会话 — 对齐 TS 端 'resume'</summary>
     [EnumValue("resume")]
     Resume,
@@ -35,8 +33,7 @@ public enum BridgeSpawnModeSource
     GateDefault,
 }
 
-public class BridgeConfig
-{
+public class BridgeConfig {
     // ===== 服务端配置（CS 独有）=====
 
     public bool Enabled { get; set; } = false;

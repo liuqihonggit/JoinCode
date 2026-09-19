@@ -3,8 +3,7 @@ namespace McpToolDispatch.Tests.Handlers;
 /// <summary>
 /// ToolScoreDebugToolHandlers 单元测试 — 验证评分查询、超图展示、评分重置
 /// </summary>
-public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime
-{
+public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime {
     private InMemoryFileSystem _fs = null!;
     private ToolHealthMonitor _monitor = null!;
     private ToolHypergraphScorer _scorer = null!;
@@ -13,11 +12,9 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime
     private static string GetText(ToolResult result) =>
         result.Content.FirstOrDefault(c => c.Type == ToolContentType.Text)?.Text ?? "";
 
-    public Task InitializeAsync()
-    {
+    public Task InitializeAsync() {
         _fs = new InMemoryFileSystem();
-        _monitor = new ToolHealthMonitor(_fs, config: new ToolScoreConfig
-        {
+        _monitor = new ToolHealthMonitor(_fs, config: new ToolScoreConfig {
             SuccessDelta = 1,
             FailDelta = -5,
             WarningThreshold = 3
@@ -27,24 +24,21 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    public Task DisposeAsync()
-    {
+    public Task DisposeAsync() {
         _scorer.DisposeSafe();
         _monitor.DisposeSafe();
         return Task.CompletedTask;
     }
 
     [Fact]
-    public async Task GetToolScoreAsync_NoRecords_ReturnsEmptyMessage()
-    {
+    public async Task GetToolScoreAsync_NoRecords_ReturnsEmptyMessage() {
         var result = await _handlers.GetToolScoreAsync(null);
         result.IsError.Should().BeFalse();
         GetText(result).Should().Contain("暂无工具评分记录");
     }
 
     [Fact]
-    public async Task GetToolScoreAsync_SpecificTool_ShowsScoreDetails()
-    {
+    public async Task GetToolScoreAsync_SpecificTool_ShowsScoreDetails() {
         await _monitor.RecordSuccessAsync("Read");
         await _monitor.RecordSuccessAsync("Read");
         await _monitor.RecordFailureAsync("Read", "file not found");
@@ -60,8 +54,7 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetToolScoreAsync_AllTools_ReturnsTable()
-    {
+    public async Task GetToolScoreAsync_AllTools_ReturnsTable() {
         await _monitor.RecordSuccessAsync("Read");
         await _monitor.RecordSuccessAsync("Write");
         await _monitor.RecordFailureAsync("Write", "permission denied");
@@ -75,8 +68,7 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetHypergraphAsync_ShowsPresets()
-    {
+    public async Task GetHypergraphAsync_ShowsPresets() {
         var result = await _handlers.GetHypergraphAsync();
         result.IsError.Should().BeFalse();
         var text = GetText(result);
@@ -85,8 +77,7 @@ public sealed class ToolScoreDebugToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ResetToolScoreAsync_ResetsScoreToZero()
-    {
+    public async Task ResetToolScoreAsync_ResetsScoreToZero() {
         await _monitor.RecordFailureAsync("failing_tool", "error1");
         await _monitor.RecordFailureAsync("failing_tool", "error2");
 

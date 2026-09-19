@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Mcp.Registry;
 
-public interface IMcpToolRegistry : IToolRegistry, IRegistry
-{
+public interface IMcpToolRegistry : IToolRegistry, IRegistry {
     void RegisterRemoteClient(string clientId, IMcpClient client);
 
     Task<bool> UnregisterRemoteClientAsync(string clientId, CancellationToken cancellationToken = default);
@@ -30,20 +29,17 @@ public sealed record RemoteToolsSyncResult(
     ToolDriftReport? DriftReport = null,
     McpReconnectResult? ReconnectResult = null);
 
-public sealed class ToolsListChangedEventArgs : EventArgs
-{
+public sealed class ToolsListChangedEventArgs : EventArgs {
     public required string ClientId { get; init; }
     public required RemoteToolsSyncResult SyncResult { get; init; }
 }
 
-public sealed class ResourcesListChangedEventArgs : EventArgs
-{
+public sealed class ResourcesListChangedEventArgs : EventArgs {
     public required string ClientId { get; init; }
     public required OperationResult<IReadOnlyList<string>> SyncResult { get; init; }
 }
 
-public sealed class PromptsListChangedEventArgs : EventArgs
-{
+public sealed class PromptsListChangedEventArgs : EventArgs {
     public required string ClientId { get; init; }
     public required OperationResult<IReadOnlyList<string>> SyncResult { get; init; }
 }

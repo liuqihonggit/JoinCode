@@ -6,8 +6,7 @@ namespace JoinCode.Composition.ContextFold;
 /// <para>对齐 SubAgentSummaryClient 的调用模式：GetChatCompletionService → GetApiMessageContentsAsync。</para>
 /// </summary>
 [Register(typeof(IFoldSummarizer), ServiceLifetime.Singleton)]
-public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer
-{
+public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer {
     private readonly ILogger<FoldSummarizer>? _logger;
     private readonly IChatClient _kernel;
 
@@ -16,8 +15,7 @@ public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer
     /// </summary>
     /// <param name="kernel">聊天客户端（用于调 LLM 生成摘要）。</param>
     /// <param name="logger">可选的日志记录器。</param>
-    public FoldSummarizer(IChatClient kernel, ILogger<FoldSummarizer>? logger = null)
-    {
+    public FoldSummarizer(IChatClient kernel, ILogger<FoldSummarizer>? logger = null) {
         _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _logger = logger;
     }
@@ -25,8 +23,7 @@ public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer
     /// <inheritdoc />
     public async Task<string> SummarizeForFoldAsync(
         IReadOnlyList<ApiMessage> headMessages,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (headMessages.Count == 0)
             return string.Empty;
 
@@ -41,20 +38,16 @@ public sealed partial class FoldSummarizer : ServiceEntity, IFoldSummarizer
         var results = await completion.GetApiMessageContentsAsync(chatHistory, cancellationToken: cancellationToken).ConfigureAwait(false);
         var summary = results.FirstOrDefault()?.Content;
 
-        if (string.IsNullOrEmpty(summary))
-        {
+        if (string.IsNullOrEmpty(summary)) {
             throw new InvalidOperationException("L4 折叠摘要 LLM 返回空");
         }
 
         return summary;
     }
 
-    private static string BuildTranscript(IReadOnlyList<ApiMessage> messages)
-    {
-        return string.Join("\n", messages.Select(msg =>
-        {
-            var role = msg.Role switch
-            {
+    private static string BuildTranscript(IReadOnlyList<ApiMessage> messages) {
+        return string.Join("\n", messages.Select(msg => {
+            var role = msg.Role switch {
                 MessageRole.System => "system",
                 MessageRole.User => "user",
                 MessageRole.Assistant => "assistant",

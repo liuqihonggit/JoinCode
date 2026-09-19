@@ -3,8 +3,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// <summary>
 /// 危险 PS cmdlet 常量集 — 与 TS dangerousCmdlets.ts 1:1 对齐
 /// </summary>
-public static partial class PsDangerousCmdlets
-{
+public static partial class PsDangerousCmdlets {
     /// <summary>
     /// 接受 -FilePath 并执行脚本文件的 cmdlet
     /// </summary>

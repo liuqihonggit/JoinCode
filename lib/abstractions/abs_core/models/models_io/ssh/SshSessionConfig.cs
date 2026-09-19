@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Models.Ssh;
 
-public sealed class SshSessionConfig
-{
+public sealed class SshSessionConfig {
     public required string Host { get; init; }
     public int Port { get; init; } = 22;
     public required string Username { get; init; }

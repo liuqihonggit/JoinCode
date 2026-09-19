@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 上下文数据
 /// </summary>
-public sealed class ContextData
-{
+public sealed class ContextData {
     /// <summary>
     /// 模型名称
     /// </summary>
@@ -51,8 +50,7 @@ public sealed class ContextData
 /// <summary>
 /// 上下文类别
 /// </summary>
-public sealed class ContextCategory
-{
+public sealed class ContextCategory {
     /// <summary>
     /// 类别名称
     /// </summary>
@@ -74,8 +72,7 @@ public sealed class ContextCategory
     /// <param name="name">类别名称</param>
     /// <param name="tokenCount">该类别的 Token 数</param>
     /// <param name="sortOrder">排序序号，默认 0</param>
-    public ContextCategory(string name, int tokenCount, int sortOrder = 0)
-    {
+    public ContextCategory(string name, int tokenCount, int sortOrder = 0) {
         Name = name;
         TokenCount = tokenCount;
         SortOrder = sortOrder;
@@ -85,25 +82,21 @@ public sealed class ContextCategory
 /// <summary>
 /// 上下文可视化器 — CLI 简化版
 /// </summary>
-public sealed class ContextVisualizer
-{
+public sealed class ContextVisualizer {
     /// <summary>
     /// 渲染单个上下文数据为带类别条形图的文本
     /// </summary>
     /// <param name="data">上下文数据</param>
     /// <returns>渲染后的文本</returns>
-    public string Render(ContextData data)
-    {
+    public string Render(ContextData data) {
         var sb = new StringBuilder();
         sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Context Window{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine($"  Model: {data.Model}");
         sb.AppendLine($"  Tokens: {data.TotalTokens:N0} / {data.MaxTokens:N0}");
 
-        if (data.Categories.Count > 0)
-        {
+        if (data.Categories.Count > 0) {
             sb.AppendLine();
-            foreach (var cat in data.Categories.OrderBy(c => c.SortOrder))
-            {
+            foreach (var cat in data.Categories.OrderBy(c => c.SortOrder)) {
                 var percentage = data.MaxTokens > 0 ? (double)cat.TokenCount / data.MaxTokens * 100 : 0;
                 var bar = new string('█', (int)Math.Max(1, percentage / 5));
                 sb.AppendLine($"  {TerminalColors.Primary}{cat.Name,-12}{AnsiStyleEnumConstants.Reset} {bar} {cat.TokenCount:N0} ({percentage:F1}%)");
@@ -118,14 +111,12 @@ public sealed class ContextVisualizer
     /// </summary>
     /// <param name="data">上下文数据只读列表</param>
     /// <returns>渲染后的文本</returns>
-    public static string Render(IReadOnlyList<ContextData> data)
-    {
+    public static string Render(IReadOnlyList<ContextData> data) {
         var sb = new StringBuilder();
         sb.AppendLine($"{AnsiStyleEnumConstants.Bold}Context Window{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
 
-        foreach (var d in data.OrderByDescending(d => d.TokenCount))
-        {
+        foreach (var d in data.OrderByDescending(d => d.TokenCount)) {
             var bar = new string('█', (int)Math.Max(1, d.Percentage / 5));
             sb.AppendLine($"  {TerminalColors.Primary}{d.Category,-12}{AnsiStyleEnumConstants.Reset} {bar} {d.TokenCount:N0} ({d.Percentage:F1}%)");
         }

@@ -4,8 +4,7 @@ namespace McpClient;
 /// MCP OAuth 认证服务 — 编排 PKCE 授权完整流程：生成授权 URL → 监听回调 → 交换授权码
 /// </summary>
 [Register(typeof(McpOAuthService), ServiceLifetime.Singleton)]
-public sealed partial class McpOAuthService : ServiceEntity
-{
+public sealed partial class McpOAuthService : ServiceEntity {
     private readonly McpOAuthOptions _options;
     private readonly McpPkceAuthProvider _authProvider;
     private readonly ILogger<McpOAuthService>? _logger;
@@ -23,12 +22,10 @@ public sealed partial class McpOAuthService : ServiceEntity
         IFileSystem fs,
         IHttpClientProvider httpClientProvider,
         McpOAuthOptions? options = null,
-        ILogger<McpOAuthService>? logger = null)
-    {
+        ILogger<McpOAuthService>? logger = null) {
         ArgumentNullException.ThrowIfNull(fs);
         ArgumentNullException.ThrowIfNull(httpClientProvider);
-        _options = options ?? new McpOAuthOptions
-        {
+        _options = options ?? new McpOAuthOptions {
             ClientId = string.Empty,
             AuthorizationUrl = string.Empty,
             TokenUrl = string.Empty
@@ -47,13 +44,11 @@ public sealed partial class McpOAuthService : ServiceEntity
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>授权成功返回 true；超时、回调错误或授权码交换失败返回 false</returns>
-    public async Task<bool> StartAuthorizationFlowAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> StartAuthorizationFlowAsync(CancellationToken cancellationToken = default) {
         var authUrl = await _authProvider.GetAuthorizationUrlAsync(cancellationToken).ConfigureAwait(false);
         _logger?.LogInformation("PKCE 授权流程启动");
 
-        try
-        {
+        try {
             _callbackListener = new HttpListener();
             _callbackListener.Prefixes.Add($"{_options.RedirectUrl.TrimEnd('/')}/");
             _callbackListener.Start();
@@ -66,8 +61,7 @@ public sealed partial class McpOAuthService : ServiceEntity
             var code = context.Request.QueryString["code"];
             var error = context.Request.QueryString["error"];
 
-            if (!string.IsNullOrEmpty(error))
-            {
+            if (!string.IsNullOrEmpty(error)) {
                 var errorDesc = context.Request.QueryString["error_description"] ?? error;
                 _logger?.LogError("授权回调错误: {Error}", errorDesc);
 
@@ -75,8 +69,7 @@ public sealed partial class McpOAuthService : ServiceEntity
                 return false;
             }
 
-            if (string.IsNullOrEmpty(code))
-            {
+            if (string.IsNullOrEmpty(code)) {
                 _logger?.LogError("授权回调缺少授权码");
                 await SendCallbackResponseAsync(context, false, "Missing authorization code").ConfigureAwait(false);
                 return false;
@@ -86,19 +79,13 @@ public sealed partial class McpOAuthService : ServiceEntity
             await SendCallbackResponseAsync(context, success, null).ConfigureAwait(false);
 
             return success;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _logger?.LogWarning("PKCE 授权流程超时");
             return false;
-        }
-        catch (HttpListenerException ex)
-        {
+        } catch (HttpListenerException ex) {
             _logger?.LogError(ex, "HTTP 监听器异常");
             return false;
-        }
-        finally
-        {
+        } finally {
             StopCallbackListener();
         }
     }
@@ -108,8 +95,7 @@ public sealed partial class McpOAuthService : ServiceEntity
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>刷新成功返回 true；失败返回 false</returns>
-    public async Task<bool> RefreshTokenAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> RefreshTokenAsync(CancellationToken cancellationToken = default) {
         return await _authProvider.RefreshAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -118,8 +104,7 @@ public sealed partial class McpOAuthService : ServiceEntity
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>访问令牌；获取失败返回 null</returns>
-    public async Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<string?> GetAccessTokenAsync(CancellationToken cancellationToken = default) {
         return await _authProvider.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -128,8 +113,7 @@ public sealed partial class McpOAuthService : ServiceEntity
     /// </summary>
     public bool IsAuthenticated => _authProvider.IsAuthenticated;
 
-    private static async Task SendCallbackResponseAsync(HttpListenerContext context, bool success, string? error)
-    {
+    private static async Task SendCallbackResponseAsync(HttpListenerContext context, bool success, string? error) {
         var response = context.Response;
         var html = success
             ? "<html><body><h1>Authorization successful</h1><p>You can close this window.</p></body></html>"
@@ -143,23 +127,18 @@ public sealed partial class McpOAuthService : ServiceEntity
         response.Close();
     }
 
-    private void StopCallbackListener()
-    {
-        try
-        {
+    private void StopCallbackListener() {
+        try {
             _callbackListener?.Stop();
             _callbackListener?.Close();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "停止 OAuth 回调监听器失败");
         }
         _callbackListener = null;
     }
 
     /// <summary>异步释放资源 — 停止回调监听器、异步释放认证提供者与基类,同步释放状态锁。</summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         StopCallbackListener();
         await _authProvider.DisposeAsync().ConfigureAwait(false);
         _stateLock.Dispose();

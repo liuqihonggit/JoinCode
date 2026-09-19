@@ -1,17 +1,14 @@
 namespace Llm.Tests.Adapters.LLM;
 
-public class ChatClientTests
-{
+public class ChatClientTests {
     [Fact]
-    public void Constructor_NullService_ThrowsArgumentNullException()
-    {
+    public void Constructor_NullService_ThrowsArgumentNullException() {
         var act = () => new ChatClient(null!);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void GetChatCompletionService_ReturnsInjectedService()
-    {
+    public void GetChatCompletionService_ReturnsInjectedService() {
         var mockService = new Mock<IQueryService>();
         var client = new ChatClient(mockService.Object);
 
@@ -19,15 +16,13 @@ public class ChatClientTests
     }
 
     [Fact]
-    public void Plugins_IsNotNull()
-    {
+    public void Plugins_IsNotNull() {
         var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.Should().NotBeNull();
     }
 
     [Fact]
-    public void ToolCollection_AddAndGetPlugin_ReturnsPlugin()
-    {
+    public void ToolCollection_AddAndGetPlugin_ReturnsPlugin() {
         var client = new ChatClient(new Mock<IQueryService>().Object);
         var plugin = new ToolGroup("test", [new ToolDef("fn", "desc")]);
 
@@ -38,8 +33,7 @@ public class ChatClientTests
     }
 
     [Fact]
-    public void ToolCollection_Remove_RemovesPlugin()
-    {
+    public void ToolCollection_Remove_RemovesPlugin() {
         var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.Add(new ToolGroup("test", []));
 
@@ -50,15 +44,13 @@ public class ChatClientTests
     }
 
     [Fact]
-    public void ToolCollection_GetMissingPlugin_ReturnsNull()
-    {
+    public void ToolCollection_GetMissingPlugin_ReturnsNull() {
         var client = new ChatClient(new Mock<IQueryService>().Object);
         client.Plugins.GetPlugin("missing").Should().BeNull();
     }
 
     [Fact]
-    public void ToolGroup_Properties_ExposeNameAndFunctions()
-    {
+    public void ToolGroup_Properties_ExposeNameAndFunctions() {
         var functions = new[] { new ToolDef("a", "desc a"), new ToolDef("b", "desc b") };
         var group = new ToolGroup("group", functions);
 
@@ -67,8 +59,7 @@ public class ChatClientTests
     }
 
     [Fact]
-    public void ToolDef_Properties_ExposeValues()
-    {
+    public void ToolDef_Properties_ExposeValues() {
         var parameters = new[] { new ToolParam("p", "param", typeof(int), true) };
         var def = new ToolDef("name", "description", parameters);
 
@@ -78,15 +69,13 @@ public class ChatClientTests
     }
 
     [Fact]
-    public void ToolDef_DefaultParameters_IsEmpty()
-    {
+    public void ToolDef_DefaultParameters_IsEmpty() {
         var def = new ToolDef("name", "description");
         def.Parameters.Should().BeEmpty();
     }
 
     [Fact]
-    public void ToolParam_Properties_ExposeValues()
-    {
+    public void ToolParam_Properties_ExposeValues() {
         var param = new ToolParam("p", "param", typeof(bool), true);
 
         param.Name.Should().Be("p");
@@ -96,8 +85,7 @@ public class ChatClientTests
     }
 
     [Fact]
-    public void ToolParam_DefaultValues_AreSensible()
-    {
+    public void ToolParam_DefaultValues_AreSensible() {
         var param = new ToolParam("p");
 
         param.Description.Should().BeEmpty();

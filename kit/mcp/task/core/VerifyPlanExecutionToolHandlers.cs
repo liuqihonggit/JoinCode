@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 计划执行验证工具处理器 — 提供按预期标准验证计划执行结果的功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Plan, Optional = true)]
-public partial class VerifyPlanExecutionToolHandlers
-{
+public partial class VerifyPlanExecutionToolHandlers {
     private readonly IPlanService _planService;
     private readonly ILogger<VerifyPlanExecutionToolHandlers>? _logger;
 
@@ -16,8 +15,7 @@ public partial class VerifyPlanExecutionToolHandlers
     /// </summary>
     /// <param name="planService">计划服务</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public VerifyPlanExecutionToolHandlers(IPlanService planService, ILogger<VerifyPlanExecutionToolHandlers>? logger = null)
-    {
+    public VerifyPlanExecutionToolHandlers(IPlanService planService, ILogger<VerifyPlanExecutionToolHandlers>? logger = null) {
         _planService = planService ?? throw new ArgumentNullException(nameof(planService));
         _logger = logger;
     }
@@ -33,10 +31,8 @@ public partial class VerifyPlanExecutionToolHandlers
     public async Task<ToolResult> VerifyPlanExecutionAsync(
         [McpToolParameter("Plan prompt (optional, default empty)", Required = false)] string? plan_prompt = null,
         [McpToolParameter("Verification criteria (optional, describes expected execution results)", Required = false)] string? criteria = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var prompt = string.IsNullOrEmpty(plan_prompt) ? L.T(StringKey.VerifyPlanDefaultPrompt) : plan_prompt;
             var result = await _planService.ExecutePlanWithResultAsync(prompt, cancellationToken).ConfigureAwait(false);
 
@@ -44,20 +40,16 @@ public partial class VerifyPlanExecutionToolHandlers
             response.AppendLine(L.T(StringKey.VerifyPlanTitle));
             response.AppendLine();
 
-            if (!string.IsNullOrEmpty(criteria))
-            {
+            if (!string.IsNullOrEmpty(criteria)) {
                 response.AppendLine(L.T(StringKey.VerifyPlanCriteria, criteria));
                 response.AppendLine();
             }
 
-            if (result.Success)
-            {
+            if (result.Success) {
                 response.AppendLine(L.T(StringKey.VerifyPlanSuccess));
                 if (!string.IsNullOrEmpty(result.Result))
                     response.AppendLine(result.Result);
-            }
-            else
-            {
+            } else {
                 response.AppendLine(L.T(StringKey.VerifyPlanHasIssues));
                 if (!string.IsNullOrEmpty(result.Error))
                     response.AppendLine(L.T(StringKey.VerifyPlanError, result.Error));
@@ -65,10 +57,7 @@ public partial class VerifyPlanExecutionToolHandlers
 
             var builder = result.Success ? ToolResultBuilder.Success() : ToolResultBuilder.Error();
             return builder.WithText(response.ToString()).Build();
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VerifyPlanFailedLog));
             return ToolResultBuilder.Error().WithText(L.T(StringKey.VerifyPlanFailed, ex.Message)).Build();
         }

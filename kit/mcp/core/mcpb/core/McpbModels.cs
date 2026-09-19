@@ -3,8 +3,7 @@ namespace McpClient;
 /// <summary>
 /// MCPB 包清单 — 描述 MCPB 插件包的元数据与服务器配置
 /// </summary>
-public sealed partial class McpbManifest
-{
+public sealed partial class McpbManifest {
     /// <summary>包名称</summary>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
@@ -33,8 +32,7 @@ public sealed partial class McpbManifest
 /// <summary>
 /// MCPB 包作者信息
 /// </summary>
-public sealed partial class McpbAuthor
-{
+public sealed partial class McpbAuthor {
     /// <summary>作者名称</summary>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
@@ -43,8 +41,7 @@ public sealed partial class McpbAuthor
 /// <summary>
 /// MCPB 服务器配置 — 描述如何启动 MCP 服务器
 /// </summary>
-public sealed partial class McpbServerConfig
-{
+public sealed partial class McpbServerConfig {
     /// <summary>传输类型（stdio/http/sse/websocket 等）</summary>
     [JsonPropertyName("type")]
     public string? Type { get; set; }
@@ -69,8 +66,7 @@ public sealed partial class McpbServerConfig
 /// <summary>
 /// MCPB 用户配置选项 — 描述单个用户可配置参数
 /// </summary>
-public sealed partial class McpbUserConfigOption
-{
+public sealed partial class McpbUserConfigOption {
     /// <summary>选项类型（string/number/boolean 等）</summary>
     [JsonPropertyName("type")]
     public string? Type { get; set; }
@@ -99,8 +95,7 @@ public sealed partial class McpbUserConfigOption
 /// <summary>
 /// MCPB 加载结果 — 包含解析后的清单、解压路径和内容哈希
 /// </summary>
-public sealed partial class McpbLoadResult
-{
+public sealed partial class McpbLoadResult {
     /// <summary>解析后的清单</summary>
     public required McpbManifest Manifest { get; init; }
     /// <summary>解压后的插件路径</summary>
@@ -112,8 +107,7 @@ public sealed partial class McpbLoadResult
 /// <summary>
 /// MCPB 缓存元数据 — 持久化到解压目录的 .mcpb-metadata.json
 /// </summary>
-public sealed partial class McpbCacheMetadata
-{
+public sealed partial class McpbCacheMetadata {
     /// <summary>源路径或 URL</summary>
     [JsonPropertyName("source")]
     public string? Source { get; set; }

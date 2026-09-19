@@ -6,13 +6,11 @@ namespace Core.Tests.Services;
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Requires", "Shell")]
-public class ShellExecutionServiceTests
-{
+public class ShellExecutionServiceTests {
     private readonly ISystemActuator _bashActuator;
     private readonly ISystemActuator _powershellActuator;
 
-    public ShellExecutionServiceTests()
-    {
+    public ShellExecutionServiceTests() {
         var fs = new IO.FileSystem.PhysicalFileSystem();
 
         Core.DependencyInjection.SystemActuatorInitializer.Initialize(fs);
@@ -23,8 +21,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_SimpleCommand_ReturnsOutput()
-    {
+    public async Task ExecuteAsync_SimpleCommand_ReturnsOutput() {
         // Act
         var result = await _bashActuator.ExecuteAsync("echo hello").ConfigureAwait(true);
 
@@ -34,8 +31,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithWorkingDirectory_ExecutesInDirectory()
-    {
+    public async Task ExecuteAsync_WithWorkingDirectory_ExecutesInDirectory() {
         // Arrange
         var tempDir = Path.GetTempPath();
 
@@ -48,8 +44,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_InvalidCommand_ReturnsError()
-    {
+    public async Task ExecuteAsync_InvalidCommand_ReturnsError() {
         // Act
         var result = await _bashActuator.ExecuteAsync("nonexistentcommand12345").ConfigureAwait(true);
 
@@ -59,8 +54,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_EmptyCommand_ReturnsFailure()
-    {
+    public async Task ExecuteAsync_EmptyCommand_ReturnsFailure() {
         // Act
         var result = await _bashActuator.ExecuteAsync("").ConfigureAwait(true);
 
@@ -70,8 +64,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithTimeout_TimesOut()
-    {
+    public async Task ExecuteAsync_WithTimeout_TimesOut() {
 
         // Act - 使用 ping 命令作为更可靠的超时测试
         var result = await _bashActuator.ExecuteAsync("ping 127.0.0.1 -n 10", timeout: 100).ConfigureAwait(true);
@@ -81,8 +74,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecutePowerShellAsync_SimpleCommand_ReturnsOutput()
-    {
+    public async Task ExecutePowerShellAsync_SimpleCommand_ReturnsOutput() {
         // Act
         var result = await _powershellActuator.ExecuteAsync("Write-Output 'hello from ps'").ConfigureAwait(true);
 
@@ -92,8 +84,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecutePowerShellAsync_ComplexCommand_ReturnsOutput()
-    {
+    public async Task ExecutePowerShellAsync_ComplexCommand_ReturnsOutput() {
         // Act
         var result = await _powershellActuator.ExecuteAsync("Get-Date -Format 'yyyy-MM-dd'").ConfigureAwait(true);
 
@@ -107,8 +98,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecutePowerShellAsync_WithVariables_ReturnsOutput()
-    {
+    public async Task ExecutePowerShellAsync_WithVariables_ReturnsOutput() {
         // Act
         var result = await _powershellActuator.ExecuteAsync("$name = 'test'; Write-Output $name").ConfigureAwait(true);
 
@@ -118,8 +108,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecutePowerShellAsync_InvalidCommand_ReturnsError()
-    {
+    public async Task ExecutePowerShellAsync_InvalidCommand_ReturnsError() {
         // Act
         var result = await _powershellActuator.ExecuteAsync("NonExistent-Cmdlet").ConfigureAwait(true);
 
@@ -128,8 +117,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecutePowerShellAsync_EmptyCommand_ReturnsFailure()
-    {
+    public async Task ExecutePowerShellAsync_EmptyCommand_ReturnsFailure() {
         // Act
         var result = await _powershellActuator.ExecuteAsync("").ConfigureAwait(true);
 
@@ -139,8 +127,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecutePowerShellAsync_WithTimeout_TimesOut()
-    {
+    public async Task ExecutePowerShellAsync_WithTimeout_TimesOut() {
 
         // Act - 使用更长的睡眠时间来确保超时
         var result = await _powershellActuator.ExecuteAsync("Start-Sleep -Milliseconds 5000", timeout: 100).ConfigureAwait(true);
@@ -150,8 +137,7 @@ public class ShellExecutionServiceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_LongOutput_Truncated()
-    {
+    public async Task ExecuteAsync_LongOutput_Truncated() {
         // Act - 生成超长输出
         var result = await _bashActuator.ExecuteAsync("seq 1 50000").ConfigureAwait(true);
 

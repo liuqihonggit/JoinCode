@@ -1,9 +1,7 @@
 namespace Core.Tests.Plugins;
 
-public sealed class WorkflowPluginBaseTests
-{
-    private sealed class TestPlugin : WorkflowPluginBase
-    {
+public sealed class WorkflowPluginBaseTests {
+    private sealed class TestPlugin : WorkflowPluginBase {
         public override string Name => "test-plugin";
         public override string Version => "1.0.0";
         public override string Description => "Test plugin";
@@ -22,21 +20,18 @@ public sealed class WorkflowPluginBaseTests
         protected override void OnUnload() => OnUnloadCallCount++;
     }
 
-    private sealed class TestResource : PluginResourceBase
-    {
+    private sealed class TestResource : PluginResourceBase {
         public TestResource(string owner, string name) : base(owner, PluginResourceKind.Command, name) { }
     }
 
     [Fact]
-    public void WorkflowPluginBase_HasObjectIdWithTypePlugin()
-    {
+    public void WorkflowPluginBase_HasObjectIdWithTypePlugin() {
         using var plugin = new TestPlugin();
         plugin.ObjectId.Type.Should().Be(ObjectType.Plugin);
     }
 
     [Fact]
-    public void RegisterResource_AddsToResourcesCollection()
-    {
+    public void RegisterResource_AddsToResourcesCollection() {
         using var plugin = new TestPlugin();
         var resource = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
 
@@ -45,8 +40,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void Unload_ReleasesAllResources()
-    {
+    public void Unload_ReleasesAllResources() {
         var plugin = new TestPlugin();
         var r1 = plugin.RegisterResource(new TestResource("test-plugin", "cmd1"));
         var r2 = plugin.RegisterResource(new TestResource("test-plugin", "cmd2"));
@@ -65,8 +59,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void Unload_MarksDead()
-    {
+    public void Unload_MarksDead() {
         var plugin = new TestPlugin();
 
         plugin.Unload();
@@ -75,8 +68,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void Unload_CallsOnUnload()
-    {
+    public void Unload_CallsOnUnload() {
         var plugin = new TestPlugin();
 
         plugin.Unload();
@@ -85,8 +77,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void Unload_ReleasesUnmanagedResources()
-    {
+    public void Unload_ReleasesUnmanagedResources() {
         var plugin = new TestPlugin();
         var handle = new TestSafeHandle();
         plugin.UnmanagedResources.Register("buf1", handle, 1024);
@@ -98,8 +89,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void Touch_UpdatesHeartbeat()
-    {
+    public void Touch_UpdatesHeartbeat() {
         using var plugin = new TestPlugin();
 
         plugin.Touch();
@@ -108,8 +98,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void MarkDead_TriggersOnDeathEvent()
-    {
+    public void MarkDead_TriggersOnDeathEvent() {
         using var plugin = new TestPlugin();
         var deathCount = 0;
         plugin.OnDeath += (_, _) => deathCount++;
@@ -119,8 +108,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void MarkDead_IsIdempotent()
-    {
+    public void MarkDead_IsIdempotent() {
         using var plugin = new TestPlugin();
         var deathCount = 0;
         plugin.OnDeath += (_, _) => deathCount++;
@@ -131,8 +119,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void EnsureAlive_WhenDead_Throws()
-    {
+    public void EnsureAlive_WhenDead_Throws() {
         using var plugin = new TestPlugin();
         plugin.MarkDead();
 
@@ -141,8 +128,7 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void EnsureAlive_WhenAlive_DoesNotThrow()
-    {
+    public void EnsureAlive_WhenAlive_DoesNotThrow() {
         using var plugin = new TestPlugin();
 
         var act = () => plugin.EnsureAlive();
@@ -150,16 +136,14 @@ public sealed class WorkflowPluginBaseTests
     }
 
     [Fact]
-    public void UiResources_Available()
-    {
+    public void UiResources_Available() {
         using var plugin = new TestPlugin();
         plugin.UiResources.Register("toolbar.test", new UiResourceEntry("toolbar.test", UiResourceKind.ToolbarButton, "Test", null));
 
         plugin.UiResources.Count.Should().Be(1);
     }
 
-    private sealed class TestSafeHandle : SafeHandleZeroOrMinusOneIsInvalid
-    {
+    private sealed class TestSafeHandle : SafeHandleZeroOrMinusOneIsInvalid {
         public TestSafeHandle() : base(true) { }
         protected override bool ReleaseHandle() => true;
     }

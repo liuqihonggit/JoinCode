@@ -5,8 +5,7 @@ namespace Core.Ssh;
 /// <summary>
 /// SSH 会话实现 — 通过 ssh 子进程建立连接，提供命令执行、端口转发、保活与自动重连能力
 /// </summary>
-public sealed class SshSession : ISshSession
-{
+public sealed class SshSession : ISshSession {
     private static readonly FrozenDictionary<SshConnectionState, FrozenSet<SshConnectionState>> SshTransitions = CreateTransitionTable();
 
     private readonly ILogger? _logger;
@@ -35,8 +34,7 @@ public sealed class SshSession : ISshSession
     /// <param name="config">SSH 会话配置</param>
     /// <param name="fs">文件系统抽象，用于写入私钥等临时文件</param>
     /// <param name="logger">可选日志记录器</param>
-    public SshSession(SshSessionConfig config, IFileSystem fs, ILogger? logger = null)
-    {
+    public SshSession(SshSessionConfig config, IFileSystem fs, ILogger? logger = null) {
         Config = config;
         _fs = fs;
         _logger = logger;
@@ -51,15 +49,12 @@ public sealed class SshSession : ISshSession
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步连接操作的任务</returns>
-    public async Task ConnectAsync(CancellationToken ct = default)
-    {
+    public async Task ConnectAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
-        try
-        {
-            if (_stateMachine.CurrentState == SshConnectionState.Connected)
-            {
+        try {
+            if (_stateMachine.CurrentState == SshConnectionState.Connected) {
                 return;
             }
 
@@ -68,16 +63,14 @@ public sealed class SshSession : ISshSession
             var startInfo = BuildSshProcessStartInfo(forwardArgs: null);
 
             _sshProcess = Process.Start(startInfo);
-            if (_sshProcess == null)
-            {
+            if (_sshProcess == null) {
                 _stateMachine.ForceTransitionTo(SshConnectionState.Error);
                 throw new InvalidOperationException("[SSH002] 无法启动 SSH 进程");
             }
 
             await Task.Delay(1000, ct).ConfigureAwait(false);
 
-            if (_sshProcess.HasExited)
-            {
+            if (_sshProcess.HasExited) {
                 var error = $"SSH 进程意外退出，退出码: {_sshProcess.ExitCode}";
                 _stateMachine.ForceTransitionTo(SshConnectionState.Error);
                 throw new InvalidOperationException(error);
@@ -88,14 +81,10 @@ public sealed class SshSession : ISshSession
 
             _logger?.LogInformation("SSH 会话已连接: {SessionId} -> {Username}@{Host}:{Port}",
                 SessionId, Config.Username, Config.Host, Config.Port);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _stateMachine.ForceTransitionTo(SshConnectionState.Error);
             throw;
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             _stateMachine.ForceTransitionTo(SshConnectionState.Error);
             throw;
         }
@@ -107,8 +96,7 @@ public sealed class SshSession : ISshSession
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步断开操作的任务</returns>
-    public async Task DisconnectAsync(CancellationToken ct = default)
-    {
+    public async Task DisconnectAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         using var guard = await _stateLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时");
@@ -116,8 +104,7 @@ public sealed class SshSession : ISshSession
         StopKeepAlive();
         await _portForwardManager.StopAllAsync(ct).ConfigureAwait(false);
 
-        if (_sshProcess != null && !_sshProcess.HasExited)
-        {
+        if (_sshProcess != null && !_sshProcess.HasExited) {
             _sshProcess.Kill();
             await _sshProcess.WaitForExitAsync(ct).ConfigureAwait(false);
         }
@@ -126,7 +113,7 @@ public sealed class SshSession : ISshSession
         _stateMachine.TransitionTo(SshConnectionState.Disconnected);
 
         _logger?.LogInformation("SSH 会话已断开: {SessionId}", SessionId);
-    
+
     }
 
     /// <summary>
@@ -134,8 +121,7 @@ public sealed class SshSession : ISshSession
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步重连操作的任务</returns>
-    public async Task ReconnectAsync(CancellationToken ct = default)
-    {
+    public async Task ReconnectAsync(CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
         await DisconnectAsync(ct).ConfigureAwait(false);
@@ -149,15 +135,12 @@ public sealed class SshSession : ISshSession
     /// <param name="ct">取消令牌</param>
     /// <returns>会话存活返回 true，否则返回 false</returns>
     /// <exception cref="InvalidOperationException">会话未处于 Connected 状态时抛出</exception>
-    public Task<bool> KeepAliveAsync(CancellationToken ct = default)
-    {
-        if (_stateMachine.CurrentState != SshConnectionState.Connected)
-        {
+    public Task<bool> KeepAliveAsync(CancellationToken ct = default) {
+        if (_stateMachine.CurrentState != SshConnectionState.Connected) {
             throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
-        if (_sshProcess == null || _sshProcess.HasExited)
-        {
+        if (_sshProcess == null || _sshProcess.HasExited) {
             _stateMachine.ForceTransitionTo(SshConnectionState.Disconnected);
             return Task.FromResult(false);
         }
@@ -174,19 +157,16 @@ public sealed class SshSession : ISshSession
     /// <exception cref="InvalidOperationException">会话未处于 Connected 状态或无法启动 ssh 进程时抛出</exception>
     public async Task<SshCommandResult> ExecuteCommandAsync(
         string command,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
         ArgumentException.ThrowIfNullOrEmpty(command);
 
-        if (_stateMachine.CurrentState != SshConnectionState.Connected)
-        {
+        if (_stateMachine.CurrentState != SshConnectionState.Connected) {
             throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
         var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
-        var startInfo = builder.Build(new ProcessOptions
-        {
+        var startInfo = builder.Build(new ProcessOptions {
             FileName = "ssh",
             ArgumentList = [.. BuildSshArgList(), "--", command],
             SkipArgumentValidation = true,
@@ -196,8 +176,7 @@ public sealed class SshSession : ISshSession
 
         var sw = Stopwatch.StartNew();
         using var process = Process.Start(startInfo);
-        if (process == null)
-        {
+        if (process == null) {
             throw new InvalidOperationException("[SSH003] 无法启动 SSH 进程执行命令");
         }
 
@@ -209,8 +188,7 @@ public sealed class SshSession : ISshSession
         await process.WaitForExitAsync(ct).ConfigureAwait(false);
         sw.Stop();
 
-        return new SshCommandResult
-        {
+        return new SshCommandResult {
             Command = command,
             ExitCode = process.ExitCode,
             Stdout = stdout,
@@ -232,12 +210,10 @@ public sealed class SshSession : ISshSession
         int localPort,
         string remoteHost,
         int remotePort,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
-        if (_stateMachine.CurrentState != SshConnectionState.Connected)
-        {
+        if (_stateMachine.CurrentState != SshConnectionState.Connected) {
             throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
@@ -258,12 +234,10 @@ public sealed class SshSession : ISshSession
         int remotePort,
         string localHost,
         int localPort,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _isDisposed) != 0, this);
 
-        if (_stateMachine.CurrentState != SshConnectionState.Connected)
-        {
+        if (_stateMachine.CurrentState != SshConnectionState.Connected) {
             throw new InvalidOperationException($"[SSH001] SSH 会话未连接，当前状态: {_stateMachine.CurrentState}");
         }
 
@@ -275,8 +249,7 @@ public sealed class SshSession : ISshSession
     /// 获取本会话所有处于活动状态的端口转发
     /// </summary>
     /// <returns>活动端口转发的集合</returns>
-    public IEnumerable<ISshForwardedPort> GetActiveForwards()
-    {
+    public IEnumerable<ISshForwardedPort> GetActiveForwards() {
         return _portForwardManager.GetActiveForwards();
     }
 
@@ -284,23 +257,18 @@ public sealed class SshSession : ISshSession
     /// 异步释放资源 — 停止保活、释放端口转发管理器并终止 ssh 子进程
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return ValueTask.CompletedTask;
         }
 
         StopKeepAlive();
         var portTask = _portForwardManager.DisposeAsync();
 
-        if (_sshProcess != null && !_sshProcess.HasExited)
-        {
-            try
-            {
+        if (_sshProcess != null && !_sshProcess.HasExited) {
+            try {
                 _sshProcess.Kill();
-            }
-            catch (InvalidOperationException ex) { _logger?.LogWarning(ex, "SshSession: 终止 SSH 进程失败"); }
+            } catch (InvalidOperationException ex) { _logger?.LogWarning(ex, "SshSession: 终止 SSH 进程失败"); }
 
             _sshProcess.Dispose();
         }
@@ -309,47 +277,38 @@ public sealed class SshSession : ISshSession
         return portTask;
     }
 
-    private void OnStateChanged(object? sender, StateChangedEventArgs<SshConnectionState> e)
-    {
-        ConnectionStateChanged?.Invoke(this, new SshConnectionStateChangedEventArgs
-        {
+    private void OnStateChanged(object? sender, StateChangedEventArgs<SshConnectionState> e) {
+        ConnectionStateChanged?.Invoke(this, new SshConnectionStateChangedEventArgs {
             SessionId = SessionId,
             NewState = e.NewState,
             PreviousState = e.OldState
         });
     }
 
-    private void StartKeepAlive()
-    {
+    private void StartKeepAlive() {
         _keepAliveCts = new CancellationTokenSource();
         var ct = _keepAliveCts.Token;
 
-        _ = Task.Run(async () =>
-        {
-            while (!ct.IsCancellationRequested)
-            {
+        _ = Task.Run(async () => {
+            while (!ct.IsCancellationRequested) {
                 await Task.Delay(Config.KeepAliveIntervalMs, ct).ConfigureAwait(false);
-                if (!await KeepAliveAsync(ct).ConfigureAwait(false) && Config.AutoReconnect)
-                {
+                if (!await KeepAliveAsync(ct).ConfigureAwait(false) && Config.AutoReconnect) {
                     await TryAutoReconnectAsync(ct).ConfigureAwait(false);
                 }
             }
         }, ct);
     }
 
-    private void StopKeepAlive()
-    {
+    private void StopKeepAlive() {
         _keepAliveCts?.Cancel();
         _keepAliveCts?.Dispose();
         _keepAliveCts = null;
     }
 
-    private async Task TryAutoReconnectAsync(CancellationToken ct)
-    {
+    private async Task TryAutoReconnectAsync(CancellationToken ct) {
         _stateMachine.ForceTransitionTo(SshConnectionState.Reconnecting);
 
-        while (_reconnectAttempts < Config.MaxReconnectAttempts && !ct.IsCancellationRequested)
-        {
+        while (_reconnectAttempts < Config.MaxReconnectAttempts && !ct.IsCancellationRequested) {
             _reconnectAttempts++;
             var backoff = new ExponentialBackoff(
                 TimeSpan.FromMilliseconds(Config.ReconnectDelayMs),
@@ -361,12 +320,10 @@ public sealed class SshSession : ISshSession
 
             await Task.Delay(delay, ct).ConfigureAwait(false);
 
-            try
-            {
+            try {
                 StopKeepAlive();
 
-                if (_sshProcess != null && !_sshProcess.HasExited)
-                {
+                if (_sshProcess != null && !_sshProcess.HasExited) {
                     _sshProcess.Kill();
                     _sshProcess.Dispose();
                     _sshProcess = null;
@@ -375,12 +332,10 @@ public sealed class SshSession : ISshSession
                 var startInfo = BuildSshProcessStartInfo(forwardArgs: null);
                 _sshProcess = Process.Start(startInfo);
 
-                if (_sshProcess != null && !_sshProcess.HasExited)
-                {
+                if (_sshProcess != null && !_sshProcess.HasExited) {
                     await Task.Delay(1000, ct).ConfigureAwait(false);
 
-                    if (!_sshProcess.HasExited)
-                    {
+                    if (!_sshProcess.HasExited) {
                         _stateMachine.TransitionTo(SshConnectionState.Connected);
                         _reconnectAttempts = 0;
                         StartKeepAlive();
@@ -388,9 +343,7 @@ public sealed class SshSession : ISshSession
                         return;
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "SSH 自动重连失败: {SessionId}", SessionId);
             }
         }
@@ -398,17 +351,14 @@ public sealed class SshSession : ISshSession
         _stateMachine.ForceTransitionTo(SshConnectionState.Error);
     }
 
-    private ProcessStartInfo BuildSshProcessStartInfo(string? forwardArgs)
-    {
+    private ProcessStartInfo BuildSshProcessStartInfo(string? forwardArgs) {
         var argList = new List<string>(BuildSshArgList());
-        if (forwardArgs != null)
-        {
+        if (forwardArgs != null) {
             argList.Add(forwardArgs);
         }
 
         var builder = new IO.ProcessService.ProcessStartInfoBuilder(new IO.ProcessService.ProcessEncodingProvider());
-        var startInfo = builder.Build(new ProcessOptions
-        {
+        var startInfo = builder.Build(new ProcessOptions {
             FileName = "ssh",
             ArgumentList = argList,
             RedirectStandardOutput = false,
@@ -423,8 +373,7 @@ public sealed class SshSession : ISshSession
     /// <summary>
     /// 构建 SSH 连接参数列表 — 参数化启动，消除字符串拼接注入风险
     /// </summary>
-    private IReadOnlyList<string> BuildSshArgList()
-    {
+    private IReadOnlyList<string> BuildSshArgList() {
         var args = new List<string>();
 
         args.Add("-o");
@@ -435,8 +384,7 @@ public sealed class SshSession : ISshSession
         args.Add("ServerAliveCountMax=3");
 
         args.Add("-o");
-        args.Add(Config.KnownHostsPolicy switch
-        {
+        args.Add(Config.KnownHostsPolicy switch {
             SshKnownHostsPolicy.Strict => "StrictHostKeyChecking=yes",
             SshKnownHostsPolicy.AcceptNew => "StrictHostKeyChecking=accept-new",
             SshKnownHostsPolicy.Ignore => "StrictHostKeyChecking=no",
@@ -450,31 +398,27 @@ public sealed class SshSession : ISshSession
         return args;
     }
 
-    private void AddAuthArgs(ProcessStartInfo startInfo)
-    {
-        switch (Config.AuthMethod)
-        {
+    private void AddAuthArgs(ProcessStartInfo startInfo) {
+        switch (Config.AuthMethod) {
             case SshAuthMethod.PrivateKey when Config.PrivateKey != null:
-                var keyFile = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    AppDataConstants.AppDataFolder, "ssh", $"key_{SessionId}");
+            var keyFile = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                AppDataConstants.AppDataFolder, "ssh", $"key_{SessionId}");
 
-                _fs.CreateDirectory(Path.GetDirectoryName(keyFile)!);
-                _fs.WriteAllText(keyFile, Config.PrivateKey);
-                startInfo.ArgumentList.Add("-i");
-                startInfo.ArgumentList.Add(keyFile);
-                break;
+            _fs.CreateDirectory(Path.GetDirectoryName(keyFile)!);
+            _fs.WriteAllText(keyFile, Config.PrivateKey);
+            startInfo.ArgumentList.Add("-i");
+            startInfo.ArgumentList.Add(keyFile);
+            break;
 
             case SshAuthMethod.Password when Config.Password != null:
-                startInfo.Environment["SSHPASS"] = Config.Password;
-                break;
+            startInfo.Environment["SSHPASS"] = Config.Password;
+            break;
         }
     }
 
-    private static FrozenDictionary<SshConnectionState, FrozenSet<SshConnectionState>> CreateTransitionTable()
-    {
-        return new Dictionary<SshConnectionState, FrozenSet<SshConnectionState>>
-        {
+    private static FrozenDictionary<SshConnectionState, FrozenSet<SshConnectionState>> CreateTransitionTable() {
+        return new Dictionary<SshConnectionState, FrozenSet<SshConnectionState>> {
             [SshConnectionState.Disconnected] = new HashSet<SshConnectionState>
             {
                 SshConnectionState.Connecting

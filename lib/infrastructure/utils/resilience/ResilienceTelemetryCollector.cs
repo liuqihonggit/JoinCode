@@ -4,8 +4,7 @@ namespace Infrastructure.Utils.Resilience;
 /// <summary>
 /// 韧性遥测收集器 — 从 ResilientHttpClientProvider 和 ResilientSubprocess 收集状态
 /// </summary>
-public sealed class ResilienceTelemetryCollector
-{
+public sealed class ResilienceTelemetryCollector {
     private readonly IResilientHttpClientProvider? _httpClientProvider;
     private readonly ILogger? _logger;
 
@@ -16,8 +15,7 @@ public sealed class ResilienceTelemetryCollector
     /// <param name="logger">日志记录器（可选）</param>
     public ResilienceTelemetryCollector(
         IResilientHttpClientProvider? httpClientProvider = null,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _httpClientProvider = httpClientProvider;
         _logger = logger;
     }
@@ -26,18 +24,14 @@ public sealed class ResilienceTelemetryCollector
     /// 采集韧性状态报告 — 从 HTTP 客户端提供者收集熔断器状态，生成遥测报告
     /// </summary>
     /// <returns>韧性遥测报告</returns>
-    public ResilienceTelemetryReport Collect()
-    {
+    public ResilienceTelemetryReport Collect() {
         var httpEndpoints = new Dictionary<string, HttpResilienceStatus>();
 
-        if (_httpClientProvider is ResilientHttpClientProvider resilientProvider)
-        {
+        if (_httpClientProvider is ResilientHttpClientProvider resilientProvider) {
             var executor = resilientProvider.Executor;
             var cb = executor.CircuitBreaker;
-            if (cb is not null)
-            {
-                httpEndpoints[cb.Name] = new HttpResilienceStatus
-                {
+            if (cb is not null) {
+                httpEndpoints[cb.Name] = new HttpResilienceStatus {
                     Name = cb.Name,
                     CircuitBreakerState = cb.State,
                     ConsecutiveFailures = cb.ConsecutiveFailures,
@@ -49,8 +43,7 @@ public sealed class ResilienceTelemetryCollector
             }
         }
 
-        return new ResilienceTelemetryReport
-        {
+        return new ResilienceTelemetryReport {
             HttpEndpoints = httpEndpoints,
             Subprocesses = FrozenDictionary<string, SubprocessResilienceStatus>.Empty,
         };
@@ -59,26 +52,21 @@ public sealed class ResilienceTelemetryCollector
     /// <summary>
     /// 格式化报告为可读文本（用于 jcc doctor --resilience）
     /// </summary>
-    public static string Format(ResilienceTelemetryReport report)
-    {
+    public static string Format(ResilienceTelemetryReport report) {
         var sb = new StringBuilder();
         sb.AppendLine("=== 韧性状态报告 ===");
         sb.AppendLine();
 
-        if (report.HttpEndpoints.Count == 0 && report.Subprocesses.Count == 0)
-        {
+        if (report.HttpEndpoints.Count == 0 && report.Subprocesses.Count == 0) {
             sb.AppendLine("（无韧性端点注册）");
             return sb.ToString();
         }
 
-        if (report.HttpEndpoints.Count > 0)
-        {
+        if (report.HttpEndpoints.Count > 0) {
             sb.AppendLine("--- HTTP 端点 ---");
-            foreach (var kvp in report.HttpEndpoints)
-            {
+            foreach (var kvp in report.HttpEndpoints) {
                 var s = kvp.Value;
-                var stateIcon = s.CircuitBreakerState switch
-                {
+                var stateIcon = s.CircuitBreakerState switch {
                     CircuitBreakerPhase.Closed => "🟢",
                     CircuitBreakerPhase.HalfOpen => "🟡",
                     CircuitBreakerPhase.Open => "🔴",
@@ -89,11 +77,9 @@ public sealed class ResilienceTelemetryCollector
             sb.AppendLine();
         }
 
-        if (report.Subprocesses.Count > 0)
-        {
+        if (report.Subprocesses.Count > 0) {
             sb.AppendLine("--- 子进程 ---");
-            foreach (var kvp in report.Subprocesses)
-            {
+            foreach (var kvp in report.Subprocesses) {
                 var s = kvp.Value;
                 var healthIcon = s.IsHealthy ? "🟢" : "🔴";
                 sb.AppendLine($"  {healthIcon} {s.Name}: 健康={s.IsHealthy}, 熔断={s.CircuitBreakerState}, 重启={s.RestartCount}/{s.MaxRestarts}, 已退出={s.ProcessHasExited}");

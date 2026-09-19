@@ -6,14 +6,12 @@ namespace Services.UserInteraction;
 /// TUI 模式下由 Terminal 渲染层直接处理用户交互，不经过此服务
 /// </summary>
 [Register(typeof(IUserInteractionService), ServiceLifetime.Singleton)]
-public sealed partial class UserInteractionService : ServiceEntity, IUserInteractionService
-{
+public sealed partial class UserInteractionService : ServiceEntity, IUserInteractionService {
 
     /// <summary>
     /// 构造函数 — 注入日志与遥测服务。
     /// </summary>
-    public UserInteractionService(ILogger<UserInteractionService>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public UserInteractionService(ILogger<UserInteractionService>? logger = null, ITelemetryService? telemetryService = null) {
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -23,15 +21,12 @@ public sealed partial class UserInteractionService : ServiceEntity, IUserInterac
     /// <summary>
     /// 询问用户问题
     /// </summary>
-    public Task<UserInteractionResult> AskQuestionAsync(string question, List<string>? options = null, bool multiSelect = false, CancellationToken cancellationToken = default)
-    {
+    public Task<UserInteractionResult> AskQuestionAsync(string question, List<string>? options = null, bool multiSelect = false, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(question);
         _logger?.LogInformation(L.T(StringKey.VaultLogHeadlessAsk), question);
 
-        if (options?.Count > 0)
-        {
-            for (int i = 0; i < options.Count; i++)
-            {
+        if (options?.Count > 0) {
+            for (var i = 0; i < options.Count; i++) {
                 _logger?.LogDebug(L.T(StringKey.VaultLogOption), i + 1, options[i]);
             }
         }
@@ -42,24 +37,22 @@ public sealed partial class UserInteractionService : ServiceEntity, IUserInterac
     /// <summary>
     /// 向用户发送消息,根据消息类型选择日志级别。
     /// </summary>
-    public Task SendMessageAsync(string message, MessageType messageType = MessageType.Info, CancellationToken cancellationToken = default)
-    {
+    public Task SendMessageAsync(string message, MessageType messageType = MessageType.Info, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         RecordInteractionMetrics("send_message", messageType.ToString());
-        switch (messageType)
-        {
+        switch (messageType) {
             case MessageType.Warning:
-                _logger?.LogWarning("{Message}", message);
-                break;
+            _logger?.LogWarning("{Message}", message);
+            break;
             case MessageType.Error:
-                _logger?.LogError("{Message}", message);
-                break;
+            _logger?.LogError("{Message}", message);
+            break;
             case MessageType.Success:
-                _logger?.LogInformation(L.T(StringKey.VaultLogSuccess), message);
-                break;
+            _logger?.LogInformation(L.T(StringKey.VaultLogSuccess), message);
+            break;
             default:
-                _logger?.LogInformation("{Message}", message);
-                break;
+            _logger?.LogInformation("{Message}", message);
+            break;
         }
         return Task.CompletedTask;
     }
@@ -67,8 +60,7 @@ public sealed partial class UserInteractionService : ServiceEntity, IUserInterac
     /// <summary>
     /// 请求用户确认
     /// </summary>
-    public Task<bool> ConfirmAsync(string message, CancellationToken cancellationToken = default)
-    {
+    public Task<bool> ConfirmAsync(string message, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         _logger?.LogInformation(L.T(StringKey.VaultLogHeadlessConfirm), message);
         RecordInteractionMetrics("confirm", "auto_approved");

@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public sealed class LoopInterventionMiddlewareTests
-{
+public sealed class LoopInterventionMiddlewareTests {
     [Fact]
-    public async Task NoLoop_TransparentPassthrough()
-    {
+    public async Task NoLoop_TransparentPassthrough() {
         var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
@@ -22,8 +20,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level1_FirstTrigger_InjectsSoftInterventionPrompt()
-    {
+    public async Task Level1_FirstTrigger_InjectsSoftInterventionPrompt() {
         var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
@@ -41,8 +38,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level1_SecondTrigger_InjectsSoftInterventionPrompt()
-    {
+    public async Task Level1_SecondTrigger_InjectsSoftInterventionPrompt() {
         var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
@@ -59,8 +55,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level2_ThirdTrigger_HardTruncateAndRetry()
-    {
+    public async Task Level2_ThirdTrigger_HardTruncateAndRetry() {
         var queryService = new Mock<IQueryService>();
         queryService.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -100,8 +95,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task LoopDetectedEvent_NotForwardedToUser()
-    {
+    public async Task LoopDetectedEvent_NotForwardedToUser() {
         var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
@@ -117,8 +111,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level1_StreamContinuesAfterSoftIntervention()
-    {
+    public async Task Level1_StreamContinuesAfterSoftIntervention() {
         var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
@@ -137,8 +130,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level2_HardTruncate_StopsForwardingEvents()
-    {
+    public async Task Level2_HardTruncate_StopsForwardingEvents() {
         var queryService = new Mock<IQueryService>();
         queryService.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -179,8 +171,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task TaskProgressed_Level2DowngradedToLevel1()
-    {
+    public async Task TaskProgressed_Level2DowngradedToLevel1() {
         var progressTracker = new StubTaskProgressTracker(hasProgressed: true, completedCount: 5);
 
         var middleware = CreateMiddleware(progressTracker: progressTracker);
@@ -202,8 +193,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task TaskNotProgressed_Level2RemainsLevel2()
-    {
+    public async Task TaskNotProgressed_Level2RemainsLevel2() {
         var queryService = new Mock<IQueryService>();
         queryService.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -246,8 +236,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task NoProgressTracker_BehavesAsBefore()
-    {
+    public async Task NoProgressTracker_BehavesAsBefore() {
         var middleware = CreateMiddleware();
         var nextEvents = new[]
         {
@@ -264,8 +253,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level2_Rewind_InsertsAuditMark()
-    {
+    public async Task Level2_Rewind_InsertsAuditMark() {
         var queryService = new Mock<IQueryService>();
         queryService.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -305,8 +293,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level2_Rewind_AuditMarkDisabled_NoInsert()
-    {
+    public async Task Level2_Rewind_AuditMarkDisabled_NoInsert() {
         var queryService = new Mock<IQueryService>();
         queryService.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -350,8 +337,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level3_Reset_PreservesLastUserMessage()
-    {
+    public async Task Level3_Reset_PreservesLastUserMessage() {
         var contextManager = new Mock<IChatContextManager>();
         var userMessages = new MessageList
         {
@@ -393,8 +379,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level3_Reset_NoUserMessage_FullReset()
-    {
+    public async Task Level3_Reset_NoUserMessage_FullReset() {
         var contextManager = new Mock<IChatContextManager>();
         var messages = new MessageList
         {
@@ -432,14 +417,12 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public async Task Level2_LastRetry_UsesSecondChanceTemperature()
-    {
+    public async Task Level2_LastRetry_UsesSecondChanceTemperature() {
         var actualTemperatures = new List<float>();
         var queryService = new Mock<IQueryService>();
         queryService.Setup(s => s.GetStreamEventContentsAsync(
                 It.IsAny<MessageList>(), It.IsAny<ChatOptions?>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
-            .Callback<MessageList, ChatOptions?, IChatClient, CancellationToken>((_, opts, _, _) =>
-            {
+            .Callback<MessageList, ChatOptions?, IChatClient, CancellationToken>((_, opts, _, _) => {
                 if (opts is not null && opts.Temperature.HasValue) actualTemperatures.Add(opts.Temperature.Value);
             })
             .Returns(ToAsyncEnumerable(new[] { new StreamEvent { Content = "重连成功" } }));
@@ -450,10 +433,8 @@ public sealed class LoopInterventionMiddlewareTests
         var chunkProcessor = new Mock<IChatStreamChunkProcessor>();
         var firstCall = true;
         chunkProcessor.Setup(c => c.CreateIterationState())
-            .Returns(() =>
-            {
-                if (firstCall)
-                {
+            .Returns(() => {
+                if (firstCall) {
                     firstCall = false;
                     return new IterationState();
                 }
@@ -461,11 +442,9 @@ public sealed class LoopInterventionMiddlewareTests
             });
 
         chunkProcessor.Setup(c => c.ProcessChunk(It.IsAny<StreamEvent>(), It.IsAny<IterationState>(), It.IsAny<bool>()))
-            .Returns((StreamEvent chunk, IterationState state, bool _) =>
-            {
+            .Returns((StreamEvent chunk, IterationState state, bool _) => {
                 state.FullResponse.Append(chunk.Content);
-                return new StreamChunkResult
-                {
+                return new StreamChunkResult {
                     Action = ChunkAction.Continue,
                     Events = [ChatStreamEvent.Text(chunk.Content ?? "")]
                 };
@@ -502,8 +481,7 @@ public sealed class LoopInterventionMiddlewareTests
     }
 
     [Fact]
-    public void Options_SecondChanceTemperature_DefaultIsLower()
-    {
+    public void Options_SecondChanceTemperature_DefaultIsLower() {
         var options = new LoopInterventionOptions();
         options.SecondChanceTemperature.Should().Be(0.3f);
         options.SecondChanceTemperature.Should().BeLessThan(options.RetryTemperature);
@@ -513,8 +491,7 @@ public sealed class LoopInterventionMiddlewareTests
         Mock<IChatContextManager>? contextManagerMock = null,
         Mock<IChatClient>? chatClientMock = null,
         Mock<IChatStreamChunkProcessor>? chunkProcessorMock = null,
-        ITaskProgressTracker? progressTracker = null)
-    {
+        ITaskProgressTracker? progressTracker = null) {
         var contextManager = contextManagerMock ?? new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetMessageListAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MessageList());
@@ -535,8 +512,7 @@ public sealed class LoopInterventionMiddlewareTests
             logger: NullLogger<LoopInterventionMiddleware>.Instance);
     }
 
-    private static ChatMiddlewareContext CreateContext() => new()
-    {
+    private static ChatMiddlewareContext CreateContext() => new() {
         Message = "test",
         ToolUseContext = new ToolUseContext()
     };
@@ -544,36 +520,30 @@ public sealed class LoopInterventionMiddlewareTests
     private static async Task<List<ChatStreamEvent>> CollectEventsAsync(
         LoopInterventionMiddleware middleware,
         ChatMiddlewareContext context,
-        ChatStreamEvent[] nextEvents)
-    {
+        ChatStreamEvent[] nextEvents) {
         var events = new List<ChatStreamEvent>();
 
         await foreach (var evt in middleware.InvokeAsync(
             context,
             (ctx, ct) => ToAsyncEnumerable(nextEvents),
-            CancellationToken.None))
-        {
+            CancellationToken.None)) {
             events.Add(evt);
         }
 
         return events;
     }
 
-    private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IEnumerable<T> items)
-    {
-        foreach (var item in items)
-        {
+    private static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(IEnumerable<T> items) {
+        foreach (var item in items) {
             yield return item;
         }
     }
 
-    private sealed class StubTaskProgressTracker : ITaskProgressTracker
-    {
+    private sealed class StubTaskProgressTracker : ITaskProgressTracker {
         private readonly bool _hasProgressed;
         private readonly int _completedCount;
 
-        public StubTaskProgressTracker(bool hasProgressed, int completedCount)
-        {
+        public StubTaskProgressTracker(bool hasProgressed, int completedCount) {
             _hasProgressed = hasProgressed;
             _completedCount = completedCount;
         }

@@ -4,8 +4,7 @@ namespace Core.Hooks.ToolPermission.Handlers;
 /// <summary>
 /// 协调器权限参数
 /// </summary>
-public sealed record CoordinatorPermissionParams
-{
+public sealed record CoordinatorPermissionParams {
     /// <summary>
     /// 权限上下文
     /// </summary>
@@ -51,16 +50,14 @@ public sealed record CoordinatorPermissionParams
 /// 3. 如果都未解决，返回 null 让调用者回退到交互式对话框
 /// </summary>
 [Register(typeof(CoordinatorHandler), ServiceLifetime.Singleton)]
-public sealed partial class CoordinatorHandler : ServiceEntity
-{
+public sealed partial class CoordinatorHandler : ServiceEntity {
     private readonly ILogger<CoordinatorHandler>? _logger;
 
     /// <summary>
     /// 初始化协调器权限处理器
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    public CoordinatorHandler(ILogger<CoordinatorHandler>? logger = null)
-    {
+    public CoordinatorHandler(ILogger<CoordinatorHandler>? logger = null) {
         _logger = logger;
     }
 
@@ -69,41 +66,31 @@ public sealed partial class CoordinatorHandler : ServiceEntity
     /// </summary>
     /// <param name="params">参数</param>
     /// <returns>权限决策，如果未解决则返回 null</returns>
-    public async Task<PermissionDecision?> HandleAsync(CoordinatorPermissionParams @params)
-    {
+    public async Task<PermissionDecision?> HandleAsync(CoordinatorPermissionParams @params) {
         var ctx = @params.Context;
 
-        try
-        {
+        try {
             // 1. 首先尝试权限 hooks（快速、本地）
             var hookDecision = await TryRunHooksAsync(@params).ConfigureAwait(false);
-            if (hookDecision != null)
-            {
+            if (hookDecision != null) {
                 _logger?.LogDebug("协调器权限由 Hook 解决: Tool={ToolName}", ctx.ToolName);
                 return hookDecision;
             }
 
             // 2. 尝试分类器（慢速、推理 -- 仅 bash）
             var classifierDecision = await TryClassifierAsync(@params).ConfigureAwait(false);
-            if (classifierDecision != null)
-            {
+            if (classifierDecision != null) {
                 _logger?.LogDebug("协调器权限由分类器解决: Tool={ToolName}", ctx.ToolName);
                 return classifierDecision;
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             // 用户取消或超时 — 不吞掉，向上传播让上层正确处理
             throw;
-        }
-        catch (WorkflowException)
-        {
+        } catch (WorkflowException) {
             // 权限系统自身的业务异常 — 是明确决策而非故障，
             // 不降级为对话框，向上传播保留原始语义
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 基础设施/意外故障（hook 执行器崩溃、分类器 I/O 异常等）— 回退到显示对话框
             // 让用户可以手动决定，避免自动放行
             _logger?.LogError(ex, "自动权限检查失败，回退到对话框: Tool={ToolName}", ctx.ToolName);
@@ -117,8 +104,7 @@ public sealed partial class CoordinatorHandler : ServiceEntity
     /// <summary>
     /// 尝试运行 hooks
     /// </summary>
-    private async Task<PermissionDecision?> TryRunHooksAsync(CoordinatorPermissionParams @params)
-    {
+    private async Task<PermissionDecision?> TryRunHooksAsync(CoordinatorPermissionParams @params) {
         var ctx = @params.Context;
 
         await foreach (var hookResult in @params.HookExecutor.ExecuteHooksAsync(
@@ -127,26 +113,19 @@ public sealed partial class CoordinatorHandler : ServiceEntity
             ctx.Input,
             @params.PermissionMode,
             @params.Suggestions,
-            ctx.CancellationToken))
-        {
-            if (hookResult.PermissionRequestResult != null)
-            {
+            ctx.CancellationToken)) {
+            if (hookResult.PermissionRequestResult != null) {
                 var result = hookResult.PermissionRequestResult;
 
-                if (result.Behavior == PermissionBehavior.Allow)
-                {
+                if (result.Behavior == PermissionBehavior.Allow) {
                     var finalInput = result.UpdatedInput ?? @params.UpdatedInput ?? ctx.Input;
                     return await ctx.HandleHookAllowAsync(
                         finalInput,
                         result.UpdatedPermissions ?? new List<PermissionUpdate>()).ConfigureAwait(false);
-                }
-                else if (result.Behavior == PermissionBehavior.Deny)
-                {
+                } else if (result.Behavior == PermissionBehavior.Deny) {
                     ctx.LogDecision(
-                        new RejectDecisionArgs
-                        {
-                            RejectionSource = new PermissionRejectionSource
-                            {
+                        new RejectDecisionArgs {
+                            RejectionSource = new PermissionRejectionSource {
                                 Type = PermissionDecisionSourceType.Hook,
                                 HookName = hookResult.HookName,
                                 Reason = result.Message
@@ -155,8 +134,7 @@ public sealed partial class CoordinatorHandler : ServiceEntity
 
                     return ctx.BuildDeny(
                         result.Message ?? "Permission denied by hook",
-                        new HookDecisionReason
-                        {
+                        new HookDecisionReason {
                             HookName = hookResult.HookName,
                             Reason = result.Message
                         });
@@ -170,27 +148,22 @@ public sealed partial class CoordinatorHandler : ServiceEntity
     /// <summary>
     /// 尝试分类器
     /// </summary>
-    private Task<PermissionDecision?> TryClassifierAsync(CoordinatorPermissionParams @params)
-    {
-        if (@params.PendingClassifierCheck == null)
-        {
+    private Task<PermissionDecision?> TryClassifierAsync(CoordinatorPermissionParams @params) {
+        if (@params.PendingClassifierCheck == null) {
             return Task.FromResult<PermissionDecision?>(null);
         }
 
-        if (@params.Context.ToolName != "bash" && @params.Context.ToolName != "shell")
-        {
+        if (@params.Context.ToolName != "bash" && @params.Context.ToolName != "shell") {
             return Task.FromResult<PermissionDecision?>(null);
         }
 
         var command = ExtractCommand(@params.Context.Input);
-        if (string.IsNullOrEmpty(command))
-        {
+        if (string.IsNullOrEmpty(command)) {
             return Task.FromResult<PermissionDecision?>(null);
         }
 
         var classifier = @params.Classifier;
-        if (classifier == null)
-        {
+        if (classifier == null) {
             return Task.FromResult<PermissionDecision?>(null);
         }
 
@@ -199,22 +172,19 @@ public sealed partial class CoordinatorHandler : ServiceEntity
             ShellCommand.Parse(command),
             workingDir);
 
-        if (classification.Category == CommandCategory.ReadOnly)
-        {
+        if (classification.Category == CommandCategory.ReadOnly) {
             _logger?.LogDebug("协调器分类器自动批准只读命令: {Command}", command);
             var finalInput = @params.UpdatedInput ?? @params.Context.Input;
             return Task.FromResult<PermissionDecision?>(@params.Context.BuildAllow(finalInput));
         }
 
         if (classification.Category == CommandCategory.Destructive ||
-            classification.Category == CommandCategory.PathViolation)
-        {
+            classification.Category == CommandCategory.PathViolation) {
             _logger?.LogDebug("协调器分类器拒绝危险命令: {Command}, Category={Category}", command, classification.Category);
             return Task.FromResult<PermissionDecision?>(
                 @params.Context.BuildDeny(
                     $"命令被分类器拒绝: {classification.Category}",
-                    new ClassifierPermissionDecisionReason
-                    {
+                    new ClassifierPermissionDecisionReason {
                         Classifier = "CommandClassifier",
                         Reason = $"{classification.Category}: {classification.Details}"
                     }));
@@ -223,8 +193,7 @@ public sealed partial class CoordinatorHandler : ServiceEntity
         return Task.FromResult<PermissionDecision?>(null);
     }
 
-    private static string? ExtractCommand(Dictionary<string, JsonElement> input)
-    {
+    private static string? ExtractCommand(Dictionary<string, JsonElement> input) {
         if (input.TryGetValue("command", out var cmd) && cmd.ValueKind == JsonValueKind.String)
             return cmd.GetString();
         return null;

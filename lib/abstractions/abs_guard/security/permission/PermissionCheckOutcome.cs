@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security.Permission;
 /// <summary>
 /// 权限检查结果 — CheckPermissionAsync 的返回值,替代异常传播
 /// </summary>
-public sealed record PermissionCheckOutcome
-{
+public sealed record PermissionCheckOutcome {
     /// <summary>权限决策</summary>
     public required PermissionDecision Decision { get; init; }
 

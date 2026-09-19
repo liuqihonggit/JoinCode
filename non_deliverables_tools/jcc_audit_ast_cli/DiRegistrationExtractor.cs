@@ -10,15 +10,12 @@ namespace JccAuditCli;
 ///  3. AddSingleton&lt;T&gt;(sp =&gt; ...) — Lambda 工厂 + GetRequiredService 隐式依赖
 ///  4. [Register] 特性 — 特性标记
 /// </summary>
-public static class DiRegistrationExtractor
-{
-    public static (List<ServiceRegistration> Registrations, List<ConstructorDependency> Dependencies) Extract(Compilation compilation)
-    {
+public static class DiRegistrationExtractor {
+    public static (List<ServiceRegistration> Registrations, List<ConstructorDependency> Dependencies) Extract(Compilation compilation) {
         var registrations = new List<ServiceRegistration>();
         var dependencies = new List<ConstructorDependency>();
 
-        foreach (var syntaxTree in compilation.SyntaxTrees)
-        {
+        foreach (var syntaxTree in compilation.SyntaxTrees) {
             var filePath = syntaxTree.FilePath ?? string.Empty;
             if (filePath.Contains("\\obj\\", StringComparison.Ordinal) ||
                 filePath.Contains("/obj/", StringComparison.Ordinal))
@@ -37,8 +34,7 @@ public static class DiRegistrationExtractor
         return (registrations, dependencies);
     }
 
-    private static bool IsDiRelatedFile(string fileName)
-    {
+    private static bool IsDiRelatedFile(string fileName) {
         return fileName.StartsWith("ServiceRegistration", StringComparison.Ordinal) ||
                fileName.StartsWith("DependencyInjection", StringComparison.Ordinal) ||
                fileName.StartsWith("ServiceExtensions", StringComparison.Ordinal) ||
@@ -49,23 +45,19 @@ public static class DiRegistrationExtractor
     /// 从 Lambda 工厂中提取隐式依赖：services.AddSingleton&lt;T&gt;(sp =&gt; new T(sp.GetRequiredService&lt;X&gt;(), ...))
     /// 遍历 lambda 工厂体中的 GetRequiredService/GetService 调用，提取依赖类型并注册为隐式 ServiceRegistration
     /// </summary>
-    private static void ExtractLambdaFactoryDeps(SyntaxNode root, string filePath, List<ServiceRegistration> registrations, List<ConstructorDependency> dependencies)
-    {
+    private static void ExtractLambdaFactoryDeps(SyntaxNode root, string filePath, List<ServiceRegistration> registrations, List<ConstructorDependency> dependencies) {
         // 1) 提取方法调用工厂中的 lambda 工厂依赖
-        foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
-        {
+        foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
             var args = invocation.ArgumentList?.Arguments;
             if (args is null || args.Value.Count < 2) continue;
 
             var secondArg = args.Value[1];
             // Lambda 工厂: sp => ...
-            if (secondArg.Expression is LambdaExpressionSyntax lambda)
-            {
+            if (secondArg.Expression is LambdaExpressionSyntax lambda) {
                 ExtractDepsFromLambda(lambda, filePath, registrations, dependencies);
             }
             // ParenthesizedLambdaExpression (显式括号)
-            if (secondArg.Expression is ParenthesizedLambdaExpressionSyntax parenLambda)
-            {
+            if (secondArg.Expression is ParenthesizedLambdaExpressionSyntax parenLambda) {
                 ExtractDepsFromLambda(parenLambda, filePath, registrations, dependencies);
             }
         }
@@ -76,22 +68,17 @@ public static class DiRegistrationExtractor
     /// 同时处理 ObjectCreationExpression 中的参数列表
     /// </summary>
     private static void ExtractDepsFromLambda(LambdaExpressionSyntax lambda, string filePath,
-        List<ServiceRegistration> registrations, List<ConstructorDependency> dependencies)
-    {
+        List<ServiceRegistration> registrations, List<ConstructorDependency> dependencies) {
         // 处理 ExpressionBody: sp => new T(...)
-        if (lambda.ExpressionBody is ExpressionSyntax body)
-        {
+        if (lambda.ExpressionBody is ExpressionSyntax body) {
             ExtractDepsFromExpression(body, lambda, filePath, registrations, dependencies);
             return;
         }
 
         // 处理 Block body: sp => { return new T(...); }
-        if (lambda.Body is BlockSyntax block)
-        {
-            foreach (var stmt in block.Statements)
-            {
-                if (stmt is ReturnStatementSyntax retStmt && retStmt.Expression is not null)
-                {
+        if (lambda.Body is BlockSyntax block) {
+            foreach (var stmt in block.Statements) {
+                if (stmt is ReturnStatementSyntax retStmt && retStmt.Expression is not null) {
                     ExtractDepsFromExpression(retStmt.Expression, lambda, filePath, registrations, dependencies);
                 }
             }
@@ -102,16 +89,12 @@ public static class DiRegistrationExtractor
     /// 从表达式中提取 sp.GetRequiredService&lt;T&gt;() 调用和 new T(...) 中的构造函数依赖
     /// </summary>
     private static void ExtractDepsFromExpression(ExpressionSyntax expr, LambdaExpressionSyntax lambda,
-        string filePath, List<ServiceRegistration> registrations, List<ConstructorDependency> dependencies)
-    {
+        string filePath, List<ServiceRegistration> registrations, List<ConstructorDependency> dependencies) {
         // 处理 ObjectCreationExpression: new SomeService(...)
-        if (expr is ObjectCreationExpressionSyntax objCreation)
-        {
+        if (expr is ObjectCreationExpressionSyntax objCreation) {
             // 提取构造函数参数中的 GetRequiredService 调用
-            if (objCreation.ArgumentList?.Arguments is { Count: > 0 })
-            {
-                foreach (var arg in objCreation.ArgumentList.Arguments)
-                {
+            if (objCreation.ArgumentList?.Arguments is { Count: > 0 }) {
+                foreach (var arg in objCreation.ArgumentList.Arguments) {
                     ExtractServiceCalls(arg.Expression, lambda, filePath, registrations, dependencies);
                 }
             }
@@ -119,8 +102,7 @@ public static class DiRegistrationExtractor
         }
 
         // CastExpression: (T)sp.GetRequiredService<X>()
-        if (expr is CastExpressionSyntax castExpr)
-        {
+        if (expr is CastExpressionSyntax castExpr) {
             ExtractServiceCalls(castExpr.Expression, lambda, filePath, registrations, dependencies);
             return;
         }
@@ -133,16 +115,12 @@ public static class DiRegistrationExtractor
     /// 递归查找表达式中所有的 GetRequiredService&lt;T&gt;/GetService&lt;T&gt; 调用
     /// </summary>
     private static void ExtractServiceCalls(ExpressionSyntax expr, LambdaExpressionSyntax lambda,
-        string filePath, List<ServiceRegistration> registrations, List<ConstructorDependency> dependencies)
-    {
-        foreach (var inv in expr.DescendantNodes().OfType<InvocationExpressionSyntax>())
-        {
+        string filePath, List<ServiceRegistration> registrations, List<ConstructorDependency> dependencies) {
+        foreach (var inv in expr.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
             var methodName = ExtractMemberAccessName(inv);
-            if (methodName is "GetRequiredService" or "GetService")
-            {
+            if (methodName is "GetRequiredService" or "GetService") {
                 var typeArgs = FindTypeArguments(inv);
-                if (typeArgs is { Count: 1 })
-                {
+                if (typeArgs is { Count: 1 }) {
                     var depType = typeArgs[0].ToString();
                     // 跳过基础设施类型
                     if (depType == "IServiceProvider" ||
@@ -153,12 +131,10 @@ public static class DiRegistrationExtractor
                     // 注册隐式依赖
                     // 从 lambda 的返回类型推断服务类型
                     var serviceType = InferServiceTypeFromLambda(lambda, inv);
-                    if (!string.IsNullOrEmpty(serviceType))
-                    {
+                    if (!string.IsNullOrEmpty(serviceType)) {
                         // 注册隐式服务到自身的映射（lambda 工厂返回的类型）
                         var returnType = InferLambdaReturnType(lambda);
-                        if (!string.IsNullOrEmpty(returnType))
-                        {
+                        if (!string.IsNullOrEmpty(returnType)) {
                             registrations.Add(new ServiceRegistration(serviceType, returnType, "Singleton"));
                         }
 
@@ -180,27 +156,20 @@ public static class DiRegistrationExtractor
     /// 从 lambda 工厂返回类型推断服务类型
     /// 例: sp => new Foo() → "Foo",  sp => (IFoo)new Foo() → "IFoo"
     /// </summary>
-    private static string? InferLambdaReturnType(LambdaExpressionSyntax lambda)
-    {
-        if (lambda.ExpressionBody is ObjectCreationExpressionSyntax obj)
-        {
+    private static string? InferLambdaReturnType(LambdaExpressionSyntax lambda) {
+        if (lambda.ExpressionBody is ObjectCreationExpressionSyntax obj) {
             return obj.Type?.ToString();
         }
-        if (lambda.ExpressionBody is CastExpressionSyntax cast && cast.Expression is ObjectCreationExpressionSyntax castObj)
-        {
+        if (lambda.ExpressionBody is CastExpressionSyntax cast && cast.Expression is ObjectCreationExpressionSyntax castObj) {
             return cast.Type.ToString(); // 接口类型
         }
-        if (lambda.Body is BlockSyntax block)
-        {
-            foreach (var stmt in block.Statements.OfType<ReturnStatementSyntax>())
-            {
-                if (stmt.Expression is ObjectCreationExpressionSyntax retObj)
-                {
+        if (lambda.Body is BlockSyntax block) {
+            foreach (var stmt in block.Statements.OfType<ReturnStatementSyntax>()) {
+                if (stmt.Expression is ObjectCreationExpressionSyntax retObj) {
                     return retObj.Type?.ToString();
                 }
                 // (T)new U() 转型
-                if (stmt.Expression is CastExpressionSyntax retCast)
-                {
+                if (stmt.Expression is CastExpressionSyntax retCast) {
                     return retCast.Type.ToString();
                 }
             }
@@ -212,26 +181,20 @@ public static class DiRegistrationExtractor
     /// 从 lambda 工厂上下文推断当前注册的服务类型
     /// 通过向上查找父节点找到 AddSingleton&lt;T&gt;(sp => ...) 中的 T
     /// </summary>
-    private static string? InferServiceTypeFromLambda(LambdaExpressionSyntax lambda, InvocationExpressionSyntax contextInv)
-    {
+    private static string? InferServiceTypeFromLambda(LambdaExpressionSyntax lambda, InvocationExpressionSyntax contextInv) {
         // 向上查找最近的 AddSingleton/AddScoped/AddTransient 调用
         var current = lambda.Parent;
-        while (current is not null)
-        {
-            if (current is InvocationExpressionSyntax parentInv)
-            {
+        while (current is not null) {
+            if (current is InvocationExpressionSyntax parentInv) {
                 var methodName = ExtractMethodName(parentInv.Expression);
-                if (methodName is "AddSingleton" or "AddScoped" or "AddTransient")
-                {
+                if (methodName is "AddSingleton" or "AddScoped" or "AddTransient") {
                     var typeArgs = GetGenericArguments(parentInv);
-                    if (typeArgs is { Count: 1 })
-                    {
+                    if (typeArgs is { Count: 1 }) {
                         // 单泛型: AddSingleton<T>(sp => new TImpl(...))
                         // 需要推断实现类型
                         return typeArgs[0].ToString();
                     }
-                    if (typeArgs is { Count: 2 })
-                    {
+                    if (typeArgs is { Count: 2 }) {
                         // 双泛型: AddSingleton<TInterface, TImpl>(sp => ...)
                         // 第二个参数是实际实现
                         return typeArgs[1].ToString();
@@ -243,14 +206,11 @@ public static class DiRegistrationExtractor
         return null;
     }
 
-    private static void ExtractRegistrations(SyntaxNode root, string filePath, List<ServiceRegistration> registrations)
-    {
-        foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
-        {
+    private static void ExtractRegistrations(SyntaxNode root, string filePath, List<ServiceRegistration> registrations) {
+        foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>()) {
             ExtractRegistrationFromInvocation(invocation, filePath, registrations);
         }
-        foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(c => c.AttributeLists.Count > 0))
-        {
+        foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>().Where(c => c.AttributeLists.Count > 0)) {
             ExtractAttributeBasedRegistration(classDecl, filePath, registrations);
         }
     }
@@ -261,8 +221,7 @@ public static class DiRegistrationExtractor
     ///   1. MemberAccessExpressionSyntax: services.AddSingleton&lt;IFoo, Foo&gt; → Name 是 GenericNameSyntax
     ///   2. GenericNameSyntax: 直接调用泛型扩展方法时
     /// </summary>
-    private static List<TypeSyntax>? GetGenericArguments(InvocationExpressionSyntax invocation)
-    {
+    private static List<TypeSyntax>? GetGenericArguments(InvocationExpressionSyntax invocation) {
         var expr = invocation.Expression;
 
         // 模式1: services.AddSingleton&lt;IFoo, Foo&gt;  →  MAE where Name 是 GenericNameSyntax
@@ -276,8 +235,7 @@ public static class DiRegistrationExtractor
         return null;
     }
 
-    private static void ExtractRegistrationFromInvocation(InvocationExpressionSyntax invocation, string filePath, List<ServiceRegistration> registrations)
-    {
+    private static void ExtractRegistrationFromInvocation(InvocationExpressionSyntax invocation, string filePath, List<ServiceRegistration> registrations) {
         var methodCall = invocation.Expression;
         var methodName = ExtractMethodName(methodCall);
         if (string.IsNullOrEmpty(methodName))
@@ -288,19 +246,15 @@ public static class DiRegistrationExtractor
             return;
 
         var typeArgs = GetGenericArguments(invocation);
-        if (typeArgs is { Count: >= 1 })
-        {
-            if (typeArgs.Count == 2)
-            {
+        if (typeArgs is { Count: >= 1 }) {
+            if (typeArgs.Count == 2) {
                 registrations.Add(new ServiceRegistration(typeArgs[0].ToString(), typeArgs[1].ToString(), lifetime));
                 return;
             }
-            if (typeArgs.Count == 1)
-            {
+            if (typeArgs.Count == 1) {
                 var firstArg = typeArgs[0].ToString();
                 var arguments = invocation.ArgumentList?.Arguments.ToList();
-                if (arguments is { Count: >= 1 } && arguments[0].Expression is LambdaExpressionSyntax lambda)
-                {
+                if (arguments is { Count: >= 1 } && arguments[0].Expression is LambdaExpressionSyntax lambda) {
                     ExtractFactoryRegistration(firstArg, lambda, lifetime, registrations);
                     return;
                 }
@@ -309,50 +263,38 @@ public static class DiRegistrationExtractor
         }
     }
 
-    private static void ExtractFactoryRegistration(string serviceType, LambdaExpressionSyntax lambda, string lifetime, List<ServiceRegistration> registrations)
-    {
+    private static void ExtractFactoryRegistration(string serviceType, LambdaExpressionSyntax lambda, string lifetime, List<ServiceRegistration> registrations) {
         var body = lambda.Body;
-        if (body is InvocationExpressionSyntax inv)
-        {
-            if (ExtractMemberAccessName(inv) is "GetRequiredService" or "GetService")
-            {
+        if (body is InvocationExpressionSyntax inv) {
+            if (ExtractMemberAccessName(inv) is "GetRequiredService" or "GetService") {
                 var typeArgs = FindTypeArguments(inv);
-                if (typeArgs is { Count: 1 })
-                {
+                if (typeArgs is { Count: 1 }) {
                     registrations.Add(new ServiceRegistration(serviceType, typeArgs[0].ToString(), lifetime));
                     return;
                 }
             }
         }
-        if (body is CastExpressionSyntax cast)
-        {
+        if (body is CastExpressionSyntax cast) {
             var innerInv = cast.Expression as InvocationExpressionSyntax;
-            if (innerInv is not null && ExtractMemberAccessName(innerInv) is "GetRequiredService" or "GetService")
-            {
+            if (innerInv is not null && ExtractMemberAccessName(innerInv) is "GetRequiredService" or "GetService") {
                 var typeArgs = FindTypeArguments(innerInv);
                 if (typeArgs is { Count: 1 })
                     registrations.Add(new ServiceRegistration(cast.Type.ToString(), typeArgs[0].ToString(), lifetime));
                 return;
             }
         }
-        if (body is ObjectCreationExpressionSyntax obj)
-        {
+        if (body is ObjectCreationExpressionSyntax obj) {
             var implType = obj.Type?.ToString();
-            if (!string.IsNullOrEmpty(implType))
-            {
+            if (!string.IsNullOrEmpty(implType)) {
                 registrations.Add(new ServiceRegistration(serviceType, implType, lifetime));
                 return;
             }
         }
-        if (body is BlockSyntax block)
-        {
-            foreach (var stmt in block.Statements.OfType<ReturnStatementSyntax>())
-            {
-                if (stmt.Expression is ObjectCreationExpressionSyntax retObj)
-                {
+        if (body is BlockSyntax block) {
+            foreach (var stmt in block.Statements.OfType<ReturnStatementSyntax>()) {
+                if (stmt.Expression is ObjectCreationExpressionSyntax retObj) {
                     var implType = retObj.Type?.ToString();
-                    if (!string.IsNullOrEmpty(implType))
-                    {
+                    if (!string.IsNullOrEmpty(implType)) {
                         registrations.Add(new ServiceRegistration(serviceType, implType, lifetime));
                         ExtractFactoryDependencies(stmt, registrations);
                         return;
@@ -362,8 +304,7 @@ public static class DiRegistrationExtractor
         }
     }
 
-    private static List<TypeSyntax>? FindTypeArguments(InvocationExpressionSyntax invocation)
-    {
+    private static List<TypeSyntax>? FindTypeArguments(InvocationExpressionSyntax invocation) {
         var expr = invocation.Expression;
         if (expr is MemberAccessExpressionSyntax mae && mae.Name is GenericNameSyntax gName)
             return gName.TypeArgumentList?.Arguments.ToList();
@@ -372,16 +313,12 @@ public static class DiRegistrationExtractor
         return null;
     }
 
-    private static void ExtractFactoryDependencies(StatementSyntax statement, List<ServiceRegistration> registrations)
-    {
-        foreach (var inv in statement.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(IsServiceProviderCall))
-        {
+    private static void ExtractFactoryDependencies(StatementSyntax statement, List<ServiceRegistration> registrations) {
+        foreach (var inv in statement.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(IsServiceProviderCall)) {
             var methodName = ExtractMemberAccessName(inv);
-            if (methodName is "GetRequiredService" or "GetService")
-            {
+            if (methodName is "GetRequiredService" or "GetService") {
                 var typeArgs = FindTypeArguments(inv);
-                if (typeArgs is { Count: 1 })
-                {
+                if (typeArgs is { Count: 1 }) {
                     var depType = typeArgs[0].ToString();
                     if (depType == "IServiceProvider" || depType.StartsWith("ILogger", StringComparison.Ordinal) || depType.StartsWith("IOptions", StringComparison.Ordinal))
                         continue;
@@ -391,23 +328,18 @@ public static class DiRegistrationExtractor
         }
     }
 
-    private static bool IsServiceProviderCall(InvocationExpressionSyntax inv)
-    {
+    private static bool IsServiceProviderCall(InvocationExpressionSyntax inv) {
         if (inv.Expression is MemberAccessExpressionSyntax mae)
             return mae.Expression?.ToString() == "sp";
         return false;
     }
 
-    private static void ExtractAttributeBasedRegistration(ClassDeclarationSyntax classDecl, string filePath, List<ServiceRegistration> registrations)
-    {
+    private static void ExtractAttributeBasedRegistration(ClassDeclarationSyntax classDecl, string filePath, List<ServiceRegistration> registrations) {
         var className = classDecl.Identifier.ToString();
-        foreach (var attrList in classDecl.AttributeLists)
-        {
-            foreach (var attr in attrList.Attributes)
-            {
+        foreach (var attrList in classDecl.AttributeLists) {
+            foreach (var attr in attrList.Attributes) {
                 var attrName = GetAttributeShortName(attr.Name);
-                string? lifetime = attrName switch
-                {
+                var lifetime = attrName switch {
                     "Register" => "Singleton",
                     _ => null
                 };
@@ -416,11 +348,9 @@ public static class DiRegistrationExtractor
 
                 var args = attr.ArgumentList?.Arguments.ToList();
                 var lifetimeArg = args?.FirstOrDefault(a => a.NameColon?.Name.Identifier.ToString() == "Lifetime");
-                if (lifetimeArg is not null)
-                {
+                if (lifetimeArg is not null) {
                     var lifetimeValue = lifetimeArg.Expression.ToString();
-                    lifetime = lifetimeValue switch
-                    {
+                    lifetime = lifetimeValue switch {
                         "ServiceLifetime.Scoped" => "Scoped",
                         "ServiceLifetime.Transient" => "Transient",
                         _ => "Singleton"
@@ -428,28 +358,21 @@ public static class DiRegistrationExtractor
                 }
 
                 var typeArgs = args?.Where(a => a.NameColon == null || a.NameColon?.Name.Identifier.ToString() != "Lifetime").ToList();
-                if (typeArgs is { Count: >= 1 })
-                {
+                if (typeArgs is { Count: >= 1 }) {
                     registrations.Add(new ServiceRegistration(UnwrapTypeOf(typeArgs[0].Expression.ToString()), className, lifetime));
-                }
-                else if (classDecl.BaseList?.Types.Count > 0)
-                {
+                } else if (classDecl.BaseList?.Types.Count > 0) {
                     registrations.Add(new ServiceRegistration(classDecl.BaseList.Types[0].ToString(), className, lifetime));
-                }
-                else
-                {
+                } else {
                     registrations.Add(new ServiceRegistration(className, className, lifetime));
                 }
             }
         }
     }
 
-    private static void ExtractConstructorDeps(SyntaxTree syntaxTree, Compilation compilation, List<ConstructorDependency> dependencies)
-    {
+    private static void ExtractConstructorDeps(SyntaxTree syntaxTree, Compilation compilation, List<ConstructorDependency> dependencies) {
         var filePath = syntaxTree.FilePath ?? string.Empty;
         foreach (var classDecl in syntaxTree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
-            .Where(c => !c.Modifiers.Any(m => m.Text is "interface" or "abstract")))
-        {
+            .Where(c => !c.Modifiers.Any(m => m.Text is "interface" or "abstract"))) {
             var className = classDecl.Identifier.ToString();
             var semanticModel = compilation.GetSemanticModel(syntaxTree);
             var classSymbol = semanticModel.GetDeclaredSymbol(classDecl) as INamedTypeSymbol;
@@ -460,13 +383,11 @@ public static class DiRegistrationExtractor
             if (ShouldSkipClass(className, ns))
                 continue;
 
-            foreach (var ctor in classDecl.Members.OfType<ConstructorDeclarationSyntax>())
-            {
+            foreach (var ctor in classDecl.Members.OfType<ConstructorDeclarationSyntax>()) {
                 var parameters = ctor.ParameterList?.Parameters;
                 if (parameters is null)
                     continue;
-                foreach (var param in parameters)
-                {
+                foreach (var param in parameters) {
                     var paramType = param.Type?.ToString();
                     if (string.IsNullOrEmpty(paramType) || IsInfrastructureType(paramType))
                         continue;
@@ -479,24 +400,20 @@ public static class DiRegistrationExtractor
         }
     }
 
-    private static bool ShouldSkipClass(string className, string ns)
-    {
+    private static bool ShouldSkipClass(string className, string ns) {
         return className is "Program" or "Startup" or "Configuration" or "Options" or "Config"
                || className.EndsWith("Attribute", StringComparison.Ordinal);
     }
 
-    private static bool IsInfrastructureType(string type)
-    {
+    private static bool IsInfrastructureType(string type) {
         return type == "IServiceProvider"
                || type.StartsWith("ILogger", StringComparison.Ordinal)
                || type.StartsWith("IOptions", StringComparison.Ordinal)
                || type is "IConfiguration" or "IConfigurationSection" or "IWebHostEnvironment" or "IHostEnvironment" or "IServiceScopeFactory";
     }
 
-    private static string? ExtractMethodName(ExpressionSyntax expression)
-    {
-        return expression switch
-        {
+    private static string? ExtractMethodName(ExpressionSyntax expression) {
+        return expression switch {
             MemberAccessExpressionSyntax mae => mae.Name.Identifier.Text,
             GenericNameSyntax gne => gne.Identifier.Text,
             _ => null
@@ -507,10 +424,8 @@ public static class DiRegistrationExtractor
     /// 提取特性名的最后一个标识符（短名），兼容全限定名：
     /// JoinCode.Abstractions.Attributes.Register → Register
     /// </summary>
-    private static string GetAttributeShortName(NameSyntax name)
-    {
-        return name switch
-        {
+    private static string GetAttributeShortName(NameSyntax name) {
+        return name switch {
             QualifiedNameSyntax qualified => qualified.Right.Identifier.Text,
             AliasQualifiedNameSyntax alias => alias.Name.Identifier.Text,
             _ => name.ToString()
@@ -520,30 +435,25 @@ public static class DiRegistrationExtractor
     /// <summary>
     /// 去掉 typeof(...) 包装：typeof(IRepository) → IRepository
     /// </summary>
-    private static string UnwrapTypeOf(string expression)
-    {
+    private static string UnwrapTypeOf(string expression) {
         const string prefix = "typeof(";
         if (expression.StartsWith(prefix, StringComparison.Ordinal) && expression.EndsWith(")", StringComparison.Ordinal))
             return expression.Substring(prefix.Length, expression.Length - prefix.Length - 1);
         return expression;
     }
 
-    private static string? ExtractMemberAccessName(InvocationExpressionSyntax invocation)
-    {
-        return invocation.Expression switch
-        {
+    private static string? ExtractMemberAccessName(InvocationExpressionSyntax invocation) {
+        return invocation.Expression switch {
             MemberAccessExpressionSyntax mae => mae.Name.Identifier.Text,
             _ => null
         };
     }
 
-    private static string? ExtractLifetime(string methodName)
-    {
+    private static string? ExtractLifetime(string methodName) {
         var baseName = methodName.StartsWith("Try", StringComparison.Ordinal)
             ? methodName.Substring(3)
             : methodName;
-        return baseName switch
-        {
+        return baseName switch {
             "AddSingleton" => "Singleton",
             "AddScoped" => "Scoped",
             "AddTransient" => "Transient",

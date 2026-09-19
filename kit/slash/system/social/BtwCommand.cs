@@ -8,19 +8,16 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Btw, Description = "快速向 AI 提一个侧边问题", Usage = "/btw <question>", Category = ChatCommandCategory.Social, ArgumentHint = "<question>")]
 [ChatCommandArg("question", Type = "string", Description = "侧边问题内容", Required = true)]
-public sealed class BtwCommand : ChatCommandBase
-{
+public sealed class BtwCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /btw 命令 — 将侧边问题发送给 AI，不影响主对话上下文
     /// </summary>
     /// <param name="context">命令执行上下文，包含问题文本与取消令牌</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var question = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(question))
-        {
+        if (string.IsNullOrEmpty(question)) {
             TerminalHelper.WriteLine("用法: /btw <question>");
             TerminalHelper.WriteLine("快速向 AI 提一个侧边问题，不影响当前对话上下文");
             TerminalHelper.NewLine();
@@ -36,15 +33,12 @@ This is a quick side question that should not disrupt the main conversation cont
 Question: {question}
 """;
 
-        try
-        {
+        try {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}── 侧边问题 ──{AnsiStyleEnumConstants.Reset}");
             var result = await context.GetCommandServices().ChatService.SendMessageAsync(prompt, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine(result);
             TerminalHelper.WriteLine($"{TerminalColors.Muted}── 侧边回答结束 ──{AnsiStyleEnumConstants.Reset}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("侧边提问", ex);
         }
 

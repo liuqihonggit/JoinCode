@@ -3,10 +3,8 @@ namespace Mcp.Tests.Management;
 /// <summary>
 /// ShakeWindowToolHandlers 单元测试 — 验证震动/闪烁/进程信息/去抖/配置开关
 /// </summary>
-public sealed class ShakeWindowToolHandlersTests
-{
-    private static Mock<IWindowShakeCoordinator> CreateCoordinator(bool enabled = true, bool canShake = true)
-    {
+public sealed class ShakeWindowToolHandlersTests {
+    private static Mock<IWindowShakeCoordinator> CreateCoordinator(bool enabled = true, bool canShake = true) {
         var mock = new Mock<IWindowShakeCoordinator>();
         mock.SetupGet(x => x.IsShakeEnabled).Returns(enabled);
         mock.Setup(x => x.TryAcquireShakeSlot()).Returns(canShake);
@@ -14,8 +12,7 @@ public sealed class ShakeWindowToolHandlersTests
     }
 
     [Fact]
-    public async Task ShakeWindowAsync_ShakeDisabled_ReturnsDisabledMessage()
-    {
+    public async Task ShakeWindowAsync_ShakeDisabled_ReturnsDisabledMessage() {
         var coordinator = CreateCoordinator(enabled: false);
         var handler = new ShakeWindowToolHandlers(coordinator.Object);
         var result = await handler.ShakeWindowAsync(null, default);
@@ -24,8 +21,7 @@ public sealed class ShakeWindowToolHandlersTests
     }
 
     [Fact]
-    public async Task ShakeWindowAsync_ShakeEnabled_FirstCall_ReturnsSuccess()
-    {
+    public async Task ShakeWindowAsync_ShakeEnabled_FirstCall_ReturnsSuccess() {
         var coordinator = CreateCoordinator(enabled: true, canShake: true);
         var shakeService = new Mock<IWindowShakeService>();
         shakeService.Setup(x => x.ShakeWindowAsync(default)).ReturnsAsync(new ShakeResult("test", "test", "test"));
@@ -37,8 +33,7 @@ public sealed class ShakeWindowToolHandlersTests
     }
 
     [Fact]
-    public async Task ShakeWindowAsync_SecondCallWithin1s_ReturnsSkipped()
-    {
+    public async Task ShakeWindowAsync_SecondCallWithin1s_ReturnsSkipped() {
         var coordinator = CreateCoordinator(enabled: true, canShake: false);
         var handler = new ShakeWindowToolHandlers(coordinator.Object);
         var result = await handler.ShakeWindowAsync(null, default);
@@ -47,8 +42,7 @@ public sealed class ShakeWindowToolHandlersTests
     }
 
     [Fact]
-    public async Task ShakeWindowAsync_NoShakeService_ReturnsSuccess()
-    {
+    public async Task ShakeWindowAsync_NoShakeService_ReturnsSuccess() {
         var coordinator = CreateCoordinator(enabled: true, canShake: true);
         var handler = new ShakeWindowToolHandlers(coordinator.Object, shakeService: null);
         var result = await handler.ShakeWindowAsync(null, default);
@@ -57,8 +51,7 @@ public sealed class ShakeWindowToolHandlersTests
     }
 
     [Fact]
-    public async Task FlashTaskbarAsync_ShakeDisabled_ReturnsDisabledMessage()
-    {
+    public async Task FlashTaskbarAsync_ShakeDisabled_ReturnsDisabledMessage() {
         var coordinator = CreateCoordinator(enabled: false);
         var handler = new ShakeWindowToolHandlers(coordinator.Object);
         var result = await handler.FlashTaskbarAsync(default);
@@ -67,8 +60,7 @@ public sealed class ShakeWindowToolHandlersTests
     }
 
     [Fact]
-    public async Task FlashTaskbarAsync_Normal_ReturnsSuccess()
-    {
+    public async Task FlashTaskbarAsync_Normal_ReturnsSuccess() {
         var coordinator = CreateCoordinator(enabled: true, canShake: true);
         var shakeService = new Mock<IWindowShakeService>();
         var handler = new ShakeWindowToolHandlers(coordinator.Object, shakeService.Object);
@@ -79,8 +71,7 @@ public sealed class ShakeWindowToolHandlersTests
     }
 
     [Fact]
-    public async Task GetProcessInfoAsync_ReturnsMachineAndPid()
-    {
+    public async Task GetProcessInfoAsync_ReturnsMachineAndPid() {
         var coordinator = CreateCoordinator();
         var handler = new ShakeWindowToolHandlers(coordinator.Object);
         var result = await handler.GetProcessInfoAsync(default);

@@ -1,24 +1,20 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed partial class BridgeMainTests
-{
+public sealed partial class BridgeMainTests {
     #region HeadlessBridgeLogger — 显示适配器
 
     [Fact]
-    public void HeadlessBridgeLogger_NullLog_Throws()
-    {
+    public void HeadlessBridgeLogger_NullLog_Throws() {
         Assert.Throws<ArgumentNullException>(() => new HeadlessBridgeLogger(null!));
     }
 
     [Fact]
-    public void HeadlessBridgeLogger_PrintBanner_RoutesToLog()
-    {
+    public void HeadlessBridgeLogger_PrintBanner_RoutesToLog() {
         var messages = new List<string>();
         var logger = new HeadlessBridgeLogger(messages.Add);
 
-        var config = new BridgeConfig
-        {
+        var config = new BridgeConfig {
             Dir = "C:\\test",
             SpawnMode = BridgeSpawnMode.SameDir,
             MaxSessions = 5,
@@ -33,8 +29,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void HeadlessBridgeLogger_AddSession_IgnoresUrl()
-    {
+    public void HeadlessBridgeLogger_AddSession_IgnoresUrl() {
         var messages = new List<string>();
         var logger = new HeadlessBridgeLogger(messages.Add);
 
@@ -46,8 +41,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void HeadlessBridgeLogger_RemoveSession_RoutesToLog()
-    {
+    public void HeadlessBridgeLogger_RemoveSession_RoutesToLog() {
         var messages = new List<string>();
         var logger = new HeadlessBridgeLogger(messages.Add);
 
@@ -59,8 +53,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void HeadlessBridgeLogger_TuiMethods_AreNoop()
-    {
+    public void HeadlessBridgeLogger_TuiMethods_AreNoop() {
         var messages = new List<string>();
         var logger = new HeadlessBridgeLogger(messages.Add);
 

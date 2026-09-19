@@ -3,11 +3,9 @@ namespace Hands.Tests.ToolHandlers;
 /// <summary>
 /// AgentValidationMiddleware 单元测试 — 验证 Agent 参数验证中间件的结构化诊断
 /// </summary>
-public class AgentValidationMiddlewareTests
-{
+public class AgentValidationMiddlewareTests {
     [Fact]
-    public async Task EmptyDescription_SetsErrorWithDiagnostic()
-    {
+    public async Task EmptyDescription_SetsErrorWithDiagnostic() {
         var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "", Prompt = "do something" };
 
@@ -21,8 +19,7 @@ public class AgentValidationMiddlewareTests
     }
 
     [Fact]
-    public async Task EmptyPrompt_SetsErrorWithDiagnostic()
-    {
+    public async Task EmptyPrompt_SetsErrorWithDiagnostic() {
         var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "" };
 
@@ -36,8 +33,7 @@ public class AgentValidationMiddlewareTests
     }
 
     [Fact]
-    public async Task ValidInputs_PassesToNext()
-    {
+    public async Task ValidInputs_PassesToNext() {
         var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "do something" };
 
@@ -49,8 +45,7 @@ public class AgentValidationMiddlewareTests
     }
 
     [Fact]
-    public void BuildEmptyDescriptionDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildEmptyDescriptionDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = AgentValidationMiddleware.BuildEmptyDescriptionDiagnostic();
 
         diagnostic.Reason.Should().Be("参数验证失败");
@@ -60,8 +55,7 @@ public class AgentValidationMiddlewareTests
     }
 
     [Fact]
-    public void BuildEmptyPromptDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildEmptyPromptDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = AgentValidationMiddleware.BuildEmptyPromptDiagnostic();
 
         diagnostic.Reason.Should().Be("参数验证失败");
@@ -71,8 +65,7 @@ public class AgentValidationMiddlewareTests
     }
 
     [Fact]
-    public async Task SubagentType_WithComma_ParsesPrimaryTypeAndAllowedTypes()
-    {
+    public async Task SubagentType_WithComma_ParsesPrimaryTypeAndAllowedTypes() {
         var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "do something", SubagentType = "worker,researcher" };
 
@@ -83,8 +76,7 @@ public class AgentValidationMiddlewareTests
     }
 
     [Fact]
-    public async Task SubagentType_SingleType_DoesNotParseAllowedTypes()
-    {
+    public async Task SubagentType_SingleType_DoesNotParseAllowedTypes() {
         var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "do something", SubagentType = "worker" };
 
@@ -95,8 +87,7 @@ public class AgentValidationMiddlewareTests
     }
 
     [Fact]
-    public async Task SubagentType_Null_DoesNotParse()
-    {
+    public async Task SubagentType_Null_DoesNotParse() {
         var sut = new AgentValidationMiddleware();
         var context = new AgentToolContext { Description = "test agent", Prompt = "do something" };
 

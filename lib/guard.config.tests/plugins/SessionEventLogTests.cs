@@ -1,10 +1,8 @@
 namespace Core.Tests.Plugins;
 
-public sealed class SessionEventLogTests
-{
+public sealed class SessionEventLogTests {
     [Fact]
-    public void Append_SeqIncrement()
-    {
+    public void Append_SeqIncrement() {
         var log = new SessionEventLog(() => 1000);
         var e1 = log.Append("user/message");
         var e2 = log.Append("tool/call");
@@ -15,16 +13,14 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Append_TimeSet()
-    {
+    public void Append_TimeSet() {
         var log = new SessionEventLog(() => 5000);
         var evt = log.Append("user/message");
         Assert.Equal(5000, evt.Time);
     }
 
     [Fact]
-    public void Append_TypeAndDataStored()
-    {
+    public void Append_TypeAndDataStored() {
         var log = new SessionEventLog();
         var evt = log.Append("tool/call", data: "payload");
         Assert.Equal("tool/call", evt.Type);
@@ -32,8 +28,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Append_SurfaceOpStored()
-    {
+    public void Append_SurfaceOpStored() {
         var log = new SessionEventLog();
         var evt = log.Append("user/message", surfaceOp: SurfaceOp.Append());
         Assert.NotNull(evt.SurfaceOp);
@@ -41,16 +36,14 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Append_SourceEventSeqsStored()
-    {
+    public void Append_SourceEventSeqsStored() {
         var log = new SessionEventLog();
         var evt = log.Append("assistant/message", sourceEventSeqs: new[] { 1, 2 });
         Assert.Equal(new[] { 1, 2 }, evt.SourceEventSeqs);
     }
 
     [Fact]
-    public void Events_ReturnsSnapshot()
-    {
+    public void Events_ReturnsSnapshot() {
         var log = new SessionEventLog();
         log.Append("a");
         log.Append("b");
@@ -61,8 +54,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Count_ReturnsEventCount()
-    {
+    public void Count_ReturnsEventCount() {
         var log = new SessionEventLog();
         Assert.Equal(0, log.Count);
         log.Append("a");
@@ -71,8 +63,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Find_BySeq()
-    {
+    public void Find_BySeq() {
         var log = new SessionEventLog();
         log.Append("a");
         var e2 = log.Append("b");
@@ -84,8 +75,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void After_GivenSeq()
-    {
+    public void After_GivenSeq() {
         var log = new SessionEventLog();
         log.Append("a");
         log.Append("b");
@@ -98,8 +88,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Until_GivenSeq()
-    {
+    public void Until_GivenSeq() {
         var log = new SessionEventLog();
         log.Append("a");
         log.Append("b");
@@ -111,16 +100,14 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void SurfaceOp_Append()
-    {
+    public void SurfaceOp_Append() {
         var op = SurfaceOp.Append();
         Assert.Equal(SurfaceOpKind.Append, op.Kind);
         Assert.Null(op.StartSeq);
     }
 
     [Fact]
-    public void SurfaceOp_Replace()
-    {
+    public void SurfaceOp_Replace() {
         var op = SurfaceOp.Replace(5, 10);
         Assert.Equal(SurfaceOpKind.Replace, op.Kind);
         Assert.Equal(5, op.StartSeq);
@@ -128,22 +115,19 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void ValidateHeader_CurrentVersion_Ok()
-    {
+    public void ValidateHeader_CurrentVersion_Ok() {
         var header = new SessionEventLogHeader { Version = 3, Id = "s1", CreatedAt = 0 };
         SessionEventRebuilder.ValidateHeader(header);
     }
 
     [Fact]
-    public void ValidateHeader_OlderVersion_Ok()
-    {
+    public void ValidateHeader_OlderVersion_Ok() {
         var header = new SessionEventLogHeader { Version = 2, Id = "s1", CreatedAt = 0 };
         SessionEventRebuilder.ValidateHeader(header);
     }
 
     [Fact]
-    public void ValidateHeader_NewerVersion_Throws()
-    {
+    public void ValidateHeader_NewerVersion_Throws() {
         var header = new SessionEventLogHeader { Version = 4, Id = "s1", CreatedAt = 0 };
         var ex = Assert.Throws<InvalidOperationException>(() => SessionEventRebuilder.ValidateHeader(header));
         Assert.Contains("[INF-SESSION-FORMAT]", ex.Message);
@@ -151,8 +135,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Rebuild_KnownTypes_AllAccepted()
-    {
+    public void Rebuild_KnownTypes_AllAccepted() {
         var events = new SessionEvent[]
         {
             new() { Seq = 1, Time = 0, Type = "user/message" },
@@ -164,8 +147,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Rebuild_UnknownNonIgnorable_Throws()
-    {
+    public void Rebuild_UnknownNonIgnorable_Throws() {
         var events = new SessionEvent[]
         {
             new() { Seq = 1, Time = 0, Type = "unknown/type", Ignorable = false },
@@ -177,8 +159,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Rebuild_UnknownIgnorable_Skipped()
-    {
+    public void Rebuild_UnknownIgnorable_Skipped() {
         var events = new SessionEvent[]
         {
             new() { Seq = 1, Time = 0, Type = "user/message" },
@@ -190,8 +171,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void Rebuild_NoKnownTypes_AllAccepted()
-    {
+    public void Rebuild_NoKnownTypes_AllAccepted() {
         var events = new SessionEvent[]
         {
             new() { Seq = 1, Time = 0, Type = "anything" },
@@ -201,8 +181,7 @@ public sealed class SessionEventLogTests
     }
 
     [Fact]
-    public void SessionFormatVersion_CurrentIs3()
-    {
+    public void SessionFormatVersion_CurrentIs3() {
         Assert.Equal(3, SessionFormatVersion.Current);
     }
 }

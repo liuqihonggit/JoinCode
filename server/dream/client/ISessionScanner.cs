@@ -4,8 +4,7 @@ namespace JoinCode.Dream.Services;
 /// <summary>
 /// 会话扫描器接口 - 扫描历史会话
 /// </summary>
-public interface ISessionScanner
-{
+public interface ISessionScanner {
     /// <summary>
     /// 列出指定时间之后被修改的会话
     /// </summary>
@@ -23,8 +22,7 @@ public interface ISessionScanner
 /// 默认会话扫描器实现
 /// </summary>
 [Register(typeof(ISessionScanner), ServiceLifetime.Singleton)]
-public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScanner
-{
+public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScanner {
     private readonly string _projectDir;
     private readonly IFileSystem _fs;
     private readonly ILogger<DefaultSessionScanner>? _logger;
@@ -35,8 +33,7 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
     /// <param name="config">自动做梦配置</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器</param>
-    public DefaultSessionScanner(AutoDreamConfig config, IFileSystem fs, ILogger<DefaultSessionScanner>? logger = null)
-    {
+    public DefaultSessionScanner(AutoDreamConfig config, IFileSystem fs, ILogger<DefaultSessionScanner>? logger = null) {
         _projectDir = config?.ProjectDir ?? fs.GetCurrentDirectory();
         _fs = fs;
         _logger = logger;
@@ -45,38 +42,30 @@ public sealed partial class DefaultSessionScanner : ServiceEntity, ISessionScann
     /// <inheritdoc />
     public Task<IReadOnlyList<string>> ListSessionsTouchedSinceAsync(
         long sinceMs,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         // 简化实现：扫描项目目录下的会话文件
         // 实际实现应该扫描特定的会话存储目录
         var sessions = new List<string>();
 
-        try
-        {
+        try {
             var sessionsDir = AppDataConstants.Paths.SessionsDirectory;
-            if (!_fs.DirectoryExists(sessionsDir))
-            {
+            if (!_fs.DirectoryExists(sessionsDir)) {
                 return Task.FromResult<IReadOnlyList<string>>(sessions);
             }
 
             var sinceTime = new DateTime(sinceMs * TimeSpan.TicksPerMillisecond, DateTimeKind.Utc);
 
-            foreach (var file in _fs.EnumerateFiles(sessionsDir, "*.json", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var file in _fs.EnumerateFiles(sessionsDir, "*.json", SearchOption.TopDirectoryOnly)) {
                 var lastWriteTime = _fs.GetLastWriteTimeUtc(file);
-                if (lastWriteTime > sinceTime)
-                {
+                if (lastWriteTime > sinceTime) {
                     // 从文件名提取会话ID
                     var sessionId = Path.GetFileNameWithoutExtension(file);
-                    if (!string.IsNullOrEmpty(sessionId))
-                    {
+                    if (!string.IsNullOrEmpty(sessionId)) {
                         sessions.Add(sessionId);
                     }
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 忽略扫描错误
             _logger?.LogWarning(ex, "DefaultSessionScanner: 扫描会话失败");
         }

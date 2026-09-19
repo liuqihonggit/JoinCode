@@ -1,29 +1,25 @@
 
 namespace Core.Tests.Memdir;
 
-public class MemoryStoreTests : IDisposable
-{
+public class MemoryStoreTests : IDisposable {
     private readonly string _tempStoragePath;
     private readonly MemoryStore _store;
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
     private bool _disposed;
 
-    public MemoryStoreTests()
-    {
+    public MemoryStoreTests() {
         _tempStoragePath = "/test/memories.json";
         _fileOperationServiceMock = new Mock<IFileOperationService>();
         _store = new MemoryStore(Options.Create(new MemdirOptions { StoragePath = _tempStoragePath }), _fileOperationServiceMock.Object, NullLogger<MemoryStore>.Instance);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
     }
 
     [Fact]
-    public void AddMemory_ShouldAddToStore()
-    {
+    public void AddMemory_ShouldAddToStore() {
         // Arrange
         var content = "Test memory content";
 
@@ -37,8 +33,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void AddMemory_WithType_ShouldStoreType()
-    {
+    public void AddMemory_WithType_ShouldStoreType() {
         // Arrange
         var content = "Type test memory";
         var type = MemoryType.Project;
@@ -53,8 +48,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void AddMemory_WithTags_ShouldStoreTags()
-    {
+    public void AddMemory_WithTags_ShouldStoreTags() {
         // Arrange
         var content = "Tagged memory test";
         var tags = new List<string> { "tag1", "tag2" };
@@ -69,8 +63,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void AddMemory_WithSource_ShouldStoreSource()
-    {
+    public void AddMemory_WithSource_ShouldStoreSource() {
         // Arrange
         var content = "Source test memory";
         var source = "test_source.txt";
@@ -84,8 +77,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void Search_WithQuery_ShouldReturnMatchingMemories()
-    {
+    public void Search_WithQuery_ShouldReturnMatchingMemories() {
         // Arrange
         _store.AddMemory("apple fruit is sweet");
         _store.AddMemory("banana fruit is yellow");
@@ -101,8 +93,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void Search_WithType_ShouldFilterByType()
-    {
+    public void Search_WithType_ShouldFilterByType() {
         // Arrange
         _store.AddMemory("work task 1", MemoryType.Project);
         _store.AddMemory("work task 2", MemoryType.Project);
@@ -117,11 +108,9 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void Search_WithLimit_ShouldRespectLimit()
-    {
+    public void Search_WithLimit_ShouldRespectLimit() {
         // Arrange
-        for (int i = 0; i < 20; i++)
-        {
+        for (var i = 0; i < 20; i++) {
             _store.AddMemory($"Memory number {i}");
         }
 
@@ -133,8 +122,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void Search_NoMatch_ShouldReturnEmpty()
-    {
+    public void Search_NoMatch_ShouldReturnEmpty() {
         // Act
         var results = _store.Search("xyz_nonexistent_12345");
 
@@ -143,8 +131,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void SearchByTags_ShouldReturnMatchingMemories()
-    {
+    public void SearchByTags_ShouldReturnMatchingMemories() {
         // Arrange
         _store.AddMemory("Memory with tag1", tags: new List<string> { "tag1", "tag2" });
         _store.AddMemory("Memory with tag2", tags: new List<string> { "tag2", "tag3" });
@@ -158,8 +145,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void SearchByType_ShouldReturnMatchingMemories()
-    {
+    public void SearchByType_ShouldReturnMatchingMemories() {
         // Arrange
         _store.AddMemory("Feedback 1", MemoryType.Feedback);
         _store.AddMemory("Feedback 2", MemoryType.Feedback);
@@ -174,8 +160,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void GetMemory_ShouldReturnMemory()
-    {
+    public void GetMemory_ShouldReturnMemory() {
         // Arrange
         _store.AddMemory("Test memory for get");
         var allMemories = _store.Search("Test memory for get");
@@ -190,8 +175,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void GetMemory_NonExistent_ShouldReturnNull()
-    {
+    public void GetMemory_NonExistent_ShouldReturnNull() {
         // Act
         var memory = _store.GetMemory("nonexistent_id");
 
@@ -200,8 +184,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void DeleteMemory_Existing_ShouldRemoveMemory()
-    {
+    public void DeleteMemory_Existing_ShouldRemoveMemory() {
         // Arrange
         _store.AddMemory("Memory to delete");
         var memory = _store.Search("Memory to delete").First();
@@ -216,8 +199,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void DeleteMemory_NonExistent_ShouldReturnFalse()
-    {
+    public void DeleteMemory_NonExistent_ShouldReturnFalse() {
         // Act
         var result = _store.DeleteMemory("nonexistent_id");
 
@@ -226,8 +208,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void ArchiveMemory_Existing_ShouldArchiveMemory()
-    {
+    public void ArchiveMemory_Existing_ShouldArchiveMemory() {
         // Arrange
         _store.AddMemory("Memory to archive");
         var memory = _store.Search("Memory to archive").First();
@@ -243,8 +224,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void ArchiveMemory_NonExistent_ShouldReturnFalse()
-    {
+    public void ArchiveMemory_NonExistent_ShouldReturnFalse() {
         // Act
         var result = _store.ArchiveMemory("nonexistent_id");
 
@@ -253,8 +233,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void RestoreMemory_Archived_ShouldUnarchiveMemory()
-    {
+    public void RestoreMemory_Archived_ShouldUnarchiveMemory() {
         // Arrange
         _store.AddMemory("Memory to restore");
         var memory = _store.Search("Memory to restore").First();
@@ -271,8 +250,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void RestoreMemory_NonExistent_ShouldReturnFalse()
-    {
+    public void RestoreMemory_NonExistent_ShouldReturnFalse() {
         // Act
         var result = _store.RestoreMemory("nonexistent_id");
 
@@ -281,8 +259,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void GetTypes_ShouldReturnAllTypes()
-    {
+    public void GetTypes_ShouldReturnAllTypes() {
         // Arrange
         _store.AddMemory("Work task 1", MemoryType.Project);
         _store.AddMemory("Work task 2", MemoryType.Project);
@@ -297,8 +274,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void GetAllTags_ShouldReturnAllTags()
-    {
+    public void GetAllTags_ShouldReturnAllTags() {
         // Arrange
         _store.AddMemory("Memory 1", tags: new List<string> { "tag1", "tag2" });
         _store.AddMemory("Memory 2", tags: new List<string> { "tag2", "tag3" });
@@ -313,8 +289,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void GetStatistics_ShouldReturnCorrectStats()
-    {
+    public void GetStatistics_ShouldReturnCorrectStats() {
         // Arrange
         _store.AddMemory("Work 1", MemoryType.Project);
         _store.AddMemory("Work 2", MemoryType.Project);
@@ -330,8 +305,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void MemoryEntry_ShouldHaveAutoGeneratedId()
-    {
+    public void MemoryEntry_ShouldHaveAutoGeneratedId() {
         // Arrange
         _store.AddMemory("Test memory");
 
@@ -344,8 +318,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void MemoryEntry_ShouldTrackAccessCount()
-    {
+    public void MemoryEntry_ShouldTrackAccessCount() {
         // Arrange
         _store.AddMemory("Access count test");
         var memory = _store.Search("Access count test").First();
@@ -360,8 +333,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void MemoryEntry_ShouldHaveCreatedAtTimestamp()
-    {
+    public void MemoryEntry_ShouldHaveCreatedAtTimestamp() {
         // Arrange
         var before = DateTime.UtcNow;
         _store.AddMemory("Timestamp test");
@@ -376,8 +348,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void MemoryEntry_ShouldHaveLastAccessedAt()
-    {
+    public void MemoryEntry_ShouldHaveLastAccessedAt() {
         // Arrange
         _store.AddMemory("Last accessed test");
 
@@ -389,8 +360,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void MemoryEntry_ShouldHaveTtl()
-    {
+    public void MemoryEntry_ShouldHaveTtl() {
         // Arrange
         _store.AddMemory("TTL test", MemoryType.User);
 
@@ -403,8 +373,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void MemoryStatistics_DefaultValues_ShouldBeEmpty()
-    {
+    public void MemoryStatistics_DefaultValues_ShouldBeEmpty() {
         // Arrange & Act - empty store
         var stats = _store.GetStatistics();
 
@@ -419,8 +388,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_NonExistentFile_ShouldCreateEmptyStore()
-    {
+    public void Constructor_NonExistentFile_ShouldCreateEmptyStore() {
         // Arrange
         var newPath = "/test/new_memories.json";
 
@@ -432,8 +400,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void SearchByTags_ReturnsLazyEnumerable()
-    {
+    public void SearchByTags_ReturnsLazyEnumerable() {
         // Arrange - 添加记忆
         _store.AddMemory("延迟求值测试", tags: new List<string> { "lazy" });
 
@@ -448,8 +415,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void SearchByType_ReturnsLazyEnumerable()
-    {
+    public void SearchByType_ReturnsLazyEnumerable() {
         // Arrange - 添加记忆
         _store.AddMemory("延迟求值类型测试", MemoryType.Feedback);
 
@@ -464,8 +430,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void SearchByTags_MultipleIterations_ReturnsConsistentResults()
-    {
+    public void SearchByTags_MultipleIterations_ReturnsConsistentResults() {
         // Arrange - 添加多条记忆
         _store.AddMemory("标签迭代A", tags: new List<string> { "iter" });
         _store.AddMemory("标签迭代B", tags: new List<string> { "iter" });
@@ -485,8 +450,7 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void SearchByType_MultipleIterations_ReturnsConsistentResults()
-    {
+    public void SearchByType_MultipleIterations_ReturnsConsistentResults() {
         // Arrange - 添加多条记忆
         _store.AddMemory("类型迭代A", MemoryType.Project);
         _store.AddMemory("类型迭代B", MemoryType.Project);
@@ -506,11 +470,9 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void SearchByTags_WithLimit_RespectsLimitAfterMaterialization()
-    {
+    public void SearchByTags_WithLimit_RespectsLimitAfterMaterialization() {
         // Arrange - 添加5条匹配记忆
-        for (int i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             _store.AddMemory($"标签记忆 {i}", tags: new List<string> { "limit" });
         }
 
@@ -522,11 +484,9 @@ public class MemoryStoreTests : IDisposable
     }
 
     [Fact]
-    public void SearchByType_WithLimit_RespectsLimitAfterMaterialization()
-    {
+    public void SearchByType_WithLimit_RespectsLimitAfterMaterialization() {
         // Arrange - 添加5条匹配记忆
-        for (int i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             _store.AddMemory($"类型记忆 {i}", MemoryType.User);
         }
 

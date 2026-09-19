@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Hooks;
 
-public sealed record PermissionUpdate
-{
+public sealed record PermissionUpdate {
     public required string ToolName { get; init; }
     public required string Action { get; init; }
     public required string Destination { get; init; }
@@ -11,8 +10,7 @@ public sealed record PermissionUpdate
 /// <summary>
 /// 钩子输入数据（纯数据部分，不含工厂方法）
 /// </summary>
-public sealed record HookInput
-{
+public sealed record HookInput {
     public required HookEvent Event { get; init; }
 
     public string EventName => Event.ToEventName();

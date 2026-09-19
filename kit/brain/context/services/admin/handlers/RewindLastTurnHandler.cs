@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 撤回最后一轮对话操作处理器
 /// </summary>
 [Register(typeof(IChatAdminOperationHandler), ServiceLifetime.Singleton)]
-public sealed partial class RewindLastTurnHandler : ServiceEntity, IChatAdminOperationHandler
-{
+public sealed partial class RewindLastTurnHandler : ServiceEntity, IChatAdminOperationHandler {
     /// <summary>
     /// 获取该处理器负责的管理操作类型
     /// </summary>
@@ -17,8 +16,7 @@ public sealed partial class RewindLastTurnHandler : ServiceEntity, IChatAdminOpe
     /// <param name="context">管理操作上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct)
-    {
+    public async Task ExecuteAsync(ChatAdminContext context, CancellationToken ct) {
         context.RewindResult = await context.ContextManager.RewindLastTurnAsync(ct).ConfigureAwait(false);
     }
 }

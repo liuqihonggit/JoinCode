@@ -1,24 +1,20 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class CacheBreakDetectorCompactionTests
-{
+public sealed class CacheBreakDetectorCompactionTests {
     private readonly CacheBreakDetector _detector = new();
 
-    private static TokenUsage Hit(int read, int creation = 0) => new(100, 50)
-    {
+    private static TokenUsage Hit(int read, int creation = 0) => new(100, 50) {
         CacheReadInputTokens = read,
         CacheCreationInputTokens = creation
     };
 
-    private static TokenUsage Miss() => new(100, 50)
-    {
+    private static TokenUsage Miss() => new(100, 50) {
         CacheReadInputTokens = 0,
         CacheCreationInputTokens = 100
     };
 
     [Fact]
-    public void AfterCompaction_NextMiss_ReportedAsCompactionEntered_InsteadOfEviction()
-    {
+    public void AfterCompaction_NextMiss_ReportedAsCompactionEntered_InsteadOfEviction() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System", tools, []);
 
@@ -37,8 +33,7 @@ public sealed class CacheBreakDetectorCompactionTests
     }
 
     [Fact]
-    public void RebuildTurn_AfterCompactionEntered_NotReportedAsEvictionAgain()
-    {
+    public void RebuildTurn_AfterCompactionEntered_NotReportedAsEvictionAgain() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System", tools, []);
 
@@ -57,8 +52,7 @@ public sealed class CacheBreakDetectorCompactionTests
     }
 
     [Fact]
-    public void WithoutCompaction_IdenticalMiss_StillReportedAsEviction()
-    {
+    public void WithoutCompaction_IdenticalMiss_StillReportedAsEviction() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System", tools, []);
 
@@ -71,8 +65,7 @@ public sealed class CacheBreakDetectorCompactionTests
     }
 
     [Fact]
-    public void SessionStats_RecordsCompactionEntered_SeparatelyFromEviction()
-    {
+    public void SessionStats_RecordsCompactionEntered_SeparatelyFromEviction() {
         var stats = new SessionStats();
         stats.RecordTurn(new TokenUsage(100, 50), 0, CacheBreakResult.Break(CacheBreakKind.CompactionEntered, "compacted"));
         stats.RecordTurn(new TokenUsage(100, 50), 0, CacheBreakResult.Break(CacheBreakKind.CacheEviction, "evicted"));

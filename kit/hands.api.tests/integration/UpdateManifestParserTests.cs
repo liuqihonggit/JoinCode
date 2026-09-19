@@ -4,11 +4,9 @@ namespace Hands.Tests.Integration;
 /// StaticFileUpdateSource.ParseManifest 单元测试 — manifest.json 解析
 /// > ADR: 0064
 /// </summary>
-public sealed class UpdateManifestParserTests
-{
+public sealed class UpdateManifestParserTests {
     [Fact]
-    public void ParseManifest_ValidJson_ReturnsManifest()
-    {
+    public void ParseManifest_ValidJson_ReturnsManifest() {
         var json = """
         {
           "latestVersion": "1.2.0",
@@ -37,8 +35,7 @@ public sealed class UpdateManifestParserTests
     }
 
     [Fact]
-    public void ParseManifest_MultipleReleases_ReturnsAll()
-    {
+    public void ParseManifest_MultipleReleases_ReturnsAll() {
         var json = """
         {
           "latestVersion": "2.0.0",
@@ -57,8 +54,7 @@ public sealed class UpdateManifestParserTests
     }
 
     [Fact]
-    public void ParseManifest_NoReleases_ReturnsEmptyList()
-    {
+    public void ParseManifest_NoReleases_ReturnsEmptyList() {
         var json = """{"latestVersion": "1.0.0", "channel": "stable", "releases": []}""";
         var manifest = StaticFileUpdateSource.ParseManifest(json);
 
@@ -67,8 +63,7 @@ public sealed class UpdateManifestParserTests
     }
 
     [Fact]
-    public void ParseManifest_MissingChannel_DefaultsToStable()
-    {
+    public void ParseManifest_MissingChannel_DefaultsToStable() {
         var json = """{"latestVersion": "1.0.0", "releases": []}""";
         var manifest = StaticFileUpdateSource.ParseManifest(json);
 
@@ -76,8 +71,7 @@ public sealed class UpdateManifestParserTests
     }
 
     [Fact]
-    public void ParseManifest_OptionalFields_NullWhenMissing()
-    {
+    public void ParseManifest_OptionalFields_NullWhenMissing() {
         var json = """
         {
           "latestVersion": "1.0.0",

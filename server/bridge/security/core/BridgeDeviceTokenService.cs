@@ -6,8 +6,7 @@ namespace Core.Bridge;
 /// Bridge 会话具有 ELEVATED 安全等级，需要额外的设备令牌
 /// best-effort 设计：任何失败只记日志不阻塞主流程
 /// </summary>
-public sealed class BridgeDeviceTokenService
-{
+public sealed class BridgeDeviceTokenService {
     private readonly HttpClient _httpClient;
     private readonly ILogger? _logger;
     private readonly string _authFilePath;
@@ -25,8 +24,7 @@ public sealed class BridgeDeviceTokenService
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器（可选）</param>
     public BridgeDeviceTokenService(HttpClient httpClient, IFileSystem fs, ILogger? logger = null)
-        : this(httpClient, fs, logger, authFilePath: null)
-    {
+        : this(httpClient, fs, logger, authFilePath: null) {
     }
 
     /// <summary>
@@ -36,8 +34,7 @@ public sealed class BridgeDeviceTokenService
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="authFilePath">认证文件路径（null 时使用默认路径）</param>
-    internal BridgeDeviceTokenService(HttpClient httpClient, IFileSystem fs, ILogger? logger, string? authFilePath)
-    {
+    internal BridgeDeviceTokenService(HttpClient httpClient, IFileSystem fs, ILogger? logger, string? authFilePath) {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
@@ -53,38 +50,32 @@ public sealed class BridgeDeviceTokenService
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>设备令牌；获取失败返回 null</returns>
-    public async Task<string?> GetTrustedDeviceTokenAsync(CancellationToken ct = default)
-    {
+    public async Task<string?> GetTrustedDeviceTokenAsync(CancellationToken ct = default) {
         // 1. 返回缓存
         if (_cachedToken is not null) return _cachedToken;
 
         // 2. 环境变量
         var envToken = Environment.GetEnvironmentVariable(TrustedDeviceTokenEnvVar);
-        if (!string.IsNullOrEmpty(envToken))
-        {
+        if (!string.IsNullOrEmpty(envToken)) {
             _cachedToken = envToken;
             return _cachedToken;
         }
 
         // 3. 安全存储（auth.json 中的 device_token 字段）
-        try
-        {
+        try {
             using var guard = await _semaphore.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
 
             // 双重检查
             if (_cachedToken is not null) return _cachedToken;
 
             var token = await ReadTokenFromStorageAsync(ct).ConfigureAwait(false);
-            if (token is not null)
-            {
+            if (token is not null) {
                 _cachedToken = token;
             }
 
             return _cachedToken;
-        
-        }
-        catch (Exception ex)
-        {
+
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "[BridgeDeviceToken] 读取设备令牌失败（best-effort）");
             return null;
         }
@@ -93,8 +84,7 @@ public sealed class BridgeDeviceTokenService
     /// <summary>
     /// 清除令牌缓存 — 对齐 TS 端 clearTrustedDeviceTokenCache
     /// </summary>
-    public void ClearCache()
-    {
+    public void ClearCache() {
         _cachedToken = null;
     }
 
@@ -104,20 +94,16 @@ public sealed class BridgeDeviceTokenService
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task ClearTokenAsync(CancellationToken ct = default)
-    {
+    public async Task ClearTokenAsync(CancellationToken ct = default) {
         ClearCache();
 
-        try
-        {
+        try {
             using var guard = await _semaphore.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
 
             await DeleteTokenFromStorageAsync(ct).ConfigureAwait(false);
             _logger?.LogInformation("[BridgeDeviceToken] 已清除设备令牌");
-        
-        }
-        catch (Exception ex)
-        {
+
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "[BridgeDeviceToken] 清除设备令牌失败（best-effort）");
         }
     }
@@ -130,10 +116,8 @@ public sealed class BridgeDeviceTokenService
     /// <param name="accessToken">访问令牌</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task EnrollTrustedDeviceAsync(string accessToken, CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task EnrollTrustedDeviceAsync(string accessToken, CancellationToken ct = default) {
+        try {
             using var guard = await _semaphore.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_semaphore.Name}' 等待超时");
 
             var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trusted_devices");
@@ -151,34 +135,28 @@ public sealed class BridgeDeviceTokenService
             var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             var je = JsonDocument.Parse(body).RootElement;
 
-            if (je.TryGetProperty("device_token", out var tokenProp))
-            {
+            if (je.TryGetProperty("device_token", out var tokenProp)) {
                 var token = tokenProp.GetString();
-                if (token is not null)
-                {
+                if (token is not null) {
                     _cachedToken = token;
                     await SaveTokenToStorageAsync(token, ct).ConfigureAwait(false);
                     _logger?.LogInformation("[BridgeDeviceToken] 设备注册成功");
                 }
             }
-        
-        }
-        catch (Exception ex)
-        {
+
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "[BridgeDeviceToken] 设备注册失败（best-effort）");
         }
     }
 
     /// <summary>从安全存储读取令牌</summary>
-    private async Task<string?> ReadTokenFromStorageAsync(CancellationToken ct)
-    {
+    private async Task<string?> ReadTokenFromStorageAsync(CancellationToken ct) {
         if (!_fs.FileExists(_authFilePath)) return null;
 
         await using var fs = _fs.CreateStream(_authFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var doc = await JsonDocument.ParseAsync(fs, cancellationToken: ct).ConfigureAwait(false);
 
-        if (doc.RootElement.TryGetProperty("device_token", out var tokenProp))
-        {
+        if (doc.RootElement.TryGetProperty("device_token", out var tokenProp)) {
             return tokenProp.GetString();
         }
 
@@ -186,20 +164,16 @@ public sealed class BridgeDeviceTokenService
     }
 
     /// <summary>保存令牌到安全存储</summary>
-    private async Task SaveTokenToStorageAsync(string token, CancellationToken ct)
-    {
+    private async Task SaveTokenToStorageAsync(string token, CancellationToken ct) {
         var dir = Path.GetDirectoryName(_authFilePath)!;
         _fs.CreateDirectory(dir);
 
         // 读取现有内容 — 存储 (key, rawJson) 对
         var data = new Dictionary<string, string>();
-        if (_fs.FileExists(_authFilePath))
-        {
-            await using (var fs = _fs.CreateStream(_authFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            {
+        if (_fs.FileExists(_authFilePath)) {
+            await using (var fs = _fs.CreateStream(_authFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
                 using var doc = await JsonDocument.ParseAsync(fs, cancellationToken: ct).ConfigureAwait(false);
-                foreach (var prop in doc.RootElement.EnumerateObject())
-                {
+                foreach (var prop in doc.RootElement.EnumerateObject()) {
                     data[prop.Name] = prop.Value.GetRawText();
                 }
             } // fs 在此处关闭
@@ -212,8 +186,7 @@ public sealed class BridgeDeviceTokenService
         var sb = new StringBuilder(256);
         sb.Append('{');
         var first = true;
-        foreach (var (key, rawValue) in data)
-        {
+        foreach (var (key, rawValue) in data) {
             if (!first) sb.Append(',');
             sb.Append('"').Append(EscapeJsonString(key)).Append("\":").Append(rawValue);
             first = false;
@@ -226,18 +199,15 @@ public sealed class BridgeDeviceTokenService
     }
 
     /// <summary>从安全存储删除令牌</summary>
-    private async Task DeleteTokenFromStorageAsync(CancellationToken ct)
-    {
+    private async Task DeleteTokenFromStorageAsync(CancellationToken ct) {
         if (!_fs.FileExists(_authFilePath)) return;
 
         // 先读取并解析，然后关闭文件句柄，再写回
         Dictionary<string, string> data;
-        await using (var fs = _fs.CreateStream(_authFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-        {
+        await using (var fs = _fs.CreateStream(_authFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
             using var doc = await JsonDocument.ParseAsync(fs, cancellationToken: ct).ConfigureAwait(false);
             data = new Dictionary<string, string>();
-            foreach (var prop in doc.RootElement.EnumerateObject())
-            {
+            foreach (var prop in doc.RootElement.EnumerateObject()) {
                 if (prop.NameEquals("device_token")) continue;
                 data[prop.Name] = prop.Value.GetRawText();
             }
@@ -247,8 +217,7 @@ public sealed class BridgeDeviceTokenService
         var sb = new StringBuilder(256);
         sb.Append('{');
         var first = true;
-        foreach (var (key, rawValue) in data)
-        {
+        foreach (var (key, rawValue) in data) {
             if (!first) sb.Append(',');
             sb.Append('"').Append(EscapeJsonString(key)).Append("\":").Append(rawValue);
             first = false;
@@ -261,8 +230,7 @@ public sealed class BridgeDeviceTokenService
     }
 
     /// <summary>JSON 字符串转义</summary>
-    private static string EscapeJsonString(string value)
-    {
+    private static string EscapeJsonString(string value) {
         return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r");
     }
 }

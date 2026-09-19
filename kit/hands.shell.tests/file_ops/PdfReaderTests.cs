@@ -1,12 +1,10 @@
 namespace Core.Tests.FileOps;
 
-public sealed class PdfReaderTests : IDisposable
-{
+public sealed class PdfReaderTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOperationService = new();
     private bool _disposed;
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
@@ -14,8 +12,7 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadPdfAsync_FileNotFound_ReturnsFail()
-    {
+    public async Task ReadPdfAsync_FileNotFound_ReturnsFail() {
         var result = await PdfReader.ReadPdfAsync("/missing.pdf", _fileOperationService.FileSystem).ConfigureAwait(true);
 
         result.Success.Should().BeFalse();
@@ -23,8 +20,7 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadPdfAsync_EmptyFile_ReturnsFail()
-    {
+    public async Task ReadPdfAsync_EmptyFile_ReturnsFail() {
         _fileOperationService.FileSystem.WriteAllText("/empty.pdf", string.Empty);
 
         var result = await PdfReader.ReadPdfAsync("/empty.pdf", _fileOperationService.FileSystem).ConfigureAwait(true);
@@ -34,8 +30,7 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadPdfAsync_TooLargeFile_ReturnsFail()
-    {
+    public async Task ReadPdfAsync_TooLargeFile_ReturnsFail() {
         var largeContent = new string('x', 100) + "%PDF-1.4\n";
         var bytes = new byte[FileOperationConfig.PdfTargetRawSize + 1];
         Array.Fill(bytes, (byte)'x');
@@ -53,8 +48,7 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadPdfAsync_InvalidHeader_ReturnsFail()
-    {
+    public async Task ReadPdfAsync_InvalidHeader_ReturnsFail() {
         _fileOperationService.FileSystem.WriteAllText("/invalid.pdf", "not a pdf");
 
         var result = await PdfReader.ReadPdfAsync("/invalid.pdf", _fileOperationService.FileSystem).ConfigureAwait(true);
@@ -64,8 +58,7 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadPdfAsync_ValidPdf_ReturnsOk()
-    {
+    public async Task ReadPdfAsync_ValidPdf_ReturnsOk() {
         var pdfBytes = CreateMinimalPdf(3);
         _fileOperationService.FileSystem.WriteAllBytes("/valid.pdf", pdfBytes);
 
@@ -78,15 +71,13 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public void IsPdfExtension_PdfExtension_ReturnsTrue()
-    {
+    public void IsPdfExtension_PdfExtension_ReturnsTrue() {
         PdfReader.IsPdfExtension("/path/to/file.pdf").Should().BeTrue();
         PdfReader.IsPdfExtension("FILE.PDF").Should().BeTrue();
     }
 
     [Fact]
-    public void IsPdfExtension_NonPdfExtension_ReturnsFalse()
-    {
+    public void IsPdfExtension_NonPdfExtension_ReturnsFalse() {
         PdfReader.IsPdfExtension("/path/to/file.txt").Should().BeFalse();
         PdfReader.IsPdfExtension("/path/to/file").Should().BeFalse();
     }
@@ -95,8 +86,7 @@ public sealed class PdfReaderTests : IDisposable
     [InlineData("5", 5, 5)]
     [InlineData("1-10", 1, 10)]
     [InlineData("3-", 3, int.MaxValue)]
-    public void ParsePageRange_ValidInput_ReturnsRange(string input, int first, int last)
-    {
+    public void ParsePageRange_ValidInput_ReturnsRange(string input, int first, int last) {
         var range = PdfReader.ParsePageRange(input);
 
         range.Should().NotBeNull();
@@ -111,8 +101,7 @@ public sealed class PdfReaderTests : IDisposable
     [InlineData("10-1")]
     [InlineData("abc")]
     [InlineData("1-")]
-    public void ParsePageRange_InvalidInput_ReturnsNull(string input)
-    {
+    public void ParsePageRange_InvalidInput_ReturnsNull(string input) {
         // Note: "1-" is valid per implementation, handled separately above
         if (input == "1-") return;
 
@@ -122,16 +111,14 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public void GetPdfPageCount_FileNotFound_ReturnsNull()
-    {
+    public void GetPdfPageCount_FileNotFound_ReturnsNull() {
         var count = PdfReader.GetPdfPageCount("/missing.pdf", _fileOperationService.FileSystem);
 
         count.Should().BeNull();
     }
 
     [Fact]
-    public void GetPdfPageCount_ValidPdf_ReturnsCount()
-    {
+    public void GetPdfPageCount_ValidPdf_ReturnsCount() {
         var pdfBytes = CreateMinimalPdf(7);
         _fileOperationService.FileSystem.WriteAllBytes("/count.pdf", pdfBytes);
 
@@ -141,16 +128,14 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public void GetBase64_WhenSuccess_ReturnsBase64()
-    {
+    public void GetBase64_WhenSuccess_ReturnsBase64() {
         var result = PdfReadResult.Ok("SGVsbG8=", 100, 1);
 
         result.GetBase64().Should().Be("SGVsbG8=");
     }
 
     [Fact]
-    public void GetBase64_WhenFail_Throws()
-    {
+    public void GetBase64_WhenFail_Throws() {
         var result = PdfReadResult.Fail("error", "message");
 
         var act = () => result.GetBase64();
@@ -159,16 +144,14 @@ public sealed class PdfReaderTests : IDisposable
     }
 
     [Fact]
-    public void GetOriginalSize_WhenSuccess_ReturnsSize()
-    {
+    public void GetOriginalSize_WhenSuccess_ReturnsSize() {
         var result = PdfReadResult.Ok("SGVsbG8=", 100, 1);
 
         result.GetOriginalSize().Should().Be(100);
     }
 
     [Fact]
-    public void GetOriginalSize_WhenFail_Throws()
-    {
+    public void GetOriginalSize_WhenFail_Throws() {
         var result = PdfReadResult.Fail("error", "message");
 
         var act = () => result.GetOriginalSize();
@@ -176,12 +159,10 @@ public sealed class PdfReaderTests : IDisposable
         act.Should().Throw<InvalidOperationException>();
     }
 
-    private static byte[] CreateMinimalPdf(int pageCount)
-    {
+    private static byte[] CreateMinimalPdf(int pageCount) {
         // Minimal PDF structure with /Type /Pages and /Count
         var pages = new StringBuilder();
-        for (var i = 1; i <= pageCount; i++)
-        {
+        for (var i = 1; i <= pageCount; i++) {
             pages.Append($"1 0 obj\n<< /Type /Page /Parent 2 0 R >>\nendobj\n");
         }
 

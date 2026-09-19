@@ -5,14 +5,11 @@ namespace Memdir.Sync;
 /// 文件监控中间件 — 初始化 IFileSystemWatcher
 /// </summary>
 [Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class FileWatcherMiddleware : ServiceEntity, ISyncStartMiddleware
-{
+public sealed partial class FileWatcherMiddleware : ServiceEntity, ISyncStartMiddleware {
 
     /// <inheritdoc />
-    public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
-    {
-        if (!ctx.Options.EnableFileWatching)
-        {
+    public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct) {
+        if (!ctx.Options.EnableFileWatching) {
             return next(ctx, ct);
         }
 
@@ -20,8 +17,7 @@ public sealed partial class FileWatcherMiddleware : ServiceEntity, ISyncStartMid
         watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size;
         watcher.IncludeSubdirectories = true;
 
-        foreach (var pattern in ctx.Options.FilePatterns)
-        {
+        foreach (var pattern in ctx.Options.FilePatterns) {
             watcher.Filters.Add(pattern);
         }
 

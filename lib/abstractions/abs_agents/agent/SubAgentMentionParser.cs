@@ -5,14 +5,12 @@ namespace JoinCode.Abstractions.Utils;
 /// CLI ReplLoopStep 与 GUI 消息路由共用此实现（自 JoinCode.Entry 内部类公共化迁入）。
 /// 语法: @agentName 消息内容（必须空格分隔）
 /// </summary>
-public static class SubAgentMentionParser
-{
+public static class SubAgentMentionParser {
     /// <summary>
     /// 尝试解析 @agentName 消息 语法
     /// </summary>
     /// <returns>(agentName, message) 或 null（非 @ 语法或格式无效）</returns>
-    public static (string AgentName, string Message)? Parse(string input)
-    {
+    public static (string AgentName, string Message)? Parse(string input) {
         if (string.IsNullOrWhiteSpace(input) || input[0] != '@') return null;
 
         var spaceIndex = input.IndexOf(' ');
@@ -32,8 +30,7 @@ public static class SubAgentMentionParser
     /// </summary>
     public static JoinCode.Abstractions.Interfaces.RunningAgentInfo? FindAgent(
         string agentName,
-        IEnumerable<JoinCode.Abstractions.Interfaces.RunningAgentInfo> runningAgents)
-    {
+        IEnumerable<JoinCode.Abstractions.Interfaces.RunningAgentInfo> runningAgents) {
         var agents = runningAgents as IReadOnlyCollection<JoinCode.Abstractions.Interfaces.RunningAgentInfo> ?? runningAgents.ToList();
         if (agents.Count == 0) return null;
 

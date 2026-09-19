@@ -4,14 +4,12 @@ namespace Core.Agents;
 /// Worktree 合并服务 — 将源 worktree 的变更合并到目标 worktree，支持 patch 与分支合并策略
 /// </summary>
 [Register(typeof(IWorktreeMergeService), ServiceLifetime.Singleton)]
-public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMergeService
-{
+public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMergeService {
 
     /// <summary>
     /// 构造 WorktreeMergeService 实例，注入 git 命令运行器、文件系统及日志器
     /// </summary>
-    public WorktreeMergeService(IGitCommandRunner gitRunner, IFileSystem fileSystem, ILogger<WorktreeMergeService>? logger = null)
-    {
+    public WorktreeMergeService(IGitCommandRunner gitRunner, IFileSystem fileSystem, ILogger<WorktreeMergeService>? logger = null) {
         _gitRunner = gitRunner;
         _fileSystem = fileSystem;
         _logger = logger;
@@ -32,8 +30,7 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
         string sourceWorktreePath,
         string targetWorktreePath,
         WorktreeMergeStrategy strategy = WorktreeMergeStrategy.Fail,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceWorktreePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetWorktreePath);
 
@@ -42,8 +39,7 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
 
         var conflictingFiles = sourceFiles.Intersect(targetFiles, StringComparer.OrdinalIgnoreCase).ToList();
 
-        if (conflictingFiles.Count == 0)
-        {
+        if (conflictingFiles.Count == 0) {
             _logger?.LogInformation("[WorktreeMerge] 无文件冲突，使用 git apply patch 合并 {Source} → {Target}",
                 sourceWorktreePath, targetWorktreePath);
             return await ApplyPatchAsync(sourceWorktreePath, targetWorktreePath, cancellationToken).ConfigureAwait(false);
@@ -58,28 +54,23 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
     private async Task<WorktreeMergeResult> ApplyPatchAsync(
         string sourceWorktreePath,
         string targetWorktreePath,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var diffResult = await ExecuteGitAsync(sourceWorktreePath, "diff HEAD", cancellationToken).ConfigureAwait(false);
-        if (!diffResult.Success)
-        {
+        if (!diffResult.Success) {
             return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, $"git diff failed: {diffResult.Error}");
         }
 
-        if (string.IsNullOrWhiteSpace(diffResult.Output))
-        {
+        if (string.IsNullOrWhiteSpace(diffResult.Output)) {
             _logger?.LogInformation("[WorktreeMerge] Source worktree 无改动，跳过合并");
             return WorktreeMergeResult.Success(sourceWorktreePath, targetWorktreePath, [], "patch-skip");
         }
 
         var patchPath = Path.Combine(Path.GetTempPath(), $"merge-patch-{Guid.NewGuid():N}.diff");
-        try
-        {
+        try {
             await _fileSystem.WriteAllTextAsync(patchPath, diffResult.Output, cancellationToken).ConfigureAwait(false);
 
             var applyResult = await ExecuteGitAsync(targetWorktreePath, $"apply \"{patchPath}\"", cancellationToken).ConfigureAwait(false);
-            if (!applyResult.Success)
-            {
+            if (!applyResult.Success) {
                 var checkResult = await ExecuteGitAsync(targetWorktreePath, $"apply --check \"{patchPath}\"", cancellationToken).ConfigureAwait(false);
                 return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath,
                     $"git apply failed: {applyResult.Error}", [checkResult.Error]);
@@ -87,11 +78,8 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
 
             var changedFiles = ParseDiffFiles(diffResult.Output);
             return WorktreeMergeResult.Success(sourceWorktreePath, targetWorktreePath, changedFiles, "patch");
-        }
-        finally
-        {
-            if (_fileSystem.FileExists(patchPath))
-            {
+        } finally {
+            if (_fileSystem.FileExists(patchPath)) {
                 _fileSystem.DeleteFile(patchPath);
             }
         }
@@ -102,50 +90,42 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
         string targetWorktreePath,
         WorktreeMergeStrategy strategy,
         IReadOnlyList<string> conflictFiles,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var branchResult = await ExecuteGitAsync(sourceWorktreePath, "branch --show-current", cancellationToken).ConfigureAwait(false);
         var sourceBranch = branchResult.Success && !string.IsNullOrWhiteSpace(branchResult.Output)
             ? branchResult.Output.Trim()
             : $"worktree-merge-{Guid.NewGuid():N}";
 
-        if (!branchResult.Success || string.IsNullOrWhiteSpace(branchResult.Output))
-        {
+        if (!branchResult.Success || string.IsNullOrWhiteSpace(branchResult.Output)) {
             var checkoutResult = await ExecuteGitAsync(sourceWorktreePath, $"checkout -b {sourceBranch}", cancellationToken).ConfigureAwait(false);
-            if (!checkoutResult.Success)
-            {
+            if (!checkoutResult.Success) {
                 return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, $"Failed to create branch: {checkoutResult.Error}");
             }
         }
 
         var addResult = await ExecuteGitAsync(sourceWorktreePath, "add -A", cancellationToken).ConfigureAwait(false);
-        if (!addResult.Success)
-        {
+        if (!addResult.Success) {
             return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, $"git add failed: {addResult.Error}");
         }
 
         var commitResult = await ExecuteGitAsync(sourceWorktreePath, "commit -m \"worktree-merge: auto-commit before merge\"", cancellationToken).ConfigureAwait(false);
-        if (!commitResult.Success && !commitResult.Error.Contains("nothing to commit", StringComparison.OrdinalIgnoreCase))
-        {
+        if (!commitResult.Success && !commitResult.Error.Contains("nothing to commit", StringComparison.OrdinalIgnoreCase)) {
             return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, $"git commit failed: {commitResult.Error}");
         }
 
         var preCheckConflicts = await PreCheckMergeConflictsAsync(sourceWorktreePath, targetWorktreePath, sourceBranch, strategy, cancellationToken).ConfigureAwait(false);
-        if (preCheckConflicts is not null)
-        {
+        if (preCheckConflicts is not null) {
             return preCheckConflicts;
         }
 
         var mergeResult = await ExecuteGitAsync(targetWorktreePath, $"merge {sourceBranch} --no-edit", cancellationToken).ConfigureAwait(false);
 
-        if (mergeResult.Success)
-        {
+        if (mergeResult.Success) {
             var changedFiles = await GetChangedFilesAsync(targetWorktreePath, cancellationToken).ConfigureAwait(false);
             return WorktreeMergeResult.Success(sourceWorktreePath, targetWorktreePath, changedFiles, "merge");
         }
 
-        if (mergeResult.Error.Contains("CONFLICT", StringComparison.OrdinalIgnoreCase))
-        {
+        if (mergeResult.Error.Contains("CONFLICT", StringComparison.OrdinalIgnoreCase)) {
             return await HandleConflictAsync(sourceWorktreePath, targetWorktreePath, strategy, cancellationToken).ConfigureAwait(false);
         }
 
@@ -157,48 +137,42 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
         string sourceWorktreePath,
         string targetWorktreePath,
         WorktreeMergeStrategy strategy,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var conflictListResult = await ExecuteGitAsync(targetWorktreePath, "diff --name-only --diff-filter=U", cancellationToken).ConfigureAwait(false);
         var conflicts = conflictListResult.Success
             ? conflictListResult.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList()
             : [];
 
-        switch (strategy)
-        {
+        switch (strategy) {
             case WorktreeMergeStrategy.Ours:
-                foreach (var file in conflicts)
-                {
-                    await ExecuteGitAsync(targetWorktreePath, $"checkout --ours \"{file}\"", cancellationToken).ConfigureAwait(false);
-                    await ExecuteGitAsync(targetWorktreePath, $"add \"{file}\"", cancellationToken).ConfigureAwait(false);
-                }
-                break;
+            foreach (var file in conflicts) {
+                await ExecuteGitAsync(targetWorktreePath, $"checkout --ours \"{file}\"", cancellationToken).ConfigureAwait(false);
+                await ExecuteGitAsync(targetWorktreePath, $"add \"{file}\"", cancellationToken).ConfigureAwait(false);
+            }
+            break;
 
             case WorktreeMergeStrategy.Theirs:
-                foreach (var file in conflicts)
-                {
-                    await ExecuteGitAsync(targetWorktreePath, $"checkout --theirs \"{file}\"", cancellationToken).ConfigureAwait(false);
-                    await ExecuteGitAsync(targetWorktreePath, $"add \"{file}\"", cancellationToken).ConfigureAwait(false);
-                }
-                break;
+            foreach (var file in conflicts) {
+                await ExecuteGitAsync(targetWorktreePath, $"checkout --theirs \"{file}\"", cancellationToken).ConfigureAwait(false);
+                await ExecuteGitAsync(targetWorktreePath, $"add \"{file}\"", cancellationToken).ConfigureAwait(false);
+            }
+            break;
 
             case WorktreeMergeStrategy.AutoMerge:
-                break;
+            break;
 
             default:
-                await ExecuteGitAsync(targetWorktreePath, "merge --abort", cancellationToken).ConfigureAwait(false);
-                return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, "Merge conflict detected, strategy=Fail", conflicts);
+            await ExecuteGitAsync(targetWorktreePath, "merge --abort", cancellationToken).ConfigureAwait(false);
+            return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, "Merge conflict detected, strategy=Fail", conflicts);
         }
 
         var commitResult = await ExecuteGitAsync(targetWorktreePath, "commit --no-edit", cancellationToken).ConfigureAwait(false);
-        if (!commitResult.Success)
-        {
+        if (!commitResult.Success) {
             await ExecuteGitAsync(targetWorktreePath, "merge --abort", cancellationToken).ConfigureAwait(false);
             return WorktreeMergeResult.Failed(sourceWorktreePath, targetWorktreePath, $"Conflict resolution commit failed: {commitResult.Error}", conflicts);
         }
 
-        return new WorktreeMergeResult
-        {
+        return new WorktreeMergeResult {
             SourceWorktreePath = sourceWorktreePath,
             TargetWorktreePath = targetWorktreePath,
             IsSuccess = true,
@@ -208,20 +182,16 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
         };
     }
 
-    private async Task<List<string>> GetChangedFilesAsync(string worktreePath, CancellationToken cancellationToken)
-    {
+    private async Task<List<string>> GetChangedFilesAsync(string worktreePath, CancellationToken cancellationToken) {
         var result = await ExecuteGitAsync(worktreePath, "diff --name-only HEAD", cancellationToken).ConfigureAwait(false);
         if (!result.Success) return [];
         return result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
     }
 
-    private static List<string> ParseDiffFiles(string diffOutput)
-    {
+    private static List<string> ParseDiffFiles(string diffOutput) {
         var files = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var line in diffOutput.Split('\n'))
-        {
-            if (line.StartsWith("+++ b/", StringComparison.Ordinal) || line.StartsWith("--- a/", StringComparison.Ordinal))
-            {
+        foreach (var line in diffOutput.Split('\n')) {
+            if (line.StartsWith("+++ b/", StringComparison.Ordinal) || line.StartsWith("--- a/", StringComparison.Ordinal)) {
                 var filePath = line[6..];
                 files.Add(filePath);
             }
@@ -234,33 +204,28 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
         string targetWorktreePath,
         string sourceBranch,
         WorktreeMergeStrategy strategy,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var staleCheck = await CheckStaleConflictMarkersAsync(sourceWorktreePath, targetWorktreePath, cancellationToken).ConfigureAwait(false);
-        if (staleCheck is not null)
-        {
+        if (staleCheck is not null) {
             return staleCheck;
         }
 
         var targetBranchResult = await ExecuteGitAsync(targetWorktreePath, "branch --show-current", cancellationToken).ConfigureAwait(false);
-        if (!targetBranchResult.Success || string.IsNullOrWhiteSpace(targetBranchResult.Output))
-        {
+        if (!targetBranchResult.Success || string.IsNullOrWhiteSpace(targetBranchResult.Output)) {
             return null;
         }
 
         var targetBranch = targetBranchResult.Output.Trim();
         var conflictCheck = await _gitRunner.DetectMergeConflictAsync(targetBranch, sourceBranch, targetWorktreePath, cancellationToken).ConfigureAwait(false);
 
-        if (!conflictCheck.HasConflict)
-        {
+        if (!conflictCheck.HasConflict) {
             return null;
         }
 
         _logger?.LogInformation("[WorktreeMerge] 只读预检发现 {Count} 个冲突文件: {Files}",
             conflictCheck.ConflictFiles.Count, string.Join(", ", conflictCheck.ConflictFiles));
 
-        if (strategy == WorktreeMergeStrategy.Fail)
-        {
+        if (strategy == WorktreeMergeStrategy.Fail) {
             return WorktreeMergeResult.Failed(
                 sourceWorktreePath,
                 targetWorktreePath,
@@ -274,11 +239,9 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
     private async Task<WorktreeMergeResult?> CheckStaleConflictMarkersAsync(
         string sourceWorktreePath,
         string targetWorktreePath,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var sourceCheck = await _gitRunner.DetectStaleConflictMarkersAsync(sourceWorktreePath, cancellationToken).ConfigureAwait(false);
-        if (sourceCheck.HasStaleMarkers)
-        {
+        if (sourceCheck.HasStaleMarkers) {
             _logger?.LogError("[WorktreeMerge] 源 worktree 存在遗留冲突标记，禁止合并: {Files}",
                 string.Join(", ", sourceCheck.Files));
             return WorktreeMergeResult.Failed(
@@ -289,8 +252,7 @@ public sealed partial class WorktreeMergeService : ServiceEntity, IWorktreeMerge
         }
 
         var targetCheck = await _gitRunner.DetectStaleConflictMarkersAsync(targetWorktreePath, cancellationToken).ConfigureAwait(false);
-        if (targetCheck.HasStaleMarkers)
-        {
+        if (targetCheck.HasStaleMarkers) {
             _logger?.LogError("[WorktreeMerge] 目标 worktree 存在遗留冲突标记，禁止合并: {Files}",
                 string.Join(", ", targetCheck.Files));
             return WorktreeMergeResult.Failed(

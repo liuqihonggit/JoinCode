@@ -3,13 +3,11 @@ namespace Abs.Tests.Tools;
 /// <summary>
 /// ToolHealthMonitorExtensions 单元测试 — 验证 ShouldAutoFixAsync / GetErrorCountAsync 扩展方法
 /// </summary>
-public sealed class ToolHealthMonitorExtensionsTest
-{
+public sealed class ToolHealthMonitorExtensionsTest {
     // === ShouldAutoFixAsync ===
 
     [Fact]
-    public async Task ShouldAutoFixAsync_RecordNull_ReturnsFalse()
-    {
+    public async Task ShouldAutoFixAsync_RecordNull_ReturnsFalse() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync((ToolHealthRecord?)null);
@@ -20,8 +18,7 @@ public sealed class ToolHealthMonitorExtensionsTest
     }
 
     [Fact]
-    public async Task ShouldAutoFixAsync_ConsecutiveFailuresBelowThreshold_ReturnsFalse()
-    {
+    public async Task ShouldAutoFixAsync_ConsecutiveFailuresBelowThreshold_ReturnsFalse() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 2 });
@@ -32,8 +29,7 @@ public sealed class ToolHealthMonitorExtensionsTest
     }
 
     [Fact]
-    public async Task ShouldAutoFixAsync_ConsecutiveFailuresAtThreshold_ReturnsTrue()
-    {
+    public async Task ShouldAutoFixAsync_ConsecutiveFailuresAtThreshold_ReturnsTrue() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 3 });
@@ -44,8 +40,7 @@ public sealed class ToolHealthMonitorExtensionsTest
     }
 
     [Fact]
-    public async Task ShouldAutoFixAsync_ConsecutiveFailuresAboveThreshold_ReturnsTrue()
-    {
+    public async Task ShouldAutoFixAsync_ConsecutiveFailuresAboveThreshold_ReturnsTrue() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 5 });
@@ -56,8 +51,7 @@ public sealed class ToolHealthMonitorExtensionsTest
     }
 
     [Fact]
-    public async Task ShouldAutoFixAsync_DefaultThreshold_Is3()
-    {
+    public async Task ShouldAutoFixAsync_DefaultThreshold_Is3() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 3 });
@@ -68,8 +62,7 @@ public sealed class ToolHealthMonitorExtensionsTest
     }
 
     [Fact]
-    public async Task ShouldAutoFixAsync_DefaultThreshold_Below3_ReturnsFalse()
-    {
+    public async Task ShouldAutoFixAsync_DefaultThreshold_Below3_ReturnsFalse() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 2 });
@@ -82,8 +75,7 @@ public sealed class ToolHealthMonitorExtensionsTest
     // === GetErrorCountAsync ===
 
     [Fact]
-    public async Task GetErrorCountAsync_RecordNull_ReturnsZero()
-    {
+    public async Task GetErrorCountAsync_RecordNull_ReturnsZero() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync((ToolHealthRecord?)null);
@@ -94,8 +86,7 @@ public sealed class ToolHealthMonitorExtensionsTest
     }
 
     [Fact]
-    public async Task GetErrorCountAsync_RecordExists_ReturnsConsecutiveFailures()
-    {
+    public async Task GetErrorCountAsync_RecordExists_ReturnsConsecutiveFailures() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 7 });
@@ -106,8 +97,7 @@ public sealed class ToolHealthMonitorExtensionsTest
     }
 
     [Fact]
-    public async Task GetErrorCountAsync_ZeroFailures_ReturnsZero()
-    {
+    public async Task GetErrorCountAsync_ZeroFailures_ReturnsZero() {
         var monitor = new Mock<IToolHealthMonitor>();
         monitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
                .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 0 });

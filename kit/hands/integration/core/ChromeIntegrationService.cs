@@ -4,8 +4,7 @@ namespace IO.Services;
 /// Chrome 集成服务 — 检测 Chrome 扩展、管理连接状态与默认启用开关
 /// </summary>
 [Register(typeof(IChromeIntegrationService), ServiceLifetime.Singleton)]
-public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeIntegrationService, IDisposable
-{
+public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeIntegrationService, IDisposable {
     private bool _isConnected;
     private bool _isDefaultEnabled;
     private bool _initialized;
@@ -24,8 +23,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     public ChromeIntegrationService(
         IProcessService processService,
         ILogger<ChromeIntegrationService>? logger = null,
-        IConfigurationService? configService = null)
-    {
+        IConfigurationService? configService = null) {
         _processService = processService ?? throw new ArgumentNullException(nameof(processService));
         _logger = logger;
         _configService = configService;
@@ -34,16 +32,11 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// <summary>
     /// 是否已安装 Chrome 扩展 — 通过查找 chrome 可执行文件判断
     /// </summary>
-    public bool IsExtensionInstalled
-    {
-        get
-        {
-            try
-            {
+    public bool IsExtensionInstalled {
+        get {
+            try {
                 return Task.Run(() => _processService.FindExecutableAsync("chrome")).GetAwaiter().GetResult() != null;
-            }
-            catch
-            {
+            } catch {
                 return false;
             }
         }
@@ -56,23 +49,19 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// <summary>
     /// 是否默认启用 Chrome 集成 — 首次访问时从配置懒加载
     /// </summary>
-    public bool IsDefaultEnabled
-    {
-        get
-        {
+    public bool IsDefaultEnabled {
+        get {
             EnsureInitialized();
             return _isDefaultEnabled;
         }
     }
 
-    private void EnsureInitialized()
-    {
+    private void EnsureInitialized() {
         if (_initialized) return;
         using var guard = _initLock.TryLock();
         if (guard is null) return;
         if (_initialized) return;
-        try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); }
-        catch { _isDefaultEnabled = false; }
+        try { _isDefaultEnabled = Task.Run(() => ReadDefaultEnabledAsync()).GetAwaiter().GetResult(); } catch { _isDefaultEnabled = false; }
         _initialized = true;
     }
 
@@ -81,10 +70,8 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>连接成功返回 true；扩展未安装返回 false</returns>
-    public Task<bool> ConnectAsync(CancellationToken ct = default)
-    {
-        if (!IsExtensionInstalled)
-        {
+    public Task<bool> ConnectAsync(CancellationToken ct = default) {
+        if (!IsExtensionInstalled) {
             _logger?.LogWarning("Chrome 扩展未检测到");
             return Task.FromResult(false);
         }
@@ -99,8 +86,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task DisconnectAsync(CancellationToken ct = default)
-    {
+    public Task DisconnectAsync(CancellationToken ct = default) {
         _isConnected = false;
         _logger?.LogInformation("Chrome 扩展已断开");
         return Task.CompletedTask;
@@ -111,20 +97,15 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task OpenExtensionPageAsync(CancellationToken ct = default)
-    {
-        if (TestEnvironmentDetector.IsNonInteractive)
-        {
+    public async Task OpenExtensionPageAsync(CancellationToken ct = default) {
+        if (TestEnvironmentDetector.IsNonInteractive) {
             _logger?.LogInformation("非交互环境,跳过打开 Chrome 扩展页面");
             return;
         }
 
-        try
-        {
+        try {
             await _processService.OpenAsync(JccEndpoints.ChromeIntegrationUrl, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "打开 Chrome 扩展页面失败");
         }
     }
@@ -134,12 +115,10 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>切换后的默认启用状态</returns>
-    public async Task<bool> ToggleDefaultEnabledAsync(CancellationToken ct = default)
-    {
+    public async Task<bool> ToggleDefaultEnabledAsync(CancellationToken ct = default) {
         _isDefaultEnabled = !_isDefaultEnabled;
 
-        if (_configService != null)
-        {
+        if (_configService != null) {
             await _configService.SetAsync("chrome.defaultEnabled", _isDefaultEnabled ? "true" : "false", ct).ConfigureAwait(false);
         }
 
@@ -147,8 +126,7 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
         return _isDefaultEnabled;
     }
 
-    private async Task<bool> ReadDefaultEnabledAsync()
-    {
+    private async Task<bool> ReadDefaultEnabledAsync() {
         if (_configService == null) return false;
         var value = await _configService.GetAsync("chrome.defaultEnabled").ConfigureAwait(false);
         return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
@@ -157,11 +135,10 @@ public sealed partial class ChromeIntegrationService : ServiceEntity, IChromeInt
     /// <summary>
     /// 释放资源 — 释放初始化锁
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _initLock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }

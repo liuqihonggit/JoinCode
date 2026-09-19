@@ -3,11 +3,9 @@ namespace Core.Goal.Tests;
 /// <summary>
 /// GoalStateTransitions 单元测试 — 验证目标状态转换规则正确性
 /// </summary>
-public sealed class GoalStateTransitionsTests
-{
+public sealed class GoalStateTransitionsTests {
     [Fact]
-    public void IsTerminal_ShouldReturnTrue_OnlyForTerminalStates()
-    {
+    public void IsTerminal_ShouldReturnTrue_OnlyForTerminalStates() {
         GoalStateTransitions.IsTerminal(GoalStatus.Achieved).Should().BeTrue();
         GoalStateTransitions.IsTerminal(GoalStatus.Unmet).Should().BeTrue();
         GoalStateTransitions.IsTerminal(GoalStatus.BudgetLimited).Should().BeTrue();
@@ -16,8 +14,7 @@ public sealed class GoalStateTransitionsTests
     }
 
     [Fact]
-    public void CanTransitionTo_ShouldAllowPursuingToPausedAchievedUnmetBudgetLimited()
-    {
+    public void CanTransitionTo_ShouldAllowPursuingToPausedAchievedUnmetBudgetLimited() {
         GoalStateTransitions.CanTransitionTo(GoalStatus.Pursuing, GoalStatus.Paused).Should().BeTrue();
         GoalStateTransitions.CanTransitionTo(GoalStatus.Pursuing, GoalStatus.Achieved).Should().BeTrue();
         GoalStateTransitions.CanTransitionTo(GoalStatus.Pursuing, GoalStatus.Unmet).Should().BeTrue();
@@ -25,24 +22,20 @@ public sealed class GoalStateTransitionsTests
     }
 
     [Fact]
-    public void CanTransitionTo_ShouldAllowPausedToPursuingAndUnmet()
-    {
+    public void CanTransitionTo_ShouldAllowPausedToPursuingAndUnmet() {
         GoalStateTransitions.CanTransitionTo(GoalStatus.Paused, GoalStatus.Pursuing).Should().BeTrue();
         GoalStateTransitions.CanTransitionTo(GoalStatus.Paused, GoalStatus.Unmet).Should().BeTrue();
     }
 
     [Fact]
-    public void CanTransitionTo_ShouldDenyPausedToAchievedOrBudgetLimited()
-    {
+    public void CanTransitionTo_ShouldDenyPausedToAchievedOrBudgetLimited() {
         GoalStateTransitions.CanTransitionTo(GoalStatus.Paused, GoalStatus.Achieved).Should().BeFalse();
         GoalStateTransitions.CanTransitionTo(GoalStatus.Paused, GoalStatus.BudgetLimited).Should().BeFalse();
     }
 
     [Fact]
-    public void CanTransitionTo_ShouldAllowTerminalToPursuingAndUnmet()
-    {
-        foreach (var terminal in new[] { GoalStatus.Achieved, GoalStatus.Unmet, GoalStatus.BudgetLimited })
-        {
+    public void CanTransitionTo_ShouldAllowTerminalToPursuingAndUnmet() {
+        foreach (var terminal in new[] { GoalStatus.Achieved, GoalStatus.Unmet, GoalStatus.BudgetLimited }) {
             GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.Pursuing).Should().BeTrue(
                 $"{terminal} 应能转 Pursuing(Start重新开始)");
             GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.Unmet).Should().BeTrue(
@@ -51,24 +44,19 @@ public sealed class GoalStateTransitionsTests
     }
 
     [Fact]
-    public void CanTransitionTo_ShouldDenyTerminalToPausedOrAchievedOrBudgetLimited()
-    {
-        foreach (var terminal in new[] { GoalStatus.Achieved, GoalStatus.Unmet, GoalStatus.BudgetLimited })
-        {
-            if (terminal == GoalStatus.Achieved)
-            {
+    public void CanTransitionTo_ShouldDenyTerminalToPausedOrAchievedOrBudgetLimited() {
+        foreach (var terminal in new[] { GoalStatus.Achieved, GoalStatus.Unmet, GoalStatus.BudgetLimited }) {
+            if (terminal == GoalStatus.Achieved) {
                 GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.Paused).Should().BeFalse();
                 GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.BudgetLimited).Should().BeFalse();
             }
 
-            if (terminal == GoalStatus.BudgetLimited)
-            {
+            if (terminal == GoalStatus.BudgetLimited) {
                 GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.Paused).Should().BeFalse();
                 GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.Achieved).Should().BeFalse();
             }
 
-            if (terminal == GoalStatus.Unmet)
-            {
+            if (terminal == GoalStatus.Unmet) {
                 GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.Paused).Should().BeFalse();
                 GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.Achieved).Should().BeFalse();
                 GoalStateTransitions.CanTransitionTo(terminal, GoalStatus.BudgetLimited).Should().BeFalse();
@@ -77,10 +65,8 @@ public sealed class GoalStateTransitionsTests
     }
 
     [Fact]
-    public void CanTransitionTo_ShouldAllowSelfLoop()
-    {
-        foreach (var state in Enum.GetValues<GoalStatus>())
-        {
+    public void CanTransitionTo_ShouldAllowSelfLoop() {
+        foreach (var state in Enum.GetValues<GoalStatus>()) {
             GoalStateTransitions.CanTransitionTo(state, state).Should().BeTrue();
         }
     }

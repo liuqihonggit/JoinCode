@@ -1,7 +1,6 @@
 namespace Memdir.Sync.Helpers;
 
-internal sealed class SyncFileTransfer : IAsyncDisposable
-{
+internal sealed class SyncFileTransfer : IAsyncDisposable {
     private readonly IFileSystem _fs;
     private readonly IFileOperationService _fileOperationService;
     private readonly TeamMemorySyncOptions _options;
@@ -22,8 +21,7 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
         ILogger? logger,
         ConcurrentDictionary<string, SyncFileEntry> localEntries,
         ConcurrentDictionary<string, SyncFileEntry> remoteEntries,
-        SyncEventLog eventLog)
-    {
+        SyncEventLog eventLog) {
         _fs = fs;
         _fileOperationService = fileOperationService;
         _options = options;
@@ -34,18 +32,15 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
         _eventLog = eventLog;
     }
 
-    internal async Task PushToRemoteAsync(string filePath, CancellationToken cancellationToken)
-    {
+    internal async Task PushToRemoteAsync(string filePath, CancellationToken cancellationToken) {
         if (string.IsNullOrEmpty(_options.RemoteStoragePath)) return;
 
-        try
-        {
+        try {
             var content = await _fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
             var hash = SyncFileHash.Compute(_fs, filePath);
             var lastModified = _fs.GetLastWriteTimeUtc(filePath);
 
-            var entry = new SyncFileEntry
-            {
+            var entry = new SyncFileEntry {
                 FilePath = filePath,
                 ContentHash = hash,
                 LastModified = lastModified,
@@ -56,8 +51,7 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
 
             await PersistRemoteIndexAsync(cancellationToken).ConfigureAwait(false);
 
-            _eventLog.Enqueue(new MemorySyncEvent
-            {
+            _eventLog.Enqueue(new MemorySyncEvent {
                 EventId = Guid.NewGuid().ToString("N")[..8],
                 FilePath = filePath,
                 Type = SyncEventType.Synced,
@@ -66,19 +60,15 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
             });
 
             _logger?.LogDebug(L.T(StringKey.VaultLogPushToRemote), filePath);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogPushToRemoteFailed), filePath);
         }
     }
 
-    internal async Task PullFromRemoteAsync(string filePath, CancellationToken cancellationToken)
-    {
+    internal async Task PullFromRemoteAsync(string filePath, CancellationToken cancellationToken) {
         if (string.IsNullOrEmpty(_options.RemoteStoragePath)) return;
 
-        try
-        {
+        try {
             if (!_remoteEntries.TryGetValue(filePath, out var remoteEntry)) return;
 
             var dir = Path.GetDirectoryName(filePath);
@@ -92,8 +82,7 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
 
             await _fs.WriteAllTextAsync(filePath, content.Content, cancellationToken).ConfigureAwait(false);
 
-            var entry = new SyncFileEntry
-            {
+            var entry = new SyncFileEntry {
                 FilePath = filePath,
                 ContentHash = remoteEntry.ContentHash,
                 LastModified = remoteEntry.LastModified,
@@ -102,8 +91,7 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
 
             _localEntries[filePath] = entry;
 
-            _eventLog.Enqueue(new MemorySyncEvent
-            {
+            _eventLog.Enqueue(new MemorySyncEvent {
                 EventId = Guid.NewGuid().ToString("N")[..8],
                 FilePath = filePath,
                 Type = SyncEventType.Synced,
@@ -112,33 +100,26 @@ internal sealed class SyncFileTransfer : IAsyncDisposable
             });
 
             _logger?.LogDebug(L.T(StringKey.VaultLogPullFromRemote), filePath);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogPullFromRemoteFailed), filePath);
         }
     }
 
-    internal async Task PersistRemoteIndexAsync(CancellationToken cancellationToken)
-    {
+    internal async Task PersistRemoteIndexAsync(CancellationToken cancellationToken) {
         if (string.IsNullOrEmpty(_options.RemoteStoragePath)) return;
 
-        try
-        {
+        try {
             var entries = _remoteEntries.Values.ToList();
             var json = RelaxedJsonSerializer.Serialize(entries, JsonContext);
 
             await _fileOperationService.WriteFileAsync(
                 _options.RemoteStoragePath, json, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VaultLogPersistRemoteIndexFailed));
         }
     }
 
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask;
         _disposed = true;
 

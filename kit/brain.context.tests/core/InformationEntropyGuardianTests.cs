@@ -1,7 +1,6 @@
 namespace Core.Context;
 
-public sealed class InformationEntropyGuardianTests
-{
+public sealed class InformationEntropyGuardianTests {
     private readonly InformationEntropyGuardian _sut = new(
         outputLoopDetector: new OutputLoopDetector(
             minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0),
@@ -14,8 +13,7 @@ public sealed class InformationEntropyGuardianTests
             confirmationWindow: TimeSpan.FromSeconds(5)));
 
     [Fact]
-    public void Detect_OutputLoopTriggered_ReturnsLoopResult()
-    {
+    public void Detect_OutputLoopTriggered_ReturnsLoopResult() {
         var pattern = "这是重复的输出内容。";
         var text = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 3));
 
@@ -25,8 +23,7 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void Detect_NoLoop_ReturnsNoLoop()
-    {
+    public void Detect_NoLoop_ReturnsNoLoop() {
         var text = "这是一段正常的文本，没有重复模式。";
 
         var result = _sut.Detect(text);
@@ -35,16 +32,14 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void Detect_EmptyText_ReturnsNoLoop()
-    {
+    public void Detect_EmptyText_ReturnsNoLoop() {
         var result = _sut.Detect(string.Empty);
 
         Assert.False(result.IsLoopDetected);
     }
 
     [Fact]
-    public void CheckTextLoop_LogicFingerprintTriggered_ReturnsInterventionResult()
-    {
+    public void CheckTextLoop_LogicFingerprintTriggered_ReturnsInterventionResult() {
         var guardian = new InformationEntropyGuardian(
             logicFingerprintDetector: new LogicFingerprintDetector(
                 fingerprintPrefixLen: 50, fingerprintSuffixLen: 50, windowSize: 5, hitThreshold: 3));
@@ -60,8 +55,7 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void CheckTextLoop_NoLoop_ReturnsNull()
-    {
+    public void CheckTextLoop_NoLoop_ReturnsNull() {
         var text = "这是一段正常的文本。";
 
         var result = _sut.CheckTextLoop(text);
@@ -70,8 +64,7 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void CheckToolCallLoop_RepeatedPattern_ReturnsInterventionResult()
-    {
+    public void CheckToolCallLoop_RepeatedPattern_ReturnsInterventionResult() {
         var guardian = new InformationEntropyGuardian(
             toolCallSequenceDetector: new ToolCallSequenceDetector(
                 windowSize: 6, minPatternLength: 2, requiredRepeats: 3));
@@ -79,20 +72,16 @@ public sealed class InformationEntropyGuardianTests
         using var doc1 = JsonDocument.Parse("\"test.cs\"");
         using var doc2 = JsonDocument.Parse("\"TODO\"");
 
-        for (var i = 0; i < 6; i++)
-        {
-            guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement>
-            {
+        for (var i = 0; i < 6; i++) {
+            guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement> {
                 ["file_path"] = doc1.RootElement.Clone()
             });
-            guardian.CheckToolCallLoop("Grep", new Dictionary<string, JsonElement>
-            {
+            guardian.CheckToolCallLoop("Grep", new Dictionary<string, JsonElement> {
                 ["pattern"] = doc2.RootElement.Clone()
             });
         }
 
-        var result = guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement>
-        {
+        var result = guardian.CheckToolCallLoop("Read", new Dictionary<string, JsonElement> {
             ["file_path"] = doc1.RootElement.Clone()
         });
 
@@ -100,16 +89,14 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void CheckToolCallLoop_NoLoop_ReturnsNull()
-    {
+    public void CheckToolCallLoop_NoLoop_ReturnsNull() {
         var result = _sut.CheckToolCallLoop("Read", null);
 
         Assert.Null(result);
     }
 
     [Fact]
-    public void Reset_ClearsAllDetectorState()
-    {
+    public void Reset_ClearsAllDetectorState() {
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0));
@@ -128,8 +115,7 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void Detect_OutputLoopPriority_WhenBothTrigger_OutputLoopWins()
-    {
+    public void Detect_OutputLoopPriority_WhenBothTrigger_OutputLoopWins() {
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0),
@@ -146,8 +132,7 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void CheckTextLoop_OutputLoopAlsoChecked_WhenTextHasRepetition()
-    {
+    public void CheckTextLoop_OutputLoopAlsoChecked_WhenTextHasRepetition() {
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 5, checkInterval: 1, requiredRepeats: 3, cooldownChars: 0));
@@ -162,27 +147,23 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void Implements_IOutputLoopDetector()
-    {
+    public void Implements_IOutputLoopDetector() {
         Assert.IsAssignableFrom<IOutputLoopDetector>(_sut);
     }
 
     [Fact]
-    public void Implements_ILoopDetectionStrategy()
-    {
+    public void Implements_ILoopDetectionStrategy() {
         Assert.IsAssignableFrom<ILoopDetectionStrategy>(_sut);
     }
 
     [Fact]
-    public void CheckToolCallLoop_WithArguments_ExtractsFingerprint()
-    {
+    public void CheckToolCallLoop_WithArguments_ExtractsFingerprint() {
         var guardian = new InformationEntropyGuardian(
             toolCallSequenceDetector: new ToolCallSequenceDetector(
                 windowSize: 6, minPatternLength: 2, requiredRepeats: 3));
 
         using var doc = JsonDocument.Parse("\"/path/to/file.cs\"");
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["file_path"] = doc.RootElement.Clone()
         };
 
@@ -192,16 +173,14 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void CheckToolCallLoop_NullArguments_DoesNotThrow()
-    {
+    public void CheckToolCallLoop_NullArguments_DoesNotThrow() {
         var result = _sut.CheckToolCallLoop("Read", null);
 
         Assert.Null(result);
     }
 
     [Fact]
-    public void CheckTextLoop_ShannonEntropyTriggered_ReturnsInterventionResult()
-    {
+    public void CheckTextLoop_ShannonEntropyTriggered_ReturnsInterventionResult() {
         var guardian = new InformationEntropyGuardian(
             outputLoopDetector: new OutputLoopDetector(
                 minPatternLength: 100, checkInterval: 100, requiredRepeats: 100, cooldownChars: 0),
@@ -227,8 +206,7 @@ public sealed class InformationEntropyGuardianTests
     }
 
     [Fact]
-    public void Reset_ClearsShannonEntropyState()
-    {
+    public void Reset_ClearsShannonEntropyState() {
         var guardian = new InformationEntropyGuardian(
             shannonEntropyDetector: new ShannonEntropyDetector(
                 windowSize: 10, declineThreshold: 3, minEntropyDelta: 0.001,

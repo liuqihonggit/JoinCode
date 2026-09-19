@@ -6,8 +6,7 @@ namespace Infrastructure.HotSpot;
 /// internal_claim 不触发；队长修改不计入认领集合
 /// </summary>
 [Register(typeof(IHotSpotTracker), ServiceLifetime.Singleton)]
-public sealed class HotSpotTracker : IHotSpotTracker
-{
+public sealed class HotSpotTracker : IHotSpotTracker {
     private readonly IIntentCollector _intentCollector;
     private readonly IHotFileDetector _hotFileDetector;
     private int _hotFileThreshold = 1;
@@ -18,8 +17,7 @@ public sealed class HotSpotTracker : IHotSpotTracker
     /// </summary>
     /// <param name="intentCollector">意图收集器</param>
     /// <param name="hotFileDetector">热文件检测器</param>
-    public HotSpotTracker(IIntentCollector intentCollector, IHotFileDetector hotFileDetector)
-    {
+    public HotSpotTracker(IIntentCollector intentCollector, IHotFileDetector hotFileDetector) {
         _intentCollector = intentCollector ?? throw new ArgumentNullException(nameof(intentCollector));
         _hotFileDetector = hotFileDetector ?? throw new ArgumentNullException(nameof(hotFileDetector));
     }
@@ -29,8 +27,7 @@ public sealed class HotSpotTracker : IHotSpotTracker
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>是热点返回 true，否则返回 false</returns>
-    public bool IsHotSpot(string filePath)
-    {
+    public bool IsHotSpot(string filePath) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         return GetHotSpotInfo(filePath).IsHotSpot;
     }
@@ -39,8 +36,7 @@ public sealed class HotSpotTracker : IHotSpotTracker
     /// 获取所有热点文件列表
     /// </summary>
     /// <returns>热点文件路径集合</returns>
-    public IReadOnlyList<string> GetHotSpotFiles()
-    {
+    public IReadOnlyList<string> GetHotSpotFiles() {
         var allIntents = _intentCollector.GetAllIntents();
         var candidateFiles = allIntents
             .Where(i => !i.IsFromCaptain)
@@ -49,8 +45,7 @@ public sealed class HotSpotTracker : IHotSpotTracker
             .ToList();
 
         var hotSpots = new List<string>();
-        foreach (var file in candidateFiles)
-        {
+        foreach (var file in candidateFiles) {
             if (GetHotSpotInfo(file).IsHotSpot)
                 hotSpots.Add(file);
         }
@@ -62,8 +57,7 @@ public sealed class HotSpotTracker : IHotSpotTracker
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>热点信息对象，包含契约认领数、内部认领数、是否热文件、是否热点等</returns>
-    public HotSpotInfo GetHotSpotInfo(string filePath)
-    {
+    public HotSpotInfo GetHotSpotInfo(string filePath) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
         var intents = _intentCollector.GetIntents(filePath);
@@ -85,8 +79,7 @@ public sealed class HotSpotTracker : IHotSpotTracker
         var threshold = isHotFile ? _hotFileThreshold : _normalFileThreshold;
         var isHotSpot = contractWorkers.Count >= threshold;
 
-        return new HotSpotInfo
-        {
+        return new HotSpotInfo {
             FilePath = filePath,
             ContractClaimCount = contractWorkers.Count,
             InternalClaimCount = internalWorkers.Count,
@@ -102,8 +95,7 @@ public sealed class HotSpotTracker : IHotSpotTracker
     /// <param name="hotFileThreshold">热文件触发阈值，必须 >= 1</param>
     /// <param name="normalFileThreshold">非热文件触发阈值，必须 >= 1</param>
     /// <exception cref="ArgumentOutOfRangeException">阈值小于 1 时抛出</exception>
-    public void SetThresholds(int hotFileThreshold, int normalFileThreshold)
-    {
+    public void SetThresholds(int hotFileThreshold, int normalFileThreshold) {
         if (hotFileThreshold < 1)
             throw new ArgumentOutOfRangeException(nameof(hotFileThreshold), "热文件阈值必须 >= 1");
         if (normalFileThreshold < 1)
@@ -116,12 +108,10 @@ public sealed class HotSpotTracker : IHotSpotTracker
     /// <summary>
     /// 清空所有意图记录，移除所有 Worker 的上报
     /// </summary>
-    public void Clear()
-    {
+    public void Clear() {
         var allIntents = _intentCollector.GetAllIntents();
         var workers = allIntents.Select(i => i.WorkerId).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        foreach (var worker in workers)
-        {
+        foreach (var worker in workers) {
             _intentCollector.RemoveWorkerAsync(worker).Wait();
         }
     }

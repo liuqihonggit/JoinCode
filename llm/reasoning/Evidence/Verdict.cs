@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Evidence;
 /// <summary>
 /// 裁决结果
 /// </summary>
-public sealed class Verdict
-{
+public sealed class Verdict {
     /// <summary>
     /// 裁决所针对的声明标识，构造时必须提供
     /// </summary>

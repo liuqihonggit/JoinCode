@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 文件上下文服务接口 — 文件路径提取、消息转储
 /// </summary>
-public interface IChatFileContextService
-{
+public interface IChatFileContextService {
     /// <summary>
     /// 更新文件上下文（提取文件路径）
     /// </summary>

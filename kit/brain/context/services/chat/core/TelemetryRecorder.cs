@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 遥测记录器接口 — 记录每轮对话的遥测快照
 /// </summary>
-public interface ITelemetryRecorder
-{
+public interface ITelemetryRecorder {
     /// <summary>
     /// 记录每轮对话的遥测快照
     /// </summary>
@@ -15,28 +14,24 @@ public interface ITelemetryRecorder
 /// 遥测记录器 — 记录每轮对话的消息列表快照到遥测系统
 /// </summary>
 [Register(typeof(ITelemetryRecorder), ServiceLifetime.Singleton)]
-public sealed partial class TelemetryRecorder : ServiceEntity, ITelemetryRecorder
-{
+public sealed partial class TelemetryRecorder : ServiceEntity, ITelemetryRecorder {
     private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
     /// 初始化遥测记录器
     /// </summary>
     /// <param name="services">查询循环可选服务聚合（从中提取遥测服务）</param>
-    public TelemetryRecorder(QueryLoopServices? services = null)
-    {
+    public TelemetryRecorder(QueryLoopServices? services = null) {
         _telemetryService = services?.TelemetryService;
     }
 
     /// <inheritdoc/>
-    public async Task RecordTurnTelemetryAsync(MessageList historySnapshot, int turnIndex)
-    {
+    public async Task RecordTurnTelemetryAsync(MessageList historySnapshot, int turnIndex) {
         await using var chatSpan = _telemetryService?.StartSpan($"chat.turn.{turnIndex}", TelemetrySpanKind.Server);
         if (chatSpan == null) return;
 
         chatSpan.SetTag("turn.message_count", historySnapshot.Count);
-        for (var mi = 0; mi < historySnapshot.Count; mi++)
-        {
+        for (var mi = 0; mi < historySnapshot.Count; mi++) {
             var msg = historySnapshot[mi];
             var maxPreview = msg.Role == MessageRole.System ? 500 : 120;
             var contentPreview = msg.Content != null && msg.Content.Length > maxPreview

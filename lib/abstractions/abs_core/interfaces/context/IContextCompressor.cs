@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces.Context;
 /// 上下文压缩器接口 — 通用压缩，支持 code/dialogue/reference_index/text/log 五种内容类型
 /// 关系: IFoldSummarizer (01-ai) 是本接口在 dialogue 类型上的特化（将头部消息摘要化）
 /// </summary>
-public interface IContextCompressor
-{
+public interface IContextCompressor {
     /// <summary>
     /// 异步压缩上下文内容
     /// </summary>
@@ -57,8 +56,7 @@ public interface IContextCompressor
 /// 内容类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 ContentTypeEnumConstants + ContentTypeExtensions
 /// </summary>
-public enum ContentType
-{
+public enum ContentType {
     /// <summary>代码内容</summary>
     [EnumValue("code")] Code = 0,
 
@@ -78,8 +76,7 @@ public enum ContentType
 /// <summary>
 /// 内容项
 /// </summary>
-public record ContentItem
-{
+public record ContentItem {
     /// <summary>
     /// 内容标识
     /// </summary>
@@ -104,8 +101,7 @@ public record ContentItem
 /// <summary>
 /// 压缩结果
 /// </summary>
-public record CompressionResult
-{
+public record CompressionResult {
     /// <summary>
     /// 原始内容ID
     /// </summary>

@@ -47,7 +47,7 @@ public class LspToolHandlers {
             response.AppendLine(L.T(StringKey.FoundDefinitionsCount, locations.Count));
             response.AppendLine();
 
-            for (int i = 0; i < locations.Count; i++) {
+            for (var i = 0; i < locations.Count; i++) {
                 var loc = locations[i];
                 var fileUri = loc.Uri;
                 var filePath = UriToFilePath(fileUri);
@@ -149,7 +149,7 @@ public class LspToolHandlers {
             response.AppendLine(L.T(StringKey.FoundCompletionCount, completions.Count));
             response.AppendLine();
 
-            for (int i = 0; i < Math.Min(completions.Count, 20); i++) {
+            for (var i = 0; i < Math.Min(completions.Count, 20); i++) {
                 var item = completions[i];
                 var kindIcon = GetCompletionKindIcon(item.Kind);
 
@@ -229,7 +229,7 @@ public class LspToolHandlers {
             response.AppendLine($"{ObjectSymbol.Search.ToValue()} {L.T(StringKey.WorkspaceSymbolResults, symbols.Count)}");
             response.AppendLine();
 
-            for (int i = 0; i < Math.Min(symbols.Count, 30); i++) {
+            for (var i = 0; i < Math.Min(symbols.Count, 30); i++) {
                 var symbol = symbols[i];
                 var kindIcon = GetSymbolKindIcon(symbol.Kind);
                 var filePath = UriToFilePath(symbol.Location.Uri);
@@ -276,7 +276,7 @@ public class LspToolHandlers {
             response.AppendLine(L.T(StringKey.FoundImplementationsCount, locations.Count));
             response.AppendLine();
 
-            for (int i = 0; i < locations.Count; i++) {
+            for (var i = 0; i < locations.Count; i++) {
                 var loc = locations[i];
                 var fileUri = loc.Uri;
                 var displayPath = UriToFilePath(fileUri);
@@ -310,7 +310,7 @@ public class LspToolHandlers {
             response.AppendLine(L.T(StringKey.FoundCallHierarchyItems, items.Count));
             response.AppendLine();
 
-            for (int i = 0; i < items.Count; i++) {
+            for (var i = 0; i < items.Count; i++) {
                 var item = items[i];
                 var fileUri = item.Uri;
                 var displayPath = UriToFilePath(fileUri);
@@ -354,7 +354,7 @@ public class LspToolHandlers {
             response.AppendLine(L.T(StringKey.IncomingCallsOf, items[0].Name, calls.Count));
             response.AppendLine();
 
-            for (int i = 0; i < calls.Count; i++) {
+            for (var i = 0; i < calls.Count; i++) {
                 var call = calls[i];
                 var from = call.From;
                 var fileUri = from.Uri;
@@ -406,7 +406,7 @@ public class LspToolHandlers {
             response.AppendLine(L.T(StringKey.OutgoingCallsOf, items[0].Name, calls.Count));
             response.AppendLine();
 
-            for (int i = 0; i < calls.Count; i++) {
+            for (var i = 0; i < calls.Count; i++) {
                 var call = calls[i];
                 var to = call.To;
                 var fileUri = to.Uri;
@@ -637,8 +637,7 @@ public class LspToolHandlers {
     #endregion
 
     private async Task<ToolResult> ValidateFileAndExecuteAsync(
-        string? file_path, Func<Task<ToolResult>> action, CancellationToken cancellationToken)
-    {
+        string? file_path, Func<Task<ToolResult>> action, CancellationToken cancellationToken) {
         if (string.IsNullOrWhiteSpace(file_path))
             return ToolResultBuilder.Error().WithText(L.T(StringKey.FilePathCannotBeEmpty)).Build();
 
@@ -647,26 +646,19 @@ public class LspToolHandlers {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.FileNotExist, file_path)).Build();
 
         // 检查 LSP 服务器是否可用，不可用时返回带安装提示的错误信息
-        try
-        {
+        try {
             var available = await _lspService.IsServerAvailableAsync(file_path, cancellationToken).ConfigureAwait(false);
-            if (!available)
-            {
+            if (!available) {
                 var hint = GetLspInstallHint(file_path);
                 return ToolResultBuilder.Error().WithText(hint).Build();
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "LSP 服务器可用性检查失败: {FilePath}", file_path);
         }
 
-        try
-        {
+        try {
             return await action().ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.LspError, ex.Message)).Build();
         }
     }
@@ -674,11 +666,9 @@ public class LspToolHandlers {
     /// <summary>
     /// 根据文件扩展名生成 LSP 服务器安装提示
     /// </summary>
-    private static string GetLspInstallHint(string filePath)
-    {
+    private static string GetLspInstallHint(string filePath) {
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
-        var (serverName, installCmd) = ext switch
-        {
+        var (serverName, installCmd) = ext switch {
             ".cs" or ".csx" => ("csharp-ls (C#)", "dotnet tool install -g csharp-ls"),
             ".ts" or ".tsx" or ".js" or ".jsx" or ".mjs" => ("typescript-language-server", "npm install -g typescript-language-server typescript"),
             ".py" or ".pyw" => ("pylsp (Python)", "pip install pylsp"),

@@ -2,8 +2,7 @@
 namespace McpToolDispatch.Generator;
 
 [Generator]
-public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
-{
+public sealed class ServiceRegistrationGenerator : IIncrementalGenerator {
     private const string RegisterAttributeFullName = "JoinCode.Abstractions.Attributes.RegisterAttribute";
     private const string RegisterOptionsAttributeFullName = "JoinCode.Abstractions.Attributes.RegisterOptionsAttribute";
     private const string AllowCycleAttributeFullName = "JoinCode.Abstractions.Attributes.AllowCycleAttribute";
@@ -27,13 +26,11 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         true,
         "同一接口在同一类上重复 [Register] 注册会导致 DI 容器注册冲突. 编译期检测可在开发阶段立即发现问题. 对齐 ADR 0046.");
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
         // === Services ===
         // 注意: Select 返回 IncrementalValueProvider<T>（单值），直接 RegisterSourceOutput 即可，无需 Collect()
         var serviceTypes = context.CompilationProvider
-            .Select(static (compilation, _) =>
-            {
+            .Select(static (compilation, _) => {
                 var registerAttr = compilation.GetTypeByMetadataName(RegisterAttributeFullName);
                 var allowCycleAttr = compilation.GetTypeByMetadataName(AllowCycleAttributeFullName);
                 var assemblyName = compilation.AssemblyName ?? "CurrentAssembly";
@@ -47,15 +44,13 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
                 return new ServiceGenerationContext(sanitized, results.ToImmutableArray());
             });
 
-        context.RegisterSourceOutput(serviceTypes, static (ctx, c) =>
-        {
+        context.RegisterSourceOutput(serviceTypes, static (ctx, c) => {
             GenerateRegistrationCode(ctx, c.SanitizedAssemblyName, c.Services);
         });
 
         // === Options ===
         var optionsRegistrations = context.CompilationProvider
-            .Select(static (compilation, _) =>
-            {
+            .Select(static (compilation, _) => {
                 var optionsAttr = compilation.GetTypeByMetadataName(RegisterOptionsAttributeFullName);
                 var assemblyName = compilation.AssemblyName ?? "CurrentAssembly";
                 var sanitized = SanitizeAssemblyName(assemblyName);
@@ -68,8 +63,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
                 return new OptionsGenerationContext(sanitized, results.ToImmutableArray());
             });
 
-        context.RegisterSourceOutput(optionsRegistrations, static (ctx, c) =>
-        {
+        context.RegisterSourceOutput(optionsRegistrations, static (ctx, c) => {
             GenerateOptionsRegistrationCode(ctx, c.SanitizedAssemblyName, c.Registrations);
         });
     }
@@ -78,8 +72,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     /// 将程序集名称清理为合法的 C# 标识符片段（用于拼接方法名）。
     /// 例: "JoinCode" → "JoinCode"；"My.Lib" → "MyLib"；"a-b" → "aB"
     /// </summary>
-    private static string SanitizeAssemblyName(string? assemblyName)
-    {
+    private static string SanitizeAssemblyName(string? assemblyName) {
         if (assemblyName is null)
             throw new ArgumentNullException(nameof(assemblyName));
 
@@ -88,23 +81,16 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
 
         var sb = new StringBuilder(assemblyName.Length);
         var capitalizeNext = false;
-        for (var i = 0; i < assemblyName.Length; i++)
-        {
+        for (var i = 0; i < assemblyName.Length; i++) {
             var ch = assemblyName[i];
-            if (char.IsLetterOrDigit(ch) || ch == '_')
-            {
-                if (capitalizeNext)
-                {
+            if (char.IsLetterOrDigit(ch) || ch == '_') {
+                if (capitalizeNext) {
                     sb.Append(char.ToUpperInvariant(ch));
                     capitalizeNext = false;
-                }
-                else
-                {
+                } else {
                     sb.Append(ch);
                 }
-            }
-            else
-            {
+            } else {
                 capitalizeNext = true;
             }
         }
@@ -126,8 +112,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     /// <summary>
     /// 判断类型是否属于当前程序集。
     /// </summary>
-    private static bool IsFromCurrentAssembly(INamedTypeSymbol typeSymbol, string currentAssemblyName)
-    {
+    private static bool IsFromCurrentAssembly(INamedTypeSymbol typeSymbol, string currentAssemblyName) {
         return string.Equals(typeSymbol.ContainingAssembly?.Name, currentAssemblyName, System.StringComparison.Ordinal);
     }
 
@@ -137,22 +122,18 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         INamedTypeSymbol? allowCycleAttr,
         List<ServiceRegistrationInfo> results,
         string currentAssemblyName,
-        bool filterByCurrentAssembly)
-    {
-        foreach (var member in namespaceSymbol.GetMembers())
-        {
+        bool filterByCurrentAssembly) {
+        foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespaces(childNamespace, registerAttr, allowCycleAttr, results, currentAssemblyName, filterByCurrentAssembly);
-            else if (member is INamedTypeSymbol typeSymbol)
-            {
+            else if (member is INamedTypeSymbol typeSymbol) {
                 // Exe 项目仅扫描自身程序集的类型，避免与被引用库项目生成的同名方法产生 CS0121 歧义
                 // 库项目扫描全部类型（含引用程序集），因为依赖的子系统库未启用生成器
                 if (filterByCurrentAssembly && !IsFromCurrentAssembly(typeSymbol, currentAssemblyName))
                     continue;
 
                 var registrations = ExtractRegistrations(typeSymbol, registerAttr);
-                if (registrations.Count > 0)
-                {
+                if (registrations.Count > 0) {
                     var constructorDeps = ExtractConstructorDependencies(typeSymbol);
                     var location = typeSymbol.Locations.FirstOrDefault();
                     var hasAllowCycle = typeSymbol.GetAttributes()
@@ -172,17 +153,14 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     /// 提取类型的构造函数依赖（用于编译期 DI 循环依赖检测）。
     /// 仅扫描 public/internal 构造函数的参数，跳过 Error 类型。
     /// </summary>
-    private static List<ConstructorDependency> ExtractConstructorDependencies(INamedTypeSymbol typeSymbol)
-    {
+    private static List<ConstructorDependency> ExtractConstructorDependencies(INamedTypeSymbol typeSymbol) {
         var deps = new List<ConstructorDependency>();
-        foreach (var ctor in typeSymbol.Constructors)
-        {
+        foreach (var ctor in typeSymbol.Constructors) {
             if (ctor.DeclaredAccessibility != Accessibility.Public &&
                 ctor.DeclaredAccessibility != Accessibility.Internal)
                 continue;
 
-            foreach (var param in ctor.Parameters)
-            {
+            foreach (var param in ctor.Parameters) {
                 if (param.Type.TypeKind == TypeKind.Error)
                     continue;
 
@@ -197,8 +175,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
 
     private static List<ServiceRegistration> ExtractRegistrations(
         INamedTypeSymbol typeSymbol,
-        INamedTypeSymbol? registerAttr)
-    {
+        INamedTypeSymbol? registerAttr) {
         var results = new List<ServiceRegistration>();
 
         if (registerAttr is null)
@@ -210,11 +187,9 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             .Select(r => (tree: r.SyntaxTree, span: r.Span))
             .ToList();
 
-        foreach (var attr in typeSymbol.GetAttributes().Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, registerAttr)))
-        {
+        foreach (var attr in typeSymbol.GetAttributes().Where(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, registerAttr))) {
             // 验证 [Register] 的语法位置在当前类型声明的范围内
-            if (attr.ApplicationSyntaxReference is { } attrRef)
-            {
+            if (attr.ApplicationSyntaxReference is { } attrRef) {
                 var attrSpan = attrRef.Span;
                 var attrTree = attrRef.SyntaxTree;
                 var belongsToType = typeDeclSpans.Any(t =>
@@ -228,8 +203,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             var interfaceType = attr.ConstructorArguments.ElementAtOrDefault(0);
             var lifetimeArg = attr.ConstructorArguments.ElementAtOrDefault(1);
 
-            if (interfaceType.Value is INamedTypeSymbol typeSym && lifetimeArg.Value is int lifetime)
-            {
+            if (interfaceType.Value is INamedTypeSymbol typeSym && lifetimeArg.Value is int lifetime) {
                 var typeName = typeSym.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
                 results.Add(new ServiceRegistration(typeName, lifetime));
             }
@@ -238,8 +212,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         return results;
     }
 
-    private static void GenerateRegistrationCode(SourceProductionContext context, string sanitizedAssemblyName, ImmutableArray<ServiceRegistrationInfo> services)
-    {
+    private static void GenerateRegistrationCode(SourceProductionContext context, string sanitizedAssemblyName, ImmutableArray<ServiceRegistrationInfo> services) {
         // 编译期 DI 循环依赖检测
         DetectCyclesAndReport(context, services);
 
@@ -249,8 +222,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         // 按实现类型分组，每个实现类型只注册一次
         var groupedByImpl = services
             .GroupBy(s => s.ImplementationName)
-            .Select(g => new
-            {
+            .Select(g => new {
                 ImplementationName = g.Key,
                 Registrations = g.SelectMany(s => s.Registrations).ToList()
             })
@@ -284,8 +256,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine($"    public static IServiceCollection {methodName}(this IServiceCollection services)");
         sb.AppendLine("    {");
 
-        foreach (var group in groupedByImpl)
-        {
+        foreach (var group in groupedByImpl) {
             var implementationName = group.ImplementationName;
             var regs = group.Registrations;
 
@@ -293,8 +264,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             var nonHostedRegs = regs.Where(r => r.InterfaceName != IHostedServiceFullName).ToList();
             var hasHosted = regs.Any(r => r.InterfaceName == IHostedServiceFullName);
 
-            if (hasHosted)
-            {
+            if (hasHosted) {
                 sb.AppendLine($"        services.AddHostedService<{implementationName}>();");
             }
 
@@ -302,10 +272,8 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             var primaryInterface = nonHostedRegs
                 .FirstOrDefault(r => r.InterfaceName is not null && r.InterfaceName != implementationName);
 
-            if (primaryInterface is not null)
-            {
-                var addMethodName = primaryInterface.Lifetime switch
-                {
+            if (primaryInterface is not null) {
+                var addMethodName = primaryInterface.Lifetime switch {
                     LifetimeTransient => "AddTransient",
                     LifetimeScoped => "AddScoped",
                     _ => "AddSingleton"
@@ -316,16 +284,14 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
 
                 // 注册所有接口（转发到实现类型）
                 var registeredInterfaces = new HashSet<string>();
-                foreach (var reg in nonHostedRegs)
-                {
+                foreach (var reg in nonHostedRegs) {
                     if (reg.InterfaceName is null || reg.InterfaceName == implementationName)
                         continue;
 
                     if (!registeredInterfaces.Add(reg.InterfaceName))
                         continue; // 避免重复注册
 
-                    var regAddMethodName = reg.Lifetime switch
-                    {
+                    var regAddMethodName = reg.Lifetime switch {
                         LifetimeTransient => "AddTransient",
                         LifetimeScoped => "AddScoped",
                         _ => "AddSingleton"
@@ -342,13 +308,10 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
                     sb.AppendLine("            return svc;");
                     sb.AppendLine("        });");
                 }
-            }
-            else
-            {
+            } else {
                 // 无接口或接口 == 实现类型：只注册一次
                 var lifetime = regs.FirstOrDefault()?.Lifetime ?? LifetimeSingleton;
-                var addMethodName = lifetime switch
-                {
+                var addMethodName = lifetime switch {
                     LifetimeTransient => "AddTransient",
                     LifetimeScoped => "AddScoped",
                     _ => "AddSingleton"
@@ -368,8 +331,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     /// 从完整限定类型名中提取短名称（用于 DI 日志输出）
     /// 例如: "global::JoinCode.Abstractions.Interfaces.IQueryService" → "IQueryService"
     /// </summary>
-    private static string GetShortTypeName(string fullName)
-    {
+    private static string GetShortTypeName(string fullName) {
         if (fullName is null)
             throw new ArgumentNullException(nameof(fullName));
 
@@ -389,16 +351,12 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     /// <summary>
     /// 编译期 DI 重复注册检测：同一类对同一接口多次 [Register] 注册时报错。
     /// </summary>
-    private static void DetectDuplicateRegistrationsAndReport(SourceProductionContext context, ImmutableArray<ServiceRegistrationInfo> services)
-    {
-        foreach (var info in services)
-        {
+    private static void DetectDuplicateRegistrationsAndReport(SourceProductionContext context, ImmutableArray<ServiceRegistrationInfo> services) {
+        foreach (var info in services) {
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var reg in info.Registrations)
-            {
+            foreach (var reg in info.Registrations) {
                 if (reg.InterfaceName is null) continue;
-                if (!seen.Add(reg.InterfaceName))
-                {
+                if (!seen.Add(reg.InterfaceName)) {
                     var implShortName = info.ImplementationName;
                     var lastDot = implShortName.LastIndexOf('.');
                     if (lastDot >= 0 && lastDot < implShortName.Length - 1)
@@ -423,14 +381,11 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     /// </summary>
     private static void DetectCyclesAndReport(
         SourceProductionContext context,
-        ImmutableArray<ServiceRegistrationInfo> services)
-    {
+        ImmutableArray<ServiceRegistrationInfo> services) {
         // 构建接口→实现映射
         var interfaceToImpl = new Dictionary<string, string>();
-        foreach (var svc in services)
-        {
-            foreach (var reg in svc.Registrations)
-            {
+        foreach (var svc in services) {
+            foreach (var reg in svc.Registrations) {
                 if (reg.InterfaceName is not null && reg.InterfaceName != svc.ImplementationName)
                     interfaceToImpl[reg.InterfaceName] = svc.ImplementationName;
             }
@@ -444,8 +399,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         var locationMap = new Dictionary<string, Location?>();
         var allowCycleSet = new HashSet<string>();
 
-        foreach (var svc in services)
-        {
+        foreach (var svc in services) {
             var implName = svc.ImplementationName;
             if (!adjacency.ContainsKey(implName))
                 adjacency[implName] = new List<string>();
@@ -453,8 +407,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             if (svc.HasAllowCycle)
                 allowCycleSet.Add(implName);
 
-            foreach (var dep in svc.ConstructorDependencies)
-            {
+            foreach (var dep in svc.ConstructorDependencies) {
                 if (dep.IsOptional)
                     continue;
 
@@ -475,12 +428,10 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             color[node] = 0;
 
         var reportedCycles = new HashSet<string>();
-        foreach (var node in adjacency.Keys)
-        {
+        foreach (var node in adjacency.Keys) {
             int nodeColor;
             color.TryGetValue(node, out nodeColor);
-            if (nodeColor == 0)
-            {
+            if (nodeColor == 0) {
                 var path = new List<string>();
                 DfsCycle(node, adjacency, color, path, context, locationMap, allowCycleSet, reportedCycles);
             }
@@ -499,15 +450,12 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         SourceProductionContext context,
         Dictionary<string, Location?> locationMap,
         HashSet<string> allowCycleSet,
-        HashSet<string> reportedCycles)
-    {
+        HashSet<string> reportedCycles) {
         color[node] = 1; // 灰
         path.Add(node);
 
-        if (adjacency.TryGetValue(node, out var neighbors))
-        {
-            foreach (var neighbor in neighbors)
-            {
+        if (adjacency.TryGetValue(node, out var neighbors)) {
+            foreach (var neighbor in neighbors) {
                 int neighborColor;
                 color.TryGetValue(neighbor, out neighborColor);
                 if (neighborColor == 1) // 遇到灰节点 = 发现环
@@ -518,20 +466,17 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
 
                     // 检查[AllowCycle]豁免
                     var hasAllowCycle = cycle.Any(n => allowCycleSet.Contains(n));
-                    if (!hasAllowCycle)
-                    {
+                    if (!hasAllowCycle) {
                         // 去重
                         var normalized = NormalizeCycleKey(cycle);
-                        if (reportedCycles.Add(normalized))
-                        {
+                        if (reportedCycles.Add(normalized)) {
                             var cycleStr = string.Join(" → ", cycle) + " → " + cycle[0];
                             var location = cycle.Select(n => locationMap[n]).FirstOrDefault(l => l is not null) ?? Location.None;
                             context.ReportDiagnostic(Diagnostic.Create(DiCycleRule, location, cycleStr));
                         }
                     }
-                }
-                else if (neighborColor == 0) // 白节点，继续DFS
-                {
+                } else if (neighborColor == 0) // 白节点，继续DFS
+                  {
                     DfsCycle(neighbor, adjacency, color, path, context, locationMap, allowCycleSet, reportedCycles);
                 }
             }
@@ -544,11 +489,9 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     /// <summary>
     /// 环路径规范化：将环旋转到最小元素开头，用于去重（同一环不同起点只报一次）。
     /// </summary>
-    private static string NormalizeCycleKey(List<string> cycle)
-    {
+    private static string NormalizeCycleKey(List<string> cycle) {
         var minIdx = 0;
-        for (var i = 1; i < cycle.Count; i++)
-        {
+        for (var i = 1; i < cycle.Count; i++) {
             if (string.CompareOrdinal(cycle[i], cycle[minIdx]) < 0)
                 minIdx = i;
         }
@@ -566,20 +509,17 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     private const int LifetimeScoped = 1;
     private const int LifetimeTransient = 2;
 
-    private sealed class ServiceRegistration
-    {
+    private sealed class ServiceRegistration {
         public string? InterfaceName { get; }
         public int Lifetime { get; }
 
-        public ServiceRegistration(string? interfaceName, int lifetime)
-        {
+        public ServiceRegistration(string? interfaceName, int lifetime) {
             InterfaceName = interfaceName;
             Lifetime = lifetime;
         }
     }
 
-    private sealed class ServiceRegistrationInfo
-    {
+    private sealed class ServiceRegistrationInfo {
         public string ImplementationName { get; }
         public List<ServiceRegistration> Registrations { get; }
         public List<ConstructorDependency> ConstructorDependencies { get; }
@@ -591,8 +531,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
             List<ServiceRegistration> registrations,
             List<ConstructorDependency> constructorDependencies,
             Location? location,
-            bool hasAllowCycle)
-        {
+            bool hasAllowCycle) {
             ImplementationName = implementationName;
             Registrations = registrations;
             ConstructorDependencies = constructorDependencies;
@@ -604,13 +543,11 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     /// <summary>
     /// 构造函数依赖项：依赖类型名 + 是否可选（有默认值或可空标注视为可选，环检测时跳过可选依赖）。
     /// </summary>
-    private sealed class ConstructorDependency
-    {
+    private sealed class ConstructorDependency {
         public string DependencyType { get; }
         public bool IsOptional { get; }
 
-        public ConstructorDependency(string dependencyType, bool isOptional)
-        {
+        public ConstructorDependency(string dependencyType, bool isOptional) {
             DependencyType = dependencyType;
             IsOptional = isOptional;
         }
@@ -623,14 +560,11 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         INamedTypeSymbol optionsAttr,
         List<OptionsRegistration> results,
         string currentAssemblyName,
-        bool filterByCurrentAssembly)
-    {
-        foreach (var member in namespaceSymbol.GetMembers())
-        {
+        bool filterByCurrentAssembly) {
+        foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespacesForOptions(childNamespace, optionsAttr, results, currentAssemblyName, filterByCurrentAssembly);
-            else if (member is INamedTypeSymbol typeSymbol)
-            {
+            else if (member is INamedTypeSymbol typeSymbol) {
                 if (filterByCurrentAssembly && !IsFromCurrentAssembly(typeSymbol, currentAssemblyName))
                     continue;
 
@@ -643,8 +577,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
 
     private static OptionsRegistration? ExtractOptionsRegistration(
         INamedTypeSymbol typeSymbol,
-        INamedTypeSymbol? optionsAttr)
-    {
+        INamedTypeSymbol? optionsAttr) {
         if (optionsAttr is null)
             return null;
 
@@ -666,8 +599,7 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         return new OptionsRegistration(typeName, configPath, validateOnStart);
     }
 
-    private static void GenerateOptionsRegistrationCode(SourceProductionContext context, string sanitizedAssemblyName, ImmutableArray<OptionsRegistration> registrations)
-    {
+    private static void GenerateOptionsRegistrationCode(SourceProductionContext context, string sanitizedAssemblyName, ImmutableArray<OptionsRegistration> registrations) {
         // 始终生成方法（即使为空），保证调用方编译通过
         var methodName = $"Add{sanitizedAssemblyName}AutoRegisteredOptions";
 
@@ -692,19 +624,15 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         sb.AppendLine($"    public static IServiceCollection {methodName}(this IServiceCollection services)");
         sb.AppendLine("    {");
 
-        foreach (var reg in registrations)
-        {
-            if (reg.ConfigurationPath is not null)
-            {
+        foreach (var reg in registrations) {
+            if (reg.ConfigurationPath is not null) {
                 sb.AppendLine($"        services.AddOptions<{reg.TypeName}>()");
                 sb.AppendLine($"            .BindConfiguration(\"{reg.ConfigurationPath}\")");
                 if (reg.ValidateOnStart)
                     sb.AppendLine("            .ValidateOnStart();");
                 else
                     sb.AppendLine("            .ValidateDataAnnotations();");
-            }
-            else
-            {
+            } else {
                 sb.AppendLine($"        services.AddOptions<{reg.TypeName}>();");
             }
             sb.AppendLine();
@@ -717,14 +645,12 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
         context.AddSource("GeneratedOptionsRegistration.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private sealed class OptionsRegistration
-    {
+    private sealed class OptionsRegistration {
         public string TypeName { get; }
         public string? ConfigurationPath { get; }
         public bool ValidateOnStart { get; }
 
-        public OptionsRegistration(string typeName, string? configurationPath, bool validateOnStart)
-        {
+        public OptionsRegistration(string typeName, string? configurationPath, bool validateOnStart) {
             TypeName = typeName;
             ConfigurationPath = configurationPath;
             ValidateOnStart = validateOnStart;
@@ -735,13 +661,11 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
     // 携带程序集名（已清理）与注册项列表，供 RegisterSourceOutput 使用
     // 注意: 使用 class 而非 record，因为生成器目标框架为 netstandard2.0，不支持 record
 
-    private sealed class ServiceGenerationContext
-    {
+    private sealed class ServiceGenerationContext {
         public string SanitizedAssemblyName { get; }
         public ImmutableArray<ServiceRegistrationInfo> Services { get; }
 
-        public ServiceGenerationContext(string sanitizedAssemblyName, ImmutableArray<ServiceRegistrationInfo> services)
-        {
+        public ServiceGenerationContext(string sanitizedAssemblyName, ImmutableArray<ServiceRegistrationInfo> services) {
             SanitizedAssemblyName = sanitizedAssemblyName;
             Services = services;
         }
@@ -749,13 +673,11 @@ public sealed class ServiceRegistrationGenerator : IIncrementalGenerator
 
 
 
-    private sealed class OptionsGenerationContext
-    {
+    private sealed class OptionsGenerationContext {
         public string SanitizedAssemblyName { get; }
         public ImmutableArray<OptionsRegistration> Registrations { get; }
 
-        public OptionsGenerationContext(string sanitizedAssemblyName, ImmutableArray<OptionsRegistration> registrations)
-        {
+        public OptionsGenerationContext(string sanitizedAssemblyName, ImmutableArray<OptionsRegistration> registrations) {
             SanitizedAssemblyName = sanitizedAssemblyName;
             Registrations = registrations;
         }

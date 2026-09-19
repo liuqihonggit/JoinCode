@@ -4,8 +4,7 @@ namespace Core.Hooks.Execution;
 /// <summary>
 /// 钩子执行器基类 — 继承 OneShotCommandGroup: 2分钟绝对超时 + kill + 可续期
 /// </summary>
-public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecutor<THook> where THook : HookCommand
-{
+public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecutor<THook> where THook : HookCommand {
     /// <summary>日志记录器，可为空</summary>
     protected readonly ILogger? Logger;
 
@@ -13,8 +12,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// 构造函数 — 注入可选的日志记录器
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    protected HookExecutorBase(ILogger? logger = null)
-    {
+    protected HookExecutorBase(ILogger? logger = null) {
         Logger = logger;
     }
 
@@ -25,10 +23,8 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     public Task<HookResult> ExecuteAsync(
         HookCommand hook,
         HookInput input,
-        CancellationToken cancellationToken = default)
-    {
-        if (hook is not THook typedHook)
-        {
+        CancellationToken cancellationToken = default) {
+        if (hook is not THook typedHook) {
             throw new ArgumentException(
                 $"Expected hook of type {typeof(THook).Name}, got {hook.GetType().Name}");
         }
@@ -45,10 +41,8 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// <summary>
     /// 创建执行上下文
     /// </summary>
-    protected HookExecutionContext CreateContext(THook hook, HookInput input)
-    {
-        return new HookExecutionContext
-        {
+    protected HookExecutionContext CreateContext(THook hook, HookInput input) {
+        return new HookExecutionContext {
             Input = input,
             Command = hook,
             Timeout = hook.Timeout.HasValue
@@ -60,44 +54,34 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// <summary>
     /// 准备钩子输入 JSON
     /// </summary>
-    protected string PrepareInputJson(HookInput input)
-    {
+    protected string PrepareInputJson(HookInput input) {
         return JsonSerializer.Serialize(input.Payload, HooksJsonContext.Default.DictionaryStringJsonElement);
     }
 
     /// <summary>
     /// 替换参数占位符
     /// </summary>
-    protected string SubstituteArguments(string template, string jsonInput)
-    {
+    protected string SubstituteArguments(string template, string jsonInput) {
         var result = template.Replace("$ARGUMENTS", jsonInput);
 
-        try
-        {
+        try {
             var node = JsonNode.Parse(jsonInput);
-            if (node is JsonArray arr)
-            {
+            if (node is JsonArray arr) {
                 var index = 0;
-                foreach (var element in arr)
-                {
+                foreach (var element in arr) {
                     var value = element?.ToString() ?? "";
                     result = result.Replace($"${index}", value);
                     result = result.Replace($"$ARGUMENTS[{index}]", value);
                     index++;
                 }
-            }
-            else if (node is JsonObject obj)
-            {
-                foreach (var property in obj)
-                {
+            } else if (node is JsonObject obj) {
+                foreach (var property in obj) {
                     var value = property.Value?.ToString() ?? "";
                     result = result.Replace($"${property.Key}", value);
                     result = result.Replace($"$ARGUMENTS.{property.Key}", value);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogWarning(ex, "替换模板变量失败");
         }
 
@@ -111,21 +95,16 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
         Func<CancellationToken, Task<T>> operation,
         TimeSpan? timeout,
         string hookName,
-        CancellationToken cancellationToken)
-    {
-        if (!timeout.HasValue)
-        {
+        CancellationToken cancellationToken) {
+        if (!timeout.HasValue) {
             return await operation(cancellationToken).ConfigureAwait(false);
         }
 
         using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, timeout.Value);
 
-        try
-        {
+        try {
             return await operation(cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) {
             throw new HookTimeoutException(hookName, timeout.Value);
         }
     }
@@ -138,30 +117,23 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
         string stderr,
         int exitCode,
         string command,
-        bool isAsync = false)
-    {
+        bool isAsync = false) {
         // 异步钩子只返回接受状态
-        if (isAsync)
-        {
+        if (isAsync) {
             return HookResult.Success();
         }
 
         // 退出码 0 - 成功
-        if (exitCode == 0)
-        {
+        if (exitCode == 0) {
             // 尝试从 stdout 解析 JSON 响应
             var jsonLine = stdout.Split('\n')
                 .Select(l => l.Trim())
                 .FirstOrDefault(l => l.StartsWith('{') && l.EndsWith('}'));
 
-            if (jsonLine != null)
-            {
-                try
-                {
+            if (jsonLine != null) {
+                try {
                     return ParseJsonResponse(jsonLine, stdout, stderr);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     Logger?.LogWarning(ex, "Failed to parse hook JSON response");
                 }
             }
@@ -170,8 +142,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
         }
 
         // 退出码 2 - 阻塞错误（显示给模型）
-        if (exitCode == 2)
-        {
+        if (exitCode == 2) {
             return HookResult.Blocking(
                 error: stderr ?? stdout,
                 command: command,
@@ -187,11 +158,9 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// <summary>
     /// 解析 JSON 响应
     /// </summary>
-    protected virtual HookResult ParseJsonResponse(string jsonLine, string stdout, string stderr)
-    {
+    protected virtual HookResult ParseJsonResponse(string jsonLine, string stdout, string stderr) {
         var hookDecision = LlmJsonHelper.Deserialize(jsonLine, HooksJsonContext.Default.HookDecision, out var repairHint, Logger);
-        if (hookDecision is null)
-        {
+        if (hookDecision is null) {
             if (!string.IsNullOrEmpty(repairHint))
                 Logger?.LogWarning("Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
             return new HookResult { Outcome = HookOutcome.Success };
@@ -203,14 +172,12 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
         if (hookDecision.Continue.HasValue)
             preventContinuation = !hookDecision.Continue.Value;
 
-        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorEnumConstants.Block)
-        {
+        if (hookDecision.Decision?.ToLowerInvariant() == PermissionBehaviorEnumConstants.Block) {
             outcome = HookOutcome.Blocking;
             preventContinuation = true;
         }
 
-        var result = new HookResult
-        {
+        var result = new HookResult {
             Outcome = outcome,
             PreventContinuation = preventContinuation,
             StopReason = hookDecision.StopReason,
@@ -218,8 +185,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
         };
 
         var node = JsonNode.Parse(jsonLine);
-        if (node?["hookSpecificOutput"] is JsonObject specificOutputObj)
-        {
+        if (node?["hookSpecificOutput"] is JsonObject specificOutputObj) {
             result = ParseHookSpecificOutput(specificOutputObj, result);
         }
 
@@ -229,8 +195,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// <summary>
     /// 解析特定于事件的输出
     /// </summary>
-    protected virtual HookResult ParseHookSpecificOutput(JsonObject specificOutput, HookResult result)
-    {
+    protected virtual HookResult ParseHookSpecificOutput(JsonObject specificOutput, HookResult result) {
         // 子类可以重写以处理特定事件类型的输出
         return result;
     }
@@ -238,8 +203,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// <summary>
     /// 记录执行日志
     /// </summary>
-    protected void LogExecutionStart(THook hook, HookInput input)
-    {
+    protected void LogExecutionStart(THook hook, HookInput input) {
         Logger?.LogDebug(
             "Executing {HookType} hook for event {Event}: {HookDisplay}",
             SupportedType,
@@ -250,8 +214,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// <summary>
     /// 记录执行完成
     /// </summary>
-    protected void LogExecutionComplete(THook hook, HookResult result, TimeSpan duration)
-    {
+    protected void LogExecutionComplete(THook hook, HookResult result, TimeSpan duration) {
         Logger?.LogDebug(
             "Hook {HookType} completed in {DurationMs}ms with outcome {Outcome}",
             SupportedType,
@@ -262,8 +225,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
     /// <summary>
     /// 从 LLM 响应中提取 JSON 内容 — 统一调用 LlmJsonHelper
     /// </summary>
-    protected static string? ExtractJsonFromResponse(string? response)
-    {
+    protected static string? ExtractJsonFromResponse(string? response) {
         if (string.IsNullOrEmpty(response)) return null;
         return LlmJsonHelper.ExtractJsonBlock(response) ?? LlmJsonHelper.ExtractInlineJson(response);
     }
@@ -272,8 +234,7 @@ public abstract class HookExecutorBase<THook> : OneShotCommandGroup, IHookExecut
 /// <summary>
 /// 钩子执行器工厂
 /// </summary>
-public interface IHookExecutorFactory
-{
+public interface IHookExecutorFactory {
     /// <summary>
     /// 获取执行器
     /// </summary>
@@ -288,8 +249,7 @@ public interface IHookExecutorFactory
 /// <summary>
 /// 钩子执行器工厂实现
 /// </summary>
-public partial class HookExecutorFactory : IHookExecutorFactory
-{
+public partial class HookExecutorFactory : IHookExecutorFactory {
     private readonly Dictionary<string, IHookExecutor> _executors = new();
     private readonly ILogger<HookExecutorFactory>? _logger;
 
@@ -297,16 +257,13 @@ public partial class HookExecutorFactory : IHookExecutorFactory
     /// 构造函数 — 注入可选的日志记录器
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    public HookExecutorFactory(ILogger<HookExecutorFactory>? logger = null)
-    {
+    public HookExecutorFactory(ILogger<HookExecutorFactory>? logger = null) {
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public IHookExecutor GetExecutor(string hookType)
-    {
-        if (_executors.TryGetValue(hookType, out var executor))
-        {
+    public IHookExecutor GetExecutor(string hookType) {
+        if (_executors.TryGetValue(hookType, out var executor)) {
             return executor;
         }
 
@@ -314,8 +271,7 @@ public partial class HookExecutorFactory : IHookExecutorFactory
     }
 
     /// <inheritdoc />
-    public void RegisterExecutor(IHookExecutor executor)
-    {
+    public void RegisterExecutor(IHookExecutor executor) {
         _executors[executor.SupportedType] = executor;
         _logger?.LogDebug("Registered hook executor for type: {HookType}", executor.SupportedType);
     }

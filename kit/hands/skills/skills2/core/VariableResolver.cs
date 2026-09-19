@@ -5,8 +5,7 @@ namespace Core.Skills;
 /// 变量解析器 - 支持嵌套变量、默认值和表达式
 /// </summary>
 [Register(typeof(IVariableResolver), ServiceLifetime.Singleton)]
-public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
-{
+public sealed partial class VariableResolver : ServiceEntity, IVariableResolver {
     private readonly ConcurrentDictionary<string, ParsedVariable> _parseCache = new();
     private readonly ExpressionEvaluator _expressionEvaluator;
 
@@ -20,8 +19,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 初始化变量解析器
     /// </summary>
-    public VariableResolver()
-    {
+    public VariableResolver() {
         _expressionEvaluator = new ExpressionEvaluator();
     }
 
@@ -32,10 +30,8 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <param name="variables">变量字典</param>
     /// <param name="throwOnMissing">变量不存在时是否抛出异常</param>
     /// <returns>替换后的字符串</returns>
-    public string Resolve(string input, Dictionary<string, JsonElement> variables, bool throwOnMissing = false)
-    {
-        if (string.IsNullOrEmpty(input))
-        {
+    public string Resolve(string input, Dictionary<string, JsonElement> variables, bool throwOnMissing = false) {
+        if (string.IsNullOrEmpty(input)) {
             return input;
         }
 
@@ -43,11 +39,9 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
         var maxIterations = 10;
         var iterations = 0;
 
-        while (result.Contains("{{") && iterations < maxIterations)
-        {
+        while (result.Contains("{{") && iterations < maxIterations) {
             var newResult = ResolveSinglePass(result, variables, throwOnMissing);
-            if (newResult == result)
-            {
+            if (newResult == result) {
                 break;
             }
             result = newResult;
@@ -60,11 +54,9 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 单轮变量解析 - 从内到外解析变量
     /// </summary>
-    private string ResolveSinglePass(string input, Dictionary<string, JsonElement> variables, bool throwOnMissing)
-    {
+    private string ResolveSinglePass(string input, Dictionary<string, JsonElement> variables, bool throwOnMissing) {
         var matches = VariablePattern.Matches(input);
-        if (matches.Count == 0)
-        {
+        if (matches.Count == 0) {
             return input;
         }
 
@@ -77,8 +69,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
 
         var sb = new StringBuilder(input);
 
-        foreach (Match match in variablesToProcess.OrderByDescending(m => m.Index))
-        {
+        foreach (var match in variablesToProcess.OrderByDescending(m => m.Index)) {
             var variableContent = match.Groups["content"].Value.Trim();
             var parsedVariable = GetOrParseVariable(variableContent);
             var replacement = GetReplacementValue(parsedVariable, variables, throwOnMissing);
@@ -96,8 +87,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <param name="input">输入字符串</param>
     /// <param name="variables">变量字典</param>
     /// <returns>验证结果</returns>
-    public VariableValidationResult Validate(string input, Dictionary<string, JsonElement> variables)
-    {
+    public VariableValidationResult Validate(string input, Dictionary<string, JsonElement> variables) {
         var missingVariables = VariablePattern.Matches(input)
             .Cast<Match>()
             .Select(match => (Match: match, Parsed: GetOrParseVariable(match.Groups["content"].Value.Trim())))
@@ -105,21 +95,18 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
             .SelectMany(x => FindMissingVariables(x.Match, x.Parsed, variables))
             .ToList();
 
-        return new VariableValidationResult
-        {
+        return new VariableValidationResult {
             IsValid = missingVariables.Count == 0,
             MissingVariables = missingVariables
         };
     }
 
-    private static IEnumerable<string> FindMissingVariables(Match match, ParsedVariable parsedVariable, Dictionary<string, JsonElement> variables)
-    {
+    private static IEnumerable<string> FindMissingVariables(Match match, ParsedVariable parsedVariable, Dictionary<string, JsonElement> variables) {
         var nameToCheck = parsedVariable.Name.Contains("{{")
             ? ResolveNestedName(parsedVariable.Name, variables)
             : parsedVariable.Name;
 
-        if (nameToCheck.Contains("{{"))
-        {
+        if (nameToCheck.Contains("{{")) {
             return new[] { parsedVariable.Name };
         }
 
@@ -128,12 +115,10 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
             : Enumerable.Empty<string>();
     }
 
-    private static string ResolveNestedName(string name, Dictionary<string, JsonElement> variables)
-    {
+    private static string ResolveNestedName(string name, Dictionary<string, JsonElement> variables) {
         var resolver = new VariableResolver();
         var result = name;
-        for (var i = 0; i < 10 && result.Contains("{{"); i++)
-        {
+        for (var i = 0; i < 10 && result.Contains("{{"); i++) {
             result = resolver.Resolve(result, variables, false);
         }
         return result;
@@ -142,34 +127,28 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 获取或解析变量
     /// </summary>
-    private ParsedVariable GetOrParseVariable(string content)
-    {
+    private ParsedVariable GetOrParseVariable(string content) {
         return _parseCache.GetOrAdd(content, ParseVariableContent);
     }
 
     /// <summary>
     /// 解析变量内容
     /// </summary>
-    private ParsedVariable ParseVariableContent(string content)
-    {
+    private ParsedVariable ParseVariableContent(string content) {
         var result = new ParsedVariable { OriginalContent = content };
 
         var defaultValueIndex = FindDefaultValueSeparator(content);
-        if (defaultValueIndex >= 0)
-        {
+        if (defaultValueIndex >= 0) {
             result.DefaultValue = content.AsSpan(defaultValueIndex + 1).Trim().ToString();
             result.HasDefaultValue = true;
             content = content.AsSpan(0, defaultValueIndex).Trim().ToString();
         }
 
-        if (IsExpression(content))
-        {
+        if (IsExpression(content)) {
             result.IsExpression = true;
             result.Expression = content;
             result.Name = ExtractVariableNameFromExpression(content);
-        }
-        else
-        {
+        } else {
             result.Name = content;
         }
 
@@ -179,22 +158,15 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 查找默认值分隔符位置（不在括号内的第一个冒号）
     /// </summary>
-    private int FindDefaultValueSeparator(string content)
-    {
+    private int FindDefaultValueSeparator(string content) {
         var depth = 0;
-        for (var i = 0; i < content.Length; i++)
-        {
+        for (var i = 0; i < content.Length; i++) {
             var c = content[i];
-            if (c == '{')
-            {
+            if (c == '{') {
                 depth++;
-            }
-            else if (c == '}')
-            {
+            } else if (c == '}') {
                 depth--;
-            }
-            else if (c == ':' && depth == 0)
-            {
+            } else if (c == ':' && depth == 0) {
                 return i;
             }
         }
@@ -205,21 +177,17 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 判断内容是否是表达式
     /// </summary>
-    private bool IsExpression(string content)
-    {
+    private bool IsExpression(string content) {
         if (content.Contains('+') || content.Contains('-') ||
-            content.Contains('*') || content.Contains('/'))
-        {
+            content.Contains('*') || content.Contains('/')) {
             return true;
         }
 
-        if (content.Contains('(') && content.Contains(')'))
-        {
+        if (content.Contains('(') && content.Contains(')')) {
             return true;
         }
 
-        if (content.Contains('.') && !content.Contains("{{"))
-        {
+        if (content.Contains('.') && !content.Contains("{{")) {
             return true;
         }
 
@@ -229,8 +197,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 从表达式中提取变量名
     /// </summary>
-    private string ExtractVariableNameFromExpression(string expression)
-    {
+    private string ExtractVariableNameFromExpression(string expression) {
         var match = Regex.Match(expression, @"^[a-zA-Z_][a-zA-Z0-9_]*");
         return match.Success ? match.Value : expression;
     }
@@ -238,22 +205,18 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 获取替换值
     /// </summary>
-    private string GetReplacementValue(ParsedVariable variable, Dictionary<string, JsonElement> variables, bool throwOnMissing)
-    {
+    private string GetReplacementValue(ParsedVariable variable, Dictionary<string, JsonElement> variables, bool throwOnMissing) {
         var resolvedName = ResolveNestedVariables(variable.Name, variables, throwOnMissing);
         var workingVariable = variable with { Name = resolvedName };
 
-        if (workingVariable.IsExpression)
-        {
+        if (workingVariable.IsExpression) {
             var resolvedExpression = ResolveNestedVariables(workingVariable.Expression, variables, throwOnMissing);
             return _expressionEvaluator.Evaluate(resolvedExpression, variables);
         }
 
         var value = GetVariableValue(workingVariable, variables, throwOnMissing);
-        if (value != null)
-        {
-            if (value is JsonElement je)
-            {
+        if (value != null) {
+            if (value is JsonElement je) {
                 return je.ValueKind == JsonValueKind.String
                     ? je.GetString() ?? string.Empty
                     : je.ToString();
@@ -261,8 +224,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
             return value.ToString() ?? string.Empty;
         }
 
-        if (workingVariable.HasDefaultValue)
-        {
+        if (workingVariable.HasDefaultValue) {
             return ResolveNestedVariables(workingVariable.DefaultValue, variables, throwOnMissing);
         }
 
@@ -272,10 +234,8 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 解析嵌套变量
     /// </summary>
-    private string ResolveNestedVariables(string content, Dictionary<string, JsonElement> variables, bool throwOnMissing)
-    {
-        if (!content.Contains("{{"))
-        {
+    private string ResolveNestedVariables(string content, Dictionary<string, JsonElement> variables, bool throwOnMissing) {
+        if (!content.Contains("{{")) {
             return content;
         }
 
@@ -283,11 +243,9 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
         var maxIterations = 10;
         var iterations = 0;
 
-        while (result.Contains("{{") && iterations < maxIterations)
-        {
+        while (result.Contains("{{") && iterations < maxIterations) {
             var newResult = Resolve(result, variables, throwOnMissing);
-            if (newResult == result)
-            {
+            if (newResult == result) {
                 break;
             }
 
@@ -301,16 +259,13 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 获取变量值
     /// </summary>
-    private static object? GetVariableValue(ParsedVariable variable, Dictionary<string, JsonElement> variables, bool throwOnMissing)
-    {
+    private static object? GetVariableValue(ParsedVariable variable, Dictionary<string, JsonElement> variables, bool throwOnMissing) {
         var pathParts = variable.Name.Split('.');
         var currentKey = pathParts[0];
 
         if (!variables.TryGetValue(currentKey, out var value) &&
-            !variables.TryGetValue($"{{{{{currentKey}}}}}", out value))
-        {
-            if (throwOnMissing)
-            {
+            !variables.TryGetValue($"{{{{{currentKey}}}}}", out value)) {
+            if (throwOnMissing) {
                 throw new VariableResolutionException(L.T(StringKey.VariableNotExist, currentKey));
             }
 
@@ -319,8 +274,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
 
         object? currentValue = value;
 
-        for (var i = 1; i < pathParts.Length && currentValue != null; i++)
-        {
+        for (var i = 1; i < pathParts.Length && currentValue != null; i++) {
             currentValue = PropertyAccessor.GetPropertyValue(currentValue, pathParts[i]);
         }
 
@@ -330,8 +284,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
     /// <summary>
     /// 清除解析缓存
     /// </summary>
-    public void ClearCache()
-    {
+    public void ClearCache() {
         _parseCache.Clear();
     }
 }
@@ -340,8 +293,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver
 /// 解析后的变量信息
 /// </summary>
 [DebuggerDisplay("{Name}, Expression={IsExpression}, HasDefault={HasDefaultValue}")]
-internal sealed record ParsedVariable
-{
+internal sealed record ParsedVariable {
     public string OriginalContent { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public bool IsExpression { get; set; }
@@ -353,8 +305,7 @@ internal sealed record ParsedVariable
 /// <summary>
 /// 变量验证结果
 /// </summary>
-public sealed class VariableValidationResult
-{
+public sealed class VariableValidationResult {
     /// <summary>
     /// 是否验证通过
     /// </summary>
@@ -369,8 +320,7 @@ public sealed class VariableValidationResult
 /// <summary>
 /// 变量解析异常
 /// </summary>
-public class VariableResolutionException : WorkflowException
-{
+public class VariableResolutionException : WorkflowException {
     /// <summary>
     /// 初始化变量解析异常
     /// </summary>

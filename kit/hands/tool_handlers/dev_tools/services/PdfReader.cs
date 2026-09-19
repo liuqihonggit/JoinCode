@@ -5,8 +5,7 @@ namespace Infrastructure.IO.Services.FileOps;
 /// PDF 读取结果
 /// 对齐 TS: pdf.ts PDFResult
 /// </summary>
-public sealed record PdfReadResult
-{
+public sealed record PdfReadResult {
     /// <summary>
     /// 是否成功
     /// </summary>
@@ -68,8 +67,7 @@ public sealed record PdfReadResult
 /// PDF 页面范围解析结果
 /// 对齐 TS: pdfUtils.ts parsePDFPageRange
 /// </summary>
-public sealed record PdfPageRange
-{
+public sealed record PdfPageRange {
     /// <summary>
     /// 起始页（1-indexed）
     /// </summary>
@@ -85,8 +83,7 @@ public sealed record PdfPageRange
 /// PDF 读取器
 /// 对齐 TS: pdf.ts readPDF + pdfUtils.ts
 /// </summary>
-public static class PdfReader
-{
+public static class PdfReader {
     /// <summary>
     /// PDF magic bytes: %PDF-
     /// </summary>
@@ -98,8 +95,7 @@ public static class PdfReader
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>扩展名为 .pdf 时返回 true</returns>
-    public static bool IsPdfExtension(string filePath)
-    {
+    public static bool IsPdfExtension(string filePath) {
         var ext = Path.GetExtension(filePath.AsSpan());
         return ext.Equals(".pdf", StringComparison.OrdinalIgnoreCase);
     }
@@ -112,30 +108,24 @@ public static class PdfReader
     /// <param name="fs">文件系统抽象</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>PDF 读取结果，包含 base64 数据或错误信息</returns>
-    public static async Task<PdfReadResult> ReadPdfAsync(string filePath, IFileSystem fs, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (!fs.FileExists(filePath))
-            {
+    public static async Task<PdfReadResult> ReadPdfAsync(string filePath, IFileSystem fs, CancellationToken cancellationToken = default) {
+        try {
+            if (!fs.FileExists(filePath)) {
                 return PdfReadResult.Fail("not_found", $"PDF file not found: {filePath}");
             }
 
             long originalSize;
-            using (var sizeStream = fs.OpenRead(filePath))
-            {
+            using (var sizeStream = fs.OpenRead(filePath)) {
                 originalSize = sizeStream.Length;
             }
 
             // 对齐 TS: 检查空文件
-            if (originalSize == 0)
-            {
+            if (originalSize == 0) {
                 return PdfReadResult.Fail("empty", $"PDF file is empty: {filePath}");
             }
 
             // 对齐 TS: 检查大小限制
-            if (originalSize > FileOperationConfig.PdfTargetRawSize)
-            {
+            if (originalSize > FileOperationConfig.PdfTargetRawSize) {
                 return PdfReadResult.Fail("too_large",
                     $"PDF file exceeds maximum allowed size of {JoinCode.Abstractions.LLM.Chat.ContentReplacementConstants.FormatFileSize(FileOperationConfig.PdfTargetRawSize)}.");
             }
@@ -145,8 +135,7 @@ public static class PdfReader
             var header = new byte[5];
             var bytesRead = await stream.ReadAsync(header, cancellationToken).ConfigureAwait(false);
 
-            if (bytesRead < 5 || !header.AsSpan().SequenceEqual(PdfMagic))
-            {
+            if (bytesRead < 5 || !header.AsSpan().SequenceEqual(PdfMagic)) {
                 return PdfReadResult.Fail("corrupted",
                     $"File is not a valid PDF (missing %PDF- header): {filePath}");
             }
@@ -159,9 +148,7 @@ public static class PdfReader
             var pageCount = DetectPageCount(fileBytes);
 
             return PdfReadResult.Ok(base64, originalSize, pageCount);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return PdfReadResult.Fail("unknown", ex.Message);
         }
     }
@@ -173,15 +160,13 @@ public static class PdfReader
     /// </summary>
     /// <param name="pages">页面范围字符串</param>
     /// <returns>解析成功返回页面范围，格式无效时返回 null</returns>
-    public static PdfPageRange? ParsePageRange(string pages)
-    {
+    public static PdfPageRange? ParsePageRange(string pages) {
         var trimmed = pages.Trim();
         if (string.IsNullOrEmpty(trimmed))
             return null;
 
         // "N-" 开放式范围
-        if (trimmed.EndsWith('-'))
-        {
+        if (trimmed.EndsWith('-')) {
             var firstStr = trimmed[..^1];
             if (!int.TryParse(firstStr, out var first) || first < 1)
                 return null;
@@ -189,8 +174,7 @@ public static class PdfReader
         }
 
         var dashIndex = trimmed.IndexOf('-');
-        if (dashIndex < 0)
-        {
+        if (dashIndex < 0) {
             // 单页: "5"
             if (!int.TryParse(trimmed, out var page) || page < 1)
                 return null;
@@ -214,18 +198,14 @@ public static class PdfReader
     /// <param name="filePath">PDF 文件路径</param>
     /// <param name="fs">文件系统抽象</param>
     /// <returns>页数；文件不存在或解析失败时返回 null</returns>
-    public static int? GetPdfPageCount(string filePath, IFileSystem fs)
-    {
-        try
-        {
+    public static int? GetPdfPageCount(string filePath, IFileSystem fs) {
+        try {
             if (!fs.FileExists(filePath))
                 return null;
 
             var bytes = fs.ReadAllBytes(filePath);
             return DetectPageCount(bytes);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -235,8 +215,7 @@ public static class PdfReader
     /// 搜索 /Type /Pages 附近的 /Count N 模式
     /// PDF 规范: /Pages 字典的 /Count 值为文档总页数
     /// </summary>
-    private static int? DetectPageCount(byte[] bytes)
-    {
+    private static int? DetectPageCount(byte[] bytes) {
         // 搜索 /Type/Pages 或 /Type /Pages
         var typePagesIdx = IndexOfPattern(bytes, "/Type/Pages"u8);
         if (typePagesIdx < 0)
@@ -258,11 +237,9 @@ public static class PdfReader
             k++;
 
         // 解析数字
-        if (k < bytes.Length && bytes[k] >= '0' && bytes[k] <= '9')
-        {
+        if (k < bytes.Length && bytes[k] >= '0' && bytes[k] <= '9') {
             var count = 0;
-            while (k < bytes.Length && bytes[k] >= '0' && bytes[k] <= '9')
-            {
+            while (k < bytes.Length && bytes[k] >= '0' && bytes[k] <= '9') {
                 count = count * 10 + (bytes[k] - '0');
                 k++;
             }
@@ -275,17 +252,13 @@ public static class PdfReader
     /// <summary>
     /// 在字节数组中搜索指定模式
     /// </summary>
-    private static int IndexOfPattern(byte[] data, ReadOnlySpan<byte> pattern, int start = 0, int end = -1)
-    {
+    private static int IndexOfPattern(byte[] data, ReadOnlySpan<byte> pattern, int start = 0, int end = -1) {
         end = end < 0 ? data.Length : end;
         var limit = Math.Min(end, data.Length) - pattern.Length;
-        for (var i = start; i <= limit; i++)
-        {
+        for (var i = start; i <= limit; i++) {
             var match = true;
-            for (var j = 0; j < pattern.Length; j++)
-            {
-                if (data[i + j] != pattern[j])
-                {
+            for (var j = 0; j < pattern.Length; j++) {
+                if (data[i + j] != pattern[j]) {
                     match = false;
                     break;
                 }

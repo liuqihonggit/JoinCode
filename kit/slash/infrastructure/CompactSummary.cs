@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 压缩摘要数据
 /// </summary>
-public sealed class CompactSummaryData
-{
+public sealed class CompactSummaryData {
     /// <summary>
     /// 压缩前消息数
     /// </summary>
@@ -46,15 +45,13 @@ public sealed class CompactSummaryData
 /// <summary>
 /// 压缩摘要渲染器 — CLI 简化版
 /// </summary>
-public sealed class CompactSummaryRenderer
-{
+public sealed class CompactSummaryRenderer {
     /// <summary>
     /// 渲染压缩摘要数据为多行文本
     /// </summary>
     /// <param name="data">压缩摘要数据</param>
     /// <returns>渲染后的文本</returns>
-    public string Render(CompactSummaryData data)
-    {
+    public string Render(CompactSummaryData data) {
         var sb = new StringBuilder();
         sb.AppendLine($"{TerminalColors.Primary}上下文已压缩{AnsiStyleEnumConstants.Reset}");
         sb.AppendLine($"  消息: {data.MessagesSummarized} 条已摘要");
@@ -67,9 +64,7 @@ public sealed class CompactSummaryRenderer
     /// </summary>
     /// <param name="data">压缩摘要数据</param>
     /// <returns>渲染后的单行文本</returns>
-    public static string RenderStatic(CompactSummaryData data)
-    {
+    public static string RenderStatic(CompactSummaryData data) {
         return $"上下文已压缩: {data.MessagesBefore} → {data.MessagesAfter} 消息, 节省 {data.TokensSaved:N0} tokens";
     }
 }
-

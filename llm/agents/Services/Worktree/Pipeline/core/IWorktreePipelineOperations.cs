@@ -4,8 +4,7 @@ namespace Core.Agents.Worktree;
 /// Worktree 管道操作接口 — 供 Worktree 中间件使用的低级 Git 操作
 /// 与高层 IAgentWorktreeService 分离，遵循接口隔离原则
 /// </summary>
-public interface IWorktreePipelineOperations
-{
+public interface IWorktreePipelineOperations {
     /// <summary>保存 worktree 会话</summary>
     Task SaveSessionAsync(AgentWorktreeSession session);
     /// <summary>获取当前分支名称</summary>

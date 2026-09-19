@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public interface IProjectDependencyGraph
-{
+public interface IProjectDependencyGraph {
     Task<IReadOnlyList<ProjectReferenceEdge>> GetProjectDependenciesAsync(string projectPath, CancellationToken ct);
     Task<IReadOnlyList<ProjectReferenceEdge>> GetProjectDependentsAsync(string projectPath, CancellationToken ct);
     Task<IReadOnlyList<string>> GetAffectedProjectsAsync(string filePath, CancellationToken ct);

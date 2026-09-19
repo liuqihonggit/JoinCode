@@ -3,8 +3,7 @@ namespace Hands.Tests.Web;
 /// <summary>
 /// BinaryContentTypeDetector 单元测试 — 对齐TS版 mcpOutputStorage.ts isBinaryContentType
 /// </summary>
-public class BinaryContentTypeDetectorTests
-{
+public class BinaryContentTypeDetectorTests {
     [Theory]
     [InlineData("application/pdf", true)]
     [InlineData("image/png", true)]
@@ -17,8 +16,7 @@ public class BinaryContentTypeDetectorTests
     [InlineData("application/vnd.openxmlformats-officedocument.wordprocessingml.document", true)]
     [InlineData("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", true)]
     [InlineData("application/octet-stream", true)]
-    public void IsBinaryContentType_BinaryTypes_ReturnsTrue(string contentType, bool expected)
-    {
+    public void IsBinaryContentType_BinaryTypes_ReturnsTrue(string contentType, bool expected) {
         BinaryContentTypeDetector.IsBinaryContentType(contentType).Should().Be(expected);
     }
 
@@ -33,26 +31,22 @@ public class BinaryContentTypeDetectorTests
     [InlineData("application/x-www-form-urlencoded", false)]
     [InlineData("application/vnd.api+json", false)]
     [InlineData("application/atom+xml", false)]
-    public void IsBinaryContentType_TextTypes_ReturnsFalse(string contentType, bool expected)
-    {
+    public void IsBinaryContentType_TextTypes_ReturnsFalse(string contentType, bool expected) {
         BinaryContentTypeDetector.IsBinaryContentType(contentType).Should().Be(expected);
     }
 
     [Fact]
-    public void IsBinaryContentType_Null_ReturnsFalse()
-    {
+    public void IsBinaryContentType_Null_ReturnsFalse() {
         BinaryContentTypeDetector.IsBinaryContentType(null).Should().BeFalse();
     }
 
     [Fact]
-    public void IsBinaryContentType_EmptyString_ReturnsFalse()
-    {
+    public void IsBinaryContentType_EmptyString_ReturnsFalse() {
         BinaryContentTypeDetector.IsBinaryContentType("").Should().BeFalse();
     }
 
     [Fact]
-    public void IsBinaryContentType_WithCharset_IgnoresParameters()
-    {
+    public void IsBinaryContentType_WithCharset_IgnoresParameters() {
         // text/html; charset=utf-8 → 非二进制
         BinaryContentTypeDetector.IsBinaryContentType("text/html; charset=utf-8").Should().BeFalse();
         // application/pdf; charset=binary → 二进制
@@ -60,8 +54,7 @@ public class BinaryContentTypeDetectorTests
     }
 
     [Fact]
-    public void IsBinaryContentType_CaseInsensitive()
-    {
+    public void IsBinaryContentType_CaseInsensitive() {
         BinaryContentTypeDetector.IsBinaryContentType("Application/PDF").Should().BeTrue();
         BinaryContentTypeDetector.IsBinaryContentType("TEXT/HTML").Should().BeFalse();
     }
@@ -70,8 +63,7 @@ public class BinaryContentTypeDetectorTests
 /// <summary>
 /// MimeTypeExtensionMapper 单元测试 — 对齐TS版 mcpOutputStorage.ts extensionForMimeType
 /// </summary>
-public class MimeTypeExtensionMapperTests
-{
+public class MimeTypeExtensionMapperTests {
     [Theory]
     [InlineData("application/pdf", "pdf")]
     [InlineData("application/json", "json")]
@@ -95,32 +87,27 @@ public class MimeTypeExtensionMapperTests
     [InlineData("image/gif", "gif")]
     [InlineData("image/webp", "webp")]
     [InlineData("image/svg+xml", "svg")]
-    public void GetExtension_KnownMimeTypes_ReturnsCorrectExtension(string mimeType, string expected)
-    {
+    public void GetExtension_KnownMimeTypes_ReturnsCorrectExtension(string mimeType, string expected) {
         MimeTypeExtensionMapper.GetExtension(mimeType).Should().Be(expected);
     }
 
     [Fact]
-    public void GetExtension_Null_ReturnsBin()
-    {
+    public void GetExtension_Null_ReturnsBin() {
         MimeTypeExtensionMapper.GetExtension(null).Should().Be("bin");
     }
 
     [Fact]
-    public void GetExtension_EmptyString_ReturnsBin()
-    {
+    public void GetExtension_EmptyString_ReturnsBin() {
         MimeTypeExtensionMapper.GetExtension("").Should().Be("bin");
     }
 
     [Fact]
-    public void GetExtension_UnknownType_ReturnsBin()
-    {
+    public void GetExtension_UnknownType_ReturnsBin() {
         MimeTypeExtensionMapper.GetExtension("application/x-unknown").Should().Be("bin");
     }
 
     [Fact]
-    public void GetExtension_WithCharset_IgnoresParameters()
-    {
+    public void GetExtension_WithCharset_IgnoresParameters() {
         MimeTypeExtensionMapper.GetExtension("text/html; charset=utf-8").Should().Be("html");
     }
 }
@@ -128,13 +115,11 @@ public class MimeTypeExtensionMapperTests
 /// <summary>
 /// BinaryContentStorage 单元测试 — 对齐TS版 mcpOutputStorage.ts persistBinaryContent
 /// </summary>
-public class BinaryContentStorageTests
-{
+public class BinaryContentStorageTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
 
     [Fact]
-    public async Task PersistAsync_PdfContent_SavesToCorrectPath()
-    {
+    public async Task PersistAsync_PdfContent_SavesToCorrectPath() {
         var storage = new BinaryContentStorage(_fs);
         var bytes = new byte[] { 0x25, 0x50, 0x44, 0x46 }; // %PDF header
         var persistId = "webfetch-1234567890-abc123";
@@ -152,8 +137,7 @@ public class BinaryContentStorageTests
     }
 
     [Fact]
-    public async Task PersistAsync_ImageContent_SavesWithCorrectExtension()
-    {
+    public async Task PersistAsync_ImageContent_SavesWithCorrectExtension() {
         var storage = new BinaryContentStorage(_fs);
         var bytes = new byte[] { 0x89, 0x50, 0x4E, 0x47 }; // PNG header
         var persistId = "webfetch-test-png";
@@ -166,8 +150,7 @@ public class BinaryContentStorageTests
     }
 
     [Fact]
-    public async Task PersistAsync_UnknownMimeType_SavesAsBin()
-    {
+    public async Task PersistAsync_UnknownMimeType_SavesAsBin() {
         var storage = new BinaryContentStorage(_fs);
         var bytes = new byte[] { 0x00, 0x01, 0x02 };
         var persistId = "webfetch-unknown";
@@ -180,8 +163,7 @@ public class BinaryContentStorageTests
     }
 
     [Fact]
-    public async Task PersistAsync_NullMimeType_SavesAsBin()
-    {
+    public async Task PersistAsync_NullMimeType_SavesAsBin() {
         var storage = new BinaryContentStorage(_fs);
         var bytes = new byte[] { 0x00 };
         var persistId = "webfetch-null";
@@ -193,8 +175,7 @@ public class BinaryContentStorageTests
     }
 
     [Fact]
-    public void GeneratePersistId_StartsWithWebfetch()
-    {
+    public void GeneratePersistId_StartsWithWebfetch() {
         var storage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem(), null);
         var id = storage.GeneratePersistId();
         id.Should().StartWith("webfetch-");
@@ -202,8 +183,7 @@ public class BinaryContentStorageTests
     }
 
     [Fact]
-    public void GeneratePersistId_UniqueIds()
-    {
+    public void GeneratePersistId_UniqueIds() {
         var storage = new BinaryContentStorage(new IO.FileSystem.PhysicalFileSystem(), null);
         var id1 = storage.GeneratePersistId();
         var id2 = storage.GeneratePersistId();
@@ -217,8 +197,7 @@ public class BinaryContentStorageTests
     [InlineData(1536, "1.5KB")]
     [InlineData(1048576, "1MB")]
     [InlineData(1572864, "1.5MB")]
-    public void FormatFileSize_CorrectFormatting(int bytes, string expected)
-    {
+    public void FormatFileSize_CorrectFormatting(int bytes, string expected) {
         ContentReplacementConstants.FormatFileSize(bytes).Should().Be(expected);
     }
 }

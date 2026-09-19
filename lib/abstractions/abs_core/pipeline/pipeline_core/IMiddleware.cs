@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Pipeline;
 /// 框架自动处理异常，中间件实现不需要 try-catch
 /// 执行顺序由 PipelineBuilder.Use() 注册顺序决定，无需 Order 属性
 /// </summary>
-public interface IMiddleware<TContext>
-{
+public interface IMiddleware<TContext> {
     /// <summary>
     /// 异常处理策略
     /// Continue: 捕获异常，调用 onError，继续下一个中间件

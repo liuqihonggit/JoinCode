@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 不可逆操作分类 — 撤销元意识（PRD U-01）的安全护栏埋点
 /// </summary>
-public enum UnsafeOperationKind
-{
+public enum UnsafeOperationKind {
     /// <summary>安全操作</summary>
     [EnumValue("none")] None,
 

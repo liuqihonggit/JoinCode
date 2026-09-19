@@ -5,8 +5,7 @@ namespace JoinCode.ChatCommands;
 /// 模型目录 — 提供按供应商查询模型列表、解析别名、获取默认模型及能力判定等功能
 /// </summary>
 [Register(typeof(IModelCatalog), ServiceLifetime.Singleton)]
-public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, IModelConfigLoader? modelConfigLoader = null) : ServiceEntity, IModelCatalog
-{
+public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, IModelConfigLoader? modelConfigLoader = null) : ServiceEntity, IModelCatalog {
     private readonly IProviderDefinitionRegistry _registry = registry;
     private readonly IModelConfigLoader? _modelConfigLoader = modelConfigLoader;
 
@@ -15,11 +14,9 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// </summary>
     /// <param name="provider">供应商标识</param>
     /// <returns>该供应商的模型数组;若供应商不存在返回空数组</returns>
-    public ModelEntry[] GetModelsForProvider(string provider)
-    {
+    public ModelEntry[] GetModelsForProvider(string provider) {
         var definition = _registry.TryGet(provider);
-        if (definition is not null)
-        {
+        if (definition is not null) {
             var baseModels = definition.AvailableModels;
 
             var customModelId = Environment.GetEnvironmentVariable(JccEnvVar.CustomModelOption.ToValue());
@@ -36,7 +33,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
 
             var baseList = baseModels.ToList();
             var result = new ModelEntry[baseList.Count + 1];
-            for (int i = 0; i < baseList.Count; i++)
+            for (var i = 0; i < baseList.Count; i++)
                 result[i] = baseList[i];
             result[baseList.Count] = new ModelEntry(
                 customModelId,
@@ -56,8 +53,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="input">用户输入的模型别名</param>
     /// <param name="provider">供应商标识</param>
     /// <returns>解析后的标准模型 ID;若未匹配别名则返回 null</returns>
-    public string? ResolveAlias(string input, string provider)
-    {
+    public string? ResolveAlias(string input, string provider) {
         return _registry.TryGet(provider)?.ResolveAlias(input);
     }
 
@@ -66,8 +62,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// </summary>
     /// <param name="provider">供应商标识</param>
     /// <returns>供应商显示名称</returns>
-    public string GetProviderDisplayName(string provider)
-    {
+    public string GetProviderDisplayName(string provider) {
         return _registry.TryGet(provider)?.DisplayName ?? provider;
     }
 
@@ -76,8 +71,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// </summary>
     /// <param name="provider">供应商标识</param>
     /// <returns>默认模型 ID</returns>
-    public string GetDefaultModelForProvider(string provider)
-    {
+    public string GetDefaultModelForProvider(string provider) {
         return _registry.TryGet(provider)?.DefaultModelId ?? _modelConfigLoader?.GetDefaultModelId(VendorKindEnumConstants.OpenAi) ?? "gpt-4o";
     }
 
@@ -86,8 +80,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// </summary>
     /// <param name="provider">供应商标识</param>
     /// <returns>默认快速模型 ID</returns>
-    public string GetDefaultFastModelForProvider(string provider)
-    {
+    public string GetDefaultFastModelForProvider(string provider) {
         return _registry.TryGet(provider)?.DefaultFastModelId ?? _modelConfigLoader?.GetDefaultFastModelId(VendorKindEnumConstants.OpenAi) ?? "gpt-4o-mini";
     }
 
@@ -97,8 +90,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="models">原始模型列表</param>
     /// <param name="currentModelId">当前模型 ID</param>
     /// <returns>包含当前模型的列表;若当前模型 ID 为空或 unknown 则原样返回</returns>
-    public ModelEntry[] EnsureCurrentModelInList(ModelEntry[] models, string currentModelId)
-    {
+    public ModelEntry[] EnsureCurrentModelInList(ModelEntry[] models, string currentModelId) {
         if (string.IsNullOrWhiteSpace(currentModelId) || currentModelId == "unknown")
             return models;
 
@@ -120,8 +112,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="modelId">模型 ID</param>
     /// <param name="provider">供应商标识</param>
     /// <returns>支持快速模式返回 true;否则返回 false</returns>
-    public bool SupportsFastMode(string modelId, string provider)
-    {
+    public bool SupportsFastMode(string modelId, string provider) {
         return _registry.TryGet(provider)?.SupportsFastMode(modelId) ?? false;
     }
 
@@ -131,8 +122,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="modelId">模型 ID</param>
     /// <param name="provider">供应商标识</param>
     /// <returns>支持 effort 参数返回 true;否则返回 false</returns>
-    public bool SupportsEffort(string modelId, string provider)
-    {
+    public bool SupportsEffort(string modelId, string provider) {
         return _registry.TryGet(provider)?.SupportsEffort(modelId) ?? false;
     }
 
@@ -142,8 +132,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="modelId">模型 ID</param>
     /// <param name="provider">供应商标识</param>
     /// <returns>支持 max effort 返回 true;否则返回 false</returns>
-    public bool SupportsMaxEffort(string modelId, string provider)
-    {
+    public bool SupportsMaxEffort(string modelId, string provider) {
         return _registry.TryGet(provider)?.SupportsMaxEffort(modelId) ?? false;
     }
 
@@ -154,8 +143,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="provider">供应商标识</param>
     /// <param name="modality">待检查的模态</param>
     /// <returns>支持该模态返回 true;否则返回 false</returns>
-    public bool SupportsModality(string modelId, string provider, ModelModalityKind modality)
-    {
+    public bool SupportsModality(string modelId, string provider, ModelModalityKind modality) {
         return _registry.TryGet(provider)?.SupportsModality(modelId, modality) ?? false;
     }
 
@@ -165,8 +153,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
     /// <param name="modelId">模型 ID</param>
     /// <param name="provider">供应商标识</param>
     /// <returns>模型支持的模态;若供应商未注册则回退为 Text</returns>
-    public ModelModalityKind GetModalities(string modelId, string provider)
-    {
+    public ModelModalityKind GetModalities(string modelId, string provider) {
         return _registry.TryGet(provider)?.GetModalities(modelId) ?? ModelModalityKind.Text;
     }
 }

@@ -5,6 +5,5 @@ namespace Guard.Tests.Configuration;
 /// 包含: SettingsLoaderTests (修改 AppDataFolder) + ProjectRulesLoaderTests (读取 AppDataFolder 静态字段)
 /// </summary>
 [CollectionDefinition("AppDataConstantsCollection", DisableParallelization = true)]
-public sealed class AppDataConstantsCollection
-{
+public sealed class AppDataConstantsCollection {
 }

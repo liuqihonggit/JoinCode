@@ -6,26 +6,22 @@ namespace Tui.Tests;
 /// 进程启动测试在无头环境（stdout 重定向）自动跳过，因 Terminal.Gui app.Init 需真实终端。
 /// </summary>
 [Trait("Category", "Integration")]
-public class TuiSessionTests
-{
+public class TuiSessionTests {
     [Fact]
-    public void JcctuiAssembly_LoadsSuccessfully()
-    {
+    public void JcctuiAssembly_LoadsSuccessfully() {
         var assembly = typeof(OutputView).Assembly;
         Assert.Equal("jcctui", assembly.GetName().Name);
     }
 
     [Fact]
-    public void Jcctui_WithAwait2_DoesNotHang()
-    {
+    public void Jcctui_WithAwait2_DoesNotHang() {
         if (Console.IsOutputRedirected) return;
 
         var dllPath = typeof(OutputView).Assembly.Location;
         var repoRoot = FindRepoRoot();
 
 #pragma warning disable JCC9001
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = "dotnet",
             Arguments = $"exec \"{dllPath}\" --await 2",
             UseShellExecute = false,
@@ -40,16 +36,14 @@ public class TuiSessionTests
     }
 
     [Fact]
-    public void Jcctui_WithAwait1_ExitsWithValidCode()
-    {
+    public void Jcctui_WithAwait1_ExitsWithValidCode() {
         if (Console.IsOutputRedirected) return;
 
         var dllPath = typeof(OutputView).Assembly.Location;
         var repoRoot = FindRepoRoot();
 
 #pragma warning disable JCC9001
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = "dotnet",
             Arguments = $"exec \"{dllPath}\" --await 1",
             UseShellExecute = false,
@@ -57,8 +51,7 @@ public class TuiSessionTests
         };
         using var process = Process.Start(psi)!;
         var exited = process.WaitForExit(8000);
-        if (!exited)
-        {
+        if (!exited) {
             process.Kill(entireProcessTree: true);
             return;
         }
@@ -68,8 +61,7 @@ public class TuiSessionTests
         Assert.True(exitCode is 0 or 1234 or 1, $"意外退出码: {exitCode}");
     }
 
-    private static string FindRepoRoot()
-    {
+    private static string FindRepoRoot() {
 #pragma warning disable JCC9001
         var dir = AppContext.BaseDirectory;
         while (dir is not null && !Directory.Exists(System.IO.Path.Combine(dir, "app")))

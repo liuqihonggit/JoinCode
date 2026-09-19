@@ -4,15 +4,13 @@ namespace MockServer.E2E.Tests.Core;
 /// <summary>
 /// HTTP 响应构建配置
 /// </summary>
-public class HttpResponseConfig
-{
+public class HttpResponseConfig {
     public int StatusCode { get; set; } = 200;
     public string StatusText { get; set; } = "OK";
     public Dictionary<string, string> Headers { get; set; } = new();
     public string Body { get; set; } = string.Empty;
 
-    public HttpResponseConfig()
-    {
+    public HttpResponseConfig() {
         Headers["Content-Type"] = "application/json";
         Headers["Connection"] = "keep-alive";
     }
@@ -21,10 +19,8 @@ public class HttpResponseConfig
 /// <summary>
 /// HTTP 响应构建器
 /// </summary>
-internal static class HttpResponseBuilder
-{
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
+internal static class HttpResponseBuilder {
+    private static readonly JsonSerializerOptions JsonOptions = new() {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
         TypeInfoResolver = MockServerE2EJsonContext.Default
@@ -33,8 +29,7 @@ internal static class HttpResponseBuilder
     /// <summary>
     /// 构建标准 Chat Completion 响应
     /// </summary>
-    public static string BuildResponse(ChatCompletionResponse response)
-    {
+    public static string BuildResponse(ChatCompletionResponse response) {
         var json = JsonSerializer.Serialize(response, JsonOptions);
         return BuildHttpResponse(200, "OK", json);
     }
@@ -42,8 +37,7 @@ internal static class HttpResponseBuilder
     /// <summary>
     /// 构建流式响应块 (SSE 格式)
     /// </summary>
-    public static string BuildStreamChunk(ChatCompletionChunk chunk)
-    {
+    public static string BuildStreamChunk(ChatCompletionChunk chunk) {
         var json = JsonSerializer.Serialize(chunk, JsonOptions);
         return $"data: {json}\n\n";
     }
@@ -51,16 +45,14 @@ internal static class HttpResponseBuilder
     /// <summary>
     /// 构建流式响应结束标记
     /// </summary>
-    public static string BuildStreamEnd()
-    {
+    public static string BuildStreamEnd() {
         return "data: [DONE]\n\n";
     }
 
     /// <summary>
     /// 构建错误响应
     /// </summary>
-    public static string BuildErrorResponse(int statusCode, string errorMessage, string? errorType = null)
-    {
+    public static string BuildErrorResponse(int statusCode, string errorMessage, string? errorType = null) {
         var errorResponse = new MockErrorResponse(
             new MockErrorDetail(errorMessage, errorType ?? "invalid_request_error", GetErrorCode(statusCode)));
 
@@ -72,8 +64,7 @@ internal static class HttpResponseBuilder
     /// <summary>
     /// 构建完整的 HTTP 响应字符串
     /// </summary>
-    private static string BuildHttpResponse(int statusCode, string statusText, string body)
-    {
+    private static string BuildHttpResponse(int statusCode, string statusText, string body) {
         var sb = new StringBuilder();
         sb.AppendLine($"HTTP/1.1 {statusCode} {statusText}");
         sb.AppendLine($"Content-Type: application/json");
@@ -87,8 +78,7 @@ internal static class HttpResponseBuilder
     /// <summary>
     /// 构建 SSE 流式响应头
     /// </summary>
-    public static string BuildStreamHeaders()
-    {
+    public static string BuildStreamHeaders() {
         var sb = new StringBuilder();
         sb.AppendLine("HTTP/1.1 200 OK");
         sb.AppendLine("Content-Type: text/event-stream");
@@ -101,19 +91,16 @@ internal static class HttpResponseBuilder
     /// <summary>
     /// 构建自定义配置响应
     /// </summary>
-    public static string BuildCustomResponse(HttpResponseConfig config)
-    {
+    public static string BuildCustomResponse(HttpResponseConfig config) {
         ArgumentNullException.ThrowIfNull(config);
         var sb = new StringBuilder();
         sb.AppendLine($"HTTP/1.1 {config.StatusCode} {config.StatusText}");
 
-        foreach (var header in config.Headers)
-        {
+        foreach (var header in config.Headers) {
             sb.AppendLine($"{header.Key}: {header.Value}");
         }
 
-        if (!string.IsNullOrEmpty(config.Body))
-        {
+        if (!string.IsNullOrEmpty(config.Body)) {
             var contentLength = Encoding.UTF8.GetByteCount(config.Body);
             sb.AppendLine($"Content-Length: {contentLength}");
         }
@@ -126,8 +113,7 @@ internal static class HttpResponseBuilder
     /// <summary>
     /// 获取状态码对应的状态文本
     /// </summary>
-    private static string GetStatusText(int statusCode)
-    {
+    private static string GetStatusText(int statusCode) {
         return StatusCodeTexts.TryGetValue(statusCode, out var text)
             ? text
             : "Unknown";
@@ -136,15 +122,13 @@ internal static class HttpResponseBuilder
     /// <summary>
     /// 获取错误代码
     /// </summary>
-    private static string? GetErrorCode(int statusCode)
-    {
+    private static string? GetErrorCode(int statusCode) {
         return ErrorCodes.TryGetValue(statusCode, out var code)
             ? code
             : null;
     }
 
-    private static readonly Dictionary<int, string> StatusCodeTexts = new()
-    {
+    private static readonly Dictionary<int, string> StatusCodeTexts = new() {
         [200] = "OK",
         [201] = "Created",
         [400] = "Bad Request",
@@ -157,8 +141,7 @@ internal static class HttpResponseBuilder
         [503] = "Service Unavailable"
     };
 
-    private static readonly Dictionary<int, string> ErrorCodes = new()
-    {
+    private static readonly Dictionary<int, string> ErrorCodes = new() {
         [400] = "invalid_request_error",
         [401] = "unauthorized",
         [403] = "forbidden",

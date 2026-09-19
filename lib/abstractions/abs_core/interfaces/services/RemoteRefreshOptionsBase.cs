@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Services;
 /// (ApiEndpoint/ClientKey/RefreshInterval/CacheExpiration/EnableCache)。
 /// 派生类通过构造函数注入各自的 RefreshInterval/CacheExpiration 默认值。
 /// </summary>
-public abstract class RemoteRefreshOptionsBase : IRemoteRefreshOptions
-{
+public abstract class RemoteRefreshOptionsBase : IRemoteRefreshOptions {
     /// <summary>远程 API 端点地址</summary>
     public string ApiEndpoint { get; set; } = string.Empty;
 
@@ -28,8 +27,7 @@ public abstract class RemoteRefreshOptionsBase : IRemoteRefreshOptions
     /// </summary>
     /// <param name="refreshInterval">刷新间隔默认值</param>
     /// <param name="cacheExpiration">缓存过期时间默认值</param>
-    protected RemoteRefreshOptionsBase(TimeSpan refreshInterval, TimeSpan cacheExpiration)
-    {
+    protected RemoteRefreshOptionsBase(TimeSpan refreshInterval, TimeSpan cacheExpiration) {
         RefreshInterval = refreshInterval;
         CacheExpiration = cacheExpiration;
     }

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Security;
 /// 权限模式枚举 — 5个核心模式
 /// 旧值已废弃: Default→Auto, AcceptEdits→Auto, DontAsk→Bypass, BypassPermissions→Bypass, Deny→Ask
 /// </summary>
-public enum PermissionMode
-{
+public enum PermissionMode {
     /// <summary>
     /// 计划模式：读取操作自动批准，写入操作需要确认
     /// </summary>

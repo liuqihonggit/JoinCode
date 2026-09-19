@@ -4,8 +4,7 @@ namespace Infrastructure.IO;
 /// 静默控制台输出 — 所有输出被丢弃，用于 E2E 测试和 CI
 /// JCC_CONSOLE_MODE=NoOp 时激活
 /// </summary>
-public sealed class NoOpConsoleOutput : IConsoleOutput
-{
+public sealed class NoOpConsoleOutput : IConsoleOutput {
     /// <inheritdoc/>
     public void WriteLine(string message) { }
     /// <inheritdoc/>

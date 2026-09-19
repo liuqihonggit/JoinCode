@@ -4,8 +4,7 @@ namespace Core.Scheduling.Tasks;
 /// <summary>
 /// 本地 Shell 任务执行器接口 — 抽象 Bash 与 PowerShell 命令的本地执行能力
 /// </summary>
-public interface ILocalShellTaskExecutor
-{
+public interface ILocalShellTaskExecutor {
     /// <summary>
     /// 异步执行本地 Bash Shell 任务
     /// </summary>
@@ -26,8 +25,7 @@ public interface ILocalShellTaskExecutor
 /// <summary>
 /// 本地 Shell 任务定义 — 描述一次本地命令执行所需的全部参数
 /// </summary>
-public sealed partial class LocalShellTaskDefinition
-{
+public sealed partial class LocalShellTaskDefinition {
     /// <summary>
     /// 任务 ID — 唯一标识本次任务执行
     /// </summary>
@@ -63,8 +61,7 @@ public sealed partial class LocalShellTaskDefinition
 /// 本地 Shell 任务执行器 — 通过系统执行器注册表执行 Bash 或 PowerShell 命令,并记录遥测指标
 /// </summary>
 [Register(typeof(ILocalShellTaskExecutor), ServiceLifetime.Singleton)]
-public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellTaskExecutor
-{
+public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellTaskExecutor {
     private readonly ISystemActuatorRegistry _actuatorRegistry;
     private readonly ILogger<LocalShellTaskExecutor>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -77,8 +74,7 @@ public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellT
     /// <param name="logger">日志记录器</param>
     /// <param name="telemetryService">遥测服务</param>
     /// <param name="clock">时钟服务,用于计时</param>
-    public LocalShellTaskExecutor(ISystemActuatorRegistry actuatorRegistry, ILogger<LocalShellTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null)
-    {
+    public LocalShellTaskExecutor(ISystemActuatorRegistry actuatorRegistry, ILogger<LocalShellTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null) {
         _actuatorRegistry = actuatorRegistry;
         _logger = logger;
         _telemetryService = telemetryService;
@@ -86,14 +82,12 @@ public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellT
     }
 
     /// <inheritdoc/>
-    public async Task<AgentTaskResult> ExecuteShellAsync(LocalShellTaskDefinition definition, CancellationToken ct = default)
-    {
+    public async Task<AgentTaskResult> ExecuteShellAsync(LocalShellTaskDefinition definition, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(definition);
 
         var startTime = _clock.GetUtcNow();
 
-        try
-        {
+        try {
             _logger?.LogInformation("执行本地 Shell 任务: {TaskId}, 命令: {Command}", definition.TaskId, definition.Command);
 
             SetEnvironmentVariables(definition);
@@ -101,8 +95,7 @@ public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellT
 
             var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
 
-            if (result.Success)
-            {
+            if (result.Success) {
                 var output = string.IsNullOrEmpty(result.Stderr)
                     ? result.Stdout
                     : $"{result.Stdout}\n[stderr] {result.Stderr}";
@@ -114,13 +107,9 @@ public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellT
             var error = result.ErrorMessage ?? (result.Interrupted ? L.T(StringKey.CommandTimeout) : $"Exit code: {result.ExitCode}");
             RecordShellMetrics("shell", false);
             return AgentTaskResult.Failure(definition.TaskId, "local-shell", error, elapsed);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
             _logger?.LogError(ex, L.T(StringKey.LocalShellTaskFailedLog, definition.TaskId));
             return AgentTaskResult.Failure(definition.TaskId, "local-shell", ex.Message, elapsed);
@@ -128,14 +117,12 @@ public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellT
     }
 
     /// <inheritdoc/>
-    public async Task<AgentTaskResult> ExecutePowerShellAsync(LocalShellTaskDefinition definition, CancellationToken ct = default)
-    {
+    public async Task<AgentTaskResult> ExecutePowerShellAsync(LocalShellTaskDefinition definition, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(definition);
 
         var startTime = _clock.GetUtcNow();
 
-        try
-        {
+        try {
             _logger?.LogInformation(L.T(StringKey.LocalPowershellTaskStartLog, definition.TaskId, definition.Command));
 
             SetEnvironmentVariables(definition);
@@ -143,8 +130,7 @@ public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellT
 
             var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
 
-            if (result.Success)
-            {
+            if (result.Success) {
                 var output = string.IsNullOrEmpty(result.Stderr)
                     ? result.Stdout
                     : $"{result.Stdout}\n[stderr] {result.Stderr}";
@@ -156,25 +142,19 @@ public sealed partial class LocalShellTaskExecutor : ServiceEntity, ILocalShellT
             var error = result.ErrorMessage ?? (result.Interrupted ? L.T(StringKey.CommandTimeout) : $"Exit code: {result.ExitCode}");
             RecordShellMetrics("powershell", false);
             return AgentTaskResult.Failure(definition.TaskId, "local-powershell", error, elapsed);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
             _logger?.LogError(ex, L.T(StringKey.LocalPowershellTaskFailedLog, definition.TaskId));
             return AgentTaskResult.Failure(definition.TaskId, "local-powershell", ex.Message, elapsed);
         }
     }
 
-    private static void SetEnvironmentVariables(LocalShellTaskDefinition definition)
-    {
+    private static void SetEnvironmentVariables(LocalShellTaskDefinition definition) {
         if (definition.EnvironmentVariables is null || definition.EnvironmentVariables.Count == 0) return;
 
-        foreach (var (key, value) in definition.EnvironmentVariables)
-        {
+        foreach (var (key, value) in definition.EnvironmentVariables) {
             Environment.SetEnvironmentVariable(key, value);
         }
     }

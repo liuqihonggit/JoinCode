@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 搜索正则编译器 — 统一 RgEngine/SearchService 两处正则编译逻辑
 /// <para>支持：FixedStrings(Regex.Escape)/WordRegexp(\b包裹)/SmartCase(模式全小写则忽略大小写)</para>
 /// </summary>
-public static class SearchRegexCompiler
-{
+public static class SearchRegexCompiler {
     /// <summary>
     /// 编译正则表达式
     /// </summary>
@@ -23,8 +22,7 @@ public static class SearchRegexCompiler
         bool multiline = false,
         bool fixedStrings = false,
         bool wordRegexp = false,
-        bool smartCase = false)
-    {
+        bool smartCase = false) {
         var p = pattern;
         if (fixedStrings)
             p = Regex.Escape(p);
@@ -41,12 +39,9 @@ public static class SearchRegexCompiler
         if (ignoreCase)
             options |= RegexOptions.IgnoreCase;
 
-        try
-        {
+        try {
             return (new Regex(p, options), null);
-        }
-        catch (ArgumentException ex)
-        {
+        } catch (ArgumentException ex) {
             return (null, ex.Message);
         }
     }

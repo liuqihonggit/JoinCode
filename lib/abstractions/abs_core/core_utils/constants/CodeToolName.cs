@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 代码相关工具名称枚举（CodeIndex + LSP + 代码执行 + 分析 + 生成）
 /// </summary>
-public enum CodeToolName
-{
+public enum CodeToolName {
     [EnumValue("code_index_search")]
     [SecurityClass("readonly", AutoAllowed = true, PlanAllowed = true, AskAllowed = true)]
     CodeIndexSearch,

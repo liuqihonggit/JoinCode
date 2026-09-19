@@ -5,18 +5,15 @@ namespace Hands.Shell.Tests;
 /// SystemActuatorRegistry 防御性编程测试
 /// 验证 CancelTasksForAgentAsync 全异步化 + 部分成功机制
 /// </summary>
-public sealed class SystemActuatorRegistryDefensiveTests
-{
+public sealed class SystemActuatorRegistryDefensiveTests {
     private static SystemActuatorRegistry CreateSut()
         => new(TestFileSystem.Current);
 
     [Fact]
-    public async Task CancelTasksForAgentAsync_EmptyAgent_ReturnsZeroWithoutBlocking()
-    {
+    public async Task CancelTasksForAgentAsync_EmptyAgent_ReturnsZeroWithoutBlocking() {
         var sut = CreateSut();
         var completed = false;
-        var task = Task.Run(async () =>
-        {
+        var task = Task.Run(async () => {
             var result = await sut.CancelTasksForAgentAsync("agent-1");
             result.Should().Be(0);
             completed = true;
@@ -27,16 +24,14 @@ public sealed class SystemActuatorRegistryDefensiveTests
     }
 
     [Fact]
-    public async Task CancelTasksForAgentAsync_UnknownAgent_ReturnsZero()
-    {
+    public async Task CancelTasksForAgentAsync_UnknownAgent_ReturnsZero() {
         var sut = CreateSut();
         var result = await sut.CancelTasksForAgentAsync("unknown-agent");
         result.Should().Be(0);
     }
 
     [Fact]
-    public async Task CancelTasksForAgentAsync_CancellationRequested_ThrowsOperationCanceledException()
-    {
+    public async Task CancelTasksForAgentAsync_CancellationRequested_ThrowsOperationCanceledException() {
         var sut = CreateSut();
         using var cts = new CancellationTokenSource();
         cts.Cancel();

@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// <para>命名加 Fsm 前缀避免与 System.Runtime.CompilerServices.StateMachineAttribute 冲突</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class FsmStateMachineAttribute : Attribute
-{
+public sealed class FsmStateMachineAttribute : Attribute {
     /// <summary>状态枚举类型</summary>
     public Type StateType { get; }
 
@@ -17,8 +16,7 @@ public sealed class FsmStateMachineAttribute : Attribute
     /// <summary>初始状态值</summary>
     public object InitialState { get; }
 
-    public FsmStateMachineAttribute(Type stateType, Type eventType, object initialState)
-    {
+    public FsmStateMachineAttribute(Type stateType, Type eventType, object initialState) {
         StateType = stateType;
         EventType = eventType;
         InitialState = initialState;
@@ -31,8 +29,7 @@ public sealed class FsmStateMachineAttribute : Attribute
 /// <para>枚举值通过 object 传递，源码生成器通过 TypedConstant 读取类型+值</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
-public sealed class TransitionAttribute : Attribute
-{
+public sealed class TransitionAttribute : Attribute {
     /// <summary>源状态</summary>
     public object From { get; }
 
@@ -42,8 +39,7 @@ public sealed class TransitionAttribute : Attribute
     /// <summary>目标状态</summary>
     public object To { get; }
 
-    public TransitionAttribute(object from, object evt, object to)
-    {
+    public TransitionAttribute(object from, object evt, object to) {
         From = from;
         Event = evt;
         To = to;
@@ -55,16 +51,14 @@ public sealed class TransitionAttribute : Attribute
 /// <para>方法级特性，关联到 (From, Event) 转换</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
-public sealed class GuardAttribute : Attribute
-{
+public sealed class GuardAttribute : Attribute {
     /// <summary>源状态</summary>
     public object From { get; }
 
     /// <summary>触发事件</summary>
     public object Event { get; }
 
-    public GuardAttribute(object from, object evt)
-    {
+    public GuardAttribute(object from, object evt) {
         From = from;
         Event = evt;
     }
@@ -75,16 +69,14 @@ public sealed class GuardAttribute : Attribute
 /// <para>方法级特性，关联到 (From, Event) 转换，转换成功后执行</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
-public sealed class TransitionActionAttribute : Attribute
-{
+public sealed class TransitionActionAttribute : Attribute {
     /// <summary>源状态</summary>
     public object From { get; }
 
     /// <summary>触发事件</summary>
     public object Event { get; }
 
-    public TransitionActionAttribute(object from, object evt)
-    {
+    public TransitionActionAttribute(object from, object evt) {
         From = from;
         Event = evt;
     }

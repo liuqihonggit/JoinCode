@@ -2,11 +2,9 @@ using Core.Summary;
 
 namespace Brain.Other.Tests;
 
-public sealed class AwaySummaryServiceTests
-{
+public sealed class AwaySummaryServiceTests {
     [Fact]
-    public async Task MarkAway_SetsIsAwayTrue()
-    {
+    public async Task MarkAway_SetsIsAwayTrue() {
         await using var sut = new AwaySummaryService();
         sut.IsAway.Should().BeFalse();
 
@@ -17,8 +15,7 @@ public sealed class AwaySummaryServiceTests
     }
 
     [Fact]
-    public async Task GenerateSummary_WhenNotAway_ReturnsFailure()
-    {
+    public async Task GenerateSummary_WhenNotAway_ReturnsFailure() {
         await using var sut = new AwaySummaryService();
 
         var result = await sut.GenerateSummaryAsync();
@@ -28,13 +25,11 @@ public sealed class AwaySummaryServiceTests
     }
 
     [Fact]
-    public async Task TrackEvent_WhenAway_RecordsEvent()
-    {
+    public async Task TrackEvent_WhenAway_RecordsEvent() {
         await using var sut = new AwaySummaryService();
         await sut.MarkAwayAsync();
 
-        await sut.TrackEventAsync(new AwayEvent
-        {
+        await sut.TrackEventAsync(new AwayEvent {
             Type = AwayEventType.ToolCall,
             Description = "test event",
             Timestamp = DateTime.UtcNow,

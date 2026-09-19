@@ -5,8 +5,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 用户打字（KeyDown）重置倒计时（不恢复子代理）；用户发送消息取消倒计时（立即恢复子代理）。
 /// 对齐 PRD 3.2 空闲超时语义：60秒无任何输入活动才唤醒 mainAgent，任何打字活动都重置倒计时。
 /// </summary>
-public sealed class SubAgentIdleTimer : IDisposable
-{
+public sealed class SubAgentIdleTimer : IDisposable {
     private readonly Avalonia.Threading.DispatcherTimer _timer;
     private readonly Action<int>? _onTick;
     private readonly int _timeoutSeconds;
@@ -22,8 +21,7 @@ public sealed class SubAgentIdleTimer : IDisposable
     /// </summary>
     /// <param name="timeoutSeconds">空闲超时秒数，0 = 禁用（永不唤醒 mainAgent，纯对齐 TS 原版）</param>
     /// <param name="onTick">每秒回调更新 UI 剩余秒数（可 null）</param>
-    public SubAgentIdleTimer(int timeoutSeconds = 60, Action<int>? onTick = null)
-    {
+    public SubAgentIdleTimer(int timeoutSeconds = 60, Action<int>? onTick = null) {
         _timeoutSeconds = timeoutSeconds;
         _onTick = onTick;
         _timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -31,8 +29,7 @@ public sealed class SubAgentIdleTimer : IDisposable
     }
 
     /// <summary>启动倒计时 — Interrupt 子代理后调用</summary>
-    public void Start(string teammateId)
-    {
+    public void Start(string teammateId) {
         if (_timeoutSeconds <= 0) return;
         _teammateId = teammateId;
         _remainingSeconds = _timeoutSeconds;
@@ -41,16 +38,14 @@ public sealed class SubAgentIdleTimer : IDisposable
     }
 
     /// <summary>重置倒计时 — 用户打字（KeyDown，未发送）时调用，用户还在活动别打断</summary>
-    public void Reset()
-    {
+    public void Reset() {
         if (!_timer.IsEnabled) return;
         _remainingSeconds = _timeoutSeconds;
         _onTick?.Invoke(_remainingSeconds);
     }
 
     /// <summary>停止倒计时 — 用户发送消息时调用（立即恢复子代理，取消超时移交）</summary>
-    public void Stop()
-    {
+    public void Stop() {
         _timer.Stop();
         _onTick?.Invoke(0);
     }
@@ -61,23 +56,19 @@ public sealed class SubAgentIdleTimer : IDisposable
     /// <summary>当前剩余秒数</summary>
     public int RemainingSeconds => _remainingSeconds;
 
-    private void OnTimerTick(object? sender, EventArgs e)
-    {
+    private void OnTimerTick(object? sender, EventArgs e) {
         _remainingSeconds--;
         _onTick?.Invoke(_remainingSeconds);
-        if (_remainingSeconds <= 0)
-        {
+        if (_remainingSeconds <= 0) {
             _timer.Stop();
-            if (_teammateId is not null)
-            {
+            if (_teammateId is not null) {
                 MainAgentTakeoverRequested?.Invoke(this, _teammateId);
             }
         }
     }
 
     /// <summary>释放计时器资源</summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _timer.Stop();

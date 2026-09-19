@@ -1,26 +1,22 @@
 namespace Core.Tests;
 
-public class SecretGuardNodeTests
-{
+public class SecretGuardNodeTests {
     [Fact]
-    public void CheckSecrets_NullContent_ReturnsNull()
-    {
+    public void CheckSecrets_NullContent_ReturnsNull() {
         var node = new SecretGuardNode();
         var result = node.CheckSecrets("/test.txt", null);
         Assert.Null(result);
     }
 
     [Fact]
-    public void CheckSecrets_NullGuard_ReturnsNull()
-    {
+    public void CheckSecrets_NullGuard_ReturnsNull() {
         var node = new SecretGuardNode();
         var result = node.CheckSecrets("/test.txt", "some content");
         Assert.Null(result);
     }
 
     [Fact]
-    public void CheckSecrets_GuardReturnsNull_PassesThrough()
-    {
+    public void CheckSecrets_GuardReturnsNull_PassesThrough() {
         var guard = new Mock<ITeamMemSecretGuard>();
         guard.Setup(g => g.CheckTeamMemSecrets(It.IsAny<string>(), It.IsAny<string>()))
              .Returns((string?)null);
@@ -32,8 +28,7 @@ public class SecretGuardNodeTests
     }
 
     [Fact]
-    public void CheckSecrets_GuardReturnsError_ReturnsError()
-    {
+    public void CheckSecrets_GuardReturnsError_ReturnsError() {
         var guard = new Mock<ITeamMemSecretGuard>();
         guard.Setup(g => g.CheckTeamMemSecrets(It.IsAny<string>(), It.IsAny<string>()))
              .Returns("detected secret: API_KEY=xxx");
@@ -45,8 +40,7 @@ public class SecretGuardNodeTests
     }
 
     [Fact]
-    public void CheckSecrets_CallsGuardWithCorrectArgs()
-    {
+    public void CheckSecrets_CallsGuardWithCorrectArgs() {
         var guard = new Mock<ITeamMemSecretGuard>();
         guard.Setup(g => g.CheckTeamMemSecrets("/path/file.txt", "content"))
              .Returns((string?)null)

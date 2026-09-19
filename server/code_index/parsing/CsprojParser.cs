@@ -3,8 +3,7 @@ namespace JoinCode.CodeIndex.Ast;
 /// <summary>
 /// csproj 文件解析结果
 /// </summary>
-internal sealed class CsprojParseResult
-{
+internal sealed class CsprojParseResult {
     /// <summary>项目名称</summary>
     public required string Name { get; init; }
     /// <summary>项目文件路径</summary>
@@ -22,8 +21,7 @@ internal sealed class CsprojParseResult
 /// <summary>
 /// csproj 文件解析器 — 解析 .csproj 提取项目引用与包引用
 /// </summary>
-internal sealed class CsprojParser
-{
+internal sealed class CsprojParser {
     /// <summary>
     /// 解析 csproj 文件
     /// </summary>
@@ -32,8 +30,7 @@ internal sealed class CsprojParser
     /// <param name="workspaceRoot">工作区根目录（可选）</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <returns>解析结果</returns>
-    internal static CsprojParseResult Parse(string filePath, IFileSystem fs, string? workspaceRoot = null, ILogger? logger = null)
-    {
+    internal static CsprojParseResult Parse(string filePath, IFileSystem fs, string? workspaceRoot = null, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(fs);
 
@@ -49,8 +46,7 @@ internal sealed class CsprojParser
         var projectRefs = ExtractProjectReferences(doc, projectDir, msbuildProps);
         var packageRefs = ExtractPackageReferences(doc);
 
-        return new CsprojParseResult
-        {
+        return new CsprojParseResult {
             Name = name,
             FilePath = filePath,
             TargetFramework = targetFramework,
@@ -60,28 +56,23 @@ internal sealed class CsprojParser
         };
     }
 
-    private static string? ExtractProperty(XDocument doc, string propertyName)
-    {
+    private static string? ExtractProperty(XDocument doc, string propertyName) {
         return doc.Descendants(propertyName)
             .Select(e => e.Value.Trim())
             .FirstOrDefault(v => !string.IsNullOrEmpty(v));
     }
 
-    private static List<string> ExtractProjectReferences(XDocument doc, string projectDir, Dictionary<string, string> msbuildProps)
-    {
+    private static List<string> ExtractProjectReferences(XDocument doc, string projectDir, Dictionary<string, string> msbuildProps) {
         var result = new List<string>();
 
-        foreach (var elem in doc.Descendants("ProjectReference"))
-        {
+        foreach (var elem in doc.Descendants("ProjectReference")) {
             var include = elem.Attribute("Include")?.Value;
-            if (string.IsNullOrEmpty(include))
-            {
+            if (string.IsNullOrEmpty(include)) {
                 continue;
             }
 
             var resolved = ResolvePath(include, projectDir, msbuildProps);
-            if (resolved is not null)
-            {
+            if (resolved is not null) {
                 result.Add(resolved);
             }
         }
@@ -89,23 +80,19 @@ internal sealed class CsprojParser
         return result;
     }
 
-    private static List<(string Name, string? Version)> ExtractPackageReferences(XDocument doc)
-    {
+    private static List<(string Name, string? Version)> ExtractPackageReferences(XDocument doc) {
         var result = new List<(string Name, string? Version)>();
 
-        foreach (var elem in doc.Descendants("PackageReference"))
-        {
+        foreach (var elem in doc.Descendants("PackageReference")) {
             var include = elem.Attribute("Include")?.Value;
-            if (string.IsNullOrEmpty(include))
-            {
+            if (string.IsNullOrEmpty(include)) {
                 continue;
             }
 
             var version = elem.Attribute("Version")?.Value
                 ?? elem.Element("Version")?.Value;
 
-            if (!string.IsNullOrEmpty(version) && version.Contains('$'))
-            {
+            if (!string.IsNullOrEmpty(version) && version.Contains('$')) {
                 version = null;
             }
 
@@ -115,47 +102,38 @@ internal sealed class CsprojParser
         return result;
     }
 
-    private static string? ResolvePath(string include, string projectDir, Dictionary<string, string> msbuildProps)
-    {
+    private static string? ResolvePath(string include, string projectDir, Dictionary<string, string> msbuildProps) {
         var resolved = include;
 
-        if (include.Contains('$'))
-        {
+        if (include.Contains('$')) {
             resolved = ReplaceMsBuildVariables(include, msbuildProps);
-            if (resolved.Contains('$'))
-            {
+            if (resolved.Contains('$')) {
                 return null;
             }
         }
 
-        if (!Path.IsPathRooted(resolved))
-        {
+        if (!Path.IsPathRooted(resolved)) {
             resolved = Path.GetFullPath(Path.Combine(projectDir, resolved));
         }
 
         return NormalizePath(resolved);
     }
 
-    private static string ReplaceMsBuildVariables(string input, Dictionary<string, string> props)
-    {
+    private static string ReplaceMsBuildVariables(string input, Dictionary<string, string> props) {
         var result = input;
         var maxIterations = 10;
 
-        for (var i = 0; i < maxIterations; i++)
-        {
+        for (var i = 0; i < maxIterations; i++) {
             var changed = false;
-            foreach (var kvp in props)
-            {
+            foreach (var kvp in props) {
                 var placeholder = $"$({kvp.Key})";
-                if (result.Contains(placeholder))
-                {
+                if (result.Contains(placeholder)) {
                     result = result.Replace(placeholder, kvp.Value);
                     changed = true;
                 }
             }
 
-            if (!changed)
-            {
+            if (!changed) {
                 break;
             }
         }
@@ -163,31 +141,25 @@ internal sealed class CsprojParser
         return result;
     }
 
-    private static Dictionary<string, string> LoadMsBuildProperties(string projectDir, IFileSystem fs, string? workspaceRoot, ILogger? logger = null)
-    {
+    private static Dictionary<string, string> LoadMsBuildProperties(string projectDir, IFileSystem fs, string? workspaceRoot, ILogger? logger = null) {
         var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         var searchRoot = workspaceRoot ?? projectDir;
         var propsFiles = FindDirectoryBuildProps(searchRoot, projectDir, fs);
 
-        foreach (var propsFile in propsFiles)
-        {
+        foreach (var propsFile in propsFiles) {
             var propsDir = Path.GetDirectoryName(propsFile) ?? string.Empty;
             var thisFileDir = propsDir.EndsWith(Path.DirectorySeparatorChar)
                 ? propsDir
                 : propsDir + Path.DirectorySeparatorChar;
             props["MSBuildThisFileDirectory"] = thisFileDir;
 
-            try
-            {
+            try {
                 var doc = XDocument.Parse(fs.ReadAllText(propsFile));
-                foreach (var pg in doc.Descendants("PropertyGroup"))
-                {
-                    foreach (var elem in pg.Elements())
-                    {
+                foreach (var pg in doc.Descendants("PropertyGroup")) {
+                    foreach (var elem in pg.Elements()) {
                         var value = elem.Value.Trim();
-                        if (!string.IsNullOrEmpty(value) && !value.Contains('<') && !value.Contains('>'))
-                        {
+                        if (!string.IsNullOrEmpty(value) && !value.Contains('<') && !value.Contains('>')) {
                             // 立即替换 $(MSBuildThisFileDirectory) 为当前文件目录
                             // 避免后续文件覆盖 MSBuildThisFileDirectory 后导致回溯解析错误
                             value = value.Replace("$(MSBuildThisFileDirectory)", thisFileDir, StringComparison.OrdinalIgnoreCase);
@@ -195,9 +167,7 @@ internal sealed class CsprojParser
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 logger?.LogWarning(ex, "CsprojParser: Failed to parse Directory.Build.props file");
             }
         }
@@ -205,22 +175,18 @@ internal sealed class CsprojParser
         return props;
     }
 
-    private static List<string> FindDirectoryBuildProps(string searchRoot, string projectDir, IFileSystem fs)
-    {
+    private static List<string> FindDirectoryBuildProps(string searchRoot, string projectDir, IFileSystem fs) {
         var result = new List<string>();
         var rootFullPath = Path.GetFullPath(searchRoot);
         var currentDirPath = Path.GetFullPath(projectDir);
 
-        while (currentDirPath is not null)
-        {
+        while (currentDirPath is not null) {
             var propsPath = Path.Combine(currentDirPath, "Directory.Build.props");
-            if (fs.FileExists(propsPath))
-            {
+            if (fs.FileExists(propsPath)) {
                 result.Add(propsPath);
             }
 
-            if (string.Equals(currentDirPath, rootFullPath, StringComparison.OrdinalIgnoreCase))
-            {
+            if (string.Equals(currentDirPath, rootFullPath, StringComparison.OrdinalIgnoreCase)) {
                 break;
             }
 
@@ -231,8 +197,7 @@ internal sealed class CsprojParser
         return result;
     }
 
-    private static string NormalizePath(string path)
-    {
+    private static string NormalizePath(string path) {
         return path.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar);
     }
 }

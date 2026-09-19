@@ -6,8 +6,7 @@ namespace Core.Plugins;
 /// <para>卸载时撤销注册,实现可逆效应</para>
 /// </summary>
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
-public sealed partial class FixHooksPlugin : WorkflowPluginBase
-{
+public sealed partial class FixHooksPlugin : WorkflowPluginBase {
     private ToolFixHookRegistry? _registry;
 
     /// <summary>初始化工具修正钩子插件</summary>
@@ -27,16 +26,14 @@ public sealed partial class FixHooksPlugin : WorkflowPluginBase
         => Task.FromResult(OperationResult.Ok());
 
     /// <summary>初始化插件 — 从 DI 获取 ToolFixHookRegistry,注册默认修正器</summary>
-    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
+    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         _registry = serviceProvider.GetRequiredService<ToolFixHookRegistry>();
         _registry.RegisterDefaultFixHooks();
         return Task.FromResult(OperationResult.Ok());
     }
 
     /// <summary>插件特定清理 — 撤销三个默认修正器的注册</summary>
-    protected override void OnUnload()
-    {
+    protected override void OnUnload() {
         if (_registry is null) return;
         _registry.Unregister("GhPrBodyFixHook");
         _registry.Unregister("JsonFixHook");

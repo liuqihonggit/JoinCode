@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// ANSI 终端控制码枚举（光标、清屏、鼠标、焦点、粘贴、同步更新、滚动、超链接、终端大小）
 /// </summary>
-public enum AnsiControl
-{
+public enum AnsiControl {
     [EnumValue("\x1b[H")] CursorHome,
     [EnumValue("\x1b[2J")] ClearScreen,
     [EnumValue("\x1b[0J")] ClearScreenFromCursor,

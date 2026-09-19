@@ -1,18 +1,15 @@
 namespace Core.Tests;
 
-public class FileEditLogicTests
-{
+public class FileEditLogicTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly FileEditLogic _fileEditLogic;
 
-    public FileEditLogicTests()
-    {
+    public FileEditLogicTests() {
         _fileEditLogic = new FileEditLogic(_fs);
     }
 
     [Fact]
-    public async Task EditWithRegexAsync_SimplePattern_ReplacesCorrectly()
-    {
+    public async Task EditWithRegexAsync_SimplePattern_ReplacesCorrectly() {
         var filePath = CreateFile("Hello World, Hello Universe");
 
         var result = await _fileEditLogic.EditWithRegexAsync(filePath, @"Hello\s(\w+)", "Hi $1").ConfigureAwait(true);
@@ -24,8 +21,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task EditWithRegexAsync_ReplaceAll_ReplacesAllOccurrences()
-    {
+    public async Task EditWithRegexAsync_ReplaceAll_ReplacesAllOccurrences() {
         var filePath = CreateFile("apple banana apple cherry apple");
 
         var result = await _fileEditLogic.EditWithRegexAsync(filePath, "apple", "orange", replaceAll: true).ConfigureAwait(true);
@@ -37,8 +33,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task EditWithRegexAsync_ReplaceFirst_OnlyFirstOccurrence()
-    {
+    public async Task EditWithRegexAsync_ReplaceFirst_OnlyFirstOccurrence() {
         var filePath = CreateFile("apple banana apple");
 
         var result = await _fileEditLogic.EditWithRegexAsync(filePath, "apple", "orange", replaceAll: false).ConfigureAwait(true);
@@ -50,8 +45,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task EditWithRegexAsync_NoMatch_ReturnsFailure()
-    {
+    public async Task EditWithRegexAsync_NoMatch_ReturnsFailure() {
         var filePath = CreateFile("Hello World");
 
         var result = await _fileEditLogic.EditWithRegexAsync(filePath, @"\d+", "number").ConfigureAwait(true);
@@ -61,8 +55,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task EditWithRegexAsync_InvalidPattern_ReturnsFailure()
-    {
+    public async Task EditWithRegexAsync_InvalidPattern_ReturnsFailure() {
         var filePath = CreateFile("Hello World");
 
         var result = await _fileEditLogic.EditWithRegexAsync(filePath, @"[unclosed", "replacement").ConfigureAwait(true);
@@ -71,8 +64,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task InsertLinesAfterAsync_ValidPosition_InsertsCorrectly()
-    {
+    public async Task InsertLinesAfterAsync_ValidPosition_InsertsCorrectly() {
         var filePath = CreateFile("Line 1\nLine 2\nLine 3\n");
 
         var result = await _fileEditLogic.InsertLinesAfterAsync(filePath, afterLine: 1, "New Line A\nNew Line B").ConfigureAwait(true);
@@ -88,8 +80,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task InsertLinesAfterAsync_AfterLastLine_AppendsCorrectly()
-    {
+    public async Task InsertLinesAfterAsync_AfterLastLine_AppendsCorrectly() {
         var filePath = CreateFile("Line 1\nLine 2\nLine 3\n");
 
         var result = await _fileEditLogic.InsertLinesAfterAsync(filePath, afterLine: 3, "New Content").ConfigureAwait(true);
@@ -100,8 +91,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task InsertLinesAfterAsync_BeforeFirstLine_InsertsAtTop()
-    {
+    public async Task InsertLinesAfterAsync_BeforeFirstLine_InsertsAtTop() {
         var filePath = CreateFile("Line 1\nLine 2\n");
 
         var result = await _fileEditLogic.InsertLinesAfterAsync(filePath, afterLine: 0, "Header").ConfigureAwait(true);
@@ -113,8 +103,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task InsertLinesAfterAsync_OutOfRange_ReturnsFailure()
-    {
+    public async Task InsertLinesAfterAsync_OutOfRange_ReturnsFailure() {
         var filePath = CreateFile("Line 1\n");
 
         var result = await _fileEditLogic.InsertLinesAfterAsync(filePath, afterLine: 100, "New").ConfigureAwait(true);
@@ -123,8 +112,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task DeleteLinesAsync_ValidRange_DeletesCorrectly()
-    {
+    public async Task DeleteLinesAsync_ValidRange_DeletesCorrectly() {
         var filePath = CreateFile("Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n");
 
         var result = await _fileEditLogic.DeleteLinesAsync(filePath, startLine: 2, endLine: 3).ConfigureAwait(true);
@@ -139,8 +127,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task DeleteLinesAsync_OutOfRange_ReturnsFailure()
-    {
+    public async Task DeleteLinesAsync_OutOfRange_ReturnsFailure() {
         var filePath = CreateFile("Line 1\n");
 
         var result = await _fileEditLogic.DeleteLinesAsync(filePath, startLine: 100, endLine: 200).ConfigureAwait(true);
@@ -149,8 +136,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task DeleteLinesAsync_StartGreaterThanEnd_ReturnsFailure()
-    {
+    public async Task DeleteLinesAsync_StartGreaterThanEnd_ReturnsFailure() {
         var filePath = CreateFile("Line 1\nLine 2\n");
 
         var result = await _fileEditLogic.DeleteLinesAsync(filePath, startLine: 5, endLine: 2).ConfigureAwait(true);
@@ -159,8 +145,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task BatchEditAsync_MultipleFiles_AllSucceed()
-    {
+    public async Task BatchEditAsync_MultipleFiles_AllSucceed() {
         var file1 = CreateFile("Hello World");
         var file2 = CreateFile("Hello Universe");
         var paths = new[] { file1, file2 };
@@ -176,8 +161,7 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task BatchEditAsync_PartialFailure_ReportsResults()
-    {
+    public async Task BatchEditAsync_PartialFailure_ReportsResults() {
         var validFile = CreateFile("Hello World");
         var invalidFile = "/test/nonexistent.txt";
         var paths = new[] { validFile, invalidFile };
@@ -190,16 +174,14 @@ public class FileEditLogicTests
     }
 
     [Fact]
-    public async Task BatchEditAsync_EmptyList_ReturnsEmpty()
-    {
+    public async Task BatchEditAsync_EmptyList_ReturnsEmpty() {
         var results = await _fileEditLogic.BatchEditAsync(Array.Empty<string>(), "old", "new").ConfigureAwait(true);
 
         Assert.Empty(results);
     }
 
     [Fact]
-    public async Task EditWithRegexAsync_FileNotFound_ReturnsFailure()
-    {
+    public async Task EditWithRegexAsync_FileNotFound_ReturnsFailure() {
         var filePath = "/test/nonexistent.txt";
 
         var result = await _fileEditLogic.EditWithRegexAsync(filePath, "pattern", "replacement").ConfigureAwait(true);
@@ -207,19 +189,16 @@ public class FileEditLogicTests
         Assert.False(result.Success);
     }
 
-    private string CreateFile(string content)
-    {
+    private string CreateFile(string content) {
         var filePath = $"/test/test_{Guid.NewGuid():N}.txt";
         _fs.WriteAllText(filePath, content);
         return filePath;
     }
 
-    private static int CountOccurrences(string text, string substring)
-    {
+    private static int CountOccurrences(string text, string substring) {
         var count = 0;
         var index = 0;
-        while ((index = text.IndexOf(substring, index, StringComparison.Ordinal)) != -1)
-        {
+        while ((index = text.IndexOf(substring, index, StringComparison.Ordinal)) != -1) {
             count++;
             index += substring.Length;
         }

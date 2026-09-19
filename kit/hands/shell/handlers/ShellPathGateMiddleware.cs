@@ -4,16 +4,14 @@ namespace Tools.Shell;
 /// Shell 路径门控中间件 — 根据当前平台和目标执行器类型转换路径格式
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddleware {
 
     /// <summary>
     /// 构造路径门控中间件
     /// </summary>
     /// <param name="probeService">环境探测服务</param>
     /// <param name="logger">日志器（可选）</param>
-    public ShellPathGateMiddleware(IEnvironmentProbeService probeService, ILogger<ShellPathGateMiddleware>? logger = null)
-    {
+    public ShellPathGateMiddleware(IEnvironmentProbeService probeService, ILogger<ShellPathGateMiddleware>? logger = null) {
         _probeService = probeService;
         _logger = logger;
     }
@@ -21,24 +19,20 @@ public sealed partial class ShellPathGateMiddleware : ServiceEntity, IShellMiddl
     private readonly ILogger<ShellPathGateMiddleware>? _logger;
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
-        if (!string.IsNullOrEmpty(context.WorkingDirectory))
-        {
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
+        if (!string.IsNullOrEmpty(context.WorkingDirectory)) {
             WarnUncPathForBash(context.WorkingDirectory, context.Provider);
         }
 
         return next(context, ct);
     }
 
-    private void WarnUncPathForBash(string path, ISystemActuator actuator)
-    {
+    private void WarnUncPathForBash(string path, ISystemActuator actuator) {
         if (actuator.Kind != SystemActuatorKind.Bash) return;
         if (!PathConverter.LooksLikeWindowsPath(path) && !path.StartsWith("//")) return;
 
         var normalized = path.Replace('\\', '/');
-        if (normalized.StartsWith("//"))
-        {
+        if (normalized.StartsWith("//")) {
             _logger?.LogWarning("[ShellPathGate] UNC path '{Path}' used with Bash — Git Bash UNC support is limited, consider mapping to a local drive", path);
         }
     }

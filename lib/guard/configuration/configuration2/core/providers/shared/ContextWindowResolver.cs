@@ -5,8 +5,7 @@ namespace Core.Configuration.Providers;
 /// 每次调用实时解析当前模型的上下文窗口大小，不缓存状态
 /// </summary>
 [Register(typeof(IContextWindowResolver), ServiceLifetime.Singleton)]
-public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindowResolver
-{
+public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindowResolver {
     private readonly IFastModeService _fastModeService;
     private readonly IProviderDefinitionRegistry _registry;
     private readonly WorkflowConfig? _config;
@@ -19,8 +18,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
     /// <param name="fastModeService">快速模式服务,用于解析当前模型与是否激活快速模式</param>
     /// <param name="registry">Provider 定义注册表,用于查找模型的上下文窗口配置</param>
     /// <param name="config">工作流配置(可选),用于读取当前供应商</param>
-    public ContextWindowResolver(IFastModeService fastModeService, IProviderDefinitionRegistry registry, WorkflowConfig? config = null)
-    {
+    public ContextWindowResolver(IFastModeService fastModeService, IProviderDefinitionRegistry registry, WorkflowConfig? config = null) {
         _fastModeService = fastModeService;
         _registry = registry;
         _config = config;
@@ -33,8 +31,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
     /// 2. Provider 定义中的模型匹配
     /// 3. 默认值 200K
     /// </summary>
-    public int ResolveCurrentContextWindow()
-    {
+    public int ResolveCurrentContextWindow() {
         // 1. 环境变量覆盖（对齐 TS CLAUDE_CODE_MAX_CONTEXT_TOKENS）
         var envOverride = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.MaxContextTokens);
         if (!string.IsNullOrWhiteSpace(envOverride) && int.TryParse(envOverride, out var envValue) && envValue > 0)
@@ -45,8 +42,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
         var provider = ResolveCurrentProvider();
 
         var definition = _registry.TryGet(provider);
-        if (definition is not null)
-        {
+        if (definition is not null) {
             var match = definition.AvailableModels
                 .FirstOrDefault(m => m.Id.Equals(currentModel, StringComparison.OrdinalIgnoreCase));
             if (match is not null)
@@ -57,8 +53,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
         return DefaultContextWindow;
     }
 
-    private string ResolveCurrentModelId()
-    {
+    private string ResolveCurrentModelId() {
         // FastMode 激活时使用 FastModel，否则使用 PrimaryModel
         if (_fastModeService.IsFastModeActive && !string.IsNullOrWhiteSpace(_fastModeService.FastModelId))
             return _fastModeService.FastModelId;
@@ -66,8 +61,7 @@ public sealed partial class ContextWindowResolver : ServiceEntity, IContextWindo
         return _fastModeService.PrimaryModelId;
     }
 
-    private string ResolveCurrentProvider()
-    {
+    private string ResolveCurrentProvider() {
         return _config?.Provider?.Vendor
             ?? Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.Vendor)
             ?? VendorKindEnumConstants.OpenAi;

@@ -2,13 +2,11 @@
 #pragma warning disable JCC3010, JCC3011, JCC3012
 namespace Core.Tests.Agents.Coordinator;
 
-public class TeamManagerChatRoomTests : IAsyncLifetime
-{
+public class TeamManagerChatRoomTests : IAsyncLifetime {
     private readonly TeamManager _teamManager;
     private readonly Mock<ITeammateMailboxService> _mailboxServiceMock = new();
 
-    public TeamManagerChatRoomTests()
-    {
+    public TeamManagerChatRoomTests() {
         _teamManager = new TeamManager(
             JoinCode.Abstractions.Clock.SystemClockService.Instance,
             mailboxService: _mailboxServiceMock.Object);
@@ -18,8 +16,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     public Task DisposeAsync() => Task.CompletedTask;
 
     [Fact]
-    public async Task GetChatRoomInfoAsync_ReturnsChatRoomIdEqualToTeamId()
-    {
+    public async Task GetChatRoomInfoAsync_ReturnsChatRoomIdEqualToTeamId() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "agent1" });
         var teamId = createResult.Data!.TeamId;
 
@@ -31,8 +28,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetChatRoomInfoAsync_ReturnsMembersWithRoles()
-    {
+    public async Task GetChatRoomInfoAsync_ReturnsMembersWithRoles() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "owner", "member1" });
         var teamId = createResult.Data!.TeamId;
 
@@ -44,8 +40,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task BroadcastMessageAsync_DuplicateMessageId_OnlyKeepsOne()
-    {
+    public async Task BroadcastMessageAsync_DuplicateMessageId_OnlyKeepsOne() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
         var teamId = createResult.Data!.TeamId;
 
@@ -69,8 +64,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RevokeMessageAsync_Within2Minutes_Succeeds()
-    {
+    public async Task RevokeMessageAsync_Within2Minutes_Succeeds() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
         var teamId = createResult.Data!.TeamId;
 
@@ -89,8 +83,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RevokeMessageAsync_ByNonSenderNonAdmin_Fails()
-    {
+    public async Task RevokeMessageAsync_ByNonSenderNonAdmin_Fails() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
         var teamId = createResult.Data!.TeamId;
 
@@ -105,8 +98,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RevokeMessageAsync_NonExistentMessage_Fails()
-    {
+    public async Task RevokeMessageAsync_NonExistentMessage_Fails() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender" });
         var teamId = createResult.Data!.TeamId;
 
@@ -117,8 +109,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task RevokeMessageAsync_BroadcastsSystemNotice()
-    {
+    public async Task RevokeMessageAsync_BroadcastsSystemNotice() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
         var teamId = createResult.Data!.TeamId;
 
@@ -136,8 +127,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SystemNoticeFactory_MemberMuted_IsAdminOnlyVisibility()
-    {
+    public async Task SystemNoticeFactory_MemberMuted_IsAdminOnlyVisibility() {
         var notice = SystemNoticeFactory.Create(SystemNoticeKind.MemberMuted, "team1", "agent1");
 
         notice.Visibility.Should().Be(MessageVisibility.AdminOnly);
@@ -147,8 +137,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task SystemNoticeFactory_MemberJoined_IsSystemVisibility()
-    {
+    public async Task SystemNoticeFactory_MemberJoined_IsSystemVisibility() {
         var notice = SystemNoticeFactory.Create(SystemNoticeKind.MemberJoined, "team1", "agent1");
 
         notice.Visibility.Should().Be(MessageVisibility.System);
@@ -156,8 +145,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PersistTeamMessage_AdminOnly_OnlyDeliversToAdmins()
-    {
+    public async Task PersistTeamMessage_AdminOnly_OnlyDeliversToAdmins() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "owner", "admin1", "member1" });
         var teamId = createResult.Data!.TeamId;
         SetTeamSession(teamId, "session1");
@@ -184,8 +172,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PersistTeamMessage_Private_OnlyDeliversToToAgentId()
-    {
+    public async Task PersistTeamMessage_Private_OnlyDeliversToToAgentId() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "target", "bystander" });
         var teamId = createResult.Data!.TeamId;
         SetTeamSession(teamId, "session1");
@@ -196,8 +183,7 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
             .Callback<MailboxSendRequest, CancellationToken>((req, _) => sentAgents.Add(req.ToAgentId))
             .Returns(() => ValueTask.FromResult<CoordinatorMessage>(null!));
 
-        var privateMsg = new TeamMessage
-        {
+        var privateMsg = new TeamMessage {
             MessageId = Guid.NewGuid().ToString("N"),
             TeamId = teamId,
             SenderId = "sender",
@@ -214,14 +200,12 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task PersistTeamMessage_Hidden_DoesNotDeliver()
-    {
+    public async Task PersistTeamMessage_Hidden_DoesNotDeliver() {
         var createResult = await _teamManager.CreateTeamAsync("测试群", initialMembers: new List<string> { "sender", "receiver" });
         var teamId = createResult.Data!.TeamId;
         SetTeamSession(teamId, "session1");
 
-        var hiddenMsg = new TeamMessage
-        {
+        var hiddenMsg = new TeamMessage {
             MessageId = Guid.NewGuid().ToString("N"),
             TeamId = teamId,
             SenderId = "sender",
@@ -235,32 +219,27 @@ public class TeamManagerChatRoomTests : IAsyncLifetime
         _mailboxServiceMock.Verify(m => m.SendAsync(It.IsAny<MailboxSendRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    private void SetTeamSession(string teamId, string sessionId)
-    {
+    private void SetTeamSession(string teamId, string sessionId) {
         var registryField = typeof(TeamManager).GetField("_registry",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
         var rooms = registry.SnapshotRooms();
-        if (rooms.TryGetValue(teamId, out var room))
-        {
+        if (rooms.TryGetValue(teamId, out var room)) {
             room.SessionId = sessionId;
         }
     }
 
-    private void SetMemberRole(string teamId, string agentId, string role)
-    {
+    private void SetMemberRole(string teamId, string agentId, string role) {
         var registryField = typeof(TeamManager).GetField("_registry",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var registry = (TeamRegistry)registryField!.GetValue(_teamManager)!;
         var rooms = registry.SnapshotRooms();
-        if (rooms.TryGetValue(teamId, out var room) && room.MemberDetails.TryGetValue(agentId, out var info))
-        {
+        if (rooms.TryGetValue(teamId, out var room) && room.MemberDetails.TryGetValue(agentId, out var info)) {
             room.MemberDetails[agentId] = info with { Role = role };
         }
     }
 
-    private async Task InvokePersistTeamMessageAsync(string teamId, TeamMessage message, CancellationToken cancellationToken)
-    {
+    private async Task InvokePersistTeamMessageAsync(string teamId, TeamMessage message, CancellationToken cancellationToken) {
         var dispatcherField = typeof(TeamManager).GetField("_messageDispatcher",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var dispatcher = dispatcherField!.GetValue(_teamManager)!;

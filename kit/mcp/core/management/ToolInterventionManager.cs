@@ -5,8 +5,7 @@ namespace McpToolDispatch;
 /// Blacklist→工具不注册; Downgrade→Score扣分; Redirect→注入替代建议
 /// </summary>
 [Register(typeof(ToolInterventionManager), ServiceLifetime.Singleton)]
-public sealed class ToolInterventionManager : ServiceEntity
-{
+public sealed class ToolInterventionManager : ServiceEntity {
     private readonly ILogger<ToolInterventionManager>? _logger;
     private readonly IFileSystem _fs;
     private readonly Dictionary<string, InterventionRule> _rules = new(StringComparer.OrdinalIgnoreCase);
@@ -18,8 +17,7 @@ public sealed class ToolInterventionManager : ServiceEntity
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public ToolInterventionManager(IFileSystem fs, ILogger<ToolInterventionManager>? logger = null)
-    {
+    public ToolInterventionManager(IFileSystem fs, ILogger<ToolInterventionManager>? logger = null) {
         _fs = fs;
         _logger = logger;
         _configPath = Path.Combine(
@@ -37,12 +35,9 @@ public sealed class ToolInterventionManager : ServiceEntity
     /// <param name="duration">干预持续时间（可选，null 表示永久）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task AddRuleAsync(string toolName, InterventionType type, string reason, TimeSpan? duration = null, CancellationToken ct = default)
-    {
-        using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
-            _rules[toolName] = new InterventionRule
-            {
+    public async Task AddRuleAsync(string toolName, InterventionType type, string reason, TimeSpan? duration = null, CancellationToken ct = default) {
+        using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            _rules[toolName] = new InterventionRule {
                 Type = type,
                 Reason = reason,
                 Expiry = duration.HasValue ? DateTime.UtcNow + duration.Value : null,
@@ -62,10 +57,8 @@ public sealed class ToolInterventionManager : ServiceEntity
     /// <param name="toolName">工具名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task RemoveRuleAsync(string toolName, CancellationToken ct = default)
-    {
-        using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public async Task RemoveRuleAsync(string toolName, CancellationToken ct = default) {
+        using (var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _rules.Remove(toolName);
         }
 
@@ -79,14 +72,13 @@ public sealed class ToolInterventionManager : ServiceEntity
     /// <param name="toolName">工具名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>干预规则；若不存在或已过期则返回 null</returns>
-    public async Task<InterventionRule?> GetRuleAsync(string toolName, CancellationToken ct = default)
-    {
+    public async Task<InterventionRule?> GetRuleAsync(string toolName, CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         if (_rules.TryGetValue(toolName, out var rule) && !rule.IsExpired)
             return rule;
         return null;
-    
+
     }
 
     /// <summary>
@@ -94,14 +86,13 @@ public sealed class ToolInterventionManager : ServiceEntity
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>以工具名为键的只读干预规则字典</returns>
-    public async Task<IReadOnlyDictionary<string, InterventionRule>> GetActiveRulesAsync(CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyDictionary<string, InterventionRule>> GetActiveRulesAsync(CancellationToken ct = default) {
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         return _rules
             .Where(kvp => !kvp.Value.IsExpired)
             .ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
-    
+
     }
 
     /// <summary>
@@ -109,8 +100,7 @@ public sealed class ToolInterventionManager : ServiceEntity
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <returns>若被黑名单禁用返回 true；否则 false</returns>
-    public bool IsBlacklisted(string toolName)
-    {
+    public bool IsBlacklisted(string toolName) {
         if (!_rules.TryGetValue(toolName, out var rule)) return false;
         return rule.Type == InterventionType.Blacklist && !rule.IsExpired;
     }
@@ -120,57 +110,45 @@ public sealed class ToolInterventionManager : ServiceEntity
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <returns>评分惩罚值；若不存在或非 Downgrade 类型则返回 null</returns>
-    public int? GetScorePenalty(string toolName)
-    {
+    public int? GetScorePenalty(string toolName) {
         if (!_rules.TryGetValue(toolName, out var rule) || rule.IsExpired) return null;
         return rule.Type == InterventionType.Downgrade ? rule.ScorePenalty : null;
     }
 
-    private static string? GetDefaultRedirect(string toolName)
-    {
-        return toolName.ToLowerInvariant() switch
-        {
+    private static string? GetDefaultRedirect(string toolName) {
+        return toolName.ToLowerInvariant() switch {
             "cmd" => "powershell",
             "bash" => "powershell",
             _ => null
         };
     }
 
-    private void LoadFromDisk()
-    {
-        try
-        {
+    private void LoadFromDisk() {
+        try {
             if (!_fs.FileExists(_configPath)) return;
             var json = _fs.ReadAllText(_configPath);
             var data = RelaxedJsonSerializer.Deserialize(json, ToolInterventionJsonContext.Default.DictionaryStringInterventionRule);
             if (data is null) return;
             foreach (var kvp in data)
                 _rules[kvp.Key] = kvp.Value;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "加载工具干预配置失败");
         }
     }
 
-    private void SaveToDisk()
-    {
-        try
-        {
+    private void SaveToDisk() {
+        try {
             var dir = Path.GetDirectoryName(_configPath)!;
             if (!_fs.DirectoryExists(dir)) _fs.CreateDirectory(dir);
             var json = RelaxedJsonSerializer.Serialize(_rules, ToolInterventionJsonContext.Default);
             _fs.WriteAllText(_configPath, json);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "保存工具干预配置失败");
         }
     }
 
     /// <summary>释放资源 — 释放异步锁。</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _lock.Dispose();
         base.Dispose();
     }

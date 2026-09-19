@@ -4,15 +4,13 @@ namespace Infrastructure.Shell;
 /// Shell 工具门控服务 — 对齐 TS isPowerShellToolEnabled()
 /// </summary>
 [Register(typeof(IShellToolGateService), ServiceLifetime.Singleton)]
-public sealed class ShellToolGateService : ServiceEntity, IShellToolGateService
-{
+public sealed class ShellToolGateService : ServiceEntity, IShellToolGateService {
     private readonly bool _cachedResult;
 
     /// <summary>
     /// 构造门控服务，初始化时计算并缓存 PowerShell 工具启用结果
     /// </summary>
-    public ShellToolGateService()
-    {
+    public ShellToolGateService() {
         _cachedResult = ComputeIsPowerShellToolEnabled();
     }
 
@@ -26,8 +24,7 @@ public sealed class ShellToolGateService : ServiceEntity, IShellToolGateService
     /// 计算 PowerShell 工具是否启用 — 对齐 TS isPowerShellToolEnabled()
     /// 非 Windows → 禁用; ant 用户默认启用(opt-out); external 用户默认禁用(opt-in)
     /// </summary>
-    private static bool ComputeIsPowerShellToolEnabled()
-    {
+    private static bool ComputeIsPowerShellToolEnabled() {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return false;
 
@@ -35,8 +32,7 @@ public sealed class ShellToolGateService : ServiceEntity, IShellToolGateService
         var isAntUser = Environment.GetEnvironmentVariable("JCC_USER_TYPE")
             ?.Equals("ant", StringComparison.OrdinalIgnoreCase) == true;
 
-        if (isAntUser)
-        {
+        if (isAntUser) {
             // ant 用户: 默认启用，JCC_USE_POWERSHELL_TOOL=0/false 关闭
             return env is null
                 || (!env.Equals("0", StringComparison.OrdinalIgnoreCase)

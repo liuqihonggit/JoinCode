@@ -5,8 +5,7 @@ namespace Core.Permission;
 /// 权限检查拦截器 - 在工具调用前进行权限验证
 /// </summary>
 [Register(typeof(IPermissionCheckingInterceptor), ServiceLifetime.Singleton)]
-public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPermissionCheckingInterceptor, IDisposable
-{
+public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPermissionCheckingInterceptor, IDisposable {
     private readonly IToolPermissionManager _permissionManager;
     private readonly ILogger<PermissionCheckingInterceptor>? _logger;
     private readonly IClockService _clock;
@@ -25,8 +24,7 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
         IToolPermissionManager permissionManager,
         ILogger<PermissionCheckingInterceptor>? logger = null,
         IToolPermissionFilter? toolPermissionFilter = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _permissionManager = permissionManager ?? throw new ArgumentNullException(nameof(permissionManager));
         _logger = logger;
         _toolPermissionFilter = toolPermissionFilter;
@@ -38,17 +36,14 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
     /// </summary>
     public async Task<PermissionInterceptResult> OnBeforeToolInvokeAsync(
         ToolInvokeContext context,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         _logger?.LogDebug("拦截工具调用，开始权限检查: Tool={ToolName}, RequestId={RequestId}",
             context.ToolName, context.RequestId);
 
-        try
-        {
-            if (_toolPermissionFilter != null && _toolPermissionFilter.IsToolDenied(context.ToolName))
-            {
+        try {
+            if (_toolPermissionFilter != null && _toolPermissionFilter.IsToolDenied(context.ToolName)) {
                 _logger?.LogWarning("工具被拒绝规则过滤: Tool={ToolName}", context.ToolName);
                 return PermissionInterceptResult.Denied($"工具 '{context.ToolName}' 被拒绝规则过滤");
             }
@@ -61,16 +56,14 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
 
             var result = await _permissionManager.CheckPermissionAsync(request, cancellationToken).ConfigureAwait(false);
 
-            if (result.IsGranted && !result.IsExpired)
-            {
+            if (result.IsGranted && !result.IsExpired) {
                 _logger?.LogInformation("工具调用权限已批准: Tool={ToolName}, RequestId={RequestId}",
                     context.ToolName, context.RequestId);
 
                 return PermissionInterceptResult.Allowed();
             }
 
-            if (result.RequiresConfirmation)
-            {
+            if (result.RequiresConfirmation) {
                 _logger?.LogInformation("工具调用需要确认: Tool={ToolName}, RequestId={RequestId}, Prompt={Prompt}",
                     context.ToolName, context.RequestId, result.ConfirmationPrompt);
 
@@ -82,15 +75,11 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
                 context.ToolName, context.RequestId, denyReason);
 
             return PermissionInterceptResult.Denied(denyReason);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             _logger?.LogInformation("权限检查被取消: Tool={ToolName}, RequestId={RequestId}",
                 context.ToolName, context.RequestId);
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "权限检查时发生异常: Tool={ToolName}, RequestId={RequestId}",
                 context.ToolName, context.RequestId);
 
@@ -104,17 +93,13 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
     public Task OnAfterToolInvokeAsync(
         ToolInvokeContext context,
         OperationResult<object?> invokeResult,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (invokeResult.Success)
-        {
+        if (invokeResult.Success) {
             _logger?.LogDebug("工具调用成功: Tool={ToolName}, RequestId={RequestId}",
                 context.ToolName, context.RequestId);
-        }
-        else
-        {
+        } else {
             _logger?.LogWarning("工具调用失败: Tool={ToolName}, RequestId={RequestId}, Error={Error}",
                 context.ToolName, context.RequestId, invokeResult.ErrorMessage);
         }
@@ -127,17 +112,14 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
     /// </summary>
     public async Task<PermissionCheckOutcome> CheckPermissionAsync(
         ToolInvokeContext context,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var result = await OnBeforeToolInvokeAsync(context, cancellationToken).ConfigureAwait(false);
 
-        if (result.IsAllowed)
-        {
+        if (result.IsAllowed) {
             return PermissionCheckOutcome.Allowed;
         }
 
-        if (result.RequiresConfirmation)
-        {
+        if (result.RequiresConfirmation) {
             return PermissionCheckOutcome.Pending(result.ConfirmationPrompt ?? "需要确认");
         }
 
@@ -145,24 +127,21 @@ public sealed partial class PermissionCheckingInterceptor : ServiceEntity, IPerm
     }
 
     /// <inheritdoc />
-    public override void Dispose()
-    {
-        if (_disposed)
-        {
+    public override void Dispose() {
+        if (_disposed) {
             return;
         }
 
         _disposed = true;
         GC.SuppressFinalize(this);
-            base.Dispose();
+        base.Dispose();
     }
 }
 
 /// <summary>
 /// 权限拦截结果
 /// </summary>
-public sealed partial class PermissionInterceptResult
-{
+public sealed partial class PermissionInterceptResult {
     /// <summary>
     /// 是否允许执行
     /// </summary>

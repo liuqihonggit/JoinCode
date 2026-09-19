@@ -31,8 +31,7 @@ internal sealed record ResolveCalleeOptions(
 /// <summary>
 /// 方法查找条目
 /// </summary>
-internal sealed class MethodLookupEntry(string fqn, int startLine, int endLine)
-{
+internal sealed class MethodLookupEntry(string fqn, int startLine, int endLine) {
     /// <summary>方法全限定名</summary>
     public string Fqn { get; } = fqn;
     /// <summary>起始行号</summary>
@@ -44,19 +43,15 @@ internal sealed class MethodLookupEntry(string fqn, int startLine, int endLine)
 /// <summary>
 /// 符号索引 — 单一数据源，封装按全限定名和按名称查找，避免消费方线性扫描符号列表
 /// </summary>
-internal sealed class SymbolIndex
-{
+internal sealed class SymbolIndex {
     private readonly Dictionary<string, SymbolInfo> _byFqn;
     private readonly ILookup<string, SymbolInfo> _byName;
 
     /// <summary>从符号列表构建索引，保留同 FQN 首个（与 FirstOrDefault 语义一致）</summary>
-    public SymbolIndex(IReadOnlyList<SymbolInfo> symbols)
-    {
+    public SymbolIndex(IReadOnlyList<SymbolInfo> symbols) {
         _byFqn = new Dictionary<string, SymbolInfo>(symbols.Count, StringComparer.Ordinal);
-        foreach (var s in symbols)
-        {
-            if (!_byFqn.ContainsKey(s.FullyQualifiedName))
-            {
+        foreach (var s in symbols) {
+            if (!_byFqn.ContainsKey(s.FullyQualifiedName)) {
                 _byFqn[s.FullyQualifiedName] = s;
             }
         }
@@ -73,8 +68,7 @@ internal sealed class SymbolIndex
 /// <summary>
 /// C# 调用关系提取器 — 基于 TreeSitter AST 解析调用表达式、对象创建、构造初始化器和事件处理器赋值
 /// </summary>
-public sealed class CSharpCallExtractor
-{
+public sealed class CSharpCallExtractor {
     /// <summary>
     /// 从源码提取调用关系
     /// </summary>
@@ -82,8 +76,7 @@ public sealed class CSharpCallExtractor
     /// <param name="filePath">文件路径</param>
     /// <param name="symbols">已索引的符号列表</param>
     /// <returns>调用边列表</returns>
-    public IReadOnlyList<CallEdge> ExtractCalls(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols)
-    {
+    public IReadOnlyList<CallEdge> ExtractCalls(string sourceCode, string filePath, IReadOnlyList<SymbolInfo> symbols) {
         ArgumentNullException.ThrowIfNull(sourceCode);
         ArgumentNullException.ThrowIfNull(filePath);
         ArgumentNullException.ThrowIfNull(symbols);
@@ -101,8 +94,7 @@ public sealed class CSharpCallExtractor
     /// <param name="filePath">文件路径</param>
     /// <param name="symbols">已索引的符号列表</param>
     /// <returns>调用边列表</returns>
-    public IReadOnlyList<CallEdge> ExtractCallsFromTree(Node rootNode, string filePath, IReadOnlyList<SymbolInfo> symbols)
-    {
+    public IReadOnlyList<CallEdge> ExtractCallsFromTree(Node rootNode, string filePath, IReadOnlyList<SymbolInfo> symbols) {
         var classNameSet = BuildClassNameSet(symbols);
         var interfaceNameSet = BuildInterfaceNameSet(symbols);
         var variableTypeMap = BuildVariableTypeMap(rootNode, classNameSet);
@@ -133,42 +125,31 @@ public sealed class CSharpCallExtractor
             .Select(s => new MethodLookupEntry(s.FullyQualifiedName, s.StartLine, s.EndLine))
             .ToList();
 
-    private static Dictionary<string, string> BuildVariableTypeMap(Node rootNode, HashSet<string> classNameSet)
-    {
+    private static Dictionary<string, string> BuildVariableTypeMap(Node rootNode, HashSet<string> classNameSet) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
         CollectVariableTypes(rootNode, classNameSet, map);
         return map;
     }
 
-    private static void CollectVariableTypes(Node node, HashSet<string> classNameSet, Dictionary<string, string> map)
-    {
-        if (node.Type == "parameter")
-        {
+    private static void CollectVariableTypes(Node node, HashSet<string> classNameSet, Dictionary<string, string> map) {
+        if (node.Type == "parameter") {
             var nameNode = node.GetChildForField("name");
             var typeNode = node.GetChildForField("type");
 
-            if (nameNode is not null && typeNode is not null)
-            {
+            if (nameNode is not null && typeNode is not null) {
                 var typeName = typeNode.Text;
-                if (classNameSet.Contains(typeName) || (typeName.Length > 0 && char.IsUpper(typeName[0])))
-                {
+                if (classNameSet.Contains(typeName) || (typeName.Length > 0 && char.IsUpper(typeName[0]))) {
                     map[nameNode.Text] = typeName;
                 }
             }
-        }
-        else if (node.Type == "variable_declaration")
-        {
+        } else if (node.Type == "variable_declaration") {
             var typeNode = node.GetChildForField("type");
-            if (typeNode is not null)
-            {
+            if (typeNode is not null) {
                 var typeName = typeNode.Text;
-                foreach (var child in node.NamedChildren)
-                {
-                    if (child.Type == "variable_declarator")
-                    {
+                foreach (var child in node.NamedChildren) {
+                    if (child.Type == "variable_declarator") {
                         var nameNode = child.GetChildForField("name");
-                        if (nameNode is not null)
-                        {
+                        if (nameNode is not null) {
                             map[nameNode.Text] = typeName;
                         }
                     }
@@ -176,20 +157,16 @@ public sealed class CSharpCallExtractor
             }
         }
 
-        foreach (var child in node.NamedChildren)
-        {
+        foreach (var child in node.NamedChildren) {
             CollectVariableTypes(child, classNameSet, map);
         }
     }
 
-    private static Dictionary<string, string> BuildExtensionMethodMap(IReadOnlyList<SymbolInfo> symbols)
-    {
+    private static Dictionary<string, string> BuildExtensionMethodMap(IReadOnlyList<SymbolInfo> symbols) {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        foreach (var symbol in symbols)
-        {
-            if (symbol.Kind is SymbolKind.Method && symbol.ParentSymbol is not null)
-            {
+        foreach (var symbol in symbols) {
+            if (symbol.Kind is SymbolKind.Method && symbol.ParentSymbol is not null) {
                 map[symbol.Name] = symbol.ParentSymbol;
             }
         }
@@ -197,8 +174,7 @@ public sealed class CSharpCallExtractor
         return map;
     }
 
-    private static void CollectCalls(CollectCallsOptions options)
-    {
+    private static void CollectCalls(CollectCallsOptions options) {
         var node = options.Node;
         var filePath = options.FilePath;
         var classNameSet = options.ClassNameSet;
@@ -209,75 +185,56 @@ public sealed class CSharpCallExtractor
         var extensionMethodMap = options.ExtensionMethodMap;
         var calls = options.Calls;
 
-        if (node.IsError)
-        {
+        if (node.IsError) {
             return;
         }
 
-        if (node.Type == "invocation_expression")
-        {
-            if (IsNameofExpression(node))
-            {
+        if (node.Type == "invocation_expression") {
+            if (IsNameofExpression(node)) {
                 return;
             }
 
             var edge = TryExtractInvocationEdge(node, filePath, classNameSet, interfaceNameSet, variableTypeMap, methodLookup, symbols, extensionMethodMap);
-            if (edge is not null)
-            {
+            if (edge is not null) {
                 calls.Add(edge);
             }
-        }
-        else if (node.Type == "object_creation_expression")
-        {
+        } else if (node.Type == "object_creation_expression") {
             var edge = TryExtractConstructorEdge(node, filePath, methodLookup);
-            if (edge is not null)
-            {
+            if (edge is not null) {
                 calls.Add(edge);
             }
-        }
-        else if (node.Type == "constructor_initializer")
-        {
+        } else if (node.Type == "constructor_initializer") {
             var edge = TryExtractConstructorInitializerEdge(node, filePath, methodLookup, symbols);
-            if (edge is not null)
-            {
+            if (edge is not null) {
                 calls.Add(edge);
             }
-        }
-        else if (node.Type == "assignment_expression")
-        {
+        } else if (node.Type == "assignment_expression") {
             var edge = TryExtractEventHandlerEdge(node, filePath, methodLookup, symbols);
-            if (edge is not null)
-            {
+            if (edge is not null) {
                 calls.Add(edge);
             }
         }
 
-        foreach (var child in node.NamedChildren)
-        {
+        foreach (var child in node.NamedChildren) {
             CollectCalls(options with { Node = child });
         }
     }
 
-    private static CallEdge? TryExtractEventHandlerEdge(Node assignmentNode, string filePath, List<MethodLookupEntry> methodLookup, SymbolIndex symbols)
-    {
+    private static CallEdge? TryExtractEventHandlerEdge(Node assignmentNode, string filePath, List<MethodLookupEntry> methodLookup, SymbolIndex symbols) {
         var isEventAssignment = false;
-        foreach (var child in assignmentNode.Children)
-        {
-            if (child.Type is "+=" or "-=")
-            {
+        foreach (var child in assignmentNode.Children) {
+            if (child.Type is "+=" or "-=") {
                 isEventAssignment = true;
                 break;
             }
         }
 
-        if (!isEventAssignment)
-        {
+        if (!isEventAssignment) {
             return null;
         }
 
         var rightNode = assignmentNode.GetChildForField("right");
-        if (rightNode is null)
-        {
+        if (rightNode is null) {
             return null;
         }
 
@@ -287,21 +244,17 @@ public sealed class CSharpCallExtractor
                 ? rightNode.GetChildForField("name")?.Text
                 : null;
 
-        if (handlerName is null)
-        {
+        if (handlerName is null) {
             return null;
         }
 
         var callerFqn = FindCallerFqn(assignmentNode, methodLookup);
 
         var parentClassFqn = ExtractParentClassFqn(callerFqn);
-        if (parentClassFqn is not null)
-        {
+        if (parentClassFqn is not null) {
             var candidateFqn = $"{parentClassFqn}.{handlerName}";
-            if (symbols.TryGetByFqn(candidateFqn, out var match))
-            {
-                return new CallEdge
-                {
+            if (symbols.TryGetByFqn(candidateFqn, out var match)) {
+                return new CallEdge {
                     CallerSymbol = callerFqn,
                     CalleeSymbol = candidateFqn,
                     CallSiteFilePath = filePath,
@@ -312,10 +265,8 @@ public sealed class CSharpCallExtractor
         }
 
         var globalMatch = symbols.GetByName(handlerName).FirstOrDefault(s => s.Kind is SymbolKind.Method);
-        if (globalMatch is not null)
-        {
-            return new CallEdge
-            {
+        if (globalMatch is not null) {
+            return new CallEdge {
                 CallerSymbol = callerFqn,
                 CalleeSymbol = globalMatch.FullyQualifiedName,
                 CallSiteFilePath = filePath,
@@ -324,8 +275,7 @@ public sealed class CSharpCallExtractor
             };
         }
 
-        return new CallEdge
-        {
+        return new CallEdge {
             CallerSymbol = callerFqn,
             CalleeSymbol = handlerName,
             CallSiteFilePath = filePath,
@@ -334,35 +284,28 @@ public sealed class CSharpCallExtractor
         };
     }
 
-    private static bool IsNameofExpression(Node invocationNode)
-    {
+    private static bool IsNameofExpression(Node invocationNode) {
         var funcNode = invocationNode.GetChildForField("function");
         return funcNode?.Type == "identifier" && funcNode.Text == "nameof";
     }
 
-    private static CallEdge? TryExtractConstructorInitializerEdge(Node initializerNode, string filePath, List<MethodLookupEntry> methodLookup, SymbolIndex symbols)
-    {
+    private static CallEdge? TryExtractConstructorInitializerEdge(Node initializerNode, string filePath, List<MethodLookupEntry> methodLookup, SymbolIndex symbols) {
         var callerFqn = FindCallerFqn(initializerNode, methodLookup);
         var parentClassFqn = ExtractParentClassFqn(callerFqn);
 
         var isBaseInitializer = false;
-        foreach (var child in initializerNode.Children)
-        {
-            if (child.Type == "base")
-            {
+        foreach (var child in initializerNode.Children) {
+            if (child.Type == "base") {
                 isBaseInitializer = true;
                 break;
             }
         }
 
-        if (isBaseInitializer)
-        {
+        if (isBaseInitializer) {
             var baseClassName = FindBaseClassNameFromAst(initializerNode);
-            if (baseClassName is not null)
-            {
+            if (baseClassName is not null) {
                 var baseClassFqn = FindSymbolFqn(baseClassName, symbols);
-                return new CallEdge
-                {
+                return new CallEdge {
                     CallerSymbol = callerFqn,
                     CalleeSymbol = $"{baseClassFqn}.ctor",
                     CallSiteFilePath = filePath,
@@ -370,13 +313,9 @@ public sealed class CSharpCallExtractor
                     CallKind = CallKind.Constructor
                 };
             }
-        }
-        else
-        {
-            if (parentClassFqn is not null)
-            {
-                return new CallEdge
-                {
+        } else {
+            if (parentClassFqn is not null) {
+                return new CallEdge {
                     CallerSymbol = callerFqn,
                     CalleeSymbol = $"{parentClassFqn}.ctor",
                     CallSiteFilePath = filePath,
@@ -389,11 +328,9 @@ public sealed class CSharpCallExtractor
         return null;
     }
 
-    private static CallEdge? TryExtractInvocationEdge(Node invocationNode, string filePath, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup, SymbolIndex symbols, Dictionary<string, string> extensionMethodMap)
-    {
+    private static CallEdge? TryExtractInvocationEdge(Node invocationNode, string filePath, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap, List<MethodLookupEntry> methodLookup, SymbolIndex symbols, Dictionary<string, string> extensionMethodMap) {
         var calleeName = ExtractCalleeName(invocationNode);
-        if (calleeName is null)
-        {
+        if (calleeName is null) {
             return null;
         }
 
@@ -401,8 +338,7 @@ public sealed class CSharpCallExtractor
         var callKind = DetermineCallKind(invocationNode, calleeName, classNameSet, interfaceNameSet, variableTypeMap);
         var calleeFqn = ResolveCalleeFqn(new ResolveCalleeOptions(invocationNode, calleeName, callerFqn, callKind, classNameSet, interfaceNameSet, variableTypeMap, symbols, extensionMethodMap));
 
-        return new CallEdge
-        {
+        return new CallEdge {
             CallerSymbol = callerFqn,
             CalleeSymbol = calleeFqn,
             CallSiteFilePath = filePath,
@@ -411,19 +347,16 @@ public sealed class CSharpCallExtractor
         };
     }
 
-    private static CallEdge? TryExtractConstructorEdge(Node objectCreationNode, string filePath, List<MethodLookupEntry> methodLookup)
-    {
+    private static CallEdge? TryExtractConstructorEdge(Node objectCreationNode, string filePath, List<MethodLookupEntry> methodLookup) {
         var typeNode = objectCreationNode.GetChildForField("type");
-        if (typeNode is null)
-        {
+        if (typeNode is null) {
             return null;
         }
 
         var typeName = typeNode.Text;
         var callerFqn = FindCallerFqn(objectCreationNode, methodLookup);
 
-        return new CallEdge
-        {
+        return new CallEdge {
             CallerSymbol = callerFqn,
             CalleeSymbol = typeName,
             CallSiteFilePath = filePath,
@@ -432,21 +365,17 @@ public sealed class CSharpCallExtractor
         };
     }
 
-    private static string? ExtractCalleeName(Node invocationNode)
-    {
+    private static string? ExtractCalleeName(Node invocationNode) {
         var funcNode = invocationNode.GetChildForField("function");
-        if (funcNode is null)
-        {
+        if (funcNode is null) {
             return null;
         }
 
-        if (funcNode.Type == "identifier")
-        {
+        if (funcNode.Type == "identifier") {
             return funcNode.Text;
         }
 
-        if (funcNode.Type == "member_access_expression")
-        {
+        if (funcNode.Type == "member_access_expression") {
             var nameNode = funcNode.GetChildForField("name");
             return nameNode?.Text;
         }
@@ -454,8 +383,7 @@ public sealed class CSharpCallExtractor
         return funcNode.Text;
     }
 
-    private static string ResolveCalleeFqn(ResolveCalleeOptions options)
-    {
+    private static string ResolveCalleeFqn(ResolveCalleeOptions options) {
         var invocationNode = options.InvocationNode;
         var calleeName = options.CalleeName;
         var callerFqn = options.CallerFqn;
@@ -467,23 +395,17 @@ public sealed class CSharpCallExtractor
 
         var funcNode = invocationNode.GetChildForField("function");
 
-        if (funcNode?.Type == "member_access_expression")
-        {
+        if (funcNode?.Type == "member_access_expression") {
             var expressionNode = funcNode.GetChildForField("expression");
-            if (expressionNode is not null)
-            {
+            if (expressionNode is not null) {
                 var expressionText = expressionNode.Text;
 
-                if (expressionText is "base" or "this")
-                {
+                if (expressionText is "base" or "this") {
                     var parentClassFqn = ExtractParentClassFqn(callerFqn);
-                    if (parentClassFqn is not null)
-                    {
-                        if (expressionText == "base")
-                        {
+                    if (parentClassFqn is not null) {
+                        if (expressionText == "base") {
                             var baseClassName = FindBaseClassNameFromAst(invocationNode);
-                            if (baseClassName is not null)
-                            {
+                            if (baseClassName is not null) {
                                 var baseClassFqn = FindSymbolFqn(baseClassName, symbols);
                                 return $"{baseClassFqn}.{calleeName}";
                             }
@@ -493,22 +415,18 @@ public sealed class CSharpCallExtractor
                     }
                 }
 
-                if (expressionNode.Type == "identifier")
-                {
-                    if (variableTypeMap.TryGetValue(expressionText, out var typeName))
-                    {
+                if (expressionNode.Type == "identifier") {
+                    if (variableTypeMap.TryGetValue(expressionText, out var typeName)) {
                         var typeFqn = FindSymbolFqn(typeName, symbols);
                         return $"{typeFqn}.{calleeName}";
                     }
 
-                    if (classNameSet.Contains(expressionText))
-                    {
+                    if (classNameSet.Contains(expressionText)) {
                         var classFqn = FindSymbolFqn(expressionText, symbols);
                         return $"{classFqn}.{calleeName}";
                     }
 
-                    if (interfaceNameSet.Contains(expressionText))
-                    {
+                    if (interfaceNameSet.Contains(expressionText)) {
                         var interfaceFqn = FindSymbolFqn(expressionText, symbols);
                         return $"{interfaceFqn}.{calleeName}";
                     }
@@ -516,33 +434,27 @@ public sealed class CSharpCallExtractor
             }
         }
 
-        if (funcNode?.Type == "identifier")
-        {
+        if (funcNode?.Type == "identifier") {
             var parentClassFqn = ExtractParentClassFqn(callerFqn);
-            if (parentClassFqn is not null)
-            {
+            if (parentClassFqn is not null) {
                 var candidateFqn = $"{parentClassFqn}.{calleeName}";
-                if (symbols.TryGetByFqn(candidateFqn, out var match))
-                {
+                if (symbols.TryGetByFqn(candidateFqn, out var match)) {
                     return candidateFqn;
                 }
             }
 
             var callerAsParentFqn = $"{callerFqn}.{calleeName}";
-            if (symbols.TryGetByFqn(callerAsParentFqn, out var callerMatch))
-            {
+            if (symbols.TryGetByFqn(callerAsParentFqn, out var callerMatch)) {
                 return callerAsParentFqn;
             }
 
             var globalMatch = symbols.GetByName(calleeName).FirstOrDefault(s => s.Kind is SymbolKind.Method or SymbolKind.LocalFunction);
-            if (globalMatch is not null)
-            {
+            if (globalMatch is not null) {
                 return globalMatch.FullyQualifiedName;
             }
         }
 
-        if (extensionMethodMap.TryGetValue(calleeName, out var parentClass))
-        {
+        if (extensionMethodMap.TryGetValue(calleeName, out var parentClass)) {
             var classFqn = FindSymbolFqn(parentClass, symbols);
             return $"{classFqn}.{calleeName}";
         }
@@ -550,35 +462,27 @@ public sealed class CSharpCallExtractor
         return calleeName;
     }
 
-    private static string? ExtractParentClassFqn(string methodFqn)
-    {
+    private static string? ExtractParentClassFqn(string methodFqn) {
         var lastDot = methodFqn.LastIndexOf('.');
-        if (lastDot <= 0)
-        {
+        if (lastDot <= 0) {
             return null;
         }
 
         return methodFqn[..lastDot];
     }
 
-    private static string FindSymbolFqn(string name, SymbolIndex symbols)
-    {
+    private static string FindSymbolFqn(string name, SymbolIndex symbols) {
         var symbol = symbols.GetByName(name).FirstOrDefault(s => s.Kind is SymbolKind.Class or SymbolKind.Struct or SymbolKind.Interface);
         return symbol?.FullyQualifiedName ?? name;
     }
 
-    private static string? FindBaseClassNameFromAst(Node node)
-    {
+    private static string? FindBaseClassNameFromAst(Node node) {
         var current = node.Parent;
-        while (current is not null)
-        {
-            if (current.Type == "class_declaration")
-            {
+        while (current is not null) {
+            if (current.Type == "class_declaration") {
                 var baseList = FindChildByType(current, "base_list");
-                if (baseList is not null)
-                {
-                    foreach (var child in baseList.NamedChildren)
-                    {
+                if (baseList is not null) {
+                    foreach (var child in baseList.NamedChildren) {
                         return child.Text;
                     }
                 }
@@ -592,12 +496,9 @@ public sealed class CSharpCallExtractor
         return null;
     }
 
-    private static Node? FindChildByType(Node node, string type)
-    {
-        foreach (var child in node.NamedChildren)
-        {
-            if (child.Type == type)
-            {
+    private static Node? FindChildByType(Node node, string type) {
+        foreach (var child in node.NamedChildren) {
+            if (child.Type == type) {
                 return child;
             }
         }
@@ -605,17 +506,13 @@ public sealed class CSharpCallExtractor
         return null;
     }
 
-    private static string FindCallerFqn(Node node, List<MethodLookupEntry> methodLookup)
-    {
+    private static string FindCallerFqn(Node node, List<MethodLookupEntry> methodLookup) {
         var line = node.StartPosition.Row + 1;
         MethodLookupEntry? best = null;
 
-        foreach (var entry in methodLookup)
-        {
-            if (line >= entry.StartLine && line <= entry.EndLine)
-            {
-                if (best is null || (entry.EndLine - entry.StartLine) < (best.EndLine - best.StartLine))
-                {
+        foreach (var entry in methodLookup) {
+            if (line >= entry.StartLine && line <= entry.EndLine) {
+                if (best is null || (entry.EndLine - entry.StartLine) < (best.EndLine - best.StartLine)) {
                     best = entry;
                 }
             }
@@ -624,47 +521,37 @@ public sealed class CSharpCallExtractor
         return best?.Fqn ?? "<global>";
     }
 
-    private static CallKind DetermineCallKind(Node invocationNode, string calleeName, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap)
-    {
+    private static CallKind DetermineCallKind(Node invocationNode, string calleeName, HashSet<string> classNameSet, HashSet<string> interfaceNameSet, Dictionary<string, string> variableTypeMap) {
         var funcNode = invocationNode.GetChildForField("function");
 
-        if (funcNode?.Type == "identifier")
-        {
+        if (funcNode?.Type == "identifier") {
             return CallKind.Direct;
         }
 
-        if (funcNode?.Type == "member_access_expression")
-        {
+        if (funcNode?.Type == "member_access_expression") {
             var expressionNode = funcNode.GetChildForField("expression");
-            if (expressionNode is not null)
-            {
+            if (expressionNode is not null) {
                 var expressionText = expressionNode.Text;
 
-                if (expressionText is "base" or "this")
-                {
+                if (expressionText is "base" or "this") {
                     return CallKind.Virtual;
                 }
 
-                if (expressionNode.Type == "identifier")
-                {
-                    if (interfaceNameSet.Contains(expressionText))
-                    {
+                if (expressionNode.Type == "identifier") {
+                    if (interfaceNameSet.Contains(expressionText)) {
                         return CallKind.Virtual;
                     }
 
-                    if (variableTypeMap.ContainsKey(expressionText))
-                    {
+                    if (variableTypeMap.ContainsKey(expressionText)) {
                         return CallKind.Virtual;
                     }
 
-                    if (classNameSet.Contains(expressionText) || (expressionText.Length > 0 && char.IsUpper(expressionText[0])))
-                    {
+                    if (classNameSet.Contains(expressionText) || (expressionText.Length > 0 && char.IsUpper(expressionText[0]))) {
                         return CallKind.Static;
                     }
                 }
 
-                if (expressionNode.Type is "member_access_expression" or "invocation_expression" or "object_creation_expression")
-                {
+                if (expressionNode.Type is "member_access_expression" or "invocation_expression" or "object_creation_expression") {
                     return CallKind.Static;
                 }
             }

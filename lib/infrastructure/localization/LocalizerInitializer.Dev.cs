@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterDevEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterDevEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === AnalyticsToolHandlers ===
         defaultEntries[StringKey.AnalyticsUsageReport] = "Usage statistics report";
         defaultEntries[StringKey.AnalyticsStatPeriod] = "Statistics period: last {0} days";

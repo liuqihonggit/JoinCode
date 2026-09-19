@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// 聊天室状态持久化 DTO — 单房间序列化格式，用于 IChatRoomStore 按需加载 — ADR 0109 决策13。
 /// </summary>
-public sealed class ChatRoomStateData
-{
+public sealed class ChatRoomStateData {
     /// <summary>团队/聊天室信息</summary>
     public TeamInfo Info { get; set; } = null!;
 
@@ -27,8 +26,7 @@ public sealed class ChatRoomStateData
     public int MaxMessageCount { get; set; } = 1000;
 
     /// <summary>从 ChatRoomState 创建可序列化 DTO</summary>
-    public static ChatRoomStateData FromState(ChatRoomState state) => new()
-    {
+    public static ChatRoomStateData FromState(ChatRoomState state) => new() {
         Info = state.Info,
         Members = state.Members.ToList(),
         Messages = state.Messages.Values.ToList(),
@@ -39,8 +37,7 @@ public sealed class ChatRoomStateData
     };
 
     /// <summary>从 DTO 恢复 ChatRoomState</summary>
-    public ChatRoomState ToState() => new()
-    {
+    public ChatRoomState ToState() => new() {
         Info = Info,
         Members = new HashSet<string>(Members),
         Messages = new ConcurrentDictionary<string, TeamMessage>(

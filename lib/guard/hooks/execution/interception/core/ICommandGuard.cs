@@ -15,8 +15,7 @@ namespace Core.Hooks.Execution.Interception;
 /// </list>
 /// </para>
 /// </summary>
-public interface ICommandGuard
-{
+public interface ICommandGuard {
     /// <summary>
     /// 优先级 — 数值越大越先评估(对齐旧 ICommandRewriter.Priority 语义)
     /// </summary>

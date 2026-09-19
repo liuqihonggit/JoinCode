@@ -3,8 +3,7 @@ namespace JoinCode.Hands.Desktop.Native;
 /// <summary>
 /// user32.dll P/Invoke 声明 — 输入模拟/窗口管理/光标操作
 /// </summary>
-internal static class User32NativeMethods
-{
+internal static class User32NativeMethods {
     [DllImport("user32.dll", SetLastError = true)]
     public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
@@ -94,8 +93,7 @@ internal static class User32NativeMethods
 }
 
 [StructLayout(LayoutKind.Sequential)]
-internal struct FLASHWINFO
-{
+internal struct FLASHWINFO {
     public uint cbSize;
     public IntPtr hwnd;
     public uint dwFlags;

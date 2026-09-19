@@ -6,8 +6,7 @@ namespace Core.Agents.Coordinator;
 /// <para>发送：<see cref="SendAsync"/> 调用平台 Bot API 投递消息。</para>
 /// <para>接收：<see cref="ReceiveAsync"/> 从平台 webhook/WebSocket 长轮询接收消息。</para>
 /// </summary>
-public interface IPlatformBotAdapter : IAsyncDisposable
-{
+public interface IPlatformBotAdapter : IAsyncDisposable {
     /// <summary>平台名称（如 "qq"/"feishu"/"discord"）。</summary>
     string PlatformName { get; }
 

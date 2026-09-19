@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === CodeIndexToolHandlers ===
     public const string QueryCannotBeEmpty = "QueryCannotBeEmpty";
     public const string NoMatchingSymbols = "NoMatchingSymbols";

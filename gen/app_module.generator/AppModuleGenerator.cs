@@ -4,15 +4,12 @@ namespace AppModule.Generator;
 /// AppModule 源码生成器 — 扫描 [AppModule] 特性，自动生成 UseAllModules 便利方法
 /// </summary>
 [Generator]
-public sealed class AppModuleGenerator : IIncrementalGenerator
-{
+public sealed class AppModuleGenerator : IIncrementalGenerator {
     private const string AppModuleAttributeFullName = "JoinCode.App.Builder.AppModuleAttribute";
 
-    public void Initialize(IncrementalGeneratorInitializationContext context)
-    {
+    public void Initialize(IncrementalGeneratorInitializationContext context) {
         var moduleTypes = context.CompilationProvider
-            .SelectMany(static (compilation, _) =>
-            {
+            .SelectMany(static (compilation, _) => {
                 var appModuleAttr = compilation.GetTypeByMetadataName(AppModuleAttributeFullName);
                 if (appModuleAttr is null)
                     return ImmutableArray<TypeInfo>.Empty;
@@ -23,8 +20,7 @@ public sealed class AppModuleGenerator : IIncrementalGenerator
             })
             .Collect();
 
-        context.RegisterSourceOutput(moduleTypes, static (ctx, modules) =>
-        {
+        context.RegisterSourceOutput(moduleTypes, static (ctx, modules) => {
             GenerateModuleRegistrationCode(ctx, modules);
         });
     }
@@ -32,19 +28,15 @@ public sealed class AppModuleGenerator : IIncrementalGenerator
     private static void VisitNamespaces(
         INamespaceSymbol namespaceSymbol,
         INamedTypeSymbol targetAttr,
-        List<TypeInfo> results)
-    {
-        foreach (var member in namespaceSymbol.GetMembers())
-        {
+        List<TypeInfo> results) {
+        foreach (var member in namespaceSymbol.GetMembers()) {
             if (member is INamespaceSymbol childNamespace)
                 VisitNamespaces(childNamespace, targetAttr, results);
-            else if (member is INamedTypeSymbol typeSymbol)
-            {
+            else if (member is INamedTypeSymbol typeSymbol) {
                 var attr = typeSymbol.GetAttributes()
                     .FirstOrDefault(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, targetAttr));
 
-                if (attr is not null)
-                {
+                if (attr is not null) {
                     var order = 100;
                     var orderArg = attr.NamedArguments.FirstOrDefault(kvp => kvp.Key == "Order").Value;
                     if (orderArg.Value is int orderInt)
@@ -58,8 +50,7 @@ public sealed class AppModuleGenerator : IIncrementalGenerator
         }
     }
 
-    private static void GenerateModuleRegistrationCode(SourceProductionContext context, ImmutableArray<TypeInfo> modules)
-    {
+    private static void GenerateModuleRegistrationCode(SourceProductionContext context, ImmutableArray<TypeInfo> modules) {
         if (modules.Length == 0)
             return;
 
@@ -83,8 +74,7 @@ public sealed class AppModuleGenerator : IIncrementalGenerator
         sb.AppendLine("    public static ApplicationBuilder UseAllModules(this ApplicationBuilder builder)");
         sb.AppendLine("    {");
 
-        foreach (var module in ordered)
-        {
+        foreach (var module in ordered) {
             sb.AppendLine($"        builder.UseModule<{module.FullyQualifiedName}>();");
         }
 
@@ -95,13 +85,11 @@ public sealed class AppModuleGenerator : IIncrementalGenerator
         context.AddSource("GeneratedAutoModuleRegistration.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 
-    private sealed class TypeInfo
-    {
+    private sealed class TypeInfo {
         public string FullyQualifiedName { get; }
         public int Order { get; }
 
-        public TypeInfo(string fullyQualifiedName, int order)
-        {
+        public TypeInfo(string fullyQualifiedName, int order) {
             FullyQualifiedName = fullyQualifiedName;
             Order = order;
         }

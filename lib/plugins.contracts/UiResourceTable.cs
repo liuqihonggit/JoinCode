@@ -5,13 +5,11 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>可逆操作时用户卸载了 UI,但需要刷新界面(重新排列图标)</para>
 /// <para>卸载时 ClearAndEmitEvent 生成变更事件,通过 IAppEventBus 广播</para>
 /// </summary>
-public sealed class UiResourceTable
-{
+public sealed class UiResourceTable {
     private readonly ConcurrentDictionary<string, UiResourceEntry> _resources = new();
 
     /// <summary>登记 UI 资源</summary>
-    public void Register(string key, UiResourceEntry entry)
-    {
+    public void Register(string key, UiResourceEntry entry) {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(entry);
         _resources[key] = entry;
@@ -27,8 +25,7 @@ public sealed class UiResourceTable
     public bool TryGet(string key, [NotNullWhen(true)] out UiResourceEntry? entry) => _resources.TryGetValue(key, out entry);
 
     /// <summary>清空并返回变更事件 — 卸载时调用</summary>
-    public UiResourceChangedEvent ClearAndEmitEvent(string pluginName)
-    {
+    public UiResourceChangedEvent ClearAndEmitEvent(string pluginName) {
         var removed = _resources.Values.ToList();
         _resources.Clear();
         return new UiResourceChangedEvent(pluginName, removed, DateTime.UtcNow);

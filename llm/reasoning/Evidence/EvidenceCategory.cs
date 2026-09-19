@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Evidence;
 /// <summary>
 /// 证据类型分类
 /// </summary>
-public enum EvidenceCategory
-{
+public enum EvidenceCategory {
     /// <summary>合同类证据</summary>
     [EnumValue("contractual")] Contractual,
     /// <summary>财务类证据</summary>

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <summary>
 /// Session 注册器 — 基于 MapRegistry，内部字典，对外暴露遍历器 + 字典视图
 /// </summary>
-public sealed class SessionRegistry : MapRegistry<ObjectId, Session>
-{
+public sealed class SessionRegistry : MapRegistry<ObjectId, Session> {
     /// <summary>注册会话（internal，Session构造时自动调用）</summary>
     internal void Add(ObjectId id, Session session) => AddCore(id, session);
 

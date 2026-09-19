@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("STAGED") → DiffMode.Staged (OrdinalIgnoreCase 别名)
 /// - DiffMode.Cached.ToValue() → "cached"
 /// </summary>
-public enum DiffMode
-{
+public enum DiffMode {
     /// <summary>列出变更文件(Modified/Staged/Untracked)</summary>
     [EnumValue("files")] Files,
 

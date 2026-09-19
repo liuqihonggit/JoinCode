@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public enum CallKind
-{
+public enum CallKind {
     [EnumValue("direct")]
     Direct,
     [EnumValue("virtual")]

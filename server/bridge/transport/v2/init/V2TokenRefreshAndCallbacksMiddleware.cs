@@ -5,8 +5,7 @@ namespace Core.Bridge.Init.V2;
 /// V2 JWT 刷新调度器 + 传输回调 + 连接 — 对齐 TS 端 §5-§8
 /// </summary>
 [Register(typeof(IMiddleware<V2BridgeInitContext>), ServiceLifetime.Singleton)]
-internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext>
-{
+internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEntity, IMiddleware<V2BridgeInitContext> {
 
     /// <summary>
     /// 执行 V2 JWT 刷新调度器装配、传输回调挂接与连接 — 顺序: 装配状态 → 调度刷新 → 挂接回调 → 连接传输 → 设置全局句柄
@@ -15,16 +14,14 @@ internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEnti
     /// <param name="next">下一管道委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(V2BridgeInitContext ctx, MiddlewareDelegate<V2BridgeInitContext> next, CancellationToken ct) {
         var sessionId = ctx.SessionId ?? throw new InvalidOperationException("SessionId is not set. Ensure TokenValidationMiddleware runs first.");
         var credentials = ctx.Credentials ?? throw new InvalidOperationException("Credentials is not set. Ensure TokenValidationMiddleware runs first.");
         var transport = ctx.Transport ?? throw new InvalidOperationException("Transport is not set. Ensure TransportConnectMiddleware runs first.");
 
         var config = ctx.Config;
         var parameters = ctx.Parameters;
-        var state = new BridgeInitState
-        {
+        var state = new BridgeInitState {
             FlushGate = new BridgeFlushGate<string>(),
             RecentPostedUUIDs = new BoundedUUIDSet(config.UuidDedupBufferSize),
             RecentInboundUUIDs = new BoundedUUIDSet(config.UuidDedupBufferSize),
@@ -33,14 +30,11 @@ internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEnti
         };
 
         // 对齐 TS 端: initialMessageUUIDs
-        if (parameters.InitialMessages is { Length: > 0 })
-        {
+        if (parameters.InitialMessages is { Length: > 0 }) {
             state.InitialMessageUUIDs = new BoundedUUIDSet(config.UuidDedupBufferSize);
-            foreach (var msg in parameters.InitialMessages)
-            {
+            foreach (var msg in parameters.InitialMessages) {
                 var uuid = BridgeMessaging.ExtractUuid(msg);
-                if (uuid is not null)
-                {
+                if (uuid is not null) {
                     state.InitialMessageUUIDs.Add(uuid);
                 }
             }
@@ -50,13 +44,10 @@ internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEnti
 
         // JWT 刷新调度器 — 对齐 TS 端 §5
         var refresh = new BridgeTokenRefreshScheduler(
-            new TokenRefreshOptions
-            {
+            new TokenRefreshOptions {
                 GetAccessToken = () => parameters.GetAccessToken(),
-                OnRefresh = (sid, oauthToken) =>
-                {
-                    if (state.AuthRecoveryInFlight || state.TornDown)
-                    {
+                OnRefresh = (sid, oauthToken) => {
+                    if (state.AuthRecoveryInFlight || state.TornDown) {
                         ctx.Logger?.LogDebug("Bridge: Recovery already in flight, skipping proactive refresh");
                         return;
                     }
@@ -77,22 +68,19 @@ internal sealed partial class V2TokenRefreshAndCallbacksMiddleware : ServiceEnti
             state, ctx.TransportFactory, refresh, ct);
 
         // 连接传输
-        if (parameters.InitialMessages is { Length: > 0 })
-        {
+        if (parameters.InitialMessages is { Length: > 0 }) {
             state.FlushGate.Start();
         }
         transport.Connect();
 
         // 设置全局桥句柄
         var handle = new V2BridgeHandle(
-            new V2BridgeSessionContext
-            {
+            new V2BridgeSessionContext {
                 Session = new BridgeSessionInfo { SessionId = sessionId, EnvironmentId = string.Empty, SessionIngressUrl = credentials.ApiBaseUrl },
                 State = state,
                 Parameters = parameters,
             },
-            new V2BridgeTransportContext
-            {
+            new V2BridgeTransportContext {
                 Transport = transport,
                 HttpClient = ctx.HttpClient,
                 Config = config,

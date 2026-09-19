@@ -1,7 +1,6 @@
 namespace Llm.Tests.Adapters;
 
-public sealed class QueryServiceBaseHelperTests
-{
+public sealed class QueryServiceBaseHelperTests {
     #region ConvertRole
 
     [Theory]
@@ -13,8 +12,7 @@ public sealed class QueryServiceBaseHelperTests
     [InlineData(null, MessageRole.Assistant)]
     [InlineData("", MessageRole.Assistant)]
     [InlineData("unknown", MessageRole.Assistant)]
-    public void ConvertRole_MapsKnownRolesAndDefaultsToAssistant(string? role, MessageRole expected)
-    {
+    public void ConvertRole_MapsKnownRolesAndDefaultsToAssistant(string? role, MessageRole expected) {
         QueryServiceBase.ConvertRole(role).Should().Be(expected);
     }
 
@@ -27,14 +25,12 @@ public sealed class QueryServiceBaseHelperTests
     [InlineData(MessageRole.User, "user")]
     [InlineData(MessageRole.Assistant, "assistant")]
     [InlineData(MessageRole.Tool, "tool")]
-    public void ConvertRoleToString_MapsAllRoles(MessageRole role, string expected)
-    {
+    public void ConvertRoleToString_MapsAllRoles(MessageRole role, string expected) {
         QueryServiceBase.ConvertRoleToString(role).Should().Be(expected);
     }
 
     [Fact]
-    public void ConvertRoleToString_UnknownRole_DefaultsToAssistant()
-    {
+    public void ConvertRoleToString_UnknownRole_DefaultsToAssistant() {
         QueryServiceBase.ConvertRoleToString((MessageRole)999).Should().Be("assistant");
     }
 
@@ -51,8 +47,7 @@ public sealed class QueryServiceBaseHelperTests
     [InlineData(typeof(bool), "boolean")]
     [InlineData(typeof(string), "string")]
     [InlineData(null, "string")]
-    public void MapClrTypeToJsonSchemaType_MapsTypeToSchemaType(Type? type, string expected)
-    {
+    public void MapClrTypeToJsonSchemaType_MapsTypeToSchemaType(Type? type, string expected) {
         TestableQueryService.MapClrTypeToJsonSchemaType(type).Should().Be(expected);
     }
 
@@ -61,8 +56,7 @@ public sealed class QueryServiceBaseHelperTests
     #region ConvertToOpenAIToolCalls
 
     [Fact]
-    public void ConvertToOpenAIToolCalls_WithDirectList_ReturnsSameList()
-    {
+    public void ConvertToOpenAIToolCalls_WithDirectList_ReturnsSameList() {
         var expected = new List<OpenAIToolCall>
         {
             new()
@@ -79,8 +73,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void ConvertToOpenAIToolCalls_WithJsonElementArray_ParsesProperties()
-    {
+    public void ConvertToOpenAIToolCalls_WithJsonElementArray_ParsesProperties() {
         var json = """
             [
               {
@@ -103,8 +96,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void ConvertToOpenAIToolCalls_WithNonArrayJsonElement_ReturnsNull()
-    {
+    public void ConvertToOpenAIToolCalls_WithNonArrayJsonElement_ReturnsNull() {
         var element = JsonSerializer.SerializeToElement("not-an-array");
 
         var result = QueryServiceBase.ConvertToOpenAIToolCalls(element);
@@ -113,8 +105,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void ConvertToOpenAIToolCalls_WithUnsupportedType_ReturnsNull()
-    {
+    public void ConvertToOpenAIToolCalls_WithUnsupportedType_ReturnsNull() {
         QueryServiceBase.ConvertToOpenAIToolCalls("string").Should().BeNull();
     }
 
@@ -123,8 +114,7 @@ public sealed class QueryServiceBaseHelperTests
     #region BaseUrl / ChatEndpoint / Definition validation
 
     [Fact]
-    public void GetBaseUrl_WithDefinition_DelegatesToDefinition()
-    {
+    public void GetBaseUrl_WithDefinition_DelegatesToDefinition() {
         var definition = new Mock<IProviderDefinition>();
         definition.Setup(d => d.GetBaseUrl(It.IsAny<ProviderConfig>())).Returns("https://custom.example.com/");
         var config = new ProviderConfig { Vendor = "openai", Definition = definition.Object };
@@ -135,8 +125,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void GetBaseUrl_WithoutDefinition_ThrowsInvalidOperationException()
-    {
+    public void GetBaseUrl_WithoutDefinition_ThrowsInvalidOperationException() {
         var config = new ProviderConfig { Vendor = "openai", Definition = null };
 
         var act = () => TestableQueryService.GetBaseUrl(config);
@@ -145,8 +134,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void GetChatEndpoint_WithDefinition_DelegatesToDefinition()
-    {
+    public void GetChatEndpoint_WithDefinition_DelegatesToDefinition() {
         var definition = new Mock<IProviderDefinition>();
         definition.Setup(d => d.GetChatEndpoint(It.IsAny<ProviderConfig>())).Returns("chat/completions");
         var config = new ProviderConfig { Vendor = "openai", Definition = definition.Object };
@@ -157,8 +145,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void GetChatEndpoint_WithoutDefinition_ThrowsInvalidOperationException()
-    {
+    public void GetChatEndpoint_WithoutDefinition_ThrowsInvalidOperationException() {
         var config = new ProviderConfig { Vendor = "openai", Definition = null };
 
         var act = () => TestableQueryService.GetChatEndpoint(config);
@@ -171,8 +158,7 @@ public sealed class QueryServiceBaseHelperTests
     #region Rate limit headers
 
     [Fact]
-    public void ExtractRateLimitHeaders_PopulatesLastHeaders()
-    {
+    public void ExtractRateLimitHeaders_PopulatesLastHeaders() {
         using var response = new HttpResponseMessage();
         response.Headers.TryAddWithoutValidation("x-ratelimit-remaining-requests", "9");
         response.Headers.TryAddWithoutValidation("retry-after", "120");
@@ -190,8 +176,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void ExtractRateLimitHeaders_NoMatchingHeaders_DoesNotPopulate()
-    {
+    public void ExtractRateLimitHeaders_NoMatchingHeaders_DoesNotPopulate() {
         using var response = new HttpResponseMessage();
         response.Headers.TryAddWithoutValidation("content-type", "application/json");
 
@@ -202,8 +187,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void EnrichWithRateLimitMetadata_WhenHeadersExist_AddsRatelimitPrefix()
-    {
+    public void EnrichWithRateLimitMetadata_WhenHeadersExist_AddsRatelimitPrefix() {
         using var response = new HttpResponseMessage();
         response.Headers.TryAddWithoutValidation("x-ratelimit-remaining-requests", "8");
 
@@ -222,8 +206,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void EnrichWithRateLimitMetadata_WhenNoHeaders_ReturnsNull()
-    {
+    public void EnrichWithRateLimitMetadata_WhenNoHeaders_ReturnsNull() {
         var service = CreateTestableService();
         var original = new StreamEvent(MessageRole.Assistant, "hi", "model");
 
@@ -237,8 +220,7 @@ public sealed class QueryServiceBaseHelperTests
     #region Constructor validation
 
     [Fact]
-    public void Constructor_NullConfig_ThrowsArgumentNullException()
-    {
+    public void Constructor_NullConfig_ThrowsArgumentNullException() {
         // 直接构造，绕过 CreateTestableService 的 ??= 默认值替换
         var act = () => new TestableQueryService(null!);
 
@@ -246,8 +228,7 @@ public sealed class QueryServiceBaseHelperTests
     }
 
     [Fact]
-    public void Constructor_ConfigWithoutDefinition_ThrowsInvalidOperationException()
-    {
+    public void Constructor_ConfigWithoutDefinition_ThrowsInvalidOperationException() {
         var config = new ProviderConfig { Vendor = "openai", Definition = null };
 
         var act = () => CreateTestableService(config);
@@ -257,14 +238,12 @@ public sealed class QueryServiceBaseHelperTests
 
     #endregion
 
-    private static TestableQueryService CreateTestableService(ProviderConfig? config = null)
-    {
+    private static TestableQueryService CreateTestableService(ProviderConfig? config = null) {
         var definition = new Mock<IProviderDefinition>();
         definition.Setup(d => d.GetBaseUrl(It.IsAny<ProviderConfig>())).Returns("https://api.example.com/");
         definition.Setup(d => d.GetChatEndpoint(It.IsAny<ProviderConfig>())).Returns("chat/completions");
 
-        config ??= new ProviderConfig
-        {
+        config ??= new ProviderConfig {
             Vendor = "openai",
             ApiKey = "sk-test",
             Definition = definition.Object
@@ -273,11 +252,9 @@ public sealed class QueryServiceBaseHelperTests
         return new TestableQueryService(config);
     }
 
-    private sealed class TestableQueryService : QueryServiceBase
-    {
+    private sealed class TestableQueryService : QueryServiceBase {
         public TestableQueryService(ProviderConfig config)
-            : base(config, new HttpClient(new FakeHttpMessageHandler()), logger: null, fs: null, resilientExecutor: null)
-        {
+            : base(config, new HttpClient(new FakeHttpMessageHandler()), logger: null, fs: null, resilientExecutor: null) {
         }
 
         public override Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
@@ -303,18 +280,17 @@ public sealed class QueryServiceBaseHelperTests
         public new StreamEvent? EnrichWithRateLimitMetadata(StreamEvent msg)
             => base.EnrichWithRateLimitMetadata(msg);
 
-        public new static string MapClrTypeToJsonSchemaType(Type? type)
+        public static new string MapClrTypeToJsonSchemaType(Type? type)
             => QueryServiceBase.MapClrTypeToJsonSchemaType(type);
 
-        public new static string GetBaseUrl(ProviderConfig config)
+        public static new string GetBaseUrl(ProviderConfig config)
             => QueryServiceBase.GetBaseUrl(config);
 
-        public new static string GetChatEndpoint(ProviderConfig config)
+        public static new string GetChatEndpoint(ProviderConfig config)
             => QueryServiceBase.GetChatEndpoint(config);
     }
 
-    private sealed class FakeHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class FakeHttpMessageHandler : HttpMessageHandler {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(new HttpResponseMessage());
     }

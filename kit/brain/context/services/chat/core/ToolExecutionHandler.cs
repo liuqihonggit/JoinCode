@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 工具执行处理器接口 — 工具调用准备、执行、结果持久化
 /// </summary>
-public interface IToolExecutionHandler
-{
+public interface IToolExecutionHandler {
     /// <summary>
     /// 准备工具调用列表 — 处理向后兼容的单工具调用场景
     /// </summary>
@@ -36,8 +35,7 @@ public interface IToolExecutionHandler
 /// 工具执行处理器 — 封装工具调用执行、ContextModifier应用、消息注入、结果持久化
 /// </summary>
 [Register(typeof(IToolExecutionHandler), ServiceLifetime.Singleton)]
-public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecutionHandler
-{
+public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecutionHandler {
     private readonly IChatToolOrchestrator _toolOrchestrator;
     private readonly IChatContextManager _contextManager;
     private readonly QueryLoopServices? _services;
@@ -54,8 +52,7 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
         IChatToolOrchestrator toolOrchestrator,
         IChatContextManager contextManager,
         QueryLoopServices? services = null,
-        ILogger<ToolExecutionHandler>? logger = null)
-    {
+        ILogger<ToolExecutionHandler>? logger = null) {
         _toolOrchestrator = toolOrchestrator;
         _contextManager = contextManager;
         _services = services;
@@ -63,8 +60,7 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<ToolCallEntry> PrepareToolCalls(IterationState iterState)
-    {
+    public IReadOnlyList<ToolCallEntry> PrepareToolCalls(IterationState iterState) {
         var toolCalls = iterState.ToolCalls;
         if (toolCalls.Count > 0)
             return toolCalls;
@@ -77,8 +73,7 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
     /// <inheritdoc/>
     public async Task<ToolCallResult> ExecuteToolCallAsync(
         string toolName, string? toolCallId, Dictionary<string, JsonElement>? arguments,
-        ChatMiddlewareContext context, CancellationToken cancellationToken)
-    {
+        ChatMiddlewareContext context, CancellationToken cancellationToken) {
         // 子代理事件作用域 — 本方法是普通异步方法（非迭代器），在此进入 AsyncLocal 作用域
         // 可可靠传播到深层 Agent 工具管道，AgentStreamExecutionMiddleware 经 Current 发射事件。
         // QueryLoop 排空侧不经过此环境态（迭代器限制），而是显式读取 context.SubAgentEvents。
@@ -88,24 +83,18 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
             toolName, toolCallId, arguments, cancellationToken).ConfigureAwait(false);
 
         // 应用 ContextModifier
-        if (toolCallResult.ContextModifier is not null)
-        {
+        if (toolCallResult.ContextModifier is not null) {
             toolCallResult.ContextModifier(context.ToolUseContext);
             _logger?.LogInformation("[ToolExecutionHandler] ContextModifier 已应用: AllowedTools={Count}, Model={Model}, Effort={Effort}",
                 context.ToolUseContext.AllowedTools.Count, context.ToolUseContext.ModelOverride, context.ToolUseContext.Effort);
         }
 
         // 注入消息
-        if (toolCallResult.InjectedMessages is not null && toolCallResult.InjectedMessages.Count > 0)
-        {
-            foreach (var injectedMsg in toolCallResult.InjectedMessages)
-            {
-                if (injectedMsg.Role == MessageRole.User)
-                {
+        if (toolCallResult.InjectedMessages is not null && toolCallResult.InjectedMessages.Count > 0) {
+            foreach (var injectedMsg in toolCallResult.InjectedMessages) {
+                if (injectedMsg.Role == MessageRole.User) {
                     await _contextManager.AddUserMessageAsync(injectedMsg.Content ?? string.Empty, cancellationToken: cancellationToken).ConfigureAwait(false);
-                }
-                else if (injectedMsg.Role == MessageRole.Assistant)
-                {
+                } else if (injectedMsg.Role == MessageRole.Assistant) {
                     await _contextManager.AddAssistantMessageAsync(injectedMsg.Content ?? string.Empty, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -119,17 +108,14 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
     public async Task ApplyToolResultToContextAsync(
         string toolName, string? toolCallId, string? toolResultText,
         bool toolError, IReadOnlyList<ToolContent>? toolContentBlocks,
-        ChatMiddlewareContext context, CancellationToken cancellationToken)
-    {
+        ChatMiddlewareContext context, CancellationToken cancellationToken) {
         // 超大工具结果持久化
         var effectiveToolResult = toolResultText;
-        if (!toolError && !string.IsNullOrEmpty(toolResultText))
-        {
+        if (!toolError && !string.IsNullOrEmpty(toolResultText)) {
             var sessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
             var replacement = _services?.ContentReplacer?.MaybePersistLargeToolResult(
                 toolName, toolCallId ?? string.Empty, toolResultText, sessionId);
-            if (replacement is not null)
-            {
+            if (replacement is not null) {
                 effectiveToolResult = replacement;
             }
         }
@@ -139,16 +125,14 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
         await _contextManager.AddToolResultMessageAsync(effectiveToolResult ?? string.Empty, toolMetadata, toolContentBlocks, cancellationToken).ConfigureAwait(false);
 
         // per-message 预算控制
-        if (context.ToolUseContext.ContentReplacementState is not null && _services?.ContentReplacer is not null)
-        {
+        if (context.ToolUseContext.ContentReplacementState is not null && _services?.ContentReplacer is not null) {
             var sessionId = (_contextManager is ChatContextManager cm) ? cm.SessionId : global::Core.Utils.SessionIdFactory.DefaultSessionId;
             var messageList = await _contextManager.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
             var budgetResult = await _services.ContentReplacer.ApplyBudgetAsync(
                 messageList, context.ToolUseContext.ContentReplacementState, sessionId,
                 cancellationToken).ConfigureAwait(false);
 
-            if (budgetResult.BudgetedMessages is not null)
-            {
+            if (budgetResult.BudgetedMessages is not null) {
                 messageList.ReplaceAll(budgetResult.BudgetedMessages);
             }
         }
@@ -156,10 +140,8 @@ public sealed partial class ToolExecutionHandler : ServiceEntity, IToolExecution
 
     /// <inheritdoc/>
     public async Task WriteAbortedToolResultsAsync(
-        IReadOnlyList<ToolCallEntry> toolCalls, int startIndex, CancellationToken cancellationToken)
-    {
-        for (var i = startIndex; i < toolCalls.Count; i++)
-        {
+        IReadOnlyList<ToolCallEntry> toolCalls, int startIndex, CancellationToken cancellationToken) {
+        for (var i = startIndex; i < toolCalls.Count; i++) {
             var placeholderMetadata = ToolCallEntry.BuildToolResultMetadata(toolCalls[i].Id, toolCalls[i].Name);
             await _contextManager.AddToolResultMessageAsync(
                 "(aborted)", placeholderMetadata, null, cancellationToken).ConfigureAwait(false);

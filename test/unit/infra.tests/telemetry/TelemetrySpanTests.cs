@@ -1,13 +1,11 @@
 
 namespace Core.Tests.Telemetry;
 
-public sealed class TelemetrySpanTests
-{
+public sealed class TelemetrySpanTests {
     private readonly TelemetryConfig _config = new();
 
     [Fact]
-    public async Task SetStatus_UpdatesStatus()
-    {
+    public async Task SetStatus_UpdatesStatus() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test");
 
@@ -17,8 +15,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task SetStatus_Error_SetsStatus()
-    {
+    public async Task SetStatus_Error_SetsStatus() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test");
 
@@ -28,8 +25,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task SetTag_String_AddsTag()
-    {
+    public async Task SetTag_String_AddsTag() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test");
 
@@ -39,8 +35,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task SetTag_Double_AddsTag()
-    {
+    public async Task SetTag_Double_AddsTag() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test");
 
@@ -48,8 +43,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task SetTag_Bool_AddsTag()
-    {
+    public async Task SetTag_Bool_AddsTag() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test");
 
@@ -57,8 +51,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task AddEvent_RecordsEvent()
-    {
+    public async Task AddEvent_RecordsEvent() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test");
 
@@ -68,8 +61,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task RecordException_RecordsException()
-    {
+    public async Task RecordException_RecordsException() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test");
 
@@ -80,8 +72,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task StartChildSpan_CreatesChildSpan()
-    {
+    public async Task StartChildSpan_CreatesChildSpan() {
         await using var service = new TelemetryService(_config);
         await using var parent = service.StartSpan("parent");
         await using var child = parent.StartChildSpan("child", TelemetrySpanKind.Client);
@@ -93,8 +84,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task ToSpanData_ReturnsCompleteData()
-    {
+    public async Task ToSpanData_ReturnsCompleteData() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test", TelemetrySpanKind.Server);
         span.SetTag("key1", "val1");
@@ -110,8 +100,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task DisposeAsync_StopsRecording()
-    {
+    public async Task DisposeAsync_StopsRecording() {
         await using var service = new TelemetryService(_config);
         var span = service.StartSpan("test");
         Assert.True(span.IsRecording);
@@ -122,8 +111,7 @@ public sealed class TelemetrySpanTests
     }
 
     [Fact]
-    public async Task Span_HasValidIds()
-    {
+    public async Task Span_HasValidIds() {
         await using var service = new TelemetryService(_config);
         await using var span = service.StartSpan("test");
 

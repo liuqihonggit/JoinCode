@@ -1,13 +1,9 @@
 namespace Core.Tests.Agents.Coordinator;
 
-public sealed class ChatRoomStateTests
-{
-    private static ChatRoomState CreateState(int maxMessageCount = 1000)
-    {
-        return new ChatRoomState
-        {
-            Info = new TeamInfo
-            {
+public sealed class ChatRoomStateTests {
+    private static ChatRoomState CreateState(int maxMessageCount = 1000) {
+        return new ChatRoomState {
+            Info = new TeamInfo {
                 TeamId = "team_test",
                 TeamName = "测试群",
             },
@@ -15,10 +11,8 @@ public sealed class ChatRoomStateTests
         };
     }
 
-    private static TeamMessage CreateMessage(string messageId, DateTime? timestamp = null, MessageVisibility visibility = MessageVisibility.Public)
-    {
-        return new TeamMessage
-        {
+    private static TeamMessage CreateMessage(string messageId, DateTime? timestamp = null, MessageVisibility visibility = MessageVisibility.Public) {
+        return new TeamMessage {
             MessageId = messageId,
             TeamId = "team_test",
             SenderId = "sender",
@@ -30,8 +24,7 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void AddMessage_NewMessage_ReturnsTrue()
-    {
+    public void AddMessage_NewMessage_ReturnsTrue() {
         var state = CreateState();
         var msg = CreateMessage("msg1");
 
@@ -42,8 +35,7 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void AddMessage_DuplicateMessageId_ReturnsFalse()
-    {
+    public void AddMessage_DuplicateMessageId_ReturnsFalse() {
         var state = CreateState();
         var msg = CreateMessage("msg1");
 
@@ -55,11 +47,9 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void NeedsCleanup_BelowMax_ReturnsFalse()
-    {
+    public void NeedsCleanup_BelowMax_ReturnsFalse() {
         var state = CreateState(maxMessageCount: 5);
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             state.AddMessage(CreateMessage($"msg{i}"));
         }
 
@@ -67,11 +57,9 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void NeedsCleanup_AboveMax_ReturnsTrue()
-    {
+    public void NeedsCleanup_AboveMax_ReturnsTrue() {
         var state = CreateState(maxMessageCount: 5);
-        for (var i = 0; i < 6; i++)
-        {
+        for (var i = 0; i < 6; i++) {
             state.AddMessage(CreateMessage($"msg{i}"));
         }
 
@@ -79,12 +67,10 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void CleanupOldMessages_RemovesOldestMessages()
-    {
+    public void CleanupOldMessages_RemovesOldestMessages() {
         var baseTime = new DateTime(2026, 1, 1);
         var state = CreateState(maxMessageCount: 3);
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             state.AddMessage(CreateMessage($"msg{i}", baseTime.AddMinutes(i)));
         }
 
@@ -100,8 +86,7 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void CleanupOldMessages_BelowMax_ReturnsZero()
-    {
+    public void CleanupOldMessages_BelowMax_ReturnsZero() {
         var state = CreateState(maxMessageCount: 10);
         state.AddMessage(CreateMessage("msg1"));
 
@@ -111,8 +96,7 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void GetMessages_ReturnsByTimestampDescending()
-    {
+    public void GetMessages_ReturnsByTimestampDescending() {
         var baseTime = new DateTime(2026, 1, 1);
         var state = CreateState();
         state.AddMessage(CreateMessage("old", baseTime));
@@ -125,11 +109,9 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void GetMessages_WithLimit_ReturnsLimitedCount()
-    {
+    public void GetMessages_WithLimit_ReturnsLimitedCount() {
         var state = CreateState();
-        for (var i = 0; i < 10; i++)
-        {
+        for (var i = 0; i < 10; i++) {
             state.AddMessage(CreateMessage($"msg{i}", DateTime.UtcNow.AddMinutes(i)));
         }
 
@@ -139,8 +121,7 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void GetMessages_WithVisibility_FiltersByVisibility()
-    {
+    public void GetMessages_WithVisibility_FiltersByVisibility() {
         var state = CreateState();
         state.AddMessage(CreateMessage("public1", visibility: MessageVisibility.Public));
         state.AddMessage(CreateMessage("system1", visibility: MessageVisibility.System));
@@ -156,16 +137,14 @@ public sealed class ChatRoomStateTests
     }
 
     [Fact]
-    public void LastMessageAt_NoMessages_ReturnsNull()
-    {
+    public void LastMessageAt_NoMessages_ReturnsNull() {
         var state = CreateState();
 
         state.LastMessageAt.Should().BeNull();
     }
 
     [Fact]
-    public void LastMessageAt_WithMessages_ReturnsLatestTimestamp()
-    {
+    public void LastMessageAt_WithMessages_ReturnsLatestTimestamp() {
         var baseTime = new DateTime(2026, 1, 1);
         var state = CreateState();
         state.AddMessage(CreateMessage("old", baseTime));

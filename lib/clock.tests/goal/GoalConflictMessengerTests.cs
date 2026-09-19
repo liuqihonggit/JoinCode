@@ -1,16 +1,14 @@
 namespace Core.Goal.Tests;
 
 
-public sealed class GoalConflictMessengerTests
-{
+public sealed class GoalConflictMessengerTests {
     private readonly GoalConflictMessenger _sut = new();
 
     private static ConflictMessage CreateMessage(string source, string target, string content = "冲突")
         => new() { SourceNodeId = source, TargetNodeId = target, Content = content };
 
     [Fact]
-    public async Task EnqueueConflictAsync_DequeueConflictsAsync_Should_RoundTrip()
-    {
+    public async Task EnqueueConflictAsync_DequeueConflictsAsync_Should_RoundTrip() {
         var msg = CreateMessage("node_a", "node_b");
 
         await _sut.EnqueueConflictAsync(msg).ConfigureAwait(true);
@@ -22,15 +20,13 @@ public sealed class GoalConflictMessengerTests
     }
 
     [Fact]
-    public async Task DequeueConflictsAsync_NoMessages_Should_ReturnEmpty()
-    {
+    public async Task DequeueConflictsAsync_NoMessages_Should_ReturnEmpty() {
         var result = await _sut.DequeueConflictsAsync("unknown_node").ConfigureAwait(true);
         Assert.Empty(result);
     }
 
     [Fact]
-    public async Task DequeueConflictsAsync_Should_ClearQueue()
-    {
+    public async Task DequeueConflictsAsync_Should_ClearQueue() {
         await _sut.EnqueueConflictAsync(CreateMessage("a", "target")).ConfigureAwait(true);
         await _sut.EnqueueConflictAsync(CreateMessage("b", "target")).ConfigureAwait(true);
 
@@ -42,8 +38,7 @@ public sealed class GoalConflictMessengerTests
     }
 
     [Fact]
-    public async Task EnqueueConflictAsync_MultipleSources_SameTarget_Should_QueueAll()
-    {
+    public async Task EnqueueConflictAsync_MultipleSources_SameTarget_Should_QueueAll() {
         await _sut.EnqueueConflictAsync(CreateMessage("src1", "target", "冲突1")).ConfigureAwait(true);
         await _sut.EnqueueConflictAsync(CreateMessage("src2", "target", "冲突2")).ConfigureAwait(true);
         await _sut.EnqueueConflictAsync(CreateMessage("src3", "target", "冲突3")).ConfigureAwait(true);
@@ -57,8 +52,7 @@ public sealed class GoalConflictMessengerTests
     }
 
     [Fact]
-    public async Task EnqueueConflictAsync_DifferentTargets_Should_IsolateQueues()
-    {
+    public async Task EnqueueConflictAsync_DifferentTargets_Should_IsolateQueues() {
         await _sut.EnqueueConflictAsync(CreateMessage("a", "target1")).ConfigureAwait(true);
         await _sut.EnqueueConflictAsync(CreateMessage("b", "target2")).ConfigureAwait(true);
 
@@ -72,8 +66,7 @@ public sealed class GoalConflictMessengerTests
     }
 
     [Fact]
-    public async Task GetPendingCount_Should_ReturnQueueSize()
-    {
+    public async Task GetPendingCount_Should_ReturnQueueSize() {
         await _sut.EnqueueConflictAsync(CreateMessage("a", "target")).ConfigureAwait(true);
         await _sut.EnqueueConflictAsync(CreateMessage("b", "target")).ConfigureAwait(true);
 
@@ -82,8 +75,7 @@ public sealed class GoalConflictMessengerTests
     }
 
     [Fact]
-    public async Task EnqueueConflictAsync_NullMessage_Should_Throw()
-    {
+    public async Task EnqueueConflictAsync_NullMessage_Should_Throw() {
         await Assert.ThrowsAsync<ArgumentNullException>(() => _sut.EnqueueConflictAsync(null!).AsTask()).ConfigureAwait(true);
     }
 }

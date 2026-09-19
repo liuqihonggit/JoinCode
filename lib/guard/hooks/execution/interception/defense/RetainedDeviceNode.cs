@@ -8,8 +8,7 @@ namespace Core.Hooks.Execution.Interception.Defense;
 /// </para>
 /// </summary>
 [Register(typeof(RetainedDeviceNode), ServiceLifetime.Singleton)]
-public sealed class RetainedDeviceNode
-{
+public sealed class RetainedDeviceNode {
     /// <summary>
     /// 检测命令中是否包含重定向到 Windows 保留设备名的操作。
     /// <para>

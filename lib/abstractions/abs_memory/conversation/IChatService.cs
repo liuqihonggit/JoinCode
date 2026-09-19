@@ -3,15 +3,13 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 聊天消息记录
 /// </summary>
-public sealed record ApiMessageRecord
-{
+public sealed record ApiMessageRecord {
     public required string Role { get; init; }
     public required string Content { get; init; }
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
-public interface IChatService : IAsyncDisposable
-{
+public interface IChatService : IAsyncDisposable {
     Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default);
     IAsyncEnumerable<string> SendMessageStreamAsync(string message, CancellationToken cancellationToken = default);
     IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(string message, CancellationToken cancellationToken = default);

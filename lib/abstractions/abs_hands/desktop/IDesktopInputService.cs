@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 桌面输入模拟服务 — 鼠标键盘事件注入（Win32 SendInput 封装）
 /// </summary>
-public interface IDesktopInputService
-{
+public interface IDesktopInputService {
     /// <summary>移动光标到绝对坐标</summary>
     Task<DesktopOperation> MoveToAsync(int x, int y, CancellationToken cancellationToken = default);
 

@@ -1,16 +1,14 @@
 
 namespace Core.Tests.Memdir;
 
-public sealed class AssistantDailyLogServiceTests : IDisposable
-{
+public sealed class AssistantDailyLogServiceTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOpService;
     private readonly MemoryStore _memoryStore;
     private readonly Mock<IMemoryPaths> _memoryPathsMock;
     private readonly string _tempBasePath;
     private bool _disposed;
 
-    public AssistantDailyLogServiceTests()
-    {
+    public AssistantDailyLogServiceTests() {
         _fileOpService = new InMemoryFileOperationService();
         _tempBasePath = "/test/memdir/daily-log";
         _memoryStore = new MemoryStore(
@@ -23,8 +21,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
             .Returns(Path.Combine(_tempBasePath, "users", "default"));
     }
 
-    private AssistantDailyLogService CreateSut()
-    {
+    private AssistantDailyLogService CreateSut() {
         return new AssistantDailyLogService(
             _memoryStore,
             _memoryPathsMock.Object,
@@ -33,8 +30,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task AppendEntryAsync_ShouldAddEntry_ToDailyLog()
-    {
+    public async Task AppendEntryAsync_ShouldAddEntry_ToDailyLog() {
         // Arrange
         var sut = CreateSut();
         var content = "执行了代码重构操作";
@@ -53,8 +49,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetDailyLogAsync_ShouldReturnTodayLog()
-    {
+    public async Task GetDailyLogAsync_ShouldReturnTodayLog() {
         // Arrange
         var sut = CreateSut();
         await sut.AppendEntryAsync("观察到的信息", DailyLogCategory.Observation).ConfigureAwait(true);
@@ -71,8 +66,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetDailyLogForDateAsync_ShouldReturnEmptyLog_WhenNoLogForDate()
-    {
+    public async Task GetDailyLogForDateAsync_ShouldReturnEmptyLog_WhenNoLogForDate() {
         // Arrange
         var sut = CreateSut();
         var pastDate = DateTime.UtcNow.AddDays(-30);
@@ -87,8 +81,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task BuildDailyLogPromptAsync_ShouldReturnNonEmptyString_WhenEntriesExist()
-    {
+    public async Task BuildDailyLogPromptAsync_ShouldReturnNonEmptyString_WhenEntriesExist() {
         // Arrange
         var sut = CreateSut();
         await sut.AppendEntryAsync("执行了操作A", DailyLogCategory.Action).ConfigureAwait(true);
@@ -105,8 +98,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task BuildDailyLogPromptAsync_ShouldReturnEmptyString_WhenNoEntries()
-    {
+    public async Task BuildDailyLogPromptAsync_ShouldReturnEmptyString_WhenNoEntries() {
         // Arrange
         var sut = CreateSut();
 
@@ -117,8 +109,7 @@ public sealed class AssistantDailyLogServiceTests : IDisposable
         prompt.Should().BeEmpty();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOpService.DisposeSafe();

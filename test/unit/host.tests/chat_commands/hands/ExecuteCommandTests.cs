@@ -1,33 +1,29 @@
 
 namespace Core.Tests.ChatCommands;
 
-public class ExecuteCommandTests
-{
+public class ExecuteCommandTests {
     private readonly Mock<ILogger<ExecuteCommand>> _loggerMock;
     private readonly Mock<ICodeService> _codeServiceMock;
     private readonly ExecuteCommand _executeCommand;
 
-    public ExecuteCommandTests()
-    {
+    public ExecuteCommandTests() {
         _loggerMock = new Mock<ILogger<ExecuteCommand>>();
         _codeServiceMock = new Mock<ICodeService>();
         _executeCommand = new ExecuteCommand(_loggerMock.Object);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithEmptyArguments_ShouldLogWarningAndContinue()
-    {
+    public async Task ExecuteAsync_WithEmptyArguments_ShouldLogWarningAndContinue() {
         // Arrange
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = _codeServiceMock.Object,
                 PlanService = null!,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         // Act
@@ -48,21 +44,18 @@ public class ExecuteCommandTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithEmptyArguments_ShouldOutputToConsole()
-    {
+    public async Task ExecuteAsync_WithEmptyArguments_ShouldOutputToConsole() {
         // Arrange - 捕获 Console 输出验证 TerminalHelper.WriteLine 被调用
         // 修复 bug: E2E 环境下 logger 为 null,LogWarning 不执行,需 TerminalHelper.WriteLine 保证 stdout 有内容
         var originalOut = System.Console.Out;
         using var stringWriter = new System.IO.StringWriter();
         System.Console.SetOut(stringWriter);
 
-        try
-        {
+        try {
             var context = new ChatCommandContext {
                 Arguments = "",
                 CancellationToken = CancellationToken.None,
-                Services = new CommandServiceProvider(new CommandServices
-                {
+                Services = new CommandServiceProvider(new CommandServices {
                     ChatService = null!,
                     CodeService = _codeServiceMock.Object,
                     PlanService = null!,
@@ -76,16 +69,13 @@ public class ExecuteCommandTests
             // Assert - 验证 Console 输出包含提示信息
             var output = stringWriter.ToString();
             Assert.Contains("请提供要执行的代码", output);
-        }
-        finally
-        {
+        } finally {
             System.Console.SetOut(originalOut);
         }
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithArguments_ShouldExecuteCodeAndLog()
-    {
+    public async Task ExecuteAsync_WithArguments_ShouldExecuteCodeAndLog() {
         // Arrange
         var arguments = "print('Hello World')";
         var executionResult = "Hello World";
@@ -95,13 +85,12 @@ public class ExecuteCommandTests
         var context = new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = _codeServiceMock.Object,
                 PlanService = null!,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         // Act
@@ -122,26 +111,22 @@ public class ExecuteCommandTests
     }
 
     [Fact]
-    public void Name_ShouldReturnExecute()
-    {
+    public void Name_ShouldReturnExecute() {
         Assert.Equal("execute", _executeCommand.Name);
     }
 
     [Fact]
-    public void Description_ShouldNotBeEmpty()
-    {
+    public void Description_ShouldNotBeEmpty() {
         Assert.NotEmpty(_executeCommand.Description);
     }
 
     [Fact]
-    public void Usage_ShouldNotBeEmpty()
-    {
+    public void Usage_ShouldNotBeEmpty() {
         Assert.NotEmpty(_executeCommand.Usage);
     }
 
     [Fact]
-    public void Constructor_WithNullLogger_ShouldNotThrow()
-    {
+    public void Constructor_WithNullLogger_ShouldNotThrow() {
         var exception = Record.Exception(() => new ExecuteCommand(null));
         Assert.Null(exception);
     }

@@ -8,10 +8,8 @@ namespace JoinCode.Abstractions.Utils;
 public readonly record struct TransitionKey<TState, TEvent>(TState From, TEvent Event)
     : IComparable<TransitionKey<TState, TEvent>>
     where TState : struct, Enum
-    where TEvent : struct, Enum
-{
-    public int CompareTo(TransitionKey<TState, TEvent> other)
-    {
+    where TEvent : struct, Enum {
+    public int CompareTo(TransitionKey<TState, TEvent> other) {
         var fromCmp = Comparer<TState>.Default.Compare(From, other.From);
         return fromCmp != 0 ? fromCmp : Comparer<TEvent>.Default.Compare(Event, other.Event);
     }
@@ -46,8 +44,7 @@ public sealed record TransitionRule<TState>(
 /// <summary>
 /// 转换结果类型
 /// </summary>
-public enum TransitionOutcome
-{
+public enum TransitionOutcome {
     /// <summary>转换成功</summary>
     [EnumValue("transitioned")] Transitioned,
 
@@ -79,16 +76,14 @@ public sealed record TransitionResult<TState, TEvent>(
 /// </summary>
 public sealed class Fsm<TState, TEvent>
     where TState : struct, Enum
-    where TEvent : struct, Enum
-{
+    where TEvent : struct, Enum {
     private readonly TransitionKey<TState, TEvent>[] _sortedKeys;
     private readonly TransitionRule<TState>[] _rules;
     private readonly AsyncLock _lock = new("Fsm");
     private TState _currentState;
 
     /// <summary>当前状态（线程安全读取）</summary>
-    public TState CurrentState
-    {
+    public TState CurrentState {
         get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) { return _currentState; } }
     }
 
@@ -104,8 +99,7 @@ public sealed class Fsm<TState, TEvent>
     public Fsm(
         TransitionKey<TState, TEvent>[] sortedKeys,
         TransitionRule<TState>[] rules,
-        TState initialState)
-    {
+        TState initialState) {
         _sortedKeys = sortedKeys;
         _rules = rules;
         _currentState = initialState;
@@ -116,8 +110,7 @@ public sealed class Fsm<TState, TEvent>
     /// </summary>
     public Fsm(
         FrozenDictionary<TransitionKey<TState, TEvent>, TransitionRule<TState>> table,
-        TState initialState)
-    {
+        TState initialState) {
         var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
         _sortedKeys = pairs.Select(p => p.Key).ToArray();
         _rules = pairs.Select(p => p.Value).ToArray();
@@ -127,8 +120,7 @@ public sealed class Fsm<TState, TEvent>
     /// <summary>
     /// 二分查找转换规则 — O(log n)，n 通常 &lt; 15
     /// </summary>
-    private TransitionRule<TState>? LookupRule(TransitionKey<TState, TEvent> key)
-    {
+    private TransitionRule<TState>? LookupRule(TransitionKey<TState, TEvent> key) {
         var idx = Array.BinarySearch(_sortedKeys, key);
         return idx >= 0 ? _rules[idx] : null;
     }
@@ -140,14 +132,12 @@ public sealed class Fsm<TState, TEvent>
     /// <param name="evt">触发的事件</param>
     /// <param name="ctx">共享上下文（可选）</param>
     /// <returns>转换结果</returns>
-    public TransitionResult<TState, TEvent> Trigger(TEvent evt, FsmContext? ctx = null)
-    {
+    public TransitionResult<TState, TEvent> Trigger(TEvent evt, FsmContext? ctx = null) {
         TState oldState;
         TState newState;
         TransitionAction? actionToRun;
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             oldState = _currentState;
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
             var rule = LookupRule(key);
@@ -179,10 +169,8 @@ public sealed class Fsm<TState, TEvent>
     /// <summary>
     /// 检查事件是否可触发（查表 + 守卫通过）
     /// </summary>
-    public bool CanTrigger(TEvent evt, FsmContext? ctx = null)
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public bool CanTrigger(TEvent evt, FsmContext? ctx = null) {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             var key = new TransitionKey<TState, TEvent>(_currentState, evt);
             var rule = LookupRule(key);
             if (rule is null)
@@ -195,16 +183,12 @@ public sealed class Fsm<TState, TEvent>
     /// <summary>
     /// 获取当前状态下所有可触发的事件（守卫通过的事件）
     /// </summary>
-    public IReadOnlyList<TEvent> GetAvailableEvents(FsmContext? ctx = null)
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public IReadOnlyList<TEvent> GetAvailableEvents(FsmContext? ctx = null) {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             var state = _currentState;
             var result = new List<TEvent>();
-            for (var i = 0; i < _sortedKeys.Length; i++)
-            {
-                if (_sortedKeys[i].From.Equals(state))
-                {
+            for (var i = 0; i < _sortedKeys.Length; i++) {
+                if (_sortedKeys[i].From.Equals(state)) {
                     var rule = _rules[i];
                     if (rule.Guard is null || rule.Guard(ctx))
                         result.Add(_sortedKeys[i].Event);
@@ -217,11 +201,9 @@ public sealed class Fsm<TState, TEvent>
     /// <summary>
     /// 强制设置状态（仅用于测试/恢复场景，跳过守卫和动作）
     /// </summary>
-    public void ForceSet(TState state)
-    {
+    public void ForceSet(TState state) {
         TState oldState;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             oldState = _currentState;
             _currentState = state;
         }
@@ -233,10 +215,8 @@ public sealed class Fsm<TState, TEvent>
     /// <summary>
     /// 重置到指定状态（不触发事件）
     /// </summary>
-    public void Reset(TState state)
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void Reset(TState state) {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _currentState = state;
         }
     }

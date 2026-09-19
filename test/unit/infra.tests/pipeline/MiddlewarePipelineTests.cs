@@ -3,13 +3,11 @@ namespace Infrastructure.Pipeline.Tests;
 /// <summary>
 /// MiddlewarePipeline 单元测试 — 验证管道构建、注册顺序执行、异常捕获、短路
 /// </summary>
-public sealed class MiddlewarePipelineTests
-{
+public sealed class MiddlewarePipelineTests {
     // === 管道构建 ===
 
     [Fact]
-    public async Task ExecuteAsync_NoMiddlewares_CompletesSuccessfully()
-    {
+    public async Task ExecuteAsync_NoMiddlewares_CompletesSuccessfully() {
         var pipeline = new MiddlewarePipeline<TestContext>([]);
         var ctx = new TestContext();
 
@@ -19,8 +17,7 @@ public sealed class MiddlewarePipelineTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_SingleMiddleware_ExecutesInRegistrationOrder()
-    {
+    public async Task ExecuteAsync_SingleMiddleware_ExecutesInRegistrationOrder() {
         var pipeline = new MiddlewarePipeline<TestContext>([new TrackingMiddleware("A")]);
         var ctx = new TestContext();
 
@@ -30,8 +27,7 @@ public sealed class MiddlewarePipelineTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_MultipleMiddlewares_ExecutesInRegistrationOrder()
-    {
+    public async Task ExecuteAsync_MultipleMiddlewares_ExecutesInRegistrationOrder() {
         var pipeline = new MiddlewarePipeline<TestContext>([
             new TrackingMiddleware("A"),
             new TrackingMiddleware("B"),
@@ -47,8 +43,7 @@ public sealed class MiddlewarePipelineTests
     // === 异常捕获 ===
 
     [Fact]
-    public async Task ExecuteAsync_OnErrorContinue_CatchesAndContinues()
-    {
+    public async Task ExecuteAsync_OnErrorContinue_CatchesAndContinues() {
         var errors = new List<Exception>();
         var pipeline = new MiddlewarePipeline<TestContext>(
             [
@@ -66,8 +61,7 @@ public sealed class MiddlewarePipelineTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_OnErrorPropagate_ThrowsAndStops()
-    {
+    public async Task ExecuteAsync_OnErrorPropagate_ThrowsAndStops() {
         var pipeline = new MiddlewarePipeline<TestContext>(
             [
                 new ThrowingMiddleware("A", ErrorBehavior.Propagate),
@@ -82,8 +76,7 @@ public sealed class MiddlewarePipelineTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_MultipleContinueErrors_CatchesAll()
-    {
+    public async Task ExecuteAsync_MultipleContinueErrors_CatchesAll() {
         var errors = new List<Exception>();
         var pipeline = new MiddlewarePipeline<TestContext>(
             [
@@ -101,8 +94,7 @@ public sealed class MiddlewarePipelineTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_OnErrorNull_PropagatesEvenIfContinue()
-    {
+    public async Task ExecuteAsync_OnErrorNull_PropagatesEvenIfContinue() {
         var pipeline = new MiddlewarePipeline<TestContext>(
             [
                 new ThrowingMiddleware("A", ErrorBehavior.Continue),
@@ -119,8 +111,7 @@ public sealed class MiddlewarePipelineTests
     // === 短路 ===
 
     [Fact]
-    public async Task ExecuteAsync_ShortCircuit_SkipsRemaining()
-    {
+    public async Task ExecuteAsync_ShortCircuit_SkipsRemaining() {
         var pipeline = new MiddlewarePipeline<TestContext>([
             new ShortCircuitMiddleware(),
             new TrackingMiddleware("should-not-run"),
@@ -135,8 +126,7 @@ public sealed class MiddlewarePipelineTests
     // === 上下文传递 ===
 
     [Fact]
-    public async Task ExecuteAsync_ContextSharedAcrossMiddlewares()
-    {
+    public async Task ExecuteAsync_ContextSharedAcrossMiddlewares() {
         var pipeline = new MiddlewarePipeline<TestContext>([
             new ContextWriterMiddleware("key1", "value1"),
             new ContextWriterMiddleware("key2", "value2"),
@@ -152,58 +142,48 @@ public sealed class MiddlewarePipelineTests
 
     // === 测试辅助类 ===
 
-    private sealed class TestContext
-    {
+    private sealed class TestContext {
         public List<string> ExecutionLog { get; } = [];
         public Dictionary<string, string> Bag { get; } = [];
     }
 
-    private sealed class TrackingMiddleware(string label) : IMiddleware<TestContext>
-    {
+    private sealed class TrackingMiddleware(string label) : IMiddleware<TestContext> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
 
-        public async Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct) {
             context.ExecutionLog.Add(label);
             await next(context, ct).ConfigureAwait(true);
         }
     }
 
-    private sealed class ThrowingMiddleware(string label, ErrorBehavior errorBehavior) : IMiddleware<TestContext>
-    {
+    private sealed class ThrowingMiddleware(string label, ErrorBehavior errorBehavior) : IMiddleware<TestContext> {
         public ErrorBehavior OnError => errorBehavior;
 
         public Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
             => throw new InvalidOperationException($"{label} failed");
     }
 
-    private sealed class ShortCircuitMiddleware : IMiddleware<TestContext>
-    {
+    private sealed class ShortCircuitMiddleware : IMiddleware<TestContext> {
 
-        public Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
-        {
+        public Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct) {
             context.ExecutionLog.Add("short-circuit");
             return Task.CompletedTask;
         }
     }
 
-    private sealed class ContextWriterMiddleware(string key, string value) : IMiddleware<TestContext>
-    {
+    private sealed class ContextWriterMiddleware(string key, string value) : IMiddleware<TestContext> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
 
-        public async Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct) {
             context.Bag[key] = value;
             await next(context, ct).ConfigureAwait(true);
         }
     }
 
-    private sealed class ContextReaderMiddleware(string key1, string key2) : IMiddleware<TestContext>
-    {
+    private sealed class ContextReaderMiddleware(string key1, string key2) : IMiddleware<TestContext> {
         public ErrorBehavior OnError => ErrorBehavior.Continue;
 
-        public async Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct)
-        {
+        public async Task InvokeAsync(TestContext context, MiddlewareDelegate<TestContext> next, CancellationToken ct) {
             context.ExecutionLog.Add($"{key1}={context.Bag[key1]}");
             context.ExecutionLog.Add($"{key2}={context.Bag[key2]}");
             await next(context, ct).ConfigureAwait(true);

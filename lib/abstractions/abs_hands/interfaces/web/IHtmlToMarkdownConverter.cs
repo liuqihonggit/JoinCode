@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// HTML 转 Markdown 转换器接口
 /// </summary>
-public interface IHtmlToMarkdownConverter
-{
+public interface IHtmlToMarkdownConverter {
     /// <summary>
     /// 将 HTML 内容转换为 Markdown 格式
     /// </summary>

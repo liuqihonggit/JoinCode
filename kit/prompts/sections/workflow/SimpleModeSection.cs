@@ -4,14 +4,12 @@ namespace Core.Prompts.Sections;
 /// 简化模式部分 - 极简系统提示词
 /// </summary>
 [PromptSection(Name = "simple_mode", Order = 24, IsDynamic = true)]
-public static class SimpleModeSection
-{
+public static class SimpleModeSection {
     /// <summary>
     /// 获取简化模式的提示词内容。当文件系统不可用时返回 null。
     /// </summary>
     /// <returns>极简系统提示词文本；若文件系统不可用则返回 null。</returns>
-    public static string? GetContent()
-    {
+    public static string? GetContent() {
         var snapshot = PromptConfigSnapshot.Current;
         var fs = snapshot.FileSystem;
         if (fs is null) return null;

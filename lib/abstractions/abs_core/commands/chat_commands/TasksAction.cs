@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("DETAIL") → TasksAction.Detail (OrdinalIgnoreCase)
 /// - TasksAction.Complete.ToValue() → "complete"
 /// </summary>
-public enum TasksAction
-{
+public enum TasksAction {
     /// <summary>停止/终止指定任务 (kill 旧别名为 stop,但未在命令中启用,保持单一入口)</summary>
     [EnumValue("kill")] Kill,
 

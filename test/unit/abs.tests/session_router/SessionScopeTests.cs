@@ -1,15 +1,12 @@
 namespace Abs.Tests.SessionRouterTests;
 
 [Collection(nameof(SessionRouterCollection))]
-public sealed class SessionScopeTests
-{
-    public SessionScopeTests()
-    {
+public sealed class SessionScopeTests {
+    public SessionScopeTests() {
         SessionRouter.Clear();
     }
     [Fact]
-    public void Register_ThenResolve_可获取()
-    {
+    public void Register_ThenResolve_可获取() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         using var goal = new Goal("测试目标");
@@ -22,8 +19,7 @@ public sealed class SessionScopeTests
     }
 
     [Fact]
-    public void Unregister_移除后不可获取()
-    {
+    public void Unregister_移除后不可获取() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         using var goal = new Goal("测试目标");
@@ -37,8 +33,7 @@ public sealed class SessionScopeTests
     }
 
     [Fact]
-    public void Resolve_类型不匹配_返回null()
-    {
+    public void Resolve_类型不匹配_返回null() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         using var goal = new Goal("测试目标");
@@ -50,8 +45,7 @@ public sealed class SessionScopeTests
     }
 
     [Fact]
-    public void GetAll_ByObjectType_按类型分桶()
-    {
+    public void GetAll_ByObjectType_按类型分桶() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         using var goal1 = new Goal("目标1");
@@ -70,8 +64,7 @@ public sealed class SessionScopeTests
     }
 
     [Fact]
-    public void GetAll_Generic_按CLR类型过滤()
-    {
+    public void GetAll_Generic_按CLR类型过滤() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         using var goal1 = new Goal("目标1");
@@ -89,8 +82,7 @@ public sealed class SessionScopeTests
     }
 
     [Fact]
-    public void Contains_判断是否存在()
-    {
+    public void Contains_判断是否存在() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         using var goal = new Goal("测试目标");
@@ -104,8 +96,7 @@ public sealed class SessionScopeTests
     }
 
     [Fact]
-    public void Dispose_清理所有Entity()
-    {
+    public void Dispose_清理所有Entity() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         var goal1 = new Goal("目标1");
@@ -126,8 +117,7 @@ public sealed class SessionScopeTests
     }
 
     [Fact]
-    public void Register_已释放_抛ObjectDisposedException()
-    {
+    public void Register_已释放_抛ObjectDisposedException() {
         var sessionId = new ObjectId(ObjectType.Session);
         var scope = SessionRouter.GetOrCreateScope(sessionId);
         scope.Dispose();
@@ -139,8 +129,7 @@ public sealed class SessionScopeTests
     }
 
     [Fact]
-    public void GetOrCreateScope_空SessionId_抛ArgumentException()
-    {
+    public void GetOrCreateScope_空SessionId_抛ArgumentException() {
         var act = () => SessionRouter.GetOrCreateScope(ObjectId.Empty);
         act.Should().Throw<ArgumentException>();
 

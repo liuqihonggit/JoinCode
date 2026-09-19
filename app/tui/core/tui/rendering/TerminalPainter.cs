@@ -5,8 +5,7 @@ namespace JoinCode.Tui.Rendering;
 /// 线程安全：非 MainLoop 线程通过 Invoke 投递到 MainLoop，由 Application 保证单线程渲染。
 /// 对齐 TS 原版 的 writeDiffToTerminal 唯一 stdout 写入点设计。
 /// </summary>
-public sealed class TerminalPainter
-{
+public sealed class TerminalPainter {
     private readonly Action<Action> _invoke;
     private readonly List<ITuiComponent> _components = new();
     private readonly AsyncLock _lock = new("TerminalPainter");
@@ -15,15 +14,13 @@ public sealed class TerminalPainter
     /// 创建 TerminalPainter。
     /// </summary>
     /// <param name="invoke">MainLoop 投递函数（将绘制操作投递到 Terminal.Gui 主循环）。</param>
-    public TerminalPainter(Action<Action> invoke)
-    {
+    public TerminalPainter(Action<Action> invoke) {
         _invoke = invoke ?? throw new ArgumentNullException(nameof(invoke));
     }
 
     /// <summary>投递同步渲染请求到 MainLoop（线程安全）。</summary>
     /// <param name="drawAction">绘制操作。</param>
-    public void Invoke(Action drawAction)
-    {
+    public void Invoke(Action drawAction) {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         _invoke(drawAction);
         sw.Stop();
@@ -32,46 +29,37 @@ public sealed class TerminalPainter
 
     /// <summary>注册 TUI 组件到渲染树。</summary>
     /// <param name="component">TUI 组件。</param>
-    public void Register(ITuiComponent component)
-    {
+    public void Register(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _components.Add(component);
         }
     }
 
     /// <summary>注销 TUI 组件。</summary>
     /// <param name="component">TUI 组件。</param>
-    public void Unregister(ITuiComponent component)
-    {
+    public void Unregister(ITuiComponent component) {
         ArgumentNullException.ThrowIfNull(component);
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _components.Remove(component);
         }
     }
 
     /// <summary>获取所有已注册组件的只读快照。</summary>
-    public IReadOnlyList<ITuiComponent> GetComponents()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public IReadOnlyList<ITuiComponent> GetComponents() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             return _components.ToArray();
         }
     }
 
     /// <summary>通知所有组件队列状态变化。</summary>
     /// <param name="snapshot">队列快照。</param>
-    public void NotifyQueueChanged(QueueSnapshot snapshot)
-    {
+    public void NotifyQueueChanged(QueueSnapshot snapshot) {
         IReadOnlyList<ITuiComponent> components;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             components = _components.ToArray();
         }
-        _invoke(() =>
-        {
+        _invoke(() => {
             foreach (var c in components)
                 c.OnQueueChanged(snapshot);
         });
@@ -80,15 +68,12 @@ public sealed class TerminalPainter
     /// <summary>通知所有组件终端尺寸变化。</summary>
     /// <param name="cols">列数。</param>
     /// <param name="rows">行数。</param>
-    public void NotifyResize(int cols, int rows)
-    {
+    public void NotifyResize(int cols, int rows) {
         IReadOnlyList<ITuiComponent> components;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             components = _components.ToArray();
         }
-        _invoke(() =>
-        {
+        _invoke(() => {
             foreach (var c in components)
                 c.OnResize(cols, rows);
         });

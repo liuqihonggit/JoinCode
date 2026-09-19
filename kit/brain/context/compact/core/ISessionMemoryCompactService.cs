@@ -4,8 +4,7 @@ namespace Core.Context.Compact;
 /// <summary>
 /// 会话记忆压缩服务接口 — 基于持久化会话记忆文件执行压缩
 /// </summary>
-public interface ISessionMemoryCompactService
-{
+public interface ISessionMemoryCompactService {
     /// <summary>
     /// 尝试基于会话记忆执行压缩
     /// </summary>
@@ -43,8 +42,7 @@ public interface ISessionMemoryCompactService
 /// <summary>
 /// 会话记忆压缩配置
 /// </summary>
-public sealed class SessionMemoryCompactConfig
-{
+public sealed class SessionMemoryCompactConfig {
     /// <summary>触发压缩的最小 token 数</summary>
     public int MinTokens { get; init; } = 10_000;
     /// <summary>触发压缩的最小文本块消息数</summary>

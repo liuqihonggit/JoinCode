@@ -4,8 +4,7 @@ namespace Api.LLM.Fallback;
 /// 流式→非流式 fallback 配置 — 对齐 TS claude.ts 的 fallback 机制
 /// 当流式请求失败（529过载/超时/不完整流/看门狗超时）时，自动降级为非流式请求
 /// </summary>
-public sealed class StreamingFallbackConfig
-{
+public sealed class StreamingFallbackConfig {
     /// <summary>
     /// 是否启用流式→非流式 fallback（默认 true）
     /// 对齐 TS: CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK 环境变量
@@ -55,8 +54,7 @@ public sealed class StreamingFallbackConfig
     /// JCC_ENABLE_STREAM_WATCHDOG=0 禁用看门狗
     /// JCC_NON_STREAMING_TIMEOUT_MS=300000 非流式超时
     /// </summary>
-    public static StreamingFallbackConfig FromEnvironment()
-    {
+    public static StreamingFallbackConfig FromEnvironment() {
         var config = new StreamingFallbackConfig();
 
         var disableFallback = Environment.GetEnvironmentVariable("JCC_DISABLE_STREAMING_FALLBACK");

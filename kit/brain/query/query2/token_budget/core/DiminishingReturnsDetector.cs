@@ -3,8 +3,7 @@ namespace Core.Query.BudgetAnalysis;
 /// <summary>
 /// 递减回报检测器接口 — 基于 Token 消耗序列检测迭代效率递减
 /// </summary>
-public interface IDiminishingReturnsDetector
-{
+public interface IDiminishingReturnsDetector {
     /// <summary>
     /// 检测最近的 Token 消耗序列是否存在递减回报
     /// </summary>
@@ -21,8 +20,7 @@ public interface IDiminishingReturnsDetector
 /// <summary>
 /// 递减回报检测结果
 /// </summary>
-public sealed class DiminishingReturnsResult
-{
+public sealed class DiminishingReturnsResult {
     /// <summary>
     /// 是否处于递减回报状态
     /// </summary>
@@ -48,8 +46,7 @@ public sealed class DiminishingReturnsResult
 /// 递减回报检测器实现 — 基于 Token 增长率连续低效计数判定
 /// </summary>
 [Register(typeof(IDiminishingReturnsDetector), ServiceLifetime.Singleton)]
-public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminishingReturnsDetector
-{
+public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminishingReturnsDetector {
     private const double LowValueThreshold = 0.1;
     private const int ConsecutiveThreshold = 3;
     private const int MinimumSampleSize = 2;
@@ -62,8 +59,7 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
     /// 构造函数 — 注入遥测服务（可选）
     /// </summary>
     /// <param name="telemetryService">遥测服务</param>
-    public DiminishingReturnsDetector(ITelemetryService? telemetryService = null)
-    {
+    public DiminishingReturnsDetector(ITelemetryService? telemetryService = null) {
         _telemetryService = telemetryService;
     }
 
@@ -72,14 +68,11 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
     /// </summary>
     /// <param name="recentConsumptions">最近的 Token 消耗记录</param>
     /// <returns>检测结果</returns>
-    public DiminishingReturnsResult CheckDiminishingReturns(IReadOnlyList<TokenConsumption> recentConsumptions)
-    {
+    public DiminishingReturnsResult CheckDiminishingReturns(IReadOnlyList<TokenConsumption> recentConsumptions) {
         ArgumentNullException.ThrowIfNull(recentConsumptions);
 
-        if (recentConsumptions.Count < MinimumSampleSize)
-        {
-            return new DiminishingReturnsResult
-            {
+        if (recentConsumptions.Count < MinimumSampleSize) {
+            return new DiminishingReturnsResult {
                 IsDiminishing = false,
                 EffectivenessRatio = 1.0,
                 ConsecutiveLowValueIterations = 0
@@ -87,13 +80,11 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
         }
 
         var ratios = new List<double>(recentConsumptions.Count - 1);
-        for (var i = 1; i < recentConsumptions.Count; i++)
-        {
+        for (var i = 1; i < recentConsumptions.Count; i++) {
             var prevConsumption = recentConsumptions[i - 1];
             var currConsumption = recentConsumptions[i];
 
-            if (prevConsumption.Amount <= 0)
-            {
+            if (prevConsumption.Amount <= 0) {
                 continue;
             }
 
@@ -101,10 +92,8 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
             ratios.Add(tokenGrowthRate);
         }
 
-        if (ratios.Count == 0)
-        {
-            return new DiminishingReturnsResult
-            {
+        if (ratios.Count == 0) {
+            return new DiminishingReturnsResult {
                 IsDiminishing = false,
                 EffectivenessRatio = 1.0,
                 ConsecutiveLowValueIterations = 0
@@ -113,20 +102,15 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
 
         var averageRatio = ratios.Average();
 
-        using (_resetLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resetLock.Name}' 等待超时"))
-        {
-            if (averageRatio < LowValueThreshold)
-            {
+        using (_resetLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resetLock.Name}' 等待超时")) {
+            if (averageRatio < LowValueThreshold) {
                 _consecutiveLowValueCount++;
-            }
-            else
-            {
+            } else {
                 _consecutiveLowValueCount = 0;
             }
 
             var isDiminishing = _consecutiveLowValueCount >= ConsecutiveThreshold;
-            string? recommendation = isDiminishing switch
-            {
+            var recommendation = isDiminishing switch {
                 true when _consecutiveLowValueCount >= ConsecutiveThreshold + 2 => "Stop iteration - sustained diminishing returns",
                 true => "Consider compacting context or switching strategy",
                 _ => null
@@ -135,8 +119,7 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
             _telemetryService?.RecordCount("query.diminishing.check.count", new() { ["diminishing"] = isDiminishing.ToString() }, "count", "Diminishing returns check count");
             _telemetryService?.RecordHistogram("query.diminishing.effectiveness", averageRatio, unit: "ratio", description: "Effectiveness ratio");
 
-            return new DiminishingReturnsResult
-            {
+            return new DiminishingReturnsResult {
                 IsDiminishing = isDiminishing,
                 EffectivenessRatio = averageRatio,
                 Recommendation = recommendation,
@@ -148,17 +131,14 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
     /// <summary>
     /// 重置检测器状态 — 清零连续低效计数
     /// </summary>
-    public void Reset()
-    {
-        using (_resetLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resetLock.Name}' 等待超时"))
-        {
+    public void Reset() {
+        using (_resetLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resetLock.Name}' 等待超时")) {
             _consecutiveLowValueCount = 0;
         }
     }
 
     /// <inheritdoc />
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _resetLock.Dispose();
         base.Dispose();
     }

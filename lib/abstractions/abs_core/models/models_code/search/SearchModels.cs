@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Search;
 /// <summary>
 /// Glob 搜索结果
 /// </summary>
-public sealed record GlobSearchResult
-{
+public sealed record GlobSearchResult {
     public required long DurationMs { get; init; }
     public required int NumFiles { get; init; }
     public required IReadOnlyList<string> Filenames { get; init; }
@@ -16,8 +15,7 @@ public sealed record GlobSearchResult
         long durationMs,
         IReadOnlyList<string> filenames,
         bool truncated)
-        => new()
-        {
+        => new() {
             DurationMs = durationMs,
             NumFiles = filenames.Count,
             Filenames = filenames,
@@ -26,8 +24,7 @@ public sealed record GlobSearchResult
         };
 
     public static GlobSearchResult FailureResult(string errorMessage)
-        => new()
-        {
+        => new() {
             DurationMs = 0,
             NumFiles = 0,
             Filenames = Array.Empty<string>(),
@@ -40,8 +37,7 @@ public sealed record GlobSearchResult
 /// <summary>
 /// 搜索输出模式 — 替代 GrepSearchInput.OutputMode 的字符串常量
 /// </summary>
-public enum SearchOutputMode
-{
+public enum SearchOutputMode {
     [EnumValue("files_with_matches")] Files = 0,
     [EnumValue("content")] Content = 1,
     [EnumValue("count")] Count = 2
@@ -50,8 +46,7 @@ public enum SearchOutputMode
 /// <summary>
 /// Grep 搜索输入参数
 /// </summary>
-public sealed record GrepSearchInput
-{
+public sealed record GrepSearchInput {
     /// <summary>
     /// 搜索模式（正则表达式）
     /// </summary>
@@ -128,8 +123,7 @@ public sealed record GrepSearchInput
 /// <summary>
 /// Grep 搜索结果
 /// </summary>
-public sealed record GrepSearchResult
-{
+public sealed record GrepSearchResult {
     public string? Mode { get; init; }
     public required int NumFiles { get; init; }
     public required IReadOnlyList<string> Filenames { get; init; }
@@ -149,8 +143,7 @@ public sealed record GrepSearchResult
         int? numMatches = null,
         int? appliedLimit = null,
         int? appliedOffset = null)
-        => new()
-        {
+        => new() {
             Mode = mode,
             NumFiles = filenames.Count,
             Filenames = filenames,
@@ -163,8 +156,7 @@ public sealed record GrepSearchResult
         };
 
     public static GrepSearchResult FailureResult(string errorMessage)
-        => new()
-        {
+        => new() {
             Mode = null,
             NumFiles = 0,
             Filenames = Array.Empty<string>(),

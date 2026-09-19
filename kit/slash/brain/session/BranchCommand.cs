@@ -10,49 +10,45 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Branch, Description = "管理对话分支", Usage = "/branch [list|create|switch|delete] [name]", Category = ChatCommandCategory.Session, Aliases = ["branches"], ArgumentHint = "[list|create|switch|delete]")]
 [ChatCommandArg("action", Type = "string", Description = "分支操作", Enum = new[] { "list", "create", "switch", "delete" })]
 [ChatCommandArg("name", Type = "string", Description = "分支名称")]
-public sealed class BranchCommand : ChatCommandBase
-{
+public sealed class BranchCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /branch 命令，按子操作分发到对应分支处理流程。
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";
 
-        switch (action)
-        {
+        switch (action) {
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
-                ShowBranchList(context);
-                break;
+            ShowBranchList(context);
+            break;
             case CrudActionEnumConstants.Create:
             case CrudActionEnumConstants.New:
-                var createName = args.Length > 1 ? args[1] : null;
-                CreateBranch(context, createName);
-                break;
+            var createName = args.Length > 1 ? args[1] : null;
+            CreateBranch(context, createName);
+            break;
             case "switch" or "go":
-                var switchName = args.Length > 1 ? args[1] : null;
-                SwitchBranch(context, switchName);
-                break;
+            var switchName = args.Length > 1 ? args[1] : null;
+            SwitchBranch(context, switchName);
+            break;
             case CrudActionEnumConstants.Delete:
             case CrudActionEnumConstants.Rm:
-                var deleteName = args.Length > 1 ? args[1] : null;
-                DeleteBranch(context, deleteName);
-                break;
+            var deleteName = args.Length > 1 ? args[1] : null;
+            DeleteBranch(context, deleteName);
+            break;
             default:
-                TerminalHelper.WriteLine($"未知操作: {action}");
-                TerminalHelper.WriteLine("支持: list, create, switch, delete");
-                break;
+            TerminalHelper.WriteLine($"未知操作: {action}");
+            TerminalHelper.WriteLine("支持: list, create, switch, delete");
+            break;
         }
 
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static void ShowBranchList(ChatCommandContext context)
-    {
+    private static void ShowBranchList(ChatCommandContext context) {
         TerminalHelper.WriteLine("=== 对话分支 ===\n");
 
         // 待办：接入 BranchManager 服务后替换为真实分支列表
@@ -62,10 +58,8 @@ public sealed class BranchCommand : ChatCommandBase
         TerminalHelper.WriteLine("使用 /branch switch <name> 切换分支");
     }
 
-    private static void CreateBranch(ChatCommandContext context, string? name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
+    private static void CreateBranch(ChatCommandContext context, string? name) {
+        if (string.IsNullOrEmpty(name)) {
             TerminalHelper.WriteLine("用法: /branch create <name>");
             return;
         }
@@ -74,10 +68,8 @@ public sealed class BranchCommand : ChatCommandBase
         TerminalHelper.WriteLine($"已创建分支: {name}");
     }
 
-    private static void SwitchBranch(ChatCommandContext context, string? name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
+    private static void SwitchBranch(ChatCommandContext context, string? name) {
+        if (string.IsNullOrEmpty(name)) {
             TerminalHelper.WriteLine("用法: /branch switch <name>");
             return;
         }
@@ -86,10 +78,8 @@ public sealed class BranchCommand : ChatCommandBase
         TerminalHelper.WriteLine($"已切换到分支: {name}");
     }
 
-    private static void DeleteBranch(ChatCommandContext context, string? name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
+    private static void DeleteBranch(ChatCommandContext context, string? name) {
+        if (string.IsNullOrEmpty(name)) {
             TerminalHelper.WriteLine("用法: /branch delete <name>");
             return;
         }

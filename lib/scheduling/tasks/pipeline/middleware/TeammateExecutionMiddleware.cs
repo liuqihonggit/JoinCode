@@ -5,8 +5,7 @@ namespace Core.Scheduling.Tasks;
 /// Teammate 执行中间件 — 调用智能体生命周期管理器执行 Teammate 任务，记录遥测指标并处理清理逻辑
 /// </summary>
 [Register(typeof(ITeammateExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeammateExecutionMiddleware
-{
+public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeammateExecutionMiddleware {
 
     /// <summary>
     /// 初始化 Teammate 执行中间件
@@ -15,8 +14,7 @@ public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeamma
     /// <param name="clock">时钟服务</param>
     /// <param name="telemetryService">遥测服务，为 null 时不记录指标</param>
     /// <param name="logger">日志记录器</param>
-    public TeammateExecutionMiddleware(IAgentLifecycleManager agentLifecycleManager, IClockService clock, ITelemetryService? telemetryService = null, ILogger<TeammateExecutionMiddleware>? logger = null)
-    {
+    public TeammateExecutionMiddleware(IAgentLifecycleManager agentLifecycleManager, IClockService clock, ITelemetryService? telemetryService = null, ILogger<TeammateExecutionMiddleware>? logger = null) {
         _agentLifecycleManager = agentLifecycleManager;
         _clock = clock;
         _telemetryService = telemetryService;
@@ -29,20 +27,16 @@ public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeamma
 
 
     /// <inheritdoc/>
-    public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct)
-    {
-        if (ctx.ContinuousModeHandled)
-        {
+    public async Task InvokeAsync(TeammateExecutionContext ctx, MiddlewareDelegate<TeammateExecutionContext> next, CancellationToken ct) {
+        if (ctx.ContinuousModeHandled) {
             return;
         }
 
-        try
-        {
+        try {
             var result = await _agentLifecycleManager.ExecuteAsync(ctx.Agent ?? throw new InvalidOperationException("Teammate agent is not available."), ct).ConfigureAwait(false);
             var elapsed = (long)(_clock.GetUtcNow() - ctx.StartTime).TotalMilliseconds;
 
-            if (ctx.CleanupAsync is not null && ctx.State is not null)
-            {
+            if (ctx.CleanupAsync is not null && ctx.State is not null) {
                 await ctx.CleanupAsync(ctx.Definition.TeammateId, ctx.State).ConfigureAwait(false);
             }
 
@@ -51,22 +45,16 @@ public sealed partial class TeammateExecutionMiddleware : ServiceEntity, ITeamma
             ctx.Result = result.IsSuccess
                 ? AgentTaskResult.Success(ctx.Definition.TaskId, ctx.Definition.TeammateId, result.Output ?? string.Empty, elapsed)
                 : AgentTaskResult.Failure(ctx.Definition.TaskId, ctx.Definition.TeammateId, result.Error ?? "Teammate execution failed", elapsed);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            if (ctx.TryCleanupAsync is not null)
-            {
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
+            if (ctx.TryCleanupAsync is not null) {
                 await ctx.TryCleanupAsync(ctx.Definition.TeammateId).ConfigureAwait(false);
             }
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             var elapsed = (long)(_clock.GetUtcNow() - ctx.StartTime).TotalMilliseconds;
             _logger?.LogError(ex, L.T(StringKey.InProcessTeammateFailedLog, ctx.Definition.TeammateId));
 
-            if (ctx.TryCleanupAsync is not null)
-            {
+            if (ctx.TryCleanupAsync is not null) {
                 await ctx.TryCleanupAsync(ctx.Definition.TeammateId).ConfigureAwait(false);
             }
 

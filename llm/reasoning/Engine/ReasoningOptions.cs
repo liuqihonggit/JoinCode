@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Engine;
 /// <summary>
 /// 推理引擎配置 — 控制推理结构大小、预算和裁决行为
 /// </summary>
-public sealed class ReasoningOptions
-{
+public sealed class ReasoningOptions {
     /// <summary>
     /// DAG 最大节点数（包含假定、证据、裁决），超过后拒绝添加新节点
     /// </summary>
@@ -133,8 +132,7 @@ public sealed class ReasoningOptions
     /// <summary>
     /// 杀人罪 — 证据阈值最高，闭环锁死，排除合理怀疑
     /// </summary>
-    public static readonly ReasoningOptions Murder = new()
-    {
+    public static readonly ReasoningOptions Murder = new() {
         MaxNodes = 50,
         MaxEvidencePerClaim = 10,
         MaxDepth = 5,
@@ -157,8 +155,7 @@ public sealed class ReasoningOptions
     /// <summary>
     /// 离婚官司 — 证据阈值最低，高度盖然性即可
     /// </summary>
-    public static readonly ReasoningOptions Divorce = new()
-    {
+    public static readonly ReasoningOptions Divorce = new() {
         MaxNodes = 500,
         MaxEvidencePerClaim = 50,
         MaxDepth = 20,
@@ -176,8 +173,7 @@ public sealed class ReasoningOptions
     /// <summary>
     /// 根据预设枚举获取配置
     /// </summary>
-    public static ReasoningOptions FromPreset(ReasoningPreset preset) => preset switch
-    {
+    public static ReasoningOptions FromPreset(ReasoningPreset preset) => preset switch {
         ReasoningPreset.Murder => Murder,
         ReasoningPreset.Panda => Panda,
         ReasoningPreset.Divorce => Divorce,
@@ -198,8 +194,7 @@ public sealed class ReasoningOptions
 /// <summary>
 /// 推理引擎配置构建器 — 支持链式配置
 /// </summary>
-public sealed class ReasoningOptionsBuilder
-{
+public sealed class ReasoningOptionsBuilder {
     private int _maxNodes = 100;
     private int _maxEvidencePerClaim = 20;
     private int _maxDepth = 10;
@@ -264,8 +259,7 @@ public sealed class ReasoningOptionsBuilder
     /// <summary>
     /// 从预设枚举开始
     /// </summary>
-    public static ReasoningOptionsBuilder FromPreset(ReasoningPreset preset) => preset switch
-    {
+    public static ReasoningOptionsBuilder FromPreset(ReasoningPreset preset) => preset switch {
         ReasoningPreset.Murder => CreateMurder(),
         ReasoningPreset.Panda => CreatePanda(),
         ReasoningPreset.Divorce => CreateDivorce(),
@@ -373,8 +367,7 @@ public sealed class ReasoningOptionsBuilder
     /// <summary>
     /// 构建推理引擎配置
     /// </summary>
-    public ReasoningOptions Build() => new()
-    {
+    public ReasoningOptions Build() => new() {
         MaxNodes = _maxNodes,
         MaxEvidencePerClaim = _maxEvidencePerClaim,
         MaxDepth = _maxDepth,

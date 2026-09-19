@@ -5,8 +5,7 @@ namespace Tools.Handlers;
 /// 任意修改文件的工具（文件写入、文件删除、notebook 编辑等）可注入此 node 在修改前备份历史版本。
 /// </summary>
 [Register(typeof(FileBackupNode), ServiceLifetime.Singleton)]
-public sealed class FileBackupNode
-{
+public sealed class FileBackupNode {
     private readonly IFileHistoryService? _historyService;
     private readonly IFileSystem _fs;
     private readonly ILogger<FileBackupNode>? _logger;
@@ -20,8 +19,7 @@ public sealed class FileBackupNode
     public FileBackupNode(
         IFileSystem fs,
         IFileHistoryService? historyService = null,
-        ILogger<FileBackupNode>? logger = null)
-    {
+        ILogger<FileBackupNode>? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _historyService = historyService;
         _logger = logger;
@@ -35,8 +33,7 @@ public sealed class FileBackupNode
     /// <param name="filePath">文件路径（沙箱解析后）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async ValueTask BackupAsync(string filePath, CancellationToken ct)
-    {
+    public async ValueTask BackupAsync(string filePath, CancellationToken ct) {
         if (_historyService is null || !_fs.FileExists(filePath))
             return;
 

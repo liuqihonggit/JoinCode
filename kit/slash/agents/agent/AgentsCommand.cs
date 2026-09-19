@@ -6,31 +6,28 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Agents, Description = "查看和管理代理", Usage = "/agents [list|info <name>]", Category = ChatCommandCategory.Agent, ArgumentHint = "[list|info <name>]")]
 [ChatCommandArg("action", Type = "string", Description = "操作: list=列出代理, info=查看详情", Enum = new[] { "list", "info" }, Default = "list")]
 [ChatCommandArg("name", Type = "string", Description = "代理名称,仅在 action=info 时使用")]
-public sealed class AgentsCommand : ChatCommandBase
-{
+public sealed class AgentsCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /agents 命令，根据操作类型列出代理或显示代理详情
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";
 
-        switch (action)
-        {
+        switch (action) {
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
-                await ListAgentsAsync(context);
-                break;
+            await ListAgentsAsync(context);
+            break;
             case "info":
-                await ShowAgentInfoAsync(context, args);
-                break;
+            await ShowAgentInfoAsync(context, args);
+            break;
             default:
-                TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");
-                TerminalHelper.WriteLine(L.T(StringKey.HostAgentsAvailableActions));
-                break;
+            TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");
+            TerminalHelper.WriteLine(L.T(StringKey.HostAgentsAvailableActions));
+            break;
         }
 
         return ChatCommandResult.Continue();
@@ -40,26 +37,22 @@ public sealed class AgentsCommand : ChatCommandBase
     /// 列出代理（交互式选择器）
     /// 对齐 TS: AgentsMenu — 上下键选择代理+Enter查看详情+Esc取消
     /// </summary>
-    private static async Task ListAgentsAsync(ChatCommandContext context)
-    {
+    private static async Task ListAgentsAsync(ChatCommandContext context) {
         var provider = ChatCommandBase.GetService<IAgentDefinitionProvider>(context, typeof(IAgentDefinitionProvider));
-        if (provider is null)
-        {
+        if (provider is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}{L.T(StringKey.HostAgentsProviderUnavailable)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var agents = await provider.GetAgentDefinitionsAsync(cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
-        if (agents.Count == 0)
-        {
+        if (agents.Count == 0) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsNoAgents));
             return;
         }
 
         // 交互模式：使用 Selector 组件
-        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             var selector = new Selector<AgentDefinition>(
                 "代理列表",
                 [.. agents],
@@ -69,8 +62,7 @@ public sealed class AgentsCommand : ChatCommandBase
 
             var result = await selector.ShowAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (result.Cancelled || result.Selected is null)
-            {
+            if (result.Cancelled || result.Selected is null) {
                 TerminalHelper.WriteLine(L.T(StringKey.HostAgentsCancelled));
                 return;
             }
@@ -85,11 +77,9 @@ public sealed class AgentsCommand : ChatCommandBase
 
         var grouped = GroupBySource(agents);
 
-        foreach (var (source, agentList) in grouped)
-        {
+        foreach (var (source, agentList) in grouped) {
             TerminalHelper.WriteLine($"  [{source}] ({agentList.Count})");
-            foreach (var agent in agentList)
-            {
+            foreach (var agent in agentList) {
                 var bgMarker = agent.IsBackground ? " [后台]" : "";
                 var desc = string.IsNullOrEmpty(agent.Description) ? agent.WhenToUse : agent.Description;
                 var shortDesc = desc.Length > 60 ? desc[..60] + "..." : desc;
@@ -105,8 +95,7 @@ public sealed class AgentsCommand : ChatCommandBase
     /// <summary>
     /// 显示代理详情（从选择器选择后调用）
     /// </summary>
-    private static Task ShowAgentDetailAsync(AgentDefinition agent)
-    {
+    private static Task ShowAgentDetailAsync(AgentDefinition agent) {
         TerminalHelper.WriteLine(L.T(StringKey.HostAgentsDetailHeader, agent.DisplayId) + "\n");
 
         if (!string.IsNullOrEmpty(agent.Description))
@@ -130,15 +119,13 @@ public sealed class AgentsCommand : ChatCommandBase
         if (!string.IsNullOrEmpty(agent.SourcePath))
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsSourceLabel, agent.SourcePath));
 
-        if (agent.Tools?.Count > 0)
-        {
+        if (agent.Tools?.Count > 0) {
             TerminalHelper.WriteLine($"\n{L.T(StringKey.HostAgentsAllowedToolsLabel, agent.Tools.Count)}");
             foreach (var tool in agent.Tools)
                 TerminalHelper.WriteLine($"  + {tool}");
         }
 
-        if (agent.DisallowedTools?.Count > 0)
-        {
+        if (agent.DisallowedTools?.Count > 0) {
             TerminalHelper.WriteLine($"\n{L.T(StringKey.HostAgentsDisallowedToolsLabel, agent.DisallowedTools.Count)}");
             foreach (var tool in agent.DisallowedTools)
                 TerminalHelper.WriteLine($"  - {tool}");
@@ -147,110 +134,89 @@ public sealed class AgentsCommand : ChatCommandBase
         return Task.CompletedTask;
     }
 
-    private static async Task ShowAgentInfoAsync(ChatCommandContext context, string[] args)
-    {
-        if (args.Length < 2)
-        {
+    private static async Task ShowAgentInfoAsync(ChatCommandContext context, string[] args) {
+        if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUsageHint)}{AnsiStyleEnumConstants.Reset}");
             return;
         }
 
         var agentType = args[1];
         var provider = ChatCommandBase.GetService<IAgentDefinitionProvider>(context, typeof(IAgentDefinitionProvider));
-        if (provider is null)
-        {
+        if (provider is null) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsProviderUnavailable));
             return;
         }
 
         var agent = await provider.GetAgentDefinitionAsync(JoinCode.Abstractions.Models.Agent.AgentRole.Executor, ExecutorVariantExtensions.FromValue(agentType), cancellationToken: context.CancellationToken).ConfigureAwait(false);
-        if (agent is null)
-        {
+        if (agent is null) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsNotFound, agentType));
             return;
         }
 
         TerminalHelper.WriteLine(L.T(StringKey.HostAgentsDetailHeader, agent.DisplayId) + "\n");
 
-        if (!string.IsNullOrEmpty(agent.Description))
-        {
+        if (!string.IsNullOrEmpty(agent.Description)) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsDescriptionLabel, agent.Description));
         }
 
         TerminalHelper.WriteLine(L.T(StringKey.HostAgentsWhenToUseLabel, agent.WhenToUse));
         TerminalHelper.WriteLine(L.T(StringKey.HostAgentsBackgroundLabel, agent.IsBackground ? "是" : "否"));
 
-        if (!string.IsNullOrEmpty(agent.ModelName))
-        {
+        if (!string.IsNullOrEmpty(agent.ModelName)) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsModelLabel, agent.ModelName));
         }
 
-        if (agent.Temperature.HasValue)
-        {
+        if (agent.Temperature.HasValue) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsTemperatureLabel, agent.Temperature.Value));
         }
 
-        if (agent.MaxTokens.HasValue)
-        {
+        if (agent.MaxTokens.HasValue) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsMaxTokensLabel, agent.MaxTokens.Value));
         }
 
-        if (!string.IsNullOrEmpty(agent.PermissionMode))
-        {
+        if (!string.IsNullOrEmpty(agent.PermissionMode)) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsPermissionModeLabel, agent.PermissionMode));
         }
 
-        if (!string.IsNullOrEmpty(agent.SourcePath))
-        {
+        if (!string.IsNullOrEmpty(agent.SourcePath)) {
             TerminalHelper.WriteLine(L.T(StringKey.HostAgentsSourceLabel, agent.SourcePath));
         }
 
-        if (agent.Tools?.Count > 0)
-        {
+        if (agent.Tools?.Count > 0) {
             TerminalHelper.WriteLine($"\n{L.T(StringKey.HostAgentsAllowedToolsLabel, agent.Tools.Count)}");
-            foreach (var tool in agent.Tools)
-            {
+            foreach (var tool in agent.Tools) {
                 TerminalHelper.WriteLine($"  + {tool}");
             }
         }
 
-        if (agent.DisallowedTools?.Count > 0)
-        {
+        if (agent.DisallowedTools?.Count > 0) {
             TerminalHelper.WriteLine($"\n{L.T(StringKey.HostAgentsDisallowedToolsLabel, agent.DisallowedTools.Count)}");
-            foreach (var tool in agent.DisallowedTools)
-            {
+            foreach (var tool in agent.DisallowedTools) {
                 TerminalHelper.WriteLine($"  - {tool}");
             }
         }
 
-        if (agent.Skills?.Count > 0)
-        {
+        if (agent.Skills?.Count > 0) {
             TerminalHelper.WriteLine($"\n{L.T(StringKey.HostAgentsSkillsLabel)}");
-            foreach (var skill in agent.Skills)
-            {
+            foreach (var skill in agent.Skills) {
                 TerminalHelper.WriteLine($"  /{skill}");
             }
         }
 
-        if (agent.McpServers?.Count > 0)
-        {
+        if (agent.McpServers?.Count > 0) {
             TerminalHelper.WriteLine($"\n{L.T(StringKey.HostAgentsMcServersLabel)}");
-            foreach (var server in agent.McpServers)
-            {
+            foreach (var server in agent.McpServers) {
                 TerminalHelper.WriteLine($"  {server.ServerNameRef ?? "(inline)"}");
             }
         }
     }
 
-    private static List<(string Source, List<AgentDefinition> Agents)> GroupBySource(List<AgentDefinition> agents)
-    {
+    private static List<(string Source, List<AgentDefinition> Agents)> GroupBySource(List<AgentDefinition> agents) {
         var groups = new Dictionary<string, List<AgentDefinition>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var agent in agents)
-        {
+        foreach (var agent in agents) {
             var source = ClassifySource(agent.SourcePath);
-            if (!groups.TryGetValue(source, out var list))
-            {
+            if (!groups.TryGetValue(source, out var list)) {
                 list = [];
                 groups[source] = list;
             }
@@ -263,28 +229,24 @@ public sealed class AgentsCommand : ChatCommandBase
             .ToList();
     }
 
-    private static string ClassifySource(string? sourcePath)
-    {
+    private static string ClassifySource(string? sourcePath) {
         if (string.IsNullOrEmpty(sourcePath)) return "内置";
 
         var span = sourcePath.AsSpan();
 
         if (span.Contains(".trae".AsSpan(), StringComparison.OrdinalIgnoreCase) ||
-            span.Contains(AppDataConstants.AppDataFolder.AsSpan(), StringComparison.OrdinalIgnoreCase))
-        {
+            span.Contains(AppDataConstants.AppDataFolder.AsSpan(), StringComparison.OrdinalIgnoreCase)) {
             return IsInUserProfile(sourcePath) ? "用户级" : "项目级";
         }
 
-        if (span.Contains(".claude".AsSpan(), StringComparison.OrdinalIgnoreCase))
-        {
+        if (span.Contains(".claude".AsSpan(), StringComparison.OrdinalIgnoreCase)) {
             return IsInUserProfile(sourcePath) ? "用户级 (claude)" : "项目级 (claude)";
         }
 
         return "其他";
     }
 
-    private static bool IsInUserProfile(string path)
-    {
+    private static bool IsInUserProfile(string path) {
         var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         return path.StartsWith(userProfile, StringComparison.OrdinalIgnoreCase);
     }

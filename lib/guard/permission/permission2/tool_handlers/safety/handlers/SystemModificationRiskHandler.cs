@@ -5,8 +5,7 @@ namespace Core.Permission;
 /// 系统修改风险处理器 — CommandRisk.SystemModification 的拦截策略
 /// </summary>
 [Register(typeof(ICommandRiskHandler), ServiceLifetime.Singleton)]
-public sealed partial class SystemModificationRiskHandler : SimpleCommandRiskHandler
-{
+public sealed partial class SystemModificationRiskHandler : SimpleCommandRiskHandler {
     /// <inheritdoc />
     public override CommandRisk RiskType => CommandRisk.SystemModification;
 

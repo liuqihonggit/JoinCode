@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Runtime;
 
-public sealed record RuntimeTask
-{
+public sealed record RuntimeTask {
     public required string Id { get; init; }
     public required string Description { get; set; }
     public TaskExecutionStatus Status { get; set; } = TaskExecutionStatus.Pending;

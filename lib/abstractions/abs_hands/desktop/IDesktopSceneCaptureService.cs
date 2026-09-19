@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 桌面场景截图编排服务 — 截图 + 四叉树网格构建 + 网格叠加渲染的一体化封装
 /// </summary>
-public interface IDesktopSceneCaptureService
-{
+public interface IDesktopSceneCaptureService {
     /// <summary>全屏截图并构建四叉树网格叠加渲染图，同时持久化场景状态（截图存文件 + 状态存 JSON）</summary>
     /// <param name="sceneId">场景 ID</param>
     /// <param name="depth">四叉树层数（1=4格, 2=16格），默认 2</param>

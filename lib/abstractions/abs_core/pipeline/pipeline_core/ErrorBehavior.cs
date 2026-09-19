@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Pipeline;
 /// <summary>
 /// 中间件异常处理策略
 /// </summary>
-public enum ErrorBehavior
-{
+public enum ErrorBehavior {
     /// <summary>
     /// 捕获异常，调用 onError 回调，继续执行下一个中间件
     /// 适用于非关键操作：遥测、日志、用量处理、清理、保存

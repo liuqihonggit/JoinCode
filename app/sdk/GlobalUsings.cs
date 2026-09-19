@@ -1,12 +1,12 @@
 global using JoinCode.Abstractions.Attributes;
 global using JoinCode.Abstractions.Configuration;
-global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Llm;
+global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;
 global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.Pipeline;
 global using Microsoft.Extensions.DependencyInjection;
-global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;
 global using Microsoft.Extensions.Hosting;
 global using Microsoft.Extensions.Logging;
+global using ServiceLifetime = JoinCode.Abstractions.Attributes.ServiceLifetime;

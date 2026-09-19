@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Agent;
 
-public sealed class AgentStateInfo
-{
+public sealed class AgentStateInfo {
     public required string AgentId { get; init; }
     public required string Task { get; init; }
     public required TaskExecutionStatus CurrentState { get; init; }
@@ -12,8 +11,7 @@ public sealed class AgentStateInfo
     public JoinCode.Abstractions.Interfaces.AgentProgress? Progress { get; init; }
 }
 
-public sealed class AgentStateReport
-{
+public sealed class AgentStateReport {
     public int TotalAgents { get; init; }
     public int PendingCount { get; init; }
     public int RunningCount { get; init; }

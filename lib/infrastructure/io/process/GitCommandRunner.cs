@@ -4,16 +4,14 @@ namespace IO.ProcessService;
 /// Git 命令统一执行器 — 委托给 IProcessService，消除各处重复代码
 /// </summary>
 [Register(typeof(IGitCommandRunner), ServiceLifetime.Singleton)]
-public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
-{
+public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner {
 
     /// <summary>
     /// 构造 Git 命令执行器
     /// </summary>
     /// <param name="processService">进程服务抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public GitCommandRunner(IProcessService processService, ILogger<GitCommandRunner>? logger = null)
-    {
+    public GitCommandRunner(IProcessService processService, ILogger<GitCommandRunner>? logger = null) {
         _processService = processService;
         _logger = logger;
     }
@@ -30,13 +28,10 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
     public async Task<GitCommandResult> ExecuteAsync(
         string arguments,
         string? workingDirectory = null,
-        CancellationToken ct = default)
-    {
-        try
-        {
+        CancellationToken ct = default) {
+        try {
             _logger?.LogDebug("ExecuteAsync start: git {Arguments}, cwd={WorkingDir}, ct.CanCancel={CanCancel}", arguments, workingDirectory, ct.CanBeCanceled);
-            var options = new ProcessOptions
-            {
+            var options = new ProcessOptions {
                 FileName = "git",
                 Arguments = arguments,
                 WorkingDirectory = workingDirectory,
@@ -47,25 +42,19 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
 
             _logger?.LogDebug("ExecuteAsync end: git {Arguments}, exitCode={ExitCode}, stdoutLen={StdoutLen}, time={TimeMs}ms", arguments, result.ExitCode, result.StandardOutput.Length, result.ExecutionTime.TotalMilliseconds);
 
-            return new GitCommandResult
-            {
+            return new GitCommandResult {
                 Success = result.Success,
                 Output = result.StandardOutput,
                 Error = result.StandardError,
                 ExitCode = result.ExitCode,
                 ExecutionTime = result.ExecutionTime
             };
-        }
-        catch (OperationCanceledException ex)
-        {
+        } catch (OperationCanceledException ex) {
             _logger?.LogDebug("ExecuteAsync CANCELED: git {Arguments}, {ExceptionType}", arguments, ex.GetType().Name);
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "执行 Git 命令失败: git {Arguments}", arguments);
-            return new GitCommandResult
-            {
+            return new GitCommandResult {
                 Success = false,
                 Error = ex.Message,
                 ExitCode = -1
@@ -85,22 +74,18 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
         string branch1,
         string branch2,
         string? workingDirectory = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var result = await ExecuteAsync($"merge-tree --write-tree --name-only {branch1} {branch2}", workingDirectory, ct).ConfigureAwait(false);
 
-        if (result.ExitCode == 0)
-        {
+        if (result.ExitCode == 0) {
             return new MergeConflictResult { HasConflict = false, MergedTreeOid = result.Output.Trim() };
         }
 
-        if (result.ExitCode == 1)
-        {
+        if (result.ExitCode == 1) {
             var lines = result.Output.Split('\n');
             var treeOid = lines.Length > 0 ? lines[0].Trim() : string.Empty;
             var conflictFiles = new List<string>();
-            for (var i = 1; i < lines.Length; i++)
-            {
+            for (var i = 1; i < lines.Length; i++) {
                 var line = lines[i].Trim();
                 if (line.Length == 0) break;
                 conflictFiles.Add(line);
@@ -119,10 +104,8 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
     /// <returns>过期冲突标记检测结果</returns>
     public async Task<StaleConflictMarkerResult> DetectStaleConflictMarkersAsync(
         string? workingDirectory = null,
-        CancellationToken ct = default)
-    {
-        var options = new ProcessOptions
-        {
+        CancellationToken ct = default) {
+        var options = new ProcessOptions {
             FileName = "git",
             ArgumentList = ["grep", "-l", "-E", "^<<<<<<< |^=======$|^>>>>>>> "],
             WorkingDirectory = workingDirectory,
@@ -132,8 +115,7 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
 
         var result = await _processService.ExecuteAsync(options, ct).ConfigureAwait(false);
 
-        if (result.ExitCode == 0)
-        {
+        if (result.ExitCode == 0) {
             var files = result.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(static f => f.Trim())
                 .Where(static f => f.Length > 0)
@@ -141,8 +123,7 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
             return new StaleConflictMarkerResult { HasStaleMarkers = true, Files = files };
         }
 
-        if (result.ExitCode == 1)
-        {
+        if (result.ExitCode == 1) {
             return new StaleConflictMarkerResult { HasStaleMarkers = false };
         }
 
@@ -152,8 +133,7 @@ public sealed partial class GitCommandRunner : ServiceEntity, IGitCommandRunner
     /// <summary>
     /// 创建 Git 命令专用环境变量 — 避免交互式提示卡死
     /// </summary>
-    private static Dictionary<string, string> CreateGitEnvironment() => new()
-    {
+    private static Dictionary<string, string> CreateGitEnvironment() => new() {
         ["GIT_TERMINAL_PROMPT"] = "0",
         ["GIT_ASKPASS"] = "",
         ["GIT_PAGER"] = "cat",

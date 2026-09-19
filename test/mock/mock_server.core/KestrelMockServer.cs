@@ -1,7 +1,6 @@
 namespace MockServer.Core;
 
-public sealed class KestrelMockServer : IHttpMockServer
-{
+public sealed class KestrelMockServer : IHttpMockServer {
     private readonly IResponseStrategy _responseStrategy;
     private readonly ICacheSimulator _cacheSimulator;
     private readonly int _port;
@@ -12,7 +11,7 @@ public sealed class KestrelMockServer : IHttpMockServer
     private int _requestIndex;
     private WebApplication? _app;
     private Task? _runTask;
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
     private IHostApplicationLifetime? _appLifetime;
     private string _dumpDir = string.Empty;
 
@@ -25,8 +24,7 @@ public sealed class KestrelMockServer : IHttpMockServer
         ICacheSimulator cacheSimulator,
         int port = 0,
         ILogger? logger = null,
-        string serverName = "MockServer")
-    {
+        string serverName = "MockServer") {
         ArgumentNullException.ThrowIfNull(responseStrategy);
         ArgumentNullException.ThrowIfNull(cacheSimulator);
         ArgumentOutOfRangeException.ThrowIfLessThan(port, 0);
@@ -39,8 +37,7 @@ public sealed class KestrelMockServer : IHttpMockServer
         _serverName = serverName;
     }
 
-    private static int GetAvailablePort()
-    {
+    private static int GetAvailablePort() {
         using var tcpListener = new TcpListener(IPAddress.Loopback, 0);
         tcpListener.Start();
         var port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
@@ -48,13 +45,11 @@ public sealed class KestrelMockServer : IHttpMockServer
         return port;
     }
 
-    public Task StartAsync(int port = 0)
-    {
+    public Task StartAsync(int port = 0) {
         _dumpDir = Path.Combine(Environment.CurrentDirectory, "tests", "MockServers", "MockServer.Core", "dumps", _serverName);
         Directory.CreateDirectory(_dumpDir);
 
-        void Log(string msg)
-        {
+        void Log(string msg) {
             Console.WriteLine(msg);
             System.Diagnostics.Trace.WriteLine(msg);
         }
@@ -64,8 +59,7 @@ public sealed class KestrelMockServer : IHttpMockServer
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls($"http://localhost:{_port}/");
         builder.Logging.ClearProviders();
-        if (_logger is not null)
-        {
+        if (_logger is not null) {
             builder.Services.AddSingleton(_logger);
         }
 
@@ -74,8 +68,7 @@ public sealed class KestrelMockServer : IHttpMockServer
         _appLifetime = _app.Services.GetRequiredService<IHostApplicationLifetime>();
         Log($"[{_serverName}] WebApplication built, mapping endpoints...");
 
-        _app.MapGet("/shutdown", async (HttpContext ctx) =>
-        {
+        _app.MapGet("/shutdown", async (HttpContext ctx) => {
             Console.WriteLine($"[{_serverName}] Shutdown requested from {ctx.Connection.RemoteIpAddress}");
             ctx.Response.ContentType = "application/json";
             await ctx.Response.WriteAsync("{\"status\":\"shutting_down\"}");
@@ -83,21 +76,18 @@ public sealed class KestrelMockServer : IHttpMockServer
             _appLifetime?.StopApplication();
         });
 
-        _app.MapGet("/", async (HttpContext ctx) =>
-        {
+        _app.MapGet("/", async (HttpContext ctx) => {
             ctx.Response.ContentType = "application/json";
             await ctx.Response.WriteAsync("{\"status\":\"ok\"}");
         });
 
-        _app.MapPost("{**path}", async (HttpContext ctx) =>
-        {
+        _app.MapPost("{**path}", async (HttpContext ctx) => {
             using var reader = ctx.Request.Body.AsUtf8Reader();
             var body = await reader.ReadToEndAsync(ctx.RequestAborted);
 
             var path = ctx.Request.Path.Value ?? "";
             var requestIndex = Interlocked.Increment(ref _requestIndex) - 1;
-            var captured = new CapturedRequest
-            {
+            var captured = new CapturedRequest {
                 Method = ctx.Request.Method,
                 Path = path,
                 Body = body,
@@ -125,11 +115,9 @@ public sealed class KestrelMockServer : IHttpMockServer
             Console.WriteLine($"[{_serverName}]   Prefix content: {prefixPreview}");
 
             var messagesPreview = ExtractMessagesPreview(requestJson.RootElement);
-            if (messagesPreview.Count > 0)
-            {
+            if (messagesPreview.Count > 0) {
                 Console.WriteLine($"[{_serverName}]   Messages:");
-                foreach (var line in messagesPreview)
-                {
+                foreach (var line in messagesPreview) {
                     Console.WriteLine($"[{_serverName}]     {line}");
                 }
             }
@@ -138,8 +126,7 @@ public sealed class KestrelMockServer : IHttpMockServer
 
             var releaser = await _lock.TryLockAsync(ctx.RequestAborted).ConfigureAwait(true)
                 ?? throw new TimeoutException($"锁 '{_lock.Name}' 等待超时");
-            using (releaser)
-            {
+            using (releaser) {
                 _capturedRequests.Add(captured);
                 Stats.TotalRequests++;
                 if (cacheStats.CacheReadTokens > 0) Stats.CacheHits++;
@@ -153,17 +140,14 @@ public sealed class KestrelMockServer : IHttpMockServer
             // 流式请求: 包装成 SSE 格式(用 BuildStreamChunk),客户端在流式解析中检测 tool_description_request
             // 非流式请求: 直接返回 JSON
             if (requestJson.RootElement.TryGetProperty("tool_groups", out _) &&
-                !requestJson.RootElement.TryGetProperty("tool_descriptions", out _))
-            {
+                !requestJson.RootElement.TryGetProperty("tool_descriptions", out _)) {
                 var descRequest = _responseStrategy.BuildToolDescriptionRequest(requestJson.RootElement);
-                if (descRequest is not null)
-                {
+                if (descRequest is not null) {
                     Console.WriteLine($"[{_serverName}]   Response: tool_description_request (two-phase loading)");
                     var isDescStream = requestJson.RootElement.TryGetProperty("stream", out var descStreamProp)
                         && descStreamProp.ValueKind == JsonValueKind.True;
 
-                    if (isDescStream)
-                    {
+                    if (isDescStream) {
                         ctx.Response.StatusCode = 200;
                         ctx.Response.ContentType = "text/event-stream";
                         var descId = $"chatcmpl-{Guid.NewGuid():N}";
@@ -174,9 +158,7 @@ public sealed class KestrelMockServer : IHttpMockServer
                         var emptyStats = new CacheStats { CacheCreationTokens = 0, CacheReadTokens = 0, InputTokens = 0, OutputTokens = 0 };
                         await ctx.Response.WriteAsync(_responseStrategy.BuildStreamFinalChunk(descId, emptyStats), ctx.RequestAborted);
                         await ctx.Response.WriteAsync("data: [DONE]\n\n", ctx.RequestAborted);
-                    }
-                    else
-                    {
+                    } else {
                         ctx.Response.StatusCode = 200;
                         ctx.Response.ContentType = "application/json";
                         await ctx.Response.WriteAsync(descRequest, ctx.RequestAborted);
@@ -187,8 +169,7 @@ public sealed class KestrelMockServer : IHttpMockServer
             }
 
             var statusCode = _responseStrategy.GetHttpStatusCode(requestJson.RootElement);
-            if (statusCode != 200)
-            {
+            if (statusCode != 200) {
                 ctx.Response.StatusCode = statusCode;
                 ctx.Response.ContentType = "application/json";
                 var errorBody = _responseStrategy.BuildResponse(requestJson.RootElement, cacheStats);
@@ -199,41 +180,34 @@ public sealed class KestrelMockServer : IHttpMockServer
             var isStream = requestJson.RootElement.TryGetProperty("stream", out var streamProp)
                 && streamProp.ValueKind == JsonValueKind.True;
 
-            if (isStream && _responseStrategy.SupportsStreaming)
-            {
+            if (isStream && _responseStrategy.SupportsStreaming) {
                 ctx.Response.StatusCode = 200;
                 ctx.Response.ContentType = "text/event-stream";
 
                 var id = $"chatcmpl-{Guid.NewGuid():N}";
 
                 var preamble = _responseStrategy.BuildStreamPreamble(id);
-                if (!string.IsNullOrEmpty(preamble))
-                {
+                if (!string.IsNullOrEmpty(preamble)) {
                     await ctx.Response.WriteAsync(preamble, ctx.RequestAborted);
                     await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 }
 
-                if (_responseStrategy.HasThinkingContent())
-                {
+                if (_responseStrategy.HasThinkingContent()) {
                     Console.WriteLine($"[{_serverName}]   Response: thinking content stream");
                     var thinkingStream = _responseStrategy.BuildStreamThinkingResponse(id);
                     await ctx.Response.WriteAsync(thinkingStream, ctx.RequestAborted);
                     await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 }
 
-                if (_responseStrategy.HasToolCalls())
-                {
+                if (_responseStrategy.HasToolCalls()) {
                     Console.WriteLine($"[{_serverName}]   Response: tool call stream");
                     var toolCallStream = _responseStrategy.BuildStreamToolCallResponse(id, cacheStats);
                     await ctx.Response.WriteAsync(toolCallStream, ctx.RequestAborted);
                     await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
-                }
-                else
-                {
+                } else {
                     var words = _responseStrategy.GetContentChunks();
                     Console.WriteLine($"[{_serverName}]   Response: text stream ({words.Length} chunks)");
-                    foreach (var word in words)
-                    {
+                    foreach (var word in words) {
                         var chunk = _responseStrategy.BuildStreamChunk(id, word, false);
                         await ctx.Response.WriteAsync(chunk, ctx.RequestAborted);
                         await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
@@ -244,19 +218,14 @@ public sealed class KestrelMockServer : IHttpMockServer
                     await ctx.Response.WriteAsync(lastChunk, ctx.RequestAborted);
                     await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
                 }
-            }
-            else
-            {
-                if (_responseStrategy.HasToolCalls())
-                {
+            } else {
+                if (_responseStrategy.HasToolCalls()) {
                     Console.WriteLine($"[{_serverName}]   Response: tool call (non-stream)");
                     var toolCallBody = _responseStrategy.BuildToolCallResponse(requestJson.RootElement, cacheStats);
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = "application/json";
                     await ctx.Response.WriteAsync(toolCallBody, ctx.RequestAborted);
-                }
-                else
-                {
+                } else {
                     Console.WriteLine($"[{_serverName}]   Response: text (non-stream)");
                     var responseBody = _responseStrategy.BuildResponse(requestJson.RootElement, cacheStats);
                     ctx.Response.StatusCode = 200;
@@ -271,22 +240,17 @@ public sealed class KestrelMockServer : IHttpMockServer
         Url = $"http://localhost:{_port}/";
 
         var tcs = new TaskCompletionSource();
-        _appLifetime.ApplicationStarted.Register(() =>
-        {
+        _appLifetime.ApplicationStarted.Register(() => {
             Log($"[{_serverName}] ApplicationStarted fired!");
             tcs.TrySetResult();
         });
 
-        _runTask = Task.Run(async () =>
-        {
-            try
-            {
+        _runTask = Task.Run(async () => {
+            try {
                 Log($"[{_serverName}] Calling _app.RunAsync()...");
                 await _app.RunAsync().ConfigureAwait(true);
                 Log($"[{_serverName}] _app.RunAsync() completed normally");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Log($"[{_serverName}] FATAL: Kestrel failed: {ex.GetType().Name}: {ex.Message}");
                 tcs.TrySetException(ex);
             }
@@ -302,40 +266,33 @@ public sealed class KestrelMockServer : IHttpMockServer
         return tcs.Task;
     }
 
-    public Task StopAsync()
-    {
+    public Task StopAsync() {
         // 优先触发 ASP.NET Core 优雅关闭；同时取消 _cts 以唤醒其它等待者
         _appLifetime?.StopApplication();
         _cts.Cancel();
         return Task.CompletedTask;
     }
 
-    public CapturedRequest GetRequest(int index)
-    {
+    public CapturedRequest GetRequest(int index) {
         var releaser = _lock.TryLock()
             ?? throw new TimeoutException("[GEN015] [E2E004] 获取请求超时：锁被持有");
-        using (releaser)
-        {
+        using (releaser) {
             return _capturedRequests[index];
         }
     }
 
-    public IReadOnlyList<CapturedRequest> GetAllRequests()
-    {
+    public IReadOnlyList<CapturedRequest> GetAllRequests() {
         var releaser = _lock.TryLock()
             ?? throw new TimeoutException("[GEN016] [E2E005] 获取请求列表超时：锁被持有");
-        using (releaser)
-        {
+        using (releaser) {
             return _capturedRequests.ToList();
         }
     }
 
-    public void Clear()
-    {
+    public void Clear() {
         var releaser = _lock.TryLock()
             ?? throw new TimeoutException("[GEN017] [E2E006] 清除请求超时：锁被持有");
-        using (releaser)
-        {
+        using (releaser) {
             _capturedRequests.Clear();
             _requestIndex = 0;
             Stats.TotalRequests = 0;
@@ -345,21 +302,17 @@ public sealed class KestrelMockServer : IHttpMockServer
         _cacheSimulator.ResetCache();
     }
 
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         _cts.Cancel();
         return new ValueTask(DisposeCoreAsync());
     }
 
-    private async Task DisposeCoreAsync()
-    {
-        if (_app is not null)
-        {
+    private async Task DisposeCoreAsync() {
+        if (_app is not null) {
             await _app.DisposeSafeAsync().ConfigureAwait(false);
         }
 
-        if (_runTask is not null)
-        {
+        if (_runTask is not null) {
             try { await _runTask; } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Run task failed during disposal: {ex.Message}"); }
         }
 
@@ -367,10 +320,8 @@ public sealed class KestrelMockServer : IHttpMockServer
         _lock.Dispose();
     }
 
-    private void DumpConversationToFile(int requestIndex, string body, CacheStats cacheStats)
-    {
-        try
-        {
+    private void DumpConversationToFile(int requestIndex, string body, CacheStats cacheStats) {
+        try {
             var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss_fff");
             var fileName = $"req_{requestIndex:D4}_{timestamp}.txt";
             var filePath = Path.Combine(_dumpDir, fileName);
@@ -396,8 +347,7 @@ public sealed class KestrelMockServer : IHttpMockServer
             sb.AppendLine();
 
             if (requestJson.RootElement.TryGetProperty("instructions", out var instructions) &&
-                instructions.ValueKind == JsonValueKind.String)
-            {
+                instructions.ValueKind == JsonValueKind.String) {
                 sb.AppendLine($"## Instructions (full) — turn {requestIndex}");
                 sb.AppendLine($"<instructions turn=\"{requestIndex}\">");
                 var instrText = instructions.GetString() ?? "";
@@ -409,10 +359,8 @@ public sealed class KestrelMockServer : IHttpMockServer
 
             sb.AppendLine($"## Messages — turn {requestIndex}");
             sb.AppendLine($"<messages turn=\"{requestIndex}\">");
-            if (requestJson.RootElement.TryGetProperty("messages", out var messages))
-            {
-                foreach (var msg in messages.EnumerateArray())
-                {
+            if (requestJson.RootElement.TryGetProperty("messages", out var messages)) {
+                foreach (var msg in messages.EnumerateArray()) {
                     var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
                     var content = msg.TryGetProperty("content", out var c)
                         ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
@@ -423,10 +371,8 @@ public sealed class KestrelMockServer : IHttpMockServer
                 }
             }
 
-            if (requestJson.RootElement.TryGetProperty("input", out var input))
-            {
-                foreach (var msg in input.EnumerateArray())
-                {
+            if (requestJson.RootElement.TryGetProperty("input", out var input)) {
+                foreach (var msg in input.EnumerateArray()) {
                     var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
                     var content = msg.TryGetProperty("content", out var c)
                         ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
@@ -447,29 +393,23 @@ public sealed class KestrelMockServer : IHttpMockServer
 
             IO.FileSystem.SafeFileIO.WriteAllText(filePath, sb.ToString());
             Console.WriteLine($"[{_serverName}]   Dumped: {filePath}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Console.WriteLine($"[{_serverName}]   Dump failed: {ex.Message}");
         }
     }
 
-    private static List<string> ExtractMessagesPreview(JsonElement request)
-    {
+    private static List<string> ExtractMessagesPreview(JsonElement request) {
         var lines = new List<string>();
 
         if (request.TryGetProperty("instructions", out var instructions) &&
-            instructions.ValueKind == JsonValueKind.String)
-        {
+            instructions.ValueKind == JsonValueKind.String) {
             var text = instructions.GetString() ?? "";
             var preview = text.Length > 100 ? text[..100] + "..." : text;
             lines.Add($"[instructions] {preview} ({text.Length} chars)");
         }
 
-        if (request.TryGetProperty("messages", out var messages))
-        {
-            foreach (var msg in messages.EnumerateArray())
-            {
+        if (request.TryGetProperty("messages", out var messages)) {
+            foreach (var msg in messages.EnumerateArray()) {
                 var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
                 var content = msg.TryGetProperty("content", out var c)
                     ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()
@@ -479,10 +419,8 @@ public sealed class KestrelMockServer : IHttpMockServer
             }
         }
 
-        if (request.TryGetProperty("input", out var input))
-        {
-            foreach (var msg in input.EnumerateArray())
-            {
+        if (request.TryGetProperty("input", out var input)) {
+            foreach (var msg in input.EnumerateArray()) {
                 var role = msg.TryGetProperty("role", out var r) ? r.GetString() ?? "?" : "?";
                 var content = msg.TryGetProperty("content", out var c)
                     ? c.ValueKind == JsonValueKind.String ? c.GetString() ?? "" : c.GetRawText()

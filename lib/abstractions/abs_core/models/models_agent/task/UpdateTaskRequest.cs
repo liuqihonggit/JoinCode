@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Task;
 /// <summary>
 /// 更新任务请求 — 封装 ITaskService.UpdateTaskAsync 的业务参数
 /// </summary>
-public sealed record UpdateTaskRequest
-{
+public sealed record UpdateTaskRequest {
     /// <summary>
     /// 任务ID
     /// </summary>

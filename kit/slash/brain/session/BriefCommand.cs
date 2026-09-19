@@ -5,8 +5,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Brief, Description = "切换简要消息模式", Usage = "/brief [on|off]", Category = ChatCommandCategory.Session)]
 [ChatCommandArg("state", Type = "string", Description = "开关状态", Enum = new[] { "on", "off" })]
-public sealed class BriefCommand : ToggleCommandBase
-{
+public sealed class BriefCommand : ToggleCommandBase {
     /// <summary>命令名称。</summary>
     public override string Name => ChatCommandNameEnumConstants.Brief;
     /// <summary>命令描述。</summary>
@@ -17,13 +16,10 @@ public sealed class BriefCommand : ToggleCommandBase
     /// <summary>
     /// 获取简要模式当前是否启用，优先读取环境变量覆盖值。
     /// </summary>
-    public override bool IsEnabled
-    {
-        get
-        {
+    public override bool IsEnabled {
+        get {
             var envValue = Environment.GetEnvironmentVariable(JccEnvVarEnumConstants.Brief);
-            if (!string.IsNullOrEmpty(envValue))
-            {
+            if (!string.IsNullOrEmpty(envValue)) {
                 return !envValue.Equals("0", StringComparison.OrdinalIgnoreCase)
                     && !envValue.Equals("false", StringComparison.OrdinalIgnoreCase);
             }
@@ -36,14 +32,12 @@ public sealed class BriefCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override async Task OnEnabledAsync(ChatCommandContext context)
-    {
+    protected override async Task OnEnabledAsync(ChatCommandContext context) {
         var briefModeService = context.GetCommandServices().BriefModeService;
         if (briefModeService is null) return;
 
         var entitlementService = GetService<IEntitlementService>(context, typeof(IEntitlementService));
-        if (entitlementService is not null && !entitlementService.IsBriefEntitled)
-        {
+        if (entitlementService is not null && !entitlementService.IsBriefEntitled) {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}简要模式未启用 — 当前账户无权限{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -52,8 +46,7 @@ public sealed class BriefCommand : ToggleCommandBase
         briefModeService.Enable();
         await PrintStatusAsync(context).ConfigureAwait(false);
 
-        if (previousState != briefModeService.IsEnabled)
-        {
+        if (previousState != briefModeService.IsEnabled) {
             await InjectBriefStateReminderAsync(context, briefModeService.IsEnabled).ConfigureAwait(false);
         }
     }
@@ -63,8 +56,7 @@ public sealed class BriefCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override async Task OnDisabledAsync(ChatCommandContext context)
-    {
+    protected override async Task OnDisabledAsync(ChatCommandContext context) {
         var briefModeService = context.GetCommandServices().BriefModeService;
         if (briefModeService is null) return;
 
@@ -72,8 +64,7 @@ public sealed class BriefCommand : ToggleCommandBase
         briefModeService.Disable();
         await PrintStatusAsync(context).ConfigureAwait(false);
 
-        if (previousState != briefModeService.IsEnabled)
-        {
+        if (previousState != briefModeService.IsEnabled) {
             await InjectBriefStateReminderAsync(context, briefModeService.IsEnabled).ConfigureAwait(false);
         }
     }
@@ -83,17 +74,14 @@ public sealed class BriefCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override async Task OnToggleAsync(ChatCommandContext context)
-    {
+    protected override async Task OnToggleAsync(ChatCommandContext context) {
         var briefModeService = context.GetCommandServices().BriefModeService;
         if (briefModeService is null) return;
 
         var entitlementService = GetService<IEntitlementService>(context, typeof(IEntitlementService));
 
-        if (!briefModeService.IsEnabled)
-        {
-            if (entitlementService is not null && !entitlementService.IsBriefEntitled)
-            {
+        if (!briefModeService.IsEnabled) {
+            if (entitlementService is not null && !entitlementService.IsBriefEntitled) {
                 TerminalHelper.WriteLine($"{TerminalColors.Muted}简要模式未启用 — 当前账户无权限{AnsiStyleEnumConstants.Reset}");
                 return;
             }
@@ -103,8 +91,7 @@ public sealed class BriefCommand : ToggleCommandBase
         briefModeService.Toggle();
         await PrintStatusAsync(context).ConfigureAwait(false);
 
-        if (previousState != briefModeService.IsEnabled)
-        {
+        if (previousState != briefModeService.IsEnabled) {
             await InjectBriefStateReminderAsync(context, briefModeService.IsEnabled).ConfigureAwait(false);
         }
     }
@@ -114,30 +101,24 @@ public sealed class BriefCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务。</returns>
-    protected override Task PrintStatusAsync(ChatCommandContext context)
-    {
+    protected override Task PrintStatusAsync(ChatCommandContext context) {
         var service = context.GetCommandServices().BriefModeService;
         if (service is null) return Task.CompletedTask;
 
-        if (service.IsEnabled)
-        {
+        if (service.IsEnabled) {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}简要消息模式已启用{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  LLM 将通过 {SystemToolNameEnumConstants.SendUserMessage} 工具回复用户");
-            if (service.EnabledAt.HasValue)
-            {
+            if (service.EnabledAt.HasValue) {
                 TerminalHelper.WriteLine($"  启用时间: {service.EnabledAt.Value:yyyy-MM-dd HH:mm:ss}");
             }
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}简要消息模式已禁用 - LLM 将使用普通文本回复{AnsiStyleEnumConstants.Reset}");
         }
 
         return Task.CompletedTask;
     }
 
-    private static async Task InjectBriefStateReminderAsync(ChatCommandContext context, bool isEnabled)
-    {
+    private static async Task InjectBriefStateReminderAsync(ChatCommandContext context, bool isEnabled) {
         var reminderManager = GetService<Core.Prompts.SystemReminderManager>(context, typeof(Core.Prompts.SystemReminderManager));
         if (reminderManager is null) return;
 

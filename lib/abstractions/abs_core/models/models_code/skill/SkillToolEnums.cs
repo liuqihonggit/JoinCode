@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Skill;
 /// <summary>
 /// 代码验证类型
 /// </summary>
-public enum CodeVerifyType
-{
+public enum CodeVerifyType {
     [EnumValue("all")] All,
     [EnumValue("syntax")] Syntax,
     [EnumValue("build")] Build,
@@ -14,8 +13,7 @@ public enum CodeVerifyType
 /// <summary>
 /// 代码简化类型
 /// </summary>
-public enum CodeSimplifyType
-{
+public enum CodeSimplifyType {
     [EnumValue("all")] All,
     [EnumValue("readability")] Readability,
     [EnumValue("performance")] Performance,
@@ -25,8 +23,7 @@ public enum CodeSimplifyType
 /// <summary>
 /// 诊断类型
 /// </summary>
-public enum CodeDebugType
-{
+public enum CodeDebugType {
     [EnumValue("all")] All,
     [EnumValue("error")] Error,
     [EnumValue("performance")] Performance,
@@ -36,8 +33,7 @@ public enum CodeDebugType
 /// <summary>
 /// 批量文件操作类型
 /// </summary>
-public enum BatchOperationType
-{
+public enum BatchOperationType {
     [EnumValue("count")] Count,
     [EnumValue("search")] Search,
     [EnumValue("replace")] Replace,

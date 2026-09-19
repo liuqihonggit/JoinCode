@@ -6,11 +6,9 @@ namespace Tui.Tests;
 /// 用户消息+部分回复已入历史；TUI 批准后重发原文会二次追加导致上下文重复。
 /// 修复对齐 GUI 的 RewindLastTurnAsync 语义：批准后先裁剪再重发。
 /// </summary>
-public class PermissionRewindTests
-{
+public class PermissionRewindTests {
     [Fact]
-    public void RewindToSnapshot_TrimsMessagesAddedAfterSnapshot()
-    {
+    public void RewindToSnapshot_TrimsMessagesAddedAfterSnapshot() {
         var history = new MessageList();
         history.AddSystemMessage("system");
         var snapshot = history.Count;
@@ -26,8 +24,7 @@ public class PermissionRewindTests
     }
 
     [Fact]
-    public void RewindToSnapshot_EmptyDelta_NoOp()
-    {
+    public void RewindToSnapshot_EmptyDelta_NoOp() {
         var history = new MessageList();
         history.AddUserMessage("已有消息");
         var snapshot = history.Count;

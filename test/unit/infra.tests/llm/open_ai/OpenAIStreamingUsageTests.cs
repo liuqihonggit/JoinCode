@@ -17,13 +17,11 @@ namespace Infra.Tests.LLM.OpenAI;
 /// 3. CreateRequest 在 stream=true 时设置 StreamOptions.IncludeUsage = true
 /// 4. 流式循环解析最终 usage chunk, 通过 metadata["Usage"] 传递给消费者
 /// </summary>
-public sealed class OpenAIStreamingUsageTests
-{
+public sealed class OpenAIStreamingUsageTests {
     // ============== 数据类型: OpenAIChatChunk.Usage ==============
 
     [Fact]
-    public void OpenAIChatChunk_UsageField_DeserializesFromJson()
-    {
+    public void OpenAIChatChunk_UsageField_DeserializesFromJson() {
         var json = """{"id":"chatcmpl-1","object":"chat.completion.chunk","created":1,"model":"gpt-4o","choices":[],"usage":{"prompt_tokens":100,"completion_tokens":50,"total_tokens":150,"prompt_tokens_details":{"cached_tokens":80}}}""";
 
         var chunk = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIChatChunk);
@@ -36,8 +34,7 @@ public sealed class OpenAIStreamingUsageTests
     }
 
     [Fact]
-    public void OpenAIChatChunk_WithoutUsage_UsageFieldIsNull()
-    {
+    public void OpenAIChatChunk_WithoutUsage_UsageFieldIsNull() {
         var json = """{"id":"chatcmpl-1","object":"chat.completion.chunk","created":1,"model":"gpt-4o","choices":[{"index":0,"delta":{"content":"hello"},"finish_reason":null}]}""";
 
         var chunk = JsonSerializer.Deserialize(json, NativeJsonContext.Default.OpenAIChatChunk);
@@ -49,10 +46,8 @@ public sealed class OpenAIStreamingUsageTests
     // ============== 数据类型: OpenAIChatRequest.StreamOptions ==============
 
     [Fact]
-    public void OpenAIChatRequest_StreamOptions_SerializesIncludeUsageTrue()
-    {
-        var request = new OpenAIChatRequest
-        {
+    public void OpenAIChatRequest_StreamOptions_SerializesIncludeUsageTrue() {
+        var request = new OpenAIChatRequest {
             Model = "gpt-4o",
             Stream = true,
             StreamOptions = new OpenAIStreamOptions { IncludeUsage = true }
@@ -66,10 +61,8 @@ public sealed class OpenAIStreamingUsageTests
     }
 
     [Fact]
-    public void OpenAIChatRequest_WithoutStreamOptions_DoesNotSerializeStreamOptions()
-    {
-        var request = new OpenAIChatRequest
-        {
+    public void OpenAIChatRequest_WithoutStreamOptions_DoesNotSerializeStreamOptions() {
+        var request = new OpenAIChatRequest {
             Model = "gpt-4o",
             Stream = false
         };
@@ -93,15 +86,13 @@ public sealed class OpenAIStreamingUsageTests
     /// CreateRequest 内部行为通过 E2E 测试验证 (见 E2E 阶段)。
     /// </summary>
     [Fact]
-    public void OpenAIStreamOptions_Default_HasIncludeUsageFalse()
-    {
+    public void OpenAIStreamOptions_Default_HasIncludeUsageFalse() {
         var opts = new OpenAIStreamOptions();
         opts.IncludeUsage.Should().BeFalse();
     }
 
     [Fact]
-    public void OpenAIStreamOptions_WithIncludeUsageTrue_SerializesCorrectly()
-    {
+    public void OpenAIStreamOptions_WithIncludeUsageTrue_SerializesCorrectly() {
         var opts = new OpenAIStreamOptions { IncludeUsage = true };
 
         var json = JsonSerializer.Serialize(opts, NativeJsonContext.Default.OpenAIStreamOptions);

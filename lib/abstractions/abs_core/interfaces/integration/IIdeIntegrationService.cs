@@ -2,16 +2,14 @@ namespace JoinCode.Abstractions.Interfaces;
 
 public enum IdeType { VsCode, Cursor, Windsurf, JetBrains }
 
-public sealed record IdeInfo
-{
+public sealed record IdeInfo {
     public required IdeType Type { get; init; }
     public required string Name { get; init; }
     public required bool ExtensionInstalled { get; init; }
     public required bool IsConnected { get; init; }
 }
 
-public sealed record IdeDetectionDetail
-{
+public sealed record IdeDetectionDetail {
     public required IdeType Type { get; init; }
     public required string Name { get; init; }
     public required bool FoundOnPath { get; init; }
@@ -20,8 +18,7 @@ public sealed record IdeDetectionDetail
     public required bool ExtensionInstalled { get; init; }
 }
 
-public interface IIdeIntegrationService
-{
+public interface IIdeIntegrationService {
     IReadOnlyList<IdeInfo> DetectInstalledIdes();
     IReadOnlyList<IdeDetectionDetail> DetectInstalledIdesDetailed();
     Task<bool> ConnectAsync(IdeType ideType, CancellationToken ct = default);

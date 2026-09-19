@@ -4,11 +4,9 @@ namespace Integration.Tests.PrefixCache.Unit;
 /// 类型转换宽容层测试 — 覆盖 LlmJsonHelper 统一门控的纵深防御第三层（类型强制转换）
 /// 当前测试为 RED：在未实现类型强制转换前，number→bool、number→string 等会失败并落入第4层报错
 /// </summary>
-public sealed class LenientCoercionTests
-{
+public sealed class LenientCoercionTests {
     [Fact]
-    public void Coerce_NumberToBool_1_IsTrue()
-    {
+    public void Coerce_NumberToBool_1_IsTrue() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": 1, "reason": "done"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -20,8 +18,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_NumberToBool_0_IsFalse()
-    {
+    public void Coerce_NumberToBool_0_IsFalse() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": 0, "reason": "not done"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -32,8 +29,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_NumberToString_123_Becomes_String()
-    {
+    public void Coerce_NumberToString_123_Becomes_String() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "reason": 123}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -45,8 +41,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_BoolToString_True_Becomes_String()
-    {
+    public void Coerce_BoolToString_True_Becomes_String() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "reason": true}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -57,8 +52,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_StringToNumber_42_Becomes_Int()
-    {
+    public void Coerce_StringToNumber_42_Becomes_Int() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": false, "count": "42"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -69,8 +63,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_StringToNullableNumber_Parses()
-    {
+    public void Coerce_StringToNullableNumber_Parses() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "ratio": "0.75"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -81,8 +74,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_StringTrim_RemovesWhitespace()
-    {
+    public void Coerce_StringTrim_RemovesWhitespace() {
         // completed=1 触发第3层类型转换，转换过程中对 string 字段执行 Trim
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": 1, "reason": "  done  "}""",
@@ -95,8 +87,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_UncoerceableField_ReportsPreciseIssue()
-    {
+    public void Coerce_UncoerceableField_ReportsPreciseIssue() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": "definitely-not-a-bool", "reason": "break"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -114,8 +105,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_SyntaxRepairHint_IsSurfaced()
-    {
+    public void Coerce_SyntaxRepairHint_IsSurfaced() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": 1, "reason": "ok",}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -127,8 +117,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void BOM_Header_Is_Stripped()
-    {
+    public void BOM_Header_Is_Stripped() {
         var result = LlmJsonHelper.DeserializeWithReport(
             "\uFEFF{\"completed\": true, \"reason\": \"bom\"}",
             CoercionTestJsonContext.Default.LenientDto,
@@ -140,8 +129,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void RepairJson_HexNumber_ConvertsToDecimal()
-    {
+    public void RepairJson_HexNumber_ConvertsToDecimal() {
         var repair = LlmJsonHelper.RepairJson("""{"mask": 0xFF}""");
 
         repair.Success.Should().BeTrue();
@@ -149,8 +137,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void RepairJson_LeadingZeroNumber_StripsZeros()
-    {
+    public void RepairJson_LeadingZeroNumber_StripsZeros() {
         var repair = LlmJsonHelper.RepairJson("""{"count": 0123}""");
 
         repair.Success.Should().BeTrue();
@@ -158,8 +145,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void RepairJson_HexInsideString_IsNotTouched()
-    {
+    public void RepairJson_HexInsideString_IsNotTouched() {
         var repair = LlmJsonHelper.RepairJson("""{"mask": "0xFF"}""");
 
         repair.Success.Should().BeTrue();
@@ -167,8 +153,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_OutOfRangeNumber_IsClamped()
-    {
+    public void Coerce_OutOfRangeNumber_IsClamped() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "score": 3000000000}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -180,8 +165,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_UndefinedEnum_Defaults_And_Reports()
-    {
+    public void Coerce_UndefinedEnum_Defaults_And_Reports() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "level": "UNDEFINED_VALUE"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -193,8 +177,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_ValidEnum_IsKept()
-    {
+    public void Coerce_ValidEnum_IsKept() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "level": "High"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -205,8 +188,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_ObjectIntoBool_DefaultsAndReportsPreciseIssue()
-    {
+    public void Coerce_ObjectIntoBool_DefaultsAndReportsPreciseIssue() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": {"nested": true}, "reason": "x"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -219,8 +201,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_ArrayIntoNumber_DefaultsAndReportsPreciseIssue()
-    {
+    public void Coerce_ArrayIntoNumber_DefaultsAndReportsPreciseIssue() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "count": [1, 2]}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -233,8 +214,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_FractionalNumberIntoInt_Rounds_NotDefaults()
-    {
+    public void Coerce_FractionalNumberIntoInt_Rounds_NotDefaults() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "count": 3.7}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -245,8 +225,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_FractionalStringIntoInt_Rounds_NotDefaults()
-    {
+    public void Coerce_FractionalStringIntoInt_Rounds_NotDefaults() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "count": "3.4"}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -257,8 +236,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void RepairJson_NegativeHex_ConvertsToDecimal()
-    {
+    public void RepairJson_NegativeHex_ConvertsToDecimal() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "count": -0xFF}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -269,8 +247,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_NanIntoInt_DefaultsWithIssue()
-    {
+    public void Coerce_NanIntoInt_DefaultsWithIssue() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "count": NaN}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -282,8 +259,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_HugeDecimalIntoString_IsPreserved()
-    {
+    public void Coerce_HugeDecimalIntoString_IsPreserved() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "reason": 123456789012345678901234567890}""",
             CoercionTestJsonContext.Default.LenientDto,
@@ -300,8 +276,7 @@ public sealed class LenientCoercionTests
     [InlineData("none")]
     [InlineData("nil")]
     [InlineData("")]
-    public void Coerce_NullLikeString_ToNullableBool_IsNull(string nullLike)
-    {
+    public void Coerce_NullLikeString_ToNullableBool_IsNull(string nullLike) {
         var json = $$"""{"completed": true, "nullableFlag": "{{nullLike}}"}""";
         var result = LlmJsonHelper.DeserializeWithReport(
             json, CoercionTestJsonContext.Default.LenientDto, out _);
@@ -314,8 +289,7 @@ public sealed class LenientCoercionTests
     [InlineData("NULL")]
     [InlineData("None")]
     [InlineData("Nil")]
-    public void Coerce_NullLikeString_CaseInsensitive_ToNullableBool_IsNull(string nullLike)
-    {
+    public void Coerce_NullLikeString_CaseInsensitive_ToNullableBool_IsNull(string nullLike) {
         var json = $$"""{"completed": true, "nullableFlag": "{{nullLike}}"}""";
         var result = LlmJsonHelper.DeserializeWithReport(
             json, CoercionTestJsonContext.Default.LenientDto, out _);
@@ -329,8 +303,7 @@ public sealed class LenientCoercionTests
     #region P3: 日期时间宽容
 
     [Fact]
-    public void Coerce_DateString_ToDateTime_Parses()
-    {
+    public void Coerce_DateString_ToDateTime_Parses() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "createdAt": "2025-01-15T10:30:00"}""",
             CoercionTestJsonContext.Default.LenientDto, out _);
@@ -343,8 +316,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_DateStringSlash_ToDateTime_Parses()
-    {
+    public void Coerce_DateStringSlash_ToDateTime_Parses() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "createdAt": "2025/01/15"}""",
             CoercionTestJsonContext.Default.LenientDto, out _);
@@ -355,8 +327,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_EpochNumber_ToDateTime_Parses()
-    {
+    public void Coerce_EpochNumber_ToDateTime_Parses() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "createdAt": 1735689600000}""",
             CoercionTestJsonContext.Default.LenientDto, out _);
@@ -367,8 +338,7 @@ public sealed class LenientCoercionTests
     }
 
     [Fact]
-    public void Coerce_NullLikeString_ToNullableDateTime_IsNull()
-    {
+    public void Coerce_NullLikeString_ToNullableDateTime_IsNull() {
         var result = LlmJsonHelper.DeserializeWithReport(
             """{"completed": true, "createdAt": "none"}""",
             CoercionTestJsonContext.Default.LenientDto, out _);
@@ -383,8 +353,7 @@ public sealed class LenientCoercionTests
 /// <summary>
 /// 类型强制转换测试专用 DTO
 /// </summary>
-public sealed class LenientDto
-{
+public sealed class LenientDto {
     [JsonPropertyName("completed")]
     public bool Completed { get; set; }
 
@@ -413,8 +382,7 @@ public sealed class LenientDto
 /// <summary>
 /// 枚举宽容测试专用枚举
 /// </summary>
-public enum LenientLevel
-{
+public enum LenientLevel {
     Low = 0,
     Medium = 1,
     High = 2,

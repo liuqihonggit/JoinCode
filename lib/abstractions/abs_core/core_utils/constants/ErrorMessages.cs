@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 错误消息常量
 /// </summary>
-public static class ErrorMessages
-{
+public static class ErrorMessages {
     /// <summary>
     /// 文件不存在
     /// </summary>

@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 长时间任务注册表 — 跟踪超时续期任务，支持 resume/continue/stop 操作
 /// 续期策略: kill+重启（非续等原进程），每次续期是全新执行
 /// </summary>
-public sealed class LongRunningTaskRegistry
-{
+public sealed class LongRunningTaskRegistry {
     private readonly ConcurrentDictionary<string, LongRunningTask> _tasks = new(StringComparer.OrdinalIgnoreCase);
     private readonly ISystemActuatorRegistry _actuatorRegistry;
     private readonly ILogger<LongRunningTaskRegistry>? _logger;
@@ -18,8 +17,7 @@ public sealed class LongRunningTaskRegistry
     /// </summary>
     /// <param name="actuatorRegistry">系统执行器注册表，用于获取 Bash/PowerShell 执行器</param>
     /// <param name="logger">可选日志记录器</param>
-    public LongRunningTaskRegistry(ISystemActuatorRegistry actuatorRegistry, ILogger<LongRunningTaskRegistry>? logger = null)
-    {
+    public LongRunningTaskRegistry(ISystemActuatorRegistry actuatorRegistry, ILogger<LongRunningTaskRegistry>? logger = null) {
         _actuatorRegistry = actuatorRegistry ?? throw new ArgumentNullException(nameof(actuatorRegistry));
         _logger = logger;
     }
@@ -32,8 +30,7 @@ public sealed class LongRunningTaskRegistry
         string originalTool,
         string? workingDirectory,
         int timeoutMinutes,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var taskId = $"task-{Interlocked.Increment(ref _nextId)}";
         var timeoutMs = timeoutMinutes * 60 * 1000;
 
@@ -47,15 +44,13 @@ public sealed class LongRunningTaskRegistry
         var task = new LongRunningTask(taskId, command, originalTool, workingDirectory, timeoutMinutes, stopwatch);
         _tasks[taskId] = task;
 
-        try
-        {
+        try {
             var result = await actuator.ExecuteAsync(command, timeoutMs, workingDirectory, cancellationToken: ct).ConfigureAwait(false);
             stopwatch.Stop();
 
             _tasks.TryRemove(taskId, out _);
 
-            return new LongRunningTaskResult
-            {
+            return new LongRunningTaskResult {
                 TaskId = taskId,
                 State = result.ExitCode == 0 ? LongRunningTaskState.Completed : LongRunningTaskState.Failed,
                 Stdout = result.Stdout,
@@ -64,16 +59,13 @@ public sealed class LongRunningTaskRegistry
                 Elapsed = stopwatch.Elapsed,
                 RetryCount = 0,
             };
-        }
-        catch (TimeoutException)
-        {
+        } catch (TimeoutException) {
             stopwatch.Stop();
             task.LastElapsed = stopwatch.Elapsed;
 
             _logger?.LogWarning("续期任务超时 ({Minutes}min): {Command}", timeoutMinutes, command);
 
-            return new LongRunningTaskResult
-            {
+            return new LongRunningTaskResult {
                 TaskId = taskId,
                 State = LongRunningTaskState.TimedOut,
                 Stdout = string.Empty,
@@ -90,23 +82,18 @@ public sealed class LongRunningTaskRegistry
     public async Task<LongRunningTaskResult> ContinueTaskAsync(
         string taskId,
         int additionalMinutes,
-        CancellationToken ct = default)
-    {
-        if (!_tasks.TryGetValue(taskId, out var task))
-        {
-            return new LongRunningTaskResult
-            {
+        CancellationToken ct = default) {
+        if (!_tasks.TryGetValue(taskId, out var task)) {
+            return new LongRunningTaskResult {
                 TaskId = taskId,
                 State = LongRunningTaskState.NotFound,
                 Stderr = $"任务 {taskId} 不存在或已完成",
             };
         }
 
-        if (task.RetryCount >= MaxRetries)
-        {
+        if (task.RetryCount >= MaxRetries) {
             _tasks.TryRemove(taskId, out _);
-            return new LongRunningTaskResult
-            {
+            return new LongRunningTaskResult {
                 TaskId = taskId,
                 State = LongRunningTaskState.MaxRetriesExceeded,
                 Stderr = $"任务 {taskId} 已达到最大续期次数 ({MaxRetries})",
@@ -124,15 +111,13 @@ public sealed class LongRunningTaskRegistry
         var actuator = _actuatorRegistry.Get(actuatorKind);
         var stopwatch = Stopwatch.StartNew();
 
-        try
-        {
+        try {
             var result = await actuator.ExecuteAsync(task.Command, timeoutMs, task.WorkingDirectory, cancellationToken: ct).ConfigureAwait(false);
             stopwatch.Stop();
 
             _tasks.TryRemove(taskId, out _);
 
-            return new LongRunningTaskResult
-            {
+            return new LongRunningTaskResult {
                 TaskId = taskId,
                 State = result.ExitCode == 0 ? LongRunningTaskState.Completed : LongRunningTaskState.Failed,
                 Stdout = result.Stdout,
@@ -141,16 +126,13 @@ public sealed class LongRunningTaskRegistry
                 Elapsed = stopwatch.Elapsed,
                 RetryCount = task.RetryCount,
             };
-        }
-        catch (TimeoutException)
-        {
+        } catch (TimeoutException) {
             stopwatch.Stop();
             task.LastElapsed = stopwatch.Elapsed;
 
             _logger?.LogWarning("续期任务再次超时 ({Minutes}min, retry {Retry}): {Command}", additionalMinutes, task.RetryCount, task.Command);
 
-            return new LongRunningTaskResult
-            {
+            return new LongRunningTaskResult {
                 TaskId = taskId,
                 State = LongRunningTaskState.TimedOut,
                 Stdout = string.Empty,
@@ -164,23 +146,20 @@ public sealed class LongRunningTaskRegistry
     /// <summary>
     /// 停止续期任务 — 从注册表移除
     /// </summary>
-    public bool StopTask(string taskId)
-    {
+    public bool StopTask(string taskId) {
         return _tasks.TryRemove(taskId, out _);
     }
 
     /// <summary>
     /// 获取任务信息
     /// </summary>
-    internal LongRunningTask? GetTask(string taskId)
-    {
+    internal LongRunningTask? GetTask(string taskId) {
         return _tasks.TryGetValue(taskId, out var task) ? task : null;
     }
 }
 
 /// <summary>长时间任务状态</summary>
-public enum LongRunningTaskState
-{
+public enum LongRunningTaskState {
     /// <summary>运行中</summary>
     [EnumValue("running")]
     Running,
@@ -205,8 +184,7 @@ public enum LongRunningTaskState
 }
 
 /// <summary>长时间任务结果</summary>
-public sealed record LongRunningTaskResult
-{
+public sealed record LongRunningTaskResult {
     /// <summary>任务ID</summary>
     public required string TaskId { get; init; }
     /// <summary>任务最终状态</summary>
@@ -224,8 +202,7 @@ public sealed record LongRunningTaskResult
 }
 
 /// <summary>长时间任务内部记录</summary>
-internal sealed class LongRunningTask
-{
+internal sealed class LongRunningTask {
     public string TaskId { get; }
     public string Command { get; }
     public string OriginalTool { get; }
@@ -235,8 +212,7 @@ internal sealed class LongRunningTask
     public int RetryCount { get; set; }
     public TimeSpan LastElapsed { get; set; }
 
-    public LongRunningTask(string taskId, string command, string originalTool, string? workingDirectory, int timeoutMinutes, Stopwatch stopwatch)
-    {
+    public LongRunningTask(string taskId, string command, string originalTool, string? workingDirectory, int timeoutMinutes, Stopwatch stopwatch) {
         TaskId = taskId;
         Command = command;
         OriginalTool = originalTool;

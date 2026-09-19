@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 工具结果大小限制处理 — 纯截断
 /// 持久化由 ContentReplacementService 在查询引擎阶段统一处理，对齐 TS maybePersistLargeToolResult
 /// </summary>
-public static class ToolResultTruncator
-{
+public static class ToolResultTruncator {
     /// <summary>
     /// 截断提示信息模板 — 前缀与 ContentReplacementConstants.TruncatedPrefix 保持一致
     /// </summary>
@@ -18,11 +17,9 @@ public static class ToolResultTruncator
     /// <param name="response">待截断的响应内容构建器</param>
     /// <param name="maxResultSizeChars">最大允许字符数</param>
     /// <returns>构建好的工具结果，超出限制时附带截断提示</returns>
-    public static ToolResult BuildWithSizeLimit(StringBuilder response, int maxResultSizeChars)
-    {
+    public static ToolResult BuildWithSizeLimit(StringBuilder response, int maxResultSizeChars) {
         var text = response.ToString();
-        if (text.Length <= maxResultSizeChars)
-        {
+        if (text.Length <= maxResultSizeChars) {
             return ToolResultBuilder.Success().WithText(text).Build();
         }
 
@@ -36,8 +33,7 @@ public static class ToolResultTruncator
     /// <param name="text">待截断的文本</param>
     /// <param name="maxResultSizeChars">最大允许字符数</param>
     /// <returns>截断后的文本，超出时在换行处切并追加截断提示</returns>
-    public static string TruncateAtNewline(string text, int maxResultSizeChars)
-    {
+    public static string TruncateAtNewline(string text, int maxResultSizeChars) {
         if (text.Length <= maxResultSizeChars)
             return text;
 

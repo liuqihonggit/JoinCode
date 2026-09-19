@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 第一个 [EnumValue] 为主值（长名），后续为别名（短名），FromValue 均可匹配
 /// 所有 CLI 参数名字符串的唯一数据源，CliArg/BridgeCliArg/DreamCliArg 的 [CliOption] 引用此常量
 /// </summary>
-public enum JccCliArg
-{
+public enum JccCliArg {
     [EnumValue("--help")]
     [EnumValue("-h")]
     Help,

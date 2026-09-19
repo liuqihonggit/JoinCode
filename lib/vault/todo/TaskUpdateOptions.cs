@@ -3,8 +3,7 @@ namespace Services.Todo.ToolHandlers;
 /// <summary>
 /// 任务更新选项 — 封装 TaskUpdateAsync 的 MCP 工具参数
 /// </summary>
-public sealed record TaskUpdateOptions
-{
+public sealed record TaskUpdateOptions {
     /// <summary>任务 ID。</summary>
     [McpToolParameter("Task ID")]
     public required string TaskId { get; init; }

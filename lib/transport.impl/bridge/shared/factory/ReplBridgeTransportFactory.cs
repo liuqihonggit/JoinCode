@@ -4,17 +4,14 @@ namespace JoinCode.Transport.Bridge;
 /// 传输层工厂实现 — 创建 v1/v2 传输实例
 /// </summary>
 [Register(typeof(IReplBridgeTransportFactory), ServiceLifetime.Singleton)]
-public sealed partial class DefaultReplBridgeTransportFactory : ServiceEntity, IReplBridgeTransportFactory
-{
+public sealed partial class DefaultReplBridgeTransportFactory : ServiceEntity, IReplBridgeTransportFactory {
     /// <inheritdoc />
-    public IReplBridgeTransport CreateV2Transport(string sdkUrl, string sessionId, string workerJwt, int connectTimeoutMs)
-    {
+    public IReplBridgeTransport CreateV2Transport(string sdkUrl, string sessionId, string workerJwt, int connectTimeoutMs) {
         ArgumentNullException.ThrowIfNull(sdkUrl);
         ArgumentNullException.ThrowIfNull(sessionId);
         ArgumentNullException.ThrowIfNull(workerJwt);
 
-        var options = new V2TransportOptions
-        {
+        var options = new V2TransportOptions {
             SseUrl = $"{sdkUrl}/worker/events/stream",
             ApiBaseUrl = sdkUrl,
             IngressToken = workerJwt,
@@ -26,15 +23,13 @@ public sealed partial class DefaultReplBridgeTransportFactory : ServiceEntity, I
     }
 
     /// <inheritdoc />
-    public IReplBridgeTransport CreateV1Transport(V1TransportOptions options, ILogger? logger = null)
-    {
+    public IReplBridgeTransport CreateV1Transport(V1TransportOptions options, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
         return new V1ReplBridgeTransport(options, logger);
     }
 
     /// <inheritdoc />
-    public IReplBridgeTransport CreateV2Transport(V2TransportOptions options, ILogger? logger = null)
-    {
+    public IReplBridgeTransport CreateV2Transport(V2TransportOptions options, ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(options);
         return new V2ReplBridgeTransport(options, logger);
     }

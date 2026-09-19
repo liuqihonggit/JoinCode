@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// 对齐 TS: FileWriteTool.ts L307-332 / FileEditTool.ts L493-520。
 /// </summary>
 [Register(typeof(WriteNotifyNode), ServiceLifetime.Singleton)]
-public sealed class WriteNotifyNode : IDisposable
-{
+public sealed class WriteNotifyNode : IDisposable {
     private readonly ILspFileSync? _lspFileSync;
     private readonly ILspDiagnosticProvider? _lspDiagnosticProvider;
     private readonly ITelemetryService? _telemetryService;
@@ -34,8 +33,7 @@ public sealed class WriteNotifyNode : IDisposable
         ITelemetryService? telemetryService = null,
         IFileWriteListenerRegistry? fileWriteListenerRegistry = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        ILogger<WriteNotifyNode>? logger = null)
-    {
+        ILogger<WriteNotifyNode>? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _lspFileSync = lspFileSync;
         _lspDiagnosticProvider = lspDiagnosticProvider;
@@ -52,8 +50,7 @@ public sealed class WriteNotifyNode : IDisposable
     /// <param name="content">写入内容（null 时由 LspFileSync 从磁盘读取，如 FileEdit 场景）</param>
     /// <param name="operation">操作标签（"write"/"edit"/"edit-regex" 等）</param>
     /// <param name="opType">操作类型（遥测 RecordFileMetrics 用）</param>
-    public void NotifyWriteComplete(string filePath, string? content, string operation, FileOperationType opType)
-    {
+    public void NotifyWriteComplete(string filePath, string? content, string operation, FileOperationType opType) {
         // 1. 清除已投递 LSP 诊断 — 让新诊断能重新展示
         _lspDiagnosticProvider?.ClearDeliveredForFile($"file://{filePath}");
 
@@ -71,34 +68,26 @@ public sealed class WriteNotifyNode : IDisposable
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "file.operation.count",
             new Dictionary<string, string> { ["operation"] = operation.ToValue(), ["result"] = result.ToValue() });
 
-    private void NotifyFileWrite(string filePath, string operation)
-    {
+    private void NotifyFileWrite(string filePath, string operation) {
         if (_fileWriteListenerRegistry is null) return;
         var agentId = _subAgentContextAccessor?.Current?.AgentId ?? "main";
-        try
-        {
+        try {
             _fileWriteListenerRegistry.Notify(new FileWriteEventArgs { FilePath = filePath, Operation = operation, AgentId = agentId });
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning("通知文件写入监听器失败: {Message}", ex.Message);
         }
     }
 
     /// <summary>通知 LSP 服务器文件变更（fire-and-forget）。对齐 TS: lspManager.changeFile + saveFile。</summary>
-    private void NotifyLspFileChange(string filePath, string? content)
-    {
+    private void NotifyLspFileChange(string filePath, string? content) {
         if (_lspFileSync is null) return;
 
         var ct = _disposeCts.Token;
         // fire-and-forget: 不阻塞主流程，错误在 LspFileSync 内部处理
-        _ = Task.Run(async () =>
-        {
-            try
-            {
+        _ = Task.Run(async () => {
+            try {
                 var changeContent = content;
-                if (changeContent is null)
-                {
+                if (changeContent is null) {
                     // FileEdit 场景：从磁盘读取编辑后的内容（检测编码）
                     var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs).ConfigureAwait(false);
                     changeContent = await _fs.ReadAllTextAsync(filePath, encoding).ConfigureAwait(false);
@@ -111,12 +100,8 @@ public sealed class WriteNotifyNode : IDisposable
 
                 await _lspFileSync.SaveDocumentAsync(filePath, ct)
                     .WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                _telemetryService?.RecordCount("file.lsp_notify.error", new Dictionary<string, string>
-                {
+            } catch (OperationCanceledException) { } catch (Exception ex) {
+                _telemetryService?.RecordCount("file.lsp_notify.error", new Dictionary<string, string> {
                     ["operation"] = "change_and_save",
                     ["error"] = ex.GetType().Name
                 }, description: "LSP file change notification error");

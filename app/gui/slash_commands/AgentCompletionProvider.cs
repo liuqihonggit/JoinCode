@@ -5,8 +5,7 @@ namespace JoinCode.Gui.SlashCommands;
 /// 优先使用引擎 SubAgentSummary 动态列表，引擎未就绪时回退内置代理占位列表。
 /// 实现 ICompletionProvider 统一接口，注册到 CompletionTriggerRegistry。
 /// </summary>
-public sealed class AgentCompletionProvider : ICompletionProvider
-{
+public sealed class AgentCompletionProvider : ICompletionProvider {
     /// <inheritdoc/>
     public char TriggerChar => '@';
 
@@ -22,8 +21,7 @@ public sealed class AgentCompletionProvider : ICompletionProvider
 
     /// <summary>获取子代理补全候选（按前缀过滤；优先引擎真实代理，回退占位）</summary>
     public static IReadOnlyList<SlashCommandItem> GetAgents(
-        string prefix, IReadOnlyList<SubAgentSummary>? availableAgents = null)
-    {
+        string prefix, IReadOnlyList<SubAgentSummary>? availableAgents = null) {
         var source = BuildSource(availableAgents);
         if (string.IsNullOrEmpty(prefix))
             return source;
@@ -33,8 +31,7 @@ public sealed class AgentCompletionProvider : ICompletionProvider
     }
 
     /// <summary>构建子代理源 — 引擎代理非空时用引擎列表（经 SlashCommandItem.FromAgents 统一构造），否则回退占位</summary>
-    private static IReadOnlyList<SlashCommandItem> BuildSource(IReadOnlyList<SubAgentSummary>? availableAgents)
-    {
+    private static IReadOnlyList<SlashCommandItem> BuildSource(IReadOnlyList<SubAgentSummary>? availableAgents) {
         if (availableAgents is null || availableAgents.Count == 0)
             return BuiltInAgents;
         return SlashCommandItem.FromAgents(availableAgents);

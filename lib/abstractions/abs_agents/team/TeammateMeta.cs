@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Teammate 元信息 — 挂到 SubAgentContext 作为可选子对象,替代独立的 TeammateContext AsyncLocal
 /// </summary>
-public sealed record TeammateMeta
-{
+public sealed record TeammateMeta {
     /// <summary>Teammate 显示名称</summary>
     public required string AgentName { get; init; }
     /// <summary>团队名称</summary>

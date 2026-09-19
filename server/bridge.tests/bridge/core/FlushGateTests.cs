@@ -5,9 +5,8 @@ namespace Bridge.Tests;
 /// FlushGate 单元测试
 /// 测试批量添加、手动/自动刷新、事件触发
 /// </summary>
-public sealed class FlushGateTests : IAsyncDisposable
-{
-    private FlushGate<string> _sut = new(logger: NullLogger.Instance);
+public sealed class FlushGateTests : IAsyncDisposable {
+    private readonly FlushGate<string> _sut = new(logger: NullLogger.Instance);
 
     private static FlushGate<string> CreateSut(FlushGateOptions? options = null) =>
         new(options, NullLogger.Instance);
@@ -15,8 +14,7 @@ public sealed class FlushGateTests : IAsyncDisposable
     public ValueTask DisposeAsync() => _sut.DisposeAsync();
 
     [Fact]
-    public async Task AddAsync_ShouldAddItemToBatch()
-    {
+    public async Task AddAsync_ShouldAddItemToBatch() {
         // Arrange
         await using var sut = CreateSut();
 
@@ -29,8 +27,7 @@ public sealed class FlushGateTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task FlushAsync_ShouldRaiseBatchFlushed_WithItems()
-    {
+    public async Task FlushAsync_ShouldRaiseBatchFlushed_WithItems() {
         // Arrange
         await using var sut = CreateSut();
         await sut.AddAsync("item-a").ConfigureAwait(true);
@@ -50,8 +47,7 @@ public sealed class FlushGateTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task AddAsync_ShouldAutoFlush_WhenBatchIsFull()
-    {
+    public async Task AddAsync_ShouldAutoFlush_WhenBatchIsFull() {
         // Arrange - MaxBatchSize=2，添加第2个条目时触发自动刷新
         var options = new FlushGateOptions { MaxBatchSize = 2, FlushIntervalMs = 60000, MaxWaitMs = 60000 };
         var sut = CreateSut(options);
@@ -73,8 +69,7 @@ public sealed class FlushGateTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task FlushAsync_ShouldClearBatch()
-    {
+    public async Task FlushAsync_ShouldClearBatch() {
         // Arrange
         await using var sut = CreateSut();
         await sut.AddAsync("item-x").ConfigureAwait(true);
@@ -89,16 +84,14 @@ public sealed class FlushGateTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task BatchFlushed_ShouldContainAllAddedItems()
-    {
+    public async Task BatchFlushed_ShouldContainAllAddedItems() {
         // Arrange
         await using var sut = CreateSut();
         var allItems = new List<string>();
         sut.BatchFlushed += (_, args) => allItems.AddRange(args.Items);
 
         // Act - 添加5个条目并手动刷新
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             await sut.AddAsync($"item-{i}").ConfigureAwait(true);
         }
 
@@ -106,8 +99,7 @@ public sealed class FlushGateTests : IAsyncDisposable
 
         // Assert
         allItems.Should().HaveCount(5);
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             allItems.Should().Contain($"item-{i}");
         }
     }

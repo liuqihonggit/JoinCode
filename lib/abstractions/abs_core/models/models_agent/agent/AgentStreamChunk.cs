@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 智能体流式输出块 — 对齐 TS runAgent AsyncGenerator yield Message
 /// 用于实时报告智能体的执行进度，主代理和子代理统一使用此类型
 /// </summary>
-public sealed class AgentStreamChunk
-{
+public sealed class AgentStreamChunk {
     /// <summary>
     /// 块类型
     /// </summary>
@@ -105,32 +104,26 @@ public sealed class AgentStreamChunk
     /// 从 ChatStreamEvent 创建 AgentStreamChunk — 主代理走 ChatService 管道时使用此转换
     /// 返回 null 表示该事件类型无对应 AgentStreamChunk（如 Tombstone），调用方应跳过
     /// </summary>
-    public static AgentStreamChunk? FromChatStreamEvent(ChatStreamEvent evt, string agentId)
-    {
-        return evt.Type switch
-        {
-            ChatStreamEventType.Content => new AgentStreamChunk
-            {
+    public static AgentStreamChunk? FromChatStreamEvent(ChatStreamEvent evt, string agentId) {
+        return evt.Type switch {
+            ChatStreamEventType.Content => new AgentStreamChunk {
                 Type = AgentStreamChunkType.Content,
                 Content = evt.Content,
                 AgentId = agentId
             },
-            ChatStreamEventType.Thinking => new AgentStreamChunk
-            {
+            ChatStreamEventType.Thinking => new AgentStreamChunk {
                 Type = AgentStreamChunkType.Thinking,
                 ThinkingContent = evt.ThinkingContent,
                 AgentId = agentId
             },
-            ChatStreamEventType.ToolCallStart => new AgentStreamChunk
-            {
+            ChatStreamEventType.ToolCallStart => new AgentStreamChunk {
                 Type = AgentStreamChunkType.ToolCallStart,
                 ToolName = evt.ToolName,
                 ToolCallId = evt.ToolCallId,
                 ToolArguments = evt.ToolArguments,
                 AgentId = agentId
             },
-            ChatStreamEventType.ToolCallEnd => new AgentStreamChunk
-            {
+            ChatStreamEventType.ToolCallEnd => new AgentStreamChunk {
                 Type = AgentStreamChunkType.ToolCallEnd,
                 ToolName = evt.ToolName,
                 ToolCallId = evt.ToolCallId,
@@ -139,8 +132,7 @@ public sealed class AgentStreamChunk
                 StructuredPatch = evt.StructuredPatch,
                 AgentId = agentId
             },
-            ChatStreamEventType.ToolProgress => new AgentStreamChunk
-            {
+            ChatStreamEventType.ToolProgress => new AgentStreamChunk {
                 Type = AgentStreamChunkType.ToolProgress,
                 ToolName = evt.ToolName,
                 ToolCallId = evt.ToolCallId,
@@ -148,22 +140,19 @@ public sealed class AgentStreamChunk
                 ProgressType = evt.ProgressType,
                 AgentId = agentId
             },
-            ChatStreamEventType.LoopDetected => new AgentStreamChunk
-            {
+            ChatStreamEventType.LoopDetected => new AgentStreamChunk {
                 Type = AgentStreamChunkType.LoopDetected,
                 LoopTriggerCount = evt.LoopTriggerCount,
                 LoopStartIndex = evt.LoopStartIndex,
                 Content = evt.Content,
                 AgentId = agentId
             },
-            ChatStreamEventType.TimingSummary => new AgentStreamChunk
-            {
+            ChatStreamEventType.TimingSummary => new AgentStreamChunk {
                 Type = AgentStreamChunkType.TimingSummary,
                 Content = evt.Content,
                 AgentId = agentId
             },
-            ChatStreamEventType.Complete => new AgentStreamChunk
-            {
+            ChatStreamEventType.Complete => new AgentStreamChunk {
                 Type = AgentStreamChunkType.Complete,
                 Usage = evt.Usage,
                 ModelId = evt.ModelId,
@@ -177,8 +166,7 @@ public sealed class AgentStreamChunk
 /// <summary>
 /// 子智能体流式输出块类型（已合并 QueryStreamChunkType）
 /// </summary>
-public enum AgentStreamChunkType
-{
+public enum AgentStreamChunkType {
     /// <summary>文本内容</summary>
     [EnumValue("content")] Content,
     /// <summary>思考开始</summary>

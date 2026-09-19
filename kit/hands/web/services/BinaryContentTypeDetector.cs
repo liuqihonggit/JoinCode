@@ -4,15 +4,13 @@ namespace Services.Web;
 /// 二进制Content-Type检测 — 对齐TS版 mcpOutputStorage.ts 的 isBinaryContentType
 /// 白名单排除法：排除text/*、json、xml、js、form-urlencoded，其余视为二进制
 /// </summary>
-internal static class BinaryContentTypeDetector
-{
+internal static class BinaryContentTypeDetector {
     /// <summary>
     /// 判断Content-Type是否为二进制类型
     /// </summary>
     /// <param name="contentType">Content-Type 字符串，可包含 charset 参数。</param>
     /// <returns>二进制类型返回 true，文本类型返回 false。</returns>
-    public static bool IsBinaryContentType(string? contentType)
-    {
+    public static bool IsBinaryContentType(string? contentType) {
         if (string.IsNullOrEmpty(contentType)) return false;
 
         // 提取MIME类型（去掉charset等参数）
@@ -42,8 +40,7 @@ internal static class BinaryContentTypeDetector
     /// <summary>
     /// 从Content-Type中提取MIME类型（去掉charset等参数）
     /// </summary>
-    private static string GetMimeType(string contentType)
-    {
+    private static string GetMimeType(string contentType) {
         var separatorIndex = contentType.IndexOf(';');
         var mime = separatorIndex >= 0 ? contentType[..separatorIndex] : contentType;
         return mime.Trim().ToLowerInvariant();

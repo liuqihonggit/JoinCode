@@ -5,31 +5,27 @@ namespace Core.Tests.Memdir;
 /// MemoryTruncator 单元测试
 /// 测试记忆截断器的行数截断、字节截断和智能截断功能
 /// </summary>
-public sealed class MemoryTruncatorTests
-{
+public sealed class MemoryTruncatorTests {
     private readonly MemoryTruncator _truncator = new();
 
     // === Truncate 方法测试 ===
 
     [Fact]
-    public void Truncate_NullContent_ReturnsNull()
-    {
+    public void Truncate_NullContent_ReturnsNull() {
         // 空内容应原样返回
         var result = _truncator.Truncate(null!);
         result.Should().BeNull();
     }
 
     [Fact]
-    public void Truncate_EmptyContent_ReturnsEmpty()
-    {
+    public void Truncate_EmptyContent_ReturnsEmpty() {
         // 空字符串应原样返回
         var result = _truncator.Truncate(string.Empty);
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public void Truncate_ShortContent_ReturnsUnchanged()
-    {
+    public void Truncate_ShortContent_ReturnsUnchanged() {
         // 低于阈值的内容不应被截断
         var content = "短内容";
         var result = _truncator.Truncate(content);
@@ -37,8 +33,7 @@ public sealed class MemoryTruncatorTests
     }
 
     [Fact]
-    public void Truncate_ExceedsMaxLines_TruncatesWithSuffix()
-    {
+    public void Truncate_ExceedsMaxLines_TruncatesWithSuffix() {
         // 超过最大行数时应截断，结果比原始内容短
         var threshold = new TruncationThreshold { MaxLines = 3, MaxBytes = 1024 * 1024 };
         var lines = Enumerable.Range(0, 10).Select(i => $"第{i}行内容").ToArray();
@@ -58,8 +53,7 @@ public sealed class MemoryTruncatorTests
     }
 
     [Fact]
-    public void Truncate_ExceedsMaxBytes_TruncatesByBytes()
-    {
+    public void Truncate_ExceedsMaxBytes_TruncatesByBytes() {
         // 超过最大字节数时应截断，结果比原始内容短
         var threshold = new TruncationThreshold { MaxLines = 10000, MaxBytes = 50 };
         // 生成超过50字节的内容（行数在阈值内）
@@ -75,8 +69,7 @@ public sealed class MemoryTruncatorTests
     }
 
     [Fact]
-    public void Truncate_ExceedsBothLinesAndBytes_TruncatesByLinesFirst()
-    {
+    public void Truncate_ExceedsBothLinesAndBytes_TruncatesByLinesFirst() {
         // 同时超过行数和字节数时，优先按行数截断
         var threshold = new TruncationThreshold { MaxLines = 2, MaxBytes = 10000 };
         var lines = Enumerable.Range(0, 5).Select(i => $"这是第{i}行比较长的内容用于测试").ToArray();
@@ -96,24 +89,21 @@ public sealed class MemoryTruncatorTests
     // === SmartTruncate 方法测试 ===
 
     [Fact]
-    public void SmartTruncate_NullContent_ReturnsNull()
-    {
+    public void SmartTruncate_NullContent_ReturnsNull() {
         // 空内容应原样返回
         var result = _truncator.SmartTruncate(null!, "query");
         result.Should().BeNull();
     }
 
     [Fact]
-    public void SmartTruncate_EmptyContent_ReturnsEmpty()
-    {
+    public void SmartTruncate_EmptyContent_ReturnsEmpty() {
         // 空字符串应原样返回
         var result = _truncator.SmartTruncate(string.Empty, "query");
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public void SmartTruncate_ShortContent_ReturnsUnchanged()
-    {
+    public void SmartTruncate_ShortContent_ReturnsUnchanged() {
         // 低于阈值的内容不应被截断
         var content = "短内容";
         var result = _truncator.SmartTruncate(content, "查询");
@@ -121,8 +111,7 @@ public sealed class MemoryTruncatorTests
     }
 
     [Fact]
-    public void SmartTruncate_ExceedsMaxLines_KeepsRelevantLines()
-    {
+    public void SmartTruncate_ExceedsMaxLines_KeepsRelevantLines() {
         // 超过行数阈值时，智能截断应保留与查询相关的行
         var threshold = new TruncationThreshold { MaxLines = 4, MaxBytes = 1024 * 1024 };
         var lines = new[]
@@ -153,8 +142,7 @@ public sealed class MemoryTruncatorTests
     }
 
     [Fact]
-    public void SmartTruncate_ExceedsMaxBytes_TruncatesByBytes()
-    {
+    public void SmartTruncate_ExceedsMaxBytes_TruncatesByBytes() {
         // 超过字节阈值时，智能截断后仍需按字节截断
         var threshold = new TruncationThreshold { MaxLines = 10000, MaxBytes = 100 };
         // 生成包含查询词的大内容
@@ -169,8 +157,7 @@ public sealed class MemoryTruncatorTests
     // === CountLines 间接测试（通过 Truncate） ===
 
     [Fact]
-    public void CountLines_ViaTruncate_SingleLineContent()
-    {
+    public void CountLines_ViaTruncate_SingleLineContent() {
         // 单行内容在默认阈值下不应被截断
         var content = "单行内容不换行";
         var result = _truncator.Truncate(content);
@@ -178,8 +165,7 @@ public sealed class MemoryTruncatorTests
     }
 
     [Fact]
-    public void CountLines_ViaTruncate_MultiLineContent()
-    {
+    public void CountLines_ViaTruncate_MultiLineContent() {
         // 多行内容在默认阈值（200行）下不应被截断
         var lines = Enumerable.Range(0, 10).Select(i => $"行{i}").ToArray();
         var content = string.Join('\n', lines);

@@ -3,8 +3,7 @@ namespace JoinCode.Entry;
 /// <summary>
 /// 启动上下文 — 跨中间件共享数据
 /// </summary>
-public sealed class StartupContext
-{
+public sealed class StartupContext {
     /// <summary>
     /// 工作流配置 — 启动各步骤共享的配置根
     /// </summary>

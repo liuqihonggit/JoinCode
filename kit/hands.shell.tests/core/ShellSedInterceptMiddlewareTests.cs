@@ -3,11 +3,9 @@ namespace Hands.Tests.Shell;
 /// <summary>
 /// ShellSedInterceptMiddleware 单元测试 — 验证 sed 拦截中间件的结构化诊断
 /// </summary>
-public class ShellSedInterceptMiddlewareTests
-{
+public class ShellSedInterceptMiddlewareTests {
     [Fact]
-    public void BuildFileSystemUnavailableDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildFileSystemUnavailableDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellSedInterceptMiddleware.BuildFileSystemUnavailableDiagnostic();
 
         diagnostic.Reason.Should().Be("服务不可用");
@@ -15,8 +13,7 @@ public class ShellSedInterceptMiddlewareTests
     }
 
     [Fact]
-    public void BuildWriteFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildWriteFailedDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellSedInterceptMiddleware.BuildWriteFailedDiagnostic("/test/file.txt", "Access denied");
 
         diagnostic.Reason.Should().Be("写入文件失败");
@@ -26,8 +23,7 @@ public class ShellSedInterceptMiddlewareTests
     }
 
     [Fact]
-    public void BuildFileNotFoundDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildFileNotFoundDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellSedInterceptMiddleware.BuildFileNotFoundDiagnostic("missing.txt");
 
         diagnostic.Reason.Should().Be("文件未找到");
@@ -37,8 +33,7 @@ public class ShellSedInterceptMiddlewareTests
     }
 
     [Fact]
-    public void BuildReadFailedDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildReadFailedDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = ShellSedInterceptMiddleware.BuildReadFailedDiagnostic("/test/file.txt", "IO error");
 
         diagnostic.Reason.Should().Be("读取文件失败");

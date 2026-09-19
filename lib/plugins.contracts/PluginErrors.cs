@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>用户可能是人也可能是AI,报错需引导而非误导</para>
 /// <para>格式: [错误码] 消息 + 排错建议</para>
 /// </summary>
-public static class PluginErrors
-{
+public static class PluginErrors {
     /// <summary>插件已加载 — 引导先卸载再加载</summary>
     public static string AlreadyLoaded(string pluginName) =>
         $"[INF031] 插件 '{pluginName}' 已经加载。" + Environment.NewLine +

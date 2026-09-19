@@ -5,15 +5,13 @@ namespace Memdir.Services;
 /// 对齐 TS insights.ts scanAllSessions + logToSessionMeta + extractToolStats
 /// </summary>
 [Register(typeof(IInsightSessionScanner), ServiceLifetime.Singleton)]
-public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScanner
-{
+public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScanner {
     private readonly string _sessionsDirectory;
     private readonly ILogger<SessionScanner>? _logger;
     private readonly IFileSystem _fs;
 
     /// <summary>文件扩展名到语言名的映射 — 对齐 TS EXTENSION_TO_LANGUAGE</summary>
-    private static readonly IReadOnlyDictionary<string, string> ExtensionToLanguage = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly IReadOnlyDictionary<string, string> ExtensionToLanguage = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
         [".cs"] = "C#",
         [".ts"] = "TypeScript",
         [".tsx"] = "TypeScript",
@@ -42,8 +40,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     /// <param name="fs">文件系统抽象</param>
     /// <param name="sessionsDirectory">会话文件目录路径,默认为 ~/.jcc/sessions/</param>
     /// <param name="logger">可选的日志记录器</param>
-    public SessionScanner(IFileSystem fs, string? sessionsDirectory = null, ILogger<SessionScanner>? logger = null)
-    {
+    public SessionScanner(IFileSystem fs, string? sessionsDirectory = null, ILogger<SessionScanner>? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _sessionsDirectory = sessionsDirectory
             ?? Path.Combine(
@@ -53,23 +50,16 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<InsightSessionMeta>> ScanAllSessionsAsync(CancellationToken cancellationToken = default)
-    {
-        if (!_fs.DirectoryExists(_sessionsDirectory))
-        {
+    public async Task<IReadOnlyList<InsightSessionMeta>> ScanAllSessionsAsync(CancellationToken cancellationToken = default) {
+        if (!_fs.DirectoryExists(_sessionsDirectory)) {
             return Array.Empty<InsightSessionMeta>();
         }
 
         var files = _fs.EnumerateFiles(_sessionsDirectory, "*.json", SearchOption.TopDirectoryOnly);
-        var tasks = files.Select(async file =>
-        {
-            try
-            {
+        var tasks = files.Select(async file => {
+            try {
                 return await ExtractSessionMetaAsync(file, cancellationToken).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 _logger?.LogWarning(ex, "跳过无法读取的会话文件: {File}", file);
                 return null;
             }
@@ -82,8 +72,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     /// <summary>
     /// 从单个 JSONL 文件提取 InsightSessionMeta — 对齐 TS logToSessionMeta + extractToolStats
     /// </summary>
-    private async Task<InsightSessionMeta?> ExtractSessionMetaAsync(string filePath, CancellationToken cancellationToken)
-    {
+    private async Task<InsightSessionMeta?> ExtractSessionMetaAsync(string filePath, CancellationToken cancellationToken) {
         var sessionId = Path.GetFileNameWithoutExtension(filePath);
         if (string.IsNullOrEmpty(sessionId)) return null;
 
@@ -103,42 +92,38 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
         var userMessageTimestamps = new List<DateTime>();
         DateTime? lastAssistantTime = null;
 
-        int userMessageCount = 0;
-        int assistantMessageCount = 0;
+        var userMessageCount = 0;
+        var assistantMessageCount = 0;
         long inputTokens = 0;
         long outputTokens = 0;
-        int gitCommits = 0;
-        int gitPushes = 0;
-        int linesAdded = 0;
-        int linesRemoved = 0;
-        int userInterruptions = 0;
-        int toolErrors = 0;
-        bool usesTaskAgent = false;
-        bool usesMcp = false;
-        bool usesWebSearch = false;
-        bool usesWebFetch = false;
+        var gitCommits = 0;
+        var gitPushes = 0;
+        var linesAdded = 0;
+        var linesRemoved = 0;
+        var userInterruptions = 0;
+        var toolErrors = 0;
+        var usesTaskAgent = false;
+        var usesMcp = false;
+        var usesWebSearch = false;
+        var usesWebFetch = false;
         string? firstPrompt = null;
         decimal estimatedCost = 0;
 
-        foreach (var entry in entries)
-        {
+        foreach (var entry in entries) {
             var role = entry.Role;
 
             // 助手消息统计
-            if (string.Equals(role, MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase))
-            {
+            if (string.Equals(role, MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase)) {
                 assistantMessageCount++;
                 inputTokens += entry.PromptTokens;
                 outputTokens += entry.CompletionTokens;
 
-                if (entry.Timestamp != default)
-                {
+                if (entry.Timestamp != default) {
                     lastAssistantTime = entry.Timestamp;
                 }
 
                 // 工具使用统计
-                if (!string.IsNullOrEmpty(entry.ToolName))
-                {
+                if (!string.IsNullOrEmpty(entry.ToolName)) {
                     var toolName = entry.ToolName;
                     toolCounts.TryGetValue(toolName, out var count);
                     toolCounts[toolName] = count + 1;
@@ -157,37 +142,31 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
             }
 
             // 用户消息统计
-            if (string.Equals(role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase))
-            {
+            if (string.Equals(role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase)) {
                 // 仅统计有人类文本的消息（非 tool_result）
                 var isHumanMessage = !string.IsNullOrWhiteSpace(entry.Content) &&
                     entry.Type != "tool_result";
 
-                if (isHumanMessage)
-                {
+                if (isHumanMessage) {
                     userMessageCount++;
                     firstPrompt ??= entry.Content.Length > 200 ? entry.Content[..200] : entry.Content;
 
-                    if (entry.Timestamp != default)
-                    {
+                    if (entry.Timestamp != default) {
                         userMessageTimestamps.Add(entry.Timestamp);
                     }
                 }
 
                 // 检测中断
-                if (entry.Content.Contains("[Request interrupted by user", StringComparison.OrdinalIgnoreCase))
-                {
+                if (entry.Content.Contains("[Request interrupted by user", StringComparison.OrdinalIgnoreCase)) {
                     userInterruptions++;
                 }
             }
 
             // 工具结果中的错误统计
             if (string.Equals(role, MessageRoleEnumConstants.Tool, StringComparison.OrdinalIgnoreCase) ||
-                entry.Type == "tool_result")
-            {
+                entry.Type == "tool_result") {
                 if (entry.Content.Contains("is_error\":true", StringComparison.OrdinalIgnoreCase) ||
-                    entry.Content.Contains("exit code", StringComparison.OrdinalIgnoreCase))
-                {
+                    entry.Content.Contains("exit code", StringComparison.OrdinalIgnoreCase)) {
                     toolErrors++;
                     var category = CategorizeToolError(entry.Content);
                     toolErrorCategories.TryGetValue(category, out var catCount);
@@ -199,8 +178,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
             }
         }
 
-        return new InsightSessionMeta
-        {
+        return new InsightSessionMeta {
             SessionId = sessionId,
             ProjectPath = string.Empty, // C# 端会话文件不存储项目路径
             StartTime = creationTimeUtc,
@@ -232,26 +210,20 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     /// <summary>
     /// 读取 JSONL 文件中的所有 TranscriptEntry
     /// </summary>
-    private static async Task<List<TranscriptEntry>> ReadEntriesAsync(IFileSystem fs, string filePath, CancellationToken cancellationToken, ILogger? logger = null)
-    {
+    private static async Task<List<TranscriptEntry>> ReadEntriesAsync(IFileSystem fs, string filePath, CancellationToken cancellationToken, ILogger? logger = null) {
         var entries = new List<TranscriptEntry>();
 
         var lines = await fs.ReadAllLinesAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             if (string.IsNullOrWhiteSpace(line)) continue;
 
-            try
-            {
+            try {
                 var entry = RelaxedJsonSerializer.Deserialize(line, TranscriptJsonContext.Default.TranscriptEntry);
-                if (entry is not null)
-                {
+                if (entry is not null) {
                     entries.Add(entry);
                 }
-            }
-            catch (JsonException ex)
-            {
+            } catch (JsonException ex) {
                 // 跳过格式错误的行
                 logger?.LogWarning(ex, "SessionScanner: Skipping malformed JSON line");
             }
@@ -263,8 +235,7 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
     /// <summary>
     /// 分类工具错误 — 对齐 TS extractToolStats 中的错误分类逻辑
     /// </summary>
-    private static string CategorizeToolError(string content)
-    {
+    private static string CategorizeToolError(string content) {
         var lower = content.ToLowerInvariant();
 
         if (lower.Contains("exit code")) return "Command Failed";
@@ -287,16 +258,13 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
         ref int gitCommits,
         ref int gitPushes,
         ref int linesAdded,
-        ref int linesRemoved)
-    {
+        ref int linesRemoved) {
         var content = entry.Content;
         if (string.IsNullOrEmpty(content)) return;
 
         // 从内容中提取文件路径并识别语言
-        foreach (var kvp in ExtensionToLanguage)
-        {
-            if (content.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase))
-            {
+        foreach (var kvp in ExtensionToLanguage) {
+            if (content.Contains(kvp.Key, StringComparison.OrdinalIgnoreCase)) {
                 languages.TryGetValue(kvp.Value, out var langCount);
                 languages[kvp.Value] = langCount + 1;
             }

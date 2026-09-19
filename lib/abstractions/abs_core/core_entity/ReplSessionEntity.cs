@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// REPL 会话实体 — 派生自 ToolExecutionEntity，追踪交互式代码执行生命周期
 /// 额外字段: Language, IsEnabled
 /// </summary>
-public sealed class ReplSessionEntity : ToolExecutionEntity
-{
+public sealed class ReplSessionEntity : ToolExecutionEntity {
     public string Language { get; init; } = "csharp";
     public bool IsEnabled { get; set; }
 
@@ -15,23 +14,20 @@ public sealed class ReplSessionEntity : ToolExecutionEntity
         string? spanId = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base("repl", toolUseId, spanId, displayName ?? $"repl:{language}", sessionId)
-    {
+        : base("repl", toolUseId, spanId, displayName ?? $"repl:{language}", sessionId) {
         Language = language;
     }
 
     /// <summary>
     /// 跨会话深拷贝 — 保留 Language/IsEnabled 等 REPL 会话特有字段
     /// </summary>
-    public override Entity Clone(CloneContext context)
-    {
+    public override Entity Clone(CloneContext context) {
         var cloned = new ReplSessionEntity(
             language: Language,
             toolUseId: ToolUseId,
             spanId: SpanId,
             displayName: DisplayName,
-            sessionId: context.TargetSessionId)
-        {
+            sessionId: context.TargetSessionId) {
             IsEnabled = IsEnabled,
         };
         ApplyCloneState(cloned, context);

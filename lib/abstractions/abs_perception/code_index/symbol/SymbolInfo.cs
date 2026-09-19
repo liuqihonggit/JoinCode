@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.CodeIndex;
 
-public sealed record SymbolInfo
-{
+public sealed record SymbolInfo {
     public required string Name { get; init; }
     public required string FullyQualifiedName { get; init; }
     public required SymbolKind Kind { get; init; }

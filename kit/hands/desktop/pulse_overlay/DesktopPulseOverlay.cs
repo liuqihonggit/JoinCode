@@ -4,8 +4,7 @@ namespace JoinCode.Hands.Desktop.PulseOverlay;
 /// 桌面脉冲圆覆盖层 — 透明无边框顶层窗口 + GDI 半透明圆动画
 /// 后台线程独占消息循环，工具线程通过 Close() 发送 WM_CLOSE 通知关闭
 /// </summary>
-internal sealed class DesktopPulseOverlay : IDisposable
-{
+internal sealed class DesktopPulseOverlay : IDisposable {
     private IntPtr _hwnd;
     private string _className = string.Empty;
     private GCHandle _wndProcPin;
@@ -16,10 +15,8 @@ internal sealed class DesktopPulseOverlay : IDisposable
     private const int NullBrush = 5;
 
     /// <summary>启动透明窗口 + 消息循环（阻塞当前线程直到窗口关闭）</summary>
-    public void Run(int centerX, int centerY, int maxRadius, int minRadius, int durationMs, int frameMs, uint colorRef)
-    {
-        _state = new PulseState
-        {
+    public void Run(int centerX, int centerY, int maxRadius, int minRadius, int durationMs, int frameMs, uint colorRef) {
+        _state = new PulseState {
             CenterX = centerX,
             CenterY = centerY,
             MaxRadius = maxRadius,
@@ -37,8 +34,7 @@ internal sealed class DesktopPulseOverlay : IDisposable
         var wndProc = new PulseNativeMethods.WndProcDelegate(WndProc);
         _wndProcPin = GCHandle.Alloc(wndProc);
 
-        var wc = new WNDCLASSEX
-        {
+        var wc = new WNDCLASSEX {
             cbSize = Marshal.SizeOf<WNDCLASSEX>(),
             lpfnWndProc = wndProc,
             hInstance = hInstance,
@@ -61,8 +57,7 @@ internal sealed class DesktopPulseOverlay : IDisposable
             winX, winY, winSize, winSize,
             IntPtr.Zero, IntPtr.Zero, hInstance, IntPtr.Zero);
 
-        if (_hwnd == IntPtr.Zero)
-        {
+        if (_hwnd == IntPtr.Zero) {
             PulseNativeMethods.UnregisterClass(_className, hInstance);
             return;
         }
@@ -71,8 +66,7 @@ internal sealed class DesktopPulseOverlay : IDisposable
         PulseNativeMethods.ShowWindow(_hwnd, PulseNativeMethods.SW_SHOWNOACTIVATE);
         PulseNativeMethods.SetTimer(_hwnd, (IntPtr)1, (uint)frameMs, IntPtr.Zero);
 
-        while (PulseNativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
-        {
+        while (PulseNativeMethods.GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0) {
             PulseNativeMethods.TranslateMessage(ref msg);
             PulseNativeMethods.DispatchMessage(ref msg);
         }
@@ -82,42 +76,37 @@ internal sealed class DesktopPulseOverlay : IDisposable
     }
 
     /// <summary>请求关闭窗口（从其他线程调用）</summary>
-    public void Close()
-    {
+    public void Close() {
         if (_hwnd != IntPtr.Zero)
             PulseNativeMethods.PostMessage(_hwnd, PulseNativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
     }
 
-    private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
-    {
-        switch (msg)
-        {
+    private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam) {
+        switch (msg) {
             case PulseNativeMethods.WM_TIMER:
-                HandleTimer(hwnd);
-                return IntPtr.Zero;
+            HandleTimer(hwnd);
+            return IntPtr.Zero;
 
             case PulseNativeMethods.WM_PAINT:
-                HandlePaint(hwnd);
-                return IntPtr.Zero;
+            HandlePaint(hwnd);
+            return IntPtr.Zero;
 
             case PulseNativeMethods.WM_CLOSE:
-                PulseNativeMethods.DestroyWindow(hwnd);
-                return IntPtr.Zero;
+            PulseNativeMethods.DestroyWindow(hwnd);
+            return IntPtr.Zero;
 
             case PulseNativeMethods.WM_DESTROY:
-                PulseNativeMethods.PostQuitMessage(0);
-                return IntPtr.Zero;
+            PulseNativeMethods.PostQuitMessage(0);
+            return IntPtr.Zero;
 
             default:
-                return PulseNativeMethods.DefWindowProc(hwnd, msg, wParam, lParam);
+            return PulseNativeMethods.DefWindowProc(hwnd, msg, wParam, lParam);
         }
     }
 
-    private void HandleTimer(IntPtr hwnd)
-    {
+    private void HandleTimer(IntPtr hwnd) {
         var elapsed = Environment.TickCount64 - _state.StartTicks;
-        if (elapsed >= _state.DurationMs)
-        {
+        if (elapsed >= _state.DurationMs) {
             PulseNativeMethods.PostMessage(hwnd, PulseNativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
             return;
         }
@@ -130,15 +119,13 @@ internal sealed class DesktopPulseOverlay : IDisposable
         PulseNativeMethods.InvalidateRect(hwnd, IntPtr.Zero, true);
     }
 
-    private void HandlePaint(IntPtr hwnd)
-    {
+    private void HandlePaint(IntPtr hwnd) {
         var ps = new PAINTSTRUCT();
         var hdc = PulseNativeMethods.BeginPaint(hwnd, ref ps);
         if (hdc == IntPtr.Zero)
             return;
 
-        try
-        {
+        try {
             var rect = new RECT { Left = 0, Top = 0, Right = _state.MaxRadius * 2, Bottom = _state.MaxRadius * 2 };
 
             // 用颜色键颜色填充背景，LWA_COLORKEY 会让这部分变透明
@@ -171,23 +158,19 @@ internal sealed class DesktopPulseOverlay : IDisposable
             PulseNativeMethods.MoveToEx(hdc, cx, cy - crossSize, IntPtr.Zero);
             PulseNativeMethods.LineTo(hdc, cx, cy + crossSize);
             PulseNativeMethods.DeleteObject(crossPen);
-        }
-        finally
-        {
+        } finally {
             PulseNativeMethods.EndPaint(hwnd, ref ps);
         }
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed)
             return;
         _disposed = true;
         Close();
     }
 
-    private sealed class PulseState
-    {
+    private sealed class PulseState {
         public int CenterX;
         public int CenterY;
         public int MaxRadius;

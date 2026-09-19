@@ -5,8 +5,7 @@ namespace Core.Permission;
 /// 代码安全验证器实现 — 综合 Shell 命令分类与代码内容危险模式检测,阻止破坏性命令与危险 API 调用
 /// </summary>
 [Register(typeof(ICodeSecurityValidator), ServiceLifetime.Singleton)]
-public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurityValidator
-{
+public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurityValidator {
     private readonly ICommandClassifier _commandClassifier;
     private readonly IFileSystem _fs;
     private readonly string _workingDirectory;
@@ -70,31 +69,26 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
     public CodeSecurityValidator(
         ICommandClassifier commandClassifier,
         IFileSystem fs,
-        string? workingDirectory = null)
-    {
+        string? workingDirectory = null) {
         _commandClassifier = commandClassifier;
         _fs = fs;
         _workingDirectory = workingDirectory ?? _fs.GetCurrentDirectory();
     }
 
     /// <inheritdoc/>
-    public ValidationResult Validate(string code, bool allowExternalLibs)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
+    public ValidationResult Validate(string code, bool allowExternalLibs) {
+        if (string.IsNullOrWhiteSpace(code)) {
             return ValidationResult.Invalid("代码不能为空");
         }
 
-        if (IsShellCommand(code))
-        {
+        if (IsShellCommand(code)) {
             return ValidateShellCommand(code);
         }
 
         return ValidateCodeContent(code, allowExternalLibs);
     }
 
-    private static bool IsShellCommand(string code)
-    {
+    private static bool IsShellCommand(string code) {
         var shellIndicators = new[]
         {
             "rm ", "del ", "erase ", "format ", "dd ", "mv ", "cp ", "copy ",
@@ -114,19 +108,16 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
         if (csharpPatterns.Any(pattern =>
             trimmed.Equals(pattern, StringComparison.OrdinalIgnoreCase) ||
             trimmed.StartsWith(pattern + " ", StringComparison.OrdinalIgnoreCase) ||
-            trimmed.StartsWith(pattern + "(", StringComparison.OrdinalIgnoreCase)))
-        {
+            trimmed.StartsWith(pattern + "(", StringComparison.OrdinalIgnoreCase))) {
             return false;
         }
 
         if (shellIndicators.Any(indicator =>
-            trimmed.StartsWith(indicator, StringComparison.OrdinalIgnoreCase)))
-        {
+            trimmed.StartsWith(indicator, StringComparison.OrdinalIgnoreCase))) {
             return true;
         }
 
-        if (trimmed.Contains(' ') && (trimmed.Contains('/') || trimmed.Contains('\\')))
-        {
+        if (trimmed.Contains(' ') && (trimmed.Contains('/') || trimmed.Contains('\\'))) {
             return true;
         }
 
@@ -136,23 +127,19 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
             !trimmed.Contains('}') &&
             !trimmed.Contains('.') &&
             trimmed.Length > 0 &&
-            char.IsLetter(trimmed[0]))
-        {
+            char.IsLetter(trimmed[0])) {
             return true;
         }
 
         return false;
     }
 
-    private ValidationResult ValidateShellCommand(string command)
-    {
-        try
-        {
+    private ValidationResult ValidateShellCommand(string command) {
+        try {
             var shellCommand = ShellCommand.Parse(command);
             var classification = _commandClassifier.Classify(shellCommand, _workingDirectory);
 
-            return classification.Category switch
-            {
+            return classification.Category switch {
                 CommandCategory.ReadOnly =>
                     ValidationResult.Valid(),
 
@@ -170,30 +157,23 @@ public sealed partial class CodeSecurityValidator : ServiceEntity, ICodeSecurity
 
                 _ => ValidationResult.Invalid($"无法分类的命令: {command}")
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ValidationResult.Invalid(
                 $"命令解析失败: {ex.Message}");
         }
     }
 
-    private static ValidationResult ValidateCodeContent(string code, bool allowExternalLibs)
-    {
+    private static ValidationResult ValidateCodeContent(string code, bool allowExternalLibs) {
         var dangerMatch = DangerousPatternAc.FindFirst(code.AsSpan());
-        if (dangerMatch is not null)
-        {
+        if (dangerMatch is not null) {
             return ValidationResult.Invalid($"代码包含危险操作: {dangerMatch!.Value.Value}");
         }
 
-        if (!allowExternalLibs)
-        {
+        if (!allowExternalLibs) {
             var usingMatches = UsingNamespaceRegex.Matches(code);
-            foreach (Match match in usingMatches)
-            {
+            foreach (Match match in usingMatches) {
                 var ns = match.Groups[1].Value;
-                if (!AllowedExternalLibs.Any(allowed => ns.StartsWith(allowed, StringComparison.OrdinalIgnoreCase)))
-                {
+                if (!AllowedExternalLibs.Any(allowed => ns.StartsWith(allowed, StringComparison.OrdinalIgnoreCase))) {
                     return ValidationResult.Invalid($"不允许使用外部库命名空间: {ns}");
                 }
             }

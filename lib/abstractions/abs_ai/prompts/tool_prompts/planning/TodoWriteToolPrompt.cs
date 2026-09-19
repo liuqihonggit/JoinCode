@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// TodoWriteTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = TodoToolName.TodoWrite, Category = ToolPromptCategory.Planning)]
-public static class TodoWriteToolPrompt
-{
+public static class TodoWriteToolPrompt {
     public const string ToolName = TodoToolNameEnumConstants.TodoWrite;
 
     public static string Prompt = $"""

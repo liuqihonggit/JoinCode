@@ -4,8 +4,7 @@ namespace JoinCode.Adapters;
 /// 传输无关的会话驱动器 — 统一事件消费逻辑。
 /// 从 CliSession 的 StreamResponseAsync 中提取共享逻辑。
 /// </summary>
-public sealed class SessionController
-{
+public sealed class SessionController {
     private readonly IChatService _chatService;
     private readonly IEventConsumer _consumer;
     private readonly TurnDiffService _turnDiffService;
@@ -40,8 +39,7 @@ public sealed class SessionController
         string sessionId,
         IServiceProvider? serviceProvider = null,
         IClockService? clock = null,
-        AgentBase? mainAgent = null)
-    {
+        AgentBase? mainAgent = null) {
         _chatService = chatService;
         _consumer = consumer;
         _turnDiffService = turnDiffService;
@@ -60,8 +58,7 @@ public sealed class SessionController
     /// 流式处理用户输入 — 统一的事件消费逻辑
     /// PermissionPendingConfirmationException 不会被捕获，会向上传播供调用方处理
     /// </summary>
-    public async Task<SessionTurnResult> StreamResponseAsync(string input, CancellationToken cancellationToken)
-    {
+    public async Task<SessionTurnResult> StreamResponseAsync(string input, CancellationToken cancellationToken) {
         if (_consumer is IResettableEventConsumer resettable)
             resettable.Reset();
 
@@ -76,17 +73,13 @@ public sealed class SessionController
         var timeoutToken = timeoutCts.Token;
         var hasReceivedEvent = false;
 
-        try
-        {
-            if (_mainAgent is not null)
-            {
+        try {
+            if (_mainAgent is not null) {
                 var preprocess = await PreProcessMainAgentAsync(input, timeoutToken).ConfigureAwait(false);
-                if (preprocess.PromptInjection is { Length: > 0 } injection)
-                {
+                if (preprocess.PromptInjection is { Length: > 0 } injection) {
                     _consumer.OnText(injection + "\n\n");
                 }
-                if (preprocess.ModalityInjection is { Length: > 0 } modalityInjection)
-                {
+                if (preprocess.ModalityInjection is { Length: > 0 } modalityInjection) {
                     _consumer.OnText(modalityInjection + "\n");
                 }
 
@@ -95,8 +88,7 @@ public sealed class SessionController
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 _mainAgent.CurrentInput = input;
-                await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false))
-                {
+                await foreach (var chunk in _mainAgent.ExecuteStreamAsync(timeoutToken).ConfigureAwait(false)) {
                     hasReceivedEvent = true;
                     var evt = AgentStreamChunkAdapter.ToChatStreamEvent(chunk);
                     if (evt is null) continue;
@@ -105,19 +97,15 @@ public sealed class SessionController
                 }
                 sw.Stop();
 
-                if (Diag.IsDebugLog)
-                {
+                if (Diag.IsDebugLog) {
                     _consumer.OnTimingSummary($"Total: {sw.ElapsedMilliseconds}ms");
                 }
 
                 auditLogger?.LogInformation("[Audit] Assistant: {Chars} chars, Model={Model}", fullResponse.Length, lastModelId);
 
                 await PostProcessMainAgentAsync(preprocess.PreprocessResult, fullResponse.ToString(), cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken).ConfigureAwait(false))
-                {
+            } else {
+                await foreach (var evt in _chatService.StreamWithEventsAsync(input, timeoutToken).ConfigureAwait(false)) {
                     hasReceivedEvent = true;
                     var mid = ProcessEvent(evt, fullResponse, thinkingContent);
                     if (mid is not null) lastModelId = mid;
@@ -130,41 +118,29 @@ public sealed class SessionController
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, cancellationToken).ConfigureAwait(false);
 
             return SessionTurnResult.Success(LastResponse, requestTimestamp);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !hasReceivedEvent)
-        {
+        } catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && !hasReceivedEvent) {
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
             return SessionTurnResult.Timeout(apiTimeoutMs);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             LastResponse = fullResponse.ToString();
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
             return SessionTurnResult.FromCancellation(LastResponse);
-        }
-        catch (PermissionPendingConfirmationException)
-        {
+        } catch (PermissionPendingConfirmationException) {
             LastResponse = fullResponse.ToString();
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             LastResponse = fullResponse.ToString();
             await StoreThinkingIfAnyAsync(thinkingContent, lastModelId, CancellationToken.None).ConfigureAwait(false);
 
             var crashStore = _serviceProvider?.GetService<ICrashSnapshotStore>();
-            if (crashStore is not null && ex is not OperationCanceledException)
-            {
-                try
-                {
+            if (crashStore is not null && ex is not OperationCanceledException) {
+                try {
                     crashStore.Add(new CrashSnapshot(
                         fenceName: "MainAgent",
                         severity: CrashSeverity.Error,
                         exception: ex,
                         executionContext: new CrashExecutionContext { SessionId = _sessionId }));
-                }
-                catch (Exception snapshotEx)
-                {
+                } catch (Exception snapshotEx) {
                     _serviceProvider?.GetService<ILogger<SessionController>>()?.LogWarning(snapshotEx, "[SessionController] 崩溃快照保存失败");
                 }
             }
@@ -180,43 +156,34 @@ public sealed class SessionController
     /// <summary>
     /// 处理单个 ChatStreamEvent — 分发到 IEventConsumer，返回 Done 事件的 modelId（否则 null）
     /// </summary>
-    private string? ProcessEvent(ChatStreamEvent evt, StringBuilder fullResponse, StringBuilder thinkingContent)
-    {
+    private string? ProcessEvent(ChatStreamEvent evt, StringBuilder fullResponse, StringBuilder thinkingContent) {
         string? modelId = null;
         evt.Switch(
-            onText: content =>
-            {
+            onText: content => {
                 if (content.Length > 0) fullResponse.Append(content);
                 _consumer.OnText(content);
             },
-            onThinking: thinking =>
-            {
+            onThinking: thinking => {
                 if (thinking.Length > 0) thinkingContent.Append(thinking);
                 _consumer.OnThinking(thinking);
             },
-            onToolStart: (toolName, callId, arguments) =>
-            {
+            onToolStart: (toolName, callId, arguments) => {
                 _consumer.OnToolStart(toolName, callId, arguments);
             },
-            onToolEnd: (toolName, resultText, callId, isToolError, structuredPatch) =>
-            {
+            onToolEnd: (toolName, resultText, callId, isToolError, structuredPatch) => {
                 _consumer.OnToolEnd(toolName, resultText, callId, isToolError, structuredPatch);
                 RecordToolCallForTurnDiff(toolName, resultText, structuredPatch);
             },
-            onToolProgress: (toolName, progressType, progressMessage) =>
-            {
+            onToolProgress: (toolName, progressType, progressMessage) => {
                 _consumer.OnToolProgress(toolName, progressType, progressMessage);
             },
-            onLoopDetected: (triggerCount, loopStartIndex, repeatedPattern) =>
-            {
+            onLoopDetected: (triggerCount, loopStartIndex, repeatedPattern) => {
                 _consumer.OnLoopDetected(triggerCount, loopStartIndex, repeatedPattern);
             },
-            onTimingSummary: summary =>
-            {
+            onTimingSummary: summary => {
                 _consumer.OnTimingSummary(summary);
             },
-            onDone: (usage, mid) =>
-            {
+            onDone: (usage, mid) => {
                 modelId = mid;
                 _consumer.OnDone(usage, mid);
             });
@@ -235,8 +202,7 @@ public sealed class SessionController
     /// 主代理路径预处理 — 对齐 PreChatMiddleware + ModalityValidationMiddleware：
     /// 文件上下文 + prompt injection + context 准备 + prompt 状态记录 + 模态验证
     /// </summary>
-    private async Task<MainAgentPreprocess> PreProcessMainAgentAsync(string input, CancellationToken ct)
-    {
+    private async Task<MainAgentPreprocess> PreProcessMainAgentAsync(string input, CancellationToken ct) {
         if (_serviceProvider is null) return new MainAgentPreprocess(null, null, null);
 
         var fileContextService = _serviceProvider.GetService<IChatFileContextService>();
@@ -244,15 +210,13 @@ public sealed class SessionController
 
         var preprocessor = _serviceProvider.GetService<IChatPreprocessor>();
         PreprocessResult? preprocessResult = null;
-        if (preprocessor is not null)
-        {
+        if (preprocessor is not null) {
             preprocessResult = await preprocessor.AnalyzeAndInjectAsync(input, ct).ConfigureAwait(false);
             await preprocessor.PrepareContextAsync(input, false, ct).ConfigureAwait(false);
         }
 
         var contextManager = _serviceProvider.GetService<IChatContextManager>();
-        if (contextManager is not null)
-        {
+        if (contextManager is not null) {
             await contextManager.RecordPromptStateAsync(cancellationToken: ct).ConfigureAwait(false);
         }
 
@@ -267,8 +231,7 @@ public sealed class SessionController
     /// <summary>
     /// 检测模态不匹配 — 对齐 ModalityValidationMiddleware
     /// </summary>
-    private string? DetectModalityMismatch(string input)
-    {
+    private string? DetectModalityMismatch(string input) {
         if (_serviceProvider is null) return null;
 
         var modelConfigLoader = _serviceProvider.GetService<IModelConfigLoader>();
@@ -295,48 +258,33 @@ public sealed class SessionController
     /// 主代理路径后处理 — 对齐 SaveContextMiddleware + CleanupInjectionsMiddleware：
     /// 回写 assistant 响应 → 持久化上下文 → 清理注入
     /// </summary>
-    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, string assistantResponse, CancellationToken ct)
-    {
+    private async Task PostProcessMainAgentAsync(PreprocessResult? preprocessResult, string assistantResponse, CancellationToken ct) {
         if (_serviceProvider is null) return;
 
         var contextManager = _serviceProvider.GetService<IChatContextManager>();
-        if (contextManager is not null)
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(assistantResponse))
-                {
+        if (contextManager is not null) {
+            try {
+                if (!string.IsNullOrEmpty(assistantResponse)) {
                     await contextManager.AddAssistantMessageAsync(assistantResponse, ct).ConfigureAwait(false);
                 }
                 await contextManager.SaveContextAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 throw;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _serviceProvider.GetService<ILogger<SessionController>>()?.LogError(ex, "[SessionController] 上下文保存失败");
             }
         }
 
-        if (preprocessResult is not null)
-        {
+        if (preprocessResult is not null) {
             var preprocessor = _serviceProvider.GetService<IChatPreprocessor>();
-            if (preprocessor is not null)
-            {
-                try
-                {
+            if (preprocessor is not null) {
+                try {
                     await preprocessor.CleanupInjectionsAsync(
                         preprocessResult.KeywordResult,
                         preprocessResult.SynonymInjectionIds, ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
+                } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                     throw;
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _serviceProvider.GetService<ILogger<SessionController>>()?.LogError(ex, "[SessionController] 清理注入失败");
                 }
             }
@@ -346,24 +294,19 @@ public sealed class SessionController
     /// <summary>
     /// 持久化思考内容 — 等待完成并记录失败，避免 fire-and-forget 静默丢失
     /// </summary>
-    private async Task StoreThinkingIfAnyAsync(StringBuilder thinkingContent, string? modelId, CancellationToken ct)
-    {
+    private async Task StoreThinkingIfAnyAsync(StringBuilder thinkingContent, string? modelId, CancellationToken ct) {
         if (thinkingContent.Length == 0) return;
         var thinkingStore = _serviceProvider?.GetService<IThinkingStore>();
         if (thinkingStore is null) return;
-        try
-        {
+        try {
             await thinkingStore.StoreAsync(_sessionId, thinkingContent.ToString(), modelId, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             var logger = _serviceProvider?.GetService<ILogger<SessionController>>();
             logger?.LogError(ex, "[SessionController] 思考内容持久化失败");
         }
     }
 
-    private static int ParseApiTimeoutMs()
-    {
+    private static int ParseApiTimeoutMs() {
         var env = Environment.GetEnvironmentVariable("JCC_API_TIMEOUT_MS");
         if (int.TryParse(env, out var ms) && ms > 0)
             return ms;
@@ -371,15 +314,13 @@ public sealed class SessionController
     }
 
     private static int _apiTimeoutLogged;
-    private void LogApiTimeoutOnce(int apiTimeoutMs)
-    {
+    private void LogApiTimeoutOnce(int apiTimeoutMs) {
         if (Interlocked.Exchange(ref _apiTimeoutLogged, 1) != 0) return;
         var logger = _serviceProvider?.GetService<ILogger<SessionController>>();
         logger?.LogDebug("[SessionController] API timeout: {Ms}ms (JCC_API_TIMEOUT_MS={Env})", apiTimeoutMs, Environment.GetEnvironmentVariable("JCC_API_TIMEOUT_MS") ?? "(未设置)");
     }
 
-    private void RecordToolCallForTurnDiff(string toolName, string? resultText, StructuredPatchHunk[]? structuredPatch)
-    {
+    private void RecordToolCallForTurnDiff(string toolName, string? resultText, StructuredPatchHunk[]? structuredPatch) {
         var isFileEdit = toolName is FileToolNameEnumConstants.FileWrite or FileToolNameEnumConstants.FileEdit
             or FileToolNameEnumConstants.FileEditRegex or FileToolNameEnumConstants.FileBatchEdit
             or FileToolNameEnumConstants.FileInsertLines or FileToolNameEnumConstants.FileDeleteLines;
@@ -395,11 +336,9 @@ public sealed class SessionController
             _turnDiffService.RecordFileEdit(filePath, resultText, isNewFile);
     }
 
-    private static string? ExtractFilePathFromResult(string? resultText)
-    {
+    private static string? ExtractFilePathFromResult(string? resultText) {
         if (string.IsNullOrWhiteSpace(resultText)) return null;
-        foreach (var line in resultText.AsSpan().EnumerateLines())
-        {
+        foreach (var line in resultText.AsSpan().EnumerateLines()) {
             var trimmed = line.Trim();
             if (trimmed.StartsWith("File:")) return trimmed.Slice(5).Trim().ToString();
             if (trimmed.StartsWith("filePath:")) return trimmed.Slice(9).Trim().ToString();
@@ -417,8 +356,7 @@ public sealed class SessionController
 /// <summary>
 /// 会话轮次结果
 /// </summary>
-public sealed class SessionTurnResult
-{
+public sealed class SessionTurnResult {
     /// <summary>是否成功完成</summary>
     public bool Succeeded { get; init; }
     /// <summary>是否因超时而终止</summary>
@@ -442,8 +380,7 @@ public sealed class SessionTurnResult
     /// <param name="response">完整响应文本</param>
     /// <param name="requestTimestamp">请求时间戳</param>
     /// <returns>成功的会话轮次结果</returns>
-    public static SessionTurnResult Success(string response, DateTime requestTimestamp) => new()
-    {
+    public static SessionTurnResult Success(string response, DateTime requestTimestamp) => new() {
         Succeeded = true,
         Response = response,
         RequestTimestamp = requestTimestamp
@@ -452,8 +389,7 @@ public sealed class SessionTurnResult
     /// <summary>构造超时结果</summary>
     /// <param name="timeoutMs">超时毫秒数</param>
     /// <returns>超时的会话轮次结果</returns>
-    public static SessionTurnResult Timeout(int timeoutMs) => new()
-    {
+    public static SessionTurnResult Timeout(int timeoutMs) => new() {
         TimedOut = true,
         TimeoutMs = timeoutMs
     };
@@ -461,8 +397,7 @@ public sealed class SessionTurnResult
     /// <summary>构造取消结果</summary>
     /// <param name="partialResponse">取消前的部分响应文本</param>
     /// <returns>已取消的会话轮次结果</returns>
-    public static SessionTurnResult FromCancellation(string partialResponse) => new()
-    {
+    public static SessionTurnResult FromCancellation(string partialResponse) => new() {
         WasCancelled = true,
         Response = partialResponse
     };
@@ -473,8 +408,7 @@ public sealed class SessionTurnResult
     /// <param name="errorCode">错误代码，可选</param>
     /// <param name="isRetryable">错误是否可重试，默认 false</param>
     /// <returns>错误的会话轮次结果</returns>
-    public static SessionTurnResult Error(string errorMessage, string partialResponse, string? errorCode = null, bool isRetryable = false) => new()
-    {
+    public static SessionTurnResult Error(string errorMessage, string partialResponse, string? errorCode = null, bool isRetryable = false) => new() {
         ErrorMessage = errorMessage,
         ErrorCode = errorCode,
         IsRetryable = isRetryable,

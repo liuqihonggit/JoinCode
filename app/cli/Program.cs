@@ -3,10 +3,8 @@ namespace JoinCode;
 /// <summary>
 /// 程序入口点 — 显式声明应用启动流程
 /// </summary>
-class Program
-{
-    static async Task<int> Main(string[] args)
-    {
+class Program {
+    static async Task<int> Main(string[] args) {
         // 原生 DLL 引导 — 从嵌入资源释放到临时目录并注册搜索路径（必须在任何 P/Invoke 之前）
         Entry.Startup.NativeDllBootstrapper.Initialize();
 
@@ -15,8 +13,7 @@ class Program
 
         // 密钥红线检查 — 禁止在命令行参数中传递 API Key
         var secretWarning = Cli.Output.ApiKeyRedLine.CheckArgsForSecrets(args);
-        if (secretWarning is not null)
-        {
+        if (secretWarning is not null) {
             Cli.TerminalHelper.Init();
             App.ErrorConsole.Warning(secretWarning);
             return (int)ExitCode.ArgumentParseError;
@@ -28,8 +25,7 @@ class Program
         // --await N: 全局超时计时器 — 在子命令路由之前启动，确保所有路径（mcp_call/slash_call 等）都有超时保护
         // --await 值验证 — 无效值(非数字/零/负数)直接报错,避免静默降级导致无超时保护(BUG#4)
         var awaitError = ValidateAwaitArg(args);
-        if (awaitError is not null)
-        {
+        if (awaitError is not null) {
             Cli.TerminalHelper.Init();
             App.ErrorConsole.Warning(awaitError);
             return (int)ExitCode.ArgumentParseError;
@@ -37,8 +33,7 @@ class Program
 
         // --permission-mode / --format 值验证 — 无效值直接报错,避免静默接受(BUG#5/BUG#6)
         var enumError = ValidateEnumArgs(args);
-        if (enumError is not null)
-        {
+        if (enumError is not null) {
             Cli.TerminalHelper.Init();
             App.ErrorConsole.Warning(enumError);
             return (int)ExitCode.ArgumentParseError;
@@ -55,8 +50,7 @@ class Program
         JoinCode.Abstractions.Shell.CommandTerminal.SetConsole(new CliCommandConsole());
         ILogger<Program>? logger = null;
         CommandLineOptions? options = null;
-        try
-        {
+        try {
             // 1. 本地化 — 自动检测电脑配置语言（JCC_LANGUAGE可覆盖）
             Infrastructure.Localization.LocalizerInitializer.Initialize(
                 JoinCode.Abstractions.Utils.LocalLanguageDetector.Detect());
@@ -65,8 +59,7 @@ class Program
             var hasHelp = Array.IndexOf(args, "-h") >= 0 || Array.IndexOf(args, "--help") >= 0;
 
             // 3. 子命令路由 — 扫描第一个子命令（允许全局选项在前，如 jcc --trust mcp_search read）
-            if (!hasHelp)
-            {
+            if (!hasHelp) {
                 var subCmdIndex = FindSubCommandIndex(args);
                 if (subCmdIndex is int idx)
                     return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx));
@@ -92,49 +85,36 @@ class Program
             int exitCode;
             if (options.IsNonInteractiveMode)
                 exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host);
-            else
-            {
+            else {
                 await Entry.InteractiveModeRunner.RunAsync(config, options, host);
                 exitCode = 0;
             }
 
             return exitCode;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             // P2-7: 用户取消（Ctrl+C）或网络请求取消 — 静默退出，不写 error.log（非程序 bug）
             // 退出码 130 = POSIX 标准（128 + SIGINT=2），便于 shell 脚本区分中断与正常错误
             return (int)ExitCode.Interrupted;
-        }
-        catch (TimeoutException ex)
-        {
+        } catch (TimeoutException ex) {
             // 超时兜底 — NonInteractiveExecuteStep 已先捕获，此处处理管道其他步骤的超时
             Cli.TerminalHelper.Init();
-            if (options?.IsJsonMode == true)
-            {
+            if (options?.IsJsonMode == true) {
                 WriteJsonError(Cli.Output.CliErrorCatalog.NetTimeout(ex.Message));
-            }
-            else
-            {
+            } else {
                 App.ErrorConsole.Warning($"请求超时: {ex.Message}");
             }
             return (int)ExitCode.LlmCallTimeout;
-        }
-        catch (ConfigurationException ex)
-        {
+        } catch (ConfigurationException ex) {
             // P2-7: 配置问题 — 友好提示，不写入 error.log（非程序 bug，用户可自行修复）
             // 退出码 2 = 配置错误专用，便于 CI/脚本区分配置问题与运行时错误
             Cli.TerminalHelper.Init();
-            if (options?.IsJsonMode == true)
-            {
+            if (options?.IsJsonMode == true) {
                 var error = Cli.Output.CliErrorCatalog.ConfigInvalidValue(
                     ex.ConfigurationKey ?? "unknown",
                     ex.Message,
                     "请检查配置文件或环境变量后重试");
                 WriteJsonError(error);
-            }
-            else
-            {
+            } else {
                 App.ErrorConsole.Warning(ex.Message);
                 if (!string.IsNullOrEmpty(ex.ConfigurationKey))
                     Cli.TerminalHelper.WriteError($"  配置项: {ex.ConfigurationKey}");
@@ -143,15 +123,11 @@ class Program
                 Cli.TerminalHelper.WriteError("  请检查配置文件或环境变量后重试。");
             }
             return (int)ExitCode.ConfigurationError;
-        }
-        catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException)
-        {
+        } catch (Exception ex) when (ex is OutOfMemoryException or TypeInitializationException) {
             // P2-7: 不可恢复异常 — 记录日志后 rethrow 让进程崩溃（继续运行可能损坏数据）
             WriteErrorLog(ex, fatal: true, logger);
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 通用异常 — 记录日志并友好提示
             // 视角2 #27: 使用 ErrorConsole.Fatal 渲染（红色致命错误 + 图标）
             // 诊断: 输出完整异常信息到 stderr（Type + Message + StackTrace + InnerException），供 E2E 测试捕获
@@ -163,15 +139,12 @@ class Program
             var errorLog = WriteErrorLog(ex, logger: logger);
 
             Cli.TerminalHelper.Init();
-            if (options?.IsJsonMode == true)
-            {
+            if (options?.IsJsonMode == true) {
                 WriteJsonError(new Cli.Output.CliStructuredError(
                     "RUNTIME_ERROR", ex.Message,
                     hint: $"详细日志: {errorLog}",
                     retryable: false));
-            }
-            else
-            {
+            } else {
                 App.ErrorConsole.Fatal(ex.Message);
                 Cli.TerminalHelper.WriteError($"  详细日志: {errorLog}");
             }
@@ -186,22 +159,18 @@ class Program
     /// <param name="ex">异常对象</param>
     /// <param name="fatal">是否为致命异常（标记 [FATAL] 前缀）</param>
     /// <returns>错误日志文件路径</returns>
-    private static string WriteErrorLog(Exception ex, bool fatal = false, ILogger? logger = null)
-    {
+    private static string WriteErrorLog(Exception ex, bool fatal = false, ILogger? logger = null) {
         var errorLog = Cli.Output.XdgPathResolver.GetErrorLogPath();
         var prefix = fatal ? "[FATAL] " : string.Empty;
         var errorContent = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}{ex.GetType().FullName}: {ex.Message}\n{ex.StackTrace}";
         if (ex.InnerException is not null)
             errorContent += $"\n--- InnerException ---\n{ex.InnerException.GetType().FullName}: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}";
-        try
-        {
+        try {
             var dir = System.IO.Path.GetDirectoryName(errorLog);
             if (dir is not null && !System.IO.Directory.Exists(dir))
                 System.IO.Directory.CreateDirectory(dir);
             SafeFileIO.WriteAllText(errorLog, errorContent);
-        }
-        catch (Exception logEx)
-        {
+        } catch (Exception logEx) {
             Diag.WriteLine($"[MAIN] WriteErrorLog 失败: {logEx.GetType().Name}: {logEx.Message}");
             logger?.LogWarning(logEx, "写入错误日志失败");
         }
@@ -211,8 +180,7 @@ class Program
     /// <summary>
     /// 写入结构化 JSON 错误到 stderr — 供 JSON 模式下的异常捕获链使用
     /// </summary>
-    private static void WriteJsonError(Cli.Output.CliStructuredError error)
-    {
+    private static void WriteJsonError(Cli.Output.CliStructuredError error) {
         var contract = new Cli.Output.CliOutputContract(
             jsonMode: true,
             jsonContext: Cli.Output.CliOutputJsonContext.Default);
@@ -231,26 +199,21 @@ class Program
     /// 进程卡死。详见 <c>docs/ai_interaction_docs/MockServer测试问题清单.md</c> P2-1。
     /// 启动时的日志 + ExitCode=AwaitTimeout 已足够诊断超时触发。
     /// </remarks>
-    private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, ILogger? logger = null)
-    {
+    private static System.Threading.Timer? StartAwaitTimer(CommandLineOptions options, ILogger? logger = null) {
         if (options.AwaitTimeoutSeconds is not { } seconds || seconds <= 0)
             return null;
 
         Diag.WriteLine($"[MAIN] --await {seconds}s 计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
 
         return new System.Threading.Timer(
-            callback: _ =>
-            {
+            callback: _ => {
                 // ⚠️ 禁止在 Environment.Exit 之前写 Console.Error（详见方法 remarks 注释）
                 // 超时诊断降级：写时间戳文件留审计轨迹（文件写不依赖 Console，不会因 pipe 阻塞）
-                try
-                {
+                try {
                     var timeoutLog = Cli.Output.XdgPathResolver.GetAwaitTimeoutLogPath();
                     SafeFileIO.AppendAllText(timeoutLog,
                         $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] --await {seconds}s 超时, 进程强制退出({(int)ExitCode.AwaitTimeout})\n");
-                }
-                catch (Exception logEx)
-                {
+                } catch (Exception logEx) {
                     // 诊断日志失败不影响超时退出
                     logger?.LogWarning(logEx, "写入 --await 超时日志失败");
                 }
@@ -265,12 +228,9 @@ class Program
     /// <summary>
     /// 验证 --await 参数值 — 无效值(非数字/零/负数)返回错误消息,避免静默降级导致无超时保护。
     /// </summary>
-    private static string? ValidateAwaitArg(string[] args)
-    {
-        for (var i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] == JccCliArgEnumConstants.Await)
-            {
+    private static string? ValidateAwaitArg(string[] args) {
+        for (var i = 0; i < args.Length - 1; i++) {
+            if (args[i] == JccCliArgEnumConstants.Await) {
                 var value = args[i + 1];
                 if (!int.TryParse(value, out var seconds))
                     return $"--await 的值 '{value}' 不是有效整数，请使用正整数（如 --await 10）";
@@ -286,21 +246,17 @@ class Program
     /// <para>BUG#5: --permission-mode 有效值 plan/auto/ask/bypass</para>
     /// <para>BUG#6: --format 有效值 text/json/ndjson</para>
     /// </summary>
-    private static string? ValidateEnumArgs(string[] args)
-    {
+    private static string? ValidateEnumArgs(string[] args) {
         var validPermissionModes = new[] { "plan", "auto", "ask", "bypass" };
         var validFormats = new[] { "text", "json", "ndjson" };
 
-        for (var i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] == JccCliArgEnumConstants.PermissionMode)
-            {
+        for (var i = 0; i < args.Length - 1; i++) {
+            if (args[i] == JccCliArgEnumConstants.PermissionMode) {
                 var value = args[i + 1];
                 if (!validPermissionModes.Contains(value, StringComparer.OrdinalIgnoreCase))
                     return $"--permission-mode 的值 '{value}' 无效，有效值为: {string.Join(", ", validPermissionModes)}";
             }
-            if (args[i] == JccCliArgEnumConstants.Format)
-            {
+            if (args[i] == JccCliArgEnumConstants.Format) {
                 var value = args[i + 1];
                 if (!validFormats.Contains(value, StringComparer.OrdinalIgnoreCase))
                     return $"--format 的值 '{value}' 无效，有效值为: {string.Join(", ", validFormats)}";
@@ -314,23 +270,17 @@ class Program
     /// 在子命令路由（mcp_call/slash_call 等）之前启动，确保所有路径都有超时保护。
     /// 主路径的 StartAwaitTimer 会再次启动（using 释放时先释放 early，再释放 late，不冲突）。
     /// </summary>
-    private static System.Threading.Timer? StartEarlyAwaitTimer(string[] args)
-    {
-        for (var i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] == JccCliArgEnumConstants.Await && int.TryParse(args[i + 1], out var seconds) && seconds > 0)
-            {
+    private static System.Threading.Timer? StartEarlyAwaitTimer(string[] args) {
+        for (var i = 0; i < args.Length - 1; i++) {
+            if (args[i] == JccCliArgEnumConstants.Await && int.TryParse(args[i + 1], out var seconds) && seconds > 0) {
                 Diag.WriteLine($"[MAIN] --await {seconds}s 早期计时器已启动（超时返回{(int)ExitCode.AwaitTimeout}）");
                 return new System.Threading.Timer(
-                    callback: _ =>
-                    {
-                        try
-                        {
+                    callback: _ => {
+                        try {
                             var timeoutLog = Cli.Output.XdgPathResolver.GetAwaitTimeoutLogPath();
                             SafeFileIO.AppendAllText(timeoutLog,
                                 $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] --await {seconds}s 早期超时, 进程强制退出({(int)ExitCode.AwaitTimeout})\n");
-                        }
-                        catch (Exception logEx) { Diag.WriteLine($"[MAIN] 早期超时日志写入失败: {logEx.Message}"); }
+                        } catch (Exception logEx) { Diag.WriteLine($"[MAIN] 早期超时日志写入失败: {logEx.Message}"); }
                         Environment.Exit((int)ExitCode.AwaitTimeout);
                     },
                     state: null,
@@ -344,16 +294,13 @@ class Program
     /// <summary>
     /// 安装全局异常钩子 — 捕获未处理异常和未观察的 Task 异常，写入崩溃快照和结构化日志
     /// </summary>
-    private static void InstallGlobalExceptionHandlers()
-    {
-        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-        {
+    private static void InstallGlobalExceptionHandlers() {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => {
             var ex = e.ExceptionObject as Exception ?? new Exception("未知异常");
             WriteCrashDump(ex, source: "UnhandledException");
         };
 
-        TaskScheduler.UnobservedTaskException += (_, e) =>
-        {
+        TaskScheduler.UnobservedTaskException += (_, e) => {
             WriteCrashDump(e.Exception, source: "UnobservedTaskException");
             e.SetObserved();
         };
@@ -364,18 +311,14 @@ class Program
     /// 父进程无论正常退出还是崩溃，OS 自动 Kill 整个进程树，避免子进程孤儿化。
     /// 非 Windows 平台或创建失败时返回 null，不阻塞启动。
     /// </summary>
-    private static WindowsJobObjectSandbox? CreateGlobalJobObject()
-    {
+    private static WindowsJobObjectSandbox? CreateGlobalJobObject() {
         if (!OperatingSystem.IsWindows()) return null;
-        try
-        {
+        try {
             var job = new WindowsJobObjectSandbox();
             job.CreateJobObject();
             job.AssignProcess(Environment.ProcessId);
             return job;
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return null;
         }
     }
@@ -384,8 +327,7 @@ class Program
     /// 写入崩溃快照到临时目录 — 结构化 JSON + 人类可读文本
     /// 路径由 XdgPathResolver.GetCrashDumpsDirectory() 统一管理
     /// </summary>
-    private static void WriteCrashDump(Exception exception, string source)
-    {
+    private static void WriteCrashDump(Exception exception, string source) {
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         var dumpDir = Cli.Output.XdgPathResolver.GetCrashDumpsDirectory();
         try { System.IO.Directory.CreateDirectory(dumpDir); } catch (Exception dirEx) { Diag.WriteError("[CrashDump] 创建目录失败", dirEx); }
@@ -394,15 +336,13 @@ class Program
             fenceName: $"Global.{source}",
             severity: CrashSeverity.Fatal,
             exception: exception,
-            executionContext: new CrashExecutionContext
-            {
+            executionContext: new CrashExecutionContext {
                 OperationName = source,
                 Extra = { ["processId"] = Environment.ProcessId.ToString() }
             });
 
         // 1. 结构化 JSON 快照（AOT 安全 — 手动拼接 JSON 字符串）
-        try
-        {
+        try {
             var jsonPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.json");
             var sb = new StringBuilder();
             sb.AppendLine("{");
@@ -416,8 +356,7 @@ class Program
             sb.AppendLine($"  \"stackTrace\": \"{EscapeJson(snapshot.StackTrace)}\",");
             sb.AppendLine($"  \"source\": \"{EscapeJson(source)}\",");
             sb.AppendLine("  \"exceptionChain\": [");
-            for (var i = 0; i < snapshot.ExceptionChain.Frames.Length; i++)
-            {
+            for (var i = 0; i < snapshot.ExceptionChain.Frames.Length; i++) {
                 var f = snapshot.ExceptionChain.Frames[i];
                 sb.AppendLine("    {");
                 sb.AppendLine($"      \"depth\": {f.Depth},");
@@ -439,12 +378,10 @@ class Program
             sb.AppendLine("}");
 
             SafeFileIO.WriteAllText(jsonPath, sb.ToString());
-        }
-        catch (Exception jsonEx) { Diag.WriteError("[CrashDump] 写入 JSON 快照失败", jsonEx); }
+        } catch (Exception jsonEx) { Diag.WriteError("[CrashDump] 写入 JSON 快照失败", jsonEx); }
 
         // 2. 人类可读文本快照
-        try
-        {
+        try {
             var txtPath = System.IO.Path.Combine(dumpDir, $"crash_{timestamp}_{snapshot.Id:N8}.log");
             var txt = new StringBuilder();
             txt.AppendLine("═══ 崩溃快照 ═══");
@@ -461,8 +398,7 @@ class Program
             txt.AppendLine(snapshot.StackTrace ?? "(无堆栈)");
             txt.AppendLine();
 
-            if (snapshot.ExceptionChain.Depth > 1)
-            {
+            if (snapshot.ExceptionChain.Depth > 1) {
                 txt.AppendLine($"异常链 (深度 {snapshot.ExceptionChain.Depth}):");
                 foreach (var frame in snapshot.ExceptionChain.Frames)
                     txt.AppendLine($"  [{frame.Depth}] {frame.ExceptionType}: {frame.Message}");
@@ -470,23 +406,18 @@ class Program
             }
 
             SafeFileIO.WriteAllText(txtPath, txt.ToString());
-        }
-        catch (Exception txtEx) { Diag.WriteError("[CrashDump] 写入文本快照失败", txtEx); }
+        } catch (Exception txtEx) { Diag.WriteError("[CrashDump] 写入文本快照失败", txtEx); }
 
         // 3. stderr 输出（仅 UnhandledException，避免 pipe 阻塞）
-        if (source == "UnhandledException")
-        {
-            try
-            {
+        if (source == "UnhandledException") {
+            try {
                 Console.Error.WriteLine($"[CRASH] {snapshot.ExceptionType}: {snapshot.ExceptionMessage}");
                 Console.Error.WriteLine($"[CRASH] 快照已保存到 {dumpDir}");
-            }
-            catch (Exception stderrEx) { Diag.WriteError("[CrashDump] stderr 输出失败", stderrEx); }
+            } catch (Exception stderrEx) { Diag.WriteError("[CrashDump] stderr 输出失败", stderrEx); }
         }
     }
 
-    private static string EscapeJson(string? value)
-    {
+    private static string EscapeJson(string? value) {
         if (value is null) return "";
         return value.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
     }
@@ -494,10 +425,8 @@ class Program
     /// <summary>
     /// 扫描 args 找第一个子命令的索引（允许全局选项在前，如 --trust --model gpt-4o mcp_search read）。
     /// </summary>
-    private static int? FindSubCommandIndex(string[] args)
-    {
-        for (var i = 0; i < args.Length; i++)
-        {
+    private static int? FindSubCommandIndex(string[] args) {
+        for (var i = 0; i < args.Length; i++) {
             if (App.Builder.ApplicationBuilder.IsSubCommand(args[i]))
                 return i;
         }
@@ -508,8 +437,7 @@ class Program
     /// 将子命令移到 args[0]，丢弃子命令前的全局选项（子命令执行器内部自行设置 TrustWorkspace 等）。
     /// 保留子命令及其后的所有参数（子命令专属选项如 --json --args-file 不受影响）。
     /// </summary>
-    private static string[] ReorderSubCommandToFront(string[] args, int subCmdIndex)
-    {
+    private static string[] ReorderSubCommandToFront(string[] args, int subCmdIndex) {
         if (subCmdIndex == 0)
             return args;
         var newArgs = new string[args.Length - subCmdIndex];
@@ -522,12 +450,9 @@ class Program
     /// <summary>
     /// 从 args 中提取 -h/--help 后的 topic 参数 — 用于多级渐进式展开帮助
     /// </summary>
-    private static string? GetHelpTopic(string[] args)
-    {
-        for (int i = 0; i < args.Length - 1; i++)
-        {
-            if (args[i] is "-h" or "--help")
-            {
+    private static string? GetHelpTopic(string[] args) {
+        for (var i = 0; i < args.Length - 1; i++) {
+            if (args[i] is "-h" or "--help") {
                 var next = args[i + 1];
                 if (!next.StartsWith('-'))
                     return next;

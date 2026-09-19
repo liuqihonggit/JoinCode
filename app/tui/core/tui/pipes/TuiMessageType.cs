@@ -3,8 +3,7 @@ namespace JoinCode.Tui.Pipes;
 /// <summary>
 /// TUI 消息类型 — 对应输出区不同渲染样式。
 /// </summary>
-public enum TuiMessageType
-{
+public enum TuiMessageType {
     /// <summary>用户输入消息</summary>
     [EnumValue("user")] User,
     /// <summary>Agent 思考过程（灰色斜体）</summary>

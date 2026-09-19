@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// Agent 任务结果实现类 - 包含任务执行结果和 Agent 信息
 /// </summary>
-public sealed class AgentTaskResult : IAgentTaskResult
-{
+public sealed class AgentTaskResult : IAgentTaskResult {
     private readonly ConcurrentDictionary<string, JsonElement> _metadata = new();
 
     /// <inheritdoc />
@@ -59,10 +58,8 @@ public sealed class AgentTaskResult : IAgentTaskResult
         string taskId,
         string agentId,
         string output,
-        long executionTimeMs)
-    {
-        return new AgentTaskResult
-        {
+        long executionTimeMs) {
+        return new AgentTaskResult {
             TaskId = taskId,
             AgentId = agentId,
             IsSuccess = true,
@@ -85,10 +82,8 @@ public sealed class AgentTaskResult : IAgentTaskResult
         string taskId,
         string agentId,
         string error,
-        long executionTimeMs = 0)
-    {
-        return new AgentTaskResult
-        {
+        long executionTimeMs = 0) {
+        return new AgentTaskResult {
             TaskId = taskId,
             AgentId = agentId,
             IsSuccess = false,
@@ -101,13 +96,11 @@ public sealed class AgentTaskResult : IAgentTaskResult
     }
 
     /// <inheritdoc />
-    public T? GetMetadataValue<T>(string key, T? defaultValue = default)
-    {
+    public T? GetMetadataValue<T>(string key, T? defaultValue = default) {
         if (!_metadata.TryGetValue(key, out var element))
             return defaultValue;
 
-        try
-        {
+        try {
             if (typeof(T) == typeof(string)) return (T)(object?)element.GetString()!;
             if (typeof(T) == typeof(int)) return (T)(object)element.GetInt32();
             if (typeof(T) == typeof(long)) return (T)(object)element.GetInt64();
@@ -115,9 +108,7 @@ public sealed class AgentTaskResult : IAgentTaskResult
             if (typeof(T) == typeof(bool)) return (T)(object)element.GetBoolean();
             if (typeof(T) == typeof(JsonElement)) return (T)(object)element;
             return defaultValue;
-        }
-        catch
-        {
+        } catch {
             return defaultValue;
         }
     }
@@ -129,8 +120,7 @@ public sealed class AgentTaskResult : IAgentTaskResult
     /// <param name="key">键名</param>
     /// <param name="value">值</param>
     /// <returns>当前结果实例（用于链式调用）</returns>
-    public AgentTaskResult WithMetadata<T>(string key, T value)
-    {
+    public AgentTaskResult WithMetadata<T>(string key, T value) {
         _metadata[key] = JsonElementHelper.FromPrimitives(value);
         return this;
     }
@@ -140,10 +130,8 @@ public sealed class AgentTaskResult : IAgentTaskResult
     /// </summary>
     /// <param name="metadata">元数据字典</param>
     /// <returns>当前结果实例（用于链式调用）</returns>
-    public AgentTaskResult WithMetadata(Dictionary<string, JsonElement> metadata)
-    {
-        foreach (var (key, value) in metadata)
-        {
+    public AgentTaskResult WithMetadata(Dictionary<string, JsonElement> metadata) {
+        foreach (var (key, value) in metadata) {
             _metadata[key] = value;
         }
         return this;
@@ -155,10 +143,8 @@ public sealed class AgentTaskResult : IAgentTaskResult
     /// <param name="agentName">Agent 名称</param>
     /// <param name="agentIndex">Agent 索引</param>
     /// <returns>新的结果实例</returns>
-    public AgentTaskResult WithAgentInfo(string agentName, int agentIndex)
-    {
-        var newResult = new AgentTaskResult
-        {
+    public AgentTaskResult WithAgentInfo(string agentName, int agentIndex) {
+        var newResult = new AgentTaskResult {
             TaskId = TaskId,
             AgentId = AgentId,
             AgentName = agentName,
@@ -171,8 +157,7 @@ public sealed class AgentTaskResult : IAgentTaskResult
             CompletedAt = CompletedAt
         };
 
-        foreach (var (key, value) in _metadata)
-        {
+        foreach (var (key, value) in _metadata) {
             newResult._metadata[key] = value;
         }
 
@@ -182,13 +167,8 @@ public sealed class AgentTaskResult : IAgentTaskResult
     /// <summary>
     /// 转换为字符串表示
     /// </summary>
-    public override string ToString()
-    {
+    public override string ToString() {
         var status = IsSuccess ? "成功" : "失败";
         return $"[{status}] 任务 {TaskId} (Agent: {AgentId}, 耗时: {ExecutionTimeMs}ms)";
     }
 }
-
-
-
-

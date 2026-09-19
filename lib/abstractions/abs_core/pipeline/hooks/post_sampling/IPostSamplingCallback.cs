@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Hooks;
 /// <summary>
 /// Post-sampling 回调上下文 — 每轮 LLM 采样完成后传递给回调
 /// </summary>
-public sealed class PostSamplingContext
-{
+public sealed class PostSamplingContext {
     /// <summary>
     /// 当前 token 估算数
     /// </summary>
@@ -35,8 +34,7 @@ public sealed class PostSamplingContext
 /// <summary>
 /// Post-sampling 回调接口 — 在每轮 LLM 采样完成后触发
 /// </summary>
-public interface IPostSamplingCallback
-{
+public interface IPostSamplingCallback {
     /// <summary>
     /// 执行回调
     /// </summary>

@@ -3,8 +3,7 @@ namespace Hands.Tests.Handlers;
 /// <summary>
 /// ToolCreationToolHandlers 单元测试 — 验证参数校验、模板创建、模板列表、模板详情
 /// </summary>
-public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
-{
+public sealed class ToolCreationToolHandlersTest : IAsyncLifetime {
     private MockTemplateService _templateService = null!;
     private MockToolRegistry _registry = null!;
     private ToolCreationToolHandlers _handlers = null!;
@@ -12,38 +11,33 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     private static string GetText(ToolResult result) =>
         result.Content.FirstOrDefault(c => c.Type == ToolContentType.Text)?.Text ?? "";
 
-    public Task InitializeAsync()
-    {
+    public Task InitializeAsync() {
         _templateService = new MockTemplateService();
         _registry = new MockToolRegistry();
         _handlers = new ToolCreationToolHandlers(_templateService, _registry);
         return Task.CompletedTask;
     }
 
-    public async Task DisposeAsync()
-    {
+    public async Task DisposeAsync() {
         await _registry.DisposeSafeAsync();
     }
 
     [Fact]
-    public async Task CreateToolAsync_EmptyName_ReturnsError()
-    {
+    public async Task CreateToolAsync_EmptyName_ReturnsError() {
         var result = await _handlers.CreateToolAsync("", "desc", "shell", "echo");
         result.IsError.Should().BeTrue();
         GetText(result).Should().Contain("不能为空");
     }
 
     [Fact]
-    public async Task CreateToolAsync_InvalidNameChars_ReturnsError()
-    {
+    public async Task CreateToolAsync_InvalidNameChars_ReturnsError() {
         var result = await _handlers.CreateToolAsync("bad name!", "desc", "shell", "echo");
         result.IsError.Should().BeTrue();
         GetText(result).Should().Contain("字母、数字、下划线和连字符");
     }
 
     [Fact]
-    public async Task CreateToolAsync_ValidShellTool_SavesAndRegisters()
-    {
+    public async Task CreateToolAsync_ValidShellTool_SavesAndRegisters() {
         var result = await _handlers.CreateToolAsync(
             "my_validator", "Validates files", "shell", "echo",
             """[{"name":"path","description":"File path","type":"string","required":true}]""",
@@ -57,8 +51,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateToolAsync_McpCallTool_SavesWithMcpTarget()
-    {
+    public async Task CreateToolAsync_McpCallTool_SavesWithMcpTarget() {
         var result = await _handlers.CreateToolAsync(
             "my_mcp_tool", "Calls MCP", "mcp_call", "server.method");
 
@@ -70,8 +63,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateToolAsync_WithGroupName_SavesGroupName()
-    {
+    public async Task CreateToolAsync_WithGroupName_SavesGroupName() {
         var result = await _handlers.CreateToolAsync(
             "grouped_tool", "Grouped", "shell", "ls", groupName: "my_group");
 
@@ -81,8 +73,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateToolAsync_WithParameters_ParsesCorrectly()
-    {
+    public async Task CreateToolAsync_WithParameters_ParsesCorrectly() {
         var paramsJson = """[{"name":"input","description":"Input param","type":"string","required":true},{"name":"count","description":"Count","type":"integer","required":false}]""";
 
         var result = await _handlers.CreateToolAsync(
@@ -98,8 +89,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateToolAsync_InvalidParametersJson_SkipsParameters()
-    {
+    public async Task CreateToolAsync_InvalidParametersJson_SkipsParameters() {
         var result = await _handlers.CreateToolAsync(
             "bad_params", "Bad params", "shell", "echo", "not json {{{");
 
@@ -109,8 +99,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CreateToolAsync_RegistrationFails_StillSavesTemplate()
-    {
+    public async Task CreateToolAsync_RegistrationFails_StillSavesTemplate() {
         _registry.ShouldFailRegistration = true;
 
         var result = await _handlers.CreateToolAsync(
@@ -123,16 +112,14 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ListTemplatesAsync_NoTemplates_ReturnsEmptyMessage()
-    {
+    public async Task ListTemplatesAsync_NoTemplates_ReturnsEmptyMessage() {
         var result = await _handlers.ListTemplatesAsync();
         result.IsError.Should().BeFalse();
         GetText(result).Should().Contain("暂无工具模板");
     }
 
     [Fact]
-    public async Task ListTemplatesAsync_WithTemplates_ShowsList()
-    {
+    public async Task ListTemplatesAsync_WithTemplates_ShowsList() {
         await _handlers.CreateToolAsync("tool_a", "Tool A", "shell", "echo");
         await _handlers.CreateToolAsync("tool_b", "Tool B", "mcp_call", "srv.method");
 
@@ -144,8 +131,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ShowTemplateAsync_ExistingTemplate_ShowsDetails()
-    {
+    public async Task ShowTemplateAsync_ExistingTemplate_ShowsDetails() {
         await _handlers.CreateToolAsync(
             "detail_tool", "A detailed tool", "shell", "ls -la",
             """[{"name":"dir","description":"Directory","type":"string","required":true}]""",
@@ -161,16 +147,14 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ShowTemplateAsync_NonExistent_ReturnsError()
-    {
+    public async Task ShowTemplateAsync_NonExistent_ReturnsError() {
         var result = await _handlers.ShowTemplateAsync("nonexistent");
         result.IsError.Should().BeTrue();
         GetText(result).Should().Contain("不存在");
     }
 
     [Fact]
-    public async Task ShowTemplateAsync_SearchById_Works()
-    {
+    public async Task ShowTemplateAsync_SearchById_Works() {
         await _handlers.CreateToolAsync("search-tool", "Searchable", "shell", "find");
 
         var result = await _handlers.ShowTemplateAsync("search_tool");
@@ -179,8 +163,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ExecuteToolAsync_UnknownTool_ShouldReturnErrorNotThrow()
-    {
+    public async Task ExecuteToolAsync_UnknownTool_ShouldReturnErrorNotThrow() {
         var act = async () => await _registry.ExecuteToolAsync("unknown", new Dictionary<string, JsonElement>(), default).ConfigureAwait(true);
 
         await act.Should().NotThrowAsync().ConfigureAwait(true);
@@ -188,24 +171,20 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
         result.IsError.Should().BeTrue();
     }
 
-    private sealed class MockTemplateService : IToolTemplateService
-    {
+    private sealed class MockTemplateService : IToolTemplateService {
         public Dictionary<string, ToolTemplate> SavedTemplates { get; } = new(StringComparer.OrdinalIgnoreCase);
         private List<ToolTemplate> _templates = [];
 
-        public Task<IReadOnlyList<ToolTemplate>> LoadTemplatesAsync(CancellationToken ct = default)
-        {
+        public Task<IReadOnlyList<ToolTemplate>> LoadTemplatesAsync(CancellationToken ct = default) {
             _templates = [.. SavedTemplates.Values];
             return Task.FromResult<IReadOnlyList<ToolTemplate>>(_templates);
         }
 
-        public Task<IToolHandler> CreateAndRegisterAsync(ToolTemplate template, IToolRegistry registry, CancellationToken ct = default)
-        {
+        public Task<IToolHandler> CreateAndRegisterAsync(ToolTemplate template, IToolRegistry registry, CancellationToken ct = default) {
             var handler = new DelegateToolHandler(
                 template.ToolName, template.Description,
                 new ToolSchema(),
-                static (name, args, ct, onProgress) => Task.FromResult(new ToolResult
-                {
+                static (name, args, ct, onProgress) => Task.FromResult(new ToolResult {
                     Content = [new() { Type = ToolContentType.Text, Text = $"executed {name}" }]
                 }),
                 ToolKind.Mcp, template.GroupName);
@@ -213,34 +192,29 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
             return registry.RegisterToolAsync(handler, ct).ContinueWith(_ => (IToolHandler)handler, ct);
         }
 
-        public Task SaveTemplateAsync(ToolTemplate template, CancellationToken ct = default)
-        {
+        public Task SaveTemplateAsync(ToolTemplate template, CancellationToken ct = default) {
             SavedTemplates[template.Id] = template;
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<ToolTemplate>> ListTemplatesAsync(CancellationToken ct = default)
-        {
+        public Task<IReadOnlyList<ToolTemplate>> ListTemplatesAsync(CancellationToken ct = default) {
             if (_templates.Count == 0 && SavedTemplates.Count > 0)
                 _templates = [.. SavedTemplates.Values];
             return Task.FromResult<IReadOnlyList<ToolTemplate>>(_templates);
         }
     }
 
-    private sealed class MockToolRegistry : IToolRegistry
-    {
+    private sealed class MockToolRegistry : IToolRegistry {
         public Dictionary<string, IToolHandler> RegisteredHandlers { get; } = new(StringComparer.OrdinalIgnoreCase);
         public bool ShouldFailRegistration { get; set; }
 
-        public Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default)
-        {
+        public Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default) {
             if (ShouldFailRegistration) throw new InvalidOperationException("Mock registration failure");
             RegisteredHandlers[handler.Name] = handler;
             return Task.CompletedTask;
         }
 
-        public Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null)
-        {
+        public Task RegisterToolAsync(string name, string description, ToolSchema inputSchema, ToolHandler handler, CancellationToken cancellationToken = default, ToolKind kind = ToolKind.System, string? groupName = null, ToolTimeoutPolicy? timeoutPolicy = null, string? category = null) {
             if (ShouldFailRegistration) throw new InvalidOperationException("Mock registration failure");
             var toolHandler = new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy, category);
             RegisteredHandlers[name] = toolHandler;
@@ -256,14 +230,11 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
         public Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyDictionary<string, IToolHandler>>(RegisteredHandlers);
 
-        public async Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default, ToolProgressCallback? onProgress = null)
-        {
-            if (RegisteredHandlers.TryGetValue(toolName, out var handler))
-            {
+        public async Task<ToolResult> ExecuteToolAsync(string toolName, Dictionary<string, JsonElement> arguments, CancellationToken cancellationToken = default, ToolProgressCallback? onProgress = null) {
+            if (RegisteredHandlers.TryGetValue(toolName, out var handler)) {
                 return await handler.ExecuteAsync(arguments, cancellationToken, onProgress);
             }
-            return new ToolResult
-            {
+            return new ToolResult {
                 IsError = true,
                 Content = [new() { Type = ToolContentType.Text, Text = $"Tool '{toolName}' not found" }]
             };
@@ -281,8 +252,7 @@ public sealed class ToolCreationToolHandlersTest : IAsyncLifetime
         public Task<int> GetCountAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(RegisteredHandlers.Count);
 
-        public Task ClearAsync(CancellationToken cancellationToken = default)
-        {
+        public Task ClearAsync(CancellationToken cancellationToken = default) {
             RegisteredHandlers.Clear();
             return Task.CompletedTask;
         }

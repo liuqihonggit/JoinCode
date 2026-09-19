@@ -4,8 +4,7 @@ namespace Infrastructure.EntityReaper;
 /// 后台实体回收调度服务 — 定期调用 EntityReaper.ScanOnce()
 /// 启动后延迟 30 秒执行首次扫描，之后按 ScanInterval 循环扫描
 /// </summary>
-public sealed class BackgroundEntityReaperService : PeriodicBackgroundServiceBase
-{
+public sealed class BackgroundEntityReaperService : PeriodicBackgroundServiceBase {
     private readonly IEntityReaper _reaper;
     private readonly IClockService _clock;
     private readonly EntityReaperConfig _config;
@@ -33,8 +32,7 @@ public sealed class BackgroundEntityReaperService : PeriodicBackgroundServiceBas
         IEntityReaper reaper,
         IClockService clock,
         EntityReaperConfig? config = null,
-        ILogger<BackgroundEntityReaperService>? logger = null)
-    {
+        ILogger<BackgroundEntityReaperService>? logger = null) {
         _reaper = reaper;
         _clock = clock;
         _config = config ?? new EntityReaperConfig();
@@ -42,8 +40,7 @@ public sealed class BackgroundEntityReaperService : PeriodicBackgroundServiceBas
     }
 
     /// <inheritdoc/>
-    protected override Task ExecuteAsync(CancellationToken cancellationToken)
-    {
+    protected override Task ExecuteAsync(CancellationToken cancellationToken) {
         _reaper.ScanOnce();
         return Task.CompletedTask;
     }

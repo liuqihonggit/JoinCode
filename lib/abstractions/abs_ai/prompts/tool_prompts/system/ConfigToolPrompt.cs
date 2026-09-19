@@ -4,20 +4,17 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// ConfigTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = InteractionToolName.Config, Category = ToolPromptCategory.System)]
-public static class ConfigToolPrompt
-{
+public static class ConfigToolPrompt {
     public const string Description = "获取或设置配置设置。";
 
     /// <summary>
     /// 生成提示词文档
     /// </summary>
-    public static string GeneratePrompt(Dictionary<string, ConfigSetting> supportedSettings, List<ModelOption> modelOptions)
-    {
+    public static string GeneratePrompt(Dictionary<string, ConfigSetting> supportedSettings, List<ModelOption> modelOptions) {
         var globalSettings = new List<string>();
         var projectSettings = new List<string>();
 
-        foreach (var (key, config) in supportedSettings)
-        {
+        foreach (var (key, config) in supportedSettings) {
             if (key == "model") continue;
 
             var options = GetOptionsForSetting(key, config);
@@ -25,13 +22,10 @@ public static class ConfigToolPrompt
             lineBuilder.Append("- ");
             lineBuilder.Append(key);
 
-            if (!string.IsNullOrEmpty(options))
-            {
+            if (!string.IsNullOrEmpty(options)) {
                 lineBuilder.Append(": ");
                 lineBuilder.Append(options);
-            }
-            else if (config.Type == "boolean")
-            {
+            } else if (config.Type == "boolean") {
                 lineBuilder.Append(": true/false");
             }
 
@@ -40,12 +34,9 @@ public static class ConfigToolPrompt
 
             var line = lineBuilder.ToString();
 
-            if (config.Source == "global")
-            {
+            if (config.Source == "global") {
                 globalSettings.Add(line);
-            }
-            else
-            {
+            } else {
                 projectSettings.Add(line);
             }
         }
@@ -81,24 +72,19 @@ public static class ConfigToolPrompt
 ";
     }
 
-    private static string GetOptionsForSetting(string key, ConfigSetting config)
-    {
+    private static string GetOptionsForSetting(string key, ConfigSetting config) {
         // 优先使用动态选项，其次静态选项
         var options = config.GetOptions != null ? config.GetOptions() : config.Options;
-        if (options is { Length: > 0 })
-        {
+        if (options is { Length: > 0 }) {
             return string.Join(", ", options.Select(o => $"\"{o}\""));
         }
 
         return "";
     }
 
-    private static string GenerateModelSection(List<ModelOption> modelOptions)
-    {
-        if (modelOptions.Count > 0)
-        {
-            var lines = modelOptions.Select(o =>
-            {
+    private static string GenerateModelSection(List<ModelOption> modelOptions) {
+        if (modelOptions.Count > 0) {
+            var lines = modelOptions.Select(o => {
                 var value = o.Value == null ? "null/\"default\"" : $"\"{o.Value}\"";
                 return $"  - {value}: {o.DescriptionForModel ?? o.Description}";
             }).ToArray();

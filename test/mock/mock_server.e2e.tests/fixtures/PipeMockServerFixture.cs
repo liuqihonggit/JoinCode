@@ -5,8 +5,7 @@ namespace MockServer.E2E.Tests.Fixtures;
 /// 管道 Mock Server Fixture
 /// 实现 IAsyncLifetime 接口用于 xUnit 测试生命周期管理
 /// </summary>
-public sealed class PipeMockServerFixture : IAsyncLifetime
-{
+public sealed class PipeMockServerFixture : IAsyncLifetime {
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<PipeMockServerFixture> _logger;
     private PipeOpenAIMockServer? _mockServer;
@@ -29,13 +28,11 @@ public sealed class PipeMockServerFixture : IAsyncLifetime
     /// </summary>
     public bool IsInitialized => _mockServer != null && _requestRecorder != null;
 
-    public PipeMockServerFixture()
-    {
+    public PipeMockServerFixture() {
         // 加载 .env 文件中的环境变量
         EnvFileLoader.LoadFromDirectory(new IO.FileSystem.PhysicalFileSystem());
 
-        _loggerFactory = LoggerFactory.Create(builder =>
-        {
+        _loggerFactory = LoggerFactory.Create(builder => {
             builder.AddConsole();
             builder.SetMinimumLevel(LogLevel.Debug);
         });
@@ -45,8 +42,7 @@ public sealed class PipeMockServerFixture : IAsyncLifetime
     /// <summary>
     /// 初始化 Fixture - 启动 Mock Server
     /// </summary>
-    public async Task InitializeAsync()
-    {
+    public async Task InitializeAsync() {
         _logger.LogInformation("[{Fixture}] 初始化 Fixture", nameof(PipeMockServerFixture));
 
         _requestRecorder = new RequestRecorder();
@@ -72,12 +68,10 @@ public sealed class PipeMockServerFixture : IAsyncLifetime
     /// <summary>
     /// 释放 Fixture - 停止 Mock Server
     /// </summary>
-    public async Task DisposeAsync()
-    {
+    public async Task DisposeAsync() {
         _logger.LogInformation("[{Fixture}] 释放 Fixture", nameof(PipeMockServerFixture));
 
-        if (_mockServer != null)
-        {
+        if (_mockServer != null) {
             await _mockServer.StopAsync(CancellationToken.None);
             await _mockServer.DisposeAsync();
             _mockServer = null;
@@ -94,10 +88,8 @@ public sealed class PipeMockServerFixture : IAsyncLifetime
     /// <summary>
     /// 获取管道名称（用于客户端连接）
     /// </summary>
-    public string GetPipeName()
-    {
-        if (_mockServer == null)
-        {
+    public string GetPipeName() {
+        if (_mockServer == null) {
             throw new InvalidOperationException("Mock Server not started. Call InitializeAsync first.");
         }
 

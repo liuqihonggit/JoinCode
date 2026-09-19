@@ -8,8 +8,7 @@ namespace JoinCode.Abstractions.Utils;
 /// RelaxedOptions 按 Context 缓存（ConditionalWeakTable），避免每次序列化重复创建。
 /// Deserialize 统一入口，继承 Context 声明的宽容策略（AllowTrailingCommas/PropertyNameCaseInsensitive/ReadCommentHandling）。
 /// </summary>
-public static class RelaxedJsonSerializer
-{
+public static class RelaxedJsonSerializer {
     private static readonly ConditionalWeakTable<JsonSerializerContext, JsonSerializerOptions> s_cache = new();
 
     /// <summary>
@@ -42,8 +41,7 @@ public static class RelaxedJsonSerializer
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "TypeInfoResolver 为源码生成的 JsonSerializerContext，所有类型已静态 rooted，AOT 安全。")]
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "TypeInfoResolver 为源码生成的 JsonSerializerContext，无需运行时反射 emit。")]
-    public static T? Deserialize<T>(string json, JsonSerializerContext context)
-    {
+    public static T? Deserialize<T>(string json, JsonSerializerContext context) {
         if (string.IsNullOrWhiteSpace(json))
             return default;
         var clean = json.AsSpan().Trim();
@@ -60,8 +58,7 @@ public static class RelaxedJsonSerializer
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "JsonTypeInfo<T> 为源码生成，所有类型已静态 rooted，AOT 安全。")]
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsonTypeInfo<T> 为源码生成，无需运行时反射 emit。")]
-    public static T? Deserialize<T>(string json, JsonTypeInfo<T> typeInfo)
-    {
+    public static T? Deserialize<T>(string json, JsonTypeInfo<T> typeInfo) {
         if (string.IsNullOrWhiteSpace(json))
             return default;
         var clean = json.AsSpan().Trim();
@@ -76,8 +73,7 @@ public static class RelaxedJsonSerializer
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "JsonTypeInfo<T> 为源码生成，所有类型已静态 rooted，AOT 安全。")]
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsonTypeInfo<T> 为源码生成，无需运行时反射 emit。")]
-    public static async Task<T?> DeserializeAsync<T>(Stream stream, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default)
-    {
+    public static async Task<T?> DeserializeAsync<T>(Stream stream, JsonTypeInfo<T> typeInfo, CancellationToken cancellationToken = default) {
         using var reader = stream.AsUtf8Reader();
         var json = await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
         return Deserialize<T>(json, typeInfo);
@@ -96,8 +92,7 @@ public static class RelaxedJsonSerializer
     /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "JsonTypeInfo<T> 为源码生成，所有类型已静态 rooted，AOT 安全。")]
     [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "JsonTypeInfo<T> 为源码生成，无需运行时反射 emit。")]
-    public static T? Deserialize<T>(ReadOnlySpan<char> json, JsonTypeInfo<T> typeInfo)
-    {
+    public static T? Deserialize<T>(ReadOnlySpan<char> json, JsonTypeInfo<T> typeInfo) {
         if (json.IsEmpty)
             return default;
         var clean = json.Trim();

@@ -6,10 +6,8 @@ namespace MockServer.E2E.Tests.Scripts;
 /// 链路: jcc 启动 → AST 构造(stderr 打印 [STEP] CodeIndexService.StartAsync done, elapsed=Xms) → LLM 调用 code_index_* 工具验证查询链路
 /// WorkingDirectory 由 ResolveAstWorkingDirectory() 解析: 从测试程序集位置向上查找仓库根目录(含 JoinCode.slnx)
 /// </summary>
-public static class AstIntegrationScripts
-{
-    public static ConversationScript AstStartupAndQueryLinks => new()
-    {
+public static class AstIntegrationScripts {
+    public static ConversationScript AstStartupAndQueryLinks => new() {
         Name = "AST启动构造并验证查询链路",
         WorkingDirectory = ResolveAstWorkingDirectory(),
         Turns =
@@ -128,16 +126,13 @@ public static class AstIntegrationScripts
     /// 1. 从测试程序集位置向上查找仓库根目录(包含 JoinCode.slnx)
     /// 2. 兜底: 当前目录
     /// </summary>
-    private static string ResolveAstWorkingDirectory()
-    {
+    private static string ResolveAstWorkingDirectory() {
         var fs = TestConfiguration.FileSystem;
 
         // 从测试程序集位置向上查找仓库根目录(包含 JoinCode.slnx)
         var dir = AppContext.BaseDirectory;
-        while (!string.IsNullOrEmpty(dir))
-        {
-            if (fs.FileExists(fs.CombinePath(dir, "JoinCode.slnx")))
-            {
+        while (!string.IsNullOrEmpty(dir)) {
+            if (fs.FileExists(fs.CombinePath(dir, "JoinCode.slnx"))) {
                 return dir;
             }
             var parent = fs.GetParentPath(dir);

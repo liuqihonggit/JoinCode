@@ -1,8 +1,7 @@
 
 namespace Api.LLM;
 
-internal sealed class AnthropicMessagesRequest
-{
+internal sealed class AnthropicMessagesRequest {
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
@@ -62,8 +61,7 @@ internal sealed class AnthropicMessagesRequest
     public AnthropicContextManagement? ContextManagement { get; set; }
 }
 
-internal sealed class AnthropicThinkingConfig
-{
+internal sealed class AnthropicThinkingConfig {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "enabled";
 
@@ -71,8 +69,7 @@ internal sealed class AnthropicThinkingConfig
     public int BudgetTokens { get; set; }
 }
 
-internal sealed class AnthropicSystemContentBlock
-{
+internal sealed class AnthropicSystemContentBlock {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "text";
 
@@ -92,8 +89,7 @@ internal sealed class AnthropicSystemContentBlock
 /// 使用 JsonConverter 实现 AOT 兼容的多态序列化
 /// </summary>
 [JsonConverter(typeof(AnthropicMessageContentConverter))]
-internal sealed class AnthropicMessageContent
-{
+internal sealed class AnthropicMessageContent {
     public string? Text { get; init; }
     public List<AnthropicContentBlock> Blocks { get; init; } = [];
 
@@ -107,8 +103,7 @@ internal sealed class AnthropicMessageContent
         new() { Blocks = blocks };
 }
 
-internal sealed class AnthropicMessage
-{
+internal sealed class AnthropicMessage {
     [JsonPropertyName("role")]
     public string Role { get; set; } = string.Empty;
 
@@ -117,8 +112,7 @@ internal sealed class AnthropicMessage
     public AnthropicMessageContent? Content { get; set; }
 }
 
-internal abstract class AnthropicContentBlock
-{
+internal abstract class AnthropicContentBlock {
     [JsonPropertyName("type")]
     [JsonConverter(typeof(AnthropicContentBlockTypeConverter))]
     public AnthropicContentBlockType Type { get; set; } = AnthropicContentBlockType.Text;
@@ -128,16 +122,14 @@ internal abstract class AnthropicContentBlock
     public AnthropicCacheControl? CacheControl { get; set; }
 }
 
-internal sealed class AnthropicTextBlock : AnthropicContentBlock
-{
+internal sealed class AnthropicTextBlock : AnthropicContentBlock {
     [JsonPropertyName("text")]
     public string Text { get; set; } = string.Empty;
 
     public AnthropicTextBlock() => Type = AnthropicContentBlockType.Text;
 }
 
-internal sealed class AnthropicToolUseBlock : AnthropicContentBlock
-{
+internal sealed class AnthropicToolUseBlock : AnthropicContentBlock {
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
@@ -150,8 +142,7 @@ internal sealed class AnthropicToolUseBlock : AnthropicContentBlock
     public AnthropicToolUseBlock() => Type = AnthropicContentBlockType.ToolUse;
 }
 
-internal sealed class AnthropicToolResultBlock : AnthropicContentBlock
-{
+internal sealed class AnthropicToolResultBlock : AnthropicContentBlock {
     [JsonPropertyName("tool_use_id")]
     public string ToolUseId { get; set; } = string.Empty;
 
@@ -165,8 +156,7 @@ internal sealed class AnthropicToolResultBlock : AnthropicContentBlock
     public AnthropicToolResultBlock() => Type = AnthropicContentBlockType.ToolResult;
 }
 
-internal sealed class AnthropicCacheControl
-{
+internal sealed class AnthropicCacheControl {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "ephemeral";
 
@@ -179,8 +169,7 @@ internal sealed class AnthropicCacheControl
     public string? Ttl { get; set; }
 }
 
-internal sealed class AnthropicToolDefinition
-{
+internal sealed class AnthropicToolDefinition {
     [JsonPropertyName("type")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public string? Type { get; set; }
@@ -217,22 +206,19 @@ internal sealed class AnthropicToolDefinition
     public List<string> BlockedDomains { get; set; } = [];
 }
 
-internal sealed class AnthropicInputSchema : InputSchemaBase
-{
+internal sealed class AnthropicInputSchema : InputSchemaBase {
     [JsonPropertyName("properties")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, AnthropicSchemaProperty> Properties { get; set; } = [];
 }
 
-internal sealed class AnthropicSchemaProperty : SchemaProperty
-{
+internal sealed class AnthropicSchemaProperty : SchemaProperty {
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<string> Enum { get; set; } = [];
 }
 
-internal sealed class AnthropicMessagesResponse
-{
+internal sealed class AnthropicMessagesResponse {
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
@@ -257,8 +243,7 @@ internal sealed class AnthropicMessagesResponse
     public AnthropicUsage? Usage { get; set; }
 }
 
-internal sealed class AnthropicResponseContentBlock
-{
+internal sealed class AnthropicResponseContentBlock {
     [JsonPropertyName("type")]
     [JsonConverter(typeof(AnthropicContentBlockTypeConverter))]
     public AnthropicContentBlockType Type { get; set; } = AnthropicContentBlockType.Text;
@@ -294,8 +279,7 @@ internal sealed class AnthropicResponseContentBlock
 /// InputTokens → PromptTokens, OutputTokens → CompletionTokens,
 /// CacheCreationInputTokens → CacheCreationInputTokens, CacheReadInputTokens → CacheReadInputTokens
 /// </summary>
-internal sealed class AnthropicUsage
-{
+internal sealed class AnthropicUsage {
     [JsonPropertyName("input_tokens")]
     public int InputTokens { get; set; }
 
@@ -315,14 +299,12 @@ internal sealed class AnthropicUsage
     public AnthropicOutputTokensDetails? OutputTokensDetails { get; set; }
 }
 
-internal sealed class AnthropicOutputTokensDetails
-{
+internal sealed class AnthropicOutputTokensDetails {
     [JsonPropertyName("reasoning_tokens")]
     public int ReasoningTokens { get; set; }
 }
 
-internal sealed class AnthropicStreamingEvent
-{
+internal sealed class AnthropicStreamingEvent {
     [JsonPropertyName("type")]
     [JsonConverter(typeof(AnthropicStreamingEventTypeConverter))]
     public AnthropicStreamingEventType Type { get; set; } = default;
@@ -348,8 +330,7 @@ internal sealed class AnthropicStreamingEvent
     public AnthropicUsage? Usage { get; set; }
 }
 
-internal sealed class AnthropicStreamingDelta
-{
+internal sealed class AnthropicStreamingDelta {
     [JsonPropertyName("type")]
     [JsonConverter(typeof(AnthropicDeltaTypeConverter))]
     [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
@@ -376,8 +357,7 @@ internal sealed class AnthropicStreamingDelta
 /// <summary>
 /// API 端上下文管理 — 对齐 TS ContextManagementConfig
 /// </summary>
-internal sealed class AnthropicContextManagement
-{
+internal sealed class AnthropicContextManagement {
     [JsonPropertyName("edits")]
     public List<AnthropicContextEditStrategy> Edits { get; set; } = new();
 }
@@ -394,8 +374,7 @@ internal abstract class AnthropicContextEditStrategy;
 /// <summary>
 /// 清除工具使用记录策略 — 对齐 TS clear_tool_uses_20250919
 /// </summary>
-internal sealed class AnthropicClearToolUsesStrategy : AnthropicContextEditStrategy
-{
+internal sealed class AnthropicClearToolUsesStrategy : AnthropicContextEditStrategy {
     [JsonPropertyName("trigger")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AnthropicContextTrigger? Trigger { get; set; }
@@ -420,14 +399,12 @@ internal sealed class AnthropicClearToolUsesStrategy : AnthropicContextEditStrat
 /// <summary>
 /// 清除 thinking 块策略 — 对齐 TS clear_thinking_20251015
 /// </summary>
-internal sealed class AnthropicClearThinkingStrategy : AnthropicContextEditStrategy
-{
+internal sealed class AnthropicClearThinkingStrategy : AnthropicContextEditStrategy {
     [JsonPropertyName("keep")]
     public required JsonElement Keep { get; set; }
 }
 
-internal class AnthropicContextPolicyValue
-{
+internal class AnthropicContextPolicyValue {
     [JsonPropertyName("type")]
     public required string Type { get; set; }
     [JsonPropertyName("value")]
@@ -441,8 +418,7 @@ internal sealed class AnthropicContextTokenThreshold : AnthropicContextPolicyVal
 /// <summary>
 /// Anthropic tool_choice 参数 — 替代匿名类型以满足 AOT 兼容性
 /// </summary>
-internal sealed class AnthropicToolChoice
-{
+internal sealed class AnthropicToolChoice {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "auto";
 
@@ -462,24 +438,18 @@ internal sealed class AnthropicToolChoice
 /// 序列化：Text → 直接写字符串，Blocks → 写数组
 /// 反序列化：字符串 → Text，数组 → Blocks
 /// </summary>
-internal sealed class AnthropicMessageContentConverter : JsonConverter<AnthropicMessageContent?>
-{
-    public override AnthropicMessageContent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType == JsonTokenType.String)
-        {
+internal sealed class AnthropicMessageContentConverter : JsonConverter<AnthropicMessageContent?> {
+    public override AnthropicMessageContent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
+        if (reader.TokenType == JsonTokenType.String) {
             return new AnthropicMessageContent { Text = reader.GetString() };
         }
 
-        if (reader.TokenType == JsonTokenType.StartArray)
-        {
+        if (reader.TokenType == JsonTokenType.StartArray) {
             var blocks = new List<AnthropicContentBlock>();
             using var doc = JsonDocument.ParseValue(ref reader);
-            foreach (var element in doc.RootElement.EnumerateArray())
-            {
+            foreach (var element in doc.RootElement.EnumerateArray()) {
                 var typeStr = element.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : null;
-                var block = typeStr switch
-                {
+                var block = typeStr switch {
                     "text" => (AnthropicContentBlock?)element.Deserialize(AnthropicJsonContext.Default.AnthropicTextBlock),
                     "tool_use" => element.Deserialize(AnthropicJsonContext.Default.AnthropicToolUseBlock),
                     "tool_result" => element.Deserialize(AnthropicJsonContext.Default.AnthropicToolResultBlock),
@@ -495,39 +465,33 @@ internal sealed class AnthropicMessageContentConverter : JsonConverter<Anthropic
         return null;
     }
 
-    public override void Write(Utf8JsonWriter writer, AnthropicMessageContent? value, JsonSerializerOptions options)
-    {
-        if (value is null)
-        {
+    public override void Write(Utf8JsonWriter writer, AnthropicMessageContent? value, JsonSerializerOptions options) {
+        if (value is null) {
             writer.WriteNullValue();
             return;
         }
 
-        if (value.Text is not null)
-        {
+        if (value.Text is not null) {
             writer.WriteStringValue(value.Text);
             return;
         }
 
-        if (value.Blocks.Count > 0)
-        {
+        if (value.Blocks.Count > 0) {
             writer.WriteStartArray();
-            foreach (var block in value.Blocks)
-            {
-                switch (block)
-                {
+            foreach (var block in value.Blocks) {
+                switch (block) {
                     case AnthropicTextBlock tb:
-                        JsonSerializer.Serialize(writer, tb, AnthropicJsonContext.Default.AnthropicTextBlock);
-                        break;
+                    JsonSerializer.Serialize(writer, tb, AnthropicJsonContext.Default.AnthropicTextBlock);
+                    break;
                     case AnthropicToolUseBlock tub:
-                        JsonSerializer.Serialize(writer, tub, AnthropicJsonContext.Default.AnthropicToolUseBlock);
-                        break;
+                    JsonSerializer.Serialize(writer, tub, AnthropicJsonContext.Default.AnthropicToolUseBlock);
+                    break;
                     case AnthropicToolResultBlock trb:
-                        JsonSerializer.Serialize(writer, trb, AnthropicJsonContext.Default.AnthropicToolResultBlock);
-                        break;
+                    JsonSerializer.Serialize(writer, trb, AnthropicJsonContext.Default.AnthropicToolResultBlock);
+                    break;
                     default:
-                        JsonSerializer.Serialize(writer, block, AnthropicJsonContext.Default.AnthropicContentBlock);
-                        break;
+                    JsonSerializer.Serialize(writer, block, AnthropicJsonContext.Default.AnthropicContentBlock);
+                    break;
                 }
             }
             writer.WriteEndArray();

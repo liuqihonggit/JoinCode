@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 派生自 Entity, 纳入 EntityReaper 回收体系, 会话级隔离
 /// 过期或会话结束时自动 Dispose
 /// </summary>
-public sealed class CacheEntryEntity<T> : Entity
-{
+public sealed class CacheEntryEntity<T> : Entity {
     /// <summary>缓存键</summary>
     public string CacheKey { get; }
 
@@ -34,8 +33,7 @@ public sealed class CacheEntryEntity<T> : Entity
         long sizeBytes = 0,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(ObjectType.Cache, sessionId, displayName ?? cacheKey)
-    {
+        : base(ObjectType.Cache, sessionId, displayName ?? cacheKey) {
         CacheKey = cacheKey;
         Value = value;
         ExpiresAt = ttl.HasValue ? DateTime.UtcNow + ttl.Value : null;
@@ -43,8 +41,7 @@ public sealed class CacheEntryEntity<T> : Entity
         Registry.Add(ObjectId, this);
     }
 
-    public override void Dispose()
-    {
+    public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
@@ -56,8 +53,7 @@ public sealed class CacheEntryEntity<T> : Entity
         => IsExpired || base.CanReclaim();
 
     /// <summary>命中 — 计数+1, 刷新活跃时刻</summary>
-    public void OnHit()
-    {
+    public void OnHit() {
         HitCount++;
         Touch();
     }
@@ -66,8 +62,7 @@ public sealed class CacheEntryEntity<T> : Entity
 /// <summary>
 /// 缓存项全局注册器 — EntityReaper 统一扫描回收
 /// </summary>
-public sealed class CacheEntryEntityRegistry : MapRegistry<ObjectId, Entity>
-{
+public sealed class CacheEntryEntityRegistry : MapRegistry<ObjectId, Entity> {
     internal void Add(ObjectId id, Entity entry) => AddCore(id, entry);
     internal bool Remove(ObjectId id) => RemoveCore(id);
     public IEnumerable<Entity> GetExpired() => Where(e => e is CacheEntryEntity<object> c && c.IsExpired);

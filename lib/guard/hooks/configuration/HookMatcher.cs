@@ -4,8 +4,7 @@ namespace Core.Hooks.Configuration;
 /// <summary>
 /// 钩子匹配器
 /// </summary>
-public sealed record HookMatcher
-{
+public sealed record HookMatcher {
     /// <summary>
     /// 匹配器值（如工具名、通知类型等）
     /// </summary>
@@ -24,10 +23,8 @@ public sealed record HookMatcher
     /// <summary>
     /// 创建匹配器
     /// </summary>
-    public static HookMatcher Create(string? matcher, params HookCommand[] hooks)
-    {
-        return new HookMatcher
-        {
+    public static HookMatcher Create(string? matcher, params HookCommand[] hooks) {
+        return new HookMatcher {
             Matcher = matcher,
             Hooks = hooks.ToList()
         };
@@ -36,10 +33,8 @@ public sealed record HookMatcher
     /// <summary>
     /// 创建适用于所有情况的匹配器
     /// </summary>
-    public static HookMatcher CreateForAll(params HookCommand[] hooks)
-    {
-        return new HookMatcher
-        {
+    public static HookMatcher CreateForAll(params HookCommand[] hooks) {
+        return new HookMatcher {
             Matcher = null,
             Hooks = hooks.ToList()
         };
@@ -49,8 +44,7 @@ public sealed record HookMatcher
 /// <summary>
 /// 带来源的钩子配置
 /// </summary>
-public sealed record SourcedHookConfig
-{
+public sealed record SourcedHookConfig {
     /// <summary>
     /// 钩子事件
     /// </summary>
@@ -84,8 +78,7 @@ public sealed record SourcedHookConfig
     /// <summary>
     /// 获取显示文本
     /// </summary>
-    public string GetDisplayText()
-    {
+    public string GetDisplayText() {
         return $"[{Source.GetInlineDisplay()}] {Command.GetDisplayText()}";
     }
 }
@@ -93,8 +86,7 @@ public sealed record SourcedHookConfig
 /// <summary>
 /// 钩子配置分组
 /// </summary>
-public sealed class HookConfigurationGroup
-{
+public sealed class HookConfigurationGroup {
     /// <summary>
     /// 按事件和匹配器分组的钩子
     /// </summary>
@@ -103,17 +95,14 @@ public sealed class HookConfigurationGroup
     /// <summary>
     /// 添加钩子配置
     /// </summary>
-    public void Add(SourcedHookConfig config)
-    {
-        if (!Groups.TryGetValue(config.Event, out var eventGroup))
-        {
+    public void Add(SourcedHookConfig config) {
+        if (!Groups.TryGetValue(config.Event, out var eventGroup)) {
             eventGroup = new Dictionary<string, List<SourcedHookConfig>>();
             Groups[config.Event] = eventGroup;
         }
 
         var matcherKey = config.Matcher ?? "";
-        if (!eventGroup.TryGetValue(matcherKey, out var hookList))
-        {
+        if (!eventGroup.TryGetValue(matcherKey, out var hookList)) {
             hookList = new List<SourcedHookConfig>();
             eventGroup[matcherKey] = hookList;
         }
@@ -124,10 +113,8 @@ public sealed class HookConfigurationGroup
     /// <summary>
     /// 获取事件的匹配器列表 — 零拷贝键视图
     /// </summary>
-    public IEnumerable<string> GetMatchers(HookEvent hookEvent)
-    {
-        if (!Groups.TryGetValue(hookEvent, out var eventGroup))
-        {
+    public IEnumerable<string> GetMatchers(HookEvent hookEvent) {
+        if (!Groups.TryGetValue(hookEvent, out var eventGroup)) {
             return Array.Empty<string>();
         }
 
@@ -137,17 +124,14 @@ public sealed class HookConfigurationGroup
     /// <summary>
     /// 获取特定事件和匹配器的钩子
     /// </summary>
-    public IReadOnlyList<SourcedHookConfig> GetHooks(HookEvent hookEvent, string? matcher)
-    {
+    public IReadOnlyList<SourcedHookConfig> GetHooks(HookEvent hookEvent, string? matcher) {
         var matcherKey = matcher ?? "";
 
-        if (!Groups.TryGetValue(hookEvent, out var eventGroup))
-        {
+        if (!Groups.TryGetValue(hookEvent, out var eventGroup)) {
             return Array.Empty<SourcedHookConfig>();
         }
 
-        if (!eventGroup.TryGetValue(matcherKey, out var hookList))
-        {
+        if (!eventGroup.TryGetValue(matcherKey, out var hookList)) {
             return Array.Empty<SourcedHookConfig>();
         }
 
@@ -157,10 +141,8 @@ public sealed class HookConfigurationGroup
     /// <summary>
     /// 获取特定事件的所有钩子
     /// </summary>
-    public IReadOnlyList<SourcedHookConfig> GetAllHooksForEvent(HookEvent hookEvent)
-    {
-        if (!Groups.TryGetValue(hookEvent, out var eventGroup))
-        {
+    public IReadOnlyList<SourcedHookConfig> GetAllHooksForEvent(HookEvent hookEvent) {
+        if (!Groups.TryGetValue(hookEvent, out var eventGroup)) {
             return Array.Empty<SourcedHookConfig>();
         }
 
@@ -170,8 +152,7 @@ public sealed class HookConfigurationGroup
     /// <summary>
     /// 获取排序后的匹配器（按来源优先级）
     /// </summary>
-    public IReadOnlyList<string> GetSortedMatchers(HookEvent hookEvent)
-    {
+    public IReadOnlyList<string> GetSortedMatchers(HookEvent hookEvent) {
         var matchers = GetMatchers(hookEvent);
 
         return matchers
@@ -180,8 +161,7 @@ public sealed class HookConfigurationGroup
             .ToList();
     }
 
-    private int GetMatcherPriority(HookEvent hookEvent, string matcher)
-    {
+    private int GetMatcherPriority(HookEvent hookEvent, string matcher) {
         var hooks = GetHooks(hookEvent, matcher);
         var sources = hooks.Select(h => h.Source).Distinct();
 

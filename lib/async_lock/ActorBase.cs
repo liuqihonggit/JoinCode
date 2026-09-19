@@ -12,8 +12,7 @@ namespace Core.Utils;
 /// </summary>
 /// <typeparam name="TCommand">命令类型 — 建议用 record 或 sealed class,实现标记接口以约束合法命令</typeparam>
 /// <typeparam name="TOut">输出消息类型 — 建议用 record 或 sealed class</typeparam>
-public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDisposable
-{
+public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDisposable {
     private readonly Channel<TCommand> _inputChannel;
     private readonly Channel<TOut> _outputChannel;
     private readonly Task _consumerTask;
@@ -29,8 +28,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// 构造 Actor — 无界输入通道，无界输出通道。
     /// </summary>
     protected ActorBase()
-        : this(null, null)
-    {
+        : this(null, null) {
     }
 
     /// <summary>
@@ -39,8 +37,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="boundedCapacity">有界输入通道容量(null 为无界)</param>
     /// <param name="fullMode">有界通道满时策略</param>
     protected ActorBase(int? boundedCapacity, BoundedChannelFullMode fullMode = BoundedChannelFullMode.Wait)
-        : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null)
-    {
+        : this(boundedCapacity is null ? null : new ActorBackpressure(boundedCapacity.Value, fullMode), null) {
     }
 
     /// <summary>
@@ -48,8 +45,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     /// <param name="backpressure">输入背压配置(null=无界通道,无水位线,无超时)</param>
     /// <param name="outputCapacity">输出通道容量(null=无界)</param>
-    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null)
-    {
+    protected ActorBase(ActorBackpressure? backpressure = null, int? outputCapacity = null) {
         Id = $"{GetType().Name}-{Guid.NewGuid():N}"[..8];
         _backpressure = backpressure;
         _inputChannel = CreateInputChannel(backpressure);
@@ -61,38 +57,30 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
             TaskScheduler.Default).Unwrap();
     }
 
-    private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure)
-    {
-        if (backpressure is null || backpressure.Capacity == 0)
-        {
-            return Channel.CreateUnbounded<TCommand>(new UnboundedChannelOptions
-            {
+    private static Channel<TCommand> CreateInputChannel(ActorBackpressure? backpressure) {
+        if (backpressure is null || backpressure.Capacity == 0) {
+            return Channel.CreateUnbounded<TCommand>(new UnboundedChannelOptions {
                 SingleReader = true,
                 SingleWriter = false
             });
         }
 
-        return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(backpressure.Capacity)
-        {
+        return Channel.CreateBounded<TCommand>(new BoundedChannelOptions(backpressure.Capacity) {
             FullMode = backpressure.FullMode,
             SingleReader = true,
             SingleWriter = false
         });
     }
 
-    private static Channel<TOut> CreateOutputChannel(int? capacity)
-    {
-        if (capacity is null || capacity == 0)
-        {
-            return Channel.CreateUnbounded<TOut>(new UnboundedChannelOptions
-            {
+    private static Channel<TOut> CreateOutputChannel(int? capacity) {
+        if (capacity is null || capacity == 0) {
+            return Channel.CreateUnbounded<TOut>(new UnboundedChannelOptions {
                 SingleReader = true,
                 SingleWriter = true
             });
         }
 
-        return Channel.CreateBounded<TOut>(new BoundedChannelOptions(capacity.Value)
-        {
+        return Channel.CreateBounded<TOut>(new BoundedChannelOptions(capacity.Value) {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
             SingleWriter = true
@@ -136,27 +124,20 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ct">取消令牌</param>
     /// <exception cref="ObjectDisposedException">Actor 已释放</exception>
     /// <exception cref="TimeoutException">发送超时(背压配置了 SendTimeout 且通道满)</exception>
-    public async ValueTask SendAsync(TCommand cmd, CancellationToken ct = default)
-    {
+    public async ValueTask SendAsync(TCommand cmd, CancellationToken ct = default) {
         ThrowIfDisposed();
         CheckInputWatermark();
 
-        if (_backpressure?.SendTimeout is { } timeout)
-        {
+        if (_backpressure?.SendTimeout is { } timeout) {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             linkedCts.CancelAfter(timeout);
-            try
-            {
+            try {
                 await _inputChannel.Writer.WriteAsync(cmd, linkedCts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 throw new TimeoutException(
                     $"Actor {GetType().Name} 发送超时({timeout.TotalSeconds:F0}s),邮箱可能已满({InputCount}/{_backpressure.Capacity})");
             }
-        }
-        else
-        {
+        } else {
             await _inputChannel.Writer.WriteAsync(cmd, ct).ConfigureAwait(false);
         }
         Interlocked.Increment(ref _inputCount);
@@ -169,12 +150,10 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// </summary>
     /// <param name="cmd">命令实例</param>
     /// <returns>true 表示已入队,false 表示未入队</returns>
-    public bool TrySend(TCommand cmd)
-    {
+    public bool TrySend(TCommand cmd) {
         if (Volatile.Read(ref _disposed) != 0) return false;
         var written = _inputChannel.Writer.TryWrite(cmd);
-        if (written)
-        {
+        if (written) {
             Interlocked.Increment(ref _inputCount);
             CheckInputWatermark();
         }
@@ -184,11 +163,9 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// Actor 主动推送消息到输出 Channel — 外部通过 OutputAsync 拉取。
     /// </summary>
-    protected bool TryPublish(TOut msg)
-    {
+    protected bool TryPublish(TOut msg) {
         if (Volatile.Read(ref _disposed) != 0) return false;
-        if (_outputChannel.Writer.TryWrite(msg))
-        {
+        if (_outputChannel.Writer.TryWrite(msg)) {
             Interlocked.Increment(ref _outputCount);
             return true;
         }
@@ -198,24 +175,20 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// 外部拉取输出流 — 阻塞式 IAsyncEnumerable。
     /// </summary>
-    public async IAsyncEnumerable<TOut> OutputAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        await foreach (var item in _outputChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-        {
+    public async IAsyncEnumerable<TOut> OutputAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
+        await foreach (var item in _outputChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
             Interlocked.Decrement(ref _outputCount);
             yield return item;
         }
     }
 
-    private void CheckInputWatermark()
-    {
+    private void CheckInputWatermark() {
         if (_backpressure is null) return;
         var count = InputCount;
         var level = count >= _backpressure.EffectiveCriticalWatermark ? WatermarkLevel.Critical
                    : count >= _backpressure.EffectiveHighWatermark ? WatermarkLevel.High
                    : WatermarkLevel.Normal;
-        if (level != WatermarkLevel.Normal)
-        {
+        if (level != WatermarkLevel.Normal) {
             InputWatermarkReached?.Invoke(this, new BackpressureEventArgs(
                 GetType().Name, count, _backpressure.Capacity, level));
         }
@@ -235,33 +208,23 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="ex">命令处理异常</param>
     protected virtual void OnConsumerError(Exception ex) { }
 
-    private async Task ConsumeLoopAsync()
-    {
+    private async Task ConsumeLoopAsync() {
         using var actorScope = AsyncFlowIdentity.EnterActorScope(Id);
-        try
-        {
-            await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false))
-            {
+        try {
+            await foreach (var cmd in _inputChannel.Reader.ReadAllAsync(_cts.Token).ConfigureAwait(false)) {
                 Interlocked.Decrement(ref _inputCount);
-                try
-                {
+                try {
                     await HandleAsync(cmd, _cts.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (_cts.IsCancellationRequested)
-                {
+                } catch (OperationCanceledException) when (_cts.IsCancellationRequested) {
                     return;
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     OnConsumerError(ex);
                 }
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(GetType().Name);
     }
@@ -280,27 +243,20 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <param name="timeoutMs">超时(默认10s,超时抛死锁诊断异常)</param>
     /// <exception cref="ActorAskDeadlockException">Ask 超时 — 可能线程池饥饿导致 Consumer 无法调度</exception>
     /// <exception cref="ActorCyclicAskException">等待图检测到环 — 循环 Ask 死锁</exception>
-    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000)
-    {
+    protected async Task<T> AskAwait<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default, int timeoutMs = 10_000) {
         var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id)
-        {
+        if (callerId is not null && callerId != Id) {
             _askWaitGraph[callerId] = Id;
             if (_askWaitGraph.TryGetValue(Id, out var target) && target == callerId)
                 throw new ActorCyclicAskException(callerId, Id);
         }
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
-        try
-        {
+        try {
             return await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
-        }
-        finally
-        {
+        } finally {
             if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
     }
@@ -308,27 +264,20 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <summary>
     /// Ask 模式等待回复(无返回值) — 内置死锁检测 + 等待图环检测,非泛型重载
     /// </summary>
-    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000)
-    {
+    protected async Task AskAwait(TaskCompletionSource tcs, CancellationToken ct = default, int timeoutMs = 10_000) {
         var callerId = TryGetCallerActorId();
-        if (callerId is not null && callerId != Id)
-        {
+        if (callerId is not null && callerId != Id) {
             _askWaitGraph[callerId] = Id;
             if (_askWaitGraph.TryGetValue(Id, out var target) && target == callerId)
                 throw new ActorCyclicAskException(callerId, Id);
         }
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         linkedCts.CancelAfter(timeoutMs);
-        try
-        {
+        try {
             await tcs.Task.WaitAsync(linkedCts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             throw new ActorAskDeadlockException(GetType().Name, timeoutMs);
-        }
-        finally
-        {
+        } finally {
             if (callerId is not null) _askWaitGraph.TryRemove(callerId, out _);
         }
     }
@@ -340,17 +289,14 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
     /// <para>Consumer 用 LongRunning 专用线程运行(不占线程池),Dispose await 不会导致线程池饥饿死锁。</para>
     /// <para>设计理由:fire-and-forget 会掩盖 Consumer 未完成清理的问题,改回 await 确保资源真正释放。</para>
     /// </summary>
-    public virtual async ValueTask DisposeAsync()
-    {
+    public virtual async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _inputChannel.Writer.TryComplete();
         _outputChannel.Writer.TryComplete();
-        try
-        {
+        try {
             await _consumerTask.ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
         _cts.Dispose();
     }
 }
@@ -363,8 +309,7 @@ public abstract class ActorBase<TCommand, TOut> : IActor<TCommand>, IAsyncDispos
 /// <para>常见根因:线程池饥饿 — 所有线程被阻塞等待,Consumer 任务无法被调度。</para>
 /// <para>修复指导:Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。</para>
 /// </remarks>
-public sealed class ActorAskDeadlockException : TimeoutException
-{
+public sealed class ActorAskDeadlockException : TimeoutException {
     /// <summary>Actor 类型名</summary>
     public string ActorName { get; }
 
@@ -378,8 +323,7 @@ public sealed class ActorAskDeadlockException : TimeoutException
     /// <param name="timeoutMs">超时毫秒数</param>
     public ActorAskDeadlockException(string actorName, int timeoutMs)
         : base($"Actor {actorName} Ask 超时({timeoutMs}ms) — 可能线程池饥饿导致 Consumer 无法调度。" +
-               "Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。")
-    {
+               "Dispose 路径改用 Tell(TrySend);查询路径检查 Consumer 是否阻塞或线程池是否不足。") {
         ActorName = actorName;
         TimeoutMs = timeoutMs;
     }
@@ -393,8 +337,7 @@ public sealed class ActorAskDeadlockException : TimeoutException
 /// <para>检测机制:静态等待图(wait-for graph),通过线程ID自动识别调用方Actor,记入等待边,检测到环即抛异常。</para>
 /// <para>修复指导:打破循环 — 其中一方改用 Tell(不等回复),或重构调用链消除循环依赖。</para>
 /// </remarks>
-public sealed class ActorCyclicAskException : InvalidOperationException
-{
+public sealed class ActorCyclicAskException : InvalidOperationException {
     /// <summary>调用方 Actor ID</summary>
     public string CallerActorId { get; }
 
@@ -408,8 +351,7 @@ public sealed class ActorCyclicAskException : InvalidOperationException
     /// <param name="targetActorId">目标 Actor ID</param>
     public ActorCyclicAskException(string callerActorId, string targetActorId)
         : base($"循环 Ask 检测: Actor {callerActorId} 等 {targetActorId} 回复,同时 {targetActorId} 等 {callerActorId} 回复 → 等待图环 → 死锁。" +
-               "修复:其中一方改用 Tell(TrySend,不等回复),或重构调用链消除循环依赖。")
-    {
+               "修复:其中一方改用 Tell(TrySend,不等回复),或重构调用链消除循环依赖。") {
         CallerActorId = callerActorId;
         TargetActorId = targetActorId;
     }
@@ -418,8 +360,7 @@ public sealed class ActorCyclicAskException : InvalidOperationException
 /// <summary>
 /// 单元类型 — 用于不需要输出的 Actor 的 TOut 参数。
 /// </summary>
-public readonly record struct Unit
-{
+public readonly record struct Unit {
     /// <summary>唯一实例</summary>
     public static readonly Unit Value = default;
 }

@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Engine;
 /// <summary>
 /// 推理预算状态 — 轮次和 token 双预算追踪
 /// </summary>
-public sealed class BudgetStatus
-{
+public sealed class BudgetStatus {
     /// <summary>
     /// 已消耗轮次
     /// </summary>
@@ -43,10 +42,8 @@ public sealed class BudgetStatus
     /// <summary>
     /// 哪个预算先触底
     /// </summary>
-    public BudgetExhaustionCause ExhaustionCause
-    {
-        get
-        {
+    public BudgetExhaustionCause ExhaustionCause {
+        get {
             if (!IsAnyExhausted) return BudgetExhaustionCause.None;
             if (IsRoundsExhausted && IsTokensExhausted) return BudgetExhaustionCause.Both;
             if (IsRoundsExhausted) return BudgetExhaustionCause.Rounds;
@@ -68,8 +65,7 @@ public sealed class BudgetStatus
 /// <summary>
 /// 预算耗尽原因
 /// </summary>
-public enum BudgetExhaustionCause
-{
+public enum BudgetExhaustionCause {
     /// <summary>
     /// 未耗尽
     /// </summary>

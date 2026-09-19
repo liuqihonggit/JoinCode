@@ -1,15 +1,12 @@
 
 namespace Bridge.Tests.Phase7D;
 
-public sealed partial class BridgeMainTests
-{
+public sealed partial class BridgeMainTests {
     #region BridgeMainDeps — 键盘监听回调
 
     [Fact]
-    public void BridgeMainDeps_KeyboardListener_CanBeSet()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_KeyboardListener_CanBeSet() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -26,10 +23,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainDeps_KeyboardListener_DefaultNull()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_KeyboardListener_DefaultNull() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -44,10 +39,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainDeps_BridgeLogger_CanBeSet()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_BridgeLogger_CanBeSet() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -62,10 +55,8 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public void BridgeMainDeps_BridgeLogger_DefaultNull()
-    {
-        var deps = new BridgeMainDeps
-        {
+    public void BridgeMainDeps_BridgeLogger_DefaultNull() {
+        var deps = new BridgeMainDeps {
             ApiClient = BridgeTestHelperMethods.CreateMockApiClient(),
             Spawner = BridgeTestHelperMethods.CreateMockSpawner(),
             FileSystem = new InMemoryFileSystem(),
@@ -83,8 +74,7 @@ public sealed partial class BridgeMainTests
     #region RunAsync — 键盘监听注册
 
     [Fact]
-    public async Task RunAsync_RegisterKeyboardListener_CalledBeforeLoop()
-    {
+    public async Task RunAsync_RegisterKeyboardListener_CalledBeforeLoop() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         deps.RegisterKeyboardListener = _ => { };
         deps.UnregisterKeyboardListener = () => { };
@@ -94,8 +84,7 @@ public sealed partial class BridgeMainTests
     }
 
     [Fact]
-    public async Task RunAsync_RegisterKeyboardListener_NullDoesNotThrow()
-    {
+    public async Task RunAsync_RegisterKeyboardListener_NullDoesNotThrow() {
         var deps = BridgeTestHelperMethods.CreateDeps();
         await using var main = new BridgeMain(deps);
 

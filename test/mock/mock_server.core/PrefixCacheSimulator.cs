@@ -18,8 +18,7 @@ namespace MockServer.Core;
 /// 3. 已缓存 prefix 以新 prefix 为前缀（新请求较短）→ 完全命中
 /// 4. 完全无交集 → 完全 miss
 /// </summary>
-public sealed class PrefixCacheSimulator : ICacheSimulator
-{
+public sealed class PrefixCacheSimulator : ICacheSimulator {
     private readonly List<string> _seenPrefixes = [];
     private readonly Func<JsonElement, string> _prefixExtractor;
     private readonly Func<JsonElement, int> _tokenEstimator;
@@ -27,34 +26,28 @@ public sealed class PrefixCacheSimulator : ICacheSimulator
 
     public PrefixCacheSimulator(
         Func<JsonElement, string> prefixExtractor,
-        Func<JsonElement, int> tokenEstimator)
-    {
+        Func<JsonElement, int> tokenEstimator) {
         ArgumentNullException.ThrowIfNull(prefixExtractor);
         ArgumentNullException.ThrowIfNull(tokenEstimator);
         _prefixExtractor = prefixExtractor;
         _tokenEstimator = tokenEstimator;
     }
 
-    public CacheStats ComputeCacheStats(JsonElement request)
-    {
+    public CacheStats ComputeCacheStats(JsonElement request) {
         var prefix = _prefixExtractor(request);
         var inputTokens = _tokenEstimator(request);
         var outputTokens = 50;
         int cacheReadTokens;
         int cacheCreationTokens;
 
-        lock (_lock)
-        {
+        lock (_lock) {
             var bestMatch = FindBestPrefixMatch(prefix);
 
-            if (bestMatch is null)
-            {
+            if (bestMatch is null) {
                 // 完全无交集 → 完全 miss
                 cacheReadTokens = 0;
                 cacheCreationTokens = inputTokens;
-            }
-            else
-            {
+            } else {
                 // 命中: 按已缓存部分的长度比例计算
                 // cachedLength = min(bestMatch.Length, prefix.Length) — 已缓存部分覆盖的字符数
                 var cachedLength = Math.Min(bestMatch.Length, prefix.Length);
@@ -69,8 +62,7 @@ public sealed class PrefixCacheSimulator : ICacheSimulator
                 _seenPrefixes.Add(prefix);
         }
 
-        return new CacheStats
-        {
+        return new CacheStats {
             CacheCreationTokens = cacheCreationTokens,
             CacheReadTokens = cacheReadTokens,
             InputTokens = inputTokens,
@@ -83,11 +75,9 @@ public sealed class PrefixCacheSimulator : ICacheSimulator
     /// 前缀关系: prefix.StartsWith(stored) 或 stored.StartsWith(prefix)。
     /// 返回 null 表示无任何匹配。
     /// </summary>
-    private string? FindBestPrefixMatch(string prefix)
-    {
+    private string? FindBestPrefixMatch(string prefix) {
         string? best = null;
-        foreach (var stored in _seenPrefixes)
-        {
+        foreach (var stored in _seenPrefixes) {
             var isMatch = prefix.StartsWith(stored, StringComparison.Ordinal)
                        || stored.StartsWith(prefix, StringComparison.Ordinal);
             if (!isMatch) continue;
@@ -98,8 +88,7 @@ public sealed class PrefixCacheSimulator : ICacheSimulator
         return best;
     }
 
-    public void ResetCache()
-    {
+    public void ResetCache() {
         lock (_lock) { _seenPrefixes.Clear(); }
     }
 }

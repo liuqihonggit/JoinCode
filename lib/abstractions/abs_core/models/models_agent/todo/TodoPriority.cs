@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Models.Todo;
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 TodoPriorityEnumConstants + TodoPriorityExtensions
 /// 合并自: TaskPriority (Critical)
 /// </summary>
-public enum TodoPriority
-{
+public enum TodoPriority {
     [EnumValue("low")] Low = 0,
     [EnumValue("medium")] Medium = 1,
     [EnumValue("high")] High = 2,

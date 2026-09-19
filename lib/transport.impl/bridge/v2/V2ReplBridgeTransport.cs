@@ -14,8 +14,7 @@ namespace JoinCode.Transport.Bridge;
 /// - reportState/reportMetadata/reportDelivery: 有实际实现
 /// - flush: 等待写队列排空
 /// </summary>
-public sealed class V2ReplBridgeTransport : IReplBridgeTransport
-{
+public sealed class V2ReplBridgeTransport : IReplBridgeTransport {
     private readonly V2TransportOptions _options;
     private readonly ILogger? _logger;
     private readonly HttpClient _writeClient;
@@ -46,8 +45,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="writeClient">自定义写入 HTTP 客户端（可选，默认新建）</param>
     /// <param name="sseClient">自定义 SSE 读流 HTTP 客户端（可选，默认新建）</param>
-    public V2ReplBridgeTransport(V2TransportOptions options, ILogger? logger = null, HttpClient? writeClient = null, HttpClient? sseClient = null)
-    {
+    public V2ReplBridgeTransport(V2TransportOptions options, ILogger? logger = null, HttpClient? writeClient = null, HttpClient? sseClient = null) {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
         _lastSequenceNum = options.InitialSequenceNum;
@@ -65,8 +63,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         _eventUploader = new SerialBatchEventUploader(
             _writeClient,
             $"{options.ApiBaseUrl}/worker/events",
-            new SerialBatchUploaderOptions
-            {
+            new SerialBatchUploaderOptions {
                 MaxBatchSize = 100,
                 MaxQueueSize = 10_000,
                 BaseDelayMs = 100,
@@ -78,8 +75,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
         _deliveryUploader = new SerialBatchEventUploader(
             _writeClient,
             $"{options.ApiBaseUrl}/worker/events/delivery",
-            new SerialBatchUploaderOptions
-            {
+            new SerialBatchUploaderOptions {
                 MaxBatchSize = 100,
                 MaxQueueSize = 10_000,
                 BaseDelayMs = 50,
@@ -93,16 +89,13 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// </summary>
     /// <param name="message">消息内容</param>
     /// <param name="ct">取消令牌</param>
-    public async Task WriteAsync(string message, CancellationToken ct = default)
-    {
-        if (_isClosed != 0)
-        {
+    public async Task WriteAsync(string message, CancellationToken ct = default) {
+        if (_isClosed != 0) {
             _logger?.LogDebug("[V2Transport] 已关闭，丢弃写入");
             return;
         }
 
-        if (_isInitialized == 0)
-        {
+        if (_isInitialized == 0) {
             throw new InvalidOperationException("[TRN008] [V2Transport] CCRClient 尚未初始化，无法写入");
         }
 
@@ -114,25 +107,21 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// </summary>
     /// <param name="messages">消息列表</param>
     /// <param name="ct">取消令牌</param>
-    public async Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default)
-    {
-        foreach (var msg in messages)
-        {
+    public async Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default) {
+        foreach (var msg in messages) {
             if (_isClosed != 0) break;
             await _eventUploader.EnqueueAsync(msg, ct).ConfigureAwait(false);
         }
     }
 
     /// <summary>获取写就绪状态（非读就绪）</summary>
-    public bool IsConnectedStatus()
-    {
+    public bool IsConnectedStatus() {
         // 写就绪状态，非读就绪 — 对齐 TS 端 ccrInitialized
         return _isInitialized != 0;
     }
 
     /// <summary>获取状态标签字符串（closed/connected/init）</summary>
-    public string GetStateLabel()
-    {
+    public string GetStateLabel() {
         if (_isClosed != 0) return "closed";
         if (_isInitialized != 0) return "connected";
         return "init";
@@ -148,13 +137,11 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     public void SetOnBatchDropped(Action<int, int> callback) { /* v2 不使用 maxConsecutiveFailures，no-op */ }
 
     /// <summary>启动连接 — 并行启动 SSE 读流和 CCRClient 初始化</summary>
-    public void Connect()
-    {
+    public void Connect() {
         // 对齐 TS 端: SSE 读流和 CCRClient 初始化并行启动
 
         // 非 outboundOnly 模式: 启动 SSE 读流
-        if (!_options.OutboundOnly)
-        {
+        if (!_options.OutboundOnly) {
             _sseReadTask = RunSseReadLoopAsync();
         }
 
@@ -170,26 +157,21 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// </summary>
     /// <param name="state">会话活动状态</param>
     /// <param name="ct">取消令牌</param>
-    public async Task ReportStateAsync(BridgeSessionActivity state, CancellationToken ct = default)
-    {
+    public async Task ReportStateAsync(BridgeSessionActivity state, CancellationToken ct = default) {
         if (_isClosed != 0 || _isInitialized == 0) return;
 
-        try
-        {
+        try {
             var payload = $"{{\"state\":\"{state.ToValue()}\"}}";
             using var content = new StringContent(payload, Encoding.UTF8, "application/json");
             var response = await _writeClient.PutAsync($"{_options.ApiBaseUrl}/worker", content, ct).ConfigureAwait(false);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-            {
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict) {
                 await HandleEpochMismatchAsync("ReportState").ConfigureAwait(false);
                 return;
             }
 
             response.EnsureSuccessStatusCode();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[V2Transport] ReportState 失败");
         }
     }
@@ -199,19 +181,15 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// </summary>
     /// <param name="metadata">元数据字典</param>
     /// <param name="ct">取消令牌</param>
-    public async Task ReportMetadataAsync(Dictionary<string, JsonElement> metadata, CancellationToken ct = default)
-    {
+    public async Task ReportMetadataAsync(Dictionary<string, JsonElement> metadata, CancellationToken ct = default) {
         if (_isClosed != 0 || _isInitialized == 0) return;
 
-        try
-        {
+        try {
             var json = JsonSerializer.Serialize(metadata, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
             var response = await _writeClient.PutAsync($"{_options.ApiBaseUrl}/worker", content, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[V2Transport] ReportMetadata 失败");
         }
     }
@@ -222,8 +200,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// <param name="eventId">事件 ID</param>
     /// <param name="status">投递状态</param>
     /// <param name="ct">取消令牌</param>
-    public async Task ReportDeliveryAsync(string eventId, string status, CancellationToken ct = default)
-    {
+    public async Task ReportDeliveryAsync(string eventId, string status, CancellationToken ct = default) {
         if (_isClosed != 0 || _isInitialized == 0) return;
 
         var payload = $"{{\"event_id\":\"{eventId}\",\"status\":\"{status}\"}}";
@@ -234,8 +211,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// 排空写队列 — 等待事件上传器和投递上传器都排空
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task FlushAsync(CancellationToken ct = default)
-    {
+    public async Task FlushAsync(CancellationToken ct = default) {
         // 对齐 TS 端: 等待事件上传器排空
         await _eventUploader.FlushAsync(ct).ConfigureAwait(false);
         await _deliveryUploader.FlushAsync(ct).ConfigureAwait(false);
@@ -243,13 +219,10 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
     #region CCRClient 初始化
 
-    private async Task InitializeCcrAsync()
-    {
-        try
-        {
+    private async Task InitializeCcrAsync() {
+        try {
             // 如果没有 epoch，需要调用 registerWorker 获取
-            if (_options.Epoch is null)
-            {
+            if (_options.Epoch is null) {
                 var epoch = await RegisterWorkerAsync().ConfigureAwait(false);
                 Interlocked.Exchange(ref _epoch, epoch);
             }
@@ -264,9 +237,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
             // 通知连接成功
             _onConnectCallback?.Invoke();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[V2Transport] CCRClient 初始化失败");
             await DisposeAsync().ConfigureAwait(false);
             _onCloseCallback?.Invoke(4091); // 4091 = 初始化失败
@@ -277,14 +248,12 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// 注册 Worker — 对齐 TS 端 registerWorker
     /// POST /worker/register → 获取 epoch
     /// </summary>
-    private async Task<int> RegisterWorkerAsync()
-    {
+    private async Task<int> RegisterWorkerAsync() {
         var payload = $"{{\"session_id\":\"{_options.SessionId}\"}}";
         using var content = new StringContent(payload, Encoding.UTF8, "application/json");
         var response = await _writeClient.PostAsync($"{_options.ApiBaseUrl}/worker/register", content).ConfigureAwait(false);
 
-        if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-        {
+        if (response.StatusCode == System.Net.HttpStatusCode.Conflict) {
             throw new TransportFatalError("Worker epoch conflict during registration", (int)response.StatusCode, "epoch_conflict");
         }
 
@@ -292,8 +261,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
         var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         var result = RelaxedJsonSerializer.Deserialize(json, TransportBridgeJsonContext.Default.DictionaryStringJsonElement);
-        if (result?.TryGetValue("epoch", out var epochValue) == true && epochValue.ValueKind == JsonValueKind.Number)
-        {
+        if (result?.TryGetValue("epoch", out var epochValue) == true && epochValue.ValueKind == JsonValueKind.Number) {
             return epochValue.GetInt32();
         }
 
@@ -308,19 +276,15 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// SSE 读循环 — 对齐 TS 端 SSETransport
     /// 解析 SSE 帧，提取事件数据和序列号
     /// </summary>
-    private async Task RunSseReadLoopAsync()
-    {
-        while (!_heartbeatCts.IsCancellationRequested && _isClosed == 0)
-        {
-            try
-            {
+    private async Task RunSseReadLoopAsync() {
+        while (!_heartbeatCts.IsCancellationRequested && _isClosed == 0) {
+            try {
                 using var request = new HttpRequestMessage(HttpMethod.Get, _options.SseUrl);
                 request.Headers.Add("Accept", "text/event-stream");
                 request.Headers.Add("Cache-Control", "no-cache");
 
                 // 携带序列号以避免全量回放
-                if (_lastSequenceNum > 0)
-                {
+                if (_lastSequenceNum > 0) {
                     request.Headers.Add("Last-Event-ID", _lastSequenceNum.ToString());
                 }
 
@@ -334,8 +298,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
                 // 永久拒绝码: 401/403/404 — 对齐 TS 端 SSETransport
                 if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized
                     or System.Net.HttpStatusCode.Forbidden
-                    or System.Net.HttpStatusCode.NotFound)
-                {
+                    or System.Net.HttpStatusCode.NotFound) {
                     _logger?.LogError("[V2Transport] SSE 永久拒绝: {StatusCode}", response.StatusCode);
                     _onCloseCallback?.Invoke((int)response.StatusCode);
                     return;
@@ -345,23 +308,17 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
                 await using var stream = await response.Content.ReadAsStreamAsync(_heartbeatCts.Token).ConfigureAwait(false);
 
-                await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, _heartbeatCts.Token).ConfigureAwait(false))
-                {
-                    if (sseEvent.Id is not null && int.TryParse(sseEvent.Id, out var seqNum))
-                    {
+                await foreach (var sseEvent in SseStreamParser.ParseAsync(stream, _heartbeatCts.Token).ConfigureAwait(false)) {
+                    if (sseEvent.Id is not null && int.TryParse(sseEvent.Id, out var seqNum)) {
                         _lastSequenceNum = seqNum;
                     }
 
                     _onDataCallback?.Invoke(sseEvent.Data);
                     _ = ReportDeliveryFromEventAsync(sseEvent.Data);
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 break;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[V2Transport] SSE 读流错误，将重连");
                 await Task.Delay(1000, _heartbeatCts.Token).ConfigureAwait(false);
             }
@@ -371,24 +328,18 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// <summary>
     /// 从 SSE 事件数据中提取 event_id 并上报投递状态
     /// </summary>
-    private async Task ReportDeliveryFromEventAsync(string data)
-    {
-        try
-        {
+    private async Task ReportDeliveryFromEventAsync(string data) {
+        try {
             // 尝试从 JSON 中提取 event_id
             var jsonDoc = JsonDocument.Parse(data);
-            if (jsonDoc.RootElement.TryGetProperty("event_id", out var eventIdProp))
-            {
+            if (jsonDoc.RootElement.TryGetProperty("event_id", out var eventIdProp)) {
                 var eventId = eventIdProp.GetString();
-                if (eventId is not null)
-                {
+                if (eventId is not null) {
                     await ReportDeliveryAsync(eventId, "received").ConfigureAwait(false);
                     await ReportDeliveryAsync(eventId, "processed").ConfigureAwait(false);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 非致命: 解析失败不影响主流程
             _logger?.LogWarning(ex, "[V2Transport] 解析 SSE 事件失败");
         }
@@ -402,14 +353,11 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// 心跳循环 — 对齐 TS 端 CCRClient heartbeat
     /// POST /worker/heartbeat 延长工作租约
     /// </summary>
-    private async Task RunHeartbeatLoopAsync(CancellationToken ct)
-    {
+    private async Task RunHeartbeatLoopAsync(CancellationToken ct) {
         var intervalMs = _options.HeartbeatIntervalMs;
 
-        while (!ct.IsCancellationRequested && _isClosed == 0)
-        {
-            try
-            {
+        while (!ct.IsCancellationRequested && _isClosed == 0) {
+            try {
                 // 添加抖动 — 对齐 TS 端 heartbeatJitterFraction
                 var jitterMs = _options.HeartbeatJitterFraction > 0
                     ? (int)(intervalMs * _options.HeartbeatJitterFraction * (Random.Shared.NextDouble() * 2 - 1))
@@ -423,14 +371,12 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
                     $"{_options.ApiBaseUrl}/worker/heartbeat",
                     null, ct).ConfigureAwait(false);
 
-                if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-                {
+                if (response.StatusCode == System.Net.HttpStatusCode.Conflict) {
                     await HandleEpochMismatchAsync("Heartbeat").ConfigureAwait(false);
                     return;
                 }
 
-                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
+                if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
                     _logger?.LogError("[V2Transport] 心跳认证失败");
                     _onCloseCallback?.Invoke((int)response.StatusCode);
                     return;
@@ -438,13 +384,9 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
                 response.EnsureSuccessStatusCode();
                 _logger?.LogDebug("[V2Transport] 心跳已发送");
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 break;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[V2Transport] 心跳发送失败");
             }
         }
@@ -458,8 +400,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// Epoch 不匹配处理 — 对齐 TS 端 onEpochMismatch
     /// 409 Conflict = 当前 worker 被另一个 worker 取代
     /// </summary>
-    private async Task HandleEpochMismatchAsync(string source)
-    {
+    private async Task HandleEpochMismatchAsync(string source) {
         _logger?.LogWarning("[V2Transport] Epoch 被取代 (来源: {Source})，关闭传输以触发轮询恢复", source);
         await DisposeAsync().ConfigureAwait(false);
         _onCloseCallback?.Invoke(4090); // 4090 = epoch 不匹配
@@ -469,16 +410,13 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
 
     #region 认证
 
-    private string? GetEffectiveToken()
-    {
+    private string? GetEffectiveToken() {
         return _options.GetAuthToken?.Invoke() ?? _options.IngressToken;
     }
 
-    private static void SetAuthHeaders(HttpClient client, string? token)
-    {
+    private static void SetAuthHeaders(HttpClient client, string? token) {
         client.DefaultRequestHeaders.Remove("Authorization");
-        if (!string.IsNullOrEmpty(token))
-        {
+        if (!string.IsNullOrEmpty(token)) {
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
         }
     }
@@ -488,8 +426,7 @@ public sealed class V2ReplBridgeTransport : IReplBridgeTransport
     /// <summary>
     /// 异步释放资源 — 关闭传输、释放心跳和锁
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         Interlocked.Exchange(ref _isClosed, 1);
         _logger?.LogDebug("[V2Transport] 关闭传输");

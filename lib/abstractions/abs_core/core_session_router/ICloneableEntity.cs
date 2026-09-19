@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// Clone 返回 Entity, 调用方强转为具体类型
 /// 引用重映射通过 CloneContext 处理: 找不到对应 Entity 抛异常
 /// </summary>
-public interface ICloneableEntity
-{
+public interface ICloneableEntity {
     /// <summary>
     /// 深拷贝到目标会话 — 新 ObjectId, 新 SessionId, 注册到目标 SessionScope
     /// 返回 Entity, 调用方强转为具体类型

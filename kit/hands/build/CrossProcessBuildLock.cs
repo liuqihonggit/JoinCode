@@ -1,7 +1,6 @@
 namespace Services.Build;
 
-internal sealed class CrossProcessBuildLock : IAsyncDisposable
-{
+internal sealed class CrossProcessBuildLock : IAsyncDisposable {
     private const string DefaultLockFileName = "JoinCode.Build.lock";
     private const string GitDirName = ".git";
     private static readonly string GitWorktreesMarker = $"{GitDirName}{Path.DirectorySeparatorChar}worktrees{Path.DirectorySeparatorChar}";
@@ -15,33 +14,25 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable
 
     internal string LockPath => _lockPath;
 
-    internal CrossProcessBuildLock(IFileSystem fs, ILogger? logger, string? lockPath = null)
-    {
+    internal CrossProcessBuildLock(IFileSystem fs, ILogger? logger, string? lockPath = null) {
         _fs = fs;
         _logger = logger;
         _lockPath = lockPath ?? ResolveDefaultLockPath(fs);
     }
 
-    internal async Task AcquireAsync(CancellationToken ct)
-    {
-        while (true)
-        {
+    internal async Task AcquireAsync(CancellationToken ct) {
+        while (true) {
             ct.ThrowIfCancellationRequested();
-            try
-            {
+            try {
                 _lockFile = _fs.CreateStream(
                     _lockPath,
                     FileMode.OpenOrCreate,
                     FileAccess.ReadWrite,
                     FileShare.None);
                 return;
-            }
-            catch (IOException ex)
-            {
+            } catch (IOException ex) {
                 _logger?.LogDebug(ex, "Build lock file is held by another process, retrying: {LockPath}", _lockPath);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
+            } catch (UnauthorizedAccessException ex) {
                 _logger?.LogDebug(ex, "Build lock file access denied, retrying: {LockPath}", _lockPath);
             }
 
@@ -49,24 +40,20 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable
         }
     }
 
-    internal void Release()
-    {
+    internal void Release() {
         _lockFile?.Dispose();
         _lockFile = null;
     }
 
-    private static string ResolveDefaultLockPath(IFileSystem fs)
-    {
+    private static string ResolveDefaultLockPath(IFileSystem fs) {
         var currentDir = fs.GetCurrentDirectory();
-        while (!string.IsNullOrEmpty(currentDir))
-        {
+        while (!string.IsNullOrEmpty(currentDir)) {
             var gitPath = fs.CombinePath(currentDir, GitDirName);
 
             if (fs.DirectoryExists(gitPath))
                 return fs.CombinePath(gitPath, DefaultLockFileName);
 
-            if (fs.FileExists(gitPath))
-            {
+            if (fs.FileExists(gitPath)) {
                 var commonGitDir = ResolveCommonGitDir(fs, gitPath, currentDir);
                 if (commonGitDir is not null && fs.DirectoryExists(commonGitDir))
                     return fs.CombinePath(commonGitDir, DefaultLockFileName);
@@ -80,10 +67,8 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable
         return fs.CombinePath(Path.GetTempPath(), DefaultLockFileName);
     }
 
-    private static string? ResolveCommonGitDir(IFileSystem fs, string gitFilePath, string worktreePath)
-    {
-        try
-        {
+    private static string? ResolveCommonGitDir(IFileSystem fs, string gitFilePath, string worktreePath) {
+        try {
             var content = fs.ReadAllText(gitFilePath).Trim();
             const string prefix = "gitdir:";
             if (!content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
@@ -98,13 +83,9 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable
 
             var commonGitDir = normalizedGitdir[..(markerIdx + GitDirName.Length)];
             return commonGitDir;
-        }
-        catch (IOException)
-        {
+        } catch (IOException) {
             return null;
-        }
-        catch (UnauthorizedAccessException)
-        {
+        } catch (UnauthorizedAccessException) {
             return null;
         }
     }
@@ -113,8 +94,7 @@ internal sealed class CrossProcessBuildLock : IAsyncDisposable
     /// 异步释放跨进程编译锁，关闭并释放锁文件句柄。幂等，多次调用安全。
     /// </summary>
     /// <returns>表示异步释放操作的任务。</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
         Release();
         return ValueTask.CompletedTask;

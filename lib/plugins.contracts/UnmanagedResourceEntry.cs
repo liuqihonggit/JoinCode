@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 非托管内存资源条目 — 明确登记的非托管资源
 /// <para>持有 SafeHandle,卸载时逐个释放确保无泄漏</para>
 /// </summary>
-public sealed class UnmanagedResourceEntry
-{
+public sealed class UnmanagedResourceEntry {
     /// <summary>资源键</summary>
     public string Key { get; }
 
@@ -19,8 +18,7 @@ public sealed class UnmanagedResourceEntry
     public DateTime RegisteredAt { get; }
 
     /// <summary>创建非托管资源条目</summary>
-    public UnmanagedResourceEntry(string key, SafeHandle handle, long estimatedBytes)
-    {
+    public UnmanagedResourceEntry(string key, SafeHandle handle, long estimatedBytes) {
         Key = key ?? throw new ArgumentNullException(nameof(key));
         Handle = handle ?? throw new ArgumentNullException(nameof(handle));
         EstimatedBytes = estimatedBytes;

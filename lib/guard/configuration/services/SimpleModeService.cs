@@ -4,8 +4,7 @@ namespace Core.Configuration;
 /// 精简模式服务实现 - 管理精简模式的启用/禁用状态和配置
 /// </summary>
 [Register(typeof(ISimpleModeService), ServiceLifetime.Singleton)]
-public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeService
-{
+public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeService {
     private readonly AsyncLock _lock = new("SimpleModeService");
     private bool _isSimpleMode;
     private SimpleModeConfig _config;
@@ -13,8 +12,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
     private readonly ILogger<SimpleModeService>? _logger;
 
     /// <summary>是否已启用精简模式</summary>
-    public bool IsSimpleMode
-    {
+    public bool IsSimpleMode {
         get { using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _isSimpleMode; }
     }
 
@@ -26,18 +24,15 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
     /// </summary>
     public SimpleModeService(
         IBriefModeService? briefModeService = null,
-        ILogger<SimpleModeService>? logger = null)
-    {
+        ILogger<SimpleModeService>? logger = null) {
         _briefModeService = briefModeService;
         _logger = logger;
         _config = SimpleModeConfig.Default;
     }
 
     /// <inheritdoc />
-    public void Enable()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void Enable() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             if (_isSimpleMode) return;
 
             _isSimpleMode = true;
@@ -47,18 +42,15 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
         // 启用精简模式时同步启用简要模式
         _briefModeService?.Enable();
 
-        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs
-        {
+        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs {
             IsSimpleMode = true,
             Config = _config
         });
     }
 
     /// <inheritdoc />
-    public void Disable()
-    {
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public void Disable() {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             if (!_isSimpleMode) return;
 
             _isSimpleMode = false;
@@ -68,19 +60,16 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
         // 禁用精简模式时同步禁用简要模式
         _briefModeService?.Disable();
 
-        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs
-        {
+        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs {
             IsSimpleMode = false,
             Config = _config
         });
     }
 
     /// <inheritdoc />
-    public bool Toggle()
-    {
+    public bool Toggle() {
         bool newState;
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             newState = !_isSimpleMode;
             _isSimpleMode = newState;
             _logger?.LogInformation(newState ? "Simple Mode enabled" : "Simple Mode disabled");
@@ -92,8 +81,7 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
         else
             _briefModeService?.Disable();
 
-        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs
-        {
+        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs {
             IsSimpleMode = newState,
             Config = _config
         });
@@ -102,33 +90,28 @@ public sealed partial class SimpleModeService : ServiceEntity, ISimpleModeServic
     }
 
     /// <inheritdoc />
-    public SimpleModeConfig GetCurrentConfig()
-    {
+    public SimpleModeConfig GetCurrentConfig() {
         using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) return _config;
     }
 
     /// <inheritdoc />
-    public void UpdateConfig(SimpleModeConfig config)
-    {
+    public void UpdateConfig(SimpleModeConfig config) {
         ArgumentNullException.ThrowIfNull(config);
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             _config = config;
             _logger?.LogDebug("Simple Mode config updated");
         }
 
         // 配置变更时通知订阅者
-        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs
-        {
+        SimpleModeChanged?.Invoke(this, new SimpleModeChangedEventArgs {
             IsSimpleMode = _isSimpleMode,
             Config = config
         });
     }
 
     /// <inheritdoc />
-    public override void Dispose()
-    {
+    public override void Dispose() {
         _lock.Dispose();
         base.Dispose();
     }

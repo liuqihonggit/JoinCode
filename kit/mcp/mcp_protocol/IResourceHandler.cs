@@ -3,8 +3,7 @@ namespace McpProtocol;
 /// <summary>
 /// MCP 资源处理器接口 — 实现 resources/read 请求的资源内容读取
 /// </summary>
-public interface IResourceHandler
-{
+public interface IResourceHandler {
     /// <summary>资源 Uri(唯一标识,作为资源字典键)</summary>
     string Uri { get; }
     /// <summary>资源名称(人类可读)</summary>

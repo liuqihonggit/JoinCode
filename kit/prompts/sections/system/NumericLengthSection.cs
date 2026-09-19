@@ -5,17 +5,14 @@ namespace Core.Prompts.Sections;
 /// 数字长度限制部分 - 具体的字数限制
 /// </summary>
 [PromptSection(Name = "numeric_length", Order = 29)]
-public static class NumericLengthSection
-{
+public static class NumericLengthSection {
     /// <summary>
     /// 获取数字长度限制部分的内容。
     /// </summary>
     /// <returns>长度限制提示词文本；未启用时返回 <c>null</c>。</returns>
-    public static string? GetContent()
-    {
+    public static string? GetContent() {
         var enableNumericLength = PromptConfigSnapshot.Current.EnableNumericLength;
-        if (!enableNumericLength)
-        {
+        if (!enableNumericLength) {
             return null;
         }
 

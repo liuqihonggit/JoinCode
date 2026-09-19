@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 写入防御上下文 — 在防御链各步骤间传递的可变状态。
 /// ResolvedPath 在 <see cref="WriteDefenseService.ResolveSandboxAsync"/> 步骤后填充。
 /// </summary>
-public sealed class WriteDefenseContext
-{
+public sealed class WriteDefenseContext {
     /// <summary>原始文件路径（调用方传入，未经沙箱解析）</summary>
     public required string OriginalPath { get; init; }
 
@@ -44,8 +43,7 @@ public delegate ValueTask<ToolResult?> WriteDefenseStepAsync(
 /// 写入防御链构建器 — 链式追加防御步骤，<see cref="ExecuteAsync"/> 顺序执行任一短路。
 /// 所有写入/编辑类工具统一通过 <c>WriteDefense.Begin(...).Then(...).ExecuteAsync(ct)</c> 编排安全防御。
 /// </summary>
-public sealed class WriteDefense
-{
+public sealed class WriteDefense {
     private readonly WriteDefenseContext _context;
     private readonly List<WriteDefenseStepAsync> _steps = new();
 
@@ -68,10 +66,8 @@ public sealed class WriteDefense
         string operationLabel,
         string? oldString = null,
         string? newString = null,
-        bool replaceAll = false)
-    {
-        return new WriteDefense(new WriteDefenseContext
-        {
+        bool replaceAll = false) {
+        return new WriteDefense(new WriteDefenseContext {
             OriginalPath = filePath,
             ResolvedPath = filePath,
             ContentToCheck = contentToCheck,
@@ -86,8 +82,7 @@ public sealed class WriteDefense
     /// <summary>
     /// 追加一个防御步骤。步骤按追加顺序执行，任一返回非 null 即短路停止。
     /// </summary>
-    public WriteDefense Then(WriteDefenseStepAsync step)
-    {
+    public WriteDefense Then(WriteDefenseStepAsync step) {
         _steps.Add(step);
         return this;
     }
@@ -96,10 +91,8 @@ public sealed class WriteDefense
     /// 执行防御链。顺序调用各步骤，任一步骤返回非 null 拒绝结果即短路返回。
     /// 全部通过则返回 (context, null)。
     /// </summary>
-    public async ValueTask<(WriteDefenseContext Context, ToolResult? Rejection)> ExecuteAsync(CancellationToken ct)
-    {
-        foreach (var step in _steps)
-        {
+    public async ValueTask<(WriteDefenseContext Context, ToolResult? Rejection)> ExecuteAsync(CancellationToken ct) {
+        foreach (var step in _steps) {
             ct.ThrowIfCancellationRequested();
             var rejection = await step(_context, ct).ConfigureAwait(false);
             if (rejection is not null)

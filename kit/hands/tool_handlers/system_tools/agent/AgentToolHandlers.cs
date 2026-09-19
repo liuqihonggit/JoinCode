@@ -3,8 +3,7 @@ namespace Tools.Handlers;
 /// <summary>
 /// 创建子代理的选项参数
 /// </summary>
-public sealed record AgentCreateOptions
-{
+public sealed record AgentCreateOptions {
     /// <summary>代理描述（3-5 个词）</summary>
     [McpToolParameter("Agent description (3-5 words)")]
     public required string Description { get; init; }
@@ -53,8 +52,7 @@ public sealed record AgentCreateOptions
 /// 通过中间件管道处理验证、fork判断、spawn、流式执行、handoff审查
 /// </summary>
 [McpToolDispatch(ToolCategory.Agent, Optional = true)]
-public partial class AgentToolHandlers
-{
+public partial class AgentToolHandlers {
     private readonly MiddlewarePipeline<AgentToolContext> _pipeline;
     private readonly IAgentService _agentService;
     private readonly IAgentService? _coordinator;
@@ -81,8 +79,7 @@ public partial class AgentToolHandlers
         IClockService? clock = null,
         ITeamManager? teamManager = null,
         IWorktreeDecisionPolicy? worktreeDecisionPolicy = null,
-        IAgentWorktreeManager? worktreeManager = null)
-    {
+        IAgentWorktreeManager? worktreeManager = null) {
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _agentService = agentService ?? throw new ArgumentNullException(nameof(agentService));
         _coordinator = coordinator;
@@ -102,13 +99,11 @@ public partial class AgentToolHandlers
     [McpTool(AgentToolNameEnumConstants.Agent, "Create and launch a sub-agent to handle a task", AgentToolNameEnumConstants.Agent)]
     public async Task<ToolResult> CreateAgentAsync(
         [McpToolOptions] AgentCreateOptions options,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (options.DryRun == true)
             return await CreateDryRunAgentAsync(options, cancellationToken).ConfigureAwait(false);
 
-        var context = new AgentToolContext
-        {
+        var context = new AgentToolContext {
             Description = options.Description,
             Prompt = options.Prompt,
             SubagentType = options.SubagentType,
@@ -120,17 +115,12 @@ public partial class AgentToolHandlers
             Memory = options.Memory,
         };
 
-        try
-        {
+        try {
             await _pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
             return context.Result ?? ToolResultBuilder.PipelineNoResult();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.AgentCreateFailed));
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "spawn", false);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("agent", ex, _logger);
@@ -141,8 +131,7 @@ public partial class AgentToolHandlers
     /// 干跑模式 — 不调用 LLM，直接创建 mock agent 并持久化到 ~/.jcc/agents/，支持跨进程测试
     /// dry_run 也走 worktree 隔离决策链路,验证完整链路: isolation 决策 → worktree 创建 → cwd 隔离
     /// </summary>
-    private async Task<ToolResult> CreateDryRunAgentAsync(AgentCreateOptions options, CancellationToken cancellationToken)
-    {
+    private async Task<ToolResult> CreateDryRunAgentAsync(AgentCreateOptions options, CancellationToken cancellationToken) {
         var agentId = $"agent-dryrun-{Guid.NewGuid():N}"[..^16];
         var now = _clock.GetUtcNow();
         var stateDir = AppDataConstants.Paths.AgentsDirectory;
@@ -155,26 +144,20 @@ public partial class AgentToolHandlers
         string? worktreePath = null;
         string? worktreeBranch = null;
 
-        if (isolationMode == AgentIsolationMode.Worktree && _worktreeManager is not null)
-        {
-            try
-            {
+        if (isolationMode == AgentIsolationMode.Worktree && _worktreeManager is not null) {
+            try {
                 var wtSession = await _worktreeManager.CreateWorktreeForAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
-                if (wtSession is not null)
-                {
+                if (wtSession is not null) {
                     worktreePath = wtSession.WorktreePath;
                     worktreeBranch = wtSession.BranchName;
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "dry_run worktree 创建失败,降级为 none 隔离");
                 isolationMode = AgentIsolationMode.None;
             }
         }
 
-        var state = new DryRunAgentState
-        {
+        var state = new DryRunAgentState {
             Id = agentId,
             Description = options.Description,
             Status = "running",
@@ -193,8 +176,7 @@ public partial class AgentToolHandlers
         response.AppendLine($"Description: {options.Description}");
         response.AppendLine($"Status: running");
         response.AppendLine($"Isolation: {isolationMode.ToValue()}");
-        if (worktreePath is not null)
-        {
+        if (worktreePath is not null) {
             response.AppendLine($"WorktreePath: {worktreePath}");
             response.AppendLine($"WorktreeBranch: {worktreeBranch}");
         }
@@ -207,8 +189,7 @@ public partial class AgentToolHandlers
     /// 解析 dry_run 隔离模式 — 与 AgentForkMiddleware.ResolveTeammateIsolationMode 同逻辑
     /// 优先级: 显式 isolation > WorktreeDecisionPolicy.Decide > None
     /// </summary>
-    private AgentIsolationMode ResolveDryRunIsolationMode(string? explicitIsolation)
-    {
+    private AgentIsolationMode ResolveDryRunIsolationMode(string? explicitIsolation) {
         var explicitMode = AgentIsolationModeExtensions.FromValue(explicitIsolation);
         if (explicitMode is not null)
             return explicitMode.Value;
@@ -223,20 +204,16 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 从 ~/.jcc/agents/{agentId}.json 加载 dry-run agent 状态
     /// </summary>
-    private DryRunAgentState? TryLoadDryRunState(string agentId)
-    {
+    private DryRunAgentState? TryLoadDryRunState(string agentId) {
         var statePath = Path.Combine(
             AppDataConstants.Paths.AgentsDirectory, $"{agentId}.json");
 #pragma warning disable JCC9001
         if (!File.Exists(statePath))
             return null;
-        try
-        {
+        try {
             var json = File.ReadAllText(statePath);
             return RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.DryRunAgentState);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to load dry-run agent state for {AgentId}", agentId);
             return null;
         }
@@ -246,26 +223,21 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 列出 ~/.jcc/agents/ 目录下所有 dry-run agent 状态文件
     /// </summary>
-    private List<DryRunAgentState> ListDryRunAgents()
-    {
+    private List<DryRunAgentState> ListDryRunAgents() {
         var stateDir = AppDataConstants.Paths.AgentsDirectory;
 #pragma warning disable JCC9001
         if (!Directory.Exists(stateDir))
             return [];
         var result = new List<DryRunAgentState>();
-        foreach (var file in Directory.EnumerateFiles(stateDir, "*.json"))
-        {
+        foreach (var file in Directory.EnumerateFiles(stateDir, "*.json")) {
             if (file.EndsWith(".messages.json", StringComparison.OrdinalIgnoreCase))
                 continue;
-            try
-            {
+            try {
                 var json = File.ReadAllText(file);
                 var state = RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.DryRunAgentState);
                 if (state is not null)
                     result.Add(state);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "Failed to load dry-run agent state from {File}", file);
             }
         }
@@ -276,18 +248,14 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 保存 dry-run agent 状态到 ~/.jcc/agents/{agentId}.json
     /// </summary>
-    private void TrySaveDryRunState(DryRunAgentState state)
-    {
+    private void TrySaveDryRunState(DryRunAgentState state) {
         var stateDir = AppDataConstants.Paths.AgentsDirectory;
 #pragma warning disable JCC9001
         Directory.CreateDirectory(stateDir);
         var statePath = Path.Combine(stateDir, $"{state.Id}.json");
-        try
-        {
+        try {
             File.WriteAllText(statePath, RelaxedJsonSerializer.Serialize(state, DryRunAgentStateJsonContext.Default));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save dry-run agent state for {AgentId}", state.Id);
         }
 #pragma warning restore JCC9001
@@ -296,34 +264,26 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 追加 dry-run agent 消息到 ~/.jcc/agents/{agentId}.messages.json
     /// </summary>
-    private void AppendDryRunMessage(string agentId, string content, string? summary)
-    {
+    private void AppendDryRunMessage(string agentId, string content, string? summary) {
         var msgDir = AppDataConstants.Paths.AgentsDirectory;
 #pragma warning disable JCC9001
         Directory.CreateDirectory(msgDir);
         var msgPath = Path.Combine(msgDir, $"{agentId}.messages.json");
         var msgs = new List<DryRunAgentMessage>();
-        if (File.Exists(msgPath))
-        {
-            try
-            {
+        if (File.Exists(msgPath)) {
+            try {
                 var existing = File.ReadAllText(msgPath);
                 var loaded3 = RelaxedJsonSerializer.Deserialize(existing, DryRunAgentStateJsonContext.Default.ListDryRunAgentMessage);
                 if (loaded3 is not null)
                     msgs = [.. loaded3];
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "Failed to load dry-run messages for {AgentId}", agentId);
             }
         }
         msgs.Add(new DryRunAgentMessage { Content = content, Summary = summary, Timestamp = _clock.GetUtcNow() });
-        try
-        {
+        try {
             File.WriteAllText(msgPath, RelaxedJsonSerializer.Serialize(msgs, DryRunAgentStateJsonContext.Default));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to save dry-run messages for {AgentId}", agentId);
         }
 #pragma warning restore JCC9001
@@ -332,20 +292,16 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 从 ~/.jcc/agents/{agentId}.messages.json 加载 dry-run agent 消息
     /// </summary>
-    private List<DryRunAgentMessage>? TryLoadDryRunMessages(string agentId)
-    {
+    private List<DryRunAgentMessage>? TryLoadDryRunMessages(string agentId) {
         var msgPath = Path.Combine(
             AppDataConstants.Paths.AgentsDirectory, $"{agentId}.messages.json");
 #pragma warning disable JCC9001
         if (!File.Exists(msgPath))
             return null;
-        try
-        {
+        try {
             var json = File.ReadAllText(msgPath);
             return RelaxedJsonSerializer.Deserialize(json, DryRunAgentStateJsonContext.Default.ListDryRunAgentMessage)?.ToList();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to load dry-run messages for {AgentId}", agentId);
             return null;
         }
@@ -357,25 +313,19 @@ public partial class AgentToolHandlers
     /// </summary>
     [McpTool(AgentToolNameEnumConstants.AgentList, "List available agent types", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> ListAgentTypesAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var types = await _agentService.GetAvailableAgentTypesAsync(cancellationToken).ConfigureAwait(false);
 
         var response = new System.Text.StringBuilder();
         response.AppendLine("Available agent types:");
         response.AppendLine();
 
-        if (types.Count == 0)
-        {
+        if (types.Count == 0) {
             response.AppendLine("No predefined agent types available. You can use the generic agent.");
-        }
-        else
-        {
-            response.AppendLine(string.Join("\n", types.Select(type =>
-            {
+        } else {
+            response.AppendLine(string.Join("\n", types.Select(type => {
                 var lines = new List<string> { $"- {type.Name}: {type.Description}" };
-                if (type.AvailableTools?.Count > 0)
-                {
+                if (type.AvailableTools?.Count > 0) {
                     lines.Add($"  Tools: {string.Join(", ", type.AvailableTools)}");
                 }
                 return string.Join("\n", lines);
@@ -393,10 +343,8 @@ public partial class AgentToolHandlers
     [McpTool(AgentToolNameEnumConstants.AgentStatus, "Get agent status", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> GetAgentStatusAsync(
         [McpToolParameter("Agent ID or name")] string agent_id,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_id)) {
             var idDiag = BuildAgentIdEmptyDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(idDiag.FormattedMessage)
@@ -406,11 +354,9 @@ public partial class AgentToolHandlers
 
         var agent = await _agentService.GetAgentAsync(agent_id, cancellationToken).ConfigureAwait(false);
 
-        if (agent == null)
-        {
+        if (agent == null) {
             var dryState = TryLoadDryRunState(agent_id);
-            if (dryState is not null)
-            {
+            if (dryState is not null) {
                 var dryResponse = new System.Text.StringBuilder();
                 dryResponse.AppendLine($"Agent status: {dryState.Status}");
                 dryResponse.AppendLine($"Agent ID: {dryState.Id}");
@@ -441,23 +387,19 @@ public partial class AgentToolHandlers
         response.AppendLine($"Agent ID: {agent.Id}");
         response.AppendLine($"Description: {agent.Description}");
 
-        if (!string.IsNullOrEmpty(agent.Role.ToValue()))
-        {
+        if (!string.IsNullOrEmpty(agent.Role.ToValue())) {
             response.AppendLine($"Type: {agent.Variant?.ToValue() ?? agent.Role.ToValue()}");
         }
 
-        if (agent.StartedAt.HasValue)
-        {
+        if (agent.StartedAt.HasValue) {
             response.AppendLine($"Started at: {agent.StartedAt.Value:yyyy-MM-dd HH:mm:ss}");
         }
 
-        if (agent.CompletedAt.HasValue)
-        {
+        if (agent.CompletedAt.HasValue) {
             response.AppendLine($"Completed at: {agent.CompletedAt.Value:yyyy-MM-dd HH:mm:ss}");
         }
 
-        if (!string.IsNullOrEmpty(agent.Output))
-        {
+        if (!string.IsNullOrEmpty(agent.Output)) {
             response.AppendLine();
             response.AppendLine("Output:");
             response.AppendLine(agent.Output);
@@ -474,10 +416,8 @@ public partial class AgentToolHandlers
     [McpTool(AgentToolNameEnumConstants.AgentStop, "Stop a running agent", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> StopAgentAsync(
         [McpToolParameter("Agent ID or name")] string agent_id,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_id)) {
             var idDiag = BuildAgentIdEmptyDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(idDiag.FormattedMessage)
@@ -487,17 +427,14 @@ public partial class AgentToolHandlers
 
         var success = await _agentService.StopAgentAsync(agent_id, cancellationToken).ConfigureAwait(false);
 
-        if (!success)
-        {
+        if (!success) {
             var dryState = TryLoadDryRunState(agent_id);
-            if (dryState is not null)
-            {
+            if (dryState is not null) {
                 dryState.Status = "stopped";
                 dryState.CompletedAt = _clock.GetUtcNow();
                 TrySaveDryRunState(dryState);
 
-                if (dryState.IsolationMode == AgentIsolationMode.Worktree.ToValue())
-                {
+                if (dryState.IsolationMode == AgentIsolationMode.Worktree.ToValue()) {
                     return ToolResultBuilder.Success()
                         .WithText($"Agent {agent_id} stopped (dry-run, worktree kept — use worktree_remove to clean up)")
                         .Build();
@@ -527,10 +464,8 @@ public partial class AgentToolHandlers
     /// </summary>
     [McpTool(AgentToolNameEnumConstants.AgentRunning, "List all running agents", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> AgentListAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (_coordinator == null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_coordinator == null) {
             var coordDiag = BuildCoordinatorNotInitializedDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(coordDiag.FormattedMessage)
@@ -538,22 +473,18 @@ public partial class AgentToolHandlers
                 .Build();
         }
 
-        try
-        {
+        try {
             var runningAgents = await _coordinator.GetRunningAgentsAsync(cancellationToken).ConfigureAwait(false);
 
             var runningList = runningAgents.ToList();
             var response = new System.Text.StringBuilder();
 
-            if (runningList.Count == 0)
-            {
+            if (runningList.Count == 0) {
                 var dryAgents = ListDryRunAgents();
-                if (dryAgents.Count > 0)
-                {
+                if (dryAgents.Count > 0) {
                     response.AppendLine(L.T(StringKey.AgentRunningCount, dryAgents.Count));
                     response.AppendLine();
-                    foreach (var dry in dryAgents)
-                    {
+                    foreach (var dry in dryAgents) {
                         var duration = (_clock.GetUtcNow() - dry.StartedAt).ToString(@"hh\:mm\:ss");
                         response.AppendLine($"- [{dry.Id}] {dry.Description}");
                         response.AppendLine($"  Type: dry-run, Status: {dry.Status}, Duration: {duration}");
@@ -566,14 +497,11 @@ public partial class AgentToolHandlers
                 response.AppendLine(L.T(StringKey.AgentRunningCount, 0));
                 response.AppendLine();
                 response.AppendLine(L.T(StringKey.AgentNoRunningAgents));
-            }
-            else
-            {
+            } else {
                 response.AppendLine(L.T(StringKey.AgentRunningCount, runningList.Count));
                 response.AppendLine();
 
-                foreach (var agent in runningList)
-                {
+                foreach (var agent in runningList) {
                     var duration = agent.StartedAt.HasValue
                         ? (_clock.GetUtcNow() - agent.StartedAt.Value).ToString(@"hh\:mm\:ss")
                         : "unknown";
@@ -586,13 +514,9 @@ public partial class AgentToolHandlers
             return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.AgentListFailed));
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "list", false);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("agent_list", ex, _logger);
@@ -608,10 +532,8 @@ public partial class AgentToolHandlers
         [McpToolParameter("Recipient: teammate name, agent ID, or '*' for broadcast")] string to,
         [McpToolParameter("Message content (plain text or structured JSON)")] string message,
         [McpToolParameter("5-10 word summary preview (required for plain text messages)", Required = false)] string? summary = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(to))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(to)) {
             var recipientDiag = BuildRecipientEmptyDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(recipientDiag.FormattedMessage)
@@ -619,8 +541,7 @@ public partial class AgentToolHandlers
                 .Build();
         }
 
-        if (string.IsNullOrWhiteSpace(message))
-        {
+        if (string.IsNullOrWhiteSpace(message)) {
             var msgDiag = BuildMessageEmptyDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(msgDiag.FormattedMessage)
@@ -628,17 +549,14 @@ public partial class AgentToolHandlers
                 .Build();
         }
 
-        try
-        {
+        try {
             // 解析结构化消息 — 对齐 TS SendMessageTool validateInput
             var isStructured = StructuredMessageParser.TryParse(message, out var structuredData);
 
             // 结构化消息验证 — 对齐 TS validateInput 规则
-            if (isStructured && structuredData is not null)
-            {
+            if (isStructured && structuredData is not null) {
                 // 结构化消息不能广播
-                if (to == "*")
-                {
+                if (to == "*") {
                     var broadcastDiag = BuildBroadcastStructuredMessageDiagnostic(structuredData.Type.ToValue());
                     return ToolResultBuilder.Error()
                         .WithText(broadcastDiag.FormattedMessage)
@@ -648,26 +566,21 @@ public partial class AgentToolHandlers
 
                 // shutdown_response 必须发给 team-lead
                 if (structuredData.Type == TeammateMessageType.ShutdownApproved ||
-                    structuredData.Type == TeammateMessageType.ShutdownRejected)
-                {
+                    structuredData.Type == TeammateMessageType.ShutdownRejected) {
                     // 对齐 TS: shutdown_response 必须发给 TEAM_LEAD_NAME
                     // 此处仅记录日志，不强制阻止（C# 端 team-lead 名称可能不同）
                     _logger?.LogDebug("Shutdown response sent to {Recipient}", to);
                 }
-            }
-            else
-            {
+            } else {
                 // 纯文本消息验证 — 对齐 TS: summary 推荐但不强制
                 // TS 中 summary 是 "required for plain text messages"，C# 端作为可选参数
-                if (string.IsNullOrEmpty(summary))
-                {
+                if (string.IsNullOrEmpty(summary)) {
                     _logger?.LogWarning("Agent message sent without summary");
                 }
             }
 
             // 广播模式: to="*"（仅纯文本消息可到达此处）
-            if (to == "*")
-            {
+            if (to == "*") {
                 var broadcastResult = await HandleBroadcastAsync(message, summary, cancellationToken).ConfigureAwait(false);
                 return broadcastResult;
             }
@@ -677,11 +590,9 @@ public partial class AgentToolHandlers
                 ? await _agentService.SendStructuredMessageAsync(to, structuredData, message, cancellationToken).ConfigureAwait(false)
                 : await _agentService.SendMessageToAgentAsync(to, message, cancellationToken).ConfigureAwait(false);
 
-            if (!sent)
-            {
+            if (!sent) {
                 var dryState = TryLoadDryRunState(to);
-                if (dryState is not null)
-                {
+                if (dryState is not null) {
                     AppendDryRunMessage(to, message, summary);
                     var dryMsg = summary is not null
                         ? $"Message sent to {to}: {summary}"
@@ -700,11 +611,9 @@ public partial class AgentToolHandlers
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "send_message", true);
 
             // 结构化消息的响应格式 — 对齐 TS RequestOutput/ResponseOutput
-            if (isStructured && structuredData is not null)
-            {
+            if (isStructured && structuredData is not null) {
                 var typeStr = structuredData.Type.ToValue();
-                return structuredData.Type switch
-                {
+                return structuredData.Type switch {
                     TeammateMessageType.ShutdownRequest => ToolResultBuilder.Success()
                         .WithText($"Shutdown request sent to {to} (request_id: {structuredData.RequestId})")
                         .Build(),
@@ -735,13 +644,9 @@ public partial class AgentToolHandlers
             return ToolResultBuilder.Success()
                 .WithText(responseText)
                 .Build();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.AgentSendMessageFailed));
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "send_message", false);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("agent_send_message", ex, _logger, "to", to);
@@ -751,12 +656,10 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 处理广播消息 — 对齐 TS SendMessageTool handleBroadcast
     /// </summary>
-    private async Task<ToolResult> HandleBroadcastAsync(string message, string? summary, CancellationToken cancellationToken)
-    {
+    private async Task<ToolResult> HandleBroadcastAsync(string message, string? summary, CancellationToken cancellationToken) {
         // 通过 TeamManager 广播
         var teamManager = _teamManager ?? _serviceProvider?.GetService(typeof(ITeamManager)) as ITeamManager;
-        if (teamManager is null)
-        {
+        if (teamManager is null) {
             var svcDiag = BuildBroadcastServiceUnavailableDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(svcDiag.FormattedMessage)
@@ -765,8 +668,7 @@ public partial class AgentToolHandlers
         }
 
         var teams = await teamManager.ListTeamsAsync(cancellationToken).ConfigureAwait(false);
-        if (teams.Count == 0)
-        {
+        if (teams.Count == 0) {
             var noTeamsDiag = BuildBroadcastNoTeamsDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(noTeamsDiag.FormattedMessage)
@@ -777,8 +679,7 @@ public partial class AgentToolHandlers
         var currentAgentId = _subAgentContextAccessor.Current?.AgentId ?? "unknown";
         var sentCount = 0;
 
-        foreach (var team in teams)
-        {
+        foreach (var team in teams) {
             var result = await teamManager.BroadcastMessageAsync(
                 team.TeamId, currentAgentId, message, null, cancellationToken).ConfigureAwait(false);
             if (result.Success) sentCount++;
@@ -801,27 +702,22 @@ public partial class AgentToolHandlers
     public async Task<ToolResult> ForwardUserInputAsync(
         [McpToolParameter("Target sub-agent ID")] string agentId,
         [McpToolParameter("User input to forward")] string userInput,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agentId))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agentId)) {
             return ToolResultBuilder.Error()
                 .WithText("agentId 不能为空")
                 .Build();
         }
 
-        if (string.IsNullOrWhiteSpace(userInput))
-        {
+        if (string.IsNullOrWhiteSpace(userInput)) {
             return ToolResultBuilder.Error()
                 .WithText("userInput 不能为空")
                 .Build();
         }
 
-        try
-        {
+        try {
             var dryState = TryLoadDryRunState(agentId);
-            if (dryState is not null)
-            {
+            if (dryState is not null) {
                 AppendDryRunMessage(agentId, userInput, "forwarded_user_input");
                 return ToolResultBuilder.Success()
                     .WithText($"用户输入已转发给子代理 {agentId}")
@@ -830,8 +726,7 @@ public partial class AgentToolHandlers
 
             var sent = await _agentService.ForwardUserInputToAgentAsync(agentId, userInput, cancellationToken).ConfigureAwait(false);
 
-            if (!sent)
-            {
+            if (!sent) {
                 ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "forward_user_input", false);
                 return ToolResultBuilder.Error()
                     .WithText($"转发失败：子代理 {agentId} 不存在或转发队列未注册")
@@ -842,9 +737,7 @@ public partial class AgentToolHandlers
             return ToolResultBuilder.Success()
                 .WithText($"用户输入已转发给子代理 {agentId}")
                 .Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "ForwardUserInput failed for agent {AgentId}", agentId);
             return ToolResultBuilder.Error()
                 .WithText($"转发异常: {ex.Message}")
@@ -858,10 +751,8 @@ public partial class AgentToolHandlers
     [McpTool(AgentToolNameEnumConstants.AgentGetMessages, "Get pending messages for an agent", AgentToolNameEnumConstants.Agent, ConcurrencySafe = true)]
     public async Task<ToolResult> GetMessagesAsync(
         [McpToolParameter("Agent ID")] string agent_id,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_id)) {
             var idDiag = BuildAgentIdEmptyDiagnostic();
             return ToolResultBuilder.Error()
                 .WithText(idDiag.FormattedMessage)
@@ -869,20 +760,16 @@ public partial class AgentToolHandlers
                 .Build();
         }
 
-        try
-        {
+        try {
             var messages = (await _agentService.GetAgentMessagesAsync(agent_id, cancellationToken).ConfigureAwait(false)).ToList();
 
-            if (messages.Count == 0)
-            {
+            if (messages.Count == 0) {
                 var dryMsgs = TryLoadDryRunMessages(agent_id);
-                if (dryMsgs is not null && dryMsgs.Count > 0)
-                {
+                if (dryMsgs is not null && dryMsgs.Count > 0) {
                     var dryResponse = new System.Text.StringBuilder();
                     dryResponse.AppendLine($"Pending messages for agent {agent_id}: {dryMsgs.Count}");
                     dryResponse.AppendLine();
-                    foreach (var msg in dryMsgs)
-                    {
+                    foreach (var msg in dryMsgs) {
                         dryResponse.AppendLine($"- [text] {msg.Content}");
                         dryResponse.AppendLine($"  Time: {msg.Timestamp:HH:mm:ss}");
                     }
@@ -894,14 +781,10 @@ public partial class AgentToolHandlers
             response.AppendLine($"Pending messages for agent {agent_id}: {messages.Count}");
             response.AppendLine();
 
-            if (messages.Count == 0)
-            {
+            if (messages.Count == 0) {
                 response.AppendLine("No pending messages.");
-            }
-            else
-            {
-                foreach (var msg in messages)
-                {
+            } else {
+                foreach (var msg in messages) {
                     response.AppendLine($"- [{msg.MessageType}] {msg.Content}");
                     response.AppendLine($"  From: {msg.FromAgentId}, Time: {msg.Timestamp:HH:mm:ss}");
                 }
@@ -911,13 +794,9 @@ public partial class AgentToolHandlers
             return ToolResultBuilder.Success()
                 .WithText(response.ToString())
                 .Build();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.AgentGetMessagesFailed));
             ToolTelemetryHelper.RecordToolCount(_telemetryService, "agent.handler.count", "get_messages", false);
             return ToolExceptionDiagnosticHelper.BuildErrorResult("agent_get_messages", ex, _logger);
@@ -930,8 +809,7 @@ public partial class AgentToolHandlers
     /// 构建 agent_id 为空的结构化诊断。
     /// 适用于 GetAgentStatusAsync、StopAgentAsync、GetMessagesAsync 的参数验证。
     /// </summary>
-    internal static ToolDiagnostic BuildAgentIdEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildAgentIdEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "AgentIdEmpty",
             formattedMessage: "agent_id cannot be empty",
@@ -948,8 +826,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建代理未找到的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildAgentNotFoundDiagnostic(string agentId)
-    {
+    internal static ToolDiagnostic BuildAgentNotFoundDiagnostic(string agentId) {
         return ToolDiagnostic.Create(
             reason: "AgentNotFound",
             formattedMessage: $"Agent not found: {agentId}",
@@ -967,8 +844,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建停止代理失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildStopAgentFailedDiagnostic(string agentId)
-    {
+    internal static ToolDiagnostic BuildStopAgentFailedDiagnostic(string agentId) {
         return ToolDiagnostic.Create(
             reason: "AgentStopFailed",
             formattedMessage: $"Failed to stop agent or agent not found: {agentId}",
@@ -987,8 +863,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建代理协调器未初始化的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildCoordinatorNotInitializedDiagnostic()
-    {
+    internal static ToolDiagnostic BuildCoordinatorNotInitializedDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "AgentCoordinatorNotInitialized",
             formattedMessage: L.T(StringKey.AgentCoordinatorNotInitialized),
@@ -1005,8 +880,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建消息接收者为空的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildRecipientEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildRecipientEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "AgentRecipientEmpty",
             formattedMessage: "Recipient (to) cannot be empty",
@@ -1023,8 +897,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建消息内容为空的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildMessageEmptyDiagnostic()
-    {
+    internal static ToolDiagnostic BuildMessageEmptyDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "AgentMessageEmpty",
             formattedMessage: "message cannot be empty",
@@ -1041,8 +914,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建结构化消息不支持广播的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildBroadcastStructuredMessageDiagnostic(string messageType)
-    {
+    internal static ToolDiagnostic BuildBroadcastStructuredMessageDiagnostic(string messageType) {
         return ToolDiagnostic.Create(
             reason: "AgentBroadcastStructuredMessage",
             formattedMessage: $"Cannot broadcast structured message (type: {messageType}). Send to a specific teammate instead.",
@@ -1060,8 +932,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建发送消息失败的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildSendMessageFailedDiagnostic(string recipient)
-    {
+    internal static ToolDiagnostic BuildSendMessageFailedDiagnostic(string recipient) {
         return ToolDiagnostic.Create(
             reason: "AgentSendMessageFailed",
             formattedMessage: $"Failed to send message: agent '{recipient}' not found or messaging service unavailable",
@@ -1080,8 +951,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建广播服务不可用的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildBroadcastServiceUnavailableDiagnostic()
-    {
+    internal static ToolDiagnostic BuildBroadcastServiceUnavailableDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "AgentBroadcastServiceUnavailable",
             formattedMessage: "Broadcast failed: team service not available",
@@ -1098,8 +968,7 @@ public partial class AgentToolHandlers
     /// <summary>
     /// 构建广播无团队的结构化诊断。
     /// </summary>
-    internal static ToolDiagnostic BuildBroadcastNoTeamsDiagnostic()
-    {
+    internal static ToolDiagnostic BuildBroadcastNoTeamsDiagnostic() {
         return ToolDiagnostic.Create(
             reason: "AgentBroadcastNoTeams",
             formattedMessage: "Broadcast failed: no teams exist",
@@ -1117,8 +986,7 @@ public partial class AgentToolHandlers
 /// <summary>
 /// Dry-run agent 持久化状态 — 跨进程共享 mock agent 状态
 /// </summary>
-public sealed class DryRunAgentState
-{
+public sealed class DryRunAgentState {
     /// <summary>代理ID</summary>
     public required string Id { get; set; }
     /// <summary>代理描述</summary>
@@ -1142,8 +1010,7 @@ public sealed class DryRunAgentState
 /// <summary>
 /// Dry-run agent 消息 — 跨进程共享 mock agent 消息
 /// </summary>
-public sealed class DryRunAgentMessage
-{
+public sealed class DryRunAgentMessage {
     /// <summary>消息内容</summary>
     public required string Content { get; set; }
     /// <summary>消息摘要预览</summary>

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 桌面场景缩放服务 — 四叉树象限缩小 + 状态更新 + 清晰度判断
 /// </summary>
-public interface IDesktopSceneZoomService
-{
+public interface IDesktopSceneZoomService {
     /// <summary>选象限缩小或退回上一层，返回子图 + 更新后的格子编码/层数 + 清晰度判断</summary>
     /// <param name="sceneId">场景 ID</param>
     /// <param name="quadrant">象限编号: 1=左上 2=右上 3=左下 4=右下（back=true 时忽略）</param>

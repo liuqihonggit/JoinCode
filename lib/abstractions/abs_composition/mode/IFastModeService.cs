@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IFastModeService
-{
+public interface IFastModeService {
     bool IsFastModeActive { get; }
 
     string FastModelId { get; }
@@ -21,8 +20,7 @@ public interface IFastModeService
     event EventHandler<FastModeChangedEventArgs>? FastModeChanged;
 }
 
-public sealed class FastModeChangedEventArgs : EventArgs
-{
+public sealed class FastModeChangedEventArgs : EventArgs {
     public bool IsFastModeActive { get; init; }
     public string ActiveModelId { get; init; } = string.Empty;
     public string InactiveModelId { get; init; } = string.Empty;

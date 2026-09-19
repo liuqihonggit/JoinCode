@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 调用点查找器 — 队长改热文件时找所有调用点，秘书执行连带改
 /// 查找逻辑通过回调注入（实际接入时绑定 CodeSemanticSearch/grep）
 /// </summary>
-public interface ICallSiteFinder
-{
+public interface ICallSiteFinder {
     /// <summary>
     /// 查找某符号的所有调用点
     /// </summary>

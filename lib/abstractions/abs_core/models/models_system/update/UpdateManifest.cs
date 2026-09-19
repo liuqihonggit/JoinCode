@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Update;
 /// 更新清单 — 从更新源获取的版本清单，描述所有可用版本
 /// > ADR: 0064
 /// </summary>
-public sealed class UpdateManifest
-{
+public sealed class UpdateManifest {
     /// <summary>
     /// 最新稳定版本号（如 "1.2.0"）
     /// </summary>
@@ -28,8 +27,7 @@ public sealed class UpdateManifest
 /// <summary>
 /// 更新清单条目 — 描述单个版本的下载信息
 /// </summary>
-public sealed class UpdateManifestEntry
-{
+public sealed class UpdateManifestEntry {
     /// <summary>
     /// 版本号（如 "1.2.0"）
     /// </summary>
@@ -77,8 +75,7 @@ public sealed class UpdateManifestEntry
 /// <summary>
 /// 更新下载进度报告 — 命名加 Update 前缀避免与 Infrastructure.Network.Downloader.DownloadProgress 冲突
 /// </summary>
-public sealed class UpdateDownloadProgress
-{
+public sealed class UpdateDownloadProgress {
     /// <summary>
     /// 已下载字节数
     /// </summary>
@@ -103,8 +100,7 @@ public sealed class UpdateDownloadProgress
 /// <summary>
 /// 更新操作结果
 /// </summary>
-public sealed class UpdateResult
-{
+public sealed class UpdateResult {
     /// <summary>
     /// 是否成功
     /// </summary>
@@ -133,8 +129,7 @@ public sealed class UpdateResult
     /// <summary>
     /// 成功工厂
     /// </summary>
-    public static UpdateResult Succeeded(string? downloadedPath = null, string? backupPath = null, bool requiresRestart = true) => new()
-    {
+    public static UpdateResult Succeeded(string? downloadedPath = null, string? backupPath = null, bool requiresRestart = true) => new() {
         Success = true,
         DownloadedPath = downloadedPath,
         BackupPath = backupPath,
@@ -144,8 +139,7 @@ public sealed class UpdateResult
     /// <summary>
     /// 失败工厂
     /// </summary>
-    public static UpdateResult Failed(string errorMessage) => new()
-    {
+    public static UpdateResult Failed(string errorMessage) => new() {
         Success = false,
         ErrorMessage = errorMessage
     };

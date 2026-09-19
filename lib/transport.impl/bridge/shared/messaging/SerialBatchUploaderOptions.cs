@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// SerialBatchEventUploader 配置选项
 /// </summary>
-public sealed record SerialBatchUploaderOptions
-{
+public sealed record SerialBatchUploaderOptions {
     /// <summary>最大批次大小</summary>
     public int MaxBatchSize { get; init; } = 500;
 

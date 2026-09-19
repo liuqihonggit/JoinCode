@@ -1,12 +1,9 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginDiagnosticTests
-{
+public sealed class PluginDiagnosticTests {
     [Fact]
-    public void ToString_ContainsAllFields()
-    {
-        var d = new PluginDiagnostic
-        {
+    public void ToString_ContainsAllFields() {
+        var d = new PluginDiagnostic {
             PluginId = "test-plugin",
             Kind = PluginDiagnosticKind.RevertFailed,
             Message = "撤销失败",
@@ -19,10 +16,8 @@ public sealed class PluginDiagnosticTests
     }
 
     [Fact]
-    public void ToString_WithSuggestion_ContainsSuggestion()
-    {
-        var d = new PluginDiagnostic
-        {
+    public void ToString_WithSuggestion_ContainsSuggestion() {
+        var d = new PluginDiagnostic {
             PluginId = "p",
             Kind = PluginDiagnosticKind.AlcLeak,
             Message = "ALC 泄漏",
@@ -34,10 +29,8 @@ public sealed class PluginDiagnosticTests
     }
 
     [Fact]
-    public void ToString_WithoutSuggestion_NoSuggestionLine()
-    {
-        var d = new PluginDiagnostic
-        {
+    public void ToString_WithoutSuggestion_NoSuggestionLine() {
+        var d = new PluginDiagnostic {
             PluginId = "p",
             Kind = PluginDiagnosticKind.ActivationFailed,
             Message = "激活失败",
@@ -47,8 +40,7 @@ public sealed class PluginDiagnosticTests
     }
 
     [Fact]
-    public void Timestamp_DefaultsToUtcNow()
-    {
+    public void Timestamp_DefaultsToUtcNow() {
         var before = DateTimeOffset.UtcNow;
         var d = new PluginDiagnostic { PluginId = "p", Kind = PluginDiagnosticKind.EmptyRegistration, Message = "m" };
         var after = DateTimeOffset.UtcNow;

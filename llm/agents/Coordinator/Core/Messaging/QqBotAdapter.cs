@@ -7,8 +7,7 @@ namespace Core.Agents.Coordinator;
 /// <para>接收：WebSocket 长连接（QQ Bot Gateway），监听 MESSAGE_CREATE 事件</para>
 /// <para>配置：appId + appSecret 通过 <see cref="QqBotConfig"/> 注入</para>
 /// </summary>
-public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig>
-{
+public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig> {
     /// <summary>
     /// 构造 QQ Bot 适配器。
     /// </summary>
@@ -16,16 +15,14 @@ public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig>
     /// <param name="httpClient">HTTP 客户端（调用方管理生命周期）</param>
     /// <param name="logger">日志记录器</param>
     public QqBotAdapter(QqBotConfig config, HttpClient httpClient, ILogger<QqBotAdapter>? logger = null)
-        : base(config, httpClient, logger)
-    {
+        : base(config, httpClient, logger) {
     }
 
     /// <inheritdoc/>
     public override string PlatformName => "qq";
 
     /// <inheritdoc/>
-    protected override async ValueTask<string> AcquireTokenAsync(CancellationToken ct)
-    {
+    protected override async ValueTask<string> AcquireTokenAsync(CancellationToken ct) {
         var url = $"{Config.AuthBaseUrl}/app/getAppAccessToken";
         var body = $$"""{"appId":"{{Config.AppId}}","appSecret":"{{Config.AppSecret}}"}""";
         using var response = await HttpClient.PostAsync(url, new StringContent(body, Encoding.UTF8, "application/json"), ct).ConfigureAwait(false);
@@ -44,8 +41,7 @@ public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig>
         => $$"""{"content":{{JsonEncodedText.Encode(text)}}}""";
 
     /// <inheritdoc/>
-    protected override string? ExtractMessageId(string json)
-    {
+    protected override string? ExtractMessageId(string json) {
         var doc = JsonDocument.Parse(json);
         return doc.RootElement.TryGetProperty("id", out var id) ? id.GetString() : null;
     }
@@ -54,8 +50,7 @@ public sealed class QqBotAdapter : PlatformBotAdapterBase<QqBotConfig>
 /// <summary>
 /// QQ Bot 配置 — API 凭据与端点。
 /// </summary>
-public sealed record QqBotConfig
-{
+public sealed record QqBotConfig {
     /// <summary>QQ Bot AppID。</summary>
     public required string AppId { get; init; }
 

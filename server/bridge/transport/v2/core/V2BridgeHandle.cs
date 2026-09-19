@@ -4,8 +4,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Env-less 桥句柄实现 — 对齐 TS 端 ReplBridgeHandle
 /// </summary>
-internal sealed class V2BridgeHandle : IReplBridgeHandle
-{
+internal sealed class V2BridgeHandle : IReplBridgeHandle {
     private readonly IReplBridgeTransport _transport;
     private readonly V2BridgeParams _params;
     private readonly HttpClient _httpClient;
@@ -34,8 +33,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     public V2BridgeHandle(
         V2BridgeSessionContext sessionContext,
         V2BridgeTransportContext transportContext,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         SessionId = sessionContext.Session.SessionId;
         EnvironmentId = sessionContext.Session.EnvironmentId;
         SessionIngressUrl = sessionContext.Session.SessionIngressUrl;
@@ -51,19 +49,15 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
 
     /// <summary>写入消息 — 对齐 TS 端 writeMessages: FlushGate + dedup + titleDerivation + toSDKMessages</summary>
     /// <param name="messages">消息数组</param>
-    public void WriteMessages(string[] messages)
-    {
+    public void WriteMessages(string[] messages) {
         if (_state.TornDown || messages.Length == 0) return;
 
         // 对齐 TS 端: 标题派生闩锁检查 — 在 flushGate 之前扫描
-        if (!_state.UserMessageCallbackDone && _params.OnUserMessage is not null)
-        {
+        if (!_state.UserMessageCallbackDone && _params.OnUserMessage is not null) {
             var onUserMessage = _params.OnUserMessage;
-            foreach (var msg in messages)
-            {
+            foreach (var msg in messages) {
                 var text = BridgeMessaging.ExtractTitleText(msg);
-                if (text is not null && onUserMessage(text, SessionId))
-                {
+                if (text is not null && onUserMessage(text, SessionId)) {
                     _state.UserMessageCallbackDone = true;
                     break;
                 }
@@ -71,8 +65,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
         }
 
         // 对齐 TS 端: flushGate.enqueue() — 刷新期间排队消息
-        if (_state.FlushGate.Enqueue(messages))
-        {
+        if (_state.FlushGate.Enqueue(messages)) {
             return;
         }
 
@@ -81,28 +74,21 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
         if (filtered.Count == 0) return;
 
         // 对齐 TS 端: toSDKMessages + writeBatch + session_id 注入
-        if (_params.ToSDKMessages is not null)
-        {
+        if (_params.ToSDKMessages is not null) {
             var events = new List<string>(filtered.Count * 2);
-            foreach (var msg in filtered)
-            {
+            foreach (var msg in filtered) {
                 var sdkMsgs = _params.ToSDKMessages(msg);
-                foreach (var sdkMsg in sdkMsgs)
-                {
+                foreach (var sdkMsg in sdkMsgs) {
                     events.Add(BridgeMessaging.InjectSessionId(sdkMsg, SessionId));
                 }
             }
 
-            if (events.Count > 0)
-            {
+            if (events.Count > 0) {
                 _ = _transport.WriteBatchAsync(events, _disposeCts.Token);
             }
-        }
-        else
-        {
+        } else {
             var events = new string[filtered.Count];
-            for (var i = 0; i < filtered.Count; i++)
-            {
+            for (var i = 0; i < filtered.Count; i++) {
                 events[i] = BridgeMessaging.InjectSessionId(filtered[i], SessionId);
             }
             _ = _transport.WriteBatchAsync(events, _disposeCts.Token);
@@ -112,25 +98,20 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     /// <summary>
     /// 双层 UUID 去重过滤 — 对齐 TS 端 writeMessages 中的 filter 逻辑
     /// </summary>
-    private List<string> FilterMessagesByUUID(string[] messages)
-    {
+    private List<string> FilterMessagesByUUID(string[] messages) {
         var result = new List<string>(messages.Length);
-        foreach (var msg in messages)
-        {
+        foreach (var msg in messages) {
             var uuid = BridgeMessaging.ExtractUuid(msg);
-            if (uuid is not null)
-            {
+            if (uuid is not null) {
                 if (_state.InitialMessageUUIDs?.Contains(uuid) == true ||
-                    _state.RecentPostedUUIDs.Contains(uuid))
-                {
+                    _state.RecentPostedUUIDs.Contains(uuid)) {
                     continue;
                 }
             }
 
             result.Add(msg);
 
-            if (uuid is not null)
-            {
+            if (uuid is not null) {
                 _state.RecentPostedUUIDs.Add(uuid);
             }
         }
@@ -140,22 +121,19 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
 
     /// <summary>写入 SDK 消息 — 对齐 TS 端 writeSdkMessages</summary>
     /// <param name="messages">SDK 消息数组</param>
-    public void WriteSdkMessages(string[] messages)
-    {
+    public void WriteSdkMessages(string[] messages) {
         if (_state.TornDown || messages.Length == 0) return;
         _ = _transport.WriteBatchAsync(messages, _disposeCts.Token);
     }
 
     /// <summary>发送控制请求 — 对齐 TS 端 sendControlRequest</summary>
     /// <param name="requestJson">请求 JSON</param>
-    public void SendControlRequest(string requestJson)
-    {
+    public void SendControlRequest(string requestJson) {
         if (_state.TornDown) return;
         // 对齐 TS 端: 401 恢复期间丢弃控制请求，防止发送过时请求
         if (_state.AuthRecoveryInFlight) return;
         // 对齐 TS 端: can_use_tool 子类型 → reportState('requires_action')
-        if (requestJson.Contains("\"can_use_tool\"", StringComparison.Ordinal))
-        {
+        if (requestJson.Contains("\"can_use_tool\"", StringComparison.Ordinal)) {
             _ = _transport.ReportStateAsync(BridgeSessionActivity.RequiresAction, _disposeCts.Token);
         }
         _ = _transport.WriteAsync(requestJson, _disposeCts.Token);
@@ -163,8 +141,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
 
     /// <summary>发送控制响应 — 对齐 TS 端 sendControlResponse</summary>
     /// <param name="responseJson">响应 JSON</param>
-    public void SendControlResponse(string responseJson)
-    {
+    public void SendControlResponse(string responseJson) {
         if (_state.TornDown) return;
         // 对齐 TS 端: 401 恢复期间丢弃控制响应
         if (_state.AuthRecoveryInFlight) return;
@@ -175,8 +152,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
 
     /// <summary>发送取消控制请求 — 对齐 TS 端 sendControlCancelRequest</summary>
     /// <param name="requestId">请求 ID</param>
-    public void SendControlCancelRequest(string requestId)
-    {
+    public void SendControlCancelRequest(string requestId) {
         if (_state.TornDown) return;
         // 对齐 TS 端: 401 恢复期间丢弃取消请求
         if (_state.AuthRecoveryInFlight) return;
@@ -194,20 +170,16 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>转义 JSON 字符串 — 防止注入</summary>
-    private static string EscapeJsonString(ReadOnlySpan<char> value)
-    {
+    private static string EscapeJsonString(ReadOnlySpan<char> value) {
         var needsEscape = false;
-        foreach (var c in value)
-        {
+        foreach (var c in value) {
             if (c is '"' or '\\' or '\n' or '\r' or '\t') { needsEscape = true; break; }
         }
         if (!needsEscape) return value.ToString();
 
         var sb = new System.Text.StringBuilder(value.Length + 16);
-        foreach (var c in value)
-        {
-            switch (c)
-            {
+        foreach (var c in value) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;
@@ -220,8 +192,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     }
 
     /// <summary>发送结果消息 — 对齐 TS 端 sendResult</summary>
-    public void SendResult()
-    {
+    public void SendResult() {
         if (_state.TornDown) return;
         // 对齐 TS 端: 401 恢复期间丢弃结果消息
         if (_state.AuthRecoveryInFlight) return;
@@ -231,11 +202,9 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
 
     /// <summary>优雅关闭 — 对齐 TS 端 teardown</summary>
     /// <param name="ct">取消令牌</param>
-    public async Task TeardownAsync(CancellationToken ct = default)
-    {
+    public async Task TeardownAsync(CancellationToken ct = default) {
         // 对齐 TS 端: teardownStarted 防重入
-        if (_state.TeardownStarted)
-        {
+        if (_state.TeardownStarted) {
             _logger?.LogDebug("Bridge: Teardown already in progress, skipping duplicate call");
             return;
         }
@@ -281,8 +250,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
 
     /// <summary>刷新待发消息</summary>
     /// <param name="ct">取消令牌</param>
-    public async Task FlushAsync(CancellationToken ct = default)
-    {
+    public async Task FlushAsync(CancellationToken ct = default) {
         await _transport.FlushAsync(ct).ConfigureAwait(false);
     }
 
@@ -291,8 +259,7 @@ internal sealed class V2BridgeHandle : IReplBridgeHandle
     /// 合并已关闭传输的检查点和当前活跃传输的实时值
     /// </summary>
     /// <returns>SSE 序列号高水位</returns>
-    public int GetSSESequenceNum()
-    {
+    public int GetSSESequenceNum() {
         var live = _transport.GetLastSequenceNum();
         return Math.Max(_state.LastTransportSequenceNum, live);
     }

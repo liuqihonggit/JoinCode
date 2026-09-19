@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>对齐 TS 原版 getSystemPrompt({ toolUseContext }) 闭包模式</para>
 /// <para>当 agent 需要感知当前 MCP 服务器、可用 skills、settings 时,通过此上下文注入</para>
 /// </summary>
-public sealed record AgentPromptContext
-{
+public sealed record AgentPromptContext {
     /// <summary>当前已配置的 MCP 服务器名称列表 — 供 GuideAgent 等注入到 prompt</summary>
     public IReadOnlyList<string>? McpServers { get; init; }
 

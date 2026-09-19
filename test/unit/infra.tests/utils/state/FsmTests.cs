@@ -1,8 +1,7 @@
 namespace Infra.Tests.Utils.State;
 
 
-public enum FsmTestState
-{
+public enum FsmTestState {
     Idle,
     Running,
     Paused,
@@ -10,8 +9,7 @@ public enum FsmTestState
     Faulted
 }
 
-public enum FsmTestEvent
-{
+public enum FsmTestEvent {
     Start,
     Pause,
     Resume,
@@ -20,20 +18,16 @@ public enum FsmTestEvent
     Reset
 }
 
-public sealed class FsmTestContext : FsmContext
-{
+public sealed class FsmTestContext : FsmContext {
     public int ConsecutiveFailures;
     public bool ActionInvoked;
 }
 
-public class FsmTests
-{
+public class FsmTests {
     private static FrozenDictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>> CreateTransitionTable(
         TransitionGuard? completeGuard = null,
-        TransitionAction? startAction = null)
-    {
-        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>>
-        {
+        TransitionAction? startAction = null) {
+        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>> {
             [new(FsmTestState.Idle, FsmTestEvent.Start)] = new(FsmTestState.Running, Action: startAction),
             [new(FsmTestState.Running, FsmTestEvent.Pause)] = new(FsmTestState.Paused),
             [new(FsmTestState.Running, FsmTestEvent.Complete)] = new(FsmTestState.Completed, Guard: completeGuard),
@@ -47,15 +41,13 @@ public class FsmTests
     }
 
     [Fact]
-    public void CurrentState_ShouldBeInitial()
-    {
+    public void CurrentState_ShouldBeInitial() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         fsm.CurrentState.Should().Be(FsmTestState.Idle);
     }
 
     [Fact]
-    public void Trigger_ValidEvent_ShouldTransition()
-    {
+    public void Trigger_ValidEvent_ShouldTransition() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         var result = fsm.Trigger(FsmTestEvent.Start);
         result.Transitioned.Should().BeTrue();
@@ -67,8 +59,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Trigger_NoRule_ShouldReturnNoRule()
-    {
+    public void Trigger_NoRule_ShouldReturnNoRule() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         var result = fsm.Trigger(FsmTestEvent.Pause);
         result.Transitioned.Should().BeFalse();
@@ -79,8 +70,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Trigger_GuardFailed_ShouldReturnGuardFailed()
-    {
+    public void Trigger_GuardFailed_ShouldReturnGuardFailed() {
         var guard = new TransitionGuard(_ => false);
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(completeGuard: guard), FsmTestState.Running);
         var result = fsm.Trigger(FsmTestEvent.Complete);
@@ -90,8 +80,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Trigger_GuardPassed_ShouldTransition()
-    {
+    public void Trigger_GuardPassed_ShouldTransition() {
         var guard = new TransitionGuard(_ => true);
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(completeGuard: guard), FsmTestState.Running);
         var result = fsm.Trigger(FsmTestEvent.Complete);
@@ -100,8 +89,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Trigger_GuardWithContext_ShouldEvaluateContext()
-    {
+    public void Trigger_GuardWithContext_ShouldEvaluateContext() {
         var ctx = new FsmTestContext { ConsecutiveFailures = 10 };
         var guard = new TransitionGuard(c => c is FsmTestContext tc && tc.ConsecutiveFailures >= 5);
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(completeGuard: guard), FsmTestState.Running);
@@ -110,8 +98,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Trigger_GuardWithContext_Failed_ShouldNotTransition()
-    {
+    public void Trigger_GuardWithContext_Failed_ShouldNotTransition() {
         var ctx = new FsmTestContext { ConsecutiveFailures = 2 };
         var guard = new TransitionGuard(c => c is FsmTestContext tc && tc.ConsecutiveFailures >= 5);
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(completeGuard: guard), FsmTestState.Running);
@@ -121,8 +108,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Trigger_Action_ShouldInvokeAfterTransition()
-    {
+    public void Trigger_Action_ShouldInvokeAfterTransition() {
         var ctx = new FsmTestContext();
         var action = new TransitionAction(c => ((FsmTestContext)c!).ActionInvoked = true);
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(startAction: action), FsmTestState.Idle);
@@ -131,8 +117,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Trigger_FaultedState_ShouldTransitionToFaulted()
-    {
+    public void Trigger_FaultedState_ShouldTransitionToFaulted() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Running);
         var result = fsm.Trigger(FsmTestEvent.Fail);
         result.Transitioned.Should().BeTrue();
@@ -141,8 +126,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Trigger_FromFaulted_Reset_ShouldReturnToIdle()
-    {
+    public void Trigger_FromFaulted_Reset_ShouldReturnToIdle() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Faulted);
         var result = fsm.Trigger(FsmTestEvent.Reset);
         result.Transitioned.Should().BeTrue();
@@ -150,24 +134,21 @@ public class FsmTests
     }
 
     [Fact]
-    public void TryTrigger_Valid_ShouldReturnTrue()
-    {
+    public void TryTrigger_Valid_ShouldReturnTrue() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         fsm.TryTrigger(FsmTestEvent.Start).Should().BeTrue();
         fsm.CurrentState.Should().Be(FsmTestState.Running);
     }
 
     [Fact]
-    public void TryTrigger_Invalid_ShouldReturnFalse()
-    {
+    public void TryTrigger_Invalid_ShouldReturnFalse() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         fsm.TryTrigger(FsmTestEvent.Pause).Should().BeFalse();
         fsm.CurrentState.Should().Be(FsmTestState.Idle);
     }
 
     [Fact]
-    public void CanTrigger_WithGuard_ShouldEvaluateGuard()
-    {
+    public void CanTrigger_WithGuard_ShouldEvaluateGuard() {
         var guard = new TransitionGuard(_ => false);
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(completeGuard: guard), FsmTestState.Running);
         fsm.CanTrigger(FsmTestEvent.Complete).Should().BeFalse();
@@ -175,15 +156,13 @@ public class FsmTests
     }
 
     [Fact]
-    public void CanTrigger_NoRule_ShouldReturnFalse()
-    {
+    public void CanTrigger_NoRule_ShouldReturnFalse() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         fsm.CanTrigger(FsmTestEvent.Pause).Should().BeFalse();
     }
 
     [Fact]
-    public void GetAvailableEvents_ShouldReturnGuardedEvents()
-    {
+    public void GetAvailableEvents_ShouldReturnGuardedEvents() {
         var guard = new TransitionGuard(_ => false);
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(completeGuard: guard), FsmTestState.Running);
         var events = fsm.GetAvailableEvents();
@@ -193,8 +172,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void StateChanged_ShouldFireOnTransition()
-    {
+    public void StateChanged_ShouldFireOnTransition() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         TransitionResult<FsmTestState, FsmTestEvent>? captured = null;
         fsm.StateChanged += (_, args) => captured = args;
@@ -205,8 +183,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void StateChanged_ShouldNotFireOnNoRule()
-    {
+    public void StateChanged_ShouldNotFireOnNoRule() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         var fired = false;
         fsm.StateChanged += (_, _) => fired = true;
@@ -215,8 +192,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void StateChanged_ShouldNotFireOnGuardFailed()
-    {
+    public void StateChanged_ShouldNotFireOnGuardFailed() {
         var guard = new TransitionGuard(_ => false);
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(completeGuard: guard), FsmTestState.Running);
         var fired = false;
@@ -226,16 +202,14 @@ public class FsmTests
     }
 
     [Fact]
-    public void ForceSet_ShouldTransitionWithoutValidation()
-    {
+    public void ForceSet_ShouldTransitionWithoutValidation() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         fsm.ForceSet(FsmTestState.Completed);
         fsm.CurrentState.Should().Be(FsmTestState.Completed);
     }
 
     [Fact]
-    public void ForceSet_SameState_ShouldNotFireEvent()
-    {
+    public void ForceSet_SameState_ShouldNotFireEvent() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         var fired = false;
         fsm.StateChanged += (_, _) => fired = true;
@@ -244,8 +218,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void Reset_ShouldSetStateWithoutEvent()
-    {
+    public void Reset_ShouldSetStateWithoutEvent() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         var fired = false;
         fsm.StateChanged += (_, _) => fired = true;
@@ -255,8 +228,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void MultipleTransitions_ShouldWorkCorrectly()
-    {
+    public void MultipleTransitions_ShouldWorkCorrectly() {
         var fsm = new Fsm<FsmTestState, FsmTestEvent>(CreateTransitionTable(), FsmTestState.Idle);
         fsm.Trigger(FsmTestEvent.Start);
         fsm.Trigger(FsmTestEvent.Pause);
@@ -266,8 +238,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void TransitionKey_Equality_ShouldWork()
-    {
+    public void TransitionKey_Equality_ShouldWork() {
         var k1 = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Start);
         var k2 = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Start);
         var k3 = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Running, FsmTestEvent.Start);
@@ -277,8 +248,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void TransitionKey_CompareTo_ShouldOrderByFromThenEvent()
-    {
+    public void TransitionKey_CompareTo_ShouldOrderByFromThenEvent() {
         var a = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Start);
         var b = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Pause);
         var c = new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Running, FsmTestEvent.Start);
@@ -290,8 +260,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void ArrayConstructor_ShouldWorkSameAsDictionaryConstructor()
-    {
+    public void ArrayConstructor_ShouldWorkSameAsDictionaryConstructor() {
         var table = CreateTransitionTable();
         var fsmFromDict = new Fsm<FsmTestState, FsmTestEvent>(table, FsmTestState.Idle);
 
@@ -313,8 +282,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void BinarySearch_ShouldFindExistingKey()
-    {
+    public void BinarySearch_ShouldFindExistingKey() {
         var keys = new[]
         {
             new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Start),
@@ -330,8 +298,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void BinarySearch_ShouldReturnNegativeForMissingKey()
-    {
+    public void BinarySearch_ShouldReturnNegativeForMissingKey() {
         var keys = new[]
         {
             new TransitionKey<FsmTestState, FsmTestEvent>(FsmTestState.Idle, FsmTestEvent.Start),
@@ -345,8 +312,7 @@ public class FsmTests
     }
 
     [Fact]
-    public void SortedKeysArray_ShouldBeOrderedByCompareTo()
-    {
+    public void SortedKeysArray_ShouldBeOrderedByCompareTo() {
         var table = CreateTransitionTable();
         var pairs = table.OrderBy(kvp => kvp.Key).ToArray();
         var sortedKeys = pairs.Select(p => p.Key).ToArray();
@@ -357,13 +323,11 @@ public class FsmTests
     }
 
     [Fact]
-    public void ArrayConstructor_WithGuard_ShouldWork()
-    {
+    public void ArrayConstructor_WithGuard_ShouldWork() {
         var ctx = new FsmTestContext { ConsecutiveFailures = 5 };
         var guard = new TransitionGuard(c => ((FsmTestContext)c!).ConsecutiveFailures >= 3);
 
-        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>>
-        {
+        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>> {
             [new(FsmTestState.Running, FsmTestEvent.Complete)] = new(FsmTestState.Completed, guard),
         }.ToFrozenDictionary();
 
@@ -379,13 +343,11 @@ public class FsmTests
     }
 
     [Fact]
-    public void ArrayConstructor_WithAction_ShouldInvokeAction()
-    {
+    public void ArrayConstructor_WithAction_ShouldInvokeAction() {
         var ctx = new FsmTestContext();
         var action = new TransitionAction(c => ((FsmTestContext)c!).ActionInvoked = true);
 
-        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>>
-        {
+        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>> {
             [new(FsmTestState.Idle, FsmTestEvent.Start)] = new(FsmTestState.Running, Action: action),
         }.ToFrozenDictionary();
 
@@ -400,13 +362,11 @@ public class FsmTests
     }
 
     [Fact]
-    public void GetAvailableEvents_WithArrayBackend_ShouldReturnGuardedEvents()
-    {
+    public void GetAvailableEvents_WithArrayBackend_ShouldReturnGuardedEvents() {
         var ctx = new FsmTestContext { ConsecutiveFailures = 1 };
         var guard = new TransitionGuard(c => ((FsmTestContext)c!).ConsecutiveFailures >= 3);
 
-        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>>
-        {
+        var table = new Dictionary<TransitionKey<FsmTestState, FsmTestEvent>, TransitionRule<FsmTestState>> {
             [new(FsmTestState.Running, FsmTestEvent.Pause)] = new(FsmTestState.Paused),
             [new(FsmTestState.Running, FsmTestEvent.Complete)] = new(FsmTestState.Completed, guard),
             [new(FsmTestState.Running, FsmTestEvent.Fail)] = new(FsmTestState.Faulted),

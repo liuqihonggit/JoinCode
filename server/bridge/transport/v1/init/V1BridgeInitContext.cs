@@ -4,8 +4,7 @@ namespace Core.Bridge.Init;
 /// <summary>
 /// v1 env-based 桥初始化管道上下文 — 中间件间共享的可变状态
 /// </summary>
-public sealed class V1BridgeInitContext : ITokenValidationContext, INullCheckContext
-{
+public sealed class V1BridgeInitContext : ITokenValidationContext, INullCheckContext {
     /// <summary>桥核心参数</summary>
     public required BridgeCoreParams Parameters { get; init; }
     /// <summary>HTTP 客户端</summary>
@@ -61,8 +60,7 @@ public sealed class V1BridgeInitContext : ITokenValidationContext, INullCheckCon
     /// 标记上下文为失败状态
     /// </summary>
     /// <param name="message">失败消息</param>
-    public void Fail(string message)
-    {
+    public void Fail(string message) {
         Failed = true;
         ErrorMessage = message;
         Parameters.OnStateChange?.Invoke(BridgeState.Failed, message);

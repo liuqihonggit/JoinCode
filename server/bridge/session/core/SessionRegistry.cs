@@ -7,14 +7,12 @@ namespace Core.Bridge;
 /// _clientIdToSessionId: clientId → sessionId
 /// 创建时同时写入,关闭时只移除 client 映射,清理时才移除 session
 /// </summary>
-internal sealed class SessionRegistry
-{
+internal sealed class SessionRegistry {
     private readonly ConcurrentDictionary<string, BridgeSession> _sessions = new();
     private readonly ConcurrentDictionary<string, string> _clientIdToSessionId = new();
 
     /// <summary>添加会话 — 同时写入 session 和 client 映射</summary>
-    public void Add(BridgeSession session)
-    {
+    public void Add(BridgeSession session) {
         _sessions[session.SessionId] = session;
         _clientIdToSessionId[session.ClientId] = session.SessionId;
     }

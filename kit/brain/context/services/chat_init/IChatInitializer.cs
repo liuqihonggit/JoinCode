@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 初始化器接口 — 会话初始化、配置变更监听
 /// </summary>
-public interface IChatInitializer
-{
+public interface IChatInitializer {
     /// <summary>
     /// 初始化会话
     /// </summary>

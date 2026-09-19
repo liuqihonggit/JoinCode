@@ -5,8 +5,7 @@ namespace Core.DependencyInjection;
 /// 从 settings.json 懒加载持久化的 effortLevel，供 ChatOptionsFactory / EffortLevelMiddleware 消费。
 /// </summary>
 [Register(typeof(IExecutionSettingsProvider), ServiceLifetime.Singleton)]
-public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutionSettingsProvider
-{
+public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutionSettingsProvider {
     private readonly WorkflowConfig _config;
     private readonly ITelemetryService? _telemetryService;
     private readonly IFileSystem _fs;
@@ -19,16 +18,14 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
     /// <param name="fs">文件系统（用于读取 settings.json 持久化设置）。</param>
     /// <param name="registry">供应商定义注册表（用于解析 FastModelId）。</param>
     /// <param name="telemetryService">可选的遥测服务（记录设置变更计数）。</param>
-    public ExecutionSettingsProvider(WorkflowConfig config, IFileSystem fs, IProviderDefinitionRegistry registry, ITelemetryService? telemetryService = null)
-    {
+    public ExecutionSettingsProvider(WorkflowConfig config, IFileSystem fs, IProviderDefinitionRegistry registry, ITelemetryService? telemetryService = null) {
         _config = config;
         _telemetryService = telemetryService;
         _fs = fs;
         _registry = registry;
     }
 
-    private EffortLevel LoadPersistedEffort()
-    {
+    private EffortLevel LoadPersistedEffort() {
         // 从 settings.json 读取持久化的 effortLevel — 对齐 TS getUserSpecifiedModelSetting
         var persistedEffort = ConfigLoader.LoadSettingFromSettingsJson("effortLevel", _fs);
         return EffortLevelHelper.ParseEffortLevel(persistedEffort) ?? EffortLevel.Auto;
@@ -43,21 +40,16 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
     /// 获取或设置努力级别。首次读取触发从 settings.json 惰加载（双变量模式，规则3）；
     /// 设置时立即生效并标记已加载，同时记录遥测计数。
     /// </summary>
-    public EffortLevel EffortLevel
-    {
-        get
-        {
-            if (!_isLoaded)
-            {
+    public EffortLevel EffortLevel {
+        get {
+            if (!_isLoaded) {
                 _effortLevel = LoadPersistedEffort();
                 _isLoaded = true;
             }
             return _effortLevel;
         }
-        set
-        {
-            if (_effortLevel != value)
-            {
+        set {
+            if (_effortLevel != value) {
                 _telemetryService?.RecordCount("host.settings.change.count", new Dictionary<string, string> { ["setting"] = "effortLevel", ["old"] = _effortLevel.ToValue(), ["new"] = value.ToValue() }, "count", "Execution settings change count");
             }
             _effortLevel = value;
@@ -94,26 +86,21 @@ public sealed partial class ExecutionSettingsProvider : ServiceEntity, IExecutio
     /// 获取或设置是否启用思考模式。首次读取从 settings.json 的 <c>alwaysThinkingEnabled</c> 惰加载（双变量模式，对齐 <see cref="EffortLevel"/>）；
     /// 设置时立即生效并标记已加载。
     /// </summary>
-    public bool ThinkingEnabled
-    {
-        get
-        {
-            if (!_isThinkingLoaded)
-            {
+    public bool ThinkingEnabled {
+        get {
+            if (!_isThinkingLoaded) {
                 _thinkingEnabled = LoadPersistedThinkingEnabled();
                 _isThinkingLoaded = true;
             }
             return _thinkingEnabled;
         }
-        set
-        {
+        set {
             _thinkingEnabled = value;
             _isThinkingLoaded = true;
         }
     }
 
-    private bool LoadPersistedThinkingEnabled()
-    {
+    private bool LoadPersistedThinkingEnabled() {
         var persisted = ConfigLoader.LoadSettingFromSettingsJson("alwaysThinkingEnabled", _fs);
         return string.Equals(persisted, "true", StringComparison.OrdinalIgnoreCase);
     }

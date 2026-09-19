@@ -13,8 +13,7 @@ public delegate Task<ToolResult> ToolHandler(
 /// <summary>
 /// 工具处理器接口
 /// </summary>
-public interface IToolHandler
-{
+public interface IToolHandler {
     /// <summary>
     /// 工具名称
     /// </summary>

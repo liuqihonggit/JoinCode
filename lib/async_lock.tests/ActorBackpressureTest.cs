@@ -3,11 +3,9 @@ namespace Core.Utils;
 /// <summary>
 /// ActorBase 背压功能单元测试 — 验证水位线、发送超时、事件触发、向后兼容。
 /// </summary>
-public class ActorBackpressureTest
-{
+public class ActorBackpressureTest {
     [Fact]
-    public void ActorBackpressure_PredefinedConfigs_HaveCorrectCapacity()
-    {
+    public void ActorBackpressure_PredefinedConfigs_HaveCorrectCapacity() {
         ActorBackpressure.CodingAgentTask.Capacity.Should().Be(2000);
         ActorBackpressure.LlmGateway.Capacity.Should().Be(200);
         ActorBackpressure.Router.Capacity.Should().Be(1000);
@@ -15,24 +13,21 @@ public class ActorBackpressureTest
     }
 
     [Fact]
-    public void ActorBackpressure_EffectiveWatermarks_DefaultToPercentage()
-    {
+    public void ActorBackpressure_EffectiveWatermarks_DefaultToPercentage() {
         var bp = new ActorBackpressure(Capacity: 100);
         bp.EffectiveHighWatermark.Should().Be(80);
         bp.EffectiveCriticalWatermark.Should().Be(95);
     }
 
     [Fact]
-    public void ActorBackpressure_EffectiveWatermarks_UseExplicitValues()
-    {
+    public void ActorBackpressure_EffectiveWatermarks_UseExplicitValues() {
         var bp = new ActorBackpressure(Capacity: 100, HighWatermark: 50, CriticalWatermark: 90);
         bp.EffectiveHighWatermark.Should().Be(50);
         bp.EffectiveCriticalWatermark.Should().Be(90);
     }
 
     [Fact]
-    public async Task MailboxCount_ReflectsQueuedCommands()
-    {
+    public async Task MailboxCount_ReflectsQueuedCommands() {
         await using var actor = new BackpressureTestActor(new ActorBackpressure(Capacity: 10));
         var tcs1 = new TaskCompletionSource<int>();
         var tcs2 = new TaskCompletionSource<int>();
@@ -46,16 +41,14 @@ public class ActorBackpressureTest
     }
 
     [Fact]
-    public async Task IsHighWatermark_TrueWhenCountExceedsThreshold()
-    {
+    public async Task IsHighWatermark_TrueWhenCountExceedsThreshold() {
         var bp = new ActorBackpressure(Capacity: 10, HighWatermark: 3, CriticalWatermark: 8);
         await using var actor = new BackpressureTestActor(bp);
 
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             await actor.IncrementAsync(new TaskCompletionSource<int>());
         }
 
@@ -66,16 +59,14 @@ public class ActorBackpressureTest
     }
 
     [Fact]
-    public async Task IsCriticalWatermark_TrueWhenCountExceedsCritical()
-    {
+    public async Task IsCriticalWatermark_TrueWhenCountExceedsCritical() {
         var bp = new ActorBackpressure(Capacity: 20, HighWatermark: 5, CriticalWatermark: 10);
         await using var actor = new BackpressureTestActor(bp);
 
         var gateTcs = new TaskCompletionSource();
         actor.SetGate(gateTcs);
 
-        for (var i = 0; i < 12; i++)
-        {
+        for (var i = 0; i < 12; i++) {
             await actor.IncrementAsync(new TaskCompletionSource<int>());
         }
 
@@ -85,8 +76,7 @@ public class ActorBackpressureTest
     }
 
     [Fact]
-    public async Task WatermarkReached_EventFiresOnHighWatermark()
-    {
+    public async Task WatermarkReached_EventFiresOnHighWatermark() {
         var bp = new ActorBackpressure(Capacity: 20, HighWatermark: 3, CriticalWatermark: 15);
         await using var actor = new BackpressureTestActor(bp);
 
@@ -96,8 +86,7 @@ public class ActorBackpressureTest
         var events = new List<BackpressureEventArgs>();
         actor.InputWatermarkReached += (_, e) => events.Add(e);
 
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             await actor.IncrementAsync(new TaskCompletionSource<int>());
         }
 
@@ -108,8 +97,7 @@ public class ActorBackpressureTest
     }
 
     [Fact]
-    public async Task WatermarkReached_EventFiresOnCriticalWatermark()
-    {
+    public async Task WatermarkReached_EventFiresOnCriticalWatermark() {
         var bp = new ActorBackpressure(Capacity: 30, HighWatermark: 5, CriticalWatermark: 10);
         await using var actor = new BackpressureTestActor(bp);
 
@@ -119,8 +107,7 @@ public class ActorBackpressureTest
         var events = new List<BackpressureEventArgs>();
         actor.InputWatermarkReached += (_, e) => events.Add(e);
 
-        for (var i = 0; i < 15; i++)
-        {
+        for (var i = 0; i < 15; i++) {
             await actor.IncrementAsync(new TaskCompletionSource<int>());
         }
 
@@ -130,8 +117,7 @@ public class ActorBackpressureTest
     }
 
     [Fact]
-    public async Task SendTimeout_ThrowsTimeoutException_WhenChannelFull()
-    {
+    public async Task SendTimeout_ThrowsTimeoutException_WhenChannelFull() {
         var bp = new ActorBackpressure(
             Capacity: 1,
             FullMode: BoundedChannelFullMode.Wait,
@@ -153,8 +139,7 @@ public class ActorBackpressureTest
     }
 
     [Fact]
-    public async Task BackpressureConstructor_BackwardCompatible_WithExistingConstructor()
-    {
+    public async Task BackpressureConstructor_BackwardCompatible_WithExistingConstructor() {
         await using var actor1 = new BackpressureTestActor(boundedCapacity: 5);
         await using var actor2 = new BackpressureTestActor();
 
@@ -168,8 +153,7 @@ public class ActorBackpressureTest
     }
 
     [Fact]
-    public async Task NoBackpressure_IsHighWatermark_AlwaysFalse()
-    {
+    public async Task NoBackpressure_IsHighWatermark_AlwaysFalse() {
         await using var actor = new BackpressureTestActor();
         actor.IsInputHighWatermark.Should().BeFalse();
         actor.IsInputCriticalWatermark.Should().BeFalse();
@@ -179,8 +163,7 @@ public class ActorBackpressureTest
 /// <summary>
 /// 背压测试用 Actor — 支持 gate(门控暂停 Consumer)和背压构造函数。
 /// </summary>
-internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.ICommand, Unit>
-{
+internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.ICommand, Unit> {
     internal interface ICommand;
 
     internal sealed record IncrementCommand(TaskCompletionSource<int> Tcs) : ICommand;
@@ -189,8 +172,7 @@ internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.IC
     private int _value;
     private TaskCompletionSource _gate = CreateCompletedGate();
 
-    private static TaskCompletionSource CreateCompletedGate()
-    {
+    private static TaskCompletionSource CreateCompletedGate() {
         var tcs = new TaskCompletionSource();
         tcs.SetResult();
         return tcs;
@@ -200,25 +182,22 @@ internal sealed class BackpressureTestActor : ActorBase<BackpressureTestActor.IC
 
     public BackpressureTestActor(ActorBackpressure backpressure) : base(backpressure) { }
 
-    public void SetGate(TaskCompletionSource gate)
-    {
+    public void SetGate(TaskCompletionSource gate) {
         _gate = gate;
     }
 
-    protected override async ValueTask HandleAsync(ICommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override async ValueTask HandleAsync(ICommand command, CancellationToken ct) {
+        switch (command) {
             case IncrementCommand(var tcs):
-                await _gate.Task.WaitAsync(ct);
-                _value++;
-                tcs.TrySetResult(_value);
-                return;
+            await _gate.Task.WaitAsync(ct);
+            _value++;
+            tcs.TrySetResult(_value);
+            return;
             case ReleaseGateCommand:
-                _gate.TrySetResult();
-                return;
+            _gate.TrySetResult();
+            return;
             default:
-                return;
+            return;
         }
     }
 

@@ -1,25 +1,21 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class CsprojParserTests : IDisposable
-{
+public sealed class CsprojParserTests : IDisposable {
     private readonly IO.FileSystem.InMemoryFileSystem _fs;
     private bool _disposed;
 
-    public CsprojParserTests()
-    {
+    public CsprojParserTests() {
         _fs = new IO.FileSystem.InMemoryFileSystem();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fs.Clear();
     }
 
     [Fact]
-    public void Parse_ExtractsProjectName()
-    {
+    public void Parse_ExtractsProjectName() {
         var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
         var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
@@ -28,8 +24,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_ExtractsTargetFramework()
-    {
+    public void Parse_ExtractsTargetFramework() {
         var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
         var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
@@ -38,8 +33,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_ExtractsOutputType()
-    {
+    public void Parse_ExtractsOutputType() {
         var path = WriteCsproj("<Project><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup></Project>");
 
         var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
@@ -48,8 +42,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_ExtractsProjectReferences()
-    {
+    public void Parse_ExtractsProjectReferences() {
         var dir = Path.Combine(Path.GetTempPath(), $"csproj_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var path = Path.Combine(dir, "Test.csproj");
@@ -64,8 +57,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_ExtractsPackageReferences()
-    {
+    public void Parse_ExtractsPackageReferences() {
         var path = WriteCsproj(
             """
             <Project>
@@ -84,8 +76,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_PackageReferenceWithMsBuildVersion_SetsVersionToNull()
-    {
+    public void Parse_PackageReferenceWithMsBuildVersion_SetsVersionToNull() {
         var path = WriteCsproj(
             """
             <Project>
@@ -102,8 +93,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_NoProjectReferences_ReturnsEmptyList()
-    {
+    public void Parse_NoProjectReferences_ReturnsEmptyList() {
         var path = WriteCsproj("<Project><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
 
         var result = CsprojParser.Parse(path, _fs, Path.GetDirectoryName(path));
@@ -112,8 +102,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_ResolvesMsBuildVariablesFromDirectoryBuildProps()
-    {
+    public void Parse_ResolvesMsBuildVariablesFromDirectoryBuildProps() {
         var dir = Path.Combine(Path.GetTempPath(), $"csproj_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var propsPath = Path.Combine(dir, "Directory.Build.props");
@@ -143,8 +132,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_ProjectReferenceWithUnresolvedVariable_IsSkipped()
-    {
+    public void Parse_ProjectReferenceWithUnresolvedVariable_IsSkipped() {
         var path = WriteCsproj(
             """
             <Project>
@@ -160,20 +148,17 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_NullFilePath_Throws()
-    {
+    public void Parse_NullFilePath_Throws() {
         Assert.Throws<ArgumentNullException>(() => CsprojParser.Parse(null!, _fs, ""));
     }
 
     [Fact]
-    public void Parse_NullFileSystem_Throws()
-    {
+    public void Parse_NullFileSystem_Throws() {
         Assert.Throws<ArgumentNullException>(() => CsprojParser.Parse("test.csproj", null!, ""));
     }
 
     [Fact]
-    public void Parse_ProjectReferenceWithEmptyInclude_IsSkipped()
-    {
+    public void Parse_ProjectReferenceWithEmptyInclude_IsSkipped() {
         var path = WriteCsproj(
             """
             <Project>
@@ -189,8 +174,7 @@ public sealed class CsprojParserTests : IDisposable
     }
 
     [Fact]
-    public void Parse_PackageReferenceWithEmptyInclude_IsSkipped()
-    {
+    public void Parse_PackageReferenceWithEmptyInclude_IsSkipped() {
         var path = WriteCsproj(
             """
             <Project>
@@ -205,8 +189,7 @@ public sealed class CsprojParserTests : IDisposable
         Assert.Empty(result.PackageReferences);
     }
 
-    private string WriteCsproj(string content)
-    {
+    private string WriteCsproj(string content) {
         var dir = Path.Combine(Path.GetTempPath(), $"csproj_{Guid.NewGuid():N}");
         _fs.CreateDirectory(dir);
         var path = Path.Combine(dir, "Test.csproj");

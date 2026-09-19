@@ -3,23 +3,19 @@ namespace Infra.Tests.Process;
 /// <summary>
 /// GitHubCommandRunner 单元测试 — 验证 ExecuteAsync / CreatePrAsync / ListPrsAsync / 重试机制 / PR 解析
 /// </summary>
-public sealed class GitHubCommandRunnerTest
-{
+public sealed class GitHubCommandRunnerTest {
     private readonly Mock<IProcessService> _processService = new();
     private readonly Mock<IGitCommandRunner> _gitRunner = new();
     private readonly PrBodyGenerator _prBodyGenerator;
     private readonly GitHubCommandRunner _runner;
 
-    public GitHubCommandRunnerTest()
-    {
+    public GitHubCommandRunnerTest() {
         _prBodyGenerator = new PrBodyGenerator(_gitRunner.Object);
         _runner = new GitHubCommandRunner(_processService.Object, _prBodyGenerator);
     }
 
-    private static ProcessResult CreateResult(int exitCode, string stdout = "", string stderr = "")
-    {
-        return new ProcessResult
-        {
+    private static ProcessResult CreateResult(int exitCode, string stdout = "", string stderr = "") {
+        return new ProcessResult {
             ExitCode = exitCode,
             StandardOutput = stdout,
             StandardError = stderr,
@@ -30,8 +26,7 @@ public sealed class GitHubCommandRunnerTest
     // === ExecuteAsync ===
 
     [Fact]
-    public async Task ExecuteAsync_Success_ReturnsSuccessResult()
-    {
+    public async Task ExecuteAsync_Success_ReturnsSuccessResult() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(0, "output", ""));
 
@@ -43,8 +38,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ExecuteAsync_NonZeroExitCode_ReturnsFailureResult()
-    {
+    public async Task ExecuteAsync_NonZeroExitCode_ReturnsFailureResult() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(1, "", "error"));
 
@@ -56,8 +50,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ExecuteAsync_ProcessThrowsException_ReturnsFailureResult()
-    {
+    public async Task ExecuteAsync_ProcessThrowsException_ReturnsFailureResult() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
@@ -69,8 +62,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ExecuteAsync_PassesGitHubEnvironmentVariables()
-    {
+    public async Task ExecuteAsync_PassesGitHubEnvironmentVariables() {
         ProcessOptions? captured = null;
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .Callback<ProcessOptions, CancellationToken>((opts, _) => captured = opts)
@@ -87,8 +79,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ExecuteAsync_PassesWorkingDirectory()
-    {
+    public async Task ExecuteAsync_PassesWorkingDirectory() {
         ProcessOptions? captured = null;
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .Callback<ProcessOptions, CancellationToken>((opts, _) => captured = opts)
@@ -102,8 +93,7 @@ public sealed class GitHubCommandRunnerTest
     // === CreatePrAsync ===
 
     [Fact]
-    public async Task CreatePrAsync_WithBody_UsesProvidedBody()
-    {
+    public async Task CreatePrAsync_WithBody_UsesProvidedBody() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(0, "https://github.com/owner/repo/pull/123", ""));
 
@@ -115,8 +105,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_NullBody_AutoGeneratesBodyFromCommits()
-    {
+    public async Task CreatePrAsync_NullBody_AutoGeneratesBodyFromCommits() {
         _gitRunner.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GitCommandResult { Success = true, Output = "feat: new feature" });
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
@@ -129,8 +118,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_EmptyBody_AutoGeneratesBody()
-    {
+    public async Task CreatePrAsync_EmptyBody_AutoGeneratesBody() {
         _gitRunner.Setup(x => x.ExecuteAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new GitCommandResult { Success = true, Output = "" });
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
@@ -142,8 +130,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_Draft_AddsDraftFlag()
-    {
+    public async Task CreatePrAsync_Draft_AddsDraftFlag() {
         ProcessOptions? captured = null;
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .Callback<ProcessOptions, CancellationToken>((opts, _) => captured = opts)
@@ -155,8 +142,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_NoDraft_OmitsDraftFlag()
-    {
+    public async Task CreatePrAsync_NoDraft_OmitsDraftFlag() {
         ProcessOptions? captured = null;
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .Callback<ProcessOptions, CancellationToken>((opts, _) => captured = opts)
@@ -168,8 +154,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_WithRepo_AddsRepoFlag()
-    {
+    public async Task CreatePrAsync_WithRepo_AddsRepoFlag() {
         ProcessOptions? captured = null;
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .Callback<ProcessOptions, CancellationToken>((opts, _) => captured = opts)
@@ -181,8 +166,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_Failure_ReturnsError()
-    {
+    public async Task CreatePrAsync_Failure_ReturnsError() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(1, "", "some error"));
 
@@ -193,24 +177,21 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_NullTitle_ThrowsArgumentNullException()
-    {
+    public async Task CreatePrAsync_NullTitle_ThrowsArgumentNullException() {
         var act = async () => await _runner.CreatePrAsync(null!, "b", "main", "feature");
 
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task CreatePrAsync_NullBaseBranch_ThrowsArgumentNullException()
-    {
+    public async Task CreatePrAsync_NullBaseBranch_ThrowsArgumentNullException() {
         var act = async () => await _runner.CreatePrAsync("t", "b", null!, "feature");
 
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task CreatePrAsync_UrlWithNoPrNumber_ParsesNullNumber()
-    {
+    public async Task CreatePrAsync_UrlWithNoPrNumber_ParsesNullNumber() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(0, "no url here", ""));
 
@@ -224,8 +205,7 @@ public sealed class GitHubCommandRunnerTest
     // === ListPrsAsync ===
 
     [Fact]
-    public async Task ListPrsAsync_Success_ParsesItems()
-    {
+    public async Task ListPrsAsync_Success_ParsesItems() {
         var output = "1\tTitle1\tbranch1\tOPEN\n2\tTitle2\tbranch2\tOPEN";
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(0, output, ""));
@@ -241,8 +221,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ListPrsAsync_EmptyOutput_ReturnsEmptyList()
-    {
+    public async Task ListPrsAsync_EmptyOutput_ReturnsEmptyList() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(0, "", ""));
 
@@ -253,8 +232,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ListPrsAsync_Failure_ReturnsError()
-    {
+    public async Task ListPrsAsync_Failure_ReturnsError() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(1, "", "error"));
 
@@ -265,8 +243,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ListPrsAsync_WithRepo_AddsRepoFlag()
-    {
+    public async Task ListPrsAsync_WithRepo_AddsRepoFlag() {
         ProcessOptions? captured = null;
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .Callback<ProcessOptions, CancellationToken>((opts, _) => captured = opts)
@@ -278,8 +255,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ListPrsAsync_PassesStateAndLimit()
-    {
+    public async Task ListPrsAsync_PassesStateAndLimit() {
         ProcessOptions? captured = null;
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .Callback<ProcessOptions, CancellationToken>((opts, _) => captured = opts)
@@ -294,8 +270,7 @@ public sealed class GitHubCommandRunnerTest
     // === 重试机制 ===
 
     [Fact]
-    public async Task CreatePrAsync_RetryableError_RetriesAndSucceeds()
-    {
+    public async Task CreatePrAsync_RetryableError_RetriesAndSucceeds() {
         _processService.SetupSequence(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(1, "", "timeout"))
             .ReturnsAsync(CreateResult(0, "https://github.com/o/r/pull/1", ""));
@@ -307,8 +282,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_NonRetryableError_DoesNotRetry()
-    {
+    public async Task CreatePrAsync_NonRetryableError_DoesNotRetry() {
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(1, "", "bad request error"));
 
@@ -319,8 +293,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task ListPrsAsync_RetryableNetworkError_RetriesAndSucceeds()
-    {
+    public async Task ListPrsAsync_RetryableNetworkError_RetriesAndSucceeds() {
         var output = "1\tTitle\tbranch\tOPEN";
         _processService.SetupSequence(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(1, "", "network error"))
@@ -333,8 +306,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_RateLimitError_IsRetryable()
-    {
+    public async Task CreatePrAsync_RateLimitError_IsRetryable() {
         _processService.SetupSequence(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(1, "", "rate limit exceeded"))
             .ReturnsAsync(CreateResult(0, "https://github.com/o/r/pull/1", ""));
@@ -345,8 +317,7 @@ public sealed class GitHubCommandRunnerTest
     }
 
     [Fact]
-    public async Task CreatePrAsync_ConnectionError_IsRetryable()
-    {
+    public async Task CreatePrAsync_ConnectionError_IsRetryable() {
         _processService.SetupSequence(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(1, "", "connection refused"))
             .ReturnsAsync(CreateResult(0, "https://github.com/o/r/pull/1", ""));
@@ -359,8 +330,7 @@ public sealed class GitHubCommandRunnerTest
     // === ParsePrUrl / ParsePrNumber (间接测试) ===
 
     [Fact]
-    public async Task CreatePrAsync_MultiLineOutput_ExtractsUrlFromLines()
-    {
+    public async Task CreatePrAsync_MultiLineOutput_ExtractsUrlFromLines() {
         var output = "Creating pull request...\nhttps://github.com/owner/repo/pull/999\nDone";
         _processService.Setup(x => x.ExecuteAsync(It.IsAny<ProcessOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateResult(0, output, ""));

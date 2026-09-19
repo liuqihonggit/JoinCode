@@ -5,16 +5,14 @@ namespace Core.Tests.Scheduling;
 /// ParallelExecutionEngine 单元测试类
 /// 测试并行执行引擎的各种场景，包括构造函数注入和执行流程
 /// </summary>
-public class ParallelExecutionEngineTests
-{
+public class ParallelExecutionEngineTests {
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IAgentLifecycleManager> _lifecycleManagerMock;
     private readonly Mock<IAgentWorktreeManager> _worktreeManagerMock;
     private readonly Mock<IMailbox> _messageBrokerMock;
     private readonly Mock<IAgentExecutionEngine> _executionEngineMock;
 
-    public ParallelExecutionEngineTests()
-    {
+    public ParallelExecutionEngineTests() {
         _queryEngineMock = new Mock<IQueryEngine>();
         _lifecycleManagerMock = new Mock<IAgentLifecycleManager>();
         _worktreeManagerMock = new Mock<IAgentWorktreeManager>();
@@ -22,8 +20,7 @@ public class ParallelExecutionEngineTests
         _executionEngineMock = new Mock<IAgentExecutionEngine>();
     }
 
-    private AgentCoordinator CreateAgentCoordinator()
-    {
+    private AgentCoordinator CreateAgentCoordinator() {
         var spawnPipeline = new MiddlewarePipeline<UnifiedSpawnContext>(
             [new ActionMiddleware<UnifiedSpawnContext>(async (ctx, next, ct) =>
             {
@@ -69,8 +66,7 @@ public class ParallelExecutionEngineTests
     /// 测试使用 AgentCoordinator 构造引擎时，应正确初始化
     /// </summary>
     [Fact]
-    public void Constructor_WithAgentCoordinator_ShouldInitializeCorrectly()
-    {
+    public void Constructor_WithAgentCoordinator_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
         var engine = new ParallelExecutionEngine(
@@ -84,8 +80,7 @@ public class ParallelExecutionEngineTests
     /// 测试使用 null AgentCoordinator 构造引擎时，应抛出 ArgumentNullException
     /// </summary>
     [Fact]
-    public void Constructor_WithNullAgentCoordinator_ShouldThrowArgumentNullException()
-    {
+    public void Constructor_WithNullAgentCoordinator_ShouldThrowArgumentNullException() {
         var act = () => new ParallelExecutionEngine(null!);
 
         act.Should().Throw<ArgumentNullException>()
@@ -96,8 +91,7 @@ public class ParallelExecutionEngineTests
     /// 测试使用模拟模式构造引擎时，应正确初始化
     /// </summary>
     [Fact]
-    public void Constructor_SimulationMode_ShouldInitializeCorrectly()
-    {
+    public void Constructor_SimulationMode_ShouldInitializeCorrectly() {
         var engine = new ParallelExecutionEngine(simulationMode: true, NullLogger<ParallelExecutionEngine>.Instance);
 
         engine.Should().NotBeNull();
@@ -107,8 +101,7 @@ public class ParallelExecutionEngineTests
     /// 测试使用 null Logger 构造引擎时，应正确初始化（Logger 是可选的）
     /// </summary>
     [Fact]
-    public void Constructor_WithNullLogger_ShouldInitializeCorrectly()
-    {
+    public void Constructor_WithNullLogger_ShouldInitializeCorrectly() {
         var agentCoordinator = CreateAgentCoordinator();
 
         var engine = new ParallelExecutionEngine(agentCoordinator, null);
@@ -124,8 +117,7 @@ public class ParallelExecutionEngineTests
     /// 测试在模拟模式下执行时，应返回结果
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_SimulationMode_ShouldReturnResult()
-    {
+    public async Task ExecuteAsync_SimulationMode_ShouldReturnResult() {
         // Arrange
         var engine = new ParallelExecutionEngine(simulationMode: true);
 
@@ -140,12 +132,10 @@ public class ParallelExecutionEngineTests
     /// 测试执行选项可以正确传递
     /// </summary>
     [Fact]
-    public async Task ExecuteAsync_WithOptions_ShouldUseOptions()
-    {
+    public async Task ExecuteAsync_WithOptions_ShouldUseOptions() {
         // Arrange
         var engine = new ParallelExecutionEngine(simulationMode: true);
-        var options = new ExecutionOptions
-        {
+        var options = new ExecutionOptions {
             MaxConcurrentTasks = 5,
             SimulatedWorkDurationMs = 100
         };
@@ -160,7 +150,6 @@ public class ParallelExecutionEngineTests
     #endregion
 }
 
-file sealed class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext>
-{
+sealed file class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext> {
     public Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct) => invoke(context, next, ct);
 }

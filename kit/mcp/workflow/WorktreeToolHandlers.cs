@@ -7,8 +7,7 @@ namespace McpToolDispatch;
 /// Worktree工具处理器 - 提供Git Worktree隔离管理功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Worktree)]
-public class WorktreeToolHandlers
-{
+public class WorktreeToolHandlers {
     private readonly IAgentWorktreeService _worktreeService;
     private readonly IWorktreeMergeService _mergeService;
     private readonly IFileSystem _fs;
@@ -21,8 +20,7 @@ public class WorktreeToolHandlers
     /// <param name="mergeService">Worktree 合并服务实例</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="worktreeManager">可选 Worktree 管理器,用于跨进程强制清理</param>
-    public WorktreeToolHandlers(IAgentWorktreeService worktreeService, IWorktreeMergeService mergeService, IFileSystem fs, IAgentWorktreeManager? worktreeManager = null)
-    {
+    public WorktreeToolHandlers(IAgentWorktreeService worktreeService, IWorktreeMergeService mergeService, IFileSystem fs, IAgentWorktreeManager? worktreeManager = null) {
         ArgumentNullException.ThrowIfNull(worktreeService);
         ArgumentNullException.ThrowIfNull(mergeService);
         ArgumentNullException.ThrowIfNull(fs);
@@ -40,22 +38,18 @@ public class WorktreeToolHandlers
         [McpToolParameter("Agent ID")] string agent_id,
         [McpToolParameter("Git repository root directory (optional, auto-detected)", Required = false)] string? git_root = null,
         [McpToolParameter("Base branch or commit (optional)", Required = false)] string? base_branch = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_id)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
         }
 
-        var options = new WorktreeOptions
-        {
+        var options = new WorktreeOptions {
             BaseBranch = base_branch
         };
 
         var result = await _worktreeService.CreateAgentWorktreeAsync(agent_id, git_root, options, cancellationToken);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeCreateFailed, result.ErrorMessage)).Build();
         }
 
@@ -67,8 +61,7 @@ public class WorktreeToolHandlers
         response.AppendLine(L.T(StringKey.WorktreeLabelPath, session.WorktreePath));
         response.AppendLine(L.T(StringKey.WorktreeLabelBranch, session.BranchName));
 
-        if (!string.IsNullOrEmpty(session.BaseCommitSha))
-        {
+        if (!string.IsNullOrEmpty(session.BaseCommitSha)) {
             response.AppendLine(L.T(StringKey.WorktreeLabelBaseCommit, session.BaseCommitSha[..Math.Min(8, session.BaseCommitSha.Length)]));
         }
 
@@ -85,20 +78,16 @@ public class WorktreeToolHandlers
     public async Task<ToolResult> WorktreeRemoveAsync(
         [McpToolParameter("Agent ID")] string agent_id,
         [McpToolParameter("Force remove (even with uncommitted changes)", Required = false, DefaultValue = "false")] bool? force = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_id)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
         }
 
         // 先检查是否有未提交更改
         var session = await _worktreeService.GetSessionAsync(agent_id);
-        if (session != null)
-        {
+        if (session != null) {
             var hasChanges = await _worktreeService.HasUncommittedChangesAsync(session.WorktreePath, cancellationToken);
-            if (hasChanges && force != true)
-            {
+            if (hasChanges && force != true) {
                 return ToolResultBuilder.Error()
                     .WithText(L.T(StringKey.WorktreeUncommittedChangesWarning))
                     .Build();
@@ -107,17 +96,14 @@ public class WorktreeToolHandlers
 
         // 优先走 worktreeService(同进程),失败时走 worktreeManager(跨进程重建+直接 git 命令)
         var result = await _worktreeService.RemoveAgentWorktreeAsync(agent_id, force ?? false, cancellationToken);
-        if (!result.Success && _worktreeManager is not null)
-        {
+        if (!result.Success && _worktreeManager is not null) {
             var cleanupDetail = await _worktreeManager.ForceRemoveWorktreeAsync(agent_id, cancellationToken).ConfigureAwait(false);
-            if (!cleanupDetail.Kept && cleanupDetail.WorktreePath is null)
-            {
+            if (!cleanupDetail.Kept && cleanupDetail.WorktreePath is null) {
                 result = WorktreeCleanupResult.SuccessResult(force ?? false);
             }
         }
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeRemoveFailed, result.ErrorMessage)).Build();
         }
 
@@ -126,13 +112,11 @@ public class WorktreeToolHandlers
         response.AppendLine();
         response.AppendLine(L.T(StringKey.WorktreeLabelAgentId, agent_id));
 
-        if (result.Forced)
-        {
+        if (result.Forced) {
             response.AppendLine($"{StatusSymbol.Warning.ToValue()} {L.T(StringKey.WorktreeForceRemoveNote)}");
         }
 
-        if (!string.IsNullOrEmpty(result.BlockReason))
-        {
+        if (!string.IsNullOrEmpty(result.BlockReason)) {
             response.AppendLine(L.T(StringKey.WorktreeLabelBlockReason, result.BlockReason));
         }
 
@@ -144,8 +128,7 @@ public class WorktreeToolHandlers
     /// </summary>
     [McpTool(WorktreeToolNameEnumConstants.WorktreeList, "List all active Worktree sessions", "worktree")]
     public async Task<ToolResult> WorktreeListAsync(
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var sessions = await _worktreeService.GetAllSessionsAsync(cancellationToken);
 
         var response = new System.Text.StringBuilder();
@@ -153,14 +136,10 @@ public class WorktreeToolHandlers
         response.AppendLine(L.T(StringKey.WorktreeActiveSessionCount, sessions.Count()));
         response.AppendLine();
 
-        if (!sessions.Any())
-        {
+        if (!sessions.Any()) {
             response.AppendLine(L.T(StringKey.WorktreeNoActiveSessions));
-        }
-        else
-        {
-            foreach (var session in sessions.OrderBy(s => s.CreatedAt))
-            {
+        } else {
+            foreach (var session in sessions.OrderBy(s => s.CreatedAt)) {
                 response.AppendLine($"{ObjectSymbol.Directory.ToValue()} [{session.AgentId}]");
                 response.AppendLine($"   {L.T(StringKey.WorktreeLabelPath, session.WorktreePath)}");
                 response.AppendLine($"   {L.T(StringKey.WorktreeLabelBranch, session.BranchName)}");
@@ -178,17 +157,14 @@ public class WorktreeToolHandlers
     [McpTool(WorktreeToolNameEnumConstants.WorktreeStatus, "Get detailed status of an agent's Worktree", "worktree")]
     public async Task<ToolResult> WorktreeStatusAsync(
         [McpToolParameter("Agent ID")] string agent_id,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(agent_id))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(agent_id)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeAgentIdCannotBeEmpty)).Build();
         }
 
         var session = await _worktreeService.GetSessionAsync(agent_id);
 
-        if (session == null)
-        {
+        if (session == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorktreeSessionNotFound, agent_id)).Build();
         }
 
@@ -203,8 +179,7 @@ public class WorktreeToolHandlers
         response.AppendLine(L.T(StringKey.WorktreeLabelBranch, session.BranchName));
         response.AppendLine(L.T(StringKey.WorktreeLabelGitRoot, session.GitRootPath));
 
-        if (!string.IsNullOrEmpty(session.BaseCommitSha))
-        {
+        if (!string.IsNullOrEmpty(session.BaseCommitSha)) {
             response.AppendLine(L.T(StringKey.WorktreeLabelBaseCommit, session.BaseCommitSha[..Math.Min(8, session.BaseCommitSha.Length)]));
         }
 
@@ -224,17 +199,14 @@ public class WorktreeToolHandlers
     public async Task<ToolResult> WorktreeCleanupAsync(
         [McpToolParameter("Stale timeout in hours (default 24)", Required = false)] int? stale_hours = null,
         [McpToolParameter("Confirm execution (enter 'yes' to confirm)")] string? confirm = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (confirm != "yes")
-        {
+        CancellationToken cancellationToken = default) {
+        if (confirm != "yes") {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.WorktreeConfirmCleanup))
                 .Build();
         }
 
-        var options = new WorktreeOptions
-        {
+        var options = new WorktreeOptions {
             StaleTimeoutHours = stale_hours ?? 24
         };
 
@@ -255,13 +227,11 @@ public class WorktreeToolHandlers
     [McpTool(WorktreeToolNameEnumConstants.WorktreeFindGit, "Find the Git repository root directory for a given path", "worktree")]
     public async Task<ToolResult> WorktreeFindGitAsync(
         [McpToolParameter("Start path (optional, defaults to current directory)", Required = false)] string? start_path = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var path = start_path ?? _fs.GetCurrentDirectory();
         var gitRoot = await _worktreeService.FindGitRootAsync(path);
 
-        if (string.IsNullOrEmpty(gitRoot))
-        {
+        if (string.IsNullOrEmpty(gitRoot)) {
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.WorktreeGitRootNotFound, path))
                 .Build();
@@ -276,8 +246,7 @@ public class WorktreeToolHandlers
         // 列出Worktree
         var worktrees = await _worktreeService.ListWorktreesAsync(gitRoot, cancellationToken);
 
-        if (worktrees.Count > 0)
-        {
+        if (worktrees.Count > 0) {
             response.AppendLine();
             response.AppendLine(L.T(StringKey.WorktreeExistingCount, worktrees.Count));
             response.Append(string.Join(Environment.NewLine, worktrees.Select(wt => $"  - {wt}")));
@@ -293,8 +262,7 @@ public class WorktreeToolHandlers
     [McpTool(WorktreeToolNameEnumConstants.WorktreeListAll, "List all Worktrees in a Git repository", "worktree")]
     public async Task<ToolResult> WorktreeListAllAsync(
         [McpToolParameter("Git repository root directory (optional, auto-detected)", Required = false)] string? git_root = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var worktrees = await _worktreeService.ListWorktreesAsync(git_root, cancellationToken);
 
         var response = new System.Text.StringBuilder();
@@ -302,14 +270,10 @@ public class WorktreeToolHandlers
         response.AppendLine(L.T(StringKey.WorktreeTotalCount, worktrees.Count));
         response.AppendLine();
 
-        if (worktrees.Count == 0)
-        {
+        if (worktrees.Count == 0) {
             response.AppendLine(L.T(StringKey.WorktreeNoWorktrees));
-        }
-        else
-        {
-            response.Append(string.Join(Environment.NewLine, worktrees.Select(wt =>
-            {
+        } else {
+            response.Append(string.Join(Environment.NewLine, worktrees.Select(wt => {
                 var isMain = !wt.Contains("worktrees");
                 var icon = isMain ? StatusSymbol.Stop.ToValue() : ObjectSymbol.Directory.ToValue();
                 return $"{icon} {wt}";
@@ -333,36 +297,29 @@ public class WorktreeToolHandlers
         [McpToolParameter("Source worktree path (the worktree whose changes will be merged)")] string source_worktree_path,
         [McpToolParameter("Target worktree path (the worktree to merge changes into)")] string target_worktree_path,
         [McpToolParameter("Merge strategy: fail, ours, theirs, auto_merge", Required = false)] string? strategy = null,
-        CancellationToken cancellationToken = default)
-    {
-        var mergeStrategy = strategy?.ToLowerInvariant() switch
-        {
+        CancellationToken cancellationToken = default) {
+        var mergeStrategy = strategy?.ToLowerInvariant() switch {
             "ours" => WorktreeMergeStrategy.Ours,
             "theirs" => WorktreeMergeStrategy.Theirs,
             "auto_merge" => WorktreeMergeStrategy.AutoMerge,
             _ => WorktreeMergeStrategy.Fail
         };
 
-        if (!_fs.DirectoryExists(source_worktree_path))
-        {
+        if (!_fs.DirectoryExists(source_worktree_path)) {
             return ToolResultBuilder.Error().WithText($"源 worktree 路径不存在: {source_worktree_path}").Build();
         }
-        if (!_fs.DirectoryExists(target_worktree_path))
-        {
+        if (!_fs.DirectoryExists(target_worktree_path)) {
             return ToolResultBuilder.Error().WithText($"目标 worktree 路径不存在: {target_worktree_path}").Build();
         }
 
         var result = await _mergeService.MergeToTargetAsync(source_worktree_path, target_worktree_path, mergeStrategy, cancellationToken);
 
-        if (!result.IsSuccess)
-        {
+        if (!result.IsSuccess) {
             var errorResponse = new System.Text.StringBuilder();
             errorResponse.AppendLine($"Merge failed: {result.Error}");
-            if (result.ConflictFiles.Count > 0)
-            {
+            if (result.ConflictFiles.Count > 0) {
                 errorResponse.AppendLine("Conflicting files:");
-                foreach (var file in result.ConflictFiles)
-                {
+                foreach (var file in result.ConflictFiles) {
                     errorResponse.AppendLine($"  - {file}");
                 }
             }
@@ -372,15 +329,12 @@ public class WorktreeToolHandlers
         var response = new System.Text.StringBuilder();
         response.AppendLine("Merge completed successfully");
         response.AppendLine($"Strategy: {result.StrategyUsed}");
-        if (result.HadConflicts)
-        {
+        if (result.HadConflicts) {
             response.AppendLine("Conflicts were resolved automatically");
         }
-        if (result.MergedFiles.Count > 0)
-        {
+        if (result.MergedFiles.Count > 0) {
             response.AppendLine($"Merged {result.MergedFiles.Count} files:");
-            foreach (var file in result.MergedFiles)
-            {
+            foreach (var file in result.MergedFiles) {
                 response.AppendLine($"  + {file}");
             }
         }

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Git;
 /// <summary>
 /// Git CLI 子命令枚举 — 替代 GitToolHandlers 中的硬编码命令字符串
 /// </summary>
-public enum GitSubCommand
-{
+public enum GitSubCommand {
     [EnumValue("status")] Status,
     [EnumValue("add")] Add,
     [EnumValue("commit")] Commit,

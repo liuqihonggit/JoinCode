@@ -1,18 +1,15 @@
 namespace Core.Context;
 
-public sealed class ToolCallSequenceDetectorTests
-{
+public sealed class ToolCallSequenceDetectorTests {
     [Fact]
-    public void Record_SingleToolCall_NoLoop()
-    {
+    public void Record_SingleToolCall_NoLoop() {
         var sut = new ToolCallSequenceDetector();
         var result = sut.Record("Read");
         Assert.False(result.IsLoopDetected);
     }
 
     [Fact]
-    public void Record_TwoDifferentTools_NoLoop()
-    {
+    public void Record_TwoDifferentTools_NoLoop() {
         var sut = new ToolCallSequenceDetector();
         sut.Record("Read");
         var result = sut.Record("Grep");
@@ -20,8 +17,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_RepeatPattern_Detected()
-    {
+    public void Record_RepeatPattern_Detected() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read");
         sut.Record("Grep");
@@ -33,8 +29,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_DefaultThreshold_FourRepeats_Detected()
-    {
+    public void Record_DefaultThreshold_FourRepeats_Detected() {
         var sut = new ToolCallSequenceDetector();
         sut.Record("Read");
         sut.Record("Grep");
@@ -53,8 +48,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_DefaultThreshold_TwoRepeats_NotDetected()
-    {
+    public void Record_DefaultThreshold_TwoRepeats_NotDetected() {
         var sut = new ToolCallSequenceDetector();
         sut.Record("Read");
         sut.Record("Grep");
@@ -64,8 +58,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_ThreeRepeats_Detected()
-    {
+    public void Record_ThreeRepeats_Detected() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read");
         sut.Record("Grep");
@@ -78,8 +71,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_SameToolRepeated_DetectsPairPattern()
-    {
+    public void Record_SameToolRepeated_DetectsPairPattern() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read");
         sut.Record("Read");
@@ -90,8 +82,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_SameToolRepeated_DetectedWithMinPattern1()
-    {
+    public void Record_SameToolRepeated_DetectedWithMinPattern1() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 1, requiredRepeats: 3);
         sut.Record("Read");
         sut.Record("Read");
@@ -101,8 +92,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_DifferentToolsAfterLoop_NoFalsePositive()
-    {
+    public void Record_DifferentToolsAfterLoop_NoFalsePositive() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read");
         sut.Record("Grep");
@@ -113,8 +103,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Reset_ClearsState()
-    {
+    public void Reset_ClearsState() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read");
         sut.Record("Grep");
@@ -126,8 +115,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_LongPattern_Detected()
-    {
+    public void Record_LongPattern_Detected() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 3, requiredRepeats: 2);
         sut.Record("Read");
         sut.Record("Grep");
@@ -140,8 +128,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void NoLoop_StaticProperty_HasDefaults()
-    {
+    public void NoLoop_StaticProperty_HasDefaults() {
         Assert.False(ToolCallSequenceResult.NoLoop.IsLoopDetected);
         Assert.Null(ToolCallSequenceResult.NoLoop.RepeatedPattern);
         Assert.Equal(0, ToolCallSequenceResult.NoLoop.RepeatCount);
@@ -149,8 +136,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WithArgsFingerprint_ArgsMatched_Detected()
-    {
+    public void Record_WithArgsFingerprint_ArgsMatched_Detected() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read", "Read(file.py)");
         sut.Record("Grep", "Grep(pattern)");
@@ -162,8 +148,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WithArgsFingerprint_ArgsNotMatched_StillDetectedButTriggerCountDowngraded()
-    {
+    public void Record_WithArgsFingerprint_ArgsNotMatched_StillDetectedButTriggerCountDowngraded() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 3);
         sut.Record("Read", "Read(file1.py)");
         sut.Record("Grep", "Grep(pattern1)");
@@ -178,8 +163,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WithArgsFingerprint_ArgsNotMatched_TwoRepeats_StillDetectedButDowngraded()
-    {
+    public void Record_WithArgsFingerprint_ArgsNotMatched_TwoRepeats_StillDetectedButDowngraded() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read", "Read(file1.py)");
         sut.Record("Grep", "Grep(pattern1)");
@@ -191,8 +175,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WithArgsFingerprint_MixedArgs_PartialMatch()
-    {
+    public void Record_WithArgsFingerprint_MixedArgs_PartialMatch() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read", "Read(file.py)");
         sut.Record("Grep", "Grep(pattern1)");
@@ -205,8 +188,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WithNullFingerprint_TreatedAsNoArgs()
-    {
+    public void Record_WithNullFingerprint_TreatedAsNoArgs() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read", null);
         sut.Record("Grep", null);
@@ -217,8 +199,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WithArgsFingerprint_AllArgsSame_TriggerCountEqualsRepeatCount()
-    {
+    public void Record_WithArgsFingerprint_AllArgsSame_TriggerCountEqualsRepeatCount() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 1, requiredRepeats: 3);
         sut.Record("Read", "Read(file.py)");
         sut.Record("Read", "Read(file.py)");
@@ -230,8 +211,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WithArgsFingerprint_DiffArgs_TriggerCountLessThanRepeatCount()
-    {
+    public void Record_WithArgsFingerprint_DiffArgs_TriggerCountLessThanRepeatCount() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 1, requiredRepeats: 3);
         sut.Record("Read", "Read(file1.py)");
         sut.Record("Read", "Read(file2.py)");
@@ -244,8 +224,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WithMixedNullAndNonNullFingerprint_ArgsStillMatch()
-    {
+    public void Record_WithMixedNullAndNonNullFingerprint_ArgsStillMatch() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read", "Read(file.py)");
         sut.Record("Grep", null);
@@ -257,8 +236,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_WindowSizeLimitsPatternLength_NoFalseDetection()
-    {
+    public void Record_WindowSizeLimitsPatternLength_NoFalseDetection() {
         var sut = new ToolCallSequenceDetector(windowSize: 4, minPatternLength: 1, requiredRepeats: 3);
         sut.Record("A");
         sut.Record("B");
@@ -276,11 +254,9 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_OverWindowSize_TrimKeepsRecentSequence()
-    {
+    public void Record_OverWindowSize_TrimKeepsRecentSequence() {
         var sut = new ToolCallSequenceDetector(windowSize: 4, minPatternLength: 2, requiredRepeats: 3);
-        for (var i = 0; i < 50; i++)
-        {
+        for (var i = 0; i < 50; i++) {
             sut.Record($"T{i}");
         }
 
@@ -296,8 +272,7 @@ public sealed class ToolCallSequenceDetectorTests
     }
 
     [Fact]
-    public void Record_SingleArgumentOverload_PassesNullFingerprint()
-    {
+    public void Record_SingleArgumentOverload_PassesNullFingerprint() {
         var sut = new ToolCallSequenceDetector(minPatternLength: 2, requiredRepeats: 2);
         sut.Record("Read");
         sut.Record("Grep");

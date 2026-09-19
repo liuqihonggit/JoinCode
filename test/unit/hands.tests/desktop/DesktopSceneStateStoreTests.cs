@@ -3,12 +3,10 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// DesktopSceneStateStore 单元测试 — AC-05b 跨进程文件持久化
 /// </summary>
-public sealed class DesktopSceneStateStoreTests
-{
+public sealed class DesktopSceneStateStoreTests {
     /// <summary>AC-05b: 实例 A 写状态 → 实例 B 读状态（模拟跨 mcp_call 进程，共享文件系统）</summary>
     [Fact]
-    public async Task SaveThenLoad_PreservesStateAcrossInstances()
-    {
+    public async Task SaveThenLoad_PreservesStateAcrossInstances() {
         var storedFiles = new Dictionary<string, string>();
         var fsMock = CreateSharedFileSystemMock(storedFiles);
 
@@ -31,16 +29,14 @@ public sealed class DesktopSceneStateStoreTests
 
     /// <summary>AC-05b: 不存在的场景返回 null</summary>
     [Fact]
-    public async Task Load_NonexistentScene_ReturnsNull()
-    {
+    public async Task Load_NonexistentScene_ReturnsNull() {
         var fsMock = CreateSharedFileSystemMock(new Dictionary<string, string>());
         var store = new DesktopSceneStateStore("/fake/scenarios", fsMock.Object);
         var loaded = await store.LoadAsync("sc_nonexistent");
         loaded.Should().BeNull();
     }
 
-    private static Mock<IFileSystem> CreateSharedFileSystemMock(Dictionary<string, string> storedFiles)
-    {
+    private static Mock<IFileSystem> CreateSharedFileSystemMock(Dictionary<string, string> storedFiles) {
         var fsMock = new Mock<IFileSystem>();
         fsMock.Setup(f => f.DirectoryExists(It.IsAny<string>())).Returns(true);
         fsMock.Setup(f => f.FileExists(It.IsAny<string>()))

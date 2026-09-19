@@ -5,8 +5,7 @@ namespace McpClient.Auth;
 /// 防御 Unicode 隐藏字符攻击（ASCII Smuggling / Hidden Prompt Injection）
 /// 参考: HackerOne 报告 #3086545
 /// </summary>
-public static partial class McpUnicodeSanitizer
-{
+public static partial class McpUnicodeSanitizer {
     /// <summary>
     /// 最大迭代轮次 — 防止恶意构造的深层嵌套 Unicode 字符串导致无限循环
     /// </summary>
@@ -16,16 +15,13 @@ public static partial class McpUnicodeSanitizer
     /// 部分清理 Unicode 字符串 — 对齐 TS partiallySanitizeUnicode
     /// 迭代清理，最多 MaxIterations 轮，直到无变化
     /// </summary>
-    public static string PartiallySanitize(string input)
-    {
+    public static string PartiallySanitize(string input) {
         ArgumentException.ThrowIfNullOrEmpty(input);
 
         var current = input;
-        for (var i = 0; i < MaxIterations; i++)
-        {
+        for (var i = 0; i < MaxIterations; i++) {
             var sanitized = SanitizeRound(current);
-            if (string.Equals(sanitized, current, StringComparison.Ordinal))
-            {
+            if (string.Equals(sanitized, current, StringComparison.Ordinal)) {
                 return sanitized;
             }
 
@@ -39,11 +35,9 @@ public static partial class McpUnicodeSanitizer
     /// <summary>
     /// 递归清理字符串数组 — 对齐 TS recursivelySanitizeUnicode (Array 分支)
     /// </summary>
-    public static string[] SanitizeStringArray(string[] values)
-    {
+    public static string[] SanitizeStringArray(string[] values) {
         var result = new string[values.Length];
-        for (var i = 0; i < values.Length; i++)
-        {
+        for (var i = 0; i < values.Length; i++) {
             result[i] = PartiallySanitize(values[i]);
         }
         return result;
@@ -52,11 +46,9 @@ public static partial class McpUnicodeSanitizer
     /// <summary>
     /// 递归清理字符串字典 — 对齐 TS recursivelySanitizeUnicode (Object 分支)
     /// </summary>
-    public static Dictionary<string, string> SanitizeStringDictionary(Dictionary<string, string> dict)
-    {
+    public static Dictionary<string, string> SanitizeStringDictionary(Dictionary<string, string> dict) {
         var result = new Dictionary<string, string>(dict.Count);
-        foreach (var (key, value) in dict)
-        {
+        foreach (var (key, value) in dict) {
             result[PartiallySanitize(key)] = PartiallySanitize(value);
         }
         return result;
@@ -66,8 +58,7 @@ public static partial class McpUnicodeSanitizer
     /// 清理 JSON 字符串中的 Unicode — 在反序列化前对原始 JSON 字符串进行清理
     /// 这是 AOT 兼容的替代方案，避免使用 JsonElement 递归
     /// </summary>
-    public static string SanitizeJsonString(string jsonString)
-    {
+    public static string SanitizeJsonString(string jsonString) {
         ArgumentException.ThrowIfNullOrEmpty(jsonString);
         return PartiallySanitize(jsonString);
     }
@@ -75,8 +66,7 @@ public static partial class McpUnicodeSanitizer
     /// <summary>
     /// 单轮清理
     /// </summary>
-    private static string SanitizeRound(string input)
-    {
+    private static string SanitizeRound(string input) {
         // 1. NFKC 规范化 — 处理组合字符序列
         var result = input.Normalize(NormalizationForm.FormKC);
 

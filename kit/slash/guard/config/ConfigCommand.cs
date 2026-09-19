@@ -8,28 +8,26 @@ namespace JoinCode.ChatCommands;
 [ChatCommandArg("action", Type = "string", Description = "配置操作", Enum = new[] { "get", "set", "list", "remove" })]
 [ChatCommandArg("key", Type = "string", Description = "配置键名")]
 [ChatCommandArg("value", Type = "string", Description = "配置值（set 操作时需要）")]
-public sealed class ConfigCommand : ChatCommandBase
-{
+public sealed class ConfigCommand : ChatCommandBase {
     /// <summary>
     /// 已知配置项元数据 — 单一数据源来自 ConfigKey 枚举
     /// 字典键为 ConfigKey 枚举,值为 UI 描述(仅展示用)
     /// </summary>
-    private static readonly FrozenDictionary<ConfigKey, string> KnownSettings = new Dictionary<ConfigKey, string>
-    {
-        [ConfigKey.Profile]                  = "当前供应商预设名 (openai/anthropic/deepseek/...)",
-        [ConfigKey.Theme]                    = "UI 主题 (dark/light/auto)",
-        [ConfigKey.EditorMode]               = "按键绑定模式 (vim/emacs/default)",
-        [ConfigKey.DebugLog]                 = "调试日志输出 (true/false)",
-        [ConfigKey.AutoCompactEnabled]       = "自动压缩上下文 (true/false)",
-        [ConfigKey.AutoMemoryEnabled]        = "自动记忆 (true/false)",
+    private static readonly FrozenDictionary<ConfigKey, string> KnownSettings = new Dictionary<ConfigKey, string> {
+        [ConfigKey.Profile] = "当前供应商预设名 (openai/anthropic/deepseek/...)",
+        [ConfigKey.Theme] = "UI 主题 (dark/light/auto)",
+        [ConfigKey.EditorMode] = "按键绑定模式 (vim/emacs/default)",
+        [ConfigKey.DebugLog] = "调试日志输出 (true/false)",
+        [ConfigKey.AutoCompactEnabled] = "自动压缩上下文 (true/false)",
+        [ConfigKey.AutoMemoryEnabled] = "自动记忆 (true/false)",
         [ConfigKey.FileCheckpointingEnabled] = "文件检查点 (true/false)",
-        [ConfigKey.ShowTurnDuration]         = "显示轮次耗时 (true/false)",
-        [ConfigKey.AlwaysThinkingEnabled]    = "扩展思考 (true/false)",
-        [ConfigKey.PermissionsDefaultMode]   = "默认权限模式 (allow/ask/deny)",
-        [ConfigKey.Language]                 = "首选语言 (zh/en/ja/...)",
-        [ConfigKey.FastMode]                 = "快速模式 (true/false)",
-        [ConfigKey.EffortLevel]              = "推理力度 (low/medium/high/xhigh)",
-        [ConfigKey.OutputStyle]              = "输出风格 (concise/verbose/normal)",
+        [ConfigKey.ShowTurnDuration] = "显示轮次耗时 (true/false)",
+        [ConfigKey.AlwaysThinkingEnabled] = "扩展思考 (true/false)",
+        [ConfigKey.PermissionsDefaultMode] = "默认权限模式 (allow/ask/deny)",
+        [ConfigKey.Language] = "首选语言 (zh/en/ja/...)",
+        [ConfigKey.FastMode] = "快速模式 (true/false)",
+        [ConfigKey.EffortLevel] = "推理力度 (low/medium/high/xhigh)",
+        [ConfigKey.OutputStyle] = "输出风格 (concise/verbose/normal)",
     }.ToFrozenDictionary();
 
     /// <summary>
@@ -38,38 +36,34 @@ public sealed class ConfigCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "list";
 
-        switch (action)
-        {
+        switch (action) {
             case "get":
-                await GetConfigAsync(context, args);
-                break;
+            await GetConfigAsync(context, args);
+            break;
             case "set":
-                await SetConfigAsync(context, args);
-                break;
+            await SetConfigAsync(context, args);
+            break;
             case CrudActionEnumConstants.Remove:
             case CrudActionEnumConstants.Delete:
             case CrudActionEnumConstants.Rm:
-                await RemoveConfigAsync(context, args);
-                break;
+            await RemoveConfigAsync(context, args);
+            break;
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
             default:
-                await ListConfigAsync(context);
-                break;
+            await ListConfigAsync(context);
+            break;
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static async Task GetConfigAsync(ChatCommandContext context, string[] args)
-    {
-        if (args.Length < 2)
-        {
+    private static async Task GetConfigAsync(ChatCommandContext context, string[] args) {
+        if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config get <key>{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -77,20 +71,15 @@ public sealed class ConfigCommand : ChatCommandBase
         var key = args[1];
         var configService = ResolveConfigService(context);
         var value = await configService.GetAsync(key, context.CancellationToken).ConfigureAwait(false);
-        if (value is not null)
-        {
+        if (value is not null) {
             TerminalHelper.WriteLine($"{key} = {value}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"配置项 '{key}' 不存在");
         }
     }
 
-    private static async Task SetConfigAsync(ChatCommandContext context, string[] args)
-    {
-        if (args.Length < 3)
-        {
+    private static async Task SetConfigAsync(ChatCommandContext context, string[] args) {
+        if (args.Length < 3) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config set <key> <value>{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -98,8 +87,7 @@ public sealed class ConfigCommand : ChatCommandBase
         var key = args[1];
         var value = string.Join(" ", args[2..]);
 
-        if (ConfigKeyExtensions.FromValue(key) is { } configKey && KnownSettings.TryGetValue(configKey, out var description))
-        {
+        if (ConfigKeyExtensions.FromValue(key) is { } configKey && KnownSettings.TryGetValue(configKey, out var description)) {
             TerminalHelper.WriteLine($"  {key}: {description}");
         }
 
@@ -109,10 +97,8 @@ public sealed class ConfigCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Success}已设置: {key} = {value}{AnsiStyleEnumConstants.Reset}");
     }
 
-    private static async Task RemoveConfigAsync(ChatCommandContext context, string[] args)
-    {
-        if (args.Length < 2)
-        {
+    private static async Task RemoveConfigAsync(ChatCommandContext context, string[] args) {
+        if (args.Length < 2) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}用法: /config remove <key>{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -120,8 +106,7 @@ public sealed class ConfigCommand : ChatCommandBase
         var key = args[1];
         var configService = ResolveConfigService(context);
         var removed = await configService.RemoveAsync(key, context.CancellationToken).ConfigureAwait(false);
-        if (!removed)
-        {
+        if (!removed) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}配置项 '{key}' 不存在{AnsiStyleEnumConstants.Reset}");
             return;
         }
@@ -129,15 +114,13 @@ public sealed class ConfigCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Success}已移除: {key}{AnsiStyleEnumConstants.Reset}");
     }
 
-    private static async Task ListConfigAsync(ChatCommandContext context)
-    {
+    private static async Task ListConfigAsync(ChatCommandContext context) {
         var configService = ResolveConfigService(context);
         var config = await configService.GetAllAsync(context.CancellationToken).ConfigureAwait(false);
 
         var panel = new TabPanel(
             ["当前配置", "已知配置项"],
-            tabIndex => tabIndex switch
-            {
+            tabIndex => tabIndex switch {
                 0 => RenderCurrentConfig(config),
                 1 => RenderKnownSettings(config),
                 _ => string.Empty
@@ -146,19 +129,14 @@ public sealed class ConfigCommand : ChatCommandBase
         await panel.ShowAsync(context.CancellationToken).ConfigureAwait(false);
     }
 
-    private static string RenderCurrentConfig(Dictionary<string, string> config)
-    {
+    private static string RenderCurrentConfig(Dictionary<string, string> config) {
         var sb = new StringBuilder();
-        if (config.Count > 0)
-        {
-            foreach (var kvp in config.OrderBy(x => x.Key))
-            {
+        if (config.Count > 0) {
+            foreach (var kvp in config.OrderBy(x => x.Key)) {
                 var desc = ConfigKeyExtensions.FromValue(kvp.Key) is { } ck && KnownSettings.TryGetValue(ck, out var d) ? $"  ({d})" : "";
                 sb.AppendLine($"  {kvp.Key} = {kvp.Value}{desc}");
             }
-        }
-        else
-        {
+        } else {
             sb.AppendLine("  当前没有配置项");
         }
 
@@ -167,11 +145,9 @@ public sealed class ConfigCommand : ChatCommandBase
         return sb.ToString();
     }
 
-    private static string RenderKnownSettings(Dictionary<string, string> config)
-    {
+    private static string RenderKnownSettings(Dictionary<string, string> config) {
         var sb = new StringBuilder();
-        foreach (var kvp in KnownSettings.OrderBy(x => x.Key))
-        {
+        foreach (var kvp in KnownSettings.OrderBy(x => x.Key)) {
             var keyStr = kvp.Key.ToValue();
             var hasValue = config.ContainsKey(keyStr);
             var marker = hasValue ? $" {TerminalColors.Success}✓{AnsiStyleEnumConstants.Reset}" : "";
@@ -185,8 +161,7 @@ public sealed class ConfigCommand : ChatCommandBase
         return sb.ToString();
     }
 
-    private static IConfigurationService ResolveConfigService(ChatCommandContext context)
-    {
+    private static IConfigurationService ResolveConfigService(ChatCommandContext context) {
         var service = context.Services.GetService(typeof(IConfigurationService)) as IConfigurationService;
         return service ?? throw new InvalidOperationException("[APP004] IConfigurationService 未注册，无法操作配置");
     }

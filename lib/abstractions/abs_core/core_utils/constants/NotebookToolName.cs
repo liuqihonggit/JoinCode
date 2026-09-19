@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Notebook 工具名称枚举
 /// </summary>
-public enum NotebookToolName
-{
+public enum NotebookToolName {
     [EnumValue("notebook_edit")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     NotebookEdit,

@@ -5,8 +5,7 @@ namespace Core.Context.Compact;
 /// 会话记忆提取服务 — 对齐 TS sessionMemory.ts
 /// 负责初始化会话记忆文件、构建更新提示词、判断提取阈值
 /// </summary>
-public interface ISessionMemoryExtractionService
-{
+public interface ISessionMemoryExtractionService {
     /// <summary>
     /// 初始化会话记忆文件（如不存在则用默认模板创建）
     /// </summary>

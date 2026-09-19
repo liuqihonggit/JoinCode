@@ -1,14 +1,11 @@
-namespace AotSafety.Tests;
 
 using CodeFixes;
 
-public class Jcc6005CodeFixProviderTests
-{
+namespace AotSafety.Tests;
+public class Jcc6005CodeFixProviderTests {
     [Fact]
-    public async Task InsertAtZero_InLoop_ReportsJCC6005()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task InsertAtZero_InLoop_ReportsJCC6005() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -29,10 +26,8 @@ public class Jcc6005CodeFixProviderTests
     }
 
     [Fact]
-    public async Task InsertAtZero_OutsideLoop_AlsoReports()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task InsertAtZero_OutsideLoop_AlsoReports() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -50,10 +45,8 @@ public class Jcc6005CodeFixProviderTests
     }
 
     [Fact]
-    public async Task InsertAtNonZero_InLoop_NoWarning()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task InsertAtNonZero_InLoop_NoWarning() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -74,13 +67,10 @@ public class Jcc6005CodeFixProviderTests
     }
 }
 
-public class Jcc6002CodeFixProviderTests
-{
+public class Jcc6002CodeFixProviderTests {
     [Fact]
-    public async Task ListContains_InLoop_ReportsJCC6002()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task ListContains_InLoop_ReportsJCC6002() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -103,10 +93,8 @@ public class Jcc6002CodeFixProviderTests
     }
 
     [Fact]
-    public async Task ListContains_OutsideLoop_NoWarning()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task ListContains_OutsideLoop_NoWarning() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;
@@ -124,10 +112,8 @@ public class Jcc6002CodeFixProviderTests
     }
 
     [Fact]
-    public async Task ListIndexOf_InLoop_ReportsJCC6002()
-    {
-        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier>
-        {
+    public async Task ListIndexOf_InLoop_ReportsJCC6002() {
+        var test = new CSharpAnalyzerTest<PerformanceRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System.Collections.Generic;

@@ -7,24 +7,20 @@ namespace JoinCode.ChatCommands;
 /// 架构差异：TS 有 React 分享面板+URL分享，C# 为文件导出
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Share, Description = "生成可分享的对话内容", Usage = "/share", Category = ChatCommandCategory.Social)]
-public sealed class ShareCommand : ChatCommandBase
-{
+public sealed class ShareCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /share 命令 — 收集对话历史生成 Markdown 分享内容并保存到 shares 目录
     /// </summary>
     /// <param name="context">命令执行上下文，包含会话 ID 与取消令牌</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         TerminalHelper.WriteLine($"{TerminalColors.Primary}生成分享内容...{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
-        try
-        {
+        try {
             var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken);
 
-            if (history.Count == 0)
-            {
+            if (history.Count == 0) {
                 TerminalHelper.WriteLine($"  {TerminalColors.Muted}暂无对话内容可分享{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Continue();
             }
@@ -36,8 +32,7 @@ public sealed class ShareCommand : ChatCommandBase
             sb.AppendLine($"> 消息数: {history.Count}");
             sb.AppendLine();
 
-            foreach (var msg in history)
-            {
+            foreach (var msg in history) {
                 var roleLabel = string.Equals(msg.Role, MessageRoleEnumConstants.User, StringComparison.OrdinalIgnoreCase)
                     ? "👤 User" : "🤖 Assistant";
 
@@ -55,8 +50,7 @@ public sealed class ShareCommand : ChatCommandBase
             TerminalHelper.WriteLine(content.Length > 500 ? content[..500] + "..." : content);
             TerminalHelper.WriteLine("--- 结束 ---");
 
-            try
-            {
+            try {
                 var sharePath = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     AppDataConstants.AppDataFolder, "shares",
@@ -70,15 +64,11 @@ public sealed class ShareCommand : ChatCommandBase
                 await fs.WriteAllTextAsync(sharePath, content, context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.NewLine();
                 TerminalHelper.WriteLine($"{TerminalColors.Success}已保存到: {sharePath}{AnsiStyleEnumConstants.Reset}");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 TerminalHelper.NewLine();
                 ChatCommandBase.HandleError("保存分享文件", ex);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("生成分享内容", ex);
         }
 

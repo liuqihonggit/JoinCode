@@ -1,7 +1,6 @@
 namespace JoinCode.CodeIndex.Benchmarks;
 
-public sealed class L2EvaluationTests : IDisposable
-{
+public sealed class L2EvaluationTests : IDisposable {
     private readonly string _workspaceRoot;
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
@@ -9,8 +8,7 @@ public sealed class L2EvaluationTests : IDisposable
     private readonly IFileSystem _fs = new IO.FileSystem.PhysicalFileSystem();
     private bool _disposed;
 
-    public L2EvaluationTests()
-    {
+    public L2EvaluationTests() {
         _workspaceRoot = Path.Combine(Path.GetTempPath(), $"bench_l2_{Guid.NewGuid():N}");
         _fs.CreateDirectory(_workspaceRoot);
         _store = new InMemoryIndexStore();
@@ -19,19 +17,15 @@ public sealed class L2EvaluationTests : IDisposable
         SeedWorkspace();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        try { _indexer.Dispose(); }
-        finally { _store.Dispose(); }
+        try { _indexer.Dispose(); } finally { _store.Dispose(); }
 
-        try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); }
-        catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
+        try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); } catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
     }
 
-    private void SeedWorkspace()
-    {
+    private void SeedWorkspace() {
         _fs.WriteAllText(Path.Combine(_workspaceRoot, "UserService.cs"), """
             using System;
             namespace MyApp.Services {
@@ -45,7 +39,7 @@ public sealed class L2EvaluationTests : IDisposable
                 }
             }
             """);
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "OrderService.cs"), """
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "OrderService.cs"), """
             namespace MyApp.Services {
                 public class OrderService {
                     private readonly UserService _user;
@@ -57,7 +51,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "OrderService.cs"), """
                 }
             }
             """);
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "Repository.cs"), """
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "Repository.cs"), """
             using System.Collections.Generic;
             public interface IRepository<T> {
                 T GetById(int id);
@@ -70,7 +64,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Repository.cs"), """
                 public void Save(T entity) { }
             }
             """);
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "Calculator.cs"), """
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "Calculator.cs"), """
             public class Calculator {
                 public int Compute(int a, int b) { return Helper.Square(a) + Helper.Square(b); }
                 public int Sum(int a, int b) { return Helper.Square(a + b); }
@@ -79,7 +73,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Calculator.cs"), """
                 public static int Square(int x) => x * x;
             }
             """);
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
             public class Controller {
                 private readonly UserService _svc;
                 public Controller(UserService svc) { _svc = svc; }
@@ -92,8 +86,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
     }
 
     [Fact]
-    public async Task L2_CallerCallee_PassRateAbove70()
-    {
+    public async Task L2_CallerCallee_PassRateAbove70() {
         var results = await Task.WhenAll(
             TestCaseRepository.GetL2TestCases()
                 .Where(c => c.Category == "caller_callee")
@@ -104,8 +97,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
     }
 
     [Fact]
-    public async Task L2_ImpactScope_ReturnsRelevantSymbols()
-    {
+    public async Task L2_ImpactScope_ReturnsRelevantSymbols() {
         var anyNonEmpty = (await Task.WhenAll(
                 TestCaseRepository.GetL2TestCases()
                     .Where(c => c.Category == "impact_scope")
@@ -117,8 +109,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
 
     [Fact]
     [Trait("Category", "Benchmark")]
-    public async Task L2_AllCases_ResponseTimeUnder200ms()
-    {
+    public async Task L2_AllCases_ResponseTimeUnder200ms() {
         var results = await Task.WhenAll(
             TestCaseRepository.GetL2TestCases()
                 .Select(EvaluateL2CaseAsync)).ConfigureAwait(true);
@@ -127,8 +118,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
         Assert.True(summary.P95Ms < 200, $"L2 P95 响应时间 {summary.P95Ms}ms > 200ms");
     }
 
-    private async Task<EvaluationResult> EvaluateCallerCalleeAsync(TestCase tc)
-    {
+    private async Task<EvaluationResult> EvaluateCallerCalleeAsync(TestCase tc) {
         var sw = Stopwatch.StartNew();
         var edges = tc.Query == "callers"
             ? await _indexer.CallGraph.GetCallersAsync(tc.SourceSymbol!, CancellationToken.None).ConfigureAwait(true)
@@ -140,37 +130,39 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
     private async Task<IReadOnlyList<string>> QueryImpactScopeAsync(TestCase tc) =>
         await _indexer.CallGraph.GetImpactScopeAsync(tc.SourceSymbol!, CancellationToken.None).ConfigureAwait(true);
 
-    private async Task<EvaluationResult> EvaluateL2CaseAsync(TestCase tc)
-    {
+    private async Task<EvaluationResult> EvaluateL2CaseAsync(TestCase tc) {
         var sw = Stopwatch.StartNew();
 
-        if (tc.Query == "callers")
-        {
+        if (tc.Query == "callers") {
             var edges = await _indexer.CallGraph.GetCallersAsync(tc.SourceSymbol!, CancellationToken.None).ConfigureAwait(true);
             sw.Stop();
             return _engine.EvaluateL2CallGraph(tc, edges, sw.ElapsedMilliseconds);
         }
 
-        if (tc.Query == "callees")
-        {
+        if (tc.Query == "callees") {
             var edges = await _indexer.CallGraph.GetCalleesAsync(tc.SourceSymbol!, CancellationToken.None).ConfigureAwait(true);
             sw.Stop();
             return _engine.EvaluateL2CallGraph(tc, edges, sw.ElapsedMilliseconds);
         }
 
-        if (tc.Query == "impact")
-        {
+        if (tc.Query == "impact") {
             var affected = await _indexer.CallGraph.GetImpactScopeAsync(tc.SourceSymbol!, CancellationToken.None).ConfigureAwait(true);
             sw.Stop();
             return _engine.EvaluateL2ImpactScope(tc, affected, sw.ElapsedMilliseconds);
         }
 
         sw.Stop();
-        return new EvaluationResult
-        {
-            TestCaseId = tc.Id, Category = tc.Category, Passed = false,
-            Recall = 0, Precision = 0, F1 = 0, ElapsedMs = sw.ElapsedMilliseconds,
-            ActualResults = [], MissingResults = tc.ExpectedResults, ExtraResults = []
+        return new EvaluationResult {
+            TestCaseId = tc.Id,
+            Category = tc.Category,
+            Passed = false,
+            Recall = 0,
+            Precision = 0,
+            F1 = 0,
+            ElapsedMs = sw.ElapsedMilliseconds,
+            ActualResults = [],
+            MissingResults = tc.ExpectedResults,
+            ExtraResults = []
         };
     }
 }

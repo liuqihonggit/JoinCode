@@ -3,8 +3,7 @@ namespace Core.Context.Compression;
 /// <summary>
 /// 压缩策略工厂接口
 /// </summary>
-public interface ICompressionStrategyFactory
-{
+public interface ICompressionStrategyFactory {
     /// <summary>
     /// 获取适合的策略
     /// </summary>

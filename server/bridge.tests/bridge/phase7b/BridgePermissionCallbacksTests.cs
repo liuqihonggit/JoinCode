@@ -1,11 +1,9 @@
 
 namespace Bridge.Tests.Phase7B;
 
-public sealed class BridgePermissionCallbacksTests
-{
+public sealed class BridgePermissionCallbacksTests {
     [Fact]
-    public void IsBridgePermissionResponse_AllowBehavior_ReturnsTrue()
-    {
+    public void IsBridgePermissionResponse_AllowBehavior_ReturnsTrue() {
         var json = """{"behavior":"allow"}""";
         var je = JsonDocument.Parse(json).RootElement;
 
@@ -13,8 +11,7 @@ public sealed class BridgePermissionCallbacksTests
     }
 
     [Fact]
-    public void IsBridgePermissionResponse_DenyBehavior_ReturnsTrue()
-    {
+    public void IsBridgePermissionResponse_DenyBehavior_ReturnsTrue() {
         var json = """{"behavior":"deny"}""";
         var je = JsonDocument.Parse(json).RootElement;
 
@@ -22,8 +19,7 @@ public sealed class BridgePermissionCallbacksTests
     }
 
     [Fact]
-    public void IsBridgePermissionResponse_OtherBehavior_ReturnsFalse()
-    {
+    public void IsBridgePermissionResponse_OtherBehavior_ReturnsFalse() {
         var json = """{"behavior":"ask"}""";
         var je = JsonDocument.Parse(json).RootElement;
 
@@ -31,8 +27,7 @@ public sealed class BridgePermissionCallbacksTests
     }
 
     [Fact]
-    public void IsBridgePermissionResponse_NonObject_ReturnsFalse()
-    {
+    public void IsBridgePermissionResponse_NonObject_ReturnsFalse() {
         var json = """["not","an","object"]""";
         var je = JsonDocument.Parse(json).RootElement;
 
@@ -40,16 +35,14 @@ public sealed class BridgePermissionCallbacksTests
     }
 
     [Fact]
-    public async Task OnResponse_RegistersAndFiresHandler()
-    {
+    public async Task OnResponse_RegistersAndFiresHandler() {
         var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
         var fired = false;
         var unsub = service.OnResponse("req1", _ => { fired = true; return Task.CompletedTask; });
 
-        var response = new PermissionCallbackResponse
-        {
+        var response = new PermissionCallbackResponse {
             Behavior = PermissionBehaviorEnumConstants.Allow,
         };
         await service.HandleResponseAsync("req1", response).ConfigureAwait(true);
@@ -64,13 +57,11 @@ public sealed class BridgePermissionCallbacksTests
     }
 
     [Fact]
-    public async Task HandleResponse_UnknownRequestId_DoesNotThrow()
-    {
+    public async Task HandleResponse_UnknownRequestId_DoesNotThrow() {
         var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
-        var response = new PermissionCallbackResponse
-        {
+        var response = new PermissionCallbackResponse {
             Behavior = PermissionBehaviorEnumConstants.Allow,
         };
 
@@ -79,8 +70,7 @@ public sealed class BridgePermissionCallbacksTests
     }
 
     [Fact]
-    public void SendRequest_WritesToTransport()
-    {
+    public void SendRequest_WritesToTransport() {
         var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
@@ -92,8 +82,7 @@ public sealed class BridgePermissionCallbacksTests
     }
 
     [Fact]
-    public void CancelRequest_WritesToTransport()
-    {
+    public void CancelRequest_WritesToTransport() {
         var transport = new MockTransport();
         var service = new BridgePermissionCallbackService(transport);
 
@@ -104,19 +93,16 @@ public sealed class BridgePermissionCallbacksTests
     }
 
     /// <summary>模拟传输层</summary>
-    private sealed class MockTransport : IReplBridgeTransport
-    {
+    private sealed class MockTransport : IReplBridgeTransport {
         public List<string> WrittenMessages { get; } = [];
         public int DroppedBatchCount => 0;
 
-        public Task WriteAsync(string message, CancellationToken ct = default)
-        {
+        public Task WriteAsync(string message, CancellationToken ct = default) {
             WrittenMessages.Add(message);
             return Task.CompletedTask;
         }
 
-        public Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default)
-        {
+        public Task WriteBatchAsync(IReadOnlyList<string> messages, CancellationToken ct = default) {
             foreach (var m in messages) WrittenMessages.Add(m);
             return Task.CompletedTask;
         }

@@ -4,10 +4,8 @@ namespace Brain.Tests.Context;
 /// ChatOptionsFactory 执行设置测试 — 验证 Temperature/MaxTokens 从
 /// IExecutionSettingsProvider 覆盖默认 LlmParameters.Chat（GUI 滑块接入引擎的契约）。
 /// </summary>
-public sealed class ChatOptionsFactoryTests
-{
-    private static ChatOptionsFactory CreateFactory(IExecutionSettingsProvider? provider = null)
-    {
+public sealed class ChatOptionsFactoryTests {
+    private static ChatOptionsFactory CreateFactory(IExecutionSettingsProvider? provider = null) {
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(c => c.GetDiscoveredTools()).Returns(new DiscoveredToolSet());
         contextManager.Setup(c => c.GetDeferredTools()).Returns(Array.Empty<DeferredToolInfo>());
@@ -15,8 +13,7 @@ public sealed class ChatOptionsFactoryTests
     }
 
     [Fact]
-    public void Create_WithProviderTemperatureAndMaxTokens_OverridesLlmParameters()
-    {
+    public void Create_WithProviderTemperatureAndMaxTokens_OverridesLlmParameters() {
         var provider = new Mock<IExecutionSettingsProvider>();
         provider.Setup(p => p.Temperature).Returns(1.2f);
         provider.Setup(p => p.MaxTokens).Returns(5000);
@@ -28,8 +25,7 @@ public sealed class ChatOptionsFactoryTests
     }
 
     [Fact]
-    public void Create_WithoutProviderTemperatureAndMaxTokens_FallsBackToLlmParameters()
-    {
+    public void Create_WithoutProviderTemperatureAndMaxTokens_FallsBackToLlmParameters() {
         var provider = new Mock<IExecutionSettingsProvider>();
         provider.Setup(p => p.Temperature).Returns((float?)null);
         provider.Setup(p => p.MaxTokens).Returns((int?)null);
@@ -41,8 +37,7 @@ public sealed class ChatOptionsFactoryTests
     }
 
     [Fact]
-    public void Create_WithoutProvider_FallsBackToLlmParameters()
-    {
+    public void Create_WithoutProvider_FallsBackToLlmParameters() {
         var options = CreateFactory().Create();
 
         options.Temperature.Should().Be(LlmParameters.Chat.Temperature);
@@ -50,8 +45,7 @@ public sealed class ChatOptionsFactoryTests
     }
 
     [Fact]
-    public void Create_WithProviderThinkingEnabled_SetsThinkingEnabled()
-    {
+    public void Create_WithProviderThinkingEnabled_SetsThinkingEnabled() {
         var provider = new Mock<IExecutionSettingsProvider>();
         provider.Setup(p => p.ThinkingEnabled).Returns(true);
 
@@ -62,8 +56,7 @@ public sealed class ChatOptionsFactoryTests
     }
 
     [Fact]
-    public void Create_WithoutProviderThinkingEnabled_DefaultsFalse()
-    {
+    public void Create_WithoutProviderThinkingEnabled_DefaultsFalse() {
         var provider = new Mock<IExecutionSettingsProvider>();
         provider.Setup(p => p.ThinkingEnabled).Returns(false);
 

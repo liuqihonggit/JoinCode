@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 热文件监控兜底 — 发现 Worker 私自改热文件未上报时告警
 /// 仅兜底纠错，不增加认领计数（PRD：上报制而非磁盘触发）
 /// </summary>
-public interface IHotFileWatchdog
-{
+public interface IHotFileWatchdog {
     /// <summary>
     /// 检查文件变更：热文件被改但未上报意图 → 返回告警
     /// </summary>

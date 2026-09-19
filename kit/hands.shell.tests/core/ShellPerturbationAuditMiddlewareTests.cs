@@ -3,11 +3,9 @@ namespace Hands.Tests.Shell;
 /// <summary>
 /// ShellPerturbationAuditMiddleware 单元测试 — 验证 MTP 扰动审计中间件的 PostToolUse 统计行为
 /// </summary>
-public class ShellPerturbationAuditMiddlewareTests
-{
+public class ShellPerturbationAuditMiddlewareTests {
     [Fact]
-    public async Task NullExecutionResult_DoesNotRecord()
-    {
+    public async Task NullExecutionResult_DoesNotRecord() {
         var node = new MtpPerturbationNode();
         var sut = new ShellPerturbationAuditMiddleware(node);
         var context = CreateContext("echo hello");
@@ -20,8 +18,7 @@ public class ShellPerturbationAuditMiddlewareTests
     }
 
     [Fact]
-    public async Task SuccessExecution_RecordsWithoutTrigger()
-    {
+    public async Task SuccessExecution_RecordsWithoutTrigger() {
         var node = new MtpPerturbationNode();
         var sut = new ShellPerturbationAuditMiddleware(node);
         var context = CreateContext("echo hello");
@@ -35,8 +32,7 @@ public class ShellPerturbationAuditMiddlewareTests
     }
 
     [Fact]
-    public async Task FailedExecutionWithRedirect_RecordsAnomaly()
-    {
+    public async Task FailedExecutionWithRedirect_RecordsAnomaly() {
         var node = new MtpPerturbationNode();
         var sut = new ShellPerturbationAuditMiddleware(node);
         var context = CreateContext("cmd >nul");
@@ -50,13 +46,11 @@ public class ShellPerturbationAuditMiddlewareTests
     }
 
     [Fact]
-    public async Task ThreeConsecutiveAnomalies_TriggersAdaptive()
-    {
+    public async Task ThreeConsecutiveAnomalies_TriggersAdaptive() {
         var node = new MtpPerturbationNode();
         var sut = new ShellPerturbationAuditMiddleware(node);
 
-        for (var i = 0; i < 3; i++)
-        {
+        for (var i = 0; i < 3; i++) {
             var context = CreateContext("cmd >nul");
             context.ExecutionResult = CreateResult(exitCode: 1, stderr: "not found");
             await sut.InvokeAsync(context, (_, _) => Task.CompletedTask, CancellationToken.None);
@@ -68,8 +62,7 @@ public class ShellPerturbationAuditMiddlewareTests
     }
 
     [Fact]
-    public async Task NextMiddleware_AlwaysCalledFirst()
-    {
+    public async Task NextMiddleware_AlwaysCalledFirst() {
         var node = new MtpPerturbationNode();
         var sut = new ShellPerturbationAuditMiddleware(node);
         var context = CreateContext("echo hello");
@@ -81,20 +74,17 @@ public class ShellPerturbationAuditMiddlewareTests
         nextCalled.Should().BeTrue("next 应总是被调用（post-next 模式）");
     }
 
-    private static ShellPipelineContext CreateContext(string command)
-    {
+    private static ShellPipelineContext CreateContext(string command) {
         var provider = new Mock<ISystemActuator>();
         provider.SetupGet(x => x.Kind).Returns(SystemActuatorKind.Bash);
-        return new ShellPipelineContext
-        {
+        return new ShellPipelineContext {
             Command = command,
             Provider = provider.Object,
         };
     }
 
     private static SystemActuatorExecutionResult CreateResult(int exitCode, string stderr)
-        => new()
-        {
+        => new() {
             Stdout = string.Empty,
             Stderr = stderr,
             ExitCode = exitCode,

@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("TOTAL")  → CostScope.Total (OrdinalIgnoreCase)
 /// - CostScope.Session.ToValue() → "session"
 /// </summary>
-public enum CostScope
-{
+public enum CostScope {
     /// <summary>当日累计成本</summary>
     [EnumValue("today")] Today,
 

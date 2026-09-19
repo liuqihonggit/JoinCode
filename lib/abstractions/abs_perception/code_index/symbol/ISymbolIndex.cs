@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public interface ISymbolIndex
-{
+public interface ISymbolIndex {
     Task IndexFileAsync(string filePath, CancellationToken ct);
     Task IndexFilesAsync(IReadOnlyList<string> filePaths, CancellationToken ct);
     Task RemoveFileAsync(string filePath, CancellationToken ct);

@@ -3,8 +3,7 @@ namespace Services.Api;
 /// <summary>
 /// Token 使用记录
 /// </summary>
-public sealed record TokenUsageRecord
-{
+public sealed record TokenUsageRecord {
     /// <summary>
     /// 记录时间戳
     /// </summary>
@@ -64,8 +63,7 @@ public sealed record TokenUsageRecord
 /// <summary>
 /// Token 使用统计
 /// </summary>
-public sealed record TokenUsageStatistics
-{
+public sealed record TokenUsageStatistics {
     /// <summary>
     /// 总请求数
     /// </summary>
@@ -111,8 +109,7 @@ public sealed record TokenUsageStatistics
 /// <summary>
 /// 模型 Token 统计
 /// </summary>
-public sealed record ModelTokenStatistics
-{
+public sealed record ModelTokenStatistics {
     /// <summary>
     /// 模型名称
     /// </summary>
@@ -157,8 +154,7 @@ public sealed record ModelTokenStatistics
 /// <summary>
 /// Token 使用量追踪器
 /// </summary>
-public interface IUsageTracker
-{
+public interface IUsageTracker {
     /// <summary>
     /// 记录 Token 使用
     /// </summary>
@@ -212,8 +208,7 @@ public interface IUsageTracker
 /// Token 使用量追踪器实现
 /// </summary>
 [Register(typeof(IUsageTracker), ServiceLifetime.Singleton)]
-public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDisposable
-{
+public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDisposable {
     private readonly ConcurrentBag<TokenUsageRecord> _usageRecords;
     private readonly ConcurrentDictionary<string, List<TokenUsageRecord>> _sessionIndex;
     private readonly ILogger<UsageTracker>? _logger;
@@ -227,8 +222,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <param name="logger">可选日志记录器</param>
     /// <param name="costTracker">可选成本追踪器</param>
     /// <param name="modelConfigLoader">可选模型配置加载器，为 null 时使用默认加载器</param>
-    public UsageTracker(ILogger<UsageTracker>? logger = null, ICostTracker? costTracker = null, IModelConfigLoader? modelConfigLoader = null)
-    {
+    public UsageTracker(ILogger<UsageTracker>? logger = null, ICostTracker? costTracker = null, IModelConfigLoader? modelConfigLoader = null) {
         _usageRecords = new ConcurrentBag<TokenUsageRecord>();
         _sessionIndex = new ConcurrentDictionary<string, List<TokenUsageRecord>>(StringComparer.OrdinalIgnoreCase);
         _logger = logger;
@@ -240,14 +234,11 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     public event EventHandler<TokenUsageRecord>? UsageRecorded;
 
     /// <inheritdoc />
-    public void RecordUsage(TokenUsageRecord usage)
-    {
+    public void RecordUsage(TokenUsageRecord usage) {
         _usageRecords.Add(usage);
-        if (usage.SessionId is not null)
-        {
+        if (usage.SessionId is not null) {
             var sessionList = _sessionIndex.GetOrAdd(usage.SessionId, _ => new List<TokenUsageRecord>());
-            lock (sessionList)
-            {
+            lock (sessionList) {
                 sessionList.Add(usage);
             }
         }
@@ -261,21 +252,17 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     }
 
     /// <inheritdoc />
-    public void RecordFromResponse(string model, string endpoint, string responseContent, string? sessionId = null, string? requestId = null)
-    {
-        try
-        {
+    public void RecordFromResponse(string model, string endpoint, string responseContent, string? sessionId = null, string? requestId = null) {
+        try {
             var (inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens) = ExtractTokenUsage(responseContent);
 
-            if (inputTokens == 0 && outputTokens == 0)
-            {
+            if (inputTokens == 0 && outputTokens == 0) {
                 return;
             }
 
             var cost = CalculateCost(model, inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens);
 
-            var record = new TokenUsageRecord
-            {
+            var record = new TokenUsageRecord {
                 Timestamp = DateTime.UtcNow,
                 Model = model,
                 InputTokens = inputTokens,
@@ -289,41 +276,34 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
             };
 
             RecordUsage(record);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[UsageTracker] 从响应中提取 Token 使用失败");
         }
     }
 
     /// <inheritdoc />
-    public TokenUsageStatistics GetTodayStatistics()
-    {
+    public TokenUsageStatistics GetTodayStatistics() {
         var today = DateTime.UtcNow.Date;
         var records = _usageRecords.Where(r => r.Timestamp.Date == today).ToList();
         return CalculateStatistics(records);
     }
 
     /// <inheritdoc />
-    public TokenUsageStatistics GetSessionStatistics(string sessionId)
-    {
+    public TokenUsageStatistics GetSessionStatistics(string sessionId) {
         if (!_sessionIndex.TryGetValue(sessionId, out var records))
             return new TokenUsageStatistics();
-        lock (records)
-        {
+        lock (records) {
             return CalculateStatistics(new List<TokenUsageRecord>(records));
         }
     }
 
     /// <inheritdoc />
-    public TokenUsageStatistics GetTotalStatistics()
-    {
+    public TokenUsageStatistics GetTotalStatistics() {
         return CalculateStatistics(_usageRecords.ToList());
     }
 
     /// <inheritdoc />
-    public TokenUsageStatistics GetStatistics(DateTime startDate, DateTime endDate)
-    {
+    public TokenUsageStatistics GetStatistics(DateTime startDate, DateTime endDate) {
         var records = _usageRecords.Where(r => r.Timestamp >= startDate && r.Timestamp <= endDate).ToList();
         return CalculateStatistics(records);
     }
@@ -331,25 +311,20 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <summary>
     /// 从响应内容中提取 Token 使用信息
     /// </summary>
-    private (int InputTokens, int OutputTokens, int CacheCreationTokens, int CacheReadTokens) ExtractTokenUsage(string responseContent)
-    {
+    private (int InputTokens, int OutputTokens, int CacheCreationTokens, int CacheReadTokens) ExtractTokenUsage(string responseContent) {
         if (string.IsNullOrWhiteSpace(responseContent))
             return (0, 0, 0, 0);
 
-        try
-        {
+        try {
             var response = RelaxedJsonSerializer.Deserialize(responseContent, ApiJsonContext.Default.TokenUsageResponse);
-            if (response?.Usage is not null)
-            {
+            if (response?.Usage is not null) {
                 var input = response.Usage.PromptTokens ?? response.Usage.InputTokens ?? 0;
                 var output = response.Usage.CompletionTokens ?? response.Usage.OutputTokens ?? 0;
                 var cacheCreate = response.Usage.CacheCreationInputTokens ?? 0;
                 var cacheRead = response.Usage.CacheReadInputTokens ?? 0;
                 return (input, output, cacheCreate, cacheRead);
             }
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             // JSON 解析失败时返回零值，但需记录日志
             _logger?.LogWarning(ex, "[UsageTracker] ParseUsage 失败");
         }
@@ -360,8 +335,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <summary>
     /// 计算成本
     /// </summary>
-    private decimal CalculateCost(string model, int inputTokens, int outputTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0)
-    {
+    private decimal CalculateCost(string model, int inputTokens, int outputTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) {
         var pricing = GetModelPricing(model);
         var inputCost = (inputTokens / 1000m) * pricing.InputCostPer1K;
         var outputCost = (outputTokens / 1000m) * pricing.OutputCostPer1K;
@@ -373,8 +347,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <summary>
     /// 获取模型定价
     /// </summary>
-    private (decimal InputCostPer1K, decimal OutputCostPer1K) GetModelPricing(string model)
-    {
+    private (decimal InputCostPer1K, decimal OutputCostPer1K) GetModelPricing(string model) {
         var pricingTable = new JoinCode.Abstractions.LLM.Execution.Pricing.ModelPricingTable(_modelConfigLoader);
         var promptCost = pricingTable.GetPromptCostPer1K(model);
         var completionCost = pricingTable.GetCompletionCostPer1K(model);
@@ -384,10 +357,8 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <summary>
     /// 计算统计数据
     /// </summary>
-    private static TokenUsageStatistics CalculateStatistics(List<TokenUsageRecord> records)
-    {
-        if (records.Count == 0)
-        {
+    private static TokenUsageStatistics CalculateStatistics(List<TokenUsageRecord> records) {
+        if (records.Count == 0) {
             return new TokenUsageStatistics();
         }
 
@@ -399,8 +370,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
 
         var modelStats = records
             .GroupBy(r => r.Model)
-            .Select(g => new ModelTokenStatistics
-            {
+            .Select(g => new ModelTokenStatistics {
                 Model = g.Key,
                 RequestCount = g.Count(),
                 InputTokens = g.Sum(r => (long)r.InputTokens),
@@ -411,8 +381,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
             })
             .ToDictionary(m => m.Model, StringComparer.OrdinalIgnoreCase);
 
-        return new TokenUsageStatistics
-        {
+        return new TokenUsageStatistics {
             TotalRequests = records.Count,
             TotalInputTokens = totalInputTokens,
             TotalOutputTokens = totalOutputTokens,
@@ -426,8 +395,7 @@ public sealed partial class UsageTracker : ServiceEntity, IUsageTracker, IDispos
     /// <summary>
     /// 释放资源（ConcurrentBag 无需显式释放，仅满足接口契约）
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         GC.SuppressFinalize(this);

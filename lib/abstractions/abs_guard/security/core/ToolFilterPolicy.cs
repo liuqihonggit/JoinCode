@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 2. AsyncAgentAllowedTools（白名单）
 /// 3. AgentDefinition.DisallowedTools（agent 定义级黑名单）
 /// </summary>
-public interface IToolFilterPolicy
-{
+public interface IToolFilterPolicy {
     /// <summary>检查工具是否允许执行。</summary>
     /// <param name="context">过滤上下文。</param>
     /// <returns>过滤结果（是否允许 + 拒绝原因）。</returns>
@@ -36,8 +35,7 @@ public sealed record ToolFilterContext(
 /// <param name="IsAllowed">是否允许执行。</param>
 /// <param name="Reason">拒绝原因（允许时为 null）。</param>
 /// <param name="DeniedLayer">拒绝层编号（1=全局禁用, 2=白名单, 3=代理黑名单, 0=允许）。</param>
-public sealed record ToolFilterResult(bool IsAllowed, string? Reason, int DeniedLayer)
-{
+public sealed record ToolFilterResult(bool IsAllowed, string? Reason, int DeniedLayer) {
     /// <summary>允许结果。</summary>
     public static readonly ToolFilterResult Allowed = new(true, null, 0);
 

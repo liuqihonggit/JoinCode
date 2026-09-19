@@ -9,8 +9,7 @@ namespace JoinCode.Abstractions.Hooks;
 [JsonDerivedType(typeof(AgentHook), HookTypeEnumConstants.Agent)]
 [JsonDerivedType(typeof(HttpHook), HookTypeEnumConstants.Http)]
 [JsonDerivedType(typeof(FunctionHook), HookTypeEnumConstants.Function)]
-public abstract record HookCommand
-{
+public abstract record HookCommand {
     /// <summary>
     /// 钩子类型
     /// </summary>
@@ -41,16 +40,14 @@ public abstract record HookCommand
     /// <summary>
     /// 获取显示文本
     /// </summary>
-    public virtual string GetDisplayText()
-    {
+    public virtual string GetDisplayText() {
         return StatusMessage ?? $"[{Type}]";
     }
 
     /// <summary>
     /// 检查两个钩子是否相等（比较内容和配置，不包括超时）
     /// </summary>
-    public virtual bool IsEqualTo(HookCommand other)
-    {
+    public virtual bool IsEqualTo(HookCommand other) {
         if (Type != other.Type) return false;
         return (If ?? "") == (other.If ?? "");
     }
@@ -59,8 +56,7 @@ public abstract record HookCommand
 /// <summary>
 /// Bash 命令钩子
 /// </summary>
-public sealed record BashCommandHook : HookCommand
-{
+public sealed record BashCommandHook : HookCommand {
     public override string Type => HookTypeEnumConstants.Command;
 
     /// <summary>
@@ -83,13 +79,11 @@ public sealed record BashCommandHook : HookCommand
     /// </summary>
     public bool? AsyncRewake { get; init; }
 
-    public override string GetDisplayText()
-    {
+    public override string GetDisplayText() {
         return StatusMessage ?? Command;
     }
 
-    public override bool IsEqualTo(HookCommand other)
-    {
+    public override bool IsEqualTo(HookCommand other) {
         if (other is not BashCommandHook bash) return false;
         if (!base.IsEqualTo(other)) return false;
 
@@ -101,8 +95,7 @@ public sealed record BashCommandHook : HookCommand
 /// <summary>
 /// LLM 提示钩子
 /// </summary>
-public sealed record PromptHook : HookCommand
-{
+public sealed record PromptHook : HookCommand {
     public override string Type => HookTypeEnumConstants.Prompt;
 
     /// <summary>
@@ -115,13 +108,11 @@ public sealed record PromptHook : HookCommand
     /// </summary>
     public string? Model { get; init; }
 
-    public override string GetDisplayText()
-    {
+    public override string GetDisplayText() {
         return StatusMessage ?? Prompt[..Math.Min(Prompt.Length, 50)];
     }
 
-    public override bool IsEqualTo(HookCommand other)
-    {
+    public override bool IsEqualTo(HookCommand other) {
         if (other is not PromptHook prompt) return false;
         if (!base.IsEqualTo(other)) return false;
 
@@ -132,8 +123,7 @@ public sealed record PromptHook : HookCommand
 /// <summary>
 /// 代理验证钩子
 /// </summary>
-public sealed record AgentHook : HookCommand
-{
+public sealed record AgentHook : HookCommand {
     public override string Type => HookTypeEnumConstants.Agent;
 
     /// <summary>
@@ -146,13 +136,11 @@ public sealed record AgentHook : HookCommand
     /// </summary>
     public string? Model { get; init; }
 
-    public override string GetDisplayText()
-    {
+    public override string GetDisplayText() {
         return StatusMessage ?? $"[Agent] {Prompt[..Math.Min(Prompt.Length, 40)]}";
     }
 
-    public override bool IsEqualTo(HookCommand other)
-    {
+    public override bool IsEqualTo(HookCommand other) {
         if (other is not AgentHook agent) return false;
         if (!base.IsEqualTo(other)) return false;
 
@@ -163,8 +151,7 @@ public sealed record AgentHook : HookCommand
 /// <summary>
 /// HTTP 钩子
 /// </summary>
-public sealed record HttpHook : HookCommand
-{
+public sealed record HttpHook : HookCommand {
     public override string Type => HookTypeEnumConstants.Http;
 
     /// <summary>
@@ -182,13 +169,11 @@ public sealed record HttpHook : HookCommand
     /// </summary>
     public IReadOnlyList<string>? AllowedEnvVars { get; init; }
 
-    public override string GetDisplayText()
-    {
+    public override string GetDisplayText() {
         return StatusMessage ?? Url;
     }
 
-    public override bool IsEqualTo(HookCommand other)
-    {
+    public override bool IsEqualTo(HookCommand other) {
         if (other is not HttpHook http) return false;
         if (!base.IsEqualTo(other)) return false;
 
@@ -199,8 +184,7 @@ public sealed record HttpHook : HookCommand
 /// <summary>
 /// 函数回调钩子（仅会话级，不可持久化）
 /// </summary>
-public sealed record FunctionHook : HookCommand
-{
+public sealed record FunctionHook : HookCommand {
     public override string Type => HookTypeEnumConstants.Function;
 
     /// <summary>
@@ -219,13 +203,11 @@ public sealed record FunctionHook : HookCommand
     /// </summary>
     public string? ErrorMessage { get; init; }
 
-    public override string GetDisplayText()
-    {
+    public override string GetDisplayText() {
         return StatusMessage ?? $"[Function] {Id}";
     }
 
-    public override bool IsEqualTo(HookCommand other)
-    {
+    public override bool IsEqualTo(HookCommand other) {
         // 函数钩子无法比较（没有稳定标识符）
         return false;
     }
@@ -234,8 +216,7 @@ public sealed record FunctionHook : HookCommand
 /// <summary>
 /// 回调钩子（内部使用）
 /// </summary>
-public sealed record CallbackHook : HookCommand
-{
+public sealed record CallbackHook : HookCommand {
     public override string Type => HookTypeEnumConstants.Callback;
 
     /// <summary>
@@ -249,13 +230,11 @@ public sealed record CallbackHook : HookCommand
     /// </summary>
     public bool Internal { get; init; }
 
-    public override string GetDisplayText()
-    {
+    public override string GetDisplayText() {
         return StatusMessage ?? "[Callback]";
     }
 
-    public override bool IsEqualTo(HookCommand other)
-    {
+    public override bool IsEqualTo(HookCommand other) {
         // 回调钩子无法比较
         return false;
     }

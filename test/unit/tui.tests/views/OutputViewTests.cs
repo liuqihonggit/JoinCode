@@ -4,18 +4,15 @@ namespace Tui.Tests.Views;
 /// OutputView 单元测试 — 验证追加/清空/上限行为（ListView 内容用 GetLines 断言）。
 /// P2-2 滚动优化：Label 全量重绘 → ListView + ObservableCollection。
 /// </summary>
-public class OutputViewTests
-{
+public class OutputViewTests {
     [Fact]
-    public void Empty_GetLines_ReturnsEmpty()
-    {
+    public void Empty_GetLines_ReturnsEmpty() {
         var view = new OutputView();
         Assert.Empty(view.GetLines());
     }
 
     [Fact]
-    public void AppendLine_GetLines_ContainsLine()
-    {
+    public void AppendLine_GetLines_ContainsLine() {
         var view = new OutputView();
         view.AppendLine("👤 hello");
         view.Flush();
@@ -26,8 +23,7 @@ public class OutputViewTests
     }
 
     [Fact]
-    public void AppendText_MultipleLines_AllPresent()
-    {
+    public void AppendText_MultipleLines_AllPresent() {
         var view = new OutputView();
         view.AppendText("line1\nline2\nline3");
         view.Flush();
@@ -40,8 +36,7 @@ public class OutputViewTests
     }
 
     [Fact]
-    public void Clear_GetLines_Empty()
-    {
+    public void Clear_GetLines_Empty() {
         var view = new OutputView();
         view.AppendLine("a");
         view.AppendLine("b");
@@ -51,8 +46,7 @@ public class OutputViewTests
     }
 
     [Fact]
-    public void MaxLines_Exceeded_OldestRemoved()
-    {
+    public void MaxLines_Exceeded_OldestRemoved() {
         var view = new OutputView(maxLines: 10000);
         for (var i = 0; i < 10005; i++)
             view.AppendLine($"line{i}");

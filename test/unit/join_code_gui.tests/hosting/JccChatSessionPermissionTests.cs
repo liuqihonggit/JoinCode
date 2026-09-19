@@ -5,13 +5,11 @@ namespace JoinCode.Gui.Tests.Hosting;
 /// <see cref="PermissionPendingConfirmationException"/> 时：询问 UI → 批准工具 → 撤回本轮 → 重发同消息。
 /// 不依赖真实引擎，用可控的假 ChatService 模拟"首次抛出权限异常、重试后成功"。
 /// </summary>
-public class JccChatSessionPermissionTests
-{
+public class JccChatSessionPermissionTests {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
 
     [Fact]
-    public async Task Stream_WhenPermissionPendingAndAllowed_RetriesAndSucceeds()
-    {
+    public async Task Stream_WhenPermissionPendingAndAllowed_RetriesAndSucceeds() {
         var fakeChat = new FakeChatService(throwOnFirstStream: true);
         var fakePermission = new FakePermissionManager();
         var services = new ServiceCollection();
@@ -20,8 +18,7 @@ public class JccChatSessionPermissionTests
         var session = new JccChatSession(sp, fakeChat, CreateConfig());
         var handlerCalls = 0;
 
-        session.PermissionConfirmationHandler = request =>
-        {
+        session.PermissionConfirmationHandler = request => {
             handlerCalls++;
             request.ToolName.Should().Be("bash");
             request.ConfirmationPrompt.Should().NotBeNullOrWhiteSpace();
@@ -29,8 +26,7 @@ public class JccChatSessionPermissionTests
         };
 
         var events = new List<ChatStreamEvent>();
-        await foreach (var evt in session.StreamAsync("请执行命令").WithCancellation(new CancellationTokenSource(Timeout).Token))
-        {
+        await foreach (var evt in session.StreamAsync("请执行命令").WithCancellation(new CancellationTokenSource(Timeout).Token)) {
             events.Add(evt);
         }
 
@@ -43,8 +39,7 @@ public class JccChatSessionPermissionTests
     }
 
     [Fact]
-    public async Task Stream_WhenPermissionDenied_EmitsToolErrorAndStops()
-    {
+    public async Task Stream_WhenPermissionDenied_EmitsToolErrorAndStops() {
         var fakeChat = new FakeChatService(throwOnFirstStream: true);
         var fakePermission = new FakePermissionManager();
         var services = new ServiceCollection();
@@ -53,15 +48,13 @@ public class JccChatSessionPermissionTests
         var session = new JccChatSession(sp, fakeChat, CreateConfig());
         var handlerCalls = 0;
 
-        session.PermissionConfirmationHandler = request =>
-        {
+        session.PermissionConfirmationHandler = request => {
             handlerCalls++;
             return Task.FromResult(PermissionConfirmationDecision.Deny);
         };
 
         var events = new List<ChatStreamEvent>();
-        await foreach (var evt in session.StreamAsync("请执行命令").WithCancellation(new CancellationTokenSource(Timeout).Token))
-        {
+        await foreach (var evt in session.StreamAsync("请执行命令").WithCancellation(new CancellationTokenSource(Timeout).Token)) {
             events.Add(evt);
         }
 
@@ -73,8 +66,7 @@ public class JccChatSessionPermissionTests
     }
 
     [Fact]
-    public async Task Stream_WhenNoHandler_DefaultsToDeny()
-    {
+    public async Task Stream_WhenNoHandler_DefaultsToDeny() {
         var fakeChat = new FakeChatService(throwOnFirstStream: true);
         var services = new ServiceCollection();
         services.AddSingleton<IToolPermissionManager>(new FakePermissionManager());
@@ -82,8 +74,7 @@ public class JccChatSessionPermissionTests
         var session = new JccChatSession(sp, fakeChat, CreateConfig());
 
         var events = new List<ChatStreamEvent>();
-        await foreach (var evt in session.StreamAsync("请执行命令").WithCancellation(new CancellationTokenSource(Timeout).Token))
-        {
+        await foreach (var evt in session.StreamAsync("请执行命令").WithCancellation(new CancellationTokenSource(Timeout).Token)) {
             events.Add(evt);
         }
 
@@ -91,10 +82,8 @@ public class JccChatSessionPermissionTests
         events.Should().Contain(e => e.Type == ChatStreamEventType.ToolCallEnd && e.IsToolError);
     }
 
-    private static WorkflowConfig CreateConfig() => new()
-    {
-        Provider = new ProviderConfig
-        {
+    private static WorkflowConfig CreateConfig() => new() {
+        Provider = new ProviderConfig {
             Vendor = "openai",
             ApiKey = "sk-test",
             ModelId = "gpt-4o"
@@ -105,12 +94,10 @@ public class JccChatSessionPermissionTests
     /// <summary>
     /// 可控假 ChatService：首次流式抛权限异常（并预产出一条事件），后续正常完成。
     /// </summary>
-    private sealed class FakeChatService : IChatService
-    {
+    private sealed class FakeChatService : IChatService {
         private readonly bool _throwOnFirstStream;
 
-        public FakeChatService(bool throwOnFirstStream)
-        {
+        public FakeChatService(bool throwOnFirstStream) {
             _throwOnFirstStream = throwOnFirstStream;
         }
 
@@ -120,11 +107,9 @@ public class JccChatSessionPermissionTests
 
         public async IAsyncEnumerable<ChatStreamEvent> StreamWithEventsAsync(
             string message,
-            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
             StreamInvokeCount++;
-            if (_throwOnFirstStream && StreamInvokeCount == 1)
-            {
+            if (_throwOnFirstStream && StreamInvokeCount == 1) {
                 yield return ChatStreamEvent.ToolStart("bash", "call_1", "{}");
                 throw new PermissionPendingConfirmationException("bash", "是否允许执行 bash 命令？", "req-1");
             }
@@ -137,8 +122,7 @@ public class JccChatSessionPermissionTests
         public Task<string> SendMessageAsync(string message, CancellationToken cancellationToken = default)
             => Task.FromResult(string.Empty);
 
-        public async IAsyncEnumerable<string> SendMessageStreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
+        public async IAsyncEnumerable<string> SendMessageStreamAsync(string message, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default) {
             await Task.CompletedTask;
             yield break;
         }
@@ -148,14 +132,12 @@ public class JccChatSessionPermissionTests
         public Task<IReadOnlyList<ApiMessageRecord>> GetMessageListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult((IReadOnlyList<ApiMessageRecord>)[]);
 
-        public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default)
-        {
+        public Task SetSystemPromptAsync(string systemPrompt, CancellationToken cancellationToken = default) {
             LastSystemPrompt = systemPrompt;
             return Task.CompletedTask;
         }
 
-        public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default)
-        {
+        public Task<RewindResult> RewindLastTurnAsync(CancellationToken cancellationToken = default) {
             RewindInvokeCount++;
             return Task.FromResult(RewindResult.Ok(RewindKind.TrimLastTurn, 2, 5));
         }
@@ -178,8 +160,7 @@ public class JccChatSessionPermissionTests
     /// <summary>
     /// 记录批准调用的假权限管理器（仅需 ApproveToolTemporarily）。
     /// </summary>
-    private sealed class FakePermissionManager : IToolPermissionManager
-    {
+    private sealed class FakePermissionManager : IToolPermissionManager {
         public string? ApprovedTool { get; private set; }
 
         public Task<PermissionResult> CheckPermissionAsync(PermissionRequest request, CancellationToken cancellationToken = default)
@@ -203,16 +184,13 @@ public class JccChatSessionPermissionTests
         public void ApproveToolTemporarily(string toolName, TimeSpan duration)
             => ApprovedTool = toolName;
 
-        public void ApproveLevelTemporarily(CommandDangerLevel level)
-        {
+        public void ApproveLevelTemporarily(CommandDangerLevel level) {
         }
 
-        public void RemoveTemporaryApproval(string toolName)
-        {
+        public void RemoveTemporaryApproval(string toolName) {
         }
 
-        public void ClearCache()
-        {
+        public void ClearCache() {
         }
     }
 }

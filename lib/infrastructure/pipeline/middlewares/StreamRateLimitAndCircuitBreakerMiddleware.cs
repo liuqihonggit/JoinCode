@@ -5,8 +5,7 @@ namespace Infrastructure.Pipeline.Middlewares;
 /// </summary>
 public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
     int maxRequests,
-    TimeSpan window) : IStreamMiddleware<TContext, TEvent>
-{
+    TimeSpan window) : IStreamMiddleware<TContext, TEvent> {
     private readonly FixedWindowRateLimiter _limiter = new(maxRequests, window);
 
 
@@ -21,15 +20,12 @@ public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
     public async IAsyncEnumerable<TEvent> InvokeAsync(
         TContext context,
         StreamMiddlewareDelegate<TContext, TEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        if (!_limiter.TryAcquire())
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        if (!_limiter.TryAcquire()) {
             throw new RateLimitExceededException($"[INF025] 速率限制: 每{window.TotalSeconds}s 最多{maxRequests}次请求");
         }
 
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }
     }
@@ -40,8 +36,7 @@ public sealed class FixedStreamRateLimitMiddleware<TContext, TEvent>(
 /// </summary>
 public sealed class FixedStreamCircuitBreakerMiddleware<TContext, TEvent>(
     int failureThreshold,
-    TimeSpan openDuration) : IStreamMiddleware<TContext, TEvent>
-{
+    TimeSpan openDuration) : IStreamMiddleware<TContext, TEvent> {
     private readonly CircuitBreakerState _state = new(failureThreshold, openDuration);
 
 
@@ -56,33 +51,25 @@ public sealed class FixedStreamCircuitBreakerMiddleware<TContext, TEvent>(
     public async IAsyncEnumerable<TEvent> InvokeAsync(
         TContext context,
         StreamMiddlewareDelegate<TContext, TEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        if (_state.ShouldTrip())
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        if (_state.ShouldTrip()) {
             throw new CircuitBreakerOpenException(
                 $"断路器开启: 连续{_state.ConsecutiveFailures}次失败，{openDuration.TotalSeconds}s 后重试");
         }
 
         var events = new List<TEvent>();
-        try
-        {
-            await foreach (var evt in next(context, ct).ConfigureAwait(false))
-            {
+        try {
+            await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
                 events.Add(evt);
             }
 
             _state.RecordSuccess();
-        }
-        catch (OperationCanceledException) { throw; }
-        catch
-        {
+        } catch (OperationCanceledException) { throw; } catch {
             _state.RecordFailure();
             throw;
         }
 
-        foreach (var evt in events)
-        {
+        foreach (var evt in events) {
             yield return evt;
         }
     }

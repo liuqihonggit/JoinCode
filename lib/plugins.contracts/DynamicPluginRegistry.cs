@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 插件包 ID — 自增铸造，格式 pkg-&lt;n&gt;
 /// <para>对齐 DSH PackageId：nextPackageId 自增计数器</para>
 /// </summary>
-public readonly struct PluginPackageId : IEquatable<PluginPackageId>
-{
+public readonly struct PluginPackageId : IEquatable<PluginPackageId> {
     private readonly int _value;
 
     /// <summary>构造</summary>
@@ -38,8 +37,7 @@ public readonly struct PluginPackageId : IEquatable<PluginPackageId>
 /// <para>包含程序集路径、版本、入口方法、capability 声明</para>
 /// <para>NativeAOT 降级：只支持已编译 DLL 路径，不支持源码求值</para>
 /// </summary>
-public sealed class PluginPackage
-{
+public sealed class PluginPackage {
     /// <summary>包 ID</summary>
     public PluginPackageId PackageId { get; }
 
@@ -73,8 +71,7 @@ public sealed class PluginPackage
         string entryType,
         string entryMethod,
         FrozenSet<string> capabilities,
-        DateTimeOffset createdAt)
-    {
+        DateTimeOffset createdAt) {
         PackageId = packageId;
         Name = name;
         AssemblyPath = assemblyPath;
@@ -89,8 +86,7 @@ public sealed class PluginPackage
 /// <summary>
 /// 动态插件运行状态
 /// </summary>
-public enum DynamicPluginState
-{
+public enum DynamicPluginState {
     /// <summary>已定义，未运行</summary>
     [EnumValue("defined")] Defined,
 
@@ -107,8 +103,7 @@ public enum DynamicPluginState
 /// <summary>
 /// invoke 失败码 — 对齐 DSH 4 类失败
 /// </summary>
-public enum PluginInvokeFailure
-{
+public enum PluginInvokeFailure {
     /// <summary>插件未运行</summary>
     [EnumValue("pluginNotRunning")]
     PluginNotRunning,
@@ -129,8 +124,7 @@ public enum PluginInvokeFailure
 /// <summary>
 /// invoke 结果 — 成功返回值或失败码
 /// </summary>
-public readonly struct PluginInvokeResult
-{
+public readonly struct PluginInvokeResult {
     /// <summary>是否成功</summary>
     public bool IsSuccess { get; }
 
@@ -143,8 +137,7 @@ public readonly struct PluginInvokeResult
     /// <summary>错误消息（失败时）</summary>
     public string? ErrorMessage { get; }
 
-    private PluginInvokeResult(bool isSuccess, object? value, PluginInvokeFailure? failure, string? errorMessage)
-    {
+    private PluginInvokeResult(bool isSuccess, object? value, PluginInvokeFailure? failure, string? errorMessage) {
         IsSuccess = isSuccess;
         Value = value;
         Failure = failure;
@@ -162,8 +155,7 @@ public readonly struct PluginInvokeResult
 /// <summary>
 /// 运行中的插件实例 — 绑定 Package + ALC + handler 表
 /// </summary>
-internal sealed class RunningPluginInstance
-{
+internal sealed class RunningPluginInstance {
     public PluginPackageId PackageId { get; }
     public PluginAlc Alc { get; }
     public FrozenDictionary<string, Func<object?[], object?>> Handlers { get; }
@@ -173,8 +165,7 @@ internal sealed class RunningPluginInstance
         PluginPackageId packageId,
         PluginAlc alc,
         FrozenDictionary<string, Func<object?[], object?>> handlers,
-        DateTimeOffset startedAt)
-    {
+        DateTimeOffset startedAt) {
         PackageId = packageId;
         Alc = alc;
         Handlers = handlers;
@@ -192,8 +183,7 @@ internal sealed class RunningPluginInstance
 /// <para>线程安全：ConcurrentDictionary + lock + Interlocked</para>
 /// <para>时钟可注入：Func&lt;DateTimeOffset&gt;? clock = null，测试可控、生产用 UtcNow</para>
 /// </summary>
-public sealed class DynamicPluginRegistry
-{
+public sealed class DynamicPluginRegistry {
     private int _packageCounter;
     private readonly PluginRuntimeRegistry _runtime = new();
     private readonly PluginApprovalRegistry _approval;
@@ -207,8 +197,7 @@ public sealed class DynamicPluginRegistry
     public DynamicPluginRegistry(
         PluginApprovalRegistry? approval = null,
         Func<DateTimeOffset>? clock = null,
-        Func<PluginPackage, PluginAlc, FrozenDictionary<string, Func<object?[], object?>>>? loader = null)
-    {
+        Func<PluginPackage, PluginAlc, FrozenDictionary<string, Func<object?[], object?>>>? loader = null) {
         _approval = approval ?? new PluginApprovalRegistry(clock);
         _clock = clock;
         _loader = loader ?? LoadHandlerTable;
@@ -229,15 +218,13 @@ public sealed class DynamicPluginRegistry
         Version version,
         string entryType,
         string entryMethod,
-        FrozenSet<string>? capabilities = null)
-    {
+        FrozenSet<string>? capabilities = null) {
         var id = NextPackageId();
         var pkg = new PluginPackage(
             id, name, assemblyPath, version, entryType, entryMethod,
             capabilities ?? FrozenSet<string>.Empty, Now());
 
-        if (!_runtime.TryDefine(name, pkg))
-        {
+        if (!_runtime.TryDefine(name, pkg)) {
             throw new InvalidOperationException(
                 $"[DYN-DEFINE-DUP] 插件 {name} 已定义，请先 UndefinePlugin 再重新定义。");
         }
@@ -251,19 +238,16 @@ public sealed class DynamicPluginRegistry
     /// <para>插件未定义 → 抛 KeyNotFoundException</para>
     /// <para>已在运行 → 返回当前运行实例的 PackageId（幂等）</para>
     /// </summary>
-    public PluginPackageId RunPlugin(string name)
-    {
+    public PluginPackageId RunPlugin(string name) {
         if (!_runtime.TryGetPackage(name, out var pkg))
             throw new KeyNotFoundException($"[DYN-RUN-UNDEFINED] 插件 {name} 未定义。");
 
-        lock (_runLock)
-        {
+        lock (_runLock) {
             if (_runtime.TryGetRunning(name, out var existing))
                 return existing.PackageId;
 
             var pending = _approval.PendingRequestFor(name);
-            if (pending is not null && pending.State == ApprovalState.Pending)
-            {
+            if (pending is not null && pending.State == ApprovalState.Pending) {
                 throw new InvalidOperationException(
                     $"[DYN-RUN-PENDING-APPROVAL] 插件 {name} 有待审批请求 {pending.RequestId}，请先审批。");
             }
@@ -288,8 +272,7 @@ public sealed class DynamicPluginRegistry
         Version newVersion,
         string entryType,
         string entryMethod,
-        FrozenSet<string>? capabilities = null)
-    {
+        FrozenSet<string>? capabilities = null) {
         if (!_runtime.TryGetPackage(name, out var oldPkg))
             throw new KeyNotFoundException($"[DYN-UPDATE-UNDEFINED] 插件 {name} 未定义。");
 
@@ -298,8 +281,7 @@ public sealed class DynamicPluginRegistry
                 $"[DYN-UPDATE-VERSION] 新版本 {newVersion} 必须大于旧版本 {oldPkg.Version}。");
 
         var wasRunning = _runtime.TryRemoveRunning(name, out var oldInstance);
-        if (wasRunning)
-        {
+        if (wasRunning) {
             oldInstance!.Alc.Unload();
         }
 
@@ -317,10 +299,8 @@ public sealed class DynamicPluginRegistry
     /// 停止插件 — 只停运行，不删除定义（可重新 RunPlugin）
     /// <para>插件未运行 → 返回 false（幂等）</para>
     /// </summary>
-    public bool StopPlugin(string name)
-    {
-        if (!_runtime.TryRemoveRunning(name, out var instance))
-        {
+    public bool StopPlugin(string name) {
+        if (!_runtime.TryRemoveRunning(name, out var instance)) {
             return false;
         }
 
@@ -334,8 +314,7 @@ public sealed class DynamicPluginRegistry
     /// <para>若在运行，先 stop 再删除</para>
     /// <para>插件未定义 → 返回 false</para>
     /// </summary>
-    public bool UndefinePlugin(string name)
-    {
+    public bool UndefinePlugin(string name) {
         if (_runtime.TryRemoveRunning(name, out var instance))
             instance.Alc.Unload();
 
@@ -373,8 +352,7 @@ public sealed class DynamicPluginRegistry
     /// <para>4 类失败码：PluginNotRunning / StaleRun / MethodNotFound / HandlerError</para>
     /// <para>expectedPackageId 不匹配当前运行实例 → StaleRun（UpdatePlugin 后旧引用失效）</para>
     /// </summary>
-    public PluginInvokeResult Invoke(string name, string method, object?[] args, PluginPackageId? expectedPackageId = null)
-    {
+    public PluginInvokeResult Invoke(string name, string method, object?[] args, PluginPackageId? expectedPackageId = null) {
         if (!_runtime.TryGetRunning(name, out var instance))
             return PluginInvokeResult.Fail(PluginInvokeFailure.PluginNotRunning, $"插件 {name} 未运行。");
 
@@ -386,13 +364,10 @@ public sealed class DynamicPluginRegistry
             return PluginInvokeResult.Fail(PluginInvokeFailure.MethodNotFound,
                 $"插件 {name} 无方法 {method}。");
 
-        try
-        {
+        try {
             var result = handler(args);
             return PluginInvokeResult.Ok(result);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return PluginInvokeResult.Fail(PluginInvokeFailure.HandlerError, ex.Message);
         }
     }
@@ -403,8 +378,7 @@ public sealed class DynamicPluginRegistry
     /// <para>真实实现需源码生成器在编译时为每个插件生成 handler 注册代码</para>
     /// <para>ADR 0098 #8 AOT 降级：LoadFromAssemblyPath 不兼容 trimming，仅非 AOT 模式可用</para>
     /// </summary>
-    private static FrozenDictionary<string, Func<object?[], object?>> LoadHandlerTable(PluginPackage pkg, PluginAlc alc)
-    {
+    private static FrozenDictionary<string, Func<object?[], object?>> LoadHandlerTable(PluginPackage pkg, PluginAlc alc) {
 #pragma warning disable IL2026
         _ = alc.LoadFromAssemblyPath(pkg.AssemblyPath);
 #pragma warning restore IL2026

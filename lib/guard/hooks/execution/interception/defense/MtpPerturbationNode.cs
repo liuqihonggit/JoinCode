@@ -43,8 +43,7 @@ public sealed record PerturbationReport(
 /// </para>
 /// </summary>
 [Register(typeof(MtpPerturbationNode), ServiceLifetime.Singleton)]
-public sealed class MtpPerturbationNode
-{
+public sealed class MtpPerturbationNode {
     private const int MaxRecords = 100;
     private const int AnomalyThreshold = 3;
     private const int LengthDeviationThreshold = 2;
@@ -75,8 +74,7 @@ public sealed class MtpPerturbationNode
     /// <param name="exitCode">退出码（0=成功，非0=失败）</param>
     /// <param name="stderr">stderr 输出（用于检测异常）</param>
     /// <returns>扰动分析报告</returns>
-    public PerturbationReport Record(string command, int exitCode, string? stderr)
-    {
+    public PerturbationReport Record(string command, int exitCode, string? stderr) {
         var features = ExtractFeatures(command);
         var isAnomaly = DetectAnomaly(features, exitCode, stderr);
         var record = new PerturbationRecord(features, isAnomaly, command);
@@ -94,8 +92,7 @@ public sealed class MtpPerturbationNode
     /// <summary>
     /// 分析最近记录，检测是否应触发自适应开关。
     /// </summary>
-    public PerturbationReport AnalyzeRecentRecords()
-    {
+    public PerturbationReport AnalyzeRecentRecords() {
         var recent = _recentRecords.ToArray();
         var consecutiveAnomalies = CountConsecutiveAnomalies(recent);
         var lastCommand = recent.Length > 0 ? recent[^1].Command : null;
@@ -127,8 +124,7 @@ public sealed class MtpPerturbationNode
     /// </list>
     /// </para>
     /// </summary>
-    private static bool DetectAnomaly(PerturbationFeatures features, int exitCode, string? stderr)
-    {
+    private static bool DetectAnomaly(PerturbationFeatures features, int exitCode, string? stderr) {
         if (exitCode != 0 && features.HasRedirectSymbol)
             return true;
 
@@ -149,11 +145,9 @@ public sealed class MtpPerturbationNode
     /// <summary>
     /// 计算最近记录中连续异常的次数（从最新往前数）。
     /// </summary>
-    private static int CountConsecutiveAnomalies(PerturbationRecord[] records)
-    {
+    private static int CountConsecutiveAnomalies(PerturbationRecord[] records) {
         var count = 0;
-        for (var i = records.Length - 1; i >= 0; i--)
-        {
+        for (var i = records.Length - 1; i >= 0; i--) {
             if (!records[i].IsAnomaly)
                 break;
             count++;
@@ -164,8 +158,7 @@ public sealed class MtpPerturbationNode
     /// <summary>
     /// 修剪队列到最大长度。
     /// </summary>
-    private void TrimQueue()
-    {
+    private void TrimQueue() {
         while (_recentRecords.Count > MaxRecords)
             _recentRecords.TryDequeue(out _);
     }

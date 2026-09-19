@@ -1,43 +1,4 @@
-global using System;
-global using System.Linq;
-global using System.Collections.Generic;
-global using System.Collections.ObjectModel;
-global using System.Collections.Frozen;
-global using System.Runtime.CompilerServices;
-global using JoinCode.Abstractions.Attributes;
-global using System.Text;
-global using System.Threading;
-global using System.Threading.Tasks;
-
-// 引擎 DI 组装（Composition + 共享管道）
-global using Core.DependencyInjection;
-global using Core.Utils;
-global using JoinCode.Pipelines;
-global using JoinCode.Pipelines.Middlewares;
-global using McpBridge;
-
-// Diff 模型（工具调用结果渲染）
-global using JoinCode.Abstractions.Models.Diff;
-global using JoinCode.Abstractions.Models.Interactive;
-global using JoinCode.Abstractions.Interfaces;
-global using JoinCode.Abstractions.LLM.Chat;
-global using JoinCode.Abstractions.Configuration.AppData;
-global using IO.FileSystem;
-global using Infrastructure.IO.Services.FileOps;
-
-// GUI ViewModel 层 DTO（SlashCommandItem 等）
-global using JoinCode.Gui.ViewModels;
-
-// GUI 斜杠命令核心逻辑（Trie 前缀树、光标解析、匹配排序）
-global using JoinCode.Gui.SlashCommands;
-
-// 共享斜杠命令执行器（与 TUI 同一链路）
-global using JoinCode.Cli.Commands;
-global using JoinCode.Cli.Commands.Prefix;
-global using JoinCode.ChatCommands;
-
-// Hosting 层读取 teammate 子会话列表
-global using Core.Scheduling.Tasks;global using Avalonia;
+global using Avalonia;
 global using Avalonia.Controls;
 global using Avalonia.Controls.ApplicationLifetimes;
 global using Avalonia.Controls.Documents;
@@ -55,11 +16,25 @@ global using Avalonia.Threading;
 global using Avalonia.VisualTree;
 global using CommunityToolkit.Mvvm.ComponentModel;
 global using CommunityToolkit.Mvvm.Input;
+// 引擎 DI 组装（Composition + 共享管道）
+global using Core.DependencyInjection;
+// Hosting 层读取 teammate 子会话列表
+global using Core.Scheduling.Tasks;
+global using Core.Utils;
+global using Infrastructure.IO.Services.FileOps;
+global using IO.FileSystem;
+global using JoinCode.Abstractions.Attributes;
+global using JoinCode.Abstractions.Configuration.AppData;
 global using JoinCode.Abstractions.Configuration.Llm;
 global using JoinCode.Abstractions.Configuration.Providers;
 global using JoinCode.Abstractions.Configuration.Settings;
+global using JoinCode.Abstractions.Interfaces;
 global using JoinCode.Abstractions.LLM;
+global using JoinCode.Abstractions.LLM.Chat;
 global using JoinCode.Abstractions.LLM.Execution;
+// Diff 模型（工具调用结果渲染）
+global using JoinCode.Abstractions.Models.Diff;
+global using JoinCode.Abstractions.Models.Interactive;
 global using JoinCode.Abstractions.Security;
 global using JoinCode.Abstractions.Security.Permission;
 global using JoinCode.Abstractions.Security.Shell;
@@ -67,14 +42,34 @@ global using JoinCode.Abstractions.Tools;
 global using JoinCode.Abstractions.UI;
 global using JoinCode.Abstractions.Utils;
 global using JoinCode.App.Builder;
+global using JoinCode.ChatCommands;
+// 共享斜杠命令执行器（与 TUI 同一链路）
+global using JoinCode.Cli.Commands;
+global using JoinCode.Cli.Commands.Prefix;
 global using JoinCode.Gui.Hosting;
+// GUI 斜杠命令核心逻辑（Trie 前缀树、光标解析、匹配排序）
+global using JoinCode.Gui.SlashCommands;
 global using JoinCode.Gui.Theming;
+// GUI ViewModel 层 DTO（SlashCommandItem 等）
+global using JoinCode.Gui.ViewModels;
 global using JoinCode.Gui.Views;
+global using JoinCode.Pipelines;
+global using JoinCode.Pipelines.Middlewares;
 global using Markdig;
 global using Markdig.Extensions.Tables;
 global using Markdig.Syntax;
 global using Markdig.Syntax.Inlines;
+global using McpBridge;
+global using System;
+global using System.Collections.Frozen;
+global using System.Collections.Generic;
+global using System.Collections.ObjectModel;
 global using System.ComponentModel;
+global using System.Linq;
+global using System.Runtime.CompilerServices;
+global using System.Text;
 global using System.Text.Json;
 global using System.Text.Json.Serialization;
+global using System.Threading;
+global using System.Threading.Tasks;
 global using Inline = Markdig.Syntax.Inlines.Inline;

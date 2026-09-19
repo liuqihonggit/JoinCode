@@ -1,12 +1,9 @@
 namespace MockServer.E2E.Tests.Core;
 
-public sealed class ConversationOutputParserNoErrorsTests
-{
+public sealed class ConversationOutputParserNoErrorsTests {
     [Fact]
-    public void NoErrors_WhenRawOutputContainsChineseErrorWordInToolList_ShouldNotTriggerFalsePositive()
-    {
-        var record = new ConversationTurnRecord
-        {
+    public void NoErrors_WhenRawOutputContainsChineseErrorWordInToolList_ShouldNotTriggerFalsePositive() {
+        var record = new ConversationTurnRecord {
             UserInput = "/tools",
             ToolCalls = [],
             AssistantResponse = "=== 可用工具 (292) ===\n  ⚙ ErrorRecovery\n     描述: 错误恢复工具",
@@ -21,10 +18,8 @@ public sealed class ConversationOutputParserNoErrorsTests
     }
 
     [Fact]
-    public void NoErrors_WhenActualErrorLine_ShouldFail()
-    {
-        var record = new ConversationTurnRecord
-        {
+    public void NoErrors_WhenActualErrorLine_ShouldFail() {
+        var record = new ConversationTurnRecord {
             UserInput = "test",
             ToolCalls = [],
             AssistantResponse = "",
@@ -39,10 +34,8 @@ public sealed class ConversationOutputParserNoErrorsTests
     }
 
     [Fact]
-    public void NoErrors_WhenNoErrorsAndNoErrorKeywordInRawOutput_ShouldPass()
-    {
-        var record = new ConversationTurnRecord
-        {
+    public void NoErrors_WhenNoErrorsAndNoErrorKeywordInRawOutput_ShouldPass() {
+        var record = new ConversationTurnRecord {
             UserInput = "/help",
             ToolCalls = [],
             AssistantResponse = "可用命令列表",
@@ -57,8 +50,7 @@ public sealed class ConversationOutputParserNoErrorsTests
     }
 
     [Fact]
-    public void NoErrors_WhenDotNetILoggerErrorLine_ShouldNotTriggerFalsePositive()
-    {
+    public void NoErrors_WhenDotNetILoggerErrorLine_ShouldNotTriggerFalsePositive() {
         var output = "[Tool] search_code(query=class)\n[FAIL] search_code\n  Tool 'search_code' execution failed\nwarn: McpToolRegistry.PermissionAwareToolExecutor[0]\n      => SpanId:abc123\nerror: Core.Context.ChatToolOrchestrator[0]\n      Tool pipeline error";
         var record = ConversationOutputParser.Parse(output);
 
@@ -66,8 +58,7 @@ public sealed class ConversationOutputParserNoErrorsTests
     }
 
     [Fact]
-    public void NoErrors_WhenRealErrorLine_ShouldBeDetected()
-    {
+    public void NoErrors_WhenRealErrorLine_ShouldBeDetected() {
         var output = "Error: something went wrong\nException: NullReferenceException";
         var record = ConversationOutputParser.Parse(output);
 
@@ -75,8 +66,7 @@ public sealed class ConversationOutputParserNoErrorsTests
     }
 
     [Fact]
-    public void Parse_ShouldCaptureToolResultLines()
-    {
+    public void Parse_ShouldCaptureToolResultLines() {
         var output = "[Tool] Read(file_path=test.txt)\n[FAIL] Read\n  File not found: test.txt\n  Current directory: /tmp";
         var record = ConversationOutputParser.Parse(output);
 

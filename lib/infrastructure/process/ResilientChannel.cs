@@ -3,8 +3,7 @@ namespace Infrastructure.Subprocess;
 /// <summary>
 /// 韧性通道 — 在异步锁和熔断器保护下执行操作，超时或失败时记录熔断器失败，成功时记录成功
 /// </summary>
-public sealed class ResilientChannel : IDisposable
-{
+public sealed class ResilientChannel : IDisposable {
     private readonly AsyncLock _lock = new();
     private readonly UnifiedCircuitBreaker? _circuitBreaker;
     private readonly string _channelName;
@@ -22,8 +21,7 @@ public sealed class ResilientChannel : IDisposable
         string channelName,
         UnifiedCircuitBreaker? circuitBreaker,
         TimeSpan timeout,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _channelName = channelName;
         _circuitBreaker = circuitBreaker;
         _timeout = timeout;
@@ -37,13 +35,11 @@ public sealed class ResilientChannel : IDisposable
     /// <param name="operation">待执行的操作</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>操作结果</returns>
-    public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken ct = default)
-    {
+    public async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken ct = default) {
         ProbeCircuitBreaker();
 
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
-        try
-        {
+        try {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeoutCts.CancelAfter(_timeout);
 
@@ -51,14 +47,10 @@ public sealed class ResilientChannel : IDisposable
 
             _circuitBreaker?.RecordSuccess();
             return result;
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             _circuitBreaker?.RecordFailure();
             throw new TimeoutException($"[INF039] [{_channelName}] 操作超时 ({_timeout.TotalSeconds}s)");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _circuitBreaker?.RecordFailure();
             _logger?.LogWarning(ex, "[{ChannelName}] 操作失败", _channelName);
             throw;
@@ -73,16 +65,13 @@ public sealed class ResilientChannel : IDisposable
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
     public Task ExecuteAsync(Func<CancellationToken, Task> operation, CancellationToken ct = default) =>
-        ExecuteAsync<object?>(async ct =>
-        {
+        ExecuteAsync<object?>(async ct => {
             await operation(ct).ConfigureAwait(false);
             return null;
         }, ct);
 
-    private void ProbeCircuitBreaker()
-    {
-        if (_circuitBreaker is not null && !_circuitBreaker.TryProbe())
-        {
+    private void ProbeCircuitBreaker() {
+        if (_circuitBreaker is not null && !_circuitBreaker.TryProbe()) {
             throw new CircuitBreakerOpenException($"[INF040] [{_channelName}] 熔断器开启，停止通讯");
         }
     }

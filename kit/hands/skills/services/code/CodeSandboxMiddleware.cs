@@ -4,8 +4,7 @@ namespace Core.Skills;
 /// 代码沙箱执行中间件 — Execute 操作的沙箱执行
 /// </summary>
 [Register(typeof(ICodeMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class CodeSandboxMiddleware : ServiceEntity, ICodeMiddleware
-{
+public sealed partial class CodeSandboxMiddleware : ServiceEntity, ICodeMiddleware {
     private readonly ICodeSandboxService _sandboxService;
     private readonly WorkflowConfig _config;
 
@@ -16,18 +15,15 @@ public sealed partial class CodeSandboxMiddleware : ServiceEntity, ICodeMiddlewa
     /// <summary>
     /// 创建 CodeSandboxMiddleware
     /// </summary>
-    public CodeSandboxMiddleware(ICodeSandboxService sandboxService, IOptions<WorkflowConfig> configOptions)
-    {
+    public CodeSandboxMiddleware(ICodeSandboxService sandboxService, IOptions<WorkflowConfig> configOptions) {
         _sandboxService = sandboxService;
         _config = configOptions.Value;
     }
 
     /// <inheritdoc />
-    public async Task InvokeAsync(CodeContext context, MiddlewareDelegate<CodeContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(CodeContext context, MiddlewareDelegate<CodeContext> next, CancellationToken ct) {
         // 仅 Execute 操作使用沙箱
-        if (context.Operation != CodeOperation.Execute)
-        {
+        if (context.Operation != CodeOperation.Execute) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }

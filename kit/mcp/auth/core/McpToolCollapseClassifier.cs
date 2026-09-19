@@ -4,13 +4,11 @@ namespace McpClient.Auth;
 /// MCP 工具折叠分类器 — 对齐 TS classifyMcpToolForCollapse
 /// 将 MCP 工具分类为"搜索"或"读取"操作，用于 UI 折叠显示
 /// </summary>
-public static partial class McpToolCollapseClassifier
-{
+public static partial class McpToolCollapseClassifier {
     /// <summary>
     /// 分类结果 — 对齐 TS { isSearch: boolean; isRead: boolean }
     /// </summary>
-    public sealed class CollapseClassification
-    {
+    public sealed class CollapseClassification {
         /// <summary>是否为搜索类工具</summary>
         public bool IsSearch { get; init; }
 
@@ -23,12 +21,10 @@ public static partial class McpToolCollapseClassifier
     /// </summary>
     /// <param name="toolName">工具名称（camelCase/kebab-case/snake_case 均可）</param>
     /// <returns>分类结果（IsSearch/IsRead 互不排斥，可同时为 true）</returns>
-    public static CollapseClassification Classify(string toolName)
-    {
+    public static CollapseClassification Classify(string toolName) {
         ArgumentException.ThrowIfNullOrEmpty(toolName);
         var normalized = Normalize(toolName);
-        return new CollapseClassification
-        {
+        return new CollapseClassification {
             IsSearch = SearchTools.Contains(normalized),
             IsRead = ReadTools.Contains(normalized)
         };
@@ -38,8 +34,7 @@ public static partial class McpToolCollapseClassifier
     /// 名称规范化 — 对齐 TS normalize
     /// camelCase → snake_case, kebab-case → snake_case, toLowerCase
     /// </summary>
-    private static string Normalize(string name)
-    {
+    private static string Normalize(string name) {
         return CamelCaseRegex().Replace(name, "$1_$2")
             .Replace('-', '_')
             .ToLowerInvariant();

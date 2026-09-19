@@ -1,8 +1,7 @@
 
 namespace Core.Tests.Scheduling.Cron;
 
-public class CronExpressionParserTests
-{
+public class CronExpressionParserTests {
     [Theory]
     [InlineData("0 9 * * *", true)]  // 每天9点
     [InlineData("0 */6 * * *", true)]  // 每6小时
@@ -12,15 +11,13 @@ public class CronExpressionParserTests
     [InlineData("invalid", false)]  // 无效
     [InlineData("", false)]  // 空
     [InlineData("* * *", false)]  // 字段不足
-    public void IsValid_ReturnsExpectedResult(string expression, bool expected)
-    {
+    public void IsValid_ReturnsExpectedResult(string expression, bool expected) {
         var result = CronExpressionParser.IsValid(expression);
         Assert.Equal(expected, result);
     }
 
     [Fact]
-    public void Parse_ValidExpression_ReturnsFields()
-    {
+    public void Parse_ValidExpression_ReturnsFields() {
         var fields = CronExpressionParser.Parse("0 9 * * *");
 
         Assert.NotNull(fields);
@@ -32,8 +29,7 @@ public class CronExpressionParserTests
     }
 
     [Fact]
-    public void Parse_StepExpression_ReturnsCorrectValues()
-    {
+    public void Parse_StepExpression_ReturnsCorrectValues() {
         var fields = CronExpressionParser.Parse("*/15 * * * *");
 
         Assert.NotNull(fields);
@@ -41,8 +37,7 @@ public class CronExpressionParserTests
     }
 
     [Fact]
-    public void Parse_RangeExpression_ReturnsCorrectValues()
-    {
+    public void Parse_RangeExpression_ReturnsCorrectValues() {
         var fields = CronExpressionParser.Parse("0 9-17 * * 1-5");
 
         Assert.NotNull(fields);
@@ -52,8 +47,7 @@ public class CronExpressionParserTests
     }
 
     [Fact]
-    public void Parse_ListExpression_ReturnsCorrectValues()
-    {
+    public void Parse_ListExpression_ReturnsCorrectValues() {
         var fields = CronExpressionParser.Parse("0,30 9,12,18 * * *");
 
         Assert.NotNull(fields);
@@ -62,8 +56,7 @@ public class CronExpressionParserTests
     }
 
     [Fact]
-    public void Parse_DayOfWeekSeven_ReturnsZero()
-    {
+    public void Parse_DayOfWeekSeven_ReturnsZero() {
         var fields = CronExpressionParser.Parse("0 9 * * 7");
 
         Assert.NotNull(fields);
@@ -71,15 +64,13 @@ public class CronExpressionParserTests
     }
 
     [Fact]
-    public void Parse_InvalidExpression_ReturnsNull()
-    {
+    public void Parse_InvalidExpression_ReturnsNull() {
         var fields = CronExpressionParser.Parse("invalid cron");
         Assert.Null(fields);
     }
 
     [Fact]
-    public void Parse_OutOfRangeValue_ReturnsNull()
-    {
+    public void Parse_OutOfRangeValue_ReturnsNull() {
         var fields = CronExpressionParser.Parse("60 25 32 13 8");
         Assert.Null(fields);
     }

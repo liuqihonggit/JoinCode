@@ -1,31 +1,26 @@
 namespace Host.Tests.ChatCommands;
 
-public sealed class ClearCommandTests
-{
+public sealed class ClearCommandTests {
     [Fact]
-    public void Name_Should_Be_clear()
-    {
+    public void Name_Should_Be_clear() {
         var cmd = new ClearCommand();
         cmd.Name.Should().Be("clear");
     }
 
     [Fact]
-    public void Description_Should_Contain_清空()
-    {
+    public void Description_Should_Contain_清空() {
         var cmd = new ClearCommand();
         cmd.Description.Should().Contain("清空");
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new ClearCommand();
         cmd.Usage.Should().StartWith("/clear");
     }
 
     [Fact]
-    public void Aliases_Should_Contain_reset_new_cls()
-    {
+    public void Aliases_Should_Contain_reset_new_cls() {
         var cmd = new ClearCommand();
         cmd.Aliases.Should().Contain("reset");
         cmd.Aliases.Should().Contain("new");
@@ -33,15 +28,13 @@ public sealed class ClearCommandTests
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new ClearCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Execute_Should_Clear_Directly()
-    {
+    public async Task Execute_Should_Clear_Directly() {
         // 对齐 TS: /clear 直接清除，无需 --force
         var chatService = new Mock<IChatService>();
         chatService.Setup(cs => cs.ClearHistoryAsync(It.IsAny<CancellationToken>()))
@@ -50,13 +43,12 @@ public sealed class ClearCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = chatService.Object,
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

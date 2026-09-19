@@ -4,8 +4,7 @@ namespace JoinCode.Cli;
 /// 信任目录管理器 — CLI 简化版，实现 ITrustFolderManager
 /// </summary>
 [Register(typeof(ITrustFolderManager), ServiceLifetime.Singleton)]
-public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderManager
-{
+public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderManager {
     private readonly string _trustedFoldersPath;
     private readonly IFileSystem _fs;
 
@@ -13,8 +12,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
     /// 构造函数 — 注入文件系统，信任目录文件路径由应用数据目录派生
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
-    public TrustFolderManager(IFileSystem fs)
-    {
+    public TrustFolderManager(IFileSystem fs) {
         _fs = fs;
         var appDataPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -22,97 +20,78 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
         _trustedFoldersPath = Path.Combine(appDataPath, AppDataConstants.TrustedFoldersFileName);
     }
 
-    internal TrustFolderManager(IFileSystem fs, string trustedFoldersPath)
-    {
+    internal TrustFolderManager(IFileSystem fs, string trustedFoldersPath) {
         _fs = fs;
         _trustedFoldersPath = trustedFoldersPath;
     }
 
     /// <inheritdoc/>
-    public bool IsTrusted(string folderPath)
-    {
+    public bool IsTrusted(string folderPath) {
         var normalized = NormalizePath(folderPath);
         var folders = LoadTrustedFolders();
         return folders.Contains(normalized);
     }
 
     /// <inheritdoc/>
-    public void Trust(string folderPath)
-    {
+    public void Trust(string folderPath) {
         var normalized = NormalizePath(folderPath);
         var folders = LoadTrustedFolders();
-        if (folders.Add(normalized))
-        {
+        if (folders.Add(normalized)) {
             SaveTrustedFolders(folders);
         }
     }
 
     /// <inheritdoc/>
-    public void Untrust(string folderPath)
-    {
+    public void Untrust(string folderPath) {
         var normalized = NormalizePath(folderPath);
         var folders = LoadTrustedFolders();
-        if (folders.Remove(normalized))
-        {
+        if (folders.Remove(normalized)) {
             SaveTrustedFolders(folders);
         }
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<string> GetAllTrustedFolders()
-    {
+    public IReadOnlyList<string> GetAllTrustedFolders() {
         return [.. LoadTrustedFolders()];
     }
 
     /// <inheritdoc/>
-    public void ClearAll()
-    {
+    public void ClearAll() {
         SaveTrustedFolders([]);
     }
 
-    private HashSet<string> LoadTrustedFolders()
-    {
-        if (!_fs.FileExists(_trustedFoldersPath))
-        {
+    private HashSet<string> LoadTrustedFolders() {
+        if (!_fs.FileExists(_trustedFoldersPath)) {
             return [];
         }
 
-        try
-        {
+        try {
             var json = _fs.ReadAllText(_trustedFoldersPath);
             var entries = RelaxedJsonSerializer.Deserialize(json, TrustFoldersContext.Default.TrustFolderEntries);
-            if (entries?.Folders is null)
-            {
+            if (entries?.Folders is null) {
                 return [];
             }
 
             return new HashSet<string>(entries.Folders, StringComparer.OrdinalIgnoreCase);
-        }
-        catch
-        {
+        } catch {
             return [];
         }
     }
 
-    private void SaveTrustedFolders(HashSet<string> folders)
-    {
+    private void SaveTrustedFolders(HashSet<string> folders) {
         var dir = Path.GetDirectoryName(_trustedFoldersPath);
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
         var entries = new TrustFolderEntries { Folders = [.. folders] };
         var json = RelaxedJsonSerializer.Serialize(entries, TrustFoldersContext.Default);
-        try
-        {
+        try {
             _fs.WriteAllText(_trustedFoldersPath, json);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
+        } catch (UnauthorizedAccessException ex) {
             System.Diagnostics.Debug.WriteLine($"[TrustFolderManager] 无法写入信任目录文件（沙箱环境）: {ex.Message}");
         }
     }
 
-    private static string NormalizePath(string path)
-    {
+    private static string NormalizePath(string path) {
         return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 }
@@ -120,8 +99,7 @@ public sealed partial class TrustFolderManager : ServiceEntity, ITrustFolderMana
 /// <summary>
 /// 信任目录条目 — JSON 序列化用
 /// </summary>
-public sealed class TrustFolderEntries
-{
+public sealed class TrustFolderEntries {
     /// <summary>受信任的目录路径列表</summary>
     public List<string> Folders { get; set; } = [];
 }

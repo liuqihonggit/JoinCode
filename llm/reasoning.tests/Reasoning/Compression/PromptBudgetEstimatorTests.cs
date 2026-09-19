@@ -1,22 +1,18 @@
 namespace JoinCode.Reasoning.Tests.Compression;
 
-public sealed class PromptBudgetEstimatorTests
-{
+public sealed class PromptBudgetEstimatorTests {
     [Fact]
-    public void Estimate_EmptyString_ReturnsZero()
-    {
+    public void Estimate_EmptyString_ReturnsZero() {
         PromptBudgetEstimator.Estimate(string.Empty).Should().Be(0);
     }
 
     [Fact]
-    public void Estimate_NullString_ReturnsZero()
-    {
+    public void Estimate_NullString_ReturnsZero() {
         PromptBudgetEstimator.Estimate(null!).Should().Be(0);
     }
 
     [Fact]
-    public void Estimate_EnglishText_ReturnsReasonableEstimate()
-    {
+    public void Estimate_EnglishText_ReturnsReasonableEstimate() {
         var text = "Hello world this is a test";
         var result = PromptBudgetEstimator.Estimate(text);
 
@@ -25,8 +21,7 @@ public sealed class PromptBudgetEstimatorTests
     }
 
     [Fact]
-    public void Estimate_ChineseText_ReturnsReasonableEstimate()
-    {
+    public void Estimate_ChineseText_ReturnsReasonableEstimate() {
         var text = "这是一个中文测试文本";
         var result = PromptBudgetEstimator.Estimate(text);
 
@@ -35,8 +30,7 @@ public sealed class PromptBudgetEstimatorTests
     }
 
     [Fact]
-    public void Estimate_MixedText_ChineseCostsMoreThanEnglish()
-    {
+    public void Estimate_MixedText_ChineseCostsMoreThanEnglish() {
         var chineseText = new string('测', 100);
         var englishText = new string('a', 100);
 
@@ -48,8 +42,7 @@ public sealed class PromptBudgetEstimatorTests
     }
 
     [Fact]
-    public void Estimate_LongText_ReturnsProportionalEstimate()
-    {
+    public void Estimate_LongText_ReturnsProportionalEstimate() {
         var shortText = "Hello";
         var longText = new string('a', 10000);
 
@@ -60,8 +53,7 @@ public sealed class PromptBudgetEstimatorTests
     }
 
     [Fact]
-    public void Estimate_MultipleTexts_SumsAllEstimates()
-    {
+    public void Estimate_MultipleTexts_SumsAllEstimates() {
         var text1 = "Hello";
         var text2 = "World";
 
@@ -72,8 +64,7 @@ public sealed class PromptBudgetEstimatorTests
     }
 
     [Fact]
-    public void Estimate_SingleCharacter_ReturnsAtLeastOne()
-    {
+    public void Estimate_SingleCharacter_ReturnsAtLeastOne() {
         PromptBudgetEstimator.Estimate("a").Should().BeGreaterThanOrEqualTo(1);
     }
 }

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.Agent;
 
-public sealed class SubAgentOptions
-{
+public sealed class SubAgentOptions {
     public AgentRole Role { get; init; } = AgentRole.Executor;
     public ExecutorVariant? Variant { get; init; }
     public string? AdditionalInstructions { get; init; }

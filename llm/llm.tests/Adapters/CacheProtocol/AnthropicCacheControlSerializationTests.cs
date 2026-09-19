@@ -1,10 +1,8 @@
 namespace Llm.Tests.Adapters.CacheProtocol;
 
-public sealed class AnthropicCacheControlSerializationTests
-{
+public sealed class AnthropicCacheControlSerializationTests {
     [Fact]
-    public void BuildRequest_StaticSystem_Tools_ToolResults_AllGetCacheControl()
-    {
+    public void BuildRequest_StaticSystem_Tools_ToolResults_AllGetCacheControl() {
         var toolCallId = JsonElementHelper.FromString("call_001");
         var toolCalls = new List<OpenAIToolCall>
         {
@@ -19,8 +17,7 @@ public sealed class AnthropicCacheControlSerializationTests
                 }
             }
         };
-        var metadata = new Dictionary<string, JsonElement>
-        {
+        var metadata = new Dictionary<string, JsonElement> {
             ["ToolCalls"] = JsonElementHelper.FromObject(toolCalls, NativeJsonContext.Default.ListOpenAIToolCall)
         };
 
@@ -57,20 +54,17 @@ public sealed class AnthropicCacheControlSerializationTests
         tools[0].CacheControl.Should().NotBeNull("last tool should have cache_control");
 
         var lastUserMsg = anthropicMessages.Last(m => m.Role == "user");
-        if (lastUserMsg.Content?.Blocks is not null)
-        {
+        if (lastUserMsg.Content?.Blocks is not null) {
             var blocks = lastUserMsg.Content.Blocks;
             var toolResults = blocks.OfType<AnthropicToolResultBlock>().ToList();
-            if (toolResults.Count > 0)
-            {
+            if (toolResults.Count > 0) {
                 toolResults[^1].CacheControl.Should().NotBeNull("last tool result should have cache_control");
             }
         }
     }
 
     [Fact]
-    public void BuildRequest_WithMcpTools_AllCacheControlsUseOrgScope()
-    {
+    public void BuildRequest_WithMcpTools_AllCacheControlsUseOrgScope() {
         var messages = new MessageList
         {
             new ChatApiMessage(ChatMessageRole.System, "You are a helpful assistant."),
@@ -92,8 +86,7 @@ public sealed class AnthropicCacheControlSerializationTests
     }
 
     [Fact]
-    public void BuildRequest_StaticAndDynamicSystem_CacheControlOnLastStatic()
-    {
+    public void BuildRequest_StaticAndDynamicSystem_CacheControlOnLastStatic() {
         var messages = new MessageList
         {
             new ChatApiMessage(ChatMessageRole.System, "Static prefix"),
@@ -117,8 +110,7 @@ public sealed class AnthropicCacheControlSerializationTests
     }
 
     [Fact]
-    public void BuildRequest_SerializedJson_ContainsCacheControl()
-    {
+    public void BuildRequest_SerializedJson_ContainsCacheControl() {
         var control = new AnthropicCacheControl { Scope = "org", Ttl = "1h" };
         var json = JsonSerializer.Serialize(control, AnthropicJsonContext.Default.AnthropicCacheControl);
 
@@ -128,8 +120,7 @@ public sealed class AnthropicCacheControlSerializationTests
     }
 
     [Fact]
-    public void BuildRequest_SerializedJson_NullFieldsOmitted()
-    {
+    public void BuildRequest_SerializedJson_NullFieldsOmitted() {
         var control = new AnthropicCacheControl();
         var json = JsonSerializer.Serialize(control, AnthropicJsonContext.Default.AnthropicCacheControl);
 

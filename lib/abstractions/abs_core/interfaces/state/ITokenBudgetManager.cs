@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Token预算管理器接口
 /// </summary>
-public interface ITokenBudgetManager
-{
+public interface ITokenBudgetManager {
     /// <summary>
     /// 异步分配预算
     /// </summary>

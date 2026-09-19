@@ -14,8 +14,7 @@ namespace JoinCode.Abstractions.UI;
 /// - 通过 <see cref="ThemeKindExtensions.FromValue"/> 解析字符串
 /// - 通过 <see cref="ThemeKindExtensions.IsDefined"/> 验证枚举值
 /// </summary>
-public enum ThemeKind
-{
+public enum ThemeKind {
     /// <summary>跟随终端默认主题</summary>
     [EnumValue("auto")] Auto,
 

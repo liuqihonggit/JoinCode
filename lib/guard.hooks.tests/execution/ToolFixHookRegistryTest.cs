@@ -3,23 +3,20 @@ namespace Guard.Tests.Hooks.Execution;
 /// <summary>
 /// ToolFixHookRegistry 单元测试 — 验证 TryFixAsync 阈值触发 / Register 注册 / 优先级执行
 /// </summary>
-public sealed class ToolFixHookRegistryTest
-{
+public sealed class ToolFixHookRegistryTest {
     private readonly Mock<IToolHealthMonitor> _healthMonitor = new();
 
     // === 构造 ===
 
     [Fact]
-    public void Constructor_NullHealthMonitor_ThrowsArgumentNullException()
-    {
+    public void Constructor_NullHealthMonitor_ThrowsArgumentNullException() {
         var act = () => new ToolFixHookRegistry(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task Constructor_DefaultThreshold_Is3()
-    {
+    public async Task Constructor_DefaultThreshold_Is3() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 3 });
 
@@ -36,8 +33,7 @@ public sealed class ToolFixHookRegistryTest
     // === Register ===
 
     [Fact]
-    public void Register_AddsHook()
-    {
+    public void Register_AddsHook() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
         var hook = new TestFixHook("Test", 100, (_, _) => true, (_, _, _) => Task.FromResult(new ToolFixResult { Success = true }));
 
@@ -47,8 +43,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public void Register_NullHook_ThrowsArgumentNullException()
-    {
+    public void Register_NullHook_ThrowsArgumentNullException() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = () => registry.Register(null!);
@@ -57,8 +52,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public void Register_MultipleHooks_AllAdded()
-    {
+    public void Register_MultipleHooks_AllAdded() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
         var h1 = new TestFixHook("H1", 100, (_, _) => true, (_, _, _) => Task.FromResult(new ToolFixResult { Success = true }));
         var h2 = new TestFixHook("H2", 200, (_, _) => true, (_, _, _) => Task.FromResult(new ToolFixResult { Success = true }));
@@ -70,8 +64,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public void RegisterDefaultFixHooks_RegistersThreeDefaultHooks()
-    {
+    public void RegisterDefaultFixHooks_RegistersThreeDefaultHooks() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         registry.RegisterDefaultFixHooks();
@@ -83,8 +76,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public void Unregister_RemovesHookByName()
-    {
+    public void Unregister_RemovesHookByName() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
         registry.RegisterDefaultFixHooks();
 
@@ -95,8 +87,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public void Unregister_NonExistentName_ReturnsFalse()
-    {
+    public void Unregister_NonExistentName_ReturnsFalse() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var removed = registry.Unregister("NonExistent");
@@ -107,8 +98,7 @@ public sealed class ToolFixHookRegistryTest
     // === TryFixAsync — 阈值 ===
 
     [Fact]
-    public async Task TryFixAsync_BelowThreshold_ReturnsFailureWithoutCallingHooks()
-    {
+    public async Task TryFixAsync_BelowThreshold_ReturnsFailureWithoutCallingHooks() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync((ToolHealthRecord?)null);
         var registry = new ToolFixHookRegistry(_healthMonitor.Object, threshold: 3);
@@ -123,8 +113,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public async Task TryFixAsync_AtThreshold_TriggersHook()
-    {
+    public async Task TryFixAsync_AtThreshold_TriggersHook() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 3 });
         var registry = new ToolFixHookRegistry(_healthMonitor.Object, threshold: 3);
@@ -139,8 +128,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public async Task TryFixAsync_AboveThreshold_TriggersHook()
-    {
+    public async Task TryFixAsync_AboveThreshold_TriggersHook() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 10 });
         var registry = new ToolFixHookRegistry(_healthMonitor.Object, threshold: 3);
@@ -155,8 +143,7 @@ public sealed class ToolFixHookRegistryTest
     // === TryFixAsync — 无匹配 ===
 
     [Fact]
-    public async Task TryFixAsync_NoMatchingHook_ReturnsFailure()
-    {
+    public async Task TryFixAsync_NoMatchingHook_ReturnsFailure() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 5 });
         var registry = new ToolFixHookRegistry(_healthMonitor.Object, threshold: 3);
@@ -170,8 +157,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public async Task TryFixAsync_NoHooksRegistered_ReturnsNoMatcherFailure()
-    {
+    public async Task TryFixAsync_NoHooksRegistered_ReturnsNoMatcherFailure() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 5 });
         var registry = new ToolFixHookRegistry(_healthMonitor.Object, threshold: 3);
@@ -185,8 +171,7 @@ public sealed class ToolFixHookRegistryTest
     // === TryFixAsync — 优先级 ===
 
     [Fact]
-    public async Task TryFixAsync_HigherPriorityHookTriedFirst()
-    {
+    public async Task TryFixAsync_HigherPriorityHookTriedFirst() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 5 });
         var registry = new ToolFixHookRegistry(_healthMonitor.Object, threshold: 3);
@@ -202,8 +187,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public async Task TryFixAsync_FirstHookFails_TriesNextHook()
-    {
+    public async Task TryFixAsync_FirstHookFails_TriesNextHook() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 5 });
         var registry = new ToolFixHookRegistry(_healthMonitor.Object, threshold: 3);
@@ -219,8 +203,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public async Task TryFixAsync_HookThrowsException_SkipsToNextHook()
-    {
+    public async Task TryFixAsync_HookThrowsException_SkipsToNextHook() {
         _healthMonitor.Setup(x => x.GetRecordAsync("tool1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ToolHealthRecord { ToolName = "tool1", ConsecutiveFailures = 5 });
         var registry = new ToolFixHookRegistry(_healthMonitor.Object, threshold: 3);
@@ -238,8 +221,7 @@ public sealed class ToolFixHookRegistryTest
     // === TryFixAsync — 参数校验 ===
 
     [Fact]
-    public async Task TryFixAsync_EmptyToolName_ThrowsArgumentException()
-    {
+    public async Task TryFixAsync_EmptyToolName_ThrowsArgumentException() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = async () => await registry.TryFixAsync("", new Exception("err"));
@@ -248,8 +230,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public async Task TryFixAsync_WhitespaceToolName_ThrowsArgumentException()
-    {
+    public async Task TryFixAsync_WhitespaceToolName_ThrowsArgumentException() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = async () => await registry.TryFixAsync("  ", new Exception("err"));
@@ -258,8 +239,7 @@ public sealed class ToolFixHookRegistryTest
     }
 
     [Fact]
-    public async Task TryFixAsync_NullError_ThrowsArgumentNullException()
-    {
+    public async Task TryFixAsync_NullError_ThrowsArgumentNullException() {
         var registry = new ToolFixHookRegistry(_healthMonitor.Object);
 
         var act = async () => await registry.TryFixAsync("tool1", null!);
@@ -270,8 +250,7 @@ public sealed class ToolFixHookRegistryTest
     /// <summary>
     /// 测试用修正器桩 — 可配置 CanFix / FixAsync / Priority / Name，并记录调用次数
     /// </summary>
-    private sealed class TestFixHook : IToolFixHook
-    {
+    private sealed class TestFixHook : IToolFixHook {
         private readonly Func<string, Exception, bool> _canFix;
         private readonly Func<string, Exception, CancellationToken, Task<ToolFixResult>> _fix;
 
@@ -279,8 +258,7 @@ public sealed class ToolFixHookRegistryTest
             string name,
             int priority,
             Func<string, Exception, bool> canFix,
-            Func<string, Exception, CancellationToken, Task<ToolFixResult>> fix)
-        {
+            Func<string, Exception, CancellationToken, Task<ToolFixResult>> fix) {
             Name = name;
             Priority = priority;
             _canFix = canFix;
@@ -294,8 +272,7 @@ public sealed class ToolFixHookRegistryTest
 
         public bool CanFix(string toolName, Exception error) => _canFix(toolName, error);
 
-        public Task<ToolFixResult> FixAsync(string toolName, Exception error, CancellationToken ct = default)
-        {
+        public Task<ToolFixResult> FixAsync(string toolName, Exception error, CancellationToken ct = default) {
             CallCount++;
             return _fix(toolName, error, ct);
         }

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// Turn Diff 提供者接口 — 对齐 TS useTurnDiffs
 /// 从对话历史中提取每个 AI 对话轮次的文件编辑 diff
 /// </summary>
-public interface ITurnDiffProvider
-{
+public interface ITurnDiffProvider {
     /// <summary>
     /// 记录用户提示（标记新 Turn 的开始）
     /// </summary>
@@ -33,8 +32,7 @@ public interface ITurnDiffProvider
 /// <summary>
 /// Turn Diff 快照 — 用于跨层传递（不依赖 Host 层类型）
 /// </summary>
-public sealed record TurnDiffSnapshot
-{
+public sealed record TurnDiffSnapshot {
     public required int TurnIndex { get; init; }
     public required string? UserPromptPreview { get; init; }
     public required DateTimeOffset Timestamp { get; init; }

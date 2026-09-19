@@ -3,8 +3,7 @@ namespace Tools.Shell;
 /// <summary>
 /// Shell 插件提示 — 从命令输出中提取的插件提示信息
 /// </summary>
-public sealed class ShellPluginHint
-{
+public sealed class ShellPluginHint {
     /// <summary>
     /// 提示格式版本
     /// </summary>
@@ -29,8 +28,7 @@ public sealed class ShellPluginHint
 /// <summary>
 /// Shell 插件提示提取结果 — 包含提取到的提示列表和剥离提示标签后的输出
 /// </summary>
-public sealed class ShellPluginHintExtractionResult
-{
+public sealed class ShellPluginHintExtractionResult {
     /// <summary>
     /// 提取到的插件提示列表
     /// </summary>
@@ -45,8 +43,7 @@ public sealed class ShellPluginHintExtractionResult
 /// <summary>
 /// Shell 插件提示提取器 — 从命令输出中检测并剥离 Claude Code 兼容的插件提示标签
 /// </summary>
-public static class ShellPluginHintExtractor
-{
+public static class ShellPluginHintExtractor {
     private static readonly FrozenSet<int> SupportedVersions = new[] { 1 }.ToFrozenSet();
     private static readonly FrozenSet<string> SupportedTypes = new[] { "plugin" }.ToFrozenSet(StringComparer.Ordinal);
 
@@ -64,12 +61,9 @@ public static class ShellPluginHintExtractor
     /// <param name="output">命令输出文本</param>
     /// <param name="command">来源命令（用于提取首个 token 作为 SourceCommand）</param>
     /// <returns>提取结果，包含提示列表和剥离标签后的输出</returns>
-    public static ShellPluginHintExtractionResult Extract(string output, string command)
-    {
-        if (string.IsNullOrEmpty(output) || !output.Contains(ClaudeCompatConstants.XmlClaudeCodeHint, StringComparison.Ordinal))
-        {
-            return new ShellPluginHintExtractionResult
-            {
+    public static ShellPluginHintExtractionResult Extract(string output, string command) {
+        if (string.IsNullOrEmpty(output) || !output.Contains(ClaudeCompatConstants.XmlClaudeCodeHint, StringComparison.Ordinal)) {
+            return new ShellPluginHintExtractionResult {
                 Hints = [],
                 StrippedOutput = output ?? string.Empty
             };
@@ -78,8 +72,7 @@ public static class ShellPluginHintExtractor
         var sourceCommand = FirstCommandToken(command);
         var hints = new List<ShellPluginHint>();
 
-        var stripped = HintTagRe.Replace(output, match =>
-        {
+        var stripped = HintTagRe.Replace(output, match => {
             var attrs = ParseAttrs(match.Value);
             var vStr = attrs.GetValueOrDefault("v", "");
             var type = attrs.GetValueOrDefault("type", "");
@@ -94,8 +87,7 @@ public static class ShellPluginHintExtractor
             if (string.IsNullOrEmpty(value))
                 return string.Empty;
 
-            hints.Add(new ShellPluginHint
-            {
+            hints.Add(new ShellPluginHint {
                 V = v,
                 Type = type,
                 Value = value,
@@ -105,23 +97,19 @@ public static class ShellPluginHintExtractor
             return string.Empty;
         });
 
-        if (hints.Count > 0 || stripped != output)
-        {
+        if (hints.Count > 0 || stripped != output) {
             stripped = CollapseExcessiveBlankLines(stripped);
         }
 
-        return new ShellPluginHintExtractionResult
-        {
+        return new ShellPluginHintExtractionResult {
             Hints = hints,
             StrippedOutput = stripped
         };
     }
 
-    private static Dictionary<string, string> ParseAttrs(string tagBody)
-    {
+    private static Dictionary<string, string> ParseAttrs(string tagBody) {
         var attrs = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (Match m in AttrRe.Matches(tagBody))
-        {
+        foreach (Match m in AttrRe.Matches(tagBody)) {
             var key = m.Groups[1].Value;
             var value = m.Groups[2].Success ? m.Groups[2].Value : m.Groups[3].Value;
             attrs[key] = value;
@@ -129,26 +117,20 @@ public static class ShellPluginHintExtractor
         return attrs;
     }
 
-    private static string FirstCommandToken(string command)
-    {
+    private static string FirstCommandToken(string command) {
         if (string.IsNullOrEmpty(command)) return string.Empty;
         var trimmed = command.TrimStart();
         var spaceIdx = trimmed.IndexOf(' ');
         return spaceIdx < 0 ? trimmed : trimmed[..spaceIdx];
     }
 
-    private static string CollapseExcessiveBlankLines(string text)
-    {
-        for (var i = 0; i < text.Length - 2;)
-        {
-            if (text[i] == '\n' && text[i + 1] == '\n' && text[i + 2] == '\n')
-            {
+    private static string CollapseExcessiveBlankLines(string text) {
+        for (var i = 0; i < text.Length - 2;) {
+            if (text[i] == '\n' && text[i + 1] == '\n' && text[i + 2] == '\n') {
                 var end = i + 2;
                 while (end < text.Length && text[end] == '\n') end++;
                 text = text[..i] + "\n\n" + text[end..];
-            }
-            else
-            {
+            } else {
                 i++;
             }
         }

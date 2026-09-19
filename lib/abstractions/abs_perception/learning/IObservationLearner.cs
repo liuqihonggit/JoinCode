@@ -23,8 +23,7 @@ public sealed record AbstractOperationLogic(
 /// <summary>
 /// 观察学习器 — 从用户演示中学习操作模式并优化（PRD L-02/L-03/L-04）
 /// </summary>
-public interface IObservationLearner
-{
+public interface IObservationLearner {
     /// <summary>操作抽象（L-02）— 将原始操作序列抽象为参数化逻辑</summary>
     Task<AbstractOperationLogic> AbstractAsync(ObservedSession session, CancellationToken cancellationToken = default);
 

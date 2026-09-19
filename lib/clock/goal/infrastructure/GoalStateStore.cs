@@ -6,8 +6,7 @@ namespace Core.Goal;
 /// 路径: {baseDir}/{sessionId}/{goalId}.json
 /// </summary>
 [Register(typeof(IGoalStateStore), ServiceLifetime.Singleton)]
-public sealed class GoalStateStore : IGoalStateStore
-{
+public sealed class GoalStateStore : IGoalStateStore {
     private readonly string _baseDir;
     private readonly IFileSystem _fs;
     private readonly ILogger<GoalStateStore>? _logger = null;
@@ -18,8 +17,7 @@ public sealed class GoalStateStore : IGoalStateStore
     /// <param name="fs">抽象文件系统</param>
     /// <param name="baseDir">状态文件根目录，缺省使用 AppDataConstants.Paths.GoalStateDirectory</param>
     /// <param name="logger">可选日志记录器</param>
-    public GoalStateStore(IFileSystem fs, string? baseDir = null, ILogger<GoalStateStore>? logger = null)
-    {
+    public GoalStateStore(IFileSystem fs, string? baseDir = null, ILogger<GoalStateStore>? logger = null) {
         _fs = fs;
         _baseDir = baseDir ?? AppDataConstants.Paths.GoalStateDirectory;
         _logger = logger;
@@ -28,8 +26,7 @@ public sealed class GoalStateStore : IGoalStateStore
     /// <summary>
     /// 加载目标状态（不存在返回 null）
     /// </summary>
-    public async Task<GoalState?> LoadAsync(string sessionId, string goalId, CancellationToken cancellationToken = default)
-    {
+    public async Task<GoalState?> LoadAsync(string sessionId, string goalId, CancellationToken cancellationToken = default) {
         var path = GetPath(sessionId, goalId);
         if (!_fs.FileExists(path))
             return null;
@@ -41,8 +38,7 @@ public sealed class GoalStateStore : IGoalStateStore
     /// <summary>
     /// 保存目标状态（原子写入：临时文件 + 重命名）。state.SessionId 确定隔离目录。
     /// </summary>
-    public async Task SaveAsync(GoalState state, CancellationToken cancellationToken = default)
-    {
+    public async Task SaveAsync(GoalState state, CancellationToken cancellationToken = default) {
         var sessionDir = GetSessionDir(state.SessionId);
         _fs.CreateDirectory(sessionDir);
         var path = _fs.CombinePath(sessionDir, $"{state.GoalId}.json");
@@ -58,8 +54,7 @@ public sealed class GoalStateStore : IGoalStateStore
     /// <summary>
     /// 删除目标状态
     /// </summary>
-    public Task DeleteAsync(string sessionId, string goalId, CancellationToken cancellationToken = default)
-    {
+    public Task DeleteAsync(string sessionId, string goalId, CancellationToken cancellationToken = default) {
         var path = GetPath(sessionId, goalId);
         if (_fs.FileExists(path))
             _fs.DeleteFile(path);
@@ -69,23 +64,18 @@ public sealed class GoalStateStore : IGoalStateStore
     /// <summary>
     /// 获取指定会话的所有未完成目标（Status=Pursuing 或 Paused）
     /// </summary>
-    public async Task<IReadOnlyList<GoalState>> GetActiveGoalsAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<GoalState>> GetActiveGoalsAsync(string sessionId, CancellationToken cancellationToken = default) {
         var sessionDir = GetSessionDir(sessionId);
         if (!_fs.DirectoryExists(sessionDir))
             return [];
 
         var files = _fs.EnumerateFiles(sessionDir, "*.json", SearchOption.TopDirectoryOnly);
-        var tasks = files.Select(async file =>
-        {
-            try
-            {
+        var tasks = files.Select(async file => {
+            try {
                 var json = await _fs.ReadAllTextAsync(file, cancellationToken).ConfigureAwait(false);
                 var state = RelaxedJsonSerializer.Deserialize(json, GoalJsonContext.Default.GoalState);
                 return state is not null && (state.Status == GoalStatus.Pursuing || state.Status == GoalStatus.Paused) ? state : null;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[GoalStateStore] 读取文件失败: {File}", file);
                 return null;
             }

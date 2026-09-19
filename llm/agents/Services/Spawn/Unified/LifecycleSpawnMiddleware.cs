@@ -7,14 +7,12 @@ namespace Core.Agents;
 /// 路径 B：用 SubOptions 调用 Spawn
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 LifecycleSpawnMiddleware 实例，注入生命周期管理器、子代理上下文访问器及日志器
     /// </summary>
-    public LifecycleSpawnMiddleware(IAgentLifecycleManager lifecycleManager, ISubAgentContextAccessor subAgentContextAccessor, ILogger<LifecycleSpawnMiddleware>? logger = null)
-    {
+    public LifecycleSpawnMiddleware(IAgentLifecycleManager lifecycleManager, ISubAgentContextAccessor subAgentContextAccessor, ILogger<LifecycleSpawnMiddleware>? logger = null) {
         _lifecycleManager = lifecycleManager;
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
@@ -32,10 +30,8 @@ public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSp
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (context.Agent is not null)
-        {
+    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (context.Agent is not null) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -45,11 +41,9 @@ public sealed partial class LifecycleSpawnMiddleware : ServiceEntity, IUnifiedSp
         var agent = await _lifecycleManager.SpawnSubAgentAsync(context.Task, subOptions, context.CancellationToken, parentSessionId).ConfigureAwait(false);
         context.Agent = agent;
 
-        if (context.SpawnOptions is not null)
-        {
+        if (context.SpawnOptions is not null) {
             var concreteAgent = (AgentBase)agent;
-            if (concreteAgent.Context is not null)
-            {
+            if (concreteAgent.Context is not null) {
                 concreteAgent.Context.ParentAgentId = _subAgentContextAccessor.Current?.AgentId;
                 concreteAgent.Context.SessionId = parentSessionId ?? concreteAgent.SessionId.UniqueId;
             }

@@ -4,25 +4,21 @@ namespace Host.Tests.ChatCommands;
 /// DiffMode 枚举扩展方法测试 — 验证 EnumMetadata.Generator 产出正确
 /// 覆盖:ToValue / FromValue / IsDefined / DiffModeEnumConstants 常量值
 /// </summary>
-public sealed class DiffModeExtensionsTests
-{
+public sealed class DiffModeExtensionsTests {
     // ===== ToValue 测试 =====
 
     [Fact]
-    public void ToValue_Files_Should_Return_files()
-    {
+    public void ToValue_Files_Should_Return_files() {
         DiffMode.Files.ToValue().Should().Be("files");
     }
 
     [Fact]
-    public void ToValue_Cached_Should_Return_cached()
-    {
+    public void ToValue_Cached_Should_Return_cached() {
         DiffMode.Cached.ToValue().Should().Be("cached");
     }
 
     [Fact]
-    public void ToValue_Staged_Should_Return_staged()
-    {
+    public void ToValue_Staged_Should_Return_staged() {
         DiffMode.Staged.ToValue().Should().Be("staged");
     }
 
@@ -32,34 +28,29 @@ public sealed class DiffModeExtensionsTests
     [InlineData("files", DiffMode.Files)]
     [InlineData("cached", DiffMode.Cached)]
     [InlineData("staged", DiffMode.Staged)]
-    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, DiffMode expected)
-    {
+    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, DiffMode expected) {
         DiffModeExtensions.FromValue(input).Should().Be(expected);
     }
 
     [Fact]
-    public void FromValue_Should_Be_CaseInsensitive()
-    {
+    public void FromValue_Should_Be_CaseInsensitive() {
         DiffModeExtensions.FromValue("FILES").Should().Be(DiffMode.Files);
         DiffModeExtensions.FromValue("Cached").Should().Be(DiffMode.Cached);
         DiffModeExtensions.FromValue("STAGED").Should().Be(DiffMode.Staged);
     }
 
     [Fact]
-    public void FromValue_InvalidString_Should_Return_Null()
-    {
+    public void FromValue_InvalidString_Should_Return_Null() {
         DiffModeExtensions.FromValue("invalid").Should().BeNull();
     }
 
     [Fact]
-    public void FromValue_EmptyString_Should_Return_Null()
-    {
+    public void FromValue_EmptyString_Should_Return_Null() {
         DiffModeExtensions.FromValue("").Should().BeNull();
     }
 
     [Fact]
-    public void FromValue_Null_Should_Return_Null()
-    {
+    public void FromValue_Null_Should_Return_Null() {
         DiffModeExtensions.FromValue(null).Should().BeNull();
     }
 
@@ -69,16 +60,14 @@ public sealed class DiffModeExtensionsTests
     [InlineData(DiffMode.Files, true)]
     [InlineData(DiffMode.Cached, true)]
     [InlineData(DiffMode.Staged, true)]
-    public void IsDefined_AllValidValues_Should_Return_True(DiffMode value, bool expected)
-    {
+    public void IsDefined_AllValidValues_Should_Return_True(DiffMode value, bool expected) {
         DiffModeExtensions.IsDefined(value).Should().Be(expected);
     }
 
     // ===== DiffModeEnumConstants 测试 =====
 
     [Fact]
-    public void Constants_Should_Match_EnumValues()
-    {
+    public void Constants_Should_Match_EnumValues() {
         DiffModeEnumConstants.Files.Should().Be("files");
         DiffModeEnumConstants.Cached.Should().Be("cached");
         DiffModeEnumConstants.Staged.Should().Be("staged");
@@ -90,8 +79,7 @@ public sealed class DiffModeExtensionsTests
     [InlineData(DiffMode.Files)]
     [InlineData(DiffMode.Cached)]
     [InlineData(DiffMode.Staged)]
-    public void ToValue_FromValue_RoundTrip_Should_Be_Consistent(DiffMode value)
-    {
+    public void ToValue_FromValue_RoundTrip_Should_Be_Consistent(DiffMode value) {
         var str = value.ToValue();
         DiffModeExtensions.FromValue(str).Should().Be(value);
     }
@@ -99,8 +87,7 @@ public sealed class DiffModeExtensionsTests
     // ===== 数量验证 =====
 
     [Fact]
-    public void AllValues_Should_Be_3()
-    {
+    public void AllValues_Should_Be_3() {
         var values = Enum.GetValues<DiffMode>();
         values.Should().HaveCount(3);
     }

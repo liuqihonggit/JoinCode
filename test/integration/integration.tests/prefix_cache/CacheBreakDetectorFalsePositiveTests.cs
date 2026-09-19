@@ -1,19 +1,16 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class CacheBreakDetectorFalsePositiveTests
-{
+public sealed class CacheBreakDetectorFalsePositiveTests {
     private readonly CacheBreakDetector _detector = new();
 
     [Fact]
-    public void CheckCacheBreak_FirstRequest_IdenticalState_ShouldNotBeCacheEviction()
-    {
+    public void CheckCacheBreak_FirstRequest_IdenticalState_ShouldNotBeCacheEviction() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System prompt", tools, []);
 
         var snapshot = _detector.RecordPromptState(prefix, "dynamic");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 100
         };
@@ -26,8 +23,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
     }
 
     [Fact]
-    public void CheckCacheBreak_NonCachingProvider_ToolAppend_ShouldNotBeBreak()
-    {
+    public void CheckCacheBreak_NonCachingProvider_ToolAppend_ShouldNotBeBreak() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files") };
         var toolsAfter = new List<ToolSpec>
         {
@@ -40,8 +36,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
 
         var snapshot = _detector.RecordPromptState(prefixBefore, "dynamic");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 0
         };
@@ -55,15 +50,13 @@ public sealed class CacheBreakDetectorFalsePositiveTests
     }
 
     [Fact]
-    public void CheckCacheBreak_NonCachingProvider_IdenticalState_NoBreak()
-    {
+    public void CheckCacheBreak_NonCachingProvider_IdenticalState_NoBreak() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System", tools, []);
 
         var snapshot = _detector.RecordPromptState(prefix, "dynamic");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 0
         };
@@ -75,8 +68,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
     }
 
     [Fact]
-    public void CheckCacheBreak_NonCachingProvider_ToolEdit_StillDetectsBreak()
-    {
+    public void CheckCacheBreak_NonCachingProvider_ToolEdit_StillDetectsBreak() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files v1") };
         var toolsAfter = new List<ToolSpec> { new("read", "Read files v2") };
 
@@ -85,8 +77,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
 
         var snapshot = _detector.RecordPromptState(prefixBefore, "dynamic");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 0
         };
@@ -99,8 +90,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
     }
 
     [Fact]
-    public void CheckCacheBreak_NonCachingProvider_ToolRemove_StillDetectsBreak()
-    {
+    public void CheckCacheBreak_NonCachingProvider_ToolRemove_StillDetectsBreak() {
         var toolsBefore = new List<ToolSpec>
         {
             new("read", "Read files"),
@@ -113,8 +103,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
 
         var snapshot = _detector.RecordPromptState(prefixBefore, "dynamic");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 0
         };
@@ -127,15 +116,13 @@ public sealed class CacheBreakDetectorFalsePositiveTests
     }
 
     [Fact]
-    public void CheckCacheBreak_CachingProvider_CacheEviction_StillDetected()
-    {
+    public void CheckCacheBreak_CachingProvider_CacheEviction_StillDetected() {
         var tools = new List<ToolSpec> { new("read", "Read files") };
         var prefix = new ImmutablePrefix("System", tools, []);
 
         var snapshot1 = _detector.RecordPromptState(prefix, "dynamic");
 
-        var usage1 = new TokenUsage(100, 50)
-        {
+        var usage1 = new TokenUsage(100, 50) {
             CacheReadInputTokens = 10000,
             CacheCreationInputTokens = 0
         };
@@ -144,8 +131,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
 
         var snapshot2 = _detector.RecordPromptState(prefix, "dynamic");
 
-        var usage2 = new TokenUsage(100, 50)
-        {
+        var usage2 = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 100
         };
@@ -158,8 +144,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
     }
 
     [Fact]
-    public void CheckCacheBreak_CachingProvider_ToolAppend_CacheHit_NoBreak()
-    {
+    public void CheckCacheBreak_CachingProvider_ToolAppend_CacheHit_NoBreak() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files") };
         var toolsAfter = new List<ToolSpec>
         {
@@ -172,8 +157,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
 
         var snapshot = _detector.RecordPromptState(prefixBefore, "dynamic");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 80,
             CacheCreationInputTokens = 20
         };
@@ -185,8 +169,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
     }
 
     [Fact]
-    public void CheckCacheBreak_InputSchemaJsonChanged_ShouldDetectBreak()
-    {
+    public void CheckCacheBreak_InputSchemaJsonChanged_ShouldDetectBreak() {
         var toolsBefore = new List<ToolSpec> { new("read", "Read files", "{\"type\":\"object\"}") };
         var toolsAfter = new List<ToolSpec> { new("read", "Read files", "{\"type\":\"object\",\"required\":[\"path\"]}") };
 
@@ -195,8 +178,7 @@ public sealed class CacheBreakDetectorFalsePositiveTests
 
         var snapshot = _detector.RecordPromptState(prefixBefore, "dynamic");
 
-        var usage = new TokenUsage(100, 50)
-        {
+        var usage = new TokenUsage(100, 50) {
             CacheReadInputTokens = 0,
             CacheCreationInputTokens = 100
         };

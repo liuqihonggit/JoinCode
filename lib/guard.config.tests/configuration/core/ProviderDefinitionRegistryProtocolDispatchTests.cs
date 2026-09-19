@@ -9,28 +9,22 @@ namespace Guard.Tests.Configuration;
 /// - anthropic-beta 头可配置:配了就发,DeepSeek 未配不发(安全),Anthropic 未配发默认(兼容)
 /// - openai-compatible 协议路径不变(不破坏现有)
 /// </summary>
-public class ProviderDefinitionRegistryProtocolDispatchTests
-{
-    private static IFileSystem CreateFs(string json)
-    {
+public class ProviderDefinitionRegistryProtocolDispatchTests {
+    private static IFileSystem CreateFs(string json) {
         var mock = new Mock<IFileSystem>();
         mock.Setup(x => x.FileExists(It.IsAny<string>())).Returns(true);
         mock.Setup(x => x.ReadAllText(It.IsAny<string>())).Returns(json);
         return mock.Object;
     }
 
-    private static ModelConfigLoader CreateLoader()
-    {
+    private static ModelConfigLoader CreateLoader() {
         var loader = new ModelConfigLoader();
-        loader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["deepseek"] = new ModelProviderConfig
-            {
+        loader.ApplyProviders(new Dictionary<string, ModelProviderConfig>(StringComparer.OrdinalIgnoreCase) {
+            ["deepseek"] = new ModelProviderConfig {
                 DefaultModelId = "deepseek-v4-pro",
                 Models = [new ModelItemConfig { Id = "deepseek-v4-pro", DisplayName = "DeepSeek V4 Pro", ContextWindow = 128000 }]
             },
-            ["anthropic"] = new ModelProviderConfig
-            {
+            ["anthropic"] = new ModelProviderConfig {
                 DefaultModelId = "claude-sonnet-4-5",
                 Models = [new ModelItemConfig { Id = "claude-sonnet-4-5", DisplayName = "Claude Sonnet 4.5", ContextWindow = 200000 }]
             }
@@ -41,8 +35,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     #region 分派到新通用类验证
 
     [Fact]
-    public void DeepSeek_WithAnthropicProtocol_ShouldDispatchToAnthropicCompatible_VendorPreserved()
-    {
+    public void DeepSeek_WithAnthropicProtocol_ShouldDispatchToAnthropicCompatible_VendorPreserved() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -56,8 +49,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     }
 
     [Fact]
-    public void DeepSeek_WithAnthropicProtocol_EndpointShouldBeFromConfig()
-    {
+    public void DeepSeek_WithAnthropicProtocol_EndpointShouldBeFromConfig() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -72,8 +64,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     #region anthropic-beta 头可配置验证(配置大于代码)
 
     [Fact]
-    public void DeepSeek_WithAnthropicProtocol_AndAnthropicBetaConfigured_ShouldSendBetaHeader()
-    {
+    public void DeepSeek_WithAnthropicProtocol_AndAnthropicBetaConfigured_ShouldSendBetaHeader() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY","anthropicBeta":"prompt-caching-2024-07-31"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -87,8 +78,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     }
 
     [Fact]
-    public void DeepSeek_WithAnthropicProtocol_WithoutAnthropicBeta_ShouldNotSendBetaHeader()
-    {
+    public void DeepSeek_WithAnthropicProtocol_WithoutAnthropicBeta_ShouldNotSendBetaHeader() {
         var json = """{"vendor":{"deepseek":{"protocol":"anthropic","endpoint":"https://api.deepseek.com/anthropic","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -101,8 +91,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     }
 
     [Fact]
-    public void Anthropic_WithAnthropicProtocol_WithoutBetaConfig_ShouldSendDefaultBetaHeader()
-    {
+    public void Anthropic_WithAnthropicProtocol_WithoutBetaConfig_ShouldSendDefaultBetaHeader() {
         var json = """{"vendor":{"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -116,8 +105,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     }
 
     [Fact]
-    public void Anthropic_WithAnthropicProtocol_AndBetaConfigured_ShouldUseConfiguredBeta()
-    {
+    public void Anthropic_WithAnthropicProtocol_AndBetaConfigured_ShouldUseConfiguredBeta() {
         var json = """{"vendor":{"anthropic":{"protocol":"anthropic","apiKeyEnvVar":"ANTHROPIC_API_KEY","anthropicBeta":"custom-beta-feature"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -135,8 +123,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     #region OpenAI 兼容协议路径不破坏验证
 
     [Fact]
-    public void DeepSeek_WithOpenAiCompatibleProtocol_ShouldStillDispatchToOpenAiCompatible()
-    {
+    public void DeepSeek_WithOpenAiCompatibleProtocol_ShouldStillDispatchToOpenAiCompatible() {
         var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible","apiKeyEnvVar":"DEEPSEEK_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -148,8 +135,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     }
 
     [Fact]
-    public void Anthropic_WithOpenAiCompatibleProtocol_ShouldDispatchToOpenAiCompatible()
-    {
+    public void Anthropic_WithOpenAiCompatibleProtocol_ShouldDispatchToOpenAiCompatible() {
         var json = """{"vendor":{"anthropic":{"protocol":"openai-compatible","apiKeyEnvVar":"ANTHROPIC_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -164,8 +150,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     #region Azure 协议分派验证(配置驱动,无硬编码兜底)
 
     [Fact]
-    public void Azure_WithoutSettingsConfig_ShouldNotBeRegistered()
-    {
+    public void Azure_WithoutSettingsConfig_ShouldNotBeRegistered() {
         var json = """{"vendor":{"deepseek":{"protocol":"openai-compatible"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -176,8 +161,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     }
 
     [Fact]
-    public void Azure_WithAzureProtocol_ShouldUseAzureProviderDefinition()
-    {
+    public void Azure_WithAzureProtocol_ShouldUseAzureProviderDefinition() {
         var json = """{"vendor":{"azure":{"protocol":"azure","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 
@@ -189,8 +173,7 @@ public class ProviderDefinitionRegistryProtocolDispatchTests
     }
 
     [Fact]
-    public void Azure_WithResponsesProtocol_ShouldUseOpenAiCompatibleWithResponsesEndpoint()
-    {
+    public void Azure_WithResponsesProtocol_ShouldUseOpenAiCompatibleWithResponsesEndpoint() {
         var json = """{"vendor":{"azure":{"protocol":"responses","endpoint":"https://my-azure-proxy.com","apiKeyEnvVar":"AZURE_OPENAI_API_KEY"}}}""";
         var registry = new ProviderDefinitionRegistry(CreateLoader(), CreateFs(json));
 

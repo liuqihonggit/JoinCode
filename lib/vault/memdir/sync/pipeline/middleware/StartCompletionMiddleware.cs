@@ -5,16 +5,14 @@ namespace Memdir.Sync;
 /// 启动完成中间件 — 标记运行状态、记录日志和指标
 /// </summary>
 [Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStartMiddleware
-{
+public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStartMiddleware {
 
     /// <summary>
     /// 创建启动完成中间件实例
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
     /// <param name="telemetryService">可选的遥测服务</param>
-    public StartCompletionMiddleware(ILogger<StartCompletionMiddleware>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public StartCompletionMiddleware(ILogger<StartCompletionMiddleware>? logger = null, ITelemetryService? telemetryService = null) {
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -23,10 +21,8 @@ public sealed partial class StartCompletionMiddleware : ServiceEntity, ISyncStar
 
 
     /// <inheritdoc />
-    public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
-    {
-        if (ctx.Failed)
-        {
+    public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct) {
+        if (ctx.Failed) {
             return next(ctx, ct);
         }
 

@@ -1,10 +1,8 @@
 namespace Core.Tests.Prompts;
 
-public class KeywordSectionEditValidatorTests
-{
+public class KeywordSectionEditValidatorTests {
     [Fact]
-    public void ValidateEdit_ValidPath_ValidJson_ReturnsNull()
-    {
+    public void ValidateEdit_ValidPath_ValidJson_ReturnsNull() {
         var original = """{"sections":{"fact_inquiry":{"keywords":["写一"],"enabled":true}}}""";
         var updated = """{"sections":{"fact_inquiry":{"keywords":["写一","分析"],"enabled":true}}}""";
 
@@ -15,8 +13,7 @@ public class KeywordSectionEditValidatorTests
     }
 
     [Fact]
-    public void ValidateEdit_WrongPath_ReturnsError()
-    {
+    public void ValidateEdit_WrongPath_ReturnsError() {
         var result = KeywordSectionEditValidator.ValidateEdit(
             "C:\\Users\\user\\some-other-file.json", "{}", "{}");
 
@@ -25,8 +22,7 @@ public class KeywordSectionEditValidatorTests
     }
 
     [Fact]
-    public void ValidateEdit_EmptyContent_ReturnsError()
-    {
+    public void ValidateEdit_EmptyContent_ReturnsError() {
         var result = KeywordSectionEditValidator.ValidateEdit(
             "C:\\Users\\user\\.jcc\\keyword-sections.json", "{}", "");
 
@@ -35,8 +31,7 @@ public class KeywordSectionEditValidatorTests
     }
 
     [Fact]
-    public void ValidateEdit_InvalidJson_ReturnsError()
-    {
+    public void ValidateEdit_InvalidJson_ReturnsError() {
         var result = KeywordSectionEditValidator.ValidateEdit(
             "C:\\Users\\user\\.jcc\\keyword-sections.json", "{}", "not json");
 
@@ -45,8 +40,7 @@ public class KeywordSectionEditValidatorTests
     }
 
     [Fact]
-    public void ValidateEdit_SectionDeleted_ReturnsError()
-    {
+    public void ValidateEdit_SectionDeleted_ReturnsError() {
         var original = """{"sections":{"fact_inquiry":{"keywords":["写一"],"enabled":true},"user_delegation":{"keywords":["睡觉"],"enabled":true}}}""";
         var updated = """{"sections":{"fact_inquiry":{"keywords":["写一"],"enabled":true}}}""";
 
@@ -58,8 +52,7 @@ public class KeywordSectionEditValidatorTests
     }
 
     [Fact]
-    public void ValidateEdit_SectionAdded_ReturnsNull()
-    {
+    public void ValidateEdit_SectionAdded_ReturnsNull() {
         var original = """{"sections":{"fact_inquiry":{"keywords":["写一"],"enabled":true}}}""";
         var updated = """{"sections":{"fact_inquiry":{"keywords":["写一"],"enabled":true},"user_delegation":{"keywords":["睡觉"],"enabled":true}}}""";
 
@@ -70,15 +63,13 @@ public class KeywordSectionEditValidatorTests
     }
 
     [Fact]
-    public void IsKeywordSectionsPath_ValidPath_ReturnsTrue()
-    {
+    public void IsKeywordSectionsPath_ValidPath_ReturnsTrue() {
         KeywordSectionEditValidator.IsKeywordSectionsPath("C:\\Users\\user\\.jcc\\keyword-sections.json").Should().BeTrue();
         KeywordSectionEditValidator.IsKeywordSectionsPath("/home/user/.jcc/keyword-sections.json").Should().BeTrue();
     }
 
     [Fact]
-    public void IsKeywordSectionsPath_InvalidPath_ReturnsFalse()
-    {
+    public void IsKeywordSectionsPath_InvalidPath_ReturnsFalse() {
         KeywordSectionEditValidator.IsKeywordSectionsPath("C:\\Users\\user\\settings.json").Should().BeFalse();
         KeywordSectionEditValidator.IsKeywordSectionsPath("").Should().BeFalse();
     }

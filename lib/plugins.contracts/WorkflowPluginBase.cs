@@ -9,16 +9,14 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>持有 UI 资源表:可逆操作时刷新界面(图标重排等)</para>
 /// <para>持有非托管资源表:SafeHandle 包装的非托管内存,卸载时逐个释放</para>
 /// </summary>
-public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeartbeat
-{
+public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeartbeat {
     private readonly Dictionary<ObjectId, PluginResourceBase> _resources = new();
     private readonly AsyncLock _resourceLock = new("WorkflowPluginBase");
     private volatile bool _isAlive = true;
     private DateTime _lastHeartbeatAt;
 
     /// <summary>创建工作流插件基类</summary>
-    protected WorkflowPluginBase(string displayName) : base(ObjectType.Plugin, displayName: displayName, registerToSessionRouter: false)
-    {
+    protected WorkflowPluginBase(string displayName) : base(ObjectType.Plugin, displayName: displayName, registerToSessionRouter: false) {
         _lastHeartbeatAt = CreatedAt;
     }
 
@@ -39,12 +37,9 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     public abstract Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default);
 
     /// <summary>所有已登记的资源</summary>
-    public IReadOnlyCollection<PluginResourceBase> Resources
-    {
-        get
-        {
-            using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时"))
-            {
+    public IReadOnlyCollection<PluginResourceBase> Resources {
+        get {
+            using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时")) {
                 return _resources.Values.ToList();
             }
         }
@@ -72,11 +67,9 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// 登记资源 — 子类注册命令/钩子/技能/Agent 时调用
     /// <para>资源自动获得 ObjectId,后台扫描可通过 ObjectIdManager 验证卸载</para>
     /// </summary>
-    protected T RegisterResource<T>(T resource) where T : PluginResourceBase
-    {
+    protected T RegisterResource<T>(T resource) where T : PluginResourceBase {
         ArgumentNullException.ThrowIfNull(resource);
-        using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时"))
-        {
+        using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时")) {
             _resources[resource.ObjectId] = resource;
         }
         return resource;
@@ -90,26 +83,21 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     /// <para>4. 子类清理(OnUnload)</para>
     /// <para>UI 资源事件由 PluginManager 负责广播</para>
     /// </summary>
-    public PluginUnloadResult Unload()
-    {
-        if (!Fiber.TryTransitionTo(PluginFiberState.Unloading))
-        {
+    public PluginUnloadResult Unload() {
+        if (!Fiber.TryTransitionTo(PluginFiberState.Unloading)) {
             return PluginUnloadResult.AlreadyUnloaded(Name);
         }
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        try
-        {
+        try {
             MarkDead();
 
             List<PluginResourceBase> snapshot;
-            using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时"))
-            {
+            using (_resourceLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_resourceLock.Name}' 等待超时")) {
                 snapshot = _resources.Values.ToList();
                 _resources.Clear();
             }
-            foreach (var resource in snapshot)
-            {
+            foreach (var resource in snapshot) {
                 resource.Dispose();
             }
 
@@ -118,9 +106,7 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
             OnUnload();
             Fiber.TransitionTo(PluginFiberState.Unloaded);
             return PluginUnloadResult.Success(Name, sw.Elapsed);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return PluginUnloadResult.Failure(ex.Message);
         }
     }
@@ -137,30 +123,26 @@ public abstract class WorkflowPluginBase : Entity, IWorkflowPlugin, IPluginHeart
     public virtual PluginUnloadContract ValidateUnloadContract() => PluginUnloadContract.Valid;
 
     /// <summary>刷新心跳 — 插件每次活动时调用</summary>
-    public new void Touch()
-    {
+    public new void Touch() {
         LastActivityAt = DateTime.UtcNow;
         _lastHeartbeatAt = LastActivityAt;
     }
 
     /// <summary>标记死亡 — 不可逆,触发 OnDeath 事件</summary>
-    public void MarkDead()
-    {
+    public void MarkDead() {
         if (!_isAlive) return;
         _isAlive = false;
         OnDeath?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>心跳检测 — 如果已死亡则抛 PluginDeadException</summary>
-    public void EnsureAlive()
-    {
+    public void EnsureAlive() {
         if (!_isAlive)
             throw new PluginDeadException(DisplayName, Name);
     }
 
     /// <summary>Entity.Dispose 实现 — 确保资源释放</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         MarkDead();
         UnmanagedResources.ReleaseAll();
         _resourceLock.Dispose();

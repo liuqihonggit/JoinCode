@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Goal;
 /// 任务复杂度档次
 /// [EnumValue] 由 EnumMetadataGenerator 自动生成 ComplexityLevelEnumConstants + ComplexityLevelExtensions
 /// </summary>
-public enum ComplexityLevel
-{
+public enum ComplexityLevel {
     [EnumValue("low")] Low,
     [EnumValue("medium")] Medium,
     [EnumValue("high")] High,

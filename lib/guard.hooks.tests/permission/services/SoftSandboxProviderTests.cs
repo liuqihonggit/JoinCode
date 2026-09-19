@@ -1,19 +1,16 @@
 namespace Guard.Tests.Permission.Services;
 
 
-public sealed class SoftSandboxProviderTests
-{
+public sealed class SoftSandboxProviderTests {
     private readonly IFileSystem _fs = TestFileSystem.Current;
     private readonly SoftSandboxProvider _sut;
 
-    public SoftSandboxProviderTests()
-    {
+    public SoftSandboxProviderTests() {
         _sut = new SoftSandboxProvider(_fs, NullLogger<SoftSandboxProvider>.Instance);
     }
 
     [Fact]
-    public async Task CreateSandboxAsync_ShouldReturnSandboxInfo()
-    {
+    public async Task CreateSandboxAsync_ShouldReturnSandboxInfo() {
         var options = new SandboxOptions { Type = SandboxType.Soft };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
@@ -26,8 +23,7 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task CreateSandboxAsync_ShouldCreateDirectory()
-    {
+    public async Task CreateSandboxAsync_ShouldCreateDirectory() {
         var options = new SandboxOptions { Type = SandboxType.Soft };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
@@ -37,8 +33,7 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task CreateSandboxAsync_WithCustomRoot_ShouldUseCustomRoot()
-    {
+    public async Task CreateSandboxAsync_WithCustomRoot_ShouldUseCustomRoot() {
         var rootPath = $"/test/test-sandbox-{Guid.NewGuid():N}";
         var options = new SandboxOptions { Type = SandboxType.Soft, SandboxRoot = rootPath };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
@@ -49,8 +44,7 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task CreateSandboxAsync_ShouldStoreSandboxInfo()
-    {
+    public async Task CreateSandboxAsync_ShouldStoreSandboxInfo() {
         var options = new SandboxOptions { Type = SandboxType.Soft };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
@@ -64,8 +58,7 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task IsPathInSandboxAsync_ValidPath_ShouldReturnTrue()
-    {
+    public async Task IsPathInSandboxAsync_ValidPath_ShouldReturnTrue() {
         var options = new SandboxOptions { Type = SandboxType.Soft, RestrictFileSystem = true };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
@@ -78,8 +71,7 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task IsPathInSandboxAsync_PathOutsideSandbox_ShouldReturnFalse()
-    {
+    public async Task IsPathInSandboxAsync_PathOutsideSandbox_ShouldReturnFalse() {
         var options = new SandboxOptions { Type = SandboxType.Soft };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
@@ -91,16 +83,14 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task IsPathInSandboxAsync_InvalidSandboxId_ShouldReturnFalse()
-    {
+    public async Task IsPathInSandboxAsync_InvalidSandboxId_ShouldReturnFalse() {
         var result = await _sut.IsPathInSandboxAsync("/some/path", "nonexistent-id").ConfigureAwait(true);
 
         result.Should().BeFalse();
     }
 
     [Fact]
-    public async Task ResolvePath_NormalPath_ShouldResolveWithinSandbox()
-    {
+    public async Task ResolvePath_NormalPath_ShouldResolveWithinSandbox() {
         var options = new SandboxOptions { Type = SandboxType.Soft, RestrictFileSystem = true };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
@@ -114,8 +104,7 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task ResolvePath_PathTraversal_ShouldSanitizePath()
-    {
+    public async Task ResolvePath_PathTraversal_ShouldSanitizePath() {
         var options = new SandboxOptions { Type = SandboxType.Soft, RestrictFileSystem = true };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
@@ -128,16 +117,14 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task ResolvePath_InvalidSandboxId_ShouldThrowInvalidOperationException()
-    {
+    public async Task ResolvePath_InvalidSandboxId_ShouldThrowInvalidOperationException() {
         var act = () => _sut.ResolvePath("file.txt", "nonexistent-id");
 
         act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
-    public async Task DestroySandboxAsync_ExistingSandbox_ShouldRemoveFromRegistry()
-    {
+    public async Task DestroySandboxAsync_ExistingSandbox_ShouldRemoveFromRegistry() {
         var options = new SandboxOptions { Type = SandboxType.Soft };
         var info = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
 
@@ -147,16 +134,14 @@ public sealed class SoftSandboxProviderTests
     }
 
     [Fact]
-    public async Task DestroySandboxAsync_NonExistentSandbox_ShouldNotThrow()
-    {
+    public async Task DestroySandboxAsync_NonExistentSandbox_ShouldNotThrow() {
         var act = async () => await _sut.DestroySandboxAsync("nonexistent-id").ConfigureAwait(true);
 
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ActiveSandboxes_ShouldTrackAllInstances()
-    {
+    public async Task ActiveSandboxes_ShouldTrackAllInstances() {
         var options = new SandboxOptions { Type = SandboxType.Soft };
         var info1 = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);
         var info2 = await _sut.CreateSandboxAsync(options).ConfigureAwait(true);

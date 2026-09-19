@@ -121,8 +121,7 @@ public partial class PlanService : ServiceEntity, IPlanService {
         }
     }
 
-    private void RecordPlanMetrics(long durationMs, bool isSuccess)
-    {
+    private void RecordPlanMetrics(long durationMs, bool isSuccess) {
         _telemetryService?.RecordCount("plan.execute.count", new() { ["success"] = isSuccess.ToString() }, "count", "Plan execution count");
         _telemetryService?.RecordHistogram("plan.execute.duration", durationMs, new() { ["success"] = isSuccess.ToString() }, "ms", "Plan execution duration");
     }

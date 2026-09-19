@@ -5,8 +5,7 @@ namespace Integration.Tests.HotSpot;
 /// 延迟邮件全链路集成测试 — 验证 subAgent 报告 → IntentReporter 分流 → DeferredMailService 投递 → Agent 消费 的完整链路
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class DeferredMailPipelineIntegrationTests
-{
+public sealed class DeferredMailPipelineIntegrationTests {
     private const string WorkerId = "worker-1";
     private const string CaptainId = "captain";
 
@@ -14,8 +13,7 @@ public sealed class DeferredMailPipelineIntegrationTests
         string filePath,
         JoinCode.Abstractions.Models.Agent.ModifyIntent intent,
         JoinCode.Abstractions.Models.Agent.MailMarker marker) =>
-        new()
-        {
+        new() {
             FilePath = filePath,
             Intent = intent,
             WorkerId = WorkerId,
@@ -35,8 +33,7 @@ public sealed class DeferredMailPipelineIntegrationTests
     /// → Agent 空闲 FlushOnTaskEnd 立即消费 → 邮件 Marker 保持正确
     /// </summary>
     [Fact]
-    public async Task DeferredMail_Pipeline_TestFileConflict_Should_Defer_And_Consume_On_Flush()
-    {
+    public async Task DeferredMail_Pipeline_TestFileConflict_Should_Defer_And_Consume_On_Flush() {
         var deferredMailService = new Infrastructure.HotSpot.DeferredMailService();
         var intentCollector = new Mock<IIntentCollector>();
         var hotFileDetector = new Mock<IHotFileDetector>();
@@ -67,8 +64,7 @@ public sealed class DeferredMailPipelineIntegrationTests
     /// 链路: subAgent 报告热文件 ContractChange → IntentReporter 实时 IMailbox 通知队长 → 不走延迟邮件
     /// </summary>
     [Fact]
-    public async Task HotFile_ContractChange_Should_Notify_Mailbox_RealTime_Not_Defer()
-    {
+    public async Task HotFile_ContractChange_Should_Notify_Mailbox_RealTime_Not_Defer() {
         var deferredMailService = new Infrastructure.HotSpot.DeferredMailService();
         var intentCollector = new Mock<IIntentCollector>();
         var hotFileDetector = new Mock<IHotFileDetector>();
@@ -92,8 +88,7 @@ public sealed class DeferredMailPipelineIntegrationTests
     /// 链路: subAgent 报告组合标记 TestFileConflict|ResourceRefChange → 延迟投递 → Marker 保持组合值
     /// </summary>
     [Fact]
-    public async Task DeferredMail_Pipeline_CombinedMarker_Should_Preserve_Flags()
-    {
+    public async Task DeferredMail_Pipeline_CombinedMarker_Should_Preserve_Flags() {
         var deferredMailService = new Infrastructure.HotSpot.DeferredMailService();
         var intentCollector = new Mock<IIntentCollector>();
         var hotFileDetector = new Mock<IHotFileDetector>();
@@ -119,8 +114,7 @@ public sealed class DeferredMailPipelineIntegrationTests
     /// 链路: 多个 subAgent 报告不同标记 → 延迟投递多封 → 按标记过滤消费
     /// </summary>
     [Fact]
-    public async Task DeferredMail_Pipeline_MultipleIntents_Should_Filter_By_Marker()
-    {
+    public async Task DeferredMail_Pipeline_MultipleIntents_Should_Filter_By_Marker() {
         var deferredMailService = new Infrastructure.HotSpot.DeferredMailService();
         var intentCollector = new Mock<IIntentCollector>();
         var hotFileDetector = new Mock<IHotFileDetector>();
@@ -148,8 +142,7 @@ public sealed class DeferredMailPipelineIntegrationTests
     /// 链路: 延迟邮件按轮次到期消费 — OpenAfterTurns=20, 前19轮返回空, 第20轮到期
     /// </summary>
     [Fact]
-    public async Task DeferredMail_Pipeline_TickTurns_Should_Mature_After_Specified_Turns()
-    {
+    public async Task DeferredMail_Pipeline_TickTurns_Should_Mature_After_Specified_Turns() {
         var deferredMailService = new Infrastructure.HotSpot.DeferredMailService();
         var intentCollector = new Mock<IIntentCollector>();
         var hotFileDetector = new Mock<IHotFileDetector>();
@@ -162,8 +155,7 @@ public sealed class DeferredMailPipelineIntegrationTests
             JoinCode.Abstractions.Models.Agent.MailMarker.ResourceRefChange);
         await reporter.ReportModifyIntentsAsync(WorkerId, CaptainId, [intent]);
 
-        for (var i = 0; i < 19; i++)
-        {
+        for (var i = 0; i < 19; i++) {
             var immature = deferredMailService.TickTurns(CaptainId);
             Assert.Empty(immature);
         }

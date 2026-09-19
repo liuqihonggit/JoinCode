@@ -5,8 +5,7 @@ namespace JoinCode.Tui.Pipes;
 /// 线程安全：使用 ConcurrentQueue 存储消息，volatile 保证状态可见性。
 /// 消息上限 1000 条，超过时自动移除最旧消息。
 /// </summary>
-public sealed class MessagePipe : IMessagePipe
-{
+public sealed class MessagePipe : IMessagePipe {
     private readonly ConcurrentQueue<TuiMessage> _messages = new();
     private volatile AgentState _state = AgentState.Waiting;
     private const int MaxMessages = 1000;
@@ -33,8 +32,7 @@ public sealed class MessagePipe : IMessagePipe
     /// <param name="agentId">Agent 唯一标识。</param>
     /// <param name="agentName">Agent 显示名称。</param>
     /// <param name="isMain">是否为主 Agent。</param>
-    public MessagePipe(string agentId, string agentName, bool isMain = false)
-    {
+    public MessagePipe(string agentId, string agentName, bool isMain = false) {
         AgentId = agentId;
         AgentName = agentName;
         IsMain = isMain;
@@ -42,32 +40,27 @@ public sealed class MessagePipe : IMessagePipe
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<TuiMessage> GetNewMessages(DateTime since)
-    {
+    public IReadOnlyList<TuiMessage> GetNewMessages(DateTime since) {
         return [.. _messages.Where(m => m.Timestamp > since)];
     }
 
     /// <inheritdoc />
-    public void AddMessage(TuiMessage message)
-    {
+    public void AddMessage(TuiMessage message) {
         _messages.Enqueue(message);
         TrimExcess();
     }
 
     /// <inheritdoc />
-    public void UpdateState(AgentState state)
-    {
+    public void UpdateState(AgentState state) {
         _state = state;
     }
 
     /// <inheritdoc />
-    public void Clear()
-    {
+    public void Clear() {
         while (_messages.TryDequeue(out _)) { }
     }
 
-    private void TrimExcess()
-    {
+    private void TrimExcess() {
         while (_messages.Count > MaxMessages && _messages.TryDequeue(out _)) { }
     }
 }

@@ -15,8 +15,7 @@ public sealed record ActorBackpressure(
     BoundedChannelFullMode FullMode = BoundedChannelFullMode.Wait,
     int? HighWatermark = null,
     int? CriticalWatermark = null,
-    TimeSpan? SendTimeout = null)
-{
+    TimeSpan? SendTimeout = null) {
     /// <summary>高水位线 — null 时取容量*0.8</summary>
     public int EffectiveHighWatermark => HighWatermark ?? (int)(Capacity * 0.8);
 
@@ -57,8 +56,7 @@ public sealed record ActorBackpressure(
 }
 
 /// <summary>背压水位等级 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射</summary>
-public enum WatermarkLevel
-{
+public enum WatermarkLevel {
     /// <summary>正常(低于高水位线)</summary>
     [EnumValue("normal")] Normal,
 

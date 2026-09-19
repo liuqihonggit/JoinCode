@@ -5,14 +5,12 @@ namespace Core.Agents;
 /// 合并自路径 A 的 HookSetupMiddleware
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 HookSetupMiddleware 实例，注入可选的会话钩子管理器与日志器
     /// </summary>
-    public HookSetupMiddleware(ISessionHookManager? sessionHookManager = null, ILogger<HookSetupMiddleware>? logger = null)
-    {
+    public HookSetupMiddleware(ISessionHookManager? sessionHookManager = null, ILogger<HookSetupMiddleware>? logger = null) {
         _sessionHookManager = sessionHookManager;
         _logger = logger;
     }
@@ -28,30 +26,24 @@ public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMi
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (_sessionHookManager is not null && context.Agent is not null)
-        {
+    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (_sessionHookManager is not null && context.Agent is not null) {
             await RegisterAgentHooksAsync(context.AgentId, context.Definition, ct).ConfigureAwait(false);
         }
 
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task RegisterAgentHooksAsync(string agentId, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition, CancellationToken cancellationToken)
-    {
+    private async Task RegisterAgentHooksAsync(string agentId, JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition, CancellationToken cancellationToken) {
         if (definition?.Hooks is null || definition.Hooks.Count == 0)
             return;
 
         var sessionId = global::Core.Utils.SessionIdFactory.DefaultSessionId;
 
-        try
-        {
-            foreach (var (eventName, matchers) in definition.Hooks)
-            {
+        try {
+            foreach (var (eventName, matchers) in definition.Hooks) {
                 var hookEvent = HookEventExtensions.FromValue(eventName);
-                if (hookEvent is not { } evt)
-                {
+                if (hookEvent is not { } evt) {
                     _logger?.LogWarning("[HookSetupMiddleware] 未知 HookEvent: {EventName}, 跳过", eventName);
                     continue;
                 }
@@ -60,10 +52,8 @@ public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMi
                     evt = HookEvent.SubagentStop;
 
                 var hookTasks = new List<Task>();
-                foreach (var matcher in matchers)
-                {
-                    foreach (var hookCmd in matcher.Hooks)
-                    {
+                foreach (var matcher in matchers) {
+                    foreach (var hookCmd in matcher.Hooks) {
                         var hookCommand = ConvertToHookCommand(hookCmd);
                         if (hookCommand is null) continue;
 
@@ -72,33 +62,26 @@ public sealed partial class HookSetupMiddleware : ServiceEntity, IUnifiedSpawnMi
                     }
                 }
 
-                if (hookTasks.Count > 0)
-                {
+                if (hookTasks.Count > 0) {
                     await Task.WhenAll(hookTasks).ConfigureAwait(false);
                 }
             }
 
             _logger?.LogInformation("[HookSetupMiddleware] 已为 Agent {AgentId} 注册 {Count} 个 Hook 事件",
                 agentId, definition.Hooks.Count);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[HookSetupMiddleware] 注册 Agent {AgentId} Hooks 失败", agentId);
         }
     }
 
-    private static HookCommand? ConvertToHookCommand(JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookCommand cmd)
-    {
-        return cmd.Type.ToLowerInvariant() switch
-        {
-            "command" when !string.IsNullOrWhiteSpace(cmd.Command) => new BashCommandHook
-            {
+    private static HookCommand? ConvertToHookCommand(JoinCode.Abstractions.Prompts.ToolPrompts.AgentHookCommand cmd) {
+        return cmd.Type.ToLowerInvariant() switch {
+            "command" when !string.IsNullOrWhiteSpace(cmd.Command) => new BashCommandHook {
                 Command = cmd.Command,
                 If = cmd.If,
                 Timeout = cmd.Timeout
             },
-            "prompt" when !string.IsNullOrWhiteSpace(cmd.Prompt) => new PromptHook
-            {
+            "prompt" when !string.IsNullOrWhiteSpace(cmd.Prompt) => new PromptHook {
                 Prompt = cmd.Prompt,
                 If = cmd.If,
                 Timeout = cmd.Timeout

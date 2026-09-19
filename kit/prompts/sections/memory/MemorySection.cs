@@ -4,13 +4,11 @@ namespace Core.Prompts.Sections;
 /// 记忆部分 - 关于对话记忆系统
 /// </summary>
 [PromptSection(Name = "memory", Order = 77, IsDynamic = true)]
-public static class MemorySection
-{
+public static class MemorySection {
     /// <summary>
     /// 异步获取 memory 部分内容；包含记忆、助手日志与搜索历史。
     /// </summary>
-    public static async Task<string?> GetContentAsync()
-    {
+    public static async Task<string?> GetContentAsync() {
         var fs = PromptConfigSnapshot.Current.FileSystem;
         if (fs is null) return null;
 
@@ -29,37 +27,27 @@ public static class MemorySection
 {memoryContent}
 """);
 
-        if (dailyLogPromptBuilder is not null)
-        {
-            try
-            {
+        if (dailyLogPromptBuilder is not null) {
+            try {
                 var dailyLogPrompt = await dailyLogPromptBuilder().ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(dailyLogPrompt))
-                {
+                if (!string.IsNullOrWhiteSpace(dailyLogPrompt)) {
                     sb.AppendLine();
                     sb.AppendLine(dailyLogPrompt);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 sb.AppendLine();
                 sb.AppendLine($"[助手日志加载失败: {ex.Message}]");
             }
         }
 
-        if (searchHistoryPromptBuilder is not null)
-        {
-            try
-            {
+        if (searchHistoryPromptBuilder is not null) {
+            try {
                 var searchHistoryPrompt = await searchHistoryPromptBuilder(string.Empty).ConfigureAwait(false);
-                if (!string.IsNullOrWhiteSpace(searchHistoryPrompt))
-                {
+                if (!string.IsNullOrWhiteSpace(searchHistoryPrompt)) {
                     sb.AppendLine();
                     sb.AppendLine(searchHistoryPrompt);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 sb.AppendLine();
                 sb.AppendLine($"[搜索历史加载失败: {ex.Message}]");
             }
@@ -98,23 +86,18 @@ public static class MemorySection
     /// <summary>
     /// 从持久化存储加载记忆
     /// </summary>
-    private static string LoadMemories(IFileSystem fs)
-    {
+    private static string LoadMemories(IFileSystem fs) {
         var memoryPaths = new[]
         {
             Path.Combine(Environment.CurrentDirectory, "MEMORY.md"),
             Path.Combine(Environment.CurrentDirectory, AppDataConstants.AppDataFolder, "MEMORY.md"),
         };
 
-        foreach (var path in memoryPaths)
-        {
-            try
-            {
-                if (fs.FileExists(path))
-                {
+        foreach (var path in memoryPaths) {
+            try {
+                if (fs.FileExists(path)) {
                     var content = fs.ReadAllText(path);
-                    if (!string.IsNullOrWhiteSpace(content))
-                    {
+                    if (!string.IsNullOrWhiteSpace(content)) {
                         return $"""
 以下信息是从之前的对话中提取的相关记忆：
 
@@ -122,9 +105,7 @@ public static class MemorySection
 """;
                     }
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 PromptConfigSnapshot.Current.Logger?.LogWarning("记忆内容加载失败: {Error}", ex.Message);
             }
         }
@@ -139,8 +120,7 @@ public static class MemorySection
     /// <summary>
     /// 创建记忆访问时机部分
     /// </summary>
-    public static SystemPromptSection CreateWhenToAccessSection()
-    {
+    public static SystemPromptSection CreateWhenToAccessSection() {
         return SystemPromptSection.Cached("memory_when_to_access", () => """
 ## 何时访问记忆
 
@@ -154,8 +134,7 @@ public static class MemorySection
     /// <summary>
     /// 创建记忆信任指导部分
     /// </summary>
-    public static SystemPromptSection CreateTrustingRecallSection()
-    {
+    public static SystemPromptSection CreateTrustingRecallSection() {
         return SystemPromptSection.Cached("memory_trusting_recall", () => """
 ## 在根据记忆推荐之前
 

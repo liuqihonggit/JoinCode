@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// 重试策略配置
 /// </summary>
-public sealed class RetryPolicy
-{
+public sealed class RetryPolicy {
     /// <summary>
     /// 默认重试策略：最多3次，指数退避
     /// </summary>
@@ -39,10 +38,8 @@ public sealed class RetryPolicy
     /// <summary>
     /// 获取第N次重试的延迟时间
     /// </summary>
-    public TimeSpan GetDelay(int retryCount)
-    {
-        if (retryCount <= 0)
-        {
+    public TimeSpan GetDelay(int retryCount) {
+        if (retryCount <= 0) {
             return TimeSpan.Zero;
         }
 
@@ -54,10 +51,8 @@ public sealed class RetryPolicy
     /// <summary>
     /// 创建固定延迟策略
     /// </summary>
-    public static RetryPolicy FixedDelay(int maxRetries, int delayMs)
-    {
-        return new RetryPolicy
-        {
+    public static RetryPolicy FixedDelay(int maxRetries, int delayMs) {
+        return new RetryPolicy {
             MaxRetries = maxRetries,
             InitialDelayMs = delayMs,
             BackoffMultiplier = 1.0
@@ -67,10 +62,8 @@ public sealed class RetryPolicy
     /// <summary>
     /// 创建指数退避策略
     /// </summary>
-    public static RetryPolicy ExponentialBackoff(int maxRetries, int initialDelayMs, double multiplier = 2.0)
-    {
-        return new RetryPolicy
-        {
+    public static RetryPolicy ExponentialBackoff(int maxRetries, int initialDelayMs, double multiplier = 2.0) {
+        return new RetryPolicy {
             MaxRetries = maxRetries,
             InitialDelayMs = initialDelayMs,
             BackoffMultiplier = multiplier

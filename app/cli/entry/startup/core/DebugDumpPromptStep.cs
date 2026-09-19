@@ -8,15 +8,12 @@ namespace JoinCode.Entry;
 /// 交互解析支持: 字母组合(ip)、单词(init prompt)、数字(17)、分隔符(i,p / i+p / i p)
 /// </summary>
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
-internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<StartupContext>
-{
-    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct)
-    {
+internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<StartupContext> {
+    public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         var options = context.Options;
 
         // --debuglog 已启用 → 直接设为 All，跳过询问（用户已明确意图）
-        if (options.DebugLog && !options.IsJsonMode)
-        {
+        if (options.DebugLog && !options.IsJsonMode) {
             context.DebugDumpChoice = DebugDumpSection.All;
             Diag.WriteLine("[STEP] DebugDumpPrompt: --debuglog 已启用，跳过询问，设为 All");
             await next(context, ct).ConfigureAwait(false);
@@ -24,8 +21,7 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
         }
 
         // 非交互模式 / JSON 模式 / 测试环境 → 跳过询问
-        if (options.IsNonInteractiveMode || options.IsJsonMode || Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (options.IsNonInteractiveMode || options.IsJsonMode || Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -33,8 +29,7 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
         // 交互询问
         context.DebugDumpChoice = PromptDebugDumpChoice();
 
-        if (context.DebugDumpChoice != DebugDumpSection.None)
-        {
+        if (context.DebugDumpChoice != DebugDumpSection.None) {
             Diag.WriteLine($"[STEP] DebugDumpPrompt: 用户选择 = {context.DebugDumpChoice} ({(int)context.DebugDumpChoice})");
         }
 
@@ -44,8 +39,7 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
     /// <summary>
     /// 交互式询问用户要显示的调试信息类别
     /// </summary>
-    private static DebugDumpSection PromptDebugDumpChoice()
-    {
+    private static DebugDumpSection PromptDebugDumpChoice() {
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"{TerminalColors.Accent}是否打开调试信息?{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine($"  {TerminalColors.Muted}i(1)=初始化  e(2)=错误  w(4)=警告  l(8)=日志  p(16)=提示词{AnsiStyleEnumConstants.Reset}");
@@ -62,16 +56,14 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
     /// 解析用户输入为 DebugDumpSection 位标志
     /// 支持格式: 数字(17)、字母组合(ip)、单词(init prompt)、分隔符(i,p / i+p / i p)
     /// </summary>
-    internal static DebugDumpSection ParseDebugDumpInput(string? input)
-    {
+    internal static DebugDumpSection ParseDebugDumpInput(string? input) {
         if (string.IsNullOrWhiteSpace(input))
             return DebugDumpSection.None;
 
         input = input.Trim().ToLowerInvariant();
 
         // 数字 → 直接转换为枚举值
-        if (int.TryParse(input, out var num))
-        {
+        if (int.TryParse(input, out var num)) {
             if (num < 0 || num > (int)DebugDumpSection.All)
                 return DebugDumpSection.None;
             return (DebugDumpSection)num;
@@ -85,8 +77,7 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
         // 分隔符拆分 → 逐个 FromValue，位或组合
         var choice = DebugDumpSection.None;
         var parts = input.Split(' ', ',', '+', '|', ';');
-        foreach (var part in parts)
-        {
+        foreach (var part in parts) {
             var trimmed = part.Trim();
             if (string.IsNullOrEmpty(trimmed)) continue;
             if (DebugDumpSectionExtensions.FromValue(trimmed) is { } flag && flag != DebugDumpSection.None)
@@ -98,10 +89,8 @@ internal sealed partial class DebugDumpPromptStep : ServiceEntity, IMiddleware<S
 
         // 连续字母逐字符匹配（如 "ip" → Init | Prompt）
         var charChoice = DebugDumpSection.None;
-        foreach (var c in input)
-        {
-            var flag = c switch
-            {
+        foreach (var c in input) {
+            var flag = c switch {
                 'i' => DebugDumpSection.Init,
                 'e' => DebugDumpSection.Error,
                 'w' => DebugDumpSection.Warn,

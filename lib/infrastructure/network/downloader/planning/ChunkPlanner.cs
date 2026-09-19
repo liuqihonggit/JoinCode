@@ -5,8 +5,7 @@ namespace Infrastructure.Network.Downloader.Planning;
 /// <para>纯计算,无副作用,线程安全(静态方法)</para>
 /// <para>分片大小自动钳制到 [1MB, 16MB],避免过大或过小</para>
 /// </summary>
-internal static class ChunkPlanner
-{
+internal static class ChunkPlanner {
     /// <summary>最小分片大小:1MB(避免分片过小导致 HTTP 请求开销过大)</summary>
     internal const long MinChunkSize = 1024 * 1024;
 
@@ -21,8 +20,7 @@ internal static class ChunkPlanner
     /// <param name="chunkSize">分片大小(null=自动 contentLength/maxThreads 钳制到 [1MB,16MB])</param>
     /// <returns>分片列表,按 Index 升序,连续无间隙无重叠,覆盖 [0, contentLength-1]</returns>
     /// <exception cref="ArgumentOutOfRangeException">contentLength&lt;=0 或 maxThreads&lt;1 或 chunkSize&lt;=0</exception>
-    internal static IReadOnlyList<DownloadChunk> Plan(long contentLength, int maxThreads, long? chunkSize = null)
-    {
+    internal static IReadOnlyList<DownloadChunk> Plan(long contentLength, int maxThreads, long? chunkSize = null) {
         if (contentLength <= 0)
             throw new ArgumentOutOfRangeException(nameof(contentLength), contentLength, "[DOWN007] contentLength 必须 > 0");
         if (maxThreads < 1)
@@ -37,8 +35,7 @@ internal static class ChunkPlanner
 
         var chunks = new List<DownloadChunk>();
         var index = 0;
-        for (var start = 0L; start < contentLength; start += size, index++)
-        {
+        for (var start = 0L; start < contentLength; start += size, index++) {
             var end = Math.Min(start + size - 1, contentLength - 1);
             chunks.Add(CreateChunk(index, start, end));
         }
@@ -49,8 +46,7 @@ internal static class ChunkPlanner
     /// <summary>
     /// 计算分片大小 — 自动模式钳制到 [MinChunkSize, MaxChunkSize]
     /// </summary>
-    private static long ComputeChunkSize(long contentLength, int maxThreads, long? chunkSize)
-    {
+    private static long ComputeChunkSize(long contentLength, int maxThreads, long? chunkSize) {
         if (chunkSize is { } explicitSize)
             return explicitSize;
 

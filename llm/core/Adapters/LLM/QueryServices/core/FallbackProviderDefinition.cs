@@ -1,20 +1,17 @@
 
 namespace Api.LLM.QueryServices;
 
-internal sealed class FallbackProviderDefinition : IProviderDefinition
-{
+internal sealed class FallbackProviderDefinition : IProviderDefinition {
     private readonly IProviderDefinition? _inner;
     private readonly ProtocolKind _protocol;
     private readonly IModelConfigLoader? _modelConfigLoader;
 
-    public FallbackProviderDefinition(ProtocolKind protocol, IModelConfigLoader? modelConfigLoader = null)
-    {
+    public FallbackProviderDefinition(ProtocolKind protocol, IModelConfigLoader? modelConfigLoader = null) {
         _protocol = protocol;
         _modelConfigLoader = modelConfigLoader;
     }
 
-    public FallbackProviderDefinition(IProviderDefinition inner)
-    {
+    public FallbackProviderDefinition(IProviderDefinition inner) {
         _inner = inner;
         _protocol = inner.Protocol;
     }
@@ -32,15 +29,13 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
     public string? ResolveApiKeyFromEnv() => _inner?.ResolveApiKeyFromEnv();
     public bool IsValid(ProviderConfig config) => _inner?.IsValid(config) ?? !string.IsNullOrWhiteSpace(config.ApiKey);
 
-    public string GetBaseUrl(ProviderConfig config) => _inner?.GetBaseUrl(config) ?? _protocol switch
-    {
+    public string GetBaseUrl(ProviderConfig config) => _inner?.GetBaseUrl(config) ?? _protocol switch {
         ProtocolKind.Anthropic => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.anthropic.com/",
         ProtocolKind.Azure => $"{config.Endpoint?.TrimEnd('/')}/openai/deployments/{config.ModelId}",
         _ => !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : "https://api.openai.com/v1/"
     };
 
-    public string GetChatEndpoint(ProviderConfig config) => _inner?.GetChatEndpoint(config) ?? _protocol switch
-    {
+    public string GetChatEndpoint(ProviderConfig config) => _inner?.GetChatEndpoint(config) ?? _protocol switch {
         ProtocolKind.Anthropic => "v1/messages",
         ProtocolKind.Azure => $"chat/completions?api-version={config.ApiVersion}",
         ProtocolKind.OpenAiResponses => "responses",
@@ -49,33 +44,29 @@ internal sealed class FallbackProviderDefinition : IProviderDefinition
             : "chat/completions"
     };
 
-    public void ConfigureHttpClient(HttpClient client, ProviderConfig config)
-    {
-        if (_inner is not null)
-        {
+    public void ConfigureHttpClient(HttpClient client, ProviderConfig config) {
+        if (_inner is not null) {
             _inner.ConfigureHttpClient(client, config);
             return;
         }
 
         if (string.IsNullOrEmpty(config.ApiKey)) return;
 
-        switch (_protocol)
-        {
+        switch (_protocol) {
             case ProtocolKind.Anthropic:
-                client.DefaultRequestHeaders.Add("x-api-key", config.ApiKey);
-                client.DefaultRequestHeaders.Add("anthropic-version", "2024-10-22");
-                break;
+            client.DefaultRequestHeaders.Add("x-api-key", config.ApiKey);
+            client.DefaultRequestHeaders.Add("anthropic-version", "2024-10-22");
+            break;
             case ProtocolKind.Azure:
-                client.DefaultRequestHeaders.Add("api-key", config.ApiKey);
-                break;
+            client.DefaultRequestHeaders.Add("api-key", config.ApiKey);
+            break;
             default:
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
-                break;
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
+            break;
         }
     }
 
-    private string ProtocolToConfigKey() => _protocol switch
-    {
+    private string ProtocolToConfigKey() => _protocol switch {
         ProtocolKind.Anthropic => VendorKindEnumConstants.Anthropic,
         ProtocolKind.Agnes => VendorKindEnumConstants.Agnes,
         ProtocolKind.Azure => VendorKindEnumConstants.OpenAi,

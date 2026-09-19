@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// API 端上下文管理配置 — 对齐 TS apiMicrocompact.ts ContextManagementConfig
 /// 通过 context_management 请求参数告诉 Anthropic API 在服务端自动清理工具结果
 /// </summary>
-public sealed class ContextManagementConfig
-{
+public sealed class ContextManagementConfig {
     /// <summary>
     /// 上下文编辑策略列表
     /// </summary>
@@ -16,8 +15,7 @@ public sealed class ContextManagementConfig
 /// 上下文编辑策略 — 对齐 TS ContextEditStrategy
 /// 联合类型: ClearToolUses 或 ClearThinking
 /// </summary>
-public abstract class ContextEditStrategy
-{
+public abstract class ContextEditStrategy {
     /// <summary>
     /// 策略类型标识
     /// </summary>
@@ -28,8 +26,7 @@ public abstract class ContextEditStrategy
 /// 清除工具使用记录策略 — 对齐 TS clear_tool_uses_20250919
 /// 让 API 在服务端自动清除旧工具结果，不破坏 prompt cache
 /// </summary>
-public sealed class ClearToolUsesStrategy : ContextEditStrategy
-{
+public sealed class ClearToolUsesStrategy : ContextEditStrategy {
     public override string Type => "clear_tool_uses_20250919";
 
     /// <summary>
@@ -62,8 +59,7 @@ public sealed class ClearToolUsesStrategy : ContextEditStrategy
 /// 清除 thinking 块策略 — 对齐 TS clear_thinking_20251015
 /// 让 API 在服务端自动清除旧的 thinking 块
 /// </summary>
-public sealed class ClearThinkingStrategy : ContextEditStrategy
-{
+public sealed class ClearThinkingStrategy : ContextEditStrategy {
     public override string Type => "clear_thinking_20251015";
 
     /// <summary>
@@ -75,8 +71,7 @@ public sealed class ClearThinkingStrategy : ContextEditStrategy
 /// <summary>
 /// 触发条件 — 输入 token 阈值
 /// </summary>
-public sealed class ContextTrigger
-{
+public sealed class ContextTrigger {
     public required string Type { get; init; }
     public required int Value { get; init; }
 }
@@ -84,8 +79,7 @@ public sealed class ContextTrigger
 /// <summary>
 /// 保留策略 — 工具使用记录数
 /// </summary>
-public sealed class ContextKeep
-{
+public sealed class ContextKeep {
     public required string Type { get; init; }
     public required int Value { get; init; }
 }
@@ -93,8 +87,7 @@ public sealed class ContextKeep
 /// <summary>
 /// Token 阈值 — 至少清除的 token 数
 /// </summary>
-public sealed class ContextTokenThreshold
-{
+public sealed class ContextTokenThreshold {
     public required string Type { get; init; }
     public required int Value { get; init; }
 }

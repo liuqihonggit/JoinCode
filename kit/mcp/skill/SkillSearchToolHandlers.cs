@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 技能搜索处理器 — 提供技能搜索、推荐和发现功能
 /// </summary>
 [McpToolDispatch(ToolCategory.Skill, Optional = true)]
-public sealed partial class SkillSearchToolHandlers
-{
+public sealed partial class SkillSearchToolHandlers {
     private readonly JoinCode.Abstractions.Interfaces.ISkillSearchService _searchService;
     private readonly ILogger<SkillSearchToolHandlers>? _logger;
 
@@ -16,8 +15,7 @@ public sealed partial class SkillSearchToolHandlers
     /// </summary>
     /// <param name="searchService">技能搜索服务</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public SkillSearchToolHandlers(JoinCode.Abstractions.Interfaces.ISkillSearchService searchService, ILogger<SkillSearchToolHandlers>? logger = null)
-    {
+    public SkillSearchToolHandlers(JoinCode.Abstractions.Interfaces.ISkillSearchService searchService, ILogger<SkillSearchToolHandlers>? logger = null) {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _logger = logger;
     }
@@ -37,12 +35,9 @@ public sealed partial class SkillSearchToolHandlers
         [McpToolParameter("Tag filter (comma-separated)", Required = false)] string? tags = null,
         [McpToolParameter("Category filter", Required = false)] string? category = null,
         [McpToolParameter("Maximum number of results", Required = false, DefaultValue = "10")] int max_results = 10,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var query = new JoinCode.Abstractions.Models.SkillSearch.SkillSearchQuery
-            {
+        CancellationToken cancellationToken = default) {
+        try {
+            var query = new JoinCode.Abstractions.Models.SkillSearch.SkillSearchQuery {
                 Keyword = keyword,
                 Tags = string.IsNullOrEmpty(tags) ? Array.Empty<string>() : tags.Split(','),
                 Category = category,
@@ -54,27 +49,20 @@ public sealed partial class SkillSearchToolHandlers
             var response = new StringBuilder(512);
             response.AppendLine(L.T(StringKey.SkillSearchResult, results.Count));
 
-            if (results.Count == 0)
-            {
+            if (results.Count == 0) {
                 response.AppendLine(L.T(StringKey.NoMatchingSkillFound));
-            }
-            else
-            {
-                foreach (var result in results)
-                {
+            } else {
+                foreach (var result in results) {
                     response.AppendLine($"  {result.SkillName} ({L.T(StringKey.LabelRelevance, result.RelevanceScore.ToString("P0"))}) - {result.Description}");
 
-                    if (result.Tags.Count > 0)
-                    {
+                    if (result.Tags.Count > 0) {
                         response.AppendLine($"    {L.T(StringKey.LabelTags, string.Join(", ", result.Tags))}");
                     }
                 }
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.SkillSearchFailedLog));
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SkillSearchFailed, ex.Message))
@@ -93,41 +81,31 @@ public sealed partial class SkillSearchToolHandlers
     public async Task<ToolResult> SkillRecommendAsync(
         [McpToolParameter("Context description")] string context,
         [McpToolParameter("Maximum number of results", Required = false, DefaultValue = "5")] int max_results = 5,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(context))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(context)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ContextDescriptionCannotBeEmpty)).Build();
         }
 
-        try
-        {
+        try {
             var results = await _searchService.RecommendAsync(context, max_results, cancellationToken).ConfigureAwait(false);
 
             var response = new StringBuilder(512);
             response.AppendLine(L.T(StringKey.SkillRecommendResult, results.Count));
 
-            if (results.Count == 0)
-            {
+            if (results.Count == 0) {
                 response.AppendLine(L.T(StringKey.NoRecommendedSkillFound));
-            }
-            else
-            {
-                foreach (var result in results)
-                {
+            } else {
+                foreach (var result in results) {
                     response.AppendLine($"  {result.SkillName} ({L.T(StringKey.LabelRelevance, result.RelevanceScore.ToString("P0"))}) - {result.Description}");
 
-                    if (result.Tags.Count > 0)
-                    {
+                    if (result.Tags.Count > 0) {
                         response.AppendLine($"    {L.T(StringKey.LabelTags, string.Join(", ", result.Tags))}");
                     }
                 }
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.SkillRecommendFailedLog));
             return ToolResultBuilder.Error()
                 .WithText(L.T(StringKey.SkillRecommendFailed, ex.Message))
@@ -144,15 +122,12 @@ public sealed partial class SkillSearchToolHandlers
     public async Task<ToolResult> DiscoverSkillsAsync(
         [McpToolParameter("User input or context to discover skills for")] string context,
         [McpToolParameter("Maximum number of results", Required = false, DefaultValue = "5")] int max_results = 5,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(context))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(context)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ContextDescriptionCannotBeEmpty)).Build();
         }
 
-        try
-        {
+        try {
             // 对齐 TS: 先用关键词搜索，再用上下文推荐，合并去重
             var keywordResults = await _searchService.SearchAsync(
                 new JoinCode.Abstractions.Models.SkillSearch.SkillSearchQuery { Keyword = context, PageSize = max_results },
@@ -165,10 +140,8 @@ public sealed partial class SkillSearchToolHandlers
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var combined = new List<JoinCode.Abstractions.Models.SkillSearch.SkillSearchResult>();
 
-            foreach (var r in keywordResults.Concat(recommendResults))
-            {
-                if (seen.Add(r.SkillName))
-                {
+            foreach (var r in keywordResults.Concat(recommendResults)) {
+                if (seen.Add(r.SkillName)) {
                     combined.Add(r);
                 }
             }
@@ -182,27 +155,20 @@ public sealed partial class SkillSearchToolHandlers
             var response = new StringBuilder(512);
             response.AppendLine($"Discovered {results.Count} relevant skill(s) for: {context}");
 
-            if (results.Count == 0)
-            {
+            if (results.Count == 0) {
                 response.AppendLine("No relevant skills found. Use skill_list to see all available skills.");
-            }
-            else
-            {
-                foreach (var result in results)
-                {
+            } else {
+                foreach (var result in results) {
                     response.AppendLine($"  {result.SkillName} - {result.Description}");
 
-                    if (result.Tags.Count > 0)
-                    {
+                    if (result.Tags.Count > 0) {
                         response.AppendLine($"    Tags: {string.Join(", ", result.Tags)}");
                     }
                 }
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "Skill discovery failed: {Message}", ex.Message);
             return ToolResultBuilder.Error()
                 .WithText($"Skill discovery failed: {ex.Message}")

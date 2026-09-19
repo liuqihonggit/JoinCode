@@ -7,53 +7,46 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.ResetConfig, Description = "重置配置文件到默认状态", Usage = "/reset-config [all|auth|settings|trust|onboarding]", Category = ChatCommandCategory.Config, ArgumentHint = "[all|auth|settings|trust|onboarding]")]
 [ChatCommandArg("scope", Type = "string", Description = "重置范围", Enum = new[] { "all", "auth", "settings", "trust", "onboarding" }, Default = "all")]
-public sealed class ResetConfigCommand : ChatCommandBase
-{
+public sealed class ResetConfigCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /reset-config 命令 — 根据范围参数重置对应配置文件
     /// 未指定范围时默认重置全部配置
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var fs = context.GetCommandServices().FileSystem;
         var appDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         var jccDir = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder);
 
-        if (args == "all" || string.IsNullOrEmpty(args))
-        {
+        if (args == "all" || string.IsNullOrEmpty(args)) {
             await ResetAllAsync(jccDir, fs, context.CancellationToken);
-        }
-        else
-        {
-            switch (args)
-            {
+        } else {
+            switch (args) {
                 case "auth":
-                    await ResetAuthAsync(jccDir, fs, context.CancellationToken);
-                    break;
+                await ResetAuthAsync(jccDir, fs, context.CancellationToken);
+                break;
                 case "settings":
-                    await ResetSettingsAsync(jccDir, fs, context.CancellationToken);
-                    break;
+                await ResetSettingsAsync(jccDir, fs, context.CancellationToken);
+                break;
                 case "trust":
-                    await ResetTrustAsync(jccDir, fs, context.CancellationToken);
-                    break;
+                await ResetTrustAsync(jccDir, fs, context.CancellationToken);
+                break;
                 case "onboarding":
-                    await ResetOnboardingAsync(jccDir, fs, context.CancellationToken);
-                    break;
+                await ResetOnboardingAsync(jccDir, fs, context.CancellationToken);
+                break;
                 default:
-                    TerminalHelper.WriteLine($"未知选项: {args}");
-                    TerminalHelper.WriteLine("可用选项: all, auth, settings, trust, onboarding");
-                    break;
+                TerminalHelper.WriteLine($"未知选项: {args}");
+                TerminalHelper.WriteLine("可用选项: all, auth, settings, trust, onboarding");
+                break;
             }
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static async Task ResetAllAsync(string jccDir, IFileSystem fs, CancellationToken ct)
-    {
+    private static async Task ResetAllAsync(string jccDir, IFileSystem fs, CancellationToken ct) {
         TerminalHelper.WriteLine("重置所有配置文件...");
         TerminalHelper.NewLine();
 
@@ -66,58 +59,42 @@ public sealed class ResetConfigCommand : ChatCommandBase
         TerminalHelper.WriteLine($"{TerminalColors.Success}✓ 所有配置已重置{AnsiStyleEnumConstants.Reset}");
     }
 
-    private static async Task ResetAuthAsync(string jccDir, IFileSystem fs, CancellationToken ct)
-    {
+    private static async Task ResetAuthAsync(string jccDir, IFileSystem fs, CancellationToken ct) {
         var authFile = Path.Combine(jccDir, AppDataConstants.AuthFileName);
-        if (fs.FileExists(authFile))
-        {
+        if (fs.FileExists(authFile)) {
             await fs.WriteAllTextAsync(authFile, "{}", ct).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ auth.json 已清空");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("  · auth.json 不存在");
         }
     }
 
-    private static async Task ResetSettingsAsync(string jccDir, IFileSystem fs, CancellationToken ct)
-    {
+    private static async Task ResetSettingsAsync(string jccDir, IFileSystem fs, CancellationToken ct) {
         var settingsFile = Path.Combine(jccDir, AppDataConstants.SettingsFileName);
-        if (fs.FileExists(settingsFile))
-        {
+        if (fs.FileExists(settingsFile)) {
             await fs.WriteAllTextAsync(settingsFile, "{}", ct).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ settings.json 已重置");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("  · settings.json 不存在");
         }
     }
 
-    private static async Task ResetTrustAsync(string jccDir, IFileSystem fs, CancellationToken ct)
-    {
+    private static async Task ResetTrustAsync(string jccDir, IFileSystem fs, CancellationToken ct) {
         var trustFile = Path.Combine(jccDir, AppDataConstants.TrustedFoldersFileName);
-        if (fs.FileExists(trustFile))
-        {
+        if (fs.FileExists(trustFile)) {
             await fs.WriteAllTextAsync(trustFile, "{\"folders\":[]}", ct).ConfigureAwait(false);
             TerminalHelper.WriteLine("  ✓ trusted_folders.json 已清空");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("  · trusted_folders.json 不存在");
         }
     }
 
-    private static async Task ResetOnboardingAsync(string jccDir, IFileSystem fs, CancellationToken ct)
-    {
+    private static async Task ResetOnboardingAsync(string jccDir, IFileSystem fs, CancellationToken ct) {
         var onboardingFile = Path.Combine(jccDir, "onboarding_complete.json");
-        if (fs.FileExists(onboardingFile))
-        {
+        if (fs.FileExists(onboardingFile)) {
             fs.DeleteFile(onboardingFile);
             TerminalHelper.WriteLine("  ✓ onboarding_complete.json 已删除");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("  · onboarding_complete.json 不存在");
         }
     }

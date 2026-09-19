@@ -3,13 +3,11 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Agent 协调器相关常量
 /// </summary>
-public static class AgentCoordinatorConstants
-{
+public static class AgentCoordinatorConstants {
     /// <summary>
     /// 日志消息模板
     /// </summary>
-    public static class LogMessages
-    {
+    public static class LogMessages {
         /// <summary>AgentCoordinator 日志前缀</summary>
         public const string AgentCoordinatorPrefix = "[AgentCoordinator]";
         /// <summary>AgentLifecycleManager 日志前缀</summary>
@@ -54,8 +52,7 @@ public static class AgentCoordinatorConstants
     /// <summary>
     /// Agent ID 生成格式
     /// </summary>
-    public static class AgentIdFormats
-    {
+    public static class AgentIdFormats {
         /// <summary>基于 GUID 的 Agent ID 格式</summary>
         public const string GuidFormat = "agent-{0:N}";
         /// <summary>基于计数器的 Agent ID 格式</summary>
@@ -65,8 +62,7 @@ public static class AgentCoordinatorConstants
     /// <summary>
     /// 系统提示消息
     /// </summary>
-    public static class SystemPrompts
-    {
+    public static class SystemPrompts {
         /// <summary>子 Agent 系统消息模板</summary>
         public const string SubAgentSystemMessage = "你是一个专业的助手，正在执行以下任务: {0}";
     }

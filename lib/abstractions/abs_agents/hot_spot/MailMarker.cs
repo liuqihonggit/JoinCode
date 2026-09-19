@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 用法: mail.Marker.HasFlag(MailMarker.HotFileConflict) 或 mail.Marker = MailMarker.HotFileConflict | MailMarker.TestFileConflict
 /// </summary>
 [Flags]
-public enum MailMarker
-{
+public enum MailMarker {
     /// <summary>无标记</summary>
     [EnumValue("none")] None = 0,
 

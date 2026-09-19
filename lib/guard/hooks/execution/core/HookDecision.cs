@@ -3,8 +3,7 @@ namespace Core.Hooks.Execution;
 /// <summary>
 /// 钩子决策 — 描述钩子执行后对主流程的判定结果(放行/阻塞/继续/停止等)
 /// </summary>
-public sealed class HookDecision
-{
+public sealed class HookDecision {
     /// <summary>
     /// 决策类型(如 block / allow)
     /// </summary>

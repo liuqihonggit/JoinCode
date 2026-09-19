@@ -4,8 +4,7 @@ namespace JoinCode.Cli.Output;
 /// CLI 错误分类 — 对齐架构指南5类退出码语义
 /// 与 ExitCode 枚举并存：ExitCode 是细粒度退出值，CliErrorCategory 是逻辑分组
 /// </summary>
-public enum CliErrorCategory
-{
+public enum CliErrorCategory {
     /// <summary>成功 (0)</summary>
     [EnumValue("success")]
     Success = 0,

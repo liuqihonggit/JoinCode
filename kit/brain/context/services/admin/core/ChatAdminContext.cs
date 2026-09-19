@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 管理操作上下文 — 在管理管道中间件之间传递数据
 /// </summary>
-public sealed class ChatAdminContext
-{
+public sealed class ChatAdminContext {
     // === 输入 ===
 
     /// <summary>

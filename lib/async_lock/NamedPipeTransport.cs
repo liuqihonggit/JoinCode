@@ -8,8 +8,7 @@ namespace Core.Utils;
 /// <para>AOT 兼容：纯二进制协议，无反射/JSON 序列化。</para>
 /// <para>平台：Windows 用 NamedPipe，Linux 用 Unix domain socket（.NET 统一 API）。</para>
 /// </summary>
-public sealed class NamedPipeTransport : ITransportTopology
-{
+public sealed class NamedPipeTransport : ITransportTopology {
     private readonly string _pipeName;
     private readonly HostElectionService _election;
     private readonly ILogger? _logger;
@@ -34,15 +33,13 @@ public sealed class NamedPipeTransport : ITransportTopology
         string pipeName = "jcc-mailbox-host",
         HostElectionService? election = null,
         ILogger? logger = null,
-        string? processId = null)
-    {
+        string? processId = null) {
         _pipeName = pipeName;
         _processId = processId ?? Environment.ProcessId.ToString();
         _election = election ?? new HostElectionService(pipeName, logger, processId: _processId);
         _logger = logger;
         _connections = new ConcurrentDictionary<string, PipeConnection>();
-        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions
-        {
+        _receiveChannel = Channel.CreateUnbounded<TransportFrame>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
@@ -65,24 +62,19 @@ public sealed class NamedPipeTransport : ITransportTopology
     public bool IsRunning => Volatile.Read(ref _disposed) == 0 && _role is not null;
 
     /// <inheritdoc/>
-    public async ValueTask StartAsync(CancellationToken ct = default)
-    {
+    public async ValueTask StartAsync(CancellationToken ct = default) {
         ThrowIfDisposed();
         _role = await _election.ElectAsync(ct).ConfigureAwait(false);
 
-        if (_role.Role == ProcessRole.Host)
-        {
+        if (_role.Role == ProcessRole.Host) {
             await StartHostAsync(ct).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             await StartSlaveAsync(ct).ConfigureAwait(false);
         }
     }
 
     /// <inheritdoc/>
-    public async ValueTask SendAsync(string targetProcessId, ReadOnlyMemory<byte> data, CancellationToken ct = default)
-    {
+    public async ValueTask SendAsync(string targetProcessId, ReadOnlyMemory<byte> data, CancellationToken ct = default) {
         ThrowIfDisposed();
         if (_role is null) throw new InvalidOperationException("Transport not started");
 
@@ -92,25 +84,19 @@ public sealed class NamedPipeTransport : ITransportTopology
             targetProcessId,
             data);
 
-        if (_role.Role == ProcessRole.Host)
-        {
-            if (_connections.TryGetValue(targetProcessId, out var conn))
-            {
+        if (_role.Role == ProcessRole.Host) {
+            if (_connections.TryGetValue(targetProcessId, out var conn)) {
                 await conn.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
-        }
-        else
-        {
-            if (_slaveClient is { IsConnected: true } client)
-            {
+        } else {
+            if (_slaveClient is { IsConnected: true } client) {
                 await client.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
         }
     }
 
     /// <inheritdoc/>
-    public async ValueTask BroadcastAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default)
-    {
+    public async ValueTask BroadcastAsync(ReadOnlyMemory<byte> data, CancellationToken ct = default) {
         ThrowIfDisposed();
         if (_role is null) throw new InvalidOperationException("Transport not started");
 
@@ -120,17 +106,12 @@ public sealed class NamedPipeTransport : ITransportTopology
             null,
             data);
 
-        if (_role.Role == ProcessRole.Host)
-        {
-            foreach (var conn in _connections.Values)
-            {
+        if (_role.Role == ProcessRole.Host) {
+            foreach (var conn in _connections.Values) {
                 await conn.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
-        }
-        else
-        {
-            if (_slaveClient is { IsConnected: true } client)
-            {
+        } else {
+            if (_slaveClient is { IsConnected: true } client) {
                 await client.WriteAsync(envelope, ct).ConfigureAwait(false);
             }
         }
@@ -146,22 +127,19 @@ public sealed class NamedPipeTransport : ITransportTopology
     /// <summary>获取底层选举服务 — 外部可订阅选举变更。</summary>
     public HostElectionService Election => _election;
 
-    private async Task StartHostAsync(CancellationToken ct)
-    {
+    private async Task StartHostAsync(CancellationToken ct) {
         _logger?.LogInformation("NamedPipeTransport: HOST started on pipe {Pipe} (pid={Pid})", _pipeName, ProcessId);
 
         _acceptTask = Task.Run(() => PipeAcceptLoop.RunAsync(_pipeName, HandleHostConnectionAsync, _cts.Token));
     }
 
-    private async Task StartSlaveAsync(CancellationToken ct)
-    {
+    private async Task StartSlaveAsync(CancellationToken ct) {
         _slaveClient = NamedPipeFactory.CreateClient(_pipeName);
 
         await _slaveClient.ConnectAsync(ct).ConfigureAwait(false);
 
         var hostLine = await BinaryProtocol.ReadLineRawAsync(_slaveClient, ct).ConfigureAwait(false);
-        if (hostLine is not null && hostLine.StartsWith("HOST:", StringComparison.Ordinal))
-        {
+        if (hostLine is not null && hostLine.StartsWith("HOST:", StringComparison.Ordinal)) {
             var detectedHostPid = hostLine["HOST:".Length..].Trim();
             _logger?.LogDebug("NamedPipeTransport: received host handshake {Line}", hostLine);
         }
@@ -179,26 +157,21 @@ public sealed class NamedPipeTransport : ITransportTopology
         _slaveReceiveTask = Task.Run(() => SlaveReceiveLoopAsync(_cts.Token));
     }
 
-    private async Task HandleHostConnectionAsync(NamedPipeServerStream server, CancellationToken ct)
-    {
+    private async Task HandleHostConnectionAsync(NamedPipeServerStream server, CancellationToken ct) {
         string? slavePid = null;
-        try
-        {
+        try {
             await BinaryProtocol.WriteLineRawAsync(server, $"HOST:{ProcessId}", ct).ConfigureAwait(false);
 
             var firstMsg = await BinaryProtocol.ReadAsync(server, ct).ConfigureAwait(false);
             TransportDiagnostics.Log("NP", () => $"host recv handshake: type={firstMsg.Type}, payload={Encoding.UTF8.GetString(firstMsg.Payload.Span)}");
-            if (firstMsg.Type == MessageType.Control)
-            {
+            if (firstMsg.Type == MessageType.Control) {
                 var text = Encoding.UTF8.GetString(firstMsg.Payload.Span);
-                if (text.StartsWith("SLAVE:", StringComparison.Ordinal))
-                {
+                if (text.StartsWith("SLAVE:", StringComparison.Ordinal)) {
                     slavePid = text["SLAVE:".Length..].Trim();
                 }
             }
 
-            if (slavePid is null)
-            {
+            if (slavePid is null) {
                 _logger?.LogWarning("NamedPipeTransport: connection without SLAVE handshake, closing");
                 await server.DisposeAsync().ConfigureAwait(false);
                 return;
@@ -216,85 +189,59 @@ public sealed class NamedPipeTransport : ITransportTopology
             _connections[slavePid] = conn;
             _logger?.LogDebug("NamedPipeTransport: slave {Slave} connected", slavePid);
 
-            await foreach (var msg in conn.ReadMessagesAsync(ct).ConfigureAwait(false))
-            {
+            await foreach (var msg in conn.ReadMessagesAsync(ct).ConfigureAwait(false)) {
                 TransportDiagnostics.Log("NP", () => $"host recv msg: type={msg.Type}, source={msg.SourcePid}, target={msg.TargetPid}, len={msg.Payload.Length}");
-                if (msg.Type == MessageType.Data && msg.TargetPid is not null)
-                {
-                    if (_connections.TryGetValue(msg.TargetPid, out var targetConn))
-                    {
+                if (msg.Type == MessageType.Data && msg.TargetPid is not null) {
+                    if (_connections.TryGetValue(msg.TargetPid, out var targetConn)) {
                         var forwarded = BinaryProtocol.Encode(msg.Type, msg.SourcePid, msg.TargetPid, msg.Payload);
                         await targetConn.WriteAsync(forwarded, ct).ConfigureAwait(false);
                     }
-                }
-                else if (msg.Type == MessageType.Broadcast)
-                {
-                    foreach (var kvp in _connections)
-                    {
-                        if (kvp.Key != msg.SourcePid)
-                        {
+                } else if (msg.Type == MessageType.Broadcast) {
+                    foreach (var kvp in _connections) {
+                        if (kvp.Key != msg.SourcePid) {
                             var forwarded = BinaryProtocol.Encode(MessageType.Broadcast, msg.SourcePid, null, msg.Payload);
                             await kvp.Value.WriteAsync(forwarded, ct).ConfigureAwait(false);
                         }
                     }
-                }
-                else if (msg.Type == MessageType.Data)
-                {
+                } else if (msg.Type == MessageType.Data) {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));
                 }
             }
-        }
-        catch (OperationCanceledException) { TransportDiagnostics.Log("NP", () => $"HandleHostConnection cancelled, slave={slavePid}"); }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { TransportDiagnostics.Log("NP", () => $"HandleHostConnection cancelled, slave={slavePid}"); } catch (Exception ex) {
             TransportDiagnostics.Log("NP", () => $"HandleHostConnection error: {ex.GetType().Name}: {ex.Message}, slave={slavePid}");
             _logger?.LogError(ex, "NamedPipeTransport: host connection error for slave {Slave}", slavePid);
-        }
-        finally
-        {
-            if (slavePid is not null)
-            {
+        } finally {
+            if (slavePid is not null) {
                 _connections.TryRemove(slavePid, out _);
             }
             await server.DisposeAsync().ConfigureAwait(false);
         }
     }
 
-    private async Task SlaveReceiveLoopAsync(CancellationToken ct)
-    {
+    private async Task SlaveReceiveLoopAsync(CancellationToken ct) {
         if (_slaveClient is null) return;
-        try
-        {
-            await foreach (var msg in BinaryProtocol.ReadStreamAsync(_slaveClient, ct).ConfigureAwait(false))
-            {
+        try {
+            await foreach (var msg in BinaryProtocol.ReadStreamAsync(_slaveClient, ct).ConfigureAwait(false)) {
                 TransportDiagnostics.Log("NP", () => $"slave recv msg: type={msg.Type}, source={msg.SourcePid}, len={msg.Payload.Length}");
-                if (msg.Type is MessageType.Data or MessageType.Broadcast)
-                {
+                if (msg.Type is MessageType.Data or MessageType.Broadcast) {
                     _receiveChannel.Writer.TryWrite(new TransportFrame(msg.SourcePid, msg.Payload));
-                }
-                else if (msg.Type == MessageType.Snapshot)
-                {
+                } else if (msg.Type == MessageType.Snapshot) {
                     var json = Encoding.UTF8.GetString(msg.Payload.Span);
                     _logger?.LogDebug("NamedPipeTransport: received snapshot ({Len} bytes)", msg.Payload.Length);
                 }
             }
-        }
-        catch (OperationCanceledException) { }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { } catch (Exception ex) {
             _logger?.LogError(ex, "NamedPipeTransport: slave receive loop error");
         }
     }
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(nameof(NamedPipeTransport));
     }
 
     /// <inheritdoc/>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _cts.Cancel();
         _receiveChannel.Writer.TryComplete();
@@ -311,8 +258,7 @@ public sealed class NamedPipeTransport : ITransportTopology
         Cleanup(conns, slaveClient, _election, _cts);
     }
 
-    private static void Cleanup(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts)
-    {
+    private static void Cleanup(IAsyncDisposable[] conns, NamedPipeClientStream? slaveClient, HostElectionService election, CancellationTokenSource cts) {
         foreach (var conn in conns) conn.DisposeAsync().AsTask().Wait();
         slaveClient?.DisposeAsync().AsTask().Wait();
         election.DisposeAsync().AsTask().Wait();
@@ -321,8 +267,7 @@ public sealed class NamedPipeTransport : ITransportTopology
 }
 
 /// <summary>消息类型 — 二进制协议的消息分类。</summary>
-internal enum MessageType : byte
-{
+internal enum MessageType : byte {
     /// <summary>控制消息（握手/心跳）。</summary>
     Control = 0,
     /// <summary>定向数据消息。</summary>
@@ -344,16 +289,14 @@ internal sealed record DecodedMessage(
 /// 二进制长度前缀协议 — AOT 兼容，无 JSON 序列化。
 /// <para>格式：[1字节类型][4字节源PID长度][源PID][4字节目标PID长度][目标PID][4字节payload长度][payload]</para>
 /// </summary>
-internal static class BinaryProtocol
-{
+internal static class BinaryProtocol {
     private const int MaxMessageSize = 16 * 1024 * 1024;
 
     public static ReadOnlyMemory<byte> Encode(
         MessageType type,
         string sourcePid,
         string? targetPid,
-        ReadOnlyMemory<byte> payload)
-    {
+        ReadOnlyMemory<byte> payload) {
         var sourceBytes = Encoding.UTF8.GetBytes(sourcePid);
         var targetBytes = targetPid is not null ? Encoding.UTF8.GetBytes(targetPid) : Array.Empty<byte>();
 
@@ -375,8 +318,7 @@ internal static class BinaryProtocol
         return buffer;
     }
 
-    public static async ValueTask<DecodedMessage> ReadAsync(Stream stream, CancellationToken ct)
-    {
+    public static async ValueTask<DecodedMessage> ReadAsync(Stream stream, CancellationToken ct) {
         var typeByte = await ReadByteAsync(stream, ct).ConfigureAwait(false);
         var type = (MessageType)typeByte;
 
@@ -389,8 +331,7 @@ internal static class BinaryProtocol
         var targetLen = await ReadInt32BigEndianAsync(stream, ct).ConfigureAwait(false);
         if (targetLen is < 0 or > 1024) throw new InvalidDataException($"Invalid target PID length: {targetLen}");
         string? targetPid = null;
-        if (targetLen > 0)
-        {
+        if (targetLen > 0) {
             var targetBytes = new byte[targetLen];
             await ReadExactAsync(stream, targetBytes, ct).ConfigureAwait(false);
             targetPid = Encoding.UTF8.GetString(targetBytes);
@@ -399,8 +340,7 @@ internal static class BinaryProtocol
         var payloadLen = await ReadInt32BigEndianAsync(stream, ct).ConfigureAwait(false);
         if (payloadLen is < 0 or > MaxMessageSize) throw new InvalidDataException($"Invalid payload length: {payloadLen}");
         var payload = new byte[payloadLen];
-        if (payloadLen > 0)
-        {
+        if (payloadLen > 0) {
             await ReadExactAsync(stream, payload, ct).ConfigureAwait(false);
         }
 
@@ -409,48 +349,38 @@ internal static class BinaryProtocol
 
     public static async IAsyncEnumerable<DecodedMessage> ReadStreamAsync(
         Stream stream,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        while (!ct.IsCancellationRequested) {
             DecodedMessage msg;
-            try
-            {
+            try {
                 msg = await ReadAsync(stream, ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) { yield break; }
-            catch (EndOfStreamException) { yield break; }
+            } catch (OperationCanceledException) { yield break; } catch (EndOfStreamException) { yield break; }
             yield return msg;
         }
     }
 
-    private static void WriteInt32BigEndian(byte[] buffer, ref int offset, int value)
-    {
+    private static void WriteInt32BigEndian(byte[] buffer, ref int offset, int value) {
         buffer[offset++] = (byte)(value >> 24);
         buffer[offset++] = (byte)(value >> 16);
         buffer[offset++] = (byte)(value >> 8);
         buffer[offset++] = (byte)value;
     }
 
-    private static async ValueTask<byte> ReadByteAsync(Stream stream, CancellationToken ct)
-    {
+    private static async ValueTask<byte> ReadByteAsync(Stream stream, CancellationToken ct) {
         var buf = new byte[1];
         await ReadExactAsync(stream, buf, ct).ConfigureAwait(false);
         return buf[0];
     }
 
-    private static async ValueTask<int> ReadInt32BigEndianAsync(Stream stream, CancellationToken ct)
-    {
+    private static async ValueTask<int> ReadInt32BigEndianAsync(Stream stream, CancellationToken ct) {
         var buf = new byte[4];
         await ReadExactAsync(stream, buf, ct).ConfigureAwait(false);
         return (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
     }
 
-    private static async Task ReadExactAsync(Stream stream, byte[] buffer, CancellationToken ct)
-    {
+    private static async Task ReadExactAsync(Stream stream, byte[] buffer, CancellationToken ct) {
         var offset = 0;
-        while (offset < buffer.Length)
-        {
+        while (offset < buffer.Length) {
             var read = await stream.ReadAsync(buffer.AsMemory(offset), ct).ConfigureAwait(false);
             if (read == 0) throw new EndOfStreamException();
             offset += read;
@@ -461,12 +391,10 @@ internal static class BinaryProtocol
     /// 裸读取一行文本（直到 '\n'）— 不用 StreamReader 避免缓冲污染后续二进制读取。
     /// <para>用于主机握手 "HOST:{pid}\n"，兼容 <see cref="HostElectionService"/> 探测协议。</para>
     /// </summary>
-    public static async ValueTask<string?> ReadLineRawAsync(Stream stream, CancellationToken ct)
-    {
+    public static async ValueTask<string?> ReadLineRawAsync(Stream stream, CancellationToken ct) {
         var sb = new StringBuilder(64);
         var buf = new byte[1];
-        while (true)
-        {
+        while (true) {
             var read = await stream.ReadAsync(buf, ct).ConfigureAwait(false);
             if (read == 0) return sb.Length > 0 ? sb.ToString() : null;
             if (buf[0] == '\n') return sb.ToString().TrimEnd('\r');
@@ -477,16 +405,14 @@ internal static class BinaryProtocol
     /// <summary>
     /// 写入一行文本（以 '\n' 结尾）— 用于主机握手 "HOST:{pid}\n"。
     /// </summary>
-    public static async ValueTask WriteLineRawAsync(Stream stream, string line, CancellationToken ct)
-    {
+    public static async ValueTask WriteLineRawAsync(Stream stream, string line, CancellationToken ct) {
         var bytes = Encoding.UTF8.GetBytes(line + "\n");
         await stream.WriteAsync(bytes, ct).ConfigureAwait(false);
     }
 }
 
 /// <summary>管道连接 — 封装单个从机连接的读写，用 Channel 串行化写入（无锁 Actor 模型）。</summary>
-internal sealed class PipeConnection : IAsyncDisposable
-{
+internal sealed class PipeConnection : IAsyncDisposable {
     private readonly NamedPipeServerStream _stream;
     private readonly ILogger? _logger;
     private readonly Channel<ReadOnlyMemory<byte>> _writeQueue;
@@ -495,57 +421,44 @@ internal sealed class PipeConnection : IAsyncDisposable
 
     public string ProcessId { get; }
 
-    public PipeConnection(string processId, NamedPipeServerStream stream, ILogger? logger)
-    {
+    public PipeConnection(string processId, NamedPipeServerStream stream, ILogger? logger) {
         ProcessId = processId;
         _stream = stream;
         _logger = logger;
-        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions
-        {
+        _writeQueue = Channel.CreateUnbounded<ReadOnlyMemory<byte>>(new UnboundedChannelOptions {
             SingleReader = true,
             SingleWriter = false
         });
         _writeLoop = Task.Run(WriteLoopAsync);
     }
 
-    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct)
-    {
+    public ValueTask WriteAsync(ReadOnlyMemory<byte> data, CancellationToken ct) {
         if (Volatile.Read(ref _disposed) != 0) return ValueTask.CompletedTask;
         return _writeQueue.Writer.WriteAsync(data, ct);
     }
 
-    private async Task WriteLoopAsync()
-    {
-        try
-        {
-            await foreach (var data in _writeQueue.Reader.ReadAllAsync().ConfigureAwait(false))
-            {
+    private async Task WriteLoopAsync() {
+        try {
+            await foreach (var data in _writeQueue.Reader.ReadAllAsync().ConfigureAwait(false)) {
                 if (Volatile.Read(ref _disposed) != 0) return;
-                try
-                {
+                try {
                     await _stream.WriteAsync(data).ConfigureAwait(false);
                     await _stream.FlushAsync().ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
+                } catch (Exception ex) when (ex is not OperationCanceledException) {
                     _logger?.LogWarning(ex, "PipeConnection: write failed for {Pid}", ProcessId);
                 }
             }
-        }
-        catch (OperationCanceledException) { }
+        } catch (OperationCanceledException) { }
     }
 
     public async IAsyncEnumerable<DecodedMessage> ReadMessagesAsync(
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        await foreach (var msg in BinaryProtocol.ReadStreamAsync(_stream, ct).ConfigureAwait(false))
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        await foreach (var msg in BinaryProtocol.ReadStreamAsync(_stream, ct).ConfigureAwait(false)) {
             yield return msg;
         }
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _writeQueue.Writer.TryComplete();
         await _writeLoop.ConfigureAwait(false);

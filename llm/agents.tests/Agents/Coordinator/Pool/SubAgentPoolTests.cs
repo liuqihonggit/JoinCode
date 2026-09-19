@@ -3,23 +3,19 @@ namespace Sync.Tests.Agents.Coordinator.Pool;
 /// <summary>
 /// SubAgentPool 单元测试 — 验证代理池回池/抢塞/清理逻辑（ADR 0106 L3）
 /// </summary>
-public sealed class SubAgentPoolTests
-{
-    private static AgentBase CreateAgent(string task = "test task")
-    {
+public sealed class SubAgentPoolTests {
+    private static AgentBase CreateAgent(string task = "test task") {
         var queryEngineMock = new Mock<IQueryEngine>();
         return new AgentBase(task, null, queryEngineMock.Object, null);
     }
 
-    private static SubAgentLivenessOptions DefaultOptions() => new()
-    {
+    private static SubAgentLivenessOptions DefaultOptions() => new() {
         PoolMaxSize = 4,
         PoolIdleTimeoutSeconds = 60,
     };
 
     [Fact]
-    public void Return_PoolEnabled_AddsToPool()
-    {
+    public void Return_PoolEnabled_AddsToPool() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
 
@@ -30,8 +26,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void Return_PoolFull_DisposesAgent()
-    {
+    public void Return_PoolFull_DisposesAgent() {
         var options = DefaultOptions();
         options.PoolMaxSize = 1;
         var pool = new SubAgentPool(options);
@@ -46,8 +41,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void Return_PoolDisabled_DisposesAgent()
-    {
+    public void Return_PoolDisabled_DisposesAgent() {
         var options = DefaultOptions();
         options.PoolMaxSize = 0;
         var pool = new SubAgentPool(options);
@@ -61,8 +55,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void TryAcquire_EmptyPool_ReturnsNull()
-    {
+    public void TryAcquire_EmptyPool_ReturnsNull() {
         var pool = new SubAgentPool(DefaultOptions());
 
         var agent = pool.TryAcquire("any task");
@@ -71,8 +64,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void TryAcquire_MatchingTask_ReturnsAgent()
-    {
+    public void TryAcquire_MatchingTask_ReturnsAgent() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("fix bug in parser");
         agent.Status = TaskExecutionStatus.Completed;
@@ -86,8 +78,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void TryAcquire_NoCompletedAgent_ReturnsNull()
-    {
+    public void TryAcquire_NoCompletedAgent_ReturnsNull() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
         agent.Status = TaskExecutionStatus.Running;
@@ -99,8 +90,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void TryAcquire_PartialMatch_ReturnsBestMatch()
-    {
+    public void TryAcquire_PartialMatch_ReturnsBestMatch() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent1 = CreateAgent("fix bug in parser");
         agent1.Status = TaskExecutionStatus.Completed;
@@ -116,8 +106,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void Remove_ExistingAgent_DisposesAndRemoves()
-    {
+    public void Remove_ExistingAgent_DisposesAndRemoves() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
         pool.Return(agent);
@@ -129,8 +118,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void Remove_NonExistingAgent_ReturnsFalse()
-    {
+    public void Remove_NonExistingAgent_ReturnsFalse() {
         var pool = new SubAgentPool(DefaultOptions());
 
         var result = pool.Remove("nonexistent-id");
@@ -139,8 +127,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void IsFull_WhenCountReachesMax_ReturnsTrue()
-    {
+    public void IsFull_WhenCountReachesMax_ReturnsTrue() {
         var options = DefaultOptions();
         options.PoolMaxSize = 2;
         var pool = new SubAgentPool(options);
@@ -153,8 +140,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public async Task DisposeAsync_DisposesAllAgents()
-    {
+    public async Task DisposeAsync_DisposesAllAgents() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent1 = CreateAgent("task A");
         var agent2 = CreateAgent("task B");
@@ -167,8 +153,7 @@ public sealed class SubAgentPoolTests
     }
 
     [Fact]
-    public void Return_SameAgentTwice_SecondFails()
-    {
+    public void Return_SameAgentTwice_SecondFails() {
         var pool = new SubAgentPool(DefaultOptions());
         var agent = CreateAgent("task A");
 

@@ -1,8 +1,7 @@
 namespace JoinCode.Abstractions.Attributes;
 
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public sealed class McpToolDispatchAttribute : Attribute
-{
+public sealed class McpToolDispatchAttribute : Attribute {
     public string DisplayName { get; }
 
     /// <summary>
@@ -24,13 +23,11 @@ public sealed class McpToolDispatchAttribute : Attribute
     /// </summary>
     public string? GroupName { get; set; }
 
-    public McpToolDispatchAttribute(string displayName)
-    {
+    public McpToolDispatchAttribute(string displayName) {
         DisplayName = displayName ?? throw new ArgumentNullException(nameof(displayName));
     }
 
-    public McpToolDispatchAttribute(ToolCategory category)
-    {
+    public McpToolDispatchAttribute(ToolCategory category) {
         CategoryEnum = category;
         DisplayName = category.ToString();
     }

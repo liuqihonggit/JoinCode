@@ -6,18 +6,15 @@ namespace MockServer.E2E.Tests;
 /// 而非当前的"自动执行模式尚未实现"警告
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class UltraplanExecuteE2ETests : CoverageTestBase
-{
+public sealed class UltraplanExecuteE2ETests : CoverageTestBase {
     public UltraplanExecuteE2ETests(ITestOutputHelper output) : base(output) { }
 
     /// <summary>
     /// 带 --execute 应真正调用 LLM 执行计划，不再输出"尚未实现"警告
     /// </summary>
     [Fact]
-    public async Task Ultraplan_WithExecuteFlag_ShouldNotShowUnimplementedWarning()
-    {
-        var script = new ConversationScript
-        {
+    public async Task Ultraplan_WithExecuteFlag_ShouldNotShowUnimplementedWarning() {
+        var script = new ConversationScript {
             Name = "/ultraplan --execute 自动执行",
             Turns =
             [
@@ -55,10 +52,8 @@ public sealed class UltraplanExecuteE2ETests : CoverageTestBase
     /// 不带 --execute 时应仅展示计划文本，行为保持现状（不进入执行模式）
     /// </summary>
     [Fact]
-    public async Task Ultraplan_WithoutExecuteFlag_ShouldOnlyShowPlanText()
-    {
-        var script = new ConversationScript
-        {
+    public async Task Ultraplan_WithoutExecuteFlag_ShouldOnlyShowPlanText() {
+        var script = new ConversationScript {
             Name = "/ultraplan 仅展示计划",
             Turns =
             [
@@ -96,10 +91,8 @@ public sealed class UltraplanExecuteE2ETests : CoverageTestBase
     /// 使用 -e 简写别名也应触发执行路径，不输出"未实现"警告
     /// </summary>
     [Fact]
-    public async Task Ultraplan_WithExecuteAlias_ShouldNotShowUnimplementedWarning()
-    {
-        var script = new ConversationScript
-        {
+    public async Task Ultraplan_WithExecuteAlias_ShouldNotShowUnimplementedWarning() {
+        var script = new ConversationScript {
             Name = "/ultraplan -e 简写别名",
             Turns =
             [

@@ -5,8 +5,7 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:ToValue / FromValue / IsDefined / PermissionsActionEnumConstants 常量值
 /// 6 个枚举值(add/clear/workspace/dirs/directories/show)
 /// </summary>
-public sealed class PermissionsActionExtensionsTests
-{
+public sealed class PermissionsActionExtensionsTests {
     // ===== ToValue 测试 =====
 
     [Theory]
@@ -16,8 +15,7 @@ public sealed class PermissionsActionExtensionsTests
     [InlineData(PermissionsAction.Dirs, "dirs")]
     [InlineData(PermissionsAction.Directories, "directories")]
     [InlineData(PermissionsAction.Show, "show")]
-    public void ToValue_Should_Return_CorrectString(PermissionsAction value, string expected)
-    {
+    public void ToValue_Should_Return_CorrectString(PermissionsAction value, string expected) {
         value.ToValue().Should().Be(expected);
     }
 
@@ -30,8 +28,7 @@ public sealed class PermissionsActionExtensionsTests
     [InlineData("dirs", PermissionsAction.Dirs)]
     [InlineData("directories", PermissionsAction.Directories)]
     [InlineData("show", PermissionsAction.Show)]
-    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, PermissionsAction expected)
-    {
+    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, PermissionsAction expected) {
         PermissionsActionExtensions.FromValue(input).Should().Be(expected);
     }
 
@@ -42,8 +39,7 @@ public sealed class PermissionsActionExtensionsTests
     [InlineData("Dirs")]
     [InlineData("DIRECTORIES")]
     [InlineData("Show")]
-    public void FromValue_CaseInsensitive_Should_Return_CorrectEnum(string input)
-    {
+    public void FromValue_CaseInsensitive_Should_Return_CorrectEnum(string input) {
         PermissionsActionExtensions.FromValue(input).Should().NotBeNull();
     }
 
@@ -59,8 +55,7 @@ public sealed class PermissionsActionExtensionsTests
     [InlineData("new")]
     [InlineData("adding")]
     [InlineData("cleared")]
-    public void FromValue_InvalidString_Should_Return_Null(string? input)
-    {
+    public void FromValue_InvalidString_Should_Return_Null(string? input) {
         PermissionsActionExtensions.FromValue(input).Should().BeNull();
     }
 
@@ -73,8 +68,7 @@ public sealed class PermissionsActionExtensionsTests
     [InlineData(PermissionsAction.Dirs)]
     [InlineData(PermissionsAction.Directories)]
     [InlineData(PermissionsAction.Show)]
-    public void RoundTrip_ToValue_ThenFromValue_Should_Return_Same(PermissionsAction value)
-    {
+    public void RoundTrip_ToValue_ThenFromValue_Should_Return_Same(PermissionsAction value) {
         var s = value.ToValue();
         PermissionsActionExtensions.FromValue(s).Should().Be(value);
     }
@@ -88,16 +82,14 @@ public sealed class PermissionsActionExtensionsTests
     [InlineData(PermissionsAction.Dirs, true)]
     [InlineData(PermissionsAction.Directories, true)]
     [InlineData(PermissionsAction.Show, true)]
-    public void IsDefined_KnownValue_Should_Return_True(PermissionsAction value, bool expected)
-    {
+    public void IsDefined_KnownValue_Should_Return_True(PermissionsAction value, bool expected) {
         PermissionsActionExtensions.IsDefined(value).Should().Be(expected);
     }
 
     // ===== Constants 测试 =====
 
     [Fact]
-    public void Constants_All_Should_Match_EnumValues()
-    {
+    public void Constants_All_Should_Match_EnumValues() {
         PermissionsActionEnumConstants.Add.Should().Be("add");
         PermissionsActionEnumConstants.Clear.Should().Be("clear");
         PermissionsActionEnumConstants.Workspace.Should().Be("workspace");
@@ -109,8 +101,7 @@ public sealed class PermissionsActionExtensionsTests
     // ===== 枚举值数量验证 =====
 
     [Fact]
-    public void AllValues_Should_Be_6()
-    {
+    public void AllValues_Should_Be_6() {
         var values = Enum.GetValues<PermissionsAction>();
         values.Should().HaveCount(6);
     }
@@ -118,8 +109,7 @@ public sealed class PermissionsActionExtensionsTests
     // ===== 与 CrudAction 边界值不冲突 =====
 
     [Fact]
-    public void FromValue_CrudActionValues_Should_Return_Null()
-    {
+    public void FromValue_CrudActionValues_Should_Return_Null() {
         // list/ls/create/new/delete/rm/remove 是 CrudAction 范围
         PermissionsActionExtensions.FromValue("list").Should().BeNull();
         PermissionsActionExtensions.FromValue("ls").Should().BeNull();
@@ -133,8 +123,7 @@ public sealed class PermissionsActionExtensionsTests
     // ===== 别名验证 =====
 
     [Fact]
-    public void FromValue_DirsAndDirectories_Should_Be_DifferentEnumValues()
-    {
+    public void FromValue_DirsAndDirectories_Should_Be_DifferentEnumValues() {
         // dirs/directories 是 workspace 的别名,但作为独立枚举值保留(不同 case 分支可能需要区分)
         PermissionsActionExtensions.FromValue("dirs").Should().Be(PermissionsAction.Dirs);
         PermissionsActionExtensions.FromValue("directories").Should().Be(PermissionsAction.Directories);

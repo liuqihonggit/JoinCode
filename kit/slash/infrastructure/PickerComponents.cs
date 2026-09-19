@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 供应商选择器 — CLI 简化版
 /// </summary>
-public sealed class ProviderPicker
-{
+public sealed class ProviderPicker {
     /// <summary>
     /// 显示供应商选择列表并等待用户输入
     /// </summary>
@@ -15,12 +14,10 @@ public sealed class ProviderPicker
     /// <param name="hint">提示文本</param>
     /// <param name="registry">供应商定义注册表</param>
     /// <returns>选中的供应商名称，失败时返回默认供应商</returns>
-    public static string? Show(string defaultProvider, string title, string hint, IProviderDefinitionRegistry registry)
-    {
+    public static string? Show(string defaultProvider, string title, string hint, IProviderDefinitionRegistry registry) {
         TerminalHelper.WriteLine();
         TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{title}{AnsiStyleEnumConstants.Reset}");
-        if (!string.IsNullOrEmpty(hint))
-        {
+        if (!string.IsNullOrEmpty(hint)) {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}{hint}{AnsiStyleEnumConstants.Reset}");
         }
         TerminalHelper.NewLine();
@@ -30,8 +27,7 @@ public sealed class ProviderPicker
             .Where(p => p is not null)
             .Select(p => p!)
             .ToList();
-        for (var i = 0; i < providers.Count; i++)
-        {
+        for (var i = 0; i < providers.Count; i++) {
             var p = providers[i];
             var marker = p.ProviderName == defaultProvider ? " (默认)" : "";
             TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {p.DisplayName}{marker}");
@@ -42,20 +38,16 @@ public sealed class ProviderPicker
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return defaultProvider;
 
-        try
-        {
+        try {
             var input = TerminalHelper.ReadLine();
             if (string.IsNullOrWhiteSpace(input)) return defaultProvider;
 
-            if (int.TryParse(input.Trim(), out var index) && index >= 1 && index <= providers.Count)
-            {
+            if (int.TryParse(input.Trim(), out var index) && index >= 1 && index <= providers.Count) {
                 return providers[index - 1].ProviderName;
             }
 
             return defaultProvider;
-        }
-        catch
-        {
+        } catch {
             return defaultProvider;
         }
     }
@@ -68,8 +60,7 @@ public sealed class ProviderPicker
 /// <summary>
 /// 模型选择器 — CLI 简化版
 /// </summary>
-public sealed class ModelPicker
-{
+public sealed class ModelPicker {
     /// <summary>
     /// 渲染模型选择列表为带选中标记和操作提示的文本
     /// </summary>
@@ -80,14 +71,12 @@ public sealed class ModelPicker
     /// <param name="effortLevel">推理努力级别</param>
     /// <param name="isFastModeActive">是否启用快速模式</param>
     /// <returns>渲染后的文本</returns>
-    public string Render(ModelEntry[] models, int selectedIndex, string currentModelId, string providerName, EffortLevel effortLevel, bool isFastModeActive)
-    {
+    public string Render(ModelEntry[] models, int selectedIndex, string currentModelId, string providerName, EffortLevel effortLevel, bool isFastModeActive) {
         var sb = new StringBuilder();
         sb.AppendLine($"{AnsiStyleEnumConstants.Bold}模型选择 ({providerName}){AnsiStyleEnumConstants.Reset}");
         sb.AppendLine();
 
-        for (var i = 0; i < models.Length; i++)
-        {
+        for (var i = 0; i < models.Length; i++) {
             var model = models[i];
             var marker = model.Id.Equals(currentModelId, StringComparison.OrdinalIgnoreCase) ? " *" : "";
             var selector = i == selectedIndex ? ">" : " ";
@@ -107,18 +96,14 @@ public sealed class ModelPicker
     /// <param name="current">当前努力级别</param>
     /// <param name="forward">true 向前循环，false 向后循环</param>
     /// <returns>切换后的努力级别</returns>
-    public static EffortLevel CycleEffort(EffortLevel current, bool forward)
-    {
+    public static EffortLevel CycleEffort(EffortLevel current, bool forward) {
         var values = new[] { EffortLevel.Low, EffortLevel.Medium, EffortLevel.High, EffortLevel.Max };
         var idx = Array.IndexOf(values, current);
         if (idx < 0) idx = 1; // default to Medium
 
-        if (forward)
-        {
+        if (forward) {
             idx = idx < values.Length - 1 ? idx + 1 : 0;
-        }
-        else
-        {
+        } else {
             idx = idx > 0 ? idx - 1 : values.Length - 1;
         }
 
@@ -133,8 +118,7 @@ public sealed class ModelPicker
     /// <param name="provider">供应商名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>选中的模型 ID，失败时返回当前模型</returns>
-    public static async Task<string?> ShowAsync(string currentModel, IModelCatalog catalog, string provider, CancellationToken ct = default)
-    {
+    public static async Task<string?> ShowAsync(string currentModel, IModelCatalog catalog, string provider, CancellationToken ct = default) {
         await Task.CompletedTask.ConfigureAwait(false);
 
         var models = catalog.GetModelsForProvider(provider);
@@ -142,8 +126,7 @@ public sealed class ModelPicker
         TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}选择模型{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
-        for (var i = 0; i < models.Length; i++)
-        {
+        for (var i = 0; i < models.Length; i++) {
             var marker = models[i].Id == currentModel ? " *" : "";
             TerminalHelper.WriteLine($"  {TerminalColors.Muted}{i + 1}.{AnsiStyleEnumConstants.Reset} {models[i].DisplayName}{marker}");
         }
@@ -153,22 +136,17 @@ public sealed class ModelPicker
 
         if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return currentModel;
 
-        try
-        {
+        try {
             var input = TerminalHelper.ReadLine();
             if (string.IsNullOrWhiteSpace(input)) return currentModel;
 
-            if (int.TryParse(input.Trim(), out var index) && index >= 1 && index <= models.Length)
-            {
+            if (int.TryParse(input.Trim(), out var index) && index >= 1 && index <= models.Length) {
                 return models[index - 1].Id;
             }
 
             return currentModel;
-        }
-        catch
-        {
+        } catch {
             return currentModel;
         }
     }
 }
-

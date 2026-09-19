@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// Workflow 状态存储接口 — 负责断点续跑的快照持久化与恢复
 /// </summary>
-public interface IWorkflowStateStore
-{
+public interface IWorkflowStateStore {
     /// <summary>
     /// 保存 workflow 执行快照（原子写入 workflow_{id}.state.json）
     /// </summary>

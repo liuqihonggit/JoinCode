@@ -1,8 +1,7 @@
 namespace Llm.Tests.Adapters.LLM;
 
 
-public class QueryServiceBaseHelpersTests
-{
+public class QueryServiceBaseHelpersTests {
     #region ConvertRole
 
     [Theory]
@@ -10,8 +9,7 @@ public class QueryServiceBaseHelpersTests
     [InlineData("user", MessageRole.User)]
     [InlineData("assistant", MessageRole.Assistant)]
     [InlineData("tool", MessageRole.Tool)]
-    public void ConvertRole_ValidString_ReturnsExpected(string? role, MessageRole expected)
-    {
+    public void ConvertRole_ValidString_ReturnsExpected(string? role, MessageRole expected) {
         QueryServiceBase.ConvertRole(role).Should().Be(expected);
     }
 
@@ -19,8 +17,7 @@ public class QueryServiceBaseHelpersTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("unknown")]
-    public void ConvertRole_InvalidString_ReturnsAssistant(string? role)
-    {
+    public void ConvertRole_InvalidString_ReturnsAssistant(string? role) {
         QueryServiceBase.ConvertRole(role).Should().Be(MessageRole.Assistant);
     }
 
@@ -33,14 +30,12 @@ public class QueryServiceBaseHelpersTests
     [InlineData(MessageRole.User, "user")]
     [InlineData(MessageRole.Assistant, "assistant")]
     [InlineData(MessageRole.Tool, "tool")]
-    public void ConvertRoleToString_ValidRole_ReturnsExpected(MessageRole role, string expected)
-    {
+    public void ConvertRoleToString_ValidRole_ReturnsExpected(MessageRole role, string expected) {
         QueryServiceBase.ConvertRoleToString(role).Should().Be(expected);
     }
 
     [Fact]
-    public void ConvertRoleToString_UnknownRole_ReturnsAssistant()
-    {
+    public void ConvertRoleToString_UnknownRole_ReturnsAssistant() {
         QueryServiceBase.ConvertRoleToString((MessageRole)999).Should().Be("assistant");
     }
 
@@ -58,8 +53,7 @@ public class QueryServiceBaseHelpersTests
     [InlineData(typeof(bool), "boolean")]
     [InlineData(typeof(string), "string")]
     [InlineData(typeof(object), "string")]
-    public void MapClrTypeToJsonSchemaType_MapsExpectedType(Type? type, string expected)
-    {
+    public void MapClrTypeToJsonSchemaType_MapsExpectedType(Type? type, string expected) {
         TestableQueryService.MapClrTypeToJsonSchemaType(type).Should().Be(expected);
     }
 
@@ -68,14 +62,12 @@ public class QueryServiceBaseHelpersTests
     #region ConvertToOpenAIToolCalls
 
     [Fact]
-    public void ConvertToOpenAIToolCalls_Null_ReturnsNull()
-    {
+    public void ConvertToOpenAIToolCalls_Null_ReturnsNull() {
         QueryServiceBase.ConvertToOpenAIToolCalls(null).Should().BeNull();
     }
 
     [Fact]
-    public void ConvertToOpenAIToolCalls_DirectList_ReturnsSameInstance()
-    {
+    public void ConvertToOpenAIToolCalls_DirectList_ReturnsSameInstance() {
         var list = new List<OpenAIToolCall>
         {
             new() { Id = "1", Function = new OpenAIToolCallFunction { Name = "fn" } }
@@ -87,8 +79,7 @@ public class QueryServiceBaseHelpersTests
     }
 
     [Fact]
-    public void ConvertToOpenAIToolCalls_JsonElementArray_ParsesEntries()
-    {
+    public void ConvertToOpenAIToolCalls_JsonElementArray_ParsesEntries() {
         var json = JsonSerializer.SerializeToElement(new[]
         {
             new { Id = "call-1", Name = "toolA", Arguments = "{}" },
@@ -105,18 +96,15 @@ public class QueryServiceBaseHelpersTests
     }
 
     [Fact]
-    public void ConvertToOpenAIToolCalls_UnknownObject_ReturnsNull()
-    {
+    public void ConvertToOpenAIToolCalls_UnknownObject_ReturnsNull() {
         QueryServiceBase.ConvertToOpenAIToolCalls("not-a-list").Should().BeNull();
     }
 
     #endregion
 
-    private sealed class TestableQueryService : QueryServiceBase
-    {
+    private sealed class TestableQueryService : QueryServiceBase {
         public TestableQueryService(ProviderConfig config)
-            : base(config, new HttpClient(new FakeHttpMessageHandler()), logger: null, fs: null, resilientExecutor: null)
-        {
+            : base(config, new HttpClient(new FakeHttpMessageHandler()), logger: null, fs: null, resilientExecutor: null) {
         }
 
         public override Task<IReadOnlyList<ApiMessage>> GetApiMessageContentsAsync(
@@ -133,12 +121,11 @@ public class QueryServiceBaseHelpersTests
             CancellationToken cancellationToken = default)
             => AsyncEnumerable.Empty<StreamEvent>();
 
-        public new static string MapClrTypeToJsonSchemaType(Type? type)
+        public static new string MapClrTypeToJsonSchemaType(Type? type)
             => QueryServiceBase.MapClrTypeToJsonSchemaType(type);
     }
 
-    private sealed class FakeHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class FakeHttpMessageHandler : HttpMessageHandler {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(new HttpResponseMessage());
     }

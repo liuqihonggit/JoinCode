@@ -1,11 +1,9 @@
 namespace Responses.MockServer;
 
-public sealed class Program
-{
+public sealed class Program {
     private static readonly ManualResetEventSlim ShutdownEvent = new(false);
 
-    public static async Task Main(string[] args)
-    {
+    public static async Task Main(string[] args) {
         var configPath = ParseArgument(args, "--config") ?? "mockserver.json";
         var portArg = ParseArgument(args, "--port");
         var config = MockServerConfig.LoadFromFileOrDefault(configPath);

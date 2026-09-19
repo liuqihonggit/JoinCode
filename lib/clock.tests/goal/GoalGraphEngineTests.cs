@@ -1,13 +1,11 @@
 namespace Core.Goal.Tests;
 
 
-public sealed partial class GoalGraphEngineTests
-{
+public sealed partial class GoalGraphEngineTests {
     /// <summary>
     /// 创建 Mock IChatClient — Agent 节点测试时需额外配置 GetChatCompletionService
     /// </summary>
-    private static Mock<IChatClient> CreateKernelMock()
-    {
+    private static Mock<IChatClient> CreateKernelMock() {
         var kernel = new Mock<IChatClient>();
         var plugins = new Mock<IToolCollection>();
         kernel.SetupGet(k => k.Plugins).Returns(plugins.Object);
@@ -16,8 +14,7 @@ public sealed partial class GoalGraphEngineTests
 
     private static Mock<IGoalEvaluator> CreateEvaluatorMock() => new();
 
-    private static Mock<IGoalHeartbeat> CreateHeartbeatMock()
-    {
+    private static Mock<IGoalHeartbeat> CreateHeartbeatMock() {
         var heartbeat = new Mock<IGoalHeartbeat>();
         heartbeat.SetupGet(h => h.RefCount).Returns(0);
         heartbeat.SetupGet(h => h.IsActive).Returns(false);
@@ -34,8 +31,7 @@ public sealed partial class GoalGraphEngineTests
         IGoalUserInteraction? userInteraction = null,
         IGoalNodeInspector? nodeInspector = null,
         IGoalConflictMessenger? conflictMessenger = null,
-        SubAgentConcurrencyOptions? concurrencyOptions = null)
-    {
+        SubAgentConcurrencyOptions? concurrencyOptions = null) {
         return new GoalGraphEngine(
             (kernel ?? CreateKernelMock()).Object,
             (evaluator ?? CreateEvaluatorMock()).Object,
@@ -48,18 +44,15 @@ public sealed partial class GoalGraphEngineTests
             concurrencyOptions: concurrencyOptions);
     }
 
-    private static GoalState CreateGoalState() => new()
-    {
+    private static GoalState CreateGoalState() => new() {
         GoalId = "test-goal",
         Objective = "test objective",
     };
 
     private static DagNode<GoalNodePayload> MakeFunctionNode(string id, string name, int timeoutSeconds = 300)
-        => new()
-        {
+        => new() {
             Id = id,
-            Payload = new GoalNodePayload
-            {
+            Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Function,
                 Name = name,
                 TimeoutSeconds = timeoutSeconds,
@@ -67,11 +60,9 @@ public sealed partial class GoalGraphEngineTests
         };
 
     private static DagNode<GoalNodePayload> MakeJoinNode(string id, string name, int minSuccessfulInputs = 0)
-        => new()
-        {
+        => new() {
             Id = id,
-            Payload = new GoalNodePayload
-            {
+            Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Join,
                 Name = name,
                 MinSuccessfulInputs = minSuccessfulInputs,
@@ -83,8 +74,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SerialExecution_Should_ExecuteInOrder_AndPassOutput()
-    {
+    public async Task SerialExecution_Should_ExecuteInOrder_AndPassOutput() {
         var engine = CreateEngine();
         var executionOrder = new List<string>();
 
@@ -99,30 +89,26 @@ public sealed partial class GoalGraphEngineTests
         dag.AddEdge(new DagEdge { Id = "e-ab", FromId = "A", ToId = "B" });
         dag.AddEdge(new DagEdge { Id = "e-bc", FromId = "B", ToId = "C" });
 
-        engine.RegisterFunction("A", _ =>
-        {
+        engine.RegisterFunction("A", _ => {
             executionOrder.Add("A");
             return Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10));
         });
 
-        engine.RegisterFunction("B", ctx =>
-        {
+        engine.RegisterFunction("B", ctx => {
             executionOrder.Add("B");
             var upstreamA = ctx.UpstreamOutputs.GetValueOrDefault("A", null);
             var output = $"B-received-{upstreamA}";
             return Task.FromResult(NodeResult.Succeeded(output, tokensUsed: 20));
         });
 
-        engine.RegisterFunction("C", ctx =>
-        {
+        engine.RegisterFunction("C", ctx => {
             executionOrder.Add("C");
             var upstreamB = ctx.UpstreamOutputs.GetValueOrDefault("B", null);
             var output = $"C-received-{upstreamB}";
             return Task.FromResult(NodeResult.Succeeded(output, tokensUsed: 30));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "serial-test",
             Dag = dag,
             StartNodeId = "A",
@@ -152,8 +138,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ConditionalRouting_Should_OnlyFollowMatchedEdge()
-    {
+    public async Task ConditionalRouting_Should_OnlyFollowMatchedEdge() {
         var engine = CreateEngine();
         var executedNodes = new List<string>();
 
@@ -168,26 +153,22 @@ public sealed partial class GoalGraphEngineTests
         dag.AddEdge(new DagEdge { Id = "e-pass", FromId = "A", ToId = "B", Label = "PASS" });
         dag.AddEdge(new DagEdge { Id = "e-fail", FromId = "A", ToId = "C", Label = "FAIL" });
 
-        engine.RegisterFunction("A", _ =>
-        {
+        engine.RegisterFunction("A", _ => {
             executedNodes.Add("A");
             return Task.FromResult(NodeResult.Routed("A-done", ["PASS"], tokensUsed: 5));
         });
 
-        engine.RegisterFunction("B", _ =>
-        {
+        engine.RegisterFunction("B", _ => {
             executedNodes.Add("B");
             return Task.FromResult(NodeResult.Succeeded("B-done", tokensUsed: 5));
         });
 
-        engine.RegisterFunction("C", _ =>
-        {
+        engine.RegisterFunction("C", _ => {
             executedNodes.Add("C");
             return Task.FromResult(NodeResult.Succeeded("C-done", tokensUsed: 5));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "conditional-routing-test",
             Dag = dag,
             StartNodeId = "A",
@@ -210,8 +191,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ConditionalRoutingFallback_Should_TakeEmptyLabelEdge_WhenNoMatch()
-    {
+    public async Task ConditionalRoutingFallback_Should_TakeEmptyLabelEdge_WhenNoMatch() {
         var engine = CreateEngine();
         var executedNodes = new List<string>();
 
@@ -226,26 +206,22 @@ public sealed partial class GoalGraphEngineTests
         dag.AddEdge(new DagEdge { Id = "e-pass", FromId = "A", ToId = "B", Label = "PASS" });
         dag.AddEdge(new DagEdge { Id = "e-fallback", FromId = "A", ToId = "C" }); // 空 Label = 兜底
 
-        engine.RegisterFunction("A", _ =>
-        {
+        engine.RegisterFunction("A", _ => {
             executedNodes.Add("A");
             return Task.FromResult(NodeResult.Routed("A-done", ["UNKNOWN"], tokensUsed: 5));
         });
 
-        engine.RegisterFunction("B", _ =>
-        {
+        engine.RegisterFunction("B", _ => {
             executedNodes.Add("B");
             return Task.FromResult(NodeResult.Succeeded("B-done"));
         });
 
-        engine.RegisterFunction("C", _ =>
-        {
+        engine.RegisterFunction("C", _ => {
             executedNodes.Add("C");
             return Task.FromResult(NodeResult.Succeeded("C-done"));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "fallback-test",
             Dag = dag,
             StartNodeId = "A",
@@ -266,8 +242,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task RetryReactivation_Should_ResetAndReexecuteTargetNode()
-    {
+    public async Task RetryReactivation_Should_ResetAndReexecuteTargetNode() {
         var engine = CreateEngine();
         var implementCallCount = 0;
         var testCallCount = 0;
@@ -286,26 +261,22 @@ public sealed partial class GoalGraphEngineTests
         dag.TryAddEdge(new DagEdge { Id = backEdgeId, FromId = "test", ToId = "implement", Label = "FAIL" });
         nodeImpl.InEdgeIds.Remove(backEdgeId);
 
-        engine.RegisterFunction("implement", _ =>
-        {
+        engine.RegisterFunction("implement", _ => {
             implementCallCount++;
             return Task.FromResult(NodeResult.Succeeded($"implement-v{implementCallCount}", tokensUsed: 15));
         });
 
-        engine.RegisterFunction("test", _ =>
-        {
+        engine.RegisterFunction("test", _ => {
             testCallCount++;
             // 第一次 FAIL，第二次通过（返回空 Routes，走兜底或无后续边）
-            if (testCallCount == 1)
-            {
+            if (testCallCount == 1) {
                 return Task.FromResult(NodeResult.Routed("test-fail", ["FAIL"], tokensUsed: 10));
             }
 
             return Task.FromResult(NodeResult.Succeeded("test-pass", tokensUsed: 10));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "retry-test",
             Dag = dag,
             StartNodeId = "implement",
@@ -332,8 +303,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task RetryExceedsMax_Should_MarkNodeAsFailed()
-    {
+    public async Task RetryExceedsMax_Should_MarkNodeAsFailed() {
         var engine = CreateEngine();
         var implementCallCount = 0;
 
@@ -348,8 +318,7 @@ public sealed partial class GoalGraphEngineTests
         dag.TryAddEdge(new DagEdge { Id = backEdgeId, FromId = "test", ToId = "implement", Label = "FAIL" });
         nodeImpl.InEdgeIds.Remove(backEdgeId);
 
-        engine.RegisterFunction("implement", _ =>
-        {
+        engine.RegisterFunction("implement", _ => {
             implementCallCount++;
             return Task.FromResult(NodeResult.Succeeded($"implement-v{implementCallCount}", tokensUsed: 15));
         });
@@ -358,8 +327,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("test", _ =>
             Task.FromResult(NodeResult.Routed("test-fail", ["FAIL"], tokensUsed: 10)));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "retry-exceed-test",
             Dag = dag,
             StartNodeId = "implement",
@@ -387,8 +355,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task JoinNode_Should_WaitForAllUpstreams_AndMergeOutput()
-    {
+    public async Task JoinNode_Should_WaitForAllUpstreams_AndMergeOutput() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -412,8 +379,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("B", _ =>
             Task.FromResult(NodeResult.Succeeded("output-B", tokensUsed: 20)));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "join-test",
             Dag = dag,
             StartNodeId = "A",
@@ -438,16 +404,13 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NodeTimeout_Should_MarkAsFailed_WhenExceedsTimeout()
-    {
+    public async Task NodeTimeout_Should_MarkAsFailed_WhenExceedsTimeout() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
-        var nodeA = new DagNode<GoalNodePayload>
-        {
+        var nodeA = new DagNode<GoalNodePayload> {
             Id = "A",
-            Payload = new GoalNodePayload
-            {
+            Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Function,
                 Name = "slow-node",
                 TimeoutSeconds = 1, // 1 秒超时
@@ -457,14 +420,10 @@ public sealed partial class GoalGraphEngineTests
         dag.AddNode(nodeA);
 
         // 注册一个延迟 5 秒的函数（会因超时被取消）
-        engine.RegisterFunction("A", async ctx =>
-        {
-            try
-            {
+        engine.RegisterFunction("A", async ctx => {
+            try {
                 await Task.Delay(TimeSpan.FromSeconds(5), ctx.CancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 // 重新抛出，让引擎捕获超时
                 throw;
             }
@@ -472,8 +431,7 @@ public sealed partial class GoalGraphEngineTests
             return NodeResult.Succeeded("should-not-reach");
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "timeout-test",
             Dag = dag,
             StartNodeId = "A",
@@ -493,8 +451,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task GoalStateUpdate_Should_AccumulateTokensAndTurns()
-    {
+    public async Task GoalStateUpdate_Should_AccumulateTokensAndTurns() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -511,8 +468,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("B", _ =>
             Task.FromResult(NodeResult.Succeeded("output-B", tokensUsed: 200)));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "state-update-test",
             Dag = dag,
             StartNodeId = "A",
@@ -536,8 +492,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task UnregisteredFunction_Should_MarkNodeAsFailed()
-    {
+    public async Task UnregisteredFunction_Should_MarkNodeAsFailed() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -547,8 +502,7 @@ public sealed partial class GoalGraphEngineTests
 
         // 故意不注册 A 的函数
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "unregistered-fn-test",
             Dag = dag,
             StartNodeId = "A",
@@ -568,8 +522,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task JoinNode_WhenPreconditionNotMet_Should_MarkNodeAsFailed()
-    {
+    public async Task JoinNode_WhenPreconditionNotMet_Should_MarkNodeAsFailed() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -584,8 +537,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("A", _ =>
             Task.FromResult(NodeResult.Succeeded("output-A")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "join-precondition-test",
             Dag = dag,
             StartNodeId = "A",
@@ -605,17 +557,14 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task RouteMatchModeAll_Should_FollowBothConditionalAndUnconditional()
-    {
+    public async Task RouteMatchModeAll_Should_FollowBothConditionalAndUnconditional() {
         var engine = CreateEngine();
         var executedNodes = new List<string>();
 
         var dag = new Dag<GoalNodePayload>();
-        var nodeA = new DagNode<GoalNodePayload>
-        {
+        var nodeA = new DagNode<GoalNodePayload> {
             Id = "A",
-            Payload = new GoalNodePayload
-            {
+            Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Function,
                 Name = "fan-out-router",
                 RouteMatchMode = RouteMatchMode.All,
@@ -630,26 +579,22 @@ public sealed partial class GoalGraphEngineTests
         dag.AddEdge(new DagEdge { Id = "e-cond", FromId = "A", ToId = "B", Label = "PASS" });
         dag.AddEdge(new DagEdge { Id = "e-uncond", FromId = "A", ToId = "C" }); // 空 Label
 
-        engine.RegisterFunction("A", _ =>
-        {
+        engine.RegisterFunction("A", _ => {
             executedNodes.Add("A");
             return Task.FromResult(NodeResult.Routed("A-done", ["PASS"]));
         });
 
-        engine.RegisterFunction("B", _ =>
-        {
+        engine.RegisterFunction("B", _ => {
             executedNodes.Add("B");
             return Task.FromResult(NodeResult.Succeeded("B-done"));
         });
 
-        engine.RegisterFunction("C", _ =>
-        {
+        engine.RegisterFunction("C", _ => {
             executedNodes.Add("C");
             return Task.FromResult(NodeResult.Succeeded("C-done"));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "route-all-test",
             Dag = dag,
             StartNodeId = "A",
@@ -668,8 +613,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task CancellationMidExecution_Should_ThrowOperationCanceledException()
-    {
+    public async Task CancellationMidExecution_Should_ThrowOperationCanceledException() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -679,8 +623,7 @@ public sealed partial class GoalGraphEngineTests
 
         using var cts = new CancellationTokenSource();
 
-        engine.RegisterFunction("A", async ctx =>
-        {
+        engine.RegisterFunction("A", async ctx => {
             // 延迟后取消
             await Task.Delay(100, CancellationToken.None);
             cts.Cancel();
@@ -689,8 +632,7 @@ public sealed partial class GoalGraphEngineTests
             return NodeResult.Succeeded("done");
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "cancel-test",
             Dag = dag,
             StartNodeId = "A",
@@ -706,8 +648,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task MultipleEndNodes_Should_AchieveOnlyWhenAllEndsComplete()
-    {
+    public async Task MultipleEndNodes_Should_AchieveOnlyWhenAllEndsComplete() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -728,8 +669,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("C", _ =>
             Task.FromResult(NodeResult.Succeeded("output-C")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "multi-end-test",
             Dag = dag,
             StartNodeId = "A",
@@ -748,8 +688,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task FunctionNode_Should_ReceiveServiceProvider_FromContext()
-    {
+    public async Task FunctionNode_Should_ReceiveServiceProvider_FromContext() {
         var services = new ServiceCollection();
         services.AddSingleton("test-value-from-di");
         var sp = services.BuildServiceProvider();
@@ -762,14 +701,12 @@ public sealed partial class GoalGraphEngineTests
 
         dag.AddNode(nodeA);
 
-        engine.RegisterFunction("A", ctx =>
-        {
+        engine.RegisterFunction("A", ctx => {
             receivedValue = ctx.Services.GetService<string>();
             return Task.FromResult(NodeResult.Succeeded($"got: {receivedValue}"));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "di-injection-test",
             Dag = dag,
             StartNodeId = "A",
@@ -788,8 +725,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task FunctionNodeFailed_AsEndNode_Should_SetGoalUnmet()
-    {
+    public async Task FunctionNodeFailed_AsEndNode_Should_SetGoalUnmet() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -800,8 +736,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("A", _ =>
             Task.FromResult(NodeResult.Failed("intentional failure")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "failed-end-test",
             Dag = dag,
             StartNodeId = "A",
@@ -820,8 +755,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task JoinNode_PartialFailure_Should_SucceedWhenMinSuccessfulMet()
-    {
+    public async Task JoinNode_PartialFailure_Should_SucceedWhenMinSuccessfulMet() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -846,8 +780,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("C", _ =>
             Task.FromResult(NodeResult.Failed("C-failed", tokensUsed: 5)));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "join-partial-failure-test",
             Dag = dag,
             StartNodeId = "A",
@@ -869,8 +802,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task JoinNode_AllUpstreamsFailed_Should_Fail()
-    {
+    public async Task JoinNode_AllUpstreamsFailed_Should_Fail() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -907,8 +839,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("B", _ =>
             Task.FromResult(NodeResult.Failed("B-failed")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "join-all-failed-test",
             Dag = dag,
             StartNodeId = "A",
@@ -928,8 +859,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task FanOutParallel_Should_ExecuteAllBranches_AndJoinCorrectly()
-    {
+    public async Task FanOutParallel_Should_ExecuteAllBranches_AndJoinCorrectly() {
         var engine = CreateEngine();
         var executedNodes = new List<string>();
 
@@ -948,24 +878,20 @@ public sealed partial class GoalGraphEngineTests
         dag.AddEdge(new DagEdge { Id = "e-b-j", FromId = "B", ToId = "J" });
         dag.AddEdge(new DagEdge { Id = "e-c-j", FromId = "C", ToId = "J" });
 
-        engine.RegisterFunction("A", _ =>
-        {
+        engine.RegisterFunction("A", _ => {
             executedNodes.Add("A");
             return Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10));
         });
-        engine.RegisterFunction("B", _ =>
-        {
+        engine.RegisterFunction("B", _ => {
             executedNodes.Add("B");
             return Task.FromResult(NodeResult.Succeeded("output-B", tokensUsed: 20));
         });
-        engine.RegisterFunction("C", _ =>
-        {
+        engine.RegisterFunction("C", _ => {
             executedNodes.Add("C");
             return Task.FromResult(NodeResult.Succeeded("output-C", tokensUsed: 30));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "fanout-test",
             Dag = dag,
             StartNodeId = "A",
@@ -989,8 +915,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task SingleNodeGraph_Should_ExecuteAndAchieve()
-    {
+    public async Task SingleNodeGraph_Should_ExecuteAndAchieve() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -1001,8 +926,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("A", _ =>
             Task.FromResult(NodeResult.Succeeded("solo-output", tokensUsed: 42)));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "single-node-test",
             Dag = dag,
             StartNodeId = "A",
@@ -1022,8 +946,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task UpstreamOutput_Should_BeSetAsDownstreamInput()
-    {
+    public async Task UpstreamOutput_Should_BeSetAsDownstreamInput() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -1037,14 +960,12 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("A", _ =>
             Task.FromResult(NodeResult.Succeeded("produced-data", tokensUsed: 5)));
 
-        engine.RegisterFunction("B", _ =>
-        {
+        engine.RegisterFunction("B", _ => {
             var upstream = nodeA.Payload.Output;
             return Task.FromResult(NodeResult.Succeeded($"consumed: {upstream}", tokensUsed: 10));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "input-passing-test",
             Dag = dag,
             StartNodeId = "A",
@@ -1062,8 +983,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task RefactorPipeline_Should_RetryOnFailAndSucceedOnSecondAttempt()
-    {
+    public async Task RefactorPipeline_Should_RetryOnFailAndSucceedOnSecondAttempt() {
         var engine = CreateEngine();
         var implementCount = 0;
         var testCount = 0;
@@ -1088,14 +1008,12 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("explore", _ =>
             Task.FromResult(NodeResult.Succeeded("explored", tokensUsed: 10)));
 
-        engine.RegisterFunction("implement", _ =>
-        {
+        engine.RegisterFunction("implement", _ => {
             implementCount++;
             return Task.FromResult(NodeResult.Succeeded($"impl-v{implementCount}", tokensUsed: 50));
         });
 
-        engine.RegisterFunction("test", _ =>
-        {
+        engine.RegisterFunction("test", _ => {
             testCount++;
             if (testCount == 1)
                 return Task.FromResult(NodeResult.Routed("test-fail", ["FAIL"], tokensUsed: 20));
@@ -1105,8 +1023,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("commit", _ =>
             Task.FromResult(NodeResult.Succeeded("committed", tokensUsed: 5)));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "refactor-pipeline",
             Dag = dag,
             StartNodeId = "explore",
@@ -1127,19 +1044,16 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task FreshContext_Should_NotInheritChatHistory()
-    {
+    public async Task FreshContext_Should_NotInheritChatHistory() {
         var engine = CreateEngine();
         var inheritedMessageCount = -1;
 
         var dag = new Dag<GoalNodePayload>();
         var nodeA = MakeFunctionNode("A", "worker");
 
-        var nodeR = new DagNode<GoalNodePayload>
-        {
+        var nodeR = new DagNode<GoalNodePayload> {
             Id = "R",
-            Payload = new GoalNodePayload
-            {
+            Payload = new GoalNodePayload {
                 Kind = GoalNodeKind.Function,
                 Name = "reviewer",
                 FreshContext = true,
@@ -1153,14 +1067,12 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("A", _ =>
             Task.FromResult(NodeResult.Succeeded("work-output", tokensUsed: 10)));
 
-        engine.RegisterFunction("R", ctx =>
-        {
+        engine.RegisterFunction("R", ctx => {
             inheritedMessageCount = ctx.UpstreamOutputs.Count;
             return Task.FromResult(NodeResult.Succeeded("review-pass", tokensUsed: 5));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "fresh-context-test",
             Dag = dag,
             StartNodeId = "A",
@@ -1182,8 +1094,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task AgentReviewerGraph_Should_ExecuteAndReview()
-    {
+    public async Task AgentReviewerGraph_Should_ExecuteAndReview() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -1200,8 +1111,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("reviewer", _ =>
             Task.FromResult(NodeResult.Succeeded("review-pass", tokensUsed: 20)));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "agent-reviewer-test",
             Dag = dag,
             StartNodeId = "agent",
@@ -1221,8 +1131,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_LowNegCount_Should_Stop()
-    {
+    public async Task NegativeReviewLoop_LowNegCount_Should_Stop() {
         var engine = CreateEngine();
         var executedNodes = new List<string>();
 
@@ -1245,32 +1154,27 @@ public sealed partial class GoalGraphEngineTests
         dag.Nodes["neg_review"].InEdgeIds.Remove(backEdge);
         dag.AddEdge(new DagEdge { Id = "e5", FromId = "fix_neg", ToId = "done", Label = "NEG_STOP" });
 
-        engine.RegisterFunction("execute", _ =>
-        {
+        engine.RegisterFunction("execute", _ => {
             executedNodes.Add("execute");
             return Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50));
         });
 
-        engine.RegisterFunction("neg_review", _ =>
-        {
+        engine.RegisterFunction("neg_review", _ => {
             executedNodes.Add("neg_review");
             return Task.FromResult(NodeResult.Routed("3 neg reviews found", ["NEG_STOP"], tokensUsed: 20));
         });
 
-        engine.RegisterFunction("fix_neg", _ =>
-        {
+        engine.RegisterFunction("fix_neg", _ => {
             executedNodes.Add("fix_neg");
             return Task.FromResult(NodeResult.Succeeded("fixes-applied", tokensUsed: 30));
         });
 
-        engine.RegisterFunction("done", _ =>
-        {
+        engine.RegisterFunction("done", _ => {
             executedNodes.Add("done");
             return Task.FromResult(NodeResult.Succeeded("loop-completed"));
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "neg-review-loop-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1292,8 +1196,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_HighNegCount_Should_LoopThenStop()
-    {
+    public async Task NegativeReviewLoop_HighNegCount_Should_LoopThenStop() {
         var engine = CreateEngine();
         var negReviewCount = 0;
 
@@ -1319,8 +1222,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("execute", _ =>
             Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
 
-        engine.RegisterFunction("neg_review", _ =>
-        {
+        engine.RegisterFunction("neg_review", _ => {
             negReviewCount++;
             if (negReviewCount <= 2)
                 return Task.FromResult(NodeResult.Routed($"12 neg reviews (iter {negReviewCount})", ["NEG_CONTINUE"], tokensUsed: 20));
@@ -1333,8 +1235,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "neg-review-loop-iter-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1354,8 +1255,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_HardMaxIterations_Should_ForceTerminate()
-    {
+    public async Task NegativeReviewLoop_HardMaxIterations_Should_ForceTerminate() {
         var engine = CreateEngine();
         var negReviewCount = 0;
 
@@ -1381,8 +1281,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("execute", _ =>
             Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
 
-        engine.RegisterFunction("neg_review", _ =>
-        {
+        engine.RegisterFunction("neg_review", _ => {
             negReviewCount++;
             return Task.FromResult(NodeResult.Routed($"always continue (iter {negReviewCount})", ["NEG_CONTINUE"], tokensUsed: 20));
         });
@@ -1393,8 +1292,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "neg-review-hardmax-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1413,8 +1311,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_TokenBudgetExhausted_Should_Terminate()
-    {
+    public async Task NegativeReviewLoop_TokenBudgetExhausted_Should_Terminate() {
         var engine = CreateEngine();
         var negReviewCount = 0;
 
@@ -1440,8 +1337,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("execute", _ =>
             Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
 
-        engine.RegisterFunction("neg_review", _ =>
-        {
+        engine.RegisterFunction("neg_review", _ => {
             negReviewCount++;
             return Task.FromResult(NodeResult.Routed($"neg reviews (iter {negReviewCount})", ["NEG_CONTINUE"], tokensUsed: 40));
         });
@@ -1452,15 +1348,13 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var goalState = new GoalState
-        {
+        var goalState = new GoalState {
             GoalId = "test-goal",
             Objective = "test objective",
             TokenBudget = 200,
         };
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "neg-review-budget-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1479,8 +1373,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_Should_ExtractNegReviewCount_FromOutput()
-    {
+    public async Task NegativeReviewLoop_Should_ExtractNegReviewCount_FromOutput() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -1504,8 +1397,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "neg-review-count-extract-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1522,8 +1414,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_Should_ExtractTaskId_FromOutput()
-    {
+    public async Task NegativeReviewLoop_Should_ExtractTaskId_FromOutput() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -1547,8 +1438,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "neg-review-taskid-extract-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1566,8 +1456,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_TurnBudgetExhausted_Should_Terminate()
-    {
+    public async Task NegativeReviewLoop_TurnBudgetExhausted_Should_Terminate() {
         var engine = CreateEngine();
         var negReviewCount = 0;
 
@@ -1593,8 +1482,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("execute", _ =>
             Task.FromResult(NodeResult.Succeeded("task-output", tokensUsed: 50)));
 
-        engine.RegisterFunction("neg_review", _ =>
-        {
+        engine.RegisterFunction("neg_review", _ => {
             negReviewCount++;
             return Task.FromResult(NodeResult.Routed($"neg reviews (iter {negReviewCount})", ["NEG_CONTINUE"], tokensUsed: 20));
         });
@@ -1605,15 +1493,13 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var goalState = new GoalState
-        {
+        var goalState = new GoalState {
             GoalId = "test-goal",
             Objective = "test objective",
             TurnBudget = 2,
         };
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "neg-review-turn-budget-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1632,8 +1518,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_UserInteraction_Should_TriggerWhenNegCount6To10()
-    {
+    public async Task NegativeReviewLoop_UserInteraction_Should_TriggerWhenNegCount6To10() {
         var userInteraction = new Mock<IGoalUserInteraction>();
         userInteraction.Setup(u => u.AskToContinueAsync(
                 It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
@@ -1663,8 +1548,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "user-interaction-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1684,8 +1568,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_UserInteraction_Should_NotTriggerWhenNegCountBelow6()
-    {
+    public async Task NegativeReviewLoop_UserInteraction_Should_NotTriggerWhenNegCountBelow6() {
         var userInteraction = new Mock<IGoalUserInteraction>();
         userInteraction.Setup(u => u.AskToContinueAsync(
                 It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
@@ -1715,8 +1598,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "no-user-interaction-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1736,8 +1618,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task NegativeReviewLoop_LoopObserver_Should_TerminateWhenObserverReturnsTrue()
-    {
+    public async Task NegativeReviewLoop_LoopObserver_Should_TerminateWhenObserverReturnsTrue() {
         var nodeInspector = new Mock<IGoalNodeInspector>();
         nodeInspector.Setup(o => o.ObserveLoopAsync(It.IsAny<LoopObservationContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -1775,8 +1656,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("done", _ =>
             Task.FromResult(NodeResult.Succeeded("loop-completed")));
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "loop-observer-test",
             Dag = dag,
             StartNodeId = "execute",
@@ -1796,8 +1676,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ParallelExecution_Should_RunIndependentNodesConcurrently()
-    {
+    public async Task ParallelExecution_Should_RunIndependentNodesConcurrently() {
         var engine = CreateEngine();
         var concurrentCount = 0;
         var maxConcurrent = 0;
@@ -1820,8 +1699,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("A", _ =>
             Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
 
-        engine.RegisterFunction("B", async _ =>
-        {
+        engine.RegisterFunction("B", async _ => {
             var current = Interlocked.Increment(ref concurrentCount);
             if (current > Volatile.Read(ref maxConcurrent))
                 Interlocked.Exchange(ref maxConcurrent, current);
@@ -1830,8 +1708,7 @@ public sealed partial class GoalGraphEngineTests
             return NodeResult.Succeeded("output-B", tokensUsed: 20);
         });
 
-        engine.RegisterFunction("C", async _ =>
-        {
+        engine.RegisterFunction("C", async _ => {
             var current = Interlocked.Increment(ref concurrentCount);
             if (current > Volatile.Read(ref maxConcurrent))
                 Interlocked.Exchange(ref maxConcurrent, current);
@@ -1840,8 +1717,7 @@ public sealed partial class GoalGraphEngineTests
             return NodeResult.Succeeded("output-C", tokensUsed: 30);
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "parallel-execution-test",
             Dag = dag,
             StartNodeId = "A",
@@ -1861,8 +1737,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ParallelExecution_WithMaxConcurrency1_Should_DegradeToSerial()
-    {
+    public async Task ParallelExecution_WithMaxConcurrency1_Should_DegradeToSerial() {
         var engine = CreateEngine(concurrencyOptions: new SubAgentConcurrencyOptions { MaxConcurrentExecutions = 1 });
         var concurrentCount = 0;
         var maxConcurrent = 0;
@@ -1885,8 +1760,7 @@ public sealed partial class GoalGraphEngineTests
         engine.RegisterFunction("A", _ =>
             Task.FromResult(NodeResult.Succeeded("output-A", tokensUsed: 10)));
 
-        engine.RegisterFunction("B", async _ =>
-        {
+        engine.RegisterFunction("B", async _ => {
             var current = Interlocked.Increment(ref concurrentCount);
             if (current > Volatile.Read(ref maxConcurrent))
                 Interlocked.Exchange(ref maxConcurrent, current);
@@ -1895,8 +1769,7 @@ public sealed partial class GoalGraphEngineTests
             return NodeResult.Succeeded("output-B", tokensUsed: 20);
         });
 
-        engine.RegisterFunction("C", async _ =>
-        {
+        engine.RegisterFunction("C", async _ => {
             var current = Interlocked.Increment(ref concurrentCount);
             if (current > Volatile.Read(ref maxConcurrent))
                 Interlocked.Exchange(ref maxConcurrent, current);
@@ -1905,8 +1778,7 @@ public sealed partial class GoalGraphEngineTests
             return NodeResult.Succeeded("output-C", tokensUsed: 30);
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "parallel-max1-test",
             Dag = dag,
             StartNodeId = "A",
@@ -1925,8 +1797,7 @@ public sealed partial class GoalGraphEngineTests
     // ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task HighFailureRate_Should_TerminateAsUnmet()
-    {
+    public async Task HighFailureRate_Should_TerminateAsUnmet() {
         var engine = CreateEngine();
 
         var dag = new Dag<GoalNodePayload>();
@@ -1958,19 +1829,16 @@ public sealed partial class GoalGraphEngineTests
             Task.FromResult(NodeResult.Failed("B-failed", tokensUsed: 5)));
         engine.RegisterFunction("C", _ =>
             Task.FromResult(NodeResult.Failed("C-failed", tokensUsed: 5)));
-        engine.RegisterFunction("D", async _ =>
-        {
+        engine.RegisterFunction("D", async _ => {
             await Task.Delay(100, CancellationToken.None);
             return NodeResult.Succeeded("D-ok", tokensUsed: 10);
         });
-        engine.RegisterFunction("E", async _ =>
-        {
+        engine.RegisterFunction("E", async _ => {
             await Task.Delay(100, CancellationToken.None);
             return NodeResult.Succeeded("E-ok", tokensUsed: 10);
         });
 
-        var graph = new GoalGraph
-        {
+        var graph = new GoalGraph {
             Name = "high-failure-rate-test",
             Dag = dag,
             StartNodeId = "A",

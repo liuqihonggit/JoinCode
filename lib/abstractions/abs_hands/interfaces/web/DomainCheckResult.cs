@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 域名黑名单预检结果
 /// </summary>
-public enum DomainCheckResult
-{
+public enum DomainCheckResult {
     [EnumValue("allowed")]
     Allowed,
     [EnumValue("blocked")]

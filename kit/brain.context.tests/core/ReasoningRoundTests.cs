@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public class ReasoningRoundTests
-{
+public class ReasoningRoundTests {
     [Fact]
-    public void StartEndRound_BasicRecordCreated()
-    {
+    public void StartEndRound_BasicRecordCreated() {
         var (recorder, clock) = CreateRecorder();
 
         recorder.StartRound();
@@ -18,8 +16,7 @@ public class ReasoningRoundTests
     }
 
     [Fact]
-    public void EndRound_AllFields_Preserved()
-    {
+    public void EndRound_AllFields_Preserved() {
         var (recorder, clock) = CreateRecorder();
 
         recorder.StartRound();
@@ -44,8 +41,7 @@ public class ReasoningRoundTests
     }
 
     [Fact]
-    public void MultipleRounds_TurnIncrements()
-    {
+    public void MultipleRounds_TurnIncrements() {
         var (recorder, clock) = CreateRecorder();
 
         recorder.StartRound();
@@ -63,12 +59,10 @@ public class ReasoningRoundTests
     }
 
     [Fact]
-    public void GetRounds_ReturnsSnapshot_OldestToLatest()
-    {
+    public void GetRounds_ReturnsSnapshot_OldestToLatest() {
         var (recorder, clock) = CreateRecorder();
 
-        for (var i = 0; i < 3; i++)
-        {
+        for (var i = 0; i < 3; i++) {
             recorder.StartRound();
             clock.Advance(TimeSpan.FromMilliseconds(50));
             recorder.EndRound(responseText: $"round{i}");
@@ -81,13 +75,11 @@ public class ReasoningRoundTests
     }
 
     [Fact]
-    public void OverCapacity_OverwritesOldest()
-    {
+    public void OverCapacity_OverwritesOldest() {
         var (recorder, clock) = CreateRecorder(capacity: 4);
         var cap = recorder.Capacity;
 
-        for (var i = 0; i < cap + 2; i++)
-        {
+        for (var i = 0; i < cap + 2; i++) {
             recorder.StartRound();
             clock.Advance(TimeSpan.FromMilliseconds(10));
             recorder.EndRound(responseText: $"r{i}");
@@ -100,8 +92,7 @@ public class ReasoningRoundTests
     }
 
     [Fact]
-    public void Reset_ClearsAllRounds()
-    {
+    public void Reset_ClearsAllRounds() {
         var (recorder, clock) = CreateRecorder();
 
         recorder.StartRound();
@@ -115,8 +106,7 @@ public class ReasoningRoundTests
     }
 
     [Fact]
-    public void Duration_CalculatedFromStartEnd()
-    {
+    public void Duration_CalculatedFromStartEnd() {
         var (recorder, clock) = CreateRecorder();
 
         recorder.StartRound();
@@ -127,8 +117,7 @@ public class ReasoningRoundTests
         round.Duration.TotalSeconds.Should().Be(3);
     }
 
-    private static (ReasoningRoundRecorder recorder, FakeTimeProvider clock) CreateRecorder(int capacity = 50)
-    {
+    private static (ReasoningRoundRecorder recorder, FakeTimeProvider clock) CreateRecorder(int capacity = 50) {
         var clock = new FakeTimeProvider();
         var recorder = new ReasoningRoundRecorder(capacity, clock);
         return (recorder, clock);
@@ -136,14 +125,12 @@ public class ReasoningRoundTests
 
     [Fact]
     [Trait("Category", "Benchmark")]
-    public void HundredThousandRounds_MemoryDoesNotExplode()
-    {
+    public void HundredThousandRounds_MemoryDoesNotExplode() {
         var (recorder, clock) = CreateRecorder(capacity: 50);
 
         var random = new Random(42);
         var texts = new string[100];
-        for (var i = 0; i < 100; i++)
-        {
+        for (var i = 0; i < 100; i++) {
             var chars = new char[5000];
             for (var j = 0; j < 5000; j++)
                 chars[j] = (char)('a' + random.Next(26));
@@ -155,8 +142,7 @@ public class ReasoningRoundTests
         var memBefore = GC.GetTotalMemory(false);
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        for (var i = 0; i < 100_000; i++)
-        {
+        for (var i = 0; i < 100_000; i++) {
             recorder.StartRound();
             clock.Advance(TimeSpan.FromMilliseconds(1));
             recorder.EndRound(
@@ -183,8 +169,7 @@ public class ReasoningRoundTests
     }
 }
 
-internal sealed class FakeTimeProvider : TimeProvider
-{
+internal sealed class FakeTimeProvider : TimeProvider {
     private DateTimeOffset _now = DateTimeOffset.UtcNow;
     public void Advance(TimeSpan duration) => _now += duration;
     public override DateTimeOffset GetUtcNow() => _now;

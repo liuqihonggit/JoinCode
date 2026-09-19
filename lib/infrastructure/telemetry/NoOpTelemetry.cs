@@ -4,8 +4,7 @@ namespace Core.Telemetry;
 /// <summary>
 /// 空操作遥测 Span — 链路追踪禁用时的无操作实现,所有方法均为空操作
 /// </summary>
-internal sealed class NoOpTelemetrySpan : ITelemetrySpan
-{
+internal sealed class NoOpTelemetrySpan : ITelemetrySpan {
     /// <summary>获取 Span 标识（空操作实现,返回空字符串）</summary>
     public string SpanId => string.Empty;
     /// <summary>获取 Trace 标识（空操作实现,返回空字符串）</summary>
@@ -26,8 +25,7 @@ internal sealed class NoOpTelemetrySpan : ITelemetrySpan
     /// </summary>
     /// <param name="name">Span 名称</param>
     /// <param name="kind">Span 类型</param>
-    internal NoOpTelemetrySpan(string name, TelemetrySpanKind kind)
-    {
+    internal NoOpTelemetrySpan(string name, TelemetrySpanKind kind) {
         Name = name;
         Kind = kind;
     }
@@ -48,8 +46,7 @@ internal sealed class NoOpTelemetrySpan : ITelemetrySpan
     public ITelemetrySpan StartChildSpan(string name, TelemetrySpanKind kind = TelemetrySpanKind.Internal) => new NoOpTelemetrySpan(name, kind);
 
     /// <summary>转换为 Span 快照数据（空操作实现,仅填充名称与类型）</summary>
-    public TelemetrySpanData ToSpanData() => new()
-    {
+    public TelemetrySpanData ToSpanData() => new() {
         Name = Name,
         Kind = Kind,
         Status = TelemetryStatusCode.Unset
@@ -62,8 +59,7 @@ internal sealed class NoOpTelemetrySpan : ITelemetrySpan
 /// <summary>
 /// 空操作遥测计数器 — 指标采集禁用时的无操作实现,Add 不执行任何操作
 /// </summary>
-internal sealed class NoOpTelemetryCounter : ITelemetryCounter
-{
+internal sealed class NoOpTelemetryCounter : ITelemetryCounter {
     /// <summary>获取计数器名称</summary>
     public string Name { get; }
 
@@ -79,8 +75,7 @@ internal sealed class NoOpTelemetryCounter : ITelemetryCounter
 /// <summary>
 /// 空操作遥测直方图 — 指标采集禁用时的无操作实现,Record 不执行任何操作
 /// </summary>
-internal sealed class NoOpTelemetryHistogram : ITelemetryHistogram
-{
+internal sealed class NoOpTelemetryHistogram : ITelemetryHistogram {
     /// <summary>获取直方图名称</summary>
     public string Name { get; }
 
@@ -96,8 +91,7 @@ internal sealed class NoOpTelemetryHistogram : ITelemetryHistogram
 /// <summary>
 /// 空操作遥测仪表盘 — 指标采集禁用时的无操作实现,Record 不执行任何操作
 /// </summary>
-internal sealed class NoOpTelemetryGauge : ITelemetryGauge
-{
+internal sealed class NoOpTelemetryGauge : ITelemetryGauge {
     /// <summary>获取仪表盘名称</summary>
     public string Name { get; }
 

@@ -4,10 +4,8 @@ namespace Core.Tests.Plugins;
 /// 断裂点1 测试: Fiber 加载状态集成到 PluginManager.LoadWorkflowPluginAsync
 /// 验证 Load → Activating → Active, 失败 → Failed
 /// </summary>
-public sealed class PluginFiberLoadIntegrationTests
-{
-    private ServiceProvider CreateServiceProvider()
-    {
+public sealed class PluginFiberLoadIntegrationTests {
+    private ServiceProvider CreateServiceProvider() {
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.AddConsole());
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -16,8 +14,7 @@ public sealed class PluginFiberLoadIntegrationTests
     }
 
     [Fact]
-    public async Task LoadWorkflowPluginAsync_Success_FiberTransitionsToActive()
-    {
+    public async Task LoadWorkflowPluginAsync_Success_FiberTransitionsToActive() {
         await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
@@ -26,11 +23,11 @@ public sealed class PluginFiberLoadIntegrationTests
         var plugin = (FiberActiveTestPlugin)host.Plugin;
         plugin.Fiber.State.Should().Be(PluginFiberState.Active);
 
-        await pm.UnloadPluginAsync(plugin.Name).ConfigureAwait(true);    }
+        await pm.UnloadPluginAsync(plugin.Name).ConfigureAwait(true);
+    }
 
     [Fact]
-    public async Task LoadWorkflowPluginAsync_LoadFails_ThrowsInf032()
-    {
+    public async Task LoadWorkflowPluginAsync_LoadFails_ThrowsInf032() {
         await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
@@ -41,8 +38,7 @@ public sealed class PluginFiberLoadIntegrationTests
     }
 
     [Fact]
-    public async Task LoadWorkflowPluginAsync_InitializeFails_ThrowsInf033()
-    {
+    public async Task LoadWorkflowPluginAsync_InitializeFails_ThrowsInf033() {
         await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
@@ -53,8 +49,7 @@ public sealed class PluginFiberLoadIntegrationTests
     }
 
     [Fact]
-    public async Task LoadWorkflowPluginAsync_ContractViolation_ThrowsContractError()
-    {
+    public async Task LoadWorkflowPluginAsync_ContractViolation_ThrowsContractError() {
         await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
@@ -65,8 +60,7 @@ public sealed class PluginFiberLoadIntegrationTests
     }
 
     [Fact]
-    public async Task UnloadPluginAsync_AfterSuccessfulLoad_FiberTransitionsToUnloaded()
-    {
+    public async Task UnloadPluginAsync_AfterSuccessfulLoad_FiberTransitionsToUnloaded() {
         await using var sp = CreateServiceProvider();
         var pm = sp.GetRequiredService<IPluginManager>();
 
@@ -75,12 +69,12 @@ public sealed class PluginFiberLoadIntegrationTests
         plugin.Fiber.State.Should().Be(PluginFiberState.Active);
 
         await pm.UnloadPluginAsync(plugin.Name).ConfigureAwait(true);
-        plugin.Fiber.State.Should().Be(PluginFiberState.Unloaded);    }
+        plugin.Fiber.State.Should().Be(PluginFiberState.Unloaded);
+    }
 
     #region Test Plugins
 
-    private sealed class FiberActiveTestPlugin : WorkflowPluginBase
-    {
+    private sealed class FiberActiveTestPlugin : WorkflowPluginBase {
         public FiberActiveTestPlugin() : base("fiber-active-test") { }
         public override string Name => "fiber-active-test";
         public override string Version => "1.0.0";
@@ -91,8 +85,7 @@ public sealed class PluginFiberLoadIntegrationTests
             => Task.FromResult(OperationResult.Ok());
     }
 
-    private sealed class FiberActiveTestPlugin2 : WorkflowPluginBase
-    {
+    private sealed class FiberActiveTestPlugin2 : WorkflowPluginBase {
         public FiberActiveTestPlugin2() : base("fiber-active-test-2") { }
         public override string Name => "fiber-active-test-2";
         public override string Version => "1.0.0";
@@ -103,8 +96,7 @@ public sealed class PluginFiberLoadIntegrationTests
             => Task.FromResult(OperationResult.Ok());
     }
 
-    private sealed class FiberLoadFailTestPlugin : WorkflowPluginBase
-    {
+    private sealed class FiberLoadFailTestPlugin : WorkflowPluginBase {
         public FiberLoadFailTestPlugin() : base("fiber-load-fail-test") { }
         public override string Name => "fiber-load-fail-test";
         public override string Version => "1.0.0";
@@ -115,8 +107,7 @@ public sealed class PluginFiberLoadIntegrationTests
             => Task.FromResult(OperationResult.Ok());
     }
 
-    private sealed class FiberInitFailTestPlugin : WorkflowPluginBase
-    {
+    private sealed class FiberInitFailTestPlugin : WorkflowPluginBase {
         public FiberInitFailTestPlugin() : base("fiber-init-fail-test") { }
         public override string Name => "fiber-init-fail-test";
         public override string Version => "1.0.0";
@@ -127,8 +118,7 @@ public sealed class PluginFiberLoadIntegrationTests
             => Task.FromResult(OperationResult.Fail("Init failed"));
     }
 
-    private sealed class FiberContractFailTestPlugin : WorkflowPluginBase
-    {
+    private sealed class FiberContractFailTestPlugin : WorkflowPluginBase {
         public FiberContractFailTestPlugin() : base("fiber-contract-fail-test") { }
         public override string Name => "fiber-contract-fail-test";
         public override string Version => "1.0.0";

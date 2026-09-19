@@ -1,12 +1,9 @@
 namespace AotSafety.Tests;
 
-public class DisposableConsistencyRulesTests
-{
+public class DisposableConsistencyRulesTests {
     [Fact]
-    public async Task TryFinally_Dispose_ReportsJCC9105()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task TryFinally_Dispose_ReportsJCC9105() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -40,10 +37,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task TryFinally_DisposeAsync_ReportsJCC9105()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task TryFinally_DisposeAsync_ReportsJCC9105() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -78,10 +73,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task UsingVar_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task UsingVar_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -104,10 +97,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task TryFinally_WithReturn_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task TryFinally_WithReturn_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -139,10 +130,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task TryFinally_ForeachRelease_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task TryFinally_ForeachRelease_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -171,10 +160,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task TryFinally_FieldReceiver_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task TryFinally_FieldReceiver_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -205,10 +192,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task TryFinally_NonDisposeCallInFinally_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task TryFinally_NonDisposeCallInFinally_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -240,10 +225,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task TryFinally_VariableDeclaredOutsideTry_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task TryFinally_VariableDeclaredOutsideTry_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -276,10 +259,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task DisposeMethod_TryCatchObjectDisposedException_ReportsJCC9106()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task DisposeMethod_TryCatchObjectDisposedException_ReportsJCC9106() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -307,10 +288,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task DisposeAsyncMethod_TryCatchException_ReportsJCC9106()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task DisposeAsyncMethod_TryCatchException_ReportsJCC9106() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -339,10 +318,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task DisposeMethod_NoTryCatch_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task DisposeMethod_NoTryCatch_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -362,10 +339,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task NonDisposeMethod_TryCatch_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task NonDisposeMethod_TryCatch_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -387,10 +362,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task SyncDisposeOnIAsyncDisposable_ReportsJCC9107()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task SyncDisposeOnIAsyncDisposable_ReportsJCC9107() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -417,10 +390,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task AsyncDisposeOnIAsyncDisposable_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task AsyncDisposeOnIAsyncDisposable_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -442,10 +413,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task SyncDisposeOnIDisposable_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task SyncDisposeOnIDisposable_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -466,10 +435,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task SyncDisposeOnDualInterface_NoJCC9107()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task SyncDisposeOnDualInterface_NoJCC9107() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -496,10 +463,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task SyncDisposeOnIAsyncDisposable_InsideDisposeMethod_NoDiagnostic()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task SyncDisposeOnIAsyncDisposable_InsideDisposeMethod_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -525,10 +490,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task FireAndForget_Discard_InDisposeAsync_ReportsJCC9200()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task FireAndForget_Discard_InDisposeAsync_ReportsJCC9200() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -557,10 +520,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task FireAndForget_BareCall_InDisposeAsync_ReportsJCC9200()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task FireAndForget_BareCall_InDisposeAsync_ReportsJCC9200() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -589,10 +550,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task Await_InDisposeAsync_NoJCC9200()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task Await_InDisposeAsync_NoJCC9200() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -617,10 +576,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task Dispose_NoGuard_ReportsJCC9201()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task Dispose_NoGuard_ReportsJCC9201() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -643,10 +600,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task Dispose_WithInterlockedGuard_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task Dispose_WithInterlockedGuard_NoReport() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -665,10 +620,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task Dispose_WithIfReturnGuard_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task Dispose_WithIfReturnGuard_NoReport() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -687,10 +640,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task DisposeAsync_NoGuard_ReportsJCC9202()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task DisposeAsync_NoGuard_ReportsJCC9202() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -714,10 +665,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task DisposeAsync_WithInterlockedGuard_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task DisposeAsync_WithInterlockedGuard_NoReport() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;
@@ -737,10 +686,8 @@ public class DisposableConsistencyRulesTests
     }
 
     [Fact]
-    public async Task DisposeAsync_WithIfReturnGuard_NoReport()
-    {
-        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier>
-        {
+    public async Task DisposeAsync_WithIfReturnGuard_NoReport() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
                 using System;

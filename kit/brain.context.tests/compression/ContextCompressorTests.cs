@@ -1,13 +1,11 @@
 
 namespace Core.Tests.Context.Compression;
 
-public class ContextCompressorTests
-{
+public class ContextCompressorTests {
     private readonly CompressionStrategyFactory _factory = new();
 
     [Fact]
-    public void Constructor_WithNullFactory_ShouldThrowArgumentNullException()
-    {
+    public void Constructor_WithNullFactory_ShouldThrowArgumentNullException() {
         Action act = () => new ContextCompressor(null!);
 
         act.Should().Throw<ArgumentNullException>()
@@ -15,16 +13,14 @@ public class ContextCompressorTests
     }
 
     [Fact]
-    public void Constructor_WithDefaultOptions_ShouldUseDefaultOptions()
-    {
+    public void Constructor_WithDefaultOptions_ShouldUseDefaultOptions() {
         var compressor = new ContextCompressor(_factory);
 
         compressor.Should().NotBeNull();
     }
 
     [Fact]
-    public void Constructor_WithCustomOptions_ShouldUseCustomOptions()
-    {
+    public void Constructor_WithCustomOptions_ShouldUseCustomOptions() {
         var customOptions = new CompressionOptions { TargetCompressionRatio = 0.3 };
         var compressor = new ContextCompressor(_factory, customOptions);
 
@@ -32,10 +28,8 @@ public class ContextCompressorTests
     }
 
     [Fact]
-    public async Task CompressAsync_CodeContent_ShouldReturnCompressionResult()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_CodeContent_ShouldReturnCompressionResult() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = @"
@@ -58,10 +52,8 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_DialogueContent_ShouldReturnCompressionResult()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_DialogueContent_ShouldReturnCompressionResult() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var dialogue = @"User: Hello
@@ -78,8 +70,7 @@ Assistant: I'm fine!";
     }
 
     [Fact]
-    public async Task CompressAsync_EmptyContent_ShouldReturnNoCompressionResult()
-    {
+    public async Task CompressAsync_EmptyContent_ShouldReturnNoCompressionResult() {
         var compressor = new ContextCompressor(_factory);
 
         var result = await compressor.CompressAsync("", ContentType.Code).ConfigureAwait(true);
@@ -89,10 +80,8 @@ Assistant: I'm fine!";
     }
 
     [Fact]
-    public async Task CompressAsync_ShortContent_ShouldReturnNoCompressionResult()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_ShortContent_ShouldReturnNoCompressionResult() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 100
         });
 
@@ -103,10 +92,8 @@ Assistant: I'm fine!";
     }
 
     [Fact]
-    public async Task CompressAsync_UnsupportedContentType_ShouldReturnNoCompressionResult()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_UnsupportedContentType_ShouldReturnNoCompressionResult() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var content = "Some text content";
@@ -118,10 +105,8 @@ Assistant: I'm fine!";
     }
 
     [Fact]
-    public async Task CompressAsync_WithCustomOptions_ShouldUseCustomOptions()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_WithCustomOptions_ShouldUseCustomOptions() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = @"
@@ -132,8 +117,7 @@ public class Test
         Console.WriteLine(""Hello"");
     }
 }";
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             MinCompressionThreshold = 10,
             PreserveComments = false
         };
@@ -144,10 +128,8 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressBatchAsync_MultipleContents_ShouldReturnAllResults()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressBatchAsync_MultipleContents_ShouldReturnAllResults() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var contents = new[]
@@ -162,8 +144,7 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressBatchAsync_EmptyList_ShouldReturnEmptyResults()
-    {
+    public async Task CompressBatchAsync_EmptyList_ShouldReturnEmptyResults() {
         var compressor = new ContextCompressor(_factory);
 
         var results = await compressor.CompressBatchAsync(Array.Empty<ContentItem>()).ConfigureAwait(true);
@@ -172,10 +153,8 @@ public class Test
     }
 
     [Fact]
-    public void CanCompress_ValidContent_ShouldReturnTrue()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public void CanCompress_ValidContent_ShouldReturnTrue() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = "public class Test { public void Method() { var x = 1; var y = 2; Console.WriteLine(x + y); } }";
@@ -186,8 +165,7 @@ public class Test
     }
 
     [Fact]
-    public void CanCompress_EmptyContent_ShouldReturnFalse()
-    {
+    public void CanCompress_EmptyContent_ShouldReturnFalse() {
         var compressor = new ContextCompressor(_factory);
 
         var canCompress = compressor.CanCompress("", ContentType.Code);
@@ -196,8 +174,7 @@ public class Test
     }
 
     [Fact]
-    public void CanCompress_UnsupportedType_ShouldReturnFalse()
-    {
+    public void CanCompress_UnsupportedType_ShouldReturnFalse() {
         var compressor = new ContextCompressor(_factory);
 
         var canCompress = compressor.CanCompress("Some content", ContentType.Text);
@@ -206,10 +183,8 @@ public class Test
     }
 
     [Fact]
-    public void GetCompressionRatio_CodeContent_ShouldReturnEstimatedRatio()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public void GetCompressionRatio_CodeContent_ShouldReturnEstimatedRatio() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = @"
@@ -238,8 +213,7 @@ public class Test
     }
 
     [Fact]
-    public void GetCompressionRatio_UnsupportedType_ShouldReturnOne()
-    {
+    public void GetCompressionRatio_UnsupportedType_ShouldReturnOne() {
         var compressor = new ContextCompressor(_factory);
 
         var ratio = compressor.GetCompressionRatio("content", ContentType.Text);
@@ -248,12 +222,10 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_CancellationRequested_ShouldHandleGracefully()
-    {
+    public async Task CompressAsync_CancellationRequested_ShouldHandleGracefully() {
         // 注意：当前实现捕获 OperationCanceledException 并返回错误结果
         // 这是设计选择，以便调用者可以选择处理错误或异常
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = "public class Test { }";
@@ -268,10 +240,8 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_Result_ShouldContainMetadata()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_Result_ShouldContainMetadata() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = @"
@@ -283,8 +253,7 @@ public class Test
         var result = await compressor.CompressAsync(code, ContentType.Code).ConfigureAwait(true);
 
         result.Metadata.Should().NotBeNull();
-        if (result.IsSuccess && result.StrategyName != "None")
-        {
+        if (result.IsSuccess && result.StrategyName != "None") {
             result.Metadata.Should().ContainKey("TargetRatio");
             result.Metadata.Should().ContainKey("ActualRatio");
             result.Metadata.Should().ContainKey("StrategyPriority");
@@ -292,10 +261,8 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_Result_ShouldCalculateCompressionRatio()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_Result_ShouldCalculateCompressionRatio() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = @"
@@ -322,10 +289,8 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_Result_ShouldCalculateSavedTokens()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_Result_ShouldCalculateSavedTokens() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = @"
@@ -343,10 +308,8 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_Result_ShouldHaveProcessingTime()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_Result_ShouldHaveProcessingTime() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = "public class Test { }";
@@ -357,10 +320,8 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_Result_ShouldHaveUniqueContentId()
-    {
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+    public async Task CompressAsync_Result_ShouldHaveUniqueContentId() {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10
         });
         var code = "public class Test { }";
@@ -372,12 +333,10 @@ public class Test
     }
 
     [Fact]
-    public async Task CompressAsync_Timeout_ShouldReturnErrorResult()
-    {
+    public async Task CompressAsync_Timeout_ShouldReturnErrorResult() {
         // 使用非常短的超时时间来确保触发超时
         // 注意：这个测试依赖于执行时间，在某些快速机器上可能不稳定
-        var compressor = new ContextCompressor(_factory, new CompressionOptions
-        {
+        var compressor = new ContextCompressor(_factory, new CompressionOptions {
             MinCompressionThreshold = 10,
             CompressionTimeoutMs = 1
         });
@@ -397,8 +356,7 @@ public class Test
 
         // 超时可能触发也可能不触发，取决于执行速度
         // 如果超时触发，结果应该包含超时信息
-        if (!result.IsSuccess)
-        {
+        if (!result.IsSuccess) {
             result.ErrorMessage.Should().Contain("timed out");
         }
     }

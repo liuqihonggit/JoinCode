@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 变量解析器接口 — 支持嵌套变量、默认值和表达式
 /// </summary>
-public interface IVariableResolver
-{
+public interface IVariableResolver {
     /// <summary>
     /// 解析并替换字符串中的变量
     /// </summary>

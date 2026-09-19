@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 四叉树标注器 — 纯网格计算（无图像依赖，可独立单测）
 /// 编码：数字点分路径 L0.2.1，象限序 SW=0/SE=1/NW=2/NE=3（左下起算）
 /// </summary>
-public interface IQuadtreeAnnotator
-{
+public interface IQuadtreeAnnotator {
     /// <summary>构建指定层数的空网格（所有格子 alpha=-1 隐藏）</summary>
     /// <param name="imageWidth">原图宽度（像素）</param>
     /// <param name="imageHeight">原图高度（像素）</param>
@@ -31,8 +30,7 @@ public interface IQuadtreeAnnotator
 /// <summary>
 /// 四叉树渲染器 — 图像操作（裁剪 + 渲染虚线叠加），依赖 SkiaSharp
 /// </summary>
-public interface IQuadtreeRenderer
-{
+public interface IQuadtreeRenderer {
     /// <summary>渲染虚线网格叠加到原图 — 虚线 + 线性比例宽度 + 透明度</summary>
     /// <param name="imageBase64">原图 base64</param>
     /// <param name="grid">四叉树网格（仅渲染 alpha≠-1 的格子）</param>

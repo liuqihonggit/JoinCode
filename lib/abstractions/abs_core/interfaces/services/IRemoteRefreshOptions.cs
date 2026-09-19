@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Services;
 
-public interface IRemoteRefreshOptions
-{
+public interface IRemoteRefreshOptions {
     string ApiEndpoint { get; }
     string ClientKey { get; }
     TimeSpan RefreshInterval { get; }

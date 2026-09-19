@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator;
 /// Fork Spawn 中间件 — 构建子智能体选项、Spawn、注册消息代理、Worktree、邮箱轮询
 /// </summary>
 [Register(typeof(IForkMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
-{
+public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware {
     private readonly IAgentLifecycleManager _lifecycleManager;
     private readonly IMailbox _messageBroker;
     private readonly IAgentWorktreeManager? _worktreeManager;
@@ -40,8 +39,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         JoinCode.Abstractions.Interfaces.IDeferredMailService? deferredMailService = null,
         ILogger<ForkSpawnMiddleware>? logger = null,
         ISubAgentContextAccessor? subAgentContextAccessor = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _lifecycleManager = lifecycleManager ?? throw new ArgumentNullException(nameof(lifecycleManager));
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _worktreeManager = worktreeManager;
@@ -65,8 +63,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
     /// <param name="next">下一中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ForkContext context, MiddlewareDelegate<ForkContext> next, CancellationToken ct) {
         var forkDirective = ForkMessageBuilder.BuildChildMessage(context.Options.TaskDescription);
         context.ForkDirective = forkDirective;
 
@@ -78,11 +75,9 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         var forkTracker = new ProgressTracker(_clock);
 
         MessageList? initialMessageList = null;
-        if (context.Options.ShareContext && context.Options.ParentMessageList is not null && context.Options.ParentMessageList.Count > 0)
-        {
+        if (context.Options.ShareContext && context.Options.ParentMessageList is not null && context.Options.ParentMessageList.Count > 0) {
             var lastAssistant = context.Options.ParentMessageList.LastOrDefault(m => m.Role == MessageRole.Assistant);
-            if (lastAssistant is not null)
-            {
+            if (lastAssistant is not null) {
                 var forkedMessages = ForkMessageBuilder.BuildForkedMessages(context.Options.TaskDescription, lastAssistant);
                 initialMessageList = new MessageList();
                 foreach (var msg in forkedMessages)
@@ -90,8 +85,7 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
             }
         }
 
-        var agentOptions = new SubAgentOptions
-        {
+        var agentOptions = new SubAgentOptions {
             AdditionalInstructions = context.Options.SystemPrompt ?? cacheSafeParams?.RenderedSystemPrompt,
             MaxIterations = context.Options.MaxIterations,
             AllowedTools = context.Options.UseExactTools && cacheSafeParams?.ToolNames is not null
@@ -118,24 +112,18 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         // Worktree 隔离 — 对齐 TS: isolation: "worktree" 在 fork 路径下也生效
         var perAgentIsolation = context.Options.IsolationMode == AgentIsolationMode.Worktree;
         var globalIsolation = _worktreeManager is not null && _worktreeManager.IsWorktreeIsolationEnabled;
-        if ((perAgentIsolation || globalIsolation) && _worktreeManager is not null)
-        {
+        if ((perAgentIsolation || globalIsolation) && _worktreeManager is not null) {
             AgentWorktreeSession? session = null;
-            if (perAgentIsolation)
-            {
+            if (perAgentIsolation) {
                 session = await _worktreeManager.CreateWorktreeForAgentAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 var worktreeCreated = await _worktreeManager.CreateWorktreeAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
-                if (worktreeCreated)
-                {
+                if (worktreeCreated) {
                     session = await _worktreeManager.GetWorktreeSessionAsync(agent.ObjectId.UniqueId, ct).ConfigureAwait(false);
                 }
             }
 
-            if (session is not null)
-            {
+            if (session is not null) {
                 var parentCwd = _subAgentContextAccessor.Current?.WorktreePath ?? Environment.CurrentDirectory;
                 var notice = ForkMessageBuilder.BuildWorktreeNotice(parentCwd, session.WorktreePath);
                 ((AgentBase)agent).AddContext(notice);
@@ -148,12 +136,10 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         StartMailboxPollingIfNeeded(agent.ObjectId.UniqueId, context.Options.ParentSessionId);
 
         // 热点集成 — 注册文件写入监听器 + 设置契约变更通知队列
-        if (_hotSpotIntegration is not null)
-        {
+        if (_hotSpotIntegration is not null) {
             var captainId = _subAgentContextAccessor.Current?.AgentId ?? "main";
             _hotSpotIntegration.EnsureListenersRegistered(captainId);
-            if (agent is AgentBase agentBase)
-            {
+            if (agent is AgentBase agentBase) {
                 agentBase.ContractChangeNotifications = _hotSpotIntegration.GetOrCreateNotificationQueue(agent.ObjectId.UniqueId);
                 agentBase.DeferredMailService = _deferredMailService;
             }
@@ -165,17 +151,13 @@ public sealed partial class ForkSpawnMiddleware : ServiceEntity, IForkMiddleware
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private void StartMailboxPollingIfNeeded(string agentId, string sessionId)
-    {
+    private void StartMailboxPollingIfNeeded(string agentId, string sessionId) {
         if (_mailboxPoller == null) return;
 
-        try
-        {
+        try {
             _mailboxPoller.StartPolling(agentId, sessionId);
             _logger?.LogDebug("Mailbox polling started for fork agent {AgentId}", agentId);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to start mailbox polling for fork agent {AgentId}", agentId);
         }
     }

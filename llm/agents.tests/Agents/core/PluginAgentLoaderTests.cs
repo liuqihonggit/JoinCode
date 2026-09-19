@@ -1,25 +1,20 @@
 namespace Core.Agents;
 
 
-public sealed class PluginAgentLoaderTests
-{
-    private static AgentDefinition CreateDef(string displayId = "executor:code")
-    {
+public sealed class PluginAgentLoaderTests {
+    private static AgentDefinition CreateDef(string displayId = "executor:code") {
         var parts = displayId.Split(':');
-        var role = parts[0] switch
-        {
+        var role = parts[0] switch {
             "coordinator" => AgentRole.Coordinator,
             "executor" => AgentRole.Executor,
             _ => AgentRole.Executor,
         };
-        var variant = parts.Length > 1 ? parts[1] switch
-        {
+        var variant = parts.Length > 1 ? parts[1] switch {
             "code" => (ExecutorVariant?)ExecutorVariant.Code,
             "doctor" => (ExecutorVariant?)ExecutorVariant.Doctor,
             _ => (ExecutorVariant?)null,
         } : null;
-        return new AgentDefinition
-        {
+        return new AgentDefinition {
             Role = role,
             Variant = variant,
             WhenToUse = "test",
@@ -27,16 +22,14 @@ public sealed class PluginAgentLoaderTests
         };
     }
 
-    private sealed class SimpleProvider : IPluginAgentProvider
-    {
+    private sealed class SimpleProvider : IPluginAgentProvider {
         private readonly List<AgentDefinition> _defs;
         public SimpleProvider(List<AgentDefinition> defs) => _defs = defs;
         public IReadOnlyList<AgentDefinition> GetAgentDefinitions() => _defs;
     }
 
     [Fact]
-    public void LoadFromPlugin_SafeAgent_AvailableInGetAll()
-    {
+    public void LoadFromPlugin_SafeAgent_AvailableInGetAll() {
         var loader = new PluginAgentLoader();
         var provider = new SimpleProvider([CreateDef()]);
 
@@ -47,8 +40,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void LoadFromPlugin_UnsafeAgent_Throws()
-    {
+    public void LoadFromPlugin_UnsafeAgent_Throws() {
         var loader = new PluginAgentLoader();
         var def = CreateDef();
         def.PermissionMode = "auto";
@@ -59,8 +51,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void LoadFromPlugin_ReturnedUndo_RemovesAgent()
-    {
+    public void LoadFromPlugin_ReturnedUndo_RemovesAgent() {
         var loader = new PluginAgentLoader();
         var provider = new SimpleProvider([CreateDef()]);
 
@@ -73,8 +64,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void LoadFromPlugin_ChangedEvent_FiresOnLoadAndUnload()
-    {
+    public void LoadFromPlugin_ChangedEvent_FiresOnLoadAndUnload() {
         var loader = new PluginAgentLoader();
         var eventCount = 0;
         loader.Changed += (_, _) => eventCount++;
@@ -87,8 +77,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void LoadFromPlugin_TwoPluginsSameAgentName_LastWins()
-    {
+    public void LoadFromPlugin_TwoPluginsSameAgentName_LastWins() {
         var loader = new PluginAgentLoader();
         var def1 = CreateDef();
         def1.SystemPrompt = "from plugin A";
@@ -103,8 +92,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void LoadFromPlugin_UndoOnlyRemovesOwnPlugin()
-    {
+    public void LoadFromPlugin_UndoOnlyRemovesOwnPlugin() {
         var loader = new PluginAgentLoader();
         var def1 = CreateDef();
         def1.SystemPrompt = "A";
@@ -120,8 +108,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void UnloadWithCascade_ConsumerDependingOnProvider_IsUnloadedFirst()
-    {
+    public void UnloadWithCascade_ConsumerDependingOnProvider_IsUnloadedFirst() {
         var loader = new PluginAgentLoader();
 
         var providerDef = CreateDef("executor:code");
@@ -141,8 +128,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void UnloadWithCascade_IndependentPlugin_NotAffected()
-    {
+    public void UnloadWithCascade_IndependentPlugin_NotAffected() {
         var loader = new PluginAgentLoader();
 
         var providerDef = CreateDef("executor:code");
@@ -161,8 +147,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void UnloadWithCascade_ToolsDependency_ConsumerUnloadedFirst()
-    {
+    public void UnloadWithCascade_ToolsDependency_ConsumerUnloadedFirst() {
         var loader = new PluginAgentLoader();
 
         var providerDef = CreateDef("executor:code");
@@ -180,8 +165,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void UnloadWithCascade_ChainDependency_AllUnloadedInReverseOrder()
-    {
+    public void UnloadWithCascade_ChainDependency_AllUnloadedInReverseOrder() {
         var loader = new PluginAgentLoader();
 
         var defA = CreateDef("executor:code");
@@ -205,8 +189,7 @@ public sealed class PluginAgentLoaderTests
     }
 
     [Fact]
-    public void UnloadWithCascade_ChangedEventFiresOnce()
-    {
+    public void UnloadWithCascade_ChangedEventFiresOnce() {
         var loader = new PluginAgentLoader();
         var eventCount = 0;
         loader.Changed += (_, _) => eventCount++;

@@ -5,16 +5,13 @@ namespace Core.Goal;
 /// 状态校验中间件 — 根据操作类型校验当前状态是否允许该操作
 /// </summary>
 [Register(typeof(IGoalLifecycleMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class GoalStateValidationMiddleware : ServiceEntity, IGoalLifecycleMiddleware
-{
+public sealed partial class GoalStateValidationMiddleware : ServiceEntity, IGoalLifecycleMiddleware {
 
     /// <inheritdoc />
-    public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(GoalLifecycleContext ctx, MiddlewareDelegate<GoalLifecycleContext> next, CancellationToken ct) {
         var status = ctx.State.Status;
 
-        var valid = ctx.Operation switch
-        {
+        var valid = ctx.Operation switch {
             GoalOperation.Start => status != GoalStatus.Pursuing,
             GoalOperation.Pause => status == GoalStatus.Pursuing,
             GoalOperation.Resume => status == GoalStatus.Paused,
@@ -24,8 +21,7 @@ public sealed partial class GoalStateValidationMiddleware : ServiceEntity, IGoal
             _ => true
         };
 
-        if (!valid)
-        {
+        if (!valid) {
             ctx.Fail($"Invalid operation {ctx.Operation} for current status {status}");
             return Task.CompletedTask;
         }

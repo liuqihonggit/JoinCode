@@ -3,8 +3,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// CLI 服务上下文 — 聚合所有可选服务引用，替代 TuiServiceContext
 /// </summary>
-public sealed record CliServiceContext
-{
+public sealed record CliServiceContext {
     /// <summary>目标引擎 — 负责目标分解与执行调度</summary>
     public IGoalEngine? GoalEngine { get; init; }
     /// <summary>目标注册表 — 管理已注册的目标定义</summary>
@@ -67,8 +66,7 @@ public sealed record CliServiceContext
         IGoalRegistry? goalRegistry = null,
         ICronTaskStore? cronTaskStore = null,
         BridgeClient? bridgeClient = null,
-        WorkflowConfig? workflowConfig = null) => new()
-        {
+        WorkflowConfig? workflowConfig = null) => new() {
             GoalEngine = goalEngine,
             GoalRegistry = goalRegistry ?? sp?.GetService<IGoalRegistry>(),
             CronTaskStore = cronTaskStore,

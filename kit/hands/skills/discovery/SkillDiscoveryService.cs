@@ -6,8 +6,7 @@ namespace Core.Skills.Discovery;
 /// <para>死循环防护: MarkInternalWrite 继承基类,通过 Actor 邮箱串行化,无窗口竞态。</para>
 /// </summary>
 [Register(typeof(ISkillDiscoveryService), ServiceLifetime.Singleton)]
-public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkillDiscoveryService
-{
+public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkillDiscoveryService {
     private readonly SkillDiscoveryOptions _options;
     private readonly IFileOperationService _files;
     private readonly ILogger<SkillDiscoveryService>? _logger;
@@ -39,8 +38,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         IFileOperationService files,
         IFileSystem fs,
         ILogger<SkillDiscoveryService>? logger = null)
-        : base(fs, 1000)
-    {
+        : base(fs, 1000) {
         _options = options;
         _files = files;
         _logger = logger;
@@ -53,8 +51,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>已发现的技能列表</returns>
-    public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<IReadOnlyList<DiscoveredSkill>> DiscoverAsync(CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<IReadOnlyList<DiscoveredSkill>>();
         await _discoverActor.SendAsync(new DiscoverCmd(reply), cancellationToken).ConfigureAwait(false);
         return await _discoverActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
@@ -63,34 +60,28 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     /// <summary>
     /// 发现技能内部实现 — 由 DiscoverActor Consumer 串行调用,无显式锁。
     /// </summary>
-    private async Task<IReadOnlyList<DiscoveredSkill>> DiscoverInternalAsync(CancellationToken cancellationToken)
-    {
+    private async Task<IReadOnlyList<DiscoveredSkill>> DiscoverInternalAsync(CancellationToken cancellationToken) {
         var results = new List<DiscoveredSkill>();
 
-        if (!_files.DirectoryExists(_options.SkillsDirectory))
-        {
+        if (!_files.DirectoryExists(_options.SkillsDirectory)) {
             _files.CreateDirectory(_options.SkillsDirectory);
             _logger?.LogInformation(L.T(StringKey.SkillDiscoveryCreateDir), _options.SkillsDirectory);
             return results;
         }
 
         var jsonFiles = _files.GetFiles(_options.SkillsDirectory, "*.json", SearchOption.AllDirectories);
-        foreach (var filePath in jsonFiles)
-        {
+        foreach (var filePath in jsonFiles) {
             var skill = await LoadAndValidateFileAsync(filePath, cancellationToken).ConfigureAwait(false);
-            if (skill != null)
-            {
+            if (skill != null) {
                 _discoveredSkills[skill.Name] = skill;
                 results.Add(skill);
             }
         }
 
         var mdFiles = _files.GetFiles(_options.SkillsDirectory, "SKILL.md", SearchOption.AllDirectories);
-        foreach (var filePath in mdFiles)
-        {
+        foreach (var filePath in mdFiles) {
             var skill = await LoadAndValidateFileAsync(filePath, cancellationToken).ConfigureAwait(false);
-            if (skill != null)
-            {
+            if (skill != null) {
                 _discoveredSkills[skill.Name] = skill;
                 results.Add(skill);
             }
@@ -106,19 +97,16 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     /// <param name="skillName">技能名称</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>发现的技能；不存在则返回 null</returns>
-    public async Task<DiscoveredSkill?> LoadSkillAsync(string skillName, CancellationToken cancellationToken = default)
-    {
+    public async Task<DiscoveredSkill?> LoadSkillAsync(string skillName, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(skillName);
 
         var jsonPath = Path.Combine(_options.SkillsDirectory, $"{skillName}.json");
-        if (_files.FileExists(jsonPath))
-        {
+        if (_files.FileExists(jsonPath)) {
             return await LoadAndValidateFileAsync(jsonPath, cancellationToken).ConfigureAwait(false);
         }
 
         var mdPath = Path.Combine(_options.SkillsDirectory, skillName, "SKILL.md");
-        if (_files.FileExists(mdPath))
-        {
+        if (_files.FileExists(mdPath)) {
             return await LoadAndValidateFileAsync(mdPath, cancellationToken).ConfigureAwait(false);
         }
 
@@ -131,15 +119,13 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     /// <param name="filePath">技能文件路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>验证结果</returns>
-    public async Task<SkillValidationResult> ValidateSkillAsync(string filePath, CancellationToken cancellationToken = default)
-    {
+    public async Task<SkillValidationResult> ValidateSkillAsync(string filePath, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
 
         var errors = new List<string>();
         var warnings = new List<string>();
 
-        if (!_files.FileExists(filePath))
-        {
+        if (!_files.FileExists(filePath)) {
             errors.Add(L.T(StringKey.SkillDiscoveryFileNotExist, filePath));
             return SkillValidationResult.Failure(filePath, errors);
         }
@@ -147,46 +133,34 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         SkillDefinition? definition = null;
 
-        if (extension == ".json")
-        {
+        if (extension == ".json") {
             var result = await _files.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 errors.Add(L.T(StringKey.SkillDiscoveryCannotReadFile, result.ErrorMessage));
                 return SkillValidationResult.Failure(filePath, errors);
             }
 
-            try
-            {
+            try {
                 definition = RelaxedJsonSerializer.Deserialize(result.Content, SkillsJsonContext.Default.SkillDefinition);
-                if (definition == null)
-                {
+                if (definition == null) {
                     errors.Add(L.T(StringKey.SkillDiscoveryJsonNull));
                 }
-            }
-            catch (JsonException ex)
-            {
+            } catch (JsonException ex) {
                 errors.Add(L.T(StringKey.SkillDiscoveryJsonParseError, ex.Message));
             }
-        }
-        else if (extension == ".md")
-        {
+        } else if (extension == ".md") {
             var result = await _files.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 errors.Add(L.T(StringKey.SkillDiscoveryCannotReadFile, result.ErrorMessage));
                 return SkillValidationResult.Failure(filePath, errors);
             }
 
             definition = ParseMarkdownSkill(result.Content, filePath);
-        }
-        else
-        {
+        } else {
             errors.Add(L.T(StringKey.SkillDiscoveryUnsupportedExtension, extension));
         }
 
-        if (definition != null)
-        {
+        if (definition != null) {
             ValidateDefinition(definition, errors, warnings);
         }
 
@@ -198,15 +172,12 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     }
 
     /// <summary>启动技能目录监控 — 投递 FileWatcherStartCmd 到 Actor 邮箱</summary>
-    public Task StartWatchingAsync(CancellationToken cancellationToken = default)
-    {
-        if (!_options.EnableFileWatching)
-        {
+    public Task StartWatchingAsync(CancellationToken cancellationToken = default) {
+        if (!_options.EnableFileWatching) {
             return Task.CompletedTask;
         }
 
-        if (!_files.DirectoryExists(_options.SkillsDirectory))
-        {
+        if (!_files.DirectoryExists(_options.SkillsDirectory)) {
             _files.CreateDirectory(_options.SkillsDirectory);
         }
 
@@ -226,12 +197,10 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         => TrySend(new FileWatcherStopCmd());
 
     /// <summary>文件变更处理 — 由 Actor Consumer 串行调用,过滤技能文件后处理变更/删除</summary>
-    protected override async ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct)
-    {
+    protected override async ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct) {
         if (!IsSkillFile(filePath)) return;
 
-        if (kind == WatcherChangeTypes.Deleted)
-        {
+        if (kind == WatcherChangeTypes.Deleted) {
             HandleFileDeleted(filePath);
             return;
         }
@@ -240,8 +209,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     }
 
     /// <summary>文件重命名处理 — 旧路径按删除处理,新路径按变更处理</summary>
-    protected override async ValueTask HandleFileRenamedAsync(string oldPath, string newPath, DateTimeOffset timestamp, CancellationToken ct)
-    {
+    protected override async ValueTask HandleFileRenamedAsync(string oldPath, string newPath, DateTimeOffset timestamp, CancellationToken ct) {
         if (IsSkillFile(oldPath))
             HandleFileDeleted(oldPath);
         if (IsSkillFile(newPath))
@@ -249,31 +217,25 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     }
 
     /// <summary>异步释放 — 先释放 discoverActor,再停 watcher(基类)</summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _discoverActor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 
-    private static bool IsSkillFile(string filePath)
-    {
+    private static bool IsSkillFile(string filePath) {
         var extension = Path.GetExtension(filePath).ToLowerInvariant();
         return extension == ".json" || filePath.EndsWith("SKILL.md", StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<DiscoveredSkill?> LoadAndValidateFileAsync(string filePath, CancellationToken cancellationToken)
-    {
+    private async Task<DiscoveredSkill?> LoadAndValidateFileAsync(string filePath, CancellationToken cancellationToken) {
         var validationResult = await ValidateSkillAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        if (!validationResult.IsValid)
-        {
+        if (!validationResult.IsValid) {
             _logger?.LogWarning("[SkillDiscovery] 技能文件验证失败: {Path}, 错误: {Errors}",
                 filePath, string.Join(", ", validationResult.Errors));
 
-            if (validationResult.SkillDefinition != null)
-            {
-                return new DiscoveredSkill
-                {
+            if (validationResult.SkillDefinition != null) {
+                return new DiscoveredSkill {
                     Name = validationResult.SkillDefinition.Name,
                     SourcePath = filePath,
                     SourceFormat = filePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
@@ -292,8 +254,7 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         var lastModified = _files.GetFileLastWriteTime(filePath);
         var definition = validationResult.SkillDefinition ?? throw new InvalidOperationException("Skill definition is null for valid result.");
 
-        return new DiscoveredSkill
-        {
+        return new DiscoveredSkill {
             Name = definition.Name,
             SourcePath = filePath,
             SourceFormat = filePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
@@ -306,15 +267,13 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         };
     }
 
-    private SkillDefinition ParseMarkdownSkill(string content, string filePath)
-    {
+    private SkillDefinition ParseMarkdownSkill(string content, string filePath) {
         var frontmatter = ParseFrontmatter(content);
         var skillName = frontmatter.TryGetValue("name", out var name) ? name
             : Path.GetFileName(Path.GetDirectoryName(filePath)) ?? "unknown";
         var description = frontmatter.TryGetValue("description", out var desc) ? desc : string.Empty;
 
-        return new SkillDefinition
-        {
+        return new SkillDefinition {
             Name = skillName,
             Description = description,
             Parameters = new Dictionary<string, SkillParameter>(),
@@ -336,27 +295,22 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         };
     }
 
-    private static Dictionary<string, string> ParseFrontmatter(string content)
-    {
+    private static Dictionary<string, string> ParseFrontmatter(string content) {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        if (!content.StartsWith("---"))
-        {
+        if (!content.StartsWith("---")) {
             return result;
         }
 
         var endIndex = content.IndexOf("---", 3, StringComparison.Ordinal);
-        if (endIndex < 0)
-        {
+        if (endIndex < 0) {
             return result;
         }
 
         var frontmatterBlock = content[3..endIndex].Trim();
-        foreach (var line in frontmatterBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
+        foreach (var line in frontmatterBlock.Split('\n', StringSplitOptions.RemoveEmptyEntries)) {
             var colonIndex = line.IndexOf(':');
-            if (colonIndex < 0)
-            {
+            if (colonIndex < 0) {
                 continue;
             }
 
@@ -368,95 +322,74 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         return result;
     }
 
-    private static IReadOnlyList<string> ParseListField(string value)
-    {
+    private static IReadOnlyList<string> ParseListField(string value) {
         if (string.IsNullOrWhiteSpace(value)) return Array.Empty<string>();
         return value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    private static void ValidateDefinition(SkillDefinition definition, List<string> errors, List<string> warnings)
-    {
-        if (string.IsNullOrWhiteSpace(definition.Name))
-        {
+    private static void ValidateDefinition(SkillDefinition definition, List<string> errors, List<string> warnings) {
+        if (string.IsNullOrWhiteSpace(definition.Name)) {
             errors.Add(L.T(StringKey.SkillDiscoveryNameEmpty));
         }
 
-        if (string.IsNullOrWhiteSpace(definition.Description))
-        {
+        if (string.IsNullOrWhiteSpace(definition.Description)) {
             warnings.Add(L.T(StringKey.SkillDiscoveryDescriptionEmpty));
         }
 
-        if (definition.Steps.Count == 0)
-        {
+        if (definition.Steps.Count == 0) {
             errors.Add(L.T(StringKey.SkillDiscoveryNoSteps));
         }
 
         var stepIds = new HashSet<string>();
-        foreach (var step in definition.Steps)
-        {
-            if (string.IsNullOrWhiteSpace(step.Id))
-            {
+        foreach (var step in definition.Steps) {
+            if (string.IsNullOrWhiteSpace(step.Id)) {
                 errors.Add(L.T(StringKey.SkillDiscoveryStepMissingId));
                 continue;
             }
 
-            if (!stepIds.Add(step.Id))
-            {
+            if (!stepIds.Add(step.Id)) {
                 errors.Add(L.T(StringKey.SkillDiscoveryStepIdDuplicate, step.Id));
             }
 
             // JSON converter already validates enum values, but double-check for programmatic creation
-            if (!SkillStepTypeExtensions.IsDefined(step.Type))
-            {
+            if (!SkillStepTypeExtensions.IsDefined(step.Type)) {
                 errors.Add(L.T(StringKey.SkillDiscoveryStepMissingType, step.Id));
             }
         }
 
-        foreach (var (paramName, param) in definition.Parameters)
-        {
-            if (string.IsNullOrWhiteSpace(param.Type))
-            {
+        foreach (var (paramName, param) in definition.Parameters) {
+            if (string.IsNullOrWhiteSpace(param.Type)) {
                 errors.Add(L.T(StringKey.SkillDiscoveryParamMissingType, paramName));
             }
         }
     }
 
-    private async Task ProcessFileChangeAsync(string filePath, CancellationToken ct)
-    {
-        try
-        {
+    private async Task ProcessFileChangeAsync(string filePath, CancellationToken ct) {
+        try {
             var skill = await LoadAndValidateFileAsync(filePath, ct).ConfigureAwait(false);
-            if (skill != null)
-            {
+            if (skill != null) {
                 var wasExisting = _discoveredSkills.ContainsKey(skill.Name);
                 _discoveredSkills[skill.Name] = skill;
 
-                if (wasExisting)
-                {
+                if (wasExisting) {
                     SkillChanged?.Invoke(this, new SkillChangedEventArgs { Skill = skill });
                     _logger?.LogInformation("[SkillDiscovery] 技能已变更: {Name}", skill.Name);
-                }
-                else
-                {
+                } else {
                     SkillDiscovered?.Invoke(this, new SkillDiscoveredEventArgs { Skill = skill });
                     _logger?.LogInformation("[SkillDiscovery] 发现新技能: {Name}", skill.Name);
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[SkillDiscovery] 处理文件变更失败: {Path}", filePath);
         }
     }
 
-    private void HandleFileDeleted(string filePath)
-    {
+    private void HandleFileDeleted(string filePath) {
         var removedSkills = _discoveredSkills
             .Where(kvp => kvp.Value.SourcePath.Equals(filePath, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        foreach (var (name, skill) in removedSkills)
-        {
+        foreach (var (name, skill) in removedSkills) {
             _discoveredSkills.TryRemove(name, out _);
             SkillRemoved?.Invoke(this, new SkillRemovedEventArgs { SkillName = name, SourcePath = skill.SourcePath });
             _logger?.LogInformation("[SkillDiscovery] 技能已移除: {Name}", name);
@@ -467,13 +400,11 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
     /// 技能发现 Actor — 串行化 DiscoverAsync 扫描+加载操作,消除显式锁 — TASK001
     /// <para>命令通过 Channel 投递,Consumer 单线程串行处理,天然无竞态。</para>
     /// </summary>
-    private sealed class DiscoverActor : ActorBase<DiscoverCmd, Unit>
-    {
+    private sealed class DiscoverActor : ActorBase<DiscoverCmd, Unit> {
         private readonly SkillDiscoveryService _owner;
         private readonly ILogger<SkillDiscoveryService>? _logger;
 
-        public DiscoverActor(SkillDiscoveryService owner, ILogger<SkillDiscoveryService>? logger) : base()
-        {
+        public DiscoverActor(SkillDiscoveryService owner, ILogger<SkillDiscoveryService>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -482,14 +413,10 @@ public sealed partial class SkillDiscoveryService : FileWatcherActorBase, ISkill
         public async Task<IReadOnlyList<DiscoveredSkill>> AskReplyAsync(TaskCompletionSource<IReadOnlyList<DiscoveredSkill>> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(DiscoverCmd cmd, CancellationToken ct)
-        {
-            try
-            {
+        protected override async ValueTask HandleAsync(DiscoverCmd cmd, CancellationToken ct) {
+            try {
                 cmd.Reply.SetResult(await _owner.DiscoverInternalAsync(ct).ConfigureAwait(false));
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { cmd.Reply.SetException(ex); }
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
         }
 
         protected override void OnConsumerError(Exception ex)

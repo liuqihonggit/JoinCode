@@ -1,30 +1,26 @@
 
 namespace Core.Tests.ChatCommands;
 
-public class PlanCommandTests
-{
+public class PlanCommandTests {
     private readonly Mock<IPlanService> _planServiceMock;
     private readonly PlanCommand _planCommand;
 
-    public PlanCommandTests()
-    {
+    public PlanCommandTests() {
         _planServiceMock = new Mock<IPlanService>();
         _planCommand = new PlanCommand();
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithToggle_ShouldUsePlanService()
-    {
+    public async Task ExecuteAsync_WithToggle_ShouldUsePlanService() {
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await _planCommand.ExecuteAsync(context).ConfigureAwait(true);
@@ -33,18 +29,16 @@ public class PlanCommandTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithOnSubCommand_ShouldEnterPlanMode()
-    {
+    public async Task ExecuteAsync_WithOnSubCommand_ShouldEnterPlanMode() {
         var context = new ChatCommandContext {
             Arguments = "on test task",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await _planCommand.ExecuteAsync(context).ConfigureAwait(true);
@@ -53,20 +47,17 @@ public class PlanCommandTests
     }
 
     [Fact]
-    public void Name_ShouldReturnPlan()
-    {
+    public void Name_ShouldReturnPlan() {
         Assert.Equal("plan", _planCommand.Name);
     }
 
     [Fact]
-    public void Description_ShouldNotBeEmpty()
-    {
+    public void Description_ShouldNotBeEmpty() {
         Assert.NotEmpty(_planCommand.Description);
     }
 
     [Fact]
-    public void Usage_ShouldNotBeEmpty()
-    {
+    public void Usage_ShouldNotBeEmpty() {
         Assert.NotEmpty(_planCommand.Usage);
     }
 
@@ -80,18 +71,15 @@ public class PlanCommandTests
     [InlineData("status")]
     [InlineData("open")]
     [InlineData("toggle")]
-    public async Task ExecuteAsync_WithValidSubCommand_ShouldBeHandled(string subCommand)
-    {
-        var context = new ChatCommandContext
-        {
+    public async Task ExecuteAsync_WithValidSubCommand_ShouldBeHandled(string subCommand) {
+        var context = new ChatCommandContext {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
 
@@ -108,18 +96,15 @@ public class PlanCommandTests
     [InlineData("STATUS")]
     [InlineData("OPEN")]
     [InlineData("TOGGLE")]
-    public async Task ExecuteAsync_WithUppercaseSubCommand_Should_Be_CaseInsensitive(string subCommand)
-    {
-        var context = new ChatCommandContext
-        {
+    public async Task ExecuteAsync_WithUppercaseSubCommand_Should_Be_CaseInsensitive(string subCommand) {
+        var context = new ChatCommandContext {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = null!,
                 CodeService = null!,
                 PlanService = null!,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
 

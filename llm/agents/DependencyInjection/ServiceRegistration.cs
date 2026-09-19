@@ -4,15 +4,13 @@ namespace JoinCode.Agents.DependencyInjection;
 /// <summary>
 /// Agents 子系统的 DI 注册
 /// </summary>
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     /// <summary>
     /// 注册 Agents 子系统核心服务 — 反思记忆等基础依赖
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <returns>服务集合（链式调用）</returns>
-    public static IServiceCollection AddAgentServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddAgentServices(this IServiceCollection services) {
         services.AddSingleton<Lazy<IWorktreePipelineOperations>>(sp => new Lazy<IWorktreePipelineOperations>(sp.GetRequiredService<IWorktreePipelineOperations>));
         return services;
     }
@@ -22,8 +20,7 @@ public static partial class ServiceRegistration
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <returns>服务集合（链式调用）</returns>
-    public static IServiceCollection AddReleaseModeAgentServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddReleaseModeAgentServices(this IServiceCollection services) {
         services.AddAgentCoordinatorServices();
 
         return services;
@@ -34,8 +31,7 @@ public static partial class ServiceRegistration
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <returns>服务集合（链式调用）</returns>
-    public static IServiceCollection AddAgentCoordinatorServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddAgentCoordinatorServices(this IServiceCollection services) {
         // IAgentWorktreeManager — [Register] 自动注册
         // AgentCoreDependencies — [Register] 自动注册
         // AgentPermissionDependencies — [Register] 自动注册

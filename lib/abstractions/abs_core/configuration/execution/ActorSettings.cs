@@ -16,8 +16,7 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 /// }
 /// </code>
 /// </summary>
-public sealed class ActorSettings
-{
+public sealed class ActorSettings {
     /// <summary>编译队列配置</summary>
     public BuildQueueSettings BuildQueue { get; set; } = new();
 
@@ -27,8 +26,7 @@ public sealed class ActorSettings
     /// <summary>
     /// 校验配置合法性 — 配置加载时调用,非法值抛 ArgumentException 带友好提示。
     /// </summary>
-    public void Validate()
-    {
+    public void Validate() {
         BuildQueue.Validate();
         Backpressure.Validate();
     }
@@ -37,8 +35,7 @@ public sealed class ActorSettings
 /// <summary>
 /// 编译队列配置 — 模式选择 + Worker 数量。
 /// </summary>
-public sealed class BuildQueueSettings
-{
+public sealed class BuildQueueSettings {
     /// <summary>
     /// 编译队列模式: "serial"(串行,BuildQueueService)或 "parallel"(并行,BuildQueueRouter)。
     /// 默认 "serial",向后兼容。
@@ -62,8 +59,7 @@ public sealed class BuildQueueSettings
     public bool IsParallel => string.Equals(Mode, "parallel", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>校验合法性</summary>
-    public void Validate()
-    {
+    public void Validate() {
         if (Mode is not ("serial" or "parallel"))
             throw new ArgumentException(
                 $"BuildQueue.Mode 必须为 'serial' 或 'parallel',当前值: '{Mode}'。" +
@@ -84,8 +80,7 @@ public sealed class BuildQueueSettings
 /// <summary>
 /// 背压预设配置 — 四档,对应 ActorBackpressure 的四个静态预设。
 /// </summary>
-public sealed class BackpressureSettings
-{
+public sealed class BackpressureSettings {
     /// <summary>Coding Agent 任务队列 — 容量 2000 + 30s 超时</summary>
     public BackpressurePreset CodingAgentTask { get; set; } = new(2000, 30);
 
@@ -99,8 +94,7 @@ public sealed class BackpressureSettings
     public BackpressurePreset Build { get; set; } = new(100, 60);
 
     /// <summary>校验合法性</summary>
-    public void Validate()
-    {
+    public void Validate() {
         CodingAgentTask.Validate(nameof(CodingAgentTask));
         LlmGateway.Validate(nameof(LlmGateway));
         Router.Validate(nameof(Router));
@@ -111,8 +105,7 @@ public sealed class BackpressureSettings
 /// <summary>
 /// 单档背压预设 — 容量 + 水位线 + 发送超时。
 /// </summary>
-public sealed class BackpressurePreset
-{
+public sealed class BackpressurePreset {
     /// <summary>有界通道容量(0=无界)</summary>
     public int Capacity { get; set; }
 
@@ -127,15 +120,13 @@ public sealed class BackpressurePreset
 
     public BackpressurePreset() { }
 
-    public BackpressurePreset(int capacity, double? sendTimeoutSeconds = null)
-    {
+    public BackpressurePreset(int capacity, double? sendTimeoutSeconds = null) {
         Capacity = capacity;
         SendTimeoutSeconds = sendTimeoutSeconds;
     }
 
     /// <summary>校验合法性</summary>
-    public void Validate(string presetName)
-    {
+    public void Validate(string presetName) {
         if (Capacity < 0)
             throw new ArgumentException(
                 $"Backpressure.{presetName}.Capacity 必须 >= 0(0=无界),当前值: {Capacity}。" +

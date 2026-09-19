@@ -4,8 +4,7 @@ namespace JoinCode.Tui.Rendering;
 /// 终端尺寸监控器 — 钳制尺寸到合理范围，防抖处理，触发 SizeChanged 事件。
 /// Terminal.Gui v2 自动处理尺寸变化重新布局，此类负责业务层面的尺寸钳制和警告。
 /// </summary>
-public sealed class TerminalResizeMonitor
-{
+public sealed class TerminalResizeMonitor {
     private readonly AsyncLock _lock = new("TerminalResizeMonitor");
     private int _lastWidth;
     private int _lastHeight;
@@ -23,19 +22,16 @@ public sealed class TerminalResizeMonitor
     public event Action<int, int, int, int>? SizeTooSmall;
 
     /// <summary>创建终端尺寸监控器。</summary>
-    public TerminalResizeMonitor(int initialWidth = 120, int initialHeight = 40)
-    {
+    public TerminalResizeMonitor(int initialWidth = 120, int initialHeight = 40) {
         (_lastWidth, _lastHeight) = Clamp(initialWidth, initialHeight);
         _lastChangeTime = DateTime.UtcNow;
     }
 
     /// <summary>检查并通知尺寸变化。由主循环每 100ms 调用。</summary>
-    public void CheckAndNotify(int width, int height)
-    {
+    public void CheckAndNotify(int width, int height) {
         var (clampedW, clampedH) = Clamp(width, height);
 
-        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+        using (_lock.TryLock() ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             if (clampedW == _lastWidth && clampedH == _lastHeight) return;
 
             var now = DateTime.UtcNow;
@@ -46,8 +42,7 @@ public sealed class TerminalResizeMonitor
             _lastChangeTime = now;
         }
 
-        if (width < _minWidth || height < _minHeight)
-        {
+        if (width < _minWidth || height < _minHeight) {
             SizeTooSmall?.Invoke(width, height, _minWidth, _minHeight);
         }
 
@@ -58,8 +53,7 @@ public sealed class TerminalResizeMonitor
     public static (int width, int height) GetSafeDefault() => (120, 40);
 
     /// <summary>钳制尺寸到合理范围。</summary>
-    public (int width, int height) Clamp(int width, int height)
-    {
+    public (int width, int height) Clamp(int width, int height) {
         return (Math.Clamp(width, _minWidth, _maxWidth), Math.Clamp(height, _minHeight, _maxHeight));
     }
 

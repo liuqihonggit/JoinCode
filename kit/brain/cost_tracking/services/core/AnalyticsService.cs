@@ -6,8 +6,7 @@ namespace Core.CostTracking;
 /// 分析服务 — 跟踪工具调用、代理执行等分析事件，支持持久化、查询与导出
 /// </summary>
 [Register(typeof(IAnalyticsService), ServiceLifetime.Singleton)]
-public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable
-{
+public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService, IDisposable {
     private readonly ConcurrentQueue<AnalyticsEvent> _events = new();
     private readonly ConcurrentDictionary<string, ITelemetrySpan> _agentSpans = new();
     private readonly ILogger<AnalyticsService>? _logger;
@@ -31,16 +30,14 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
         ILogger<AnalyticsService>? logger = null,
         string? storagePath = null,
         ITelemetryService? telemetryService = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _fileOperationService = fileOperationService;
         _logger = logger;
         _storagePath = storagePath;
         _telemetryService = telemetryService;
         _clock = clock ?? SystemClockService.Instance;
 
-        if (!string.IsNullOrEmpty(storagePath) && fileOperationService != null)
-        {
+        if (!string.IsNullOrEmpty(storagePath) && fileOperationService != null) {
             _ = Task.Run(() => LoadHistoryAsync(_disposeCts.Token)).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
         }
     }
@@ -52,14 +49,12 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="name">事件名称</param>
     /// <param name="data">事件附加数据字典（可选）</param>
     /// <param name="agentName">代理名称（可选）</param>
-    public void TrackEvent(AnalyticsEventType type, string name, Dictionary<string, JsonElement>? data = null, string? agentName = null)
-    {
+    public void TrackEvent(AnalyticsEventType type, string name, Dictionary<string, JsonElement>? data = null, string? agentName = null) {
         if (_disposed != 0) return;
 
         var eventId = Guid.NewGuid().ToString("N")[..8];
 
-        var analyticsEvent = new AnalyticsEvent
-        {
+        var analyticsEvent = new AnalyticsEvent {
             EventId = eventId,
             Type = type,
             Name = name,
@@ -72,8 +67,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
         _logger?.LogDebug("[Analytics] 事件: {EventType} - {EventName}", type, name);
 
-        if (!string.IsNullOrEmpty(_storagePath) && _disposed == 0)
-        {
+        if (!string.IsNullOrEmpty(_storagePath) && _disposed == 0) {
             _ = Task.Run(() => SaveHistoryAsync(_disposeCts.Token)).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
         }
 
@@ -88,20 +82,17 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="durationMs">调用耗时（毫秒）</param>
     /// <param name="data">附加数据字典（可选）</param>
     /// <param name="agentName">代理名称（可选）</param>
-    public void TrackToolCall(string toolName, bool success, double durationMs, Dictionary<string, JsonElement>? data = null, string? agentName = null)
-    {
+    public void TrackToolCall(string toolName, bool success, double durationMs, Dictionary<string, JsonElement>? data = null, string? agentName = null) {
         TrackEvent(
             success ? AnalyticsEventType.ToolSuccess : AnalyticsEventType.ToolError,
             toolName,
-            new Dictionary<string, JsonElement>(data ?? new())
-            {
+            new Dictionary<string, JsonElement>(data ?? new()) {
                 ["duration_ms"] = JsonSerializer.SerializeToElement(durationMs, CostTrackingJsonContext.Default.Double),
                 ["success"] = JsonSerializer.SerializeToElement(success, CostTrackingJsonContext.Default.Boolean)
             },
             agentName);
 
-        if (_telemetryService != null)
-        {
+        if (_telemetryService != null) {
             var durationHistogram = _telemetryService.GetHistogram("analytics.tool.duration", "ms", "Tool call duration");
             durationHistogram.Record(durationMs, new Dictionary<string, string> { ["tool"] = toolName, ["success"] = success.ToString() });
 
@@ -117,19 +108,16 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="errorMessage">错误消息</param>
     /// <param name="data">附加数据字典（可选）</param>
     /// <param name="agentName">代理名称（可选）</param>
-    public void TrackToolError(string toolName, string errorMessage, Dictionary<string, JsonElement>? data = null, string? agentName = null)
-    {
+    public void TrackToolError(string toolName, string errorMessage, Dictionary<string, JsonElement>? data = null, string? agentName = null) {
         TrackEvent(
             AnalyticsEventType.ToolError,
             toolName,
-            new Dictionary<string, JsonElement>(data ?? new())
-            {
+            new Dictionary<string, JsonElement>(data ?? new()) {
                 ["error"] = JsonSerializer.SerializeToElement(errorMessage, CostTrackingJsonContext.Default.String)
             },
             agentName);
 
-        if (_telemetryService != null)
-        {
+        if (_telemetryService != null) {
             var errorCounter = _telemetryService.GetCounter("analytics.tool.errors", "count", "Tool error count");
             errorCounter.Add(1, new Dictionary<string, string> { ["tool"] = toolName });
         }
@@ -140,23 +128,19 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// </summary>
     /// <param name="agentName">代理名称</param>
     /// <param name="sessionId">会话标识（可选）</param>
-    public void TrackAgentStart(string agentName, string? sessionId = null)
-    {
+    public void TrackAgentStart(string agentName, string? sessionId = null) {
         TrackEvent(
             AnalyticsEventType.AgentStart,
             $"agent_{agentName}_start",
-            new Dictionary<string, JsonElement>
-            {
+            new Dictionary<string, JsonElement> {
                 ["session_id"] = JsonSerializer.SerializeToElement(sessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId, CostTrackingJsonContext.Default.String)
             },
             agentName);
 
-        if (_telemetryService != null)
-        {
+        if (_telemetryService != null) {
             var span = _telemetryService.StartSpan($"agent.{agentName}", TelemetrySpanKind.Server);
             span.SetTag("agent.name", agentName);
-            if (!string.IsNullOrEmpty(sessionId))
-            {
+            if (!string.IsNullOrEmpty(sessionId)) {
                 span.SetTag("agent.session_id", sessionId);
             }
             var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
@@ -172,24 +156,20 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="durationMs">执行耗时（毫秒）</param>
     /// <param name="sessionId">会话标识（可选）</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task TrackAgentCompleteAsync(string agentName, bool success, double durationMs, string? sessionId = null)
-    {
+    public async Task TrackAgentCompleteAsync(string agentName, bool success, double durationMs, string? sessionId = null) {
         TrackEvent(
             AnalyticsEventType.AgentComplete,
             $"agent_{agentName}_complete",
-            new Dictionary<string, JsonElement>
-            {
+            new Dictionary<string, JsonElement> {
                 ["success"] = JsonSerializer.SerializeToElement(success, CostTrackingJsonContext.Default.Boolean),
                 ["duration_ms"] = JsonSerializer.SerializeToElement(durationMs, CostTrackingJsonContext.Default.Double),
                 ["session_id"] = JsonSerializer.SerializeToElement(sessionId ?? string.Empty, CostTrackingJsonContext.Default.String)
             },
             agentName);
 
-        if (_telemetryService != null)
-        {
+        if (_telemetryService != null) {
             var spanKey = $"{agentName}:{sessionId ?? string.Empty}";
-            if (_agentSpans.TryRemove(spanKey, out var span))
-            {
+            if (_agentSpans.TryRemove(spanKey, out var span)) {
                 span.SetStatus(success ? TelemetryStatusCode.Ok : TelemetryStatusCode.Error);
                 span.SetTag("agent.duration_ms", durationMs);
                 await span.DisposeAsync().ConfigureAwait(false);
@@ -205,8 +185,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// </summary>
     /// <param name="days">统计天数（可选，默认统计全部历史）</param>
     /// <returns>按调用次数降序排列的工具使用统计列表</returns>
-    public List<ToolUsageStatistics> GetToolUsageStatistics(int? days = null)
-    {
+    public List<ToolUsageStatistics> GetToolUsageStatistics(int? days = null) {
         var cutoffDate = days.HasValue ? _clock.GetUtcNow().AddDays(-days.Value) : DateTime.MinValue;
 
         var toolEvents = _events
@@ -218,8 +197,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
         var grouped = toolEvents
             .GroupBy(e => e.Name)
-            .Select(g => new ToolUsageStatistics
-            {
+            .Select(g => new ToolUsageStatistics {
                 ToolName = g.Key,
                 CallCount = g.Count(),
                 SuccessCount = g.Count(e => e.IsSuccess == true || e.Type == AnalyticsEventType.ToolSuccess),
@@ -238,8 +216,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// </summary>
     /// <param name="days">统计天数（可选，默认统计全部历史）</param>
     /// <returns>使用情况综合报告</returns>
-    public UsageStatisticsReport GetUsageReport(int? days = null)
-    {
+    public UsageStatisticsReport GetUsageReport(int? days = null) {
         var cutoffDate = days.HasValue ? _clock.GetUtcNow().AddDays(-days.Value) : DateTime.MinValue;
 
         var events = _events.Where(e => e.Timestamp >= cutoffDate).ToList();
@@ -255,8 +232,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
             .GroupBy(e => e.Timestamp.Date)
             .ToDictionary(
                 g => g.Key,
-                g => new DailyStatistics
-                {
+                g => new DailyStatistics {
                     Date = g.Key,
                     EventCount = g.Count(),
                     ToolCalls = g.Count(e => e.Type == AnalyticsEventType.ToolCall ||
@@ -266,8 +242,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
                     ActiveAgents = g.Select(e => e.AgentName).Where(n => !string.IsNullOrEmpty(n)).Distinct().Count()
                 });
 
-        return new UsageStatisticsReport
-        {
+        return new UsageStatisticsReport {
             TotalEvents = events.Count,
             TotalToolCalls = totalToolCalls,
             ToolSuccessRate = totalToolCalls > 0 ? (double)successfulToolCalls / totalToolCalls * 100 : 0,
@@ -284,12 +259,10 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="type">事件类型过滤（可选，默认不过滤）</param>
     /// <param name="limit">返回条数上限</param>
     /// <returns>按时间降序排列的事件列表</returns>
-    public List<AnalyticsEvent> GetEventHistory(AnalyticsEventType? type = null, int limit = WorkflowConstants.Analytics.DefaultEventHistoryLimit)
-    {
+    public List<AnalyticsEvent> GetEventHistory(AnalyticsEventType? type = null, int limit = WorkflowConstants.Analytics.DefaultEventHistoryLimit) {
         var events = _events.AsEnumerable();
 
-        if (type.HasValue)
-        {
+        if (type.HasValue) {
             events = events.Where(e => e.Type == type.Value);
         }
 
@@ -303,35 +276,28 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// 清除历史事件 — 可指定仅清除指定天数之前的数据
     /// </summary>
     /// <param name="olderThanDays">清除该天数之前的数据（可选，默认清除全部）</param>
-    public void ClearHistory(int? olderThanDays = null)
-    {
-        if (olderThanDays.HasValue)
-        {
+    public void ClearHistory(int? olderThanDays = null) {
+        if (olderThanDays.HasValue) {
             var cutoffDate = _clock.GetUtcNow().AddDays(-olderThanDays.Value);
 
             var newEvents = new ConcurrentQueue<AnalyticsEvent>();
-            foreach (var e in _events.Where(e => e.Timestamp >= cutoffDate))
-            {
+            foreach (var e in _events.Where(e => e.Timestamp >= cutoffDate)) {
                 newEvents.Enqueue(e);
             }
 
             while (_events.TryDequeue(out _)) { }
 
-            foreach (var e in newEvents)
-            {
+            foreach (var e in newEvents) {
                 _events.Enqueue(e);
             }
 
             _logger?.LogInformation("已清除 {Days} 天前的分析数据", olderThanDays.Value);
-        }
-        else
-        {
+        } else {
             while (_events.TryDequeue(out _)) { }
             _logger?.LogInformation("已清除所有分析数据");
         }
 
-        if (!string.IsNullOrEmpty(_storagePath) && _fileOperationService != null)
-        {
+        if (!string.IsNullOrEmpty(_storagePath) && _fileOperationService != null) {
             _ = Task.Run(() => SaveHistoryAsync(_disposeCts.Token)).WaitAsync(TimeSpan.FromSeconds(10), _disposeCts.Token).ConfigureAwait(false);
         }
     }
@@ -343,24 +309,20 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <param name="endDate">结束时间过滤（可选）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>缩进格式化的 JSON 字符串</returns>
-    public async Task<string> ExportDataAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> ExportDataAsync(DateTime? startDate = null, DateTime? endDate = null, CancellationToken cancellationToken = default) {
         var events = _events.AsEnumerable();
 
-        if (startDate.HasValue)
-        {
+        if (startDate.HasValue) {
             events = events.Where(e => e.Timestamp >= startDate.Value);
         }
 
-        if (endDate.HasValue)
-        {
+        if (endDate.HasValue) {
             events = events.Where(e => e.Timestamp <= endDate.Value);
         }
 
         var data = events.OrderBy(e => e.Timestamp).ToList();
 
-        var export = new AnalyticsExportData
-        {
+        var export = new AnalyticsExportData {
             ExportTime = _clock.GetUtcNow(),
             StartDate = startDate,
             EndDate = endDate,
@@ -373,60 +335,47 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
 
     #region Private Methods
 
-    private void TrimEventsIfNeeded()
-    {
+    private void TrimEventsIfNeeded() {
         const int maxEvents = WorkflowConstants.Analytics.MaxEvents;
 
         while (_events.Count > maxEvents && _events.TryDequeue(out _)) { }
     }
 
-    private async Task SaveHistoryAsync(CancellationToken cancellationToken = default)
-    {
+    private async Task SaveHistoryAsync(CancellationToken cancellationToken = default) {
         if (string.IsNullOrEmpty(_storagePath) || _fileOperationService == null) return;
 
-        try
-        {
+        try {
             var events = _events.ToList();
             var json = JsonSerializer.Serialize(events, CostTrackingIndentedJsonContext.Default.ListAnalyticsEvent);
 
             var result = await _fileOperationService.WriteFileAsync(_storagePath, json, cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 _logger?.LogError("保存分析数据失败: {Error}", result.ErrorMessage);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "保存分析数据失败");
         }
     }
 
-    private async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
-    {
+    private async Task LoadHistoryAsync(CancellationToken cancellationToken = default) {
         if (string.IsNullOrEmpty(_storagePath) || _fileOperationService == null) return;
 
-        try
-        {
+        try {
             var result = await _fileOperationService.ReadFileAsync(_storagePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
+            if (!result.Success) {
                 return;
             }
 
             var events = RelaxedJsonSerializer.Deserialize(result.Content, CostTrackingJsonContext.Default.ListAnalyticsEvent);
 
-            if (events != null)
-            {
-                foreach (var e in events.OrderBy(e => e.Timestamp))
-                {
+            if (events != null) {
+                foreach (var e in events.OrderBy(e => e.Timestamp)) {
                     _events.Enqueue(e);
                 }
 
                 _logger?.LogInformation("已加载 {Count} 条历史分析数据", events.Count);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "加载分析数据失败");
         }
     }
@@ -436,8 +385,7 @@ public sealed partial class AnalyticsService : ServiceEntity, IAnalyticsService,
     /// <summary>
     /// 释放资源 — 取消内部令牌并释放遥测 span
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _disposeCts.CancelAndDisposeSafe(_logger);
         base.Dispose();

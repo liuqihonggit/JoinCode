@@ -5,16 +5,14 @@ namespace JoinCode.CodeIndex;
 /// FTS5 全文检索替代为字符串包含匹配(支持 token 化的 AND/OR 查询)
 /// 后续可集成 SearchService 做 rg 模糊检索增强
 /// </summary>
-public sealed class SymbolSearcher : ISymbolSearcher
-{
+public sealed class SymbolSearcher : ISymbolSearcher {
     private readonly InMemoryIndexStore _store;
 
     /// <summary>
     /// 构造函数 — 注入内存索引存储
     /// </summary>
     /// <param name="store">内存索引存储</param>
-    public SymbolSearcher(InMemoryIndexStore store)
-    {
+    public SymbolSearcher(InMemoryIndexStore store) {
         ArgumentNullException.ThrowIfNull(store);
         _store = store;
     }
@@ -25,25 +23,20 @@ public sealed class SymbolSearcher : ISymbolSearcher
     /// <param name="query">查询字符串（空格分隔 token，支持 * 前缀匹配）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>符号搜索结果</returns>
-    public Task<SearchResult<SymbolInfo>> SearchAsync(string query, CancellationToken ct)
-    {
+    public Task<SearchResult<SymbolInfo>> SearchAsync(string query, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(query);
 
         var sw = Stopwatch.StartNew();
         var items = new List<SymbolInfo>();
 
-        using (var scope = _store.EnterReadLock())
-        {
+        using (var scope = _store.EnterReadLock()) {
             // 解析查询为 tokens(空格分隔, 支持 * 前缀匹配)
             var tokens = ParseQueryTokens(query);
-            if (tokens.Count > 0)
-            {
-                foreach (var symbol in _store.SymbolsByFqn.Values)
-                {
+            if (tokens.Count > 0) {
+                foreach (var symbol in _store.SymbolsByFqn.Values) {
                     if (ct.IsCancellationRequested) break;
 
-                    if (MatchTokens(symbol, tokens))
-                    {
+                    if (MatchTokens(symbol, tokens)) {
                         items.Add(symbol);
                         if (items.Count >= 200) break;
                     }
@@ -53,8 +46,7 @@ public sealed class SymbolSearcher : ISymbolSearcher
 
         sw.Stop();
 
-        return Task.FromResult(new SearchResult<SymbolInfo>
-        {
+        return Task.FromResult(new SearchResult<SymbolInfo> {
             Items = items,
             TotalCount = items.Count,
             ElapsedMs = sw.ElapsedMilliseconds
@@ -67,23 +59,19 @@ public sealed class SymbolSearcher : ISymbolSearcher
     /// <param name="kind">符号种类</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>符号搜索结果</returns>
-    public Task<SearchResult<SymbolInfo>> SearchByKindAsync(SymbolKind kind, CancellationToken ct)
-    {
+    public Task<SearchResult<SymbolInfo>> SearchByKindAsync(SymbolKind kind, CancellationToken ct) {
         var sw = Stopwatch.StartNew();
         var items = new List<SymbolInfo>();
 
-        using (var scope = _store.EnterReadLock())
-        {
-            if (_store.SymbolsByKind.TryGetValue(kind, out var list))
-            {
+        using (var scope = _store.EnterReadLock()) {
+            if (_store.SymbolsByKind.TryGetValue(kind, out var list)) {
                 items.AddRange(list);
             }
         }
 
         sw.Stop();
 
-        return Task.FromResult(new SearchResult<SymbolInfo>
-        {
+        return Task.FromResult(new SearchResult<SymbolInfo> {
             Items = items,
             TotalCount = items.Count,
             ElapsedMs = sw.ElapsedMilliseconds
@@ -96,13 +84,11 @@ public sealed class SymbolSearcher : ISymbolSearcher
     /// <param name="symbolName">符号名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>匹配的符号定义；未找到返回 null</returns>
-    public Task<SymbolInfo?> FindDefinitionAsync(string symbolName, CancellationToken ct)
-    {
+    public Task<SymbolInfo?> FindDefinitionAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
         using var scope = _store.EnterReadLock();
-        if (_store.SymbolsByName.TryGetValue(symbolName, out var list) && list.Count > 0)
-        {
+        if (_store.SymbolsByName.TryGetValue(symbolName, out var list) && list.Count > 0) {
             return Task.FromResult<SymbolInfo?>(list[0]);
         }
 
@@ -114,21 +100,17 @@ public sealed class SymbolSearcher : ISymbolSearcher
     /// 每个返回项代表一个引用位置: FilePath/StartLine = 调用点位置, Name = 调用方符号名
     /// 语义对齐 IDE "Find References": 返回使用点,而非同名符号定义
     /// </summary>
-    public Task<IReadOnlyList<SymbolInfo>> FindReferencesAsync(string symbolName, CancellationToken ct)
-    {
+    public Task<IReadOnlyList<SymbolInfo>> FindReferencesAsync(string symbolName, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(symbolName);
 
         using var scope = _store.EnterReadLock();
         var result = new List<SymbolInfo>();
 
         var fqns = ResolveFqns(symbolName);
-        foreach (var edge in _store.CallEdges)
-        {
+        foreach (var edge in _store.CallEdges) {
             if (ct.IsCancellationRequested) break;
-            if (fqns.Contains(edge.CalleeSymbol))
-            {
-                result.Add(new SymbolInfo
-                {
+            if (fqns.Contains(edge.CalleeSymbol)) {
+                result.Add(new SymbolInfo {
                     Name = edge.CallerSymbol,
                     FullyQualifiedName = edge.CallerSymbol,
                     Kind = SymbolKind.Method,
@@ -147,13 +129,10 @@ public sealed class SymbolSearcher : ISymbolSearcher
     /// <summary>
     /// 将符号名解析为所有匹配的完全限定名集合 — 同时包含原始输入和符号的 FQN，支持简单名和完全限定名两种输入
     /// </summary>
-    private HashSet<string> ResolveFqns(string symbolName)
-    {
+    private HashSet<string> ResolveFqns(string symbolName) {
         var fqns = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { symbolName };
-        if (_store.SymbolsByName.TryGetValue(symbolName, out var list))
-        {
-            foreach (var s in list)
-            {
+        if (_store.SymbolsByName.TryGetValue(symbolName, out var list)) {
+            foreach (var s in list) {
                 fqns.Add(s.FullyQualifiedName);
             }
         }
@@ -167,8 +146,7 @@ public sealed class SymbolSearcher : ISymbolSearcher
     /// <param name="maxResults">最大返回结果数</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>符号搜索结果（TotalCount 为全部匹配数，Items 受 maxResults 限制）</returns>
-    public Task<SearchResult<SymbolInfo>> SearchByPatternAsync(string pattern, int maxResults, CancellationToken ct)
-    {
+    public Task<SearchResult<SymbolInfo>> SearchByPatternAsync(string pattern, int maxResults, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(pattern);
 
         var sw = Stopwatch.StartNew();
@@ -177,33 +155,25 @@ public sealed class SymbolSearcher : ISymbolSearcher
 
         // 编译正则 — rg 式模糊匹配符号 Name/FQN (大小写不敏感,符号搜索场景)
         Regex regex;
-        try
-        {
+        try {
             regex = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        }
-        catch (ArgumentException)
-        {
+        } catch (ArgumentException) {
             // 非法正则返回空结果(对齐 rg 行为)
             sw.Stop();
-            return Task.FromResult(new SearchResult<SymbolInfo>
-            {
+            return Task.FromResult(new SearchResult<SymbolInfo> {
                 Items = items,
                 TotalCount = 0,
                 ElapsedMs = sw.ElapsedMilliseconds
             });
         }
 
-        using (var scope = _store.EnterReadLock())
-        {
-            foreach (var symbol in _store.SymbolsByFqn.Values)
-            {
+        using (var scope = _store.EnterReadLock()) {
+            foreach (var symbol in _store.SymbolsByFqn.Values) {
                 if (ct.IsCancellationRequested) break;
 
-                if (regex.IsMatch(symbol.Name) || regex.IsMatch(symbol.FullyQualifiedName))
-                {
+                if (regex.IsMatch(symbol.Name) || regex.IsMatch(symbol.FullyQualifiedName)) {
                     totalCount++;
-                    if (items.Count < maxResults)
-                    {
+                    if (items.Count < maxResults) {
                         items.Add(symbol);
                     }
                 }
@@ -212,8 +182,7 @@ public sealed class SymbolSearcher : ISymbolSearcher
 
         sw.Stop();
 
-        return Task.FromResult(new SearchResult<SymbolInfo>
-        {
+        return Task.FromResult(new SearchResult<SymbolInfo> {
             Items = items,
             TotalCount = totalCount,
             ElapsedMs = sw.ElapsedMilliseconds
@@ -223,17 +192,14 @@ public sealed class SymbolSearcher : ISymbolSearcher
     /// <summary>
     /// 解析查询为 tokens — 支持 "name1 name2" (OR) 和 "prefix*" (前缀匹配)
     /// </summary>
-    private static List<string> ParseQueryTokens(string query)
-    {
+    private static List<string> ParseQueryTokens(string query) {
         var tokens = new List<string>();
         var span = query.AsSpan();
 
-        while (!span.IsEmpty)
-        {
+        while (!span.IsEmpty) {
             var idx = span.IndexOf(' ');
             var token = idx < 0 ? span : span[..idx];
-            if (!token.IsEmpty)
-            {
+            if (!token.IsEmpty) {
                 tokens.Add(token.ToString());
             }
             span = idx < 0 ? [] : span[(idx + 1)..];
@@ -245,25 +211,20 @@ public sealed class SymbolSearcher : ISymbolSearcher
     /// <summary>
     /// 检查符号是否匹配所有 tokens(AND) — 每个 token 支持 name/fqn 包含或前缀匹配
     /// </summary>
-    private static bool MatchTokens(SymbolInfo symbol, List<string> tokens)
-    {
-        foreach (var token in tokens)
-        {
-            if (!MatchSingleToken(symbol, token))
-            {
+    private static bool MatchTokens(SymbolInfo symbol, List<string> tokens) {
+        foreach (var token in tokens) {
+            if (!MatchSingleToken(symbol, token)) {
                 return false;
             }
         }
         return true;
     }
 
-    private static bool MatchSingleToken(SymbolInfo symbol, string token)
-    {
+    private static bool MatchSingleToken(SymbolInfo symbol, string token) {
         // glob 式模糊匹配: 含 * 的 token 去掉所有 * 后做 Contains 匹配
         // 支持: prefix* / *suffix / *contains* / prefix*suffix 等所有模式
         // 语义对齐 L1 benchmark 评估用例(User* 应匹配 GetUser/ValidateUser 等 Contains 语义)
-        if (token.IndexOf('*') >= 0)
-        {
+        if (token.IndexOf('*') >= 0) {
             var cleaned = token.Replace("*", "");
             if (cleaned.Length == 0) return true;
 

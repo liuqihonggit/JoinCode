@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 技能服务接口，提供技能执行和管理功能
 /// </summary>
-public interface ISkillService : IDisposable
-{
+public interface ISkillService : IDisposable {
     /// <summary>
     /// 执行技能
     /// </summary>
@@ -45,4 +44,3 @@ public interface ISkillService : IDisposable
     /// </summary>
     bool UnregisterSkill(string skillName);
 }
-

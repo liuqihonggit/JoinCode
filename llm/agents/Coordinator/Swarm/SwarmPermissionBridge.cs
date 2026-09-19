@@ -4,8 +4,7 @@ namespace Core.Agents.Coordinator;
 /// <summary>
 /// Swarm 权限同步桥接口 — 在 Leader 与 Worker 之间同步权限状态
 /// </summary>
-public interface ISwarmPermissionBridge : IDisposable
-{
+public interface ISwarmPermissionBridge : IDisposable {
     /// <summary>
     /// 异步同步指定智能体的权限配置
     /// </summary>
@@ -40,8 +39,7 @@ public interface ISwarmPermissionBridge : IDisposable
 /// <summary>
 /// 权限同步请求 — 从协调器同步权限到指定智能体
 /// </summary>
-public sealed partial class PermissionSyncRequest
-{
+public sealed partial class PermissionSyncRequest {
     /// <summary>
     /// 目标智能体标识
     /// </summary>
@@ -75,8 +73,7 @@ public sealed partial class PermissionSyncRequest
 /// <summary>
 /// 权限同步状态 — 智能体当前权限的快照
 /// </summary>
-public sealed partial class PermissionSyncState
-{
+public sealed partial class PermissionSyncState {
     /// <summary>
     /// 智能体标识
     /// </summary>
@@ -102,8 +99,7 @@ public sealed partial class PermissionSyncState
 /// <summary>
 /// 权限同步事件参数 — 权限变更时携带的上下文信息
 /// </summary>
-public sealed partial class PermissionSyncEventArgs : EventArgs
-{
+public sealed partial class PermissionSyncEventArgs : EventArgs {
     /// <summary>
     /// 智能体标识
     /// </summary>
@@ -124,8 +120,7 @@ public sealed partial class PermissionSyncEventArgs : EventArgs
 
 /// <summary>Swarm 权限桥 — 在 Swarm 协调层与权限管理器之间同步权限状态，处理权限变更事件与跨代理权限传播</summary>
 [Register(typeof(ISwarmPermissionBridge), ServiceLifetime.Singleton)]
-public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermissionBridge, IDisposable
-{
+public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermissionBridge, IDisposable {
     private readonly IMailbox _messageBroker;
     private readonly IAgentPermissionManager _permissionManager;
     private readonly ILogger<SwarmPermissionBridge>? _logger;
@@ -153,8 +148,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
         IAgentPermissionManager permissionManager,
         ILogger<SwarmPermissionBridge>? logger = null,
         ITelemetryService? telemetryService = null,
-        IClockService? clock = null)
-    {
+        IClockService? clock = null) {
         _messageBroker = messageBroker ?? throw new ArgumentNullException(nameof(messageBroker));
         _permissionManager = permissionManager ?? throw new ArgumentNullException(nameof(permissionManager));
         _logger = logger;
@@ -170,12 +164,9 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     /// <param name="request">权限同步请求</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task SyncPermissionsAsync(string agentId, PermissionSyncRequest request, CancellationToken ct = default)
-    {
-                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
-            var rule = new AgentPermissionRule
-            {
+    public async Task SyncPermissionsAsync(string agentId, PermissionSyncRequest request, CancellationToken ct = default) {
+        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            var rule = new AgentPermissionRule {
                 AgentPattern = request.AgentId,
                 Mode = request.Mode,
                 AllowedTools = request.AllowedTools,
@@ -189,8 +180,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
 
             var previousState = _permissionStates.GetValueOrDefault(agentId);
 
-            var newState = new PermissionSyncState
-            {
+            var newState = new PermissionSyncState {
                 AgentId = request.AgentId,
                 Mode = request.Mode,
                 LastSyncedAt = _clock.GetUtcNow(),
@@ -202,8 +192,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
 
             var changes = BuildChanges(previousState, newState);
 
-            var message = new CoordinatorAgentMessage
-            {
+            var message = new CoordinatorAgentMessage {
                 FromAgentId = request.CoordinatorId,
                 ToAgentId = agentId,
                 MessageType = "permission_sync",
@@ -212,8 +201,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
 
             await _messageBroker.SendAsync(agentId, message, ct).ConfigureAwait(false);
 
-            PermissionChanged?.Invoke(this, new PermissionSyncEventArgs
-            {
+            PermissionChanged?.Invoke(this, new PermissionSyncEventArgs {
                 AgentId = agentId,
                 ChangeType = "sync",
                 Changes = changes,
@@ -233,19 +221,15 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     /// <param name="agentId">智能体标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>权限同步状态</returns>
-    public async Task<PermissionSyncState> GetPermissionStateAsync(string agentId, CancellationToken ct = default)
-    {
-                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
-            if (_permissionStates.TryGetValue(agentId, out var state))
-            {
+    public async Task<PermissionSyncState> GetPermissionStateAsync(string agentId, CancellationToken ct = default) {
+        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
+            if (_permissionStates.TryGetValue(agentId, out var state)) {
                 return state;
             }
 
             var rule = await _permissionManager.GetRuleForAgentAsync(agentId, ct).ConfigureAwait(false);
 
-            return new PermissionSyncState
-            {
+            return new PermissionSyncState {
                 AgentId = agentId,
                 Mode = rule?.Mode ?? PermissionMode.Auto,
                 LastSyncedAt = _clock.GetUtcNow(),
@@ -261,20 +245,16 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     /// <param name="agentId">智能体标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task RevokePermissionsAsync(string agentId, CancellationToken ct = default)
-    {
-                using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时"))
-        {
+    public async Task RevokePermissionsAsync(string agentId, CancellationToken ct = default) {
+        using (await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时")) {
             await _permissionManager.RemoveRuleAsync(agentId, ct).ConfigureAwait(false);
 
             _permissionStates.TryRemove(agentId, out _);
 
-            PermissionChanged?.Invoke(this, new PermissionSyncEventArgs
-            {
+            PermissionChanged?.Invoke(this, new PermissionSyncEventArgs {
                 AgentId = agentId,
                 ChangeType = "revoke",
-                Changes = new Dictionary<string, JsonElement>
-                {
+                Changes = new Dictionary<string, JsonElement> {
                     ["mode"] = JsonElementHelper.FromString(PermissionMode.Ask.ToString()),
                     ["allowedTools"] = JsonElementHelper.FromJson("[]"),
                     ["deniedTools"] = JsonElementHelper.FromJson("[]")
@@ -291,17 +271,14 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     private void RecordPermissionBridgeMetrics(string operation, bool isSuccess)
         => ToolTelemetryHelper.RecordToolCount(_telemetryService, "permission.bridge.count", operation, isSuccess, "Permission bridge operation count");
 
-    private static Dictionary<string, JsonElement> BuildChanges(PermissionSyncState? previous, PermissionSyncState current)
-    {
-        var changes = new Dictionary<string, JsonElement>
-        {
+    private static Dictionary<string, JsonElement> BuildChanges(PermissionSyncState? previous, PermissionSyncState current) {
+        var changes = new Dictionary<string, JsonElement> {
             ["mode"] = JsonElementHelper.FromString(current.Mode.ToString()),
             ["allowedTools"] = JsonElementHelper.FromString(string.Join(",", current.AllowedTools)),
             ["deniedTools"] = JsonElementHelper.FromString(string.Join(",", current.DeniedTools))
         };
 
-        if (previous != null)
-        {
+        if (previous != null) {
             changes["previousMode"] = JsonElementHelper.FromString(previous.Mode.ToString());
         }
 
@@ -309,8 +286,7 @@ public sealed partial class SwarmPermissionBridge : ServiceEntity, ISwarmPermiss
     }
 
     /// <summary>释放资源 — 释放权限同步锁</summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _lock.Dispose();

@@ -3,19 +3,16 @@ namespace Abs.Tests.Utils;
 /// <summary>
 /// DisposeSafeExtensions 单元测试 — 验证安全释放扩展的幂等性、异常吞咽与日志记录行为
 /// </summary>
-public sealed class DisposeSafeExtensionsTest
-{
+public sealed class DisposeSafeExtensionsTest {
     // === DisposeSafe ===
 
     [Fact]
-    public void DisposeSafe_Null_DoesNothing()
-    {
+    public void DisposeSafe_Null_DoesNothing() {
         ((IDisposable?)null).DisposeSafe();
     }
 
     [Fact]
-    public void DisposeSafe_NormalObject_Disposes()
-    {
+    public void DisposeSafe_NormalObject_Disposes() {
         var obj = new TrackableDisposable();
 
         obj.DisposeSafe();
@@ -24,8 +21,7 @@ public sealed class DisposeSafeExtensionsTest
     }
 
     [Fact]
-    public void DisposeSafe_AlreadyDisposed_SwallowsObjectDisposedException()
-    {
+    public void DisposeSafe_AlreadyDisposed_SwallowsObjectDisposedException() {
         var obj = new TrackableDisposable();
 
         obj.DisposeSafe();
@@ -36,8 +32,7 @@ public sealed class DisposeSafeExtensionsTest
     }
 
     [Fact]
-    public void DisposeSafe_NonObjectDisposedException_LogsWarning()
-    {
+    public void DisposeSafe_NonObjectDisposedException_LogsWarning() {
         var obj = new ThrowingDisposable();
         var logger = new CaptureLogger();
 
@@ -49,8 +44,7 @@ public sealed class DisposeSafeExtensionsTest
     }
 
     [Fact]
-    public void DisposeSafe_NonObjectDisposedException_NoLogger_DoesNotThrow()
-    {
+    public void DisposeSafe_NonObjectDisposedException_NoLogger_DoesNotThrow() {
         var obj = new ThrowingDisposable();
 
         var act = () => obj.DisposeSafe();
@@ -61,14 +55,12 @@ public sealed class DisposeSafeExtensionsTest
     // === CancelAndDisposeSafe ===
 
     [Fact]
-    public void CancelAndDisposeSafe_Null_DoesNothing()
-    {
+    public void CancelAndDisposeSafe_Null_DoesNothing() {
         ((CancellationTokenSource?)null).CancelAndDisposeSafe();
     }
 
     [Fact]
-    public void CancelAndDisposeSafe_Normal_CancelsAndDisposes()
-    {
+    public void CancelAndDisposeSafe_Normal_CancelsAndDisposes() {
         var cts = new CancellationTokenSource();
         var token = cts.Token;
 
@@ -78,8 +70,7 @@ public sealed class DisposeSafeExtensionsTest
     }
 
     [Fact]
-    public void CancelAndDisposeSafe_AlreadyDisposed_Swallows()
-    {
+    public void CancelAndDisposeSafe_AlreadyDisposed_Swallows() {
         var cts = new CancellationTokenSource();
         cts.Dispose();
 
@@ -91,14 +82,12 @@ public sealed class DisposeSafeExtensionsTest
     // === DisposeSafeAsync ===
 
     [Fact]
-    public async Task DisposeSafeAsync_Null_DoesNothing()
-    {
+    public async Task DisposeSafeAsync_Null_DoesNothing() {
         await ((IAsyncDisposable?)null).DisposeSafeAsync();
     }
 
     [Fact]
-    public async Task DisposeSafeAsync_Normal_DisposesAsync()
-    {
+    public async Task DisposeSafeAsync_Normal_DisposesAsync() {
         var obj = new TrackableAsyncDisposable();
 
         await obj.DisposeSafeAsync();
@@ -107,8 +96,7 @@ public sealed class DisposeSafeExtensionsTest
     }
 
     [Fact]
-    public async Task DisposeSafeAsync_AlreadyDisposed_Swallows()
-    {
+    public async Task DisposeSafeAsync_AlreadyDisposed_Swallows() {
         var obj = new TrackableAsyncDisposable();
         await obj.DisposeAsync();
 
@@ -119,13 +107,11 @@ public sealed class DisposeSafeExtensionsTest
 
     // === 测试桩 ===
 
-    private sealed class TrackableDisposable : IDisposable
-    {
+    private sealed class TrackableDisposable : IDisposable {
         private bool _disposed;
         public int DisposeCallCount;
         public bool IsDisposed;
-        public void Dispose()
-        {
+        public void Dispose() {
             if (_disposed) return;
             _disposed = true;
             DisposeCallCount++;
@@ -133,17 +119,14 @@ public sealed class DisposeSafeExtensionsTest
         }
     }
 
-    private sealed class ThrowingDisposable : IDisposable
-    {
+    private sealed class ThrowingDisposable : IDisposable {
         public void Dispose() => throw new InvalidOperationException("boom");
     }
 
-    private sealed class TrackableAsyncDisposable : IAsyncDisposable
-    {
+    private sealed class TrackableAsyncDisposable : IAsyncDisposable {
         private bool _disposed;
         public bool IsDisposed;
-        public ValueTask DisposeAsync()
-        {
+        public ValueTask DisposeAsync() {
             if (_disposed) return ValueTask.CompletedTask;
             _disposed = true;
             IsDisposed = true;
@@ -151,17 +134,14 @@ public sealed class DisposeSafeExtensionsTest
         }
     }
 
-    private sealed class CaptureLogger : ILogger
-    {
+    private sealed class CaptureLogger : ILogger {
         public int WarningCount;
         public Exception? LastException;
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public bool IsEnabled(LogLevel logLevel) => true;
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-        {
-            if (logLevel == LogLevel.Warning)
-            {
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) {
+            if (logLevel == LogLevel.Warning) {
                 WarningCount++;
                 LastException = exception;
             }

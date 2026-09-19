@@ -5,8 +5,7 @@ namespace Memdir.Services;
 /// 缓存路径: ~/.jcc/sessions/{sessionId}/usage-facet.json
 /// </summary>
 [Register(typeof(IFacetCacheService), ServiceLifetime.Singleton)]
-public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheService
-{
+public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheService {
     private readonly string _facetsDirectory;
     private readonly ILogger<FacetCacheService>? _logger;
     private readonly IFileSystem _fs;
@@ -17,8 +16,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     /// <param name="fs">文件系统抽象</param>
     /// <param name="facetsDirectory">缓存根目录（可选，默认使用应用数据目录下的 sessions 目录）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public FacetCacheService(IFileSystem fs, string? facetsDirectory = null, ILogger<FacetCacheService>? logger = null)
-    {
+    public FacetCacheService(IFileSystem fs, string? facetsDirectory = null, ILogger<FacetCacheService>? logger = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _facetsDirectory = facetsDirectory
             ?? AppDataConstants.Paths.SessionsDirectory;
@@ -26,20 +24,16 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     }
 
     /// <inheritdoc />
-    public async Task<SessionFacets?> LoadAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task<SessionFacets?> LoadAsync(string sessionId, CancellationToken cancellationToken = default) {
         var filePath = GetFacetFilePath(sessionId);
-        if (!_fs.FileExists(filePath))
-        {
+        if (!_fs.FileExists(filePath)) {
             return null;
         }
 
-        try
-        {
+        try {
             var facets = await _fs.ReadAndDeserializeAsync(filePath, SessionFacetsJsonContext.Default.SessionFacets, cancellationToken).ConfigureAwait(false);
 
-            if (facets is not null && IsValidFacets(facets))
-            {
+            if (facets is not null && IsValidFacets(facets)) {
                 return facets;
             }
 
@@ -48,41 +42,33 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
             MoveToDeleted(_fs, filePath, _logger);
 
             return null;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "读取 Facet 缓存失败: {SessionId}", sessionId);
             return null;
         }
     }
 
     /// <inheritdoc />
-    public async Task SaveAsync(SessionFacets facets, CancellationToken cancellationToken = default)
-    {
+    public async Task SaveAsync(SessionFacets facets, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(facets);
 
-        try
-        {
+        try {
             var filePath = GetFacetFilePath(facets.SessionId);
             var dir = Path.GetDirectoryName(filePath);
-            if (dir is not null)
-            {
+            if (dir is not null) {
                 _fs.CreateDirectory(dir);
             }
 
             var json = RelaxedJsonSerializer.Serialize(facets, SessionFacetsJsonContext.Default);
 
             await _fs.WriteAllTextAsync(filePath, json, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "保存 Facet 缓存失败: {SessionId}", facets.SessionId);
         }
     }
 
     /// <inheritdoc />
-    public async Task<bool> IsValidAsync(string sessionId, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> IsValidAsync(string sessionId, CancellationToken cancellationToken = default) {
         var facets = await LoadAsync(sessionId, cancellationToken).ConfigureAwait(false);
         return facets is not null;
     }
@@ -90,8 +76,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     /// <summary>
     /// 校验 Facet 必要字段 — 对齐 TS isValidSessionFacets
     /// </summary>
-    private static bool IsValidFacets(SessionFacets facets)
-    {
+    private static bool IsValidFacets(SessionFacets facets) {
         return !string.IsNullOrEmpty(facets.UnderlyingGoal)
             && !string.IsNullOrEmpty(facets.Outcome)
             && !string.IsNullOrEmpty(facets.BriefSummary)
@@ -100,8 +85,7 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
             && facets.FrictionCounts.Count >= 0; // friction 可以为空
     }
 
-    private string GetFacetFilePath(string sessionId)
-    {
+    private string GetFacetFilePath(string sessionId) {
         // 清理 sessionId 中的路径分隔符
         var safeName = sessionId.Replace('/', '_').Replace('\\', '_');
         return Path.Combine(_facetsDirectory, safeName, "usage-facet.json");
@@ -110,10 +94,8 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
     /// <summary>
     /// 移动损坏缓存到 .x/ 目录 — 遵循项目安全删除规则
     /// </summary>
-    private static void MoveToDeleted(IFileSystem fs, string filePath, ILogger? logger = null)
-    {
-        try
-        {
+    private static void MoveToDeleted(IFileSystem fs, string filePath, ILogger? logger = null) {
+        try {
             var dir = Path.GetDirectoryName(filePath) ?? ".";
             var xDir = Path.Combine(dir, ".x");
             fs.CreateDirectory(xDir);
@@ -122,13 +104,10 @@ public sealed partial class FacetCacheService : ServiceEntity, IFacetCacheServic
             var fileName = Path.GetFileName(filePath);
             var destPath = Path.Combine(xDir, $"{fileName}.{ts}.del");
 
-            if (fs.FileExists(filePath))
-            {
+            if (fs.FileExists(filePath)) {
                 fs.MoveFile(filePath, destPath);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 移动失败不影响主流程
             logger?.LogWarning(ex, "FacetCacheService: Failed to move corrupted cache file to .x directory");
         }

@@ -5,8 +5,7 @@ namespace JoinCode.Pipe;
 /// 桥接心跳服务 — 定期发送 ping，监控 pong 响应，超时触发事件并支持恢复通知
 /// </summary>
 [Register(typeof(BridgeHeartbeatService), ServiceLifetime.Singleton)]
-public sealed partial class BridgeHeartbeatService : ServiceEntity
-{
+public sealed partial class BridgeHeartbeatService : ServiceEntity {
     private readonly TimeSpan _interval;
     private readonly TimeSpan _timeout;
     private CancellationTokenSource? _cts;
@@ -32,8 +31,7 @@ public sealed partial class BridgeHeartbeatService : ServiceEntity
     /// <param name="interval">心跳发送间隔</param>
     /// <param name="timeout">pong 响应超时阈值</param>
     /// <param name="clock">时钟服务，可选，默认使用系统时钟</param>
-    public BridgeHeartbeatService(TimeSpan interval, TimeSpan timeout, IClockService? clock = null)
-    {
+    public BridgeHeartbeatService(TimeSpan interval, TimeSpan timeout, IClockService? clock = null) {
         if (interval <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(interval));
         if (timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
 
@@ -46,13 +44,11 @@ public sealed partial class BridgeHeartbeatService : ServiceEntity
     /// DI 构造函数 — 使用默认心跳间隔 30s 和超时 90s
     /// </summary>
     public BridgeHeartbeatService()
-        : this(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(90), null)
-    {
+        : this(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(90), null) {
     }
 
     /// <summary>启动心跳循环</summary>
-    public void Start()
-    {
+    public void Start() {
         if (IsRunning) return;
 
         Interlocked.Exchange(ref _isRunning, 1);
@@ -63,8 +59,7 @@ public sealed partial class BridgeHeartbeatService : ServiceEntity
     }
 
     /// <summary>停止心跳循环</summary>
-    public void Stop()
-    {
+    public void Stop() {
         if (!IsRunning) return;
 
         Interlocked.Exchange(ref _isRunning, 0);
@@ -72,39 +67,30 @@ public sealed partial class BridgeHeartbeatService : ServiceEntity
     }
 
     /// <summary>接收 pong 响应 — 更新最后接收时间，若此前处于超时状态则触发恢复事件</summary>
-    public void ReceivePong()
-    {
+    public void ReceivePong() {
         _lastPongReceived = _clock.GetUtcNow();
 
-        if (_timeoutFired)
-        {
+        if (_timeoutFired) {
             _timeoutFired = false;
             Recovered?.Invoke(this, EventArgs.Empty);
         }
     }
 
-    private async Task RunLoopAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
+    private async Task RunLoopAsync(CancellationToken ct) {
+        while (!ct.IsCancellationRequested) {
+            try {
                 await Task.Delay(_interval, ct).ConfigureAwait(false);
 
                 LastPingAt = _clock.GetUtcNow();
 
                 if (_lastPongReceived.HasValue &&
-                    _clock.GetUtcNow() - _lastPongReceived.Value > _timeout)
-                {
-                    if (!_timeoutFired)
-                    {
+                    _clock.GetUtcNow() - _lastPongReceived.Value > _timeout) {
+                    if (!_timeoutFired) {
                         _timeoutFired = true;
                         TimeoutDetected?.Invoke(this, EventArgs.Empty);
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 break;
             }
         }

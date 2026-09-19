@@ -5,16 +5,14 @@ namespace Core.Context;
 /// OnError=Continue：保存失败不影响管道继续执行
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddleware
-{
+public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddleware {
 
     /// <summary>
     /// 初始化保存上下文中间件
     /// </summary>
     /// <param name="contextManager">聊天上下文管理器</param>
     /// <param name="logger">可选日志记录器</param>
-    public SaveContextMiddleware(IChatContextManager contextManager, ILogger<SaveContextMiddleware>? logger = null)
-    {
+    public SaveContextMiddleware(IChatContextManager contextManager, ILogger<SaveContextMiddleware>? logger = null) {
         _contextManager = contextManager;
         _logger = logger;
     }
@@ -32,10 +30,8 @@ public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddlewa
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }
 
@@ -52,33 +48,21 @@ public sealed partial class SaveContextMiddleware : ServiceEntity, IChatMiddlewa
     /// 保存上下文 — 失败重试一次并记录显式错误，避免持久化失败静默丢失会话
     /// 管道 OnError=Continue 仅记录，此处主动重试 + 显式日志作为纵深防御
     /// </summary>
-    private async Task SaveContextWithRetryAsync(ChatMiddlewareContext context, CancellationToken ct)
-    {
-        for (var attempt = 1; attempt <= 2; attempt++)
-        {
-            try
-            {
+    private async Task SaveContextWithRetryAsync(ChatMiddlewareContext context, CancellationToken ct) {
+        for (var attempt = 1; attempt <= 2; attempt++) {
+            try {
                 await _contextManager.SaveContextAsync(ct).ConfigureAwait(false);
                 return;
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 throw;
-            }
-            catch (Exception ex) when (attempt == 1)
-            {
+            } catch (Exception ex) when (attempt == 1) {
                 _logger?.LogError(ex, "[SaveContext] 上下文保存失败（尝试 {Attempt}/2），即将重试", attempt);
-                try
-                {
+                try {
                     await Task.Delay(TimeSpan.FromMilliseconds(200), ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
+                } catch (OperationCanceledException) {
                     throw;
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[SaveContext] 上下文保存失败（尝试 {Attempt}/2），会话可能丢失", attempt);
             }
         }

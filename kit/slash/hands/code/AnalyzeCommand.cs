@@ -6,15 +6,13 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Analyze, Description = "分析代码", Usage = "/analyze <代码>", Category = ChatCommandCategory.Code, ExposeToMcp = true)]
 [ChatCommandArg("code", Type = "string", Description = "要分析的代码内容", Required = true)]
-public sealed partial class AnalyzeCommand : ChatCommandBase
-{
+public sealed partial class AnalyzeCommand : ChatCommandBase {
     private readonly ILogger<AnalyzeCommand>? _logger;
     /// <summary>
     /// 构造分析命令实例
     /// </summary>
     /// <param name="logger">可选的日志记录器</param>
-    public AnalyzeCommand(ILogger<AnalyzeCommand>? logger = null)
-    {
+    public AnalyzeCommand(ILogger<AnalyzeCommand>? logger = null) {
         _logger = logger;
     }
 
@@ -23,10 +21,8 @@ public sealed partial class AnalyzeCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
-        if (string.IsNullOrWhiteSpace(context.Arguments))
-        {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+        if (string.IsNullOrWhiteSpace(context.Arguments)) {
             TerminalHelper.WriteLine("请提供要分析的代码，例如: /analyze function test()");
             return ChatCommandResult.Continue();
         }

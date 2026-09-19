@@ -6,8 +6,7 @@ namespace Core.Prompts.Templates.System;
 /// </summary>
 /// <remarks>消费者: PromptSuggestionCallback → IForkSubAgentManager.ForkAsync() → ShouldFilterSuggestion()</remarks>
 [PromptTemplate(Name = "prompt_suggestion", Category = PromptTemplateCategory.System, Description = "用户输入建议提示词", ContentMember = nameof(SuggestionPrompt))]
-public static class PromptSuggestionFilter
-{
+public static class PromptSuggestionFilter {
     /// <summary>
     /// 建议提示词
     /// </summary>
@@ -68,8 +67,7 @@ CLI 要求继续 -> "是" 或 "继续"
     /// <summary>
     /// 检查建议是否应该被过滤
     /// </summary>
-    public static bool ShouldFilterSuggestion(string? suggestion)
-    {
+    public static bool ShouldFilterSuggestion(string? suggestion) {
         if (string.IsNullOrWhiteSpace(suggestion))
             return true;
 
@@ -107,8 +105,7 @@ CLI 要求继续 -> "是" 或 "继续"
             return true;
 
         // 过滤词数太少的
-        if (wordCount < 2)
-        {
+        if (wordCount < 2) {
             if (suggestion.StartsWith('/'))
                 return false; // 允许斜杠命令
             if (!AllowedSingleWords.Contains(lower))

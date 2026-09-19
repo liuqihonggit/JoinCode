@@ -6,8 +6,7 @@ namespace Core.Bridge;
 /// <summary>
 /// Bridge 环境注册请求 — 对齐 TS 端 POST /v1/environments/bridge
 /// </summary>
-public sealed partial class BridgeEnvironmentRegistration
-{
+public sealed partial class BridgeEnvironmentRegistration {
     /// <summary>Bridge ID — 对齐 TS 端 bridge_id</summary>
     [JsonPropertyName("bridge_id")]
     public required string BridgeId { get; init; }
@@ -51,8 +50,7 @@ public sealed partial class BridgeEnvironmentRegistration
 /// <summary>
 /// Bridge 环境注册响应 — 对齐 TS 端 POST /v1/environments/bridge 响应
 /// </summary>
-public sealed partial class BridgeEnvironmentRegistrationResponse
-{
+public sealed partial class BridgeEnvironmentRegistrationResponse {
     /// <summary>环境 ID</summary>
     [JsonPropertyName("environment_id")]
     public required string EnvironmentId { get; init; }
@@ -69,8 +67,7 @@ public sealed partial class BridgeEnvironmentRegistrationResponse
 /// <summary>
 /// 工作轮询项 — 对齐 TS 端 GET .../work/poll 响应
 /// </summary>
-public sealed partial class BridgeWorkItem
-{
+public sealed partial class BridgeWorkItem {
     /// <summary>工作 ID</summary>
     [JsonPropertyName("work_id")]
     public required string WorkId { get; init; }
@@ -110,8 +107,7 @@ public sealed partial class BridgeWorkItem
 /// <summary>
 /// 权限响应事件 — 对齐 TS 端 POST /v1/sessions/{id}/events
 /// </summary>
-public sealed partial class BridgePermissionResponseEvent
-{
+public sealed partial class BridgePermissionResponseEvent {
     /// <summary>事件类型</summary>
     [JsonPropertyName("event_type")]
     public required string EventType { get; init; }
@@ -132,8 +128,7 @@ public sealed partial class BridgePermissionResponseEvent
 /// <summary>
 /// 会话重连请求 — 对齐 TS 端 POST .../bridge/reconnect
 /// </summary>
-public sealed partial class BridgeReconnectRequest
-{
+public sealed partial class BridgeReconnectRequest {
     /// <summary>环境 ID</summary>
     [JsonPropertyName("environment_id")]
     public required string EnvironmentId { get; init; }
@@ -146,8 +141,7 @@ public sealed partial class BridgeReconnectRequest
 /// <summary>
 /// 会话重连响应 — 对齐 TS 端 POST .../bridge/reconnect 响应
 /// </summary>
-public sealed partial class BridgeReconnectResponse
-{
+public sealed partial class BridgeReconnectResponse {
     /// <summary>SDK URL</summary>
     [JsonPropertyName("sdk_url")]
     public string? SdkUrl { get; init; }
@@ -164,8 +158,7 @@ public sealed partial class BridgeReconnectResponse
 /// <summary>
 /// 心跳响应 — 对齐 TS 端 POST .../work/{id}/heartbeat 响应
 /// </summary>
-public sealed partial class BridgeHeartbeatResponse
-{
+public sealed partial class BridgeHeartbeatResponse {
     /// <summary>是否已确认</summary>
     [JsonPropertyName("acknowledged")]
     public required bool Acknowledged { get; init; }
@@ -181,8 +174,7 @@ public sealed partial class BridgeHeartbeatResponse
 /// Bridge 致命错误 — 对齐 TS 端 BridgeFatalError
 /// 不可重试的错误（如认证失败、环境不存在）
 /// </summary>
-public sealed partial class BridgeFatalError : Exception
-{
+public sealed partial class BridgeFatalError : Exception {
     /// <summary>HTTP 状态码</summary>
     public int? StatusCode { get; init; }
 
@@ -196,8 +188,7 @@ public sealed partial class BridgeFatalError : Exception
     /// <param name="statusCode">HTTP 状态码</param>
     /// <param name="errorType">错误类型</param>
     public BridgeFatalError(string message, int? statusCode = null, string? errorType = null)
-        : base(message)
-    {
+        : base(message) {
         StatusCode = statusCode;
         ErrorType = errorType;
     }
@@ -207,8 +198,7 @@ public sealed partial class BridgeFatalError : Exception
 /// Bridge API 选项 - 远程 API 通信配置
 /// </summary>
 [Register(typeof(BridgeApiOptions), ServiceLifetime.Singleton)]
-public sealed partial class BridgeApiOptions : ServiceEntity
-{
+public sealed partial class BridgeApiOptions : ServiceEntity {
     /// <summary>默认重试次数</summary>
     public const int DefaultMaxRetries = 3;
 
@@ -279,8 +269,7 @@ public sealed partial class BridgeApiOptions : ServiceEntity
     /// 从 Bridge 配置构造 API 选项
     /// </summary>
     /// <param name="config">Bridge 配置</param>
-    public BridgeApiOptions(BridgeConfig config)
-    {
+    public BridgeApiOptions(BridgeConfig config) {
         BaseUrl = string.IsNullOrEmpty(config.ApiBaseUrl) ? JccEndpoints.DefaultBridgeLocal : config.ApiBaseUrl;
         ApiKey = config.ApiKey;
         Timeout = TimeSpan.FromSeconds(config.ApiTimeoutSeconds);
@@ -292,8 +281,7 @@ public sealed partial class BridgeApiOptions : ServiceEntity
 /// 使用 JsonSerializer + JsonContext 实现 AOT 兼容的 JSON 序列化
 /// </summary>
 [Register(typeof(BridgeApiClient), ServiceLifetime.Singleton)]
-public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
-{
+public sealed partial class BridgeApiClient : ServiceEntity, IDisposable {
     /// <summary>对齐 TS 端 anthropic-beta header — 与 BridgeSessionApi.BetaHeader 一致</summary>
     private const string BetaHeader = "ccr-byoc-2025-07-29";
 
@@ -314,8 +302,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     public BridgeApiClient(
         HttpClient httpClient,
         BridgeApiOptions options,
-        ILogger<BridgeApiClient>? logger = null)
-    {
+        ILogger<BridgeApiClient>? logger = null) {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
@@ -330,8 +317,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     public BridgeApiClient(
         BridgeConfig? config = null,
         BridgeApiOptions? options = null,
-        ILogger<BridgeApiClient>? logger = null)
-    {
+        ILogger<BridgeApiClient>? logger = null) {
         _options = options ?? new BridgeApiOptions(config ?? new BridgeConfig());
         _httpClient = new HttpClient { Timeout = _options.Timeout };
         _logger = logger;
@@ -339,15 +325,13 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         InitializeHttpClient();
     }
 
-    private void InitializeHttpClient()
-    {
+    private void InitializeHttpClient() {
         _httpClient.BaseAddress = new Uri(_options.BaseUrl);
         _httpClient.Timeout = _options.Timeout;
 
         // OAuth 启用时不设置静态 Authorization header — 每次请求动态获取 token
         // 未启用时保持旧行为：构造时固定 ApiKey
-        if (!_options.IsOAuthRetryEnabled && !string.IsNullOrEmpty(_options.ApiKey))
-        {
+        if (!_options.IsOAuthRetryEnabled && !string.IsNullOrEmpty(_options.ApiKey)) {
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_options.ApiKey}");
         }
     }
@@ -356,8 +340,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// 设置 Bridge Session API 请求头 — 认证 + anthropic-version + anthropic-beta + x-organization-uuid
     /// <para>对齐 TS 端 BridgeSessionApi headers,4处方法共用</para>
     /// </summary>
-    private void SetBridgeSessionHeaders(HttpRequestMessage request)
-    {
+    private void SetBridgeSessionHeaders(HttpRequestMessage request) {
         _requestExecutor.SetAuthHeader(request);
         request.Headers.Add("anthropic-version", "2023-06-01");
         request.Headers.Add("anthropic-beta", BetaHeader);
@@ -370,15 +353,11 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>是否健康</returns>
-    public async Task<bool> HealthCheckAsync(CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task<bool> HealthCheckAsync(CancellationToken ct = default) {
+        try {
             var response = await _httpClient.GetAsync("/health", ct).ConfigureAwait(false);
             return response.IsSuccessStatusCode;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[BridgeApiClient] 健康检查失败");
             return false;
         }
@@ -389,10 +368,8 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>会话 ID 列表</returns>
-    public async Task<IReadOnlyList<string>> GetSessionsAsync(CancellationToken ct = default)
-    {
-        return await _requestExecutor.SendWithRetryAsync(async token =>
-        {
+    public async Task<IReadOnlyList<string>> GetSessionsAsync(CancellationToken ct = default) {
+        return await _requestExecutor.SendWithRetryAsync(async token => {
             var response = await _httpClient.GetAsync("/sessions", token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
@@ -410,12 +387,10 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// <returns>连接数据</returns>
     public async Task<BridgeConnectedData?> CreateSessionAsync(
         ClientInfo clientInfo,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(clientInfo);
 
-        return await _requestExecutor.SendWithRetryAsync(async token =>
-        {
+        return await _requestExecutor.SendWithRetryAsync(async token => {
             var json = JsonSerializer.Serialize(clientInfo, BridgeJsonContext.Default.ClientInfo);
             using var content = new StringContent(json, Encoding.UTF8, HttpContentType.ApplicationJson.ToValue());
 
@@ -432,12 +407,10 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     /// <param name="sessionId">会话 ID</param>
     /// <param name="ct">取消令牌</param>
-    public async Task CloseSessionAsync(string sessionId, CancellationToken ct = default)
-    {
+    public async Task CloseSessionAsync(string sessionId, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(sessionId);
 
-        await _requestExecutor.SendWithRetryAsync(async token =>
-        {
+        await _requestExecutor.SendWithRetryAsync(async token => {
             var response = await _httpClient.DeleteAsync($"/sessions/{sessionId}", token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             return true;
@@ -453,12 +426,10 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     public async Task<BridgeEnvironmentRegistrationResponse?> RegisterBridgeEnvironmentAsync(
         BridgeEnvironmentRegistration registration,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(registration);
 
-        return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
-        {
+        return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token => {
             var json = JsonSerializer.Serialize(registration, BridgeJsonContext.Default.BridgeEnvironmentRegistration);
             using var content = new StringContent(json, Encoding.UTF8, HttpContentType.ApplicationJson.ToValue());
 
@@ -467,8 +438,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 
             var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            {
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
                 throw new BridgeFatalError("Authentication failed", (int)response.StatusCode, "auth_error");
             }
 
@@ -487,21 +457,17 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     public async Task<BridgeWorkItem?> PollForWorkAsync(
         string environmentId,
         CancellationToken ct = default,
-        int? reclaimOlderThanMs = null)
-    {
+        int? reclaimOlderThanMs = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(environmentId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(environmentId)) {
             throw new ArgumentException("bridgeId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        try
-        {
+        try {
             // 对齐 TS 端: reclaim_older_than_ms 作为 URL 查询参数
             var url = $"/v1/environments/bridge/{environmentId}/work/poll";
-            if (reclaimOlderThanMs.HasValue)
-            {
+            if (reclaimOlderThanMs.HasValue) {
                 url += $"?reclaim_older_than_ms={reclaimOlderThanMs.Value}";
             }
 
@@ -511,29 +477,24 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
                 ct).ConfigureAwait(false);
 
             // 对齐 TS 端: validateStatus: s < 500 — 4xx 由 HandleErrorStatus 处理，5xx 重试
-            if ((int)response.StatusCode >= 500)
-            {
+            if ((int)response.StatusCode >= 500) {
                 response.EnsureSuccessStatusCode();
             }
 
             // 对齐 TS 端: handleErrorStatus — 401/403/404/410/429 分层处理
-            if ((int)response.StatusCode is >= 400 and < 500)
-            {
+            if ((int)response.StatusCode is >= 400 and < 500) {
                 var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 BridgeApiErrors.HandleErrorStatus((int)response.StatusCode, body, "Poll", _logger);
             }
 
             // 204 No Content 表示没有可用工作
-            if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
-            {
+            if (response.StatusCode == System.Net.HttpStatusCode.NoContent) {
                 return null;
             }
 
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeWorkItem);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             // 正常取消，返回 null
             return null;
         }
@@ -548,24 +509,20 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         string environmentId,
         string workId,
         string? sessionToken = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(workId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(environmentId) || !BridgeApiErrors.ValidateBridgeId(workId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(environmentId) || !BridgeApiErrors.ValidateBridgeId(workId)) {
             throw new ArgumentException("bridgeId and workId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await _requestExecutor.SendWithRetryAsync(async token =>
-        {
+        await _requestExecutor.SendWithRetryAsync(async token => {
             using var request = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/environments/bridge/{environmentId}/work/{workId}/ack");
 
             // 对齐 TS 端: sessionToken 作为 Authorization Bearer header
-            if (!string.IsNullOrEmpty(sessionToken))
-            {
+            if (!string.IsNullOrEmpty(sessionToken)) {
                 request.Headers.Add("Authorization", $"Bearer {sessionToken}");
             }
 
@@ -583,18 +540,15 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     public async Task StopWorkAsync(
         string environmentId,
         string workId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(workId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(environmentId) || !BridgeApiErrors.ValidateBridgeId(workId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(environmentId) || !BridgeApiErrors.ValidateBridgeId(workId)) {
             throw new ArgumentException("bridgeId and workId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
-        {
+        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token => {
             using var request = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/environments/bridge/{environmentId}/work/{workId}/stop");
             _requestExecutor.SetAuthHeader(request);
@@ -612,17 +566,14 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     public async Task DeregisterEnvironmentAsync(
         string environmentId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(environmentId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(environmentId)) {
             throw new ArgumentException("bridgeId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
-        {
+        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token => {
             using var request = new HttpRequestMessage(HttpMethod.Delete,
                 $"/v1/environments/bridge/{environmentId}");
             _requestExecutor.SetAuthHeader(request);
@@ -641,17 +592,14 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     public async Task ArchiveSessionAsync(
         string sessionId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(sessionId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(sessionId)) {
             throw new ArgumentException("sessionId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
-        {
+        await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token => {
             using var request = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/sessions/{sessionId}/archive");
             SetBridgeSessionHeaders(request);
@@ -670,20 +618,16 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     public async Task<BridgeReconnectResponse?> ReconnectSessionAsync(
         string environmentId,
         string sessionId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(environmentId) || !BridgeApiErrors.ValidateBridgeId(sessionId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(environmentId) || !BridgeApiErrors.ValidateBridgeId(sessionId)) {
             throw new ArgumentException("environmentId and sessionId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
-        {
-            var request = new BridgeReconnectRequest
-            {
+        return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token => {
+            var request = new BridgeReconnectRequest {
                 EnvironmentId = environmentId,
                 SessionId = sessionId
             };
@@ -692,14 +636,12 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
             using var content = new StringContent(json, Encoding.UTF8, HttpContentType.ApplicationJson.ToValue());
 
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post,
-                $"/v1/environments/bridge/{environmentId}/sessions/{sessionId}/bridge/reconnect")
-            { Content = content };
+                $"/v1/environments/bridge/{environmentId}/sessions/{sessionId}/bridge/reconnect") { Content = content };
             _requestExecutor.SetAuthHeader(httpRequest);
 
             var response = await _httpClient.SendAsync(httpRequest, token).ConfigureAwait(false);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            {
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
                 throw new BridgeFatalError("Authentication failed during reconnect", (int)response.StatusCode, "auth_error");
             }
 
@@ -720,31 +662,26 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
         string environmentId,
         string workId,
         string? sessionToken = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(environmentId);
         ArgumentException.ThrowIfNullOrWhiteSpace(workId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(environmentId) || !BridgeApiErrors.ValidateBridgeId(workId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(environmentId) || !BridgeApiErrors.ValidateBridgeId(workId)) {
             throw new ArgumentException("bridgeId and workId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        try
-        {
+        try {
             using var request = new HttpRequestMessage(HttpMethod.Post,
                 $"/v1/environments/bridge/{environmentId}/work/{workId}/heartbeat");
 
             // 对齐 TS 端: sessionToken 作为 Authorization Bearer header
-            if (!string.IsNullOrEmpty(sessionToken))
-            {
+            if (!string.IsNullOrEmpty(sessionToken)) {
                 request.Headers.Add("Authorization", $"Bearer {sessionToken}");
             }
 
             var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-            {
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized) {
                 throw new BridgeFatalError("Authentication failed during heartbeat", (int)response.StatusCode, "auth_error");
             }
 
@@ -752,9 +689,7 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
 
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             return RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.BridgeHeartbeatResponse);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             return null;
         }
     }
@@ -766,18 +701,15 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     public async Task SendPermissionResponseEventAsync(
         string sessionId,
         BridgePermissionResponseEvent permissionEvent,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentNullException.ThrowIfNull(permissionEvent);
 
-        if (!BridgeApiErrors.ValidateBridgeId(sessionId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(sessionId)) {
             throw new ArgumentException("sessionId must match pattern: ^[a-zA-Z0-9_-]+$");
         }
 
-        await _requestExecutor.SendWithRetryAsync(async token =>
-        {
+        await _requestExecutor.SendWithRetryAsync(async token => {
             var json = JsonSerializer.Serialize(permissionEvent, BridgeJsonContext.Default.BridgePermissionResponseEvent);
             using var content = new StringContent(json, Encoding.UTF8, HttpContentType.ApplicationJson.ToValue());
 
@@ -799,42 +731,34 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     public async Task<string?> GetSessionTitleAsync(
         string sessionId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(sessionId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(sessionId)) {
             return null;
         }
 
-        try
-        {
-            return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
-            {
+        try {
+            return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token => {
                 using var request = new HttpRequestMessage(HttpMethod.Get,
                     $"/v1/sessions/{sessionId}");
                 SetBridgeSessionHeaders(request);
 
                 var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
 
-                if (!response.IsSuccessStatusCode)
-                {
+                if (!response.IsSuccessStatusCode) {
                     return null;
                 }
 
                 var json = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                 var data = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.DictionaryStringJsonElement);
-                if (data is not null && data.TryGetValue("title", out var titleEl) && titleEl.ValueKind == JsonValueKind.String)
-                {
+                if (data is not null && data.TryGetValue("title", out var titleEl) && titleEl.ValueKind == JsonValueKind.String) {
                     return titleEl.GetString();
                 }
 
                 return null;
             }, useOAuthRetry: true, ct).ConfigureAwait(false);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -846,42 +770,34 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// </summary>
     public async Task<string?> GetBridgeSessionEnvironmentIdAsync(
         string sessionId,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
-        if (!BridgeApiErrors.ValidateBridgeId(sessionId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(sessionId)) {
             return null;
         }
 
-        try
-        {
-            return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
-            {
+        try {
+            return await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token => {
                 using var request = new HttpRequestMessage(HttpMethod.Get,
                     $"/v1/sessions/{sessionId}");
                 SetBridgeSessionHeaders(request);
 
                 var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
 
-                if (!response.IsSuccessStatusCode)
-                {
+                if (!response.IsSuccessStatusCode) {
                     return null;
                 }
 
                 var json = await response.Content.ReadAsStringAsync(token).ConfigureAwait(false);
                 var data = RelaxedJsonSerializer.Deserialize(json, BridgeJsonContext.Default.DictionaryStringJsonElement);
-                if (data is not null && data.TryGetValue("environment_id", out var envIdEl) && envIdEl.ValueKind == JsonValueKind.String)
-                {
+                if (data is not null && data.TryGetValue("environment_id", out var envIdEl) && envIdEl.ValueKind == JsonValueKind.String) {
                     return envIdEl.GetString();
                 }
 
                 return null;
             }, useOAuthRetry: true, ct).ConfigureAwait(false);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }
@@ -894,43 +810,35 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     public async Task UpdateSessionTitleAsync(
         string sessionId,
         string title,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
         if (string.IsNullOrWhiteSpace(title)) return;
 
-        if (!BridgeApiErrors.ValidateBridgeId(sessionId))
-        {
+        if (!BridgeApiErrors.ValidateBridgeId(sessionId)) {
             return;
         }
 
-        try
-        {
-            await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token =>
-            {
+        try {
+            await _requestExecutor.SendWithOAuthAndNetworkRetryAsync(async token => {
                 var body = new Dictionary<string, string> { ["title"] = title };
                 var json = JsonSerializer.Serialize(body, BridgeJsonContext.Default.DictionaryStringString);
                 using var content = new StringContent(json, Encoding.UTF8, HttpContentType.ApplicationJson.ToValue());
 
                 using var request = new HttpRequestMessage(HttpMethod.Patch,
-                    $"/v1/sessions/{sessionId}")
-                { Content = content };
+                    $"/v1/sessions/{sessionId}") { Content = content };
                 SetBridgeSessionHeaders(request);
 
                 var response = await _httpClient.SendAsync(request, token).ConfigureAwait(false);
 
                 // 对齐 TS 端: validateStatus: s < 500 — 4xx 静默，5xx 重试
-                if ((int)response.StatusCode >= 500)
-                {
+                if ((int)response.StatusCode >= 500) {
                     response.EnsureSuccessStatusCode();
                 }
 
                 return true;
             }, useOAuthRetry: true, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 对齐 TS 端: 错误静默吞掉 — 标题同步是 best-effort，但保留日志可见性
             _logger?.LogDebug(ex, "[BridgeApiClient] 会话标题同步失败");
         }
@@ -957,14 +865,12 @@ public sealed partial class BridgeApiClient : ServiceEntity, IDisposable
     /// <summary>
     /// 释放资源 — 释放内部 HttpClient
     /// </summary>
-    public override void Dispose()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public override void Dispose() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return;
         }
 
         _httpClient.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }

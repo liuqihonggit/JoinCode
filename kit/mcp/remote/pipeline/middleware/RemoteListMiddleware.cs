@@ -5,15 +5,13 @@ namespace McpToolRegistry;
 /// 远程列表中间件 — 调用 ListTools/ListResources/ListPrompts
 /// </summary>
 [Register(typeof(IRemoteSyncMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class RemoteListMiddleware : ServiceEntity, IRemoteSyncMiddleware
-{
+public sealed partial class RemoteListMiddleware : ServiceEntity, IRemoteSyncMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="RemoteListMiddleware"/> 实例
     /// </summary>
     /// <param name="logger">日志记录器</param>
-    public RemoteListMiddleware(ILogger<RemoteListMiddleware> logger)
-    {
+    public RemoteListMiddleware(ILogger<RemoteListMiddleware> logger) {
         _logger = logger;
     }
     private readonly ILogger<RemoteListMiddleware> _logger;
@@ -28,81 +26,72 @@ public sealed partial class RemoteListMiddleware : ServiceEntity, IRemoteSyncMid
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>异步任务</returns>
-    public async Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct)
-    {
-        if (ctx.Client is null)
-        {
+    public async Task InvokeAsync(RemoteSyncContext ctx, MiddlewareDelegate<RemoteSyncContext> next, CancellationToken ct) {
+        if (ctx.Client is null) {
             await next(ctx, ct).ConfigureAwait(false);
             return;
         }
 
-        try
-        {
-            switch (ctx.Operation)
-            {
+        try {
+            switch (ctx.Operation) {
                 case RemoteSyncOperation.Tools:
-                    var toolsResult = await ctx.Client.ListToolsAsync(ct).ConfigureAwait(false);
-                    if (!toolsResult.Success)
-                    {
-                        ctx.Success = false;
-                        ctx.ErrorMessage = toolsResult.ErrorMessage;
-                        await next(ctx, ct).ConfigureAwait(false);
-                        return;
-                    }
+                var toolsResult = await ctx.Client.ListToolsAsync(ct).ConfigureAwait(false);
+                if (!toolsResult.Success) {
+                    ctx.Success = false;
+                    ctx.ErrorMessage = toolsResult.ErrorMessage;
+                    await next(ctx, ct).ConfigureAwait(false);
+                    return;
+                }
 
-                    ctx.ToolsResult = toolsResult;
-                    ctx.SyncedNames = toolsResult.GetData()
-                        .Select(t => McpNameNormalizer.BuildMcpToolName(ctx.ClientId, t.Name))
-                        .ToList();
+                ctx.ToolsResult = toolsResult;
+                ctx.SyncedNames = toolsResult.GetData()
+                    .Select(t => McpNameNormalizer.BuildMcpToolName(ctx.ClientId, t.Name))
+                    .ToList();
 
-                    _logger.LogInformation(
-                        "从远程客户端 {ClientId} 列出了 {Count} 个工具",
-                        ctx.ClientId, toolsResult.GetData().Count);
-                    break;
+                _logger.LogInformation(
+                    "从远程客户端 {ClientId} 列出了 {Count} 个工具",
+                    ctx.ClientId, toolsResult.GetData().Count);
+                break;
 
                 case RemoteSyncOperation.Resources:
-                    var resourcesResult = await ctx.Client.ListResourcesAsync(ct).ConfigureAwait(false);
-                    if (!resourcesResult.Success)
-                    {
-                        ctx.Success = false;
-                        ctx.ErrorMessage = resourcesResult.ErrorMessage;
-                        await next(ctx, ct).ConfigureAwait(false);
-                        return;
-                    }
+                var resourcesResult = await ctx.Client.ListResourcesAsync(ct).ConfigureAwait(false);
+                if (!resourcesResult.Success) {
+                    ctx.Success = false;
+                    ctx.ErrorMessage = resourcesResult.ErrorMessage;
+                    await next(ctx, ct).ConfigureAwait(false);
+                    return;
+                }
 
-                    ctx.SyncedNames = resourcesResult.GetData()
-                        .Select(r => r.Uri)
-                        .ToList();
+                ctx.SyncedNames = resourcesResult.GetData()
+                    .Select(r => r.Uri)
+                    .ToList();
 
-                    _logger.LogInformation(
-                        "从远程客户端 {ClientId} 列出了 {Count} 个资源",
-                        ctx.ClientId, resourcesResult.GetData().Count);
-                    break;
+                _logger.LogInformation(
+                    "从远程客户端 {ClientId} 列出了 {Count} 个资源",
+                    ctx.ClientId, resourcesResult.GetData().Count);
+                break;
 
                 case RemoteSyncOperation.Prompts:
-                    var promptsResult = await ctx.Client.ListPromptsAsync(ct).ConfigureAwait(false);
-                    if (!promptsResult.Success)
-                    {
-                        ctx.Success = false;
-                        ctx.ErrorMessage = promptsResult.ErrorMessage;
-                        await next(ctx, ct).ConfigureAwait(false);
-                        return;
-                    }
+                var promptsResult = await ctx.Client.ListPromptsAsync(ct).ConfigureAwait(false);
+                if (!promptsResult.Success) {
+                    ctx.Success = false;
+                    ctx.ErrorMessage = promptsResult.ErrorMessage;
+                    await next(ctx, ct).ConfigureAwait(false);
+                    return;
+                }
 
-                    ctx.SyncedNames = promptsResult.GetData()
-                        .Select(p => p.Name)
-                        .ToList();
+                ctx.SyncedNames = promptsResult.GetData()
+                    .Select(p => p.Name)
+                    .ToList();
 
-                    _logger.LogInformation(
-                        "从远程客户端 {ClientId} 列出了 {Count} 个提示模板",
-                        ctx.ClientId, promptsResult.GetData().Count);
-                    break;
+                _logger.LogInformation(
+                    "从远程客户端 {ClientId} 列出了 {Count} 个提示模板",
+                    ctx.ClientId, promptsResult.GetData().Count);
+                break;
             }
 
             ctx.Success = true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "从远程客户端 {ClientId} 同步{Operation}失败", ctx.ClientId, ctx.Operation);
             ctx.Success = false;
             ctx.ErrorMessage = ex.Message;

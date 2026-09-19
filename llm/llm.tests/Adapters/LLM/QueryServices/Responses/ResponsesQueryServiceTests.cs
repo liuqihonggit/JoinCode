@@ -1,13 +1,10 @@
 namespace Llm.Tests.Adapters.LLM.QueryServices.Responses;
 
 
-public class ResponsesQueryServiceTests
-{
-    private static ResponsesQueryService CreateService(string provider = "openai")
-    {
+public class ResponsesQueryServiceTests {
+    private static ResponsesQueryService CreateService(string provider = "openai") {
         var kind = ProtocolKind.OpenAiResponses;
-        var config = new ProviderConfig
-        {
+        var config = new ProviderConfig {
             Vendor = provider,
             ApiKey = "sk-test",
             ModelId = "gpt-4o",
@@ -19,8 +16,7 @@ public class ResponsesQueryServiceTests
     #region CreateRequest
 
     [Fact]
-    public void CreateRequest_DefaultSettings_UsesConfigModelId()
-    {
+    public void CreateRequest_DefaultSettings_UsesConfigModelId() {
         var service = CreateService();
         var history = new MessageList { new(MessageRole.User, "hi") };
 
@@ -32,12 +28,10 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_FastMode_UsesFastModelId()
-    {
+    public void CreateRequest_FastMode_UsesFastModelId() {
         var service = CreateService();
         var history = new MessageList();
-        var options = new ChatOptions
-        {
+        var options = new ChatOptions {
             FastMode = true,
             FastModelId = "gpt-4o-mini"
         };
@@ -48,8 +42,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_FastModeWithoutFastModelId_KeepsConfigModel()
-    {
+    public void CreateRequest_FastModeWithoutFastModelId_KeepsConfigModel() {
         var service = CreateService();
         var options = new ChatOptions { FastMode = true };
 
@@ -59,8 +52,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_StreamEnabled_SetsStreamTrue()
-    {
+    public void CreateRequest_StreamEnabled_SetsStreamTrue() {
         var service = CreateService();
 
         var request = service.CreateRequest(new MessageList(), null, stream: true, null);
@@ -69,8 +61,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_SystemMessage_MapsToInstructions()
-    {
+    public void CreateRequest_SystemMessage_MapsToInstructions() {
         var service = CreateService();
         var history = new MessageList
         {
@@ -84,8 +75,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_MultipleSystemMessages_ConcatenatesInstructions()
-    {
+    public void CreateRequest_MultipleSystemMessages_ConcatenatesInstructions() {
         var service = CreateService();
         var history = new MessageList
         {
@@ -100,8 +90,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_UserMessage_InputArrayContainsUserRole()
-    {
+    public void CreateRequest_UserMessage_InputArrayContainsUserRole() {
         var service = CreateService();
         var history = new MessageList { new(MessageRole.User, "hello") };
 
@@ -116,8 +105,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_AssistantMessage_UsesOutputTextContentType()
-    {
+    public void CreateRequest_AssistantMessage_UsesOutputTextContentType() {
         var service = CreateService();
         var history = new MessageList
         {
@@ -135,11 +123,9 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_TransfersTemperatureTopPMaxOutputTokens()
-    {
+    public void CreateRequest_TransfersTemperatureTopPMaxOutputTokens() {
         var service = CreateService();
-        var options = new ChatOptions
-        {
+        var options = new ChatOptions {
             Temperature = 0.5f,
             MaxTokens = 100,
             TopP = 0.9f
@@ -153,8 +139,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_EffortLevel_SetsReasoningEffort()
-    {
+    public void CreateRequest_EffortLevel_SetsReasoningEffort() {
         var service = CreateService();
         var options = new ChatOptions { EffortLevel = EffortLevel.Medium };
 
@@ -165,8 +150,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ThinkingEnabled_SetsReasoningWithHighEffort()
-    {
+    public void CreateRequest_ThinkingEnabled_SetsReasoningWithHighEffort() {
         var service = CreateService();
         var options = new ChatOptions { ThinkingEnabled = true };
 
@@ -178,8 +162,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ThinkingDisabled_DoesNotSetReasoning()
-    {
+    public void CreateRequest_ThinkingDisabled_DoesNotSetReasoning() {
         var service = CreateService();
         var options = new ChatOptions { ThinkingEnabled = false };
 
@@ -189,8 +172,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools()
-    {
+    public void CreateRequest_ToolChoiceAutoWithKernel_BuildsTools() {
         var service = CreateService();
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup("tools", [new ToolDef("TestTool", "A test tool")]));
@@ -206,8 +188,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ToolChoiceAutoWithoutKernel_DoesNotAddTools()
-    {
+    public void CreateRequest_ToolChoiceAutoWithoutKernel_DoesNotAddTools() {
         var service = CreateService();
         var options = new ChatOptions { ToolChoice = ToolChoice.AutoInvoke };
 
@@ -217,16 +198,13 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ToolHistory_EmitsFunctionCallAndFunctionCallOutputItems()
-    {
+    public void CreateRequest_ToolHistory_EmitsFunctionCallAndFunctionCallOutputItems() {
         // DeepSeek Responses API: 工具调用历史须用 function_call + function_call_output items, 而非 role=tool message
         var service = CreateService();
-        var assistantMeta = new Dictionary<string, JsonElement>
-        {
+        var assistantMeta = new Dictionary<string, JsonElement> {
             ["ToolCalls"] = JsonElementHelper.FromJson("[{\"Id\":\"call-1\",\"Name\":\"grep\",\"Arguments\":\"{\\\"q\\\":\\\"x\\\"}\"}]")
         };
-        var toolMeta = new Dictionary<string, JsonElement>
-        {
+        var toolMeta = new Dictionary<string, JsonElement> {
             ["ToolCallId"] = JsonElementHelper.FromString("call-1"),
             ["ToolName"] = JsonElementHelper.FromString("grep")
         };
@@ -251,12 +229,10 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_AssistantWithReasoning_EmitsReasoningItem()
-    {
+    public void CreateRequest_AssistantWithReasoning_EmitsReasoningItem() {
         // thinking 模式: assistant 的 reasoning 必须以 reasoning item 回传, 否则 DeepSeek 400
         var service = CreateService();
-        var assistantMeta = new Dictionary<string, JsonElement>
-        {
+        var assistantMeta = new Dictionary<string, JsonElement> {
             ["ReasoningText"] = JsonElementHelper.FromString("Let me think about this carefully.")
         };
         var history = new MessageList
@@ -274,17 +250,14 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_ToolCallHistoryWithReasoning_EmitsReasoningThenFunctionCallItems()
-    {
+    public void CreateRequest_ToolCallHistoryWithReasoning_EmitsReasoningThenFunctionCallItems() {
         // 工具调用轮: reasoning item 在 function_call 之前回传, 顺序对齐 DeepSeek 输出结构
         var service = CreateService();
-        var assistantMeta = new Dictionary<string, JsonElement>
-        {
+        var assistantMeta = new Dictionary<string, JsonElement> {
             ["ReasoningText"] = JsonElementHelper.FromString("I should use grep."),
             ["ToolCalls"] = JsonElementHelper.FromJson("[{\"Id\":\"call-2\",\"Name\":\"grep\",\"Arguments\":\"{}\"}]")
         };
-        var toolMeta = new Dictionary<string, JsonElement>
-        {
+        var toolMeta = new Dictionary<string, JsonElement> {
             ["ToolCallId"] = JsonElementHelper.FromString("call-2"),
             ["ToolName"] = JsonElementHelper.FromString("grep")
         };
@@ -305,8 +278,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateRequest_SpecialCharactersInContent_EscapedProperly()
-    {
+    public void CreateRequest_SpecialCharactersInContent_EscapedProperly() {
         var service = CreateService();
         var history = new MessageList { new(MessageRole.User, "hello \"world\"\nnewline") };
 
@@ -321,8 +293,7 @@ public class ResponsesQueryServiceTests
     #region ConvertToApiMessages
 
     [Fact]
-    public async Task Stream_ReasoningDelta_AccumulatedInFinalMetadata()
-    {
+    public async Task Stream_ReasoningDelta_AccumulatedInFinalMetadata() {
         // thinking 模式下流式 reasoning_text.delta 应累积到终局事件的 ReasoningText metadata
         var sse =
             "event: response.reasoning_text.delta\ndata: {\"delta\":\"Let me think\"}\n\n" +
@@ -335,8 +306,7 @@ public class ResponsesQueryServiceTests
         var events = new List<StreamEvent>();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token))
-        {
+        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token)) {
             events.Add(evt);
         }
 
@@ -346,11 +316,9 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_ReasoningItem_StoredInAssistantMetadata()
-    {
+    public void ConvertToApiMessages_ReasoningItem_StoredInAssistantMetadata() {
         // DeepSeek thinking 模式下响应含 reasoning item，必须存入 metadata 供下轮回传
-        var response = new ResponsesResponse
-        {
+        var response = new ResponsesResponse {
             Id = "resp-r1",
             Output =
             [
@@ -381,10 +349,8 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_NoReasoning_NoReasoningTextKey()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ConvertToApiMessages_NoReasoning_NoReasoningTextKey() {
+        var response = new ResponsesResponse {
             Id = "resp-r2",
             Output =
             [
@@ -403,10 +369,8 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_ReasoningWithToolCalls_StoredInToolCallsMetadata()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ConvertToApiMessages_ReasoningWithToolCalls_StoredInToolCallsMetadata() {
+        var response = new ResponsesResponse {
             Id = "resp-r3",
             Output =
             [
@@ -433,10 +397,8 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_TextResponse_ReturnsAssistantMessageWithText()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ConvertToApiMessages_TextResponse_ReturnsAssistantMessageWithText() {
+        var response = new ResponsesResponse {
             Id = "resp-1",
             Object = "response",
             Model = "gpt-4o",
@@ -463,10 +425,8 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_MultipleContentTexts_Concatenated()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ConvertToApiMessages_MultipleContentTexts_Concatenated() {
+        var response = new ResponsesResponse {
             Id = "resp-2",
             Output =
             [
@@ -489,10 +449,8 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_FunctionCall_ReturnsToolCallsMetadata()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ConvertToApiMessages_FunctionCall_ReturnsToolCallsMetadata() {
+        var response = new ResponsesResponse {
             Id = "resp-3",
             Output =
             [
@@ -516,10 +474,8 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_Usage_MapsToTokenUsage()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ConvertToApiMessages_Usage_MapsToTokenUsage() {
+        var response = new ResponsesResponse {
             Id = "resp-4",
             Output =
             [
@@ -530,8 +486,7 @@ public class ResponsesQueryServiceTests
                     Content = [new ResponsesContent { Type = "output_text", Text = "Hi" }]
                 }
             ],
-            Usage = new ResponsesUsage
-            {
+            Usage = new ResponsesUsage {
                 InputTokens = 10,
                 OutputTokens = 20,
                 InputTokensDetails = new ResponsesTokenDetails { CachedTokens = 5 }
@@ -549,10 +504,8 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_EmptyOutput_ReturnsEmptyContentMessage()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ConvertToApiMessages_EmptyOutput_ReturnsEmptyContentMessage() {
+        var response = new ResponsesResponse {
             Id = "resp-5",
             Output = []
         };
@@ -564,10 +517,8 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void ConvertToApiMessages_TextAndFunctionCall_PrioritizesToolCalls()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ConvertToApiMessages_TextAndFunctionCall_PrioritizesToolCalls() {
+        var response = new ResponsesResponse {
             Id = "resp-6",
             Output =
             [
@@ -600,11 +551,9 @@ public class ResponsesQueryServiceTests
     #region 流式事件解析
 
     /// <summary>用 mock SSE 流构建服务 — 验证流式终结事件解析</summary>
-    private static ResponsesQueryService CreateStreamingService(string sseBody)
-    {
+    private static ResponsesQueryService CreateStreamingService(string sseBody) {
         var kind = ProtocolKind.OpenAiResponses;
-        var config = new ProviderConfig
-        {
+        var config = new ProviderConfig {
             Vendor = "openai",
             ApiKey = "sk-test",
             ModelId = "gpt-4o",
@@ -617,8 +566,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public async Task Stream_IncompleteEvent_YieldsFinalMetadataWithUsage()
-    {
+    public async Task Stream_IncompleteEvent_YieldsFinalMetadataWithUsage() {
         // 官方协议: 终结事件有三个(completed/incomplete/failed)，incomplete 出现在 max_output_tokens 截断
         var sse =
             "event: response.output_text.delta\ndata: {\"delta\":\"Hello\"}\n\n" +
@@ -629,8 +577,7 @@ public class ResponsesQueryServiceTests
         var events = new List<StreamEvent>();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token))
-        {
+        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token)) {
             events.Add(evt);
         }
 
@@ -645,8 +592,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public async Task Stream_IncompleteEvent_WithToolCalls_FlushesAccumulatedToolCalls()
-    {
+    public async Task Stream_IncompleteEvent_WithToolCalls_FlushesAccumulatedToolCalls() {
         // incomplete 截断时已累积的 function_call arguments 应被刷出，避免丢失
         var sse =
             "event: response.output_item.added\ndata: {\"item\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call-1\",\"name\":\"get_weather\",\"arguments\":\"\"}}\n\n" +
@@ -658,8 +604,7 @@ public class ResponsesQueryServiceTests
         var events = new List<StreamEvent>();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token))
-        {
+        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token)) {
             events.Add(evt);
         }
 
@@ -670,8 +615,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public async Task Stream_DataWithoutEventPrefix_UsesTypeFieldFallback()
-    {
+    public async Task Stream_DataWithoutEventPrefix_UsesTypeFieldFallback() {
         // 某些服务端/网关只发 data: 不带 event: 前缀，事件类型在 data 的 type 字段中
         var sse =
             "data: {\"type\":\"response.output_text.delta\",\"delta\":\"Hello\"}\n\n" +
@@ -682,8 +626,7 @@ public class ResponsesQueryServiceTests
         var events = new List<StreamEvent>();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token))
-        {
+        await foreach (var evt in service.GetStreamEventContentsAsync(history, cancellationToken: cts.Token)) {
             events.Add(evt);
         }
 
@@ -692,20 +635,16 @@ public class ResponsesQueryServiceTests
         events[^1].Metadata.Should().ContainKey("Usage", "无前缀时 completed 事件应正常收尾");
     }
 
-    private sealed class MockResponsesStreamingHandler : DelegatingHandler
-    {
+    private sealed class MockResponsesStreamingHandler : DelegatingHandler {
         private readonly string _sseBody;
 
-        public MockResponsesStreamingHandler(string sseBody) : base(new HttpClientHandler())
-        {
+        public MockResponsesStreamingHandler(string sseBody) : base(new HttpClientHandler()) {
             _sseBody = sseBody;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
             var content = new StringContent(_sseBody, Encoding.UTF8, "text/event-stream");
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
+            var response = new HttpResponseMessage(HttpStatusCode.OK) {
                 Content = content
             };
             return Task.FromResult(response);
@@ -717,8 +656,7 @@ public class ResponsesQueryServiceTests
     #region Two-Phase Tool Loading — BuildToolsFromKernel
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty()
-    {
+    public void BuildToolsFromKernel_OnlyCoreTools_ToolsPopulated_ToolGroupsEmpty() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file"),
@@ -733,8 +671,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated()
-    {
+    public void BuildToolsFromKernel_OnlyMcpTools_ToolsEmpty_ToolGroupsPopulated() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.server1.tool1", "MCP tool 1"),
@@ -750,8 +687,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups()
-    {
+    public void BuildToolsFromKernel_MixedTools_CoreToolsInTools_McpToolsInGroups() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.CoreTools, [
             new ToolDef("read", "Read a file")
@@ -774,16 +710,14 @@ public class ResponsesQueryServiceTests
     #region Two-Phase Tool Loading — CreateSecondResponsesRequestWithDescriptions
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions()
-    {
+    public void CreateSecondResponsesRequestWithDescriptions_ValidToolNames_BuildsDescriptions() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1"),
             new ToolDef("mcp.tool2", "MCP tool 2")
         ]));
 
-        var originalRequest = new ResponsesRequest
-        {
+        var originalRequest = new ResponsesRequest {
             Model = "gpt-4o",
             Stream = true
         };
@@ -798,8 +732,7 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty()
-    {
+    public void CreateSecondResponsesRequestWithDescriptions_UnknownToolNames_DescriptionsEmpty() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
@@ -814,15 +747,13 @@ public class ResponsesQueryServiceTests
     }
 
     [Fact]
-    public void CreateSecondResponsesRequestWithDescriptions_PreservesOriginalFields()
-    {
+    public void CreateSecondResponsesRequestWithDescriptions_PreservesOriginalFields() {
         var kernel = new ChatClient(new Mock<IQueryService>().Object);
         kernel.Plugins.Add(new ToolGroup(ToolGroupNameConstants.McpTools, [
             new ToolDef("mcp.tool1", "MCP tool 1")
         ]));
 
-        var originalRequest = new ResponsesRequest
-        {
+        var originalRequest = new ResponsesRequest {
             Model = "gpt-4o",
             Stream = true,
             Temperature = 0.7f,

@@ -4,8 +4,7 @@ namespace Core.Skills.Mcp;
 /// <summary>
 /// MCP 技能提供者接口 — 管理来自 MCP 服务器的远程技能
 /// </summary>
-public interface IMcpSkillProvider : IAsyncDisposable
-{
+public interface IMcpSkillProvider : IAsyncDisposable {
     /// <summary>
     /// 异步获取所有 MCP 技能定义
     /// </summary>

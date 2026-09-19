@@ -1,8 +1,7 @@
 
 namespace Core.Tests.Memdir;
 
-public sealed class QueryWordHelperTests
-{
+public sealed class QueryWordHelperTests {
     [Theory]
     [InlineData("hello world", 2)]
     [InlineData("one,two;three", 3)]
@@ -10,8 +9,7 @@ public sealed class QueryWordHelperTests
     [InlineData("", 0)]
     [InlineData("   ", 0)]
     [InlineData("a!b?c", 3)]
-    public void ExtractWords_ReturnsExpectedCount(string input, int expectedCount)
-    {
+    public void ExtractWords_ReturnsExpectedCount(string input, int expectedCount) {
         var words = QueryWordHelper.ExtractWords(input);
 
         words.Should().HaveCount(expectedCount);
@@ -24,8 +22,7 @@ public sealed class QueryWordHelperTests
     [InlineData("", "", true)]
     [InlineData("", "x", false)]
     [InlineData("prefix hello suffix", "hello", true)]
-    public void ContainsOrdinalIgnoreCase_ReturnsExpected(string source, string value, bool expected)
-    {
+    public void ContainsOrdinalIgnoreCase_ReturnsExpected(string source, string value, bool expected) {
         var result = QueryWordHelper.ContainsOrdinalIgnoreCase(source.AsSpan(), value.AsSpan());
 
         result.Should().Be(expected);
@@ -41,32 +38,28 @@ public sealed class QueryWordHelperTests
     [InlineData("", "hello", false)]
     [InlineData("say hello world today", "hello", true)]
     [InlineData("say hello-world today", "hello", false)]
-    public void ContainsWholeWordOrdinalIgnoreCase_ReturnsExpected(string source, string word, bool expected)
-    {
+    public void ContainsWholeWordOrdinalIgnoreCase_ReturnsExpected(string source, string word, bool expected) {
         var result = QueryWordHelper.ContainsWholeWordOrdinalIgnoreCase(source.AsSpan(), word.AsSpan());
 
         result.Should().Be(expected);
     }
 
     [Fact]
-    public void ExtractWords_WithMinLength_FiltersShortWords()
-    {
+    public void ExtractWords_WithMinLength_FiltersShortWords() {
         var words = QueryWordHelper.ExtractWords("a big cat", minLength: 2);
 
         words.Should().BeEquivalentTo(new[] { "big", "cat" });
     }
 
     [Fact]
-    public void ExtractQueryWords_SplitsOnSeparators()
-    {
+    public void ExtractQueryWords_SplitsOnSeparators() {
         var words = QueryWordHelper.ExtractQueryWords("alpha, beta;gamma".AsSpan());
 
         words.Should().BeEquivalentTo(new[] { "alpha", "beta", "gamma" });
     }
 
     [Fact]
-    public void ExtractQueryWords_EmptyOrWhiteSpace_ReturnsEmpty()
-    {
+    public void ExtractQueryWords_EmptyOrWhiteSpace_ReturnsEmpty() {
         QueryWordHelper.ExtractQueryWords(ReadOnlySpan<char>.Empty).Should().BeEmpty();
         QueryWordHelper.ExtractQueryWords("   ".AsSpan()).Should().BeEmpty();
     }

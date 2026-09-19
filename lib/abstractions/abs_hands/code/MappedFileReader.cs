@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// var content = reader.ReadToEnd();
 /// </code>
 /// </summary>
-public sealed class MappedFileReader : IDisposable
-{
+public sealed class MappedFileReader : IDisposable {
     private readonly MemoryMappedFile? _mmf;
     private readonly MemoryMappedViewAccessor? _accessor;
     private readonly long _fileSize;
@@ -26,8 +25,7 @@ public sealed class MappedFileReader : IDisposable
     /// <param name="path">文件绝对路径。</param>
     /// <exception cref="FileNotFoundException">文件不存在。</exception>
     /// <exception cref="IOException">文件被独占锁定或 IO 错误。</exception>
-    public MappedFileReader(string path)
-    {
+    public MappedFileReader(string path) {
         _fileSize = new FileInfo(path).Length;
         if (_fileSize == 0)
             return;
@@ -43,8 +41,7 @@ public sealed class MappedFileReader : IDisposable
     /// <summary>
     /// 读取全部字节到新数组。
     /// </summary>
-    public byte[] ToArray()
-    {
+    public byte[] ToArray() {
         if (_fileSize == 0)
             return Array.Empty<byte>();
         var bytes = new byte[_fileSize];
@@ -60,8 +57,7 @@ public sealed class MappedFileReader : IDisposable
     /// <summary>
     /// 释放 mmap 句柄和视图访问器。由 <c>using var</c> 编译器展开的 try-finally 调用。
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed)
             return;
         _disposed = true;

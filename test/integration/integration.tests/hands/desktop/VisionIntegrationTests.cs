@@ -7,14 +7,11 @@ namespace Integration.Tests;
 [Trait("Category", "Integration")]
 [Trait("Category", "Desktop")]
 [Collection("DesktopIntegration")]
-public sealed class VisionIntegrationTests
-{
+public sealed class VisionIntegrationTests {
     [Fact]
-    public async Task VisionGuidedFlow_Notepad_Screenshot_FindElement_Click_Type()
-    {
+    public async Task VisionGuidedFlow_Notepad_Screenshot_FindElement_Click_Type() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
-        if (!env.IsInteractive)
-        {
+        if (!env.IsInteractive) {
             env.Diagnostic.Should().Contain("非交互式桌面环境");
             return;
         }
@@ -24,8 +21,7 @@ public sealed class VisionIntegrationTests
         var capture = new GdiScreenCaptureService();
 
         var notepad = System.Diagnostics.Process.Start("notepad.exe");
-        try
-        {
+        try {
             await Task.Delay(2500);
             notepad.Refresh();
             var hwnd = notepad.MainWindowHandle;
@@ -59,8 +55,7 @@ public sealed class VisionIntegrationTests
             detectResult.IsError.Should().BeFalse();
             detectResult.Content[0].Text.Should().Contain("1 个 UI 元素");
 
-            if (User32NativeMethods.GetForegroundWindow() != hwnd)
-            {
+            if (User32NativeMethods.GetForegroundWindow() != hwnd) {
                 await windows.FocusAsync(hwnd);
                 await Task.Delay(500);
             }
@@ -69,8 +64,7 @@ public sealed class VisionIntegrationTests
             findResult.IsError.Should().BeFalse();
             findResult.Content[0].Text.Should().Contain("mouse_click");
 
-            if (User32NativeMethods.GetForegroundWindow() != hwnd)
-            {
+            if (User32NativeMethods.GetForegroundWindow() != hwnd) {
                 await windows.FocusAsync(hwnd);
                 await Task.Delay(500);
             }
@@ -79,8 +73,7 @@ public sealed class VisionIntegrationTests
             clickOp.Succeeded.Should().BeTrue("视觉引导点击应成功");
             await Task.Delay(800);
 
-            if (User32NativeMethods.GetForegroundWindow() != hwnd)
-            {
+            if (User32NativeMethods.GetForegroundWindow() != hwnd) {
                 await windows.FocusAsync(hwnd);
                 await Task.Delay(500);
             }
@@ -95,11 +88,8 @@ public sealed class VisionIntegrationTests
             var screenshot = await capture.CaptureWindowAsync(hwnd);
             screenshot.Should().NotBeEmpty("最终截图应返回非空 base64");
             screenshot.Should().StartWith("iVBORw0KGgo", "应为 PNG base64 格式");
-        }
-        finally
-        {
-            if (notepad is { HasExited: false })
-            {
+        } finally {
+            if (notepad is { HasExited: false }) {
                 notepad.Kill();
                 notepad.WaitForExit(3000);
             }
@@ -107,8 +97,7 @@ public sealed class VisionIntegrationTests
     }
 
     [Fact]
-    public async Task DetectUiElements_RealScreenshot_MockDetector_ReturnsFormattedText()
-    {
+    public async Task DetectUiElements_RealScreenshot_MockDetector_ReturnsFormattedText() {
         var capture = new GdiScreenCaptureService();
 
         var detectorMock = new Mock<IUiElementDetector>();
@@ -138,8 +127,7 @@ public sealed class VisionIntegrationTests
     }
 
     [Fact]
-    public async Task FindElement_RealScreenshot_MockDetector_ReturnsClickCoordinates()
-    {
+    public async Task FindElement_RealScreenshot_MockDetector_ReturnsClickCoordinates() {
         var capture = new GdiScreenCaptureService();
 
         var detectorMock = new Mock<IUiElementDetector>();

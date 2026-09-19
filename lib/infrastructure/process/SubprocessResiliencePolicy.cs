@@ -3,8 +3,7 @@ namespace Infrastructure.Subprocess;
 /// <summary>
 /// 子进程弹性策略配置 — 集中描述写入/读取超时、健康检查、最大重启次数与断路器参数
 /// </summary>
-public sealed class SubprocessResiliencePolicy
-{
+public sealed class SubprocessResiliencePolicy {
     /// <summary>策略名称，用于日志与断路器命名</summary>
     public required string Name { get; init; }
 
@@ -21,8 +20,7 @@ public sealed class SubprocessResiliencePolicy
     public int MaxRestarts { get; init; } = 3;
 
     /// <summary>断路器配置，默认失败阈值 5、开启 60 秒</summary>
-    public CircuitBreakerConfig CircuitBreaker { get; init; } = new()
-    {
+    public CircuitBreakerConfig CircuitBreaker { get; init; } = new() {
         FailureThreshold = 5,
         OpenDuration = TimeSpan.FromSeconds(60),
     };
@@ -35,8 +33,7 @@ public sealed class SubprocessResiliencePolicy
     public static SubprocessResiliencePolicy Default(string name) => new() { Name = name };
 
     /// <summary>桥接子进程默认策略 — 10s 写超时、30s 读超时、最多 3 次重启</summary>
-    public static SubprocessResiliencePolicy BridgeDefault => new()
-    {
+    public static SubprocessResiliencePolicy BridgeDefault => new() {
         Name = "bridge-subprocess",
         WriteTimeout = TimeSpan.FromSeconds(10),
         ReadTimeout = TimeSpan.FromSeconds(30),
@@ -44,8 +41,7 @@ public sealed class SubprocessResiliencePolicy
     };
 
     /// <summary>Doctor 子进程默认策略 — 10s 写超时、30s 读超时、最多 3 次重启</summary>
-    public static SubprocessResiliencePolicy DoctorDefault => new()
-    {
+    public static SubprocessResiliencePolicy DoctorDefault => new() {
         Name = "doctor-subprocess",
         WriteTimeout = TimeSpan.FromSeconds(10),
         ReadTimeout = TimeSpan.FromSeconds(30),
@@ -53,8 +49,7 @@ public sealed class SubprocessResiliencePolicy
     };
 
     /// <summary>沙箱卫星进程默认策略 — 不重启，不健康时直接 Kill</summary>
-    public static SubprocessResiliencePolicy SandboxDefault => new()
-    {
+    public static SubprocessResiliencePolicy SandboxDefault => new() {
         Name = "sandbox-satellite",
         WriteTimeout = TimeSpan.FromSeconds(10),
         ReadTimeout = TimeSpan.FromSeconds(30),

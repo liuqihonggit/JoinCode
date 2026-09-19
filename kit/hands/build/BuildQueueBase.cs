@@ -6,8 +6,7 @@ namespace Services.Build;
 /// <para>串行模式(<see cref="BuildQueueService"/>)与多 Worker 模式(<see cref="BuildQueueRouter"/>)共用此基类,</para>
 /// <para>各自实现 <see cref="SubmitAsync"/>/<see cref="CancelAsync"/>/<see cref="GetStatus"/>/<see cref="ClearCacheAsync"/>/<see cref="DisposeAsync"/> 等差异化逻辑。</para>
 /// </summary>
-public abstract class BuildQueueBase : IBuildQueueService
-{
+public abstract class BuildQueueBase : IBuildQueueService {
     /// <summary>条目与等待句柄的成对存储,保证同一 BuildId 生命周期一致。</summary>
     private protected readonly BuildQueueEntryStore _store = new();
 
@@ -28,10 +27,8 @@ public abstract class BuildQueueBase : IBuildQueueService
     /// </summary>
     /// <param name="request">编译请求。</param>
     /// <returns>已入队的条目及其等待句柄(调用方可继续写入 Channel 或路由到 Worker)。</returns>
-    protected (BuildQueueEntry Entry, TaskCompletionSource<BuildQueueResult> Tcs) CreateQueuedEntry(BuildRequest request)
-    {
-        var entry = new BuildQueueEntry
-        {
+    protected (BuildQueueEntry Entry, TaskCompletionSource<BuildQueueResult> Tcs) CreateQueuedEntry(BuildRequest request) {
+        var entry = new BuildQueueEntry {
             BuildId = NextBuildId(),
             Request = request,
             Status = BuildQueueEntryStatus.Queued,
@@ -43,22 +40,19 @@ public abstract class BuildQueueBase : IBuildQueueService
     }
 
     /// <inheritdoc />
-    public Task<BuildQueueResult> WaitAsync(string buildId, CancellationToken ct)
-    {
+    public Task<BuildQueueResult> WaitAsync(string buildId, CancellationToken ct) {
         if (!_store.TryGetTcs(buildId, out var tcs))
             throw new InvalidOperationException($"Build {buildId} not found");
         return tcs.Task;
     }
 
     /// <inheritdoc />
-    public BuildQueueEntry? GetBuild(string buildId)
-    {
+    public BuildQueueEntry? GetBuild(string buildId) {
         return _store.TryGetEntry(buildId, out var entry) ? entry : null;
     }
 
     /// <inheritdoc />
-    public string GetOutputRange(string buildId, int startLine, int endLine)
-    {
+    public string GetOutputRange(string buildId, int startLine, int endLine) {
         var entry = _store.TryGetEntry(buildId, out var e) ? e : null;
         if (entry?.Result is null)
             return $"Build {buildId} not found or has no result";
@@ -85,8 +79,7 @@ public abstract class BuildQueueBase : IBuildQueueService
     /// </summary>
     /// <param name="buildId">构建 ID。</param>
     /// <param name="entry">编译条目。</param>
-    protected void CompleteWithCancellation(string buildId, BuildQueueEntry entry)
-    {
+    protected void CompleteWithCancellation(string buildId, BuildQueueEntry entry) {
         var result = CreateCancelledResult(entry, "Build was cancelled");
         entry.Result = result;
         if (_store.TryGetTcs(buildId, out var tcs))
@@ -99,10 +92,8 @@ public abstract class BuildQueueBase : IBuildQueueService
     /// <param name="entry">编译条目。</param>
     /// <param name="message">取消原因(写入 <see cref="BuildQueueResult.ErrorOutput"/>)。</param>
     /// <returns>已取消的构建结果。</returns>
-    protected internal static BuildQueueResult CreateCancelledResult(BuildQueueEntry entry, string message)
-    {
-        return new BuildQueueResult
-        {
+    protected internal static BuildQueueResult CreateCancelledResult(BuildQueueEntry entry, string message) {
+        return new BuildQueueResult {
             BuildId = entry.BuildId,
             ExitCode = -1,
             Output = string.Empty,
@@ -122,10 +113,8 @@ public abstract class BuildQueueBase : IBuildQueueService
     /// <param name="entry">编译条目。</param>
     /// <param name="ex">异常。</param>
     /// <returns>失败的构建结果。</returns>
-    protected internal static BuildQueueResult CreateFailedResult(BuildQueueEntry entry, Exception ex)
-    {
-        return new BuildQueueResult
-        {
+    protected internal static BuildQueueResult CreateFailedResult(BuildQueueEntry entry, Exception ex) {
+        return new BuildQueueResult {
             BuildId = entry.BuildId,
             ExitCode = -1,
             Output = string.Empty,
@@ -158,8 +147,7 @@ public abstract class BuildQueueBase : IBuildQueueService
         IPreventSleepService? preventSleepService,
         ILogger? logger,
         CancellationToken buildCt,
-        bool preferResultExecutionTime = false)
-    {
+        bool preferResultExecutionTime = false) {
         await using var sleepScope = await PreventSleepScope.CreateAsync(
             preventSleepService, cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
@@ -176,15 +164,13 @@ public abstract class BuildQueueBase : IBuildQueueService
 
         var buildDuration = preferResultExecutionTime ? result.ExecutionTime : sw.Elapsed;
         var sleepDetected = wallElapsed > buildDuration + TimeSpan.FromSeconds(30);
-        if (sleepDetected)
-        {
+        if (sleepDetected) {
             logger?.LogWarning(
                 "Sleep detected during build {BuildId}: wall={Wall}, cpu={Cpu}",
                 entry.BuildId, wallElapsed, buildDuration);
         }
 
-        return new BuildQueueResult
-        {
+        return new BuildQueueResult {
             BuildId = entry.BuildId,
             ExitCode = result.ExitCode ?? -1,
             Output = result.Stdout ?? string.Empty,
@@ -203,8 +189,7 @@ public abstract class BuildQueueBase : IBuildQueueService
     /// 若已释放则抛出 <see cref="ObjectDisposedException"/>。
     /// </summary>
     /// <param name="typeName">类型名(用于异常消息)。</param>
-    protected void ThrowIfDisposed(string typeName)
-    {
+    protected void ThrowIfDisposed(string typeName) {
         if (Volatile.Read(ref _disposed) != 0)
             throw new ObjectDisposedException(typeName);
     }

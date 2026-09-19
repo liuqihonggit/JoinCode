@@ -4,8 +4,7 @@ namespace JoinCode.Cli.Commands.Prefix;
 /// Shell 命令执行工具 — 用 Process.Start 直接执行，捕获输出。
 /// ! / !! 前缀命令共享，不经过 MCP 中间件管道（用户主动输入已授权）。
 /// </summary>
-internal static class ShellExecutor
-{
+internal static class ShellExecutor {
     /// <summary>
     /// 执行 shell 命令，返回合并的 stdout+stderr 输出。
     /// </summary>
@@ -19,12 +18,10 @@ internal static class ShellExecutor
         string? workingDirectory,
         int timeoutMs,
         int maxOutputChars,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var (shell, shellArg) = GetShellAndArg();
         using var process = new System.Diagnostics.Process();
-        process.StartInfo = new System.Diagnostics.ProcessStartInfo
-        {
+        process.StartInfo = new System.Diagnostics.ProcessStartInfo {
             FileName = shell,
             Arguments = $"{shellArg} {command}",
             UseShellExecute = false,
@@ -51,14 +48,10 @@ internal static class ShellExecutor
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(timeoutMs);
 
-        try
-        {
+        try {
             await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            try { process.Kill(entireProcessTree: true); }
-            catch (Exception killEx) { Console.WriteLine($"[ShellExecutor] 进程终止失败: {killEx.Message}"); }
+        } catch (OperationCanceledException) {
+            try { process.Kill(entireProcessTree: true); } catch (Exception killEx) { Console.WriteLine($"[ShellExecutor] 进程终止失败: {killEx.Message}"); }
             return $"[超时] 命令在 {timeoutMs / 1000}s 内未完成，已终止。";
         }
 
@@ -68,14 +61,12 @@ internal static class ShellExecutor
         var combined = new StringBuilder();
         if (output.Length > 0)
             combined.Append(output.TrimEnd());
-        if (error.Length > 0)
-        {
+        if (error.Length > 0) {
             if (combined.Length > 0) combined.AppendLine();
             combined.Append("[stderr] ").Append(error.TrimEnd());
         }
 
-        if (combined.Length > maxOutputChars)
-        {
+        if (combined.Length > maxOutputChars) {
             combined.Length = maxOutputChars;
             combined.Append("\n[输出已截断]");
         }
@@ -86,8 +77,7 @@ internal static class ShellExecutor
     /// <summary>
     /// 获取当前平台的 shell 及参数标志 — Windows: cmd /c，Linux/macOS: bash -c。
     /// </summary>
-    private static (string Shell, string Arg) GetShellAndArg()
-    {
+    private static (string Shell, string Arg) GetShellAndArg() {
         if (OperatingSystem.IsWindows())
             return ("cmd.exe", "/c");
         if (OperatingSystem.IsMacOS())

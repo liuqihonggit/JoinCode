@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces.Scheduling;
 /// <summary>
 /// Cron 调度器抖动配置
 /// </summary>
-public sealed record CronJitterConfig
-{
+public sealed record CronJitterConfig {
     /// <summary>
     /// 重复任务前向延迟占间隔的比例
     /// </summary>
@@ -44,8 +43,7 @@ public sealed record CronJitterConfig
 /// <summary>
 /// Cron 抖动帮助类
 /// </summary>
-public static class CronJitterHelper
-{
+public static class CronJitterHelper {
     /// <summary>
     /// 计算带抖动的下次触发时间（用于重复任务）
     /// </summary>
@@ -53,8 +51,7 @@ public static class CronJitterHelper
         string cron,
         long fromMs,
         string taskId,
-        CronJitterConfig? config = null)
-    {
+        CronJitterConfig? config = null) {
         config ??= CronJitterConfig.Default;
 
         var t1 = NextCronRunMs(cron, fromMs);
@@ -77,8 +74,7 @@ public static class CronJitterHelper
         string cron,
         long fromMs,
         string taskId,
-        CronJitterConfig? config = null)
-    {
+        CronJitterConfig? config = null) {
         config ??= CronJitterConfig.Default;
 
         var t1 = NextCronRunMs(cron, fromMs);
@@ -97,8 +93,7 @@ public static class CronJitterHelper
     /// <summary>
     /// 计算下次触发时间
     /// </summary>
-    public static long? NextCronRunMs(string cron, long fromMs)
-    {
+    public static long? NextCronRunMs(string cron, long fromMs) {
         var fields = CronExpressionParser.Parse(cron);
         if (fields == null) return null;
 
@@ -109,8 +104,7 @@ public static class CronJitterHelper
     /// <summary>
     /// 计算下次触发时间
     /// </summary>
-    public static DateTimeOffset? ComputeNextCronRun(CronFields fields, DateTimeOffset from)
-    {
+    public static DateTimeOffset? ComputeNextCronRun(CronFields fields, DateTimeOffset from) {
         var minuteSet = new HashSet<int>(fields.Minute);
         var hourSet = new HashSet<int>(fields.Hour);
         var domSet = new HashSet<int>(fields.DayOfMonth);
@@ -125,11 +119,9 @@ public static class CronJitterHelper
 
         const int maxIter = 366 * 24 * 60;
 
-        for (int i = 0; i < maxIter; i++)
-        {
+        for (var i = 0; i < maxIter; i++) {
             var month = t.Month;
-            if (!monthSet.Contains(month))
-            {
+            if (!monthSet.Contains(month)) {
                 t = new DateTimeOffset(t.Year, t.Month, 1, 0, 0, 0, t.Offset).AddMonths(1);
                 continue;
             }
@@ -137,7 +129,7 @@ public static class CronJitterHelper
             var dom = t.Day;
             var dow = (int)t.DayOfWeek;
 
-            bool dayMatches = domWild && dowWild
+            var dayMatches = domWild && dowWild
                 ? true
                 : domWild
                     ? dowSet.Contains(dow)
@@ -145,20 +137,17 @@ public static class CronJitterHelper
                         ? domSet.Contains(dom)
                         : domSet.Contains(dom) || dowSet.Contains(dow);
 
-            if (!dayMatches)
-            {
+            if (!dayMatches) {
                 t = new DateTimeOffset(t.Year, t.Month, t.Day, 0, 0, 0, t.Offset).AddDays(1);
                 continue;
             }
 
-            if (!hourSet.Contains(t.Hour))
-            {
+            if (!hourSet.Contains(t.Hour)) {
                 t = new DateTimeOffset(t.Year, t.Month, t.Day, t.Hour, 0, 0, t.Offset).AddHours(1);
                 continue;
             }
 
-            if (!minuteSet.Contains(t.Minute))
-            {
+            if (!minuteSet.Contains(t.Minute)) {
                 t = t.AddMinutes(1);
                 continue;
             }
@@ -172,14 +161,12 @@ public static class CronJitterHelper
     /// <summary>
     /// 从任务 ID 计算抖动比例（0-1）
     /// </summary>
-    private static double JitterFrac(string taskId)
-    {
+    private static double JitterFrac(string taskId) {
         if (string.IsNullOrEmpty(taskId) || taskId.Length < 8)
             return 0;
 
         var hex = taskId[..8];
-        if (uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out var value))
-        {
+        if (uint.TryParse(hex, System.Globalization.NumberStyles.HexNumber, null, out var value)) {
             return value / (double)uint.MaxValue;
         }
 

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Team 工具名称枚举
 /// </summary>
-public enum TeamToolName
-{
+public enum TeamToolName {
     [EnumValue("team_create")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     TeamCreate,

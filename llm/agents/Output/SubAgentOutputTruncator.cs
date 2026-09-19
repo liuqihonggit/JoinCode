@@ -6,8 +6,7 @@ namespace Core.Agents;
 /// <para>对齐 openCode Truncate.output，但去掉半截预览，只给指针，要看就 read 全文。</para>
 /// </summary>
 [Register(typeof(SubAgentOutputTruncator), ServiceLifetime.Singleton)]
-public sealed partial class SubAgentOutputTruncator : ServiceEntity
-{
+public sealed partial class SubAgentOutputTruncator : ServiceEntity {
     private const int CharsPerToken = 4;
     private const string ArchiveSubdir = ".xxx";
     private const string ArchiveLeaf = "subagent";
@@ -22,8 +21,7 @@ public sealed partial class SubAgentOutputTruncator : ServiceEntity
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="archiveDir">存档目录（可选，默认 .xxx/subagent）</param>
-    public SubAgentOutputTruncator(IFileSystem fs, ILogger<SubAgentOutputTruncator> logger, string? archiveDir = null)
-    {
+    public SubAgentOutputTruncator(IFileSystem fs, ILogger<SubAgentOutputTruncator> logger, string? archiveDir = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
         _archiveDir = archiveDir ?? Path.Combine(_fs.GetCurrentDirectory(), ArchiveSubdir, ArchiveLeaf);
@@ -42,8 +40,7 @@ public sealed partial class SubAgentOutputTruncator : ServiceEntity
         string output,
         int remainingTokenBudget,
         string? summary = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrEmpty(output))
             return new SubAgentOutputTruncationResult(output, null, false);
 
@@ -62,14 +59,12 @@ public sealed partial class SubAgentOutputTruncator : ServiceEntity
     /// </summary>
     public static int EstimateTokens(string text) => text.Length / CharsPerToken;
 
-    private static string BuildPointer(string agentId, int lineCount, int tokenCount, string? summary, string path)
-    {
+    private static string BuildPointer(string agentId, int lineCount, int tokenCount, string? summary, string path) {
         var summaryPart = string.IsNullOrWhiteSpace(summary) ? "" : $"，概要：{summary}";
         return $"[子智能体 {agentId} 报告 {lineCount}行/{tokenCount}token{summaryPart}。完整存档 {path}，read 查看]";
     }
 
-    private async Task<string> ArchiveAsync(string agentId, string output, CancellationToken cancellationToken)
-    {
+    private async Task<string> ArchiveAsync(string agentId, string output, CancellationToken cancellationToken) {
         if (!_fs.DirectoryExists(_archiveDir))
             _fs.CreateDirectory(_archiveDir);
 
@@ -83,8 +78,7 @@ public sealed partial class SubAgentOutputTruncator : ServiceEntity
     /// <summary>文件名非法字符集（缓存避免每次调用 Path.GetInvalidFileNameChars + Array.IndexOf 的 O(n²) 开销）</summary>
     private static readonly FrozenSet<char> InvalidFileNameChars = FrozenSet.Create(Path.GetInvalidFileNameChars());
 
-    private static string SanitizeAgentId(string agentId)
-    {
+    private static string SanitizeAgentId(string agentId) {
         var sb = new StringBuilder(agentId.Length);
         foreach (var c in agentId)
             sb.Append(InvalidFileNameChars.Contains(c) ? '_' : c);

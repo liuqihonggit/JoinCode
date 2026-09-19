@@ -6,14 +6,12 @@ namespace Core.Agents;
 /// 主代理 no-op
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 TranscriptMiddleware 实例，注入时钟服务及可选的上下文管理器、transcript 服务与日志器
     /// </summary>
-    public TranscriptMiddleware(IClockService clock, IChatContextManager? contextManager = null, IAgentTranscriptService? transcriptService = null, ILogger<TranscriptMiddleware>? logger = null)
-    {
+    public TranscriptMiddleware(IClockService clock, IChatContextManager? contextManager = null, IAgentTranscriptService? transcriptService = null, ILogger<TranscriptMiddleware>? logger = null) {
         _clock = clock;
         _transcriptService = transcriptService;
         _contextManager = contextManager;
@@ -33,10 +31,8 @@ public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnM
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (context.IsMainAgent || _transcriptService is null || context.Agent is null)
-        {
+    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (context.IsMainAgent || _transcriptService is null || context.Agent is null) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -51,12 +47,9 @@ public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnM
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task AppendTranscriptEntryAsync(string ownerSessionId, string agentId, string role, string content, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).AppendEntryAsync(ownerSessionId, agentId, new TranscriptEntry
-            {
+    private async Task AppendTranscriptEntryAsync(string ownerSessionId, string agentId, string role, string content, CancellationToken cancellationToken) {
+        try {
+            await (_transcriptService ?? throw new InvalidOperationException("TranscriptService not available")).AppendEntryAsync(ownerSessionId, agentId, new TranscriptEntry {
                 SessionId = ownerSessionId,
                 Role = role,
                 Content = content,
@@ -64,9 +57,7 @@ public sealed partial class TranscriptMiddleware : ServiceEntity, IUnifiedSpawnM
                 AgentId = agentId,
                 IsSidechain = true
             }, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[TranscriptMiddleware] 写入代理Transcript失败: {AgentId}", agentId);
         }
     }

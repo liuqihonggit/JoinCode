@@ -7,8 +7,7 @@ namespace Infrastructure.IO;
 /// 详见 ADR 0068。
 /// </summary>
 [Register(typeof(IPersistencePipeline), ServiceLifetime.Singleton)]
-public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPersistencePipeline
-{
+public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPersistencePipeline {
     private readonly IFileSystem _fs;
     private readonly ILogger<PersistencePipeline>? _logger;
 
@@ -16,8 +15,7 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPers
     /// 创建持久化管道 — 有界通道(容量16)+DropOldest 背压。
     /// </summary>
     public PersistencePipeline(IFileSystem fs, ILogger<PersistencePipeline>? logger = null)
-        : base(boundedCapacity: 16, fullMode: BoundedChannelFullMode.DropOldest)
-    {
+        : base(boundedCapacity: 16, fullMode: BoundedChannelFullMode.DropOldest) {
         _fs = fs;
         _logger = logger;
     }
@@ -33,12 +31,9 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPers
     /// Actor 消费者处理 — 单线程串行执行,无并发。CreateDirectory + WriteAllTextAsync。
     /// 写完后若 Completion 非空则 TrySetResult,异常时 TrySetException。
     /// </summary>
-    protected override async ValueTask HandleAsync(PersistRequest req, CancellationToken ct)
-    {
-        try
-        {
-            if (!_fs.DirectoryExists(req.Directory))
-            {
+    protected override async ValueTask HandleAsync(PersistRequest req, CancellationToken ct) {
+        try {
+            if (!_fs.DirectoryExists(req.Directory)) {
                 _fs.CreateDirectory(req.Directory);
             }
 
@@ -46,17 +41,14 @@ public sealed class PersistencePipeline : ActorBase<PersistRequest, Unit>, IPers
             await _fs.WriteAllTextAsync(path, req.Content, ct).ConfigureAwait(false);
             _logger?.LogDebug("持久化完成: {Category} -> {Path}", req.Category, path);
             req.Completion?.TrySetResult();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "持久化失败: {Category} -> {Directory}/{FileName}", req.Category, req.Directory, req.FileName);
             req.Completion?.TrySetException(ex);
         }
     }
 
     /// <inheritdoc />
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogWarning(ex, "PersistencePipeline 消费者异常");
     }
 }

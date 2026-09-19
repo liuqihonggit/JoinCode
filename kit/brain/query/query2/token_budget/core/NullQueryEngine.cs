@@ -4,8 +4,7 @@ namespace Core.Query;
 /// <summary>
 /// 空查询引擎实现 - 用于 MCP 服务器模式下没有 Kernel 的情况
 /// </summary>
-public sealed class NullQueryEngine : IQueryEngine
-{
+public sealed class NullQueryEngine : IQueryEngine {
     /// <summary>
     /// 执行查询（空实现） - 返回空流，不产生任何输出
     /// </summary>
@@ -13,8 +12,7 @@ public sealed class NullQueryEngine : IQueryEngine
     /// <param name="chatHistory">聊天历史消息列表</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>空的查询流块异步枚举</returns>
-    public IAsyncEnumerable<QueryStreamChunk> QueryAsync(string userInput, MessageList chatHistory, CancellationToken cancellationToken = default)
-    {
+    public IAsyncEnumerable<QueryStreamChunk> QueryAsync(string userInput, MessageList chatHistory, CancellationToken cancellationToken = default) {
         return AsyncEnumerable.Empty<QueryStreamChunk>();
     }
 
@@ -26,8 +24,7 @@ public sealed class NullQueryEngine : IQueryEngine
     /// <param name="options">查询选项</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>空的查询流块异步枚举</returns>
-    public IAsyncEnumerable<QueryStreamChunk> QueryAsync(string userInput, MessageList chatHistory, QueryOptions? options, CancellationToken cancellationToken = default)
-    {
+    public IAsyncEnumerable<QueryStreamChunk> QueryAsync(string userInput, MessageList chatHistory, QueryOptions? options, CancellationToken cancellationToken = default) {
         return AsyncEnumerable.Empty<QueryStreamChunk>();
     }
 
@@ -37,8 +34,7 @@ public sealed class NullQueryEngine : IQueryEngine
     /// <param name="query">查询文本</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>空字符串任务</returns>
-    public Task<string> ExecuteQueryAsync(string query, CancellationToken cancellationToken = default)
-    {
+    public Task<string> ExecuteQueryAsync(string query, CancellationToken cancellationToken = default) {
         return Task.FromResult(string.Empty);
     }
 
@@ -47,8 +43,7 @@ public sealed class NullQueryEngine : IQueryEngine
     /// </summary>
     /// <returns>此方法始终抛出 <see cref="InvalidOperationException"/> 异常</returns>
     /// <exception cref="InvalidOperationException">空查询引擎不支持聊天补全服务</exception>
-    public IQueryService GetChatCompletionService()
-    {
+    public IQueryService GetChatCompletionService() {
         throw new InvalidOperationException(ContractsErrorMessages.NullQueryEngineNotSupportChat);
     }
 
@@ -57,8 +52,7 @@ public sealed class NullQueryEngine : IQueryEngine
     /// </summary>
     /// <returns>此方法始终抛出 <see cref="InvalidOperationException"/> 异常</returns>
     /// <exception cref="InvalidOperationException">空查询引擎无内核实例</exception>
-    public IChatClient GetKernel()
-    {
+    public IChatClient GetKernel() {
         throw new InvalidOperationException(ContractsErrorMessages.NullQueryEngineNoKernel);
     }
 }

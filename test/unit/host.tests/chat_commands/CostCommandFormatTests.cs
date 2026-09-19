@@ -1,81 +1,67 @@
 namespace JoinCode.ChatCommands.Tests;
 
-public class CostCommandFormatTests
-{
+public class CostCommandFormatTests {
     private readonly CostCommand _costCommand = new();
     private readonly ModelNameHelper _modelNameHelper = new();
 
     [Fact]
-    public void FormatCost_SmallAmount_ShouldUse4Decimals()
-    {
+    public void FormatCost_SmallAmount_ShouldUse4Decimals() {
         CostCommand.FormatCost(0.0012m).Should().Be("$0.0012");
     }
 
     [Fact]
-    public void FormatCost_LargeAmount_ShouldUse2Decimals()
-    {
+    public void FormatCost_LargeAmount_ShouldUse2Decimals() {
         CostCommand.FormatCost(1.234m).Should().Be("$1.23");
     }
 
     [Fact]
-    public void FormatCost_Zero_ShouldUse4Decimals()
-    {
+    public void FormatCost_Zero_ShouldUse4Decimals() {
         CostCommand.FormatCost(0m).Should().Be("$0.0000");
     }
 
     [Fact]
-    public void FormatCost_ExactlyHalf_ShouldUse2Decimals()
-    {
+    public void FormatCost_ExactlyHalf_ShouldUse2Decimals() {
         CostCommand.FormatCost(0.5m).Should().Be("$0.50");
     }
 
     [Fact]
-    public void FormatDuration_Zero_ShouldReturn0s()
-    {
+    public void FormatDuration_Zero_ShouldReturn0s() {
         DurationFormatter.Format(TimeSpan.Zero).Should().Be("0s");
     }
 
     [Fact]
-    public void FormatDuration_Milliseconds_ShouldReturnMs()
-    {
+    public void FormatDuration_Milliseconds_ShouldReturnMs() {
         DurationFormatter.Format(TimeSpan.FromMilliseconds(500)).Should().Be("500ms");
     }
 
     [Fact]
-    public void FormatDuration_Seconds_ShouldReturnS()
-    {
+    public void FormatDuration_Seconds_ShouldReturnS() {
         DurationFormatter.Format(TimeSpan.FromSeconds(30)).Should().Be("30s");
     }
 
     [Fact]
-    public void FormatDuration_MinutesAndSeconds_ShouldReturnMmSs()
-    {
+    public void FormatDuration_MinutesAndSeconds_ShouldReturnMmSs() {
         DurationFormatter.Format(TimeSpan.FromMinutes(3) + TimeSpan.FromSeconds(20)).Should().Be("3m 20s");
     }
 
     [Fact]
-    public void FormatDuration_HoursMinutesSeconds_ShouldReturnHhMmSs()
-    {
+    public void FormatDuration_HoursMinutesSeconds_ShouldReturnHhMmSs() {
         DurationFormatter.Format(TimeSpan.FromHours(1) + TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(45)).Should().Be("1h 5m 45s");
     }
 
     [Fact]
-    public void FormatDuration_DaysHoursMinutes_ShouldReturnDdHhMm()
-    {
+    public void FormatDuration_DaysHoursMinutes_ShouldReturnDdHhMm() {
         DurationFormatter.Format(TimeSpan.FromDays(2) + TimeSpan.FromHours(3) + TimeSpan.FromMinutes(15)).Should().Be("2d 3h 15m");
     }
 
     [Fact]
-    public void GetCanonicalName_UnknownModel_ShouldReturnOriginal()
-    {
+    public void GetCanonicalName_UnknownModel_ShouldReturnOriginal() {
         _modelNameHelper.GetCanonicalName("my-custom-model").Should().Be("my-custom-model");
     }
 
     [Fact]
-    public void FormatTotalCost_WithStats_ShouldContainAllFields()
-    {
-        var stats = new CostStatistics
-        {
+    public void FormatTotalCost_WithStats_ShouldContainAllFields() {
+        var stats = new CostStatistics {
             RequestCount = 5,
             PromptTokens = 12345,
             CompletionTokens = 6789,
@@ -115,10 +101,8 @@ public class CostCommandFormatTests
     }
 
     [Fact]
-    public void FormatTotalCost_UnknownModelCost_ShouldShowWarning()
-    {
-        var stats = new CostStatistics
-        {
+    public void FormatTotalCost_UnknownModelCost_ShouldShowWarning() {
+        var stats = new CostStatistics {
             TotalCostUsd = 0.5m,
             HasUnknownModelCost = true,
             ModelBreakdown = []
@@ -130,10 +114,8 @@ public class CostCommandFormatTests
     }
 
     [Fact]
-    public void FormatTotalCost_NoModelBreakdown_ShouldShowZeroUsage()
-    {
-        var stats = new CostStatistics
-        {
+    public void FormatTotalCost_NoModelBreakdown_ShouldShowZeroUsage() {
+        var stats = new CostStatistics {
             TotalCostUsd = 0m,
             ModelBreakdown = []
         };
@@ -144,10 +126,8 @@ public class CostCommandFormatTests
     }
 
     [Fact]
-    public void FormatTotalCost_SingleLineChange_ShouldUseSingular()
-    {
-        var stats = new CostStatistics
-        {
+    public void FormatTotalCost_SingleLineChange_ShouldUseSingular() {
+        var stats = new CostStatistics {
             LinesAdded = 1,
             LinesRemoved = 1,
             ModelBreakdown = []

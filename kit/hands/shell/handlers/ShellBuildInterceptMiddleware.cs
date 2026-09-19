@@ -6,8 +6,7 @@ namespace Tools.Shell;
 /// 缓存命中直接返回结果，同命令编译中共享结果
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShellMiddleware {
 
     /// <summary>
     /// 构造编译拦截中间件
@@ -15,8 +14,7 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
     /// <param name="buildQueueService">构建队列服务</param>
     /// <param name="subAgentContextAccessor">子代理上下文访问器</param>
     /// <param name="clock">时钟服务</param>
-    public ShellBuildInterceptMiddleware(IBuildQueueService buildQueueService, ISubAgentContextAccessor subAgentContextAccessor, IClockService clock)
-    {
+    public ShellBuildInterceptMiddleware(IBuildQueueService buildQueueService, ISubAgentContextAccessor subAgentContextAccessor, IClockService clock) {
         _buildQueueService = buildQueueService;
         _subAgentContextAccessor = subAgentContextAccessor;
         _clock = clock;
@@ -30,31 +28,26 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
-        if (IsBuildCommand(context.Command))
-        {
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
+        if (IsBuildCommand(context.Command)) {
             var agentId = _subAgentContextAccessor.Current?.AgentId ?? "main";
             var request = BuildRequest.Parse(context.Command, context.WorkingDirectory) with { AgentId = agentId };
             var buildId = await _buildQueueService.SubmitAsync(request, ct).ConfigureAwait(false);
 
             var entry = _buildQueueService.GetBuild(buildId);
 
-            if (entry?.Status is BuildQueueEntryStatus.Completed or BuildQueueEntryStatus.Failed)
-            {
+            if (entry?.Status is BuildQueueEntryStatus.Completed or BuildQueueEntryStatus.Failed) {
                 SetResultFromEntry(context, entry);
                 return;
             }
 
-            if (entry?.Status == BuildQueueEntryStatus.Cancelled)
-            {
-            context.ExecutionResult = new SystemActuatorExecutionResult
-            {
-                Stdout = string.Empty,
-                Stderr = "Build was cancelled",
-                ExitCode = -1,
-                Interrupted = true,
-            };
+            if (entry?.Status == BuildQueueEntryStatus.Cancelled) {
+                context.ExecutionResult = new SystemActuatorExecutionResult {
+                    Stdout = string.Empty,
+                    Stderr = "Build was cancelled",
+                    ExitCode = -1,
+                    Interrupted = true,
+                };
                 var cancelDiag = BuildCancelledDiagnostic(buildId);
                 context.Result = ToolResultBuilder.Error().WithText(cancelDiag.FormattedMessage).WithDiagnostic(cancelDiag)
                     .WithEntityMetadata(ShellOutputMiddleware.BuildShellEntityMetadata(context.ExecutionResult))
@@ -62,19 +55,15 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
                 return;
             }
 
-            try
-            {
+            try {
                 var waitTask = _buildQueueService.WaitAsync(buildId, ct);
                 var timeoutTask = Task.Delay(DefaultTimeout, ct);
                 var completedTask = await Task.WhenAny(waitTask, timeoutTask).ConfigureAwait(false);
 
-                if (completedTask == waitTask)
-                {
+                if (completedTask == waitTask) {
                     var result = await waitTask.ConfigureAwait(false);
                     SetResultFromBuildResult(context, result);
-                }
-                else
-                {
+                } else {
                     var currentEntry = _buildQueueService.GetBuild(buildId);
                     var elapsed = currentEntry?.StartedAt.HasValue == true
                         ? (int)(_clock.GetUtcNowOffset() - currentEntry.StartedAt.Value).TotalSeconds
@@ -85,9 +74,7 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
                         .WithText($"Build {buildId} is {statusText} ({elapsed}s elapsed). Run the same build command again to wait for the result, or cancel it.")
                         .Build();
                 }
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 throw;
             }
 
@@ -97,19 +84,16 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private static void SetResultFromEntry(ShellPipelineContext context, BuildQueueEntry entry)
-    {
+    private static void SetResultFromEntry(ShellPipelineContext context, BuildQueueEntry entry) {
         var r = entry.Result ?? throw new InvalidOperationException("Build queue entry has no result.");
         SetResultFromBuildResult(context, r);
     }
 
-    private static void SetResultFromBuildResult(ShellPipelineContext context, BuildQueueResult r)
-    {
+    private static void SetResultFromBuildResult(ShellPipelineContext context, BuildQueueResult r) {
         var fullOutput = r.ExitCode == 0 ? r.Output : $"{r.ErrorOutput}\n{r.Output}";
         var displayOutput = TruncateOutput(fullOutput, r.BuildId);
 
-        context.ExecutionResult = new SystemActuatorExecutionResult
-        {
+        context.ExecutionResult = new SystemActuatorExecutionResult {
             Stdout = r.Output,
             Stderr = r.ErrorOutput,
             ExitCode = r.ExitCode,
@@ -143,8 +127,7 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
     /// <summary>
     /// 截断编译输出 — 超过 MaxTailLines 行只返回尾部，附带行数提示
     /// </summary>
-    internal static string TruncateOutput(string output, string buildId)
-    {
+    internal static string TruncateOutput(string output, string buildId) {
         if (string.IsNullOrEmpty(output)) return output;
 
         var lines = output.Split('\n');
@@ -164,14 +147,12 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
     /// <summary>
     /// 检测命令是否为 dotnet 编译类命令
     /// </summary>
-    internal static bool IsBuildCommand(string command)
-    {
+    internal static bool IsBuildCommand(string command) {
         if (string.IsNullOrWhiteSpace(command)) return false;
 
         var trimmed = command.TrimStart();
 
-        if (trimmed.StartsWith('"'))
-        {
+        if (trimmed.StartsWith('"')) {
             var closingQuote = trimmed.IndexOf('"', 1);
             if (closingQuote < 0) return false;
             var firstToken = trimmed[1..closingQuote];
@@ -193,14 +174,12 @@ public sealed partial class ShellBuildInterceptMiddleware : ServiceEntity, IShel
         return IsDotnetBuildSubCommand(firstToken2, subCommand2);
     }
 
-    private static bool IsDotnetBuildSubCommand(string executablePath, string subCommand)
-    {
+    private static bool IsDotnetBuildSubCommand(string executablePath, string subCommand) {
         var executableName = Path.GetFileNameWithoutExtension(executablePath);
         if (!executableName.Equals("dotnet", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return subCommand switch
-        {
+        return subCommand switch {
             "build" => true,
             "test" => true,
             "publish" => true,

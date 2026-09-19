@@ -11,8 +11,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - CrudAction.Delete.ToValue() → "delete"
 /// - CrudAction.Rm.ToValue()     → "rm"
 /// </summary>
-public enum CrudAction
-{
+public enum CrudAction {
     /// <summary>列表 — 查看所有项</summary>
     [EnumValue("list")] List,
 

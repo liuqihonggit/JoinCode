@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 流式工具执行器接口 — StreamingToolExecutor 与 StreamingToolExecutorActor 共同实现。
 /// 用于特性开关在锁版与 Actor 版之间切换。
 /// </summary>
-public interface IStreamingToolExecutor : IAsyncDisposable
-{
+public interface IStreamingToolExecutor : IAsyncDisposable {
     /// <summary>添加工具调用到队列</summary>
     Task AddToolAsync(ToolCallEntry entry, int originalIndex);
 
@@ -31,8 +30,7 @@ public interface IStreamingToolExecutor : IAsyncDisposable
 /// <para>工具执行(慢操作)分发到 Task.Run 并发执行,完成后发命令回 Consumer 更新状态并 TryPublish 输出。</para>
 /// <para>外部可通过 OutputAsync 流式拉取工具完成事件。</para>
 /// </summary>
-public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutorActor.IToolCommand, StreamingToolResult>, IStreamingToolExecutor
-{
+public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutorActor.IToolCommand, StreamingToolResult>, IStreamingToolExecutor {
     private readonly IToolExecutionHandler _toolHandler;
     private readonly IToolConcurrencyClassifier _concurrencyClassifier;
     private readonly ChatMiddlewareContext _context;
@@ -72,21 +70,17 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         int maxConcurrency = 10,
         ILogger? logger = null,
         CancellationToken userCancellationToken = default)
-        : base()
-    {
+        : base() {
         _toolHandler = toolHandler;
         _concurrencyClassifier = concurrencyClassifier;
         _context = context;
         _maxConcurrency = maxConcurrency;
         _logger = logger;
 
-        if (userCancellationToken.CanBeCanceled)
-        {
+        if (userCancellationToken.CanBeCanceled) {
             _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(userCancellationToken, _siblingCts.Token);
             _combinedCt = _linkedCts.Token;
-        }
-        else
-        {
+        } else {
             _combinedCt = _siblingCts.Token;
         }
     }
@@ -98,15 +92,13 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     public bool IsDiscarded => _discarded;
 
     /// <inheritdoc/>
-    public Task AddToolAsync(ToolCallEntry entry, int originalIndex)
-    {
+    public Task AddToolAsync(ToolCallEntry entry, int originalIndex) {
         if (_discarded) return Task.CompletedTask;
         return SendAsync(new AddToolCommand(entry, originalIndex)).AsTask();
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<StreamingToolResult>> GetCompletedResultsAsync()
-    {
+    public async Task<IReadOnlyList<StreamingToolResult>> GetCompletedResultsAsync() {
         if (_discarded) return [];
         var tcs = new TaskCompletionSource<IReadOnlyList<StreamingToolResult>>();
         await SendAsync(new GetCompletedQuery(tcs)).ConfigureAwait(false);
@@ -114,16 +106,14 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<StreamingToolResult>> GetRemainingResultsAsync()
-    {
+    public async Task<IReadOnlyList<StreamingToolResult>> GetRemainingResultsAsync() {
         if (_discarded) return [];
 
         var remainingTcs = new TaskCompletionSource<List<Task<StreamingToolResult>>>();
         await SendAsync(new GetRemainingQuery(remainingTcs)).ConfigureAwait(false);
         var pendingTasks = await AskAwait(remainingTcs, CancellationToken.None);
 
-        if (pendingTasks.Count > 0)
-        {
+        if (pendingTasks.Count > 0) {
             await Task.WhenAll(pendingTasks).ConfigureAwait(false);
         }
 
@@ -131,24 +121,19 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <inheritdoc/>
-    public void Discard()
-    {
+    public void Discard() {
         _discarded = true;
-        try
-        {
+        try {
             if (!_siblingCts.IsCancellationRequested)
                 _siblingCts.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
+        } catch (ObjectDisposedException) {
             _logger?.LogDebug("[StreamingToolExecutorActor] SiblingCts already disposed during discard");
         }
         TrySend(new DiscardCmd());
     }
 
     /// <inheritdoc/>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _siblingCts.Cancel();
         _linkedCts?.Dispose();
@@ -157,42 +142,37 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <summary>Consumer 命令处理 — 串行访问所有可变状态,无锁</summary>
-    protected override ValueTask HandleAsync(IToolCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override ValueTask HandleAsync(IToolCommand command, CancellationToken ct) {
+        switch (command) {
             case AddToolCommand(var entry, var idx):
-                HandleAddTool(entry, idx);
-                return ValueTask.CompletedTask;
+            HandleAddTool(entry, idx);
+            return ValueTask.CompletedTask;
             case DiscardCmd:
-                HandleDiscard();
-                return ValueTask.CompletedTask;
+            HandleDiscard();
+            return ValueTask.CompletedTask;
             case ToolCompletedCommand(var tool, var result, var isSafe):
-                HandleToolCompleted(tool, result, isSafe);
-                return ValueTask.CompletedTask;
+            HandleToolCompleted(tool, result, isSafe);
+            return ValueTask.CompletedTask;
             case GetCompletedQuery(var tcs):
-                HandleGetCompleted(tcs);
-                return ValueTask.CompletedTask;
+            HandleGetCompleted(tcs);
+            return ValueTask.CompletedTask;
             case GetRemainingQuery(var tcs):
-                HandleGetRemaining(tcs);
-                return ValueTask.CompletedTask;
+            HandleGetRemaining(tcs);
+            return ValueTask.CompletedTask;
             case SafetyDeterminedCommand(var tool):
-                return HandleSafetyDetermined(tool);
+            return HandleSafetyDetermined(tool);
             default:
-                return ValueTask.CompletedTask;
+            return ValueTask.CompletedTask;
         }
     }
 
     /// <inheritdoc/>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[StreamingToolExecutorActor] Consumer 命令处理异常");
     }
 
-    private void HandleAddTool(ToolCallEntry entry, int originalIndex)
-    {
-        _queue.Add(new QueuedTool
-        {
+    private void HandleAddTool(ToolCallEntry entry, int originalIndex) {
+        _queue.Add(new QueuedTool {
             Entry = entry,
             OriginalIndex = originalIndex,
             IsConcurrencySafe = false,
@@ -202,28 +182,23 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         ScheduleNext();
     }
 
-    private void HandleDiscard()
-    {
+    private void HandleDiscard() {
         var uncompletedTools = _queue
             .Where(t => t.Status != ToolStatus.Completed && !t.CompletionSource.Task.IsCompleted)
             .ToList();
 
-        foreach (var tool in _queue)
-        {
+        foreach (var tool in _queue) {
             if (tool.Status != ToolStatus.Completed)
                 tool.Status = ToolStatus.Completed;
         }
 
         _completedBuffer.Clear();
 
-        foreach (var tool in uncompletedTools)
-        {
-            tool.CompletionSource.TrySetResult(new StreamingToolResult
-            {
+        foreach (var tool in uncompletedTools) {
+            tool.CompletionSource.TrySetResult(new StreamingToolResult {
                 ToolName = tool.Entry.Name,
                 ToolCallId = tool.Entry.Id,
-                Result = new ToolCallResult
-                {
+                Result = new ToolCallResult {
                     ResultText = "(discarded by streaming fallback)",
                     IsError = true
                 },
@@ -232,8 +207,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         }
     }
 
-    private void HandleToolCompleted(QueuedTool tool, StreamingToolResult result, bool isConcurrencySafe)
-    {
+    private void HandleToolCompleted(QueuedTool tool, StreamingToolResult result, bool isConcurrencySafe) {
         tool.Status = ToolStatus.Completed;
         _completedBuffer.Add(result);
         _executingCount--;
@@ -243,15 +217,13 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         ScheduleNext();
     }
 
-    private void HandleGetCompleted(TaskCompletionSource<IReadOnlyList<StreamingToolResult>> tcs)
-    {
+    private void HandleGetCompleted(TaskCompletionSource<IReadOnlyList<StreamingToolResult>> tcs) {
         var results = _completedBuffer.OrderBy(r => r.OriginalIndex).ToList();
         _completedBuffer.Clear();
         tcs.SetResult(results);
     }
 
-    private void HandleGetRemaining(TaskCompletionSource<List<Task<StreamingToolResult>>> tcs)
-    {
+    private void HandleGetRemaining(TaskCompletionSource<List<Task<StreamingToolResult>>> tcs) {
         var pending = _queue
             .Where(t => t.Status != ToolStatus.Completed)
             .Select(t => t.CompletionSource.Task)
@@ -260,25 +232,20 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <summary>调度下一个可执行工具 — Consumer 线程内调用,无锁</summary>
-    private void ScheduleNext()
-    {
+    private void ScheduleNext() {
         var hasDetermining = false;
-        foreach (var tool in _queue)
-        {
-            if (tool.Status == ToolStatus.Determining)
-            {
+        foreach (var tool in _queue) {
+            if (tool.Status == ToolStatus.Determining) {
                 hasDetermining = true;
                 break;
             }
         }
 
-        foreach (var tool in _queue)
-        {
+        foreach (var tool in _queue) {
             if (tool.Status != ToolStatus.Queued)
                 continue;
 
-            if (!tool.IsConcurrencySafeDetermined)
-            {
+            if (!tool.IsConcurrencySafeDetermined) {
                 if (hasDetermining) continue;
                 tool.Status = ToolStatus.Determining;
                 hasDetermining = true;
@@ -286,8 +253,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
                 continue;
             }
 
-            if (CanExecute(tool.IsConcurrencySafe))
-            {
+            if (CanExecute(tool.IsConcurrencySafe)) {
                 tool.Status = ToolStatus.Executing;
                 _executingCount++;
                 if (!tool.IsConcurrencySafe)
@@ -298,19 +264,15 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <summary>异步确定工具并发安全性后继续调度</summary>
-    private async Task DetermineSafetyAndScheduleAsync(QueuedTool tool)
-    {
-        try
-        {
+    private async Task DetermineSafetyAndScheduleAsync(QueuedTool tool) {
+        try {
             if (tool.ParsedArguments.Count == 0)
                 tool.ParsedArguments = JsonArgumentParser.Parse(tool.Entry.Arguments);
             tool.IsConcurrencySafe = await _concurrencyClassifier
                 .IsConcurrencySafeAsync(tool.Entry.Name, tool.ParsedArguments, CancellationToken.None)
                 .ConfigureAwait(false);
             tool.IsConcurrencySafeDetermined = true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[StreamingToolExecutorActor] 确定并发安全性失败: {ToolName}", tool.Entry.Name);
             tool.IsConcurrencySafe = false;
             tool.IsConcurrencySafeDetermined = true;
@@ -321,18 +283,14 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     private sealed record SafetyDeterminedCommand(QueuedTool Tool) : IToolCommand;
 
     /// <summary>安全性确定后继续调度</summary>
-    private ValueTask HandleSafetyDetermined(QueuedTool tool)
-    {
-        if (CanExecute(tool.IsConcurrencySafe))
-        {
+    private ValueTask HandleSafetyDetermined(QueuedTool tool) {
+        if (CanExecute(tool.IsConcurrencySafe)) {
             tool.Status = ToolStatus.Executing;
             _executingCount++;
             if (!tool.IsConcurrencySafe)
                 _nonSafeExecutingCount++;
             _ = Task.Run(() => ExecuteToolAsync(tool));
-        }
-        else
-        {
+        } else {
             tool.Status = ToolStatus.Queued;
         }
         ScheduleNext();
@@ -340,48 +298,35 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     }
 
     /// <summary>并发执行工具 — 完成后发 ToolCompletedCommand 回 Consumer</summary>
-    private async Task ExecuteToolAsync(QueuedTool tool)
-    {
+    private async Task ExecuteToolAsync(QueuedTool tool) {
         StreamingToolResult result;
 
-        if (_siblingCts.IsCancellationRequested)
-        {
+        if (_siblingCts.IsCancellationRequested) {
             result = BuildCancelledResult(tool);
-        }
-        else
-        {
-            try
-            {
+        } else {
+            try {
                 if (tool.ParsedArguments.Count == 0)
                     tool.ParsedArguments = JsonArgumentParser.Parse(tool.Entry.Arguments);
                 var args = tool.ParsedArguments;
                 var toolCallResult = await _toolHandler.ExecuteToolCallAsync(
                     tool.Entry.Name, tool.Entry.Id, args, _context, _combinedCt).ConfigureAwait(false);
 
-                result = new StreamingToolResult
-                {
+                result = new StreamingToolResult {
                     ToolName = tool.Entry.Name,
                     ToolCallId = tool.Entry.Id,
                     Result = toolCallResult,
                     OriginalIndex = tool.OriginalIndex
                 };
 
-                if (toolCallResult.IsError && IsShellTool(tool.Entry.Name))
-                {
+                if (toolCallResult.IsError && IsShellTool(tool.Entry.Name)) {
                     _logger?.LogWarning("[StreamingToolExecutorActor] Shell 工具错误,级联取消兄弟工具: {ToolName}", tool.Entry.Name);
-                    try { _siblingCts.Cancel(); }
-                    catch (ObjectDisposedException) { _logger?.LogDebug("[StreamingToolExecutorActor] SiblingCts 已释放"); }
+                    try { _siblingCts.Cancel(); } catch (ObjectDisposedException) { _logger?.LogDebug("[StreamingToolExecutorActor] SiblingCts 已释放"); }
                 }
-            }
-            catch (OperationCanceledException) when (_combinedCt.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (_combinedCt.IsCancellationRequested) {
                 result = BuildCancelledResult(tool);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "[StreamingToolExecutorActor] 工具执行失败: {ToolName}", tool.Entry.Name);
-                result = new StreamingToolResult
-                {
+                result = new StreamingToolResult {
                     ToolName = tool.Entry.Name,
                     ToolCallId = tool.Entry.Id,
                     Result = new ToolCallResult { ResultText = $"工具执行失败: {ex.Message}", IsError = true },
@@ -394,8 +339,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         tool.CompletionSource.TrySetResult(result);
     }
 
-    private static StreamingToolResult BuildCancelledResult(QueuedTool tool) => new()
-    {
+    private static StreamingToolResult BuildCancelledResult(QueuedTool tool) => new() {
         ToolName = tool.Entry.Name,
         ToolCallId = tool.Entry.Id,
         Result = new ToolCallResult { ResultText = "(cancelled by sibling error)", IsError = true },
@@ -403,8 +347,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
     };
 
     /// <summary>判断是否可以执行 — 无工具执行→可启动;新工具安全且当前全安全→可并发;否则等待</summary>
-    private bool CanExecute(bool isConcurrencySafe)
-    {
+    private bool CanExecute(bool isConcurrencySafe) {
         if (_executingCount == 0)
             return true;
         if (_executingCount >= _maxConcurrency)
@@ -414,23 +357,20 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         return false;
     }
 
-    private static bool IsShellTool(string toolName)
-    {
+    private static bool IsShellTool(string toolName) {
         return string.Equals(toolName, ShellToolNameEnumConstants.Bash, StringComparison.OrdinalIgnoreCase)
             || string.Equals(toolName, ShellToolNameEnumConstants.Powershell, StringComparison.OrdinalIgnoreCase)
             || string.Equals(toolName, ShellToolNameEnumConstants.PowershellScript, StringComparison.OrdinalIgnoreCase);
     }
 
-    private enum ToolStatus
-    {
+    private enum ToolStatus {
         Queued,
         Determining,
         Executing,
         Completed
     }
 
-    private sealed class QueuedTool
-    {
+    private sealed class QueuedTool {
         public required ToolCallEntry Entry { get; init; }
         public required int OriginalIndex { get; init; }
         public bool IsConcurrencySafe { get; set; }

@@ -4,8 +4,7 @@ namespace JoinCode.Cli;
 /// Onboarding 完成状态持久化 - 使用 JSON 文件存储完成标记，兼容 NativeAOT
 /// </summary>
 [Register(typeof(OnboardingStatePersistence), ServiceLifetime.Singleton)]
-public sealed partial class OnboardingStatePersistence : ServiceEntity
-{
+public sealed partial class OnboardingStatePersistence : ServiceEntity {
     private readonly string _filePath;
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
@@ -15,15 +14,13 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="clock">时钟服务，为空时使用系统默认时钟</param>
-    public OnboardingStatePersistence(IFileSystem fs, IClockService? clock = null)
-    {
+    public OnboardingStatePersistence(IFileSystem fs, IClockService? clock = null) {
         _fs = fs;
         _clock = clock ?? SystemClockService.Instance;
         _filePath = AppDataConstants.Paths.OnboardingCompleteFilePath;
     }
 
-    internal OnboardingStatePersistence(IFileSystem fs, string filePath, IClockService? clock = null)
-    {
+    internal OnboardingStatePersistence(IFileSystem fs, string filePath, IClockService? clock = null) {
         _fs = fs;
         _filePath = filePath;
         _clock = clock ?? SystemClockService.Instance;
@@ -32,21 +29,16 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
     /// <summary>
     /// 检查 Onboarding 是否已完成
     /// </summary>
-    public async Task<bool> IsCompleteAsync(CancellationToken ct = default)
-    {
-        if (!_fs.FileExists(_filePath))
-        {
+    public async Task<bool> IsCompleteAsync(CancellationToken ct = default) {
+        if (!_fs.FileExists(_filePath)) {
             return false;
         }
 
-        try
-        {
+        try {
             await using var stream = _fs.CreateStream(_filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             var data = await RelaxedJsonSerializer.DeserializeAsync(stream, OnboardingPersistenceContext.Default.OnboardingCompletionData, ct).ConfigureAwait(false);
             return data?.IsComplete ?? false;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
@@ -54,8 +46,7 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
     /// <summary>
     /// 标记 Onboarding 已完成
     /// </summary>
-    public async Task MarkCompleteAsync(CancellationToken ct = default)
-    {
+    public async Task MarkCompleteAsync(CancellationToken ct = default) {
         var dir = Path.GetDirectoryName(_filePath);
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
@@ -67,10 +58,8 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
     /// <summary>
     /// 重置 Onboarding 完成状态（删除标记文件）
     /// </summary>
-    public async Task ResetAsync(CancellationToken ct = default)
-    {
-        if (!_fs.FileExists(_filePath))
-        {
+    public async Task ResetAsync(CancellationToken ct = default) {
+        if (!_fs.FileExists(_filePath)) {
             await Task.CompletedTask.ConfigureAwait(false);
             return;
         }
@@ -82,8 +71,7 @@ public sealed partial class OnboardingStatePersistence : ServiceEntity
 /// <summary>
 /// Onboarding 完成状态数据
 /// </summary>
-public sealed class OnboardingCompletionData
-{
+public sealed class OnboardingCompletionData {
     /// <summary>
     /// 是否已完成
     /// </summary>

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// <summary>
 /// 只追加消息日志，封装对话消息列表，支持追加、整体压缩与尾部撤回
 /// </summary>
-public sealed class AppendOnlyLog
-{
+public sealed class AppendOnlyLog {
     private readonly List<ApiMessage> _entries = [];
 
     /// <summary>
@@ -23,8 +22,7 @@ public sealed class AppendOnlyLog
     /// 追加一条消息
     /// </summary>
     /// <param name="message">待追加的消息</param>
-    public void Append(ApiMessage message)
-    {
+    public void Append(ApiMessage message) {
         ArgumentNullException.ThrowIfNull(message);
         if (message.Role == default)
             throw new ArgumentException("Message must have a valid role.", nameof(message));
@@ -35,8 +33,7 @@ public sealed class AppendOnlyLog
     /// 批量追加消息
     /// </summary>
     /// <param name="messages">待追加的消息列表</param>
-    public void Extend(IReadOnlyList<ApiMessage> messages)
-    {
+    public void Extend(IReadOnlyList<ApiMessage> messages) {
         ArgumentNullException.ThrowIfNull(messages);
         foreach (var m in messages) Append(m);
     }
@@ -46,8 +43,7 @@ public sealed class AppendOnlyLog
     /// 安全性: AppendOnlyLog 是追加模式(只 Add 不修改已有条目)，且所有调用方只读不写
     /// CompactInPlace/TrimLastTurn 不会在遍历期间执行(同一 async 流)
     /// </summary>
-    public IReadOnlyList<ApiMessage> ToMessages()
-    {
+    public IReadOnlyList<ApiMessage> ToMessages() {
         return _entries;
     }
 
@@ -55,8 +51,7 @@ public sealed class AppendOnlyLog
     /// 原地替换全部条目，用于上下文折叠/压缩后重写日志
     /// </summary>
     /// <param name="replacement">替换后的消息列表</param>
-    public void CompactInPlace(IReadOnlyList<ApiMessage> replacement)
-    {
+    public void CompactInPlace(IReadOnlyList<ApiMessage> replacement) {
         ArgumentNullException.ThrowIfNull(replacement);
         _entries.Clear();
         _entries.AddRange(replacement);
@@ -67,15 +62,12 @@ public sealed class AppendOnlyLog
     /// 一轮对话 = 最后一条 User 消息 + 其后所有消息（Assistant/Tool）。
     /// </summary>
     /// <returns>移除的消息数量</returns>
-    public int TrimLastTurn()
-    {
+    public int TrimLastTurn() {
         if (_entries.Count == 0) return 0;
 
         var lastUserIndex = -1;
-        for (var i = _entries.Count - 1; i >= 0; i--)
-        {
-            if (_entries[i].Role == MessageRole.User)
-            {
+        for (var i = _entries.Count - 1; i >= 0; i--) {
+            if (_entries[i].Role == MessageRole.User) {
                 lastUserIndex = i;
                 break;
             }
@@ -94,15 +86,13 @@ public sealed class AppendOnlyLog
     /// <param name="index">保留的消息数量（截断点）</param>
     /// <returns>移除的消息数量</returns>
     /// <exception cref="ArgumentOutOfRangeException">index 为负数或超过 Count</exception>
-    public int TruncateTo(int index)
-    {
+    public int TruncateTo(int index) {
         ArgumentOutOfRangeException.ThrowIfNegative(index);
         if (index > _entries.Count)
             throw new ArgumentOutOfRangeException(nameof(index), $"Index {index} exceeds count {_entries.Count}");
 
         var removed = _entries.Count - index;
-        if (removed > 0)
-        {
+        if (removed > 0) {
             _entries.RemoveRange(index, removed);
         }
         return removed;

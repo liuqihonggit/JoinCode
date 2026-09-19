@@ -1,27 +1,22 @@
 namespace Infra.Tests.EntityTests;
 
-public sealed class EntityReaperTests
-{
-    private sealed class ReclaimableEntity : JoinCode.Abstractions.Entity.Entity
-    {
+public sealed class EntityReaperTests {
+    private sealed class ReclaimableEntity : JoinCode.Abstractions.Entity.Entity {
         public static readonly ConcurrentDictionary<ObjectId, ReclaimableEntity> Registry = new();
 
         public ReclaimableEntity()
-            : base(ObjectType.Task)
-        {
+            : base(ObjectType.Task) {
             Registry.TryAdd(ObjectId, this);
         }
 
-        public override void Dispose()
-        {
+        public override void Dispose() {
             Registry.TryRemove(ObjectId, out _);
             base.Dispose();
         }
     }
 
     [Fact]
-    public void EntityReaper_ScanOnce_ReclaimsPersistedCompletedEntities()
-    {
+    public void EntityReaper_ScanOnce_ReclaimsPersistedCompletedEntities() {
         ObjectIdManager.Clear();
         var clock = JoinCode.Abstractions.Clock.SystemClockService.Instance;
         var reaper = new Infrastructure.EntityReaper.EntityReaper(clock, new EntityReaperConfig { EnableAutoReclaim = true, EnableLeakDetection = false });
@@ -37,8 +32,7 @@ public sealed class EntityReaperTests
     }
 
     [Fact]
-    public void EntityReaper_ScanOnce_SkipsNonReclaimableEntities()
-    {
+    public void EntityReaper_ScanOnce_SkipsNonReclaimableEntities() {
         ObjectIdManager.Clear();
         var clock = JoinCode.Abstractions.Clock.SystemClockService.Instance;
         var reaper = new Infrastructure.EntityReaper.EntityReaper(clock, new EntityReaperConfig { EnableAutoReclaim = true, EnableLeakDetection = false });
@@ -50,8 +44,7 @@ public sealed class EntityReaperTests
     }
 
     [Fact]
-    public void EntityReaper_GetTimedOutEntities_DetectsTimedOut()
-    {
+    public void EntityReaper_GetTimedOutEntities_DetectsTimedOut() {
         ObjectIdManager.Clear();
         var clock = JoinCode.Abstractions.Clock.SystemClockService.Instance;
         var reaper = new Infrastructure.EntityReaper.EntityReaper(clock, new EntityReaperConfig { EnableLeakDetection = false });

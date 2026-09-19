@@ -1,15 +1,13 @@
 namespace Core.Tests.Hooks.Lifecycle;
 
 
-public class SubagentStopCheckpointTests
-{
+public class SubagentStopCheckpointTests {
     private readonly Mock<IGitSecretScanner> _secretScannerMock;
     private readonly Mock<IGitDiffProvider> _diffProviderMock;
     private readonly Mock<IBuildQueueService> _buildQueueMock;
     private readonly SubagentStopCheckpoint _sut;
 
-    public SubagentStopCheckpointTests()
-    {
+    public SubagentStopCheckpointTests() {
         _secretScannerMock = new Mock<IGitSecretScanner>();
         _diffProviderMock = new Mock<IGitDiffProvider>();
         _buildQueueMock = new Mock<IBuildQueueService>();
@@ -20,8 +18,7 @@ public class SubagentStopCheckpointTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_NoWorkingDir_ShouldPass()
-    {
+    public async Task ExecuteAsync_NoWorkingDir_ShouldPass() {
         var context = new CheckpointContext { AgentId = "a1", SessionId = "s1", WorkingDirectory = "" };
 
         var result = await _sut.ExecuteAsync(context);
@@ -30,8 +27,7 @@ public class SubagentStopCheckpointTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_NoSecretsAndBuildPass_ShouldPass()
-    {
+    public async Task ExecuteAsync_NoSecretsAndBuildPass_ShouldPass() {
         var context = CreateContext();
         SetupSecretScan(safe: true);
         SetupBuild(exitCode: 0);
@@ -43,8 +39,7 @@ public class SubagentStopCheckpointTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_SecretInFileName_ShouldFail()
-    {
+    public async Task ExecuteAsync_SecretInFileName_ShouldFail() {
         var context = CreateContext();
         _diffProviderMock.Setup(d => d.GetStagedFileNamesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([".env"]);
@@ -61,8 +56,7 @@ public class SubagentStopCheckpointTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_SecretInDiff_ShouldFail()
-    {
+    public async Task ExecuteAsync_SecretInDiff_ShouldFail() {
         var context = CreateContext();
         _diffProviderMock.Setup(d => d.GetStagedFileNamesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -81,8 +75,7 @@ public class SubagentStopCheckpointTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_BuildFails_ShouldFail()
-    {
+    public async Task ExecuteAsync_BuildFails_ShouldFail() {
         var context = CreateContext();
         SetupSecretScan(safe: true);
         SetupBuild(exitCode: 1, output: "error CS0103: The name 'x' does not exist");
@@ -94,8 +87,7 @@ public class SubagentStopCheckpointTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_SecretScanThrows_ShouldAddWarning()
-    {
+    public async Task ExecuteAsync_SecretScanThrows_ShouldAddWarning() {
         var context = CreateContext();
         _diffProviderMock.Setup(d => d.GetStagedFileNamesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("git error"));
@@ -108,15 +100,13 @@ public class SubagentStopCheckpointTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_NullContext_ShouldThrow()
-    {
+    public async Task ExecuteAsync_NullContext_ShouldThrow() {
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
             _sut.ExecuteAsync(null!));
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithWorktreePath_ShouldUseWorktreeDir()
-    {
+    public async Task ExecuteAsync_WithWorktreePath_ShouldUseWorktreeDir() {
         var context = new CheckpointContext { AgentId = "a1", SessionId = "s1", WorktreePath = "/tmp/worktree", WorkingDirectory = "/main" };
 
         _diffProviderMock.Setup(d => d.GetStagedFileNamesAsync("/tmp/worktree", It.IsAny<CancellationToken>()))
@@ -138,8 +128,7 @@ public class SubagentStopCheckpointTests
     private static CheckpointContext CreateContext() =>
         new() { AgentId = "agent-001", SessionId = "session-001", WorkingDirectory = "/repo" };
 
-    private void SetupSecretScan(bool safe)
-    {
+    private void SetupSecretScan(bool safe) {
         _diffProviderMock.Setup(d => d.GetStagedFileNamesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
         _secretScannerMock.Setup(s => s.ScanFileNamesAsync(It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
@@ -150,10 +139,8 @@ public class SubagentStopCheckpointTests
             .ReturnsAsync(safe ? ScanResult.Safe : ScanResult.Blocked([new SecretFinding { FilePath = "f.cs", LineNumber = 1, MatchedPattern = "key", MatchedContent = "sk-xxx", Type = SecretType.ApiKey }]));
     }
 
-    private void SetupBuild(int exitCode, string output = "")
-    {
-        var buildResult = new BuildQueueResult
-        {
+    private void SetupBuild(int exitCode, string output = "") {
+        var buildResult = new BuildQueueResult {
             BuildId = "b1",
             ExitCode = exitCode,
             Output = output,

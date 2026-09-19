@@ -5,8 +5,7 @@ namespace Core.Utils;
 /// <para>可替换实现:轮询、最少负载、一致性哈希等。</para>
 /// </summary>
 /// <typeparam name="TMessage">消息类型</typeparam>
-public interface IRouterStrategy<TMessage>
-{
+public interface IRouterStrategy<TMessage> {
     /// <summary>选择目标 Worker 索引</summary>
     /// <param name="workerCount">当前 Worker 数量</param>
     /// <param name="message">待路由消息</param>
@@ -17,12 +16,10 @@ public interface IRouterStrategy<TMessage>
 /// <summary>
 /// 轮询路由策略 — 依次分发,均匀负载。
 /// </summary>
-public sealed class RoundRobinStrategy<TMessage> : IRouterStrategy<TMessage>
-{
+public sealed class RoundRobinStrategy<TMessage> : IRouterStrategy<TMessage> {
     private int _index;
 
-    public int Select(int workerCount, TMessage message)
-    {
+    public int Select(int workerCount, TMessage message) {
         if (workerCount <= 0) return 0;
         return Interlocked.Increment(ref _index) % workerCount;
     }
@@ -31,15 +28,12 @@ public sealed class RoundRobinStrategy<TMessage> : IRouterStrategy<TMessage>
 /// <summary>
 /// 随机路由策略 — 随机选择 Worker,避免轮询的集中性。
 /// </summary>
-public sealed class RandomRouteStrategy<TMessage> : IRouterStrategy<TMessage>
-{
+public sealed class RandomRouteStrategy<TMessage> : IRouterStrategy<TMessage> {
     private readonly Random _random = new();
 
-    public int Select(int workerCount, TMessage message)
-    {
+    public int Select(int workerCount, TMessage message) {
         if (workerCount <= 0) return 0;
-        lock (_random)
-        {
+        lock (_random) {
             return _random.Next(workerCount);
         }
     }
@@ -68,8 +62,7 @@ internal sealed record RouteCommand<TMessage>(TMessage Message, Func<TMessage, I
 /// <para>路由事件通过 OutputAsync 流输出。</para>
 /// </summary>
 /// <typeparam name="TMessage">路由消息类型</typeparam>
-public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMessage>>
-{
+public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMessage>> {
     private readonly IRouterStrategy<TMessage> _strategy;
     private readonly Action<ChildActorHandle, Exception>? _onWorkerFailure;
     private readonly ConcurrentDictionary<string, ChildActorHandle> _children = new(StringComparer.Ordinal);
@@ -82,8 +75,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     protected RouterActor(
         IRouterStrategy<TMessage>? strategy = null,
         Action<ChildActorHandle, Exception>? onWorkerFailure = null)
-        : base(ActorBackpressure.Router)
-    {
+        : base(ActorBackpressure.Router) {
         _strategy = strategy ?? new RoundRobinStrategy<TMessage>();
         _onWorkerFailure = onWorkerFailure;
     }
@@ -95,8 +87,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     /// <param name="workerFactory">Worker 创建工厂(重启时调用)</param>
     public async ValueTask<ChildActorHandle> AddWorkerAsync(
         string workerId,
-        Func<CancellationToken, ValueTask<IAsyncDisposable>> workerFactory)
-    {
+        Func<CancellationToken, ValueTask<IAsyncDisposable>> workerFactory) {
         var handle = new ChildActorHandle(
             workerId, workerFactory,
             SupervisorStrategy.OneForOne,
@@ -112,10 +103,8 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     /// </summary>
     /// <param name="message">待路由消息</param>
     /// <param name="deliver">投递函数:接收消息和 Worker 实例,由调用方强类型发送</param>
-    public ValueTask RouteAsync(TMessage message, Action<TMessage, IAsyncDisposable> deliver)
-    {
-        return SendAsync(new RouteCommand<TMessage>(message, (msg, worker) =>
-        {
+    public ValueTask RouteAsync(TMessage message, Action<TMessage, IAsyncDisposable> deliver) {
+        return SendAsync(new RouteCommand<TMessage>(message, (msg, worker) => {
             deliver(msg, worker);
             return ValueTask.CompletedTask;
         }));
@@ -127,8 +116,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     /// </summary>
     /// <param name="message">待路由消息</param>
     /// <param name="deliver">异步投递函数:可 await Worker.SendAsync 等待背压</param>
-    public ValueTask RouteAsync(TMessage message, Func<TMessage, IAsyncDisposable, ValueTask> deliver)
-    {
+    public ValueTask RouteAsync(TMessage message, Func<TMessage, IAsyncDisposable, ValueTask> deliver) {
         return SendAsync(new RouteCommand<TMessage>(message, deliver));
     }
 
@@ -136,10 +124,8 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     public int WorkerCount => _children.Count;
 
     /// <summary>Consumer 线程内处理路由命令</summary>
-    protected override async ValueTask HandleAsync(IRouterCommand command, CancellationToken ct)
-    {
-        if (command is RouteCommand<TMessage>(var msg, var deliver))
-        {
+    protected override async ValueTask HandleAsync(IRouterCommand command, CancellationToken ct) {
+        if (command is RouteCommand<TMessage>(var msg, var deliver)) {
             var children = GetChildren();
             if (children.Count == 0) return;
 
@@ -148,8 +134,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
 
             var workers = children.ToArray();
             var worker = workers[idx];
-            if (worker.Instance is not null)
-            {
+            if (worker.Instance is not null) {
                 await deliver(msg, worker.Instance).ConfigureAwait(false);
                 TryPublish(new RouterEvent<TMessage>(worker.Id, msg, idx));
             }
@@ -157,8 +142,7 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     }
 
     /// <summary>子 Worker 失败处理 — 调用可选回调,子类可重写自定义</summary>
-    private async ValueTask ReportChildFailureAsync(ChildActorHandle child, Exception ex, CancellationToken ct)
-    {
+    private async ValueTask ReportChildFailureAsync(ChildActorHandle child, Exception ex, CancellationToken ct) {
         _onWorkerFailure?.Invoke(child, ex);
         await child.HandleFailureAsync(ex, ct).ConfigureAwait(false);
     }
@@ -167,10 +151,8 @@ public class RouterActor<TMessage> : ActorBase<IRouterCommand, RouterEvent<TMess
     protected IReadOnlyCollection<ChildActorHandle> GetChildren() => _children.Values.ToArray();
 
     /// <summary>Dispose 时级联停止所有子 Actor</summary>
-    public override async ValueTask DisposeAsync()
-    {
-        foreach (var child in _children.Values)
-        {
+    public override async ValueTask DisposeAsync() {
+        foreach (var child in _children.Values) {
             await child.StopAsync().ConfigureAwait(false);
         }
         await base.DisposeAsync().ConfigureAwait(false);

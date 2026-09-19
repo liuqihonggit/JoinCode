@@ -3,8 +3,7 @@ namespace McpClient.Mcpb;
 /// <summary>
 /// MCPB 加载管道共享上下文 — 在中间件各阶段间传递状态
 /// </summary>
-public sealed class McpbLoadContext : PipelineContextBase
-{
+public sealed class McpbLoadContext : PipelineContextBase {
     // === 输入 ===
 
     /// <summary>MCPB 源路径（本地文件路径或 URL）</summary>

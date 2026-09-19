@@ -4,15 +4,13 @@ namespace Core.Configuration.Providers;
 /// <summary>
 /// Azure OpenAI 供应商 — OAuth + 复合认证 + 特殊 URL 格式
 /// </summary>
-public sealed class AzureProviderDefinition : IProviderDefinition
-{
+public sealed class AzureProviderDefinition : IProviderDefinition {
     private readonly IModelConfigLoader _modelConfigLoader;
 
     /// <summary>
     /// 构造 Azure OpenAI 供应商定义
     /// </summary>
-    public AzureProviderDefinition(IModelConfigLoader modelConfigLoader)
-    {
+    public AzureProviderDefinition(IModelConfigLoader modelConfigLoader) {
         _modelConfigLoader = modelConfigLoader;
     }
 
@@ -46,8 +44,7 @@ public sealed class AzureProviderDefinition : IProviderDefinition
         => $"chat/completions?api-version={config.ApiVersion}";
 
     /// <inheritdoc />
-    public void ConfigureHttpClient(HttpClient client, ProviderConfig config)
-    {
+    public void ConfigureHttpClient(HttpClient client, ProviderConfig config) {
         if (!string.IsNullOrEmpty(config.ApiKey))
             client.DefaultRequestHeaders.Add("api-key", config.ApiKey);
     }
@@ -69,8 +66,7 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     /// <inheritdoc />
     public bool SupportsOAuth => true;
     /// <inheritdoc />
-    public OAuthConfig? GetOAuthConfig() => new()
-    {
+    public OAuthConfig? GetOAuthConfig() => new() {
         Provider = VendorKindEnumConstants.Azure,
         ClientId = Environment.GetEnvironmentVariable(JccEnvVar.AzureClientId.ToValue()) ?? "",
         AuthorizationEndpoint = JccEndpointsResolver.AzureOAuthAuthorizeUrl,
@@ -80,14 +76,11 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     };
 
     /// <inheritdoc />
-    public string? ExtractApiKeyFromCompound(string apiKey)
-    {
-        try
-        {
+    public string? ExtractApiKeyFromCompound(string apiKey) {
+        try {
             var data = RelaxedJsonSerializer.Deserialize(apiKey, ConfigJsonContext.Default.DictionaryStringString);
             return data?.GetValueOrDefault("apiKey");
-        }
-        catch { return null; }
+        } catch { return null; }
     }
 
     /// <inheritdoc />
@@ -98,10 +91,8 @@ public sealed class AzureProviderDefinition : IProviderDefinition
     public string? EndpointRequiredMessage => "Azure OpenAI 必须提供 Endpoint，配置已取消。";
 
     /// <inheritdoc />
-    public string SerializeAuthCredentials(string apiKey, string? endpoint)
-    {
-        var authData = new Dictionary<string, string>
-        {
+    public string SerializeAuthCredentials(string apiKey, string? endpoint) {
+        var authData = new Dictionary<string, string> {
             ["endpoint"] = endpoint ?? string.Empty,
             ["apiKey"] = apiKey
         };

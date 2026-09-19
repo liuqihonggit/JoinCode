@@ -5,16 +5,13 @@ namespace Mcp.Tests;
 /// 修复背景: SerializeObjectInternal 未处理 JsonRpcRequest/Response/Notification，
 ///   fallthrough 到 value.ToString() 返回类型名字符串，导致 MCP 服务器收到 500 错误
 /// </summary>
-public class McpJsonSerializerTests
-{
+public class McpJsonSerializerTests {
     #region JsonRpcRequest
 
     [Fact]
-    public void SerializeObject_JsonRpcRequest_ReturnsValidJson_NotTypeName()
-    {
+    public void SerializeObject_JsonRpcRequest_ReturnsValidJson_NotTypeName() {
         // Arrange
-        var request = new JsonRpcRequest
-        {
+        var request = new JsonRpcRequest {
             Id = JsonRpcId.FromNumber(1),
             Method = "initialize",
             Params = JsonDocument.Parse("""{"protocolVersion":"2024-11-05"}""").RootElement.Clone()
@@ -38,11 +35,9 @@ public class McpJsonSerializerTests
     }
 
     [Fact]
-    public void SerializeObject_JsonRpcRequest_CanBeDeserialized()
-    {
+    public void SerializeObject_JsonRpcRequest_CanBeDeserialized() {
         // Arrange
-        var request = new JsonRpcRequest
-        {
+        var request = new JsonRpcRequest {
             Id = JsonRpcId.FromString("req-abc"),
             Method = "tools/list",
             Params = JsonDocument.Parse("{}").RootElement.Clone()
@@ -60,11 +55,9 @@ public class McpJsonSerializerTests
     }
 
     [Fact]
-    public void SerializeObject_JsonRpcRequest_WithNumberId_SerializesIdAsNumber()
-    {
+    public void SerializeObject_JsonRpcRequest_WithNumberId_SerializesIdAsNumber() {
         // Arrange
-        var request = new JsonRpcRequest
-        {
+        var request = new JsonRpcRequest {
             Id = JsonRpcId.FromNumber(42),
             Method = "ping"
         };
@@ -83,11 +76,9 @@ public class McpJsonSerializerTests
     #region JsonRpcResponse
 
     [Fact]
-    public void SerializeObject_JsonRpcResponse_ReturnsValidJson_NotTypeName()
-    {
+    public void SerializeObject_JsonRpcResponse_ReturnsValidJson_NotTypeName() {
         // Arrange
-        var response = new JsonRpcResponse
-        {
+        var response = new JsonRpcResponse {
             Id = JsonRpcId.FromNumber(1),
             Result = JsonDocument.Parse("""{"protocolVersion":"2024-11-05","serverInfo":{"name":"mock","version":"1.0"}}""").RootElement.Clone()
         };
@@ -108,11 +99,9 @@ public class McpJsonSerializerTests
     }
 
     [Fact]
-    public void SerializeObject_JsonRpcResponse_WithError_SerializesErrorField()
-    {
+    public void SerializeObject_JsonRpcResponse_WithError_SerializesErrorField() {
         // Arrange
-        var response = new JsonRpcResponse
-        {
+        var response = new JsonRpcResponse {
             Id = JsonRpcId.FromNumber(2),
             Error = new JsonRpcError { Code = -32601, Message = "Method not found" }
         };
@@ -128,11 +117,9 @@ public class McpJsonSerializerTests
     }
 
     [Fact]
-    public void SerializeObject_JsonRpcResponse_CanBeDeserialized()
-    {
+    public void SerializeObject_JsonRpcResponse_CanBeDeserialized() {
         // Arrange
-        var response = new JsonRpcResponse
-        {
+        var response = new JsonRpcResponse {
             Id = JsonRpcId.FromNumber(3),
             Result = JsonDocument.Parse("""{"tools":[]}""").RootElement.Clone()
         };
@@ -152,11 +139,9 @@ public class McpJsonSerializerTests
     #region JsonRpcNotification
 
     [Fact]
-    public void SerializeObject_JsonRpcNotification_ReturnsValidJson_NotTypeName()
-    {
+    public void SerializeObject_JsonRpcNotification_ReturnsValidJson_NotTypeName() {
         // Arrange
-        var notification = new JsonRpcNotification
-        {
+        var notification = new JsonRpcNotification {
             Method = "notifications/initialized"
         };
 
@@ -175,11 +160,9 @@ public class McpJsonSerializerTests
     }
 
     [Fact]
-    public void SerializeObject_JsonRpcNotification_CanBeDeserialized()
-    {
+    public void SerializeObject_JsonRpcNotification_CanBeDeserialized() {
         // Arrange
-        var notification = new JsonRpcNotification
-        {
+        var notification = new JsonRpcNotification {
             Method = "notifications/cancelled",
             Params = JsonDocument.Parse("""{"requestId":"req-1","reason":"timeout"}""").RootElement.Clone()
         };
@@ -199,12 +182,10 @@ public class McpJsonSerializerTests
     #region 通过基类 JsonRpcMessage 测试 (模拟 ToJson 调用路径)
 
     [Fact]
-    public void SerializeObject_JsonRpcMessage_AsRequest_ReturnsValidJson()
-    {
+    public void SerializeObject_JsonRpcMessage_AsRequest_ReturnsValidJson() {
         // Arrange — 模拟 HttpTransport.SendAsync 的调用路径:
         // SendMessageAsync(JsonRpcMessage) -> message.ToJson() -> SerializeObject(message)
-        JsonRpcMessage message = new JsonRpcRequest
-        {
+        JsonRpcMessage message = new JsonRpcRequest {
             Id = JsonRpcId.FromNumber(10),
             Method = "tools/call",
             Params = JsonDocument.Parse("""{"name":"echo","arguments":{"message":"hi"}}""").RootElement.Clone()
@@ -223,11 +204,9 @@ public class McpJsonSerializerTests
     }
 
     [Fact]
-    public void SerializeObject_JsonRpcMessage_AsResponse_ReturnsValidJson()
-    {
+    public void SerializeObject_JsonRpcMessage_AsResponse_ReturnsValidJson() {
         // Arrange
-        JsonRpcMessage message = new JsonRpcResponse
-        {
+        JsonRpcMessage message = new JsonRpcResponse {
             Id = JsonRpcId.FromNumber(11),
             Result = JsonDocument.Parse("""{"content":[{"type":"text","text":"Echo: hi"}]}""").RootElement.Clone()
         };
@@ -243,11 +222,9 @@ public class McpJsonSerializerTests
     }
 
     [Fact]
-    public void SerializeObject_JsonRpcMessage_AsNotification_ReturnsValidJson()
-    {
+    public void SerializeObject_JsonRpcMessage_AsNotification_ReturnsValidJson() {
         // Arrange
-        JsonRpcMessage message = new JsonRpcNotification
-        {
+        JsonRpcMessage message = new JsonRpcNotification {
             Method = "notifications/progress",
             Params = JsonDocument.Parse("""{"progressToken":"tok-1","progress":50}""").RootElement.Clone()
         };
@@ -266,30 +243,26 @@ public class McpJsonSerializerTests
     #region 回归测试 — 确保其他类型仍正常工作
 
     [Fact]
-    public void SerializeObject_String_ReturnsJsonString()
-    {
+    public void SerializeObject_String_ReturnsJsonString() {
         var json = McpJsonSerializer.SerializeObject("hello");
         Assert.Equal("\"hello\"", json);
     }
 
     [Fact]
-    public void SerializeObject_Null_ReturnsNullLiteral()
-    {
+    public void SerializeObject_Null_ReturnsNullLiteral() {
         var json = McpJsonSerializer.SerializeObject(null!);
         Assert.Equal("null", json);
     }
 
     [Fact]
-    public void SerializeObject_Int_ReturnsNumber()
-    {
+    public void SerializeObject_Int_ReturnsNumber() {
         object value = 42;
         var json = McpJsonSerializer.SerializeObject(value);
         Assert.Equal("42", json);
     }
 
     [Fact]
-    public void SerializeObject_Bool_ReturnsLowercase()
-    {
+    public void SerializeObject_Bool_ReturnsLowercase() {
         object value = true;
         var json = McpJsonSerializer.SerializeObject(value);
         Assert.Equal("true", json);

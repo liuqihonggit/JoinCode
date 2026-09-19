@@ -1,19 +1,16 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class TreeCacheTests : IDisposable
-{
+public sealed class TreeCacheTests : IDisposable {
     private readonly TreeCache _cache;
     private readonly TreeSitterParser _parser;
     private bool _disposed;
 
-    public TreeCacheTests()
-    {
+    public TreeCacheTests() {
         _cache = new TreeCache(maxEntries: 100);
         _parser = new TreeSitterParser("c-sharp");
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _cache.DisposeSafe();
@@ -21,14 +18,12 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void TryGet_NonExistentFile_ReturnsFalse()
-    {
+    public void TryGet_NonExistentFile_ReturnsFalse() {
         Assert.False(_cache.TryGet("nonexistent.cs", out _));
     }
 
     [Fact]
-    public void Add_ThenTryGet_ReturnsSameTree()
-    {
+    public void Add_ThenTryGet_ReturnsSameTree() {
         var source = "class A { }";
         using var tree = _parser.Parse(source);
 
@@ -39,8 +34,7 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void Remove_ExistingFile_RemovesFromCache()
-    {
+    public void Remove_ExistingFile_RemovesFromCache() {
         var source = "class A { }";
         using var tree = _parser.Parse(source);
         _cache.Add("test.cs", tree, source);
@@ -51,11 +45,9 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void Add_ExceedsMaxEntries_DoesNotCacheNewEntries()
-    {
-        using var cache =  new TreeCache(maxEntries: 3);
-        for (var i = 0; i < 5; i++)
-        {
+    public void Add_ExceedsMaxEntries_DoesNotCacheNewEntries() {
+        using var cache = new TreeCache(maxEntries: 3);
+        for (var i = 0; i < 5; i++) {
             var source = $"class Class{i} {{ }}";
             using var tree = _parser.Parse(source);
             cache.Add($"file{i}.cs", tree, source);
@@ -66,12 +58,11 @@ public sealed class TreeCacheTests : IDisposable
         Assert.True(cache.TryGet("file2.cs", out _));
         Assert.False(cache.TryGet("file3.cs", out _));
         Assert.False(cache.TryGet("file4.cs", out _));
-    
+
     }
 
     [Fact]
-    public void GetSource_ExistingFile_ReturnsStoredSource()
-    {
+    public void GetSource_ExistingFile_ReturnsStoredSource() {
         var source = "class A { public void M() { } }";
         using var tree = _parser.Parse(source);
         _cache.Add("test.cs", tree, source);
@@ -82,14 +73,12 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void GetSource_NonExistentFile_ReturnsNull()
-    {
+    public void GetSource_NonExistentFile_ReturnsNull() {
         Assert.Null(_cache.GetSource("nonexistent.cs"));
     }
 
     [Fact]
-    public void Clear_RemovesAllEntries()
-    {
+    public void Clear_RemovesAllEntries() {
         var source = "class A { }";
         using var tree = _parser.Parse(source);
         _cache.Add("file1.cs", tree, source);
@@ -102,8 +91,7 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void Count_ReflectsCurrentEntries()
-    {
+    public void Count_ReflectsCurrentEntries() {
         Assert.Equal(0, _cache.Count);
 
         var source = "class A { }";
@@ -122,8 +110,7 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void Add_SameFileTwice_ReplacesOldEntry()
-    {
+    public void Add_SameFileTwice_ReplacesOldEntry() {
         var source1 = "class A { }";
         var source2 = "class B { }";
         using var tree1 = _parser.Parse(source1);
@@ -137,8 +124,7 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void IncrementalParse_WithCachedTree_ProducesValidTree()
-    {
+    public void IncrementalParse_WithCachedTree_ProducesValidTree() {
         var oldSource = "class A { public void M1() { } }";
         using var oldTree = _parser.Parse(oldSource);
         _cache.Add("test.cs", oldTree, oldSource);
@@ -156,52 +142,44 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_MaxEntriesLessThanOne_Throws()
-    {
+    public void Constructor_MaxEntriesLessThanOne_Throws() {
         Assert.Throws<ArgumentOutOfRangeException>(() => new TreeCache(0));
     }
 
     [Fact]
-    public void Add_NullFilePath_Throws()
-    {
+    public void Add_NullFilePath_Throws() {
         using var tree = _parser.Parse("class A { }");
         Assert.Throws<ArgumentNullException>(() => _cache.Add(null!, tree, "source"));
     }
 
     [Fact]
-    public void Add_NullTree_Throws()
-    {
+    public void Add_NullTree_Throws() {
         Assert.Throws<ArgumentNullException>(() => _cache.Add("test.cs", null!, "source"));
     }
 
     [Fact]
-    public void Add_NullSource_Throws()
-    {
+    public void Add_NullSource_Throws() {
         using var tree = _parser.Parse("class A { }");
         Assert.Throws<ArgumentNullException>(() => _cache.Add("test.cs", tree, null!));
     }
 
     [Fact]
-    public void TryGet_NullFilePath_Throws()
-    {
+    public void TryGet_NullFilePath_Throws() {
         Assert.Throws<ArgumentNullException>(() => _cache.TryGet(null!, out _));
     }
 
     [Fact]
-    public void GetSource_NullFilePath_Throws()
-    {
+    public void GetSource_NullFilePath_Throws() {
         Assert.Throws<ArgumentNullException>(() => _cache.GetSource(null!));
     }
 
     [Fact]
-    public void Remove_NullFilePath_Throws()
-    {
+    public void Remove_NullFilePath_Throws() {
         Assert.Throws<ArgumentNullException>(() => _cache.Remove(null!));
     }
 
     [Fact]
-    public void TryGet_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public void TryGet_AfterDispose_ThrowsObjectDisposedException() {
         var cache = new TreeCache();
         cache.Dispose();
 
@@ -209,8 +187,7 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void Add_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public void Add_AfterDispose_ThrowsObjectDisposedException() {
         var cache = new TreeCache();
         cache.Dispose();
 
@@ -219,8 +196,7 @@ public sealed class TreeCacheTests : IDisposable
     }
 
     [Fact]
-    public void Clear_AfterDispose_ThrowsObjectDisposedException()
-    {
+    public void Clear_AfterDispose_ThrowsObjectDisposedException() {
         var cache = new TreeCache();
         cache.Dispose();
 

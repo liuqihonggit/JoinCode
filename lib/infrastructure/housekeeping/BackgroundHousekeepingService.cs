@@ -5,8 +5,7 @@ namespace Infrastructure.Housekeeping;
 /// 启动后延迟 10 分钟执行首次清理，之后每 24 小时循环执行
 /// 使用标记文件节流，24 小时内不重复执行
 /// </summary>
-public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBase
-{
+public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBase {
     private readonly IHousekeepingService _housekeeping;
     private readonly IFileSystem _fs;
     private readonly IClockService _clock;
@@ -40,8 +39,7 @@ public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBas
         IHousekeepingService housekeeping,
         IFileSystem fs,
         IClockService clock,
-        ILogger<BackgroundHousekeepingService>? logger = null)
-    {
+        ILogger<BackgroundHousekeepingService>? logger = null) {
         _housekeeping = housekeeping;
         _fs = fs;
         _clock = clock;
@@ -49,54 +47,40 @@ public sealed class BackgroundHousekeepingService : PeriodicBackgroundServiceBas
     }
 
     /// <inheritdoc/>
-    protected override async Task ExecuteAsync(CancellationToken cancellationToken)
-    {
+    protected override async Task ExecuteAsync(CancellationToken cancellationToken) {
         if (IsRecentlyRun()) return;
 
-        try
-        {
+        try {
             var count = await _housekeeping.RunAllCleanupAsync(currentSessionId: "", cancellationToken).ConfigureAwait(false);
             WriteMarkerFile();
 
-            if (count > 0)
-            {
+            if (count > 0) {
                 _logger?.LogDebug("后台家政清理执行完成，清理 {Count} 项", count);
             }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogDebug(ex, "后台家政清理执行失败");
         }
     }
 
-    private bool IsRecentlyRun()
-    {
-        try
-        {
+    private bool IsRecentlyRun() {
+        try {
             if (!_fs.FileExists(MarkerFilePath)) return false;
 
             var lastRun = _fs.GetLastWriteTimeUtc(MarkerFilePath);
             return _clock.GetUtcNow() - lastRun < MarkerValidity;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
 
-    private void WriteMarkerFile()
-    {
-        try
-        {
-            if (!_fs.DirectoryExists(JccDir))
-            {
+    private void WriteMarkerFile() {
+        try {
+            if (!_fs.DirectoryExists(JccDir)) {
                 _fs.CreateDirectory(JccDir);
             }
 
             _fs.WriteAllText(MarkerFilePath, _clock.GetUtcNow().ToString("O"));
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "写入家政清理标记文件失败");
         }
     }

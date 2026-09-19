@@ -3,13 +3,11 @@ namespace Guard.Tests.Hooks.Execution.Interception;
 /// <summary>
 /// 守卫单元测试 — 验证 4 个迁移守卫(GhTimeout/GhPrBody/VpnRoute/Heredoc)的 CanHandle/Evaluate 行为
 /// </summary>
-public sealed class CommandGuardTests
-{
+public sealed class CommandGuardTests {
     // === GhTimeoutGuard ===
 
     [Fact]
-    public void GhTimeoutGuard_CanHandle_GhCommand_ReturnsTrue()
-    {
+    public void GhTimeoutGuard_CanHandle_GhCommand_ReturnsTrue() {
         var guard = new GhTimeoutGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -17,8 +15,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void GhTimeoutGuard_CanHandle_NonGhCommand_ReturnsFalse()
-    {
+    public void GhTimeoutGuard_CanHandle_NonGhCommand_ReturnsFalse() {
         var guard = new GhTimeoutGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -26,8 +23,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void GhTimeoutGuard_Evaluate_ReturnsAllow()
-    {
+    public void GhTimeoutGuard_Evaluate_ReturnsAllow() {
         var guard = new GhTimeoutGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -39,8 +35,7 @@ public sealed class CommandGuardTests
     // === GhPrBodyGuard ===
 
     [Fact]
-    public void GhPrBodyGuard_CanHandle_GhPrCreate_ReturnsTrue()
-    {
+    public void GhPrBodyGuard_CanHandle_GhPrCreate_ReturnsTrue() {
         var guard = new GhPrBodyGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -48,8 +43,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void GhPrBodyGuard_CanHandle_GhPrList_ReturnsFalse()
-    {
+    public void GhPrBodyGuard_CanHandle_GhPrList_ReturnsFalse() {
         var guard = new GhPrBodyGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -57,8 +51,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void GhPrBodyGuard_Evaluate_MissingBody_ReturnsRewrite()
-    {
+    public void GhPrBodyGuard_Evaluate_MissingBody_ReturnsRewrite() {
         var guard = new GhPrBodyGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -69,8 +62,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void GhPrBodyGuard_Evaluate_HasBody_ReturnsAllow()
-    {
+    public void GhPrBodyGuard_Evaluate_HasBody_ReturnsAllow() {
         var guard = new GhPrBodyGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -80,8 +72,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void GhPrBodyGuard_Evaluate_ContextBody_UsedOverDefault()
-    {
+    public void GhPrBodyGuard_Evaluate_ContextBody_UsedOverDefault() {
         var guard = new GhPrBodyGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "") { PrBody = "custom body content" };
 
@@ -94,8 +85,7 @@ public sealed class CommandGuardTests
     // === VpnRouteGuard ===
 
     [Fact]
-    public void VpnRouteGuard_CanHandle_NoVpnActive_ReturnsFalse()
-    {
+    public void VpnRouteGuard_CanHandle_NoVpnActive_ReturnsFalse() {
         // 默认测试环境无 VPN 进程/代理,CanHandle 应返回 false
         var guard = new VpnRouteGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "") { ProxyUrl = "http://proxy:8080" };
@@ -106,8 +96,7 @@ public sealed class CommandGuardTests
     // === HeredocGuard ===
 
     [Fact]
-    public void HeredocGuard_CanHandle_ContainsHeredocMarker_ReturnsTrue()
-    {
+    public void HeredocGuard_CanHandle_ContainsHeredocMarker_ReturnsTrue() {
         var guard = new HeredocGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -115,8 +104,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void HeredocGuard_CanHandle_NoHeredocMarker_ReturnsFalse()
-    {
+    public void HeredocGuard_CanHandle_NoHeredocMarker_ReturnsFalse() {
         var guard = new HeredocGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -124,8 +112,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void HeredocGuard_Evaluate_BashShell_ReturnsAllow()
-    {
+    public void HeredocGuard_Evaluate_BashShell_ReturnsAllow() {
         var guard = new HeredocGuard();
         var ctx = new GuardContext(SystemActuatorKind.Bash, "");
 
@@ -135,8 +122,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void HeredocGuard_Evaluate_PowerShellShell_RewritesHeredoc()
-    {
+    public void HeredocGuard_Evaluate_PowerShellShell_RewritesHeredoc() {
         var guard = new HeredocGuard();
         var ctx = new GuardContext(SystemActuatorKind.PowerShell, "");
 
@@ -147,8 +133,7 @@ public sealed class CommandGuardTests
     }
 
     [Fact]
-    public void HeredocGuard_Evaluate_PowerShell_NoHeredocContent_ReturnsAllow()
-    {
+    public void HeredocGuard_Evaluate_PowerShell_NoHeredocContent_ReturnsAllow() {
         var guard = new HeredocGuard();
         var ctx = new GuardContext(SystemActuatorKind.PowerShell, "");
 
@@ -162,8 +147,7 @@ public sealed class CommandGuardTests
     // === 优先级 ===
 
     [Fact]
-    public void Guards_HaveExpectedPriorities()
-    {
+    public void Guards_HaveExpectedPriorities() {
         new HeredocGuard().Priority.Should().Be(200);
         new GhPrBodyGuard().Priority.Should().Be(100);
         new GhTimeoutGuard().Priority.Should().Be(50);

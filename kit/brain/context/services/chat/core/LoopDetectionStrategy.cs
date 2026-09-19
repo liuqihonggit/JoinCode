@@ -12,8 +12,7 @@ public sealed record LoopInterventionResult(int TriggerCount, int ToolCallCount,
 /// <summary>
 /// 循环检测策略接口 — 文本循环检测和工具调用序列循环检测
 /// </summary>
-public interface ILoopDetectionStrategy
-{
+public interface ILoopDetectionStrategy {
     /// <summary>
     /// 检测文本响应的逻辑指纹循环
     /// </summary>

@@ -7,16 +7,14 @@ namespace McpToolDispatch;
 /// 代码分析工具处理器 - 提供代码分析、Bug 查找、优化建议、安全审计等功能
 /// </summary>
 [McpToolDispatch(ToolCategory.CodeAnalysis, Optional = true)]
-public class CodeAnalysisToolHandlers
-{
+public class CodeAnalysisToolHandlers {
     private readonly IQueryEngine _queryEngine;
 
     /// <summary>
     /// 初始化 <see cref="CodeAnalysisToolHandlers"/> 实例
     /// </summary>
     /// <param name="queryEngine">查询引擎</param>
-    public CodeAnalysisToolHandlers(IQueryEngine queryEngine)
-    {
+    public CodeAnalysisToolHandlers(IQueryEngine queryEngine) {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
     }
 
@@ -27,10 +25,8 @@ public class CodeAnalysisToolHandlers
     public async Task<ToolResult> AnalyzeCSharpCodeAsync(
         [McpToolParameter("C# code to analyze")] string code,
         [McpToolParameter("Analysis focus: quality, performance, security, maintainability, all", Required = false, DefaultValue = "all")] string focus = "all",
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(code)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CodeCannotBeEmpty)).Build();
         }
 
@@ -50,13 +46,10 @@ public class CodeAnalysisToolHandlers
         promptBuilder.AppendLine("3. 最佳实践符合度");
         promptBuilder.AppendLine("4. 具体的重构建议（如有）");
 
-        try
-        {
+        try {
             var result = await _queryEngine.ExecuteQueryAsync(promptBuilder.ToString(), cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(result).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CodeAnalysisFailed, ex.Message)).Build();
         }
     }
@@ -68,10 +61,8 @@ public class CodeAnalysisToolHandlers
     public async Task<ToolResult> FindBugsAsync(
         [McpToolParameter("C# code to check")] string code,
         [McpToolParameter("Bug severity filter: low, medium, high, critical, all", Required = false, DefaultValue = "all")] string severity = "all",
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(code)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CodeCannotBeEmpty)).Build();
         }
 
@@ -97,13 +88,10 @@ public class CodeAnalysisToolHandlers
         promptBuilder.AppendLine();
         promptBuilder.AppendLine(prompt);
 
-        try
-        {
+        try {
             var result = await _queryEngine.ExecuteQueryAsync(promptBuilder.ToString(), cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(result).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.BugFindFailed, ex.Message)).Build();
         }
     }
@@ -115,10 +103,8 @@ public class CodeAnalysisToolHandlers
     public async Task<ToolResult> OptimizeCodeAsync(
         [McpToolParameter("C# code to optimize")] string code,
         [McpToolParameter("Optimization target: performance, memory, readability, all", Required = false, DefaultValue = "all")] string target = "all",
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(code)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CodeCannotBeEmpty)).Build();
         }
 
@@ -144,13 +130,10 @@ public class CodeAnalysisToolHandlers
         promptBuilder.AppendLine();
         promptBuilder.AppendLine(prompt);
 
-        try
-        {
+        try {
             var result = await _queryEngine.ExecuteQueryAsync(promptBuilder.ToString(), cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(result).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CodeOptimizationFailed, ex.Message)).Build();
         }
     }
@@ -162,10 +145,8 @@ public class CodeAnalysisToolHandlers
     public async Task<ToolResult> SecurityAuditAsync(
         [McpToolParameter("C# code to audit")] string code,
         [McpToolParameter("Audit type: web, api, desktop, general", Required = false, DefaultValue = "general")] string audit_type = "general",
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(code)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CodeCannotBeEmpty)).Build();
         }
 
@@ -192,13 +173,10 @@ public class CodeAnalysisToolHandlers
         promptBuilder.AppendLine();
         promptBuilder.AppendLine(prompt);
 
-        try
-        {
+        try {
             var result = await _queryEngine.ExecuteQueryAsync(promptBuilder.ToString(), cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(result).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SecurityAuditFailed, ex.Message)).Build();
         }
     }

@@ -1,10 +1,8 @@
 namespace Core.Tests.Prompts;
 
-public class DynamicKeywordMatchingTests
-{
+public class DynamicKeywordMatchingTests {
     [Fact]
-    public void TryMatch_FactInquiryKeyword_ReturnsMatch()
-    {
+    public void TryMatch_FactInquiryKeyword_ReturnsMatch() {
         var config = CreateConfig("fact_inquiry", ["写一", "分析", "总结"]);
         var result = DynamicKeywordMatcher.TryMatch("帮我写一份周报", config);
 
@@ -14,8 +12,7 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_UserDelegationKeyword_ReturnsMatch()
-    {
+    public void TryMatch_UserDelegationKeyword_ReturnsMatch() {
         var config = CreateConfig("user_delegation", ["睡觉", "离开", "走了"]);
         var result = DynamicKeywordMatcher.TryMatch("我睡觉去了", config);
 
@@ -25,8 +22,7 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_NoMatch_ReturnsNull()
-    {
+    public void TryMatch_NoMatch_ReturnsNull() {
         var config = CreateConfig("fact_inquiry", ["写一", "分析"]);
         var result = DynamicKeywordMatcher.TryMatch("今天天气怎么样", config);
 
@@ -34,12 +30,9 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_DisabledSection_ReturnsNull()
-    {
-        var config = new DynamicKeywordConfig
-        {
-            Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase)
-            {
+    public void TryMatch_DisabledSection_ReturnsNull() {
+        var config = new DynamicKeywordConfig {
+            Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase) {
                 ["fact_inquiry"] = new() { Keywords = ["写一"], Enabled = false }
             }
         };
@@ -49,8 +42,7 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_EmptyInput_ReturnsNull()
-    {
+    public void TryMatch_EmptyInput_ReturnsNull() {
         var config = CreateConfig("fact_inquiry", ["写一"]);
         DynamicKeywordMatcher.TryMatch("", config).Should().BeNull();
         DynamicKeywordMatcher.TryMatch(null!, config).Should().BeNull();
@@ -58,12 +50,9 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_CustomContent_ReturnsCustomContent()
-    {
-        var config = new DynamicKeywordConfig
-        {
-            Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase)
-            {
+    public void TryMatch_CustomContent_ReturnsCustomContent() {
+        var config = new DynamicKeywordConfig {
+            Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase) {
                 ["custom_section"] = new() { Keywords = ["自定义"], Enabled = true, CustomContent = "自定义注入内容" }
             }
         };
@@ -75,8 +64,7 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_CaseInsensitive_Matches()
-    {
+    public void TryMatch_CaseInsensitive_Matches() {
         var config = CreateConfig("test", ["Chrome"]);
         var result = DynamicKeywordMatcher.TryMatch("打开chrome浏览器", config);
 
@@ -85,8 +73,7 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_MinimalKeywordRoot_MatchesVariant()
-    {
+    public void TryMatch_MinimalKeywordRoot_MatchesVariant() {
         var config = CreateConfig("user_delegation", ["睡觉"]);
         DynamicKeywordMatcher.TryMatch("我去睡觉了", config).Should().NotBeNull();
         DynamicKeywordMatcher.TryMatch("我睡觉去了", config).Should().NotBeNull();
@@ -94,12 +81,9 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_MultipleSections_FirstMatchWins()
-    {
-        var config = new DynamicKeywordConfig
-        {
-            Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase)
-            {
+    public void TryMatch_MultipleSections_FirstMatchWins() {
+        var config = new DynamicKeywordConfig {
+            Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase) {
                 ["fact_inquiry"] = new() { Keywords = ["分析"], Enabled = true },
                 ["user_delegation"] = new() { Keywords = ["睡觉"], Enabled = true }
             }
@@ -111,8 +95,7 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_RepeatedCalls_SameConfig_ReturnsConsistentResult()
-    {
+    public void TryMatch_RepeatedCalls_SameConfig_ReturnsConsistentResult() {
         var config = CreateConfig("test", ["分析", "总结", "规划"]);
         var input = "帮我分析一下数据";
 
@@ -128,8 +111,7 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_DifferentConfigs_CacheIsolation()
-    {
+    public void TryMatch_DifferentConfigs_CacheIsolation() {
         var config1 = CreateConfig("section_a", ["分析"]);
         var config2 = CreateConfig("section_b", ["睡觉"]);
 
@@ -146,23 +128,19 @@ public class DynamicKeywordMatchingTests
     }
 
     [Fact]
-    public void TryMatch_LargeConfig_RepeatedCalls_PreserveCorrectness()
-    {
+    public void TryMatch_LargeConfig_RepeatedCalls_PreserveCorrectness() {
         var keywords = new List<string> { "写一", "做一", "分析", "总结", "规划", "生成", "重构", "修复", "添加", "修改", "实现", "替换", "归纳", "合并", "整理" };
         var config = CreateConfig("large_section", keywords);
 
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             var result = DynamicKeywordMatcher.TryMatch("帮我分析并总结数据", config);
             result.Should().NotBeNull();
             result!.SectionName.Should().Be("large_section");
         }
     }
 
-    private static DynamicKeywordConfig CreateConfig(string sectionName, List<string> keywords) => new()
-    {
-        Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase)
-        {
+    private static DynamicKeywordConfig CreateConfig(string sectionName, List<string> keywords) => new() {
+        Sections = new Dictionary<string, DynamicKeywordSection>(StringComparer.OrdinalIgnoreCase) {
             [sectionName] = new() { Keywords = keywords, Enabled = true }
         }
     };

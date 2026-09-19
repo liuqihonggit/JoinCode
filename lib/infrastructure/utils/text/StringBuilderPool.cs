@@ -4,8 +4,7 @@ namespace Core.Utils;
 /// <summary>
 /// 池化的 StringBuilder - 复用 StringBuilder 实例减少 GC 压力
 /// </summary>
-public sealed class PooledStringBuilder : IDisposable
-{
+public sealed class PooledStringBuilder : IDisposable {
     private static readonly BoundedObjectPool<StringBuilder> Pool = new(
         factory: () => new StringBuilder(256),
         maxPoolSize: 32,
@@ -17,8 +16,7 @@ public sealed class PooledStringBuilder : IDisposable
     /// </summary>
     public StringBuilder Builder { get; }
 
-    private PooledStringBuilder(StringBuilder builder)
-    {
+    private PooledStringBuilder(StringBuilder builder) {
         Builder = builder;
     }
 
@@ -35,8 +33,7 @@ public sealed class PooledStringBuilder : IDisposable
     /// <summary>
     /// 获取当前内容并释放
     /// </summary>
-    public string ToStringAndDispose()
-    {
+    public string ToStringAndDispose() {
         var result = Builder.ToString();
         Dispose();
         return result;
@@ -51,8 +48,7 @@ public sealed class PooledStringBuilder : IDisposable
 /// <summary>
 /// StringBuilderPool 静态访问类
 /// </summary>
-public static class StringBuilderPool
-{
+public static class StringBuilderPool {
     /// <summary>
     /// 从池中租用 StringBuilder
     /// </summary>

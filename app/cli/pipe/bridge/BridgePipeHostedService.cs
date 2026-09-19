@@ -1,8 +1,7 @@
 namespace JoinCode.Pipe;
 
 /// <summary>Bridge Pipe 宿主服务 — 启动时注册路由并开启心跳检测，停止时取消令牌并停止心跳</summary>
-public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisposable
-{
+public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisposable {
     private readonly BridgeHeartbeatService _heartbeatService;
     private readonly IPipeRouteRegistrar? _routeRegistrar;
     private readonly Core.Bridge.BridgeServer? _bridgeServer;
@@ -19,8 +18,7 @@ public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisp
         BridgeHeartbeatService heartbeatService,
         IPipeRouteRegistrar? routeRegistrar = null,
         Core.Bridge.BridgeServer? bridgeServer = null,
-        ILogger<BridgePipeHostedService>? logger = null)
-    {
+        ILogger<BridgePipeHostedService>? logger = null) {
         _heartbeatService = heartbeatService;
         _routeRegistrar = routeRegistrar;
         _bridgeServer = bridgeServer;
@@ -30,12 +28,10 @@ public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisp
     /// <summary>启动服务 — 注册路由并开启心跳检测</summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步启动操作的任务</returns>
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
+    public Task StartAsync(CancellationToken cancellationToken) {
         _logger?.LogInformation("[BridgePipeHostedService] Bridge Pipe 服务正在启动...");
 
-        if (_routeRegistrar is not null && _bridgeServer is not null)
-        {
+        if (_routeRegistrar is not null && _bridgeServer is not null) {
             _routeRegistrar.RegisterRoutes(_bridgeServer);
         }
 
@@ -47,8 +43,7 @@ public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisp
     /// <summary>停止服务 — 取消内部令牌并停止心跳检测</summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步停止操作的任务</returns>
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
+    public Task StopAsync(CancellationToken cancellationToken) {
         _logger?.LogInformation("[BridgePipeHostedService] 正在停止 Bridge Pipe 服务...");
         _disposeCts.Cancel();
         _heartbeatService.Stop();
@@ -58,8 +53,7 @@ public sealed partial class BridgePipeHostedService : IHostedService, IAsyncDisp
 
     /// <summary>异步释放资源 — 取消内部令牌、停止心跳并释放令牌源</summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask; _disposed = true;
         _disposeCts.CancelAndDisposeSafe(_logger);
         _heartbeatService.Stop();

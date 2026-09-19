@@ -3,8 +3,7 @@ namespace Infrastructure.Utils.Cpu;
 /// <summary>
 /// CPU 并行度计算工具 — 根据当前 CPU 负载动态推荐并行度
 /// </summary>
-public static class CpuParallelism
-{
+public static class CpuParallelism {
     private static readonly int _coreCount = Environment.ProcessorCount;
     private static readonly ExpiringValue<double> _loadCache = new(MeasureCpuLoad, TimeSpan.FromSeconds(1));
 
@@ -15,8 +14,7 @@ public static class CpuParallelism
     /// 根据当前 CPU 负载动态推荐并行度 — 负载&gt;90% 返回 1，&gt;70% 返回核数一半，否则返回核数
     /// </summary>
     /// <returns>推荐的并行度</returns>
-    public static int GetDegree()
-    {
+    public static int GetDegree() {
         var load = _loadCache.GetOrRefresh();
         return load > 0.90 ? 1
              : load > 0.70 ? Math.Max(1, _coreCount / 2)
@@ -28,28 +26,24 @@ public static class CpuParallelism
     /// </summary>
     /// <param name="maxDegree">并行度上限</param>
     /// <returns>推荐的并行度，不超过 maxDegree</returns>
-    public static int GetDegree(int maxDegree)
-    {
+    public static int GetDegree(int maxDegree) {
         return Math.Min(GetDegree(), maxDegree);
     }
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetSystemTimes(out long idleTime, out long kernelTime, out long userTime);
 
-    private static double MeasureCpuLoad()
-    {
+    private static double MeasureCpuLoad() {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             return MeasureWindowsCpuLoad();
         return MeasureFallbackCpuLoad();
     }
 
-    private static double MeasureWindowsCpuLoad()
-    {
+    private static double MeasureWindowsCpuLoad() {
         if (!GetSystemTimes(out var idle, out var kernel, out var user))
             return MeasureFallbackCpuLoad();
 
-        if (!_windowsBaseline.HasBaseline)
-        {
+        if (!_windowsBaseline.HasBaseline) {
             _windowsBaseline = new WindowsCpuBaseline(idle, kernel, user);
             return 0;
         }
@@ -65,13 +59,11 @@ public static class CpuParallelism
         return (double)busyDelta / totalDelta;
     }
 
-    private static double MeasureFallbackCpuLoad()
-    {
+    private static double MeasureFallbackCpuLoad() {
         var now = DateTime.UtcNow;
         var cpu = Process.GetCurrentProcess().TotalProcessorTime;
 
-        if (!_fallbackBaseline.HasBaseline)
-        {
+        if (!_fallbackBaseline.HasBaseline) {
             _fallbackBaseline = new FallbackCpuBaseline(now, cpu);
             return 0;
         }
@@ -85,13 +77,11 @@ public static class CpuParallelism
         return Math.Min(1.0, cpuUsed / (elapsed * _coreCount));
     }
 
-    private readonly record struct WindowsCpuBaseline(long PrevIdle, long PrevKernel, long PrevUser)
-    {
+    private readonly record struct WindowsCpuBaseline(long PrevIdle, long PrevKernel, long PrevUser) {
         public readonly bool HasBaseline = true;
     }
 
-    private readonly record struct FallbackCpuBaseline(DateTime PrevTime, TimeSpan PrevCpu)
-    {
+    private readonly record struct FallbackCpuBaseline(DateTime PrevTime, TimeSpan PrevCpu) {
         public readonly bool HasBaseline = true;
     }
 }

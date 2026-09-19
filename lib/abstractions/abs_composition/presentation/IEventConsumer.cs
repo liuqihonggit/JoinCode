@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// CLI 模式: CliEventConsumer (TerminalHelper 输出)
 /// TUI 模式: TuiEventConsumer (IPresentationAdapter 输出)
 /// </summary>
-public interface IEventConsumer
-{
+public interface IEventConsumer {
     /// <summary>
     /// 收到文本内容
     /// </summary>
@@ -51,8 +50,7 @@ public interface IEventConsumer
 /// <summary>
 /// 可重置的事件消费策略 — SessionController 在每轮开始前自动调用 Reset
 /// </summary>
-public interface IResettableEventConsumer : IEventConsumer
-{
+public interface IResettableEventConsumer : IEventConsumer {
     /// <summary>
     /// 重置内部状态（新一轮对话前调用）
     /// </summary>

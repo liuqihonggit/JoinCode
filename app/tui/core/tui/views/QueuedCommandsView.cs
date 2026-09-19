@@ -5,8 +5,7 @@ namespace JoinCode.Tui.Views;
 /// 队列空时自动隐藏，窄终端（&lt;40列）时隐藏预览。
 /// 对齐 TS 原版 的 PromptInputQueuedCommands 组件。
 /// </summary>
-public sealed class QueuedCommandsView : ITuiComponent
-{
+public sealed class QueuedCommandsView : ITuiComponent {
     private readonly CommandQueue _queue;
     private readonly View _container;
     private readonly Label _headerLabel;
@@ -19,19 +18,16 @@ public sealed class QueuedCommandsView : ITuiComponent
     /// 创建 QueuedCommandsView。
     /// </summary>
     /// <param name="queue">命令队列（驱动预览内容）。</param>
-    public QueuedCommandsView(CommandQueue queue)
-    {
+    public QueuedCommandsView(CommandQueue queue) {
         _queue = queue ?? throw new ArgumentNullException(nameof(queue));
 
-        _container = new View
-        {
+        _container = new View {
             Width = Dim.Fill(),
             Height = Dim.Auto(),
             Visible = false,
         };
 
-        _headerLabel = new Label
-        {
+        _headerLabel = new Label {
             Text = "投递中 (0)",
             X = 0,
             Y = 0,
@@ -39,8 +35,7 @@ public sealed class QueuedCommandsView : ITuiComponent
             Height = 1,
         };
 
-        _listView = new ListView
-        {
+        _listView = new ListView {
             X = 0,
             Y = Pos.Bottom(_headerLabel),
             Width = Dim.Fill(),
@@ -54,16 +49,14 @@ public sealed class QueuedCommandsView : ITuiComponent
     public View TerminalView => _container;
 
     /// <inheritdoc />
-    public void OnQueueChanged(QueueSnapshot snapshot)
-    {
+    public void OnQueueChanged(QueueSnapshot snapshot) {
         var pending = snapshot.All;
         var hasPending = pending.Count > 0;
         var isNarrow = _lastCols > 0 && _lastCols < NarrowThreshold;
 
         _container.Visible = hasPending && !isNarrow;
 
-        if (!hasPending)
-        {
+        if (!hasPending) {
             _headerLabel.Text = "投递中 (0)";
             _listView.SetSource(new ObservableCollection<string>());
             return;
@@ -72,18 +65,15 @@ public sealed class QueuedCommandsView : ITuiComponent
         _headerLabel.Text = $"投递中 ({pending.Count})";
 
         var displayItems = new string[pending.Count];
-        for (var i = 0; i < pending.Count; i++)
-        {
+        for (var i = 0; i < pending.Count; i++) {
             var cmd = pending[i];
-            var priorityMark = cmd.Priority switch
-            {
+            var priorityMark = cmd.Priority switch {
                 QueuePriority.Now => "⚡",
                 QueuePriority.Next => "→",
                 QueuePriority.Later => "⏳",
                 _ => " ",
             };
-            var originMark = cmd.Origin switch
-            {
+            var originMark = cmd.Origin switch {
                 CommandOrigin.User => "",
                 CommandOrigin.TaskNotification => "[task] ",
                 CommandOrigin.PermissionResponse => "[perm] ",
@@ -100,8 +90,7 @@ public sealed class QueuedCommandsView : ITuiComponent
     }
 
     /// <inheritdoc />
-    public void OnResize(int cols, int rows)
-    {
+    public void OnResize(int cols, int rows) {
         _lastCols = cols;
         _lastRows = rows;
 

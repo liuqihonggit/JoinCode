@@ -4,20 +4,17 @@ namespace Core.Configuration.ConfigPipeline;
 /// Step 1: 并行加载多源配置 + 规则文件
 /// </summary>
 [Register(typeof(IConfigLoadMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class SettingsLoadMiddleware : ServiceEntity, IConfigLoadMiddleware
-{
+public sealed partial class SettingsLoadMiddleware : ServiceEntity, IConfigLoadMiddleware {
 
     /// <summary>构造函数 — 注入文件系统</summary>
-    public SettingsLoadMiddleware(IFileSystem fs)
-    {
+    public SettingsLoadMiddleware(IFileSystem fs) {
         _fs = fs;
     }
     private readonly IFileSystem _fs;
 
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ConfigLoadContext context, MiddlewareDelegate<ConfigLoadContext> next, CancellationToken ct) {
         var projectDir = context.ProjectDirectory ?? _fs.GetCurrentDirectory();
 
         var settingsTask = SettingsLoader.LoadAllSourcesAsync(_fs, projectDir: projectDir, cancellationToken: ct);

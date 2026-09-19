@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Weight;
 
-public sealed class WeightedDecisionSystemTests
-{
+public sealed class WeightedDecisionSystemTests {
     [Fact]
-    public void MakeWeightedDecision_ShouldFavorStrongerProsecution()
-    {
+    public void MakeWeightedDecision_ShouldFavorStrongerProsecution() {
         var system = new WeightedDecisionSystem();
         var prosEvidence = new List<EvidenceRecord>
         {
@@ -23,8 +21,7 @@ public sealed class WeightedDecisionSystemTests
     }
 
     [Fact]
-    public void MakeWeightedDecision_ShouldReturnZeroForEmptyEvidence()
-    {
+    public void MakeWeightedDecision_ShouldReturnZeroForEmptyEvidence() {
         var system = new WeightedDecisionSystem();
 
         var result = system.MakeWeightedDecision([], []);
@@ -34,8 +31,7 @@ public sealed class WeightedDecisionSystemTests
     }
 
     [Fact]
-    public void MakeWeightedDecision_ShouldIncludeTopologyAndBeliefScores()
-    {
+    public void MakeWeightedDecision_ShouldIncludeTopologyAndBeliefScores() {
         var system = new WeightedDecisionSystem();
         var prosEvidence = new List<EvidenceRecord>
         {

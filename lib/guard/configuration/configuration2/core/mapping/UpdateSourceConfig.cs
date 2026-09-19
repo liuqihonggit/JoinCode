@@ -5,8 +5,7 @@ namespace Core.Configuration;
 /// 控制自动更新行为：更新源类型、清单地址、通道、是否自动更新
 /// > ADR: 0064
 /// </summary>
-public sealed class UpdateSourceConfig
-{
+public sealed class UpdateSourceConfig {
     /// <summary>
     /// 更新源类型 — static/api/github-mirror/local，默认 static
     /// </summary>

@@ -5,16 +5,14 @@ namespace Core.Tests.Context;
 /// 会话空闲超 vendor 缓存 TTL 时，服务端缓存已冷，重写前缀零额外 miss 成本，
 /// 此时剪裁过期大工具结果来给全价首请求瘦身。
 /// </summary>
-public sealed class ChatContextManagerColdResumeTests
-{
+public sealed class ChatContextManagerColdResumeTests {
     private readonly Mock<IStateService> _stateService;
     private readonly Mock<ISessionMetaStore> _metaStore;
     private readonly Mock<JoinCode.Abstractions.Clock.IClockService> _clock;
     private readonly ILogger<ChatContextManager> _logger;
     private readonly DateTime _now = new(2026, 8, 6, 12, 0, 0, DateTimeKind.Utc);
 
-    public ChatContextManagerColdResumeTests()
-    {
+    public ChatContextManagerColdResumeTests() {
         _stateService = new Mock<IStateService>();
         _stateService.Setup(s => s.SaveStateAsync(It.IsAny<string>(), It.IsAny<MessageList>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
@@ -27,10 +25,8 @@ public sealed class ChatContextManagerColdResumeTests
         _logger = NullLogger<ChatContextManager>.Instance;
     }
 
-    private ChatContextManager CreateSut(string? providerBaseUrl = "https://api.deepseek.com")
-    {
-        var options = new ChatContextOptions
-        {
+    private ChatContextManager CreateSut(string? providerBaseUrl = "https://api.deepseek.com") {
+        var options = new ChatContextOptions {
             MetaStore = _metaStore.Object,
             SessionStats = new SessionStats(),
             SessionId = "s1",
@@ -43,8 +39,7 @@ public sealed class ChatContextManagerColdResumeTests
     /// <summary>
     /// 构造带过期大工具结果的历史：静态前缀 + [Tool(100000 chars), User recent]。
     /// </summary>
-    private void SetupHistoryWithStaleToolResult()
-    {
+    private void SetupHistoryWithStaleToolResult() {
         var savedHistory = new MessageList();
         var big = new StringBuilder();
         for (var i = 0; i < 100_000; i++)
@@ -59,12 +54,10 @@ public sealed class ChatContextManagerColdResumeTests
     }
 
     [Fact]
-    public async Task LoadContextAsync_IdleOverTtl_SnipsStaleToolResult()
-    {
+    public async Task LoadContextAsync_IdleOverTtl_SnipsStaleToolResult() {
         SetupHistoryWithStaleToolResult();
         _metaStore.Setup(m => m.LoadAsync("s1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SessionMeta
-            {
+            .ReturnsAsync(new SessionMeta {
                 UpdatedAtUtcTicks = _now.AddHours(-25).Ticks
             });
 
@@ -80,12 +73,10 @@ public sealed class ChatContextManagerColdResumeTests
     }
 
     [Fact]
-    public async Task LoadContextAsync_IdleWithinTtl_DoesNotSnip()
-    {
+    public async Task LoadContextAsync_IdleWithinTtl_DoesNotSnip() {
         SetupHistoryWithStaleToolResult();
         _metaStore.Setup(m => m.LoadAsync("s1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SessionMeta
-            {
+            .ReturnsAsync(new SessionMeta {
                 UpdatedAtUtcTicks = _now.AddHours(-1).Ticks
             });
 
@@ -101,8 +92,7 @@ public sealed class ChatContextManagerColdResumeTests
     }
 
     [Fact]
-    public async Task LoadContextAsync_NoTimestamp_SkipsColdPruneConservatively()
-    {
+    public async Task LoadContextAsync_NoTimestamp_SkipsColdPruneConservatively() {
         SetupHistoryWithStaleToolResult();
         _metaStore.Setup(m => m.LoadAsync("s1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SessionMeta { UpdatedAtUtcTicks = 0 });
@@ -116,11 +106,9 @@ public sealed class ChatContextManagerColdResumeTests
     }
 
     [Fact]
-    public async Task LoadContextAsync_NoMetaStore_NoSnip()
-    {
+    public async Task LoadContextAsync_NoMetaStore_NoSnip() {
         SetupHistoryWithStaleToolResult();
-        var options = new ChatContextOptions
-        {
+        var options = new ChatContextOptions {
             SessionStats = new SessionStats(),
             SessionId = "s1",
             Clock = _clock.Object,
@@ -136,10 +124,8 @@ public sealed class ChatContextManagerColdResumeTests
     }
 
     [Fact]
-    public async Task SaveContextAsync_WritesUpdatedAtTicksFromClock()
-    {
-        var options = new ChatContextOptions
-        {
+    public async Task SaveContextAsync_WritesUpdatedAtTicksFromClock() {
+        var options = new ChatContextOptions {
             MetaStore = _metaStore.Object,
             SessionStats = new SessionStats(),
             SessionId = "s1",

@@ -1,15 +1,13 @@
-namespace Abs.Tests.Utils;
 
 using Testing.Common.Services;
 
+namespace Abs.Tests.Utils;
 /// <summary>
 /// TempFileScope 单元测试 — 验证临时文件路径预留与 Dispose 自动删除（含幂等、文件不存在不抛）
 /// </summary>
-public sealed class TempFileScopeTest
-{
+public sealed class TempFileScopeTest {
     [Fact]
-    public void Create_ReturnsPathWithPrefixAndExtension()
-    {
+    public void Create_ReturnsPathWithPrefixAndExtension() {
         var fs = new InMemoryFileSystem();
 
         var scope = TempFileScope.Create(fs, "jcc_repl_", ".cs");
@@ -19,16 +17,14 @@ public sealed class TempFileScopeTest
     }
 
     [Fact]
-    public void Create_NullFileSystem_ThrowsArgumentNullException()
-    {
+    public void Create_NullFileSystem_ThrowsArgumentNullException() {
         var act = () => TempFileScope.Create(null!);
 
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public void Dispose_FileExists_DeletesFile()
-    {
+    public void Dispose_FileExists_DeletesFile() {
         var fs = new InMemoryFileSystem();
         var scope = TempFileScope.Create(fs, "test_", ".tmp");
         fs.WriteAllText(scope.Path, "content");
@@ -39,8 +35,7 @@ public sealed class TempFileScopeTest
     }
 
     [Fact]
-    public void Dispose_FileDoesNotExist_DoesNotThrow()
-    {
+    public void Dispose_FileDoesNotExist_DoesNotThrow() {
         var fs = new InMemoryFileSystem();
         var scope = TempFileScope.Create(fs, "test_", ".tmp");
 
@@ -50,8 +45,7 @@ public sealed class TempFileScopeTest
     }
 
     [Fact]
-    public void Dispose_IsIdempotent()
-    {
+    public void Dispose_IsIdempotent() {
         var fs = new InMemoryFileSystem();
         var scope = TempFileScope.Create(fs, "test_", ".tmp");
         fs.WriteAllText(scope.Path, "content");

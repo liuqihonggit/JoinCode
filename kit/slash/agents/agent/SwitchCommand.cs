@@ -13,52 +13,43 @@ namespace JoinCode.ChatCommands;
     Category = ChatCommandCategory.Agent,
     ArgumentHint = "[agentName|all]")]
 [ChatCommandArg("target", Type = "string", Description = "切换目标: agentName=只看指定子代理输出, all=切回显示全部, 省略=显示当前模式")]
-public sealed class SwitchCommand : ChatCommandBase
-{
+public sealed class SwitchCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /switch 命令，切换前台输出显示模式或显示当前模式
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var outputManager = GetService<JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager>(context);
-        if (outputManager is null)
-        {
+        if (outputManager is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}IAgentOutputChannelManager 服务未初始化{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var args = GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args))
-        {
+        if (string.IsNullOrEmpty(args)) {
             ShowCurrentMode(outputManager);
             return ChatCommandResult.Continue();
         }
 
-        if (string.Equals(args, "all", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(args, "all", StringComparison.OrdinalIgnoreCase)) {
             outputManager.SetDisplayMode(null);
             TerminalHelper.WriteLine($"{TerminalColors.Success}已切换到显示全部子代理输出{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var agentService = GetService<JoinCode.Abstractions.Interfaces.IAgentService>(context);
-        if (agentService is null)
-        {
+        if (agentService is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}IAgentService 服务未初始化{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var agentId = await agentService.FindAgentIdByNameAsync(args, context.CancellationToken).ConfigureAwait(false);
-        if (agentId is not null)
-        {
+        if (agentId is not null) {
             outputManager.SetDisplayMode(agentId);
             TerminalHelper.WriteLine($"{TerminalColors.Success}已切换到只看子代理 {args} 的输出{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}未找到子代理 {args}{AnsiStyleEnumConstants.Reset}");
             ShowCurrentMode(outputManager);
         }
@@ -66,28 +57,20 @@ public sealed class SwitchCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static void ShowCurrentMode(JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager outputManager)
-    {
+    private static void ShowCurrentMode(JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager outputManager) {
         var current = outputManager.GetDisplayMode();
-        if (current is null)
-        {
+        if (current is null) {
             TerminalHelper.WriteLine("当前模式: 显示全部子代理输出");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"当前模式: 只看子代理 {current} 的输出");
         }
 
         var agents = outputManager.GetActiveAgents();
-        if (agents.Count == 0)
-        {
+        if (agents.Count == 0) {
             TerminalHelper.WriteLine("当前无活跃子代理");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("活跃子代理:");
-            foreach (var agent in agents)
-            {
+            foreach (var agent in agents) {
                 var marker = string.Equals(agent.AgentId, current, StringComparison.OrdinalIgnoreCase) ? " *" : "";
                 TerminalHelper.WriteLine($"  {agent.DisplayName ?? agent.AgentId}{marker}");
             }

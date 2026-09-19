@@ -1,8 +1,7 @@
 
 namespace Core.Tests.Context.Resolution;
 
-public class ReferenceResolverTests : IDisposable
-{
+public class ReferenceResolverTests : IDisposable {
     private readonly Mock<ISearchService> _searchServiceMock;
     private readonly Testing.Common.Services.InMemoryFileSystem _fileSystem;
     private readonly InMemoryFileOperationService _fileOpService;
@@ -10,8 +9,7 @@ public class ReferenceResolverTests : IDisposable
     private const string ProjectRoot = "C:\\testroot";
     private bool _disposed;
 
-    public ReferenceResolverTests()
-    {
+    public ReferenceResolverTests() {
         _searchServiceMock = new Mock<ISearchService>();
         _fileSystem = new Testing.Common.Services.InMemoryFileSystem();
         _fileSystem.CreateDirectory(ProjectRoot);
@@ -19,8 +17,7 @@ public class ReferenceResolverTests : IDisposable
         _resolver = new ReferenceResolver(_searchServiceMock.Object, _fileOpService);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOpService.DisposeSafe();
@@ -29,8 +26,7 @@ public class ReferenceResolverTests : IDisposable
     #region ResolveCodeReferenceAsync Tests
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_ExactFilePath_ReturnsExactMatch()
-    {
+    public async Task ResolveCodeReferenceAsync_ExactFilePath_ReturnsExactMatch() {
         var filePath = Path.Combine(ProjectRoot, "TestFile.cs");
         _fileSystem.WriteAllText(filePath, "content");
 
@@ -44,8 +40,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_ExactDirectoryPath_ReturnsDirectoryMatch()
-    {
+    public async Task ResolveCodeReferenceAsync_ExactDirectoryPath_ReturnsDirectoryMatch() {
         var dirPath = Path.Combine(ProjectRoot, "TestDirectory");
         _fileSystem.CreateDirectory(dirPath);
         var filePath = Path.Combine(dirPath, "file.cs");
@@ -64,8 +59,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_GlobPattern_ReturnsPatternMatch()
-    {
+    public async Task ResolveCodeReferenceAsync_GlobPattern_ReturnsPatternMatch() {
         var file1 = Path.Combine(ProjectRoot, "file1.cs");
         var file2 = Path.Combine(ProjectRoot, "file2.cs");
         _fileSystem.WriteAllText(file1, "content");
@@ -85,8 +79,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_NonExistentPath_ReturnsUnresolved()
-    {
+    public async Task ResolveCodeReferenceAsync_NonExistentPath_ReturnsUnresolved() {
         _searchServiceMock
             .Setup(s => s.GlobSearchAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GlobSearchResult.SuccessResult(0, new List<string>(), false));
@@ -100,8 +93,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_WithChineseAlias_ResolvesCorrectly()
-    {
+    public async Task ResolveCodeReferenceAsync_WithChineseAlias_ResolvesCorrectly() {
         var toolsDir = Path.Combine(ProjectRoot, "tools");
         _fileSystem.CreateDirectory(toolsDir);
         var filePath = Path.Combine(toolsDir, "tool.cs");
@@ -124,8 +116,7 @@ public class ReferenceResolverTests : IDisposable
     #region FindMatchingFilesAsync Tests
 
     [Fact]
-    public async Task FindMatchingFilesAsync_ByDescription_ReturnsMatches()
-    {
+    public async Task FindMatchingFilesAsync_ByDescription_ReturnsMatches() {
         var filePath = Path.Combine(ProjectRoot, "MyService.cs");
         _fileSystem.WriteAllText(filePath, "content");
 
@@ -141,8 +132,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public async Task FindMatchingFilesAsync_ByChineseAlias_ReturnsMatches()
-    {
+    public async Task FindMatchingFilesAsync_ByChineseAlias_ReturnsMatches() {
         var servicesDir = Path.Combine(ProjectRoot, "services");
         _fileSystem.CreateDirectory(servicesDir);
         var filePath = Path.Combine(servicesDir, "test.cs");
@@ -160,8 +150,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public async Task FindMatchingFilesAsync_NoMatches_ReturnsEmpty()
-    {
+    public async Task FindMatchingFilesAsync_NoMatches_ReturnsEmpty() {
         _searchServiceMock
             .Setup(s => s.GlobSearchAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(GlobSearchResult.SuccessResult(0, new List<string>(), false));
@@ -178,8 +167,7 @@ public class ReferenceResolverTests : IDisposable
     #region BuildReferenceIndexAsync Tests
 
     [Fact]
-    public async Task BuildReferenceIndexAsync_WithFiles_CreatesIndex()
-    {
+    public async Task BuildReferenceIndexAsync_WithFiles_CreatesIndex() {
         var file1 = Path.Combine(ProjectRoot, "file1.cs");
         var file2 = Path.Combine(ProjectRoot, "file2.cs");
         _fileSystem.WriteAllText(file1, "content1");
@@ -197,8 +185,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public async Task BuildReferenceIndexAsync_EmptyDirectory_CreatesEmptyIndex()
-    {
+    public async Task BuildReferenceIndexAsync_EmptyDirectory_CreatesEmptyIndex() {
         _searchServiceMock
             .Setup(s => s.GlobSearchAsync("**/*", ProjectRoot, It.IsAny<CancellationToken>()))
             .ReturnsAsync(GlobSearchResult.SuccessResult(0, new List<string>(), false));
@@ -218,8 +205,7 @@ public class ReferenceResolverTests : IDisposable
     [InlineData(ReferenceMatchType.Pattern)]
     [InlineData(ReferenceMatchType.Fuzzy)]
     [InlineData(ReferenceMatchType.Partial)]
-    public void ReferenceMatchType_Values_AreDefined(ReferenceMatchType matchType)
-    {
+    public void ReferenceMatchType_Values_AreDefined(ReferenceMatchType matchType) {
         // Assert - 验证所有枚举值都已定义
         Assert.True(Enum.IsDefined(typeof(ReferenceMatchType), matchType));
     }
@@ -229,8 +215,7 @@ public class ReferenceResolverTests : IDisposable
     #region ReferenceResolutionOptions Tests
 
     [Fact]
-    public void ReferenceResolutionOptions_Default_HasExpectedValues()
-    {
+    public void ReferenceResolutionOptions_Default_HasExpectedValues() {
         // Arrange & Act
         var options = ReferenceResolutionOptions.Default;
 
@@ -242,8 +227,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public void ReferenceResolutionOptions_ExactMatch_HasExpectedValues()
-    {
+    public void ReferenceResolutionOptions_ExactMatch_HasExpectedValues() {
         // Arrange & Act
         var options = ReferenceResolutionOptions.ExactMatch;
 
@@ -253,8 +237,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public void ReferenceResolutionOptions_FuzzyMatch_HasExpectedValues()
-    {
+    public void ReferenceResolutionOptions_FuzzyMatch_HasExpectedValues() {
         // Arrange & Act
         var options = ReferenceResolutionOptions.FuzzyMatch;
 
@@ -265,11 +248,9 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public void ReferenceResolutionOptions_CustomValues_CanBeSet()
-    {
+    public void ReferenceResolutionOptions_CustomValues_CanBeSet() {
         // Arrange & Act
-        var options = new ReferenceResolutionOptions
-        {
+        var options = new ReferenceResolutionOptions {
             SearchDepth = 5,
             MinRelevanceScore = 0.5,
             MaxResults = 100,
@@ -290,8 +271,7 @@ public class ReferenceResolverTests : IDisposable
     #region CodeReference Tests
 
     [Fact]
-    public void CodeReference_Unresolved_ReturnsExpectedValues()
-    {
+    public void CodeReference_Unresolved_ReturnsExpectedValues() {
         // Arrange & Act
         var reference = CodeReference.Unresolved("test-path");
 
@@ -303,8 +283,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public void CodeReference_ExactMatch_ReturnsExpectedValues()
-    {
+    public void CodeReference_ExactMatch_ReturnsExpectedValues() {
         // Arrange
         var matches = new List<FileMatch>
         {
@@ -328,8 +307,7 @@ public class ReferenceResolverTests : IDisposable
     #region FileMatch Tests
 
     [Fact]
-    public void FileMatch_Create_ReturnsExpectedValues()
-    {
+    public void FileMatch_Create_ReturnsExpectedValues() {
         // Arrange & Act
         var match = FileMatch.Create(
             "C:\\test\\file.cs",
@@ -349,8 +327,7 @@ public class ReferenceResolverTests : IDisposable
     #region ReferenceIndex Tests
 
     [Fact]
-    public void ReferenceIndex_Constructor_InitializesCorrectly()
-    {
+    public void ReferenceIndex_Constructor_InitializesCorrectly() {
         var index = new ReferenceIndex(ProjectRoot);
 
         Assert.Equal(ProjectRoot, index.ProjectRoot);
@@ -359,8 +336,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public void ReferenceIndex_AddReference_IncreasesCount()
-    {
+    public void ReferenceIndex_AddReference_IncreasesCount() {
         var index = new ReferenceIndex(ProjectRoot);
         var reference = IndexedReference.Create(
             "test/file.cs",
@@ -377,8 +353,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public void ReferenceIndex_FindByPath_ReturnsReference()
-    {
+    public void ReferenceIndex_FindByPath_ReturnsReference() {
         var index = new ReferenceIndex(ProjectRoot);
         var reference = IndexedReference.Create(
             "test/file.cs",
@@ -397,8 +372,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public void ReferenceIndex_FindByKeyword_ReturnsMatchingPaths()
-    {
+    public void ReferenceIndex_FindByKeyword_ReturnsMatchingPaths() {
         var index = new ReferenceIndex(ProjectRoot);
         var reference = IndexedReference.Create(
             "test/file.cs",
@@ -416,8 +390,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public void ReferenceIndex_Clear_RemovesAllReferences()
-    {
+    public void ReferenceIndex_Clear_RemovesAllReferences() {
         var index = new ReferenceIndex(ProjectRoot);
         var reference = IndexedReference.Create(
             "test/file.cs",
@@ -439,8 +412,7 @@ public class ReferenceResolverTests : IDisposable
     #region IndexedReference Tests
 
     [Fact]
-    public void IndexedReference_Create_ReturnsExpectedValues()
-    {
+    public void IndexedReference_Create_ReturnsExpectedValues() {
         // Arrange
         var lastModified = DateTimeOffset.UtcNow;
 
@@ -465,8 +437,7 @@ public class ReferenceResolverTests : IDisposable
     #region Integration Tests
 
     [Fact]
-    public async Task ResolveCodeReferenceAsync_ComplexPath_ResolvesCorrectly()
-    {
+    public async Task ResolveCodeReferenceAsync_ComplexPath_ResolvesCorrectly() {
         var toolsDir = Path.Combine(ProjectRoot, "src", "tools");
         _fileSystem.CreateDirectory(toolsDir);
         var filePath = Path.Combine(toolsDir, "ToolHandler.cs");
@@ -484,8 +455,7 @@ public class ReferenceResolverTests : IDisposable
     }
 
     [Fact]
-    public async Task BuildReferenceIndexAsync_AndQuery_WorksTogether()
-    {
+    public async Task BuildReferenceIndexAsync_AndQuery_WorksTogether() {
         var filePath = Path.Combine(ProjectRoot, "TestComponent.cs");
         _fileSystem.WriteAllText(filePath, "content");
 

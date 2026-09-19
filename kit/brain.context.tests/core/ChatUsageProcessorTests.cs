@@ -1,10 +1,8 @@
 namespace Core.Context;
 
-public sealed class ChatUsageProcessorTests
-{
+public sealed class ChatUsageProcessorTests {
     [Fact]
-    public async Task ProcessUsageAsync_PassesCacheBreakResultToRecordTurn()
-    {
+    public async Task ProcessUsageAsync_PassesCacheBreakResultToRecordTurn() {
         var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -14,8 +12,7 @@ public sealed class ChatUsageProcessorTests
 
         var sut = new ChatUsageProcessor(stats, contextManager.Object);
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
-        var snapshot = new PromptStateSnapshot
-        {
+        var snapshot = new PromptStateSnapshot {
             SystemPromptHash = "abc",
             ToolSpecsHash = "def",
             ToolCount = 1,
@@ -30,8 +27,7 @@ public sealed class ChatUsageProcessorTests
     }
 
     [Fact]
-    public async Task ProcessUsageAsync_NoCacheBreak_NoSectionBreakIncrement()
-    {
+    public async Task ProcessUsageAsync_NoCacheBreak_NoSectionBreakIncrement() {
         var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -41,8 +37,7 @@ public sealed class ChatUsageProcessorTests
 
         var sut = new ChatUsageProcessor(stats, contextManager.Object);
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 80, CacheCreationInputTokens = 20 };
-        var snapshot = new PromptStateSnapshot
-        {
+        var snapshot = new PromptStateSnapshot {
             SystemPromptHash = "abc",
             ToolSpecsHash = "def",
             ToolCount = 1,
@@ -60,8 +55,7 @@ public sealed class ChatUsageProcessorTests
     }
 
     [Fact]
-    public async Task ProcessUsageAsync_SystemPromptBreak_IncrementSystemSection()
-    {
+    public async Task ProcessUsageAsync_SystemPromptBreak_IncrementSystemSection() {
         var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -71,8 +65,7 @@ public sealed class ChatUsageProcessorTests
 
         var sut = new ChatUsageProcessor(stats, contextManager.Object);
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
-        var snapshot = new PromptStateSnapshot
-        {
+        var snapshot = new PromptStateSnapshot {
             SystemPromptHash = "abc",
             ToolSpecsHash = "def",
             ToolCount = 1,
@@ -87,8 +80,7 @@ public sealed class ChatUsageProcessorTests
     }
 
     [Fact]
-    public async Task ProcessUsageAsync_CacheEvictionBreak_IncrementEvictionSection()
-    {
+    public async Task ProcessUsageAsync_CacheEvictionBreak_IncrementEvictionSection() {
         var stats = new SessionStats();
         var contextManager = new Mock<IChatContextManager>();
         contextManager.Setup(cm => cm.CheckCacheBreakAsync(It.IsAny<PromptStateSnapshot>(), It.IsAny<TokenUsage>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -98,8 +90,7 @@ public sealed class ChatUsageProcessorTests
 
         var sut = new ChatUsageProcessor(stats, contextManager.Object);
         var usage = new TokenUsage(100, 50) { CacheReadInputTokens = 0, CacheCreationInputTokens = 100 };
-        var snapshot = new PromptStateSnapshot
-        {
+        var snapshot = new PromptStateSnapshot {
             SystemPromptHash = "abc",
             ToolSpecsHash = "def",
             ToolCount = 1,

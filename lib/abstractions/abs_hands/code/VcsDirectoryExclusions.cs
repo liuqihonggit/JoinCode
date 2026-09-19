@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// VCS 目录排除集合 — 统一 RgEngine/SearchService 两处重复定义
 /// <para>搜索时排除这些版本控制目录及其内容</para>
 /// </summary>
-public static class VcsDirectoryExclusions
-{
+public static class VcsDirectoryExclusions {
     private static readonly FrozenSet<string> Directories = FrozenSet.ToFrozenSet(
         [".git", ".svn", ".hg", ".bzr", ".jj", ".sl"],
         StringComparer.OrdinalIgnoreCase);
@@ -19,8 +18,7 @@ public static class VcsDirectoryExclusions
     /// <summary>
     /// 判断相对路径是否包含 VCS 目录段
     /// </summary>
-    public static bool IsVcsPath(string rel)
-    {
+    public static bool IsVcsPath(string rel) {
         foreach (var vcs in Directories)
             if (rel.Contains($"/{vcs}/", StringComparison.OrdinalIgnoreCase) ||
                 rel.StartsWith($"{vcs}/", StringComparison.OrdinalIgnoreCase))

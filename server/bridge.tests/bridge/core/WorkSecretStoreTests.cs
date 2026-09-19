@@ -5,24 +5,21 @@ namespace Bridge.Tests;
 /// WorkSecretStore 单元测试
 /// 测试工作密钥的创建、加密存储、验证、轮换和撤销
 /// </summary>
-public sealed class WorkSecretStoreTests : IDisposable
-{
+public sealed class WorkSecretStoreTests : IDisposable {
     private readonly BridgeConfig _config = new() { EncryptionKeyBase64 = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)) };
     private bool _disposed;
 
     private WorkSecretStore CreateSut() =>
         new(_config, logger: null);
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         GC.SuppressFinalize(this);
     }
 
     [Fact]
-    public async Task CreateAsync_ShouldCreateSecret()
-    {
+    public async Task CreateAsync_ShouldCreateSecret() {
         // Arrange
         var sut = CreateSut();
 
@@ -39,8 +36,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateAsync_ShouldStoreEncryptedValue()
-    {
+    public async Task CreateAsync_ShouldStoreEncryptedValue() {
         // Arrange
         var sut = CreateSut();
         var plainValue = "my-secret-value";
@@ -55,8 +51,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAsync_ShouldReturnSecret_WhenExists()
-    {
+    public async Task GetAsync_ShouldReturnSecret_WhenExists() {
         // Arrange
         var sut = CreateSut();
         var created = await sut.CreateAsync("api-key", "my-secret-value").ConfigureAwait(true);
@@ -71,8 +66,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAsync_ShouldReturnNull_WhenNotExists()
-    {
+    public async Task GetAsync_ShouldReturnNull_WhenNotExists() {
         // Arrange
         var sut = CreateSut();
 
@@ -84,8 +78,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidateAsync_ShouldReturnTrue_WhenValueMatches()
-    {
+    public async Task ValidateAsync_ShouldReturnTrue_WhenValueMatches() {
         // Arrange
         var sut = CreateSut();
         var plainValue = "correct-secret-value";
@@ -99,8 +92,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidateAsync_ShouldReturnFalse_WhenValueDoesNotMatch()
-    {
+    public async Task ValidateAsync_ShouldReturnFalse_WhenValueDoesNotMatch() {
         // Arrange
         var sut = CreateSut();
         var created = await sut.CreateAsync("api-key", "correct-value").ConfigureAwait(true);
@@ -113,8 +105,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task ValidateAsync_ShouldReturnFalse_WhenSecretIsRevoked()
-    {
+    public async Task ValidateAsync_ShouldReturnFalse_WhenSecretIsRevoked() {
         // Arrange
         var sut = CreateSut();
         var plainValue = "secret-value";
@@ -129,8 +120,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task RotateAsync_ShouldCreateNewSecret_AndMarkOldAsRotated()
-    {
+    public async Task RotateAsync_ShouldCreateNewSecret_AndMarkOldAsRotated() {
         // Arrange
         var sut = CreateSut();
         var oldEntry = await sut.CreateAsync("api-key", "old-secret-value").ConfigureAwait(true);
@@ -157,8 +147,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task RevokeAsync_ShouldMarkSecretAsRevoked()
-    {
+    public async Task RevokeAsync_ShouldMarkSecretAsRevoked() {
         // Arrange
         var sut = CreateSut();
         var created = await sut.CreateAsync("api-key", "secret-value").ConfigureAwait(true);
@@ -173,8 +162,7 @@ public sealed class WorkSecretStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Lifecycle_ShouldReflectState_Correctly()
-    {
+    public async Task Lifecycle_ShouldReflectState_Correctly() {
         // Arrange
         var sut = CreateSut();
         var created = await sut.CreateAsync("api-key", "secret-value").ConfigureAwait(true);

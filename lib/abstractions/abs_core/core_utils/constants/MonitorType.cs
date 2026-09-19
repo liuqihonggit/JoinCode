@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// MCP 监控类型枚举
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 MonitorTypeEnumConstants + MonitorTypeExtensions
 /// </summary>
-public enum MonitorType
-{
+public enum MonitorType {
     /// <summary>状态概览</summary>
     [EnumValue("status")] Status = 0,
 

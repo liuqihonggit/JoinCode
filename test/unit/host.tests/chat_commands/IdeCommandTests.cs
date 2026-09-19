@@ -1,56 +1,48 @@
 namespace Host.Tests.ChatCommands;
 
-public sealed class IdeCommandTests
-{
+public sealed class IdeCommandTests {
     [Fact]
-    public void Name_Should_Be_ide()
-    {
+    public void Name_Should_Be_ide() {
         var cmd = new IdeCommand();
         cmd.Name.Should().Be("ide");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new IdeCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Contain_detect()
-    {
+    public void Usage_Should_Contain_detect() {
         var cmd = new IdeCommand();
         cmd.Usage.Should().Contain("detect");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_True()
-    {
+    public void IsHidden_Should_Be_True() {
         var cmd = new IdeCommand();
         cmd.IsHidden.Should().BeTrue();
     }
 
     [Fact]
-    public void ArgumentHint_Should_Contain_detect()
-    {
+    public void ArgumentHint_Should_Contain_detect() {
         var cmd = new IdeCommand();
         cmd.ArgumentHint.Should().Contain("detect");
     }
 
     [Fact]
-    public async Task Execute_WhenServiceIsNull_Should_Return_Continue()
-    {
+    public async Task Execute_WhenServiceIsNull_Should_Return_Continue() {
         var cmd = new IdeCommand();
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -60,8 +52,7 @@ public sealed class IdeCommandTests
     }
 
     [Fact]
-    public async Task Execute_Detect_Should_Call_DetectInstalledIdesDetailed()
-    {
+    public async Task Execute_Detect_Should_Call_DetectInstalledIdesDetailed() {
         var cmd = new IdeCommand();
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.DetectInstalledIdesDetailed())
@@ -76,14 +67,13 @@ public sealed class IdeCommandTests
         var context = new ChatCommandContext {
             Arguments = "detect",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -94,8 +84,7 @@ public sealed class IdeCommandTests
     }
 
     [Fact]
-    public async Task Execute_Status_Should_Return_Continue()
-    {
+    public async Task Execute_Status_Should_Return_Continue() {
         var cmd = new IdeCommand();
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.CurrentConnection).Returns((IdeInfo?)null);
@@ -108,14 +97,13 @@ public sealed class IdeCommandTests
         var context = new ChatCommandContext {
             Arguments = "status",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -132,8 +120,7 @@ public sealed class IdeCommandTests
     [InlineData("disconnect")]
     [InlineData("open")]
     [InlineData("status")]
-    public async Task Execute_WithPlatformActionSubcommand_Should_Return_Continue(string subCommand)
-    {
+    public async Task Execute_WithPlatformActionSubcommand_Should_Return_Continue(string subCommand) {
         // PlatformActionEnumConstants.Detect/Connect/Disconnect/Open/Status 枚举路由取值范围测试
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.DetectInstalledIdesDetailed())
@@ -146,17 +133,15 @@ public sealed class IdeCommandTests
         sp.Setup(p => p.GetService(typeof(IIdeIntegrationService))).Returns(ideService.Object);
 
         var cmd = new IdeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
 
@@ -170,8 +155,7 @@ public sealed class IdeCommandTests
     [InlineData("d")]
     [InlineData("o")]
     [InlineData("s")]
-    public async Task Execute_WithSingleLetterAlias_Should_Return_Continue(string alias)
-    {
+    public async Task Execute_WithSingleLetterAlias_Should_Return_Continue(string alias) {
         // 单字母别名: c/d/o/s 保留为字符串 case,但应路由到相同 handler
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.CurrentConnection).Returns((IdeInfo?)null);
@@ -182,17 +166,15 @@ public sealed class IdeCommandTests
         sp.Setup(p => p.GetService(typeof(IIdeIntegrationService))).Returns(ideService.Object);
 
         var cmd = new IdeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = alias,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
 
@@ -202,8 +184,7 @@ public sealed class IdeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithEmptyArgs_Should_Default_To_Status()
-    {
+    public async Task Execute_WithEmptyArgs_Should_Default_To_Status() {
         // "" → PlatformActionEnumConstants.Status 分支
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.CurrentConnection).Returns((IdeInfo?)null);
@@ -214,17 +195,15 @@ public sealed class IdeCommandTests
         sp.Setup(p => p.GetService(typeof(IIdeIntegrationService))).Returns(ideService.Object);
 
         var cmd = new IdeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
 
@@ -239,8 +218,7 @@ public sealed class IdeCommandTests
     [InlineData("DISCONNECT")]
     [InlineData("Open")]
     [InlineData("STATUS")]
-    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand)
-    {
+    public async Task Execute_WithUppercaseSubcommand_Should_Be_CaseInsensitive(string subCommand) {
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.DetectInstalledIdesDetailed())
             .Returns(new List<IdeDetectionDetail>().AsReadOnly());
@@ -252,17 +230,15 @@ public sealed class IdeCommandTests
         sp.Setup(p => p.GetService(typeof(IIdeIntegrationService))).Returns(ideService.Object);
 
         var cmd = new IdeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = subCommand,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
 
@@ -272,8 +248,7 @@ public sealed class IdeCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUnknownSubcommand_Should_NotThrow()
-    {
+    public async Task Execute_WithUnknownSubcommand_Should_NotThrow() {
         var ideService = new Mock<IIdeIntegrationService>();
         ideService.Setup(s => s.CurrentConnection).Returns((IdeInfo?)null);
         ideService.Setup(s => s.DetectInstalledIdes())
@@ -283,17 +258,15 @@ public sealed class IdeCommandTests
         sp.Setup(p => p.GetService(typeof(IIdeIntegrationService))).Returns(ideService.Object);
 
         var cmd = new IdeCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "unknown-action",
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 ServiceProvider = sp.Object,
-            FileSystem = TestFileSystem.Current,
+                FileSystem = TestFileSystem.Current,
             }),
         };
 
@@ -310,14 +283,12 @@ public sealed class IdeCommandTests
     [InlineData("disconnect", PlatformAction.Disconnect)]
     [InlineData("open", PlatformAction.Open)]
     [InlineData("status", PlatformAction.Status)]
-    public void PlatformAction_FromValue_IdeActions_Should_Resolve_Correctly(string input, PlatformAction expected)
-    {
+    public void PlatformAction_FromValue_IdeActions_Should_Resolve_Correctly(string input, PlatformAction expected) {
         PlatformActionExtensions.FromValue(input).Should().Be(expected);
     }
 
     [Fact]
-    public void PlatformActionEnumConstants_IdeActions_Values_Should_Match_Route()
-    {
+    public void PlatformActionEnumConstants_IdeActions_Values_Should_Match_Route() {
         // 验证枚举常量值与原硬编码字符串完全一致(行为不变)
         PlatformActionEnumConstants.Detect.Should().Be("detect");
         PlatformActionEnumConstants.Connect.Should().Be("connect");

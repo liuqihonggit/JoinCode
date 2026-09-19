@@ -1,16 +1,13 @@
 
 namespace Core.Goal.Tests;
 
-public sealed class GoalHeartbeatTests
-{
-    private static GoalHeartbeat CreateHeartbeat(TimeSpan? interval = null, IClockService? clock = null)
-    {
+public sealed class GoalHeartbeatTests {
+    private static GoalHeartbeat CreateHeartbeat(TimeSpan? interval = null, IClockService? clock = null) {
         return new GoalHeartbeat(interval, clock: clock);
     }
 
     [Fact]
-    public async Task Constructor_DefaultInterval_Is30Seconds()
-    {
+    public async Task Constructor_DefaultInterval_Is30Seconds() {
         await using var heartbeat = CreateHeartbeat();
 
         Assert.Equal(0, heartbeat.RefCount);
@@ -20,16 +17,14 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task Constructor_CustomInterval_IsActive_ReturnsFalse()
-    {
+    public async Task Constructor_CustomInterval_IsActive_ReturnsFalse() {
         await using var heartbeat = CreateHeartbeat(TimeSpan.FromSeconds(10));
 
         Assert.False(heartbeat.IsActive);
     }
 
     [Fact]
-    public async Task StartActivityAsync_IncrementsRefCount_AndSetsLastActivityAt()
-    {
+    public async Task StartActivityAsync_IncrementsRefCount_AndSetsLastActivityAt() {
         var clock = new Mock<IClockService>();
         var now = DateTime.UtcNow;
         clock.Setup(c => c.GetUtcNow()).Returns(now);
@@ -45,8 +40,7 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task StartActivityAsync_MultipleReasons_TracksCounts()
-    {
+    public async Task StartActivityAsync_MultipleReasons_TracksCounts() {
         await using var heartbeat = CreateHeartbeat();
 
         await heartbeat.StartActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(true);
@@ -58,8 +52,7 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task StopActivityAsync_DecrementsRefCount()
-    {
+    public async Task StopActivityAsync_DecrementsRefCount() {
         await using var heartbeat = CreateHeartbeat();
 
         await heartbeat.StartActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(true);
@@ -71,8 +64,7 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task StopActivityAsync_WhenRefCountReachesZero_StopsTimer()
-    {
+    public async Task StopActivityAsync_WhenRefCountReachesZero_StopsTimer() {
         await using var heartbeat = CreateHeartbeat();
 
         await heartbeat.StartActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(true);
@@ -83,8 +75,7 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task StopActivityAsync_WhenReasonCountAlreadyZero_DoesNotGoNegative()
-    {
+    public async Task StopActivityAsync_WhenReasonCountAlreadyZero_DoesNotGoNegative() {
         await using var heartbeat = CreateHeartbeat();
 
         await heartbeat.StartActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(true);
@@ -95,8 +86,7 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task StopActivityAsync_WhenRefCountAlreadyZero_DoesNotGoNegative()
-    {
+    public async Task StopActivityAsync_WhenRefCountAlreadyZero_DoesNotGoNegative() {
         await using var heartbeat = CreateHeartbeat();
 
         await heartbeat.StopActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(true);
@@ -105,8 +95,7 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task ResetAsync_ClearsState()
-    {
+    public async Task ResetAsync_ClearsState() {
         await using var heartbeat = CreateHeartbeat();
 
         await heartbeat.StartActivityAsync(SessionActivityReason.ApiCall).ConfigureAwait(true);
@@ -118,16 +107,14 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task IdleDuration_WhenInactive_ReturnsNull()
-    {
+    public async Task IdleDuration_WhenInactive_ReturnsNull() {
         await using var heartbeat = CreateHeartbeat();
 
         Assert.Null(heartbeat.IdleDuration);
     }
 
     [Fact]
-    public async Task IdleDuration_WhenActive_CalculatesFromLastActivity()
-    {
+    public async Task IdleDuration_WhenActive_CalculatesFromLastActivity() {
         var clock = new Mock<IClockService>();
         var start = DateTime.UtcNow;
         clock.Setup(c => c.GetUtcNow()).Returns(start);
@@ -141,21 +128,18 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task RegisterCallback_NullCallback_Throws()
-    {
+    public async Task RegisterCallback_NullCallback_Throws() {
         await using var heartbeat = CreateHeartbeat();
 
         Assert.Throws<ArgumentNullException>(() => heartbeat.RegisterCallback(null!));
     }
 
     [Fact]
-    public async Task HeartbeatCallback_IsInvoked_Periodically()
-    {
+    public async Task HeartbeatCallback_IsInvoked_Periodically() {
         var tcs = new TaskCompletionSource();
         await using var heartbeat = CreateHeartbeat(TimeSpan.FromMilliseconds(50));
 
-        heartbeat.RegisterCallback(async _ =>
-        {
+        heartbeat.RegisterCallback(async _ => {
             tcs.TrySetResult();
             await Task.CompletedTask.ConfigureAwait(true);
         });
@@ -168,16 +152,13 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task HeartbeatCallback_Exception_DoesNotCrashLoop()
-    {
+    public async Task HeartbeatCallback_Exception_DoesNotCrashLoop() {
         var callCount = 0;
         await using var heartbeat = CreateHeartbeat(TimeSpan.FromMilliseconds(50));
 
-        heartbeat.RegisterCallback(_ =>
-        {
+        heartbeat.RegisterCallback(_ => {
             callCount++;
-            if (callCount == 1)
-            {
+            if (callCount == 1) {
                 throw new InvalidOperationException("test");
             }
 
@@ -194,8 +175,7 @@ public sealed class GoalHeartbeatTests
     }
 
     [Fact]
-    public async Task DisposeAsync_CanBeCalledMultipleTimes()
-    {
+    public async Task DisposeAsync_CanBeCalledMultipleTimes() {
         var heartbeat = CreateHeartbeat();
 
         await heartbeat.DisposeAsync().ConfigureAwait(true);

@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 观察学习工具处理器 — 演示录制/操作抽象/步骤优化（PRD L-01/L-02/L-04）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public class ObservationToolHandlers
-{
+public class ObservationToolHandlers {
     private readonly IMacroRecorder _recorder;
     private readonly IObservationLearner _learner;
     private readonly ILogger<ObservationToolHandlers>? _logger;
@@ -17,8 +16,7 @@ public class ObservationToolHandlers
     public ObservationToolHandlers(
         IMacroRecorder recorder,
         IObservationLearner learner,
-        ILogger<ObservationToolHandlers>? logger = null)
-    {
+        ILogger<ObservationToolHandlers>? logger = null) {
         _recorder = recorder;
         _learner = learner;
         _logger = logger;
@@ -28,8 +26,7 @@ public class ObservationToolHandlers
     [McpTool("start_observation", "开始观察用户演示操作,录制鼠标键盘事件序列", "desktop")]
     public Task<ToolResult> StartObservationAsync(
         [McpToolParameter("观察会话名称", Required = true)] string sessionName,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         _recorder.StartRecording(sessionName);
         return Task.FromResult(ToolResultBuilder.Success()
             .WithText($"开始观察会话「{sessionName}」,请演示操作,完成后调用 learn_from_observation")
@@ -38,8 +35,7 @@ public class ObservationToolHandlers
 
     /// <summary>从观察中学习（L-02）— 停止录制并用 LLM 抽象操作模式</summary>
     [McpTool("learn_from_observation", "停止观察并用AI抽象出参数化操作逻辑", "desktop")]
-    public async Task<ToolResult> LearnFromObservationAsync(CancellationToken ct = default)
-    {
+    public async Task<ToolResult> LearnFromObservationAsync(CancellationToken ct = default) {
         if (!_recorder.IsRecording)
             return ToolResultBuilder.Error().WithText("当前未在观察状态").Build();
 
@@ -70,8 +66,7 @@ public class ObservationToolHandlers
         [McpToolParameter("操作模式描述", Required = true)] string pattern,
         [McpToolParameter("参数化描述", Required = false)] string? parameters = null,
         [McpToolParameter("步骤列表(分号分隔)", Required = false)] string? steps = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var stepList = string.IsNullOrEmpty(steps)
             ? []
             : steps.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
@@ -90,8 +85,7 @@ public class ObservationToolHandlers
         [McpToolParameter("目标上下文(如:在记事本中输入hello)", Required = true)] string context,
         [McpToolParameter("参数化描述", Required = false)] string? parameters = null,
         [McpToolParameter("步骤列表(分号分隔)", Required = false)] string? steps = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         var stepList = string.IsNullOrEmpty(steps)
             ? []
             : steps.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();

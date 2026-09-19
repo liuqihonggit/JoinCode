@@ -5,8 +5,7 @@ namespace Core.Context.Compact;
 /// 通过 context_management 请求参数让 Anthropic API 在服务端自动清理工具结果
 /// 不破坏 prompt cache，优于客户端 microcompact
 /// </summary>
-public interface IApiContextManagementService
-{
+public interface IApiContextManagementService {
     /// <summary>
     /// 获取 API 端上下文管理配置
     /// </summary>

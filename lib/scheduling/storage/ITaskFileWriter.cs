@@ -3,8 +3,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务文件写入器接口
 /// </summary>
-public interface ITaskFileWriter
-{
+public interface ITaskFileWriter {
     /// <summary>
     /// 写入任务文件
     /// </summary>
@@ -19,8 +18,7 @@ public interface ITaskFileWriter
 /// <summary>
 /// 任务文件读取器接口
 /// </summary>
-public interface ITaskFileReader
-{
+public interface ITaskFileReader {
     /// <summary>
     /// 读取任务文件
     /// </summary>

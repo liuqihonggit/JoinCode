@@ -4,8 +4,7 @@ namespace Core.Configuration;
 /// <summary>
 /// QueryEngine配置
 /// </summary>
-public class QueryEngineConfig
-{
+public class QueryEngineConfig {
     /// <summary>
     /// 温度参数
     /// </summary>
@@ -74,8 +73,7 @@ public class QueryEngineConfig
 /// <summary>
 /// 内容替换配置 — 对齐 TS toolResultStorage.ts feature flags
 /// </summary>
-public class ContentReplacementConfig
-{
+public class ContentReplacementConfig {
     /// <summary>
     /// 是否启用内容替换 — 对齐 TS getFeatureValue_CACHED_MAY_BE_STALE('tengu_hawthorn_steeple', false)
     /// 默认启用（C# 暂无 GrowthBook 功能开关系统）
@@ -92,8 +90,7 @@ public class ContentReplacementConfig
 /// <summary>
 /// 重试配置
 /// </summary>
-public class RetryConfig
-{
+public class RetryConfig {
     /// <summary>
     /// 最大重试次数
     /// </summary>
@@ -115,8 +112,7 @@ public class RetryConfig
 /// <summary>
 /// 成本追踪配置
 /// </summary>
-public class CostTrackingConfig
-{
+public class CostTrackingConfig {
     /// <summary>
     /// 是否启用成本追踪
     /// </summary>
@@ -138,12 +134,10 @@ public class CostTrackingConfig
 /// <summary>
 /// QueryEngineConfig 构建器 - 支持链式配置
 /// </summary>
-public sealed class QueryEngineConfigBuilder
-{
+public sealed class QueryEngineConfigBuilder {
     private readonly QueryEngineConfig _config;
 
-    private QueryEngineConfigBuilder()
-    {
+    private QueryEngineConfigBuilder() {
         _config = new QueryEngineConfig();
     }
 
@@ -155,8 +149,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 设置温度参数
     /// </summary>
-    public QueryEngineConfigBuilder WithTemperature(float temperature)
-    {
+    public QueryEngineConfigBuilder WithTemperature(float temperature) {
         _config.Temperature = temperature;
         return this;
     }
@@ -164,8 +157,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 设置最大Token数
     /// </summary>
-    public QueryEngineConfigBuilder WithMaxTokens(int maxTokens)
-    {
+    public QueryEngineConfigBuilder WithMaxTokens(int maxTokens) {
         _config.MaxTokens = maxTokens;
         return this;
     }
@@ -173,8 +165,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 设置Top P采样
     /// </summary>
-    public QueryEngineConfigBuilder WithTopP(float topP)
-    {
+    public QueryEngineConfigBuilder WithTopP(float topP) {
         _config.TopP = topP;
         return this;
     }
@@ -182,8 +173,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 设置最大工具调用迭代次数
     /// </summary>
-    public QueryEngineConfigBuilder WithMaxToolCallIterations(int iterations)
-    {
+    public QueryEngineConfigBuilder WithMaxToolCallIterations(int iterations) {
         _config.MaxToolCallIterations = iterations;
         return this;
     }
@@ -191,8 +181,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 启用思考模式
     /// </summary>
-    public QueryEngineConfigBuilder EnableThinkingMode()
-    {
+    public QueryEngineConfigBuilder EnableThinkingMode() {
         _config.EnableThinkingMode = true;
         return this;
     }
@@ -200,8 +189,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 禁用思考模式
     /// </summary>
-    public QueryEngineConfigBuilder DisableThinkingMode()
-    {
+    public QueryEngineConfigBuilder DisableThinkingMode() {
         _config.EnableThinkingMode = false;
         return this;
     }
@@ -209,8 +197,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 设置思考模式标记
     /// </summary>
-    public QueryEngineConfigBuilder WithThinkingTags(string startTag, string endTag)
-    {
+    public QueryEngineConfigBuilder WithThinkingTags(string startTag, string endTag) {
         _config.ThinkingStartTag = startTag;
         _config.ThinkingEndTag = endTag;
         return this;
@@ -219,8 +206,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 配置重试选项
     /// </summary>
-    public QueryEngineConfigBuilder WithRetry(Action<RetryConfigBuilder> configure)
-    {
+    public QueryEngineConfigBuilder WithRetry(Action<RetryConfigBuilder> configure) {
         var builder = new RetryConfigBuilder(_config.Retry);
         configure(builder);
         _config.Retry = builder.Build();
@@ -230,8 +216,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 配置成本追踪选项
     /// </summary>
-    public QueryEngineConfigBuilder WithCostTracking(Action<CostTrackingConfigBuilder> configure)
-    {
+    public QueryEngineConfigBuilder WithCostTracking(Action<CostTrackingConfigBuilder> configure) {
         var builder = new CostTrackingConfigBuilder(_config.CostTracking);
         configure(builder);
         _config.CostTracking = builder.Build();
@@ -241,8 +226,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 使用创意模式（高温度）
     /// </summary>
-    public QueryEngineConfigBuilder UseCreativeMode()
-    {
+    public QueryEngineConfigBuilder UseCreativeMode() {
         _config.Temperature = 1.0f;
         _config.TopP = 0.95f;
         return this;
@@ -251,8 +235,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 使用精确模式（低温度）
     /// </summary>
-    public QueryEngineConfigBuilder UsePreciseMode()
-    {
+    public QueryEngineConfigBuilder UsePreciseMode() {
         _config.Temperature = 0.3f;
         _config.TopP = 0.5f;
         return this;
@@ -261,8 +244,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 使用平衡模式
     /// </summary>
-    public QueryEngineConfigBuilder UseBalancedMode()
-    {
+    public QueryEngineConfigBuilder UseBalancedMode() {
         _config.Temperature = 0.7f;
         _config.TopP = 0.95f;
         return this;
@@ -271,8 +253,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 设置USD预算上限
     /// </summary>
-    public QueryEngineConfigBuilder WithMaxUsdBudget(decimal maxUsd)
-    {
+    public QueryEngineConfigBuilder WithMaxUsdBudget(decimal maxUsd) {
         _config.MaxUsdBudget = maxUsd;
         return this;
     }
@@ -280,8 +261,7 @@ public sealed class QueryEngineConfigBuilder
     /// <summary>
     /// 设置USD告警阈值
     /// </summary>
-    public QueryEngineConfigBuilder WithUsdAlertThreshold(double threshold)
-    {
+    public QueryEngineConfigBuilder WithUsdAlertThreshold(double threshold) {
         _config.UsdAlertThreshold = threshold;
         return this;
     }
@@ -295,18 +275,15 @@ public sealed class QueryEngineConfigBuilder
 /// <summary>
 /// RetryConfig 构建器
 /// </summary>
-public sealed class RetryConfigBuilder
-{
+public sealed class RetryConfigBuilder {
     private readonly RetryConfig _config;
 
     /// <summary>
     /// 初始化 <see cref="RetryConfigBuilder"/> 实例，基于给定初始配置创建副本
     /// </summary>
     /// <param name="initial">初始重试配置，作为构建起点</param>
-    public RetryConfigBuilder(RetryConfig initial)
-    {
-        _config = new RetryConfig
-        {
+    public RetryConfigBuilder(RetryConfig initial) {
+        _config = new RetryConfig {
             MaxRetries = initial.MaxRetries,
             RetryDelayMs = initial.RetryDelayMs,
             EnableExponentialBackoff = initial.EnableExponentialBackoff
@@ -316,8 +293,7 @@ public sealed class RetryConfigBuilder
     /// <summary>
     /// 设置最大重试次数
     /// </summary>
-    public RetryConfigBuilder WithMaxRetries(int maxRetries)
-    {
+    public RetryConfigBuilder WithMaxRetries(int maxRetries) {
         _config.MaxRetries = maxRetries;
         return this;
     }
@@ -325,8 +301,7 @@ public sealed class RetryConfigBuilder
     /// <summary>
     /// 设置重试延迟
     /// </summary>
-    public RetryConfigBuilder WithRetryDelay(int delayMs)
-    {
+    public RetryConfigBuilder WithRetryDelay(int delayMs) {
         _config.RetryDelayMs = delayMs;
         return this;
     }
@@ -334,8 +309,7 @@ public sealed class RetryConfigBuilder
     /// <summary>
     /// 启用指数退避
     /// </summary>
-    public RetryConfigBuilder EnableExponentialBackoff()
-    {
+    public RetryConfigBuilder EnableExponentialBackoff() {
         _config.EnableExponentialBackoff = true;
         return this;
     }
@@ -343,8 +317,7 @@ public sealed class RetryConfigBuilder
     /// <summary>
     /// 禁用指数退避
     /// </summary>
-    public RetryConfigBuilder DisableExponentialBackoff()
-    {
+    public RetryConfigBuilder DisableExponentialBackoff() {
         _config.EnableExponentialBackoff = false;
         return this;
     }
@@ -358,18 +331,15 @@ public sealed class RetryConfigBuilder
 /// <summary>
 /// CostTrackingConfig 构建器
 /// </summary>
-public sealed class CostTrackingConfigBuilder
-{
+public sealed class CostTrackingConfigBuilder {
     private readonly CostTrackingConfig _config;
 
     /// <summary>
     /// 初始化 <see cref="CostTrackingConfigBuilder"/> 实例，基于给定初始配置创建副本
     /// </summary>
     /// <param name="initial">初始成本追踪配置，作为构建起点</param>
-    public CostTrackingConfigBuilder(CostTrackingConfig initial)
-    {
-        _config = new CostTrackingConfig
-        {
+    public CostTrackingConfigBuilder(CostTrackingConfig initial) {
+        _config = new CostTrackingConfig {
             Enabled = initial.Enabled,
             InputTokenCostPer1K = initial.InputTokenCostPer1K,
             OutputTokenCostPer1K = initial.OutputTokenCostPer1K
@@ -379,8 +349,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 设置是否启用成本追踪
     /// </summary>
-    public CostTrackingConfigBuilder WithEnabled(bool enabled)
-    {
+    public CostTrackingConfigBuilder WithEnabled(bool enabled) {
         _config.Enabled = enabled;
         return this;
     }
@@ -388,8 +357,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 启用成本追踪
     /// </summary>
-    public CostTrackingConfigBuilder Enable()
-    {
+    public CostTrackingConfigBuilder Enable() {
         _config.Enabled = true;
         return this;
     }
@@ -397,8 +365,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 禁用成本追踪
     /// </summary>
-    public CostTrackingConfigBuilder Disable()
-    {
+    public CostTrackingConfigBuilder Disable() {
         _config.Enabled = false;
         return this;
     }
@@ -406,8 +373,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 设置输入Token成本
     /// </summary>
-    public CostTrackingConfigBuilder WithInputTokenCost(decimal costPer1K)
-    {
+    public CostTrackingConfigBuilder WithInputTokenCost(decimal costPer1K) {
         _config.InputTokenCostPer1K = costPer1K;
         return this;
     }
@@ -415,8 +381,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 设置输出Token成本
     /// </summary>
-    public CostTrackingConfigBuilder WithOutputTokenCost(decimal costPer1K)
-    {
+    public CostTrackingConfigBuilder WithOutputTokenCost(decimal costPer1K) {
         _config.OutputTokenCostPer1K = costPer1K;
         return this;
     }
@@ -424,8 +389,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 设置Token成本
     /// </summary>
-    public CostTrackingConfigBuilder WithTokenCosts(decimal inputCostPer1K, decimal outputCostPer1K)
-    {
+    public CostTrackingConfigBuilder WithTokenCosts(decimal inputCostPer1K, decimal outputCostPer1K) {
         _config.InputTokenCostPer1K = inputCostPer1K;
         _config.OutputTokenCostPer1K = outputCostPer1K;
         return this;
@@ -434,8 +398,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 使用 GPT-4 价格
     /// </summary>
-    public CostTrackingConfigBuilder UseGpt4Pricing()
-    {
+    public CostTrackingConfigBuilder UseGpt4Pricing() {
         _config.InputTokenCostPer1K = 0.03m;
         _config.OutputTokenCostPer1K = 0.06m;
         return this;
@@ -444,8 +407,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 使用 GPT-4o 价格
     /// </summary>
-    public CostTrackingConfigBuilder UseGpt4oPricing()
-    {
+    public CostTrackingConfigBuilder UseGpt4oPricing() {
         _config.InputTokenCostPer1K = 0.005m;
         _config.OutputTokenCostPer1K = 0.015m;
         return this;
@@ -454,8 +416,7 @@ public sealed class CostTrackingConfigBuilder
     /// <summary>
     /// 使用 GPT-3.5 价格
     /// </summary>
-    public CostTrackingConfigBuilder UseGpt35Pricing()
-    {
+    public CostTrackingConfigBuilder UseGpt35Pricing() {
         _config.InputTokenCostPer1K = 0.0015m;
         _config.OutputTokenCostPer1K = 0.002m;
         return this;

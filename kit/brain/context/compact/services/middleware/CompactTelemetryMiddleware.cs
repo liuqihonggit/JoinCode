@@ -4,16 +4,14 @@ namespace Core.Context.Compact;
 /// 压缩遥测中间件 — 在管道执行完毕后记录压缩操作计数
 /// </summary>
 [Register(typeof(ICompactMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class CompactTelemetryMiddleware : ServiceEntity, ICompactMiddleware
-{
+public sealed partial class CompactTelemetryMiddleware : ServiceEntity, ICompactMiddleware {
     private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
     /// 初始化 <see cref="CompactTelemetryMiddleware"/> 实例
     /// </summary>
     /// <param name="telemetryService">可选遥测服务，为 null 时跳过记录</param>
-    public CompactTelemetryMiddleware(ITelemetryService? telemetryService = null)
-    {
+    public CompactTelemetryMiddleware(ITelemetryService? telemetryService = null) {
         _telemetryService = telemetryService;
     }
 
@@ -26,12 +24,10 @@ public sealed partial class CompactTelemetryMiddleware : ServiceEntity, ICompact
     /// <param name="context">压缩上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(CompactContext context, MiddlewareDelegate<CompactContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(CompactContext context, MiddlewareDelegate<CompactContext> next, CancellationToken ct) {
         await next(context, ct).ConfigureAwait(false);
 
-        if (_telemetryService is not null && context.Result is not null)
-        {
+        if (_telemetryService is not null && context.Result is not null) {
             _telemetryService.RecordCount("compact.operation.count",
                 new() { ["trigger"] = context.Request.Trigger.ToString(), ["level"] = context.Result.Level.ToString() },
                 "count", "Compact operation count");

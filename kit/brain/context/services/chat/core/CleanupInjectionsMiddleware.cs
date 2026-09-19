@@ -5,16 +5,14 @@ namespace Core.Context;
 /// OnError=Continue：清理失败不影响管道继续执行
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMiddleware
-{
+public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMiddleware {
 
     /// <summary>
     /// 初始化清理注入中间件
     /// </summary>
     /// <param name="preprocessor">聊天预处理器</param>
     /// <param name="logger">可选日志记录器</param>
-    public CleanupInjectionsMiddleware(IChatPreprocessor preprocessor, ILogger<CleanupInjectionsMiddleware>? logger = null)
-    {
+    public CleanupInjectionsMiddleware(IChatPreprocessor preprocessor, ILogger<CleanupInjectionsMiddleware>? logger = null) {
         _preprocessor = preprocessor;
         _logger = logger;
     }
@@ -31,15 +29,12 @@ public sealed partial class CleanupInjectionsMiddleware : ServiceEntity, IChatMi
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }
 
-        if (context.PreprocessResult is not null)
-        {
+        if (context.PreprocessResult is not null) {
             await _preprocessor.CleanupInjectionsAsync(
                 context.PreprocessResult.KeywordResult,
                 context.PreprocessResult.SynonymInjectionIds, ct).ConfigureAwait(false);

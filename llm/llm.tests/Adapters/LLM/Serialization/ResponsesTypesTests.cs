@@ -4,13 +4,10 @@ namespace Llm.Tests.Adapters.LLM.Serialization;
 /// Responses API DTO 序列化测试 — 验证 DeepSeek/OpenAI Responses API 格式
 /// 端点 /responses,请求用 input+instructions,响应用 output 数组,流式用 event SSE
 /// </summary>
-public class ResponsesTypesTests
-{
+public class ResponsesTypesTests {
     [Fact]
-    public void ResponsesRequest_WithStringInput_SerializesCorrectly()
-    {
-        var request = new ResponsesRequest
-        {
+    public void ResponsesRequest_WithStringInput_SerializesCorrectly() {
+        var request = new ResponsesRequest {
             Model = "deepseek-v4-flash",
             Input = JsonDocument.Parse("\"Hi, how are you?\"").RootElement,
             Instructions = "You are a helpful assistant.",
@@ -26,10 +23,8 @@ public class ResponsesTypesTests
     }
 
     [Fact]
-    public void ResponsesRequest_WithReasoning_SerializesReasoningEffort()
-    {
-        var request = new ResponsesRequest
-        {
+    public void ResponsesRequest_WithReasoning_SerializesReasoningEffort() {
+        var request = new ResponsesRequest {
             Model = "deepseek-v4-pro",
             Input = JsonDocument.Parse("\"think about this\"").RootElement,
             Reasoning = new ResponsesReasoning { Effort = "high" }
@@ -42,10 +37,8 @@ public class ResponsesTypesTests
     }
 
     [Fact]
-    public void ResponsesRequest_WithoutOptionalFields_DoesNotSerializeThem()
-    {
-        var request = new ResponsesRequest
-        {
+    public void ResponsesRequest_WithoutOptionalFields_DoesNotSerializeThem() {
+        var request = new ResponsesRequest {
             Model = "deepseek-v4-flash",
             Input = JsonDocument.Parse("\"hi\"").RootElement
         };
@@ -63,10 +56,8 @@ public class ResponsesTypesTests
     }
 
     [Fact]
-    public void ResponsesRequest_WithTools_SerializesTools()
-    {
-        var request = new ResponsesRequest
-        {
+    public void ResponsesRequest_WithTools_SerializesTools() {
+        var request = new ResponsesRequest {
             Model = "deepseek-v4-flash",
             Input = JsonDocument.Parse("\"use tool\"").RootElement,
             Tools = [new ResponsesTool { Type = "function", Name = "get_weather", Description = "Get weather", Parameters = JsonDocument.Parse("{\"type\":\"object\"}").RootElement }]
@@ -79,10 +70,8 @@ public class ResponsesTypesTests
     }
 
     [Fact]
-    public void ResponsesResponse_RoundTrip_PreservesOutputAndUsage()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ResponsesResponse_RoundTrip_PreservesOutputAndUsage() {
+        var response = new ResponsesResponse {
             Id = "resp-123",
             Object = "response",
             Model = "deepseek-v4-flash",
@@ -94,8 +83,7 @@ public class ResponsesTypesTests
                 Role = "assistant",
                 Content = [new ResponsesContent { Type = "output_text", Text = "Hello!" }]
             }],
-            Usage = new ResponsesUsage
-            {
+            Usage = new ResponsesUsage {
                 InputTokens = 10,
                 OutputTokens = 5,
                 InputTokensDetails = new ResponsesTokenDetails { CachedTokens = 3 },
@@ -117,10 +105,8 @@ public class ResponsesTypesTests
     }
 
     [Fact]
-    public void ResponsesResponse_WithFunctionCallOutput_PreservesFunctionCall()
-    {
-        var response = new ResponsesResponse
-        {
+    public void ResponsesResponse_WithFunctionCallOutput_PreservesFunctionCall() {
+        var response = new ResponsesResponse {
             Id = "resp-456",
             Object = "response",
             Model = "deepseek-v4-flash",
@@ -145,10 +131,8 @@ public class ResponsesTypesTests
     }
 
     [Fact]
-    public void ResponsesUsage_RoundTrip_PreservesAllTokenCounts()
-    {
-        var usage = new ResponsesUsage
-        {
+    public void ResponsesUsage_RoundTrip_PreservesAllTokenCounts() {
+        var usage = new ResponsesUsage {
             InputTokens = 100,
             OutputTokens = 50,
             InputTokensDetails = new ResponsesTokenDetails { CachedTokens = 40 },

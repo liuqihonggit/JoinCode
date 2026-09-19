@@ -6,8 +6,7 @@ namespace Core.Agents;
 /// 管理三种作用域记忆（user/project/local）和快照机制
 /// </summary>
 [Register(typeof(IAgentMemoryService), ServiceLifetime.Singleton)]
-public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryService
-{
+public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryService {
     private const string AgentMemorySubdir = "agent-memory";
     private const string AgentMemoryLocalSubdir = "agent-memory-local";
     private const string SnapshotBaseDir = "agent-memory-snapshots";
@@ -33,8 +32,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 构造 AgentMemoryService 实例，注入日志器、文件系统及可选的记忆基目录与工作目录
     /// </summary>
-    public AgentMemoryService(ILogger<AgentMemoryService> logger, IFileSystem fs, string? memoryBase = null, string? cwd = null)
-    {
+    public AgentMemoryService(ILogger<AgentMemoryService> logger, IFileSystem fs, string? memoryBase = null, string? cwd = null) {
         _logger = logger;
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _memoryBase = memoryBase ?? Path.Combine(
@@ -44,11 +42,9 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     }
 
     /// <inheritdoc />
-    public string GetAgentMemoryDir(string agentType, AgentMemoryScope scope)
-    {
+    public string GetAgentMemoryDir(string agentType, AgentMemoryScope scope) {
         var dirName = SanitizeAgentTypeForPath(agentType);
-        return scope switch
-        {
+        return scope switch {
             AgentMemoryScope.User => Path.Combine(_memoryBase, AgentMemorySubdir, dirName) + Path.DirectorySeparatorChar,
             AgentMemoryScope.Project => Path.Combine(_cwd, ".claude", AgentMemorySubdir, dirName) + Path.DirectorySeparatorChar,
             AgentMemoryScope.Local => GetLocalAgentMemoryDir(dirName),
@@ -57,14 +53,12 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     }
 
     /// <inheritdoc />
-    public string GetAgentMemoryEntrypoint(string agentType, AgentMemoryScope scope)
-    {
+    public string GetAgentMemoryEntrypoint(string agentType, AgentMemoryScope scope) {
         return Path.Combine(GetAgentMemoryDir(agentType, scope), MemoryEntrypointFile);
     }
 
     /// <inheritdoc />
-    public bool IsAgentMemoryPath(string absolutePath)
-    {
+    public bool IsAgentMemoryPath(string absolutePath) {
         var normalized = Path.GetFullPath(absolutePath);
 
         // user scope
@@ -86,10 +80,8 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     }
 
     /// <inheritdoc />
-    public string GetMemoryScopeDisplay(AgentMemoryScope? scope)
-    {
-        return scope switch
-        {
+    public string GetMemoryScopeDisplay(AgentMemoryScope? scope) {
+        return scope switch {
             AgentMemoryScope.User => $"User ({_memoryBase}{Path.DirectorySeparatorChar}{AgentMemorySubdir}{Path.DirectorySeparatorChar})",
             AgentMemoryScope.Project => $"Project (.claude{Path.DirectorySeparatorChar}{AgentMemorySubdir}{Path.DirectorySeparatorChar})",
             AgentMemoryScope.Local => $"Local ({_cwd}{Path.DirectorySeparatorChar}.claude{Path.DirectorySeparatorChar}{AgentMemoryLocalSubdir}{Path.DirectorySeparatorChar})",
@@ -99,8 +91,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     }
 
     /// <inheritdoc />
-    public async Task<string> LoadAgentMemoryPromptAsync(string agentType, AgentMemoryScope scope, CancellationToken ct = default)
-    {
+    public async Task<string> LoadAgentMemoryPromptAsync(string agentType, AgentMemoryScope scope, CancellationToken ct = default) {
         var scopeNote = GetScopeNote(scope);
         var memoryDir = GetAgentMemoryDir(agentType, scope);
 
@@ -114,16 +105,14 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     }
 
     /// <inheritdoc />
-    public Task EnsureMemoryDirExistsAsync(string agentType, AgentMemoryScope scope, CancellationToken ct = default)
-    {
+    public Task EnsureMemoryDirExistsAsync(string agentType, AgentMemoryScope scope, CancellationToken ct = default) {
         var dir = GetAgentMemoryDir(agentType, scope);
         EnsureDirectoryExists(dir);
         return Task.CompletedTask;
     }
 
     /// <inheritdoc />
-    public async Task<AgentMemorySnapshotCheck> CheckSnapshotAsync(string agentType, AgentMemoryScope scope, CancellationToken ct = default)
-    {
+    public async Task<AgentMemorySnapshotCheck> CheckSnapshotAsync(string agentType, AgentMemoryScope scope, CancellationToken ct = default) {
         var snapshotDir = GetSnapshotDirForAgent(agentType);
         var snapshotJsonPath = Path.Combine(snapshotDir, SnapshotJsonFile);
 
@@ -137,8 +126,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
         var hasLocalMemory = HasMarkdownFiles(memoryDir);
 
         if (!hasLocalMemory)
-            return new AgentMemorySnapshotCheck
-            {
+            return new AgentMemorySnapshotCheck {
                 Action = AgentMemorySnapshotAction.Initialize,
                 SnapshotTimestamp = snapshotMeta.UpdatedAt
             };
@@ -148,8 +136,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
         var syncedMeta = await ReadJsonFileAsync<SyncedMeta>(syncedJsonPath, ct).ConfigureAwait(false);
 
         if (syncedMeta is null || string.Compare(snapshotMeta.UpdatedAt, syncedMeta.SyncedFrom, StringComparison.Ordinal) > 0)
-            return new AgentMemorySnapshotCheck
-            {
+            return new AgentMemorySnapshotCheck {
                 Action = AgentMemorySnapshotAction.PromptUpdate,
                 SnapshotTimestamp = snapshotMeta.UpdatedAt
             };
@@ -158,15 +145,13 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     }
 
     /// <inheritdoc />
-    public async Task InitializeFromSnapshotAsync(string agentType, AgentMemoryScope scope, string snapshotTimestamp, CancellationToken ct = default)
-    {
+    public async Task InitializeFromSnapshotAsync(string agentType, AgentMemoryScope scope, string snapshotTimestamp, CancellationToken ct = default) {
         await CopySnapshotToLocalAsync(agentType, scope, ct).ConfigureAwait(false);
         await SaveSyncedMetaAsync(agentType, scope, snapshotTimestamp, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task ReplaceFromSnapshotAsync(string agentType, AgentMemoryScope scope, string snapshotTimestamp, CancellationToken ct = default)
-    {
+    public async Task ReplaceFromSnapshotAsync(string agentType, AgentMemoryScope scope, string snapshotTimestamp, CancellationToken ct = default) {
         // 先删除本地 .md 文件
         var memoryDir = GetAgentMemoryDir(agentType, scope);
         DeleteMarkdownFiles(memoryDir);
@@ -176,8 +161,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     }
 
     /// <inheritdoc />
-    public Task MarkSnapshotSyncedAsync(string agentType, AgentMemoryScope scope, string snapshotTimestamp, CancellationToken ct = default)
-    {
+    public Task MarkSnapshotSyncedAsync(string agentType, AgentMemoryScope scope, string snapshotTimestamp, CancellationToken ct = default) {
         return SaveSyncedMetaAsync(agentType, scope, snapshotTimestamp, ct);
     }
 
@@ -194,13 +178,11 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// 获取 local 作用域的记忆目录 — 对齐 TS getLocalAgentMemoryDir
     /// 支持 JCC_REMOTE_MEMORY_DIR 环境变量覆盖
     /// </summary>
-    private string GetLocalAgentMemoryDir(string dirName)
-    {
-            var remoteDir = Environment.GetEnvironmentVariable(JccEnvVar.RemoteMemoryDir.ToValue());
-            if (!string.IsNullOrEmpty(remoteDir))
-            {
-                var gitRoot = GitWorkspaceResolver.FindGitRootAsync(_cwd, _fs, default).GetAwaiter().GetResult() ?? _cwd;
-                var sanitizedGitRoot = SanitizePathSegment(gitRoot);
+    private string GetLocalAgentMemoryDir(string dirName) {
+        var remoteDir = Environment.GetEnvironmentVariable(JccEnvVar.RemoteMemoryDir.ToValue());
+        if (!string.IsNullOrEmpty(remoteDir)) {
+            var gitRoot = GitWorkspaceResolver.FindGitRootAsync(_cwd, _fs, default).GetAwaiter().GetResult() ?? _cwd;
+            var sanitizedGitRoot = SanitizePathSegment(gitRoot);
             return Path.Combine(remoteDir, "projects", sanitizedGitRoot, AgentMemoryLocalSubdir, dirName) + Path.DirectorySeparatorChar;
         }
 
@@ -211,8 +193,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// 获取快照目录 — 对齐 TS getSnapshotDirForAgent
     /// 快照目录始终在项目 cwd 下
     /// </summary>
-    private string GetSnapshotDirForAgent(string agentType)
-    {
+    private string GetSnapshotDirForAgent(string agentType) {
         var dirName = SanitizeAgentTypeForPath(agentType);
         return Path.Combine(_cwd, ".claude", SnapshotBaseDir, dirName);
     }
@@ -220,8 +201,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 获取作用域的提示说明 — 对齐 TS loadAgentMemoryPrompt 中的 scopeNote
     /// </summary>
-    private string GetScopeNote(AgentMemoryScope scope) => scope switch
-    {
+    private string GetScopeNote(AgentMemoryScope scope) => scope switch {
         AgentMemoryScope.User => "你的记忆是用户级的 — 它们应在所有项目中保持通用性。",
         AgentMemoryScope.Project => "你的记忆是项目级的 — 它们通过版本控制与团队共享，应针对本项目。",
         AgentMemoryScope.Local => "你的记忆是本地级的 — 它们不入版本控制，针对本项目和本机。",
@@ -231,8 +211,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 构建记忆提示词 — 对齐 TS buildMemoryPrompt
     /// </summary>
-    private string BuildMemoryPrompt(string agentType, string memoryDir, string scopeNote, string? entrypointContent)
-    {
+    private string BuildMemoryPrompt(string agentType, string memoryDir, string scopeNote, string? entrypointContent) {
         var sb = new StringBuilder();
 
         sb.AppendLine(scopeNote);
@@ -261,14 +240,11 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
         sb.AppendLine("当访问记忆时，信任已保存的内容，不要重新验证。");
         sb.AppendLine();
 
-        if (!string.IsNullOrEmpty(entrypointContent))
-        {
+        if (!string.IsNullOrEmpty(entrypointContent)) {
             var truncated = TruncateEntrypointContent(entrypointContent);
             sb.AppendLine("## 当前记忆索引");
             sb.AppendLine(truncated);
-        }
-        else
-        {
+        } else {
             sb.AppendLine("## 当前记忆");
             sb.AppendLine("（记忆为空 — 尚未保存任何记忆）");
         }
@@ -279,17 +255,13 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 读取 MEMORY.md 入口文件内容
     /// </summary>
-    private string? ReadEntrypointContent(string entrypointPath)
-    {
-        try
-        {
+    private string? ReadEntrypointContent(string entrypointPath) {
+        try {
             if (!_fs.FileExists(entrypointPath))
                 return null;
 
             return _fs.ReadAllText(entrypointPath);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogDebug(ex, "读取记忆入口文件失败: {Path}", entrypointPath);
             return null;
         }
@@ -299,12 +271,10 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// 截断入口文件内容 — 对齐 TS truncateEntrypointContent
     /// 先按行截断，再按字节截断
     /// </summary>
-    private static string TruncateEntrypointContent(string content)
-    {
+    private static string TruncateEntrypointContent(string content) {
         // 按行截断
         var lines = content.Split('\n');
-        if (lines.Length > MaxEntrypointLines)
-        {
+        if (lines.Length > MaxEntrypointLines) {
             var truncated = string.Join('\n', lines[..MaxEntrypointLines]);
             truncated += $"\n\n> ⚠️ MEMORY.md 超过 {MaxEntrypointLines} 行，已截断。请精简内容。";
             content = truncated;
@@ -312,8 +282,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
 
         // 按字节截断
         var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-        if (bytes.Length > MaxEntrypointBytes)
-        {
+        if (bytes.Length > MaxEntrypointBytes) {
             // 在最后一个换行符处切割
             var cutIndex = MaxEntrypointBytes;
             while (cutIndex > 0 && bytes[cutIndex - 1] != (byte)'\n')
@@ -331,16 +300,12 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 确保目录存在
     /// </summary>
-    private void EnsureDirectoryExists(string path)
-    {
-        try
-        {
+    private void EnsureDirectoryExists(string path) {
+        try {
             var dir = path.TrimEnd(Path.DirectorySeparatorChar);
             if (!_fs.DirectoryExists(dir))
                 _fs.CreateDirectory(dir);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogDebug(ex, "创建记忆目录失败: {Path}", path);
         }
     }
@@ -348,18 +313,14 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 检查目录中是否有 .md 文件
     /// </summary>
-    private bool HasMarkdownFiles(string directory)
-    {
-        try
-        {
+    private bool HasMarkdownFiles(string directory) {
+        try {
             var dir = directory.TrimEnd(Path.DirectorySeparatorChar);
             if (!_fs.DirectoryExists(dir))
                 return false;
 
             return _fs.GetFiles(dir, "*.md", SearchOption.TopDirectoryOnly).Length > 0;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
@@ -367,21 +328,16 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 删除目录中所有 .md 文件
     /// </summary>
-    private void DeleteMarkdownFiles(string directory)
-    {
-        try
-        {
+    private void DeleteMarkdownFiles(string directory) {
+        try {
             var dir = directory.TrimEnd(Path.DirectorySeparatorChar);
             if (!_fs.DirectoryExists(dir))
                 return;
 
-            foreach (var file in _fs.GetFiles(dir, "*.md", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var file in _fs.GetFiles(dir, "*.md", SearchOption.TopDirectoryOnly)) {
                 _fs.DeleteFile(file);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 删除失败不抛异常 — 对齐 TS 的容错设计
             _logger.LogWarning(ex, "删除目录 {Directory} 中的 markdown 文件失败", directory);
         }
@@ -390,10 +346,8 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 将快照文件复制到本地记忆目录 — 对齐 TS copySnapshotToLocal
     /// </summary>
-    private async Task CopySnapshotToLocalAsync(string agentType, AgentMemoryScope scope, CancellationToken ct)
-    {
-        try
-        {
+    private async Task CopySnapshotToLocalAsync(string agentType, AgentMemoryScope scope, CancellationToken ct) {
+        try {
             var snapshotDir = GetSnapshotDirForAgent(agentType);
             if (!_fs.DirectoryExists(snapshotDir))
                 return;
@@ -401,8 +355,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
             var memoryDir = GetAgentMemoryDir(agentType, scope).TrimEnd(Path.DirectorySeparatorChar);
             EnsureDirectoryExists(memoryDir + Path.DirectorySeparatorChar);
 
-            foreach (var file in _fs.GetFiles(snapshotDir, "*.md", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var file in _fs.GetFiles(snapshotDir, "*.md", SearchOption.TopDirectoryOnly)) {
                 var fileName = Path.GetFileName(file);
                 if (fileName == SnapshotJsonFile)
                     continue;
@@ -412,9 +365,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
                 await using var dst = _fs.Open(destPath, FileMode.Create);
                 await src.CopyToAsync(dst, ct).ConfigureAwait(false);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogDebug(ex, "复制快照到本地失败: {AgentType}", agentType);
         }
     }
@@ -422,19 +373,15 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 保存同步标记 — 对齐 TS saveSyncedMeta
     /// </summary>
-    private async Task SaveSyncedMetaAsync(string agentType, AgentMemoryScope scope, string snapshotTimestamp, CancellationToken ct)
-    {
-        try
-        {
+    private async Task SaveSyncedMetaAsync(string agentType, AgentMemoryScope scope, string snapshotTimestamp, CancellationToken ct) {
+        try {
             var memoryDir = GetAgentMemoryDir(agentType, scope).TrimEnd(Path.DirectorySeparatorChar);
             EnsureDirectoryExists(memoryDir + Path.DirectorySeparatorChar);
 
             var syncedPath = Path.Combine(memoryDir, SyncedJsonFile);
             var json = $"{{\"syncedFrom\":\"{snapshotTimestamp}\"}}";
             await _fs.WriteAllTextAsync(syncedPath, json, ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogDebug(ex, "保存同步标记失败: {AgentType}", agentType);
         }
     }
@@ -442,34 +389,28 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 读取 JSON 文件并校验 — 对齐 TS readJsonFile
     /// </summary>
-    private async Task<T?> ReadJsonFileAsync<T>(string path, CancellationToken ct) where T : class
-    {
-        try
-        {
+    private async Task<T?> ReadJsonFileAsync<T>(string path, CancellationToken ct) where T : class {
+        try {
             if (!_fs.FileExists(path))
                 return null;
 
             var json = await _fs.ReadAllTextAsync(path, ct).ConfigureAwait(false);
             var jsonSpan = json.AsSpan().Trim();
 
-            if (typeof(T) == typeof(SnapshotMeta))
-            {
+            if (typeof(T) == typeof(SnapshotMeta)) {
                 var result = RelaxedJsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.AgentMemorySnapshotMetaJson);
                 if (result is null) return null;
                 return new SnapshotMeta { UpdatedAt = result.UpdatedAt } as T;
             }
 
-            if (typeof(T) == typeof(SyncedMeta))
-            {
+            if (typeof(T) == typeof(SyncedMeta)) {
                 var result = RelaxedJsonSerializer.Deserialize(jsonSpan, AgentsJsonContext.Default.AgentMemorySyncedMetaJson);
                 if (result is null) return null;
                 return new SyncedMeta { SyncedFrom = result.SyncedFrom } as T;
             }
 
             return null;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogDebug(ex, "读取 JSON 文件失败: {Path}", path);
             return null;
         }
@@ -488,8 +429,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 快照元数据 — 对齐 TS snapshotMetaSchema
     /// </summary>
-    private sealed class SnapshotMeta
-    {
+    private sealed class SnapshotMeta {
         /// <summary>快照最后更新时间戳（必填，UTC ISO 8601 字符串）</summary>
         public required string UpdatedAt { get; init; }
     }
@@ -497,8 +437,7 @@ public sealed partial class AgentMemoryService : ServiceEntity, IAgentMemoryServ
     /// <summary>
     /// 同步标记元数据 — 对齐 TS syncedMetaSchema
     /// </summary>
-    private sealed class SyncedMeta
-    {
+    private sealed class SyncedMeta {
         /// <summary>同步来源标识（必填），记录快照从哪个节点/会话同步而来</summary>
         public required string SyncedFrom { get; init; }
     }

@@ -1,27 +1,23 @@
 namespace JoinCode.CodeIndex.Tests;
 
-public sealed class ProjectDependencyGraphTests : IDisposable
-{
+public sealed class ProjectDependencyGraphTests : IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly ProjectDependencyGraph _graph;
     private bool _disposed;
 
-    public ProjectDependencyGraphTests()
-    {
+    public ProjectDependencyGraphTests() {
         _store = new InMemoryIndexStore();
         _graph = new ProjectDependencyGraph(_store);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _store.DisposeSafe();
     }
 
     [Fact]
-    public async Task GetProjectDependenciesAsync_ReturnsDependencies()
-    {
+    public async Task GetProjectDependenciesAsync_ReturnsDependencies() {
         InsertProject("Core.csproj", "Core");
         InsertProject("JoinCode.Abstractions.csproj", "Contracts");
         InsertProjectRef("Core.csproj", "JoinCode.Abstractions.csproj");
@@ -34,8 +30,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetProjectDependentsAsync_ReturnsDependents()
-    {
+    public async Task GetProjectDependentsAsync_ReturnsDependents() {
         InsertProject("Core.csproj", "Core");
         InsertProject("JoinCode.Abstractions.csproj", "Contracts");
         InsertProjectRef("Core.csproj", "JoinCode.Abstractions.csproj");
@@ -47,15 +42,13 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetProjectDependenciesAsync_NoDependencies_ReturnsEmpty()
-    {
+    public async Task GetProjectDependenciesAsync_NoDependencies_ReturnsEmpty() {
         var deps = await _graph.GetProjectDependenciesAsync("NonExistent.csproj", CancellationToken.None).ConfigureAwait(true);
         Assert.Empty(deps);
     }
 
     [Fact]
-    public async Task GetAffectedProjectsAsync_ReturnsUpstreamProjects()
-    {
+    public async Task GetAffectedProjectsAsync_ReturnsUpstreamProjects() {
         InsertProject("JoinCode.Abstractions.csproj", "Contracts");
         InsertProject("Core.csproj", "Core");
         InsertProject("App.csproj", "App");
@@ -70,8 +63,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetProjectNuGetPackagesAsync_ReturnsPackages()
-    {
+    public async Task GetProjectNuGetPackagesAsync_ReturnsPackages() {
         InsertProject("Core.csproj", "Core");
         InsertNuGetRef("Core.csproj", "Microsoft.Data.Sqlite", "10.0.0");
         InsertNuGetRef("Core.csproj", "TreeSitter.DotNet", "1.3.0");
@@ -84,8 +76,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetProjectsUsingNuGetPackageAsync_ReturnsProjects()
-    {
+    public async Task GetProjectsUsingNuGetPackageAsync_ReturnsProjects() {
         InsertProject("Core.csproj", "Core");
         InsertProject("App.csproj", "App");
         InsertNuGetRef("Core.csproj", "Microsoft.Data.Sqlite", "10.0.0");
@@ -97,8 +88,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAllProjectsAsync_ReturnsAllProjects()
-    {
+    public async Task GetAllProjectsAsync_ReturnsAllProjects() {
         InsertProject("Core.csproj", "Core", "net10.0", "Library");
         InsertProject("App.csproj", "App", "net10.0", "Exe");
 
@@ -110,8 +100,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task InvalidateCache_RefreshesData()
-    {
+    public async Task InvalidateCache_RefreshesData() {
         var projects = await _graph.GetAllProjectsAsync(CancellationToken.None).ConfigureAwait(true);
         Assert.Empty(projects);
 
@@ -124,8 +113,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAffectedProjectsAsync_CircularDependency_DoesNotHang()
-    {
+    public async Task GetAffectedProjectsAsync_CircularDependency_DoesNotHang() {
         InsertProject("projectA.csproj", "ProjectA");
         InsertProject("projectB.csproj", "ProjectB");
         InsertProjectRef("projectA.csproj", "projectB.csproj");
@@ -138,8 +126,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAffectedProjectsAsync_DiamondDependency_NoDuplicates()
-    {
+    public async Task GetAffectedProjectsAsync_DiamondDependency_NoDuplicates() {
         InsertProject("A.csproj", "A");
         InsertProject("B.csproj", "B");
         InsertProject("C.csproj", "C");
@@ -156,8 +143,7 @@ public sealed class ProjectDependencyGraphTests : IDisposable
     }
 
     [Fact]
-    public async Task FindOwningProjectAsync_FileInSubdirectory_ReturnsProject()
-    {
+    public async Task FindOwningProjectAsync_FileInSubdirectory_ReturnsProject() {
         InsertProject("src/Core/Core.csproj", "Core");
 
         var result = await _graph.FindOwningProjectAsync("src/Core/Services/MyService.cs", CancellationToken.None).ConfigureAwait(true);
@@ -166,10 +152,8 @@ public sealed class ProjectDependencyGraphTests : IDisposable
         Assert.Equal("src/Core/Core.csproj", result);
     }
 
-    private void InsertProject(string filePath, string name, string? tfm = null, string? outputType = null)
-    {
-        var info = new ProjectInfo
-        {
+    private void InsertProject(string filePath, string name, string? tfm = null, string? outputType = null) {
+        var info = new ProjectInfo {
             Name = name,
             FilePath = filePath,
             TargetFramework = tfm,
@@ -178,29 +162,23 @@ public sealed class ProjectDependencyGraphTests : IDisposable
         _store.Projects[filePath] = info;
     }
 
-    private void InsertProjectRef(string source, string target)
-    {
-        if (!_store.ProjectRefs.TryGetValue(source, out var list))
-        {
+    private void InsertProjectRef(string source, string target) {
+        if (!_store.ProjectRefs.TryGetValue(source, out var list)) {
             list = new List<ProjectReferenceEdge>();
             _store.ProjectRefs[source] = list;
         }
-        list.Add(new ProjectReferenceEdge
-        {
+        list.Add(new ProjectReferenceEdge {
             SourceProjectPath = source,
             TargetProjectPath = target
         });
     }
 
-    private void InsertNuGetRef(string projectPath, string packageName, string? version = null)
-    {
-        if (!_store.NuGetRefs.TryGetValue(projectPath, out var list))
-        {
+    private void InsertNuGetRef(string projectPath, string packageName, string? version = null) {
+        if (!_store.NuGetRefs.TryGetValue(projectPath, out var list)) {
             list = new List<NuGetPackageReference>();
             _store.NuGetRefs[projectPath] = list;
         }
-        list.Add(new NuGetPackageReference
-        {
+        list.Add(new NuGetPackageReference {
             ProjectPath = projectPath,
             PackageName = packageName,
             Version = version

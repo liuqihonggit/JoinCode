@@ -1,11 +1,9 @@
 
 namespace Core.Goal.Tests;
 
-public sealed class GoalEvaluatorTests
-{
+public sealed class GoalEvaluatorTests {
     [Fact]
-    public void ParseEvaluationResult_Json_Completed_True_Should_Return_Completed()
-    {
+    public void ParseEvaluationResult_Json_Completed_True_Should_Return_Completed() {
         var content = """{"completed": true, "reason": "所有功能已实现"}""";
 
         var result = GoalEvaluator.ParseEvaluationResult(content);
@@ -15,8 +13,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_Completed_False_Should_Return_NotCompleted()
-    {
+    public void ParseEvaluationResult_Json_Completed_False_Should_Return_NotCompleted() {
         var content = """{"completed": false, "reason": "仍有未完成的工作"}""";
 
         var result = GoalEvaluator.ParseEvaluationResult(content);
@@ -26,8 +23,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Yes_Prefix_Should_Return_FormatError()
-    {
+    public void ParseEvaluationResult_Yes_Prefix_Should_Return_FormatError() {
         var result = GoalEvaluator.ParseEvaluationResult("yes, the objective has been achieved");
 
         Assert.False(result.IsCompleted);
@@ -35,8 +31,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_No_Prefix_Should_Return_FormatError()
-    {
+    public void ParseEvaluationResult_No_Prefix_Should_Return_FormatError() {
         var result = GoalEvaluator.ParseEvaluationResult("no, still working on it");
 
         Assert.False(result.IsCompleted);
@@ -44,8 +39,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Null_Should_Return_NotCompleted()
-    {
+    public void ParseEvaluationResult_Null_Should_Return_NotCompleted() {
         var result = GoalEvaluator.ParseEvaluationResult(null);
 
         Assert.False(result.IsCompleted);
@@ -53,8 +47,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Empty_Should_Return_NotCompleted()
-    {
+    public void ParseEvaluationResult_Empty_Should_Return_NotCompleted() {
         var result = GoalEvaluator.ParseEvaluationResult("");
 
         Assert.False(result.IsCompleted);
@@ -62,8 +55,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Whitespace_Should_Return_NotCompleted()
-    {
+    public void ParseEvaluationResult_Whitespace_Should_Return_NotCompleted() {
         var result = GoalEvaluator.ParseEvaluationResult("   ");
 
         Assert.False(result.IsCompleted);
@@ -71,8 +63,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Unknown_Format_Should_Return_NotCompleted()
-    {
+    public void ParseEvaluationResult_Unknown_Format_Should_Return_NotCompleted() {
         var result = GoalEvaluator.ParseEvaluationResult("maybe it's done");
 
         Assert.False(result.IsCompleted);
@@ -80,8 +71,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_1_And_0_Should_Coerce_To_Bool()
-    {
+    public void ParseEvaluationResult_Json_With_1_And_0_Should_Coerce_To_Bool() {
         // LlmJsonHelper 纵深防御第3层：number→bool 强制转换（1→true, 0→false）
         var result1 = GoalEvaluator.ParseEvaluationResult("""{"completed": 1, "reason": "done"}""");
         var result0 = GoalEvaluator.ParseEvaluationResult("""{"completed": 0, "reason": "not done"}""");
@@ -91,8 +81,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_Without_Reason_Should_Use_Empty_Default()
-    {
+    public void ParseEvaluationResult_Json_Without_Reason_Should_Use_Empty_Default() {
         // reason 字段有默认值 string.Empty，缺少时反序列化成功，Reason 为空字符串
         var result = GoalEvaluator.ParseEvaluationResult("""{"completed": true}""");
 
@@ -101,8 +90,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_Numeric_Reason_Should_Coerce_To_String()
-    {
+    public void ParseEvaluationResult_Json_With_Numeric_Reason_Should_Coerce_To_String() {
         // reason 为数字 123 时，LlmJsonHelper 第3层将其强制转换为字符串 "123"
         var result = GoalEvaluator.ParseEvaluationResult("""{"completed": false, "reason": 123}""");
 
@@ -111,8 +99,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_ObjectIntoBool_DegradationDetail_Reaches_Reason()
-    {
+    public void ParseEvaluationResult_ObjectIntoBool_DegradationDetail_Reaches_Reason() {
         // 纵深防御第4层精确报错：字段级宽容降级明细拼入 Reason，随续作提示回喂 LLM
         var result = GoalEvaluator.ParseEvaluationResult("""{"completed": {"nested": true}, "reason": "x"}""");
 
@@ -122,8 +109,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public async Task EvaluateAsync_NullObjective_Should_Throw()
-    {
+    public async Task EvaluateAsync_NullObjective_Should_Throw() {
         var kernel = new Mock<IChatClient>();
         var evaluator = new GoalEvaluator(kernel.Object);
 
@@ -132,8 +118,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public async Task EvaluateAsync_EmptyObjective_Should_Throw()
-    {
+    public async Task EvaluateAsync_EmptyObjective_Should_Throw() {
         var kernel = new Mock<IChatClient>();
         var evaluator = new GoalEvaluator(kernel.Object);
 
@@ -142,8 +127,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public async Task EvaluateAsync_ChatServiceThrows_Should_Return_NotCompleted()
-    {
+    public async Task EvaluateAsync_ChatServiceThrows_Should_Return_NotCompleted() {
         var kernel = new Mock<IChatClient>();
         var chatService = new Mock<IQueryService>();
         chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -159,8 +143,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public async Task EvaluateAsync_ChatServiceReturnsValidJson_Should_Parse()
-    {
+    public async Task EvaluateAsync_ChatServiceReturnsValidJson_Should_Parse() {
         var kernel = new Mock<IChatClient>();
         var chatService = new Mock<IQueryService>();
         chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -176,8 +159,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public async Task EvaluateAsync_ChatServiceReturnsEmpty_Should_Return_NotCompleted()
-    {
+    public async Task EvaluateAsync_ChatServiceReturnsEmpty_Should_Return_NotCompleted() {
         var kernel = new Mock<IChatClient>();
         var chatService = new Mock<IQueryService>();
         chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -193,24 +175,21 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Yes_CaseInsensitive_Should_Return_FormatError()
-    {
+    public void ParseEvaluationResult_Yes_CaseInsensitive_Should_Return_FormatError() {
         var result = GoalEvaluator.ParseEvaluationResult("YES, done");
         Assert.False(result.IsCompleted);
         Assert.Contains("格式异常", result.Reason);
     }
 
     [Fact]
-    public void ParseEvaluationResult_No_CaseInsensitive_Should_Return_FormatError()
-    {
+    public void ParseEvaluationResult_No_CaseInsensitive_Should_Return_FormatError() {
         var result = GoalEvaluator.ParseEvaluationResult("NO, not yet");
         Assert.False(result.IsCompleted);
         Assert.Contains("格式异常", result.Reason);
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_Extra_Fields_Should_Parse()
-    {
+    public void ParseEvaluationResult_Json_With_Extra_Fields_Should_Parse() {
         var content = """{"completed": true, "reason": "done", "confidence": 0.95}""";
         var result = GoalEvaluator.ParseEvaluationResult(content);
 
@@ -219,8 +198,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_True_Capitalized_Should_Fallback()
-    {
+    public void ParseEvaluationResult_Json_True_Capitalized_Should_Fallback() {
         // True 大写不是合法 JSON bool，解析失败后回退到文本格式
         var content = """{"completed": True, "reason": "done"}""";
         var result = GoalEvaluator.ParseEvaluationResult(content);
@@ -230,8 +208,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public async Task EvaluateAsync_WithLogger_Should_Not_Throw()
-    {
+    public async Task EvaluateAsync_WithLogger_Should_Not_Throw() {
         var kernel = new Mock<IChatClient>();
         var chatService = new Mock<IQueryService>();
         chatService.Setup(x => x.GetApiMessageContentsAsync(It.IsAny<MessageList>(), It.IsAny<ChatOptions>(), It.IsAny<IChatClient>(), It.IsAny<CancellationToken>()))
@@ -247,8 +224,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public async Task EvaluateAsync_Should_Pass_Constraints_To_Prompt()
-    {
+    public async Task EvaluateAsync_Should_Pass_Constraints_To_Prompt() {
         var kernel = new Mock<IChatClient>();
         var chatService = new Mock<IQueryService>();
 
@@ -271,8 +247,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_Trailing_Comma_Should_Parse()
-    {
+    public void ParseEvaluationResult_Json_With_Trailing_Comma_Should_Parse() {
         var content = """{"completed": true, "reason": "done",}""";
         var result = GoalEvaluator.ParseEvaluationResult(content);
 
@@ -281,8 +256,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_CaseInsensitive_Should_Parse()
-    {
+    public void ParseEvaluationResult_Json_With_CaseInsensitive_Should_Parse() {
         var content = """{"Completed": true, "Reason": "done"}""";
         var result = GoalEvaluator.ParseEvaluationResult(content);
 
@@ -291,8 +265,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_In_CodeBlock_Should_Parse()
-    {
+    public void ParseEvaluationResult_Json_In_CodeBlock_Should_Parse() {
         var content = "Here is my evaluation:\n```json\n{\"completed\": true, \"reason\": \"all done\"}\n```";
         var result = GoalEvaluator.ParseEvaluationResult(content);
 
@@ -301,8 +274,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_In_CodeBlock_With_Trailing_Comma_Should_Parse()
-    {
+    public void ParseEvaluationResult_Json_In_CodeBlock_With_Trailing_Comma_Should_Parse() {
         var content = "```json\n{\"completed\": true, \"reason\": \"done\",}\n```";
         var result = GoalEvaluator.ParseEvaluationResult(content);
 
@@ -311,8 +283,7 @@ public sealed class GoalEvaluatorTests
     }
 
     [Fact]
-    public void ParseEvaluationResult_Json_With_Comment_Should_Parse()
-    {
+    public void ParseEvaluationResult_Json_With_Comment_Should_Parse() {
         var content = """{"completed": true, "reason": "done" /* success */}""";
         var result = GoalEvaluator.ParseEvaluationResult(content);
 

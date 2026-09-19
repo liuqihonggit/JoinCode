@@ -5,14 +5,12 @@ namespace Core.Agents;
 /// 统一管道版本：主代理 no-op，路径 B（SubOptions 模式）no-op
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 PromptBuildingMiddleware 实例，注入提示构建器、可选的记忆服务与日志器
     /// </summary>
-    public PromptBuildingMiddleware(IAgentPromptBuilder promptBuilder, IAgentMemoryService? agentMemoryService = null, ILogger<PromptBuildingMiddleware>? logger = null)
-    {
+    public PromptBuildingMiddleware(IAgentPromptBuilder promptBuilder, IAgentMemoryService? agentMemoryService = null, ILogger<PromptBuildingMiddleware>? logger = null) {
         _promptBuilder = promptBuilder;
         _agentMemoryService = agentMemoryService;
         _logger = logger;
@@ -30,10 +28,8 @@ public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSp
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (context.IsMainAgent || context.SpawnOptions is null)
-        {
+    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (context.IsMainAgent || context.SpawnOptions is null) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -43,10 +39,8 @@ public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSp
             agentTypeValue, context.SpawnOptions.Description, cancellationToken: ct).ConfigureAwait(false);
 
         var memoryScope = context.SpawnOptions.MemoryScope ?? context.Definition?.Memory;
-        if (memoryScope is not null && _agentMemoryService is not null && (context.SpawnOptions.Variant.HasValue || context.SpawnOptions.Role != default))
-        {
-            try
-            {
+        if (memoryScope is not null && _agentMemoryService is not null && (context.SpawnOptions.Variant.HasValue || context.SpawnOptions.Role != default)) {
+            try {
                 var memoryPrompt = await _agentMemoryService.LoadAgentMemoryPromptAsync(
                     agentTypeValue, memoryScope.Value, ct).ConfigureAwait(false);
 
@@ -56,14 +50,11 @@ public sealed partial class PromptBuildingMiddleware : ServiceEntity, IUnifiedSp
                 var snapshotCheck = await _agentMemoryService.CheckSnapshotAsync(
                     agentTypeValue, memoryScope.Value, ct).ConfigureAwait(false);
 
-                if (snapshotCheck.Action == AgentMemorySnapshotAction.Initialize)
-                {
+                if (snapshotCheck.Action == AgentMemorySnapshotAction.Initialize) {
                     await _agentMemoryService.InitializeFromSnapshotAsync(
                         agentTypeValue, memoryScope.Value, snapshotCheck.SnapshotTimestamp ?? throw new InvalidOperationException("SnapshotTimestamp is null"), ct).ConfigureAwait(false);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[PromptBuildingMiddleware] 加载 Agent 记忆失败: {Role}", agentTypeValue);
             }
         }

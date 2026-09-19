@@ -5,8 +5,7 @@ namespace McpClient;
 /// <para>所有可变状态（_pending 字典）由 Consumer 线程独占，无需锁。</para>
 /// <para>响应通过 OutputAsync 流直接拉取，无需 TCS 字典。</para>
 /// </summary>
-public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.IRequestCommand, JsonRpcResponse>
-{
+public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.IRequestCommand, JsonRpcResponse> {
     private readonly Dictionary<int, TaskCompletionSource<JsonRpcResponse>> _pending = new();
     private readonly ILogger? _logger;
 
@@ -28,8 +27,7 @@ public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.
     /// <summary>构造 McpRequestRegistryActor 实例 — 初始化日志记录器。</summary>
     /// <param name="logger">日志记录器,为 null 时不记录日志。</param>
     public McpRequestRegistryActor(ILogger? logger = null)
-        : base()
-    {
+        : base() {
         _logger = logger;
     }
 
@@ -37,38 +35,33 @@ public sealed class McpRequestRegistryActor : ActorBase<McpRequestRegistryActor.
     /// <param name="command">待处理命令。</param>
     /// <param name="ct">取消令牌。</param>
     /// <returns>表示异步操作的值任务。</returns>
-    protected override ValueTask HandleAsync(IRequestCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override ValueTask HandleAsync(IRequestCommand command, CancellationToken ct) {
+        switch (command) {
             case RegisterCommand reg:
-                _pending[reg.RequestId] = reg.Tcs;
-                return default;
+            _pending[reg.RequestId] = reg.Tcs;
+            return default;
 
             case CompleteCommand comp:
-                if (_pending.Remove(comp.RequestId, out var pendingTcs))
-                {
-                    pendingTcs.TrySetResult(comp.Response);
-                    TryPublish(comp.Response);
-                }
-                else
-                {
-                    _logger?.LogWarning("[MCP] 收到响应但无匹配 pending request: id={Id}", comp.RequestId);
-                }
-                return default;
+            if (_pending.Remove(comp.RequestId, out var pendingTcs)) {
+                pendingTcs.TrySetResult(comp.Response);
+                TryPublish(comp.Response);
+            } else {
+                _logger?.LogWarning("[MCP] 收到响应但无匹配 pending request: id={Id}", comp.RequestId);
+            }
+            return default;
 
             case RemoveCommand rem:
-                _pending.Remove(rem.RequestId);
-                return default;
+            _pending.Remove(rem.RequestId);
+            return default;
 
             case CancelAllCommand cancel:
-                foreach (var tcs in _pending.Values)
-                    tcs.TrySetCanceled(cancel.CancellationToken);
-                _pending.Clear();
-                return default;
+            foreach (var tcs in _pending.Values)
+                tcs.TrySetCanceled(cancel.CancellationToken);
+            _pending.Clear();
+            return default;
 
             default:
-                return default;
+            return default;
         }
     }
 

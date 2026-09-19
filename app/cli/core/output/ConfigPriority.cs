@@ -4,8 +4,7 @@ namespace JoinCode.Cli.Output;
 /// 配置优先级枚举 — 对齐架构指南四级优先级
 /// Flag(4) > Env(3) > Config(2) > Default(1)
 /// </summary>
-public enum ConfigPriority
-{
+public enum ConfigPriority {
     /// <summary>默认值 — 最低优先级</summary>
     [EnumValue("default")]
     Default = 1,

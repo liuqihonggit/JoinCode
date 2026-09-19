@@ -8,8 +8,7 @@ public sealed record Macro(string Name, IReadOnlyList<DesktopOperation> Operatio
 /// <summary>
 /// 宏录制器 — 录制/回放/保存/加载操作序列（PRD S-02/S-03）
 /// </summary>
-public interface IMacroRecorder
-{
+public interface IMacroRecorder {
     /// <summary>是否正在录制</summary>
     bool IsRecording { get; }
 

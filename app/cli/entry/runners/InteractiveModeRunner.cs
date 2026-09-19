@@ -1,16 +1,13 @@
 namespace JoinCode.Entry;
 
 
-internal static class InteractiveModeRunner
-{
-    internal static async Task RunAsync(WorkflowConfig config, CommandLineOptions options, IHost host, CancellationToken cancellationToken = default)
-    {
+internal static class InteractiveModeRunner {
+    internal static async Task RunAsync(WorkflowConfig config, CommandLineOptions options, IHost host, CancellationToken cancellationToken = default) {
         Cli.TerminalHelper.Init();
         Cli.TerminalHelper.WriteLine("JoinCode - AI 智能体命令行工具");
         Cli.TerminalHelper.NewLine();
 
-        var context = new StartupContext
-        {
+        var context = new StartupContext {
             Config = config,
             Options = options,
             Host = host,

@@ -4,8 +4,7 @@ namespace McpClient;
 /// <summary>
 /// MCP 协议异常
 /// </summary>
-public sealed class McpProtocolException : WorkflowException
-{
+public sealed class McpProtocolException : WorkflowException {
     /// <summary>
     /// JSON-RPC 错误码
     /// </summary>
@@ -48,8 +47,7 @@ public sealed class McpProtocolException : WorkflowException
         string? methodName = null,
         string? rawMessage = null,
         ExceptionContext? context = null)
-        : base(message, ResolveErrorCode(jsonRpcErrorCode), ErrorCategory.Mcp, context)
-    {
+        : base(message, ResolveErrorCode(jsonRpcErrorCode), ErrorCategory.Mcp, context) {
         JsonRpcErrorCode = jsonRpcErrorCode;
         RequestId = requestId;
         MethodName = methodName;
@@ -74,8 +72,7 @@ public sealed class McpProtocolException : WorkflowException
         string? methodName = null,
         string? rawMessage = null,
         ExceptionContext? context = null)
-        : base(message, innerException, ResolveErrorCode(jsonRpcErrorCode), ErrorCategory.Mcp, context)
-    {
+        : base(message, innerException, ResolveErrorCode(jsonRpcErrorCode), ErrorCategory.Mcp, context) {
         JsonRpcErrorCode = jsonRpcErrorCode;
         RequestId = requestId;
         MethodName = methodName;
@@ -87,8 +84,7 @@ public sealed class McpProtocolException : WorkflowException
     /// 方法未找到(-32601) → MCP004(ToolNotFound)，其余 → MCP002(Protocol)。
     /// 避免所有协议异常都笼统标记为 MCP002，便于上层区分"工具不存在"与"协议错误"。
     /// </summary>
-    private static string ResolveErrorCode(int? jsonRpcErrorCode)
-    {
+    private static string ResolveErrorCode(int? jsonRpcErrorCode) {
         return jsonRpcErrorCode == -32601
             ? global::JoinCode.Abstractions.Exceptions.ErrorCode.McpToolNotFound.ToValue()
             : global::JoinCode.Abstractions.Exceptions.ErrorCode.McpProtocol.ToValue();
@@ -100,8 +96,7 @@ public sealed class McpProtocolException : WorkflowException
     /// <param name="rawMessage">原始消息内容</param>
     /// <param name="innerException">解析异常</param>
     /// <returns>McpProtocolException 实例（错误码 -32700）</returns>
-    public static McpProtocolException ParseError(string rawMessage, Exception innerException)
-    {
+    public static McpProtocolException ParseError(string rawMessage, Exception innerException) {
         return new McpProtocolException(
             $"无法解析 JSON-RPC 消息: {innerException.Message}",
             innerException,
@@ -115,8 +110,7 @@ public sealed class McpProtocolException : WorkflowException
     /// <param name="requestId">请求 ID</param>
     /// <param name="reason">无效原因</param>
     /// <returns>McpProtocolException 实例（错误码 -32600）</returns>
-    public static McpProtocolException InvalidRequest(string requestId, string reason)
-    {
+    public static McpProtocolException InvalidRequest(string requestId, string reason) {
         return new McpProtocolException(
             $"无效请求: {reason}",
             jsonRpcErrorCode: -32600,
@@ -129,8 +123,7 @@ public sealed class McpProtocolException : WorkflowException
     /// <param name="methodName">方法名</param>
     /// <param name="requestId">请求 ID</param>
     /// <returns>McpProtocolException 实例（错误码 -32601）</returns>
-    public static McpProtocolException MethodNotFound(string methodName, string requestId)
-    {
+    public static McpProtocolException MethodNotFound(string methodName, string requestId) {
         return new McpProtocolException(
             $"方法未找到: {methodName}",
             jsonRpcErrorCode: -32601,
@@ -145,8 +138,7 @@ public sealed class McpProtocolException : WorkflowException
     /// <param name="requestId">请求 ID</param>
     /// <param name="reason">无效原因</param>
     /// <returns>McpProtocolException 实例（错误码 -32602）</returns>
-    public static McpProtocolException InvalidParams(string methodName, string requestId, string reason)
-    {
+    public static McpProtocolException InvalidParams(string methodName, string requestId, string reason) {
         return new McpProtocolException(
             $"无效参数: {reason}",
             jsonRpcErrorCode: -32602,
@@ -161,8 +153,7 @@ public sealed class McpProtocolException : WorkflowException
     /// <param name="reason">错误原因</param>
     /// <param name="errorCode">错误码（默认 -32000）</param>
     /// <returns>McpProtocolException 实例</returns>
-    public static McpProtocolException ServerError(string requestId, string reason, int errorCode = -32000)
-    {
+    public static McpProtocolException ServerError(string requestId, string reason, int errorCode = -32000) {
         return new McpProtocolException(
             $"服务器错误: {reason}",
             jsonRpcErrorCode: errorCode,

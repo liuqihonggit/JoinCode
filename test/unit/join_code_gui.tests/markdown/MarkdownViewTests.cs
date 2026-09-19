@@ -6,13 +6,10 @@ namespace JoinCode.Gui.Tests.Markdown;
 /// 验证模型 → 控件树链路（区别于仅解析模型的单元测试）。
 /// </summary>
 [Collection("GuiUiSequential")]
-public sealed class MarkdownViewTests
-{
+public sealed class MarkdownViewTests {
     /// <summary>从 TextBlock 提取全部文本（含 Inlines 内的 Run/嵌套 Span）</summary>
-    private static string FullText(TextBlock tb)
-    {
-        if (tb.Text is not null)
-        {
+    private static string FullText(TextBlock tb) {
+        if (tb.Text is not null) {
             return tb.Text;
         }
         var sb = new StringBuilder();
@@ -20,28 +17,23 @@ public sealed class MarkdownViewTests
         return sb.ToString();
     }
 
-    private static void AppendInlineText(StringBuilder sb, IList<Inline>? inlines)
-    {
-        if (inlines is null)
-        {
+    private static void AppendInlineText(StringBuilder sb, IList<Inline>? inlines) {
+        if (inlines is null) {
             return;
         }
-        foreach (var inline in inlines)
-        {
-            switch (inline)
-            {
+        foreach (var inline in inlines) {
+            switch (inline) {
                 case Run run:
-                    sb.Append(run.Text);
-                    break;
+                sb.Append(run.Text);
+                break;
                 case Span span:
-                    AppendInlineText(sb, span.Inlines);
-                    break;
+                AppendInlineText(sb, span.Inlines);
+                break;
             }
         }
     }
 
-    private static MarkdownView Render(string markdown)
-    {
+    private static MarkdownView Render(string markdown) {
         var view = new MarkdownView { Markdown = markdown };
         var win = new Window { Content = view, Width = 500, Height = 400 };
         win.Show();
@@ -49,8 +41,7 @@ public sealed class MarkdownViewTests
     }
 
     [AvaloniaFact]
-    public void Heading_RendersTextBlockWithBoldFont()
-    {
+    public void Heading_RendersTextBlockWithBoldFont() {
         var view = Render("# Title");
         var tb = view.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault();
         Assert.NotNull(tb);
@@ -59,16 +50,14 @@ public sealed class MarkdownViewTests
     }
 
     [AvaloniaFact]
-    public void Paragraph_RendersWrappingTextBlock()
-    {
+    public void Paragraph_RendersWrappingTextBlock() {
         var view = Render("hello world");
         var tb = view.GetVisualDescendants().OfType<TextBlock>().First();
         Assert.Equal("hello world", FullText(tb));
     }
 
     [AvaloniaFact]
-    public void CodeBlock_RendersBorderWithCodeText()
-    {
+    public void CodeBlock_RendersBorderWithCodeText() {
         var view = Render("```csharp\nint x = 1;\n```");
         var border = view.GetVisualDescendants().OfType<Border>().FirstOrDefault();
         Assert.NotNull(border);
@@ -78,8 +67,7 @@ public sealed class MarkdownViewTests
     }
 
     [AvaloniaFact]
-    public void List_RendersOneTextBlockPerItem()
-    {
+    public void List_RendersOneTextBlockPerItem() {
         var view = Render("- alpha\n- beta");
         var texts = view.GetVisualDescendants().OfType<TextBlock>().Select(FullText).ToList();
         Assert.Contains(texts, t => t.Contains("alpha"));
@@ -87,8 +75,7 @@ public sealed class MarkdownViewTests
     }
 
     [AvaloniaFact]
-    public void Table_RendersGridWithHeaderAndRow()
-    {
+    public void Table_RendersGridWithHeaderAndRow() {
         var view = Render("| a | b |\n|---|---|\n| 1 | 2 |");
         var grid = view.GetVisualDescendants().OfType<Grid>().FirstOrDefault();
         Assert.NotNull(grid);
@@ -100,8 +87,7 @@ public sealed class MarkdownViewTests
     }
 
     [AvaloniaFact]
-    public void Quote_RendersBorderWithAccentEdge()
-    {
+    public void Quote_RendersBorderWithAccentEdge() {
         var view = Render("> quoted");
         var border = view.GetVisualDescendants().OfType<Border>().FirstOrDefault();
         Assert.NotNull(border);
@@ -110,8 +96,7 @@ public sealed class MarkdownViewTests
     }
 
     [AvaloniaFact]
-    public void Rule_RendersThinDividerBorder()
-    {
+    public void Rule_RendersThinDividerBorder() {
         var view = Render("---");
         var divider = view.GetVisualDescendants().OfType<Border>().FirstOrDefault();
         Assert.NotNull(divider);
@@ -119,8 +104,7 @@ public sealed class MarkdownViewTests
     }
 
     [AvaloniaFact]
-    public void ThemeChange_RerendersWithNewPalette()
-    {
+    public void ThemeChange_RerendersWithNewPalette() {
         GuiPalette.CurrentVariant = GuiPalette.GuiThemeVariant.Dark;
         var view = Render("# Title");
 

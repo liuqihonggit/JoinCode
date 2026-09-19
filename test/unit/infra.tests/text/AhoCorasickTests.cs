@@ -3,39 +3,33 @@ namespace JoinCode.Infra.Tests.Text;
 /// <summary>
 /// Aho-Corasick 自动机单元测试。
 /// </summary>
-public class AhoCorasickTests
-{
+public class AhoCorasickTests {
     [Fact]
-    public void ContainsAny_EmptyText_ReturnsFalse()
-    {
+    public void ContainsAny_EmptyText_ReturnsFalse() {
         var ac = AhoCorasick.Create(["he", "she", "his", "hers"]);
         ac.ContainsAny("".AsSpan()).Should().BeFalse();
     }
 
     [Fact]
-    public void ContainsAny_NoMatch_ReturnsFalse()
-    {
+    public void ContainsAny_NoMatch_ReturnsFalse() {
         var ac = AhoCorasick.Create(["he", "she", "his", "hers"]);
         ac.ContainsAny("xyz").Should().BeFalse();
     }
 
     [Fact]
-    public void ContainsAny_SingleMatch_ReturnsTrue()
-    {
+    public void ContainsAny_SingleMatch_ReturnsTrue() {
         var ac = AhoCorasick.Create(["he", "she", "his", "hers"]);
         ac.ContainsAny("he").Should().BeTrue();
     }
 
     [Fact]
-    public void ContainsAny_MatchInMiddle_ReturnsTrue()
-    {
+    public void ContainsAny_MatchInMiddle_ReturnsTrue() {
         var ac = AhoCorasick.Create(["he", "she", "his", "hers"]);
         ac.ContainsAny("ushers").Should().BeTrue();
     }
 
     [Fact]
-    public void ContainsAny_IgnoreCase_MatchesUpperCase()
-    {
+    public void ContainsAny_IgnoreCase_MatchesUpperCase() {
         var ac = AhoCorasick.Create(["danger"], ignoreCase: true);
         ac.ContainsAny("This is DANGER").Should().BeTrue();
         ac.ContainsAny("This is Danger").Should().BeTrue();
@@ -43,16 +37,14 @@ public class AhoCorasickTests
     }
 
     [Fact]
-    public void ContainsAny_OrdinalCase_DoesNotMatchUpperCase()
-    {
+    public void ContainsAny_OrdinalCase_DoesNotMatchUpperCase() {
         var ac = AhoCorasick.Create(["danger"], ignoreCase: false);
         ac.ContainsAny("This is DANGER").Should().BeFalse();
         ac.ContainsAny("This is danger").Should().BeTrue();
     }
 
     [Fact]
-    public void FindAll_OverlappingPatterns_ReturnsAll()
-    {
+    public void FindAll_OverlappingPatterns_ReturnsAll() {
         var ac = AhoCorasick.Create(["he", "she", "his", "hers"]);
         var matches = ac.FindAll("ushers".AsSpan());
 
@@ -63,8 +55,7 @@ public class AhoCorasickTests
     }
 
     [Fact]
-    public void FindAll_MultipleOccurrences_ReturnsAll()
-    {
+    public void FindAll_MultipleOccurrences_ReturnsAll() {
         var ac = AhoCorasick.Create(["a"]);
         var matches = ac.FindAll("banana".AsSpan());
         matches.Should().HaveCount(3);
@@ -74,16 +65,14 @@ public class AhoCorasickTests
     }
 
     [Fact]
-    public void FindAll_NoMatch_ReturnsEmpty()
-    {
+    public void FindAll_NoMatch_ReturnsEmpty() {
         var ac = AhoCorasick.Create(["xyz"]);
         var matches = ac.FindAll("hello".AsSpan());
         matches.Should().BeEmpty();
     }
 
     [Fact]
-    public void FindFirst_ReturnsFirstMatch()
-    {
+    public void FindFirst_ReturnsFirstMatch() {
         var ac = AhoCorasick.Create(["he", "she", "his", "hers"]);
         var match = ac.FindFirst("ushers".AsSpan());
         match.Should().NotBeNull();
@@ -92,23 +81,20 @@ public class AhoCorasickTests
     }
 
     [Fact]
-    public void FindFirst_NoMatch_ReturnsNull()
-    {
+    public void FindFirst_NoMatch_ReturnsNull() {
         var ac = AhoCorasick.Create(["xyz"]);
         ac.FindFirst("hello".AsSpan()).Should().BeNull();
     }
 
     [Fact]
-    public void Create_EmptyPatterns_NeverMatches()
-    {
+    public void Create_EmptyPatterns_NeverMatches() {
         var ac = AhoCorasick.Create([]);
         ac.ContainsAny("anything").Should().BeFalse();
         ac.FindAll("anything".AsSpan()).Should().BeEmpty();
     }
 
     [Fact]
-    public void Create_PatternWithAssociatedValue_ReturnsValue()
-    {
+    public void Create_PatternWithAssociatedValue_ReturnsValue() {
         var ac = AhoCorasick<int>.Create([
             new("rm", 1),
             new("del", 2),
@@ -121,8 +107,7 @@ public class AhoCorasickTests
     }
 
     [Fact]
-    public void Create_PatternIsSubstringOfAnother_BothMatch()
-    {
+    public void Create_PatternIsSubstringOfAnother_BothMatch() {
         var ac = AhoCorasick.Create(["he", "hello"]);
         var matches = ac.FindAll("hello".AsSpan());
         matches.Should().HaveCount(2);
@@ -131,8 +116,7 @@ public class AhoCorasickTests
     }
 
     [Fact]
-    public void ContainsAll_LargePatternSet_PerformanceSmoke()
-    {
+    public void ContainsAll_LargePatternSet_PerformanceSmoke() {
         var patterns = new List<string>(100);
         for (var i = 0; i < 100; i++)
             patterns.Add($"secret_{i}");
@@ -143,8 +127,7 @@ public class AhoCorasickTests
     }
 
     [Fact]
-    public void CreateBool_ReturnsTrueOnMatch()
-    {
+    public void CreateBool_ReturnsTrueOnMatch() {
         var ac = AhoCorasick.CreateBool(["rm", "del", "format"]);
         var match = ac.FindFirst("execute del now".AsSpan());
         match.Should().NotBeNull();
@@ -155,11 +138,9 @@ public class AhoCorasickTests
 /// <summary>
 /// 双缓冲 Aho-Corasick 自动机单元测试。
 /// </summary>
-public class DualBufferAhoCorasickTests
-{
+public class DualBufferAhoCorasickTests {
     [Fact]
-    public void SwapPatterns_AtomicUpdate_NewPatternsTakeEffect()
-    {
+    public void SwapPatterns_AtomicUpdate_NewPatternsTakeEffect() {
         var db = DualBufferAhoCorasick.Create(new[] { "old_pattern" });
         db.ContainsAny("old_pattern here").Should().BeTrue();
         db.ContainsAny("new_pattern here").Should().BeFalse();
@@ -170,8 +151,7 @@ public class DualBufferAhoCorasickTests
     }
 
     [Fact]
-    public void Current_AfterSwap_ReturnsNewAutomaton()
-    {
+    public void Current_AfterSwap_ReturnsNewAutomaton() {
         var db = DualBufferAhoCorasick.Create(new[] { "a" });
         var before = db.Current;
         db.SwapPatterns(new[] { "b" }.Select(static p => new KeyValuePair<string, string>(p, p)));
@@ -180,18 +160,14 @@ public class DualBufferAhoCorasickTests
     }
 
     [Fact]
-    public async Task ConcurrentReadDuringSwap_NoException()
-    {
+    public async Task ConcurrentReadDuringSwap_NoException() {
         var db = DualBufferAhoCorasick.Create(new[] { "initial" });
 
         var cts = new CancellationTokenSource();
         var readers = new Task[4];
-        for (var i = 0; i < 4; i++)
-        {
-            readers[i] = Task.Run(() =>
-            {
-                while (!cts.IsCancellationRequested)
-                {
+        for (var i = 0; i < 4; i++) {
+            readers[i] = Task.Run(() => {
+                while (!cts.IsCancellationRequested) {
                     db.ContainsAny("initial text");
                 }
             });

@@ -8,21 +8,18 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.PrivacySettings, Description = "管理隐私设置", Usage = "/privacy-settings [show|telemetry on|off|analytics on|off|crash-reports on|off]", Category = ChatCommandCategory.Auth, ArgumentHint = "[show|telemetry|analytics|crash-reports]")]
 [ChatCommandArg("action", Type = "string", Description = "隐私设置操作", Enum = new[] { "show", "telemetry", "analytics", "crash-reports" }, Default = "show")]
 [ChatCommandArg("value", Type = "string", Description = "设置值 on/off,仅在 action=telemetry/analytics/crash-reports 时使用", Enum = new[] { "on", "off" })]
-public sealed class PrivacySettingsCommand : ChatCommandBase
-{
+public sealed class PrivacySettingsCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /privacy-settings 命令 — 查看或修改隐私设置
     /// 无参数或 show 时显示当前设置,telemetry/analytics/crash-reports 后跟 on/off 切换开关
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 
-        if (string.IsNullOrEmpty(args) || args is "show")
-        {
+        if (string.IsNullOrEmpty(args) || args is "show") {
             var telemetry = await GetSettingAsync(configService, "privacy.telemetry", "off", context.CancellationToken).ConfigureAwait(false);
             var analytics = await GetSettingAsync(configService, "privacy.analytics", "off", context.CancellationToken).ConfigureAwait(false);
             var crashReports = await GetSettingAsync(configService, "privacy.crashReports", "off", context.CancellationToken).ConfigureAwait(false);
@@ -31,21 +28,13 @@ public sealed class PrivacySettingsCommand : ChatCommandBase
             TerminalHelper.WriteLine($"  遥测:     {(telemetry == "on" ? "已启用" : "未启用")}");
             TerminalHelper.WriteLine($"  分析:     {(analytics == "on" ? "已启用" : "未启用")}");
             TerminalHelper.WriteLine($"  崩溃报告: {(crashReports == "on" ? "已启用" : "未启用")}");
-        }
-        else if (args.StartsWith("telemetry"))
-        {
+        } else if (args.StartsWith("telemetry")) {
             await SetPrivacySettingAsync(configService, "privacy.telemetry", args["telemetry".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
-        }
-        else if (args.StartsWith("analytics"))
-        {
+        } else if (args.StartsWith("analytics")) {
             await SetPrivacySettingAsync(configService, "privacy.analytics", args["analytics".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
-        }
-        else if (args.StartsWith("crash-reports"))
-        {
+        } else if (args.StartsWith("crash-reports")) {
             await SetPrivacySettingAsync(configService, "privacy.crashReports", args["crash-reports".Length..].Trim(), context.CancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"未知设置: {args}");
             TerminalHelper.WriteLine("支持: telemetry, analytics, crash-reports");
         }
@@ -53,29 +42,22 @@ public sealed class PrivacySettingsCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static async Task<string> GetSettingAsync(IConfigurationService? configService, string key, string defaultValue, CancellationToken ct)
-    {
+    private static async Task<string> GetSettingAsync(IConfigurationService? configService, string key, string defaultValue, CancellationToken ct) {
         if (configService is null) return defaultValue;
         var value = await configService.GetAsync(key, ct).ConfigureAwait(false);
         return value ?? defaultValue;
     }
 
-    private static async Task SetPrivacySettingAsync(IConfigurationService? configService, string key, string subArgs, CancellationToken ct)
-    {
-        if (subArgs is "on")
-        {
+    private static async Task SetPrivacySettingAsync(IConfigurationService? configService, string key, string subArgs, CancellationToken ct) {
+        if (subArgs is "on") {
             if (configService is not null)
                 await configService.SetAsync(key, "on", ct).ConfigureAwait(false);
             TerminalHelper.WriteLine($"{key}: 已启用");
-        }
-        else if (subArgs is "off")
-        {
+        } else if (subArgs is "off") {
             if (configService is not null)
                 await configService.SetAsync(key, "off", ct).ConfigureAwait(false);
             TerminalHelper.WriteLine($"{key}: 已禁用");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"用法: /privacy-settings {key.Split('.')[1]} on|off");
         }
     }

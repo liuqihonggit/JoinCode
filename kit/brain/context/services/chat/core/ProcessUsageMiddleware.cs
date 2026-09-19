@@ -5,16 +5,14 @@ namespace Core.Context;
 /// OnError=Continue：用量处理失败不影响管道继续执行
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddleware
-{
+public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddleware {
 
     /// <summary>
     /// 初始化用量处理中间件
     /// </summary>
     /// <param name="usageProcessor">聊天用量处理器</param>
     /// <param name="logger">可选日志记录器</param>
-    public ProcessUsageMiddleware(IChatUsageProcessor usageProcessor, ILogger<ProcessUsageMiddleware>? logger = null)
-    {
+    public ProcessUsageMiddleware(IChatUsageProcessor usageProcessor, ILogger<ProcessUsageMiddleware>? logger = null) {
         _usageProcessor = usageProcessor;
         _logger = logger;
     }
@@ -31,15 +29,12 @@ public sealed partial class ProcessUsageMiddleware : ServiceEntity, IChatMiddlew
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        await foreach (var evt in next(context, ct).ConfigureAwait(false))
-        {
+        [EnumeratorCancellation] CancellationToken ct) {
+        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
             yield return evt;
         }
 
-        if (context.FinalUsage is not null && context.PromptSnapshot is not null)
-        {
+        if (context.FinalUsage is not null && context.PromptSnapshot is not null) {
             await _usageProcessor.ProcessUsageAsync(
                 context.FinalUsage, context.FinalModelId, context.PromptSnapshot, context.AgentId, ct).ConfigureAwait(false);
         }

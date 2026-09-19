@@ -7,8 +7,7 @@ namespace Tools.Shell;
 /// 位置: ShellSearchTimeoutMiddleware 之后、AbsoluteTimeoutMiddleware 之前
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellTimeoutKeywordMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellTimeoutKeywordMiddleware : ServiceEntity, IShellMiddleware {
     private readonly ShellExecutionConfig _config;
     private readonly ILogger<ShellTimeoutKeywordMiddleware>? _logger;
 
@@ -17,15 +16,13 @@ public sealed partial class ShellTimeoutKeywordMiddleware : ServiceEntity, IShel
     /// </summary>
     /// <param name="config">Shell 执行配置</param>
     /// <param name="logger">日志器（可选）</param>
-    public ShellTimeoutKeywordMiddleware(ShellExecutionConfig config, ILogger<ShellTimeoutKeywordMiddleware>? logger = null)
-    {
+    public ShellTimeoutKeywordMiddleware(ShellExecutionConfig config, ILogger<ShellTimeoutKeywordMiddleware>? logger = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger;
     }
 
     /// <inheritdoc />
-    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var maxWaitSeconds = ShellTimeoutKeywordExtractor.ExtractMaxWaitSeconds(context.Command);
         if (maxWaitSeconds is not { } waitSeconds)
             return next(context, ct);
@@ -38,8 +35,7 @@ public sealed partial class ShellTimeoutKeywordMiddleware : ServiceEntity, IShel
         if (requiredMs <= effectiveMs)
             return next(context, ct);
 
-        if (context.Timeout is { } userTimeoutMs)
-        {
+        if (context.Timeout is { } userTimeoutMs) {
             _logger?.LogWarning(
                 "脚本超时关键字冲突: 命令含 {Wait}s 等待，用户传入 timeout {User}s 不足，需要至少 {Required}s",
                 waitSeconds, userTimeoutMs / 1000, requiredSeconds);
@@ -58,8 +54,7 @@ public sealed partial class ShellTimeoutKeywordMiddleware : ServiceEntity, IShel
         return next(context, ct);
     }
 
-    internal static ToolDiagnostic BuildConflictDiagnostic(string command, int waitSeconds, int userSeconds, int requiredSeconds)
-    {
+    internal static ToolDiagnostic BuildConflictDiagnostic(string command, int waitSeconds, int userSeconds, int requiredSeconds) {
         var sb = new StringBuilder(512);
         sb.AppendLine($"命令内含 {waitSeconds} 秒等待，但传入超时 {userSeconds} 秒不足。");
         sb.AppendLine();

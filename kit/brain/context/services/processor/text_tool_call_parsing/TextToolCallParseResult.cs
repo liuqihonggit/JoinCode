@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 文本工具调用解析结果
 /// </summary>
-public sealed record TextToolCallParseResult
-{
+public sealed record TextToolCallParseResult {
     /// <summary>解析出的工具调用列表（至少 1 个）</summary>
     public required IReadOnlyList<ToolCallEntry> ToolCalls { get; init; }
 

@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterSkillEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterSkillEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === SkillSearchToolHandlers ===
         defaultEntries[StringKey.SkillSearchResult] = "Skill search results: {0} matches";
         defaultEntries[StringKey.NoMatchingSkillFound] = "No matching skills found";

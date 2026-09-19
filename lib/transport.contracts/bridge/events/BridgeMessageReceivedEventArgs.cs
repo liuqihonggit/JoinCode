@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// Bridge 消息接收事件参数
 /// </summary>
-public class BridgeMessageReceivedEventArgs : EventArgs
-{
+public class BridgeMessageReceivedEventArgs : EventArgs {
     /// <summary>接收到的 Bridge 消息</summary>
     public BridgeMessage Message { get; }
 
@@ -12,8 +11,7 @@ public class BridgeMessageReceivedEventArgs : EventArgs
     /// 初始化 Bridge 消息接收事件参数
     /// </summary>
     /// <param name="message">接收到的 Bridge 消息</param>
-    public BridgeMessageReceivedEventArgs(BridgeMessage message)
-    {
+    public BridgeMessageReceivedEventArgs(BridgeMessage message) {
         Message = message;
     }
 }

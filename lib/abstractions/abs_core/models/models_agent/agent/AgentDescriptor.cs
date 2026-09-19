@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// 全局 Agent 描述符 — 统一描述 mainAgent 和 subAgent
 /// 每个实例拥有唯一 Id、独立上下文、沟通管道
 /// </summary>
-public sealed class AgentDescriptor
-{
+public sealed class AgentDescriptor {
     /// <summary>
     /// 唯一标识 — 格式: "agent-{Guid:N}" 前8位
     /// </summary>

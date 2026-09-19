@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 系统执行器信息快照 — 用于提示词注入，不暴露 ISystemActuator 实例
 /// </summary>
-public sealed record SystemActuatorInfo
-{
+public sealed record SystemActuatorInfo {
     public required SystemActuatorKind Kind { get; init; }
     public required string DisplayName { get; init; }
     public required string ShellPath { get; init; }
@@ -15,8 +14,7 @@ public sealed record SystemActuatorInfo
 /// 系统执行器能力描述 — 长命缓存，只检测一次
 /// 封装执行器的静态属性：类型、路径、版本、编码、DisplayName
 /// </summary>
-public sealed class SystemActuatorCapability
-{
+public sealed class SystemActuatorCapability {
     public required SystemActuatorKind Kind { get; init; }
     public string ShellPath { get; init; } = "";
     public string Version { get; init; } = "unknown";
@@ -33,8 +31,7 @@ public sealed class SystemActuatorCapability
     /// <summary>
     /// 转为 SystemActuatorInfo 快照 — 用于提示词注入
     /// </summary>
-    public SystemActuatorInfo ToInfo() => new()
-    {
+    public SystemActuatorInfo ToInfo() => new() {
         Kind = Kind,
         DisplayName = DisplayName,
         ShellPath = ShellPath,
@@ -45,8 +42,7 @@ public sealed class SystemActuatorCapability
 /// <summary>
 /// 系统执行器命令构建选项
 /// </summary>
-public sealed class SystemActuatorExecOptions
-{
+public sealed class SystemActuatorExecOptions {
     /// <summary>
     /// 会话 ID — 用于 CWD 追踪文件命名
     /// </summary>
@@ -66,8 +62,7 @@ public sealed class SystemActuatorExecOptions
 /// <summary>
 /// 系统执行器命令构建结果
 /// </summary>
-public sealed record SystemActuatorExecCommandResult
-{
+public sealed record SystemActuatorExecCommandResult {
     /// <summary>
     /// 完整命令字符串（含 shell 初始化、CWD 追踪等）
     /// </summary>
@@ -82,8 +77,7 @@ public sealed record SystemActuatorExecCommandResult
 /// <summary>
 /// 系统执行器命令状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
 /// </summary>
-public enum SystemActuatorCommandStatus
-{
+public enum SystemActuatorCommandStatus {
     [EnumValue("running")] Running,
     [EnumValue("backgrounded")] Backgrounded,
     [EnumValue("completed")] Completed,
@@ -93,8 +87,7 @@ public enum SystemActuatorCommandStatus
 /// <summary>
 /// 系统执行器生命周期状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
 /// </summary>
-public enum SystemActuatorLifecycleState
-{
+public enum SystemActuatorLifecycleState {
     /// <summary>活跃运行中</summary>
     [EnumValue("active")] Active,
     /// <summary>已后台化，仍占用资源</summary>
@@ -108,8 +101,7 @@ public enum SystemActuatorLifecycleState
 /// <summary>
 /// 系统执行器执行结果
 /// </summary>
-public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
-{
+public sealed record SystemActuatorExecutionResult : ICommandExecutionResult {
     /// <summary>
     /// 内联输出上限（30K）
     /// </summary>
@@ -174,8 +166,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
     /// <summary>
     /// 简洁单行摘要 — 用于日志/调试,格式: [Shell 状态] ExitCode=x, PID=y, 耗时zms
     /// </summary>
-    public override string ToString()
-    {
+    public override string ToString() {
         var status = Interrupted ? "INT" : Success ? "OK" : "FAIL";
         var pid = ProcessId.HasValue ? $", PID={ProcessId}" : string.Empty;
         var bg = BackgroundTaskId is not null ? $", BG={BackgroundTaskId}" : string.Empty;
@@ -185,8 +176,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
     /// <summary>
     /// 完整 Markdown 表格 — 包含所有字段(含后台化/持久化/进程等扩展信息),供 AI/用户消费
     /// </summary>
-    public string ToMarkdownTable()
-    {
+    public string ToMarkdownTable() {
         var builder = new MarkdownTableBuilder()
             .WithTitle("命令执行结果")
             .AddHeader("字段", "值")
@@ -216,11 +206,9 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
         return builder.Build();
     }
 
-    private static string FormatDuration(TimeSpan duration)
-    {
+    private static string FormatDuration(TimeSpan duration) {
         var ms = duration.TotalMilliseconds;
-        return ms switch
-        {
+        return ms switch {
             0 => "0ms",
             < 1 => $"{ms:F2}ms",
             < 1000 => $"{ms:F0}ms",
@@ -229,8 +217,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
         };
     }
 
-    private static string Summarize(string text)
-    {
+    private static string Summarize(string text) {
         if (string.IsNullOrEmpty(text)) return "(空)";
         var trimmed = text.Trim();
         return trimmed.Length <= 80 ? trimmed : string.Concat(trimmed.AsSpan(0, 77), "...");
@@ -239,8 +226,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
     /// <summary>
     /// 生成大输出持久化消息
     /// </summary>
-    public string BuildPersistedOutputMessage()
-    {
+    public string BuildPersistedOutputMessage() {
         if (PersistedOutputPath is null) return Stdout;
 
         var preview = Stdout.Length > PreviewSizeBytes
@@ -248,8 +234,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
             : Stdout;
 
         var hasMore = Stdout.Length > PreviewSizeBytes;
-        var result = new PersistedToolResult
-        {
+        var result = new PersistedToolResult {
             Filepath = PersistedOutputPath,
             OriginalSize = (int)(PersistedOutputSize ?? Stdout.Length),
             IsJson = false,
@@ -261,8 +246,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
     }
 
     public static SystemActuatorExecutionResult SuccessResult(string stdout, string stderr, int? exitCode = 0)
-        => new()
-        {
+        => new() {
             Stdout = stdout,
             Stderr = stderr,
             ExitCode = exitCode,
@@ -270,8 +254,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
         };
 
     public static SystemActuatorExecutionResult FailureResult(string errorMessage, string stdout = "", string stderr = "")
-        => new()
-        {
+        => new() {
             Stdout = stdout,
             Stderr = stderr,
             ExitCode = -1,
@@ -280,8 +263,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
         };
 
     public static SystemActuatorExecutionResult TimeoutResult(int timeoutMs)
-        => new()
-        {
+        => new() {
             Stdout = string.Empty,
             Stderr = $"Command timed out ({timeoutMs}ms)",
             ExitCode = -1,
@@ -294,8 +276,7 @@ public sealed record SystemActuatorExecutionResult : ICommandExecutionResult
 /// <summary>
 /// 系统执行器后台任务信息
 /// </summary>
-public sealed record SystemActuatorBackgroundTaskInfo
-{
+public sealed record SystemActuatorBackgroundTaskInfo {
     public required string TaskId { get; init; }
     public required string Command { get; init; }
     public required TaskExecutionStatus Status { get; init; }
@@ -313,8 +294,7 @@ public sealed record SystemActuatorBackgroundTaskInfo
 /// <summary>
 /// 系统执行器后台化常量
 /// </summary>
-public static class SystemActuatorBackgroundConstants
-{
+public static class SystemActuatorBackgroundConstants {
     /// <summary>
     /// 后台化预算（15s）— Assistant 模式下命令运行超过此时间自动转后台
     /// </summary>
@@ -328,8 +308,7 @@ public static class SystemActuatorBackgroundConstants
     /// <summary>
     /// 判断命令是否允许自动后台化
     /// </summary>
-    public static bool IsAutoBackgroundAllowed(string command)
-    {
+    public static bool IsAutoBackgroundAllowed(string command) {
         var trimmed = command.TrimStart();
         var spaceIndex = trimmed.IndexOf(' ');
         var baseCmd = spaceIndex > 0 ? trimmed[..spaceIndex] : trimmed;

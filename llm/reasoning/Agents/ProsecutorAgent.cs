@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Agents;
 /// <summary>
 /// 控方Agent — 主动寻找证据，提出指控
 /// </summary>
-public sealed class ProsecutorAgent : ReasoningAgent
-{
+public sealed class ProsecutorAgent : ReasoningAgent {
     /// <summary>
     /// 系统提示词 — 检察官角色设定
     /// </summary>
@@ -30,41 +29,33 @@ public sealed class ProsecutorAgent : ReasoningAgent
     /// <param name="context">推理上下文</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>Agent 动作结果</returns>
-    public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct)
-    {
+    public override async Task<AgentAction> ReasonAsync(ReasoningContext context, CancellationToken ct) {
         var action = new AgentAction { AgentRole = Role, ActionType = "提出证据" };
 
         var unverified = context.GetVisibleItemsForRole(Role)
             .Where(x => x.State == DataState.Assumption)
             .ToList();
 
-        foreach (var item in unverified)
-        {
+        foreach (var item in unverified) {
             action.AffectedClaimIds.Add(item.Id);
         }
 
-        if (unverified.Count > 0)
-        {
+        if (unverified.Count > 0) {
             var claimsText = string.Join("\n", unverified.Select((x, i) => $"{i + 1}. {x.Content}"));
             var userPrompt = $"请为以下假定各提出至少一条支持证据：\n{claimsText}";
 
             userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
 
             var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.ProsecutorTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
-            if (llmResponse is not null)
-            {
-                foreach (var e in ParseEvidenceFromLlmResponse(llmResponse))
-                {
+            if (llmResponse is not null) {
+                foreach (var e in ParseEvidenceFromLlmResponse(llmResponse)) {
                     action.Evidence.Add(e);
                 }
             }
 
-            if (usage is not null)
-            {
+            if (usage is not null) {
                 action.TokensUsed = usage.TotalTokens + promptTokens;
-            }
-            else
-            {
+            } else {
                 action.TokensUsed = promptTokens;
             }
 
@@ -75,21 +66,17 @@ public sealed class ProsecutorAgent : ReasoningAgent
         return action;
     }
 
-    private List<EvidenceRecord> ParseEvidenceFromLlmResponse(string content)
-    {
+    private List<EvidenceRecord> ParseEvidenceFromLlmResponse(string content) {
         var records = new List<EvidenceRecord>();
-        try
-        {
+        try {
             var json = ExtractJsonObject(content, _logger);
             if (json is null) return records;
 
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("evidence", out var evidenceArray)) return records;
 
-            foreach (var item in evidenceArray.EnumerateArray())
-            {
-                records.Add(new EvidenceRecord
-                {
+            foreach (var item in evidenceArray.EnumerateArray()) {
+                records.Add(new EvidenceRecord {
                     Content = item.TryGetProperty("content", out var c) ? c.GetString() ?? string.Empty : string.Empty,
                     Source = item.TryGetProperty("source", out var s) ? s.GetString() : "LLM生成",
                     TrustLevel = item.TryGetProperty("trustLevel", out var t) ? ParseTrustLevel(t.GetString()) : TrustLevel.Moderate,
@@ -98,9 +85,7 @@ public sealed class ProsecutorAgent : ReasoningAgent
                     SubmittedBy = AgentRole.Prosecutor,
                 });
             }
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             _logger.LogWarning(ex, "[控方] 解析LLM证据JSON失败");
         }
 

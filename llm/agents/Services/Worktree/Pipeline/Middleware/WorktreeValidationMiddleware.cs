@@ -4,8 +4,7 @@ namespace Core.Agents.Worktree;
 /// Worktree 参数验证中间件 — 检查 AgentId 有效性
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WorktreeValidationMiddleware : ServiceEntity, IWorktreeCreateMiddleware
-{
+public sealed partial class WorktreeValidationMiddleware : ServiceEntity, IWorktreeCreateMiddleware {
 
     /// <summary>执行优先级:参数验证最先执行</summary>
     public int Order => 100;
@@ -16,23 +15,19 @@ public sealed partial class WorktreeValidationMiddleware : ServiceEntity, IWorkt
     /// <param name="context">worktree 创建上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct) {
         var agentId = context.AgentId;
 
-        if (string.IsNullOrWhiteSpace(agentId))
-        {
+        if (string.IsNullOrWhiteSpace(agentId)) {
             throw new ArgumentException("[AGT017] Agent ID 不能为空", nameof(agentId));
         }
 
-        if (agentId.Length > 64)
-        {
+        if (agentId.Length > 64) {
             throw new ArgumentException("[AGT018] Agent ID 长度超过 64 字符限制", nameof(agentId));
         }
 
         if (agentId.Contains("..") || agentId.Contains('/') || agentId.Contains('\\') || agentId.Contains(':')
-            || agentId.Contains('\0') || agentId.Any(char.IsControl))
-        {
+            || agentId.Contains('\0') || agentId.Any(char.IsControl)) {
             throw new ArgumentException("[AGT019] Agent ID 包含非法字符", nameof(agentId));
         }
 

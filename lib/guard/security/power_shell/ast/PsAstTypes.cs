@@ -4,8 +4,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// PS AST 解析结果 — 通过 spawn pwsh 子进程解析，JSON 反序列化填充
 /// 对齐 TS: ParsedPowerShellCommand
 /// </summary>
-public sealed class PsParsedCommand
-{
+public sealed class PsParsedCommand {
     /// <summary>是否解析成功（无语法错误）</summary>
     public bool Valid { get; init; }
 
@@ -40,8 +39,7 @@ public sealed class PsParsedCommand
 /// <summary>
 /// PS 解析错误 — 对齐 TS ParseError
 /// </summary>
-public sealed class PsParseError
-{
+public sealed class PsParseError {
     /// <summary>错误消息</summary>
     public string Message { get; init; } = string.Empty;
 
@@ -52,8 +50,7 @@ public sealed class PsParseError
 /// <summary>
 /// PS 语句 — 对应一个 pipeline（可含多个管道段命令）
 /// </summary>
-public sealed class PsStatement
-{
+public sealed class PsStatement {
     /// <summary>语句类型（PipelineAst, IfStatementAst 等）</summary>
     public string StatementType { get; init; } = string.Empty;
 
@@ -76,8 +73,7 @@ public sealed class PsStatement
 /// <summary>
 /// 安全模式 — 对齐 TS securityPatterns
 /// </summary>
-public sealed class PsSecurityPatterns
-{
+public sealed class PsSecurityPatterns {
     /// <summary>是否包含成员调用（.NET 方法调用）</summary>
     public bool HasMemberInvocations { get; init; }
 
@@ -94,8 +90,7 @@ public sealed class PsSecurityPatterns
 /// <summary>
 /// PS 命令元素 — 对应 CommandAst 的一个命令
 /// </summary>
-public sealed class PsCommandElement
-{
+public sealed class PsCommandElement {
     /// <summary>命令名（已去除模块前缀和引号）</summary>
     public string Name { get; init; } = string.Empty;
 
@@ -118,8 +113,7 @@ public sealed class PsCommandElement
 /// <summary>
 /// 命令名分类
 /// </summary>
-public enum PsCommandNameType
-{
+public enum PsCommandNameType {
     /// <summary>PS cmdlet（Verb-Noun 格式）</summary>
     [EnumValue("cmdlet")] Cmdlet,
     /// <summary>外部可执行文件（含路径分隔符）</summary>
@@ -131,8 +125,7 @@ public enum PsCommandNameType
 /// <summary>
 /// AST 元素类型 — 对应 TS 的 CommandElementType
 /// </summary>
-public enum PsElementType
-{
+public enum PsElementType {
     /// <summary>脚本块 { ... }</summary>
     [EnumValue("scriptBlock")] ScriptBlock,
     /// <summary>子表达式 $(...) / @(...) / (...)</summary>
@@ -159,8 +152,7 @@ public sealed record PsRedirection(string Operator, string Target, bool IsMergin
 /// <summary>
 /// 安全标志 — 从 AST 推导的安全相关标记
 /// </summary>
-public sealed class PsSecurityFlags
-{
+public sealed class PsSecurityFlags {
     /// <summary>是否包含子表达式</summary>
     public bool HasSubExpressions { get; init; }
 

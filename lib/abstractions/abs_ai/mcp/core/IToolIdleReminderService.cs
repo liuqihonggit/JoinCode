@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Interfaces;
 
-public interface IToolIdleReminderService
-{
+public interface IToolIdleReminderService {
     void RecordAssistantTurn(string? toolNameUsed = null);
 
     Task<IReadOnlyList<ToolIdleReminderResult>> CheckAndGenerateRemindersAsync(CancellationToken ct = default);

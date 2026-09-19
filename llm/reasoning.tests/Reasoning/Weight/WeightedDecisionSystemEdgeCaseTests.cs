@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Weight;
 
-public sealed class WeightedDecisionSystemEdgeCaseTests
-{
+public sealed class WeightedDecisionSystemEdgeCaseTests {
     [Fact]
-    public void MakeWeightedDecision_WithOnlyDefenseEvidence_ReturnsDefenseWeight()
-    {
+    public void MakeWeightedDecision_WithOnlyDefenseEvidence_ReturnsDefenseWeight() {
         var system = new WeightedDecisionSystem();
         var defEvidence = new List<EvidenceRecord>
         {
@@ -18,8 +16,7 @@ public sealed class WeightedDecisionSystemEdgeCaseTests
     }
 
     [Fact]
-    public void MakeWeightedDecision_FinalConfidence_IncludesBaseScoreWhenNoEvidence()
-    {
+    public void MakeWeightedDecision_FinalConfidence_IncludesBaseScoreWhenNoEvidence() {
         var system = new WeightedDecisionSystem();
 
         var result = system.MakeWeightedDecision([], []);
@@ -28,8 +25,7 @@ public sealed class WeightedDecisionSystemEdgeCaseTests
     }
 
     [Fact]
-    public void MakeWeightedDecision_FinalConfidence_WithEvidence_HasHigherScore()
-    {
+    public void MakeWeightedDecision_FinalConfidence_WithEvidence_HasHigherScore() {
         var system = new WeightedDecisionSystem();
         var pros = new List<EvidenceRecord>
         {
@@ -42,8 +38,7 @@ public sealed class WeightedDecisionSystemEdgeCaseTests
     }
 
     [Fact]
-    public void MakeWeightedDecision_TopologyImpact_IsNonNegative()
-    {
+    public void MakeWeightedDecision_TopologyImpact_IsNonNegative() {
         var system = new WeightedDecisionSystem();
         var pros = new List<EvidenceRecord>
         {
@@ -56,8 +51,7 @@ public sealed class WeightedDecisionSystemEdgeCaseTests
     }
 
     [Fact]
-    public void MakeWeightedDecision_BeliefConsistency_IsNonNegative()
-    {
+    public void MakeWeightedDecision_BeliefConsistency_IsNonNegative() {
         var system = new WeightedDecisionSystem();
         var pros = new List<EvidenceRecord>
         {
@@ -71,8 +65,7 @@ public sealed class WeightedDecisionSystemEdgeCaseTests
     }
 
     [Fact]
-    public void MakeWeightedDecision_ChainScores_ArePopulated()
-    {
+    public void MakeWeightedDecision_ChainScores_ArePopulated() {
         var system = new WeightedDecisionSystem();
         var pros = new List<EvidenceRecord>
         {

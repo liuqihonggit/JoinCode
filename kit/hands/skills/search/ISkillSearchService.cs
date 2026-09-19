@@ -4,8 +4,7 @@ namespace Core.Skills.Search;
 /// <summary>
 /// 技能搜索服务接口 — 提供技能搜索、推荐和流式搜索能力
 /// </summary>
-public interface ISkillSearchService
-{
+public interface ISkillSearchService {
     /// <summary>
     /// 异步搜索技能
     /// </summary>

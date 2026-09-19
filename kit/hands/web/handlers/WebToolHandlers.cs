@@ -8,8 +8,7 @@ namespace Tools.Handlers;
 /// 对齐 TS 版 web_fetch/web_to_markdown/web_search 工具实现。
 /// </summary>
 [McpToolDispatch(ToolCategory.Web)]
-public class WebToolHandlers
-{
+public class WebToolHandlers {
     private readonly IWebService _webService;
     private readonly JoinCode.Abstractions.LLM.IQueryService? _queryService;
     private readonly ITelemetryService? _telemetryService;
@@ -26,8 +25,7 @@ public class WebToolHandlers
         IWebService webService,
         JoinCode.Abstractions.LLM.IQueryService? queryService = null,
         ITelemetryService? telemetryService = null,
-        ProviderConfig? providerConfig = null)
-    {
+        ProviderConfig? providerConfig = null) {
         _webService = webService ?? throw new ArgumentNullException(nameof(webService));
         _queryService = queryService;
         _telemetryService = telemetryService;
@@ -45,14 +43,12 @@ public class WebToolHandlers
     public async Task<ToolResult> WebFetchAsync(
         [McpToolParameter("URL to fetch")] string url,
         [McpToolParameter("Prompt describing what information to extract from the page")] string prompt,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(url, "url"),
             ValidationHelper.ValidateRequired(prompt, "prompt"),
             ValidationHelper.ValidateStringLength(url, 2048, "URL"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -62,8 +58,7 @@ public class WebToolHandlers
 
         var result = await _webService.FetchAsync(url, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordWebMetrics("fetch", "failed");
             var errorMsg = result.ErrorMessage ?? "Failed to fetch web content";
             errorMsg += $"\n[诊断] URL: {url}, HTTP 状态码: {result.StatusCode}";
@@ -76,10 +71,8 @@ public class WebToolHandlers
                 .Build();
         }
 
-        if (result.RedirectUrl != null)
-        {
-            var statusText = result.RedirectStatusCode switch
-            {
+        if (result.RedirectUrl != null) {
+            var statusText = result.RedirectStatusCode switch {
                 301 => "Moved Permanently",
                 308 => "Permanent Redirect",
                 307 => "Temporary Redirect",
@@ -101,12 +94,9 @@ public class WebToolHandlers
         var isPreapproved = IsPreapprovedUrl(url);
         if (isPreapproved
             && (result.ContentType?.Contains("text/markdown", StringComparison.OrdinalIgnoreCase) ?? false)
-            && markdownContent.Length < 100_000)
-        {
+            && markdownContent.Length < 100_000) {
             processedResult = markdownContent;
-        }
-        else
-        {
+        } else {
             processedResult = await ApplyPromptToMarkdownAsync(
                 prompt, markdownContent, url, cancellationToken).ConfigureAwait(false);
         }
@@ -116,8 +106,7 @@ public class WebToolHandlers
         // 对齐TS版: 二进制内容持久化路径提示
         // TS: [Binary content (contentType, size) also saved to path]
         var finalResult = processedResult;
-        if (result.PersistedPath is not null)
-        {
+        if (result.PersistedPath is not null) {
             var sizeStr = ContentReplacementConstants.FormatFileSize(result.PersistedSize);
             finalResult += $"\n\n[Binary content ({result.ContentType}, {sizeStr}) also saved to {result.PersistedPath}]";
         }
@@ -140,22 +129,19 @@ public class WebToolHandlers
     public async Task<ToolResult> WebToMarkdownAsync(
         [McpToolParameter("URL to fetch and convert to Markdown")] string url,
         [McpToolParameter("Maximum length of the output in characters, default 100000", Required = false, DefaultValue = "100000")] int? max_length = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(url, "url"),
             ValidationHelper.ValidateStringLength(url, 2048, "URL"),
             ValidationHelper.ValidateRange(max_length, 1, int.MaxValue, "max_length"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
 
         var result = await _webService.FetchAsync(url, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordWebMetrics("to_markdown", "failed");
             var diag = BuildFetchFailedDiagnostic(url, result.StatusCode, result.ErrorMessage);
             return ToolResultBuilder.Error()
@@ -165,8 +151,7 @@ public class WebToolHandlers
                 .Build();
         }
 
-        if (result.RedirectUrl != null)
-        {
+        if (result.RedirectUrl != null) {
             RecordWebMetrics("to_markdown", "redirect");
             var diag = BuildRedirectDiagnostic(url, result.RedirectUrl, result.RedirectStatusCode);
             return ToolResultBuilder.Error()
@@ -179,8 +164,7 @@ public class WebToolHandlers
         var markdownContent = result.Content ?? string.Empty;
         var maxLength = max_length ?? 100_000;
 
-        if (markdownContent.Length > maxLength)
-        {
+        if (markdownContent.Length > maxLength) {
             markdownContent = markdownContent[..maxLength] + "\n\n[Content truncated due to length...]";
         }
 
@@ -205,13 +189,11 @@ public class WebToolHandlers
         [McpToolParameter("Search query")] string query,
         [McpToolParameter("Only include results from these domains", Required = false)] string[]? allowed_domains = null,
         [McpToolParameter("Exclude results from these domains", Required = false)] string[]? blocked_domains = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(query, "query"),
             ValidationHelper.ValidateStringLength(query, 500, "search query"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var diag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(diag.FormattedMessage).WithDiagnostic(diag).Build();
         }
@@ -222,8 +204,7 @@ public class WebToolHandlers
             blockedDomains: blocked_domains,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             RecordWebMetrics("search", "failed");
             var errorMsg = result.ErrorMessage ?? "Search failed";
             errorMsg += $"\n[诊断] query: \"{query}\"";
@@ -238,28 +219,22 @@ public class WebToolHandlers
         var response = new StringBuilder();
 
         // 对齐 TS 版 mapToolResultToToolResultBlockParam 格式
-        if (result.Results.Count > 0)
-        {
+        if (result.Results.Count > 0) {
             response.AppendLine("Links:");
-            for (int i = 0; i < result.Results.Count; i++)
-            {
+            for (var i = 0; i < result.Results.Count; i++) {
                 var item = result.Results[i];
                 response.AppendLine($"{i + 1}. [{item.Title}]({item.Url})");
 
-                if (!string.IsNullOrEmpty(item.Snippet))
-                {
+                if (!string.IsNullOrEmpty(item.Snippet)) {
                     response.AppendLine($"   Snippet: {item.Snippet}");
                 }
             }
-        }
-        else
-        {
+        } else {
             // 对齐 TS 版: 无搜索结果时输出 "No links found."
             response.AppendLine("No links found.");
         }
 
-        if (result.DurationSeconds > 0)
-        {
+        if (result.DurationSeconds > 0) {
             response.AppendLine();
             response.AppendLine($"Search completed in {result.DurationSeconds:F1}s");
         }
@@ -276,10 +251,8 @@ public class WebToolHandlers
         string prompt,
         string markdownContent,
         string url,
-        CancellationToken cancellationToken)
-    {
-        if (_queryService == null)
-        {
+        CancellationToken cancellationToken) {
+        if (_queryService == null) {
             return markdownContent.Length > 5000
                 ? markdownContent[..5000] + "\n\n[Content truncated — LLM processing unavailable]"
                 : markdownContent;
@@ -298,16 +271,14 @@ public class WebToolHandlers
 
         // 对齐 TS 版 queryHaiku — 使用快速模型处理 WebFetch 的二级调用
         var fastModelId = _providerConfig?.Definition?.DefaultFastModelId;
-        var options = new ChatOptions
-        {
+        var options = new ChatOptions {
             Temperature = 0,
             MaxTokens = 4096,
             FastMode = !string.IsNullOrEmpty(fastModelId),
             FastModelId = fastModelId
         };
 
-        try
-        {
+        try {
             var results = await _queryService.GetApiMessageContentsAsync(
                 chatHistory,
                 options,
@@ -315,22 +286,18 @@ public class WebToolHandlers
 
             var responseText = results.FirstOrDefault()?.Content;
             return !string.IsNullOrEmpty(responseText) ? responseText : "No response from model";
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             return markdownContent.Length > 5000
                 ? markdownContent[..5000] + $"\n\n[LLM processing failed: [{ex.GetType().Name}] {ex.Message}]"
                 : markdownContent;
         }
     }
 
-    private static bool IsPreapprovedUrl(string url)
-    {
+    private static bool IsPreapprovedUrl(string url) {
         return PreapprovedDomains.IsPreapprovedUrl(url);
     }
 
-    private void RecordWebMetrics(string operation, string result, int size = 0)
-    {
+    private void RecordWebMetrics(string operation, string result, int size = 0) {
         ToolTelemetryHelper.RecordToolCount(_telemetryService, "web.operation.count", operation, result);
         if (size > 0) ToolTelemetryHelper.RecordToolHistogram(_telemetryService, "web.operation.size", size, new Dictionary<string, string> { ["operation"] = operation }, "bytes", "Web operation response size");
     }

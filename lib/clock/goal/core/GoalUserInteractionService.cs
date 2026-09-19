@@ -6,8 +6,7 @@ namespace Core.Goal;
 /// 封装 IInteractiveService，1分钟超时后协调者自动接管
 /// </summary>
 [Register(typeof(IGoalUserInteraction), ServiceLifetime.Singleton)]
-public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInteraction
-{
+public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInteraction {
     private readonly IInteractiveService _interactiveService;
     private readonly ILogger<GoalUserInteractionService>? _logger;
 
@@ -16,8 +15,7 @@ public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInterac
     /// </summary>
     /// <param name="interactiveService">底层用户交互服务</param>
     /// <param name="logger">可选日志记录器</param>
-    public GoalUserInteractionService(IInteractiveService interactiveService, ILogger<GoalUserInteractionService>? logger = null)
-    {
+    public GoalUserInteractionService(IInteractiveService interactiveService, ILogger<GoalUserInteractionService>? logger = null) {
         _interactiveService = interactiveService;
         _logger = logger;
     }
@@ -28,13 +26,11 @@ public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInterac
         int negativeReviewCount,
         int loopIteration,
         int timeoutSeconds = 60,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
-        try
-        {
+        try {
             var options = new List<string> { "继续循环", "停止循环" };
 
             var result = await _interactiveService.AskUserQuestionAsync(
@@ -42,8 +38,7 @@ public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInterac
                 options,
                 cancellationToken: timeoutCts.Token).ConfigureAwait(false);
 
-            if (!result.Success || result.Cancelled)
-            {
+            if (!result.Success || result.Cancelled) {
                 _logger?.LogWarning("[GoalUserInteraction] 用户拒绝回答或交互失败，协调者接管");
                 return GoalUserDecision.CoordinatorTakeover("User declined or interaction failed");
             }
@@ -57,9 +52,7 @@ public sealed class GoalUserInteractionService : ServiceEntity, IGoalUserInterac
             return shouldContinue
                 ? GoalUserDecision.Continue()
                 : GoalUserDecision.Stop();
-        }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested) {
             _logger?.LogWarning("[GoalUserInteraction] 用户交互超时({Timeout}s)，协调者接管 (负评:{NegCount}, 迭代:{Iter})",
                 timeoutSeconds, negativeReviewCount, loopIteration);
 

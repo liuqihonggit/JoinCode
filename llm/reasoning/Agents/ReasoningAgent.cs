@@ -6,8 +6,7 @@ namespace JoinCode.Reasoning.Agents;
 /// 额外提供 LLM 调用 + 消息通信能力
 /// 子类: ProsecutorAgent, JudgeAgent, DefenderAgent
 /// </summary>
-public abstract class ReasoningAgent : AgentBase
-{
+public abstract class ReasoningAgent : AgentBase {
     /// <summary>
     /// 日志记录器
     /// </summary>
@@ -49,8 +48,7 @@ public abstract class ReasoningAgent : AgentBase
         string name,
         IChatClient? chatClient = null,
         IMailbox? messageBroker = null)
-        : base(string.Empty, null, queryEngine, logger, name: name, role: role)
-    {
+        : base(string.Empty, null, queryEngine, logger, name: name, role: role) {
         _logger = logger;
         _chatClient = chatClient;
         _messageBroker = messageBroker;
@@ -59,8 +57,7 @@ public abstract class ReasoningAgent : AgentBase
     /// <summary>
     /// 调用LLM获取结构化响应
     /// </summary>
-    protected async Task<(string? Content, TokenUsage? Usage, int EstimatedPromptTokens)> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default)
-    {
+    protected async Task<(string? Content, TokenUsage? Usage, int EstimatedPromptTokens)> CallLlmAsync(string userPrompt, float temperature = 0.3f, int maxTokens = 2000, CancellationToken ct = default) {
         if (_chatClient is null) return (null, null, 0);
 
         var estimatedPromptTokens = PromptBudgetEstimator.Estimate(SystemPrompt, userPrompt);
@@ -74,14 +71,11 @@ public abstract class ReasoningAgent : AgentBase
 
         var options = new ChatOptions { Temperature = temperature, MaxTokens = maxTokens };
 
-        try
-        {
+        try {
             var results = await chatService.GetApiMessageContentsAsync(chatHistory, options, _chatClient, ct).ConfigureAwait(false);
             var result = results.FirstOrDefault();
             return (result?.Content, result?.TokenUsage, estimatedPromptTokens);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[{AgentName}] LLM调用失败", Name);
             return (null, null, estimatedPromptTokens);
         }
@@ -90,12 +84,10 @@ public abstract class ReasoningAgent : AgentBase
     /// <summary>
     /// 向指定Agent发送消息
     /// </summary>
-    protected async Task SendMessageAsync(string toAgentId, string messageType, string content, CancellationToken ct = default)
-    {
+    protected async Task SendMessageAsync(string toAgentId, string messageType, string content, CancellationToken ct = default) {
         if (_messageBroker is null) return;
 
-        var message = new CoordinatorMessage
-        {
+        var message = new CoordinatorMessage {
             FromAgentId = Role.ToValue(),
             ToAgentId = toAgentId,
             MessageType = messageType,
@@ -109,12 +101,10 @@ public abstract class ReasoningAgent : AgentBase
     /// <summary>
     /// 广播消息给所有已注册Agent
     /// </summary>
-    protected async Task BroadcastAsync(string messageType, string content, CancellationToken ct = default)
-    {
+    protected async Task BroadcastAsync(string messageType, string content, CancellationToken ct = default) {
         if (_messageBroker is null) return;
 
-        var message = new CoordinatorMessage
-        {
+        var message = new CoordinatorMessage {
             FromAgentId = Role.ToValue(),
             ToAgentId = "broadcast",
             MessageType = messageType,
@@ -128,11 +118,9 @@ public abstract class ReasoningAgent : AgentBase
     /// <summary>
     /// 从 LLM 输出中提取 JSON 对象
     /// </summary>
-    protected static string? ExtractJsonObject(string content, ILogger? logger = null)
-    {
+    protected static string? ExtractJsonObject(string content, ILogger? logger = null) {
         var json = LlmJsonHelper.ExtractJsonBlock(content);
-        if (json is not null)
-        {
+        if (json is not null) {
             var repairResult = LlmJsonHelper.RepairJson(json, logger);
             return repairResult.Success ? repairResult.RepairedJson : json;
         }
@@ -148,8 +136,7 @@ public abstract class ReasoningAgent : AgentBase
     /// <summary>
     /// 如果 ContextManager 可用且 prompt 超预算，则压缩
     /// </summary>
-    protected async Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct)
-    {
+    protected async Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct) {
         if (ContextManager is null) return userPrompt;
 
         var estimatedTokens = PromptBudgetEstimator.Estimate(userPrompt);
@@ -167,8 +154,7 @@ public abstract class ReasoningAgent : AgentBase
     /// <summary>
     /// 解析信任度枚举
     /// </summary>
-    protected static TrustLevel ParseTrustLevel(string? value) => value switch
-    {
+    protected static TrustLevel ParseTrustLevel(string? value) => value switch {
         "DirectEvidence" => TrustLevel.DirectEvidence,
         "StrongCorroboration" => TrustLevel.StrongCorroboration,
         "Weak" => TrustLevel.Weak,

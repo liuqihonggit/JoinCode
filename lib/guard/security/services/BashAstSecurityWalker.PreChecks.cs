@@ -1,11 +1,8 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
-public sealed partial class BashAstSecurityWalker
-{
-    private static BashAstSecurityResult? RunPreChecks(string command)
-    {
-        foreach (var item in BashPreCheckRegistry.All)
-        {
+public sealed partial class BashAstSecurityWalker {
+    private static BashAstSecurityResult? RunPreChecks(string command) {
+        foreach (var item in BashPreCheckRegistry.All) {
             if (item.IsMatch(command))
                 return new BashAstSecurityResult.TooComplex(item.Message, item.NodeType);
         }
@@ -17,47 +14,34 @@ public sealed partial class BashAstSecurityWalker
         return null;
     }
 
-    private static string MaskBracesInQuotedContexts(string cmd)
-    {
+    private static string MaskBracesInQuotedContexts(string cmd) {
         if (!cmd.Contains('{')) return cmd;
 
         var result = new StringBuilder(cmd.Length);
         var inSingle = false;
         var inDouble = false;
 
-        for (var i = 0; i < cmd.Length; i++)
-        {
+        for (var i = 0; i < cmd.Length; i++) {
             var c = cmd[i];
 
-            if (inSingle)
-            {
+            if (inSingle) {
                 if (c == '\'') inSingle = false;
                 result.Append(c == '{' ? ' ' : c);
-            }
-            else if (inDouble)
-            {
-                if (c == '\\' && i + 1 < cmd.Length && (cmd[i + 1] == '"' || cmd[i + 1] == '\\'))
-                {
+            } else if (inDouble) {
+                if (c == '\\' && i + 1 < cmd.Length && (cmd[i + 1] == '"' || cmd[i + 1] == '\\')) {
                     result.Append(c);
                     result.Append(cmd[i + 1]);
                     i++;
-                }
-                else
-                {
+                } else {
                     if (c == '"') inDouble = false;
                     result.Append(c == '{' ? ' ' : c);
                 }
-            }
-            else
-            {
-                if (c == '\\' && i + 1 < cmd.Length)
-                {
+            } else {
+                if (c == '\\' && i + 1 < cmd.Length) {
                     result.Append(c);
                     result.Append(cmd[i + 1]);
                     i++;
-                }
-                else
-                {
+                } else {
                     if (c == '\'') inSingle = true;
                     else if (c == '"') inDouble = true;
                     result.Append(c);
@@ -68,11 +52,9 @@ public sealed partial class BashAstSecurityWalker
         return result.ToString();
     }
 
-    private static bool HasErrorNode(Node node)
-    {
+    private static bool HasErrorNode(Node node) {
         if (node.IsError || node.IsMissing) return true;
-        foreach (var child in node.Children)
-        {
+        foreach (var child in node.Children) {
             if (HasErrorNode(child)) return true;
         }
         return false;
@@ -84,8 +66,7 @@ public sealed partial class BashAstSecurityWalker
     private static BashAstSecurityResult TooComplexNode(Node node)
         => new BashAstSecurityResult.TooComplex($"无法静态分析: {node.Type}", node.Type);
 
-    private static string StripRawString(string text)
-    {
+    private static string StripRawString(string text) {
         if (text.Length >= 2 && text[0] == '\'' && text[^1] == '\'')
             return text[1..^1];
         return text;
@@ -98,14 +79,12 @@ public sealed partial class BashAstSecurityWalker
     private static bool IsValidVarName(string name)
         => BashSecurityRegex.ValidVarNameRegex().IsMatch(name);
 
-    private static bool IsPs4ValueSafe(string value)
-    {
+    private static bool IsPs4ValueSafe(string value) {
         var stripped = BashSecurityRegex.Ps4VarRefRegex().Replace(value, "");
         return BashSecurityRegex.Ps4SafeCharsetRegex().IsMatch(stripped);
     }
 
-    private sealed class StringOrTooComplex
-    {
+    private sealed class StringOrTooComplex {
         public string Value { get; }
         public BashAstSecurityResult? TooComplex { get; }
         public bool IsTooComplex => TooComplex is not null;
@@ -119,8 +98,7 @@ public sealed partial class BashAstSecurityWalker
 
     private sealed record VarAssignmentResult(string Name, string Value, bool IsAppend);
 
-    private sealed class VarAssignmentOrTooComplex
-    {
+    private sealed class VarAssignmentOrTooComplex {
         public VarAssignmentResult? Result { get; }
         public BashAstSecurityResult? TooComplex { get; }
         public bool IsTooComplex => TooComplex is not null;
@@ -134,8 +112,7 @@ public sealed partial class BashAstSecurityWalker
 
     private sealed record RedirectResult(string Op, string Target);
 
-    private sealed class RedirectOrTooComplex
-    {
+    private sealed class RedirectOrTooComplex {
         public RedirectResult? Result { get; }
         public BashAstSecurityResult? TooComplex { get; }
         public bool IsTooComplex => TooComplex is not null;

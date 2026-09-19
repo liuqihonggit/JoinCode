@@ -1,35 +1,30 @@
 namespace Infra.Tests.Utils.Async;
 
 
-public class ExponentialBackoffTests
-{
+public class ExponentialBackoffTests {
     [Fact]
-    public void CalculateDelay_Attempt0_ShouldReturnBaseDelay()
-    {
+    public void CalculateDelay_Attempt0_ShouldReturnBaseDelay() {
         var backoff = new ExponentialBackoff(TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(10));
         var delay = backoff.CalculateDelay(0);
         delay.Should().Be(TimeSpan.FromMilliseconds(100));
     }
 
     [Fact]
-    public void CalculateDelay_Attempt1_ShouldDouble()
-    {
+    public void CalculateDelay_Attempt1_ShouldDouble() {
         var backoff = new ExponentialBackoff(TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(10));
         var delay = backoff.CalculateDelay(1);
         delay.Should().Be(TimeSpan.FromMilliseconds(200));
     }
 
     [Fact]
-    public void CalculateDelay_Attempt2_ShouldQuadruple()
-    {
+    public void CalculateDelay_Attempt2_ShouldQuadruple() {
         var backoff = new ExponentialBackoff(TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(10));
         var delay = backoff.CalculateDelay(2);
         delay.Should().Be(TimeSpan.FromMilliseconds(400));
     }
 
     [Fact]
-    public void CalculateDelay_ShouldNotExceedMaxDelay()
-    {
+    public void CalculateDelay_ShouldNotExceedMaxDelay() {
         var backoff = new ExponentialBackoff(TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(300));
         backoff.CalculateDelay(0).Should().Be(TimeSpan.FromMilliseconds(100));
         backoff.CalculateDelay(1).Should().Be(TimeSpan.FromMilliseconds(200));
@@ -38,16 +33,14 @@ public class ExponentialBackoffTests
     }
 
     [Fact]
-    public void Default_ShouldHaveReasonableValues()
-    {
+    public void Default_ShouldHaveReasonableValues() {
         var d = ExponentialBackoff.Default;
         d.BaseDelay.Should().Be(TimeSpan.FromMilliseconds(200));
         d.MaxDelay.Should().Be(TimeSpan.FromSeconds(30));
     }
 
     [Fact]
-    public void MaxShiftBits_ShouldLimitExponent()
-    {
+    public void MaxShiftBits_ShouldLimitExponent() {
         var backoff = new ExponentialBackoff(TimeSpan.FromMilliseconds(100), TimeSpan.FromSeconds(60), maxShiftBits: 3);
         backoff.CalculateDelay(0).Should().Be(TimeSpan.FromMilliseconds(100));
         backoff.CalculateDelay(3).Should().Be(TimeSpan.FromMilliseconds(800));
@@ -55,11 +48,9 @@ public class ExponentialBackoffTests
     }
 }
 
-public class TimeoutHelperTests
-{
+public class TimeoutHelperTests {
     [Fact]
-    public async Task WithTimeoutAsync_ShouldCompleteWithinTimeout()
-    {
+    public async Task WithTimeoutAsync_ShouldCompleteWithinTimeout() {
         var result = await TimeoutHelper.WithTimeoutAsync(
             ct => Task.FromResult(42),
             TimeSpan.FromSeconds(5));
@@ -67,8 +58,7 @@ public class TimeoutHelperTests
     }
 
     [Fact]
-    public async Task WithTimeoutAsync_ShouldThrowOnTimeout()
-    {
+    public async Task WithTimeoutAsync_ShouldThrowOnTimeout() {
         var act = () => TimeoutHelper.WithTimeoutAsync(
             ct => Task.Delay(TimeSpan.FromSeconds(10), ct),
             TimeSpan.FromMilliseconds(50));
@@ -76,8 +66,7 @@ public class TimeoutHelperTests
     }
 
     [Fact]
-    public async Task WithTimeoutAsync_ShouldPropagateCancellation()
-    {
+    public async Task WithTimeoutAsync_ShouldPropagateCancellation() {
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
         var act = () => TimeoutHelper.WithTimeoutAsync(
@@ -88,8 +77,7 @@ public class TimeoutHelperTests
     }
 
     [Fact]
-    public void CreateLinkedTimeout_ShouldCreateLinkedCts()
-    {
+    public void CreateLinkedTimeout_ShouldCreateLinkedCts() {
         using var parentCts = new CancellationTokenSource();
         using var linked = TimeoutHelper.CreateLinkedTimeout(parentCts.Token, TimeSpan.FromSeconds(5));
         linked.Should().NotBeNull();
@@ -97,8 +85,7 @@ public class TimeoutHelperTests
     }
 
     [Fact]
-    public async Task CreateLinkedTimeout_ShouldCancelAfterTimeout()
-    {
+    public async Task CreateLinkedTimeout_ShouldCancelAfterTimeout() {
         using var linked = TimeoutHelper.CreateLinkedTimeout(CancellationToken.None, TimeSpan.FromMilliseconds(1));
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
         while (!linked.IsCancellationRequested && DateTime.UtcNow < deadline)

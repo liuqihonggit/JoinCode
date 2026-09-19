@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Brain.Context.Resolution;
 /// <summary>
 /// 基于引用探索代码的结果
 /// </summary>
-public sealed record ExploreReferenceResult
-{
+public sealed record ExploreReferenceResult {
     /// <summary>
     /// 是否成功
     /// </summary>
@@ -66,8 +65,7 @@ public sealed record ExploreReferenceResult
         string exploreId,
         long executionTimeMs,
         TokenUsage tokenUsage)
-        => new()
-        {
+        => new() {
             Success = true,
             ResolvedReference = resolvedReference,
             Files = files.ToList(),
@@ -81,8 +79,7 @@ public sealed record ExploreReferenceResult
     /// 创建失败结果
     /// </summary>
     public static ExploreReferenceResult FailureResult(string errorMessage)
-        => new()
-        {
+        => new() {
             Success = false,
             ErrorMessage = errorMessage
         };
@@ -91,8 +88,7 @@ public sealed record ExploreReferenceResult
 /// <summary>
 /// 被探索的文件信息
 /// </summary>
-public sealed record ExploredFile
-{
+public sealed record ExploredFile {
     /// <summary>
     /// 文件路径
     /// </summary>
@@ -137,8 +133,7 @@ public sealed record ExploredFile
 /// <summary>
 /// 代码片段
 /// </summary>
-public sealed record CodeSnippet
-{
+public sealed record CodeSnippet {
     /// <summary>
     /// 来源文件路径
     /// </summary>

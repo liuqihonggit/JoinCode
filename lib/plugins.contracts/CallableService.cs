@@ -6,21 +6,18 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>源码生成器扫描此特性生成调用包装（后续扩展）</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-public sealed class ServiceInvokeAttribute : Attribute
-{
+public sealed class ServiceInvokeAttribute : Attribute {
 }
 
 /// <summary>
 /// 可调用服务包装 — 把服务方法包成委托直接调用
 /// <para>对齐 DSH ctx.logger() 式：ctx.MyService(arg) 直接调用</para>
 /// </summary>
-public sealed class CallableService<TArg, TResult>
-{
+public sealed class CallableService<TArg, TResult> {
     private readonly Func<TArg, TResult> _func;
 
     /// <param name="func">服务调用委托</param>
-    public CallableService(Func<TArg, TResult> func)
-    {
+    public CallableService(Func<TArg, TResult> func) {
         ArgumentNullException.ThrowIfNull(func);
         _func = func;
     }
@@ -32,13 +29,11 @@ public sealed class CallableService<TArg, TResult>
 /// <summary>
 /// 可调用服务包装（无参数版本）
 /// </summary>
-public sealed class CallableService<TResult>
-{
+public sealed class CallableService<TResult> {
     private readonly Func<TResult> _func;
 
     /// <param name="func">服务调用委托</param>
-    public CallableService(Func<TResult> func)
-    {
+    public CallableService(Func<TResult> func) {
         ArgumentNullException.ThrowIfNull(func);
         _func = func;
     }

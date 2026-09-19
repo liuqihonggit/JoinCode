@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 插件类型 — 区分三种插件 Host (Workflow/External/Native)
 /// <para>用于 PluginManager 统一字典中按类型分发卸载/查询逻辑</para>
 /// </summary>
-public enum PluginKind
-{
+public enum PluginKind {
     /// <summary>工作流插件 (编译时已知,AOT兼容)</summary>
     [EnumValue("workflow")] Workflow,
 

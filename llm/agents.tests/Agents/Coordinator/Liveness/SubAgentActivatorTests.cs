@@ -3,17 +3,14 @@ namespace Sync.Tests.Agents.Coordinator.Liveness;
 /// <summary>
 /// SubAgentActivator 单元测试 — 验证激活动作注入催促提示+恢复执行（ADR 0106 L3）
 /// </summary>
-public sealed class SubAgentActivatorTests
-{
-    private static AgentBase CreateAgent(string task = "test task")
-    {
+public sealed class SubAgentActivatorTests {
+    private static AgentBase CreateAgent(string task = "test task") {
         var queryEngineMock = new Mock<IQueryEngine>();
         return new AgentBase(task, null, queryEngineMock.Object, null);
     }
 
     [Fact]
-    public async Task ActivateAsync_AgentNotFound_ReturnsAgentNotFound()
-    {
+    public async Task ActivateAsync_AgentNotFound_ReturnsAgentNotFound() {
         var lifecycleMock = new Mock<IAgentLifecycleManager>();
         lifecycleMock
             .Setup(x => x.GetAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -27,8 +24,7 @@ public sealed class SubAgentActivatorTests
     }
 
     [Fact]
-    public async Task ActivateAsync_AgentRunning_InjectsPromptAndSucceeds()
-    {
+    public async Task ActivateAsync_AgentRunning_InjectsPromptAndSucceeds() {
         var agent = CreateAgent("test task");
         agent.Status = TaskExecutionStatus.Running;
         var lifecycleMock = new Mock<IAgentLifecycleManager>();
@@ -45,8 +41,7 @@ public sealed class SubAgentActivatorTests
     }
 
     [Fact]
-    public async Task ActivateAsync_AgentPaused_InjectsPromptAndResumes()
-    {
+    public async Task ActivateAsync_AgentPaused_InjectsPromptAndResumes() {
         var agent = CreateAgent("test task");
         agent.Status = TaskExecutionStatus.Paused;
         var lifecycleMock = new Mock<IAgentLifecycleManager>();
@@ -63,8 +58,7 @@ public sealed class SubAgentActivatorTests
     }
 
     [Fact]
-    public async Task ActivateAsync_TouchesEntity_LastActivityAtUpdated()
-    {
+    public async Task ActivateAsync_TouchesEntity_LastActivityAtUpdated() {
         var agent = CreateAgent("test task");
         agent.Status = TaskExecutionStatus.Running;
         var before = agent.LastActivityAt;
@@ -81,8 +75,7 @@ public sealed class SubAgentActivatorTests
     }
 
     [Fact]
-    public async Task ActivateAsync_DefaultIdleSeconds_Uses30()
-    {
+    public async Task ActivateAsync_DefaultIdleSeconds_Uses30() {
         var agent = CreateAgent("test task");
         agent.Status = TaskExecutionStatus.Running;
         var lifecycleMock = new Mock<IAgentLifecycleManager>();

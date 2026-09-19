@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <summary>
 /// Task 注册器 — 基于 MapRegistry，内部字典，对外暴露遍历器 + 字典视图
 /// </summary>
-public sealed class TaskRegistry : MapRegistry<ObjectId, AgentTask>
-{
+public sealed class TaskRegistry : MapRegistry<ObjectId, AgentTask> {
     /// <summary>注册任务（internal，AgentTask构造时自动调用）</summary>
     internal void Add(ObjectId id, AgentTask task) => AddCore(id, task);
 

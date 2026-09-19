@@ -4,8 +4,7 @@ namespace McpToolRegistry;
 /// 远程工具规格缓存 — 管理每个客户端最近一次同步的工具规格列表
 /// 持有以 clientId 为 key 的规格缓存字典，提供查询、更新、移除、清空操作
 /// </summary>
-internal sealed class RemoteToolSpecCache
-{
+internal sealed class RemoteToolSpecCache {
     private readonly ConcurrentDictionary<string, List<ToolSpec>> _specs = new();
 
     /// <summary>获取客户端的工具规格缓存（未找到返回 null）</summary>

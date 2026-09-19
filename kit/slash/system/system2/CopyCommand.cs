@@ -8,20 +8,16 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Copy, Description = "复制最近的 AI 回复到剪贴板（/copy N 复制第N条）", Usage = "/copy [N|code]", Category = ChatCommandCategory.System, ArgumentHint = "[N|code]")]
 [ChatCommandArg("target", Type = "string", Description = "复制目标：N=第N条助手消息(1=最新)，code=最近代码块", Enum = new[] { "code", "c", "1", "2", "3" })]
-public sealed class CopyCommand : ChatCommandBase
-{
+public sealed class CopyCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /copy 命令 — 根据参数复制指定助手消息或最近代码块到剪贴板
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数、会话 ID、取消令牌等</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var clipboardService = context.GetCommandServices().ClipboardService;
-        if (clipboardService is null)
-        {
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+        if (clipboardService is null) {
+            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 TerminalHelper.WriteLine("剪贴板服务未初始化");
             }
             return ChatCommandResult.Continue();
@@ -29,50 +25,38 @@ public sealed class CopyCommand : ChatCommandBase
 
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        try
-        {
+        try {
             var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
             // 对齐 TS: 只收集有文本内容的助手消息（跳过纯工具调用轮次）
             var assistantMessages = history.Where(m =>
                 m.Role.Equals(MessageRoleEnumConstants.Assistant, StringComparison.OrdinalIgnoreCase) &&
                 !string.IsNullOrWhiteSpace(m.Content)).ToList();
 
-            if (assistantMessages.Count == 0)
-            {
+            if (assistantMessages.Count == 0) {
                 TerminalHelper.WriteLine("没有可复制的 AI 消息");
                 return ChatCommandResult.Continue();
             }
 
             if (args.Equals("code", StringComparison.OrdinalIgnoreCase) ||
-                args.Equals("c", StringComparison.OrdinalIgnoreCase))
-            {
+                args.Equals("c", StringComparison.OrdinalIgnoreCase)) {
                 await CopyCodeBlockAsync(context, assistantMessages).ConfigureAwait(false);
-            }
-            else if (!string.IsNullOrEmpty(args) && int.TryParse(args, out var n))
-            {
+            } else if (!string.IsNullOrEmpty(args) && int.TryParse(args, out var n)) {
                 // 对齐 TS: /copy N — N从1开始，1=最新，2=次新...
-                if (n < 1 || n > assistantMessages.Count)
-                {
+                if (n < 1 || n > assistantMessages.Count) {
                     TerminalHelper.WriteLine($"只有 {assistantMessages.Count} 条助手消息可复制（/copy 1 = 最新）");
                     return ChatCommandResult.Continue();
                 }
 
                 var message = assistantMessages[^n];
                 await CopyWithFallbackAsync(clipboardService, message.Content, "response.md", context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 // 默认复制最新助手消息
                 var lastMessage = assistantMessages[^1];
                 await CopyWithFallbackAsync(clipboardService, lastMessage.Content, "response.md", context.CancellationToken, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             }
-        }
-        catch (PlatformNotSupportedException)
-        {
+        } catch (PlatformNotSupportedException) {
             TerminalHelper.WriteLine("剪贴板功能在当前平台暂不可用");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("复制", ex);
         }
 
@@ -83,35 +67,29 @@ public sealed class CopyCommand : ChatCommandBase
     /// 对齐 TS: 复制到剪贴板 + 写入临时文件作为回退
     /// </summary>
     private static async Task CopyWithFallbackAsync(
-        IClipboardService clipboardService, string text, string filename, CancellationToken ct, IFileSystem fs)
-    {
+        IClipboardService clipboardService, string text, string filename, CancellationToken ct, IFileSystem fs) {
         await clipboardService.SetTextAsync(text, ct).ConfigureAwait(false);
 
         var lineCount = text.Count(c => c == '\n') + 1;
         var charCount = text.Length;
 
         // 对齐 TS: 同时写入临时文件作为回退（OSC52需要终端支持）
-        try
-        {
+        try {
             var tempDir = JoinCode.Abstractions.Configuration.AppData.AppDataConstants.UserRuntimeClipboardDirectory;
             DirectoryHelper.EnsureDirectoryExists(fs, tempDir);
             var filePath = Path.Combine(tempDir, filename);
             await fs.WriteAllTextAsync(filePath, text, ct).ConfigureAwait(false);
             TerminalHelper.WriteLine($"已复制到剪贴板 ({charCount} 字符, {lineCount} 行)");
             TerminalHelper.WriteLine($"同时写入: {filePath}");
-        }
-        catch
-        {
+        } catch {
             TerminalHelper.WriteLine($"已复制到剪贴板 ({charCount} 字符, {lineCount} 行)");
         }
     }
 
-    private static async Task CopyCodeBlockAsync(ChatCommandContext context, List<ApiMessageRecord> assistantMessages)
-    {
+    private static async Task CopyCodeBlockAsync(ChatCommandContext context, List<ApiMessageRecord> assistantMessages) {
         var clipboardService = context.GetCommandServices().ClipboardService ?? throw new InvalidOperationException("ClipboardService not available");
 
-        foreach (var message in assistantMessages.AsEnumerable().Reverse())
-        {
+        foreach (var message in assistantMessages.AsEnumerable().Reverse()) {
             var content = message.Content;
             var codeStart = content.IndexOf("```", StringComparison.Ordinal);
             if (codeStart < 0) continue;
@@ -139,15 +117,13 @@ public sealed class CopyCommand : ChatCommandBase
     /// <summary>
     /// 对齐 TS: fileExtension — 将语言标识映射为文件扩展名
     /// </summary>
-    private static string GetFileExtension(ReadOnlySpan<char> lang)
-    {
+    private static string GetFileExtension(ReadOnlySpan<char> lang) {
         if (lang.IsEmpty) return ".txt";
 
         // 清理非字母数字字符（防止路径遍历）
         var sanitized = new char[lang.Length];
         var len = 0;
-        foreach (var c in lang)
-        {
+        foreach (var c in lang) {
             if (char.IsLetterOrDigit(c))
                 sanitized[len++] = c;
         }

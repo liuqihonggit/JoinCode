@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 代理提示词构建器 - 基于 AgentDefinition 构建系统提示词
 /// </summary>
-public interface IAgentPromptBuilder
-{
+public interface IAgentPromptBuilder {
     /// <summary>
     /// 构建 SubAgent 系统提示词
     /// </summary>

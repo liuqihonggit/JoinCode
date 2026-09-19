@@ -6,19 +6,15 @@ namespace Tools.Shell;
 /// <para>LLM 无视提示:添加 --no-intercept 参数确认,中间件去掉该参数后放行到真实执行</para>
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellDownloadHintMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellDownloadHintMiddleware : ServiceEntity, IShellMiddleware {
     private const string NoInterceptFlag = "--no-intercept";
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var command = context.Command;
 
-        if (IsDownloadCommand(command))
-        {
-            if (command.Contains(NoInterceptFlag, StringComparison.Ordinal))
-            {
+        if (IsDownloadCommand(command)) {
+            if (command.Contains(NoInterceptFlag, StringComparison.Ordinal)) {
                 context.Command = StripNoInterceptFlag(command);
                 await next(context, ct).ConfigureAwait(false);
                 return;
@@ -26,8 +22,7 @@ public sealed partial class ShellDownloadHintMiddleware : ServiceEntity, IShellM
 
             var hint = BuildDownloadHint(command);
             context.Result = ToolResultBuilder.Success().WithText(hint).Build();
-            context.ExecutionResult = new SystemActuatorExecutionResult
-            {
+            context.ExecutionResult = new SystemActuatorExecutionResult {
                 Stdout = hint,
                 Stderr = string.Empty,
                 ExitCode = 0,
@@ -41,8 +36,7 @@ public sealed partial class ShellDownloadHintMiddleware : ServiceEntity, IShellM
     /// <summary>
     /// 检测命令是否为 curl/wget 下载到文件的命令
     /// </summary>
-    internal static bool IsDownloadCommand(string command)
-    {
+    internal static bool IsDownloadCommand(string command) {
         if (string.IsNullOrWhiteSpace(command)) return false;
 
         var trimmed = command.TrimStart();
@@ -50,8 +44,7 @@ public sealed partial class ShellDownloadHintMiddleware : ServiceEntity, IShellM
 
         var lower = trimmed.ToLowerInvariant();
 
-        if (lower.StartsWith("curl ", StringComparison.Ordinal))
-        {
+        if (lower.StartsWith("curl ", StringComparison.Ordinal)) {
             var hasOutput = lower.Contains(" -o ", StringComparison.Ordinal)
                          || lower.Contains(" --output ", StringComparison.Ordinal);
             var outputToStdout = lower.Contains(" -o -", StringComparison.Ordinal)
@@ -59,8 +52,7 @@ public sealed partial class ShellDownloadHintMiddleware : ServiceEntity, IShellM
             return hasOutput && !outputToStdout;
         }
 
-        if (lower.StartsWith("wget ", StringComparison.Ordinal))
-        {
+        if (lower.StartsWith("wget ", StringComparison.Ordinal)) {
             var outputToStdout = lower.Contains(" -o -", StringComparison.Ordinal)
                               || lower.Contains(" -o -", StringComparison.Ordinal)
                               || lower.Contains(" --output-document=-", StringComparison.Ordinal);
@@ -73,8 +65,7 @@ public sealed partial class ShellDownloadHintMiddleware : ServiceEntity, IShellM
     /// <summary>
     /// 去掉 --no-intercept 参数,清理多余空格
     /// </summary>
-    internal static string StripNoInterceptFlag(string command)
-    {
+    internal static string StripNoInterceptFlag(string command) {
         var cleaned = command.Replace(NoInterceptFlag, string.Empty, StringComparison.Ordinal);
         while (cleaned.Contains("  ", StringComparison.Ordinal))
             cleaned = cleaned.Replace("  ", " ", StringComparison.Ordinal);
@@ -84,8 +75,7 @@ public sealed partial class ShellDownloadHintMiddleware : ServiceEntity, IShellM
     /// <summary>
     /// 构建下载提示信息
     /// </summary>
-    internal static string BuildDownloadHint(string command)
-    {
+    internal static string BuildDownloadHint(string command) {
         var sb = new StringBuilder();
         sb.AppendLine("检测到使用 curl/wget 下载文件。建议使用 download_file 工具(支持多线程并发 + 断点续传,更快更可靠)。");
         sb.AppendLine();

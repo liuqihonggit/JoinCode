@@ -5,8 +5,7 @@ namespace Core.Hooks;
 /// 异步钩子注册表
 /// 管理异步执行的钩子进程
 /// </summary>
-public interface IAsyncHookRegistry
-{
+public interface IAsyncHookRegistry {
     /// <summary>
     /// 注册异步钩子
     /// </summary>
@@ -41,8 +40,7 @@ public interface IAsyncHookRegistry
 /// <summary>
 /// 待处理的异步钩子
 /// </summary>
-public sealed record PendingAsyncHook
-{
+public sealed record PendingAsyncHook {
     /// <summary>
     /// 进程ID
     /// </summary>
@@ -112,8 +110,7 @@ public sealed record PendingAsyncHook
 /// <summary>
 /// 异步钩子进程接口
 /// </summary>
-public interface IAsyncHookProcess
-{
+public interface IAsyncHookProcess {
     /// <summary>
     /// 进程状态
     /// </summary>
@@ -148,8 +145,7 @@ public interface IAsyncHookProcess
 /// <summary>
 /// 异步钩子进程状态
 /// </summary>
-public enum AsyncHookProcessStatus
-{
+public enum AsyncHookProcessStatus {
     /// <summary>运行中 — 进程仍在执行</summary>
     [EnumValue("running")] Running,
     /// <summary>已完成 — 进程正常退出</summary>
@@ -161,8 +157,7 @@ public enum AsyncHookProcessStatus
 /// <summary>
 /// 异步钩子响应
 /// </summary>
-public sealed record AsyncHookResponse
-{
+public sealed record AsyncHookResponse {
     /// <summary>
     /// 进程ID
     /// </summary>
@@ -219,8 +214,7 @@ public sealed record AsyncHookResponse
 /// </summary>
 [Register(typeof(MapRegistry<string, PendingAsyncHook>), ServiceLifetime.Singleton)]
 [Register(typeof(IAsyncHookRegistry), ServiceLifetime.Singleton)]
-public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsyncHook>, IAsyncHookRegistry
-{
+public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsyncHook>, IAsyncHookRegistry {
     private readonly ILogger<AsyncHookRegistry>? _logger;
 
     /// <summary>
@@ -229,8 +223,7 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
     public AsyncHookRegistry(ILogger<AsyncHookRegistry>? logger = null) => _logger = logger;
 
     /// <inheritdoc />
-    public void Register(PendingAsyncHook hook)
-    {
+    public void Register(PendingAsyncHook hook) {
         AddOrUpdateCore(hook.ProcessId, hook);
         _logger?.LogDebug(
             "Registered async hook {ProcessId} ({HookName}) with timeout {TimeoutMs}ms",
@@ -240,34 +233,26 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
     }
 
     /// <inheritdoc />
-    public async Task<List<AsyncHookResponse>> CheckForResponsesAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task<List<AsyncHookResponse>> CheckForResponsesAsync(CancellationToken cancellationToken = default) {
         var responses = new List<AsyncHookResponse>();
         var toRemove = new List<string>();
 
         var hooks = GetAll().ToList();
         _logger?.LogDebug("Checking {Count} async hooks for responses", hooks.Count);
 
-        foreach (var hook in hooks)
-        {
-            try
-            {
-                if (await ProcessHookAsync(hook, responses, cancellationToken).ConfigureAwait(false))
-                {
+        foreach (var hook in hooks) {
+            try {
+                if (await ProcessHookAsync(hook, responses, cancellationToken).ConfigureAwait(false)) {
                     toRemove.Add(hook.ProcessId);
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "Failed to process async hook {ProcessId}", hook.ProcessId);
                 toRemove.Add(hook.ProcessId);
             }
         }
 
-        foreach (var processId in toRemove)
-        {
-            if (RemoveCore(processId, out var removed))
-            {
+        foreach (var processId in toRemove) {
+            if (RemoveCore(processId, out var removed)) {
                 removed.StopProgressInterval?.Invoke();
                 removed.Process?.Cleanup();
             }
@@ -279,37 +264,31 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
     private async Task<bool> ProcessHookAsync(
         PendingAsyncHook hook,
         List<AsyncHookResponse> responses,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var process = hook.Process;
-        if (process == null)
-        {
+        if (process == null) {
             _logger?.LogDebug("Hook {ProcessId} has no process, removing", hook.ProcessId);
             return true;
         }
 
         // 检查超时
-        if (hook.IsTimedOut && process.Status == AsyncHookProcessStatus.Running)
-        {
+        if (hook.IsTimedOut && process.Status == AsyncHookProcessStatus.Running) {
             _logger?.LogDebug("Hook {ProcessId} timed out, killing", hook.ProcessId);
             process.Kill();
         }
 
         // 检查状态
-        if (process.Status == AsyncHookProcessStatus.Killed)
-        {
+        if (process.Status == AsyncHookProcessStatus.Killed) {
             _logger?.LogDebug("Hook {ProcessId} was killed, removing", hook.ProcessId);
             return true;
         }
 
-        if (process.Status != AsyncHookProcessStatus.Completed)
-        {
+        if (process.Status != AsyncHookProcessStatus.Completed) {
             return false;
         }
 
         // 已处理过或没有输出
-        if (hook.ResponseAttachmentSent)
-        {
+        if (hook.ResponseAttachmentSent) {
             _logger?.LogDebug("Hook {ProcessId} already processed, removing", hook.ProcessId);
             return true;
         }
@@ -317,8 +296,7 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
         var stdout = await process.GetStdoutAsync().ConfigureAwait(false);
         var stderr = await process.GetStderrAsync().ConfigureAwait(false);
 
-        if (string.IsNullOrWhiteSpace(stdout))
-        {
+        if (string.IsNullOrWhiteSpace(stdout)) {
             _logger?.LogDebug("Hook {ProcessId} has no stdout, removing", hook.ProcessId);
             return true;
         }
@@ -328,8 +306,7 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
 
         hook.ResponseAttachmentSent = true;
 
-        responses.Add(new AsyncHookResponse
-        {
+        responses.Add(new AsyncHookResponse {
             ProcessId = hook.ProcessId,
             Response = response,
             HookName = hook.HookName,
@@ -348,22 +325,16 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
         return true;
     }
 
-    private Dictionary<string, JsonElement>? ParseResponse(string stdout)
-    {
+    private Dictionary<string, JsonElement>? ParseResponse(string stdout) {
         var lines = stdout.Split('\n');
 
-        foreach (var line in lines)
-        {
+        foreach (var line in lines) {
             var trimmed = line.Trim();
-            if (trimmed.StartsWith('{') && trimmed.EndsWith('}'))
-            {
-                try
-                {
+            if (trimmed.StartsWith('{') && trimmed.EndsWith('}')) {
+                try {
                     using var doc = JsonDocument.Parse(trimmed);
                     return doc.RootElement.ToDictionary();
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "解析异步钩子 JSON 输出失败");
                 }
             }
@@ -377,12 +348,9 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
         => Where(h => !h.ResponseAttachmentSent);
 
     /// <inheritdoc />
-    public void RemoveDeliveredHooks(IEnumerable<string> processIds)
-    {
-        foreach (var processId in processIds)
-        {
-            if (RemoveCore(processId, out var hook))
-            {
+    public void RemoveDeliveredHooks(IEnumerable<string> processIds) {
+        foreach (var processId in processIds) {
+            if (RemoveCore(processId, out var hook)) {
                 hook.StopProgressInterval?.Invoke();
                 _logger?.LogDebug("Removed delivered hook {ProcessId}", processId);
             }
@@ -390,17 +358,13 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
     }
 
     /// <inheritdoc />
-    public async Task FinalizeAllAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task FinalizeAllAsync(CancellationToken cancellationToken = default) {
         var hooks = GetAll().ToList();
 
         var tasks = hooks
-            .Select(async hook =>
-            {
-                try
-                {
-                    if (hook.Process?.Status == AsyncHookProcessStatus.Completed)
-                    {
+            .Select(async hook => {
+                try {
+                    if (hook.Process?.Status == AsyncHookProcessStatus.Completed) {
                         var stdout = await hook.Process.GetStdoutAsync().ConfigureAwait(false);
                         var stderr = await hook.Process.GetStderrAsync().ConfigureAwait(false);
 
@@ -410,18 +374,14 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
                             hook.Process.ExitCode,
                             stdout.Length,
                             stderr.Length);
-                    }
-                    else if (hook.Process?.Status == AsyncHookProcessStatus.Running)
-                    {
+                    } else if (hook.Process?.Status == AsyncHookProcessStatus.Running) {
                         hook.Process.Kill();
                         _logger?.LogDebug("Killed running hook {ProcessId}", hook.ProcessId);
                     }
 
                     hook.StopProgressInterval?.Invoke();
                     hook.Process?.Cleanup();
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogError(ex, "Failed to finalize hook {ProcessId}", hook.ProcessId);
                 }
             })
@@ -433,19 +393,14 @@ public sealed partial class AsyncHookRegistry : MapRegistry<string, PendingAsync
     }
 
     /// <inheritdoc />
-    public void ClearAll()
-    {
+    public void ClearAll() {
         var cleared = ClearCore();
-        foreach (var kvp in cleared)
-        {
-            try
-            {
+        foreach (var kvp in cleared) {
+            try {
                 kvp.Value.StopProgressInterval?.Invoke();
                 kvp.Value.Process?.Kill();
                 kvp.Value.Process?.Cleanup();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "清理异步钩子失败");
             }
         }

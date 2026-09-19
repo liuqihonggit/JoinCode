@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public enum ToolDriftKind
-{
+public enum ToolDriftKind {
     [EnumValue("identity")]
     Identity,
     [EnumValue("append")]
@@ -14,8 +13,7 @@ public enum ToolDriftKind
     Remove
 }
 
-public sealed class ToolDriftReport
-{
+public sealed class ToolDriftReport {
     public ToolDriftKind Kind { get; init; }
     public IReadOnlyList<string> AddedNames { get; init; } = [];
     public IReadOnlyList<string> RemovedNames { get; init; } = [];
@@ -29,10 +27,8 @@ public sealed class ToolDriftReport
     /// 返回工具名脱敏后的副本 — MCP 工具名（mcp__ 前缀，用户配置，可能泄露路径）折叠为 mcp，
     /// 内置工具名是固定词表无需脱敏。对齐 TS sanitizeToolName。
     /// </summary>
-    public ToolDriftReport WithSanitizedNames()
-    {
-        return new ToolDriftReport
-        {
+    public ToolDriftReport WithSanitizedNames() {
+        return new ToolDriftReport {
             Kind = Kind,
             AddedNames = SanitizeNames(AddedNames),
             RemovedNames = SanitizeNames(RemovedNames),
@@ -42,28 +38,23 @@ public sealed class ToolDriftReport
         };
     }
 
-    private static IReadOnlyList<string> SanitizeNames(IReadOnlyList<string> names)
-    {
+    private static IReadOnlyList<string> SanitizeNames(IReadOnlyList<string> names) {
         if (names.Count == 0) return names;
         var result = new List<string>(names.Count);
-        for (var i = 0; i < names.Count; i++)
-        {
+        for (var i = 0; i < names.Count; i++) {
             result.Add(SanitizeToolName(names[i]));
         }
         return result;
     }
 
-    private static string SanitizeSummary(string summary)
-    {
+    private static string SanitizeSummary(string summary) {
         if (string.IsNullOrEmpty(summary)) return summary;
         var span = summary.AsSpan();
         var result = new StringBuilder(summary.Length);
         var i = 0;
-        while (i < span.Length)
-        {
+        while (i < span.Length) {
             var spaceIdx = span.Slice(i).IndexOf(' ');
-            if (spaceIdx < 0)
-            {
+            if (spaceIdx < 0) {
                 result.Append(SanitizeToolName(span.Slice(i).ToString()));
                 break;
             }

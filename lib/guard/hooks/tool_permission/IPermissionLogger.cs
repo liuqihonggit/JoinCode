@@ -3,8 +3,7 @@ namespace Core.Hooks.ToolPermission;
 /// <summary>
 /// 权限日志记录器接口
 /// </summary>
-public interface IPermissionLogger
-{
+public interface IPermissionLogger {
     /// <summary>
     /// 记录权限决策
     /// </summary>

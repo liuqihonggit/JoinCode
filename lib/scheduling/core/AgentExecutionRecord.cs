@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// Agent 执行记录 - 用于跟踪任务的 Agent 执行历史
 /// </summary>
-public sealed class AgentExecutionRecord
-{
+public sealed class AgentExecutionRecord {
     /// <summary>
     /// 任务 ID
     /// </summary>
@@ -54,10 +53,8 @@ public sealed class AgentExecutionRecord
     /// <summary>
     /// 获取合并后的输出
     /// </summary>
-    public string GetMergedOutput()
-    {
-        if (AgentResults == null || AgentResults.Count == 0)
-        {
+    public string GetMergedOutput() {
+        if (AgentResults == null || AgentResults.Count == 0) {
             return string.Empty;
         }
 

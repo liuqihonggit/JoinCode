@@ -4,8 +4,7 @@ namespace Services.Api;
 /// <summary>
 /// API 客户端配置选项
 /// </summary>
-public sealed record ApiClientOptions
-{
+public sealed record ApiClientOptions {
     /// <summary>
     /// 基础 URL（必填）
     /// </summary>
@@ -46,8 +45,7 @@ public sealed record ApiClientOptions
 /// API 客户端实现，封装 HttpClient 提供重试、备用端点、VCR、mTLS、代理等能力
 /// </summary>
 [Register(typeof(IApiClient), ServiceLifetime.Singleton)]
-public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
-{
+public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable {
     private HttpClient _httpClient;
     private readonly RetryPolicy _retryPolicy;
     private readonly ApiClientOptions _options;
@@ -69,8 +67,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <param name="networkService">可选网络连通性服务</param>
     public ApiClient(ApiClientOptions options, ILogger<ApiClient>? logger = null,
         IMtlsService? mtlsService = null, IHttpProxyService? httpProxyService = null,
-        INetworkConnectivityService? networkService = null)
-    {
+        INetworkConnectivityService? networkService = null) {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger;
         _networkService = networkService;
@@ -84,8 +81,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         _logger?.LogInformation("[ApiClient] 初始化完成 - BaseUrl: {BaseUrl}, Timeout: {Timeout}s",
             options.BaseUrl, options.Timeout.TotalSeconds);
 
-        if (_networkService is not null)
-        {
+        if (_networkService is not null) {
             _networkService.StateChanged += OnNetworkStateChanged;
         }
     }
@@ -104,17 +100,14 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         IMtlsService? mtlsService = null,
         IHttpProxyService? httpProxyService = null,
         INetworkConnectivityService? networkService = null)
-        : this(BuildOptions(settingsOptions), logger, mtlsService, httpProxyService, networkService)
-    {
+        : this(BuildOptions(settingsOptions), logger, mtlsService, httpProxyService, networkService) {
         var settings = settingsOptions?.Value;
-        if (settings is not null && !string.IsNullOrEmpty(settings.AuthToken))
-        {
+        if (settings is not null && !string.IsNullOrEmpty(settings.AuthToken)) {
             SetAuthorizationToken(settings.AuthToken, settings.AuthScheme);
         }
     }
 
-    private static ApiClientOptions BuildOptions(IOptions<ApiSettings>? settingsOptions)
-    {
+    private static ApiClientOptions BuildOptions(IOptions<ApiSettings>? settingsOptions) {
         var settings = settingsOptions?.Value;
         return settings is not null && !string.IsNullOrEmpty(settings.BaseUrl)
             ? settings.ToApiClientOptions()
@@ -125,16 +118,14 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// 注入 VCR 服务并重建 HttpClient 以挂载 VCR 处理器
     /// </summary>
     /// <param name="vcrService">VCR 服务实例</param>
-    public void SetVcrService(Services.Api.Vcr.IVcrService vcrService)
-    {
+    public void SetVcrService(Services.Api.Vcr.IVcrService vcrService) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(vcrService);
 
         _vcrService = vcrService;
         _vcrHandler = new VcrHttpHandler(vcrService, new VcrOptions(), _logger as ILogger<VcrHttpHandler>);
         _vcrHandler.InnerHandler = new HttpClientHandler();
-        _httpClient = new HttpClient(_vcrHandler)
-        {
+        _httpClient = new HttpClient(_vcrHandler) {
             BaseAddress = _options.BaseUrl != null ? new Uri(_options.BaseUrl) : null,
             Timeout = _options.Timeout
         };
@@ -142,8 +133,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         _httpClient.DefaultRequestHeaders.Add("User-Agent", _options.UserAgent);
         _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 
-        foreach (var header in _options.DefaultHeaders)
-        {
+        foreach (var header in _options.DefaultHeaders) {
             _httpClient.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
         }
 
@@ -153,45 +143,34 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <summary>
     /// 构建 HttpClient — 提取自构造函数,供网络状态变化时重建 handler
     /// </summary>
-    private HttpClient BuildHttpClient()
-    {
+    private HttpClient BuildHttpClient() {
         HttpMessageHandler? handler = null;
 
-        if (_mtlsService != null && _mtlsService.IsMtlsConfigured)
-        {
+        if (_mtlsService != null && _mtlsService.IsMtlsConfigured) {
             var mtlsConfig = new MtlsConfiguration { IsConfigured = true };
             handler = _mtlsService.CreateMtlsHandler(mtlsConfig);
         }
 
-        if (_httpProxyService != null && _httpProxyService.IsProxyConfigured)
-        {
+        if (_httpProxyService != null && _httpProxyService.IsProxyConfigured) {
             var proxyHandler = _httpProxyService.CreateProxyHandler();
-            if (handler is HttpClientHandler mtlsHandler)
-            {
+            if (handler is HttpClientHandler mtlsHandler) {
                 var proxySettings = _httpProxyService.GetCurrentProxySettings();
-                if (!string.IsNullOrEmpty(proxySettings.ProxyUrl))
-                {
+                if (!string.IsNullOrEmpty(proxySettings.ProxyUrl)) {
                     var proxyUri = new Uri(proxySettings.ProxyUrl);
                     var proxy = new WebProxy(proxyUri);
-                    if (!string.IsNullOrEmpty(proxySettings.ProxyUsername))
-                    {
+                    if (!string.IsNullOrEmpty(proxySettings.ProxyUsername)) {
                         proxy.Credentials = new System.Net.NetworkCredential(
                             proxySettings.ProxyUsername, proxySettings.ProxyPassword ?? string.Empty);
-                    }
-                    else if (proxySettings.UseDefaultCredentials)
-                    {
+                    } else if (proxySettings.UseDefaultCredentials) {
                         proxy.Credentials = System.Net.CredentialCache.DefaultCredentials;
                     }
-                    if (proxySettings.BypassHosts is { Count: > 0 })
-                    {
+                    if (proxySettings.BypassHosts is { Count: > 0 }) {
                         proxy.BypassList = proxySettings.BypassHosts.ToArray();
                     }
                     mtlsHandler.Proxy = proxy;
                     mtlsHandler.UseProxy = true;
                 }
-            }
-            else
-            {
+            } else {
                 handler = proxyHandler;
             }
         }
@@ -203,8 +182,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         client.DefaultRequestHeaders.Add("User-Agent", _options.UserAgent);
         client.DefaultRequestHeaders.Add("Accept", "application/json");
 
-        foreach (var header in _options.DefaultHeaders)
-        {
+        foreach (var header in _options.DefaultHeaders) {
             client.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
         }
 
@@ -214,16 +192,12 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <summary>
     /// 网络状态变化时重建 HttpClient handler — VPN/代理切换后自动生效
     /// </summary>
-    private void OnNetworkStateChanged(object? sender, NetworkConnectivityChangedEventArgs e)
-    {
+    private void OnNetworkStateChanged(object? sender, NetworkConnectivityChangedEventArgs e) {
         if (e.PreviousState == e.CurrentState) return;
-        try
-        {
+        try {
             Interlocked.Exchange(ref _httpClient, BuildHttpClient());
             _logger?.LogInformation("[ApiClient] 网络状态变化 {Prev}→{Curr},HttpClient 已重建", e.PreviousState, e.CurrentState);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ApiClient] 网络状态变化时重建 HttpClient 失败");
         }
     }
@@ -231,32 +205,24 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <summary>
     /// 等待网络恢复 — 网络不可用时阻塞等待(带 30s 超时),恢复后继续;超时抛 ApiException
     /// </summary>
-    private async Task WaitForNetworkAsync(CancellationToken ct)
-    {
+    private async Task WaitForNetworkAsync(CancellationToken ct) {
         if (_networkService is null) return;
         if (_networkService.IsNetworkAvailable()) return;
 
         _logger?.LogWarning("[ApiClient] 网络不可用,等待恢复...");
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
-        {
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) => {
             if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
         };
         _networkService.StateChanged += handler;
-        try
-        {
-            if (!_networkService.IsNetworkAvailable())
-            {
+        try {
+            if (!_networkService.IsNetworkAvailable()) {
                 await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
             }
-        }
-        catch (TimeoutException)
-        {
+        } catch (TimeoutException) {
             throw ApiException.Connection(_options.BaseUrl, new TimeoutException("等待网络恢复超时(30s)"));
-        }
-        finally
-        {
+        } finally {
             _networkService.StateChanged -= handler;
         }
 
@@ -269,31 +235,25 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <param name="request">API 请求</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>HTTP 响应消息</returns>
-    public async Task<HttpResponseMessage> SendAsync(ApiRequest request, CancellationToken cancellationToken = default)
-    {
+    public async Task<HttpResponseMessage> SendAsync(ApiRequest request, CancellationToken cancellationToken = default) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(request);
 
         await WaitForNetworkAsync(cancellationToken).ConfigureAwait(false);
 
         var httpRequest = BuildHttpRequestMessage(request);
-        var operation = async (CancellationToken ct) =>
-        {
+        var operation = async (CancellationToken ct) => {
             var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             return response;
         };
 
-        if (request.SkipRetry)
-        {
+        if (request.SkipRetry) {
             return await operation(cancellationToken).ConfigureAwait(false);
         }
 
-        try
-        {
+        try {
             return await operation(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (_options.FallbackEndpoints is { Count: > 0 } && ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (_options.FallbackEndpoints is { Count: > 0 } && ex is not OperationCanceledException) {
             return await TryFallbackEndpointsAsync(request, ex, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -301,30 +261,22 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <summary>
     /// 尝试备用端点 — 主端点全部重试失败后,依次尝试备用端点
     /// </summary>
-    private async Task<HttpResponseMessage> TryFallbackEndpointsAsync(ApiRequest request, Exception primaryException, CancellationToken ct)
-    {
-        foreach (var fallback in _options.FallbackEndpoints!)
-        {
-            try
-            {
+    private async Task<HttpResponseMessage> TryFallbackEndpointsAsync(ApiRequest request, Exception primaryException, CancellationToken ct) {
+        foreach (var fallback in _options.FallbackEndpoints!) {
+            try {
                 _logger?.LogWarning("[ApiClient] 主端点失败,尝试备用端点: {Endpoint}", fallback);
                 var client = _httpClient;
                 var originalBase = client.BaseAddress;
                 client.BaseAddress = new Uri(fallback);
-                try
-                {
+                try {
                     var fallbackRequest = BuildHttpRequestMessage(request);
                     var response = await client.SendAsync(fallbackRequest, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                     _logger?.LogInformation("[ApiClient] 备用端点成功: {Endpoint}", fallback);
                     return response;
-                }
-                finally
-                {
+                } finally {
                     client.BaseAddress = originalBase;
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[ApiClient] 备用端点失败: {Endpoint}", fallback);
             }
         }
@@ -339,19 +291,13 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <param name="jsonTypeInfo">JSON 类型信息（AOT 安全）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>API 响应包装</returns>
-    public async Task<ApiResponse<T>> RequestAsync<T>(ApiRequest request, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default)
-    {
-        try
-        {
+    public async Task<ApiResponse<T>> RequestAsync<T>(ApiRequest request, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default) {
+        try {
             using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
             return await ProcessResponseAsync(response, request.Path, jsonTypeInfo).ConfigureAwait(false);
-        }
-        catch (ApiException)
-        {
+        } catch (ApiException) {
             throw;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogError(ex, "[ApiClient] 请求失败 - 路径: {Path}", request.Path);
             throw ApiException.Connection(request.Path, ex);
         }
@@ -365,12 +311,10 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <param name="jsonTypeInfo">JSON 类型信息（AOT 安全）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>反序列化后的响应数据</returns>
-    public async Task<T> RequestOrThrowAsync<T>(ApiRequest request, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default)
-    {
+    public async Task<T> RequestOrThrowAsync<T>(ApiRequest request, JsonTypeInfo<T> jsonTypeInfo, CancellationToken cancellationToken = default) {
         var response = await RequestAsync(request, jsonTypeInfo, cancellationToken).ConfigureAwait(false);
 
-        if (!response.Success)
-        {
+        if (!response.Success) {
             throw new ApiException(
                 response.ErrorMessage ?? $"请求失败 (HTTP {response.StatusCode})",
                 statusCode: response.StatusCode,
@@ -445,8 +389,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// </summary>
     /// <param name="name">头名称</param>
     /// <param name="value">头值</param>
-    public void SetDefaultHeader(string name, string value)
-    {
+    public void SetDefaultHeader(string name, string value) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _httpClient.DefaultRequestHeaders.TryAddWithoutValidation(name, value);
     }
@@ -455,8 +398,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// 移除默认请求头
     /// </summary>
     /// <param name="name">头名称</param>
-    public void RemoveDefaultHeader(string name)
-    {
+    public void RemoveDefaultHeader(string name) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _httpClient.DefaultRequestHeaders.Remove(name);
     }
@@ -466,8 +408,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// </summary>
     /// <param name="token">认证令牌</param>
     /// <param name="scheme">认证方案，默认 Bearer</param>
-    public void SetAuthorizationToken(string token, string scheme = "Bearer")
-    {
+    public void SetAuthorizationToken(string token, string scheme = "Bearer") {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(scheme, token);
     }
@@ -475,18 +416,15 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <summary>
     /// 清除认证令牌
     /// </summary>
-    public void ClearAuthorization()
-    {
+    public void ClearAuthorization() {
         ObjectDisposedException.ThrowIf(_disposed, this);
         _httpClient.DefaultRequestHeaders.Authorization = null;
     }
 
-    private HttpRequestMessage BuildHttpRequestMessage(ApiRequest request)
-    {
+    private HttpRequestMessage BuildHttpRequestMessage(ApiRequest request) {
         var uriBuilder = new UriBuilder(new Uri(_httpClient.BaseAddress ?? throw new InvalidOperationException("HttpClient.BaseAddress is not set."), request.Path));
 
-        if (request.QueryParams?.Count > 0)
-        {
+        if (request.QueryParams?.Count > 0) {
             var query = string.Join("&", request.QueryParams.Select(p =>
                 $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}"));
             uriBuilder.Query = query;
@@ -494,24 +432,20 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
 
         var httpRequest = new HttpRequestMessage(request.Method, uriBuilder.Uri);
 
-        if (request.Headers != null)
-        {
-            foreach (var header in request.Headers)
-            {
+        if (request.Headers != null) {
+            foreach (var header in request.Headers) {
                 httpRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
         }
 
-        if (request.Body != null)
-        {
+        if (request.Body != null) {
             httpRequest.Content = new StringContent(request.Body, Encoding.UTF8, "application/json");
         }
 
         return httpRequest;
     }
 
-    private async Task<ApiResponse<T>> ProcessResponseAsync<T>(HttpResponseMessage response, string endpoint, JsonTypeInfo<T> jsonTypeInfo)
-    {
+    private async Task<ApiResponse<T>> ProcessResponseAsync<T>(HttpResponseMessage response, string endpoint, JsonTypeInfo<T> jsonTypeInfo) {
         var headers = response.Headers.ToDictionary(
             h => h.Key,
             h => h.Value.ToList(),
@@ -519,17 +453,12 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
 
         var rawContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-        if (response.IsSuccessStatusCode)
-        {
+        if (response.IsSuccessStatusCode) {
             T? data = default;
-            if (!string.IsNullOrWhiteSpace(rawContent) && _options.AutoSerializeJson)
-            {
-                try
-                {
+            if (!string.IsNullOrWhiteSpace(rawContent) && _options.AutoSerializeJson) {
+                try {
                     data = RelaxedJsonSerializer.Deserialize(rawContent, jsonTypeInfo);
-                }
-                catch (JsonException ex)
-                {
+                } catch (JsonException ex) {
                     _logger?.LogWarning(ex, "[ApiClient] JSON 反序列化失败 - 端点: {Endpoint}", endpoint);
                 }
             }
@@ -541,12 +470,10 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         throw exception;
     }
 
-    private ApiException ClassifyError(HttpResponseMessage response, string endpoint, string rawContent)
-    {
+    private ApiException ClassifyError(HttpResponseMessage response, string endpoint, string rawContent) {
         var statusCode = (int)response.StatusCode;
 
-        return statusCode switch
-        {
+        return statusCode switch {
             429 => CreateRateLimitException(response, endpoint, rawContent),
             >= 500 => new ServerErrorException(endpoint, statusCode, rawContent),
             401 or 403 => new AuthException(endpoint, statusCode, GetErrorMessage(rawContent, "认证失败", _logger), rawContent),
@@ -555,18 +482,14 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         };
     }
 
-    private RateLimitException CreateRateLimitException(HttpResponseMessage response, string endpoint, string rawContent)
-    {
+    private RateLimitException CreateRateLimitException(HttpResponseMessage response, string endpoint, string rawContent) {
         TimeSpan? retryAfter = null;
 
-        if (response.Headers.RetryAfter?.Delta.HasValue == true)
-        {
+        if (response.Headers.RetryAfter?.Delta.HasValue == true) {
             retryAfter = response.Headers.RetryAfter.Delta.Value;
-        }
-        else if (response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues) &&
-                 resetValues.FirstOrDefault() is string resetValue &&
-                 long.TryParse(resetValue, out var resetTimestamp))
-        {
+        } else if (response.Headers.TryGetValues("X-RateLimit-Reset", out var resetValues) &&
+                   resetValues.FirstOrDefault() is string resetValue &&
+                   long.TryParse(resetValue, out var resetTimestamp)) {
             var resetTime = DateTimeOffset.FromUnixTimeSeconds(resetTimestamp);
             retryAfter = resetTime - DateTimeOffset.UtcNow;
         }
@@ -574,20 +497,16 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
         return new RateLimitException(endpoint, retryAfter, rawContent);
     }
 
-    private static string GetErrorMessage(string rawContent, string defaultMessage, ILogger? logger = null)
-    {
+    private static string GetErrorMessage(string rawContent, string defaultMessage, ILogger? logger = null) {
         if (string.IsNullOrWhiteSpace(rawContent))
             return defaultMessage;
 
-        try
-        {
+        try {
             var node = JsonNode.Parse(rawContent);
-            if (node?["error"] is JsonNode errorNode)
-            {
+            if (node?["error"] is JsonNode errorNode) {
                 if (errorNode is JsonObject errorObj
                     && errorObj.TryGetPropertyValue("message", out var msgNode)
-                    && msgNode is not null)
-                {
+                    && msgNode is not null) {
                     return msgNode.GetValue<string>() ?? defaultMessage;
                 }
 
@@ -597,9 +516,7 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
 
             if (node?["message"] is JsonNode directMsg)
                 return directMsg.GetValue<string>() ?? defaultMessage;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "解析API错误响应失败，使用默认消息: {DefaultMessage}", defaultMessage);
         }
 
@@ -609,11 +526,9 @@ public sealed partial class ApiClient : ServiceEntity, IApiClient, IDisposable
     /// <summary>
     /// 释放 HttpClient 资源并解绑网络状态事件
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return; _disposed = true;
-        if (_networkService is not null)
-        {
+        if (_networkService is not null) {
             _networkService.StateChanged -= OnNetworkStateChanged;
         }
         _httpClient.Dispose();

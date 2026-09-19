@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Onboarding;
 /// <summary>
 /// Onboarding 流程步骤枚举
 /// </summary>
-public enum OnboardingStep
-{
+public enum OnboardingStep {
     [EnumValue("welcome")] Welcome,
     [EnumValue("api_key")] ApiKey,
     [EnumValue("security")] Security,
@@ -15,8 +14,7 @@ public enum OnboardingStep
 /// <summary>
 /// Onboarding 状态
 /// </summary>
-public sealed class OnboardingState
-{
+public sealed class OnboardingState {
     /// <summary>
     /// 当前步骤
     /// </summary>
@@ -36,8 +34,7 @@ public sealed class OnboardingState
 /// <summary>
 /// Onboarding 状态变更事件参数
 /// </summary>
-public sealed class OnboardingStateChangedEventArgs : EventArgs
-{
+public sealed class OnboardingStateChangedEventArgs : EventArgs {
     /// <summary>
     /// 变更前的步骤
     /// </summary>

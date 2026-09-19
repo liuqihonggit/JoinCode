@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.LLM.Chat;
 /// 缓存破坏检测器，对比前后两次请求的不变前缀与 token 使用情况，
 /// 识别系统提示、工具规格、动态内容、对话历史、模型、快模式等变更导致的缓存失效
 /// </summary>
-public class CacheBreakDetector
-{
+public class CacheBreakDetector {
     private const double CacheEvictionRelativeThreshold = 0.95;
     private const int CacheEvictionAbsoluteThreshold = 2000;
     private static readonly TimeSpan Ttl5Min = TimeSpan.FromMinutes(5);
@@ -22,8 +21,7 @@ public class CacheBreakDetector
     /// 构造函数
     /// </summary>
     /// <param name="clock">时钟函数（可选，默认使用 UTC 当前时间）</param>
-    public CacheBreakDetector(Func<DateTimeOffset>? clock = null)
-    {
+    public CacheBreakDetector(Func<DateTimeOffset>? clock = null) {
         _clock = clock;
     }
 
@@ -33,8 +31,7 @@ public class CacheBreakDetector
     /// 通知检测器：cached microcompact 已发送 cache_edits deletions。
     /// 下一次 API 响应的 cache read tokens 会预期性下降，不应报为缓存破坏。
     /// </summary>
-    public void NotifyCacheDeletion()
-    {
+    public void NotifyCacheDeletion() {
         _cacheDeletionsPending = true;
     }
 
@@ -42,8 +39,7 @@ public class CacheBreakDetector
     /// 通知检测器：前缀已被主动压缩/折叠重写。重置缓存命中基线并标记待上报的压缩事件，
     /// 使随后的 cache miss 被归因为 <see cref="CacheBreakKind.CompactionEntered"/> 而非 <see cref="CacheBreakKind.CacheEviction"/>。
     /// </summary>
-    public void NotifyCompaction()
-    {
+    public void NotifyCompaction() {
         _hasPreviousCacheHit = false;
         _pendingCompaction = true;
         _prevCacheReadTokens = null;
@@ -53,8 +49,7 @@ public class CacheBreakDetector
     /// <summary>
     /// 复位内部状态（新会话/重置缓存统计时调用）。
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _hasPreviousCacheHit = false;
         _pendingCompaction = false;
         _cacheDeletionsPending = false;
@@ -76,14 +71,12 @@ public class CacheBreakDetector
         string dynamicContent,
         IReadOnlyList<ApiMessage>? conversation = null,
         string? modelId = null,
-        bool? fastMode = null)
-    {
+        bool? fastMode = null) {
         ArgumentNullException.ThrowIfNull(prefix);
         ArgumentNullException.ThrowIfNull(dynamicContent);
 
         var conversationCount = conversation?.Count ?? 0;
-        return new PromptStateSnapshot
-        {
+        return new PromptStateSnapshot {
             SystemPromptHash = ContentHash.Compute(prefix.System),
             ToolSpecsHash = ContentHash.ComputeToolSpecs(prefix.ToolSpecs),
             ToolCount = prefix.ToolSpecs.Count(),
@@ -115,19 +108,16 @@ public class CacheBreakDetector
         TokenUsage usage,
         IReadOnlyList<ApiMessage>? currentConversation = null,
         string? currentModelId = null,
-        bool? currentFastMode = null)
-    {
+        bool? currentFastMode = null) {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(currentPrefix);
         ArgumentNullException.ThrowIfNull(usage);
 
-        if (IsExcludedModel(snapshot.ModelId))
-        {
+        if (IsExcludedModel(snapshot.ModelId)) {
             return CacheBreakResult.NoBreak();
         }
 
-        if (_cacheDeletionsPending)
-        {
+        if (_cacheDeletionsPending) {
             _cacheDeletionsPending = false;
             _prevCacheReadTokens = usage.CacheReadInputTokens;
             _lastCallTimestamp = Now;
@@ -141,38 +131,32 @@ public class CacheBreakDetector
         var prevCacheRead = _prevCacheReadTokens;
         _prevCacheReadTokens = usage.CacheReadInputTokens;
 
-        if (usage.CacheReadInputTokens > 0)
-        {
+        if (usage.CacheReadInputTokens > 0) {
             _hasPreviousCacheHit = true;
         }
 
-        if (IsModelChanged(snapshot, currentModelId))
-        {
+        if (IsModelChanged(snapshot, currentModelId)) {
             return CacheBreakResult.Break(CacheBreakKind.ModelChanged,
                 $"Model changed: {snapshot.ModelId ?? "(null)"} → {currentModelId ?? "(null)"}");
         }
 
-        if (IsFastModeChanged(snapshot, currentFastMode))
-        {
+        if (IsFastModeChanged(snapshot, currentFastMode)) {
             return CacheBreakResult.Break(CacheBreakKind.FastModeChanged,
                 $"Fast mode changed: {snapshot.FastMode?.ToString() ?? "(null)"} → {currentFastMode?.ToString() ?? "(null)"}");
         }
 
         var currentSystemHash = ContentHash.Compute(currentPrefix.System);
-        if (snapshot.SystemPromptHash != currentSystemHash)
-        {
+        if (snapshot.SystemPromptHash != currentSystemHash) {
             return CacheBreakResult.Break(CacheBreakKind.SystemPromptChanged,
                 $"System prompt changed: hash {snapshot.SystemPromptHash} → {currentSystemHash}");
         }
 
         var currentToolSpecsHash = ContentHash.ComputeToolSpecs(currentPrefix.ToolSpecs);
         ToolDriftReport? toolDrift = null;
-        if (snapshot.ToolSpecsHash != currentToolSpecsHash || snapshot.ToolCount != currentPrefix.ToolSpecs.Count())
-        {
+        if (snapshot.ToolSpecsHash != currentToolSpecsHash || snapshot.ToolCount != currentPrefix.ToolSpecs.Count()) {
             toolDrift = ToolListDriftClassifier.Classify(snapshot.ToolSpecs, currentPrefix.ToolSpecs.ToList());
 
-            if (ShouldReportToolSpecsBreak(toolDrift, usage))
-            {
+            if (ShouldReportToolSpecsBreak(toolDrift, usage)) {
                 var sanitizedDrift = toolDrift.WithSanitizedNames();
                 return CacheBreakResult.Break(CacheBreakKind.ToolSpecsChanged,
                     $"Tool specs changed: {sanitizedDrift.Kind} — {sanitizedDrift.Summary}, cache hit={usage.CacheReadInputTokens}",
@@ -181,8 +165,7 @@ public class CacheBreakDetector
         }
 
         var currentDynamicHash = ContentHash.Compute(currentDynamicContent);
-        if (snapshot.DynamicContentHash != currentDynamicHash)
-        {
+        if (snapshot.DynamicContentHash != currentDynamicHash) {
             return CacheBreakResult.Break(CacheBreakKind.DynamicContentChanged,
                 "Dynamic system content changed");
         }
@@ -190,15 +173,12 @@ public class CacheBreakDetector
         // 消息序列前缀检测 — 对齐线上真实字节前缀。
         // 只比对快照时已存在的前 N 条消息：尾部追加（多轮增长）不破坏前缀，前缀变短（撤回）仍是可命中前缀，
         // 唯有既有前缀中的消息被篡改/插入会破坏真实线上前缀，必须上报。
-        if (snapshot.ConversationCount > 0 && !string.IsNullOrEmpty(snapshot.ConversationHash))
-        {
+        if (snapshot.ConversationCount > 0 && !string.IsNullOrEmpty(snapshot.ConversationHash)) {
             var currentCount = currentConversation?.Count ?? 0;
-            if (currentCount >= snapshot.ConversationCount)
-            {
+            if (currentCount >= snapshot.ConversationCount) {
                 var preserved = currentConversation!.Take(snapshot.ConversationCount).ToList();
                 var preservedHash = ContentHash.ComputeConversation(preserved);
-                if (preservedHash != snapshot.ConversationHash)
-                {
+                if (preservedHash != snapshot.ConversationHash) {
                     return CacheBreakResult.Break(CacheBreakKind.ConversationHistoryChanged,
                         $"Conversation history prefix changed: hash {snapshot.ConversationHash} → {preservedHash} (first {snapshot.ConversationCount} messages)");
                 }
@@ -212,15 +192,13 @@ public class CacheBreakDetector
         // 主动压缩后的首次全量 miss：归因为 CompactionEntered（本项目发起的重建），与驱逐无关
         if (_pendingCompaction
             && usage.CacheReadInputTokens == 0
-            && usage.CacheCreationInputTokens > 0)
-        {
+            && usage.CacheCreationInputTokens > 0) {
             _pendingCompaction = false;
             return CacheBreakResult.Break(CacheBreakKind.CompactionEntered,
                 "Cache miss after context compaction — prefix rebuilt by this session");
         }
 
-        if (ShouldReportCacheEviction(usage, allHashesMatch, prevCacheRead))
-        {
+        if (ShouldReportCacheEviction(usage, allHashesMatch, prevCacheRead)) {
             var (kind, detail) = ClassifyCacheMiss(timeSinceLastCall);
             return CacheBreakResult.Break(kind, detail);
         }
@@ -236,8 +214,7 @@ public class CacheBreakDetector
     /// <param name="drift">工具列表漂移报告</param>
     /// <param name="usage">本次请求的 token 使用情况</param>
     /// <returns>需要上报返回 true；否则返回 false</returns>
-    protected virtual bool ShouldReportToolSpecsBreak(ToolDriftReport drift, TokenUsage usage)
-    {
+    protected virtual bool ShouldReportToolSpecsBreak(ToolDriftReport drift, TokenUsage usage) {
         if (!drift.IsCacheSafe) return true;
         if (!_hasPreviousCacheHit) return false;
         return usage.CacheReadInputTokens == 0;
@@ -250,13 +227,11 @@ public class CacheBreakDetector
     /// <param name="allHashesMatch">所有前缀哈希是否一致</param>
     /// <param name="prevCacheRead">上次请求的缓存读取 token 数</param>
     /// <returns>需要上报返回 true；否则返回 false</returns>
-    protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch, int? prevCacheRead)
-    {
+    protected virtual bool ShouldReportCacheEviction(TokenUsage usage, bool allHashesMatch, int? prevCacheRead) {
         if (!_hasPreviousCacheHit) return false;
         if (!allHashesMatch) return false;
 
-        if (prevCacheRead is null or 0)
-        {
+        if (prevCacheRead is null or 0) {
             return usage.CacheReadInputTokens == 0 && usage.CacheCreationInputTokens > 0;
         }
 
@@ -265,15 +240,13 @@ public class CacheBreakDetector
             && tokenDrop >= CacheEvictionAbsoluteThreshold;
     }
 
-    private static bool IsModelChanged(PromptStateSnapshot snapshot, string? currentModelId)
-    {
+    private static bool IsModelChanged(PromptStateSnapshot snapshot, string? currentModelId) {
         if (snapshot.ModelId is null && currentModelId is null) return false;
         if (snapshot.ModelId is null || currentModelId is null) return true;
         return !string.Equals(snapshot.ModelId, currentModelId, StringComparison.Ordinal);
     }
 
-    private static bool IsFastModeChanged(PromptStateSnapshot snapshot, bool? currentFastMode)
-    {
+    private static bool IsFastModeChanged(PromptStateSnapshot snapshot, bool? currentFastMode) {
         if (snapshot.FastMode is null && currentFastMode is null) return false;
         if (snapshot.FastMode is null || currentFastMode is null) return false;
         return snapshot.FastMode != currentFastMode;
@@ -282,21 +255,17 @@ public class CacheBreakDetector
     private static bool IsExcludedModel(string? modelId)
         => modelId is not null && modelId.Contains("haiku", StringComparison.OrdinalIgnoreCase);
 
-    private static (CacheBreakKind Kind, string Detail) ClassifyCacheMiss(TimeSpan? timeSinceLastCall)
-    {
-        if (timeSinceLastCall is null)
-        {
+    private static (CacheBreakKind Kind, string Detail) ClassifyCacheMiss(TimeSpan? timeSinceLastCall) {
+        if (timeSinceLastCall is null) {
             return (CacheBreakKind.CacheEviction, "Cache miss despite identical prefix — no previous call timestamp");
         }
 
         var gap = timeSinceLastCall.Value;
-        if (gap > Ttl1Hour)
-        {
+        if (gap > Ttl1Hour) {
             return (CacheBreakKind.TtlExpiration1Hour, "Cache miss — possible 1h TTL expiry (prompt unchanged)");
         }
 
-        if (gap > Ttl5Min)
-        {
+        if (gap > Ttl5Min) {
             return (CacheBreakKind.TtlExpiration5Min, "Cache miss — possible 5min TTL expiry (prompt unchanged)");
         }
 
@@ -314,4 +283,3 @@ public class CacheBreakDetector
 //       唯有既有前缀被篡改/插入才报 ConversationHistoryChanged -->
 // <!-- 替代方案: 直接比对整段序列化字节(需 provider 特定的序列化器、开销大且耦合；弃用 -->
 // <!-- 验证: 编译通过，243 个 PrefixCache 测试 + 11 个 CacheBreakMonitor 测试 + 6 个新测试全绿 ✅ -->
-

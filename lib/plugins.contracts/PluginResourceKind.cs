@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 插件资源类型 — 细粒度资源分类
 /// <para>每个命令/钩子/技能/Agent 都是一个 Resource,引用计数精确到单个资源</para>
 /// </summary>
-public enum PluginResourceKind
-{
+public enum PluginResourceKind {
     /// <summary>
     /// 命令资源
     /// </summary>

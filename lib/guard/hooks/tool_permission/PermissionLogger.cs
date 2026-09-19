@@ -6,14 +6,12 @@ namespace Core.Hooks.ToolPermission;
 /// 集中处理所有权限决策的分析/遥测日志记录
 /// </summary>
 [Register(typeof(IPermissionLogger), ServiceLifetime.Singleton)]
-public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
-{
+public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger {
 
     /// <summary>
     /// 构造权限日志记录器
     /// </summary>
-    public PermissionLogger(ILogger<PermissionLogger>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public PermissionLogger(ILogger<PermissionLogger>? logger = null, ITelemetryService? telemetryService = null) {
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -27,23 +25,18 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
         NotebookToolNameEnumConstants.NotebookEdit);
 
     /// <inheritdoc />
-    public void LogPermissionDecision(PermissionLogContext context, PermissionDecisionArgs args)
-    {
+    public void LogPermissionDecision(PermissionLogContext context, PermissionDecisionArgs args) {
         var sourceString = SourceToString(args.Source);
 
         // 记录分析事件
-        if (args.Decision == "accept")
-        {
+        if (args.Decision == "accept") {
             LogApprovalEvent(context, args.Source, context.WaitingForUserPermissionMs);
-        }
-        else
-        {
+        } else {
             LogRejectionEvent(context, args.Source, context.WaitingForUserPermissionMs);
         }
 
         // 记录代码编辑工具指标
-        if (IsCodeEditingTool(context.ToolName))
-        {
+        if (IsCodeEditingTool(context.ToolName)) {
             LogCodeEditToolDecision(
                 context.ToolName,
                 args.Decision,
@@ -61,8 +54,7 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
     }
 
     /// <inheritdoc />
-    public void LogPermissionCancelled(PermissionLogContext context)
-    {
+    public void LogPermissionCancelled(PermissionLogContext context) {
         _logger?.LogInformation(
             "[ToolUseCancelled] MessageID={MessageId}, ToolName={ToolName}",
             context.MessageId,
@@ -70,17 +62,14 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
     }
 
     /// <inheritdoc />
-    public void LogCodeEditToolDecision(string toolName, string decision, string source, string? language = null)
-    {
-        var attributes = new Dictionary<string, JsonNode?>
-        {
+    public void LogCodeEditToolDecision(string toolName, string decision, string source, string? language = null) {
+        var attributes = new Dictionary<string, JsonNode?> {
             ["decision"] = JsonValue.Create(decision),
             ["source"] = JsonValue.Create(source),
             ["tool_name"] = JsonValue.Create(toolName)
         };
 
-        if (!string.IsNullOrEmpty(language))
-        {
+        if (!string.IsNullOrEmpty(language)) {
             attributes["language"] = JsonValue.Create(language);
         }
 
@@ -98,10 +87,8 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
     private void LogApprovalEvent(
         PermissionLogContext context,
         PermissionDecisionSourceType source,
-        int? waitMs)
-    {
-        var eventName = source switch
-        {
+        int? waitMs) {
+        var eventName = source switch {
             PermissionDecisionSourceType.Config => "ToolUseGrantedInConfig",
             PermissionDecisionSourceType.Classifier => "ToolUseGrantedByClassifier",
             PermissionDecisionSourceType.User => waitMs.HasValue
@@ -126,10 +113,8 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
     private void LogRejectionEvent(
         PermissionLogContext context,
         PermissionDecisionSourceType source,
-        int? waitMs)
-    {
-        var eventName = source switch
-        {
+        int? waitMs) {
+        var eventName = source switch {
             PermissionDecisionSourceType.Config => "ToolUseDeniedInConfig",
             _ => "ToolUseRejectedInPrompt"
         };
@@ -150,10 +135,8 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
     /// <summary>
     /// 将来源转换为字符串标签
     /// </summary>
-    private static string SourceToString(PermissionDecisionSourceType source)
-    {
-        return source switch
-        {
+    private static string SourceToString(PermissionDecisionSourceType source) {
+        return source switch {
             PermissionDecisionSourceType.Hook => "hook",
             PermissionDecisionSourceType.User => "user_temporary",
             PermissionDecisionSourceType.Classifier => "classifier",
@@ -167,8 +150,7 @@ public sealed partial class PermissionLogger : ServiceEntity, IPermissionLogger
     /// <summary>
     /// 检查是否为代码编辑工具
     /// </summary>
-    private static bool IsCodeEditingTool(string toolName)
-    {
+    private static bool IsCodeEditingTool(string toolName) {
         return CodeEditingTools.Contains(toolName);
     }
 }

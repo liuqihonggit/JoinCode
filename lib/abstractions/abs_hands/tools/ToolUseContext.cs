@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Tools;
 /// 工具执行上下文 — 对齐 TS ToolUseContext
 /// 包含技能执行时 contextModifier 可修改的字段，以及内容替换状态
 /// </summary>
-public sealed class ToolUseContext
-{
+public sealed class ToolUseContext {
     /// <summary>
     /// 允许的工具列表 — 对齐 TS toolPermissionContext.alwaysAllowRules.command
     /// 技能执行期间自动授权的工具
@@ -56,10 +55,8 @@ public sealed class ToolUseContext
     /// <summary>
     /// 注册已调用的技能 — 对齐 TS addInvokedSkill
     /// </summary>
-    public void AddInvokedSkill(string skillName, string? skillPath, string? skillContent)
-    {
-        InvokedSkills[skillName] = new InvokedSkillEntry
-        {
+    public void AddInvokedSkill(string skillName, string? skillPath, string? skillContent) {
+        InvokedSkills[skillName] = new InvokedSkillEntry {
             Name = skillName,
             Path = skillPath,
             Content = skillContent,
@@ -70,10 +67,8 @@ public sealed class ToolUseContext
     /// <summary>
     /// 记录文件读取 — 对齐 TS fileReadListeners 追踪最近读取的文件
     /// </summary>
-    public void RecordFileRead(string filePath)
-    {
-        if (!string.IsNullOrEmpty(filePath))
-        {
+    public void RecordFileRead(string filePath) {
+        if (!string.IsNullOrEmpty(filePath)) {
             RecentlyReadFiles[filePath] = DateTime.UtcNow;
         }
     }
@@ -87,8 +82,7 @@ public sealed class ToolUseContext
         int maxFiles = 5,
         int totalTokenBudget = 50000,
         CancellationToken cancellationToken = default,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         if (RecentlyReadFiles.Count == 0) return null;
 
         var recentFiles = RecentlyReadFiles
@@ -101,14 +95,12 @@ public sealed class ToolUseContext
         var totalTokens = 0;
         var charsPerToken = 4;
 
-        foreach (var filePath in recentFiles)
-        {
+        foreach (var filePath in recentFiles) {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (!fs.FileExists(filePath)) continue;
 
-            try
-            {
+            try {
                 var content = await fs.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
 
                 if (string.IsNullOrWhiteSpace(content)) continue;
@@ -121,9 +113,7 @@ public sealed class ToolUseContext
                 sb.AppendLine();
 
                 totalTokens += contentTokens;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 // 文件读取失败时跳过，不影响压缩流程
                 logger?.LogWarning(ex, "[PostCompactFileTracker] 读取文件失败: {FilePath}", filePath);
             }
@@ -141,8 +131,7 @@ public sealed class ToolUseContext
     /// 生成压缩保留附件 — 对齐 TS createSkillAttachmentIfNeeded
     /// 按调用时间降序排列，截断保留（5K token/技能, 25K总预算）
     /// </summary>
-    public string? BuildInvokedSkillsAttachment(int maxTokensPerSkill = 5000, int totalTokenBudget = 25000)
-    {
+    public string? BuildInvokedSkillsAttachment(int maxTokensPerSkill = 5000, int totalTokenBudget = 25000) {
         if (InvokedSkills.Count == 0) return null;
 
         var ordered = InvokedSkills.Values
@@ -153,8 +142,7 @@ public sealed class ToolUseContext
         var totalTokens = 0;
         var charsPerToken = 4;
 
-        foreach (var skill in ordered)
-        {
+        foreach (var skill in ordered) {
             if (string.IsNullOrEmpty(skill.Content)) continue;
 
             var contentTokens = skill.Content.Length / charsPerToken;
@@ -181,23 +169,19 @@ public sealed class ToolUseContext
     /// 应用技能的 contextModifier — 对齐 TS SkillTool.call() 中的 contextModifier
     /// 将技能定义的 AllowedTools/Model/Effort 合并到当前上下文
     /// </summary>
-    public void ApplySkillModifier(Models.Skill.SkillDefinition skill)
-    {
+    public void ApplySkillModifier(Models.Skill.SkillDefinition skill) {
         // 合并 allowedTools — 对齐 TS: Set([...existing, ...skill.allowedTools])
-        if (skill.AllowedTools.Count > 0)
-        {
+        if (skill.AllowedTools.Count > 0) {
             AllowedTools.UnionWith(skill.AllowedTools);
         }
 
         // 覆盖 model — 对齐 TS: resolveSkillModelOverride(model, mainLoopModel)
-        if (skill.Model is not null)
-        {
+        if (skill.Model is not null) {
             ModelOverride = skill.Model;
         }
 
         // 覆盖 effort — 对齐 TS: appState.effortValue = effort
-        if (skill.Effort is not null)
-        {
+        if (skill.Effort is not null) {
             Effort = skill.Effort;
         }
 
@@ -209,8 +193,7 @@ public sealed class ToolUseContext
 /// <summary>
 /// 已调用的技能条目 — 对齐 TS STATE.invokedSkills Map entry
 /// </summary>
-public sealed class InvokedSkillEntry
-{
+public sealed class InvokedSkillEntry {
     public required string Name { get; init; }
     public string? Path { get; init; }
     public string? Content { get; init; }
@@ -221,8 +204,7 @@ public sealed class InvokedSkillEntry
 /// 待确认的 sed 编辑 — 对齐 TS _simulatedSedEdit
 /// 存储 sed -i 预计算的替换结果，等待用户/模型确认后写入
 /// </summary>
-public sealed class PendingSedEdit
-{
+public sealed class PendingSedEdit {
     /// <summary>
     /// 文件完整路径
     /// </summary>

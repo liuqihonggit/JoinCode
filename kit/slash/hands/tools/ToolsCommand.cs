@@ -5,26 +5,22 @@ namespace JoinCode.ChatCommands;
 /// /tools 命令 - 显示可用工具列表及参数
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Tools, Description = "显示可用工具列表", Usage = "/tools", Category = ChatCommandCategory.Tools, ExposeToMcp = true)]
-public sealed class ToolsCommand : ChatCommandBase
-{
+public sealed class ToolsCommand : ChatCommandBase {
     /// <summary>
     /// 异步执行 /tools 命令，显示可用工具列表及参数
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
-        if (services.ToolRegistry is null)
-        {
+        if (services.ToolRegistry is null) {
             TerminalHelper.WriteLine("工具注册表不可用。");
             return ChatCommandResult.Continue();
         }
 
         var tools = await services.ToolRegistry.GetAllToolInfosAsync(context.CancellationToken);
 
-        if (tools.Count == 0)
-        {
+        if (tools.Count == 0) {
             TerminalHelper.WriteLine("没有注册的工具。");
             return ChatCommandResult.Continue();
         }
@@ -33,19 +29,16 @@ public sealed class ToolsCommand : ChatCommandBase
         TerminalHelper.WriteLine($"=== 可用工具 ({tools.Count}) ===");
         TerminalHelper.NewLine();
 
-        foreach (var tool in tools)
-        {
+        foreach (var tool in tools) {
             TerminalHelper.WriteLine($"  {ObjectSymbol.Gear.ToValue()} {tool.Name}");
             TerminalHelper.WriteLine($"     描述: {tool.Description}");
 
-            if (tool.InputSchema.Properties.Count > 0)
-            {
+            if (tool.InputSchema.Properties.Count > 0) {
                 TerminalHelper.WriteLine("     参数:");
                 var requiredSet = tool.InputSchema.Required is { Count: > 0 }
                     ? new HashSet<string>(tool.InputSchema.Required)
                     : null;
-                foreach (var param in tool.InputSchema.Properties)
-                {
+                foreach (var param in tool.InputSchema.Properties) {
                     var requiredTag = requiredSet is not null && requiredSet.Contains(param.Key) ? "(必需)" : "(可选)";
                     TerminalHelper.WriteLine($"       - {param.Key}: {param.Value.Type} {requiredTag}");
                 }

@@ -1,10 +1,8 @@
 namespace JoinCode.Infra.Tests.IO;
 
-public sealed class EditDiagnosticBuilderTests
-{
+public sealed class EditDiagnosticBuilderTests {
     [Fact]
-    public void BuildDiagnostic_StringNotFound_ReturnsStringNotFoundReason()
-    {
+    public void BuildDiagnostic_StringNotFound_ReturnsStringNotFoundReason() {
         var fileContent = "line1\nline2\nline3\n";
         var oldString = "completely_nonexistent_line";
 
@@ -17,8 +15,7 @@ public sealed class EditDiagnosticBuilderTests
     }
 
     [Fact]
-    public void BuildDiagnostic_PartialMatch_ReportsLineNumberAndDiverge()
-    {
+    public void BuildDiagnostic_PartialMatch_ReportsLineNumberAndDiverge() {
         var fileContent = "line1\nline2_correct\nline3\nline4\n";
         var oldString = "line1\nline2_WRONG\nline3\n";
 
@@ -36,8 +33,7 @@ public sealed class EditDiagnosticBuilderTests
     }
 
     [Fact]
-    public void BuildDiagnostic_PartialMatch_MiddleOfFile_ReportsCorrectLine()
-    {
+    public void BuildDiagnostic_PartialMatch_MiddleOfFile_ReportsCorrectLine() {
         var fileContent = "alpha\nbeta\ngamma\ndelta\nepsilon\n";
         var oldString = "gamma\ndelta_WRONG\nepsilon\n";
 
@@ -52,8 +48,7 @@ public sealed class EditDiagnosticBuilderTests
     }
 
     [Fact]
-    public void BuildDiagnostic_WhitespaceMismatch_ReportsWhitespaceReason()
-    {
+    public void BuildDiagnostic_WhitespaceMismatch_ReportsWhitespaceReason() {
         var fileContent = "    indented_with_spaces\n";
         var oldString = "\tindented_with_spaces\n";
 
@@ -65,8 +60,7 @@ public sealed class EditDiagnosticBuilderTests
     }
 
     [Fact]
-    public void BuildDiagnostic_SimilarFound_ReportsSimilarSnippetWithLineRange()
-    {
+    public void BuildDiagnostic_SimilarFound_ReportsSimilarSnippetWithLineRange() {
         var fileContent = """
             public void Foo()
             {
@@ -104,8 +98,7 @@ public sealed class EditDiagnosticBuilderTests
     }
 
     [Fact]
-    public void BuildDiagnostic_EmptyOldString_ReturnsStringNotFound()
-    {
+    public void BuildDiagnostic_EmptyOldString_ReturnsStringNotFound() {
         var fileContent = "some content\n";
 
         var diag = EditDiagnosticBuilder.BuildDiagnostic(fileContent, "");
@@ -114,11 +107,9 @@ public sealed class EditDiagnosticBuilderTests
     }
 
     [Fact]
-    public void BuildDiagnostic_LargeFile_SkipsSimilarityButStillReportsPartialMatch()
-    {
+    public void BuildDiagnostic_LargeFile_SkipsSimilarityButStillReportsPartialMatch() {
         var sb = new StringBuilder();
-        for (var i = 0; i < 6000; i++)
-        {
+        for (var i = 0; i < 6000; i++) {
             sb.Append($"line{i}\n");
         }
 
@@ -135,8 +126,7 @@ public sealed class EditDiagnosticBuilderTests
     }
 
     [Fact]
-    public void FormattedMessage_AlwaysContainsDiagnosticPrefix()
-    {
+    public void FormattedMessage_AlwaysContainsDiagnosticPrefix() {
         var fileContent = "hello\n";
         var oldString = "world\n";
 

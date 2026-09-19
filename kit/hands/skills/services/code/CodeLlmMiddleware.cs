@@ -4,8 +4,7 @@ namespace Core.Skills;
 /// 代码 LLM 中间件 — Generate/Analyze 操作的 LLM 调用
 /// </summary>
 [Register(typeof(ICodeMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class CodeLlmMiddleware : ServiceEntity, ICodeMiddleware
-{
+public sealed partial class CodeLlmMiddleware : ServiceEntity, ICodeMiddleware {
     private readonly JoinCode.Abstractions.LLM.IQueryService _queryService;
 
     /// <inheritdoc />
@@ -15,36 +14,29 @@ public sealed partial class CodeLlmMiddleware : ServiceEntity, ICodeMiddleware
     /// <summary>
     /// 创建 CodeLlmMiddleware
     /// </summary>
-    public CodeLlmMiddleware(JoinCode.Abstractions.LLM.IQueryService queryService)
-    {
+    public CodeLlmMiddleware(JoinCode.Abstractions.LLM.IQueryService queryService) {
         _queryService = queryService;
     }
 
     /// <inheritdoc />
-    public async Task InvokeAsync(CodeContext context, MiddlewareDelegate<CodeContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(CodeContext context, MiddlewareDelegate<CodeContext> next, CancellationToken ct) {
         // 仅 Generate/Analyze 操作使用 LLM
-        if (context.Operation == CodeOperation.Execute)
-        {
+        if (context.Operation == CodeOperation.Execute) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
         var chatHistory = new MessageList();
 
-        if (context.Operation == CodeOperation.Generate)
-        {
+        if (context.Operation == CodeOperation.Generate) {
             chatHistory.AddSystemMessage(HandsPromptTemplates.GetContent("code_generation")!);
             chatHistory.AddUserMessage(L.T(StringKey.CodeServiceGenerateCodePrompt, context.Input));
-        }
-        else
-        {
+        } else {
             chatHistory.AddSystemMessage(HandsPromptTemplates.GetContent("code_analysis")!);
             chatHistory.AddUserMessage(L.T(StringKey.CodeServiceAnalyzeCodePrompt, context.Input));
         }
 
-        var executionSettings = new ChatOptions
-        {
+        var executionSettings = new ChatOptions {
             Temperature = context.Operation == CodeOperation.Generate ? 0.7f : 0.5f,
             MaxTokens = context.Operation == CodeOperation.Generate ? 2000 : 1500,
             TopP = 0.95f

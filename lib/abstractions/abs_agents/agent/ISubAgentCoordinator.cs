@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 子代理协调器接口 — 用于调度层创建、执行和清理子代理
 /// </summary>
-public interface ISubAgentCoordinator
-{
+public interface ISubAgentCoordinator {
     /// <summary>
     /// 创建子代理
     /// </summary>

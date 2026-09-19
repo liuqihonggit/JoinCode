@@ -10,8 +10,7 @@ namespace JoinCode.Abstractions.ChatCommands;
 /// - FromValue("RECONNECT") → McpAction.Reconnect (OrdinalIgnoreCase)
 /// - McpAction.Enable.ToValue() → "enable"
 /// </summary>
-public enum McpAction
-{
+public enum McpAction {
     /// <summary>查看 MCP 服务器状态</summary>
     [EnumValue("status")] Status,
 

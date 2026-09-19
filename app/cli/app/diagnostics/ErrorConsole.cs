@@ -4,8 +4,7 @@ namespace JoinCode.App;
 /// 独立错误渲染器 — 不依赖任何 TUI 框架，仅使用 System.Console 输出
 /// 用于感知程序报错，在 TUI 未启动或崩溃时仍可工作
 /// </summary>
-public static class ErrorConsole
-{
+public static class ErrorConsole {
     private static readonly object Lock = new();
 
     /// <summary>
@@ -14,23 +13,19 @@ public static class ErrorConsole
     public static bool IsQuiet { get; set; }
 
     /// <summary>渲染致命错误（红色标题 + 消息 + 堆栈）</summary>
-    public static void Fatal(string message, Exception? ex = null)
-    {
-        lock (Lock)
-        {
+    public static void Fatal(string message, Exception? ex = null) {
+        lock (Lock) {
             Err();
             Colored("  ✖ 致命错误", System.ConsoleColor.Red);
             Err();
             Err($"  {message}");
 
-            if (ex is not null)
-            {
+            if (ex is not null) {
                 Err();
                 Colored("  详细信息:", System.ConsoleColor.DarkGray);
                 Err($"  {ex.GetType().Name}: {ex.Message}");
 
-                if (!string.IsNullOrEmpty(ex.StackTrace))
-                {
+                if (!string.IsNullOrEmpty(ex.StackTrace)) {
                     Err();
                     foreach (var line in ex.StackTrace.Split('\n'))
                         Err($"  {line.Trim()}");
@@ -42,27 +37,22 @@ public static class ErrorConsole
     }
 
     /// <summary>渲染警告（黄色标题 + 消息）— 静默模式下抑制</summary>
-    public static void Warning(string message)
-    {
+    public static void Warning(string message) {
         if (IsQuiet) return;
-        lock (Lock)
-        {
+        lock (Lock) {
             Colored("  ⚠ 警告: ", System.ConsoleColor.Yellow);
             Err(message);
         }
     }
 
     /// <summary>渲染 API 错误（带错误分类）</summary>
-    public static void ApiError(string message, string? suggestion = null)
-    {
-        lock (Lock)
-        {
+    public static void ApiError(string message, string? suggestion = null) {
+        lock (Lock) {
             Err();
             Colored("  ✖ API 错误", System.ConsoleColor.Red);
             Err($"  {message}");
 
-            if (!string.IsNullOrEmpty(suggestion))
-            {
+            if (!string.IsNullOrEmpty(suggestion)) {
                 Err();
                 Colored("  建议: ", System.ConsoleColor.Cyan);
                 Err(suggestion);
@@ -73,11 +63,9 @@ public static class ErrorConsole
     }
 
     /// <summary>渲染信息提示（灰色）— 静默模式下抑制</summary>
-    public static void Info(string message)
-    {
+    public static void Info(string message) {
         if (IsQuiet) return;
-        lock (Lock)
-        {
+        lock (Lock) {
             Colored("  ℹ ", System.ConsoleColor.DarkGray);
             Err(message);
         }
@@ -86,23 +74,19 @@ public static class ErrorConsole
     /// <summary>
     /// 渲染结构化错误 — 对齐架构指南4字段规范(code/message/hint/retryable)
     /// </summary>
-    public static void StructuredError(Cli.Output.CliStructuredError error)
-    {
-        lock (Lock)
-        {
+    public static void StructuredError(Cli.Output.CliStructuredError error) {
+        lock (Lock) {
             Err();
             Colored($"  ✖ [{error.Code}]", System.ConsoleColor.Red);
             Err($"  {error.Message}");
 
-            if (!string.IsNullOrEmpty(error.Hint))
-            {
+            if (!string.IsNullOrEmpty(error.Hint)) {
                 Err();
                 Colored("  💡 ", System.ConsoleColor.Cyan);
                 Err(error.Hint);
             }
 
-            if (error.Retryable)
-            {
+            if (error.Retryable) {
                 Err();
                 Colored("  ↻ ", System.ConsoleColor.DarkGray);
                 Err("此错误可重试");
@@ -112,14 +96,12 @@ public static class ErrorConsole
         }
     }
 
-    private static void Err(string? text = null)
-    {
+    private static void Err(string? text = null) {
         if (text is null) TerminalHelper.WriteError();
         else TerminalHelper.WriteError(text);
     }
 
-    private static void Colored(string text, System.ConsoleColor color)
-    {
+    private static void Colored(string text, System.ConsoleColor color) {
         using var _ = TerminalHelper.SetColorRaw(color);
         TerminalHelper.WriteErrorRaw(text);
     }

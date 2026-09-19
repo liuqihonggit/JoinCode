@@ -4,16 +4,14 @@ namespace Core.Tests.Scheduling;
 /// <summary>
 /// FileBasedTaskService 单元测试 - 使用内存文件系统实现高速测试
 /// </summary>
-public sealed class FileBasedTaskServiceTests : IDisposable
-{
+public sealed class FileBasedTaskServiceTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOperationService;
     private readonly IFileSystem _fs;
     private readonly FileBasedTaskService _service;
     private readonly ITestOutputHelper _output;
     private bool _disposed;
 
-    public FileBasedTaskServiceTests(ITestOutputHelper output)
-    {
+    public FileBasedTaskServiceTests(ITestOutputHelper output) {
         _output = output;
         _fileOperationService = new InMemoryFileOperationService();
         _fs = TestFileSystem.Current;
@@ -21,8 +19,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
         var taskFileWriter = new TaskFileWriter(_fileOperationService);
         var taskFileReader = new TaskFileReader(_fileOperationService);
 
-        var options = new TaskDirectoryOptions
-        {
+        var options = new TaskDirectoryOptions {
             TaskDirectoryPath = "tasks"
         };
 
@@ -31,16 +28,14 @@ public sealed class FileBasedTaskServiceTests : IDisposable
         _service = new FileBasedTaskService(fileOps, options);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOperationService.DisposeSafe();
     }
 
     [Fact]
-    public async Task CreateTaskAsync_WithValidData_ShouldCreateTask()
-    {
+    public async Task CreateTaskAsync_WithValidData_ShouldCreateTask() {
         // Act
         var result = await _service.CreateTaskAsync(
             "测试任务",
@@ -51,8 +46,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
             new List<string> { "test", "demo" }).ConfigureAwait(true);
 
         // Debug
-        if (!result.Success)
-        {
+        if (!result.Success) {
             _output.WriteLine($"创建任务失败: {result.ErrorMessage}");
         }
 
@@ -67,8 +61,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetTaskAsync_WithExistingTask_ShouldReturnTask()
-    {
+    public async Task GetTaskAsync_WithExistingTask_ShouldReturnTask() {
         // Arrange
         var createResult = await _service.CreateTaskAsync("获取测试", null, null, null, "medium", null).ConfigureAwait(true);
         var taskId = createResult.Data!.Id;
@@ -83,8 +76,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetTaskAsync_WithNonExistingTask_ShouldReturnNull()
-    {
+    public async Task GetTaskAsync_WithNonExistingTask_ShouldReturnNull() {
         // Act
         var task = await _service.GetTaskAsync("task-9999").ConfigureAwait(true);
 
@@ -93,8 +85,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ListTasksAsync_WithMultipleTasks_ShouldReturnAll()
-    {
+    public async Task ListTasksAsync_WithMultipleTasks_ShouldReturnAll() {
         // Arrange
         await _service.CreateTaskAsync("任务1", null, null, null, "high", null).ConfigureAwait(true);
         await _service.CreateTaskAsync("任务2", null, null, null, "medium", null).ConfigureAwait(true);
@@ -110,8 +101,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ListTasksAsync_WithStatusFilter_ShouldFilterCorrectly()
-    {
+    public async Task ListTasksAsync_WithStatusFilter_ShouldFilterCorrectly() {
         // Arrange
         var createResult = await _service.CreateTaskAsync("待处理任务", null, null, null, "medium", null).ConfigureAwait(true);
         await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = createResult.Data!.Id, Status = "completed" }).ConfigureAwait(true);
@@ -128,16 +118,14 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateTaskAsync_WithExistingTask_ShouldUpdate()
-    {
+    public async Task UpdateTaskAsync_WithExistingTask_ShouldUpdate() {
         // Arrange
         var createResult = await _service.CreateTaskAsync("原标题", "原描述", null, null, "low", null).ConfigureAwait(true);
         var taskId = createResult.Data!.Id;
 
         // Act
         var updateResult = await _service.UpdateTaskAsync(
-            new UpdateTaskRequest
-            {
+            new UpdateTaskRequest {
                 TaskId = taskId,
                 Title = "新标题",
                 Description = "新描述",
@@ -156,8 +144,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateTaskAsync_WithNonExistingTask_ShouldFail()
-    {
+    public async Task UpdateTaskAsync_WithNonExistingTask_ShouldFail() {
         // Act
         var result = await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = "task-9999", Title = "标题" }).ConfigureAwait(true);
 
@@ -167,8 +154,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StopTaskAsync_WithRunningTask_ShouldStop()
-    {
+    public async Task StopTaskAsync_WithRunningTask_ShouldStop() {
         // Arrange
         var createResult = await _service.CreateTaskAsync("运行中任务", null, null, null, "medium", null).ConfigureAwait(true);
         await _service.UpdateTaskAsync(new UpdateTaskRequest { TaskId = createResult.Data!.Id, Status = "in_progress" }).ConfigureAwait(true);
@@ -182,8 +168,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteTaskAsync_WithExistingTask_ShouldDelete()
-    {
+    public async Task DeleteTaskAsync_WithExistingTask_ShouldDelete() {
         // Arrange
         var createResult = await _service.CreateTaskAsync("待删除任务", null, null, null, "medium", null).ConfigureAwait(true);
         var taskId = createResult.Data!.Id;
@@ -198,8 +183,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task SetTaskDependencyAsync_ShouldCreateDependency()
-    {
+    public async Task SetTaskDependencyAsync_ShouldCreateDependency() {
         // Arrange
         var task1 = await _service.CreateTaskAsync("任务1", null, null, null, "medium", null).ConfigureAwait(true);
         var task2 = await _service.CreateTaskAsync("任务2", null, null, null, "medium", null).ConfigureAwait(true);
@@ -223,8 +207,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ResetTaskListAsync_ShouldClearTasksButKeepHighWaterMark()
-    {
+    public async Task ResetTaskListAsync_ShouldClearTasksButKeepHighWaterMark() {
         // Arrange
         await _service.CreateTaskAsync("任务1", null, null, null, "medium", null).ConfigureAwait(true);
         await _service.CreateTaskAsync("任务2", null, null, null, "medium", null).ConfigureAwait(true);
@@ -242,14 +225,12 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CreateTaskAsync_Concurrent_ShouldGenerateUniqueIds()
-    {
+    public async Task CreateTaskAsync_Concurrent_ShouldGenerateUniqueIds() {
         // Arrange - 使用顺序创建来避免并发问题
         var tasks = new List<TaskItem>();
 
         // Act - 顺序创建5个任务
-        for (int i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             var result = await _service.CreateTaskAsync($"任务{i}", null, null, null, "medium", null).ConfigureAwait(true);
             Assert.True(result.Success, $"创建任务{i}失败: {result.ErrorMessage}");
             tasks.Add(result.Data!);
@@ -261,8 +242,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
 
         // 验证ID是递增的
         var idNumbers = ids.Select(id => int.Parse(id.Replace("task-", ""))).OrderBy(n => n).ToList();
-        for (int i = 0; i < idNumbers.Count - 1; i++)
-        {
+        for (var i = 0; i < idNumbers.Count - 1; i++) {
             Assert.True(idNumbers[i] < idNumbers[i + 1], "ID应该是递增的");
         }
 
@@ -270,8 +250,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task TaskPersistence_AcrossInstances_ShouldWork()
-    {
+    public async Task TaskPersistence_AcrossInstances_ShouldWork() {
         // Arrange - 使用第一个服务实例创建任务
         var createResult = await _service.CreateTaskAsync("持久化测试", "测试描述", null, null, "high", null).ConfigureAwait(true);
         var taskId = createResult.Data!.Id;

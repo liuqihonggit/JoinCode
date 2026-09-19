@@ -1,14 +1,13 @@
-namespace Guard.Security.Tests;
 
 using Core.Hooks.Execution.Interception;
 using Core.Hooks.Execution.Interception.Guards;
 
+namespace Guard.Security.Tests;
 /// <summary>
 /// RobocopyMirrorGuard 单元测试 — ADR 0012 阶段3
 /// 验证保留名清理场景白名单放行条件
 /// </summary>
-public class RobocopyMirrorGuardTests
-{
+public class RobocopyMirrorGuardTests {
     private readonly RobocopyMirrorGuard _guard = new();
 
     private static GuardContext CreateContext(string workingDir = "D:\\project\\w2") =>
@@ -21,8 +20,7 @@ public class RobocopyMirrorGuardTests
     [InlineData("robocopy src dst /PURGE")]
     [InlineData("robocopy src dst /mir")]
     [InlineData("robocopy src dst /purge")]
-    public void CanHandle_Robocopy_With_Mirror_Purge_Should_Return_True(string command)
-    {
+    public void CanHandle_Robocopy_With_Mirror_Purge_Should_Return_True(string command) {
         _guard.CanHandle(command, CreateContext()).Should().BeTrue();
     }
 
@@ -31,8 +29,7 @@ public class RobocopyMirrorGuardTests
     [InlineData("robocopy src dst")]
     [InlineData("del file")]
     [InlineData("rm -rf /")]
-    public void CanHandle_Other_Commands_Should_Return_False(string command)
-    {
+    public void CanHandle_Other_Commands_Should_Return_False(string command) {
         _guard.CanHandle(command, CreateContext()).Should().BeFalse();
     }
 
@@ -46,8 +43,7 @@ public class RobocopyMirrorGuardTests
     [InlineData("robocopy empty D:\\project\\w2\\.xxx\\prn.20260912.del /MIR")]
     [InlineData("robocopy empty D:\\project\\w2\\.xxx\\aux.20260912.del /MIR")]
     [InlineData("robocopy empty D:\\project\\w2\\.xxx\\nul.20260912.del /PURGE")]
-    public void Evaluate_Retained_Name_Cleanup_Should_Allow(string command)
-    {
+    public void Evaluate_Retained_Name_Cleanup_Should_Allow(string command) {
         _guard.CanHandle(command, CreateContext()).Should().BeTrue();
         var decision = _guard.Evaluate(command, CreateContext());
         decision.Should().BeOfType<CommandDecision.Allow>();
@@ -62,8 +58,7 @@ public class RobocopyMirrorGuardTests
     [InlineData("robocopy src D:\\project\\JoinCode /MIR")]
     [InlineData("robocopy src dst /MIR")]
     [InlineData("robocopy src D:\\project\\w2\\normal.txt /MIR")]
-    public void Evaluate_Non_Retained_Name_Should_Handoff(string command)
-    {
+    public void Evaluate_Non_Retained_Name_Should_Handoff(string command) {
         _guard.CanHandle(command, CreateContext()).Should().BeTrue();
         var decision = _guard.Evaluate(command, CreateContext());
         decision.Should().BeOfType<CommandDecision.Handoff>();
@@ -86,8 +81,7 @@ public class RobocopyMirrorGuardTests
     [InlineData("nul", true)]
     [InlineData("NUL", true)]
     [InlineData("normal.txt", false)]
-    public void IsRetainedNameCleanupScenario_Should_Detect(string targetPath, bool expected)
-    {
+    public void IsRetainedNameCleanupScenario_Should_Detect(string targetPath, bool expected) {
         RobocopyMirrorGuard.IsRetainedNameCleanupScenario(targetPath).Should().Be(expected);
     }
 

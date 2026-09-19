@@ -4,14 +4,10 @@ namespace JoinCode.Entry.Tests;
 /// <summary>
 /// SystemPromptApplyStep 单元测试 — 验证视角1 #5 的 --system-prompt/--append-system-prompt 行为
 /// </summary>
-public class SystemPromptApplyStepTests
-{
-    private static StartupContext CreateContext(CommandLineOptions options, IChatService? chatService = null, IChatContextManager? contextManager = null)
-    {
-        var config = new WorkflowConfig
-        {
-            Provider = new ProviderConfig
-            {
+public class SystemPromptApplyStepTests {
+    private static StartupContext CreateContext(CommandLineOptions options, IChatService? chatService = null, IChatContextManager? contextManager = null) {
+        var config = new WorkflowConfig {
+            Provider = new ProviderConfig {
                 ApiKey = "sk-test",
                 Vendor = "openai",
                 ModelId = "gpt-4o"
@@ -29,8 +25,7 @@ public class SystemPromptApplyStepTests
         hostMock.SetupGet(h => h.Services).Returns(provider);
         var host = hostMock.Object;
 
-        return new StartupContext
-        {
+        return new StartupContext {
             Config = config,
             Options = options,
             Host = host,
@@ -39,8 +34,7 @@ public class SystemPromptApplyStepTests
     }
 
     [Fact]
-    public async Task NoSystemPromptAndNoAppend_ShouldCallNextWithoutApplying()
-    {
+    public async Task NoSystemPromptAndNoAppend_ShouldCallNextWithoutApplying() {
         // Arrange — 默认 CommandLineOptions 无 --system-prompt 也无 --append-system-prompt
         var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
@@ -49,8 +43,7 @@ public class SystemPromptApplyStepTests
         var nextCalled = false;
 
         // Act
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -64,8 +57,7 @@ public class SystemPromptApplyStepTests
     }
 
     [Fact]
-    public async Task SystemPrompt_ShouldCallSetSystemPromptAsyncAndContinue()
-    {
+    public async Task SystemPrompt_ShouldCallSetSystemPromptAsyncAndContinue() {
         // Arrange — 指定 --system-prompt
         var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
@@ -77,8 +69,7 @@ public class SystemPromptApplyStepTests
         var context = CreateContext(options, chatMock.Object, contextMgrMock.Object);
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -92,8 +83,7 @@ public class SystemPromptApplyStepTests
     }
 
     [Fact]
-    public async Task AppendSystemPrompt_ShouldCallAddDynamicSystemMessageAsyncAndContinue()
-    {
+    public async Task AppendSystemPrompt_ShouldCallAddDynamicSystemMessageAsyncAndContinue() {
         // Arrange — 指定 --append-system-prompt
         var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
@@ -105,8 +95,7 @@ public class SystemPromptApplyStepTests
         var context = CreateContext(options, chatMock.Object, contextMgrMock.Object);
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -120,8 +109,7 @@ public class SystemPromptApplyStepTests
     }
 
     [Fact]
-    public async Task BothSystemPromptAndAppend_ShouldApplyBothInOrder()
-    {
+    public async Task BothSystemPromptAndAppend_ShouldApplyBothInOrder() {
         // Arrange — 同时指定 --system-prompt 和 --append-system-prompt
         // 语义: 先覆盖静态，再追加动态 — 最终前缀 = newStatic + dynamicAppend
         var step = new SystemPromptApplyStep();
@@ -132,16 +120,14 @@ public class SystemPromptApplyStepTests
         contextMgrMock.Setup(m => m.AddDynamicSystemMessageAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        var options = new CommandLineOptions
-        {
+        var options = new CommandLineOptions {
             SystemPrompt = "你是一个测试助手",
             AppendSystemPrompt = "额外要求: 使用简洁回复"
         };
         var context = CreateContext(options, chatMock.Object, contextMgrMock.Object);
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);
@@ -155,8 +141,7 @@ public class SystemPromptApplyStepTests
     }
 
     [Fact]
-    public async Task EmptySystemPrompt_ShouldBeSkipped()
-    {
+    public async Task EmptySystemPrompt_ShouldBeSkipped() {
         // Arrange — 空字符串 SystemPrompt 应视为未设置（不应用）
         var step = new SystemPromptApplyStep();
         var chatMock = new Mock<IChatService>();
@@ -166,8 +151,7 @@ public class SystemPromptApplyStepTests
         var context = CreateContext(options, chatMock.Object, contextMgrMock.Object);
 
         var nextCalled = false;
-        await step.InvokeAsync(context, (_, _) =>
-        {
+        await step.InvokeAsync(context, (_, _) => {
             nextCalled = true;
             return Task.CompletedTask;
         }, CancellationToken.None);

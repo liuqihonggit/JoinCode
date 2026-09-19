@@ -5,8 +5,7 @@ namespace JoinCode.CodeIndex;
 /// 代码索引器 — 统一管理符号索引、调用图、依赖图、项目索引和增量更新
 /// </summary>
 [Register(typeof(ICodeIndexer), ServiceLifetime.Singleton)]
-public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposable
-{
+public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposable {
     private readonly InMemoryIndexStore _store;
     private readonly IFileSystem _fs;
     private SymbolIndex _symbolIndex;
@@ -33,8 +32,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <param name="store">内存索引存储</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">可选日志记录器</param>
-    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null)
-    {
+    public CodeIndexer(InMemoryIndexStore store, IFileSystem fs, ILogger<CodeIndexer>? logger = null) {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(fs);
 
@@ -59,8 +57,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// 设置语言插件工厂 — 插件加载时调用(ADR 0098 万物皆插件)
     /// <para>必须在索引加载前调用,否则会丢失已索引数据</para>
     /// </summary>
-    public void SetLanguagePluginFactory(Func<ILanguagePlugin> pluginFactory)
-    {
+    public void SetLanguagePluginFactory(Func<ILanguagePlugin> pluginFactory) {
         ArgumentNullException.ThrowIfNull(pluginFactory);
         _pluginFactory = pluginFactory;
         _plugin = _pluginFactory();
@@ -96,8 +93,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <param name="ct">取消令牌</param>
     /// <param name="progress">可选进度报告器</param>
     /// <returns>构建结果，含更新/跳过/删除计数</returns>
-    public async Task<BuildIndexResult> BuildIndexAsync(CodeIndexOptions options, CancellationToken ct, IProgress<IndexProgress>? progress = null)
-    {
+    public async Task<BuildIndexResult> BuildIndexAsync(CodeIndexOptions options, CancellationToken ct, IProgress<IndexProgress>? progress = null) {
         ArgumentNullException.ThrowIfNull(options);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
@@ -123,8 +119,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         // 并行 IO: 一次性启动所有读+哈希任务,Task.WhenAll 等待全部完成
         // (IncrementalUpdater.UpdateDirectoryAsync 已验证此模式,OS 处理 IO 并发)
-        var readTasks = csFiles.Select(async filePath =>
-        {
+        var readTasks = csFiles.Select(async filePath => {
             ct.ThrowIfCancellationRequested();
             var (sourceCode, currentHash) = await HashUtility.ReadFileAndComputeHashAsync(filePath, _fs, ct).ConfigureAwait(false);
             return (FilePath: filePath, SourceCode: sourceCode, Hash: currentHash);
@@ -132,14 +127,10 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         var readResults = await Task.WhenAll(readTasks).ConfigureAwait(false);
 
-        foreach (var r in readResults)
-        {
-            if (storedHashes.TryGetValue(r.FilePath, out var storedHash) && storedHash == r.Hash)
-            {
+        foreach (var r in readResults) {
+            if (storedHashes.TryGetValue(r.FilePath, out var storedHash) && storedHash == r.Hash) {
                 skippedCount++;
-            }
-            else
-            {
+            } else {
                 filesToIndex.Add((r.FilePath, r.SourceCode, r.Hash));
             }
             existingFiles.Add(r.FilePath);
@@ -152,8 +143,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         // Phase E: 批量索引写入(单写锁 + 单次 CorrectInheritsToImplements,替代每文件锁+每文件全量扫描)
         var batch = new List<(string FilePath, string SourceCode, string Hash, ExtractionResult Extraction)>(filesToIndex.Count);
-        for (var i = 0; i < filesToIndex.Count; i++)
-        {
+        for (var i = 0; i < filesToIndex.Count; i++) {
             var (filePath, sourceCode, hash) = filesToIndex[i];
             batch.Add((filePath, sourceCode, hash, extractionResults[i]));
         }
@@ -161,10 +151,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         updatedCount = batch.Count;
 
         // Phase F: 删除已移除文件
-        foreach (var trackedFile in trackedFiles)
-        {
-            if (!existingFiles.Contains(trackedFile))
-            {
+        foreach (var trackedFile in trackedFiles) {
+            if (!existingFiles.Contains(trackedFile)) {
                 await _symbolIndex.RemoveFileAsync(trackedFile, ct).ConfigureAwait(false);
                 deletedCount++;
             }
@@ -175,45 +163,34 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         totalSw.Stop();
 
-        return new BuildIndexResult
-        {
+        return new BuildIndexResult {
             UpdatedCount = updatedCount,
             SkippedCount = skippedCount,
             DeletedCount = deletedCount
         };
     }
 
-    private async Task IndexProjectsAsync(string workspaceRoot, CancellationToken ct)
-    {
+    private async Task IndexProjectsAsync(string workspaceRoot, CancellationToken ct) {
         var solutionFiles = CollectFiles(workspaceRoot, "*.slnx")
             .Concat(CollectFiles(workspaceRoot, "*.sln"))
             .ToList();
 
-        foreach (var slnFile in solutionFiles)
-        {
+        foreach (var slnFile in solutionFiles) {
             ct.ThrowIfCancellationRequested();
-            try
-            {
+            try {
                 await _projectIndex.IndexSolutionAsync(slnFile, ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "CodeIndexer: 解析 solution 文件失败,跳过: {File}", slnFile);
             }
         }
 
-        if (solutionFiles.Count == 0)
-        {
+        if (solutionFiles.Count == 0) {
             var csprojFiles = CollectFiles(workspaceRoot, "*.csproj");
-            foreach (var csprojFile in csprojFiles)
-            {
+            foreach (var csprojFile in csprojFiles) {
                 ct.ThrowIfCancellationRequested();
-                try
-                {
+                try {
                     await _projectIndex.IndexProjectAsync(csprojFile, workspaceRoot, ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "CodeIndexer: 解析项目文件失败,跳过: {File}", csprojFile);
                 }
             }
@@ -223,8 +200,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     }
 
     private List<ExtractionResult> ParallelExtractAll(
-        List<(string FilePath, string SourceCode, string Hash)> files, CancellationToken ct)
-    {
+        List<(string FilePath, string SourceCode, string Hash)> files, CancellationToken ct) {
         if (files.Count == 0) return [];
 
         // 优化: Partitioner.Create 动态范围分区 + PLINQ,替代固定 chunk
@@ -243,13 +219,11 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
             .AsParallel()
             .WithDegreeOfParallelism(parallelism)
             .WithCancellation(ct)
-            .ForAll(range =>
-            {
+            .ForAll(range => {
                 using var parser = TreeSitterParserPool.CreateDisposable();
                 using var extractor = new CSharpSymbolExtractor(parser);
 
-                for (var i = range.Item1; i < range.Item2; i++)
-                {
+                for (var i = range.Item1; i < range.Item2; i++) {
                     ct.ThrowIfCancellationRequested();
                     var f = files[i];
                     results[i] = extractor.ExtractAll(f.SourceCode, f.FilePath);
@@ -264,8 +238,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
-    public async Task UpdateFileAsync(string filePath, CancellationToken ct)
-    {
+    public async Task UpdateFileAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
@@ -278,8 +251,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <param name="ct">取消令牌</param>
-    public async Task RemoveFileAsync(string filePath, CancellationToken ct)
-    {
+    public async Task RemoveFileAsync(string filePath, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(filePath);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
@@ -287,15 +259,13 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         InvalidateGraphCaches();
     }
 
-    private void InvalidateGraphCaches()
-    {
+    private void InvalidateGraphCaches() {
         _callGraph.InvalidateCache();
         _dependencyGraph.InvalidateCache();
         _projectDependencyGraph.InvalidateCache();
     }
 
-    private async Task InvalidateGraphCachesForFileAsync(string filePath, CancellationToken ct)
-    {
+    private async Task InvalidateGraphCachesForFileAsync(string filePath, CancellationToken ct) {
         await _callGraph.InvalidateCacheForFileAsync(filePath, ct).ConfigureAwait(false);
         await _dependencyGraph.InvalidateCacheForFileAsync(filePath, ct).ConfigureAwait(false);
     }
@@ -305,8 +275,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>索引统计快照</returns>
-    public async Task<IndexStats> GetStatsAsync(CancellationToken ct)
-    {
+    public async Task<IndexStats> GetStatsAsync(CancellationToken ct) {
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         return await _symbolIndex.GetStatsAsync(ct).ConfigureAwait(false);
     }
@@ -315,8 +284,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// 综合检索: rg式模糊匹配符号 → 获取全部函数引用 + 调用方/被调用方,受 token 预算限制
     /// 流程: 模糊匹配 → 收集 references/callers/callees → 按 token 预算截断(优先级: matched > refs > callers > callees)
     /// </summary>
-    public async Task<ComprehensiveSearchResult> SearchComprehensiveAsync(string pattern, int maxTokenBudget, CancellationToken ct, bool includeAst = true)
-    {
+    public async Task<ComprehensiveSearchResult> SearchComprehensiveAsync(string pattern, int maxTokenBudget, CancellationToken ct, bool includeAst = true) {
         ArgumentNullException.ThrowIfNull(pattern);
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
 
@@ -332,10 +300,8 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         var allCallers = new List<CallEdge>();
         var allCallees = new List<CallEdge>();
 
-        if (includeAst)
-        {
-            foreach (var symbol in allMatched)
-            {
+        if (includeAst) {
+            foreach (var symbol in allMatched) {
                 if (ct.IsCancellationRequested) break;
 
                 var refs = await _searcher.FindReferencesAsync(symbol.Name, ct).ConfigureAwait(false);
@@ -363,11 +329,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         var distinctCallees = allCallees.Distinct().ToList();
 
         // 填充 matched symbols
-        foreach (var s in allMatched)
-        {
+        foreach (var s in allMatched) {
             var t = EstimateSymbolTokens(s);
-            if (estimatedTokens + t > maxTokenBudget)
-            {
+            if (estimatedTokens + t > maxTokenBudget) {
                 truncated = true;
                 break;
             }
@@ -376,11 +340,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         }
 
         // 填充 references (去重)
-        foreach (var r in distinctReferences)
-        {
+        foreach (var r in distinctReferences) {
             var t = EstimateSymbolTokens(r);
-            if (estimatedTokens + t > maxTokenBudget)
-            {
+            if (estimatedTokens + t > maxTokenBudget) {
                 truncated = true;
                 break;
             }
@@ -389,11 +351,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         }
 
         // 填充 callers (去重)
-        foreach (var c in distinctCallers)
-        {
+        foreach (var c in distinctCallers) {
             var t = EstimateEdgeTokens(c);
-            if (estimatedTokens + t > maxTokenBudget)
-            {
+            if (estimatedTokens + t > maxTokenBudget) {
                 truncated = true;
                 break;
             }
@@ -402,11 +362,9 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         }
 
         // 填充 callees (去重)
-        foreach (var c in distinctCallees)
-        {
+        foreach (var c in distinctCallees) {
             var t = EstimateEdgeTokens(c);
-            if (estimatedTokens + t > maxTokenBudget)
-            {
+            if (estimatedTokens + t > maxTokenBudget) {
                 truncated = true;
                 break;
             }
@@ -422,8 +380,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
 
         sw.Stop();
 
-        return new ComprehensiveSearchResult
-        {
+        return new ComprehensiveSearchResult {
             MatchedSymbols = matchedSymbols,
             TotalMatchedCount = totalMatchedCount,
             References = references,
@@ -439,8 +396,7 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 估算符号的 token 数 — 约 4 字符/token,符号含 Name+FQN+FilePath 等
     /// </summary>
-    private static int EstimateSymbolTokens(SymbolInfo symbol)
-    {
+    private static int EstimateSymbolTokens(SymbolInfo symbol) {
         // 简化估算: Name + FQN + FilePath 字符数 / 4, 最低 5 tokens
         var chars = symbol.Name.Length + symbol.FullyQualifiedName.Length + symbol.FilePath.Length;
         return Math.Max(5, chars / 4);
@@ -449,22 +405,19 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 估算调用边的 token 数 — Caller + Callee + FilePath 等
     /// </summary>
-    private static int EstimateEdgeTokens(CallEdge edge)
-    {
+    private static int EstimateEdgeTokens(CallEdge edge) {
         var chars = edge.CallerSymbol.Length + edge.CalleeSymbol.Length + edge.CallSiteFilePath.Length;
         return Math.Max(4, chars / 4);
     }
 
-    private IReadOnlyList<string> CollectCsFiles(string workspaceRoot, IEnumerable<string>? excludePatterns)
-    {
+    private IReadOnlyList<string> CollectCsFiles(string workspaceRoot, IEnumerable<string>? excludePatterns) {
         // 默认排除 bin/obj/.git/.x — 避免扫描编译产物和临时目录
         var excludes = (excludePatterns ?? [])
             .Select(p => p.TrimEnd('/', '\\'))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // 强制加入 bin/obj/.git/.x (用户明确要求跳过 bin/obj)
-        foreach (var forced in new[] { "bin", "obj", ".git", ".x" })
-        {
+        foreach (var forced in new[] { "bin", "obj", ".git", ".x" }) {
             excludes.Add(forced);
         }
 
@@ -473,64 +426,50 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
         return result;
     }
 
-    private void CollectCsFilesRecursive(string currentDir, string workspaceRoot, HashSet<string> excludes, List<string> result)
-    {
-        try
-        {
-            foreach (var dir in _fs.EnumerateDirectories(currentDir, "*", SearchOption.TopDirectoryOnly))
-            {
+    private void CollectCsFilesRecursive(string currentDir, string workspaceRoot, HashSet<string> excludes, List<string> result) {
+        try {
+            foreach (var dir in _fs.EnumerateDirectories(currentDir, "*", SearchOption.TopDirectoryOnly)) {
                 var span = dir.AsSpan();
                 var lastSep = span.LastIndexOfAny(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
                 var dirName = lastSep >= 0 ? span[(lastSep + 1)..] : span;
 
-                if (excludes.Contains(dirName.ToString()))
-                {
+                if (excludes.Contains(dirName.ToString())) {
                     continue;
                 }
 
                 CollectCsFilesRecursive(dir, workspaceRoot, excludes, result);
             }
 
-            foreach (var file in _fs.EnumerateFiles(currentDir, "*.cs", SearchOption.TopDirectoryOnly))
-            {
+            foreach (var file in _fs.EnumerateFiles(currentDir, "*.cs", SearchOption.TopDirectoryOnly)) {
                 result.Add(file);
             }
-        }
-        catch (UnauthorizedAccessException ex) { _logger?.LogWarning(ex, "CodeIndexer: 扫描目录时访问被拒绝"); }
+        } catch (UnauthorizedAccessException ex) { _logger?.LogWarning(ex, "CodeIndexer: 扫描目录时访问被拒绝"); }
     }
 
-    private List<string> CollectFiles(string workspaceRoot, string pattern)
-    {
+    private List<string> CollectFiles(string workspaceRoot, string pattern) {
         var result = new List<string>();
-        try
-        {
-            foreach (var file in _fs.EnumerateFiles(workspaceRoot, pattern, SearchOption.TopDirectoryOnly))
-            {
+        try {
+            foreach (var file in _fs.EnumerateFiles(workspaceRoot, pattern, SearchOption.TopDirectoryOnly)) {
                 result.Add(file);
             }
-        }
-        catch (UnauthorizedAccessException ex) { _logger?.LogWarning(ex, "CodeIndexer: 按模式 {Pattern} 收集文件时访问被拒绝", pattern); }
+        } catch (UnauthorizedAccessException ex) { _logger?.LogWarning(ex, "CodeIndexer: 按模式 {Pattern} 收集文件时访问被拒绝", pattern); }
         return result;
     }
 
-    private Dictionary<string, string> BatchGetStoredHashes(IReadOnlyList<string> filePaths)
-    {
+    private Dictionary<string, string> BatchGetStoredHashes(IReadOnlyList<string> filePaths) {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (filePaths.Count == 0) return result;
 
         using var scope = _store.EnterReadLock();
-        foreach (var fp in filePaths)
-        {
-            if (_store.FileTracking.TryGetValue(fp, out var entry))
-            {
+        foreach (var fp in filePaths) {
+            if (_store.FileTracking.TryGetValue(fp, out var entry)) {
                 result[fp] = entry.Hash;
             }
         }
         return result;
     }
 
-    private IReadOnlyList<string> GetTrackedFilesInWorkspace(string workspaceRoot)
-    {
+    private IReadOnlyList<string> GetTrackedFilesInWorkspace(string workspaceRoot) {
         using var scope = _store.EnterReadLock();
         return _store.FileTracking.Keys
             .Where(p => p.StartsWith(workspaceRoot, StringComparison.OrdinalIgnoreCase))
@@ -541,47 +480,35 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// 确保索引已加载 — 自动发现 .git 工作区，加载持久化索引或按需重建
     /// </summary>
     /// <param name="ct">取消令牌</param>
-    public async Task EnsureIndexLoadedAsync(CancellationToken ct)
-    {
+    public async Task EnsureIndexLoadedAsync(CancellationToken ct) {
         if (Interlocked.CompareExchange(ref _autoLoadState, 1, 0) != 0) return;
 
-        try
-        {
+        try {
             var root = GitWorkspaceResolver.FindGitWorkspaceDir(null, _fs);
-            if (root is null)
-            {
+            if (root is null) {
                 _logger?.LogDebug("CodeIndexer: 未发现 .git 工作区根,跳过自动加载");
                 return;
             }
 
             _autoDiscoveredWorkspaceRoot = root;
             var dir = Path.Combine(root, AutoLoadSubDir);
-            if (await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false))
-            {
+            if (await _persistence.ExistsAsync(dir, ct).ConfigureAwait(false)) {
                 var loaded = await _persistence.LoadAsync(dir, ct).ConfigureAwait(false);
-                if (loaded)
-                {
+                if (loaded) {
                     _logger?.LogInformation("CodeIndexer: 自动加载索引成功 from {Dir}", dir);
-                }
-                else
-                {
+                } else {
                     _logger?.LogDebug("CodeIndexer: 持久化索引版本不匹配或为空 {Dir}", dir);
                 }
             }
 
-            if (_store.SymbolsByFqn.Count == 0)
-            {
+            if (_store.SymbolsByFqn.Count == 0) {
                 _logger?.LogInformation("CodeIndexer: 索引为空,自动构建工作区 {Root}", root);
                 await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
-            }
-            else if (IsIndexStale(root))
-            {
+            } else if (IsIndexStale(root)) {
                 _logger?.LogInformation("CodeIndexer: 索引已过时(git HEAD 比 LastUpdated 新),自动重建工作区 {Root}", root);
                 await RebuildAndPersistAsync(root, dir, ct).ConfigureAwait(false);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "CodeIndexer: 自动加载索引失败");
         }
     }
@@ -589,17 +516,13 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 重建索引并持久化到磁盘
     /// </summary>
-    private async Task RebuildAndPersistAsync(string root, string dir, CancellationToken ct)
-    {
+    private async Task RebuildAndPersistAsync(string root, string dir, CancellationToken ct) {
         var options = new CodeIndexOptions { WorkspaceRoot = root };
         await BuildIndexAsync(options, ct).ConfigureAwait(false);
-        try
-        {
+        try {
             await _persistence.SaveAsync(dir, ct).ConfigureAwait(false);
             _logger?.LogInformation("CodeIndexer: 重建完成并持久化到 {Dir}", dir);
-        }
-        catch (Exception persistEx)
-        {
+        } catch (Exception persistEx) {
             _logger?.LogWarning(persistEx, "CodeIndexer: 重建后持久化失败(内存索引仍可用)");
         }
     }
@@ -607,36 +530,28 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 检查索引是否过时 — 自动适配主仓库(.git/目录)和 worktree(.git/文件)，对笨蛋用户透明
     /// </summary>
-    private bool IsIndexStale(string workspaceRoot)
-    {
-        try
-        {
+    private bool IsIndexStale(string workspaceRoot) {
+        try {
             var gitPath = _fs.CombinePath(workspaceRoot, ".git");
 
-            if (_fs.DirectoryExists(gitPath))
-            {
+            if (_fs.DirectoryExists(gitPath)) {
                 return IsFileStale(_fs.CombinePath(gitPath, "HEAD"));
             }
 
-            if (_fs.FileExists(gitPath))
-            {
+            if (_fs.FileExists(gitPath)) {
                 var gitDir = ParseGitFile(gitPath);
-                if (gitDir is not null)
-                {
+                if (gitDir is not null) {
                     return IsFileStale(_fs.CombinePath(gitDir, "HEAD"));
                 }
                 _logger?.LogDebug("CodeIndexer: worktree .git 文件解析 gitdir 失败,降级检查 .git 文件修改时间");
                 return IsFileStale(gitPath);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "CodeIndexer: 检查索引新鲜度失败");
         }
         return false;
 
-        bool IsFileStale(string path)
-        {
+        bool IsFileStale(string path) {
             if (!_fs.FileExists(path)) return false;
             return _fs.GetLastWriteTimeUtc(path) > _store.LastUpdated;
         }
@@ -645,24 +560,18 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 解析 worktree .git 指针文件内容 — 格式: "gitdir: /path/to/main/.git/worktrees/w1"
     /// </summary>
-    private string? ParseGitFile(string gitFilePath)
-    {
-        try
-        {
+    private string? ParseGitFile(string gitFilePath) {
+        try {
             var content = _fs.ReadAllText(gitFilePath).Trim();
             const string prefix = "gitdir:";
-            if (content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            {
+            if (content.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) {
                 var gitDir = content[prefix.Length..].Trim();
-                if (!Path.IsPathRooted(gitDir))
-                {
+                if (!Path.IsPathRooted(gitDir)) {
                     gitDir = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(gitFilePath)!, gitDir));
                 }
                 return gitDir;
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "CodeIndexer: 解析 .git 指针文件失败");
         }
         return null;
@@ -671,15 +580,13 @@ public sealed partial class CodeIndexer : ServiceEntity, ICodeIndexer, IDisposab
     /// <summary>
     /// 释放资源 — 释放增量更新器和符号索引
     /// </summary>
-    public override void Dispose()
-    {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-        {
+    public override void Dispose() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) {
             return;
         }
 
         _updater.Dispose();
         _symbolIndex.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 }

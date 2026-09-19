@@ -6,8 +6,7 @@ namespace Core.Hooks.Execution;
 /// 使用 LLM 验证工具调用
 /// </summary>
 [Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
-public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
-{
+public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook> {
     private readonly ILLMService? _llmService;
 
     /// <summary>
@@ -16,8 +15,7 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
     public PromptHookExecutor(
         ILLMService? llmService = null,
         ILogger<PromptHookExecutor>? logger = null)
-        : base(logger)
-    {
+        : base(logger) {
         _llmService = llmService;
     }
 
@@ -28,13 +26,11 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
     public override async Task<HookResult> ExecuteTypedAsync(
         PromptHook hook,
         HookInput input,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         LogExecutionStart(hook, input);
         var stopwatch = Stopwatch.StartNew();
 
-        try
-        {
+        try {
             var context = CreateContext(hook, input);
             var inputJson = PrepareInputJson(input);
             var processedPrompt = SubstituteArguments(hook.Prompt, inputJson);
@@ -47,17 +43,11 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
 
             LogExecutionComplete(hook, result, stopwatch.Elapsed);
             return result;
-        }
-        catch (HookTimeoutException)
-        {
+        } catch (HookTimeoutException) {
             throw;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "Failed to execute prompt hook");
             return HookResult.NonBlockingError(
                 error: ex.Message,
@@ -69,11 +59,9 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
         PromptHook hook,
         string prompt,
         HookInput input,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         // ILLMService 未注册时返回非阻塞错误
-        if (_llmService is null)
-        {
+        if (_llmService is null) {
             return HookResult.NonBlockingError("ILLMService 未注册，提示钩子执行器不可用");
         }
 
@@ -91,8 +79,7 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
         return ParseLLMResponse(response, input);
     }
 
-    private string BuildSystemPrompt(HookInput input)
-    {
+    private string BuildSystemPrompt(HookInput input) {
         return $"""
             You are a security validator for tool calls. 
             Event: {input.Event}
@@ -108,22 +95,18 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
             """;
     }
 
-    private HookResult ParseLLMResponse(string response, HookInput input)
-    {
+    private HookResult ParseLLMResponse(string response, HookInput input) {
         // 尝试提取 JSON
         var jsonMatch = ExtractJsonFromResponse(response);
 
-        if (string.IsNullOrEmpty(jsonMatch))
-        {
+        if (string.IsNullOrEmpty(jsonMatch)) {
             Logger?.LogWarning("LLM response did not contain valid JSON: {Response}", response[..Math.Min(response.Length, 100)]);
             return HookResult.Success(message: "LLM validation passed (no JSON response)");
         }
 
-        try
-        {
+        try {
             var hookDecision = LlmJsonHelper.Deserialize(jsonMatch, HooksJsonContext.Default.HookDecision, out var repairHint);
-            if (hookDecision is null)
-            {
+            if (hookDecision is null) {
                 if (!string.IsNullOrEmpty(repairHint))
                     Logger?.LogWarning("LLM Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
                 return HookResult.Success(message: "LLM validation passed (empty response)");
@@ -134,15 +117,13 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
             var reason = hookDecision.Reason;
             var shouldContinue = hookDecision.Continue ?? true;
 
-            return decision switch
-            {
+            return decision switch {
                 PermissionBehavior.Block => HookResult.Blocking(
                     error: reason ?? "Blocked by LLM validation",
                     command: input.ToolName ?? "unknown",
                     message: reason),
 
-                PermissionBehavior.Ask => new HookResult
-                {
+                PermissionBehavior.Ask => new HookResult {
                     Outcome = HookOutcome.Success,
                     Message = hookDecision.Message ?? reason,
                     PreventContinuation = !shouldContinue
@@ -152,9 +133,7 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
                     message: reason ?? "LLM validation passed",
                     additionalContext: reason)
             };
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             Logger?.LogWarning(ex, "Failed to parse LLM JSON response");
             return HookResult.Success(message: "LLM validation passed (JSON parse failed)");
         }
@@ -165,8 +144,7 @@ public sealed partial class PromptHookExecutor : HookExecutorBase<PromptHook>
 /// <summary>
 /// LLM 服务接口
 /// </summary>
-public interface ILLMService
-{
+public interface ILLMService {
     /// <summary>
     /// 完成提示
     /// </summary>

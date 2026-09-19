@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 表示层模式 — 决定使用 CLI 还是 TUI
 /// </summary>
-public enum PresentationMode
-{
+public enum PresentationMode {
     /// <summary>
     /// 命令行模式 — 纯文本输出，适合自动化测试和管道
     /// </summary>

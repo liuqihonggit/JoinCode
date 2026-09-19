@@ -3,8 +3,7 @@ namespace Core.Agents.Coordinator.Liveness;
 /// <summary>
 /// 压缩级别 — 渐进式 escalation 三级
 /// </summary>
-public enum CompactionLevel
-{
+public enum CompactionLevel {
     /// <summary>未压缩</summary>
     [EnumValue("none")]
     None,
@@ -25,8 +24,7 @@ public enum CompactionLevel
 /// <summary>
 /// 渐进式压缩结果
 /// </summary>
-public sealed record CompactionResult
-{
+public sealed record CompactionResult {
     /// <summary>子代理 ID</summary>
     public required string AgentId { get; init; }
 
@@ -43,8 +41,7 @@ public sealed record CompactionResult
     public ContextFoldResult? FoldResult { get; init; }
 
     /// <summary>压缩成功（Light 级别）</summary>
-    public static CompactionResult LightSucceeded(string agentId, ContextFoldResult result) => new()
-    {
+    public static CompactionResult LightSucceeded(string agentId, ContextFoldResult result) => new() {
         AgentId = agentId,
         Level = CompactionLevel.Light,
         Success = true,
@@ -52,8 +49,7 @@ public sealed record CompactionResult
     };
 
     /// <summary>压缩成功（Aggressive 级别）</summary>
-    public static CompactionResult AggressiveSucceeded(string agentId, ContextFoldResult result) => new()
-    {
+    public static CompactionResult AggressiveSucceeded(string agentId, ContextFoldResult result) => new() {
         AgentId = agentId,
         Level = CompactionLevel.Aggressive,
         Success = true,
@@ -61,8 +57,7 @@ public sealed record CompactionResult
     };
 
     /// <summary>退出并输出摘要</summary>
-    public static CompactionResult ExitedWithSummary(string agentId, string summary) => new()
-    {
+    public static CompactionResult ExitedWithSummary(string agentId, string summary) => new() {
         AgentId = agentId,
         Level = CompactionLevel.ExitWithSummary,
         Success = true,
@@ -80,16 +75,14 @@ public sealed record CompactionResult
 /// 复用 IChatContextManager.FoldIfNeededAsync(decision, agentId) — 已支持 agentId 参数
 /// </para>
 /// </summary>
-public sealed class ProgressiveCompactor
-{
+public sealed class ProgressiveCompactor {
     private readonly IChatContextManager _contextManager;
     private readonly ILogger? _logger;
 
     /// <summary>
     /// 构造渐进式压缩编排器
     /// </summary>
-    public ProgressiveCompactor(IChatContextManager contextManager, ILogger? logger = null)
-    {
+    public ProgressiveCompactor(IChatContextManager contextManager, ILogger? logger = null) {
         _contextManager = contextManager ?? throw new ArgumentNullException(nameof(contextManager));
         _logger = logger;
     }
@@ -99,15 +92,13 @@ public sealed class ProgressiveCompactor
     /// </summary>
     /// <param name="agentId">卡死的子代理 ID</param>
     /// <param name="ct">取消令牌</param>
-    public async Task<CompactionResult> CompactProgressiveAsync(string agentId, CancellationToken ct = default)
-    {
+    public async Task<CompactionResult> CompactProgressiveAsync(string agentId, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(agentId);
         _logger?.LogDebug("[ProgressiveCompactor] 开始渐进式压缩 Agent {AgentId}", agentId);
 
         // Level 1: Light 压缩
         var lightResult = await TryCompactAsync(agentId, ContextFoldDecision.FoldNormal, ct).ConfigureAwait(false);
-        if (lightResult.Folded)
-        {
+        if (lightResult.Folded) {
             _logger?.LogInformation("[ProgressiveCompactor] Agent {AgentId} Light 压缩成功", agentId);
             return CompactionResult.LightSucceeded(agentId, lightResult);
         }
@@ -116,8 +107,7 @@ public sealed class ProgressiveCompactor
 
         // Level 2: Aggressive 压缩
         var aggressiveResult = await TryCompactAsync(agentId, ContextFoldDecision.FoldAggressive, ct).ConfigureAwait(false);
-        if (aggressiveResult.Folded)
-        {
+        if (aggressiveResult.Folded) {
             _logger?.LogInformation("[ProgressiveCompactor] Agent {AgentId} Aggressive 压缩成功", agentId);
             return CompactionResult.AggressiveSucceeded(agentId, aggressiveResult);
         }
@@ -133,16 +123,14 @@ public sealed class ProgressiveCompactor
     /// <summary>
     /// 尝试指定级别的压缩
     /// </summary>
-    private async Task<ContextFoldResult> TryCompactAsync(string agentId, ContextFoldDecision decision, CancellationToken ct)
-    {
+    private async Task<ContextFoldResult> TryCompactAsync(string agentId, ContextFoldDecision decision, CancellationToken ct) {
         return await _contextManager.FoldIfNeededAsync(decision, agentId, ct).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 生成任务摘要 — ExitWithSummary 级别使用
     /// </summary>
-    private async Task<string> GenerateSummaryAsync(string agentId, CancellationToken ct)
-    {
+    private async Task<string> GenerateSummaryAsync(string agentId, CancellationToken ct) {
         var messages = await _contextManager.GetMessageListAsync(ct).ConfigureAwait(false);
         var recentMessages = messages.TakeLast(10).ToList();
         var summary = string.Join("\n", recentMessages.Select(m => $"[{m.Role}] {m.Content}"));

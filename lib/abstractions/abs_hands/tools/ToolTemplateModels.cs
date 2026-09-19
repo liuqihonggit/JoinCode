@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Tools;
 /// 工具模板 — 描述LLM可动态创建的工具定义
 /// 模板存储在 ~/.jcc/tool-templates/ 目录下，每个模板一个 JSON 文件
 /// </summary>
-public sealed class ToolTemplate
-{
+public sealed class ToolTemplate {
     /// <summary>
     /// 模板标识（文件名，不含扩展名）
     /// </summary>
@@ -45,8 +44,7 @@ public sealed class ToolTemplate
 /// <summary>
 /// 工具模板参数定义
 /// </summary>
-public sealed class ToolTemplateParameter
-{
+public sealed class ToolTemplateParameter {
     /// <summary>
     /// 参数名称
     /// </summary>
@@ -81,8 +79,7 @@ public sealed class ToolTemplateParameter
 /// <summary>
 /// 工具模板执行定义
 /// </summary>
-public sealed class ToolTemplateExecution
-{
+public sealed class ToolTemplateExecution {
     /// <summary>
     /// 执行类型: shell（命令行）、script（C# 脚本）、mcp_call（调用 MCP 服务器）
     /// </summary>
@@ -114,8 +111,7 @@ public sealed class ToolTemplateExecution
 /// <summary>
 /// 工具模板服务接口 — 加载、创建、注册动态工具
 /// </summary>
-public interface IToolTemplateService
-{
+public interface IToolTemplateService {
     /// <summary>
     /// 加载所有模板
     /// </summary>

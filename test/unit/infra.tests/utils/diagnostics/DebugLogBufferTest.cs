@@ -5,34 +5,29 @@ namespace Infra.Tests.Utils.Diagnostics;
 /// 注意: Diag.DiagnosticLineWritten 是静态事件，DebugLogBuffer 构造时订阅但未暴露取消订阅方法。
 /// 测试中每个方法先 Clear 确保干净状态，避免跨测试污染。
 /// </summary>
-public sealed class DebugLogBufferTest
-{
+public sealed class DebugLogBufferTest {
     private readonly DebugLogBuffer _buffer;
 
-    public DebugLogBufferTest()
-    {
+    public DebugLogBufferTest() {
         _buffer = new DebugLogBuffer(maxCapacity: 100);
     }
 
     #region Add / Count
 
     [Fact]
-    public void Count_InitiallyZero()
-    {
+    public void Count_InitiallyZero() {
         _buffer.Count.Should().Be(0);
     }
 
     [Fact]
-    public void Count_IncrementedByDiagWriteLine()
-    {
+    public void Count_IncrementedByDiagWriteLine() {
         _buffer.Clear();
         Diag.WriteLine("[STEP] test message");
         _buffer.Count.Should().Be(1);
     }
 
     [Fact]
-    public void Count_IncrementedByDiagWriteError()
-    {
+    public void Count_IncrementedByDiagWriteError() {
         _buffer.Clear();
         Diag.WriteError("test context", new InvalidOperationException("boom"));
         // WriteError 发送主异常行 + 可能的堆栈/内部异常行
@@ -40,8 +35,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void Count_IncrementedByDiagWriteLifecycle()
-    {
+    public void Count_IncrementedByDiagWriteLifecycle() {
         _buffer.Clear();
         Diag.WriteLifecycle("[READY] system ready");
         _buffer.Count.Should().Be(1);
@@ -52,8 +46,7 @@ public sealed class DebugLogBufferTest
     #region GetRecent
 
     [Fact]
-    public void GetRecent_ReturnsMostRecentFirst()
-    {
+    public void GetRecent_ReturnsMostRecentFirst() {
         _buffer.Clear();
         Diag.WriteLine("[STEP] first");
         Diag.WriteLine("[STEP] second");
@@ -66,8 +59,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetRecent_DefaultCountIs100()
-    {
+    public void GetRecent_DefaultCountIs100() {
         _buffer.Clear();
         for (var i = 0; i < 150; i++)
             Diag.WriteLine($"[STEP] msg{i}");
@@ -77,8 +69,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetRecent_CountExceedsBuffer_ReturnsAllAvailable()
-    {
+    public void GetRecent_CountExceedsBuffer_ReturnsAllAvailable() {
         _buffer.Clear();
         Diag.WriteLine("[STEP] only-one");
         var recent = _buffer.GetRecent(50);
@@ -86,15 +77,13 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetRecent_ZeroCount_ThrowsArgumentOutOfRangeException()
-    {
+    public void GetRecent_ZeroCount_ThrowsArgumentOutOfRangeException() {
         var act = () => _buffer.GetRecent(0);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
-    public void GetRecent_NegativeCount_ThrowsArgumentOutOfRangeException()
-    {
+    public void GetRecent_NegativeCount_ThrowsArgumentOutOfRangeException() {
         var act = () => _buffer.GetRecent(-1);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
@@ -104,8 +93,7 @@ public sealed class DebugLogBufferTest
     #region GetByLevel
 
     [Fact]
-    public void GetByLevel_FiltersCorrectly()
-    {
+    public void GetByLevel_FiltersCorrectly() {
         _buffer.Clear();
         Diag.WriteLine("[STEP] info msg");
         Diag.WriteError("err context", new Exception("err msg"));
@@ -115,8 +103,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetByLevel_ReturnsMostRecentFirst()
-    {
+    public void GetByLevel_ReturnsMostRecentFirst() {
         _buffer.Clear();
         Diag.WriteError("first error", new Exception("e1"));
         Diag.WriteError("second error", new Exception("e2"));
@@ -128,8 +115,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetByLevel_NoMatchingEntries_ReturnsEmpty()
-    {
+    public void GetByLevel_NoMatchingEntries_ReturnsEmpty() {
         _buffer.Clear();
         Diag.WriteLine("[STEP] info only");
         var errors = _buffer.GetByLevel(DebugLogLevel.Error);
@@ -137,8 +123,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetByLevel_ZeroCount_ThrowsArgumentOutOfRangeException()
-    {
+    public void GetByLevel_ZeroCount_ThrowsArgumentOutOfRangeException() {
         var act = () => _buffer.GetByLevel(DebugLogLevel.Info, 0);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
@@ -148,8 +133,7 @@ public sealed class DebugLogBufferTest
     #region GetByMinLevel
 
     [Fact]
-    public void GetByMinLevel_IncludesLevelAndAbove()
-    {
+    public void GetByMinLevel_IncludesLevelAndAbove() {
         _buffer.Clear();
         Diag.WriteLine("[WIRE] trace msg");        // Trace
         Diag.WriteLine("[STEP] info msg");          // Info
@@ -160,8 +144,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetByMinLevel_InfoIncludesInfoWarnError()
-    {
+    public void GetByMinLevel_InfoIncludesInfoWarnError() {
         _buffer.Clear();
         Diag.WriteLine("[WIRE] trace msg");        // Trace
         Diag.WriteLine("[STEP] info msg");          // Info
@@ -172,8 +155,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetByMinLevel_TraceIncludesAll()
-    {
+    public void GetByMinLevel_TraceIncludesAll() {
         _buffer.Clear();
         Diag.WriteLine("[WIRE] trace msg");
         Diag.WriteLine("[STEP] info msg");
@@ -183,8 +165,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void GetByMinLevel_ZeroCount_ThrowsArgumentOutOfRangeException()
-    {
+    public void GetByMinLevel_ZeroCount_ThrowsArgumentOutOfRangeException() {
         var act = () => _buffer.GetByMinLevel(DebugLogLevel.Info, 0);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
@@ -194,8 +175,7 @@ public sealed class DebugLogBufferTest
     #region Clear
 
     [Fact]
-    public void Clear_EmptiesBuffer()
-    {
+    public void Clear_EmptiesBuffer() {
         _buffer.Clear();
         Diag.WriteLine("[STEP] msg1");
         Diag.WriteLine("[STEP] msg2");
@@ -206,16 +186,14 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void Clear_OnEmptyBuffer_DoesNotThrow()
-    {
+    public void Clear_OnEmptyBuffer_DoesNotThrow() {
         _buffer.Clear();
         var act = () => _buffer.Clear();
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void Clear_AfterClear_NewEntriesAreCaptured()
-    {
+    public void Clear_AfterClear_NewEntriesAreCaptured() {
         _buffer.Clear();
         Diag.WriteLine("[STEP] before-clear");
         _buffer.Clear();
@@ -231,8 +209,7 @@ public sealed class DebugLogBufferTest
     #region Ring Buffer Overflow
 
     [Fact]
-    public void Overflow_DiscardsOldestEntries()
-    {
+    public void Overflow_DiscardsOldestEntries() {
         // 使用小容量缓冲区测试溢出
         var smallBuffer = new DebugLogBuffer(maxCapacity: 5);
         smallBuffer.Clear();
@@ -249,8 +226,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void Overflow_WithCapacity1_KeepsOnlyLatest()
-    {
+    public void Overflow_WithCapacity1_KeepsOnlyLatest() {
         var tinyBuffer = new DebugLogBuffer(maxCapacity: 1);
         tinyBuffer.Clear();
 
@@ -263,15 +239,13 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void Constructor_ZeroCapacity_ThrowsArgumentOutOfRangeException()
-    {
+    public void Constructor_ZeroCapacity_ThrowsArgumentOutOfRangeException() {
         var act = () => new DebugLogBuffer(maxCapacity: 0);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]
-    public void Constructor_NegativeCapacity_ThrowsArgumentOutOfRangeException()
-    {
+    public void Constructor_NegativeCapacity_ThrowsArgumentOutOfRangeException() {
         var act = () => new DebugLogBuffer(maxCapacity: -1);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
@@ -281,8 +255,7 @@ public sealed class DebugLogBufferTest
     #region ClassifyMessage
 
     [Fact]
-    public void ClassifyMessage_DiagErr_IsError()
-    {
+    public void ClassifyMessage_DiagErr_IsError() {
         _buffer.Clear();
         Diag.WriteError("test", new Exception("err"));
         var errors = _buffer.GetByLevel(DebugLogLevel.Error);
@@ -291,8 +264,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_DiagErrStack_IsError()
-    {
+    public void ClassifyMessage_DiagErrStack_IsError() {
         _buffer.Clear();
         var ex = new Exception("outer", new Exception("inner"));
         Diag.WriteError("stack-test", ex);
@@ -302,8 +274,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_Wire_IsTrace()
-    {
+    public void ClassifyMessage_Wire_IsTrace() {
         _buffer.Clear();
         Diag.WriteLine("[WIRE] request sent");
         var traces = _buffer.GetByLevel(DebugLogLevel.Trace);
@@ -311,8 +282,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_Step_IsInfo()
-    {
+    public void ClassifyMessage_Step_IsInfo() {
         _buffer.Clear();
         Diag.WriteLine("[STEP] processing turn");
         var infos = _buffer.GetByLevel(DebugLogLevel.Info);
@@ -320,8 +290,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_Ready_IsInfo()
-    {
+    public void ClassifyMessage_Ready_IsInfo() {
         _buffer.Clear();
         Diag.WriteLine("[READY] system initialized");
         var infos = _buffer.GetByLevel(DebugLogLevel.Info);
@@ -329,8 +298,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_DI_IsTrace()
-    {
+    public void ClassifyMessage_DI_IsTrace() {
         _buffer.Clear();
         Diag.WriteLine("[DI] registering service");
         var traces = _buffer.GetByLevel(DebugLogLevel.Trace);
@@ -338,8 +306,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_Alive_IsTrace()
-    {
+    public void ClassifyMessage_Alive_IsTrace() {
         _buffer.Clear();
         Diag.WriteLine("[ALIVE] heartbeat");
         var traces = _buffer.GetByLevel(DebugLogLevel.Trace);
@@ -347,8 +314,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_DiagTerm_IsTrace()
-    {
+    public void ClassifyMessage_DiagTerm_IsTrace() {
         _buffer.Clear();
         Diag.WriteLine("[DIAG-TERM] shutdown signal");
         var traces = _buffer.GetByLevel(DebugLogLevel.Trace);
@@ -356,8 +322,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_CrashStore_IsError()
-    {
+    public void ClassifyMessage_CrashStore_IsError() {
         _buffer.Clear();
         Diag.WriteLine("[CrashStore] captured exception");
         var errors = _buffer.GetByLevel(DebugLogLevel.Error);
@@ -365,8 +330,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_Run_IsInfo()
-    {
+    public void ClassifyMessage_Run_IsInfo() {
         _buffer.Clear();
         Diag.WriteLine("[RUN] executing tool");
         var infos = _buffer.GetByLevel(DebugLogLevel.Info);
@@ -374,8 +338,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_UnknownBracketTag_IsInfoWithCategory()
-    {
+    public void ClassifyMessage_UnknownBracketTag_IsInfoWithCategory() {
         _buffer.Clear();
         Diag.WriteLine("[CUSTOM-TAG] custom message");
         var infos = _buffer.GetByLevel(DebugLogLevel.Info);
@@ -383,8 +346,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_NoBracketPrefix_IsGeneralInfo()
-    {
+    public void ClassifyMessage_NoBracketPrefix_IsGeneralInfo() {
         _buffer.Clear();
         Diag.WriteLine("plain message without prefix");
         var infos = _buffer.GetByLevel(DebugLogLevel.Info);
@@ -392,8 +354,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void ClassifyMessage_EmptyString_IsGeneralInfo()
-    {
+    public void ClassifyMessage_EmptyString_IsGeneralInfo() {
         _buffer.Clear();
         Diag.WriteLine(string.Empty);
         var infos = _buffer.GetByLevel(DebugLogLevel.Info);
@@ -405,8 +366,7 @@ public sealed class DebugLogBufferTest
     #region Event Isolation
 
     [Fact]
-    public void EventIsolation_MultipleBuffers_BothReceiveEvents()
-    {
+    public void EventIsolation_MultipleBuffers_BothReceiveEvents() {
         _buffer.Clear();
         var buffer2 = new DebugLogBuffer(maxCapacity: 50);
         buffer2.Clear();
@@ -422,8 +382,7 @@ public sealed class DebugLogBufferTest
     #region DebugLogEntry Properties
 
     [Fact]
-    public void Entry_HasValidTimestamp()
-    {
+    public void Entry_HasValidTimestamp() {
         _buffer.Clear();
         var before = DateTimeOffset.UtcNow;
         Diag.WriteLine("[STEP] timestamp-test");
@@ -435,8 +394,7 @@ public sealed class DebugLogBufferTest
     }
 
     [Fact]
-    public void Entry_PreservesOriginalMessage()
-    {
+    public void Entry_PreservesOriginalMessage() {
         _buffer.Clear();
         const string original = "[STEP] preserve exact message content";
         Diag.WriteLine(original);

@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>Minimal：双工具（shell + str_replace_editor，基准测试用）</para>
 /// <para>Creator：自省+插件实验+预设编写</para>
 /// </summary>
-public enum RunMode
-{
+public enum RunMode {
     /// <summary>完整工具集</summary>
     [EnumValue("standard")] Standard,
 
@@ -25,8 +24,7 @@ public enum RunMode
 /// <summary>
 /// 运行模式描述 — 定义每个模式的工具集和行为能力
 /// </summary>
-public sealed record RunModeDescriptor
-{
+public sealed record RunModeDescriptor {
     /// <summary>模式</summary>
     public required RunMode Mode { get; init; }
 
@@ -56,11 +54,9 @@ public sealed record RunModeDescriptor
 /// 运行模式注册表 — 对齐 DSH 多运行模式
 /// <para>映射现有 Interactive/NonInteractive/Doctor/Tui/Json/Headless</para>
 /// </summary>
-public static class RunModeRegistry
-{
+public static class RunModeRegistry {
     /// <summary>Standard：完整工具集</summary>
-    public static readonly RunModeDescriptor Standard = new()
-    {
+    public static readonly RunModeDescriptor Standard = new() {
         Mode = RunMode.Standard,
         DisplayName = "Standard",
         Description = "完整工具集：文件编辑+shell+搜索+技能+规划+子代理+工作流",
@@ -72,8 +68,7 @@ public static class RunModeRegistry
     };
 
     /// <summary>Code：SDK 编排</summary>
-    public static readonly RunModeDescriptor Code = new()
-    {
+    public static readonly RunModeDescriptor Code = new() {
         Mode = RunMode.Code,
         DisplayName = "Code",
         Description = "SDK 编排：多步操作合并为一个程序",
@@ -85,8 +80,7 @@ public static class RunModeRegistry
     };
 
     /// <summary>Minimal：双工具（基准测试）</summary>
-    public static readonly RunModeDescriptor Minimal = new()
-    {
+    public static readonly RunModeDescriptor Minimal = new() {
         Mode = RunMode.Minimal,
         DisplayName = "Minimal",
         Description = "双工具：shell + str_replace_editor，基准测试用",
@@ -98,8 +92,7 @@ public static class RunModeRegistry
     };
 
     /// <summary>Creator：自省+插件实验+预设</summary>
-    public static readonly RunModeDescriptor Creator = new()
-    {
+    public static readonly RunModeDescriptor Creator = new() {
         Mode = RunMode.Creator,
         DisplayName = "Creator",
         Description = "自省+插件实验+预设编写",
@@ -110,8 +103,7 @@ public static class RunModeRegistry
         SupportsPluginExperiments = true,
     };
 
-    private static readonly FrozenDictionary<RunMode, RunModeDescriptor> All = new Dictionary<RunMode, RunModeDescriptor>
-    {
+    private static readonly FrozenDictionary<RunMode, RunModeDescriptor> All = new Dictionary<RunMode, RunModeDescriptor> {
         [RunMode.Standard] = Standard,
         [RunMode.Code] = Code,
         [RunMode.Minimal] = Minimal,

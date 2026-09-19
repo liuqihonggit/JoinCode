@@ -6,8 +6,7 @@ namespace Core.Context.Compact;
 /// 处理 prompt-too-long 等错误触发的压缩，按 API 轮次分组丢弃最旧的若干组
 /// </summary>
 [Register(typeof(IReactiveCompactService), ServiceLifetime.Singleton)]
-public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCompactService
-{
+public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCompactService {
     private const string PromptTooLongPrefix = "prompt_too_long";
     private const string PromptTooLongErrorPrefix = "API Error: prompt_too_long";
 
@@ -21,8 +20,7 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
     /// <param name="groupingService">可选消息分组服务，null 时使用默认实现</param>
     public ReactiveCompactService(
         IMicrocompactService microcompactService,
-        IMessageGroupingService? groupingService = null)
-    {
+        IMessageGroupingService? groupingService = null) {
         _microcompactService = microcompactService;
         _groupingService = groupingService ?? new MessageGroupingService();
     }
@@ -37,14 +35,11 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
     public Task<CompactResult> RunReactiveCompactAsync(
         IReadOnlyList<ApiMessage> messages,
         string errorMessage,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(messages);
 
-        if (!IsPromptTooLongError(errorMessage))
-        {
-            return Task.FromResult(new CompactResult
-            {
+        if (!IsPromptTooLongError(errorMessage)) {
+            return Task.FromResult(new CompactResult {
                 Compacted = false,
                 Level = CompactLevel.None,
                 Trigger = CompactTrigger.Reactive,
@@ -56,10 +51,8 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
         var tokenGap = GetPromptTooLongTokenGap(errorMessage);
         var groups = _groupingService.GroupMessagesByApiRound(messages);
 
-        if (groups.Count < 2)
-        {
-            return Task.FromResult(new CompactResult
-            {
+        if (groups.Count < 2) {
+            return Task.FromResult(new CompactResult {
                 Compacted = false,
                 Level = CompactLevel.None,
                 Trigger = CompactTrigger.Reactive,
@@ -72,10 +65,8 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
         var dropCount = CalculateDropCount(groups, tokenGap);
         dropCount = Math.Min(dropCount, groups.Count - 1);
 
-        if (dropCount < 1)
-        {
-            return Task.FromResult(new CompactResult
-            {
+        if (dropCount < 1) {
+            return Task.FromResult(new CompactResult {
                 Compacted = false,
                 Level = CompactLevel.None,
                 Trigger = CompactTrigger.Reactive,
@@ -94,8 +85,7 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
         var preCompactTokens = _microcompactService.EstimateMessageTokens(messages);
         var postCompactTokens = _microcompactService.EstimateMessageTokens(keptMessages);
 
-        return Task.FromResult(new CompactResult
-        {
+        return Task.FromResult(new CompactResult {
             Compacted = true,
             Level = CompactLevel.ReactiveCompact,
             Trigger = CompactTrigger.Reactive,
@@ -104,8 +94,7 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
             PostCompactTokenCount = postCompactTokens,
             MessagesRemoved = messages.Count - keptMessages.Count,
             MessagesPreserved = keptMessages.Count,
-            Metadata = new Dictionary<string, JsonElement>
-            {
+            Metadata = new Dictionary<string, JsonElement> {
                 ["droppedGroups"] = JsonElementHelper.FromInt32(dropCount),
                 ["totalGroups"] = JsonElementHelper.FromInt32(groups.Count),
                 ["tokenGap"] = JsonElementHelper.FromInt32(tokenGap ?? 0),
@@ -119,8 +108,7 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
     /// </summary>
     /// <param name="errorMessage">错误消息文本</param>
     /// <returns>是 prompt-too-long 错误返回 true，否则 false</returns>
-    public bool IsPromptTooLongError(string errorMessage)
-    {
+    public bool IsPromptTooLongError(string errorMessage) {
         return !string.IsNullOrEmpty(errorMessage)
             && (errorMessage.Contains(PromptTooLongPrefix, StringComparison.OrdinalIgnoreCase)
                 || errorMessage.StartsWith(PromptTooLongErrorPrefix, StringComparison.OrdinalIgnoreCase));
@@ -131,16 +119,13 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
     /// </summary>
     /// <param name="errorMessage">错误消息文本</param>
     /// <returns>超出的 token 数；无法解析时返回 null</returns>
-    public int? GetPromptTooLongTokenGap(string errorMessage)
-    {
-        if (string.IsNullOrEmpty(errorMessage))
-        {
+    public int? GetPromptTooLongTokenGap(string errorMessage) {
+        if (string.IsNullOrEmpty(errorMessage)) {
             return null;
         }
 
         var match = Regex.Match(errorMessage, @"(\d+)\s*tokens?\s*(?:over|above|exceeding)", RegexOptions.IgnoreCase);
-        if (match.Success && int.TryParse(match.Groups[1].Value, out var gap))
-        {
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var gap)) {
             return gap;
         }
 
@@ -150,8 +135,7 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
     /// <summary>
     /// 为被丢弃的消息组构建结构化占位摘要 — 不调 LLM，提取关键信息避免历史完全丢失
     /// </summary>
-    private static string BuildDroppedGroupsSummary(IReadOnlyList<IReadOnlyList<ApiMessage>> droppedGroups)
-    {
+    private static string BuildDroppedGroupsSummary(IReadOnlyList<IReadOnlyList<ApiMessage>> droppedGroups) {
         if (droppedGroups.Count == 0)
             return string.Empty;
 
@@ -163,42 +147,33 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
         var assistantSnippets = new List<string>();
         var toolCallCount = 0;
 
-        foreach (var group in droppedGroups)
-        {
-            foreach (var msg in group)
-            {
-                if (msg.Role == MessageRole.User && !string.IsNullOrEmpty(msg.Content))
-                {
+        foreach (var group in droppedGroups) {
+            foreach (var msg in group) {
+                if (msg.Role == MessageRole.User && !string.IsNullOrEmpty(msg.Content)) {
                     var content = msg.Content.Trim();
                     if (content.Length > 200)
                         content = content[..200] + "...";
                     userMessages.Add(content);
-                }
-                else if (msg.Role == MessageRole.Assistant && !string.IsNullOrEmpty(msg.Content))
-                {
+                } else if (msg.Role == MessageRole.Assistant && !string.IsNullOrEmpty(msg.Content)) {
                     var content = msg.Content.Trim();
                     if (content.Length > 150)
                         content = content[..150] + "...";
                     if (!string.IsNullOrWhiteSpace(content))
                         assistantSnippets.Add(content);
-                }
-                else if (msg.Role == MessageRole.Tool)
-                {
+                } else if (msg.Role == MessageRole.Tool) {
                     toolCallCount++;
                 }
             }
         }
 
-        if (userMessages.Count > 0)
-        {
+        if (userMessages.Count > 0) {
             sb.AppendLine("用户消息：");
             foreach (var um in userMessages)
                 sb.AppendLine($"  - {um}");
             sb.AppendLine();
         }
 
-        if (assistantSnippets.Count > 0)
-        {
+        if (assistantSnippets.Count > 0) {
             sb.AppendLine("助手回复摘要：");
             foreach (var snip in assistantSnippets.Take(10))
                 sb.AppendLine($"  - {snip}");
@@ -207,8 +182,7 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
             sb.AppendLine();
         }
 
-        if (toolCallCount > 0)
-        {
+        if (toolCallCount > 0) {
             sb.AppendLine($"工具调用次数：{toolCallCount}");
         }
 
@@ -216,18 +190,14 @@ public sealed partial class ReactiveCompactService : ServiceEntity, IReactiveCom
         return sb.ToString();
     }
 
-    private int CalculateDropCount(IReadOnlyList<IReadOnlyList<ApiMessage>> groups, int? tokenGap)
-    {
-        if (tokenGap is not null)
-        {
+    private int CalculateDropCount(IReadOnlyList<IReadOnlyList<ApiMessage>> groups, int? tokenGap) {
+        if (tokenGap is not null) {
             var acc = 0;
             var dropCount = 0;
-            foreach (var group in groups)
-            {
+            foreach (var group in groups) {
                 acc += _microcompactService.EstimateMessageTokens(group);
                 dropCount++;
-                if (acc >= tokenGap.Value)
-                {
+                if (acc >= tokenGap.Value) {
                     break;
                 }
             }

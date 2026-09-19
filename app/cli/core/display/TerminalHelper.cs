@@ -3,8 +3,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 终端辅助 — 纯 CLI 模式下的控制台 I/O 封装
 /// </summary>
-public static class TerminalHelper
-{
+public static class TerminalHelper {
     private static bool _isInitialized;
 
     /// <summary>
@@ -67,8 +66,7 @@ public static class TerminalHelper
     /// <summary>
     /// 初始化终端 — 捕获真实 stdout、检测 NO_COLOR、Windows 下启用虚拟终端处理、安装 ConsoleActor 串行化 I/O
     /// </summary>
-    public static void Init()
-    {
+    public static void Init() {
         if (_isInitialized) return;
 
         _realOut = System.Console.Out;
@@ -79,8 +77,7 @@ public static class TerminalHelper
         _noColor = System.Environment.GetEnvironmentVariable("NO_COLOR") is not null;
 
         if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
-            System.Runtime.InteropServices.OSPlatform.Windows))
-        {
+            System.Runtime.InteropServices.OSPlatform.Windows)) {
             EnableVirtualTerminalProcessing();
         }
 
@@ -89,8 +86,7 @@ public static class TerminalHelper
 
         // 安装 ConsoleActor — 串行化所有 Console I/O，消除后台输出与 ReadLine 竞态（ADR 0100）
         // 仅在非重定向场景启用（E2E 管道场景 In/Out 是不同句柄，无竞态）
-        if (!_originalIsOutputRedirected)
-        {
+        if (!_originalIsOutputRedirected) {
             _consoleActor = new ConsoleActor(_realOut);
             System.Console.SetOut(new ConsoleActorTextWriter(_consoleActor));
             _isActorActive = true;
@@ -108,13 +104,9 @@ public static class TerminalHelper
     /// 获取终端宽度（列数）— 优先 WindowWidth，失败回退 BufferWidth，再失败回退 80
     /// </summary>
     /// <returns>终端列数</returns>
-    public static int GetWidth()
-    {
-        try { return System.Console.WindowWidth; }
-        catch
-        {
-            try { return System.Console.BufferWidth; }
-            catch { return 80; }
+    public static int GetWidth() {
+        try { return System.Console.WindowWidth; } catch {
+            try { return System.Console.BufferWidth; } catch { return 80; }
         }
     }
 
@@ -122,22 +114,18 @@ public static class TerminalHelper
     /// 获取终端高度（行数）— 优先 WindowHeight，失败回退 24
     /// </summary>
     /// <returns>终端行数</returns>
-    public static int GetHeight()
-    {
-        try { return System.Console.WindowHeight; }
-        catch { return 24; }
+    public static int GetHeight() {
+        try { return System.Console.WindowHeight; } catch { return 24; }
     }
 
     /// <summary>
     /// 写入一行文本并换行 — 经过 ConsoleActor 串行化
     /// </summary>
     /// <param name="text">要写入的文本，null 时仅换行</param>
-    public static void WriteLine(string? text = null)
-    {
+    public static void WriteLine(string? text = null) {
         if (_consoleActor is not null)
             _consoleActor.WriteLine(text);
-        else
-        {
+        else {
             if (text is null) System.Console.WriteLine();
             else System.Console.WriteLine(text);
             if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
@@ -147,12 +135,10 @@ public static class TerminalHelper
     /// <summary>
     /// 写入空行 — 经过 ConsoleActor 串行化
     /// </summary>
-    public static void NewLine()
-    {
+    public static void NewLine() {
         if (_consoleActor is not null)
             _consoleActor.WriteLine();
-        else
-        {
+        else {
             System.Console.WriteLine();
             if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
         }
@@ -162,12 +148,10 @@ public static class TerminalHelper
     /// 原始写入字符串（不换行）— 经过 ConsoleActor 串行化
     /// </summary>
     /// <param name="text">要写入的文本</param>
-    public static void WriteRaw(string text)
-    {
+    public static void WriteRaw(string text) {
         if (_consoleActor is not null)
             _consoleActor.WriteRaw(text);
-        else
-        {
+        else {
             System.Console.Write(text);
             if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
         }
@@ -177,12 +161,10 @@ public static class TerminalHelper
     /// 原始写入字符（不换行）— 经过 ConsoleActor 串行化
     /// </summary>
     /// <param name="c">要写入的字符</param>
-    public static void WriteRaw(char c)
-    {
+    public static void WriteRaw(char c) {
         if (_consoleActor is not null)
             _consoleActor.WriteRaw(new string(c, 1));
-        else
-        {
+        else {
             System.Console.Write(c);
             if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
         }
@@ -192,12 +174,10 @@ public static class TerminalHelper
     /// 原始写入 StringBuilder 内容（不换行）— 经过 ConsoleActor 串行化
     /// </summary>
     /// <param name="sb">要写入的 StringBuilder</param>
-    public static void WriteRaw(StringBuilder sb)
-    {
+    public static void WriteRaw(StringBuilder sb) {
         if (_consoleActor is not null)
             _consoleActor.WriteRaw(sb.ToString());
-        else
-        {
+        else {
             System.Console.Write(sb);
             if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
         }
@@ -207,12 +187,10 @@ public static class TerminalHelper
     /// 原始写入字符跨度（不换行）— 经过 ConsoleActor 串行化
     /// </summary>
     /// <param name="span">要写入的字符跨度</param>
-    public static void WriteRaw(ReadOnlySpan<char> span)
-    {
+    public static void WriteRaw(ReadOnlySpan<char> span) {
         if (_consoleActor is not null)
             _consoleActor.WriteRaw(new string(span));
-        else
-        {
+        else {
             System.Console.Write(span);
             if (System.Console.IsOutputRedirected) System.Console.Out.Flush();
         }
@@ -222,10 +200,8 @@ public static class TerminalHelper
     /// 读取一行输入 — 输入重定向且未强制交互时返回空字符串，经过 ConsoleActor 串行化
     /// </summary>
     /// <returns>读取到的行（EOF 时为空字符串）</returns>
-    public static string ReadLine()
-    {
-        if (System.Console.IsInputRedirected && !ForceInteractive)
-        {
+    public static string ReadLine() {
+        if (System.Console.IsInputRedirected && !ForceInteractive) {
             Diag.WriteLifecycle("[DIAG-TERM] ReadLine: input redirected, ForceInteractive=false, returning empty");
             return string.Empty;
         }
@@ -242,8 +218,7 @@ public static class TerminalHelper
     /// </summary>
     /// <param name="intercept">是否拦截按键（不显示到输出）</param>
     /// <returns>按键信息</returns>
-    public static ConsoleKeyInfo ReadKey(bool intercept = false)
-    {
+    public static ConsoleKeyInfo ReadKey(bool intercept = false) {
         if (System.Console.IsInputRedirected && !ForceInteractive) return default;
         return _consoleActor is not null
             ? _consoleActor.ReadKey(intercept)
@@ -254,10 +229,8 @@ public static class TerminalHelper
     /// 读取一行（保留 null EOF 语义）— 经过 ConsoleActor 串行化。
     /// <para>返回 null 表示 EOF（管道关闭），与 Console.ReadLine() 语义一致。</para>
     /// </summary>
-    public static string? ReadLineOrNull()
-    {
-        if (System.Console.IsInputRedirected && !ForceInteractive)
-        {
+    public static string? ReadLineOrNull() {
+        if (System.Console.IsInputRedirected && !ForceInteractive) {
             return null;
         }
         return _consoleActor is not null
@@ -273,8 +246,7 @@ public static class TerminalHelper
     /// <summary>
     /// 前景色 — 转发到 Console.ForegroundColor
     /// </summary>
-    public static ConsoleColor ForegroundColor
-    {
+    public static ConsoleColor ForegroundColor {
         get => System.Console.ForegroundColor;
         set => System.Console.ForegroundColor = value;
     }
@@ -282,8 +254,7 @@ public static class TerminalHelper
     /// <summary>
     /// 背景色 — 转发到 Console.BackgroundColor
     /// </summary>
-    public static ConsoleColor BackgroundColor
-    {
+    public static ConsoleColor BackgroundColor {
         get => System.Console.BackgroundColor;
         set => System.Console.BackgroundColor = value;
     }
@@ -305,44 +276,37 @@ public static class TerminalHelper
     /// </summary>
     public static IDisposable SetColorRaw(ConsoleColor color) => _noColor ? NoOpDisposable.Instance : new RawColorScope(color);
 
-    private sealed class RawColorScope : IDisposable
-    {
+    private sealed class RawColorScope : IDisposable {
         private readonly ConsoleColor _prev;
         private bool _disposed;
 
-        public RawColorScope(ConsoleColor color)
-        {
+        public RawColorScope(ConsoleColor color) {
             _prev = System.Console.ForegroundColor;
             System.Console.ForegroundColor = color;
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             if (_disposed) return; _disposed = true;
             System.Console.ForegroundColor = _prev;
         }
     }
 
-    private sealed class ColorScope : IDisposable
-    {
+    private sealed class ColorScope : IDisposable {
         private readonly ConsoleColor _prev;
         private readonly ConsoleActor? _actor;
         private bool _disposed;
 
-        public ColorScope(ConsoleColor color, ConsoleActor? actor)
-        {
+        public ColorScope(ConsoleColor color, ConsoleActor? actor) {
             _actor = actor;
             if (actor is not null)
                 _prev = actor.SetColor(color);
-            else
-            {
+            else {
                 _prev = System.Console.ForegroundColor;
                 System.Console.ForegroundColor = color;
             }
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             if (_disposed) return; _disposed = true;
             if (_actor is not null)
                 _actor.ResetColor();
@@ -351,8 +315,7 @@ public static class TerminalHelper
         }
     }
 
-    private sealed class NoOpDisposable : IDisposable
-    {
+    private sealed class NoOpDisposable : IDisposable {
         public static readonly NoOpDisposable Instance = new();
         public void Dispose() { }
     }
@@ -360,10 +323,8 @@ public static class TerminalHelper
     /// <summary>
     /// 清屏 — 输出重定向时不执行
     /// </summary>
-    public static void ClearScreen()
-    {
-        if (!IsOutputRedirected)
-        {
+    public static void ClearScreen() {
+        if (!IsOutputRedirected) {
             if (_consoleActor is not null)
                 _consoleActor.ClearScreen();
             else
@@ -386,8 +347,7 @@ public static class TerminalHelper
     /// </summary>
     /// <param name="left">列坐标</param>
     /// <param name="top">行坐标</param>
-    public static void SetCursorPosition(int left, int top)
-    {
+    public static void SetCursorPosition(int left, int top) {
         if (_consoleActor is not null)
             _consoleActor.SetCursorPosition(left, top);
         else
@@ -405,18 +365,13 @@ public static class TerminalHelper
     /// <para>⚠ 防御性检测：当 stdout 被重定向时（E2E 测试/管道场景），此方法绕过重定向导致输出无法被捕获。</para>
     /// <para>若需在非交互模式下输出可被捕获的内容，请改用 <see cref="WriteLine"/>。</para>
     /// </summary>
-    public static void WriteLineReal(string? text = null)
-    {
-        if (System.Console.IsOutputRedirected && !_isActorActive)
-        {
+    public static void WriteLineReal(string? text = null) {
+        if (System.Console.IsOutputRedirected && !_isActorActive) {
             System.Console.Error.WriteLine($"[TerminalHelper] 警告: WriteLineReal 在 stdout 重定向时被调用，E2E 测试将捕获不到此输出。请改用 WriteLine。 text={text}");
         }
-        if (_consoleActor is not null)
-        {
+        if (_consoleActor is not null) {
             _consoleActor.WriteLine(text);
-        }
-        else
-        {
+        } else {
             if (text is null) RealOut.WriteLine();
             else RealOut.WriteLine(text);
             RealOut.Flush();
@@ -428,18 +383,13 @@ public static class TerminalHelper
     /// <para>⚠ 防御性检测：当 stdout 被重定向时（E2E 测试/管道场景），此方法绕过重定向导致输出无法被捕获。</para>
     /// <para>若需在非交互模式下输出可被捕获的内容，请改用 <see cref="WriteLine"/>。</para>
     /// </summary>
-    public static void WriteRawReal(string text)
-    {
-        if (System.Console.IsOutputRedirected && !_isActorActive)
-        {
+    public static void WriteRawReal(string text) {
+        if (System.Console.IsOutputRedirected && !_isActorActive) {
             System.Console.Error.WriteLine($"[TerminalHelper] 警告: WriteRawReal 在 stdout 重定向时被调用，E2E 测试将捕获不到此输出。请改用 Write。 text={text}");
         }
-        if (_consoleActor is not null)
-        {
+        if (_consoleActor is not null) {
             _consoleActor.WriteRaw(text);
-        }
-        else
-        {
+        } else {
             RealOut.Write(text);
             RealOut.Flush();
         }
@@ -464,8 +414,7 @@ public static class TerminalHelper
     /// 写入一行错误文本并换行
     /// </summary>
     /// <param name="text">要写入的错误文本，null 时仅换行</param>
-    public static void WriteError(string? text = null)
-    {
+    public static void WriteError(string? text = null) {
         if (text is null) System.Console.Error.WriteLine();
         else System.Console.Error.WriteLine(text);
     }
@@ -479,8 +428,7 @@ public static class TerminalHelper
     /// <summary>
     /// 控制台输出编码
     /// </summary>
-    public static System.Text.Encoding OutputEncoding
-    {
+    public static System.Text.Encoding OutputEncoding {
         get => System.Console.OutputEncoding;
         set => System.Console.OutputEncoding = value;
     }
@@ -488,8 +436,7 @@ public static class TerminalHelper
     /// <summary>
     /// 取消按键事件（Ctrl+C）— 转发到 Console.CancelKeyPress
     /// </summary>
-    public static event ConsoleCancelEventHandler CancelKeyPress
-    {
+    public static event ConsoleCancelEventHandler CancelKeyPress {
         add => System.Console.CancelKeyPress += value;
         remove => System.Console.CancelKeyPress -= value;
     }
@@ -509,22 +456,17 @@ public static class TerminalHelper
     private const uint VirtualTerminalProcessingFlag = 0x0004;
     private const uint ProcessedOutputFlag = 0x0001;
 
-    private static void EnableVirtualTerminalProcessing(ILogger? logger = null)
-    {
-        try
-        {
+    private static void EnableVirtualTerminalProcessing(ILogger? logger = null) {
+        try {
             var handle = GetStdHandle(StdOutputHandle);
             if (handle == IntPtr.Zero || handle == new IntPtr(-1)) return;
 
             if (!GetConsoleMode(handle, out var mode)) return;
 
-            if ((mode & VirtualTerminalProcessingFlag) == 0)
-            {
+            if ((mode & VirtualTerminalProcessingFlag) == 0) {
                 SetConsoleMode(handle, mode | VirtualTerminalProcessingFlag | ProcessedOutputFlag);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogWarning(ex, "启用虚拟终端处理失败");
         }
     }

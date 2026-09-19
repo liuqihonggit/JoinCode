@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 代理元数据 - 保存到 .meta.json sidecar 文件
 /// </summary>
-public sealed class AgentMetadata
-{
+public sealed class AgentMetadata {
     public required string AgentId { get; init; }
     public AgentRole Role { get; init; }
     public ExecutorVariant? Variant { get; init; }
@@ -40,8 +39,7 @@ public sealed class AgentMetadata
 /// <summary>
 /// 代理 Transcript 服务 - 管理 SubAgent 的对话记录持久化
 /// </summary>
-public interface IAgentTranscriptService
-{
+public interface IAgentTranscriptService {
     /// <summary>
     /// 追加代理对话条目
     /// </summary>

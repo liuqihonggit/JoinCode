@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 会话级缓存接口 — 每个会话独立缓存命名空间, 会话结束自动清理
 /// 缓存项本身是 CacheEntryEntity&lt;T&gt; (派生 Entity), 纳入 EntityReaper 回收
 /// </summary>
-public interface ISessionCache
-{
+public interface ISessionCache {
     /// <summary>获取缓存值 — 不存在或已过期返回 default</summary>
     T? Get<T>(string key);
 

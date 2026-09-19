@@ -5,8 +5,7 @@ namespace Tools.Shell;
 /// 启动命令进程、注册后台化事件、注册前台任务、等待结果
 /// </summary>
 [Register(typeof(IShellMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMiddleware
-{
+public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMiddleware {
 
     /// <summary>
     /// 构造命令执行中间件
@@ -14,8 +13,7 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
     /// <param name="registry">系统执行器注册表</param>
     /// <param name="foregroundTaskRegistry">前台任务注册表（可选）</param>
     /// <param name="logger">日志器（可选）</param>
-    public ShellExecutionMiddleware(ISystemActuatorRegistry registry, IForegroundTaskRegistry? foregroundTaskRegistry = null, ILogger<ShellExecutionMiddleware>? logger = null)
-    {
+    public ShellExecutionMiddleware(ISystemActuatorRegistry registry, IForegroundTaskRegistry? foregroundTaskRegistry = null, ILogger<ShellExecutionMiddleware>? logger = null) {
         _registry = registry;
         _foregroundTaskRegistry = foregroundTaskRegistry;
         _logger = logger;
@@ -25,8 +23,7 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
     private readonly ILogger<ShellExecutionMiddleware>? _logger;
 
     /// <inheritdoc />
-    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(ShellPipelineContext context, MiddlewareDelegate<ShellPipelineContext> next, CancellationToken ct) {
         var shouldAutoBackground = context.AutoBackground != false
             && SystemActuatorBackgroundConstants.IsAutoBackgroundAllowed(context.Command);
 
@@ -38,10 +35,8 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
             disableSandbox: context.DangerouslyDisableSandbox == true,
             cancellationToken: ct).ConfigureAwait(false);
 
-        if (cmdContext is SystemActuatorCommandContext actuatorCtx)
-        {
-            actuatorCtx.Backgrounded += (ctx, taskId) =>
-            {
+        if (cmdContext is SystemActuatorCommandContext actuatorCtx) {
+            actuatorCtx.Backgrounded += (ctx, taskId) => {
                 _ = _registry.RegisterContextAsync(ctx, context.WorkingDirectory, cancellationToken: default);
             };
         }
@@ -65,15 +60,12 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
     /// <summary>
     /// 创建进度报告定时器
     /// </summary>
-    private static Timer CreateProgressTimer(ISystemActuatorCommandContext context, ToolProgressCallback onProgress, string progressType, ILogger<ShellExecutionMiddleware>? logger = null)
-    {
+    private static Timer CreateProgressTimer(ISystemActuatorCommandContext context, ToolProgressCallback onProgress, string progressType, ILogger<ShellExecutionMiddleware>? logger = null) {
         var startTime = Environment.TickCount64;
         var progressCounter = 0;
 
-        return new Timer(_ =>
-        {
-            try
-            {
+        return new Timer(_ => {
+            try {
                 if (context.Status != SystemActuatorCommandStatus.Running) return;
 
                 var elapsedMs = Environment.TickCount64 - startTime;
@@ -84,14 +76,12 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
                 var lastLines = GetLastNLines(currentOutput, 5);
                 var fullOutput = GetLastNLines(currentOutput, 100);
 
-                onProgress(new ToolProgressData
-                {
+                onProgress(new ToolProgressData {
                     ProgressType = progressType,
                     ToolUseId = $"{progressType}-{progressCounter++}",
                     Message = lastLines,
                     ElapsedTimeMs = elapsedMs,
-                    Extra = new Dictionary<string, JsonElement>
-                    {
+                    Extra = new Dictionary<string, JsonElement> {
                         ["output"] = JsonSerializer.SerializeToElement(lastLines, ToolsJsonContext.Default.String),
                         ["fullOutput"] = JsonSerializer.SerializeToElement(fullOutput, ToolsJsonContext.Default.String),
                         ["totalLines"] = JsonSerializer.SerializeToElement(totalLines, ToolsJsonContext.Default.Int32),
@@ -99,9 +89,7 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
                         ["taskId"] = JsonSerializer.SerializeToElement(context.TaskId, ToolsJsonContext.Default.String),
                     }
                 });
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 logger?.LogWarning(ex, "进度报告发送失败");
             }
         }, null, TimeSpan.FromMilliseconds(SystemActuatorBackgroundConstants.ProgressThresholdMs), TimeSpan.FromSeconds(1));
@@ -110,8 +98,7 @@ public sealed partial class ShellExecutionMiddleware : ServiceEntity, IShellMidd
     /// <summary>
     /// 获取字符串的最后 N 行
     /// </summary>
-    private static string GetLastNLines(string text, int lineCount)
-    {
+    private static string GetLastNLines(string text, int lineCount) {
         if (string.IsNullOrEmpty(text)) return string.Empty;
 
         var lines = text.Split('\n');

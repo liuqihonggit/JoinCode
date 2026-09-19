@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Utils;
 /// AOT 友好（无反射），环境变量名通过 <see cref="JccEnvVar"/> 枚举 + 源码生成器管理
 /// > ADR: 0063
 /// </summary>
-public static class JccEndpointsResolver
-{
+public static class JccEndpointsResolver {
     /// <summary>
     /// GitHub API 基址（JCC_GITHUB_API_BASE 覆盖）
     /// </summary>

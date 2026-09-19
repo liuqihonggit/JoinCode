@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>提供 inherit 关键字判断、alias 匹配父 tier、显示文本等纯函数</para>
 /// <para>放在 Abstractions 层供 Brain 和 Agents 共用,避免循环依赖</para>
 /// </summary>
-public static class SubAgentModelResolver
-{
+public static class SubAgentModelResolver {
     /// <summary>
     /// 子代理默认模型关键字 — 对齐 TS 原版 getDefaultSubagentModel
     /// <para>返回 "inherit" 表示子代理默认继承父线程模型</para>
@@ -18,8 +17,7 @@ public static class SubAgentModelResolver
     /// <para>不区分大小写: "inherit"、"Inherit"、"INHERIT" 均返回 true</para>
     /// <para>null/空白 返回 false</para>
     /// </summary>
-    public static bool IsInheritKeyword(string? model)
-    {
+    public static bool IsInheritKeyword(string? model) {
         if (string.IsNullOrWhiteSpace(model))
             return false;
         return string.Equals(model, DefaultSubagentModel, StringComparison.OrdinalIgnoreCase);
@@ -31,16 +29,14 @@ public static class SubAgentModelResolver
     /// <para>alias = "opus" 且 parentModel 含 "opus" → true(用父模型,避免降级)</para>
     /// <para>仅裸 family alias 匹配,opus[1m]/best/opusplan 不匹配(它们携带额外语义)</para>
     /// </summary>
-    public static bool AliasMatchesParentTier(string? alias, string parentModel)
-    {
+    public static bool AliasMatchesParentTier(string? alias, string parentModel) {
         if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(parentModel))
             return false;
 
         var aliasLower = alias.ToLowerInvariant();
         var parentLower = parentModel.ToLowerInvariant();
 
-        return aliasLower switch
-        {
+        return aliasLower switch {
             "opus" => parentLower.Contains("opus"),
             "sonnet" => parentLower.Contains("sonnet"),
             "haiku" => parentLower.Contains("haiku"),
@@ -54,8 +50,7 @@ public static class SubAgentModelResolver
     /// <para>"inherit" → "Inherit from parent"</para>
     /// <para>其他 → 首字母大写</para>
     /// </summary>
-    public static string GetAgentModelDisplay(string? model)
-    {
+    public static string GetAgentModelDisplay(string? model) {
         if (string.IsNullOrEmpty(model))
             return "Inherit from parent (default)";
         if (IsInheritKeyword(model))
@@ -75,8 +70,7 @@ public static class SubAgentModelResolver
     /// <param name="definitionModel">定义文件模型(AgentDefinition.ModelName)</param>
     /// <param name="parentModel">父线程模型(主代理模型)</param>
     /// <returns>最终生效模型</returns>
-    public static string? ResolveModel(string? spawnModel, string? definitionModel, string? parentModel)
-    {
+    public static string? ResolveModel(string? spawnModel, string? definitionModel, string? parentModel) {
         var selected = spawnModel ?? definitionModel;
 
         if (selected is null || IsInheritKeyword(selected))
@@ -105,8 +99,7 @@ public static class SubAgentModelResolver
         string? definitionModel,
         string? parentModel,
         string? parentRegionPrefix,
-        bool isBedrockProvider)
-    {
+        bool isBedrockProvider) {
         var selected = spawnModel ?? definitionModel;
 
         if (selected is null || IsInheritKeyword(selected))

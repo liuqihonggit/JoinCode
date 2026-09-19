@@ -3,16 +3,14 @@ namespace McpClient;
 /// <summary>
 /// 工具搜索引擎 — 提供 select 精确选择、map 分组下钻、list_groups 列出分组、关键词模糊搜索等渐进式查询能力
 /// </summary>
-public sealed class ToolSearchEngine
-{
+public sealed class ToolSearchEngine {
     private readonly List<DeferredToolInfo> _deferredTools;
 
     /// <summary>
     /// 初始化 <see cref="ToolSearchEngine"/> 实例
     /// </summary>
     /// <param name="deferredTools">延迟加载的工具信息列表（可选）</param>
-    public ToolSearchEngine(IReadOnlyList<DeferredToolInfo> deferredTools)
-    {
+    public ToolSearchEngine(IReadOnlyList<DeferredToolInfo> deferredTools) {
         _deferredTools = deferredTools != null ? [.. deferredTools] : [];
     }
 
@@ -22,8 +20,7 @@ public sealed class ToolSearchEngine
     /// <param name="query">查询字符串</param>
     /// <param name="maxResults">最大结果数（默认 10）</param>
     /// <returns>工具搜索结果</returns>
-    public ToolSearchResult Search(string query, int maxResults = 10)
-    {
+    public ToolSearchResult Search(string query, int maxResults = 10) {
         ArgumentException.ThrowIfNullOrEmpty(query);
 
         var selectResult = TrySelect(query);
@@ -44,8 +41,7 @@ public sealed class ToolSearchEngine
     /// <summary>
     /// 解析 map[主分组][子分组][工具名] 三级下钻语法
     /// </summary>
-    private ToolSearchResult? TryMap(string query)
-    {
+    private ToolSearchResult? TryMap(string query) {
         if (!query.StartsWith("map[", StringComparison.OrdinalIgnoreCase) || !query.EndsWith("]", StringComparison.Ordinal))
             return null;
 
@@ -58,8 +54,7 @@ public sealed class ToolSearchEngine
             return null;
 
         var category = segments[0].Trim();
-        if (segments.Length == 1)
-        {
+        if (segments.Length == 1) {
             var toolsInCategory = _deferredTools
                 .Where(t => string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -75,8 +70,7 @@ public sealed class ToolSearchEngine
         }
 
         var groupName = segments[1].Trim();
-        if (segments.Length == 2)
-        {
+        if (segments.Length == 2) {
             var toolsInGroup = _deferredTools
                 .Where(t => string.Equals(t.Category, category, StringComparison.OrdinalIgnoreCase)
                     && string.Equals(t.GroupName, groupName, StringComparison.OrdinalIgnoreCase))
@@ -104,8 +98,7 @@ public sealed class ToolSearchEngine
     /// <summary>
     /// 解析 list_groups 语法 — 列出全部主分组 → 子分组层级
     /// </summary>
-    private ToolSearchResult? TryListGroups(string query)
-    {
+    private ToolSearchResult? TryListGroups(string query) {
         if (!query.Equals("list_groups", StringComparison.OrdinalIgnoreCase))
             return null;
 
@@ -117,8 +110,7 @@ public sealed class ToolSearchEngine
         return names.Count > 0 ? new ToolSearchResult(names) : null;
     }
 
-    private ToolSearchResult? TrySelect(string query)
-    {
+    private ToolSearchResult? TrySelect(string query) {
         if (!query.StartsWith("select:", StringComparison.OrdinalIgnoreCase))
             return null;
 
@@ -135,8 +127,7 @@ public sealed class ToolSearchEngine
         return matched.Count > 0 ? new ToolSearchResult(matched) : null;
     }
 
-    private ToolSearchResult KeywordSearch(string query, int maxResults)
-    {
+    private ToolSearchResult KeywordSearch(string query, int maxResults) {
         var terms = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(t => !string.IsNullOrEmpty(t))
             .ToArray();
@@ -146,8 +137,7 @@ public sealed class ToolSearchEngine
 
         var scored = new List<(DeferredToolInfo Tool, int Score)>();
 
-        foreach (var tool in _deferredTools)
-        {
+        foreach (var tool in _deferredTools) {
             var score = ComputeScore(tool, terms);
             if (score > 0)
                 scored.Add((tool, score));
@@ -162,37 +152,26 @@ public sealed class ToolSearchEngine
         return new ToolSearchResult(results);
     }
 
-    private static int ComputeScore(DeferredToolInfo tool, string[] terms)
-    {
+    private static int ComputeScore(DeferredToolInfo tool, string[] terms) {
         var score = 0;
         var nameParts = tool.Name.Split('.', '_');
 
-        foreach (var term in terms)
-        {
+        foreach (var term in terms) {
             var isRequired = term.StartsWith('+');
             var normalizedTerm = isRequired ? term[1..] : term;
 
             if (string.IsNullOrEmpty(normalizedTerm))
                 continue;
 
-            if (tool.Name.Equals(normalizedTerm, StringComparison.OrdinalIgnoreCase))
-            {
+            if (tool.Name.Equals(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
                 score += tool.IsMcp ? 12 : 10;
-            }
-            else if (tool.Name.Contains(normalizedTerm, StringComparison.OrdinalIgnoreCase))
-            {
+            } else if (tool.Name.Contains(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
                 score += tool.IsMcp ? 6 : 5;
-            }
-            else if (nameParts.Any(p => p.Equals(normalizedTerm, StringComparison.OrdinalIgnoreCase)))
-            {
+            } else if (nameParts.Any(p => p.Equals(normalizedTerm, StringComparison.OrdinalIgnoreCase))) {
                 score += tool.IsMcp ? 6 : 5;
-            }
-            else if (tool.Description != null && tool.Description.Contains(normalizedTerm, StringComparison.OrdinalIgnoreCase))
-            {
+            } else if (tool.Description != null && tool.Description.Contains(normalizedTerm, StringComparison.OrdinalIgnoreCase)) {
                 score += 2;
-            }
-            else if (isRequired)
-            {
+            } else if (isRequired) {
                 return 0;
             }
         }

@@ -4,21 +4,17 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 简化技能 — 简化复杂代码，支持保守/平衡/激进三种策略
 /// </summary>
-public sealed class SimplifySkill
-{
+public sealed class SimplifySkill {
     /// <summary>
     /// 创建技能定义
     /// </summary>
     /// <returns>简化技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "simplify",
             Description = "简化复杂代码",
             Version = "1.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["target"] = new() { Type = "string", Description = "要简化的目标（文件路径、函数名或代码片段）", Required = true },
                 ["strategy"] = new() { Type = "string", Description = "简化策略", Required = false, DefaultValue = "balanced", Validation = new ParameterValidation { EnumValues = new List<string> { "conservative", "balanced", "aggressive" }.AsReadOnly() } }
             },

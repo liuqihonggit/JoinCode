@@ -4,8 +4,7 @@ namespace IO.FileSystem;
 /// 物理文件系统实现 — 直接委托给 System.IO.File / System.IO.Directory
 /// </summary>
 [Register(typeof(IFileSystem), ServiceLifetime.Singleton)]
-public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
-{
+public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem {
     // === File 写操作 ===
     // 统一原则：所有写操作用 FileShare.ReadWrite，允许并发读取者，避免跨进程/同进程读-写冲突。写-写互斥由调用方的 Named Mutex 保护。
 
@@ -25,21 +24,18 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     public PhysicalFileSystem() => _editActor = new EditFileActor(this);
 
     /// <inheritdoc />
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         await _editActor.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
-    {
+    public async Task WriteAllTextAsync(string path, string contents, CancellationToken cancellationToken = default) {
         await WriteAllTextWithShareAsync(path, contents, s_utf8NoBom, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task WriteAllTextAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken = default)
-    {
+    public async Task WriteAllTextAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken = default) {
         await WriteAllTextWithShareAsync(path, contents, encoding, cancellationToken).ConfigureAwait(false);
     }
 
@@ -52,28 +48,24 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
         => WriteAllTextWithShare(path, contents, encoding);
 
     /// <inheritdoc />
-    public async Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default)
-    {
+    public async Task WriteAllBytesAsync(string path, byte[] bytes, CancellationToken cancellationToken = default) {
         await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         await stream.WriteAsync(bytes.AsMemory(0, bytes.Length), cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public void WriteAllBytes(string path, byte[] bytes)
-    {
+    public void WriteAllBytes(string path, byte[] bytes) {
         using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         stream.Write(bytes, 0, bytes.Length);
     }
 
     /// <inheritdoc />
-    public async Task AppendAllTextAsync(string path, string contents, CancellationToken cancellationToken = default)
-    {
+    public async Task AppendAllTextAsync(string path, string contents, CancellationToken cancellationToken = default) {
         await AppendAllTextWithShareAsync(path, contents, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public void AppendAllText(string path, string contents)
-    {
+    public void AppendAllText(string path, string contents) {
         using var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
         using var writer = new StreamWriter(stream);
         writer.Write(contents);
@@ -84,14 +76,12 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     // 统一原则：所有读操作用 FileShare.ReadWrite，允许并发写入者，避免跨进程/同进程读-写冲突。
 
     /// <inheritdoc />
-    public async Task<string> ReadAllTextAsync(string path, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> ReadAllTextAsync(string path, CancellationToken cancellationToken = default) {
         return await ReadAllTextWithShareAsync(path, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task<string> ReadAllTextAsync(string path, Encoding encoding, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> ReadAllTextAsync(string path, Encoding encoding, CancellationToken cancellationToken = default) {
         return await ReadAllTextWithShareAsync(path, encoding, cancellationToken).ConfigureAwait(false);
     }
 
@@ -104,20 +94,17 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
         => ReadAllTextWithShare(path, encoding);
 
     /// <inheritdoc />
-    public async Task<string[]> ReadAllLinesAsync(string path, CancellationToken cancellationToken = default)
-    {
+    public async Task<string[]> ReadAllLinesAsync(string path, CancellationToken cancellationToken = default) {
         return await ReadAllLinesWithShareAsync(path, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public string[] ReadAllLines(string path)
-    {
+    public string[] ReadAllLines(string path) {
         using var reader = new MappedFileReader(path);
         var content = reader.ReadToEnd();
         var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
         var lines = new string[ranges.Count];
-        for (var i = 0; i < ranges.Count; i++)
-        {
+        for (var i = 0; i < ranges.Count; i++) {
             var (start, length) = ranges[i];
             lines[i] = content.Substring(start, length);
         }
@@ -125,8 +112,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     }
 
     /// <inheritdoc />
-    public async Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken = default)
-    {
+    public async Task<byte[]> ReadAllBytesAsync(string path, CancellationToken cancellationToken = default) {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var ms = new MemoryStream();
         await stream.CopyToAsync(ms, cancellationToken).ConfigureAwait(false);
@@ -134,8 +120,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     }
 
     /// <inheritdoc />
-    public byte[] ReadAllBytes(string path)
-    {
+    public byte[] ReadAllBytes(string path) {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var ms = new MemoryStream();
         stream.CopyTo(ms);
@@ -145,11 +130,9 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     // === File 原子编辑 ===
 
     /// <inheritdoc />
-    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
-    {
+    public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default) {
         var reply = new TaskCompletionSource<object?>();
-        Func<byte[], CancellationToken, Task<(byte[]? NewContent, object? Result)>> wrapped = async (bytes, ct) =>
-        {
+        Func<byte[], CancellationToken, Task<(byte[]? NewContent, object? Result)>> wrapped = async (bytes, ct) => {
             var (newContent, result) = await transform(bytes, ct).ConfigureAwait(false);
             return (newContent, (object?)result);
         };
@@ -258,8 +241,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
         => Directory.SetLastWriteTimeUtc(path, utcTime);
 
     /// <inheritdoc />
-    public string? GetParentPath(string path)
-    {
+    public string? GetParentPath(string path) {
         var dir = Directory.GetParent(path);
         return dir?.FullName;
     }
@@ -298,8 +280,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 同步写入全部文本 — FileShare.ReadWrite 允许并发读取者
     /// </summary>
-    private static void WriteAllTextWithShare(string path, string contents, Encoding encoding)
-    {
+    private static void WriteAllTextWithShare(string path, string contents, Encoding encoding) {
         using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         using var writer = new StreamWriter(stream, encoding);
         writer.Write(contents);
@@ -309,8 +290,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 异步写入全部文本 — FileShare.ReadWrite 允许并发读取者
     /// </summary>
-    private static async Task WriteAllTextWithShareAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken)
-    {
+    private static async Task WriteAllTextWithShareAsync(string path, string contents, Encoding encoding, CancellationToken cancellationToken) {
         await using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
         await using var writer = new StreamWriter(stream, encoding);
         await writer.WriteAsync(contents.AsMemory(), cancellationToken).ConfigureAwait(false);
@@ -320,10 +300,8 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 同步读取全部文本 — UTF-8 用 mmap 零拷贝，其他编码走 StreamReader
     /// </summary>
-    private static string ReadAllTextWithShare(string path, Encoding encoding)
-    {
-        if (encoding is UTF8Encoding)
-        {
+    private static string ReadAllTextWithShare(string path, Encoding encoding) {
+        if (encoding is UTF8Encoding) {
             using var mmapReader = new MappedFileReader(path);
             return mmapReader.ReadToEnd();
         }
@@ -335,8 +313,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 追加写入 — FileShare.ReadWrite 允许并发读取者
     /// </summary>
-    private static async Task AppendAllTextWithShareAsync(string path, string contents, CancellationToken cancellationToken)
-    {
+    private static async Task AppendAllTextWithShareAsync(string path, string contents, CancellationToken cancellationToken) {
         await using var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
         await using var writer = new StreamWriter(stream);
         await writer.WriteAsync(contents.AsMemory(), cancellationToken).ConfigureAwait(false);
@@ -346,8 +323,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 读取全部文本 — UTF-8 用 mmap 零拷贝，其他编码走 StreamReader
     /// </summary>
-    private static Task<string> ReadAllTextWithShareAsync(string path, CancellationToken cancellationToken)
-    {
+    private static Task<string> ReadAllTextWithShareAsync(string path, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
         using var reader = new MappedFileReader(path);
         return Task.FromResult(reader.ReadToEnd());
@@ -356,11 +332,9 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 读取全部文本（指定编码）— UTF-8 用 mmap 零拷贝，其他编码走 StreamReader
     /// </summary>
-    private static Task<string> ReadAllTextWithShareAsync(string path, Encoding encoding, CancellationToken cancellationToken)
-    {
+    private static Task<string> ReadAllTextWithShareAsync(string path, Encoding encoding, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
-        if (encoding is UTF8Encoding)
-        {
+        if (encoding is UTF8Encoding) {
             using var reader = new MappedFileReader(path);
             return Task.FromResult(reader.ReadToEnd());
         }
@@ -370,8 +344,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 非 UTF-8 编码的异步读取实现
     /// </summary>
-    private static async Task<string> ReadAllTextWithShareAsyncCore(string path, Encoding encoding, CancellationToken cancellationToken)
-    {
+    private static async Task<string> ReadAllTextWithShareAsyncCore(string path, Encoding encoding, CancellationToken cancellationToken) {
         await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new StreamReader(stream, encoding);
         return await reader.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
@@ -380,15 +353,13 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 读取所有行 — UTF-8 用 mmap + LineSpanIndexer 零分配行遍历
     /// </summary>
-    private static Task<string[]> ReadAllLinesWithShareAsync(string path, CancellationToken cancellationToken)
-    {
+    private static Task<string[]> ReadAllLinesWithShareAsync(string path, CancellationToken cancellationToken) {
         cancellationToken.ThrowIfCancellationRequested();
         using var reader = new MappedFileReader(path);
         var content = reader.ReadToEnd();
         var ranges = LineSpanIndexer.BuildLineRanges(content.AsSpan());
         var lines = new string[ranges.Count];
-        for (var i = 0; i < ranges.Count; i++)
-        {
+        for (var i = 0; i < ranges.Count; i++) {
             var (start, length) = ranges[i];
             lines[i] = content.Substring(start, length);
         }
@@ -398,8 +369,7 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <summary>
     /// 物理文件编辑 Actor — 串行化 EditFileAsync 读-改-写事务，消除 per-path AsyncLock — TASK001
     /// </summary>
-    private sealed class EditFileActor : ActorBase<EditFileCmd, Unit>
-    {
+    private sealed class EditFileActor : ActorBase<EditFileCmd, Unit> {
         private readonly PhysicalFileSystem _owner;
 
         public EditFileActor(PhysicalFileSystem owner) : base() => _owner = owner;
@@ -408,18 +378,14 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
         public async Task<object?> AskReplyAsync(TaskCompletionSource<object?> tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(EditFileCmd cmd, CancellationToken ct)
-        {
-            try
-            {
+        protected override async ValueTask HandleAsync(EditFileCmd cmd, CancellationToken ct) {
+            try {
                 var bytes = await _owner.ReadAllBytesAsync(cmd.Path, ct).ConfigureAwait(false);
                 var (newContent, result) = await cmd.Transform(bytes, ct).ConfigureAwait(false);
                 if (newContent is not null)
                     await _owner.WriteAllBytesAsync(cmd.Path, newContent, ct).ConfigureAwait(false);
                 cmd.Reply.SetResult(result);
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { cmd.Reply.SetException(ex); }
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) { cmd.Reply.SetException(ex); }
         }
     }
 }

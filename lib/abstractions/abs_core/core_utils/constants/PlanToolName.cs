@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 计划模式工具名称枚举
 /// </summary>
-public enum PlanToolName
-{
+public enum PlanToolName {
     [EnumValue("plan_mode_start")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     PlanModeStart,

@@ -3,12 +3,10 @@ namespace JoinCode.Hands.Desktop.Tests;
 /// <summary>
 /// DesktopSceneStatusToolHandlers 单元测试 — AC-05 状态持久化（handler 逻辑）
 /// </summary>
-public sealed class DesktopSceneStatusToolHandlersTests
-{
+public sealed class DesktopSceneStatusToolHandlersTests {
     /// <summary>AC-05: 调 status 返回当前夹逼状态（层/格子/历史）</summary>
     [Fact]
-    public async Task Status_ReturnsCurrentState_WithDepthAndCellAndHistory()
-    {
+    public async Task Status_ReturnsCurrentState_WithDepthAndCellAndHistory() {
         var stateStoreMock = new Mock<IDesktopSceneStateStore>();
         stateStoreMock.Setup(s => s.LoadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DesktopSceneState(
@@ -29,8 +27,7 @@ public sealed class DesktopSceneStatusToolHandlersTests
 
     /// <summary>AC-05: 场景不存在时返回明确提示</summary>
     [Fact]
-    public async Task Status_SceneNotFound_ReturnsHint()
-    {
+    public async Task Status_SceneNotFound_ReturnsHint() {
         var stateStoreMock = new Mock<IDesktopSceneStateStore>();
         stateStoreMock.Setup(s => s.LoadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DesktopSceneState?)null);

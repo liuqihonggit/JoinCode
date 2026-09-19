@@ -3,8 +3,7 @@ namespace Core.Hosting;
 /// <summary>
 /// 工作流服务接口 - 所有后台服务的基础接口
 /// </summary>
-public interface IWorkflowService
-{
+public interface IWorkflowService {
     /// <summary>
     /// 服务名称
     /// </summary>
@@ -29,8 +28,7 @@ public interface IWorkflowService
 /// <summary>
 /// 服务状态
 /// </summary>
-public enum ServiceStatus
-{
+public enum ServiceStatus {
     /// <summary>已停止</summary>
     [EnumValue("stopped")] Stopped,
     /// <summary>启动中</summary>
@@ -46,15 +44,13 @@ public enum ServiceStatus
 /// <summary>
 /// 服务状态扩展方法
 /// </summary>
-public static class ServiceStatusExtensions
-{
+public static class ServiceStatusExtensions {
     /// <summary>
     /// 将服务状态转换为状态名称字符串
     /// </summary>
     /// <param name="status">服务状态</param>
     /// <returns>状态名称</returns>
-    public static string ToStatusName(this ServiceStatus status)
-    {
+    public static string ToStatusName(this ServiceStatus status) {
         return status.ToString();
     }
 }
@@ -62,8 +58,7 @@ public static class ServiceStatusExtensions
 /// <summary>
 /// 服务事件参数
 /// </summary>
-public sealed class ServiceEventArgs : EventArgs
-{
+public sealed class ServiceEventArgs : EventArgs {
     /// <summary>服务名称</summary>
     public required string ServiceName { get; init; }
     /// <summary>旧状态</summary>

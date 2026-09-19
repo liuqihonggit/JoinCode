@@ -4,8 +4,7 @@ namespace JoinCode.Dream;
 /// <summary>
 /// 做梦回合记录
 /// </summary>
-public sealed record DreamTurn
-{
+public sealed record DreamTurn {
     /// <summary>助手回复文本</summary>
     public required string Text { get; init; }
     /// <summary>工具使用次数</summary>
@@ -15,8 +14,7 @@ public sealed record DreamTurn
 /// <summary>
 /// 做梦任务状态 - 用于后台任务追踪
 /// </summary>
-public sealed class DreamTaskState
-{
+public sealed class DreamTaskState {
     // 基础任务字段
     /// <summary>任务 ID</summary>
     public required string Id { get; init; }
@@ -69,18 +67,14 @@ public sealed class DreamTaskState
     /// </summary>
     /// <param name="turn">回合记录</param>
     /// <param name="touchedPaths">被修改的文件路径列表</param>
-    public void AddTurn(DreamTurn turn, IReadOnlyList<string> touchedPaths)
-    {
+    public void AddTurn(DreamTurn turn, IReadOnlyList<string> touchedPaths) {
         // 更新阶段：如果有文件被修改，进入updating阶段
-        if (touchedPaths.Count > 0)
-        {
+        if (touchedPaths.Count > 0) {
             Phase = DreamPhase.Updating;
 
             // 添加新文件路径（去重）
-            foreach (var path in touchedPaths)
-            {
-                if (!FilesTouchedSet.Contains(path))
-                {
+            foreach (var path in touchedPaths) {
+                if (!FilesTouchedSet.Contains(path)) {
                     FilesTouched.Add(path);
                     FilesTouchedSet.Add(path);
                 }
@@ -88,8 +82,7 @@ public sealed class DreamTaskState
         }
 
         // 添加回合（限制数量）
-        if (Turns.Count >= MaxTurns)
-        {
+        if (Turns.Count >= MaxTurns) {
             Turns.RemoveAt(0);
         }
         Turns.Add(turn);
@@ -98,8 +91,7 @@ public sealed class DreamTaskState
     /// <summary>
     /// 完成任务
     /// </summary>
-    public void Complete()
-    {
+    public void Complete() {
         Status = DreamTaskStatus.Completed;
         EndTime = DateTime.UtcNow;
         Notified = true;
@@ -108,8 +100,7 @@ public sealed class DreamTaskState
     /// <summary>
     /// 标记失败
     /// </summary>
-    public void Fail()
-    {
+    public void Fail() {
         Status = DreamTaskStatus.Failed;
         EndTime = DateTime.UtcNow;
         Notified = true;
@@ -118,8 +109,7 @@ public sealed class DreamTaskState
     /// <summary>
     /// 标记为已杀死
     /// </summary>
-    public void Kill()
-    {
+    public void Kill() {
         Status = DreamTaskStatus.Killed;
         EndTime = DateTime.UtcNow;
         Notified = true;
@@ -135,8 +125,7 @@ public sealed class DreamTaskState
 /// <summary>
 /// 做梦任务状态守卫
 /// </summary>
-public static class DreamTaskGuards
-{
+public static class DreamTaskGuards {
     /// <summary>
     /// 判断任务是否为 Dream 任务
     /// </summary>

@@ -6,8 +6,7 @@ namespace JoinCode.CodeIndex;
 /// 通过 RepoRegistered/RepoUnregistered 事件通知订阅方（如 FileWatcherIntegrationRegistry）
 /// </summary>
 [Register(typeof(ICodeIndexerRegistry), ServiceLifetime.Singleton)]
-public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, IDisposable
-{
+public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, IDisposable {
     private readonly IFileSystem _fs;
     private readonly ICodeIndexer _defaultIndexer;
     private readonly Dictionary<string, RegisteredRepo> _repos = new(StringComparer.Ordinal);
@@ -19,8 +18,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="defaultIndexer">默认索引器实例</param>
-    public CodeIndexerRegistry(IFileSystem fs, ICodeIndexer defaultIndexer)
-    {
+    public CodeIndexerRegistry(IFileSystem fs, ICodeIndexer defaultIndexer) {
         ArgumentNullException.ThrowIfNull(fs);
         ArgumentNullException.ThrowIfNull(defaultIndexer);
         _fs = fs;
@@ -43,23 +41,20 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// <param name="workspaceRoot">工作区根路径</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>仓库注册信息</returns>
-    public Task<RepoRegistration> RegisterAsync(string repoId, string workspaceRoot, CancellationToken ct)
-    {
+    public Task<RepoRegistration> RegisterAsync(string repoId, string workspaceRoot, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(repoId);
         ArgumentNullException.ThrowIfNull(workspaceRoot);
 
         RepoRegistration registration;
         CodeIndexer concreteIndexer;
 
-        using (_lock.EnterWriteScope())
-        {
+        using (_lock.EnterWriteScope()) {
             if (_repos.ContainsKey(repoId))
                 throw new InvalidOperationException($"Repository '{repoId}' is already registered.");
 
             var store = new InMemoryIndexStore();
             concreteIndexer = new CodeIndexer(store, _fs);
-            registration = new RepoRegistration
-            {
+            registration = new RepoRegistration {
                 RepoId = repoId,
                 WorkspaceRoot = workspaceRoot,
                 RegisteredAt = DateTimeOffset.UtcNow,
@@ -70,8 +65,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
             _repos[repoId] = new RegisteredRepo(registration, store, concreteIndexer);
         }
 
-        RepoRegistered?.Invoke(this, new RepoRegisteredEventArgs
-        {
+        RepoRegistered?.Invoke(this, new RepoRegisteredEventArgs {
             RepoId = repoId,
             WorkspaceRoot = workspaceRoot,
             Indexer = concreteIndexer,
@@ -86,12 +80,10 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// <param name="repoId">仓库标识</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>注销成功返回 true，仓库不存在返回 false</returns>
-    public Task<bool> UnregisterAsync(string repoId, CancellationToken ct)
-    {
+    public Task<bool> UnregisterAsync(string repoId, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(repoId);
 
-        using (_lock.EnterWriteScope())
-        {
+        using (_lock.EnterWriteScope()) {
             if (!_repos.Remove(repoId, out var repo))
                 return Task.FromResult(false);
 
@@ -99,8 +91,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
             repo.Store.Dispose();
         }
 
-        RepoUnregistered?.Invoke(this, new RepoUnregisteredEventArgs
-        {
+        RepoUnregistered?.Invoke(this, new RepoUnregisteredEventArgs {
             RepoId = repoId,
         });
 
@@ -112,15 +103,12 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>仓库注册信息只读列表</returns>
-    public Task<IReadOnlyList<RepoRegistration>> ListReposAsync(CancellationToken ct)
-    {
+    public Task<IReadOnlyList<RepoRegistration>> ListReposAsync(CancellationToken ct) {
         using var scope = _lock.EnterReadScope();
         var list = new List<RepoRegistration>();
 
-        if (_defaultIndexer is not null)
-        {
-            list.Add(new RepoRegistration
-            {
+        if (_defaultIndexer is not null) {
+            list.Add(new RepoRegistration {
                 RepoId = "default",
                 WorkspaceRoot = "",
                 RegisteredAt = DateTimeOffset.MinValue,
@@ -139,8 +127,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// </summary>
     /// <param name="repoId">仓库标识</param>
     /// <returns>索引器实例，不存在时返回 null</returns>
-    public ICodeIndexer? GetIndexer(string repoId)
-    {
+    public ICodeIndexer? GetIndexer(string repoId) {
         ArgumentNullException.ThrowIfNull(repoId);
 
         if (string.Equals(repoId, "default", StringComparison.OrdinalIgnoreCase))
@@ -153,14 +140,11 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
     /// <summary>
     /// 释放资源 — 释放所有仓库的索引器和存储，并释放锁
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        using (_lock.EnterWriteScope())
-        {
-            foreach (var repo in _repos.Values)
-            {
+        using (_lock.EnterWriteScope()) {
+            foreach (var repo in _repos.Values) {
                 repo.Indexer.Dispose();
                 repo.Store.Dispose();
             }
@@ -168,7 +152,7 @@ public sealed class CodeIndexerRegistry : ServiceEntity, ICodeIndexerRegistry, I
         }
 
         _lock.Dispose();
-            base.Dispose();
+        base.Dispose();
     }
 
     private sealed record RegisteredRepo(RepoRegistration Registration, InMemoryIndexStore Store, CodeIndexer Indexer);

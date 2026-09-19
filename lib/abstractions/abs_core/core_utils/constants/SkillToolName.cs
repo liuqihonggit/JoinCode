@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 技能工具名称枚举
 /// </summary>
-public enum SkillToolName
-{
+public enum SkillToolName {
     [EnumValue("skill")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     Skill,

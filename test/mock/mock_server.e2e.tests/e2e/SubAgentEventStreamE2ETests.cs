@@ -8,15 +8,13 @@ namespace MockServer.E2E.Tests.E2E;
 /// ② 省略 subagent_type → fork 后台路径（AgentStarted 即时可见，终态经通道/通知回填）
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class SubAgentEventStreamE2ETests
-{
+public sealed class SubAgentEventStreamE2ETests {
     private readonly ITestOutputHelper _output;
 
     public SubAgentEventStreamE2ETests(ITestOutputHelper output) => _output = output;
 
     [Fact]
-    public async Task AgentToolSpawn_ShouldEmitAgentEventsThroughMainStream()
-    {
+    public async Task AgentToolSpawn_ShouldEmitAgentEventsThroughMainStream() {
         const string args = "{\"name\":\"e2e-sub\",\"subagent_type\":\"executor:search\",\"description\":\"检查README文件\",\"prompt\":\"读取当前目录README并总结\"}";
 
         var events = await RunAgentScenarioAsync(args).ConfigureAwait(true);
@@ -49,8 +47,7 @@ public sealed class SubAgentEventStreamE2ETests
     }
 
     [Fact]
-    public async Task AgentToolFork_WithoutSubagentType_ShouldEmitAgentStartedImmediately()
-    {
+    public async Task AgentToolFork_WithoutSubagentType_ShouldEmitAgentStartedImmediately() {
         // fork 盲区修复契约：省略 subagent_type 走后台 fork 短路路径，
         // 但 AgentStarted 必须即时发射（GUI 运行面板立刻出现该 fork 行）
         const string args = "{\"name\":\"e2e-fork\",\"description\":\"检查README文件\",\"prompt\":\"读取当前目录README并总结\"}";
@@ -73,8 +70,7 @@ public sealed class SubAgentEventStreamE2ETests
     /// 共享实弹管线：写脚本配置（Agent 工具调用→子代理文本轮次→收尾文本）→
     /// 启动真实 MockServer → 创建 GUI 同源引擎会话 → 消费主事件流返回全部事件。
     /// </summary>
-    private async Task<List<ChatStreamEvent>> RunAgentScenarioAsync(string toolCallArguments)
-    {
+    private async Task<List<ChatStreamEvent>> RunAgentScenarioAsync(string toolCallArguments) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
         var ct = cts.Token;
@@ -90,8 +86,7 @@ public sealed class SubAgentEventStreamE2ETests
         var port = await readyTask.WaitAsync(timeoutCts.Token).ConfigureAwait(true);
         Assert.True(port > 0, "MockServer 就绪行未解析出端口");
 
-        try
-        {
+        try {
             using var envScope = EnvVarScope.Set("JCC_ENDPOINT", $"http://localhost:{port}")
                 .Add("OPENAI_API_KEY", "sk-test-subagent-e2e")
                 .Add("JCC_VENDOR", "openai")
@@ -102,12 +97,10 @@ public sealed class SubAgentEventStreamE2ETests
             // 外部短命 CTS 先于 Host 处置会导致 Dispose 时 ObjectDisposedException
             var session = await JoinCode.App.Builder.EngineSessionFactory.CreateGuiSessionAsync()
                 .ConfigureAwait(true);
-            try
-            {
+            try {
                 var events = new List<ChatStreamEvent>();
                 await foreach (var evt in session.ChatService.StreamWithEventsAsync(
-                    "帮我检查项目中的README文件", ct).ConfigureAwait(true))
-                {
+                    "帮我检查项目中的README文件", ct).ConfigureAwait(true)) {
                     events.Add(evt);
                     if (evt.Type == ChatStreamEventType.Content)
                         _output.WriteLine($"[EVT:Content] {evt.Content?[..Math.Min(60, evt.Content?.Length ?? 0)]}");
@@ -115,26 +108,18 @@ public sealed class SubAgentEventStreamE2ETests
                         _output.WriteLine($"[EVT:{evt.Type}] agent={evt.AgentId} tool={evt.ToolName}");
                 }
                 return events;
-            }
-            finally
-            {
+            } finally {
                 // Host 内部服务（BuildQueueService）的 Dispose 链路存在二次处置敏感，
                 // 此处仅尽力清理，不得掩盖 try 块中的原始断言/运行时异常
-                try { await session.Host.DisposeAsync(); }
-                catch (Exception disposeEx) { _output.WriteLine($"[E2E清理] Host.DisposeAsync 异常(已忽略): {disposeEx.Message}"); }
+                try { await session.Host.DisposeAsync(); } catch (Exception disposeEx) { _output.WriteLine($"[E2E清理] Host.DisposeAsync 异常(已忽略): {disposeEx.Message}"); }
             }
-        }
-        finally
-        {
+        } finally {
             // 环境变量由 envScope.Dispose 自动恢复（逆序），此处只保留进程/目录清理
-            if (!mockServer.HasExited)
-            {
-                try { mockServer.Kill(entireProcessTree: true); }
-                catch (Exception killEx) { _output.WriteLine($"[E2E清理] MockServer 进程终止失败: {killEx.Message}"); }
+            if (!mockServer.HasExited) {
+                try { mockServer.Kill(entireProcessTree: true); } catch (Exception killEx) { _output.WriteLine($"[E2E清理] MockServer 进程终止失败: {killEx.Message}"); }
             }
             mockServer.Dispose();
-            try { fs.DeleteDirectory(configDir, recursive: true); }
-            catch (Exception cleanEx) { _output.WriteLine($"[E2E清理] 临时配置目录删除失败: {cleanEx.Message}"); }
+            try { fs.DeleteDirectory(configDir, recursive: true); } catch (Exception cleanEx) { _output.WriteLine($"[E2E清理] 临时配置目录删除失败: {cleanEx.Message}"); }
         }
     }
 
@@ -142,8 +127,7 @@ public sealed class SubAgentEventStreamE2ETests
     /// 构建脚本轮次：① 主对话返回 Agent 工具调用 ② 子代理 LLM 文本输出 ③ 主对话收尾文本。
     /// MockServer 按请求顺序消耗 scripted_turns。
     /// </summary>
-    private static string BuildMockConfig(string toolCallArguments)
-    {
+    private static string BuildMockConfig(string toolCallArguments) {
         var sb = new StringBuilder();
         sb.AppendLine("{");
         sb.AppendLine("  \"port\": 0,");
@@ -174,8 +158,7 @@ public sealed class SubAgentEventStreamE2ETests
         return sb.ToString();
     }
 
-    private static void AppendTextTurn(StringBuilder sb, string text)
-    {
+    private static void AppendTextTurn(StringBuilder sb, string text) {
         sb.AppendLine("    {");
         sb.AppendLine("      \"thinking_content\": null,");
         sb.AppendLine("      \"tool_calls\": null,");
@@ -190,11 +173,9 @@ public sealed class SubAgentEventStreamE2ETests
         .Replace("\"", "\\\"", StringComparison.Ordinal);
 
     private Process StartMockServer(JoinCode.Abstractions.Interfaces.IFileSystem fs, string configPath,
-        ITestOutputHelper output, out Task<int> readyTask)
-    {
+        ITestOutputHelper output, out Task<int> readyTask) {
         var exe = ResolveMockServerPath(fs);
-        var startInfo = new System.Diagnostics.ProcessStartInfo
-        {
+        var startInfo = new System.Diagnostics.ProcessStartInfo {
             FileName = exe,
             Arguments = $"--config \"{configPath}\" --port 0",
             RedirectStandardOutput = true,
@@ -210,8 +191,7 @@ public sealed class SubAgentEventStreamE2ETests
         var readyTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         const string readyMarker = "[OpenAI]   URL:";
 
-        process.OutputDataReceived += (_, e) =>
-        {
+        process.OutputDataReceived += (_, e) => {
             if (string.IsNullOrEmpty(e.Data))
                 return;
             _output.WriteLine($"[MockServer] {e.Data}");
@@ -223,8 +203,7 @@ public sealed class SubAgentEventStreamE2ETests
             if (match.Success && int.TryParse(match.Groups[1].Value, out var port))
                 readyTcs.TrySetResult(port);
         };
-        process.ErrorDataReceived += (_, e) =>
-        {
+        process.ErrorDataReceived += (_, e) => {
             if (!string.IsNullOrEmpty(e.Data))
                 _output.WriteLine($"[MockServer:ERR] {e.Data}");
         };
@@ -238,14 +217,11 @@ public sealed class SubAgentEventStreamE2ETests
         return process;
     }
 
-    private static string ResolveMockServerPath(JoinCode.Abstractions.Interfaces.IFileSystem fs)
-    {
+    private static string ResolveMockServerPath(JoinCode.Abstractions.Interfaces.IFileSystem fs) {
         var dir = AppContext.BaseDirectory;
-        while (dir is not null)
-        {
+        while (dir is not null) {
             var candidate = Path.Combine(dir, "artifacts", "bin", "OpenAI.MockServer");
-            if (fs.DirectoryExists(candidate))
-            {
+            if (fs.DirectoryExists(candidate)) {
                 var exe = fs.GetFiles(candidate, "JoinCode.OpenAI.MockServer.exe", SearchOption.AllDirectories)
                     .OrderByDescending(p => p.Contains("Release"))
                     .FirstOrDefault()

@@ -13,8 +13,7 @@ public sealed record GatewayOptions(
     int MaxRetries = 3,
     TimeSpan RetryBaseDelay = default,
     int CircuitBreakerThreshold = 5,
-    TimeSpan CircuitBreakerRecoveryDelay = default)
-{
+    TimeSpan CircuitBreakerRecoveryDelay = default) {
     /// <summary>实际重试基础延迟(默认 1s)</summary>
     public TimeSpan EffectiveRetryDelay => RetryBaseDelay == default ? TimeSpan.FromSeconds(1) : RetryBaseDelay;
 
@@ -32,8 +31,7 @@ public sealed record GatewayOptions(
 /// <summary>
 /// 网关熔断状态 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射。
 /// </summary>
-public enum GatewayCircuitState : int
-{
+public enum GatewayCircuitState : int {
     /// <summary>关闭(正常调用)</summary>
     [EnumValue("closed")] Closed,
 
@@ -60,8 +58,7 @@ public sealed record GatewayEvent(GatewayCircuitState State, string Message);
 /// </summary>
 /// <typeparam name="TRequest">请求类型</typeparam>
 /// <typeparam name="TResponse">响应类型</typeparam>
-public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<TRequest, TResponse>.IGatewayCommand, GatewayEvent>
-{
+public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<TRequest, TResponse>.IGatewayCommand, GatewayEvent> {
     /// <summary>网关命令标记接口</summary>
     public interface IGatewayCommand;
 
@@ -91,8 +88,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
         Func<TRequest, CancellationToken, Task<TResponse>> handler,
         GatewayOptions? options = null,
         ActorBackpressure? backpressure = null)
-        : base(backpressure ?? ActorBackpressure.LlmGateway)
-    {
+        : base(backpressure ?? ActorBackpressure.LlmGateway) {
         _handler = handler;
         _options = options ?? GatewayOptions.LlmGateway;
         _rateLimiter = new SemaphoreSlim(_options.MaxConcurrency, _options.MaxConcurrency);
@@ -101,56 +97,40 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
     /// <summary>
     /// 异步调用 — 入队后由 Consumer 串行处理(限流 + 重试 + 熔断)。
     /// </summary>
-    public async Task<TResponse> CallAsync(TRequest request, CancellationToken ct = default)
-    {
+    public async Task<TResponse> CallAsync(TRequest request, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<TResponse>();
         await SendAsync(new CallCommand(request, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
     /// <summary>Consumer 线程内处理调用命令</summary>
-    protected override async ValueTask HandleAsync(IGatewayCommand command, CancellationToken ct)
-    {
-        if (command is CallCommand(var req, var tcs))
-        {
-            try
-            {
+    protected override async ValueTask HandleAsync(IGatewayCommand command, CancellationToken ct) {
+        if (command is CallCommand(var req, var tcs)) {
+            try {
                 var result = await CallWithRetryAndBreakerAsync(req, ct).ConfigureAwait(false);
                 tcs.TrySetResult(result);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 tcs.TrySetException(ex);
             }
         }
     }
 
-    private async Task<TResponse> CallWithRetryAndBreakerAsync(TRequest req, CancellationToken ct)
-    {
-        if (CheckBreakerOpen())
-        {
+    private async Task<TResponse> CallWithRetryAndBreakerAsync(TRequest req, CancellationToken ct) {
+        if (CheckBreakerOpen()) {
             throw new InvalidOperationException("网关熔断器已打开,拒绝调用");
         }
 
         await _rateLimiter.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            for (var attempt = 0; attempt <= _options.MaxRetries; attempt++)
-            {
-                try
-                {
+        try {
+            for (var attempt = 0; attempt <= _options.MaxRetries; attempt++) {
+                try {
                     var result = await _handler(req, ct).ConfigureAwait(false);
                     OnCallSuccess();
                     return result;
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
+                } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                     throw;
-                }
-                catch (Exception ex)
-                {
-                    if (attempt < _options.MaxRetries)
-                    {
+                } catch (Exception ex) {
+                    if (attempt < _options.MaxRetries) {
                         var delay = _options.EffectiveRetryDelay * Math.Pow(2, attempt);
                         await Task.Delay(delay, ct).ConfigureAwait(false);
                         continue;
@@ -161,23 +141,18 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
             }
 
             throw new InvalidOperationException("不应到达此处");
-        }
-        finally
-        {
+        } finally {
             _rateLimiter.Release();
         }
     }
 
-    private bool CheckBreakerOpen()
-    {
+    private bool CheckBreakerOpen() {
         if (_options.CircuitBreakerThreshold <= 0) return false;
 
         var state = (GatewayCircuitState)Volatile.Read(ref _breakerState);
-        if (state == GatewayCircuitState.Open)
-        {
+        if (state == GatewayCircuitState.Open) {
             var elapsed = DateTimeOffset.UtcNow - _breakerOpenedAt;
-            if (elapsed >= _options.EffectiveRecoveryDelay)
-            {
+            if (elapsed >= _options.EffectiveRecoveryDelay) {
                 Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.HalfOpen);
                 return false;
             }
@@ -186,18 +161,15 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
         return false;
     }
 
-    private void OnCallSuccess()
-    {
+    private void OnCallSuccess() {
         Interlocked.Exchange(ref _consecutiveFailures, 0);
         Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.Closed);
         TryPublish(new GatewayEvent(GatewayCircuitState.Closed, "调用成功,熔断器关闭"));
     }
 
-    private void OnCallFailure()
-    {
+    private void OnCallFailure() {
         var failures = Interlocked.Increment(ref _consecutiveFailures);
-        if (_options.CircuitBreakerThreshold > 0 && failures >= _options.CircuitBreakerThreshold)
-        {
+        if (_options.CircuitBreakerThreshold > 0 && failures >= _options.CircuitBreakerThreshold) {
             Interlocked.Exchange(ref _breakerState, (int)GatewayCircuitState.Open);
             _breakerOpenedAt = DateTimeOffset.UtcNow;
             TryPublish(new GatewayEvent(GatewayCircuitState.Open, $"连续失败 {failures} 次,熔断器打开"));

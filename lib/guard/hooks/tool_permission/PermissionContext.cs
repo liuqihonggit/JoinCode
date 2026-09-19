@@ -3,8 +3,7 @@ namespace Core.Hooks.ToolPermission;
 /// <summary>
 /// 权限队列操作接口 — 管理权限请求队列的增删改
 /// </summary>
-public interface IPermissionQueueOperations
-{
+public interface IPermissionQueueOperations {
     /// <summary>
     /// 推入权限队列项
     /// </summary>
@@ -24,8 +23,7 @@ public interface IPermissionQueueOperations
 /// <summary>
 /// 权限队列项 — 表示一个待处理的权限请求及其回调
 /// </summary>
-public sealed class PermissionQueueItem
-{
+public sealed class PermissionQueueItem {
     /// <summary>
     /// 工具使用ID
     /// </summary>
@@ -105,8 +103,7 @@ public sealed class PermissionQueueItem
 /// <summary>
 /// 权限决策基类 — 派生 Allow/Deny/Ask 三种决策
 /// </summary>
-public abstract record PermissionDecision
-{
+public abstract record PermissionDecision {
     /// <summary>
     /// 决策行为类型
     /// </summary>
@@ -116,8 +113,7 @@ public abstract record PermissionDecision
 /// <summary>
 /// 允许决策 — 表示权限请求被批准
 /// </summary>
-public sealed record PermissionAllowDecision : PermissionDecision
-{
+public sealed record PermissionAllowDecision : PermissionDecision {
     /// <summary>
     /// 决策行为 — 固定为 Allow
     /// </summary>
@@ -147,8 +143,7 @@ public sealed record PermissionAllowDecision : PermissionDecision
 /// <summary>
 /// 拒绝决策 — 表示权限请求被拒绝
 /// </summary>
-public sealed record PermissionDenyDecision : PermissionDecision
-{
+public sealed record PermissionDenyDecision : PermissionDecision {
     /// <summary>
     /// 决策行为 — 固定为 Deny
     /// </summary>
@@ -168,8 +163,7 @@ public sealed record PermissionDenyDecision : PermissionDecision
 /// <summary>
 /// 询问决策 — 表示权限请求需要用户确认
 /// </summary>
-public sealed record PermissionAskDecision : PermissionDecision
-{
+public sealed record PermissionAskDecision : PermissionDecision {
     /// <summary>
     /// 决策行为 — 固定为 Ask
     /// </summary>
@@ -204,8 +198,7 @@ public sealed record PermissionAskDecision : PermissionDecision
 /// <summary>
 /// 一次性解析器 — 确保回调只被解析一次的线程安全包装器
 /// </summary>
-public sealed class ResolveOnce<T>
-{
+public sealed class ResolveOnce<T> {
     private bool _claimed;
     private bool _delivered;
     private readonly Action<T> _resolve;
@@ -213,16 +206,14 @@ public sealed class ResolveOnce<T>
     /// <summary>
     /// 构造一次性解析器
     /// </summary>
-    public ResolveOnce(Action<T> resolve)
-    {
+    public ResolveOnce(Action<T> resolve) {
         _resolve = resolve;
     }
 
     /// <summary>
     /// 解析值 — 仅首次调用生效，后续调用为空操作
     /// </summary>
-    public void Resolve(T value)
-    {
+    public void Resolve(T value) {
         if (_delivered) return;
         _delivered = true;
         _claimed = true;
@@ -237,10 +228,8 @@ public sealed class ResolveOnce<T>
     /// <summary>
     /// 尝试认领 — 仅首个调用者返回 true，用于独占执行权
     /// </summary>
-    public bool Claim()
-    {
-        if (Interlocked.CompareExchange(ref _claimed, true, false))
-        {
+    public bool Claim() {
+        if (Interlocked.CompareExchange(ref _claimed, true, false)) {
             return false;
         }
         return true;
@@ -250,8 +239,7 @@ public sealed class ResolveOnce<T>
 /// <summary>
 /// 权限工具调用标识 — 聚合工具名称、参数、消息ID和工具使用ID
 /// </summary>
-public sealed record PermissionToolCall
-{
+public sealed record PermissionToolCall {
     /// <summary>
     /// 工具名称
     /// </summary>
@@ -276,8 +264,7 @@ public sealed record PermissionToolCall
 /// <summary>
 /// 权限上下文 — 封装单次权限检查所需的工具调用信息、日志器和队列操作
 /// </summary>
-public sealed class PermissionContext
-{
+public sealed class PermissionContext {
     private readonly IPermissionLogger _logger;
     private readonly IPermissionQueueOperations? _queueOps;
 
@@ -318,8 +305,7 @@ public sealed class PermissionContext
         PermissionToolCall toolCall,
         IPermissionLogger logger,
         IPermissionQueueOperations? queueOps = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ToolCall = toolCall ?? throw new ArgumentNullException(nameof(toolCall));
         _logger = logger;
         _queueOps = queueOps;
@@ -337,21 +323,18 @@ public sealed class PermissionContext
         IPermissionLogger logger,
         IPermissionQueueOperations? queueOps = null,
         CancellationToken cancellationToken = default)
-        : this(new PermissionToolCall { ToolName = toolName, Input = input, MessageId = messageId, ToolUseId = toolUseId }, logger, queueOps, cancellationToken)
-    {
+        : this(new PermissionToolCall { ToolName = toolName, Input = input, MessageId = messageId, ToolUseId = toolUseId }, logger, queueOps, cancellationToken) {
     }
 
     /// <summary>
     /// 记录权限决策日志
     /// </summary>
-    public void LogDecision(PermissionDecisionArgs args, int? permissionPromptStartTimeMs = null)
-    {
+    public void LogDecision(PermissionDecisionArgs args, int? permissionPromptStartTimeMs = null) {
         var waitMs = permissionPromptStartTimeMs.HasValue
             ? (int?)(Environment.TickCount - permissionPromptStartTimeMs.Value)
             : null;
 
-        var context = new PermissionLogContext
-        {
+        var context = new PermissionLogContext {
             ToolName = ToolName,
             Input = Input,
             MessageId = MessageId,
@@ -365,10 +348,8 @@ public sealed class PermissionContext
     /// <summary>
     /// 记录权限取消日志
     /// </summary>
-    public void LogCancelled()
-    {
-        var context = new PermissionLogContext
-        {
+    public void LogCancelled() {
+        var context = new PermissionLogContext {
             ToolName = ToolName,
             Input = Input,
             MessageId = MessageId,
@@ -381,8 +362,7 @@ public sealed class PermissionContext
     /// <summary>
     /// 若已取消则解析为中止决策 — 返回 true 表示已解析
     /// </summary>
-    public bool ResolveIfAborted(Action<PermissionDecision> resolve)
-    {
+    public bool ResolveIfAborted(Action<PermissionDecision> resolve) {
         if (!CancellationToken.IsCancellationRequested) return false;
 
         LogCancelled();
@@ -393,17 +373,14 @@ public sealed class PermissionContext
     /// <summary>
     /// 构造取消并中止的拒绝决策
     /// </summary>
-    public PermissionDecision CancelAndAbort(string? feedback = null)
-    {
+    public PermissionDecision CancelAndAbort(string? feedback = null) {
         var baseMessage = string.IsNullOrEmpty(feedback)
             ? "Permission request cancelled"
             : $"Permission denied: {feedback}";
 
-        return new PermissionDenyDecision
-        {
+        return new PermissionDenyDecision {
             Message = baseMessage,
-            DecisionReason = new HookDecisionReason
-            {
+            DecisionReason = new HookDecisionReason {
                 HookName = "CancelAndAbort",
                 Reason = feedback
             }
@@ -417,10 +394,8 @@ public sealed class PermissionContext
         Dictionary<string, JsonElement> updatedInput,
         PermissionDecisionReason? decisionReason = null,
         bool userModified = false,
-        string? acceptFeedback = null)
-    {
-        return new PermissionAllowDecision
-        {
+        string? acceptFeedback = null) {
+        return new PermissionAllowDecision {
             UpdatedInput = updatedInput,
             DecisionReason = decisionReason,
             UserModified = userModified,
@@ -431,10 +406,8 @@ public sealed class PermissionContext
     /// <summary>
     /// 构造拒绝决策
     /// </summary>
-    public PermissionDecision BuildDeny(string message, PermissionDecisionReason decisionReason)
-    {
-        return new PermissionDenyDecision
-        {
+    public PermissionDecision BuildDeny(string message, PermissionDecisionReason decisionReason) {
+        return new PermissionDenyDecision {
             Message = message,
             DecisionReason = decisionReason
         };
@@ -448,13 +421,10 @@ public sealed class PermissionContext
         List<PermissionUpdate> permissionUpdates,
         string? feedback = null,
         int? permissionPromptStartTimeMs = null,
-        PermissionDecisionReason? decisionReason = null)
-    {
+        PermissionDecisionReason? decisionReason = null) {
         LogDecision(
-            new AcceptDecisionArgs
-            {
-                ApprovalSource = new PermissionApprovalSource
-                {
+            new AcceptDecisionArgs {
+                ApprovalSource = new PermissionApprovalSource {
                     Type = PermissionDecisionSourceType.User,
                     Permanent = permissionUpdates.Count > 0
                 }
@@ -464,8 +434,7 @@ public sealed class PermissionContext
         var userModified = !DictionaryEquals(Input, updatedInput);
         var trimmedFeedback = feedback?.Trim();
 
-        return new PermissionAllowDecision
-        {
+        return new PermissionAllowDecision {
             UpdatedInput = updatedInput,
             UserModified = userModified,
             DecisionReason = decisionReason,
@@ -479,13 +448,10 @@ public sealed class PermissionContext
     public async Task<PermissionAllowDecision> HandleHookAllowAsync(
         Dictionary<string, JsonElement> finalInput,
         List<PermissionUpdate> permissionUpdates,
-        int? permissionPromptStartTimeMs = null)
-    {
+        int? permissionPromptStartTimeMs = null) {
         LogDecision(
-            new AcceptDecisionArgs
-            {
-                ApprovalSource = new PermissionApprovalSource
-                {
+            new AcceptDecisionArgs {
+                ApprovalSource = new PermissionApprovalSource {
                     Type = PermissionDecisionSourceType.Hook,
                     Permanent = permissionUpdates.Count > 0,
                     HookName = "PermissionRequest"
@@ -493,11 +459,9 @@ public sealed class PermissionContext
             },
             permissionPromptStartTimeMs);
 
-        return new PermissionAllowDecision
-        {
+        return new PermissionAllowDecision {
             UpdatedInput = finalInput,
-            DecisionReason = new HookDecisionReason
-            {
+            DecisionReason = new HookDecisionReason {
                 HookName = "PermissionRequest"
             }
         };
@@ -518,14 +482,12 @@ public sealed class PermissionContext
     /// </summary>
     public void UpdateQueueItem(Action<PermissionQueueItem> patch) => _queueOps?.Update(ToolUseId, patch);
 
-    private static bool DictionaryEquals(Dictionary<string, JsonElement>? a, Dictionary<string, JsonElement>? b)
-    {
+    private static bool DictionaryEquals(Dictionary<string, JsonElement>? a, Dictionary<string, JsonElement>? b) {
         if (ReferenceEquals(a, b)) return true;
         if (a == null || b == null) return false;
         if (a.Count != b.Count) return false;
 
-        foreach (var kvp in a)
-        {
+        foreach (var kvp in a) {
             if (!b.TryGetValue(kvp.Key, out var bValue)) return false;
             if (kvp.Value.ValueKind != bValue.ValueKind) return false;
             if (!JsonElementEquals(kvp.Value, bValue)) return false;
@@ -534,10 +496,8 @@ public sealed class PermissionContext
         return true;
     }
 
-    private static bool JsonElementEquals(JsonElement a, JsonElement b)
-    {
-        return a.ValueKind switch
-        {
+    private static bool JsonElementEquals(JsonElement a, JsonElement b) {
+        return a.ValueKind switch {
             JsonValueKind.String => a.GetString() == b.GetString(),
             JsonValueKind.Number => a.GetRawText() == b.GetRawText(),
             JsonValueKind.True or JsonValueKind.False => a.GetBoolean() == b.GetBoolean(),

@@ -6,8 +6,7 @@ namespace JoinCode.Cli.Commands.Prefix;
 /// 智能识别：URL→浏览器、文件→默认程序、目录→资源管理器、其他→shell 静默执行。
 /// </summary>
 [PrefixCommand(Prefix = "!!", Description = "静默执行/打开，不触发 AI", TriggersAi = false)]
-public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler
-{
+public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler {
     private const int DefaultTimeoutMs = 30_000;
     private const int MaxOutputChars = 50_000;
 
@@ -24,8 +23,7 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler
     public async Task<PrefixCommandResult> ExecuteAsync(
         string command,
         PrefixCommandContext context,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         if (string.IsNullOrWhiteSpace(command))
             return PrefixCommandResult.NotHandled;
 
@@ -46,8 +44,7 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler
     }
 
     /// <summary>URL → 系统默认浏览器打开</summary>
-    private static bool TryHandleUrl(string target, out PrefixCommandResult result)
-    {
+    private static bool TryHandleUrl(string target, out PrefixCommandResult result) {
         result = default!;
         var schemeEnd = target.IndexOf("://", StringComparison.Ordinal);
         if (schemeEnd <= 0)
@@ -63,8 +60,7 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler
     }
 
     /// <summary>文件 → 系统默认程序打开</summary>
-    private static bool TryHandleFile(string target, out PrefixCommandResult result)
-    {
+    private static bool TryHandleFile(string target, out PrefixCommandResult result) {
         result = default!;
         if (!File.Exists(target))
             return false;
@@ -75,8 +71,7 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler
     }
 
     /// <summary>目录 → 文件管理器打开（Windows: explorer / Linux: xdg-open / macOS: open）</summary>
-    private static bool TryHandleDirectory(string target, out PrefixCommandResult result)
-    {
+    private static bool TryHandleDirectory(string target, out PrefixCommandResult result) {
         result = default!;
         if (!Directory.Exists(target))
             return false;
@@ -86,12 +81,9 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler
         return true;
     }
 
-    private static void OpenDirectory(string path)
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
+    private static void OpenDirectory(string path) {
+        if (OperatingSystem.IsWindows()) {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
                 FileName = "explorer.exe",
                 Arguments = $"\"{path}\"",
                 UseShellExecute = true,
@@ -100,18 +92,15 @@ public sealed class SilentShellPrefixCommandHandler : IPrefixCommandHandler
         }
 
         var opener = OperatingSystem.IsMacOS() ? "open" : "xdg-open";
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
             FileName = opener,
             Arguments = $"\"{path}\"",
             UseShellExecute = false,
         });
     }
 
-    private static void OpenWithDefaultProgram(string path)
-    {
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
+    private static void OpenWithDefaultProgram(string path) {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
             FileName = path,
             UseShellExecute = true,
         });

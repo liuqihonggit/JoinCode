@@ -5,38 +5,31 @@ namespace JoinCode.CliCommands;
 /// <para>ADR: 0070 — 内置 rg 实现，用 RgEngine（mmap + PLINQ 并行 + 零 GC Span 行遍历）。</para>
 /// <para>宽容策略：自动修复 PowerShell 双反斜杠转义、强制路径参数禁止扫盘、超时硬终止。</para>
 /// </summary>
-internal static class RgSubCommand
-{
+internal static class RgSubCommand {
     private const int DefaultTimeoutSeconds = 30;
     private const int MaxTimeoutSeconds = 300;
 
-    public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct)
-    {
+    public static async Task<int?> ExecuteAsync(string[] args, CancellationToken ct) {
         var parsed = ParseArgs(args);
         if (parsed is null)
             return 1;
 
         var pattern = FixPowerShellEscaping(parsed.Pattern);
-        if (!ReferenceEquals(pattern, parsed.Pattern))
-        {
+        if (!ReferenceEquals(pattern, parsed.Pattern)) {
             TerminalHelper.WriteError($"提示: 已自动修复 PowerShell 双反斜杠转义: \"{parsed.Pattern}\" → \"{pattern}\"");
         }
 
-        if (string.IsNullOrEmpty(pattern))
-        {
+        if (string.IsNullOrEmpty(pattern)) {
             TerminalHelper.WriteError("错误: pattern 为空");
             return 1;
         }
 
-        foreach (var p in parsed.Paths)
-        {
-            if (IsRootOrUnsafePath(p))
-            {
+        foreach (var p in parsed.Paths) {
+            if (IsRootOrUnsafePath(p)) {
                 TerminalHelper.WriteError($"拒绝在根目录或无效路径上扫盘: {p}。请指定具体子目录（如 . 或 src/）。");
                 return 1;
             }
-            if (!File.Exists(p) && !Directory.Exists(p))
-            {
+            if (!File.Exists(p) && !Directory.Exists(p)) {
                 TerminalHelper.WriteError($"路径不存在: {p}");
                 return 1;
             }
@@ -46,8 +39,7 @@ internal static class RgSubCommand
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(parsed.TimeoutSeconds));
         var token = timeoutCts.Token;
 
-        try
-        {
+        try {
             var query = new RgQuery(
                 Pattern: pattern,
                 Paths: parsed.Paths,
@@ -72,27 +64,21 @@ internal static class RgSubCommand
                 Sort: parsed.Sort);
 
             RgOutcome outcome;
-            try
-            {
+            try {
                 outcome = await Task.Run(() => RgEngine.Search(query, token), token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）。请缩小搜索范围、用 --type/-g 过滤，或增加 --timeout。");
                 return (int)ExitCode.ToolExecutionTimeout;
             }
 
             return OutputOutcome(outcome, parsed);
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
             TerminalHelper.WriteError($"搜索超时（{parsed.TimeoutSeconds}s）— 已硬终止。");
             return (int)ExitCode.ToolExecutionTimeout;
         }
     }
 
-    internal static RgOptions? ParseArgs(string[] args)
-    {
+    internal static RgOptions? ParseArgs(string[] args) {
         string? pattern = null;
         var paths = new List<string>();
         var caseInsensitive = false;
@@ -117,14 +103,12 @@ internal static class RgSubCommand
         var timeoutSeconds = DefaultTimeoutSeconds;
         var outputMode = SearchOutputMode.Files;
 
-        for (var i = 1; i < args.Length; i++)
-        {
+        for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
             if (arg.Length == 0)
                 continue;
 
-            if (arg[0] != '-')
-            {
+            if (arg[0] != '-') {
                 if (pattern is null)
                     pattern = arg;
                 else
@@ -132,20 +116,17 @@ internal static class RgSubCommand
                 continue;
             }
 
-            if (arg == "--help" || arg == "-h")
-            {
+            if (arg == "--help" || arg == "-h") {
                 PrintUsage();
                 return null;
             }
 
-            if (arg.StartsWith("--"))
-            {
+            if (arg.StartsWith("--")) {
                 var eqIdx = arg.IndexOf('=');
                 var name = eqIdx > 0 ? arg[..eqIdx] : arg;
                 var inlineValue = eqIdx > 0 ? arg[(eqIdx + 1)..] : null;
 
-                switch (name)
-                {
+                switch (name) {
                     case "--ignore-case": caseInsensitive = true; break;
                     case "--smart-case": smartCase = true; break;
                     case "--word-regexp": wordRegexp = true; break;
@@ -162,13 +143,12 @@ internal static class RgSubCommand
                     case "--files-with-matches": outputMode = SearchOutputMode.Files; break;
                     case "--content": outputMode = SearchOutputMode.Content; break;
                     case "--replace": replace = inlineValue ?? ReadNextValue(args, ref i); break;
-                    case "--regex-file":
-                        {
-                            var filePath = inlineValue ?? ReadNextValue(args, ref i);
-                            if (filePath is not null && File.Exists(filePath))
-                                pattern = File.ReadAllText(filePath).TrimEnd('\r', '\n');
-                        }
-                        break;
+                    case "--regex-file": {
+                        var filePath = inlineValue ?? ReadNextValue(args, ref i);
+                        if (filePath is not null && File.Exists(filePath))
+                            pattern = File.ReadAllText(filePath).TrimEnd('\r', '\n');
+                    }
+                    break;
                     case "--sort": sort = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--type": fileType = inlineValue ?? ReadNextValue(args, ref i); break;
                     case "--glob": { var v = inlineValue ?? ReadNextValue(args, ref i); if (v is not null) globs.Add(v); } break;
@@ -179,34 +159,29 @@ internal static class RgSubCommand
                     case "--after-context": after = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     case "--context": context = ParseInt(inlineValue ?? ReadNextValue(args, ref i)); break;
                     default:
-                        if (inlineValue is null)
-                            ReadNextValue(args, ref i);
-                        break;
+                    if (inlineValue is null)
+                        ReadNextValue(args, ref i);
+                    break;
                 }
-            }
-            else
-            {
+            } else {
                 if (!ParseShortOptionCluster(arg, args, ref i,
                         ref caseInsensitive, ref smartCase, ref wordRegexp, ref onlyMatching,
                         ref lineNumbers, ref multiline, ref fixedStrings,
                         ref json, globs, ref fileType, ref replace,
                         ref before, ref after, ref context, ref headLimit, ref offset,
-                        ref timeoutSeconds, ref outputMode))
-                {
+                        ref timeoutSeconds, ref outputMode)) {
                     return null;
                 }
             }
         }
 
-        if (pattern is null)
-        {
+        if (pattern is null) {
             TerminalHelper.WriteError("错误: 缺少 pattern 参数。用法: jcc rg <pattern> <path> [path...]");
             PrintUsage();
             return null;
         }
 
-        if (paths.Count == 0)
-        {
+        if (paths.Count == 0) {
             TerminalHelper.WriteError("错误: 必须指定搜索路径。禁止无路径搜索（会扫盘卡死）。");
             TerminalHelper.WriteError("用法: jcc rg <pattern> <path> [path...]");
             TerminalHelper.WriteError("示例: jcc rg \"WorktreeToolNameEnumConstants\" core/ --type cs -l");
@@ -242,26 +217,22 @@ internal static class RgSubCommand
             Sort: sort);
     }
 
-    private static string? ReadNextValue(string[] args, ref int i)
-    {
-        if (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
-        {
+    private static string? ReadNextValue(string[] args, ref int i) {
+        if (i + 1 < args.Length && !args[i + 1].StartsWith('-')) {
             i++;
             return args[i];
         }
         return null;
     }
 
-    private static int ParseInt(string? value)
-    {
+    private static int ParseInt(string? value) {
         if (int.TryParse(value, out var n))
             return n;
         TerminalHelper.WriteError($"警告: 数值参数 '{value}' 不是有效整数，按 0 处理");
         return 0;
     }
 
-    private static int ClampTimeout(int seconds)
-    {
+    private static int ClampTimeout(int seconds) {
         if (seconds <= 0)
             return DefaultTimeoutSeconds;
         return Math.Min(seconds, MaxTimeoutSeconds);
@@ -273,15 +244,12 @@ internal static class RgSubCommand
         ref bool lineNumbers, ref bool multiline, ref bool fixedStrings,
         ref bool json, List<string> globs, ref string? fileType, ref string? replace,
         ref int? before, ref int? after, ref int? context, ref int? headLimit, ref int? offset,
-        ref int timeoutSeconds, ref SearchOutputMode outputMode)
-    {
+        ref int timeoutSeconds, ref SearchOutputMode outputMode) {
         var span = arg.AsSpan(1);
         var j = 0;
-        while (j < span.Length)
-        {
+        while (j < span.Length) {
             var c = span[j];
-            switch (c)
-            {
+            switch (c) {
                 case 'i': caseInsensitive = true; j++; break;
                 case 'S': smartCase = true; j++; break;
                 case 'w': wordRegexp = true; j++; break;
@@ -299,21 +267,18 @@ internal static class RgSubCommand
                 case 'r': replace = ConsumeShortString(span, ref j, args, ref i); break;
                 case 'h': PrintUsage(); return false;
                 default:
-                    TerminalHelper.WriteError($"未知短参数: -{c}（在 {arg} 中）");
-                    return false;
+                TerminalHelper.WriteError($"未知短参数: -{c}（在 {arg} 中）");
+                return false;
             }
         }
         return true;
     }
 
-    private static int? ConsumeShortNumber(ReadOnlySpan<char> span, ref int j, string[] args, ref int i)
-    {
+    private static int? ConsumeShortNumber(ReadOnlySpan<char> span, ref int j, string[] args, ref int i) {
         j++;
-        if (j < span.Length)
-        {
+        if (j < span.Length) {
             var rest = span[j..];
-            if (int.TryParse(rest, out var n))
-            {
+            if (int.TryParse(rest, out var n)) {
                 j = span.Length;
                 return n;
             }
@@ -323,11 +288,9 @@ internal static class RgSubCommand
         return ParseInt(next);
     }
 
-    private static string? ConsumeShortString(ReadOnlySpan<char> span, ref int j, string[] args, ref int i)
-    {
+    private static string? ConsumeShortString(ReadOnlySpan<char> span, ref int j, string[] args, ref int i) {
         j++;
-        if (j < span.Length)
-        {
+        if (j < span.Length) {
             var rest = span[j..].ToString();
             j = span.Length;
             return rest;
@@ -337,25 +300,20 @@ internal static class RgSubCommand
         return next;
     }
 
-    internal static string FixPowerShellEscaping(string pattern)
-    {
+    internal static string FixPowerShellEscaping(string pattern) {
         if (pattern.Length < 2 || !pattern.Contains('\\'))
             return pattern;
 
         var sb = new StringBuilder(pattern.Length);
         var span = pattern.AsSpan();
         var modified = false;
-        for (var i = 0; i < span.Length; i++)
-        {
-            if (span[i] == '\\' && i + 2 < span.Length && span[i + 1] == '\\' && IsRegexMetaChar(span[i + 2]))
-            {
+        for (var i = 0; i < span.Length; i++) {
+            if (span[i] == '\\' && i + 2 < span.Length && span[i + 1] == '\\' && IsRegexMetaChar(span[i + 2])) {
                 sb.Append('\\');
                 sb.Append(span[i + 2]);
                 i += 2;
                 modified = true;
-            }
-            else
-            {
+            } else {
                 sb.Append(span[i]);
             }
         }
@@ -371,54 +329,46 @@ internal static class RgSubCommand
 
     private static bool IsRootOrUnsafePath(string? path) => PathSafetyValidator.IsRootOrUnsafePath(path);
 
-    private static int OutputOutcome(RgOutcome outcome, RgOptions opts)
-    {
-        if (!outcome.Success)
-        {
+    private static int OutputOutcome(RgOutcome outcome, RgOptions opts) {
+        if (!outcome.Success) {
             TerminalHelper.WriteError(outcome.Error ?? "搜索失败");
             return 1;
         }
 
-        if (outcome.Results.Count == 0)
-        {
-            if (opts.Json)
-            {
+        if (outcome.Results.Count == 0) {
+            if (opts.Json) {
                 var data = new System.Text.Json.Nodes.JsonObject { ["matches"] = new System.Text.Json.Nodes.JsonArray() };
                 System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
             }
             return 1;
         }
 
-        if (opts.Json)
-        {
+        if (opts.Json) {
             OutputJson(outcome);
             return 0;
         }
 
         var sb = new StringBuilder(256);
-        switch (opts.OutputMode)
-        {
+        switch (opts.OutputMode) {
             case SearchOutputMode.Content:
-                foreach (var r in outcome.Results)
-                {
-                    if (r.ContentLines is not null)
-                        foreach (var line in r.ContentLines)
-                            sb.AppendLine(line);
-                }
-                break;
+            foreach (var r in outcome.Results) {
+                if (r.ContentLines is not null)
+                    foreach (var line in r.ContentLines)
+                        sb.AppendLine(line);
+            }
+            break;
             case SearchOutputMode.Count:
-                foreach (var r in outcome.Results)
-                    sb.AppendLine($"{r.FilePath}:{r.MatchCount}");
-                sb.Append($"Found {outcome.TotalMatches} total matches across {outcome.Results.Count} file(s).");
-                break;
+            foreach (var r in outcome.Results)
+                sb.AppendLine($"{r.FilePath}:{r.MatchCount}");
+            sb.Append($"Found {outcome.TotalMatches} total matches across {outcome.Results.Count} file(s).");
+            break;
             default:
-                foreach (var r in outcome.Results)
-                    sb.AppendLine(r.FilePath);
-                break;
+            foreach (var r in outcome.Results)
+                sb.AppendLine(r.FilePath);
+            break;
         }
 
-        if (outcome.AppliedLimit.HasValue || (outcome.AppliedOffset.HasValue && outcome.AppliedOffset.Value > 0))
-        {
+        if (outcome.AppliedLimit.HasValue || (outcome.AppliedOffset.HasValue && outcome.AppliedOffset.Value > 0)) {
             var parts = new List<string>(2);
             if (outcome.AppliedLimit.HasValue) parts.Add($"limit: {outcome.AppliedLimit.Value}");
             if (outcome.AppliedOffset.HasValue && outcome.AppliedOffset.Value > 0) parts.Add($"offset: {outcome.AppliedOffset.Value}");
@@ -430,21 +380,16 @@ internal static class RgSubCommand
         return 0;
     }
 
-    private static void OutputJson(RgOutcome outcome)
-    {
+    private static void OutputJson(RgOutcome outcome) {
         var matches = new System.Text.Json.Nodes.JsonArray();
-        foreach (var r in outcome.Results)
-        {
-            var item = new System.Text.Json.Nodes.JsonObject
-            {
+        foreach (var r in outcome.Results) {
+            var item = new System.Text.Json.Nodes.JsonObject {
                 ["file"] = r.FilePath,
                 ["count"] = r.MatchCount
             };
-            if (r.ContentLines is not null && r.ContentLines.Count > 0)
-            {
+            if (r.ContentLines is not null && r.ContentLines.Count > 0) {
                 var lines = new System.Text.Json.Nodes.JsonArray();
-                foreach (var line in r.ContentLines)
-                {
+                foreach (var line in r.ContentLines) {
                     System.Text.Json.Nodes.JsonNode? lineNode = System.Text.Json.Nodes.JsonValue.Create(line);
                     lines.Add(lineNode);
                 }
@@ -452,8 +397,7 @@ internal static class RgSubCommand
             }
             matches.Add((System.Text.Json.Nodes.JsonNode)item);
         }
-        var data = new System.Text.Json.Nodes.JsonObject
-        {
+        var data = new System.Text.Json.Nodes.JsonObject {
             ["matches"] = matches,
             ["totalMatches"] = outcome.TotalMatches,
             ["fileCount"] = outcome.Results.Count
@@ -461,27 +405,23 @@ internal static class RgSubCommand
         System.Console.WriteLine(CliOutputEnvelope.Success(data).ToString());
     }
 
-    private static void AppendEscaped(StringBuilder sb, string text)
-    {
-        foreach (var c in text)
-        {
-            switch (c)
-            {
+    private static void AppendEscaped(StringBuilder sb, string text) {
+        foreach (var c in text) {
+            switch (c) {
                 case '"': sb.Append("\\\""); break;
                 case '\\': sb.Append("\\\\"); break;
                 case '\n': sb.Append("\\n"); break;
                 case '\r': sb.Append("\\r"); break;
                 case '\t': sb.Append("\\t"); break;
                 default:
-                    if (c < 0x20) sb.Append($"\\u{(int)c:X4}");
-                    else sb.Append(c);
-                    break;
+                if (c < 0x20) sb.Append($"\\u{(int)c:X4}");
+                else sb.Append(c);
+                break;
             }
         }
     }
 
-    private static void PrintUsage()
-    {
+    private static void PrintUsage() {
         TerminalHelper.WriteLine("""
             jcc rg <pattern> <path> [path...] — ripgrep 兼容搜索（mmap + PLINQ 并行 + 零 GC）
 

@@ -4,8 +4,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 子代理运行态 — SubAgentRunTracker 聚合的单个 subAgent 运行记录，
 /// 字段直接驱动 AgentRunPanelView 绑定（状态点/徽章/当前活动/统计）。
 /// </summary>
-public sealed class SubAgentRun
-{
+public sealed class SubAgentRun {
     /// <summary>子代理唯一 ID（引擎 AgentStreamChunk.AgentId）</summary>
     public required string AgentId { get; init; }
 
@@ -54,14 +53,12 @@ public sealed class SubAgentRun
     private readonly List<SubAgentTranscriptItem> _transcript = [];
 
     /// <summary>完整时间线（回放窗口数据源，不裁剪；线程安全追加）</summary>
-    public IReadOnlyList<SubAgentTranscriptItem> Transcript
-    {
+    public IReadOnlyList<SubAgentTranscriptItem> Transcript {
         get { using (_transcriptLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_transcriptLock.Name}' 等待超时")) return [.. _transcript]; }
     }
 
     /// <summary>追加时间线条目（tracker 专用）</summary>
-    internal void AppendTranscript(string glyph, string text)
-    {
+    internal void AppendTranscript(string glyph, string text) {
         using (_transcriptLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_transcriptLock.Name}' 等待超时"))
             _transcript.Add(new SubAgentTranscriptItem(DateTime.Now, glyph, text));
     }
@@ -71,8 +68,7 @@ public sealed class SubAgentRun
 public sealed record SubAgentTranscriptItem(DateTime At, string Glyph, string Text);
 
 /// <summary>子代理运行状态机</summary>
-public enum SubAgentRunState
-{
+public enum SubAgentRunState {
     /// <summary>运行中</summary>
     [EnumValue("running")]
     Running,

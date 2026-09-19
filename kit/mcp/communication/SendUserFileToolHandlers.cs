@@ -6,8 +6,7 @@ namespace McpToolDispatch;
 /// 发送用户文件工具处理器 — 提供文件发送、预览、下载链接生成功能
 /// </summary>
 [McpToolDispatch(ToolCategory.FileTransfer, Optional = true)]
-public partial class SendUserFileToolHandlers
-{
+public partial class SendUserFileToolHandlers {
     private readonly ILogger<SendUserFileToolHandlers>? _logger;
     private readonly IFileTransferService? _transferService;
     private readonly IFileSystem _fs;
@@ -18,8 +17,7 @@ public partial class SendUserFileToolHandlers
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="transferService">文件传输服务（可选）</param>
-    public SendUserFileToolHandlers(IFileSystem fs, ILogger<SendUserFileToolHandlers>? logger = null, IFileTransferService? transferService = null)
-    {
+    public SendUserFileToolHandlers(IFileSystem fs, ILogger<SendUserFileToolHandlers>? logger = null, IFileTransferService? transferService = null) {
         ArgumentNullException.ThrowIfNull(fs);
         _logger = logger;
         _transferService = transferService;
@@ -41,31 +39,25 @@ public partial class SendUserFileToolHandlers
         [McpToolParameter("Send description (optional)", Required = false)] string? description = null,
         [McpToolParameter("Preview in terminal (optional, default true)", Required = false)] bool? preview = true,
         [McpToolParameter("Generate download link (optional, default false)", Required = false)] bool? generate_link = false,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(file_path))
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SendUserFilePathCannotBeEmpty)).Build();
 
-        try
-        {
+        try {
             if (!_fs.FileExists(file_path))
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.SendUserFileNotFound, file_path)).Build();
 
             long fileSize;
-            using (var sizeStream = _fs.OpenRead(file_path))
-            {
+            using (var sizeStream = _fs.OpenRead(file_path)) {
                 fileSize = sizeStream.Length;
             }
             var lastWriteTime = _fs.GetLastWriteTime(file_path);
             var response = new System.Text.StringBuilder();
 
-            if (_transferService != null)
-            {
+            if (_transferService != null) {
                 var transferResult = await _transferService.SendFileAsync(file_path, description, cancellationToken).ConfigureAwait(false);
                 response.AppendLine(transferResult);
-            }
-            else
-            {
+            } else {
                 response.AppendLine(L.T(StringKey.SendUserFileSent));
                 response.AppendLine(L.T(StringKey.SendUserFileLabelPath, file_path));
                 response.AppendLine(L.T(StringKey.SendUserFileLabelSize, ContentReplacementConstants.FormatFileSize(fileSize)));
@@ -75,24 +67,19 @@ public partial class SendUserFileToolHandlers
                     response.AppendLine(L.T(StringKey.SendUserFileLabelDescription, description));
             }
 
-            if (generate_link == true && _transferService != null)
-            {
-                try
-                {
+            if (generate_link == true && _transferService != null) {
+                try {
                     var link = await _transferService.GenerateDownloadLinkAsync(file_path, cancellationToken).ConfigureAwait(false);
                     response.AppendLine();
                     response.AppendLine(link);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "{Message}", L.T(StringKey.SendUserFileDownloadLinkFailedLog));
                     response.AppendLine();
                     response.AppendLine(L.T(StringKey.SendUserFileDownloadLinkFailed));
                 }
             }
 
-            if (preview == true && fileSize < 10240)
-            {
+            if (preview == true && fileSize < 10240) {
                 response.AppendLine();
                 response.AppendLine(L.T(StringKey.SendUserFileContentPreview));
                 var content = await _fs.ReadAllTextAsync(file_path, cancellationToken).ConfigureAwait(false);
@@ -106,10 +93,7 @@ public partial class SendUserFileToolHandlers
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, "{Message}", L.T(StringKey.SendUserFileFailedLog, file_path));
             return ToolResultBuilder.Error().WithText(L.T(StringKey.SendUserFileFailed, ex.Message)).Build();
         }

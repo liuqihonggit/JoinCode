@@ -4,8 +4,7 @@ namespace Core.Utils;
 /// 有界对象池 — 复用对象减少 GC 压力，支持租借、归还、容量上限和归还校验
 /// </summary>
 /// <typeparam name="T">池化对象类型，必须为引用类型</typeparam>
-public sealed class BoundedObjectPool<T> where T : class
-{
+public sealed class BoundedObjectPool<T> where T : class {
     private readonly ConcurrentBag<T> _pool = new();
     private readonly Func<T> _factory;
     private readonly Action<T>? _reset;
@@ -28,8 +27,7 @@ public sealed class BoundedObjectPool<T> where T : class
         Func<T> factory,
         int maxPoolSize = 32,
         Action<T>? reset = null,
-        Func<T, bool>? returnValidator = null)
-    {
+        Func<T, bool>? returnValidator = null) {
         ArgumentNullException.ThrowIfNull(factory);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPoolSize);
         _factory = factory;
@@ -42,10 +40,8 @@ public sealed class BoundedObjectPool<T> where T : class
     /// 从池中租借一个对象，池空时调用工厂新建
     /// </summary>
     /// <returns>租借到的对象</returns>
-    public T Rent()
-    {
-        if (_pool.TryTake(out var item))
-        {
+    public T Rent() {
+        if (_pool.TryTake(out var item)) {
             _reset?.Invoke(item);
             return item;
         }
@@ -57,8 +53,7 @@ public sealed class BoundedObjectPool<T> where T : class
     /// 归还对象到池中，超过容量上限或未通过校验则丢弃
     /// </summary>
     /// <param name="item">要归还的对象</param>
-    public void Return(T item)
-    {
+    public void Return(T item) {
         ArgumentNullException.ThrowIfNull(item);
 
         if (_returnValidator is not null && !_returnValidator(item))

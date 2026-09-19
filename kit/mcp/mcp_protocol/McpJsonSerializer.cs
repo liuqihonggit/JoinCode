@@ -6,8 +6,7 @@ namespace McpProtocol;
 /// MCP JSON 序列化器 - NativeAOT 兼容实现
 /// 使用源生成器，无运行时反射
 /// </summary>
-public static class McpJsonSerializer
-{
+public static class McpJsonSerializer {
     #region Serialize 重载
 
     /// <summary>序列化 JSON-RPC 请求</summary>
@@ -156,13 +155,11 @@ public static class McpJsonSerializer
     /// </summary>
     /// <param name="value">待序列化对象</param>
     /// <returns>JSON 字符串,null 输入返回 "null"</returns>
-    public static string SerializeObject(object value)
-    {
+    public static string SerializeObject(object value) {
         return SerializeObjectInternal(value);
     }
 
-    private static string SerializeObjectInternal(object value)
-    {
+    private static string SerializeObjectInternal(object value) {
         if (value is null) return "null";
         if (value is string s) return JsonSerializer.Serialize(s, McpJsonContext.Default.String);
         if (value is int i) return i.ToString();

@@ -1,25 +1,21 @@
 
 namespace Core.Tests.Context.Compression;
 
-public class DialogueCompressorTests
-{
+public class DialogueCompressorTests {
     private readonly DialogueCompressor _compressor = new();
 
     [Fact]
-    public void Name_ShouldReturnCorrectValue()
-    {
+    public void Name_ShouldReturnCorrectValue() {
         _compressor.Name.Should().Be("DialogueCompressor");
     }
 
     [Fact]
-    public void SupportedContentTypes_ShouldContainDialogue()
-    {
+    public void SupportedContentTypes_ShouldContainDialogue() {
         _compressor.SupportedContentTypes.Should().Contain(ContentType.Dialogue);
     }
 
     [Fact]
-    public void CanHandle_DialogueContent_ShouldReturnTrue()
-    {
+    public void CanHandle_DialogueContent_ShouldReturnTrue() {
         var dialogue = @"User: Hello, how are you today?
 Assistant: Hi there! I'm doing great, thanks for asking.
 User: Can you help me with a programming question?
@@ -28,22 +24,19 @@ Assistant: Of course! I'd be happy to help. What would you like to know?";
     }
 
     [Fact]
-    public void CanHandle_NonDialogueContent_ShouldReturnFalse()
-    {
+    public void CanHandle_NonDialogueContent_ShouldReturnFalse() {
         var content = "public class Test { }";
         _compressor.CanHandle(content, ContentType.Code).Should().BeFalse();
     }
 
     [Fact]
-    public async Task CompressAsync_EmptyContent_ShouldReturnEmpty()
-    {
+    public async Task CompressAsync_EmptyContent_ShouldReturnEmpty() {
         var result = await _compressor.CompressAsync("", CompressionOptions.Default).ConfigureAwait(true);
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task CompressAsync_ShortDialogue_ShouldNotCompress()
-    {
+    public async Task CompressAsync_ShortDialogue_ShouldNotCompress() {
         var dialogue = @"User: Hello
 Assistant: Hi!";
 
@@ -53,8 +46,7 @@ Assistant: Hi!";
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldPreserveRecentMessages()
-    {
+    public async Task CompressAsync_ShouldPreserveRecentMessages() {
         var dialogue = @"User: Question 1
 Assistant: Answer 1
 User: Question 2
@@ -64,8 +56,7 @@ Assistant: Answer 3
 User: Question 4
 Assistant: Answer 4";
 
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             DialogueRoundsToPreserve = 2,
             MinCompressionThreshold = 10
         };
@@ -78,8 +69,7 @@ Assistant: Answer 4";
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldSummarizeOldMessages()
-    {
+    public async Task CompressAsync_ShouldSummarizeOldMessages() {
         var dialogue = @"User: Question 1
 Assistant: Answer 1
 User: Question 2
@@ -87,8 +77,7 @@ Assistant: Answer 2
 User: Question 3
 Assistant: Answer 3";
 
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             DialogueRoundsToPreserve = 1,
             UseSummarization = true,
             MinCompressionThreshold = 10
@@ -99,15 +88,13 @@ Assistant: Answer 3";
     }
 
     [Fact]
-    public async Task CompressAsync_ShouldExtractKeyDecisions()
-    {
+    public async Task CompressAsync_ShouldExtractKeyDecisions() {
         var dialogue = @"User: Question 1
 Assistant: Answer 1. 决定：使用方案A。
 User: Question 2
 Assistant: Answer 2";
 
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             DialogueRoundsToPreserve = 1,
             PreserveKeyDecisions = true,
             MinCompressionThreshold = 10
@@ -119,15 +106,13 @@ Assistant: Answer 2";
     }
 
     [Fact]
-    public async Task CompressAsync_WithDifferentMessageFormats_ShouldHandleCorrectly()
-    {
+    public async Task CompressAsync_WithDifferentMessageFormats_ShouldHandleCorrectly() {
         var dialogue = @"Human: Hello
 AI: Hi!
 Human: How are you?
 AI: I'm fine!";
 
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             DialogueRoundsToPreserve = 1,
             MinCompressionThreshold = 10
         };
@@ -137,20 +122,17 @@ AI: I'm fine!";
     }
 
     [Fact]
-    public void EstimateCompressionRatio_LongDialogue_ShouldReturnLowerRatio()
-    {
+    public void EstimateCompressionRatio_LongDialogue_ShouldReturnLowerRatio() {
         // 创建足够多的对话轮次（超过 DialogueRoundsToPreserve=2）
         // 需要至少3个完整轮次（User+Assistant）才能触发压缩
         var dialogueLines = new List<string>();
-        for (int i = 0; i < 6; i++)
-        {
+        for (var i = 0; i < 6; i++) {
             dialogueLines.Add($"User: Question {i}");
             dialogueLines.Add($"Assistant: Answer {i} with some detailed explanation and code examples");
         }
         var dialogue = string.Join("\n", dialogueLines);
 
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             DialogueRoundsToPreserve = 2,
             UseSummarization = true,
             MaxSummaryLength = 200
@@ -163,8 +145,7 @@ AI: I'm fine!";
     }
 
     [Fact]
-    public void EstimateCompressionRatio_ShortDialogue_ShouldReturnOne()
-    {
+    public void EstimateCompressionRatio_ShortDialogue_ShouldReturnOne() {
         var dialogue = @"User: Hello
 Assistant: Hi!";
 
@@ -174,22 +155,19 @@ Assistant: Hi!";
     }
 
     [Fact]
-    public void EstimateCompressionRatio_EmptyContent_ShouldReturnOne()
-    {
+    public void EstimateCompressionRatio_EmptyContent_ShouldReturnOne() {
         var ratio = _compressor.EstimateCompressionRatio("", CompressionOptions.Default);
         ratio.Should().Be(1.0);
     }
 
     [Fact]
-    public async Task CompressAsync_WithoutSummarization_ShouldNotIncludeSummary()
-    {
+    public async Task CompressAsync_WithoutSummarization_ShouldNotIncludeSummary() {
         var dialogue = @"User: Question 1
 Assistant: Answer 1
 User: Question 2
 Assistant: Answer 2";
 
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             DialogueRoundsToPreserve = 1,
             UseSummarization = false,
             MinCompressionThreshold = 10
@@ -200,13 +178,11 @@ Assistant: Answer 2";
     }
 
     [Fact]
-    public async Task CompressAsync_WithoutPreservingKeyDecisions_ShouldNotIncludeDecisions()
-    {
+    public async Task CompressAsync_WithoutPreservingKeyDecisions_ShouldNotIncludeDecisions() {
         var dialogue = @"User: Question
 Assistant: Answer. 决定：使用方案A。";
 
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             DialogueRoundsToPreserve = 1,
             PreserveKeyDecisions = false,
             MinCompressionThreshold = 10
@@ -217,8 +193,7 @@ Assistant: Answer. 决定：使用方案A。";
     }
 
     [Fact]
-    public async Task CompressAsync_CancellationRequested_ShouldThrowOperationCanceledException()
-    {
+    public async Task CompressAsync_CancellationRequested_ShouldThrowOperationCanceledException() {
         var dialogue = @"User: Question 1
 Assistant: Answer 1
 User: Question 2
@@ -230,8 +205,7 @@ Assistant: Answer 4";
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var options = new CompressionOptions
-        {
+        var options = new CompressionOptions {
             DialogueRoundsToPreserve = 2,
             MinCompressionThreshold = 10
         };

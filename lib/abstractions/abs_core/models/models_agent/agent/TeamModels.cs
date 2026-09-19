@@ -1,13 +1,11 @@
 namespace JoinCode.Abstractions.Models.Agent;
 
-public sealed record TeamAllowedPath
-{
+public sealed record TeamAllowedPath {
     public required string Path { get; init; }
     public AccessLevel AccessLevel { get; init; } = AccessLevel.Read;
 }
 
-public sealed record TeamMemberInfo
-{
+public sealed record TeamMemberInfo {
     public required string AgentId { get; init; }
     public string? Role { get; init; }
     public bool IsActive { get; init; } = true;
@@ -18,8 +16,7 @@ public sealed record TeamMemberInfo
 /// <summary>
 /// 团队信息
 /// </summary>
-public sealed record TeamInfo
-{
+public sealed record TeamInfo {
     /// <summary>
     /// 团队ID
     /// </summary>
@@ -69,8 +66,7 @@ public sealed record TeamInfo
 /// <summary>
 /// 团队消息
 /// </summary>
-public sealed record TeamMessage
-{
+public sealed record TeamMessage {
     /// <summary>
     /// 消息ID
     /// </summary>
@@ -118,5 +114,3 @@ public sealed record TeamMessage
     /// <summary>@提及的 AgentId 列表（null 表示无 @提及）— ADR 0109 决策12。</summary>
     public IReadOnlyList<string>? Mentions { get; init; }
 }
-
-

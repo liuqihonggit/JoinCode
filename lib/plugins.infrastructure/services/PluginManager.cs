@@ -5,8 +5,7 @@ namespace Core.Plugins;
 /// 插件管理器 — 基于 Actor 模型串行处理插件加载/卸载，管理工作流插件、外部进程插件和 native DLL 插件的生命周期
 /// </summary>
 [Register(typeof(IPluginManager), ServiceLifetime.Singleton)]
-public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManagerOutput>, IPluginManager
-{
+public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManagerOutput>, IPluginManager {
     private readonly ConcurrentDictionary<string, IPluginHost> _plugins = new();
     private readonly IChatClient? _kernel;
     private readonly ILoggerFactory? _loggerFactory;
@@ -86,8 +85,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         ILogger<PluginManager>? logger = null,
         IServiceProvider? serviceProvider = null,
         ITelemetryService? telemetryService = null)
-        : base()
-    {
+        : base() {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _kernel = kernel;
         _loggerFactory = loggerFactory;
@@ -112,46 +110,39 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <typeparam name="TPlugin">工作流插件类型（须有无参构造）</typeparam>
     /// <param name="ct">取消令牌</param>
     /// <returns>工作流插件宿主</returns>
-    public async Task<WorkflowPluginHost> LoadWorkflowPluginAsync<TPlugin>(CancellationToken ct = default) where TPlugin : class, IWorkflowPlugin, new()
-    {
+    public async Task<WorkflowPluginHost> LoadWorkflowPluginAsync<TPlugin>(CancellationToken ct = default) where TPlugin : class, IWorkflowPlugin, new() {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<WorkflowPluginHost>();
         await SendAsync(new LoadWorkflowCmd(() => new TPlugin(), tcs, ct), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
-    private async Task<WorkflowPluginHost> LoadWorkflowPluginCoreAsync(IWorkflowPlugin plugin, CancellationToken ct)
-    {
+    private async Task<WorkflowPluginHost> LoadWorkflowPluginCoreAsync(IWorkflowPlugin plugin, CancellationToken ct) {
         var pluginName = plugin.Name;
 
         await using var span = _telemetryService?.StartSpan("plugin.load.workflow", TelemetrySpanKind.Server);
         span?.SetTag("plugin", pluginName);
-        try
-        {
-            if (_plugins.ContainsKey(pluginName))
-            {
+        try {
+            if (_plugins.ContainsKey(pluginName)) {
                 RecordPluginMetrics("workflow", "load", false);
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
-            if (_blacklistedPlugins.ContainsKey(pluginName))
-            {
+            if (_blacklistedPlugins.ContainsKey(pluginName)) {
                 RecordPluginMetrics("workflow", "load", false);
                 throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
 
             _logger?.LogInformation("正在加载内置工作流插件: {PluginName}", pluginName);
 
-            if (plugin is WorkflowPluginBase wpbLoad)
-            {
+            if (plugin is WorkflowPluginBase wpbLoad) {
                 wpbLoad.Fiber.TransitionTo(PluginFiberState.Activating);
             }
 
             var host = new WorkflowPluginHost(plugin, _kernel, _loggerFactory, _fileOperationService, _commandRegistry, _logger, _serviceProvider);
 
             var loadResult = await host.LoadAsync(ct).ConfigureAwait(false);
-            if (!loadResult.Success)
-            {
+            if (!loadResult.Success) {
                 if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Dispose();
                 RecordPluginMetrics("workflow", "load", false);
@@ -159,8 +150,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             }
 
             var initResult = await host.InitializeAsync(ct).ConfigureAwait(false);
-            if (!initResult.Success)
-            {
+            if (!initResult.Success) {
                 if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Unload();
                 host.Dispose();
@@ -168,11 +158,9 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 throw new InvalidOperationException(PluginErrors.InitializeFailed(pluginName, initResult.ErrorMessage ?? "未知"));
             }
 
-            if (plugin is WorkflowPluginBase contractPlugin)
-            {
+            if (plugin is WorkflowPluginBase contractPlugin) {
                 var contract = contractPlugin.ValidateUnloadContract();
-                if (!contract.IsValid)
-                {
+                if (!contract.IsValid) {
                     contractPlugin.Fiber.TransitionTo(PluginFiberState.Failed);
                     host.Unload();
                     host.Dispose();
@@ -182,8 +170,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 }
             }
 
-            if (!_plugins.TryAdd(pluginName, host))
-            {
+            if (!_plugins.TryAdd(pluginName, host)) {
                 if (plugin is WorkflowPluginBase wpbFail) wpbFail.Fiber.TransitionTo(PluginFiberState.Failed);
                 host.Unload();
                 host.Dispose();
@@ -195,8 +182,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
             PluginLoaded?.Invoke(this, pluginName);
 
-            if (plugin is IPluginAgentProvider agentProvider && PluginAgentLoader is not null)
-            {
+            if (plugin is IPluginAgentProvider agentProvider && PluginAgentLoader is not null) {
                 var undo = PluginAgentLoader.LoadFromPlugin(pluginName, agentProvider);
                 undoChain.Add(undo);
             }
@@ -204,16 +190,13 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             _lifecycleTracker.RegisterUndoChain(pluginName, undoChain, host.Context?.GetAsyncUndoChain().ToList());
             _lifecycleTracker.AddToLoadOrder(pluginName);
 
-            if (plugin is WorkflowPluginBase pluginBase)
-            {
+            if (plugin is WorkflowPluginBase pluginBase) {
                 RecordPluginResourceIds(pluginName, pluginBase.Resources.Select(r => r.ObjectId));
                 pluginBase.Fiber.TransitionTo(PluginFiberState.Active);
             }
 
-            if (plugin is IPluginDependencies deps)
-            {
-                foreach (var dep in deps.Dependencies)
-                {
+            if (plugin is IPluginDependencies deps) {
+                foreach (var dep in deps.Dependencies) {
                     _dependencyGraph.DeclarePluginDependency(pluginName, dep);
                 }
             }
@@ -221,11 +204,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             _logger?.LogInformation("内置工作流插件加载成功: {PluginName}", pluginName);
             RecordPluginMetrics("workflow", "load", true);
             return host;
-        }
-        catch (Exception ex) when (ex is not InvalidOperationException)
-        {
-            if (plugin is WorkflowPluginBase wpbEx)
-            {
+        } catch (Exception ex) when (ex is not InvalidOperationException) {
+            if (plugin is WorkflowPluginBase wpbEx) {
                 wpbEx.Fiber.TryTransitionTo(PluginFiberState.Failed);
             }
             RecordPluginMetrics("workflow", "load", false);
@@ -238,8 +218,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// </summary>
     /// <param name="pluginName">插件名称</param>
     /// <returns>插件宿主，未加载返回 null</returns>
-    public WorkflowPluginHost? GetWorkflowPlugin(string pluginName)
-    {
+    public WorkflowPluginHost? GetWorkflowPlugin(string pluginName) {
         ThrowIfDisposed();
         return _plugins.TryGetValue(pluginName, out var host) && host is WorkflowPluginHost workflowHost
             ? workflowHost
@@ -252,8 +231,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <typeparam name="T">目标插件类型</typeparam>
     /// <param name="pluginName">插件名称</param>
     /// <returns>插件实例，未加载或类型不匹配返回 null</returns>
-    public T? GetWorkflowPlugin<T>(string pluginName) where T : class, IWorkflowPlugin
-    {
+    public T? GetWorkflowPlugin<T>(string pluginName) where T : class, IWorkflowPlugin {
         ThrowIfDisposed();
         return _plugins.TryGetValue(pluginName, out var host) && host is WorkflowPluginHost workflowHost
             ? workflowHost.Plugin as T
@@ -274,8 +252,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     public async Task<ExternalPluginHost> LoadExternalPluginAsync(
         string exePath,
         string pluginName,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<ExternalPluginHost>();
         await SendAsync(new LoadExternalCmd(exePath, pluginName, tcs, ct), ct).ConfigureAwait(false);
@@ -291,8 +268,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         string dllPath,
         string pluginName,
         string? configJson = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<NativePluginHost>();
         await SendAsync(new LoadNativeCmd(dllPath, pluginName, configJson, tcs, ct), ct).ConfigureAwait(false);
@@ -303,34 +279,28 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         string dllPath,
         string pluginName,
         string? configJson,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         await using var span = _telemetryService?.StartSpan("plugin.load.native", TelemetrySpanKind.Server);
         span?.SetTag("plugin", pluginName);
-        try
-        {
-            if (_plugins.ContainsKey(pluginName))
-            {
+        try {
+            if (_plugins.ContainsKey(pluginName)) {
                 RecordPluginMetrics("native", "load", false);
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
-            if (_blacklistedPlugins.ContainsKey(pluginName))
-            {
+            if (_blacklistedPlugins.ContainsKey(pluginName)) {
                 RecordPluginMetrics("native", "load", false);
                 throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
 
             var host = new NativePluginHost(dllPath, pluginName, _fs, _logger);
             var loadResult = host.Load(configJson);
-            if (!loadResult.IsSuccess)
-            {
+            if (!loadResult.IsSuccess) {
                 RecordPluginMetrics("native", "load", false);
                 throw new InvalidOperationException($"[NATIVE-LOAD-FAIL] 插件 {pluginName} 加载失败: {loadResult.ErrorMessage}");
             }
 
-            if (!_plugins.TryAdd(pluginName, host))
-            {
+            if (!_plugins.TryAdd(pluginName, host)) {
                 host.Unload();
                 RecordPluginMetrics("native", "load", false);
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
@@ -341,9 +311,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             _logger?.LogInformation("Native 插件 {PluginName} 已加载", pluginName);
             PluginLoaded?.Invoke(this, pluginName);
             return host;
-        }
-        catch (Exception ex) when (ex is not InvalidOperationException)
-        {
+        } catch (Exception ex) when (ex is not InvalidOperationException) {
             RecordPluginMetrics("native", "load", false);
             _logger?.LogError(ex, "加载 native 插件 {PluginName} 失败", pluginName);
             throw;
@@ -355,8 +323,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// </summary>
     /// <param name="pluginName">插件名称</param>
     /// <returns>插件宿主，未加载返回 null</returns>
-    public NativePluginHost? GetNativePlugin(string pluginName)
-    {
+    public NativePluginHost? GetNativePlugin(string pluginName) {
         return _plugins.TryGetValue(pluginName, out var host) && host is NativePluginHost nativeHost
             ? nativeHost
             : null;
@@ -367,26 +334,21 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     private async Task<ExternalPluginHost> LoadExternalPluginCoreAsync(
         string exePath,
         string pluginName,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         await using var span = _telemetryService?.StartSpan("plugin.load.external", TelemetrySpanKind.Server);
         span?.SetTag("plugin", pluginName);
-        try
-        {
-            if (_plugins.ContainsKey(pluginName))
-            {
+        try {
+            if (_plugins.ContainsKey(pluginName)) {
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
             }
 
-            if (_blacklistedPlugins.ContainsKey(pluginName))
-            {
+            if (_blacklistedPlugins.ContainsKey(pluginName)) {
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException(PluginErrors.Blacklisted(pluginName));
             }
 
-            if (!_fs.FileExists(exePath))
-            {
+            if (!_fs.FileExists(exePath)) {
                 RecordPluginMetrics("external", "load", false);
                 throw new FileNotFoundException(PluginErrors.ExternalExeNotFound(exePath), exePath);
             }
@@ -394,8 +356,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             _logger?.LogInformation("正在加载外部插件: {PluginName} 从 {ExePath}", pluginName, exePath);
 
             var utf8NoBom = new UTF8Encoding(false);
-            var startInfo = new ProcessStartInfo
-            {
+            var startInfo = new ProcessStartInfo {
                 FileName = exePath,
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -408,20 +369,16 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             };
 
             var process = new Process { StartInfo = startInfo };
-            process.ErrorDataReceived += (sender, e) =>
-            {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
+            process.ErrorDataReceived += (sender, e) => {
+                if (!string.IsNullOrEmpty(e.Data)) {
                     _logger?.LogWarning("外部插件 {PluginName} stderr: {Data}", pluginName, e.Data);
                 }
             };
 
             bool started;
-            try { started = process.Start(); }
-            catch (Exception) { process.Dispose(); throw; }
+            try { started = process.Start(); } catch (Exception) { process.Dispose(); throw; }
 
-            if (!started)
-            {
+            if (!started) {
                 process.Dispose();
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException(PluginErrors.ExternalProcessStartFailed(exePath));
@@ -431,8 +388,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
             var host = new ExternalPluginHost(pluginName, process, exePath, _logger);
 
-            if (!_plugins.TryAdd(pluginName, host))
-            {
+            if (!_plugins.TryAdd(pluginName, host)) {
                 host.Dispose();
                 RecordPluginMetrics("external", "load", false);
                 throw new InvalidOperationException(PluginErrors.AlreadyLoaded(pluginName));
@@ -441,9 +397,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
             _logger?.LogInformation("外部插件加载成功: {PluginName} (PID: {ProcessId})", pluginName, process.Id);
             RecordPluginMetrics("external", "load", true);
             return host;
-        }
-        catch (Exception ex) when (ex is not InvalidOperationException and not FileNotFoundException)
-        {
+        } catch (Exception ex) when (ex is not InvalidOperationException and not FileNotFoundException) {
             RecordPluginMetrics("external", "load", false);
             throw;
         }
@@ -454,8 +408,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// </summary>
     /// <param name="pluginName">插件名称</param>
     /// <returns>插件宿主，未加载返回 null</returns>
-    public ExternalPluginHost? GetExternalPlugin(string pluginName)
-    {
+    public ExternalPluginHost? GetExternalPlugin(string pluginName) {
         ThrowIfDisposed();
         return _plugins.TryGetValue(pluginName, out var host) && host is ExternalPluginHost externalHost
             ? externalHost
@@ -472,8 +425,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <param name="pluginName">插件名称</param>
     /// <param name="options">卸载选项，null 使用默认</param>
     /// <returns>卸载结果</returns>
-    public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, PluginUnloadOptions? options = null)
-    {
+    public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, PluginUnloadOptions? options = null) {
         var opts = options ?? PluginUnloadOptions.Default;
         using var cts = new CancellationTokenSource(opts.CooperativeTimeout);
         return await UnloadPluginAsync(pluginName, cts.Token).ConfigureAwait(false);
@@ -485,56 +437,47 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <param name="pluginName">插件名称</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>卸载结果</returns>
-    public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, CancellationToken ct)
-    {
+    public async Task<PluginUnloadResult> UnloadPluginAsync(string pluginName, CancellationToken ct) {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<PluginUnloadResult>();
         await SendAsync(new UnloadCmd(pluginName, tcs, ct), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
-    private async Task<PluginUnloadResult> UnloadPluginCoreAsync(string pluginName, CancellationToken ct)
-    {
+    private async Task<PluginUnloadResult> UnloadPluginCoreAsync(string pluginName, CancellationToken ct) {
 
-        if (!_plugins.TryGetValue(pluginName, out var host))
-        {
+        if (!_plugins.TryGetValue(pluginName, out var host)) {
             await PrepareUnloadAsync(pluginName, ct).ConfigureAwait(false);
             return PluginUnloadResult.AlreadyUnloaded(pluginName);
         }
 
         // workflow 需要前置: cascade 连带卸载依赖方 + prepare 等待引用计数归零
         // external/native 无需前置,直接卸载
-        if (host.PluginType == PluginKind.Workflow)
-        {
+        if (host.PluginType == PluginKind.Workflow) {
             await CascadeUnloadDependentsAsync(pluginName, ct).ConfigureAwait(false);
             var prepareResult = await PrepareUnloadAsync(pluginName, ct).ConfigureAwait(false);
             if (!prepareResult) return PluginUnloadResult.CooperativeTimeout(pluginName, TimeSpan.Zero);
         }
 
         // 重新 TryRemove (cascade 不会卸载 pluginName 本身,但保持与原逻辑一致: 先 TryGetValue 判断类型,再 TryRemove)
-        if (!_plugins.TryRemove(pluginName, out host))
-        {
+        if (!_plugins.TryRemove(pluginName, out host)) {
             return PluginUnloadResult.AlreadyUnloaded(pluginName);
         }
 
-        switch (host.PluginType)
-        {
-            case PluginKind.External:
-            {
+        switch (host.PluginType) {
+            case PluginKind.External: {
                 var externalHost = (ExternalPluginHost)host;
                 await CleanupPluginServicesAsync(pluginName, ct).ConfigureAwait(false);
                 var result = externalHost.Unload();
                 externalHost.Dispose();
-                if (externalHost.WasForceKilled)
-                {
+                if (externalHost.WasForceKilled) {
                     _blacklistedPlugins.TryAdd(pluginName, 0);
                     _logger?.LogError("外部插件 {PluginName} 卸载时被强制终止,已加入黑名单,拒绝再次加载", pluginName);
                 }
                 RecordPluginMetrics("external", "unload", result.IsSuccess);
                 return result;
             }
-            case PluginKind.Native:
-            {
+            case PluginKind.Native: {
                 var nativeHost = (NativePluginHost)host;
                 await CleanupPluginServicesAsync(pluginName, ct).ConfigureAwait(false);
                 nativeHost.Unload();
@@ -542,8 +485,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 RecordPluginMetrics("native", "unload", true);
                 return PluginUnloadResult.Success(pluginName, TimeSpan.Zero);
             }
-            case PluginKind.Workflow:
-            {
+            case PluginKind.Workflow: {
                 var workflowHost = (WorkflowPluginHost)host;
                 await ExecutePluginAsyncUndoChainAsync(pluginName, ct).ConfigureAwait(false);
                 ExecutePluginUndoChain(pluginName);
@@ -558,7 +500,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
                 return result;
             }
             default:
-                return PluginUnloadResult.AlreadyUnloaded(pluginName);
+            return PluginUnloadResult.AlreadyUnloaded(pluginName);
         }
     }
 
@@ -568,24 +510,20 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <param name="options">卸载选项，null 使用默认</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>每个插件的卸载结果列表</returns>
-    public async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsAsync(PluginUnloadOptions? options = null, CancellationToken ct = default)
-    {
+    public async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsAsync(PluginUnloadOptions? options = null, CancellationToken ct = default) {
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<IReadOnlyList<PluginUnloadResult>>();
         await SendAsync(new UnloadAllCmd(tcs, ct), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
-    private async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsCoreAsync(CancellationToken ct)
-    {
+    private async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsCoreAsync(CancellationToken ct) {
         var results = new List<PluginUnloadResult>();
 
         // 先卸载 external
         var externalPluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.External).Select(p => p.Key).ToList();
-        foreach (var pluginName in externalPluginNames)
-        {
-            if (_plugins.TryRemove(pluginName, out var host) && host is ExternalPluginHost externalHost)
-            {
+        foreach (var pluginName in externalPluginNames) {
+            if (_plugins.TryRemove(pluginName, out var host) && host is ExternalPluginHost externalHost) {
                 results.Add(externalHost.Unload());
                 externalHost.Dispose();
             }
@@ -593,10 +531,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
         // 再卸载 native
         var nativePluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.Native).Select(p => p.Key).ToList();
-        foreach (var pluginName in nativePluginNames)
-        {
-            if (_plugins.TryRemove(pluginName, out var host) && host is NativePluginHost nativeHost)
-            {
+        foreach (var pluginName in nativePluginNames) {
+            if (_plugins.TryRemove(pluginName, out var host) && host is NativePluginHost nativeHost) {
                 nativeHost.Unload();
                 nativeHost.Dispose();
                 results.Add(PluginUnloadResult.Success(pluginName, TimeSpan.Zero));
@@ -604,12 +540,10 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
 
         // 最后按加载顺序逆序卸载 workflow
-        List<string> workflowPluginNames = _lifecycleTracker.GetLoadOrderReversed();
+        var workflowPluginNames = _lifecycleTracker.GetLoadOrderReversed();
 
-        foreach (var pluginName in workflowPluginNames)
-        {
-            if (_plugins.TryRemove(pluginName, out var host) && host is WorkflowPluginHost workflowHost)
-            {
+        foreach (var pluginName in workflowPluginNames) {
+            if (_plugins.TryRemove(pluginName, out var host) && host is WorkflowPluginHost workflowHost) {
                 await ExecutePluginAsyncUndoChainAsync(pluginName, ct).ConfigureAwait(false);
                 ExecutePluginUndoChain(pluginName);
                 await CleanupPluginServicesAsync(pluginName, ct).ConfigureAwait(false);
@@ -632,37 +566,29 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// 连带卸载依赖方 — 对齐 Cordis Theorem 63:
     /// 卸载插件 A 时,先找到所有声明依赖 A 的插件 B,递归卸载 B,最后卸载 A
     /// </summary>
-    private async Task CascadeUnloadDependentsAsync(string pluginName, CancellationToken ct)
-    {
+    private async Task CascadeUnloadDependentsAsync(string pluginName, CancellationToken ct) {
         var dependents = _dependencyGraph.GetDependents(pluginName);
-        foreach (var dependent in dependents)
-        {
-            if (_plugins.TryGetValue(dependent, out var depHost) && depHost.PluginType == PluginKind.Workflow)
-            {
+        foreach (var dependent in dependents) {
+            if (_plugins.TryGetValue(dependent, out var depHost) && depHost.PluginType == PluginKind.Workflow) {
                 _logger?.LogInformation("连带卸载依赖插件: {Dependent} (依赖 {Plugin})", dependent, pluginName);
                 await UnloadPluginCoreAsync(dependent, ct).ConfigureAwait(false);
             }
         }
     }
 
-    private PluginUnloadResult UnloadWorkflowPlugin(WorkflowPluginHost host)
-    {
-        try
-        {
+    private PluginUnloadResult UnloadWorkflowPlugin(WorkflowPluginHost host) {
+        try {
             var result = host.Unload();
             host.Dispose();
 
-            if (result.IsSuccess)
-            {
+            if (result.IsSuccess) {
                 _logger?.LogInformation("工作流插件卸载成功: {PluginName}", host.PluginName);
                 return PluginUnloadResult.Success(host.PluginName, TimeSpan.Zero);
             }
 
             _logger?.LogWarning("工作流插件卸载返回失败: {PluginName}, {Error}", host.PluginName, result.ErrorMessage);
             return PluginUnloadResult.AlcUnloadFailed(host.PluginName, TimeSpan.Zero, result.ErrorMessage ?? "未知错误");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "卸载工作流插件时发生异常: {PluginName}", host.PluginName);
             return PluginUnloadResult.AlcUnloadFailed(host.PluginName, TimeSpan.Zero, ex.Message);
         }
@@ -673,29 +599,25 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <para>通过 IResourceReferenceGraph.GetConsumers 找引用方,通知放弃引用</para>
     /// <para>等待引用计数归零(带超时),超时则返回 false 回退强制卸载</para>
     /// </summary>
-    private async Task<bool> PrepareUnloadAsync(string pluginName, CancellationToken ct)
-    {
+    private async Task<bool> PrepareUnloadAsync(string pluginName, CancellationToken ct) {
         var graph = ReferenceGraph;
         if (graph is null) return true;
 
         var consumers = graph.GetConsumers(pluginName);
         if (consumers.Count == 0) return true;
 
-        foreach (var consumer in consumers)
-        {
+        foreach (var consumer in consumers) {
             var refs = graph.GetReferencesBy(consumer)
                 .Where(r => string.Equals(r.TargetPluginName, pluginName, StringComparison.OrdinalIgnoreCase))
                 .ToList();
-            foreach (var r in refs)
-            {
+            foreach (var r in refs) {
                 graph.RemoveReference(r.ConsumerResourceId, r.TargetResourceId);
             }
             _logger?.LogDebug("通知插件 {Consumer} 放弃对 {Plugin} 的资源引用", consumer, pluginName);
         }
 
         var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(5);
-        while (DateTime.UtcNow < deadline)
-        {
+        while (DateTime.UtcNow < deadline) {
             var refCounts = graph.GetReferenceCounts(pluginName);
             if (refCounts.Values.All(c => c == 0)) return true;
             await Task.Delay(100, ct).ConfigureAwait(false);
@@ -708,17 +630,14 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>
     /// 阶段3 — Verify: 卸载后扫描检查资源是否正确注销
     /// </summary>
-    private void ScanAfterUnload(string pluginName)
-    {
+    private void ScanAfterUnload(string pluginName) {
         if (!_pluginResourceIds.TryRemove(pluginName, out var resourceIds)) return;
         var report = ResourceScanner.ScanPluginResources(pluginName, resourceIds);
-        if (report.HasLeaks)
-        {
+        if (report.HasLeaks) {
             _blacklistedPlugins.TryAdd(pluginName, 0);
             _logger?.LogError("插件 {Plugin} 卸载后有 {Count} 个资源泄漏,已加入黑名单,拒绝再次加载",
                 pluginName, report.LeakedResourceIds.Count);
-            ReportDiagnostic(new PluginDiagnostic
-            {
+            ReportDiagnostic(new PluginDiagnostic {
                 PluginId = pluginName,
                 Kind = PluginDiagnosticKind.AlcLeak,
                 Message = $"卸载后有 {report.LeakedResourceIds.Count} 个资源泄漏,已加入黑名单",
@@ -730,8 +649,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>
     /// 广播 UI 资源变更事件 — 通知前端刷新界面
     /// </summary>
-    private async Task BroadcastUiResourceChangeAsync(string pluginName, WorkflowPluginHost host)
-    {
+    private async Task BroadcastUiResourceChangeAsync(string pluginName, WorkflowPluginHost host) {
         var bus = EventBus;
         if (bus is null) return;
         if (host.Plugin is not WorkflowPluginBase pluginBase) return;
@@ -747,8 +665,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     }
 
     /// <summary>记录插件资源 ObjectId — 加载时调用,用于卸载后扫描验证</summary>
-    internal void RecordPluginResourceIds(string pluginName, IEnumerable<ObjectId> resourceIds)
-    {
+    internal void RecordPluginResourceIds(string pluginName, IEnumerable<ObjectId> resourceIds) {
         _pluginResourceIds[pluginName] = resourceIds.ToList();
     }
 
@@ -762,17 +679,14 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
 
     #region Plugin Services Cleanup
 
-    private async Task CleanupPluginServicesAsync(string pluginName, CancellationToken ct)
-    {
+    private async Task CleanupPluginServicesAsync(string pluginName, CancellationToken ct) {
         PluginUnloading?.Invoke(this, pluginName);
 
-        if (HookInjector != null)
-        {
+        if (HookInjector != null) {
             await HookInjector.RemoveHooksAsync(pluginName, ct).ConfigureAwait(false);
         }
 
-        if (CommandRegistry != null)
-        {
+        if (CommandRegistry != null) {
             var commands = CommandRegistry.GetRegisteredCommands().Where(c => c.PluginName == pluginName).ToList();
             await Task.WhenAll(commands.Select(cmd => CommandRegistry.UnregisterCommandAsync(cmd.CommandName, ct))).ConfigureAwait(false);
         }
@@ -783,10 +697,8 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// </summary>
     /// <param name="pluginDirectory">插件目录</param>
     /// <param name="ct">取消令牌</param>
-    public async Task StartHotReloadAsync(string pluginDirectory, CancellationToken ct = default)
-    {
-        if (HotReloader != null && !HotReloader.IsWatching)
-        {
+    public async Task StartHotReloadAsync(string pluginDirectory, CancellationToken ct = default) {
+        if (HotReloader != null && !HotReloader.IsWatching) {
             await HotReloader.StartWatchingAsync(pluginDirectory, ct).ConfigureAwait(false);
         }
     }
@@ -796,8 +708,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     #region Query
 
     /// <summary>查询指定名称的插件是否已加载（任意类型）</summary>
-    public bool IsPluginLoaded(string pluginName)
-    {
+    public bool IsPluginLoaded(string pluginName) {
         ThrowIfDisposed();
         return _plugins.ContainsKey(pluginName);
     }
@@ -820,98 +731,78 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>
     /// Actor 命令处理 — Consumer 线程独占,所有可变状态无需锁(ADR 0098)
     /// </summary>
-    protected override async ValueTask HandleAsync(PluginManagerCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
+    protected override async ValueTask HandleAsync(PluginManagerCommand command, CancellationToken ct) {
+        switch (command) {
             case LoadWorkflowCmd loadCmd:
-                await HandleLoadWorkflowAsync(loadCmd).ConfigureAwait(false);
-                break;
+            await HandleLoadWorkflowAsync(loadCmd).ConfigureAwait(false);
+            break;
             case LoadExternalCmd loadExtCmd:
-                await HandleLoadExternalAsync(loadExtCmd).ConfigureAwait(false);
-                break;
+            await HandleLoadExternalAsync(loadExtCmd).ConfigureAwait(false);
+            break;
             case LoadNativeCmd loadNativeCmd:
-                await HandleLoadNativeAsync(loadNativeCmd).ConfigureAwait(false);
-                break;
+            await HandleLoadNativeAsync(loadNativeCmd).ConfigureAwait(false);
+            break;
             case UnloadCmd unloadCmd:
-                await HandleUnloadAsync(unloadCmd).ConfigureAwait(false);
-                break;
+            await HandleUnloadAsync(unloadCmd).ConfigureAwait(false);
+            break;
             case UnloadAllCmd unloadAllCmd:
-                await HandleUnloadAllAsync(unloadAllCmd).ConfigureAwait(false);
-                break;
+            await HandleUnloadAllAsync(unloadAllCmd).ConfigureAwait(false);
+            break;
             default:
-                Console.WriteLine($"[PluginManager] 未知命令类型: {command?.GetType().Name}");
-                break;
+            Console.WriteLine($"[PluginManager] 未知命令类型: {command?.GetType().Name}");
+            break;
         }
     }
 
-    private async Task HandleLoadWorkflowAsync(LoadWorkflowCmd cmd)
-    {
-        try
-        {
+    private async Task HandleLoadWorkflowAsync(LoadWorkflowCmd cmd) {
+        try {
             var plugin = cmd.PluginFactory();
             var result = await LoadWorkflowPluginCoreAsync(plugin, cmd.CancellationToken).ConfigureAwait(false);
             cmd.Reply.SetResult(result);
-        }
-        catch (Exception ex) { cmd.Reply.SetException(ex); }
+        } catch (Exception ex) { cmd.Reply.SetException(ex); }
     }
 
-    private async Task HandleLoadExternalAsync(LoadExternalCmd cmd)
-    {
-        try
-        {
+    private async Task HandleLoadExternalAsync(LoadExternalCmd cmd) {
+        try {
             var result = await LoadExternalPluginCoreAsync(cmd.ExePath, cmd.PluginName, cmd.CancellationToken).ConfigureAwait(false);
             cmd.Reply.SetResult(result);
-        }
-        catch (Exception ex) { cmd.Reply.SetException(ex); }
+        } catch (Exception ex) { cmd.Reply.SetException(ex); }
     }
 
-    private async Task HandleLoadNativeAsync(LoadNativeCmd cmd)
-    {
-        try
-        {
+    private async Task HandleLoadNativeAsync(LoadNativeCmd cmd) {
+        try {
             var result = await LoadNativePluginCoreAsync(cmd.DllPath, cmd.PluginName, cmd.ConfigJson, cmd.CancellationToken).ConfigureAwait(false);
             cmd.Reply.SetResult(result);
-        }
-        catch (Exception ex) { cmd.Reply.SetException(ex); }
+        } catch (Exception ex) { cmd.Reply.SetException(ex); }
     }
 
-    private async Task HandleUnloadAsync(UnloadCmd cmd)
-    {
-        try
-        {
+    private async Task HandleUnloadAsync(UnloadCmd cmd) {
+        try {
             var result = await UnloadPluginCoreAsync(cmd.PluginName, cmd.CancellationToken).ConfigureAwait(false);
             cmd.Reply.SetResult(result);
-        }
-        catch (Exception ex) { cmd.Reply.SetException(ex); }
+        } catch (Exception ex) { cmd.Reply.SetException(ex); }
     }
 
-    private async Task HandleUnloadAllAsync(UnloadAllCmd cmd)
-    {
-        try
-        {
+    private async Task HandleUnloadAllAsync(UnloadAllCmd cmd) {
+        try {
             var result = await UnloadAllPluginsCoreAsync(cmd.CancellationToken).ConfigureAwait(false);
             cmd.Reply.SetResult(result);
-        }
-        catch (Exception ex) { cmd.Reply.SetException(ex); }
+        } catch (Exception ex) { cmd.Reply.SetException(ex); }
     }
 
     #endregion
 
-    private void ThrowIfDisposed()
-    {
+    private void ThrowIfDisposed() {
         if (_isDisposed) throw new ObjectDisposedException(nameof(PluginManager));
     }
 
     /// <summary>获取诊断历史记录(线程安全快照)</summary>
-    public IReadOnlyList<PluginDiagnostic> GetDiagnostics()
-    {
+    public IReadOnlyList<PluginDiagnostic> GetDiagnostics() {
         lock (_diagnostics) return _diagnostics.ToList();
     }
 
     /// <summary>上报诊断事件(Consumer 线程调用)</summary>
-    private void ReportDiagnostic(PluginDiagnostic diagnostic)
-    {
+    private void ReportDiagnostic(PluginDiagnostic diagnostic) {
         lock (_diagnostics) _diagnostics.Add(diagnostic);
         OnDiagnostic?.Invoke(this, diagnostic);
     }
@@ -922,8 +813,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// <summary>
     /// 异步释放 — 标记已释放，调用基类释放并清理全部插件
     /// </summary>
-    public override ValueTask DisposeAsync()
-    {
+    public override ValueTask DisposeAsync() {
         if (_isDisposed) return ValueTask.CompletedTask;
         _isDisposed = true;
 
@@ -931,38 +821,28 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         return base.DisposeAsync();
     }
 
-    private void CleanupAllPlugins()
-    {
+    private void CleanupAllPlugins() {
         // 先清理 external
         var externalPluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.External).Select(p => p.Key).ToList();
-        foreach (var pluginName in externalPluginNames)
-        {
-            if (_plugins.TryRemove(pluginName, out var host) && host is ExternalPluginHost externalHost)
-            {
-                try { externalHost.Unload(); externalHost.Dispose(); }
-                catch (Exception ex) { _logger?.LogError(ex, "释放外部插件时出错: {PluginName}", pluginName); }
+        foreach (var pluginName in externalPluginNames) {
+            if (_plugins.TryRemove(pluginName, out var host) && host is ExternalPluginHost externalHost) {
+                try { externalHost.Unload(); externalHost.Dispose(); } catch (Exception ex) { _logger?.LogError(ex, "释放外部插件时出错: {PluginName}", pluginName); }
             }
         }
 
         // 再清理 native
         var nativePluginNames = _plugins.Where(p => p.Value.PluginType == PluginKind.Native).Select(p => p.Key).ToList();
-        foreach (var pluginName in nativePluginNames)
-        {
-            if (_plugins.TryRemove(pluginName, out var host) && host is NativePluginHost nativeHost)
-            {
-                try { nativeHost.Unload(); nativeHost.Dispose(); }
-                catch (Exception ex) { _logger?.LogError(ex, "释放 native 插件时出错: {PluginName}", pluginName); }
+        foreach (var pluginName in nativePluginNames) {
+            if (_plugins.TryRemove(pluginName, out var host) && host is NativePluginHost nativeHost) {
+                try { nativeHost.Unload(); nativeHost.Dispose(); } catch (Exception ex) { _logger?.LogError(ex, "释放 native 插件时出错: {PluginName}", pluginName); }
             }
         }
 
         // 最后按加载顺序逆序清理 workflow
         var workflowPluginNames = _lifecycleTracker.GetLoadOrderReversed();
-        foreach (var pluginName in workflowPluginNames)
-        {
-            if (_plugins.TryRemove(pluginName, out var host) && host is WorkflowPluginHost workflowHost)
-            {
-                try { ExecutePluginUndoChain(pluginName); workflowHost.Unload(); workflowHost.Dispose(); }
-                catch (Exception ex) { _logger?.LogError(ex, "释放工作流插件时出错: {PluginName}", pluginName); }
+        foreach (var pluginName in workflowPluginNames) {
+            if (_plugins.TryRemove(pluginName, out var host) && host is WorkflowPluginHost workflowHost) {
+                try { ExecutePluginUndoChain(pluginName); workflowHost.Unload(); workflowHost.Dispose(); } catch (Exception ex) { _logger?.LogError(ex, "释放工作流插件时出错: {PluginName}", pluginName); }
             }
         }
 
@@ -973,8 +853,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
     /// Actor Consumer 异常回调 — 记录日志
     /// </summary>
     /// <param name="ex">Consumer 抛出的异常</param>
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "PluginManager Actor Consumer 异常");
     }
 }

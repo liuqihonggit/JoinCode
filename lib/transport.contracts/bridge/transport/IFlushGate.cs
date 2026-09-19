@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 批次刷新事件参数
 /// </summary>
-public sealed class BatchFlushedEventArgs<T> : EventArgs
-{
+public sealed class BatchFlushedEventArgs<T> : EventArgs {
     /// <summary>本批次刷新的条目列表</summary>
     public IReadOnlyList<T> Items { get; }
 
@@ -12,8 +11,7 @@ public sealed class BatchFlushedEventArgs<T> : EventArgs
     /// 初始化批次刷新事件参数
     /// </summary>
     /// <param name="items">本批次刷新的条目列表</param>
-    public BatchFlushedEventArgs(IReadOnlyList<T> items)
-    {
+    public BatchFlushedEventArgs(IReadOnlyList<T> items) {
         Items = items;
     }
 }
@@ -21,8 +19,7 @@ public sealed class BatchFlushedEventArgs<T> : EventArgs
 /// <summary>
 /// 刷新门控接口 — 批量收集条目并定期或满批时刷新
 /// </summary>
-public interface IFlushGate<T> : IAsyncDisposable
-{
+public interface IFlushGate<T> : IAsyncDisposable {
     /// <summary>批次刷新事件</summary>
     event EventHandler<BatchFlushedEventArgs<T>>? BatchFlushed;
 

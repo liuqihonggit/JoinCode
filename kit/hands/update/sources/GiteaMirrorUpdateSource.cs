@@ -5,8 +5,7 @@ namespace IO.Services.Update;
 /// Gitea API 格式: GET /repos/:owner/:repo/releases → [{ tag_name, assets: [{ name, download_url, size }] }]
 /// > ADR: 0064
 /// </summary>
-public sealed class GiteaMirrorUpdateSource : GitHostMirrorUpdateSourceBase
-{
+public sealed class GiteaMirrorUpdateSource : GitHostMirrorUpdateSourceBase {
     /// <summary>
     /// 构造 Gitea 镜像更新源
     /// </summary>
@@ -14,8 +13,7 @@ public sealed class GiteaMirrorUpdateSource : GitHostMirrorUpdateSourceBase
     /// <param name="mirrorBaseUrl">镜像基础 URL</param>
     /// <param name="logger">日志器（可选）</param>
     public GiteaMirrorUpdateSource(HttpClient httpClient, string mirrorBaseUrl, ILogger<GiteaMirrorUpdateSource>? logger = null)
-        : base(httpClient, mirrorBaseUrl, logger)
-    {
+        : base(httpClient, mirrorBaseUrl, logger) {
     }
 
     /// <summary>
@@ -34,8 +32,7 @@ public sealed class GiteaMirrorUpdateSource : GitHostMirrorUpdateSourceBase
     /// </summary>
     /// <param name="json">Release JSON 文本</param>
     /// <returns>更新清单</returns>
-    protected override UpdateManifest ParseRelease(string json)
-    {
+    protected override UpdateManifest ParseRelease(string json) {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
@@ -56,10 +53,8 @@ public sealed class GiteaMirrorUpdateSource : GitHostMirrorUpdateSourceBase
 
         var entries = new List<UpdateManifestEntry>();
 
-        if (latestRelease.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var asset in assetsEl.EnumerateArray())
-            {
+        if (latestRelease.TryGetProperty("assets", out var assetsEl) && assetsEl.ValueKind == JsonValueKind.Array) {
+            foreach (var asset in assetsEl.EnumerateArray()) {
                 var name = asset.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
                 if (name is null || !name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     continue;
@@ -71,8 +66,7 @@ public sealed class GiteaMirrorUpdateSource : GitHostMirrorUpdateSourceBase
 
                 var size = asset.TryGetProperty("size", out var sizeEl) ? sizeEl.GetInt64() : 0;
 
-                entries.Add(new UpdateManifestEntry
-                {
+                entries.Add(new UpdateManifestEntry {
                     Version = version,
                     DownloadUrl = downloadUrl,
                     Sha256 = "",
@@ -83,8 +77,7 @@ public sealed class GiteaMirrorUpdateSource : GitHostMirrorUpdateSourceBase
             }
         }
 
-        return new UpdateManifest
-        {
+        return new UpdateManifest {
             LatestVersion = version,
             Channel = "stable",
             Releases = entries.AsReadOnly()

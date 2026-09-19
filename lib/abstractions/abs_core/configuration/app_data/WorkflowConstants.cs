@@ -3,13 +3,11 @@ namespace JoinCode.Abstractions.Configuration.AppData;
 /// <summary>
 /// 工作流配置常量 - 集中管理所有默认配置值
 /// </summary>
-public static class WorkflowConstants
-{
+public static class WorkflowConstants {
     /// <summary>
     /// 超时相关常量（秒）
     /// </summary>
-    public static class Timeouts
-    {
+    public static class Timeouts {
         public const int DefaultTimeoutSeconds = 30;
         public const int AgentTimeoutSeconds = 300;
         public const int CodeExecutionTimeoutSeconds = 10;
@@ -20,8 +18,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 重试相关常量
     /// </summary>
-    public static class Retry
-    {
+    public static class Retry {
         public const int DefaultRetryCount = 30;
         public const int MinRetryDelayMs = 5;
         public const int MaxRetryDelayMs = 100;
@@ -33,8 +30,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 代码执行限制常量
     /// </summary>
-    public static class CodeExecution
-    {
+    public static class CodeExecution {
         public const int MaxMemoryMB = 100;
         public const int MaxProcesses = 100;
         public const int MaxOpenFiles = 100;
@@ -43,8 +39,7 @@ public static class WorkflowConstants
     /// <summary>
     /// Bridge 客户端常量
     /// </summary>
-    public static class Bridge
-    {
+    public static class Bridge {
         public const int DefaultPollingIntervalMs = 100;
         public const int DefaultErrorRetryDelayMs = 1000;
         public const int DefaultHeartbeatIntervalMs = 30000;
@@ -57,8 +52,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 缓存相关常量
     /// </summary>
-    public static class Cache
-    {
+    public static class Cache {
         public const int MaxCacheItems = 1000;
         public const int ContextCacheExpirationMinutes = 30;
         public const int ToolInfoCacheExpirationMinutes = 30;
@@ -67,8 +61,7 @@ public static class WorkflowConstants
     /// <summary>
     /// Worktree 相关常量
     /// </summary>
-    public static class Worktree
-    {
+    public static class Worktree {
         public const int StaleTimeoutDays = 30;
         public static string DefaultWorktreesDirectory => AppDataConstants.AppDataFolder + "/" + AppDataConstants.WorktreesFolderName;
     }
@@ -76,8 +69,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 工具执行相关常量
     /// </summary>
-    public static class ToolExecution
-    {
+    public static class ToolExecution {
         public const int MaxToolResultLength = 100000;
         public const int DefaultTimeoutMs = 30000;
         public const int MaxOutputLength = 10000;
@@ -87,8 +79,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 调度相关常量
     /// </summary>
-    public static class Scheduling
-    {
+    public static class Scheduling {
         public const int CronCheckIntervalMs = 1000;
         public const int OneShotMinuteMod = 30;
     }
@@ -96,8 +87,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 上下文压缩常量
     /// </summary>
-    public static class ContextCompression
-    {
+    public static class ContextCompression {
         public const int DefaultTokenThreshold = 10000;
         public const int MaxReferenceEntries = 100;
         public const int MinCompressionThreshold = 100;
@@ -109,8 +99,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 分析服务常量
     /// </summary>
-    public static class Analytics
-    {
+    public static class Analytics {
         public const int DefaultEventHistoryLimit = 100;
         public const int MaxEvents = 10000;
     }
@@ -118,8 +107,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 预算相关常量
     /// </summary>
-    public static class Budget
-    {
+    public static class Budget {
         public const decimal DefaultMonthlyLimit = 100.0m;
         public const decimal DefaultTotalLimit = 1000.0m;
     }
@@ -127,24 +115,21 @@ public static class WorkflowConstants
     /// <summary>
     /// Dream 任务常量
     /// </summary>
-    public static class Dream
-    {
+    public static class Dream {
         public const int MaxTurns = 30;
     }
 
     /// <summary>
     /// 进度条常量
     /// </summary>
-    public static class ProgressBar
-    {
+    public static class ProgressBar {
         public const int DefaultBarWidth = 30;
     }
 
     /// <summary>
     /// 路径和文件名常量
     /// </summary>
-    public static class Paths
-    {
+    public static class Paths {
         public const string DefaultStateFilePath = "workflow_state.json";
         public const string DefaultWebSocketEndpoint = "ws://localhost:3456/bridge";
         public const string DefaultSseEndpoint = "http://localhost:3456/sse";
@@ -194,8 +179,7 @@ public static class WorkflowConstants
         /// <summary>
         /// 获取项目级 worktree 的完整路径
         /// </summary>
-        public static string GetProjectWorktreePath(string gitRoot, string agentId)
-        {
+        public static string GetProjectWorktreePath(string gitRoot, string agentId) {
             var safeId = agentId.Replace("/", "+").Replace("\\", "+");
             return Path.Combine(GetProjectWorktreesDir(gitRoot), safeId);
         }
@@ -204,8 +188,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 限制和阈值常量
     /// </summary>
-    public static class Limits
-    {
+    public static class Limits {
         public const int CodeLengthMax = 10000;
         public const int OutputTruncateLength = 500;
         public const int JsonTruncateLength = 2000;
@@ -243,8 +226,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 文件扩展名常量
     /// </summary>
-    public static class FileExtensions
-    {
+    public static class FileExtensions {
         public const string AppSettings = "appsettings.json";
         public const string WebConfig = "web.config";
         public const string Env = ".env";
@@ -256,8 +238,7 @@ public static class WorkflowConstants
     /// <summary>
     /// 折叠分类器常量
     /// </summary>
-    public static class Collapse
-    {
+    public static class Collapse {
         public const int ShortTextThreshold = 200;
         public const int LongTextThreshold = 2000;
         public const int ListItemThreshold = 10;

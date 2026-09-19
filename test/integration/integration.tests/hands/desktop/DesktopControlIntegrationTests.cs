@@ -7,14 +7,11 @@ namespace Integration.Tests;
 [Trait("Category", "Integration")]
 [Trait("Category", "Desktop")]
 [Collection("DesktopIntegration")]
-public sealed class DesktopControlIntegrationTests
-{
+public sealed class DesktopControlIntegrationTests {
     [Fact]
-    public async Task FullFlow_Notepad_FindFocusTypeScreenshot_Close()
-    {
+    public async Task FullFlow_Notepad_FindFocusTypeScreenshot_Close() {
         var env = DesktopEnvironmentGuard.CheckInteractiveDesktop();
-        if (!env.IsInteractive)
-        {
+        if (!env.IsInteractive) {
             env.Diagnostic.Should().Contain("非交互式桌面环境");
             return;
         }
@@ -24,8 +21,7 @@ public sealed class DesktopControlIntegrationTests
         var capture = new GdiScreenCaptureService();
 
         var notepad = System.Diagnostics.Process.Start("notepad.exe");
-        try
-        {
+        try {
             notepad.Should().NotBeNull();
 
             await Task.Delay(2500);
@@ -49,11 +45,8 @@ public sealed class DesktopControlIntegrationTests
 
             var listOp = await windows.EnumerateAsync();
             listOp.Should().NotBeEmpty("枚举窗口应返回列表");
-        }
-        finally
-        {
-            if (notepad is { HasExited: false })
-            {
+        } finally {
+            if (notepad is { HasExited: false }) {
                 notepad.Kill();
                 notepad.WaitForExit(3000);
             }
@@ -61,8 +54,7 @@ public sealed class DesktopControlIntegrationTests
     }
 
     [Fact]
-    public async Task ScreenCapture_FullScreen_ReturnsValidPng()
-    {
+    public async Task ScreenCapture_FullScreen_ReturnsValidPng() {
         var capture = new GdiScreenCaptureService();
 
         var base64 = await capture.CaptureFullScreenAsync();
@@ -72,8 +64,7 @@ public sealed class DesktopControlIntegrationTests
     }
 
     [Fact]
-    public async Task WindowManager_Enumerate_ReturnsNonEmptyOnDesktop()
-    {
+    public async Task WindowManager_Enumerate_ReturnsNonEmptyOnDesktop() {
         var windows = new Win32WindowManagementService();
 
         var list = await windows.EnumerateAsync();

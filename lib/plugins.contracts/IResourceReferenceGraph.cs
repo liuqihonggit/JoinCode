@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>连带卸载:卸载插件A时,通过 GetConsumers 找到所有引用A资源的插件B,通知B放弃引用</para>
 /// <para>引用计数:通过 GetReferenceCounts 检查A所有资源的引用是否归零,归零才安全卸载</para>
 /// </summary>
-public interface IResourceReferenceGraph
-{
+public interface IResourceReferenceGraph {
     /// <summary>记录引用 — 插件B 引用 插件A 的资源</summary>
     void AddReference(ResourceReference reference);
 

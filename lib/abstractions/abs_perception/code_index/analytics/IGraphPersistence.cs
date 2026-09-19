@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.CodeIndex;
 /// 图持久化接口 — 将内存索引序列化到磁盘/从磁盘反序列化
 /// 解决 InMemoryIndexStore 进程重启后需重建的问题
 /// </summary>
-public interface IGraphPersistence
-{
+public interface IGraphPersistence {
     /// <summary>
     /// 将当前索引保存到指定目录
     /// </summary>

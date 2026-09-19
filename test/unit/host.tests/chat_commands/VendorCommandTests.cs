@@ -6,10 +6,8 @@ namespace Host.Tests.ChatCommands;
 /// （GUI 有 SetVendorAsync）；新增共享 ChatCommand 对齐 GUI 语义：
 /// WorkflowConfig.Provider.Vendor 切换 + 默认模型跟随 + settings.json profile 持久化。
 /// </summary>
-public sealed class VendorCommandTests
-{
-    private static (VendorCommand Cmd, WorkflowConfig Config, ChatCommandContext Ctx) Create(string arguments)
-    {
+public sealed class VendorCommandTests {
+    private static (VendorCommand Cmd, WorkflowConfig Config, ChatCommandContext Ctx) Create(string arguments) {
         var config = new WorkflowConfig();
         config.Provider.Vendor = "openai";
         config.Provider.ModelId = "gpt-4o";
@@ -21,8 +19,7 @@ public sealed class VendorCommandTests
         var configService = new Mock<IConfigurationService>();
         var fastMode = new Mock<IFastModeService>();
 
-        var services = new CommandServices
-        {
+        var services = new CommandServices {
             ChatService = Mock.Of<IChatService>(),
             CodeService = Mock.Of<ICodeService>(),
             PlanService = Mock.Of<IPlanService>(),
@@ -30,8 +27,7 @@ public sealed class VendorCommandTests
             WorkflowConfig = config,
             ServiceProvider = new VendorTestServiceProvider(configService.Object, catalog.Object, fastMode.Object),
         };
-        var ctx = new ChatCommandContext
-        {
+        var ctx = new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
             Services = new CommandServiceProvider(services),
@@ -39,21 +35,18 @@ public sealed class VendorCommandTests
         return (new VendorCommand(), config, ctx);
     }
 
-    private sealed class VendorTestServiceProvider : IServiceProvider
-    {
+    private sealed class VendorTestServiceProvider : IServiceProvider {
         private readonly IConfigurationService _configService;
         private readonly IModelCatalog _catalog;
         private readonly IFastModeService _fastMode;
 
-        public VendorTestServiceProvider(IConfigurationService configService, IModelCatalog catalog, IFastModeService fastMode)
-        {
+        public VendorTestServiceProvider(IConfigurationService configService, IModelCatalog catalog, IFastModeService fastMode) {
             _configService = configService;
             _catalog = catalog;
             _fastMode = fastMode;
         }
 
-        public object? GetService(Type serviceType)
-        {
+        public object? GetService(Type serviceType) {
             if (serviceType == typeof(IConfigurationService)) return _configService;
             if (serviceType == typeof(IModelCatalog)) return _catalog;
             if (serviceType == typeof(IFastModeService)) return _fastMode;
@@ -62,14 +55,12 @@ public sealed class VendorCommandTests
     }
 
     [Fact]
-    public void Name_Is_Vendor()
-    {
+    public void Name_Is_Vendor() {
         new VendorCommand().Name.Should().Be(ChatCommandNameEnumConstants.Vendor);
     }
 
     [Fact]
-    public async Task Execute_NoArgs_ListsVendors_AndMarksCurrent()
-    {
+    public async Task Execute_NoArgs_ListsVendors_AndMarksCurrent() {
         var (cmd, config, ctx) = Create("");
 
         var result = await cmd.ExecuteAsync(ctx);
@@ -79,8 +70,7 @@ public sealed class VendorCommandTests
     }
 
     [Fact]
-    public async Task Execute_ValidVendor_SwitchesConfigAndPersistsProfile()
-    {
+    public async Task Execute_ValidVendor_SwitchesConfigAndPersistsProfile() {
         var (cmd, config, ctx) = Create("anthropic");
 
         var result = await cmd.ExecuteAsync(ctx);
@@ -93,8 +83,7 @@ public sealed class VendorCommandTests
     [Theory]
     [InlineData("not-a-vendor")]
     [InlineData("OPENAII")]
-    public async Task Execute_InvalidVendor_DoesNotChange(string vendor)
-    {
+    public async Task Execute_InvalidVendor_DoesNotChange(string vendor) {
         var (cmd, config, ctx) = Create(vendor);
 
         var result = await cmd.ExecuteAsync(ctx);
@@ -104,8 +93,7 @@ public sealed class VendorCommandTests
     }
 
     [Fact]
-    public async Task Execute_SameVendor_NoOp()
-    {
+    public async Task Execute_SameVendor_NoOp() {
         var (cmd, config, ctx) = Create("openai");
 
         var result = await cmd.ExecuteAsync(ctx);

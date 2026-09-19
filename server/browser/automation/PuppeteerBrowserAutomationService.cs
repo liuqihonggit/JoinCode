@@ -6,8 +6,7 @@ namespace JoinCode.Browser;
 /// 仅在安装此包后通过 DI 注册替代 NoOpBrowserAutomationService
 /// </summary>
 [Register(typeof(IBrowserAutomationService), ServiceLifetime.Singleton)]
-public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomationService, IAsyncDisposable
-{
+public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomationService, IAsyncDisposable {
     private readonly ILogger<PuppeteerBrowserAutomationService> _logger;
     private IBrowser? _browser;
     private bool _initialized;
@@ -19,8 +18,7 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     /// 构造 Puppeteer 浏览器自动化服务
     /// </summary>
     /// <param name="logger">日志器</param>
-    public PuppeteerBrowserAutomationService(ILogger<PuppeteerBrowserAutomationService> logger)
-    {
+    public PuppeteerBrowserAutomationService(ILogger<PuppeteerBrowserAutomationService> logger) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -37,40 +35,31 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     /// <param name="waitMs">导航等待超时（毫秒）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>截图结果 — 成功包含 PNG 字节数据，失败包含错误信息</returns>
-    public async Task<OperationResult<byte[]?>> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default)
-    {
+    public async Task<OperationResult<byte[]?>> ScreenshotAsync(string url, int waitMs = 3000, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync().ConfigureAwait(false);
-        if (_browser is null)
-        {
+        if (_browser is null) {
             return OperationResult<byte[]?>.Fail("Browser not available");
         }
 
         await using var page = await _browser.NewPageAsync().ConfigureAwait(false);
-        try
-        {
-            var response = await page.GoToAsync(url, new NavigationOptions
-            {
+        try {
+            var response = await page.GoToAsync(url, new NavigationOptions {
                 WaitUntil = [WaitUntilNavigation.Networkidle0],
                 Timeout = waitMs
             }).ConfigureAwait(false);
 
-            if (response is null || !response.Ok)
-            {
+            if (response is null || !response.Ok) {
                 var status = response?.Status ?? 0;
                 return OperationResult<byte[]?>.Fail($"Navigation failed with status {status}");
             }
 
-            var screenshotData = await page.ScreenshotDataAsync(new ScreenshotOptions
-            {
+            var screenshotData = await page.ScreenshotDataAsync(new ScreenshotOptions {
                 Type = ScreenshotType.Png,
                 FullPage = false
             }).ConfigureAwait(false);
 
             return OperationResult<byte[]?>.Ok(screenshotData);
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger.LogError(ex, "Screenshot failed for {Url}", url);
             return OperationResult<byte[]?>.Fail(ex.Message);
         }
@@ -84,27 +73,21 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
     /// <param name="waitMs">导航等待超时（毫秒）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>求值结果 — 成功包含表达式返回值字符串，失败包含错误信息</returns>
-    public async Task<OperationResult<string?>> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default)
-    {
+    public async Task<OperationResult<string?>> EvaluateAsync(string url, string script, int waitMs = 3000, CancellationToken cancellationToken = default) {
         await EnsureInitializedAsync().ConfigureAwait(false);
-        if (_browser is null)
-        {
+        if (_browser is null) {
             return OperationResult<string?>.Fail("Browser not available");
         }
 
         await using var page = await _browser.NewPageAsync().ConfigureAwait(false);
-        try
-        {
-            if (!string.Equals(url, "about:blank", StringComparison.OrdinalIgnoreCase))
-            {
-                var response = await page.GoToAsync(url, new NavigationOptions
-                {
+        try {
+            if (!string.Equals(url, "about:blank", StringComparison.OrdinalIgnoreCase)) {
+                var response = await page.GoToAsync(url, new NavigationOptions {
                     WaitUntil = [WaitUntilNavigation.Networkidle0],
                     Timeout = waitMs
                 }).ConfigureAwait(false);
 
-                if (response is null || !response.Ok)
-                {
+                if (response is null || !response.Ok) {
                     var status = response?.Status ?? 0;
                     return OperationResult<string?>.Fail($"Navigation failed with status {status}");
                 }
@@ -115,17 +98,13 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
             var resultStr = result ?? "undefined";
 
             return OperationResult<string?>.Ok(resultStr);
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger.LogError(ex, "JavaScript evaluation failed on {Url}", url);
             return OperationResult<string?>.Fail(ex.Message);
         }
     }
 
-    private async Task EnsureInitializedAsync()
-    {
+    private async Task EnsureInitializedAsync() {
         if (_initialized) return;
 
         using var guard = await _initLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_initLock.Name}' 等待超时");
@@ -133,49 +112,39 @@ public sealed partial class PuppeteerBrowserAutomationService : IBrowserAutomati
         if (_initialized || _initializing) return;
         _initializing = true;
 
-        try
-        {
+        try {
             var browserFetcher = new BrowserFetcher();
             var installed = await browserFetcher.DownloadAsync().ConfigureAwait(false);
-            if (installed is null)
-            {
+            if (installed is null) {
                 _logger.LogWarning("Failed to download Chromium browser");
                 return;
             }
 
-            _browser = await Puppeteer.LaunchAsync(new LaunchOptions
-            {
+            _browser = await Puppeteer.LaunchAsync(new LaunchOptions {
                 Headless = true,
                 Args = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
             }).ConfigureAwait(false);
 
             _logger.LogInformation("PuppeteerSharp browser initialized successfully");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogWarning(ex, "Failed to initialize PuppeteerSharp browser");
             _browser = null;
-        }
-        finally
-        {
+        } finally {
             _initialized = true;
             _initializing = false;
         }
-    
+
     }
 
     /// <summary>
     /// 异步释放 — 关闭浏览器实例并释放锁
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         if (_disposed) return ValueTask.CompletedTask; _disposed = true;
-        if (_browser is not null)
-        {
+        if (_browser is not null) {
             var browser = _browser;
             _browser = null;
-            return new ValueTask(browser.DisposeAsync().AsTask().ContinueWith(t =>
-            {
+            return new ValueTask(browser.DisposeAsync().AsTask().ContinueWith(t => {
                 if (t.IsFaulted) _logger.LogWarning(t.Exception!, "Failed to dispose browser");
                 _initLock.Dispose();
             }, TaskContinuationOptions.ExecuteSynchronously));

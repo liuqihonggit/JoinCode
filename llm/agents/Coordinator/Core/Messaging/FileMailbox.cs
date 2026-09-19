@@ -9,8 +9,7 @@ namespace Core.Agents.Coordinator;
 /// <para>与 <see cref="InProcessMailbox"/> 的区别：FileMailbox 强制持久化（mailboxService 必须注入），InProcessMailbox 可选持久化。</para>
 /// </summary>
 [Register(typeof(FileMailbox), ServiceLifetime.Singleton)]
-public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMailbox
-{
+public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMailbox {
     private readonly ITeammateMailboxService _mailboxService;
     private readonly ILogger<FileMailbox>? _logger;
     private readonly MessageDedupTracker _dedup = new();
@@ -30,8 +29,7 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
         : base(
             commandBackpressure ?? ActorBackpressure.CodingAgentTask,
             agentBackpressure ?? DefaultAgentBackpressure,
-            outputCapacity: 128)
-    {
+            outputCapacity: 128) {
         _mailboxService = mailboxService ?? throw new ArgumentNullException(nameof(mailboxService));
         _logger = logger;
     }
@@ -52,10 +50,8 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
     /// 发送消息 — tell 异步，本地投递 + 文件持久化。
     /// <para>用 MessageId 去重：重复消息只投递一次。</para>
     /// </summary>
-    public async Task<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default)
-    {
-        if (IsDuplicate(agentId, message.MessageId))
-        {
+    public async Task<bool> SendAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken = default) {
+        if (IsDuplicate(agentId, message.MessageId)) {
             _logger?.LogDebug("FileMailbox: duplicate message {MessageId} skipped for {AgentId}", message.MessageId, agentId);
             return false;
         }
@@ -73,8 +69,7 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
     /// <summary>
     /// 发送命令处理 — 本地投递 + 文件持久化。
     /// </summary>
-    protected override async ValueTask HandleSendAsync(string agentId, CoordinatorMessage message, CancellationToken ct)
-    {
+    protected override async ValueTask HandleSendAsync(string agentId, CoordinatorMessage message, CancellationToken ct) {
         if (IsDuplicate(agentId, message.MessageId)) return;
 
         DeliverToAgent(agentId, message);
@@ -84,10 +79,8 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
     /// <summary>
     /// 广播命令处理 — 本地广播 + 文件持久化。
     /// </summary>
-    protected override async ValueTask HandleBroadcastAsync(CoordinatorMessage message, string? excludeAgentId, CancellationToken ct)
-    {
-        foreach (var agentId in GetRegisteredAgents())
-        {
+    protected override async ValueTask HandleBroadcastAsync(CoordinatorMessage message, string? excludeAgentId, CancellationToken ct) {
+        foreach (var agentId in GetRegisteredAgents()) {
             if (agentId == excludeAgentId) continue;
             if (IsDuplicate(agentId, message.MessageId)) continue;
             DeliverToAgent(agentId, message);
@@ -104,19 +97,15 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
     /// <summary>
     /// 持久化消息到文件邮箱。
     /// </summary>
-    private async Task PersistToMailboxAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken)
-    {
+    private async Task PersistToMailboxAsync(string agentId, CoordinatorMessage message, CancellationToken cancellationToken) {
         var sessionId = GetSessionId(agentId);
-        if (string.IsNullOrEmpty(sessionId))
-        {
+        if (string.IsNullOrEmpty(sessionId)) {
             _logger?.LogDebug("FileMailbox: no session for {AgentId}, skip persist", agentId);
             return;
         }
 
-        try
-        {
-            var request = new MailboxSendRequest
-            {
+        try {
+            var request = new MailboxSendRequest {
                 FromAgentId = message.FromAgentId,
                 ToAgentId = agentId,
                 MessageType = message.MessageType,
@@ -125,9 +114,7 @@ public sealed partial class FileMailbox : MailboxBase<CoordinatorMessage>, IMail
             };
 
             await _mailboxService.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             _logger?.LogWarning(ex, "FileMailbox: persist failed for {AgentId}", agentId);
         }
     }

@@ -3,11 +3,9 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// <summary>
 /// AgentNameIndex 单元测试 — 多键映射 name→agentId，O(1) 查找
 /// </summary>
-public class AgentNameIndexTests
-{
+public class AgentNameIndexTests {
     [Fact]
-    public void Find_ByAgentId_ReturnsAgentId()
-    {
+    public void Find_ByAgentId_ReturnsAgentId() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", "Explorer");
 
@@ -15,8 +13,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Find_ByName_ReturnsAgentId()
-    {
+    public void Find_ByName_ReturnsAgentId() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", "Explorer");
 
@@ -24,8 +21,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Find_ByTask_ReturnsAgentId()
-    {
+    public void Find_ByTask_ReturnsAgentId() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", "Explorer");
 
@@ -33,8 +29,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Find_ByDisplayName_ReturnsAgentId()
-    {
+    public void Find_ByDisplayName_ReturnsAgentId() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", "Explorer");
 
@@ -42,8 +37,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Find_CaseInsensitive_ReturnsAgentId()
-    {
+    public void Find_CaseInsensitive_ReturnsAgentId() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", "Explorer");
 
@@ -52,8 +46,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Find_NotRegistered_ReturnsNull()
-    {
+    public void Find_NotRegistered_ReturnsNull() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", "Explorer");
 
@@ -61,15 +54,13 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Find_EmptyIndex_ReturnsNull()
-    {
+    public void Find_EmptyIndex_ReturnsNull() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         Assert.Null(index.Find("anything"));
     }
 
     [Fact]
-    public void Unregister_RemovesAllKeysForAgent()
-    {
+    public void Unregister_RemovesAllKeysForAgent() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", "Explorer");
 
@@ -82,8 +73,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Unregister_SameNameDifferentAgents_OnlyRemovesTargetAgent()
-    {
+    public void Unregister_SameNameDifferentAgents_OnlyRemovesTargetAgent() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "worker", "任务A", "Worker");
         index.Register("agent-002", "worker", "任务B", "Worker");
@@ -97,8 +87,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Register_MultipleAgents_AllFindable()
-    {
+    public void Register_MultipleAgents_AllFindable() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", "Explorer");
         index.Register("agent-002", "planner", "制定计划", "Planner");
@@ -111,8 +100,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Register_NullDisplayName_SkipsDisplayNameKey()
-    {
+    public void Register_NullDisplayName_SkipsDisplayNameKey() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "explorer", "探索代码库", null);
 
@@ -121,8 +109,7 @@ public class AgentNameIndexTests
     }
 
     [Fact]
-    public void Register_EmptyName_SkipsNameKey()
-    {
+    public void Register_EmptyName_SkipsNameKey() {
         var index = new Coordinator.Core.Messaging.AgentNameIndex();
         index.Register("agent-001", "", "探索代码库", "Explorer");
 

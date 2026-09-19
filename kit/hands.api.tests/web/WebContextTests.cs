@@ -1,12 +1,9 @@
 namespace Core.Tests.Web;
 
-public sealed class WebContextTests
-{
+public sealed class WebContextTests {
     [Fact]
-    public void MetricsProperties_ShouldReturnExpectedValues()
-    {
-        var context = new WebContext
-        {
+    public void MetricsProperties_ShouldReturnExpectedValues() {
+        var context = new WebContext {
             Url = "https://example.com"
         };
 
@@ -17,10 +14,8 @@ public sealed class WebContextTests
     }
 
     [Fact]
-    public void MetricsProperties_WithSuccessfulResult_ShouldReturnSuccess()
-    {
-        var context = new WebContext
-        {
+    public void MetricsProperties_WithSuccessfulResult_ShouldReturnSuccess() {
+        var context = new WebContext {
             Url = "https://example.com",
             Result = new WebFetchResult(true, "https://example.com")
         };
@@ -29,14 +24,12 @@ public sealed class WebContextTests
     }
 
     [Fact]
-    public void Properties_ShouldBeSettable()
-    {
+    public void Properties_ShouldBeSettable() {
         var cached = new WebFetchResult(true, "https://example.com");
         var fetchResult = new WebFetchResult(true, "https://example.com");
         var result = new WebFetchResult(true, "https://example.com");
 
-        var context = new WebContext
-        {
+        var context = new WebContext {
             Url = "https://example.com",
             CancellationToken = CancellationToken.None,
             UpgradedUrl = "https://example.com/upgraded",

@@ -6,23 +6,19 @@ namespace JoinCode.Abs.Tests.LLM.Chat;
 /// 因此 SubAgentEventChannel 禁止在 QueryLoop 迭代器内走环境态，
 /// 排空侧必须经 ChatMiddlewareContext.SubAgentEvents 显式传递（2026-08-26 实测）。
 /// </summary>
-public class AsyncLocalInIteratorTests
-{
+public class AsyncLocalInIteratorTests {
     private static readonly AsyncLocal<string?> Probe = new();
 
     [Fact]
-    public async Task AsyncLocal_SetInsideIterator_ShouldBeInvisibleAfterYieldResumes()
-    {
-        static async IAsyncEnumerable<int> Iterator()
-        {
+    public async Task AsyncLocal_SetInsideIterator_ShouldBeInvisibleAfterYieldResumes() {
+        static async IAsyncEnumerable<int> Iterator() {
             Probe.Value = "inside";
             yield return 1;
             yield return Probe.Value == "inside" ? 2 : -2;
         }
 
         var seen = new List<int>();
-        await foreach (var v in Iterator())
-        {
+        await foreach (var v in Iterator()) {
             seen.Add(v);
         }
 

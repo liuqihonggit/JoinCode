@@ -5,8 +5,7 @@ namespace Core.Context;
 /// 提取自 ChatService 中的 _systemPromptBuilder + _reminderManager 使用逻辑
 /// </summary>
 [Register(typeof(IChatPromptManager), ServiceLifetime.Singleton)]
-public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManager
-{
+public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManager {
 
     /// <summary>
     /// 初始化聊天提示词管理器
@@ -14,8 +13,7 @@ public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManage
     /// <param name="systemPromptBuilder">系统提示词构建器</param>
     /// <param name="reminderManager">系统提醒管理器</param>
     /// <param name="logger">可选日志记录器</param>
-    public ChatPromptManager(SystemPromptBuilder systemPromptBuilder, ISystemReminderManager reminderManager, ILogger<ChatPromptManager>? logger = null)
-    {
+    public ChatPromptManager(SystemPromptBuilder systemPromptBuilder, ISystemReminderManager reminderManager, ILogger<ChatPromptManager>? logger = null) {
         _systemPromptBuilder = systemPromptBuilder;
         _reminderManager = reminderManager;
         _logger = logger;
@@ -27,8 +25,7 @@ public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManage
     /// <summary>
     /// 获取分区后的静态前缀（用于清空/压缩后重建系统提示词）
     /// </summary>
-    public async Task<string> GetStaticPrefixAsync()
-    {
+    public async Task<string> GetStaticPrefixAsync() {
         var (staticPrefix, _) = await _systemPromptBuilder.BuildPartitionedAsync().ConfigureAwait(false);
         return staticPrefix;
     }
@@ -36,24 +33,21 @@ public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManage
     /// <summary>
     /// 清除提示词缓存
     /// </summary>
-    public void ClearCache()
-    {
+    public void ClearCache() {
         _systemPromptBuilder.ClearCache();
     }
 
     /// <summary>
     /// 清除所有提醒
     /// </summary>
-    public async Task ClearRemindersAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ClearRemindersAsync(CancellationToken cancellationToken = default) {
         await _reminderManager.ClearAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// 添加系统提醒
     /// </summary>
-    public async Task AddReminderAsync(string id, string content, int priority = 0, CancellationToken cancellationToken = default)
-    {
+    public async Task AddReminderAsync(string id, string content, int priority = 0, CancellationToken cancellationToken = default) {
         await _reminderManager.AddReminderAsync(id, content, priority, cancellationToken).ConfigureAwait(false);
         _logger?.LogDebug("[SystemReminder] 已添加提醒: {ReminderId}", id);
     }
@@ -61,8 +55,7 @@ public sealed partial class ChatPromptManager : ServiceEntity, IChatPromptManage
     /// <summary>
     /// 移除系统提醒
     /// </summary>
-    public async Task RemoveReminderAsync(string id, CancellationToken cancellationToken = default)
-    {
+    public async Task RemoveReminderAsync(string id, CancellationToken cancellationToken = default) {
         await _reminderManager.RemoveReminderAsync(id, cancellationToken).ConfigureAwait(false);
         _logger?.LogDebug("[SystemReminder] 已移除提醒: {ReminderId}", id);
     }

@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>统一 RgEngine/SearchService/FileToolHandlers 三处重复的 BinaryExtensions 定义</para>
 /// <para>扩展名集取超集（80个），覆盖可执行文件/图片/音视频/压缩包/文档/字体/字节码/数据库/设计文件</para>
 /// </summary>
-public static class BinaryFileDetector
-{
+public static class BinaryFileDetector {
     private static readonly FrozenSet<string> BinaryExtensions = FrozenSet.ToFrozenSet(
         [
             ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp", ".tiff", ".tif",
@@ -29,8 +28,7 @@ public static class BinaryFileDetector
     /// <summary>
     /// 按文件扩展名判断是否为二进制文件
     /// </summary>
-    public static bool IsBinaryByExtension(string file)
-    {
+    public static bool IsBinaryByExtension(string file) {
         var ext = Path.GetExtension(file);
         return !string.IsNullOrEmpty(ext) && BinaryExtensions.Contains(ext);
     }
@@ -38,8 +36,7 @@ public static class BinaryFileDetector
     /// <summary>
     /// 按扩展名字符串判断是否为二进制文件
     /// </summary>
-    public static bool IsBinaryExtension(string ext)
-    {
+    public static bool IsBinaryExtension(string ext) {
         return !string.IsNullOrEmpty(ext) && BinaryExtensions.Contains(ext);
     }
 }

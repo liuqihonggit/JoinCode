@@ -6,10 +6,8 @@ namespace Mcp.Tests;
 /// 裸语句丢弃 Task，客户端释放后到达的响应在 Actor 已释放时抛 ObjectDisposedException，
 /// 异常成为未观察异常被静默丢弃（多级报错缺失）。
 /// </summary>
-public sealed class McpClientResponseDiscardTests
-{
-    private sealed class TestClient : McpClientBase
-    {
+public sealed class McpClientResponseDiscardTests {
+    private sealed class TestClient : McpClientBase {
         public TestClient() : base(new McpClientOptions(), null) { }
 
         public override Task ConnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -28,8 +26,7 @@ public sealed class McpClientResponseDiscardTests
         public Task FireAndForgetProcessResponseForTest(JsonRpcResponse response) => FireAndForgetProcessResponseAsync(response);
 
         /// <summary>注册 pending request 并返回其 TCS,模拟 SendRequestAsync 注册等待</summary>
-        public async Task<TaskCompletionSource<JsonRpcResponse>> RegisterPendingForTestAsync(int requestId)
-        {
+        public async Task<TaskCompletionSource<JsonRpcResponse>> RegisterPendingForTestAsync(int requestId) {
             var tcs = new TaskCompletionSource<JsonRpcResponse>();
             await _requestRegistry.RegisterAsync(requestId, tcs);
             return tcs;
@@ -39,8 +36,7 @@ public sealed class McpClientResponseDiscardTests
     private static JsonRpcResponse CreateResponse(long id) => new() { Id = JsonRpcId.FromNumber(id) };
 
     [Fact]
-    public async Task ProcessResponseAsync_AfterActorDisposed_ThrowsObjectDisposedException()
-    {
+    public async Task ProcessResponseAsync_AfterActorDisposed_ThrowsObjectDisposedException() {
         var client = new TestClient();
         await client.DisposeRegistryForTestAsync().ConfigureAwait(true);
 
@@ -49,8 +45,7 @@ public sealed class McpClientResponseDiscardTests
     }
 
     [Fact]
-    public async Task FireAndForgetProcessResponseAsync_AfterActorDisposed_DoesNotThrow()
-    {
+    public async Task FireAndForgetProcessResponseAsync_AfterActorDisposed_DoesNotThrow() {
         var client = new TestClient();
         await client.DisposeRegistryForTestAsync().ConfigureAwait(true);
 
@@ -59,8 +54,7 @@ public sealed class McpClientResponseDiscardTests
     }
 
     [Fact]
-    public async Task FireAndForgetProcessResponseAsync_ValidPending_CompletesNormally()
-    {
+    public async Task FireAndForgetProcessResponseAsync_ValidPending_CompletesNormally() {
         var client = new TestClient();
         var act = async () => await client.FireAndForgetProcessResponseForTest(CreateResponse(99)).ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
@@ -71,8 +65,7 @@ public sealed class McpClientResponseDiscardTests
     /// Actor 单消费者 Channel 串行处理，TrySetResult 在 Consumer 线程执行，无锁竞争。
     /// </summary>
     [Fact]
-    public async Task ProcessResponseAsync_ActorModel_DoesNotDeadlock()
-    {
+    public async Task ProcessResponseAsync_ActorModel_DoesNotDeadlock() {
         var client = new TestClient();
         var tcs = await client.RegisterPendingForTestAsync(1);
 

@@ -4,8 +4,7 @@ namespace McpToolRegistry;
 /// <summary>
 /// 工具执行中间件共享上下文 — 在管道各阶段间传递状态
 /// </summary>
-public sealed class ToolExecutionContext
-{
+public sealed class ToolExecutionContext {
     /// <summary>工具名称</summary>
     public required string ToolName { get; init; }
 
@@ -48,12 +47,10 @@ public sealed class ToolExecutionContext
     /// <summary>
     /// 拒绝执行 — 设置权限决策为 Denied,填充错误结果并短路管道(不调 next)
     /// </summary>
-    public void Deny(string reason)
-    {
+    public void Deny(string reason) {
         PermissionDecision = PermissionDecision.Denied;
         PermissionDenyReason = reason;
-        Result = new ToolResult
-        {
+        Result = new ToolResult {
             Content = [new() { Type = ToolContentType.Text, Text = reason }],
             IsError = true,
             PermissionDecision = PermissionDecision.Denied
@@ -64,13 +61,11 @@ public sealed class ToolExecutionContext
     /// 要求确认 — 设置权限决策为 PendingConfirmation,填充提示信息并短路管道(不调 next)
     /// Result 带 PendingConfirmation 标记,由 PermissionAwareToolExecutor 返回给上层触发确认流程
     /// </summary>
-    public void RequireConfirmation(string prompt, string? ruleContent = null)
-    {
+    public void RequireConfirmation(string prompt, string? ruleContent = null) {
         PermissionDecision = PermissionDecision.PendingConfirmation;
         PermissionConfirmationPrompt = prompt;
         PermissionRuleContent = ruleContent;
-        Result = new ToolResult
-        {
+        Result = new ToolResult {
             Content = [new() { Type = ToolContentType.Text, Text = $"工具 '{ToolName}' 需要确认: {prompt}" }],
             IsError = true,
             PermissionDecision = PermissionDecision.PendingConfirmation,

@@ -12,62 +12,49 @@ internal sealed record LoadSnapshotCmd(string WorkflowId, CancellationToken Ct, 
 /// <summary>
 /// Workflow 状态存储 Actor — 序列化文件 I/O，消除 AsyncLock 锁内长 await。
 /// </summary>
-internal sealed class WorkflowStateActor : ActorBase<IWorkflowStateCommand, Unit>
-{
+internal sealed class WorkflowStateActor : ActorBase<IWorkflowStateCommand, Unit> {
     private readonly WorkflowStateStore _owner;
     private readonly ILogger<WorkflowStateStore>? _logger;
 
     public WorkflowStateActor(WorkflowStateStore owner, ILogger<WorkflowStateStore>? logger)
-        : base()
-    {
+        : base() {
         _owner = owner;
         _logger = logger;
     }
 
 
-    public async Task SaveSnapshotAsync(string workflowId, WorkflowSnapshot snapshot, CancellationToken ct)
-    {
+    public async Task SaveSnapshotAsync(string workflowId, WorkflowSnapshot snapshot, CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new SaveSnapshotCmd(workflowId, snapshot, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
 
-    public async Task<WorkflowSnapshot?> LoadSnapshotAsync(string workflowId, CancellationToken ct)
-    {
+    public async Task<WorkflowSnapshot?> LoadSnapshotAsync(string workflowId, CancellationToken ct) {
         var tcs = TcsFactory.Create<WorkflowSnapshot?>();
         await SendAsync(new LoadSnapshotCmd(workflowId, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
     }
 
-    protected override async ValueTask HandleAsync(IWorkflowStateCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
-            case SaveSnapshotCmd cmd:
-            {
-                try
-                {
+    protected override async ValueTask HandleAsync(IWorkflowStateCommand command, CancellationToken ct) {
+        switch (command) {
+            case SaveSnapshotCmd cmd: {
+                try {
                     await _owner.SaveSnapshotCoreAsync(cmd.WorkflowId, cmd.Snapshot, cmd.Ct).ConfigureAwait(false);
                     cmd.Tcs.TrySetResult();
-                }
-                catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
+                } catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
                 break;
             }
-            case LoadSnapshotCmd cmd:
-            {
-                try
-                {
+            case LoadSnapshotCmd cmd: {
+                try {
                     var result = await _owner.LoadSnapshotCoreAsync(cmd.WorkflowId, cmd.Ct).ConfigureAwait(false);
                     cmd.Tcs.TrySetResult(result);
-                }
-                catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
+                } catch (Exception ex) { cmd.Tcs.TrySetException(ex); }
                 break;
             }
         }
     }
 
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[WorkflowStateStore] Actor Consumer 异常");
     }
 }

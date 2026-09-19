@@ -1,15 +1,13 @@
 
 namespace Core.Tests.Skills;
 
-public sealed class SkillServiceAlignmentTests : IDisposable
-{
+public sealed class SkillServiceAlignmentTests : IDisposable {
     private readonly Mock<IFileOperationService> _fileOperationServiceMock;
     private readonly Mock<IQueryEngine> _queryEngineMock;
     private readonly Mock<IToolExecutionGateway> _toolExecutionGatewayMock;
     private bool _disposed;
 
-    public SkillServiceAlignmentTests()
-    {
+    public SkillServiceAlignmentTests() {
         _fileOperationServiceMock = new Mock<IFileOperationService>();
         _queryEngineMock = new Mock<IQueryEngine>();
         _toolExecutionGatewayMock = new Mock<IToolExecutionGateway>();
@@ -21,8 +19,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
             .Returns(Array.Empty<string>());
     }
 
-    private SkillService CreateService()
-    {
+    private SkillService CreateService() {
         var options = new SkillOptions { SkillsDirectory = "/test/skills", CacheExpiration = TimeSpan.FromMinutes(5) };
 
         var middlewares = new IMiddleware<Core.Skills.SkillContext>[]
@@ -37,15 +34,13 @@ public sealed class SkillServiceAlignmentTests : IDisposable
         return new SkillService(options, _fileOperationServiceMock.Object, pipeline);
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
     }
 
     [Fact]
-    public async Task Constructor_ShouldLoadAllBuiltInSkills()
-    {
+    public async Task Constructor_ShouldLoadAllBuiltInSkills() {
         var service = CreateService();
         var skills = await service.GetAvailableSkillsAsync();
 
@@ -55,23 +50,19 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task SkillExists_AllBuiltInSkills_ShouldReturnTrue()
-    {
+    public async Task SkillExists_AllBuiltInSkills_ShouldReturnTrue() {
         var service = CreateService();
 
-        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" })
-        {
+        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" }) {
             service.SkillExists(name).Should().BeTrue($"built-in skill '{name}' should exist");
         }
     }
 
     [Fact]
-    public async Task GetSkill_EachBuiltInSkill_ShouldHaveNonEmptyDescription()
-    {
+    public async Task GetSkill_EachBuiltInSkill_ShouldHaveNonEmptyDescription() {
         var service = CreateService();
 
-        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" })
-        {
+        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" }) {
             var skill = await service.GetSkillAsync(name);
             skill.Should().NotBeNull($"built-in skill '{name}' should be retrievable");
             skill!.Description.Should().NotBeNullOrEmpty($"built-in skill '{name}' should have a description");
@@ -79,12 +70,10 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task GetSkill_EachBuiltInSkill_ShouldHaveStepsOrTemplate()
-    {
+    public async Task GetSkill_EachBuiltInSkill_ShouldHaveStepsOrTemplate() {
         var service = CreateService();
 
-        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" })
-        {
+        foreach (var name in new[] { "verify", "debug", "batch", "stuck", "hunter", "loop", "remember", "simplify", "skillify", "update-config", "keybindings" }) {
             var skill = await service.GetSkillAsync(name);
             skill.Should().NotBeNull();
             var hasSteps = skill!.Steps.Count > 0;
@@ -94,8 +83,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchSkills_ByKeyword_ShouldReturnMatching()
-    {
+    public async Task SearchSkills_ByKeyword_ShouldReturnMatching() {
         var service = CreateService();
         var skills = await service.GetAvailableSkillsAsync();
 
@@ -104,14 +92,12 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task SearchSkills_ByTag_ShouldReturnMatching()
-    {
+    public async Task SearchSkills_ByTag_ShouldReturnMatching() {
         var service = CreateService();
         var skills = await service.GetAvailableSkillsAsync();
 
         var withTags = skills.Where(s => s.Tags.Count > 0).ToList();
-        if (withTags.Count > 0)
-        {
+        if (withTags.Count > 0) {
             var tag = withTags[0].Tags[0];
             var matching = skills.Where(s => s.Tags.Contains(tag)).ToList();
             matching.Should().NotBeEmpty();
@@ -119,11 +105,9 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task RegisterCustomSkill_ShouldBeAvailable()
-    {
+    public async Task RegisterCustomSkill_ShouldBeAvailable() {
         var service = CreateService();
-        var customSkill = new SkillDefinition
-        {
+        var customSkill = new SkillDefinition {
             Name = "custom_test",
             Description = "Custom test skill",
             Steps = new List<SkillStep>
@@ -141,8 +125,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task UnregisterSkill_BuiltIn_ShouldRemove()
-    {
+    public async Task UnregisterSkill_BuiltIn_ShouldRemove() {
         var service = CreateService();
 
         service.SkillExists("debug").Should().BeTrue();
@@ -151,8 +134,7 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteAsync_NonExistingSkill_ShouldReturnFailure()
-    {
+    public async Task ExecuteAsync_NonExistingSkill_ShouldReturnFailure() {
         var service = CreateService();
         var ctx = new ExecutionContext();
 
@@ -163,13 +145,11 @@ public sealed class SkillServiceAlignmentTests : IDisposable
     }
 
     [Fact]
-    public async Task GetAvailableSkills_AfterRegisterAndUnregister_ShouldReflectChanges()
-    {
+    public async Task GetAvailableSkills_AfterRegisterAndUnregister_ShouldReflectChanges() {
         var service = CreateService();
         var initialCount = (await service.GetAvailableSkillsAsync()).Count;
 
-        service.RegisterSkill(new SkillDefinition
-        {
+        service.RegisterSkill(new SkillDefinition {
             Name = "temp_skill",
             Description = "Temporary",
             Steps = new List<SkillStep> { new() { Id = "s1", Type = SkillStepType.Prompt, Prompt = "p" } }

@@ -4,8 +4,7 @@ namespace IO.FileSystem;
 /// <summary>
 /// 内存文件系统监视器 — InMemoryFileSystem 文件操作触发事件 + 内置防抖 + 内部写入过滤
 /// </summary>
-public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
-{
+public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher {
     private readonly InMemoryFileSystem _fs;
     private readonly DebounceTracker _debounce = new();
     private int _disposed;
@@ -16,8 +15,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// <param name="fs">所属内存文件系统</param>
     /// <param name="path">监视路径</param>
     /// <param name="filter">文件名筛选模式，默认 *.*</param>
-    public InMemoryFileSystemWatcher(InMemoryFileSystem fs, string path, string filter = "*.*")
-    {
+    public InMemoryFileSystemWatcher(InMemoryFileSystem fs, string path, string filter = "*.*") {
         _fs = fs;
         Path = path;
         Filter = filter;
@@ -36,15 +34,13 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// <summary>是否启用事件触发</summary>
     public bool EnableRaisingEvents { get; set; }
     /// <summary>防抖间隔</summary>
-    public TimeSpan DebounceInterval
-    {
+    public TimeSpan DebounceInterval {
         get => _debounce.DebounceInterval;
         set => _debounce.DebounceInterval = value;
     }
 
     /// <summary>内部写入过滤窗口（毫秒），窗口内的同路径事件视为内部写入而忽略</summary>
-    public int InternalWriteWindowMs
-    {
+    public int InternalWriteWindowMs {
         get => _debounce.InternalWriteWindowMs;
         set => _debounce.InternalWriteWindowMs = value;
     }
@@ -78,8 +74,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// </summary>
     /// <param name="fullPath">文件完整路径</param>
     /// <param name="changeType">变更类型</param>
-    internal void OnFileChanged(string fullPath, WatcherChangeTypes changeType)
-    {
+    internal void OnFileChanged(string fullPath, WatcherChangeTypes changeType) {
         if (!EnableRaisingEvents || _disposed != 0) return;
         if (!MatchesWatch(fullPath)) return;
         if (_debounce.ConsumeInternalWrite(fullPath)) return;
@@ -87,20 +82,19 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         var name = System.IO.Path.GetFileName(fullPath);
         var args = new FileChangedEventArgs { ChangeType = changeType, FullPath = fullPath, Name = name };
 
-        switch (changeType)
-        {
+        switch (changeType) {
             case WatcherChangeTypes.Changed:
-                Changed?.Invoke(this, args);
-                _debounce.ScheduleDebounce(fullPath, () => DebouncedChanged?.Invoke(this, args));
-                break;
+            Changed?.Invoke(this, args);
+            _debounce.ScheduleDebounce(fullPath, () => DebouncedChanged?.Invoke(this, args));
+            break;
             case WatcherChangeTypes.Created:
-                Created?.Invoke(this, args);
-                _debounce.ScheduleDebounce(fullPath, () => DebouncedCreated?.Invoke(this, args));
-                break;
+            Created?.Invoke(this, args);
+            _debounce.ScheduleDebounce(fullPath, () => DebouncedCreated?.Invoke(this, args));
+            break;
             case WatcherChangeTypes.Deleted:
-                Deleted?.Invoke(this, args);
-                _debounce.ScheduleDebounce(fullPath, () => DebouncedDeleted?.Invoke(this, args));
-                break;
+            Deleted?.Invoke(this, args);
+            _debounce.ScheduleDebounce(fullPath, () => DebouncedDeleted?.Invoke(this, args));
+            break;
         }
     }
 
@@ -109,14 +103,12 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// </summary>
     /// <param name="oldFullPath">原文件完整路径</param>
     /// <param name="newFullPath">新文件完整路径</param>
-    internal void OnFileRenamed(string oldFullPath, string newFullPath)
-    {
+    internal void OnFileRenamed(string oldFullPath, string newFullPath) {
         if (!EnableRaisingEvents || _disposed != 0) return;
         if (!MatchesWatch(newFullPath)) return;
         if (_debounce.ConsumeInternalWrite(newFullPath)) return;
 
-        var args = new FileRenamedEventArgs
-        {
+        var args = new FileRenamedEventArgs {
             ChangeType = WatcherChangeTypes.Renamed,
             FullPath = newFullPath,
             Name = System.IO.Path.GetFileName(newFullPath),
@@ -128,18 +120,14 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         _debounce.ScheduleDebounce(newFullPath, () => DebouncedRenamed?.Invoke(this, args));
     }
 
-    private bool MatchesWatch(string fullPath)
-    {
+    private bool MatchesWatch(string fullPath) {
         var normalizedWatchPath = InMemoryFileSystem.NormalizePath(Path);
         var normalizedFullPath = InMemoryFileSystem.NormalizePath(fullPath);
 
-        if (!IncludeSubdirectories)
-        {
+        if (!IncludeSubdirectories) {
             var dir = System.IO.Path.GetDirectoryName(normalizedFullPath)?.Replace('\\', '/') ?? string.Empty;
             if (dir != normalizedWatchPath) return false;
-        }
-        else
-        {
+        } else {
             if (!normalizedFullPath.StartsWith(normalizedWatchPath + "/", StringComparison.Ordinal)
                 && normalizedFullPath != normalizedWatchPath)
                 return false;
@@ -150,20 +138,17 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
         return true;
     }
 
-    private bool MatchesFilter(string fileName)
-    {
+    private bool MatchesFilter(string fileName) {
         var patterns = new List<string> { Filter };
         if (Filters.Count > 0) patterns.AddRange(Filters);
 
-        foreach (var pattern in patterns)
-        {
+        foreach (var pattern in patterns) {
             if (MatchesGlob(fileName, pattern)) return true;
         }
         return false;
     }
 
-    private static bool MatchesGlob(string fileName, string pattern)
-    {
+    private static bool MatchesGlob(string fileName, string pattern) {
         if (pattern == "*.*") return true;
         var regex = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
             .Replace("\\*", ".*").Replace("\\?", ".") + "$";
@@ -173,8 +158,7 @@ public sealed class InMemoryFileSystemWatcher : IFileSystemWatcher
     /// <summary>
     /// 释放监视器资源，从文件系统注销自身
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _debounce.Dispose();

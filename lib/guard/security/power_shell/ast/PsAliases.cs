@@ -4,15 +4,12 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// PS 常用别名 → 规范 cmdlet 名映射
 /// 使用 Object.Create(null) 等价模式防止原型链污染
 /// </summary>
-public static class PsAliases
-{
+public static class PsAliases {
     /// <summary>
     /// 尝试解析别名为规范 cmdlet 名
     /// </summary>
-    public static bool TryResolve(string alias, out string canonical)
-    {
-        if (AliasMap.TryGetValue(alias.ToLowerInvariant(), out var result))
-        {
+    public static bool TryResolve(string alias, out string canonical) {
+        if (AliasMap.TryGetValue(alias.ToLowerInvariant(), out var result)) {
             canonical = result;
             return true;
         }
@@ -23,8 +20,7 @@ public static class PsAliases
     /// <summary>
     /// 获取规范名（如果找不到返回原始名的小写形式）
     /// </summary>
-    public static string ResolveToCanonical(string name)
-    {
+    public static string ResolveToCanonical(string name) {
         var lower = name.ToLowerInvariant();
         return AliasMap.TryGetValue(lower, out var canonical) ? canonical : lower;
     }
@@ -34,10 +30,8 @@ public static class PsAliases
     /// </summary>
     private static readonly FrozenDictionary<string, string> AliasMap = BuildAliasMap();
 
-    private static FrozenDictionary<string, string> BuildAliasMap()
-    {
-        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
+    private static FrozenDictionary<string, string> BuildAliasMap() {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) {
             // 目录列表
             ["ls"] = "Get-ChildItem",
             ["dir"] = "Get-ChildItem",

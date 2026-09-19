@@ -4,8 +4,7 @@ namespace Core.Agents.Interfaces;
 /// <summary>
 /// Agent 执行引擎接口 - 负责执行策略（并行/串行）
 /// </summary>
-public interface IAgentExecutionEngine
-{
+public interface IAgentExecutionEngine {
     /// <summary>
     /// 并行执行多个Agent
     /// </summary>

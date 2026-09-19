@@ -3,13 +3,11 @@ namespace MockServer.E2E.Tests.Scripts;
 /// <summary>
 /// 脚本超时关键字 + 路径乱码检测 E2E 脚本
 /// </summary>
-public static class TimeoutAndPathScripts
-{
+public static class TimeoutAndPathScripts {
     /// <summary>
     /// sleep 关键字自动延长超时 — 验证含 sleep 的命令不被默认超时终止
     /// </summary>
-    public static ConversationScript SleepKeywordAutoExtendsTimeout => new()
-    {
+    public static ConversationScript SleepKeywordAutoExtendsTimeout => new() {
         Name = "sleep关键字自动延长超时",
         Turns =
         [
@@ -43,8 +41,7 @@ public static class TimeoutAndPathScripts
     /// <summary>
     /// 超时关键字冲突直接报错 — 用户传入 timeout 不足时返回 Error 给 AI
     /// </summary>
-    public static ConversationScript TimeoutKeywordConflictReturnsError => new()
-    {
+    public static ConversationScript TimeoutKeywordConflictReturnsError => new() {
         Name = "超时关键字冲突直接报错",
         Turns =
         [
@@ -77,11 +74,9 @@ public static class TimeoutAndPathScripts
     /// <summary>
     /// 乱码路径直接报错不进 ask 面板 — ask 模式下含 U+FFFD 的路径应直接 Invalid
     /// </summary>
-    public static ConversationScript GarbledPathDirectErrorNoAskPanel => new()
-    {
+    public static ConversationScript GarbledPathDirectErrorNoAskPanel => new() {
         Name = "乱码路径直接报错不进ask面板",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_PERMISSION_MODE"] = "ask"
         },
         Turns =
@@ -116,11 +111,9 @@ public static class TimeoutAndPathScripts
     /// <summary>
     /// 工作目录外不存在路径直接报错 — ask 模式下不存在的路径应直接 Invalid 而非 Ask
     /// </summary>
-    public static ConversationScript NonExistentPathDirectErrorNoAskPanel => new()
-    {
+    public static ConversationScript NonExistentPathDirectErrorNoAskPanel => new() {
         Name = "工作目录外不存在路径直接报错",
-        ExtraEnvVars = new Dictionary<string, string>
-        {
+        ExtraEnvVars = new Dictionary<string, string> {
             ["JCC_PERMISSION_MODE"] = "ask"
         },
         Turns =

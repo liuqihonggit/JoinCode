@@ -4,8 +4,7 @@ namespace Core.CostTracking;
 /// 成本跟踪器 — 记录 Token 用量、计算成本、管理预算告警与历史持久化
 /// </summary>
 [Register(typeof(ICostTracker), ServiceLifetime.Singleton)]
-public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
-{
+public sealed partial class CostTracker : IAsyncDisposable, ICostTracker {
     private readonly ILogger<CostTracker>? _logger;
     private readonly ITelemetryService? _telemetryService;
     private readonly ModelPricing _pricing;
@@ -24,8 +23,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="telemetryService">遥测服务（可选）</param>
     /// <param name="clock">时钟服务（可选，默认使用系统时钟）</param>
     /// <param name="modelConfigLoader">模型配置加载器（可选，用于加载模型定价）</param>
-    public CostTracker(IFileOperationService fileOperationService, string? storagePath = null, ILogger<CostTracker>? logger = null, BudgetConfig? budgetConfig = null, ITelemetryService? telemetryService = null, IClockService? clock = null, IModelConfigLoader? modelConfigLoader = null)
-    {
+    public CostTracker(IFileOperationService fileOperationService, string? storagePath = null, ILogger<CostTracker>? logger = null, BudgetConfig? budgetConfig = null, ITelemetryService? telemetryService = null, IClockService? clock = null, IModelConfigLoader? modelConfigLoader = null) {
         _logger = logger;
         _telemetryService = telemetryService;
         _budget = new BudgetGuard(logger, budgetConfig);
@@ -33,23 +31,20 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         _pricing = new ModelPricing(logger, modelConfigLoader);
         _store = new UsageStore(fileOperationService, storagePath ?? AppDataConstants.Paths.CostTrackingFilePath, logger);
 
-        if (budgetConfig != null)
-        {
+        if (budgetConfig != null) {
             budgetConfig.ValidateOrThrow();
             _logger?.LogInformation("[CostTracker] 预算管理已启用 - 日限额: ${Daily}, 月限额: ${Monthly}, 总限额: ${Total}",
                 budgetConfig.DailyLimit, budgetConfig.MonthlyLimit, budgetConfig.TotalLimit);
         }
 
         var initCts = Volatile.Read(ref _disposeCts);
-        if (initCts is not null)
-        {
+        if (initCts is not null) {
             _ = _store.LoadHistoryAsync(initCts.Token).WaitAsync(TimeSpan.FromSeconds(10), initCts.Token).ConfigureAwait(false);
         }
     }
 
     /// <summary>成本告警触发事件 — 委托到 BudgetGuard</summary>
-    public event EventHandler<CostAlertEventArgs>? CostAlertTriggered
-    {
+    public event EventHandler<CostAlertEventArgs>? CostAlertTriggered {
         add => _budget.CostAlertTriggered += value;
         remove => _budget.CostAlertTriggered -= value;
     }
@@ -61,8 +56,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="promptTokens">Prompt Token 数量</param>
     /// <param name="completionTokens">Completion Token 数量</param>
     /// <param name="sessionId">会话标识（可选，默认使用全局会话标识）</param>
-    public void RecordUsage(string model, int promptTokens, int completionTokens, string? sessionId = null)
-    {
+    public void RecordUsage(string model, int promptTokens, int completionTokens, string? sessionId = null) {
         RecordUsage(model, promptTokens, completionTokens, 0, 0, 0, sessionId);
     }
 
@@ -75,8 +69,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="cacheCreationTokens">缓存创建 Token 数量</param>
     /// <param name="cacheReadTokens">缓存读取 Token 数量</param>
     /// <param name="sessionId">会话标识（可选，默认使用全局会话标识）</param>
-    public void RecordUsage(string model, int promptTokens, int completionTokens, int cacheCreationTokens, int cacheReadTokens, string? sessionId = null)
-    {
+    public void RecordUsage(string model, int promptTokens, int completionTokens, int cacheCreationTokens, int cacheReadTokens, string? sessionId = null) {
         RecordUsage(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens, 0, sessionId);
     }
 
@@ -90,10 +83,8 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="cacheReadTokens">缓存读取 Token 数量</param>
     /// <param name="apiDurationMs">API 调用耗时（毫秒）</param>
     /// <param name="sessionId">会话标识（可选，默认使用全局会话标识）</param>
-    public void RecordUsage(string model, int promptTokens, int completionTokens, int cacheCreationTokens, int cacheReadTokens, double apiDurationMs, string? sessionId = null)
-    {
-        var record = new TokenUsageRecord
-        {
+    public void RecordUsage(string model, int promptTokens, int completionTokens, int cacheCreationTokens, int cacheReadTokens, double apiDurationMs, string? sessionId = null) {
+        var record = new TokenUsageRecord {
             Timestamp = _stats.CurrentTime,
             Model = model,
             PromptTokens = promptTokens,
@@ -110,8 +101,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         _logger?.LogInformation("[CostTracker] 记录用量 - 模型: {Model}, Prompt: {PromptTokens}, Completion: {CompletionTokens}, CacheCreate: {CacheCreate}, CacheRead: {CacheRead}, 成本: ${Cost:F6}",
             model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens, record.CostUsd);
 
-        if (_telemetryService != null)
-        {
+        if (_telemetryService != null) {
             var tokenCounter = _telemetryService.GetCounter("cost.tracker.tokens", "tokens", "Token usage count");
             tokenCounter.Add(promptTokens, new Dictionary<string, string> { ["model"] = model, ["type"] = "prompt" });
             tokenCounter.Add(completionTokens, new Dictionary<string, string> { ["model"] = model, ["type"] = "completion" });
@@ -121,13 +111,11 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
         }
 
         var cts = Volatile.Read(ref _disposeCts);
-        if (cts is not null)
-        {
+        if (cts is not null) {
             _ = Task.Run(() => _store.SaveHistoryAsync(cts.Token)).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
         }
 
-        if (_budget.IsEnabled && cts is not null)
-        {
+        if (_budget.IsEnabled && cts is not null) {
             _ = _budget.CheckAlertsAsync(GetCostSnapshot, cts.Token).WaitAsync(TimeSpan.FromSeconds(10), cts.Token).ConfigureAwait(false);
         }
     }
@@ -137,12 +125,10 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// </summary>
     /// <param name="sessionId">会话标识</param>
     /// <returns>会话成本统计信息；若会话不存在则返回空统计</returns>
-    public CostStatistics GetSessionStatistics(string sessionId)
-    {
+    public CostStatistics GetSessionStatistics(string sessionId) {
         if (!_store.TryGetSessionRecords(sessionId, out var records))
             return new CostStatistics();
-        lock (records)
-        {
+        lock (records) {
             return CalculateStatistics(new List<TokenUsageRecord>(records));
         }
     }
@@ -151,8 +137,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// 获取今日的成本统计信息
     /// </summary>
     /// <returns>今日成本统计信息</returns>
-    public CostStatistics GetTodayStatistics()
-    {
+    public CostStatistics GetTodayStatistics() {
         var today = _stats.CurrentTime.Date;
         var records = _store.GetRecordsByDate(today);
         return CalculateStatistics(records);
@@ -162,8 +147,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// 获取全部用量记录的成本统计信息
     /// </summary>
     /// <returns>全部成本统计信息</returns>
-    public CostStatistics GetTotalStatistics()
-    {
+    public CostStatistics GetTotalStatistics() {
         return CalculateStatistics(_store.GetAllSnapshot());
     }
 
@@ -173,8 +157,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <param name="startDate">起始时间</param>
     /// <param name="endDate">结束时间</param>
     /// <returns>指定时间区间内的成本统计信息</returns>
-    public CostStatistics GetStatistics(DateTime startDate, DateTime endDate)
-    {
+    public CostStatistics GetStatistics(DateTime startDate, DateTime endDate) {
         var records = _store.GetRecordsByDateRange(startDate, endDate);
         return CalculateStatistics(records);
     }
@@ -184,8 +167,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// </summary>
     /// <param name="added">新增行数</param>
     /// <param name="removed">删除行数</param>
-    public void RecordLinesChanged(int added, int removed)
-    {
+    public void RecordLinesChanged(int added, int removed) {
         _stats.RecordLinesChanged(added, removed);
     }
 
@@ -234,10 +216,8 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 
     private decimal CalculateCost(string model, int promptTokens, int completionTokens, int cacheCreationTokens = 0, int cacheReadTokens = 0) => _pricing.CalculateCost(model, promptTokens, completionTokens, cacheCreationTokens, cacheReadTokens);
 
-    private CostStatistics CalculateStatistics(List<TokenUsageRecord> records)
-    {
-        if (records.Count == 0)
-        {
+    private CostStatistics CalculateStatistics(List<TokenUsageRecord> records) {
+        if (records.Count == 0) {
             return new CostStatistics();
         }
 
@@ -249,8 +229,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 
         var cacheSavings = records
             .Where(r => r.CacheReadTokens > 0 && _pricing.TryGetCost(r.Model, out var costInfo))
-            .Sum(r =>
-            {
+            .Sum(r => {
                 var costInfo = _pricing.Get(r.Model)!;
                 var normalCost = (r.CacheReadTokens / 1000m) * costInfo.PromptCostPer1KTokens;
                 var cacheCost = (r.CacheReadTokens / 1000m) * costInfo.PromptCostPer1KTokens * 0.1m;
@@ -266,8 +245,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 
         var modelBreakdown = records
             .GroupBy(r => r.Model)
-            .Select(g => new ModelCostStatistics
-            {
+            .Select(g => new ModelCostStatistics {
                 Model = g.Key,
                 RequestCount = g.Count(),
                 PromptTokens = g.Sum(r => r.PromptTokens),
@@ -278,8 +256,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
             })
             .ToList();
 
-        return new CostStatistics
-        {
+        return new CostStatistics {
             RequestCount = records.Count,
             PromptTokens = totalPromptTokens,
             CompletionTokens = totalCompletionTokens,
@@ -299,8 +276,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// <summary>
     /// 重置所有用量记录 — 对齐 TS login.tsx resetCostState
     /// </summary>
-    public void Reset()
-    {
+    public void Reset() {
         _store.Reset();
         _budget.Reset();
         _stats.Reset();
@@ -311,11 +287,9 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
     /// 异步释放资源 — 取消内部令牌并释放预算锁
     /// </summary>
     /// <returns>表示异步操作的任务</returns>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         var cts = Interlocked.Exchange(ref _disposeCts, null);
-        if (cts is not null)
-        {
+        if (cts is not null) {
             cts.Cancel();
             _budget.Dispose();
             cts.Dispose();
@@ -328,8 +302,7 @@ public sealed partial class CostTracker : IAsyncDisposable, ICostTracker
 /// <summary>
 /// 模型成本信息 — 描述单个模型的 Prompt 与 Completion Token 定价
 /// </summary>
-public sealed partial class ModelCostInfo
-{
+public sealed partial class ModelCostInfo {
     /// <summary>
     /// 模型名称
     /// </summary>
@@ -346,8 +319,7 @@ public sealed partial class ModelCostInfo
     public decimal CompletionCostPer1KTokens { get; init; }
 }
 
-internal enum BudgetType
-{
+internal enum BudgetType {
     Daily,
     Monthly,
     Total

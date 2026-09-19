@@ -6,8 +6,7 @@ namespace Core.Permission;
 /// Auto 模式: 拒绝 + 拒绝模板
 /// Ask 模式: 确认 + 确认模板
 /// </summary>
-public abstract class SimpleCommandRiskHandler : ICommandRiskHandler
-{
+public abstract class SimpleCommandRiskHandler : ICommandRiskHandler {
     /// <inheritdoc />
     public abstract CommandRisk RiskType { get; }
 
@@ -27,14 +26,12 @@ public abstract class SimpleCommandRiskHandler : ICommandRiskHandler
     protected abstract string AskModeWarning { get; }
 
     /// <inheritdoc />
-    public string BuildRejectionMessage(CommandRiskContext context)
-    {
+    public string BuildRejectionMessage(CommandRiskContext context) {
         return $"{OperationName}已被阻止（{context.Details}）。{AutoModeHint}";
     }
 
     /// <inheritdoc />
-    public string BuildConfirmationMessage(CommandRiskContext context)
-    {
+    public string BuildConfirmationMessage(CommandRiskContext context) {
         return $"工具 '{context.ToolName}' 请求执行{OperationName}（{context.Details}）。{AskModeWarning}，是否批准？";
     }
 }

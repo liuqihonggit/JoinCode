@@ -6,8 +6,7 @@ namespace Core.Agents.DualModel;
 /// Executor 在另一个独立 Session 中执行计划
 /// 两个 Session 永不混合，各自的前缀缓存互不干扰
 /// </summary>
-public sealed class ModelCoordinator : IModelCoordinator
-{
+public sealed class ModelCoordinator : IModelCoordinator {
     private readonly IQueryEngine _queryEngine;
     private readonly ILogger? _logger;
     private readonly string _plannerModelId;
@@ -47,8 +46,7 @@ public sealed class ModelCoordinator : IModelCoordinator
         string executorModelId,
         List<string>? plannerAllowedTools = null,
         Func<string, bool>? shouldPlan = null,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _queryEngine = queryEngine;
         _plannerModelId = plannerModelId;
         _executorModelId = executorModelId;
@@ -69,13 +67,11 @@ public sealed class ModelCoordinator : IModelCoordinator
     /// <summary>
     /// 规划 — Planner 在独立 Session 中用只读工具做研究，产出计划
     /// </summary>
-    public async Task<ModelPlanResult> PlanAsync(string objective, CancellationToken ct = default)
-    {
+    public async Task<ModelPlanResult> PlanAsync(string objective, CancellationToken ct = default) {
         _plannerSession ??= new MessageList();
         _plannerSession.AddSystemMessage(DefaultPlannerPrompt);
 
-        var plannerOptions = new SubAgentOptions
-        {
+        var plannerOptions = new SubAgentOptions {
             ModelName = _plannerModelId,
             AllowedTools = _plannerAllowedTools,
             SystemPrompt = DefaultPlannerPrompt,
@@ -89,8 +85,7 @@ public sealed class ModelCoordinator : IModelCoordinator
             _queryEngine,
             _logger);
 
-        try
-        {
+        try {
             var result = await planner.ExecuteAsync(ct).ConfigureAwait(false);
             if (!result.IsSuccess)
                 return ModelPlanResult.Fail(result.Error ?? "Planner failed without error message");
@@ -98,19 +93,14 @@ public sealed class ModelCoordinator : IModelCoordinator
             var plan = result.Output;
             var isNoOp = NoOpPlanDetector.IsNoOpPlan(plan);
 
-            if (!isNoOp)
-            {
+            if (!isNoOp) {
                 _plannerSession.AddAssistantMessage(plan);
             }
 
             return ModelPlanResult.Success(plan, isNoOp);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             return ModelPlanResult.Fail("Planner cancelled");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[ModelCoordinator] Planner failed");
             return ModelPlanResult.Fail(ex.Message);
         }
@@ -119,12 +109,10 @@ public sealed class ModelCoordinator : IModelCoordinator
     /// <summary>
     /// 执行 — Executor 在独立 Session 中执行计划
     /// </summary>
-    public async Task<ModelExecutionResult> ExecuteAsync(string objective, string plan, CancellationToken ct = default)
-    {
+    public async Task<ModelExecutionResult> ExecuteAsync(string objective, string plan, CancellationToken ct = default) {
         var handoff = FormatHandoff(objective, plan);
 
-        var executorOptions = new SubAgentOptions
-        {
+        var executorOptions = new SubAgentOptions {
             ModelName = _executorModelId,
             SystemPrompt = "You are the executor in a two-model coding agent. Carry out the plan using your available tools.",
             SessionId = SessionIdFactory.DefaultSessionId,
@@ -136,20 +124,15 @@ public sealed class ModelCoordinator : IModelCoordinator
             _queryEngine,
             _logger);
 
-        try
-        {
+        try {
             var result = await executor.ExecuteAsync(ct).ConfigureAwait(false);
             if (!result.IsSuccess)
                 return ModelExecutionResult.Fail(result.Error ?? "Executor failed without error message");
 
             return ModelExecutionResult.Success(result.Output);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             return ModelExecutionResult.Fail("Executor cancelled");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "[ModelCoordinator] Executor failed");
             return ModelExecutionResult.Fail(ex.Message);
         }
@@ -158,10 +141,8 @@ public sealed class ModelCoordinator : IModelCoordinator
     /// <summary>
     /// 规划并执行 — 完整的 Plan → Execute 流程
     /// </summary>
-    public async Task<ModelCoordinationResult> PlanAndExecuteAsync(string objective, CancellationToken ct = default)
-    {
-        if (_shouldPlan is not null && !_shouldPlan(objective))
-        {
+    public async Task<ModelCoordinationResult> PlanAndExecuteAsync(string objective, CancellationToken ct = default) {
+        if (_shouldPlan is not null && !_shouldPlan(objective)) {
             var directResult = await ExecuteAsync(objective, objective, ct).ConfigureAwait(false);
             return ModelCoordinationResult.FromPlanAndExecution(
                 ModelPlanResult.Success(objective, isNoOp: false),
@@ -182,16 +163,14 @@ public sealed class ModelCoordinator : IModelCoordinator
     /// <summary>
     /// 重置 Planner 会话 — 切换到新的 Executor 会话时调用
     /// </summary>
-    public void ResetPlannerSession()
-    {
+    public void ResetPlannerSession() {
         _plannerSession = null;
     }
 
     /// <summary>
     /// 格式化 Executor 接手消息 — 对齐 Reasonix formatHandoff
     /// </summary>
-    private static string FormatHandoff(string task, string plan)
-    {
+    private static string FormatHandoff(string task, string plan) {
         return
             $"# {ExecutorHandoffMarker}\n\n" +
             "You are the executor now. Use your available tools to execute the task.\n\n" +

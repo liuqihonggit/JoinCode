@@ -4,8 +4,7 @@ namespace McpClient.Transports;
 /// MCP 服务端传输降级链 — 按优先级依次尝试多个服务端传输,
 /// 运行时错误时降级到下一个传输(无熔断器/健康检查,轻量版)。
 /// </summary>
-public sealed class McpServerTransportFallbackChain : IMcpTransport
-{
+public sealed class McpServerTransportFallbackChain : IMcpTransport {
     private readonly IMcpTransport[] _transports;
     private readonly ILogger? _logger;
     private IMcpTransport? _activeTransport;
@@ -34,8 +33,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     /// <param name="logger">日志记录器,可为 null</param>
     public McpServerTransportFallbackChain(
         IMcpTransport[] transports,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _transports = transports ?? throw new ArgumentNullException(nameof(transports));
         _logger = logger;
 
@@ -49,14 +47,11 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步启动操作的任务</returns>
-    public async Task StartAsync(CancellationToken ct = default)
-    {
+    public async Task StartAsync(CancellationToken ct = default) {
         if (IsRunning) return;
 
-        for (var i = 0; i < _transports.Length; i++)
-        {
-            try
-            {
+        for (var i = 0; i < _transports.Length; i++) {
+            try {
                 _logger?.LogInformation("[ServerFallback] Starting transport {Type} (priority={Priority})",
                     _transports[i].GetType().Name, i + 1);
 
@@ -68,9 +63,7 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
                 _logger?.LogInformation("[ServerFallback] Server started on {Type} (priority={Priority})",
                     _transports[i].GetType().Name, i + 1);
                 return;
-            }
-            catch (Exception ex) when (i < _transports.Length - 1)
-            {
+            } catch (Exception ex) when (i < _transports.Length - 1) {
                 _logger?.LogWarning(ex, "[ServerFallback] Transport {Type} start failed, falling back to next",
                     _transports[i].GetType().Name);
             }
@@ -84,10 +77,8 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步停止操作的任务</returns>
-    public async Task StopAsync(CancellationToken ct = default)
-    {
-        if (_activeTransport is not null)
-        {
+    public async Task StopAsync(CancellationToken ct = default) {
+        if (_activeTransport is not null) {
             UnwireEvents(_activeTransport);
             await _activeTransport.StopAsync(ct).ConfigureAwait(false);
             _activeTransport = null;
@@ -101,16 +92,14 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     /// <param name="message">JSON-RPC 消息</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步发送操作的任务</returns>
-    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
-    {
+    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default) {
         if (_activeTransport is null)
             throw new InvalidOperationException("No active transport");
 
         await _activeTransport.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task OnActiveTransportErrorAsync(Exception ex)
-    {
+    private async Task OnActiveTransportErrorAsync(Exception ex) {
         if (_activeIndex < 0 || _activeIndex >= _transports.Length - 1) return;
 
         using var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时");
@@ -123,21 +112,18 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
         _logger?.LogWarning(ex, "[ServerFallback] Transport {FromType} runtime error, degrading to {ToType}",
             fromType, _transports[nextIndex].GetType().Name);
 
-        if (_activeTransport is not null)
-        {
+        if (_activeTransport is not null) {
             UnwireEvents(_activeTransport);
             await _activeTransport.StopAsync(CancellationToken.None).ConfigureAwait(false);
         }
 
-        try
-        {
+        try {
             await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
             _activeTransport = _transports[nextIndex];
             _activeIndex = nextIndex;
             WireEvents(_activeTransport);
 
-            FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs
-            {
+            FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs {
                 FromTransportType = fromType,
                 ToTransportType = _transports[nextIndex].GetType().Name,
                 Reason = ex.Message,
@@ -148,38 +134,31 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
 
             _logger?.LogInformation("[ServerFallback] Degraded to {Type} successfully",
                 _transports[nextIndex].GetType().Name);
-        }
-        catch (Exception fallbackEx)
-        {
+        } catch (Exception fallbackEx) {
             _logger?.LogError(fallbackEx, "[ServerFallback] Degradation to {Type} also failed",
                 _transports[nextIndex].GetType().Name);
         }
-    
+
     }
 
-    private void WireEvents(IMcpTransport transport)
-    {
+    private void WireEvents(IMcpTransport transport) {
         transport.MessageReceived += OnTransportMessageReceived;
         transport.ErrorOccurred += OnTransportError;
     }
 
-    private void UnwireEvents(IMcpTransport transport)
-    {
+    private void UnwireEvents(IMcpTransport transport) {
         transport.MessageReceived -= OnTransportMessageReceived;
         transport.ErrorOccurred -= OnTransportError;
     }
 
-    private void OnTransportMessageReceived(object? sender, McpMessageReceivedEventArgs e)
-    {
+    private void OnTransportMessageReceived(object? sender, McpMessageReceivedEventArgs e) {
         MessageReceived?.Invoke(this, e);
     }
 
-    private void OnTransportError(object? sender, McpTransportErrorEventArgs e)
-    {
+    private void OnTransportError(object? sender, McpTransportErrorEventArgs e) {
         ErrorOccurred?.Invoke(this, e);
 
-        if (IsRunning)
-        {
+        if (IsRunning) {
             _ = OnActiveTransportErrorAsync(e.Exception);
         }
     }
@@ -188,15 +167,13 @@ public sealed class McpServerTransportFallbackChain : IMcpTransport
     /// 异步释放资源 — 停止活跃传输、释放切换锁、释放全部传输
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _switchLock.Dispose();
 
-        foreach (var transport in _transports)
-        {
+        foreach (var transport in _transports) {
             await transport.DisposeAsync().ConfigureAwait(false);
         }
 

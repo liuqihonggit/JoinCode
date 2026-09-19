@@ -4,8 +4,7 @@ namespace MockServer.Core;
 /// 脚本化响应策略基类 — 按预设脚本序列返回响应，支持工具调用和思考内容
 /// 每次请求按顺序消费一个 ScriptedTurn，脚本耗尽时返回默认响应
 /// </summary>
-public abstract class ScriptedResponseStrategyBase : IResponseStrategy
-{
+public abstract class ScriptedResponseStrategyBase : IResponseStrategy {
     private readonly List<ScriptedTurn> _turns;
     private int _turnIndex;
     private readonly object _lock = new();
@@ -22,8 +21,7 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// </summary>
     public virtual bool SupportsStreaming => true;
 
-    protected ScriptedResponseStrategyBase(List<ScriptedTurn>? turns, string defaultResponse)
-    {
+    protected ScriptedResponseStrategyBase(List<ScriptedTurn>? turns, string defaultResponse) {
         _turns = turns ?? [];
         DefaultResponse = string.IsNullOrEmpty(defaultResponse) ? "Mock response (script exhausted)." : defaultResponse;
     }
@@ -34,22 +32,17 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// 则 peek(不推进索引),供 BuildToolDescriptionRequest 使用;第二次请求(tool_descriptions)
     /// 才真正消费该轮次,返回带 tool_call 的响应。无 ToolCalls 的轮次直接消费。
     /// </summary>
-    public virtual void OnRequestStarted(JsonElement request)
-    {
-        lock (_lock)
-        {
+    public virtual void OnRequestStarted(JsonElement request) {
+        lock (_lock) {
             var isTwoPhaseProbe = request.TryGetProperty("tool_groups", out _) &&
                                   !request.TryGetProperty("tool_descriptions", out _);
-            if (_turnIndex < _turns.Count)
-            {
+            if (_turnIndex < _turns.Count) {
                 var turn = _turns[_turnIndex];
                 var shouldPeek = isTwoPhaseProbe && turn.ToolCalls is { Count: > 0 };
                 _currentTurn = turn;
                 if (!shouldPeek)
                     _turnIndex++;
-            }
-            else
-            {
+            } else {
                 _currentTurn = new ScriptedTurn { TextResponse = DefaultResponse };
             }
         }
@@ -58,10 +51,8 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// <summary>
     /// 当前轮次（OnRequestStarted 后有效，缓存默认值避免重复创建）
     /// </summary>
-    protected ScriptedTurn CurrentTurn
-    {
-        get
-        {
+    protected ScriptedTurn CurrentTurn {
+        get {
             if (_currentTurn is not null) return _currentTurn;
             return _defaultTurnCache ??= new ScriptedTurn { TextResponse = DefaultResponse };
         }
@@ -80,8 +71,7 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// <summary>
     /// 获取流式响应的内容分片 — 使用当前轮次的文本响应
     /// </summary>
-    public virtual string[] GetContentChunks()
-    {
+    public virtual string[] GetContentChunks() {
         var text = CurrentTurn.TextResponse ?? DefaultResponse;
         return GetContentChunks(text);
     }
@@ -92,31 +82,24 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// 与 IResponseStrategy.GetContentChunks 默认实现的模式保持一致
     /// （["Hello", "!", " This", " is", ...]）。
     /// </summary>
-    protected static string[] GetContentChunks(string text)
-    {
+    protected static string[] GetContentChunks(string text) {
         if (string.IsNullOrEmpty(text))
             return [" "];
 
         var chunks = new List<string>();
         var current = new StringBuilder();
-        foreach (var c in text)
-        {
-            if (c == ' ')
-            {
-                if (current.Length > 0)
-                {
+        foreach (var c in text) {
+            if (c == ' ') {
+                if (current.Length > 0) {
                     chunks.Add(current.ToString());
                     current.Clear();
                 }
                 current.Append(' ');
-            }
-            else
-            {
+            } else {
                 current.Append(c);
             }
         }
-        if (current.Length > 0)
-        {
+        if (current.Length > 0) {
             chunks.Add(current.ToString());
         }
 
@@ -140,10 +123,8 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// 根据当前脚本轮次的 HttpStatusCode 字段返回 HTTP 状态码。
     /// 默认 200。非 200 时 KestrelMockServer 会返回错误响应。
     /// </summary>
-    public virtual int GetHttpStatusCode(JsonElement request)
-    {
-        lock (_lock)
-        {
+    public virtual int GetHttpStatusCode(JsonElement request) {
+        lock (_lock) {
             return CurrentTurn.HttpStatusCode ?? 200;
         }
     }
@@ -160,8 +141,7 @@ public abstract class ScriptedResponseStrategyBase : IResponseStrategy
     /// 两阶段工具加载 — 查看当前轮次的 tool_calls,请求这些工具的完整描述。
     /// 只请求当前轮次需要的工具,不是全部 304 个。
     /// </summary>
-    public virtual string? BuildToolDescriptionRequest(JsonElement request)
-    {
+    public virtual string? BuildToolDescriptionRequest(JsonElement request) {
         var turn = CurrentTurn;
         if (turn.ToolCalls is null or { Count: 0 }) return null;
 

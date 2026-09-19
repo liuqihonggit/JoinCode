@@ -6,16 +6,14 @@ namespace Infrastructure.Pipeline.Middlewares;
 /// 适用于所有实现 IMetricsContext 的管道上下文
 /// </summary>
 public sealed class MetricsMiddleware<TContext> : IMiddleware<TContext>
-    where TContext : IMetricsContext
-{
+    where TContext : IMetricsContext {
     private readonly ITelemetryService? _telemetryService;
 
     /// <summary>
     /// 构造指标中间件
     /// </summary>
     /// <param name="telemetryService">可选遥测服务,为 null 时不记录指标</param>
-    public MetricsMiddleware(ITelemetryService? telemetryService = null)
-    {
+    public MetricsMiddleware(ITelemetryService? telemetryService = null) {
         _telemetryService = telemetryService;
     }
 
@@ -23,8 +21,7 @@ public sealed class MetricsMiddleware<TContext> : IMiddleware<TContext>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
     /// <inheritdoc/>
-    public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct) {
         await next(context, ct).ConfigureAwait(false);
 
         if (_telemetryService == null) return;
@@ -34,8 +31,7 @@ public sealed class MetricsMiddleware<TContext> : IMiddleware<TContext>
 
         _telemetryService.RecordCount($"{context.MetricsPrefix}.count", tags, description: $"{context.MetricsPrefix} count");
 
-        if (context.MetricsDurationMs.HasValue)
-        {
+        if (context.MetricsDurationMs.HasValue) {
             _telemetryService.RecordHistogram($"{context.MetricsPrefix}.duration", context.MetricsDurationMs.Value, tags, "ms", $"{context.MetricsPrefix} duration");
         }
     }

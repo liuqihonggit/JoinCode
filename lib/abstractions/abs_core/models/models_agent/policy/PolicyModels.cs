@@ -1,8 +1,7 @@
 
 namespace JoinCode.Abstractions.Models.Policy;
 
-public enum PolicyType
-{
+public enum PolicyType {
     [EnumValue("tool_usage_limit")] ToolUsageLimit = 0,
     [EnumValue("cost_limit")] CostLimit = 1,
     [EnumValue("rate_limit")] RateLimit = 2,
@@ -10,16 +9,14 @@ public enum PolicyType
     [EnumValue("time_restriction")] TimeRestriction = 4
 }
 
-public enum PolicyAction
-{
+public enum PolicyAction {
     [EnumValue("allow")] Allow = 0,
     [EnumValue("deny")] Deny = 1,
     [EnumValue("warn")] Warn = 2,
     [EnumValue("throttle")] Throttle = 3
 }
 
-public sealed class PolicyEvaluationResult
-{
+public sealed class PolicyEvaluationResult {
     public required string RuleId { get; init; }
     public required bool Allowed { get; init; }
     public required PolicyAction Action { get; init; }
@@ -29,8 +26,7 @@ public sealed class PolicyEvaluationResult
     public TimeSpan? RetryAfter { get; init; }
 }
 
-public sealed class PolicyRule
-{
+public sealed class PolicyRule {
     public required string RuleId { get; init; }
     public required string Name { get; init; }
     public required PolicyType Type { get; init; }

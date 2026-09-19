@@ -28,8 +28,7 @@ public delegate ValueTask<ToolResult?> BashDefenseStepAsync(
 /// 两者共存：Dispatcher 处理不适合 node 化的守卫（GitCommit/Heredoc 等），BashDefense 处理 MTP 扰动防御链。
 /// </para>
 /// </summary>
-public sealed class BashDefense
-{
+public sealed class BashDefense {
     private readonly BashDefenseContext _context;
     private readonly List<BashDefenseStepAsync> _steps = new();
 
@@ -51,11 +50,9 @@ public sealed class BashDefense
         SystemActuatorKind shellKind,
         GuardConfirmMode confirmMode = GuardConfirmMode.None,
         string? confirmedCommand = null,
-        string? argvHash = null)
-    {
+        string? argvHash = null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(command);
-        return new BashDefense(new BashDefenseContext
-        {
+        return new BashDefense(new BashDefenseContext {
             OriginalCommand = command,
             CurrentCommand = command,
             WorkingDirectory = workingDirectory,
@@ -71,8 +68,7 @@ public sealed class BashDefense
     /// </summary>
     /// <param name="step">防御步骤（有名函数，非 lambda）</param>
     /// <returns>自身，支持链式调用</returns>
-    public BashDefense Then(BashDefenseStepAsync step)
-    {
+    public BashDefense Then(BashDefenseStepAsync step) {
         ArgumentNullException.ThrowIfNull(step);
         _steps.Add(step);
         return this;
@@ -84,10 +80,8 @@ public sealed class BashDefense
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>上下文和拒绝结果（null 表示全部通过）</returns>
-    public async ValueTask<(BashDefenseContext Context, ToolResult? Rejection)> ExecuteAsync(CancellationToken ct)
-    {
-        foreach (var step in _steps)
-        {
+    public async ValueTask<(BashDefenseContext Context, ToolResult? Rejection)> ExecuteAsync(CancellationToken ct) {
+        foreach (var step in _steps) {
             ct.ThrowIfCancellationRequested();
             var rejection = await step(_context, ct).ConfigureAwait(false);
             if (rejection is not null)

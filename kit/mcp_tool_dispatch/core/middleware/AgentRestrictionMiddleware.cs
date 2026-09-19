@@ -6,8 +6,7 @@ namespace McpToolRegistry;
 /// 内部通过 IToolFilterPolicy 统一 3 层过滤检查（对齐 TS 原版 filterToolsForAgent）。
 /// </summary>
 [Register(typeof(IToolExecutionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExecutionMiddleware
-{
+public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExecutionMiddleware {
 
     private readonly IAgentToolRestrictions? _agentToolRestrictions;
     private readonly IToolFilterPolicy? _toolFilterPolicy;
@@ -22,8 +21,7 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
     public AgentRestrictionMiddleware(
         IAgentToolRestrictions? agentToolRestrictions,
         ILogger<AgentRestrictionMiddleware> logger,
-        IToolFilterPolicy? toolFilterPolicy = null)
-    {
+        IToolFilterPolicy? toolFilterPolicy = null) {
         _agentToolRestrictions = agentToolRestrictions;
         _logger = logger;
         _toolFilterPolicy = toolFilterPolicy;
@@ -39,18 +37,14 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
     public async Task InvokeAsync(
         ToolExecutionContext context,
         MiddlewareDelegate<ToolExecutionContext> next,
-        CancellationToken ct)
-    {
-        if (context.AgentMode == PermissionMode.Bypass)
-        {
+        CancellationToken ct) {
+        if (context.AgentMode == PermissionMode.Bypass) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
 
-        if (_agentToolRestrictions is not null)
-        {
-            if (_toolFilterPolicy is not null)
-            {
+        if (_agentToolRestrictions is not null) {
+            if (_toolFilterPolicy is not null) {
                 var deniedTools = _agentToolRestrictions.GetDeniedTools(context.AgentMode);
                 var filterContext = new ToolFilterContext(
                     context.ToolName,
@@ -59,23 +53,18 @@ public sealed partial class AgentRestrictionMiddleware : ServiceEntity, IToolExe
                     null,
                     null);
                 var filterResult = _toolFilterPolicy.Check(filterContext);
-                if (!filterResult.IsAllowed)
-                {
+                if (!filterResult.IsAllowed) {
                     _logger.LogWarning(L.T(StringKey.AgentToolLimitDeniedLog, context.ToolName, context.AgentMode));
                     context.Deny(filterResult.Reason ?? L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode));
                     return;
                 }
 
                 _logger.LogDebug(L.T(StringKey.AgentToolLimitPassedLog, context.ToolName, context.AgentMode));
-            }
-            else if (!_agentToolRestrictions.IsToolAllowedForMode(context.ToolName, context.AgentMode))
-            {
+            } else if (!_agentToolRestrictions.IsToolAllowedForMode(context.ToolName, context.AgentMode)) {
                 _logger.LogWarning(L.T(StringKey.AgentToolLimitDeniedLog, context.ToolName, context.AgentMode));
                 context.Deny(L.T(StringKey.ToolNotAllowedInMode, context.ToolName, context.AgentMode));
                 return;
-            }
-            else
-            {
+            } else {
                 _logger.LogDebug(L.T(StringKey.AgentToolLimitPassedLog, context.ToolName, context.AgentMode));
             }
         }

@@ -5,15 +5,13 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// 预算控制常量和 GetCharBudget 已统一到 SkillDescriptionTruncator
 /// </summary>
 [ToolPrompt(ToolName = SkillToolName.Skill, Category = ToolPromptCategory.System)]
-public static class SkillToolPrompt
-{
+public static class SkillToolPrompt {
     public const string ToolName = SkillToolNameEnumConstants.Skill;
 
     /// <summary>
     /// 获取 Skill 工具提示词
     /// </summary>
-    public static string GetPrompt()
-    {
+    public static string GetPrompt() {
         return $"""
             在主对话中执行技能
 

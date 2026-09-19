@@ -1,42 +1,36 @@
 namespace Eyes.Tests;
 
-public class LspDiagnosticRegistryTests
-{
+public class LspDiagnosticRegistryTests {
     private readonly LspDiagnosticRegistry _registry;
     private readonly Mock<IClockService> _clock;
 
-    public LspDiagnosticRegistryTests()
-    {
+    public LspDiagnosticRegistryTests() {
         _clock = new Mock<IClockService>();
         _clock.Setup(c => c.GetUtcNowOffset()).Returns(DateTimeOffset.UtcNow);
         _registry = new LspDiagnosticRegistry(_clock.Object);
     }
 
     [Fact]
-    public void RegisterPending_EmptyFiles_DoesNothing()
-    {
+    public void RegisterPending_EmptyFiles_DoesNothing() {
         _registry.RegisterPending("server", []);
         _registry.PendingCount.Should().Be(0);
     }
 
     [Fact]
-    public void RegisterPending_WithFiles_IncrementsPendingCount()
-    {
+    public void RegisterPending_WithFiles_IncrementsPendingCount() {
         var files = CreateFiles("file:///a.cs", "error in a");
         _registry.RegisterPending("server", files);
         _registry.PendingCount.Should().Be(1);
     }
 
     [Fact]
-    public void CheckPending_NoPending_ReturnsEmpty()
-    {
+    public void CheckPending_NoPending_ReturnsEmpty() {
         var result = _registry.CheckPending();
         result.Should().BeEmpty();
     }
 
     [Fact]
-    public void CheckPending_WithPending_ReturnsDiagnostics()
-    {
+    public void CheckPending_WithPending_ReturnsDiagnostics() {
         var files = CreateFiles("file:///a.cs", "error in a");
         _registry.RegisterPending("server", files);
 
@@ -46,8 +40,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void CheckPending_AfterCheck_PendingCleared()
-    {
+    public void CheckPending_AfterCheck_PendingCleared() {
         var files = CreateFiles("file:///a.cs", "error in a");
         _registry.RegisterPending("server", files);
 
@@ -56,8 +49,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void CheckPending_DuplicateDiagnostic_Deduplicates()
-    {
+    public void CheckPending_DuplicateDiagnostic_Deduplicates() {
         var files1 = CreateFiles("file:///a.cs", "same error");
         var files2 = CreateFiles("file:///a.cs", "same error");
         _registry.RegisterPending("server1", files1);
@@ -69,8 +61,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void CheckPending_DifferentDiagnostics_KeepsBoth()
-    {
+    public void CheckPending_DifferentDiagnostics_KeepsBoth() {
         var files1 = CreateFiles("file:///a.cs", "error 1");
         var files2 = CreateFiles("file:///a.cs", "error 2");
         _registry.RegisterPending("server1", files1);
@@ -82,8 +73,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void ClearAll_ClearsPending()
-    {
+    public void ClearAll_ClearsPending() {
         var files = CreateFiles("file:///a.cs", "error");
         _registry.RegisterPending("server", files);
 
@@ -92,8 +82,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void ResetAll_ClearsPendingAndDelivered()
-    {
+    public void ResetAll_ClearsPendingAndDelivered() {
         var files = CreateFiles("file:///a.cs", "error");
         _registry.RegisterPending("server", files);
         _registry.CheckPending();
@@ -107,8 +96,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void ClearDeliveredForFile_RemovesDeliveredTracking()
-    {
+    public void ClearDeliveredForFile_RemovesDeliveredTracking() {
         var files = CreateFiles("file:///a.cs", "error");
         _registry.RegisterPending("server", files);
         _registry.CheckPending();
@@ -121,8 +109,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void CheckPending_MultipleServers_CombinesServerNames()
-    {
+    public void CheckPending_MultipleServers_CombinesServerNames() {
         var files1 = CreateFiles("file:///a.cs", "error 1");
         var files2 = CreateFiles("file:///b.cs", "error 2");
         _registry.RegisterPending("server1", files1);
@@ -135,8 +122,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void CheckPending_VolumeLimits_TruncatesPerFile()
-    {
+    public void CheckPending_VolumeLimits_TruncatesPerFile() {
         var diagnostics = Enumerable.Range(0, 15)
             .Select(i => new LspDiagnosticItem { Message = $"error {i}", Severity = "Error" })
             .ToList();
@@ -151,8 +137,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void CheckPending_SeveritySorting_ErrorsFirst()
-    {
+    public void CheckPending_SeveritySorting_ErrorsFirst() {
         var diagnostics = new List<LspDiagnosticItem>
         {
             new() { Message = "hint", Severity = "Hint" },
@@ -172,8 +157,7 @@ public class LspDiagnosticRegistryTests
     }
 
     [Fact]
-    public void PendingCount_MultipleRegistrations_ReturnsCorrectCount()
-    {
+    public void PendingCount_MultipleRegistrations_ReturnsCorrectCount() {
         var files1 = CreateFiles("file:///a.cs", "error 1");
         var files2 = CreateFiles("file:///b.cs", "error 2");
         _registry.RegisterPending("server", files1);
@@ -182,8 +166,7 @@ public class LspDiagnosticRegistryTests
         _registry.PendingCount.Should().Be(2);
     }
 
-    private static List<LspDiagnosticFile> CreateFiles(string uri, string message)
-    {
+    private static List<LspDiagnosticFile> CreateFiles(string uri, string message) {
         return
         [
             new LspDiagnosticFile

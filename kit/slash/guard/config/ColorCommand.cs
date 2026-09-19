@@ -8,29 +8,22 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Color, Description = "设置终端颜色主题或测试颜色支持", Usage = "/color [theme|test|reset]", Category = ChatCommandCategory.Config, ArgumentHint = "[theme|test|reset]")]
 [ChatCommandArg("action", Type = "string", Description = "颜色操作: theme=设置主题, test=测试颜色支持, reset=重置默认", Enum = new[] { "theme", "test", "reset" })]
-public sealed class ColorCommand : ChatCommandBase
-{
+public sealed class ColorCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /color 命令 — 设置终端颜色主题或测试颜色支持
     /// 无参数或 test 时显示颜色测试,reset 时重置默认,其余视为主题名
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 
-        if (string.IsNullOrEmpty(args) || args == "test")
-        {
+        if (string.IsNullOrEmpty(args) || args == "test") {
             ShowColorTest();
-        }
-        else if (args == "reset" || args == "default")
-        {
+        } else if (args == "reset" || args == "default") {
             // 对齐 TS RESET_ALIASES: default/reset/none/gray/grey
             TerminalHelper.WriteLine("颜色已重置为默认");
-        }
-        else
-        {
+        } else {
             // 对齐 TS AGENT_COLORS: 尝试设置为指定颜色主题
             TerminalHelper.WriteLine($"颜色主题: {args}");
             TerminalHelper.WriteLine("使用 /color test 测试终端颜色支持");
@@ -40,8 +33,7 @@ public sealed class ColorCommand : ChatCommandBase
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static void ShowColorTest()
-    {
+    private static void ShowColorTest() {
         TerminalHelper.WriteLine("=== 终端颜色测试 ===\n");
 
         // 基础颜色
@@ -57,8 +49,7 @@ public sealed class ColorCommand : ChatCommandBase
 
         // ANSI 256色测试
         TerminalHelper.WriteLine("ANSI 256色:");
-        for (var i = 0; i < 16; i++)
-        {
+        for (var i = 0; i < 16; i++) {
             TerminalHelper.WriteRaw($"\x1b[38;5;{i}m{i:D2}\x1b[0m ");
             if (i == 7) TerminalHelper.NewLine();
         }

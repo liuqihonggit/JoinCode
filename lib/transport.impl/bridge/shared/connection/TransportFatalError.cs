@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// 传输层致命错误 — 不可恢复的错误（如 epoch 冲突、认证失败）
 /// </summary>
-public sealed class TransportFatalError : Exception
-{
+public sealed class TransportFatalError : Exception {
     /// <summary>HTTP 状态码（可选）</summary>
     public int? StatusCode { get; init; }
     /// <summary>错误类型标识（可选）</summary>
@@ -17,8 +16,7 @@ public sealed class TransportFatalError : Exception
     /// <param name="statusCode">HTTP 状态码（可选）</param>
     /// <param name="errorType">错误类型标识（可选）</param>
     public TransportFatalError(string message, int? statusCode = null, string? errorType = null)
-        : base(message)
-    {
+        : base(message) {
         StatusCode = statusCode;
         ErrorType = errorType;
     }

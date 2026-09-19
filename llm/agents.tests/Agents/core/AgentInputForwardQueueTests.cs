@@ -3,19 +3,16 @@ namespace Core.Agents.Tests.Unit.Agents;
 /// <summary>
 /// AgentInputForwardQueue 单元测试 — 验证用户输入转发队列的核心行为
 /// </summary>
-public class AgentInputForwardQueueTests
-{
+public class AgentInputForwardQueueTests {
     [Fact]
-    public void TryDrain_UnregisteredAgent_ReturnsEmpty()
-    {
+    public void TryDrain_UnregisteredAgent_ReturnsEmpty() {
         var queue = new AgentInputForwardQueue();
         var result = queue.TryDrain("agent-nonexistent");
         Assert.Empty(result);
     }
 
     [Fact]
-    public void TryDrain_EmptyQueue_ReturnsEmpty()
-    {
+    public void TryDrain_EmptyQueue_ReturnsEmpty() {
         var queue = new AgentInputForwardQueue();
         queue.Register("agent-1");
         var result = queue.TryDrain("agent-1");
@@ -23,8 +20,7 @@ public class AgentInputForwardQueueTests
     }
 
     [Fact]
-    public async Task EnqueueThenTryDrain_ReturnsEnqueuedMessages()
-    {
+    public async Task EnqueueThenTryDrain_ReturnsEnqueuedMessages() {
         var queue = new AgentInputForwardQueue();
         queue.Register("agent-1");
 
@@ -38,8 +34,7 @@ public class AgentInputForwardQueueTests
     }
 
     [Fact]
-    public async Task TryDrain_ClearsQueue_SubsequentDrainReturnsEmpty()
-    {
+    public async Task TryDrain_ClearsQueue_SubsequentDrainReturnsEmpty() {
         var queue = new AgentInputForwardQueue();
         queue.Register("agent-1");
 
@@ -51,8 +46,7 @@ public class AgentInputForwardQueueTests
     }
 
     [Fact]
-    public async Task HasPending_ReflectsQueueState()
-    {
+    public async Task HasPending_ReflectsQueueState() {
         var queue = new AgentInputForwardQueue();
         queue.Register("agent-1");
 
@@ -66,8 +60,7 @@ public class AgentInputForwardQueueTests
     }
 
     [Fact]
-    public async Task Unregister_CompletesChannel_SubsequentEnqueueDoesNotThrow()
-    {
+    public async Task Unregister_CompletesChannel_SubsequentEnqueueDoesNotThrow() {
         var queue = new AgentInputForwardQueue();
         queue.Register("agent-1");
         await queue.EnqueueAsync("agent-1", "before-unregister");
@@ -79,8 +72,7 @@ public class AgentInputForwardQueueTests
     }
 
     [Fact]
-    public async Task MultipleAgents_HaveIndependentQueues()
-    {
+    public async Task MultipleAgents_HaveIndependentQueues() {
         var queue = new AgentInputForwardQueue();
         queue.Register("agent-a");
         queue.Register("agent-b");
@@ -98,8 +90,7 @@ public class AgentInputForwardQueueTests
     }
 
     [Fact]
-    public async Task EnqueueAsync_NullOrWhitespaceInput_Throws()
-    {
+    public async Task EnqueueAsync_NullOrWhitespaceInput_Throws() {
         var queue = new AgentInputForwardQueue();
         queue.Register("agent-1");
 
@@ -108,8 +99,7 @@ public class AgentInputForwardQueueTests
     }
 
     [Fact]
-    public void Register_NullOrWhitespaceAgentId_Throws()
-    {
+    public void Register_NullOrWhitespaceAgentId_Throws() {
         var queue = new AgentInputForwardQueue();
         Assert.Throws<ArgumentException>(() => queue.Register(""));
         Assert.Throws<ArgumentException>(() => queue.Register("   "));

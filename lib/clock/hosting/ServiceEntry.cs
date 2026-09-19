@@ -8,8 +8,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 合并自 ServiceHost 中分离的 _services 与 _serviceStatuses 双字典,
 /// 两者按 serviceName 成对操作,合并后单字典索引减少一次哈希查找。
 /// </remarks>
-public sealed class ServiceEntry
-{
+public sealed class ServiceEntry {
     /// <summary>
     /// 工作流服务实例
     /// </summary>

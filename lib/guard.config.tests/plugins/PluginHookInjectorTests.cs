@@ -1,26 +1,22 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginHookInjectorTests
-{
+public sealed class PluginHookInjectorTests {
     private readonly Mock<IPluginManager> _pluginManager;
     private readonly PluginHookInjector _injector;
 
-    public PluginHookInjectorTests()
-    {
+    public PluginHookInjectorTests() {
         _pluginManager = new Mock<IPluginManager>();
         _injector = new PluginHookInjector(_pluginManager.Object, NullLogger<PluginHookInjector>.Instance);
     }
 
     [Fact]
-    public void Constructor_NullPluginManager_ShouldThrow()
-    {
+    public void Constructor_NullPluginManager_ShouldThrow() {
         var act = () => new PluginHookInjector(null!, NullLogger<PluginHookInjector>.Instance);
         act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task InjectHooksAsync_PluginNotLoaded_ShouldThrow()
-    {
+    public async Task InjectHooksAsync_PluginNotLoaded_ShouldThrow() {
         _pluginManager.Setup(m => m.IsPluginLoaded("test")).Returns(false);
 
         var hooks = new List<PluginHookDefinition>
@@ -33,8 +29,7 @@ public sealed class PluginHookInjectorTests
     }
 
     [Fact]
-    public async Task InjectHooksAsync_PluginLoaded_ShouldStoreHooks()
-    {
+    public async Task InjectHooksAsync_PluginLoaded_ShouldStoreHooks() {
         _pluginManager.Setup(m => m.IsPluginLoaded("test")).Returns(true);
 
         var hooks = new List<PluginHookDefinition>
@@ -52,8 +47,7 @@ public sealed class PluginHookInjectorTests
     }
 
     [Fact]
-    public async Task RemoveHooksAsync_ExistingPlugin_ShouldRemoveHooks()
-    {
+    public async Task RemoveHooksAsync_ExistingPlugin_ShouldRemoveHooks() {
         _pluginManager.Setup(m => m.IsPluginLoaded("test")).Returns(true);
 
         var hooks = new List<PluginHookDefinition>
@@ -68,36 +62,31 @@ public sealed class PluginHookInjectorTests
     }
 
     [Fact]
-    public async Task RemoveHooksAsync_NonExistingPlugin_ShouldNotThrow()
-    {
+    public async Task RemoveHooksAsync_NonExistingPlugin_ShouldNotThrow() {
         var act = async () => await _injector.RemoveHooksAsync("nonexistent").ConfigureAwait(true);
         await act.Should().NotThrowAsync().ConfigureAwait(true);
     }
 
     [Fact]
-    public void GetInjectedHooks_NonExistingPlugin_ShouldReturnEmpty()
-    {
+    public void GetInjectedHooks_NonExistingPlugin_ShouldReturnEmpty() {
         _injector.GetInjectedHooks("nonexistent").Should().BeEmpty();
     }
 
     [Fact]
-    public async Task InjectHooksAsync_NullPluginName_ShouldThrow()
-    {
+    public async Task InjectHooksAsync_NullPluginName_ShouldThrow() {
         var act = async () => await _injector.InjectHooksAsync(null!, []).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task InjectHooksAsync_NullHooks_ShouldThrow()
-    {
+    public async Task InjectHooksAsync_NullHooks_ShouldThrow() {
         _pluginManager.Setup(m => m.IsPluginLoaded("test")).Returns(true);
         var act = async () => await _injector.InjectHooksAsync("test", null!).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentNullException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task InjectHooksAsync_MultiplePlugins_ShouldTrackSeparately()
-    {
+    public async Task InjectHooksAsync_MultiplePlugins_ShouldTrackSeparately() {
         _pluginManager.Setup(m => m.IsPluginLoaded("plugin1")).Returns(true);
         _pluginManager.Setup(m => m.IsPluginLoaded("plugin2")).Returns(true);
 

@@ -4,8 +4,7 @@ namespace JoinCode.Cli;
 /// Onboarding 流程控制器 - 管理步骤导航、状态持久化和完成追踪
 /// </summary>
 [Register(typeof(IOnboardingService), ServiceLifetime.Singleton)]
-public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardingService, IDisposable
-{
+public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardingService, IDisposable {
     private const int TotalStepCount = 4;
 
     private static readonly OnboardingStep[] Steps =
@@ -26,10 +25,8 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     private string? _apiKey;
 
     /// <inheritdoc />
-    public bool IsOnboardingComplete
-    {
-        get
-        {
+    public bool IsOnboardingComplete {
+        get {
             using var guard = _lock.TryLock();
             if (guard is null) return Volatile.Read(ref _isOnboardingComplete);
             return _isOnboardingComplete;
@@ -37,10 +34,8 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     }
 
     /// <inheritdoc />
-    public OnboardingState CurrentState
-    {
-        get
-        {
+    public OnboardingState CurrentState {
+        get {
             using var guard = _lock.TryLock();
             if (guard is null) return BuildStateUnsafe();
             return BuildState();
@@ -54,20 +49,17 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     /// 构造函数 — 注入引导状态持久化器
     /// </summary>
     /// <param name="persistence">用于读写引导完成状态的持久化器</param>
-    public OnboardingFlowController(OnboardingStatePersistence persistence)
-    {
+    public OnboardingFlowController(OnboardingStatePersistence persistence) {
         _persistence = persistence;
     }
 
     /// <inheritdoc />
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task InitializeAsync(CancellationToken cancellationToken = default) {
         _isOnboardingComplete = await _persistence.IsCompleteAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public Task StartAsync(CancellationToken cancellationToken = default)
-    {
+    public Task StartAsync(CancellationToken cancellationToken = default) {
         OnboardingStep previous;
         using var guard = _lock.TryLock();
         if (guard is null) return Task.CompletedTask;
@@ -83,8 +75,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     }
 
     /// <inheritdoc />
-    public Task NextStepAsync(CancellationToken cancellationToken = default)
-    {
+    public Task NextStepAsync(CancellationToken cancellationToken = default) {
         OnboardingStep previous;
         OnboardingStep next;
 
@@ -94,15 +85,12 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         previous = _currentStep;
 
         var currentIndex = Array.IndexOf(Steps, _currentStep);
-        if (currentIndex < 0 || currentIndex >= Steps.Length - 1)
-        {
+        if (currentIndex < 0 || currentIndex >= Steps.Length - 1) {
             if (_currentStep == OnboardingStep.Complete) return Task.CompletedTask;
             next = OnboardingStep.Complete;
             _currentStep = next;
             _currentStepIndex = TotalStepCount;
-        }
-        else
-        {
+        } else {
             _currentStepIndex = currentIndex + 1;
             _currentStep = Steps[_currentStepIndex];
             next = _currentStep;
@@ -113,8 +101,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     }
 
     /// <inheritdoc />
-    public Task PreviousStepAsync(CancellationToken cancellationToken = default)
-    {
+    public Task PreviousStepAsync(CancellationToken cancellationToken = default) {
         OnboardingStep previous;
         OnboardingStep next;
 
@@ -125,23 +112,17 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
 
         if (_currentStep == OnboardingStep.Welcome) return Task.CompletedTask;
 
-        if (_currentStep == OnboardingStep.Complete)
-        {
+        if (_currentStep == OnboardingStep.Complete) {
             _currentStep = OnboardingStep.TerminalSetup;
             _currentStepIndex = TotalStepCount - 1;
             next = _currentStep;
-        }
-        else
-        {
+        } else {
             var currentIndex = Array.IndexOf(Steps, _currentStep);
-            if (currentIndex > 0)
-            {
+            if (currentIndex > 0) {
                 _currentStepIndex = currentIndex - 1;
                 _currentStep = Steps[_currentStepIndex];
                 next = _currentStep;
-            }
-            else
-            {
+            } else {
                 return Task.CompletedTask;
             }
         }
@@ -151,8 +132,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     }
 
     /// <inheritdoc />
-    public async Task CompleteAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task CompleteAsync(CancellationToken cancellationToken = default) {
         OnboardingStep previous;
 
         using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -161,15 +141,14 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         _currentStep = OnboardingStep.Complete;
         _currentStepIndex = TotalStepCount;
         _isOnboardingComplete = true;
-    
+
 
         await _persistence.MarkCompleteAsync(cancellationToken).ConfigureAwait(false);
         RaiseStateChanged(previous, OnboardingStep.Complete);
     }
 
     /// <inheritdoc />
-    public async Task SkipAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task SkipAsync(CancellationToken cancellationToken = default) {
         OnboardingStep previous;
 
         using var guard = _lock.TryLock(cancellationToken) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
@@ -178,17 +157,15 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         _currentStep = OnboardingStep.Complete;
         _currentStepIndex = TotalStepCount;
         _isOnboardingComplete = true;
-    
+
 
         await _persistence.MarkCompleteAsync(cancellationToken).ConfigureAwait(false);
         RaiseStateChanged(previous, OnboardingStep.Complete);
     }
 
     /// <inheritdoc />
-    public Task SetApiKeyAsync(string apiKey, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
+    public Task SetApiKeyAsync(string apiKey, CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(apiKey)) {
             throw new ArgumentException("API key cannot be null or whitespace.", nameof(apiKey));
         }
 
@@ -200,10 +177,8 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     }
 
     /// <inheritdoc />
-    public Task SelectTerminalSetupOptionAsync(int optionIndex, CancellationToken cancellationToken = default)
-    {
-        if (optionIndex < 0)
-        {
+    public Task SelectTerminalSetupOptionAsync(int optionIndex, CancellationToken cancellationToken = default) {
+        if (optionIndex < 0) {
             throw new ArgumentOutOfRangeException(nameof(optionIndex), "Option index cannot be negative.");
         }
 
@@ -214,32 +189,25 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
         return Task.CompletedTask;
     }
 
-    private OnboardingState BuildState()
-    {
-        return new OnboardingState
-        {
+    private OnboardingState BuildState() {
+        return new OnboardingState {
             CurrentStep = _currentStep,
             TotalSteps = TotalStepCount,
             CurrentStepIndex = _currentStepIndex,
         };
     }
 
-    private OnboardingState BuildStateUnsafe()
-    {
-        return new OnboardingState
-        {
+    private OnboardingState BuildStateUnsafe() {
+        return new OnboardingState {
             CurrentStep = _currentStep,
             TotalSteps = TotalStepCount,
             CurrentStepIndex = _currentStepIndex,
         };
     }
 
-    private void RaiseStateChanged(OnboardingStep previous, OnboardingStep current)
-    {
-        if (previous != current)
-        {
-            StateChanged?.Invoke(this, new OnboardingStateChangedEventArgs
-            {
+    private void RaiseStateChanged(OnboardingStep previous, OnboardingStep current) {
+        if (previous != current) {
+            StateChanged?.Invoke(this, new OnboardingStateChangedEventArgs {
                 PreviousStep = previous,
                 CurrentStep = current
             });
@@ -249,8 +217,7 @@ public sealed partial class OnboardingFlowController : ServiceEntity, IOnboardin
     /// <summary>
     /// 释放资源 — 释放内部异步锁
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         if (_disposed) return; _disposed = true;
         _lock.Dispose();
         base.Dispose();

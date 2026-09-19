@@ -8,8 +8,7 @@ namespace AsyncFileLock;
 /// <para>进程崩溃 = 锁文件残留，超时清理（TryCleanupStaleLock）。</para>
 /// <para>等待锁 = 轮询重试（线性退避），超时抛 TimeoutException。</para>
 /// </summary>
-public sealed class FileMailboxLock : IAsyncDisposable
-{
+public sealed class FileMailboxLock : IAsyncDisposable {
     private static readonly Lazy<IFileSystem> s_fs = new(FileSystemFactory.Create);
 
     private readonly Stream _lockStream;
@@ -20,8 +19,7 @@ public sealed class FileMailboxLock : IAsyncDisposable
     /// <summary>已锁定的文件绝对路径</summary>
     public string FilePath { get; }
 
-    private FileMailboxLock(Stream lockStream, string lockFilePath, string filePath, ILogger? logger)
-    {
+    private FileMailboxLock(Stream lockStream, string lockFilePath, string filePath, ILogger? logger) {
         _lockStream = lockStream;
         _lockFilePath = lockFilePath;
         FilePath = filePath;
@@ -40,8 +38,7 @@ public sealed class FileMailboxLock : IAsyncDisposable
         string filePath,
         TimeSpan timeout,
         CancellationToken cancellationToken = default,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         var fs = s_fs.Value;
         var fullPath = fs.GetFullPath(filePath);
         var lockFilePath = GetLockFilePath(fullPath);
@@ -52,12 +49,10 @@ public sealed class FileMailboxLock : IAsyncDisposable
 
         var deadline = DateTimeOffset.UtcNow + timeout;
         var attempt = 0;
-        while (true)
-        {
+        while (true) {
             cancellationToken.ThrowIfCancellationRequested();
 
-            try
-            {
+            try {
                 var stream = fs.CreateStream(lockFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
                 var content = $"{Environment.ProcessId}|{DateTimeOffset.UtcNow:O}";
                 var bytes = Encoding.UTF8.GetBytes(content);
@@ -66,9 +61,7 @@ public sealed class FileMailboxLock : IAsyncDisposable
 
                 logger?.LogDebug("FileMailboxLock acquired: {FilePath} -> {LockFile}", fullPath, lockFilePath);
                 return new FileMailboxLock(stream, lockFilePath, fullPath, logger);
-            }
-            catch (IOException) when (DateTimeOffset.UtcNow < deadline)
-            {
+            } catch (IOException) when (DateTimeOffset.UtcNow < deadline) {
                 TryCleanupStaleLock(fs, lockFilePath, logger);
                 attempt++;
                 var remaining = deadline - DateTimeOffset.UtcNow;
@@ -81,21 +74,16 @@ public sealed class FileMailboxLock : IAsyncDisposable
         throw new TimeoutException($"Failed to acquire lock for '{filePath}' within {timeout.TotalSeconds}s");
     }
 
-    private static void TryCleanupStaleLock(IFileSystem fs, string lockFilePath, ILogger? logger)
-    {
-        try
-        {
+    private static void TryCleanupStaleLock(IFileSystem fs, string lockFilePath, ILogger? logger) {
+        try {
             if (!fs.FileExists(lockFilePath)) return;
             var content = fs.ReadAllText(lockFilePath);
             var pipeIndex = content.IndexOf('|');
-            if (pipeIndex > 0 && DateTimeOffset.TryParse(content[(pipeIndex + 1)..], out var timestamp))
-            {
+            if (pipeIndex > 0 && DateTimeOffset.TryParse(content[(pipeIndex + 1)..], out var timestamp)) {
                 if (DateTimeOffset.UtcNow - timestamp > TimeSpan.FromMinutes(5))
                     fs.DeleteFile(lockFilePath);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             logger?.LogDebug(ex, "FileMailboxLock: stale lock cleanup failed for {LockFile}", lockFilePath);
         }
     }
@@ -103,8 +91,7 @@ public sealed class FileMailboxLock : IAsyncDisposable
     /// <summary>
     /// 异步释放锁 — 关闭流并删除锁文件
     /// </summary>
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         Release();
         return ValueTask.CompletedTask;
     }
@@ -112,31 +99,23 @@ public sealed class FileMailboxLock : IAsyncDisposable
     /// <summary>
     /// 同步释放锁，语义与 DisposeAsync 等价
     /// </summary>
-    internal void Release()
-    {
+    internal void Release() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
-        try
-        {
+        try {
             _lockStream.Dispose();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "FileMailboxLock: failed to dispose lock stream for {FilePath}", FilePath);
         }
 
-        try
-        {
+        try {
             s_fs.Value.DeleteFile(_lockFilePath);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "FileMailboxLock: failed to delete lock file for {FilePath}", FilePath);
         }
     }
 
-    private static string GetLockFilePath(string filePath)
-    {
+    private static string GetLockFilePath(string filePath) {
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(filePath.ToLowerInvariant())));
         var lockRoot = Path.Combine(Path.GetTempPath(), "JoinFileLocks");
         return Path.Combine(lockRoot, $"{hash}.lock");

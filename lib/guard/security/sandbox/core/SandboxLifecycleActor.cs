@@ -14,8 +14,7 @@ internal sealed record SwitchProviderCmd(SandboxType Type, CancellationToken Ct,
 /// Consumer 串行处理 Enter/Exit/Switch 命令，消除 AsyncLock 锁内长 await（容器创建/销毁 >5s）。
 /// 状态由 Consumer 线程独占写入，外部通过 volatile 读取。
 /// </summary>
-internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
-{
+internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     private readonly ConcurrentDictionary<SandboxType, ISandboxProvider> _providers;
     private readonly ILogger<SandboxManager>? _logger;
 
@@ -26,8 +25,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     public SandboxLifecycleActor(
         ConcurrentDictionary<SandboxType, ISandboxProvider> providers,
         ILogger<SandboxManager>? logger)
-        : base()
-    {
+        : base() {
         _providers = providers;
         _logger = logger;
     }
@@ -48,8 +46,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     /// <summary>
     /// 发送 Enter 命令并等待完成
     /// </summary>
-    public async Task<SandboxInfo> EnterAsync(SandboxOptions options, CancellationToken ct)
-    {
+    public async Task<SandboxInfo> EnterAsync(SandboxOptions options, CancellationToken ct) {
         var tcs = TcsFactory.Create<SandboxInfo>();
         await SendAsync(new EnterSandboxCmd(options, ct, tcs), ct).ConfigureAwait(false);
         return await AskAwait(tcs, ct);
@@ -58,8 +55,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     /// <summary>
     /// 发送 Exit 命令并等待完成
     /// </summary>
-    public async Task ExitAsync(CancellationToken ct)
-    {
+    public async Task ExitAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new ExitSandboxCmd(ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
@@ -68,29 +64,23 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
     /// <summary>
     /// 发送 Switch 命令并等待完成
     /// </summary>
-    public async Task SwitchAsync(SandboxType type, CancellationToken ct)
-    {
+    public async Task SwitchAsync(SandboxType type, CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new SwitchProviderCmd(type, ct, tcs), ct).ConfigureAwait(false);
         await AskAwait(tcs, ct);
     }
 
-    protected override async ValueTask HandleAsync(ISandboxCommand command, CancellationToken ct)
-    {
-        switch (command)
-        {
-            case EnterSandboxCmd cmd:
-            {
-                if (IsInSandbox)
-                {
+    protected override async ValueTask HandleAsync(ISandboxCommand command, CancellationToken ct) {
+        switch (command) {
+            case EnterSandboxCmd cmd: {
+                if (IsInSandbox) {
                     cmd.Tcs.TrySetException(new InvalidOperationException($"[GRD008] 已在 {_activeProvider!.SandboxType} 沙箱中，请先退出再进入新沙箱"));
                     break;
                 }
 
                 var (provider, fallbackUsed) = ResolveProviderWithFallback(cmd.Options.Type);
 
-                try
-                {
+                try {
                     var info = await provider.CreateSandboxAsync(cmd.Options, cmd.Ct).ConfigureAwait(false);
 
                     _activeProvider = provider;
@@ -100,24 +90,18 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
                     _logger?.LogInformation("[SandboxManager] 沙箱已激活 - 类型: {Type}, Id: {Id}, 降级: {Fallback}", info.Type, info.SandboxId, fallbackUsed);
 
                     cmd.Tcs.TrySetResult(info);
-                }
-                catch (Exception ex) when (fallbackUsed)
-                {
+                } catch (Exception ex) when (fallbackUsed) {
                     _healthState = SandboxHealthState.Fallback;
                     cmd.Tcs.TrySetException(ex);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     cmd.Tcs.TrySetException(ex);
                 }
 
                 break;
             }
 
-            case ExitSandboxCmd cmd:
-            {
-                if (_activeProvider is null || _activeSandboxId is null)
-                {
+            case ExitSandboxCmd cmd: {
+                if (_activeProvider is null || _activeSandboxId is null) {
                     _logger?.LogDebug("[SandboxManager] 不在沙箱中，无需退出");
                     cmd.Tcs.TrySetResult();
                     break;
@@ -126,12 +110,9 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
                 var provider = _activeProvider;
                 var sandboxId = _activeSandboxId;
 
-                try
-                {
+                try {
                     await provider.DestroySandboxAsync(sandboxId, cmd.Ct).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "[SandboxManager] 销毁沙箱异常，强制清理 - Id: {Id}", sandboxId);
                     _healthState = SandboxHealthState.Degraded;
                 }
@@ -144,27 +125,21 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
                 break;
             }
 
-            case SwitchProviderCmd cmd:
-            {
+            case SwitchProviderCmd cmd: {
                 var previousType = _activeProvider?.SandboxType ?? SandboxType.None;
                 var previousInfo = CurrentSandbox;
 
-                if (_activeProvider is not null && _activeSandboxId is not null)
-                {
-                    try
-                    {
+                if (_activeProvider is not null && _activeSandboxId is not null) {
+                    try {
                         await _activeProvider.DestroySandboxAsync(_activeSandboxId, cmd.Ct).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         _logger?.LogWarning(ex, "[SandboxManager] 切换时销毁旧沙箱异常 - Id: {Id}", _activeSandboxId);
                     }
                 }
 
                 var (newProvider, fallbackUsed) = ResolveProviderWithFallback(cmd.Type);
 
-                var newOptions = new SandboxOptions
-                {
+                var newOptions = new SandboxOptions {
                     Type = newProvider.SandboxType,
                     RestrictNetwork = previousInfo?.RestrictNetwork ?? true,
                     RestrictFileSystem = previousInfo?.RestrictFileSystem ?? true,
@@ -190,48 +165,39 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit>
         }
     }
 
-    private (ISandboxProvider Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type)
-    {
-        if (type == SandboxType.None)
-        {
+    private (ISandboxProvider Provider, bool FallbackUsed) ResolveProviderWithFallback(SandboxType type) {
+        if (type == SandboxType.None) {
             var envType = Environment.GetEnvironmentVariable(JccEnvVar.SandboxMode.ToValue());
-            if (!string.IsNullOrEmpty(envType))
-            {
+            if (!string.IsNullOrEmpty(envType)) {
                 var parsed = SandboxTypeExtensions.FromValue(envType);
-                if (parsed is not null && parsed.Value != SandboxType.None)
-                {
+                if (parsed is not null && parsed.Value != SandboxType.None) {
                     type = parsed.Value;
                 }
             }
 
-            if (type == SandboxType.None)
-            {
+            if (type == SandboxType.None) {
                 type = SandboxType.Soft;
             }
         }
 
-        if (_providers.TryGetValue(type, out var provider))
-        {
+        if (_providers.TryGetValue(type, out var provider)) {
             return (provider, false);
         }
 
         _logger?.LogWarning("[SandboxManager] 请求的沙箱类型 '{Type}' 不可用，降级到 Soft", type.ToValue());
 
-        if (_providers.TryGetValue(SandboxType.Soft, out var softProvider))
-        {
+        if (_providers.TryGetValue(SandboxType.Soft, out var softProvider)) {
             return (softProvider, true);
         }
 
-        if (_providers.TryGetValue(SandboxType.Process, out var processProvider))
-        {
+        if (_providers.TryGetValue(SandboxType.Process, out var processProvider)) {
             return (processProvider, true);
         }
 
         throw new InvalidOperationException($"[GRD009] 沙箱类型 '{type.ToValue()}' 不可用且无降级选项。可用类型: {string.Join(", ", _providers.Keys.Select(k => k.ToValue()))}");
     }
 
-    protected override void OnConsumerError(Exception ex)
-    {
+    protected override void OnConsumerError(Exception ex) {
         _logger?.LogError(ex, "[SandboxManager] Lifecycle Actor Consumer 异常");
     }
 }

@@ -3,11 +3,9 @@ namespace Dream.Tests.DependencyInjection;
 /// <summary>
 /// Dream DI 注册单元测试
 /// </summary>
-public sealed class ServiceRegistrationTests
-{
+public sealed class ServiceRegistrationTests {
     [Fact]
-    public void AddDreamServices_WithConfigure_RegistersOptions()
-    {
+    public void AddDreamServices_WithConfigure_RegistersOptions() {
         var services = new ServiceCollection();
 
         services.AddDreamServices(cfg => cfg.MinHours = 12);
@@ -18,8 +16,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddDreamServices_WithoutConfigure_RegistersSingleton()
-    {
+    public void AddDreamServices_WithoutConfigure_RegistersSingleton() {
         var services = new ServiceCollection();
 
         services.AddDreamServices();
@@ -32,8 +29,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddDreamServicesWithPersistence_WithConfigure_RegistersOptions()
-    {
+    public void AddDreamServicesWithPersistence_WithConfigure_RegistersOptions() {
         var services = new ServiceCollection();
 
         services.AddDreamServicesWithPersistence(cfg => cfg.MinSessions = 3);
@@ -44,8 +40,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddDreamServicesWithPersistence_WithoutConfigure_RegistersSingleton()
-    {
+    public void AddDreamServicesWithPersistence_WithoutConfigure_RegistersSingleton() {
         var services = new ServiceCollection();
 
         services.AddDreamServicesWithPersistence();
@@ -55,8 +50,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void InitializeDreamSystem_ReturnsSameProvider()
-    {
+    public void InitializeDreamSystem_ReturnsSameProvider() {
         var provider = new ServiceCollection().BuildServiceProvider();
 
         var result = provider.InitializeDreamSystem();
@@ -65,8 +59,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public async Task InitializeDreamSystemWithPersistenceAsync_WithPersistentRegistry_LoadsActiveTasks()
-    {
+    public async Task InitializeDreamSystemWithPersistenceAsync_WithPersistentRegistry_LoadsActiveTasks() {
         var persistence = new Mock<IDreamTaskPersistence>();
         persistence.Setup(p => p.LoadAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<DreamTaskState>());
@@ -82,8 +75,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public async Task InitializeDreamSystemWithPersistenceAsync_WithoutPersistentRegistry_ReturnsProvider()
-    {
+    public async Task InitializeDreamSystemWithPersistenceAsync_WithoutPersistentRegistry_ReturnsProvider() {
         var services = new ServiceCollection();
         services.AddSingleton<IDreamTaskRegistry, InMemoryDreamTaskRegistry>();
         var provider = services.BuildServiceProvider();
@@ -94,8 +86,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddDreamPluginServices_RegistersAutoDreamConfig()
-    {
+    public void AddDreamPluginServices_RegistersAutoDreamConfig() {
         var services = new ServiceCollection();
 
         services.AddDreamPluginServices();

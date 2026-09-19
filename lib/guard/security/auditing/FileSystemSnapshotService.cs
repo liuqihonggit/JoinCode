@@ -8,8 +8,7 @@ namespace Core.Security.Auditing;
 /// </para>
 /// </summary>
 [Register(typeof(IFileSystemSnapshotService), ServiceLifetime.Singleton)]
-public sealed class FileSystemSnapshotService : IFileSystemSnapshotService
-{
+public sealed class FileSystemSnapshotService : IFileSystemSnapshotService {
     private readonly IFileSystem _fs;
     private readonly ILogger<FileSystemSnapshotService>? _logger;
 
@@ -20,15 +19,13 @@ public sealed class FileSystemSnapshotService : IFileSystemSnapshotService
     /// <param name="logger">日志器(可选)</param>
     public FileSystemSnapshotService(
         IFileSystem fs,
-        ILogger<FileSystemSnapshotService>? logger = null)
-    {
+        ILogger<FileSystemSnapshotService>? logger = null) {
         _fs = fs;
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public Task<FileSystemSnapshot> CaptureAsync(string directoryPath, CancellationToken ct = default)
-    {
+    public Task<FileSystemSnapshot> CaptureAsync(string directoryPath, CancellationToken ct = default) {
         if (!_fs.DirectoryExists(directoryPath))
             return Task.FromResult(new FileSystemSnapshot(directoryPath, DateTimeOffset.UtcNow, FrozenDictionary<string, FileSnapshotEntry>.Empty));
 
@@ -38,20 +35,17 @@ public sealed class FileSystemSnapshotService : IFileSystemSnapshotService
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<FileChangeRecord> Compare(FileSystemSnapshot before, FileSystemSnapshot after)
-    {
+    public IReadOnlyList<FileChangeRecord> Compare(FileSystemSnapshot before, FileSystemSnapshot after) {
         return DetectChanges(before, after)
             .OrderBy(c => c.Path)
             .ToList();
     }
 
-    private FrozenDictionary<string, FileSnapshotEntry> CaptureEntries(string directoryPath, CancellationToken ct)
-    {
+    private FrozenDictionary<string, FileSnapshotEntry> CaptureEntries(string directoryPath, CancellationToken ct) {
         var builder = new Dictionary<string, FileSnapshotEntry>(StringComparer.Ordinal);
         var normalizedDir = directoryPath.Replace('/', '\\').Trim('\\');
 
-        foreach (var filePath in _fs.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories))
-        {
+        foreach (var filePath in _fs.EnumerateFiles(directoryPath, "*", SearchOption.AllDirectories)) {
             ct.ThrowIfCancellationRequested();
             var relativePath = Path.GetRelativePath(normalizedDir, filePath).Replace('\\', '/');
             var size = _fs.GetFileLength(filePath);
@@ -62,24 +56,18 @@ public sealed class FileSystemSnapshotService : IFileSystemSnapshotService
         return builder.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
-    private static IEnumerable<FileChangeRecord> DetectChanges(FileSystemSnapshot before, FileSystemSnapshot after)
-    {
+    private static IEnumerable<FileChangeRecord> DetectChanges(FileSystemSnapshot before, FileSystemSnapshot after) {
         // Deleted: in before but not in after
-        foreach (var (path, oldEntry) in before.Entries)
-        {
+        foreach (var (path, oldEntry) in before.Entries) {
             if (!after.Entries.ContainsKey(path))
                 yield return new FileChangeRecord(path, FileChangeType.Deleted, oldEntry.Size, null);
         }
 
         // Created + Modified: in after
-        foreach (var (path, newEntry) in after.Entries)
-        {
-            if (!before.Entries.TryGetValue(path, out var oldEntry))
-            {
+        foreach (var (path, newEntry) in after.Entries) {
+            if (!before.Entries.TryGetValue(path, out var oldEntry)) {
                 yield return new FileChangeRecord(path, FileChangeType.Created, null, newEntry.Size);
-            }
-            else if (oldEntry.Size != newEntry.Size || oldEntry.LastWriteTimeUtc != newEntry.LastWriteTimeUtc)
-            {
+            } else if (oldEntry.Size != newEntry.Size || oldEntry.LastWriteTimeUtc != newEntry.LastWriteTimeUtc) {
                 yield return new FileChangeRecord(path, FileChangeType.Modified, oldEntry.Size, newEntry.Size);
             }
         }

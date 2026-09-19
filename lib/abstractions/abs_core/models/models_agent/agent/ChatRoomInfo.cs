@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// 聊天室成员角色 — 对标 QQ 群角色（群主/管理员/普通成员）— ADR 0109 决策7。
 /// </summary>
-public enum ChatRoomRole
-{
+public enum ChatRoomRole {
     /// <summary>群主（最高权限，可转让）</summary>
     [EnumValue("owner")] Owner = 0,
 
@@ -18,8 +17,7 @@ public enum ChatRoomRole
 /// <summary>
 /// 聊天室成员在线状态 — 对标 QQ 在线/离线/禁言 — ADR 0109 决策7。
 /// </summary>
-public enum ChatRoomMemberStatus
-{
+public enum ChatRoomMemberStatus {
     /// <summary>在线</summary>
     [EnumValue("online")] Online = 0,
 
@@ -33,8 +31,7 @@ public enum ChatRoomMemberStatus
 /// <summary>
 /// 聊天室成员信息 — 含角色/状态/显示名，对标 QQ 群成员 — ADR 0109 决策7。
 /// </summary>
-public sealed record ChatRoomMember
-{
+public sealed record ChatRoomMember {
     /// <summary>成员 Agent 标识</summary>
     public required string AgentId { get; init; }
 
@@ -55,8 +52,7 @@ public sealed record ChatRoomMember
 /// 聊天室信息 — 团队的聊天室视图，含房间 ID/成员列表/角色/在线数 — ADR 0109。
 /// <para>对标 QQ 群信息：唯一群号 + 成员角色 + 在线状态 + 最后消息时间。</para>
 /// </summary>
-public sealed record ChatRoomInfo
-{
+public sealed record ChatRoomInfo {
     /// <summary>聊天室唯一标识（等同 TeamId，复用不新建 ID 体系）— ADR 0109 决策7。</summary>
     public required string ChatRoomId { get; init; }
 

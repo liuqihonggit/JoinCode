@@ -1,12 +1,10 @@
 namespace Sync.Tests.ToolHandlers;
 
-public class SnipToolHandlersTests
-{
+public class SnipToolHandlersTests {
     private readonly Mock<IChatContextManager> _contextManager = new();
     private readonly SnipToolHandlers _handler;
 
-    public SnipToolHandlersTests()
-    {
+    public SnipToolHandlersTests() {
         _contextManager.Setup(x => x.RewindLastTurnAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(RewindResult.Ok(RewindKind.TrimLastTurn, 2, 5));
         _contextManager.Setup(x => x.RewindToMessageIndexAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -18,8 +16,7 @@ public class SnipToolHandlersTests
     }
 
     [Fact]
-    public async Task SnipHistoryAsync_Rewind_ReturnsSuccess()
-    {
+    public async Task SnipHistoryAsync_Rewind_ReturnsSuccess() {
         var result = await _handler.SnipHistoryAsync("rewind", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.False(result.IsError);
@@ -27,8 +24,7 @@ public class SnipToolHandlersTests
     }
 
     [Fact]
-    public async Task SnipHistoryAsync_RewindToWithoutIndex_ReturnsError()
-    {
+    public async Task SnipHistoryAsync_RewindToWithoutIndex_ReturnsError() {
         var result = await _handler.SnipHistoryAsync("rewind_to", message_index: null, cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);
@@ -36,8 +32,7 @@ public class SnipToolHandlersTests
     }
 
     [Fact]
-    public async Task SnipHistoryAsync_RewindToWithIndex_ReturnsSuccess()
-    {
+    public async Task SnipHistoryAsync_RewindToWithIndex_ReturnsSuccess() {
         var result = await _handler.SnipHistoryAsync("rewind_to", message_index: 3, cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.False(result.IsError);
@@ -45,8 +40,7 @@ public class SnipToolHandlersTests
     }
 
     [Fact]
-    public async Task SnipHistoryAsync_Clear_ReturnsSuccess()
-    {
+    public async Task SnipHistoryAsync_Clear_ReturnsSuccess() {
         var result = await _handler.SnipHistoryAsync("clear", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.False(result.IsError);
@@ -54,8 +48,7 @@ public class SnipToolHandlersTests
     }
 
     [Fact]
-    public async Task SnipHistoryAsync_InvalidMode_ReturnsError()
-    {
+    public async Task SnipHistoryAsync_InvalidMode_ReturnsError() {
         var result = await _handler.SnipHistoryAsync("invalid", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
         Assert.True(result.IsError);

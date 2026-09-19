@@ -1,20 +1,17 @@
 
 namespace Core.Tests.Services;
 
-public partial class UserInteractionServiceTests
-{
+public partial class UserInteractionServiceTests {
     private readonly Mock<ILogger<UserInteractionService>> _loggerMock;
     private readonly UserInteractionService _userInteractionService;
 
-    public UserInteractionServiceTests()
-    {
+    public UserInteractionServiceTests() {
         _loggerMock = new Mock<ILogger<UserInteractionService>>();
         _userInteractionService = new UserInteractionService(_loggerMock.Object);
     }
 
     [Fact]
-    public async Task AskQuestionAsync_ShouldReturnSuccessResult()
-    {
+    public async Task AskQuestionAsync_ShouldReturnSuccessResult() {
         // Arrange
         var question = "Test question";
 
@@ -37,8 +34,7 @@ public partial class UserInteractionServiceTests
     }
 
     [Fact]
-    public async Task AskQuestionAsync_WithOptions_ShouldLogOptions()
-    {
+    public async Task AskQuestionAsync_WithOptions_ShouldLogOptions() {
         // Arrange
         var question = "Test question";
         var options = new List<string> { "Option 1", "Option 2", "Option 3" };
@@ -59,8 +55,7 @@ public partial class UserInteractionServiceTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_WithInfoType_ShouldLogInformation()
-    {
+    public async Task SendMessageAsync_WithInfoType_ShouldLogInformation() {
         // Arrange
         var message = "Test info message";
 
@@ -79,8 +74,7 @@ public partial class UserInteractionServiceTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_WithWarningType_ShouldLogWarning()
-    {
+    public async Task SendMessageAsync_WithWarningType_ShouldLogWarning() {
         // Arrange
         var message = "Test warning message";
 
@@ -99,8 +93,7 @@ public partial class UserInteractionServiceTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_WithErrorType_ShouldLogError()
-    {
+    public async Task SendMessageAsync_WithErrorType_ShouldLogError() {
         // Arrange
         var message = "Test error message";
 
@@ -119,8 +112,7 @@ public partial class UserInteractionServiceTests
     }
 
     [Fact]
-    public async Task SendMessageAsync_WithSuccessType_ShouldLogInformation()
-    {
+    public async Task SendMessageAsync_WithSuccessType_ShouldLogInformation() {
         // Arrange
         var message = "Test success message";
 
@@ -141,8 +133,7 @@ public partial class UserInteractionServiceTests
     }
 
     [Fact]
-    public async Task ConfirmAsync_ShouldReturnTrue()
-    {
+    public async Task ConfirmAsync_ShouldReturnTrue() {
         var message = "Test confirm message";
 
         var result = await _userInteractionService.ConfirmAsync(message).ConfigureAwait(true);
@@ -161,50 +152,43 @@ public partial class UserInteractionServiceTests
     }
 
     [Fact]
-    public async Task AskQuestionAsync_NullQuestion_ShouldThrowArgumentException()
-    {
+    public async Task AskQuestionAsync_NullQuestion_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.AskQuestionAsync(null!).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("question").ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task AskQuestionAsync_EmptyQuestion_ShouldThrowArgumentException()
-    {
+    public async Task AskQuestionAsync_EmptyQuestion_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.AskQuestionAsync("").ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("question").ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task SendMessageAsync_NullMessage_ShouldThrowArgumentException()
-    {
+    public async Task SendMessageAsync_NullMessage_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.SendMessageAsync(null!).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("message").ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task SendMessageAsync_EmptyMessage_ShouldThrowArgumentException()
-    {
+    public async Task SendMessageAsync_EmptyMessage_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.SendMessageAsync("").ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("message").ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ConfirmAsync_NullMessage_ShouldThrowArgumentException()
-    {
+    public async Task ConfirmAsync_NullMessage_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.ConfirmAsync(null!).ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("message").ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task ConfirmAsync_EmptyMessage_ShouldThrowArgumentException()
-    {
+    public async Task ConfirmAsync_EmptyMessage_ShouldThrowArgumentException() {
         var act = async () => await _userInteractionService.ConfirmAsync("").ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().WithParameterName("message").ConfigureAwait(true);
     }
 
     [Fact]
-    public void Constructor_WithNullLogger_ShouldNotThrow()
-    {
+    public void Constructor_WithNullLogger_ShouldNotThrow() {
         // Act & Assert
         var exception = Record.Exception(() => new UserInteractionService(null));
         Assert.Null(exception);

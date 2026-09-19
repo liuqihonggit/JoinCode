@@ -4,10 +4,8 @@ namespace JoinCode.Gui.Tests.ViewModels;
 /// AgentRunVm 测试 — SubAgentRun → 可绑定行 VM 的映射契约，
 /// 驱动 AgentRunPanelView 的状态点/统计/活动列表/折叠计数绑定。
 /// </summary>
-public class AgentRunVmTests
-{
-    private static SubAgentRun CreateRun() => new()
-    {
+public class AgentRunVmTests {
+    private static SubAgentRun CreateRun() => new() {
         AgentId = "a1",
         Name = "explore",
         Description = "调研 GUI 方案",
@@ -15,8 +13,7 @@ public class AgentRunVmTests
     };
 
     [Fact]
-    public void Refresh_RunningState_ShouldMapHeaderAndGlyph()
-    {
+    public void Refresh_RunningState_ShouldMapHeaderAndGlyph() {
         var vm = new AgentRunVm(CreateRun());
         vm.Refresh();
 
@@ -26,8 +23,7 @@ public class AgentRunVmTests
     }
 
     [Fact]
-    public void Refresh_Completed_ShouldFreezeDoneStatsWithDuration()
-    {
+    public void Refresh_Completed_ShouldFreezeDoneStatsWithDuration() {
         var run = CreateRun();
         run.ToolUseCount = 14;
         run.State = SubAgentRunState.Completed;
@@ -44,8 +40,7 @@ public class AgentRunVmTests
     }
 
     [Fact]
-    public void Refresh_Failed_ShouldShowFailureGlyph()
-    {
+    public void Refresh_Failed_ShouldShowFailureGlyph() {
         var run = CreateRun();
         run.State = SubAgentRunState.Failed;
 
@@ -57,8 +52,7 @@ public class AgentRunVmTests
     }
 
     [Fact]
-    public void Refresh_ShouldSyncActivityLines_AndHiddenCount()
-    {
+    public void Refresh_ShouldSyncActivityLines_AndHiddenCount() {
         var run = CreateRun();
         run._visibleActivities.AddRange(["正在调用 Grep…", "✓ Grep", "搜索/读取 2 次…"]);
         run.HiddenActivityCount = 4;
@@ -72,8 +66,7 @@ public class AgentRunVmTests
     }
 
     [Fact]
-    public void Refresh_WhenNoHiddenActivities_HiddenTextShouldBeEmpty()
-    {
+    public void Refresh_WhenNoHiddenActivities_HiddenTextShouldBeEmpty() {
         var vm = new AgentRunVm(CreateRun());
         vm.Refresh();
 

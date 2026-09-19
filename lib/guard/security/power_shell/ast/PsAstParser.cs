@@ -4,8 +4,7 @@ namespace JoinCode.Guard.Security.PowerShell;
 /// PS AST 解析器 — spawn pwsh 子进程调用 Parser.ParseInput，解析 JSON 输出
 /// 对齐 TS: parser.ts — 同样的架构，进程外解析，AOT 兼容
 /// </summary>
-public static partial class PsAstParser
-{
+public static partial class PsAstParser {
     private static readonly string ParseScriptBody = BuildParseScript();
     private static string? _cachedPwshPath;
     private static readonly AsyncLock CacheLock = new("PsAstParser");
@@ -20,28 +19,22 @@ public static partial class PsAstParser
     /// <summary>
     /// 解析 PS 命令为结构化结果
     /// </summary>
-    public static PsParsedCommand Parse(string command, IProcessService? processService = null)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
-            return new PsParsedCommand
-            {
+    public static PsParsedCommand Parse(string command, IProcessService? processService = null) {
+        if (string.IsNullOrWhiteSpace(command)) {
+            return new PsParsedCommand {
                 Valid = false,
                 OriginalCommand = command,
             };
         }
 
-        if (ParseCache.TryGetValue(command, out var cached))
-        {
+        if (ParseCache.TryGetValue(command, out var cached)) {
             return cached;
         }
 
         var result = ParseCore(command, processService);
 
-        if (ShouldCache(result))
-        {
-            if (ParseCache.Count >= MaxCacheSize)
-            {
+        if (ShouldCache(result)) {
+            if (ParseCache.Count >= MaxCacheSize) {
                 ParseCache.Clear();
             }
             ParseCache[command] = result;
@@ -50,63 +43,50 @@ public static partial class PsAstParser
         return result;
     }
 
-    private static bool ShouldCache(PsParsedCommand result)
-    {
+    private static bool ShouldCache(PsParsedCommand result) {
         if (result.Valid) return true;
-        if (result.Errors is { Length: > 0 } && TransientErrorIds.Contains(result.Errors[0].ErrorId))
-        {
+        if (result.Errors is { Length: > 0 } && TransientErrorIds.Contains(result.Errors[0].ErrorId)) {
             return false;
         }
         return true;
     }
 
-    private static PsParsedCommand ParseCore(string command, IProcessService? processService = null)
-    {
+    private static PsParsedCommand ParseCore(string command, IProcessService? processService = null) {
         var pwshPath = FindPwshPath();
-        if (pwshPath is null)
-        {
-            return new PsParsedCommand
-            {
+        if (pwshPath is null) {
+            return new PsParsedCommand {
                 Valid = false,
                 OriginalCommand = command,
                 Errors = [new PsParseError { Message = "PowerShell not found", ErrorId = "NoPwsh" }],
             };
         }
 
-        try
-        {
+        try {
             var encodedCommand = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(command));
             var scriptEncoded = Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(ParseScriptBody));
 
-            if (processService is not null)
-            {
-                var options = new ProcessOptions
-                {
+            if (processService is not null) {
+                var options = new ProcessOptions {
                     FileName = pwshPath,
                     ArgumentList = new[] { "-NoProfile", "-NonInteractive", "-NoLogo", "-EncodedCommand", scriptEncoded },
                     TimeoutMs = 5000,
-                    EnvironmentVariables = new Dictionary<string, string>
-                    {
+                    EnvironmentVariables = new Dictionary<string, string> {
                         ["EncodedCommand"] = encodedCommand
                     }
                 };
 
                 var result = processService.ExecuteAsync(options).GetAwaiter().GetResult();
 
-                if (result.ExitCode == -1)
-                {
-                    return new PsParsedCommand
-                    {
+                if (result.ExitCode == -1) {
+                    return new PsParsedCommand {
                         Valid = false,
                         OriginalCommand = command,
                         Errors = [new PsParseError { Message = "pwsh parse process timed out", ErrorId = "ProcessTimeout" }],
                     };
                 }
 
-                if (result.ExitCode != 0 || string.IsNullOrWhiteSpace(result.StandardOutput))
-                {
-                    return new PsParsedCommand
-                    {
+                if (result.ExitCode != 0 || string.IsNullOrWhiteSpace(result.StandardOutput)) {
+                    return new PsParsedCommand {
                         Valid = false,
                         OriginalCommand = command,
                         Errors = [new PsParseError { Message = $"pwsh parse process failed: {result.StandardError}", ErrorId = "ProcessFailed" }],
@@ -116,8 +96,7 @@ public static partial class PsAstParser
                 return DeserializeParsedCommand(result.StandardOutput, command);
             }
 
-            var startInfo = new System.Diagnostics.ProcessStartInfo
-            {
+            var startInfo = new System.Diagnostics.ProcessStartInfo {
                 FileName = pwshPath,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -133,10 +112,8 @@ public static partial class PsAstParser
             startInfo.EnvironmentVariables["EncodedCommand"] = encodedCommand;
 
             using var process = System.Diagnostics.Process.Start(startInfo);
-            if (process is null)
-            {
-                return new PsParsedCommand
-                {
+            if (process is null) {
+                return new PsParsedCommand {
                     Valid = false,
                     OriginalCommand = command,
                     Errors = [new PsParseError { Message = "Failed to start pwsh process", ErrorId = "ProcessStartFailed" }],
@@ -147,21 +124,17 @@ public static partial class PsAstParser
             var stderr = process.StandardError.ReadToEnd();
             process.WaitForExit(5000);
 
-            if (!process.HasExited)
-            {
+            if (!process.HasExited) {
                 process.Kill();
-                return new PsParsedCommand
-                {
+                return new PsParsedCommand {
                     Valid = false,
                     OriginalCommand = command,
                     Errors = [new PsParseError { Message = "pwsh parse process timed out", ErrorId = "ProcessTimeout" }],
                 };
             }
 
-            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout))
-            {
-                return new PsParsedCommand
-                {
+            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout)) {
+                return new PsParsedCommand {
                     Valid = false,
                     OriginalCommand = command,
                     Errors = [new PsParseError { Message = $"pwsh parse process failed: {stderr}", ErrorId = "ProcessFailed" }],
@@ -169,11 +142,8 @@ public static partial class PsAstParser
             }
 
             return DeserializeParsedCommand(stdout, command);
-        }
-        catch (Exception ex)
-        {
-            return new PsParsedCommand
-            {
+        } catch (Exception ex) {
+            return new PsParsedCommand {
                 Valid = false,
                 OriginalCommand = command,
                 Errors = [new PsParseError { Message = ex.Message, ErrorId = "ParseException" }],
@@ -184,12 +154,10 @@ public static partial class PsAstParser
     /// <summary>
     /// 获取所有命令元素（跨所有语句、管道段、嵌套命令）
     /// </summary>
-    public static List<PsCommandElement> GetAllCommands(PsParsedCommand parsed)
-    {
+    public static List<PsCommandElement> GetAllCommands(PsParsedCommand parsed) {
         var commands = new List<PsCommandElement>();
 
-        foreach (var stmt in parsed.Statements)
-        {
+        foreach (var stmt in parsed.Statements) {
             commands.AddRange(stmt.Commands);
             commands.AddRange(stmt.NestedCommands);
         }
@@ -200,11 +168,9 @@ public static partial class PsAstParser
     /// <summary>
     /// 获取所有命令名（小写，用于大小写不敏感匹配）
     /// </summary>
-    public static List<string> GetAllCommandNames(PsParsedCommand parsed)
-    {
+    public static List<string> GetAllCommandNames(PsParsedCommand parsed) {
         var names = new List<string>();
-        foreach (var cmd in GetAllCommands(parsed))
-        {
+        foreach (var cmd in GetAllCommands(parsed)) {
             names.Add(cmd.Name.ToLowerInvariant());
         }
         return names;
@@ -213,22 +179,18 @@ public static partial class PsAstParser
     /// <summary>
     /// 检查是否存在指定名称的命令（支持别名解析）
     /// </summary>
-    public static bool HasCommandNamed(PsParsedCommand parsed, string name)
-    {
+    public static bool HasCommandNamed(PsParsedCommand parsed, string name) {
         var lowerName = name.ToLowerInvariant();
-        foreach (var cmdName in GetAllCommandNames(parsed))
-        {
+        foreach (var cmdName in GetAllCommandNames(parsed)) {
             if (cmdName == lowerName) return true;
 
             if (PsAliases.TryResolve(cmdName, out var canonical) &&
-                canonical.Equals(lowerName, StringComparison.OrdinalIgnoreCase))
-            {
+                canonical.Equals(lowerName, StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
 
             if (PsAliases.TryResolve(lowerName, out var canonical2) &&
-                canonical2.Equals(cmdName, StringComparison.OrdinalIgnoreCase))
-            {
+                canonical2.Equals(cmdName, StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
         }
@@ -238,16 +200,14 @@ public static partial class PsAstParser
     /// <summary>
     /// 获取所有变量引用
     /// </summary>
-    public static List<PsVariable> GetVariables(PsParsedCommand parsed)
-    {
+    public static List<PsVariable> GetVariables(PsParsedCommand parsed) {
         return [.. parsed.Variables];
     }
 
     /// <summary>
     /// 按作用域过滤变量（如 "env" 过滤 $env:PATH）
     /// </summary>
-    public static List<PsVariable> GetVariablesByScope(PsParsedCommand parsed, string scope)
-    {
+    public static List<PsVariable> GetVariablesByScope(PsParsedCommand parsed, string scope) {
         var prefix = scope.ToLowerInvariant() + ":";
         return parsed.Variables.Where(v => v.Path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList();
     }
@@ -255,27 +215,21 @@ public static partial class PsAstParser
     /// <summary>
     /// 推导安全标志 — 从解析结果中提取
     /// </summary>
-    public static PsSecurityFlags DeriveSecurityFlags(PsParsedCommand parsed)
-    {
+    public static PsSecurityFlags DeriveSecurityFlags(PsParsedCommand parsed) {
         bool hasSubExpr = false, hasScriptBlocks = false, hasSplatting = false;
         bool hasExpandableStrings = false, hasMemberInvocations = false, hasAssignments = false;
 
-        foreach (var stmt in parsed.Statements)
-        {
-            if (stmt.SecurityPatterns is not null)
-            {
+        foreach (var stmt in parsed.Statements) {
+            if (stmt.SecurityPatterns is not null) {
                 if (stmt.SecurityPatterns.HasSubExpressions) hasSubExpr = true;
                 if (stmt.SecurityPatterns.HasScriptBlocks) hasScriptBlocks = true;
                 if (stmt.SecurityPatterns.HasExpandableStrings) hasExpandableStrings = true;
                 if (stmt.SecurityPatterns.HasMemberInvocations) hasMemberInvocations = true;
             }
 
-            foreach (var cmd in stmt.Commands)
-            {
-                foreach (var et in cmd.ElementTypes)
-                {
-                    switch (et)
-                    {
+            foreach (var cmd in stmt.Commands) {
+                foreach (var et in cmd.ElementTypes) {
+                    switch (et) {
                         case PsElementType.SubExpression: hasSubExpr = true; break;
                         case PsElementType.ScriptBlock: hasScriptBlocks = true; break;
                         case PsElementType.ExpandableString: hasExpandableStrings = true; break;
@@ -286,14 +240,12 @@ public static partial class PsAstParser
 
             if (stmt.StatementType is "AssignmentStatementAst") hasAssignments = true;
 
-            foreach (var v in parsed.Variables)
-            {
+            foreach (var v in parsed.Variables) {
                 if (v.IsSplatted) hasSplatting = true;
             }
         }
 
-        return new PsSecurityFlags
-        {
+        return new PsSecurityFlags {
             HasSubExpressions = hasSubExpr,
             HasScriptBlocks = hasScriptBlocks,
             HasSplatting = hasSplatting,
@@ -307,13 +259,11 @@ public static partial class PsAstParser
     /// <summary>
     /// 检查参数是否匹配指定参数名（支持缩写）
     /// </summary>
-    public static bool CommandHasArgAbbreviation(PsCommandElement cmd, string fullParam, string minPrefix)
-    {
+    public static bool CommandHasArgAbbreviation(PsCommandElement cmd, string fullParam, string minPrefix) {
         var lowerFull = fullParam.ToLowerInvariant();
         var lowerMin = minPrefix.ToLowerInvariant();
 
-        foreach (var arg in cmd.Args)
-        {
+        foreach (var arg in cmd.Args) {
             var colonIdx = arg.IndexOf(':', 1);
             var paramPart = colonIdx > 0 ? arg[..colonIdx] : arg;
 
@@ -321,8 +271,7 @@ public static partial class PsAstParser
 
             if (lower.StartsWith(lowerMin) &&
                 lowerFull.StartsWith(lower) &&
-                lower.Length <= lowerFull.Length)
-            {
+                lower.Length <= lowerFull.Length) {
                 return true;
             }
         }
@@ -335,18 +284,15 @@ public static partial class PsAstParser
     /// <summary>
     /// 检查参数是否匹配指定参数名（支持缩写与替代前缀 /、–、—、―）
     /// </summary>
-    public static bool PsHasParamAbbreviation(PsCommandElement cmd, string fullParam, string minPrefix)
-    {
-        if (CommandHasArgAbbreviation(cmd, fullParam, minPrefix))
-        {
+    public static bool PsHasParamAbbreviation(PsCommandElement cmd, string fullParam, string minPrefix) {
+        if (CommandHasArgAbbreviation(cmd, fullParam, minPrefix)) {
             return true;
         }
 
         var normalizedArgs = cmd.Args.Select(a =>
             a.Length > 0 && AltParamPrefixes.Contains(a[0]) ? "-" + a[1..] : a).ToArray();
 
-        var normalizedCmd = new PsCommandElement
-        {
+        var normalizedCmd = new PsCommandElement {
             Name = cmd.Name,
             NameType = cmd.NameType,
             Args = [.. normalizedArgs],
@@ -360,14 +306,12 @@ public static partial class PsAstParser
     /// <summary>
     /// 判断是否为 PS 可执行文件名
     /// </summary>
-    public static bool IsPowerShellExecutable(string name)
-    {
+    public static bool IsPowerShellExecutable(string name) {
         var lower = name.ToLowerInvariant();
         if (PsExecutableNames.Contains(lower)) return true;
 
         var lastSep = Math.Max(lower.LastIndexOf('/'), lower.LastIndexOf('\\'));
-        if (lastSep >= 0)
-        {
+        if (lastSep >= 0) {
             return PsExecutableNames.Contains(lower[(lastSep + 1)..]);
         }
         return false;
@@ -377,10 +321,8 @@ public static partial class PsAstParser
         ["pwsh", "pwsh.exe", "powershell", "powershell.exe"],
         StringComparer.OrdinalIgnoreCase);
 
-    private static string? FindPwshPath()
-    {
-        using (CacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{CacheLock.Name}' 等待超时"))
-        {
+    private static string? FindPwshPath() {
+        using (CacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{CacheLock.Name}' 等待超时")) {
             if (_cachedPwshPath is not null) return _cachedPwshPath;
         }
 
@@ -388,28 +330,21 @@ public static partial class PsAstParser
 
         var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
         var separators = new[] { ';' };
-        foreach (var dir in pathEnv.Split(separators, StringSplitOptions.RemoveEmptyEntries))
-        {
-            try
-            {
-                foreach (var name in new[] { "pwsh.exe", "pwsh" })
-                {
+        foreach (var dir in pathEnv.Split(separators, StringSplitOptions.RemoveEmptyEntries)) {
+            try {
+                foreach (var name in new[] { "pwsh.exe", "pwsh" }) {
                     var fullPath = Path.Combine(dir.Trim(), name);
-                    if (Path.Exists(fullPath))
-                    {
+                    if (Path.Exists(fullPath)) {
                         found = fullPath;
                         break;
                     }
                 }
-            }
-            catch (IOException) { continue; }
+            } catch (IOException) { continue; }
             if (found is not null) break;
         }
 
-        if (found is not null)
-        {
-            using (CacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{CacheLock.Name}' 等待超时"))
-            {
+        if (found is not null) {
+            using (CacheLock.TryLock() ?? throw new System.TimeoutException($"锁 '{CacheLock.Name}' 等待超时")) {
                 _cachedPwshPath = found;
             }
         }
@@ -417,20 +352,15 @@ public static partial class PsAstParser
         return found;
     }
 
-    private static PsParsedCommand DeserializeParsedCommand(string json, string originalCommand)
-    {
-        try
-        {
+    private static PsParsedCommand DeserializeParsedCommand(string json, string originalCommand) {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
             var errors = new List<PsParseError>();
-            if (root.TryGetProperty("errors", out var errorsElem))
-            {
-                foreach (var e in errorsElem.EnumerateArray())
-                {
-                    errors.Add(new PsParseError
-                    {
+            if (root.TryGetProperty("errors", out var errorsElem)) {
+                foreach (var e in errorsElem.EnumerateArray()) {
+                    errors.Add(new PsParseError {
                         Message = e.TryGetProperty("message", out var m) ? m.GetString() ?? "" : "",
                         ErrorId = e.TryGetProperty("errorId", out var id) ? id.GetString() ?? "" : "",
                     });
@@ -438,20 +368,16 @@ public static partial class PsAstParser
             }
 
             var typeLiterals = new List<string>();
-            if (root.TryGetProperty("typeLiterals", out var tlElem))
-            {
-                foreach (var tl in tlElem.EnumerateArray())
-                {
+            if (root.TryGetProperty("typeLiterals", out var tlElem)) {
+                foreach (var tl in tlElem.EnumerateArray()) {
                     var val = tl.GetString();
                     if (val is not null) typeLiterals.Add(val);
                 }
             }
 
             var variables = new List<PsVariable>();
-            if (root.TryGetProperty("variables", out var varsElem))
-            {
-                foreach (var v in varsElem.EnumerateArray())
-                {
+            if (root.TryGetProperty("variables", out var varsElem)) {
+                foreach (var v in varsElem.EnumerateArray()) {
                     variables.Add(new PsVariable(
                         v.TryGetProperty("path", out var p) ? p.GetString() ?? "" : "",
                         v.TryGetProperty("isSplatted", out var sp) && sp.GetBoolean()));
@@ -459,16 +385,13 @@ public static partial class PsAstParser
             }
 
             var statements = new List<PsStatement>();
-            if (root.TryGetProperty("statements", out var stmtsElem))
-            {
-                foreach (var s in stmtsElem.EnumerateArray())
-                {
+            if (root.TryGetProperty("statements", out var stmtsElem)) {
+                foreach (var s in stmtsElem.EnumerateArray()) {
                     statements.Add(DeserializeStatement(s));
                 }
             }
 
-            return new PsParsedCommand
-            {
+            return new PsParsedCommand {
                 Valid = root.TryGetProperty("valid", out var vElem) && vElem.GetBoolean(),
                 OriginalCommand = originalCommand,
                 Errors = [.. errors],
@@ -479,11 +402,8 @@ public static partial class PsAstParser
                 Statements = [.. statements],
                 Variables = [.. variables],
             };
-        }
-        catch
-        {
-            return new PsParsedCommand
-            {
+        } catch {
+            return new PsParsedCommand {
                 Valid = false,
                 OriginalCommand = originalCommand,
                 Errors = [new PsParseError { Message = "Failed to deserialize parse output", ErrorId = "DeserializationFailed" }],
@@ -491,45 +411,36 @@ public static partial class PsAstParser
         }
     }
 
-    private static PsStatement DeserializeStatement(JsonElement s)
-    {
+    private static PsStatement DeserializeStatement(JsonElement s) {
         var commands = new List<PsCommandElement>();
         var nestedCommands = new List<PsCommandElement>();
         var redirections = new List<PsRedirection>();
 
         var stmtType = s.TryGetProperty("type", out var t) ? t.GetString() ?? "" : "";
 
-        if (s.TryGetProperty("elements", out var elems))
-        {
-            foreach (var elem in elems.EnumerateArray())
-            {
+        if (s.TryGetProperty("elements", out var elems)) {
+            foreach (var elem in elems.EnumerateArray()) {
                 var cmd = DeserializeCommandFromElement(elem);
                 if (cmd is not null) commands.Add(cmd);
             }
         }
 
-        if (s.TryGetProperty("nestedCommands", out var nested))
-        {
-            foreach (var nc in nested.EnumerateArray())
-            {
+        if (s.TryGetProperty("nestedCommands", out var nested)) {
+            foreach (var nc in nested.EnumerateArray()) {
                 var cmd = DeserializeCommandFromElement(nc);
                 if (cmd is not null) nestedCommands.Add(cmd);
             }
         }
 
-        if (s.TryGetProperty("redirections", out var redirs))
-        {
-            foreach (var r in redirs.EnumerateArray())
-            {
+        if (s.TryGetProperty("redirections", out var redirs)) {
+            foreach (var r in redirs.EnumerateArray()) {
                 redirections.Add(DeserializeRedirection(r));
             }
         }
 
         PsSecurityPatterns? securityPatterns = null;
-        if (s.TryGetProperty("securityPatterns", out var sp))
-        {
-            securityPatterns = new PsSecurityPatterns
-            {
+        if (s.TryGetProperty("securityPatterns", out var sp)) {
+            securityPatterns = new PsSecurityPatterns {
                 HasMemberInvocations = sp.TryGetProperty("hasMemberInvocations", out var mi) && mi.GetBoolean(),
                 HasSubExpressions = sp.TryGetProperty("hasSubExpressions", out var se) && se.GetBoolean(),
                 HasExpandableStrings = sp.TryGetProperty("hasExpandableStrings", out var es) && es.GetBoolean(),
@@ -537,8 +448,7 @@ public static partial class PsAstParser
             };
         }
 
-        return new PsStatement
-        {
+        return new PsStatement {
             StatementType = stmtType,
             Commands = [.. commands],
             NestedCommands = [.. nestedCommands],
@@ -548,17 +458,14 @@ public static partial class PsAstParser
         };
     }
 
-    private static PsCommandElement? DeserializeCommandFromElement(JsonElement elem)
-    {
+    private static PsCommandElement? DeserializeCommandFromElement(JsonElement elem) {
         var elemType = elem.TryGetProperty("type", out var et) ? et.GetString() ?? "" : "";
 
         if (elemType != "CommandAst") return null;
 
         var commandElements = new List<(string Text, string Type, string? Value)>();
-        if (elem.TryGetProperty("commandElements", out var ce))
-        {
-            foreach (var c in ce.EnumerateArray())
-            {
+        if (elem.TryGetProperty("commandElements", out var ce)) {
+            foreach (var c in ce.EnumerateArray()) {
                 commandElements.Add((
                     c.TryGetProperty("text", out var ct) ? ct.GetString() ?? "" : "",
                     c.TryGetProperty("type", out var ctype) ? ctype.GetString() ?? "" : "",
@@ -581,23 +488,19 @@ public static partial class PsAstParser
 
         elementTypes.Add(MapElementTypeFromRaw(commandElements[0].Type));
 
-        for (var i = 1; i < commandElements.Count; i++)
-        {
+        for (var i = 1; i < commandElements.Count; i++) {
             args.Add(commandElements[i].Value ?? commandElements[i].Text);
             elementTypes.Add(MapElementTypeFromRaw(commandElements[i].Type));
         }
 
         var redirections = new List<PsRedirection>();
-        if (elem.TryGetProperty("redirections", out var redirs))
-        {
-            foreach (var r in redirs.EnumerateArray())
-            {
+        if (elem.TryGetProperty("redirections", out var redirs)) {
+            foreach (var r in redirs.EnumerateArray()) {
                 redirections.Add(DeserializeRedirection(r));
             }
         }
 
-        return new PsCommandElement
-        {
+        return new PsCommandElement {
             Name = name,
             NameType = nameType,
             Args = [.. args],
@@ -607,10 +510,8 @@ public static partial class PsAstParser
         };
     }
 
-    private static PsElementType MapElementTypeFromRaw(string rawType)
-    {
-        return rawType switch
-        {
+    private static PsElementType MapElementTypeFromRaw(string rawType) {
+        return rawType switch {
             "ScriptBlockExpressionAst" => PsElementType.ScriptBlock,
             "SubExpressionAst" or "ArrayExpressionAst" or "ParenExpressionAst" => PsElementType.SubExpression,
             "ExpandableStringExpressionAst" => PsElementType.ExpandableString,
@@ -622,23 +523,19 @@ public static partial class PsAstParser
         };
     }
 
-    private static PsRedirection DeserializeRedirection(JsonElement r)
-    {
+    private static PsRedirection DeserializeRedirection(JsonElement r) {
         var rType = r.TryGetProperty("type", out var rt) ? rt.GetString() ?? "" : "";
 
-        if (rType == "MergingRedirectionAst")
-        {
+        if (rType == "MergingRedirectionAst") {
             return new PsRedirection("2>&1", "", true);
         }
 
-        if (rType == "FileRedirectionAst")
-        {
+        if (rType == "FileRedirectionAst") {
             var append = r.TryGetProperty("append", out var a) && a.GetBoolean();
             var fromStream = r.TryGetProperty("fromStream", out var fs) ? fs.GetString() ?? "" : "";
             var target = r.TryGetProperty("locationText", out var lt) ? lt.GetString() ?? "" : "";
 
-            var op = (append, fromStream) switch
-            {
+            var op = (append, fromStream) switch {
                 (true, "Error") => "2>>",
                 (true, "All") => "*>>",
                 (true, _) => ">>",
@@ -653,22 +550,18 @@ public static partial class PsAstParser
         return new PsRedirection(">", "", false);
     }
 
-    private static string StripQuotes(string name)
-    {
-        if (name.Length >= 2)
-        {
+    private static string StripQuotes(string name) {
+        if (name.Length >= 2) {
             var first = name[0];
             var last = name[^1];
-            if ((first == '\'' || first == '"') && first == last)
-            {
+            if ((first == '\'' || first == '"') && first == last) {
                 return name[1..^1];
             }
         }
         return name;
     }
 
-    private static string StripModulePrefix(string name)
-    {
+    private static string StripModulePrefix(string name) {
         var idx = name.LastIndexOf('\\');
         if (idx < 0) return name;
 
@@ -680,28 +573,23 @@ public static partial class PsAstParser
         return name[(idx + 1)..];
     }
 
-    private static PsCommandNameType ClassifyCommandName(string name)
-    {
-        if (name.Any(c => c > 0x7F))
-        {
+    private static PsCommandNameType ClassifyCommandName(string name) {
+        if (name.Any(c => c > 0x7F)) {
             return PsCommandNameType.Application;
         }
 
-        if (Regex.IsMatch(name, @"^[A-Za-z]+-[A-Za-z][A-Za-z0-9_]*$"))
-        {
+        if (Regex.IsMatch(name, @"^[A-Za-z]+-[A-Za-z][A-Za-z0-9_]*$")) {
             return PsCommandNameType.Cmdlet;
         }
 
-        if (name.Contains('/') || name.Contains('\\') || name.Contains('.'))
-        {
+        if (name.Contains('/') || name.Contains('\\') || name.Contains('.')) {
             return PsCommandNameType.Application;
         }
 
         return PsCommandNameType.Unknown;
     }
 
-    private static string BuildParseScript()
-    {
+    private static string BuildParseScript() {
         return """
 if (-not $env:EncodedCommand) {
     Write-Output '{"valid":false,"errors":[{"message":"No command provided","errorId":"NoInput"}],"statements":[],"variables":[],"hasStopParsing":false,"originalCommand":""}'

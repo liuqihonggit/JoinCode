@@ -3,11 +3,9 @@ namespace Core.Tests.Commands;
 /// <summary>
 /// /?? 需求澄清命令单元测试
 /// </summary>
-public class AskClarifyCommandTests
-{
+public class AskClarifyCommandTests {
     [Fact]
-    public void Command_ShouldHaveCorrectName()
-    {
+    public void Command_ShouldHaveCorrectName() {
         var command = new AskClarifyCommand();
 
         command.Name.Should().Be(ChatCommandNameEnumConstants.AskClarify);
@@ -15,16 +13,14 @@ public class AskClarifyCommandTests
     }
 
     [Fact]
-    public void Command_ShouldHaveAskAlias()
-    {
+    public void Command_ShouldHaveAskAlias() {
         var command = new AskClarifyCommand();
 
         command.Aliases.Should().Contain("ask");
     }
 
     [Fact]
-    public void Command_ShouldHaveNonEmptyDescription()
-    {
+    public void Command_ShouldHaveNonEmptyDescription() {
         var command = new AskClarifyCommand();
 
         command.Description.Should().NotBeEmpty();
@@ -32,8 +28,7 @@ public class AskClarifyCommandTests
     }
 
     [Fact]
-    public void Command_ShouldHaveCorrectCategory()
-    {
+    public void Command_ShouldHaveCorrectCategory() {
         var command = new AskClarifyCommand();
 
         var attr = typeof(AskClarifyCommand).GetCustomAttributes(typeof(ChatCommandAttribute), false)
@@ -42,8 +37,7 @@ public class AskClarifyCommandTests
     }
 
     [Fact]
-    public void ClarifyDoneMarker_ShouldBeExpectedValue()
-    {
+    public void ClarifyDoneMarker_ShouldBeExpectedValue() {
         AskClarifyCommand.ClarifyDoneMarker.Should().Be("【需求已明确】");
     }
 
@@ -54,8 +48,7 @@ public class AskClarifyCommandTests
     [InlineData("/quit")]
     [InlineData("/END")]
     [InlineData("  /end  ")]
-    public void IsExitCommand_ShouldReturnTrue_ForExitCommands(string input)
-    {
+    public void IsExitCommand_ShouldReturnTrue_ForExitCommands(string input) {
         AskClarifyCommand.IsExitCommand(input).Should().BeTrue();
     }
 
@@ -65,20 +58,17 @@ public class AskClarifyCommandTests
     [InlineData("/help")]
     [InlineData("/ask")]
     [InlineData("继续")]
-    public void IsExitCommand_ShouldReturnFalse_ForNonExitCommands(string input)
-    {
+    public void IsExitCommand_ShouldReturnFalse_ForNonExitCommands(string input) {
         AskClarifyCommand.IsExitCommand(input).Should().BeFalse();
     }
 
     [Fact]
-    public void SystemPrompt_ShouldNotBeEmpty()
-    {
+    public void SystemPrompt_ShouldNotBeEmpty() {
         AskClarifyPrompts.SystemPrompt.Should().NotBeEmpty();
     }
 
     [Fact]
-    public void SystemPrompt_ShouldContainKeyPhrases()
-    {
+    public void SystemPrompt_ShouldContainKeyPhrases() {
         var prompt = AskClarifyPrompts.SystemPrompt;
 
         prompt.Should().Contain("需求澄清模式");
@@ -90,8 +80,7 @@ public class AskClarifyCommandTests
     }
 
     [Fact]
-    public void SystemPrompt_ShouldContainClarifyRules()
-    {
+    public void SystemPrompt_ShouldContainClarifyRules() {
         var prompt = AskClarifyPrompts.SystemPrompt;
 
         prompt.Should().Contain("【澄清规则】");
@@ -99,8 +88,7 @@ public class AskClarifyCommandTests
     }
 
     [Fact]
-    public void Parse_DoubleQuestionMark_ShouldRouteToAskClarifyNotHelp()
-    {
+    public void Parse_DoubleQuestionMark_ShouldRouteToAskClarifyNotHelp() {
         var registry = new ChatCommandRegistry();
         registry.Register(new AskClarifyCommand());
         registry.Register(new HelpCommand());
@@ -115,8 +103,7 @@ public class AskClarifyCommandTests
     }
 
     [Fact]
-    public void Parse_SingleQuestionMark_ShouldRouteToHelpNotAskClarify()
-    {
+    public void Parse_SingleQuestionMark_ShouldRouteToHelpNotAskClarify() {
         var registry = new ChatCommandRegistry();
         registry.Register(new AskClarifyCommand());
         registry.Register(new HelpCommand());
@@ -131,8 +118,7 @@ public class AskClarifyCommandTests
     }
 
     [Fact]
-    public void Parse_AskAlias_ShouldRouteToAskClarify()
-    {
+    public void Parse_AskAlias_ShouldRouteToAskClarify() {
         var registry = new ChatCommandRegistry();
         registry.Register(new AskClarifyCommand());
         registry.Register(new HelpCommand());
@@ -147,8 +133,7 @@ public class AskClarifyCommandTests
     }
 
     [Fact]
-    public void Parse_DoubleQuestionMarkWithArgs_ShouldParseArgsCorrectly()
-    {
+    public void Parse_DoubleQuestionMarkWithArgs_ShouldParseArgsCorrectly() {
         var registry = new ChatCommandRegistry();
         registry.Register(new AskClarifyCommand());
 
@@ -162,11 +147,9 @@ public class AskClarifyCommandTests
 /// <summary>
 /// TerminalInteractiveService 单元测试 — 仅测试不涉及终端 I/O 的逻辑
 /// </summary>
-public class TerminalInteractiveServiceTests
-{
+public class TerminalInteractiveServiceTests {
     [Fact]
-    public async Task AskUserQuestionAsync_EmptyQuestion_ShouldReturnFailure()
-    {
+    public async Task AskUserQuestionAsync_EmptyQuestion_ShouldReturnFailure() {
         var service = new TerminalInteractiveService();
 
         var result = await service.AskUserQuestionAsync("");
@@ -176,8 +159,7 @@ public class TerminalInteractiveServiceTests
     }
 
     [Fact]
-    public async Task AskUserQuestionsAsync_EmptyList_ShouldReturnFailure()
-    {
+    public async Task AskUserQuestionsAsync_EmptyList_ShouldReturnFailure() {
         var service = new TerminalInteractiveService();
 
         var result = await service.AskUserQuestionsAsync([]);
@@ -187,11 +169,9 @@ public class TerminalInteractiveServiceTests
     }
 
     [Fact]
-    public async Task AskUserQuestionsAsync_TooManyQuestions_ShouldReturnFailure()
-    {
+    public async Task AskUserQuestionsAsync_TooManyQuestions_ShouldReturnFailure() {
         var service = new TerminalInteractiveService();
-        var questions = Enumerable.Range(0, 5).Select(i => new QuestionItem
-        {
+        var questions = Enumerable.Range(0, 5).Select(i => new QuestionItem {
             Question = $"Q{i}",
             Header = $"H{i}",
             Options = [new() { Label = "A", Description = "a" }, new() { Label = "B", Description = "b" }]
@@ -204,8 +184,7 @@ public class TerminalInteractiveServiceTests
     }
 
     [Fact]
-    public async Task AskUserQuestionsAsync_InvalidOptionCount_ShouldReturnFailure()
-    {
+    public async Task AskUserQuestionsAsync_InvalidOptionCount_ShouldReturnFailure() {
         var service = new TerminalInteractiveService();
         var questions = new List<QuestionItem>
         {
@@ -224,8 +203,7 @@ public class TerminalInteractiveServiceTests
     }
 
     [Fact]
-    public async Task AskUserQuestionsAsync_DuplicateLabels_ShouldReturnFailure()
-    {
+    public async Task AskUserQuestionsAsync_DuplicateLabels_ShouldReturnFailure() {
         var service = new TerminalInteractiveService();
         var questions = new List<QuestionItem>
         {

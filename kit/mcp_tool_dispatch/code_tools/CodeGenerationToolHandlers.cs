@@ -7,16 +7,14 @@ namespace McpToolDispatch;
 /// 代码生成工具处理器 - 提供 C# 代码生成、单元测试生成、API 控制器生成等功能
 /// </summary>
 [McpToolDispatch(ToolCategory.CodeGeneration, Optional = true)]
-public class CodeGenerationToolHandlers
-{
+public class CodeGenerationToolHandlers {
     private readonly IQueryEngine _queryEngine;
 
     /// <summary>
     /// 初始化 <see cref="CodeGenerationToolHandlers"/> 实例
     /// </summary>
     /// <param name="queryEngine">查询引擎</param>
-    public CodeGenerationToolHandlers(IQueryEngine queryEngine)
-    {
+    public CodeGenerationToolHandlers(IQueryEngine queryEngine) {
         _queryEngine = queryEngine ?? throw new ArgumentNullException(nameof(queryEngine));
     }
 
@@ -28,10 +26,8 @@ public class CodeGenerationToolHandlers
         [McpToolParameter("Code requirement description")] string description,
         [McpToolParameter("Code context or related code snippets", Required = false)] string? context = null,
         [McpToolParameter("Target framework version, e.g. net8.0, net10.0", Required = false)] string? framework_version = null,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(description))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(description)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.DescriptionCannotBeEmpty)).Build();
         }
 
@@ -41,14 +37,12 @@ public class CodeGenerationToolHandlers
         promptBuilder.AppendLine("## 需求描述");
         promptBuilder.AppendLine(description);
 
-        if (!string.IsNullOrWhiteSpace(framework_version))
-        {
+        if (!string.IsNullOrWhiteSpace(framework_version)) {
             promptBuilder.AppendLine();
             promptBuilder.AppendLine($"## 目标框架: {framework_version}");
         }
 
-        if (!string.IsNullOrWhiteSpace(context))
-        {
+        if (!string.IsNullOrWhiteSpace(context)) {
             promptBuilder.AppendLine();
             promptBuilder.AppendLine("## 上下文代码");
             promptBuilder.AppendLine("```csharp");
@@ -64,13 +58,10 @@ public class CodeGenerationToolHandlers
         promptBuilder.AppendLine("4. 使用现代 C# 特性");
         promptBuilder.AppendLine("5. 确保代码可编译通过");
 
-        try
-        {
+        try {
             var result = await _queryEngine.ExecuteQueryAsync(promptBuilder.ToString(), cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(result).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CodeGenerationFailed, ex.Message)).Build();
         }
     }
@@ -83,10 +74,8 @@ public class CodeGenerationToolHandlers
         [McpToolParameter("C# code to test")] string code,
         [McpToolParameter("Test framework, e.g. xunit, nunit, mstest", Required = false, DefaultValue = "xunit")] string test_framework = "xunit",
         [McpToolParameter("Number of tests to generate", Required = false, DefaultValue = "5")] int test_count = 5,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(code)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.CodeCannotBeEmpty)).Build();
         }
 
@@ -112,13 +101,10 @@ public class CodeGenerationToolHandlers
         promptBuilder.AppendLine();
         promptBuilder.AppendLine(prompt);
 
-        try
-        {
+        try {
             var result = await _queryEngine.ExecuteQueryAsync(promptBuilder.ToString(), cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(result).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.UnitTestGenerationFailed, ex.Message)).Build();
         }
     }
@@ -132,10 +118,8 @@ public class CodeGenerationToolHandlers
         [McpToolParameter("Entity/model class definition", Required = false)] string? model_definition = null,
         [McpToolParameter("Whether to include CRUD operations", Required = false, DefaultValue = "true")] bool include_crud = true,
         [McpToolParameter("Whether to include authentication", Required = false, DefaultValue = "false")] bool include_auth = false,
-        CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(description))
-        {
+        CancellationToken cancellationToken = default) {
+        if (string.IsNullOrWhiteSpace(description)) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.DescriptionCannotBeEmpty)).Build();
         }
 
@@ -145,8 +129,7 @@ public class CodeGenerationToolHandlers
         promptBuilder.AppendLine("## 需求描述");
         promptBuilder.AppendLine(description);
 
-        if (!string.IsNullOrWhiteSpace(model_definition))
-        {
+        if (!string.IsNullOrWhiteSpace(model_definition)) {
             promptBuilder.AppendLine();
             promptBuilder.AppendLine("## 实体/模型定义");
             promptBuilder.AppendLine("```csharp");
@@ -164,13 +147,10 @@ public class CodeGenerationToolHandlers
         promptBuilder.AppendLine("- 实现适当的输入验证");
         promptBuilder.AppendLine("- 包含异常处理中间件");
 
-        try
-        {
+        try {
             var result = await _queryEngine.ExecuteQueryAsync(promptBuilder.ToString(), cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(result).Build();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ApiControllerGenerationFailed, ex.Message)).Build();
         }
     }

@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Configuration.Execution;
 /// <remarks>
 /// 手动注册（有自定义验证逻辑），不使用 [RegisterOptions]
 /// </remarks>
-public sealed class ShellExecutionConfig
-{
+public sealed class ShellExecutionConfig {
     /// <summary>
     /// 最大输出字节数（默认 30KB）— 对齐 TS BASH_MAX_OUTPUT_DEFAULT (30000)
     /// </summary>

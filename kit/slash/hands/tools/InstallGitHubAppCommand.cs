@@ -5,8 +5,7 @@ namespace JoinCode.ChatCommands;
 /// 设置 JoinCode GitHub Actions 工作流，包含多步分支交互
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.InstallGitHubApp, Description = "设置 JoinCode GitHub Actions 工作流", Usage = "/install-github-app", Category = ChatCommandCategory.Tools)]
-public sealed class InstallGitHubAppCommand : ChatCommandBase
-{
+public sealed class InstallGitHubAppCommand : ChatCommandBase {
     private readonly IGitHubCommandRunner? _gitHubRunner;
     private readonly IGitHubApiClient? _apiClient;
 
@@ -15,8 +14,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// </summary>
     /// <param name="gitHubRunner">可选的 GitHub 命令执行器</param>
     /// <param name="gitHubApiClient">可选的 GitHub API 客户端</param>
-    public InstallGitHubAppCommand(IGitHubCommandRunner? gitHubRunner = null, IGitHubApiClient? gitHubApiClient = null)
-    {
+    public InstallGitHubAppCommand(IGitHubCommandRunner? gitHubRunner = null, IGitHubApiClient? gitHubApiClient = null) {
         _gitHubRunner = gitHubRunner;
         _apiClient = gitHubApiClient;
     }
@@ -26,25 +24,21 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var ct = context.CancellationToken;
 
         // Step 1: 检查 GitHub CLI
         var checkResult = await CheckGitHubCliAsync(ct).ConfigureAwait(false);
-        if (!checkResult.Success)
-        {
+        if (!checkResult.Success) {
             ShowError(checkResult.ErrorMessage ?? "Unknown error", checkResult.FixHint);
             return ChatCommandResult.Continue();
         }
 
         // Step 2: 显示警告（如果有）
-        if (checkResult.Warnings.Count > 0)
-        {
+        if (checkResult.Warnings.Count > 0) {
             ShowWarnings(checkResult.Warnings);
             var confirmed = await Confirmation.ConfirmAsync("继续安装？", ct).ConfigureAwait(false);
-            if (!confirmed)
-            {
+            if (!confirmed) {
                 TerminalHelper.WriteLine("安装已取消");
                 return ChatCommandResult.Continue();
             }
@@ -52,8 +46,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
         // Step 3: 选择仓库
         var repoName = await ChooseRepoAsync(checkResult.CurrentRepo, ct).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(repoName))
-        {
+        if (string.IsNullOrEmpty(repoName)) {
             TerminalHelper.WriteLine("安装已取消");
             return ChatCommandResult.Continue();
         }
@@ -67,8 +60,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         TerminalHelper.WriteLine($"请为仓库 {TerminalColors.Accent}{repoName}{AnsiStyleEnumConstants.Reset} 安装 App 并授予访问权限。");
 
         var installed = await Confirmation.ConfirmAsync("已安装 GitHub App？", ct).ConfigureAwait(false);
-        if (!installed)
-        {
+        if (!installed) {
             TerminalHelper.WriteLine("安装已取消");
             return ChatCommandResult.Continue();
         }
@@ -78,8 +70,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
         // Step 6: 选择 API Key 方式
         var (secretName, secretValue, authType) = await ChooseApiKeyMethodAsync(ct).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(secretValue))
-        {
+        if (string.IsNullOrEmpty(secretValue)) {
             TerminalHelper.WriteLine("安装已取消");
             return ChatCommandResult.Continue();
         }
@@ -88,12 +79,9 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         var createResult = await SetupGitHubActionsAsync(repoName, workflows, secretName, secretValue, authType, ct).ConfigureAwait(false);
 
         // Step 8: 显示结果
-        if (createResult.Success)
-        {
+        if (createResult.Success) {
             ShowSuccess(repoName, workflows.Count > 0);
-        }
-        else
-        {
+        } else {
             ShowError(createResult.ErrorMessage ?? "Unknown error", createResult.FixHint);
         }
 
@@ -103,14 +91,12 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 检查 GitHub CLI 是否安装且已认证
     /// </summary>
-    private async Task<GitHubCheckResult> CheckGitHubCliAsync(CancellationToken ct)
-    {
+    private async Task<GitHubCheckResult> CheckGitHubCliAsync(CancellationToken ct) {
         TerminalHelper.WriteLine("正在检查 GitHub CLI 安装...");
 
         // 检查 gh 是否安装
         var ghCheck = await RunShellCommandAsync("gh --version", ct, _gitHubRunner).ConfigureAwait(false);
-        if (!ghCheck.Success)
-        {
+        if (!ghCheck.Success) {
             return GitHubCheckResult.Fail(
                 "GitHub CLI 未安装",
                 "请安装 GitHub CLI: https://cli.github.com/");
@@ -118,8 +104,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
         // 检查认证状态
         var authCheck = await RunShellCommandAsync("gh auth status", ct, _gitHubRunner).ConfigureAwait(false);
-        if (!authCheck.Success)
-        {
+        if (!authCheck.Success) {
             return GitHubCheckResult.Fail(
                 "GitHub CLI 未认证",
                 "请运行: gh auth login");
@@ -129,8 +114,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         var currentRepo = await GetCurrentRepoAsync(ct).ConfigureAwait(false);
 
         var warnings = new List<string>();
-        if (string.IsNullOrEmpty(currentRepo))
-        {
+        if (string.IsNullOrEmpty(currentRepo)) {
             warnings.Add("当前目录不是 Git 仓库或没有配置 GitHub remote");
         }
 
@@ -140,18 +124,15 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 获取当前 Git 仓库的 GitHub 仓库名
     /// </summary>
-    private async Task<string?> GetCurrentRepoAsync(CancellationToken ct)
-    {
+    private async Task<string?> GetCurrentRepoAsync(CancellationToken ct) {
         var result = await RunShellCommandAsync("git remote get-url origin", ct).ConfigureAwait(false);
         if (!result.Success) return null;
 
         var url = result.Output.Trim();
         // 支持 https://github.com/owner/repo.git 和 git@github.com:owner/repo.git
-        if (url.Contains("github.com"))
-        {
+        if (url.Contains("github.com")) {
             var parts = url.Split("github.com");
-            if (parts.Length > 1)
-            {
+            if (parts.Length > 1) {
                 var path = parts[1].TrimStart(':', '/', '.');
                 path = path.TrimEnd('.', 'g', 'i', 't'); // 移除 .git
                 if (path.EndsWith('/')) path = path[..^1];
@@ -165,12 +146,10 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 显示警告列表
     /// </summary>
-    private static void ShowWarnings(List<string> warnings)
-    {
+    private static void ShowWarnings(List<string> warnings) {
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"{TerminalColors.Warning}⚠ 警告:{AnsiStyleEnumConstants.Reset}");
-        foreach (var warning in warnings)
-        {
+        foreach (var warning in warnings) {
             TerminalHelper.WriteLine($"  • {warning}");
         }
         TerminalHelper.NewLine();
@@ -179,10 +158,8 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 选择仓库
     /// </summary>
-    private static async Task<string?> ChooseRepoAsync(string currentRepo, CancellationToken ct)
-    {
-        if (!string.IsNullOrEmpty(currentRepo))
-        {
+    private static async Task<string?> ChooseRepoAsync(string currentRepo, CancellationToken ct) {
+        if (!string.IsNullOrEmpty(currentRepo)) {
             var items = new[]
             {
                 ($"使用当前仓库: {currentRepo}", currentRepo),
@@ -197,30 +174,24 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
             var result = await selector.ShowAsync(ct).ConfigureAwait(false);
             if (result.Cancelled) return null;
 
-            if (!string.IsNullOrEmpty(result.Selected.Value))
-            {
+            if (!string.IsNullOrEmpty(result.Selected.Value)) {
                 return result.Selected.Value;
             }
         }
 
         // 手动输入仓库名
         // 非交互模式或测试环境返回 null，避免无限等待
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             return null;
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteRaw("输入仓库名 (owner/repo): ");
             var input = TerminalHelper.ReadLine()?.Trim();
             if (string.IsNullOrEmpty(input)) return null;
 
             // 支持 URL 格式提取
-            if (input.Contains("github.com"))
-            {
+            if (input.Contains("github.com")) {
                 var parts = input.Split("github.com");
-                if (parts.Length > 1)
-                {
+                if (parts.Length > 1) {
                     input = parts[1].TrimStart('/', ':');
                     input = input.TrimEnd('.', 'g', 'i', 't');
                     if (input.EndsWith('/')) input = input[..^1];
@@ -234,8 +205,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 选择工作流类型
     /// </summary>
-    private static async Task<List<string>> SelectWorkflowsAsync(CancellationToken ct)
-    {
+    private static async Task<List<string>> SelectWorkflowsAsync(CancellationToken ct) {
         var items = new[]
         {
             ($"claude - PR/Issue 评论触发的 {BrandConstants.ProductName} 助手", "claude"),
@@ -250,8 +220,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
             i => i.Display);
 
         var result = await selector.ShowAsync(ct).ConfigureAwait(false);
-        if (!result.Cancelled && result.Selected.Value is not null)
-        {
+        if (!result.Cancelled && result.Selected.Value is not null) {
             selected = [result.Selected.Value];
         }
 
@@ -261,8 +230,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 选择 API Key 方式
     /// </summary>
-    private static async Task<(string SecretName, string SecretValue, string AuthType)> ChooseApiKeyMethodAsync(CancellationToken ct)
-    {
+    private static async Task<(string SecretName, string SecretValue, string AuthType)> ChooseApiKeyMethodAsync(CancellationToken ct) {
         var items = new List<(string Display, string SecretName, string AuthType)>
         {
             ("输入新的 API Key", ProviderEnvVarEnumConstants.AnthropicApiKey, "api_key"),
@@ -271,8 +239,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
         // 检查是否已有本地 API Key
         var existingKey = Environment.GetEnvironmentVariable(ProviderEnvVar.AnthropicApiKey.ToValue());
-        if (!string.IsNullOrEmpty(existingKey))
-        {
+        if (!string.IsNullOrEmpty(existingKey)) {
             // 使用 Add + 反转构建顺序，避免 Insert(0, item) 的 O(n) 移动
             items.Add(("使用本地已有的 API Key", ProviderEnvVarEnumConstants.AnthropicApiKey, "api_key"));
             items.Reverse();
@@ -288,8 +255,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
 
         var choice = result.Selected;
 
-        if (choice.AuthType == "api_key" && string.IsNullOrEmpty(existingKey))
-        {
+        if (choice.AuthType == "api_key" && string.IsNullOrEmpty(existingKey)) {
             // 需要手动输入 API Key
             TerminalHelper.WriteRaw("输入 API Key: ");
             var key = ReadMaskedInput();
@@ -297,8 +263,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
             return (choice.SecretName, key, choice.AuthType);
         }
 
-        if (choice.AuthType == "oauth_token")
-        {
+        if (choice.AuthType == "oauth_token") {
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine($"{TerminalColors.Accent}OAuth 认证流程:{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine("  1. 浏览器将打开 JoinCode 授权页面");
@@ -317,33 +282,22 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 读取掩码输入（密码风格）
     /// </summary>
-    private static string ReadMaskedInput()
-    {
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+    private static string ReadMaskedInput() {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             return string.Empty;
-        }
-        else
-        {
+        } else {
             var input = new StringBuilder();
-            while (true)
-            {
+            while (true) {
                 var key = TerminalHelper.ReadKey(true);
                 if (key.Key == ConsoleKey.Enter) break;
-                if (key.Key == ConsoleKey.Backspace)
-                {
-                    if (input.Length > 0)
-                    {
+                if (key.Key == ConsoleKey.Backspace) {
+                    if (input.Length > 0) {
                         input.Remove(input.Length - 1, 1);
                         TerminalHelper.WriteRaw("\b \b");
                     }
-                }
-                else if (key.Key == ConsoleKey.Escape)
-                {
+                } else if (key.Key == ConsoleKey.Escape) {
                     return string.Empty;
-                }
-                else if (!char.IsControl(key.KeyChar))
-                {
+                } else if (!char.IsControl(key.KeyChar)) {
                     input.Append(key.KeyChar);
                     TerminalHelper.WriteRaw('*');
                 }
@@ -362,8 +316,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         string secretName,
         string secretValue,
         string authType,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine("正在设置 GitHub Actions...");
 
@@ -371,14 +324,12 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
             ? new[] { "获取仓库信息", "创建分支", "创建工作流文件", $"设置 {secretName} Secret", "打开 Pull Request" }
             : new[] { "获取仓库信息", $"设置 {secretName} Secret" };
 
-        for (var i = 0; i < steps.Length; i++)
-        {
+        for (var i = 0; i < steps.Length; i++) {
             ct.ThrowIfCancellationRequested();
 
             TerminalHelper.WriteLine($"  {TerminalColors.Muted}...{AnsiStyleEnumConstants.Reset} {steps[i]}");
 
-            var success = i switch
-            {
+            var success = i switch {
                 0 => await VerifyRepoAsync(repoName, ct).ConfigureAwait(false),
                 1 when workflows.Count > 0 => await CreateWorkflowBranchAsync(repoName, workflows, secretName, authType, ct).ConfigureAwait(false),
                 2 when workflows.Count > 0 => true, // 工作流文件在创建分支时一起处理
@@ -386,20 +337,17 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
             };
 
             // 设置 Secret
-            if ((workflows.Count > 0 && i == 3) || (workflows.Count == 0 && i == 1))
-            {
+            if ((workflows.Count > 0 && i == 3) || (workflows.Count == 0 && i == 1)) {
                 success = await SetSecretAsync(repoName, secretName, secretValue, ct).ConfigureAwait(false);
             }
 
             // 打开 PR
-            if (workflows.Count > 0 && i == 4)
-            {
+            if (workflows.Count > 0 && i == 4) {
                 await OpenPullRequestAsync(repoName, ct).ConfigureAwait(false);
                 success = true;
             }
 
-            if (!success)
-            {
+            if (!success) {
                 return GitHubSetupResult.Fail($"{steps[i]}失败", "请检查 GitHub CLI 认证状态和仓库权限");
             }
 
@@ -412,20 +360,16 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 验证仓库是否存在且有权限
     /// </summary>
-    private async Task<bool> VerifyRepoAsync(string repoName, CancellationToken ct)
-    {
-        if (_apiClient is not null)
-        {
+    private async Task<bool> VerifyRepoAsync(string repoName, CancellationToken ct) {
+        if (_apiClient is not null) {
             var result = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{repoName}", ct: ct).ConfigureAwait(false);
             if (!result.Success) return false;
-            try
-            {
+            try {
                 using var doc = System.Text.Json.JsonDocument.Parse(result.Body);
                 return doc.RootElement.TryGetProperty("permissions", out var perms)
                     && perms.TryGetProperty("admin", out var adminEl)
                     && adminEl.GetBoolean();
-            }
-            catch { return false; }
+            } catch { return false; }
         }
         var shellResult = await RunShellCommandAsync($"gh api repos/{repoName} --jq .permissions.admin", ct, _gitHubRunner).ConfigureAwait(false);
         return shellResult.Success && shellResult.Output.Trim() == "true";
@@ -439,40 +383,33 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
         List<string> workflows,
         string secretName,
         string authType,
-        CancellationToken ct)
-    {
+        CancellationToken ct) {
         string defaultBranch;
         string sha;
 
-        if (_apiClient is not null)
-        {
+        if (_apiClient is not null) {
             var repoResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{repoName}", ct: ct).ConfigureAwait(false);
             if (!repoResult.Success) return false;
-            try
-            {
+            try {
                 using var doc = System.Text.Json.JsonDocument.Parse(repoResult.Body);
                 defaultBranch = doc.RootElement.GetProperty("default_branch").GetString() ?? "main";
-            }
-            catch { return false; }
+            } catch { return false; }
 
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var newBranch = $"add-claude-github-actions-{timestamp}";
 
             var refResult = await _apiClient.SendAsync(HttpMethod.Get, $"repos/{repoName}/git/ref/heads/{defaultBranch}", ct: ct).ConfigureAwait(false);
             if (!refResult.Success) return false;
-            try
-            {
+            try {
                 using var doc = System.Text.Json.JsonDocument.Parse(refResult.Body);
                 sha = doc.RootElement.GetProperty("object").GetProperty("sha").GetString() ?? "";
-            }
-            catch { return false; }
+            } catch { return false; }
 
             var createBranchBody = $$"""{"ref":"refs/heads/{{newBranch}}","sha":"{{sha}}"}""";
             var createBranchResult = await _apiClient.SendAsync(HttpMethod.Post, $"repos/{repoName}/git/refs", body: createBranchBody, ct: ct).ConfigureAwait(false);
             if (!createBranchResult.Success) return false;
 
-            foreach (var workflow in workflows)
-            {
+            foreach (var workflow in workflows) {
                 var (fileName, content) = GetWorkflowContent(workflow, secretName, authType);
                 var base64Content = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content));
                 var createFileBody = $$"""{"message":"Add {{workflow}} workflow","content":"{{base64Content}}","branch":"{{newBranch}}"}""";
@@ -503,8 +440,7 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
             ct, _gitHubRunner).ConfigureAwait(false);
         if (!createBranch.Success) return false;
 
-        foreach (var workflow in workflows)
-        {
+        foreach (var workflow in workflows) {
             var (fileName, content) = GetWorkflowContent(workflow, secretName, authType);
             var base64Content = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content));
 
@@ -521,14 +457,12 @@ public sealed class InstallGitHubAppCommand : ChatCommandBase
     /// <summary>
     /// 获取工作流文件内容
     /// </summary>
-    private static (string FileName, string Content) GetWorkflowContent(string workflow, string secretName, string authType)
-    {
+    private static (string FileName, string Content) GetWorkflowContent(string workflow, string secretName, string authType) {
         var secretRef = authType == "oauth_token"
             ? $"JCC_OAUTH_TOKEN: ${{ secrets.{ClaudeCompatConstants.GitHubSecretOAuthToken} }}"
             : $"anthropic_api_key: ${{ secrets.{secretName} }}";
 
-        return workflow switch
-        {
+        return workflow switch {
             "claude" => ("claude.yml", $"""
 name: JoinCode
 on:
@@ -576,8 +510,7 @@ jobs:
     /// <summary>
     /// 设置 GitHub Secret
     /// </summary>
-    private async Task<bool> SetSecretAsync(string repoName, string secretName, string secretValue, CancellationToken ct)
-    {
+    private async Task<bool> SetSecretAsync(string repoName, string secretName, string secretValue, CancellationToken ct) {
         var result = await RunShellCommandAsync(
             $"gh secret set {secretName} --body \"{secretValue}\" --repo {repoName}",
             ct, _gitHubRunner).ConfigureAwait(false);
@@ -587,8 +520,7 @@ jobs:
     /// <summary>
     /// 打开 Pull Request 页面
     /// </summary>
-    private async Task OpenPullRequestAsync(string repoName, CancellationToken ct)
-    {
+    private async Task OpenPullRequestAsync(string repoName, CancellationToken ct) {
         _ = await RunShellCommandAsync(
             $"gh browse repos/{repoName}/compare/add-claude-github-actions",
             ct, _gitHubRunner).ConfigureAwait(false);
@@ -597,21 +529,17 @@ jobs:
     /// <summary>
     /// 显示成功信息
     /// </summary>
-    private static void ShowSuccess(string repoName, bool hasWorkflow)
-    {
+    private static void ShowSuccess(string repoName, bool hasWorkflow) {
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"{TerminalColors.Success}✓ GitHub Actions 设置成功！{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
-        if (hasWorkflow)
-        {
+        if (hasWorkflow) {
             TerminalHelper.WriteLine("后续步骤:");
             TerminalHelper.WriteLine($"  1. 在浏览器中查看并合并 Pull Request");
             TerminalHelper.WriteLine($"  2. 确保已安装 Claude GitHub App: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  3. 合并 PR 后工作流将自动启用");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine("后续步骤:");
             TerminalHelper.WriteLine($"  1. 确保已安装 Claude GitHub App: {TerminalColors.Accent}{ClaudeCompatConstants.GitHubAppUrl}{AnsiStyleEnumConstants.Reset}");
             TerminalHelper.WriteLine($"  2. API Key 已配置到仓库 Secret");
@@ -624,12 +552,10 @@ jobs:
     /// <summary>
     /// 显示错误信息
     /// </summary>
-    private static void ShowError(string message, string? fixHint)
-    {
+    private static void ShowError(string message, string? fixHint) {
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"{TerminalColors.Error}✗ 设置失败: {message}{AnsiStyleEnumConstants.Reset}");
-        if (!string.IsNullOrEmpty(fixHint))
-        {
+        if (!string.IsNullOrEmpty(fixHint)) {
             TerminalHelper.WriteLine($"  修复: {fixHint}");
         }
         TerminalHelper.NewLine();
@@ -639,13 +565,10 @@ jobs:
     /// <summary>
     /// 执行 Shell 命令 — 当命令是 gh 开头且有 GitHubCommandRunner 时，走统一执行器（获得重试+编码处理）
     /// </summary>
-    private static async Task<ShellResult> RunShellCommandAsync(string command, CancellationToken ct, IGitHubCommandRunner? gitHubRunner = null, IProcessService? processService = null)
-    {
-        try
-        {
+    private static async Task<ShellResult> RunShellCommandAsync(string command, CancellationToken ct, IGitHubCommandRunner? gitHubRunner = null, IProcessService? processService = null) {
+        try {
             // gh 命令走 GitHubCommandRunner 统一执行器（重试 + 环境变量 + 编码处理）
-            if (gitHubRunner is not null && command.StartsWith("gh ", StringComparison.OrdinalIgnoreCase))
-            {
+            if (gitHubRunner is not null && command.StartsWith("gh ", StringComparison.OrdinalIgnoreCase)) {
                 var ghArgs = command[3..];
                 var ghResult = await gitHubRunner.ExecuteAsync(ghArgs, null, null, ct).ConfigureAwait(false);
                 return ghResult.Success
@@ -653,10 +576,8 @@ jobs:
                     : ShellResult.Fail(ghResult.Error);
             }
 
-            if (processService is not null)
-            {
-                var options = new ProcessOptions
-                {
+            if (processService is not null) {
+                var options = new ProcessOptions {
                     FileName = "cmd.exe",
                     ArgumentList = new[] { "/c", command }
                 };
@@ -667,8 +588,7 @@ jobs:
                     : ShellResult.Fail(result.StandardError);
             }
 
-            var psi = new System.Diagnostics.ProcessStartInfo
-            {
+            var psi = new System.Diagnostics.ProcessStartInfo {
                 FileName = "cmd.exe",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -693,31 +613,24 @@ jobs:
             return process.ExitCode == 0
                 ? ShellResult.Ok(output)
                 : ShellResult.Fail(error);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ShellResult.Fail(ex.Message);
         }
     }
 
-    private sealed record ShellResult(bool Success, string Output, string Error)
-    {
+    private sealed record ShellResult(bool Success, string Output, string Error) {
         public static ShellResult Ok(string output) => new(true, output, "");
         public static ShellResult Fail(string error) => new(false, "", error);
     }
 
-    private sealed record GitHubCheckResult(bool Success, string? ErrorMessage, string? FixHint, string CurrentRepo, List<string> Warnings)
-    {
+    private sealed record GitHubCheckResult(bool Success, string? ErrorMessage, string? FixHint, string CurrentRepo, List<string> Warnings) {
         public static GitHubCheckResult Ok(string currentRepo, List<string> warnings) => new(true, null, null, currentRepo, warnings);
         public static GitHubCheckResult Fail(string errorMessage, string fixHint) => new(false, errorMessage, fixHint, "", []);
     }
 
-    private sealed record GitHubSetupResult(bool Success, string? ErrorMessage, string? FixHint)
-    {
+    private sealed record GitHubSetupResult(bool Success, string? ErrorMessage, string? FixHint) {
         public static GitHubSetupResult Ok() => new(true, null, null);
         public static GitHubSetupResult Fail(string errorMessage, string fixHint) => new(false, errorMessage, fixHint);
     }

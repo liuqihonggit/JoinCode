@@ -4,8 +4,7 @@ namespace Core.Context.Collapse;
 /// <summary>
 /// 上下文折叠选项
 /// </summary>
-public sealed class ContextCollapseOptions
-{
+public sealed class ContextCollapseOptions {
     /// <summary>
     /// 折叠策略
     /// </summary>
@@ -38,8 +37,7 @@ public sealed class ContextCollapseOptions
     /// <summary>
     /// 激进策略预设选项
     /// </summary>
-    public static ContextCollapseOptions Aggressive => new()
-    {
+    public static ContextCollapseOptions Aggressive => new() {
         Strategy = CollapseStrategy.Aggressive,
         MinSegmentTokenCount = 50,
         MinCollapsePriority = 0.2,
@@ -55,8 +53,7 @@ public sealed class ContextCollapseOptions
     /// <summary>
     /// 保守策略预设选项
     /// </summary>
-    public static ContextCollapseOptions Conservative => new()
-    {
+    public static ContextCollapseOptions Conservative => new() {
         Strategy = CollapseStrategy.Conservative,
         MinSegmentTokenCount = 200,
         MinCollapsePriority = 0.5,

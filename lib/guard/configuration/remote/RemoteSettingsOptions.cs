@@ -4,8 +4,7 @@ namespace Core.Configuration.Remote;
 /// <summary>
 /// 远程设置刷新选项 — 配置远程托管设置的拉取端点、刷新间隔与缓存策略
 /// </summary>
-public sealed class RemoteSettingsOptions : RemoteRefreshOptionsBase
-{
+public sealed class RemoteSettingsOptions : RemoteRefreshOptionsBase {
     /// <summary>
     /// 配置节名称
     /// </summary>

@@ -4,15 +4,13 @@ namespace MockServer.E2E.Tests.Core;
 /// E2E 测试 settings.json 写入工具 — 让所有 E2E 测试共享同一份含完整 vendor 节点的 settings.json
 /// <para>模型 ID 与 DualRoleConversationRunner 的 ModelId 映射保持一致</para>
 /// </summary>
-internal static class E2eSettingsJsonHelper
-{
+internal static class E2eSettingsJsonHelper {
     /// <summary>
     /// 在 stateDir 写入含完整 vendor 节点的 settings.json — 让 ProviderDefinitionRegistry 能注册所有供应商
     /// <para>E2E 隔离的 AppData 目录无用户 settings.json，需测试 setup 提供，否则 registry 只有 azure</para>
     /// <para>模型 ID 必须与 DualRoleConversationRunner 的 ModelId 映射一致，否则 [GRD016] 报错</para>
     /// </summary>
-    public static void WriteSettingsJsonToStateDir(string stateDir)
-    {
+    public static void WriteSettingsJsonToStateDir(string stateDir) {
         var settingsJson = """
         {
           "vendor": {

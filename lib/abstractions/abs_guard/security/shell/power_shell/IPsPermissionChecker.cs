@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Shell.PowerShell;
 
-public interface IPsPermissionChecker
-{
+public interface IPsPermissionChecker {
     PsSecurityResult CheckPermission(
         string command,
         string workingDirectory,

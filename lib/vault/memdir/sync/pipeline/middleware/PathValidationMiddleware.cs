@@ -5,20 +5,16 @@ namespace Memdir.Sync;
 /// 路径验证中间件 — 验证 WatchPath 非空并确保目录存在
 /// </summary>
 [Register(typeof(ISyncStartMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PathValidationMiddleware : ServiceEntity, ISyncStartMiddleware
-{
+public sealed partial class PathValidationMiddleware : ServiceEntity, ISyncStartMiddleware {
 
     /// <inheritdoc />
-    public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct)
-    {
-        if (string.IsNullOrEmpty(ctx.Options.WatchPath))
-        {
+    public Task InvokeAsync(SyncStartContext ctx, MiddlewareDelegate<SyncStartContext> next, CancellationToken ct) {
+        if (string.IsNullOrEmpty(ctx.Options.WatchPath)) {
             ctx.Fail($"{nameof(ctx.Options.WatchPath)} is required");
             return Task.CompletedTask;
         }
 
-        if (!ctx.FileSystem.DirectoryExists(ctx.Options.WatchPath))
-        {
+        if (!ctx.FileSystem.DirectoryExists(ctx.Options.WatchPath)) {
             ctx.FileSystem.CreateDirectory(ctx.Options.WatchPath);
         }
 

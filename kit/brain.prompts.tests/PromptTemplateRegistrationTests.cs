@@ -1,10 +1,8 @@
 namespace Core.Tests.Prompts;
 
-public class BrainPromptTemplatesTests
-{
+public class BrainPromptTemplatesTests {
     [Fact]
-    public void GetContent_ReturnsPromptSuggestionTemplate()
-    {
+    public void GetContent_ReturnsPromptSuggestionTemplate() {
         var content = BrainPromptTemplates.GetContent("prompt_suggestion");
 
         content.Should().NotBeNullOrEmpty();
@@ -12,24 +10,21 @@ public class BrainPromptTemplatesTests
     }
 
     [Fact]
-    public void GetContent_ReturnsNullForParameterizedTemplate()
-    {
+    public void GetContent_ReturnsNullForParameterizedTemplate() {
         var content = BrainPromptTemplates.GetContent("compact");
 
         content.Should().BeNull();
     }
 
     [Fact]
-    public void GetContent_ReturnsNullForUnknownTemplate()
-    {
+    public void GetContent_ReturnsNullForUnknownTemplate() {
         var content = BrainPromptTemplates.GetContent("nonexistent");
 
         content.Should().BeNull();
     }
 
     [Fact]
-    public void GetAllTemplates_ReturnsAllRegisteredTemplates()
-    {
+    public void GetAllTemplates_ReturnsAllRegisteredTemplates() {
         var templates = BrainPromptTemplates.GetAllTemplates().ToList();
 
         templates.Should().NotBeEmpty();
@@ -38,8 +33,7 @@ public class BrainPromptTemplatesTests
     }
 
     [Fact]
-    public void GetAllTemplates_ContainsCategoryAndDescription()
-    {
+    public void GetAllTemplates_ContainsCategoryAndDescription() {
         var templates = BrainPromptTemplates.GetAllTemplates().ToList();
 
         var promptSuggestion = templates.First(t => t.Name == "prompt_suggestion");
@@ -49,8 +43,7 @@ public class BrainPromptTemplatesTests
     }
 
     [Fact]
-    public void GetAllTemplates_ParameterizedTemplateHasHasParametersTrue()
-    {
+    public void GetAllTemplates_ParameterizedTemplateHasHasParametersTrue() {
         var templates = BrainPromptTemplates.GetAllTemplates().ToList();
 
         var compact = templates.First(t => t.Name == "compact");

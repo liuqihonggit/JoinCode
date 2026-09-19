@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>对齐 TS 原版 loadPluginAgents: 从插件加载 agent 定义 + 安全限制</para>
 /// <para>对齐 Cordis 框架声明式依赖: 插件声明"我提供什么"，框架管理生命周期</para>
 /// </summary>
-public interface IPluginAgentProvider
-{
+public interface IPluginAgentProvider {
     /// <summary>获取插件提供的 agent 定义列表</summary>
     IReadOnlyList<AgentDefinition> GetAgentDefinitions();
 }

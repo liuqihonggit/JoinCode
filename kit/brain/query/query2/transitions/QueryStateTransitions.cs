@@ -3,8 +3,7 @@ namespace Core.Query.Transitions;
 /// <summary>
 /// 查询状态枚举 — 描述查询生命周期的各状态
 /// </summary>
-public enum QueryState
-{
+public enum QueryState {
     /// <summary>
     /// 空闲
     /// </summary>
@@ -59,8 +58,7 @@ public enum QueryState
 /// <summary>
 /// 查询状态转换器接口 — 基于状态机管理查询状态流转
 /// </summary>
-public interface IQueryStateTransitions
-{
+public interface IQueryStateTransitions {
     /// <summary>
     /// 当前状态
     /// </summary>
@@ -95,8 +93,7 @@ public interface IQueryStateTransitions
 /// 查询状态转换器实现 — 基于状态机 + 转换表管理状态流转
 /// </summary>
 [Register(typeof(IQueryStateTransitions), ServiceLifetime.Singleton)]
-public sealed partial class QueryStateTransitions : ServiceEntity, IQueryStateTransitions
-{
+public sealed partial class QueryStateTransitions : ServiceEntity, IQueryStateTransitions {
     private static readonly FrozenDictionary<QueryState, FrozenSet<QueryState>> TransitionTable = CreateTransitionTable();
 
     private readonly StateMachine<QueryState> _stateMachine;
@@ -107,8 +104,7 @@ public sealed partial class QueryStateTransitions : ServiceEntity, IQueryStateTr
     /// </summary>
     /// <param name="telemetryService">遥测服务</param>
     /// <param name="clock">时钟服务</param>
-    public QueryStateTransitions(ITelemetryService? telemetryService = null, IClockService? clock = null)
-    {
+    public QueryStateTransitions(ITelemetryService? telemetryService = null, IClockService? clock = null) {
         _telemetryService = telemetryService;
         _stateMachine = new StateMachine<QueryState>(TransitionTable, QueryState.Idle, clock);
         _stateMachine.StateChanged += OnStateChanged;
@@ -143,8 +139,7 @@ public sealed partial class QueryStateTransitions : ServiceEntity, IQueryStateTr
     /// </summary>
     public void Reset() => _stateMachine.Reset(QueryState.Idle);
 
-    private void OnStateChanged(object? sender, StateChangedEventArgs<QueryState> e)
-    {
+    private void OnStateChanged(object? sender, StateChangedEventArgs<QueryState> e) {
         StateChanged?.Invoke(this, e);
 
         RecordTransitionMetrics(e.OldState, e.NewState);
@@ -153,10 +148,8 @@ public sealed partial class QueryStateTransitions : ServiceEntity, IQueryStateTr
     private void RecordTransitionMetrics(QueryState from, QueryState to)
         => _telemetryService?.RecordCount("query.state.transition.count", new() { ["from"] = from.ToString(), ["to"] = to.ToString() }, "count", "Query state transition count");
 
-    private static FrozenDictionary<QueryState, FrozenSet<QueryState>> CreateTransitionTable()
-    {
-        var builder = new Dictionary<QueryState, FrozenSet<QueryState>>
-        {
+    private static FrozenDictionary<QueryState, FrozenSet<QueryState>> CreateTransitionTable() {
+        var builder = new Dictionary<QueryState, FrozenSet<QueryState>> {
             [QueryState.Idle] = new HashSet<QueryState> { QueryState.Initializing }.ToFrozenSet(),
             [QueryState.Initializing] = new HashSet<QueryState> { QueryState.Running, QueryState.Failed, QueryState.Cancelled }.ToFrozenSet(),
             [QueryState.Running] = new HashSet<QueryState> { QueryState.WaitingForTool, QueryState.Compacting, QueryState.Stopping, QueryState.Completed, QueryState.Failed, QueryState.Cancelled }.ToFrozenSet(),

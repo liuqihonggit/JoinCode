@@ -1,10 +1,8 @@
 namespace Core.Tests.Voice;
 
-public sealed class VoiceOptionsTests
-{
+public sealed class VoiceOptionsTests {
     [Fact]
-    public void DefaultValues_ShouldMatchExpected()
-    {
+    public void DefaultValues_ShouldMatchExpected() {
         var options = new VoiceOptions();
 
         options.Backend.Should().Be(SttBackend.WhisperApi);
@@ -21,8 +19,7 @@ public sealed class VoiceOptionsTests
     }
 
     [Fact]
-    public void SttBackend_ShouldOnlyHaveWhisperApi()
-    {
+    public void SttBackend_ShouldOnlyHaveWhisperApi() {
         var values = Enum.GetValues<SttBackend>();
 
         values.Should().HaveCount(1);

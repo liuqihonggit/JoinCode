@@ -6,10 +6,8 @@ namespace Integration.Tests.McpTools;
 /// 标记 Integration 因遍历全部工具含桌面鼠标/键盘操作（Win32 SendInput 副作用）
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class McpToolSmokeTests
-{
-    private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools)> BuildAndRegisterAllToolsAsync()
-    {
+public sealed class McpToolSmokeTests {
+    private static async Task<(Tools.LocalToolRegistry Registry, IReadOnlyList<ToolInfo> Tools)> BuildAndRegisterAllToolsAsync() {
         var tempDir = Path.Combine(Path.GetTempPath(), $"jcc-test-{Guid.NewGuid():N}");
         var fileSystem = new IO.FileSystem.InMemoryFileSystem();
         fileSystem.CreateDirectory(tempDir);
@@ -40,20 +38,16 @@ public sealed class McpToolSmokeTests
     /// <summary>
     /// 为工具构造最小参数集 — 对必需参数提供最小有效值
     /// </summary>
-    private static Dictionary<string, JsonElement> BuildMinimalArguments(ToolInfo tool)
-    {
+    private static Dictionary<string, JsonElement> BuildMinimalArguments(ToolInfo tool) {
         var args = new Dictionary<string, JsonElement>();
 
         if (tool.InputSchema?.Required == null) return args;
 
-        foreach (var reqParam in tool.InputSchema.Required)
-        {
+        foreach (var reqParam in tool.InputSchema.Required) {
             if (!tool.InputSchema.Properties.TryGetValue(reqParam, out var prop)) continue;
 
-            var value = prop.Type switch
-            {
-                "string" => reqParam switch
-                {
+            var value = prop.Type switch {
+                "string" => reqParam switch {
                     "file_path" or "path" => JsonDocument.Parse("\"test.txt\"").RootElement.Clone(),
                     "directory_path" => JsonDocument.Parse("\".\"").RootElement.Clone(),
                     "command" => JsonDocument.Parse("\"echo hello\"").RootElement.Clone(),
@@ -121,8 +115,7 @@ public sealed class McpToolSmokeTests
         || ToolsWithGitSideEffects.Contains(tool.Name);
 
     [Fact]
-    public async Task All_Registered_Tools_Can_Be_Called_Without_Crash()
-    {
+    public async Task All_Registered_Tools_Can_Be_Called_Without_Crash() {
         var (registry, allTools) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         allTools.Should().NotBeEmpty("至少应注册一个工具");
@@ -131,17 +124,14 @@ public sealed class McpToolSmokeTests
         var crashed = new List<(string ToolName, Exception Ex)>();
         var skipped = new List<string>();
 
-        foreach (var tool in allTools.OrderBy(t => t.Name))
-        {
-            if (HasRealSideEffects(tool))
-            {
+        foreach (var tool in allTools.OrderBy(t => t.Name)) {
+            if (HasRealSideEffects(tool)) {
                 skipped.Add(tool.Name);
                 results.Add((tool.Name, false, "SKIPPED: 有真实副作用"));
                 continue;
             }
 
-            try
-            {
+            try {
                 var args = BuildMinimalArguments(tool);
                 var result = await registry.ExecuteToolAsync(tool.Name, args, CancellationToken.None).ConfigureAwait(true);
 
@@ -149,9 +139,7 @@ public sealed class McpToolSmokeTests
                 result.Content.Should().NotBeNull($"工具 {tool.Name} 返回 null Content");
 
                 results.Add((tool.Name, result.IsError, result.IsError ? result.Content.FirstOrDefault()?.Text : null));
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 crashed.Add((tool.Name, ex));
                 results.Add((tool.Name, true, $"CRASH: {ex.GetType().Name}: {ex.Message}"));
             }
@@ -169,11 +157,9 @@ public sealed class McpToolSmokeTests
         report.AppendLine();
 
         report.AppendLine("## 详细结果");
-        foreach (var (toolName, isError, errorMessage) in results.OrderBy(r => r.ToolName))
-        {
+        foreach (var (toolName, isError, errorMessage) in results.OrderBy(r => r.ToolName)) {
             var status = isError ? (errorMessage?.StartsWith("CRASH") == true ? "CRASH" : "ERROR") : "OK";
-            var truncatedError = errorMessage switch
-            {
+            var truncatedError = errorMessage switch {
                 null => "",
                 _ when errorMessage.Length > 100 => errorMessage[..100] + "...",
                 _ => errorMessage
@@ -188,8 +174,7 @@ public sealed class McpToolSmokeTests
     }
 
     [Fact]
-    public async Task Git_Status_Tool_Returns_Valid_Result()
-    {
+    public async Task Git_Status_Tool_Returns_Valid_Result() {
         var (registry, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var result = await registry.ExecuteToolAsync("git_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
@@ -200,12 +185,10 @@ public sealed class McpToolSmokeTests
     }
 
     [Fact]
-    public async Task Sleep_Tool_Returns_Valid_Result()
-    {
+    public async Task Sleep_Tool_Returns_Valid_Result() {
         var (registry, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["duration_seconds"] = JsonDocument.Parse("1").RootElement.Clone()
         };
 
@@ -217,8 +200,7 @@ public sealed class McpToolSmokeTests
     }
 
     [Fact]
-    public async Task Mcp_Auth_Status_Tool_Returns_Valid_Result()
-    {
+    public async Task Mcp_Auth_Status_Tool_Returns_Valid_Result() {
         var (registry, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         var result = await registry.ExecuteToolAsync("mcp_auth_status", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
@@ -228,25 +210,20 @@ public sealed class McpToolSmokeTests
     }
 
     [Fact]
-    public async Task Unknown_Tool_Returns_Error_Or_Throws()
-    {
+    public async Task Unknown_Tool_Returns_Error_Or_Throws() {
         var (registry, _) = await BuildAndRegisterAllToolsAsync().ConfigureAwait(true);
 
         // 调用不存在的工具 — 注册表可能抛出异常或返回错误结果，不能静默成功
         Exception? caughtEx = null;
         ToolResult? result = null;
-        try
-        {
+        try {
             result = await registry.ExecuteToolAsync("nonexistent_tool", new Dictionary<string, JsonElement>(), CancellationToken.None).ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 抛出异常也是可接受的行为 — 记录以供断言
             caughtEx = ex;
         }
 
-        if (caughtEx is not null)
-        {
+        if (caughtEx is not null) {
             // 抛出异常 — 验证通过
             return;
         }

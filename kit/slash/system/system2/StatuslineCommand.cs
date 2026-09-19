@@ -10,51 +10,39 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Statusline, Description = "切换状态栏显示", Usage = "/statusline [on|off|format]", Category = ChatCommandCategory.System, ArgumentHint = "[on|off|format]")]
 [ChatCommandArg("action", Type = "string", Description = "状态栏操作", Enum = new[] { "on", "enable", "off", "disable", "format" })]
 [ChatCommandArg("template", Type = "string", Description = "format 操作时的模板（变量: {model} {tokens} {cost} {mode} {time}）")]
-public sealed class StatuslineCommand : ChatCommandBase
-{
+public sealed class StatuslineCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /statusline 命令 — 根据子参数切换状态栏启用状态或设置格式模板
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数、取消令牌等</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context);
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 
-        if (args is "on" or "enable")
-        {
+        if (args is "on" or "enable") {
             if (configService is not null)
                 await configService.SetAsync("statusline.enabled", "true", context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("状态栏: 已启用");
-        }
-        else if (args is "off" or "disable")
-        {
+        } else if (args is "off" or "disable") {
             if (configService is not null)
                 await configService.SetAsync("statusline.enabled", "false", context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine("状态栏: 已禁用");
-        }
-        else if (args.StartsWith("format"))
-        {
+        } else if (args.StartsWith("format")) {
             var formatValue = args["format".Length..].Trim();
-            if (string.IsNullOrEmpty(formatValue))
-            {
+            if (string.IsNullOrEmpty(formatValue)) {
                 var currentFormat = configService is not null
                     ? await configService.GetAsync("statusline.format", context.CancellationToken).ConfigureAwait(false)
                     : null;
                 TerminalHelper.WriteLine($"当前状态栏格式: {currentFormat ?? "(默认)"}");
                 TerminalHelper.WriteLine("用法: /statusline format <template>");
                 TerminalHelper.WriteLine("  可用变量: {model}, {tokens}, {cost}, {mode}, {time}");
-            }
-            else
-            {
+            } else {
                 if (configService is not null)
                     await configService.SetAsync("statusline.format", formatValue, context.CancellationToken).ConfigureAwait(false);
                 TerminalHelper.WriteLine($"状态栏格式: {formatValue}");
             }
-        }
-        else
-        {
+        } else {
             var enabled = await GetSettingAsync(configService, "statusline.enabled", "true", context.CancellationToken).ConfigureAwait(false);
             var format = configService is not null
                 ? await configService.GetAsync("statusline.format", context.CancellationToken).ConfigureAwait(false)
@@ -70,8 +58,7 @@ public sealed class StatuslineCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static async Task<string> GetSettingAsync(IConfigurationService? configService, string key, string defaultValue, CancellationToken ct)
-    {
+    private static async Task<string> GetSettingAsync(IConfigurationService? configService, string key, string defaultValue, CancellationToken ct) {
         if (configService is null) return defaultValue;
         var value = await configService.GetAsync(key, ct).ConfigureAwait(false);
         return value ?? defaultValue;

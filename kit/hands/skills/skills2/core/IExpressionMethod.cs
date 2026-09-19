@@ -5,8 +5,7 @@ namespace Core.Skills;
 /// 表达式方法策略接口 — 替代 ExpressionEvaluator.ExecuteMethod 中的 switch 分派
 /// 每个方法实现独立封装自己的逻辑，通过 ExpressionMethodRegistry 注册
 /// </summary>
-public interface IExpressionMethod
-{
+public interface IExpressionMethod {
     /// <summary>
     /// 方法名列表（小写，支持别名）— 如 ["toupper", "touppercase"]
     /// </summary>

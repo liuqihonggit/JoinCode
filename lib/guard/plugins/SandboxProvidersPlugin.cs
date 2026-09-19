@@ -6,8 +6,7 @@ namespace Core.Plugins;
 /// <para>卸载时从 SandboxManager 移除所有提供器,实现可逆效应</para>
 /// </summary>
 [Register(typeof(IWorkflowPlugin), ServiceLifetime.Singleton)]
-public sealed partial class SandboxProvidersPlugin : WorkflowPluginBase
-{
+public sealed partial class SandboxProvidersPlugin : WorkflowPluginBase {
     private ISandboxManager? _sandboxManager;
 
     /// <summary>
@@ -29,8 +28,7 @@ public sealed partial class SandboxProvidersPlugin : WorkflowPluginBase
         => Task.FromResult(OperationResult.Ok());
 
     /// <summary>初始化插件 — 从 DI 获取依赖,注册四个沙箱提供器</summary>
-    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
-    {
+    public override Task<OperationResult> InitializeAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken = default) {
         _sandboxManager = serviceProvider.GetRequiredService<ISandboxManager>();
         var fs = serviceProvider.GetRequiredService<IFileSystem>();
         var processService = serviceProvider.GetRequiredService<IProcessService>();
@@ -46,8 +44,7 @@ public sealed partial class SandboxProvidersPlugin : WorkflowPluginBase
     }
 
     /// <summary>插件特定清理 — 移除四个沙箱提供器</summary>
-    protected override void OnUnload()
-    {
+    protected override void OnUnload() {
         if (_sandboxManager is null) return;
         _sandboxManager.RemoveProvider(SandboxType.Soft);
         _sandboxManager.RemoveProvider(SandboxType.Process);

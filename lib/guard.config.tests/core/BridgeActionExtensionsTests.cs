@@ -5,8 +5,7 @@ namespace Host.Tests.ChatCommands;
 /// 覆盖:ToValue / FromValue / IsDefined / BridgeActionEnumConstants 常量值
 /// 5 个枚举值(qr/sessions/status/connect/disconnect)
 /// </summary>
-public sealed class BridgeActionExtensionsTests
-{
+public sealed class BridgeActionExtensionsTests {
     // ===== ToValue 测试 =====
 
     [Theory]
@@ -15,8 +14,7 @@ public sealed class BridgeActionExtensionsTests
     [InlineData(BridgeAction.Status, "status")]
     [InlineData(BridgeAction.Connect, "connect")]
     [InlineData(BridgeAction.Disconnect, "disconnect")]
-    public void ToValue_Should_Return_CorrectString(BridgeAction value, string expected)
-    {
+    public void ToValue_Should_Return_CorrectString(BridgeAction value, string expected) {
         value.ToValue().Should().Be(expected);
     }
 
@@ -28,8 +26,7 @@ public sealed class BridgeActionExtensionsTests
     [InlineData("status", BridgeAction.Status)]
     [InlineData("connect", BridgeAction.Connect)]
     [InlineData("disconnect", BridgeAction.Disconnect)]
-    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, BridgeAction expected)
-    {
+    public void FromValue_ValidString_Should_Return_CorrectEnum(string input, BridgeAction expected) {
         BridgeActionExtensions.FromValue(input).Should().Be(expected);
     }
 
@@ -39,8 +36,7 @@ public sealed class BridgeActionExtensionsTests
     [InlineData("Status")]
     [InlineData("CONNECT")]
     [InlineData("Disconnect")]
-    public void FromValue_CaseInsensitive_Should_Return_CorrectEnum(string input)
-    {
+    public void FromValue_CaseInsensitive_Should_Return_CorrectEnum(string input) {
         BridgeActionExtensions.FromValue(input).Should().NotBeNull();
     }
 
@@ -52,8 +48,7 @@ public sealed class BridgeActionExtensionsTests
     [InlineData("start")]
     [InlineData("stop")]
     [InlineData("connected")]
-    public void FromValue_InvalidString_Should_Return_Null(string? input)
-    {
+    public void FromValue_InvalidString_Should_Return_Null(string? input) {
         BridgeActionExtensions.FromValue(input).Should().BeNull();
     }
 
@@ -65,8 +60,7 @@ public sealed class BridgeActionExtensionsTests
     [InlineData(BridgeAction.Status)]
     [InlineData(BridgeAction.Connect)]
     [InlineData(BridgeAction.Disconnect)]
-    public void RoundTrip_ToValue_ThenFromValue_Should_Return_Same(BridgeAction value)
-    {
+    public void RoundTrip_ToValue_ThenFromValue_Should_Return_Same(BridgeAction value) {
         var s = value.ToValue();
         BridgeActionExtensions.FromValue(s).Should().Be(value);
     }
@@ -79,16 +73,14 @@ public sealed class BridgeActionExtensionsTests
     [InlineData(BridgeAction.Status, true)]
     [InlineData(BridgeAction.Connect, true)]
     [InlineData(BridgeAction.Disconnect, true)]
-    public void IsDefined_KnownValue_Should_Return_True(BridgeAction value, bool expected)
-    {
+    public void IsDefined_KnownValue_Should_Return_True(BridgeAction value, bool expected) {
         BridgeActionExtensions.IsDefined(value).Should().Be(expected);
     }
 
     // ===== Constants 测试 =====
 
     [Fact]
-    public void Constants_All_Should_Match_EnumValues()
-    {
+    public void Constants_All_Should_Match_EnumValues() {
         BridgeActionEnumConstants.Qr.Should().Be("qr");
         BridgeActionEnumConstants.Sessions.Should().Be("sessions");
         BridgeActionEnumConstants.Status.Should().Be("status");
@@ -99,8 +91,7 @@ public sealed class BridgeActionExtensionsTests
     // ===== 枚举值数量验证 =====
 
     [Fact]
-    public void AllValues_Should_Be_5()
-    {
+    public void AllValues_Should_Be_5() {
         var values = Enum.GetValues<BridgeAction>();
         values.Should().HaveCount(5);
     }
@@ -108,8 +99,7 @@ public sealed class BridgeActionExtensionsTests
     // ===== 与 PlatformAction 边界值验证 =====
 
     [Fact]
-    public void FromValue_ConnectDisconnect_Should_Not_Resolve_PlatformAction()
-    {
+    public void FromValue_ConnectDisconnect_Should_Not_Resolve_PlatformAction() {
         // connect/disconnect 在 PlatformAction 和 BridgeAction 中都存在,但分属不同枚举
         // BridgeAction 独立管理 Bridge 子系统语义,不依赖 PlatformAction
         BridgeActionExtensions.FromValue("connect").Should().Be(BridgeAction.Connect);

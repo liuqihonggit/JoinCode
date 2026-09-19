@@ -5,15 +5,13 @@ namespace Services.Web;
 /// Order=400 在域名检查之后执行，包含重定向递归和egress代理检测
 /// </summary>
 [Register(typeof(IWebMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
-{
+public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware {
 
     /// <summary>
     /// 初始化 <see cref="WebFetchMiddleware"/> 实例。
     /// </summary>
     /// <param name="apiClient">API 客户端抽象，用于执行 HTTP 请求。</param>
-    public WebFetchMiddleware(IApiClient apiClient)
-    {
+    public WebFetchMiddleware(IApiClient apiClient) {
         _apiClient = apiClient;
     }
     private const int MaxRedirects = 10;
@@ -26,15 +24,11 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public async Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(WebContext context, MiddlewareDelegate<WebContext> next, CancellationToken ct) {
         WebFetchResult fetchResult;
-        try
-        {
+        try {
             fetchResult = await FetchWithRedirectSafetyAsync(context.UpgradedUrl ?? throw new InvalidOperationException("UpgradedUrl is not available in WebContext."), ct).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
+        } catch (Exception ex) when (ex is not OperationCanceledException) {
             context.Result = new WebFetchResult(false, context.Url,
                 ErrorMessage: $"Failed to fetch {context.Url}: {ex.Message}");
             return;
@@ -42,15 +36,13 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
         context.FetchResult = fetchResult;
 
         // 重定向到不同主机 → 返回重定向结果
-        if (fetchResult.RedirectUrl != null)
-        {
+        if (fetchResult.RedirectUrl != null) {
             context.Result = fetchResult;
             return; // 短路
         }
 
         // egress代理检测
-        if (fetchResult.StatusCode == 403 && fetchResult.EgressBlocked)
-        {
+        if (fetchResult.StatusCode == 403 && fetchResult.EgressBlocked) {
             context.Result = new WebFetchResult(false, context.Url,
                 ErrorMessage: $"Access to {context.Url} is blocked by your organization's network policy (egress proxy). " +
                               "The domain is not in the allowed list. Contact your network administrator.");
@@ -64,10 +56,8 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
         await next(context, ct).ConfigureAwait(false);
     }
 
-    private async Task<WebFetchResult> FetchWithRedirectSafetyAsync(string url, CancellationToken cancellationToken, int depth = 0)
-    {
-        if (depth > MaxRedirects)
-        {
+    private async Task<WebFetchResult> FetchWithRedirectSafetyAsync(string url, CancellationToken cancellationToken, int depth = 0) {
+        if (depth > MaxRedirects) {
             return new WebFetchResult(false, url, ErrorMessage: L.T(StringKey.WebRedirectLimitExceeded, MaxRedirects));
         }
 
@@ -86,11 +76,9 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
             response.Headers.Contains("X-Proxy-Error") &&
             response.Headers.GetValues("X-Proxy-Error").Any(v => v.Contains("blocked-by-allowlist", StringComparison.OrdinalIgnoreCase));
 
-        if (statusCode is 301 or 302 or 307 or 308)
-        {
+        if (statusCode is 301 or 302 or 307 or 308) {
             var redirectLocation = response.Headers.Location?.ToString();
-            if (string.IsNullOrEmpty(redirectLocation))
-            {
+            if (string.IsNullOrEmpty(redirectLocation)) {
                 return new WebFetchResult(false, url, ErrorMessage: L.T(StringKey.WebRedirectMissingLocation));
             }
 
@@ -98,8 +86,7 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
                 ? absoluteUri.ToString()
                 : new Uri(new Uri(url), redirectLocation).ToString();
 
-            if (IsPermittedRedirect(url, redirectUrl))
-            {
+            if (IsPermittedRedirect(url, redirectUrl)) {
                 return await FetchWithRedirectSafetyAsync(redirectUrl, cancellationToken, depth + 1).ConfigureAwait(false);
             }
 
@@ -132,8 +119,7 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
             RawBytes: rawBytes.ToArray());
     }
 
-    private static bool IsPermittedRedirect(string originalUrl, string redirectUrl)
-    {
+    private static bool IsPermittedRedirect(string originalUrl, string redirectUrl) {
         if (!Uri.TryCreate(originalUrl, UriKind.Absolute, out var parsedOriginal))
             return false;
         if (!Uri.TryCreate(redirectUrl, UriKind.Absolute, out var parsedRedirect))
@@ -158,8 +144,7 @@ public sealed partial class WebFetchMiddleware : ServiceEntity, IWebMiddleware
             ? hostname[4..]
             : hostname;
 
-    private static string GetStatusText(int statusCode) => statusCode switch
-    {
+    private static string GetStatusText(int statusCode) => statusCode switch {
         301 => "Moved Permanently",
         302 => "Found",
         307 => "Temporary Redirect",

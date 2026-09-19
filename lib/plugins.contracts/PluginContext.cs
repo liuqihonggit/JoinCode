@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>插件无法绕过 ctx 直接访问 IServiceCollection 做副作用</para>
 /// <para>方案C-P1: 基础结构 + RegisterService + Effect;P2 加 RegisterCommand/Hook/Skill/Agent</para>
 /// </summary>
-public sealed class PluginContext
-{
+public sealed class PluginContext {
     private readonly string _pluginName;
     private readonly IServiceCollection _services;
     private readonly CancellationToken _shutdown;
@@ -18,8 +17,7 @@ public sealed class PluginContext
     /// 创建插件上下文 — 由 WorkflowPluginHost 构造,插件不应直接调用
     /// <para>shutdown 绑定 PluginManager 的卸载令牌,RunBackgroundTask 自动绑定此令牌</para>
     /// </summary>
-    public PluginContext(string pluginName, IServiceCollection services, CancellationToken shutdown = default)
-    {
+    public PluginContext(string pluginName, IServiceCollection services, CancellationToken shutdown = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
         ArgumentNullException.ThrowIfNull(services);
         _pluginName = pluginName;
@@ -33,8 +31,7 @@ public sealed class PluginContext
     /// <summary>注册 DI 服务 — 粗粒度,撤销 = ServiceProvider.Dispose</summary>
     public void RegisterService<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TImpl>(Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = Microsoft.Extensions.DependencyInjection.ServiceLifetime.Singleton)
         where TImpl : class, TService
-        where TService : class
-    {
+        where TService : class {
         _services.Add(new ServiceDescriptor(typeof(TService), typeof(TImpl), lifetime));
     }
 
@@ -43,8 +40,7 @@ public sealed class PluginContext
     /// <para>factory 返回 IDisposable,Dispose 时撤销副作用</para>
     /// <para>撤销函数自动加入撤销链,卸载时逆序执行</para>
     /// </summary>
-    public void Effect(Func<IDisposable> factory)
-    {
+    public void Effect(Func<IDisposable> factory) {
         ArgumentNullException.ThrowIfNull(factory);
         var disposable = factory();
         _undoChain.Add(new NonEmptyUndo(disposable.Dispose));
@@ -55,16 +51,14 @@ public sealed class PluginContext
     /// <para>factory 返回 IAsyncDisposable,DisposeAsync 时异步撤销副作用</para>
     /// <para>异步撤销链在卸载时逆序 await 执行,在同步撤销链之前</para>
     /// </summary>
-    public void Effect(Func<IAsyncDisposable> factory)
-    {
+    public void Effect(Func<IAsyncDisposable> factory) {
         ArgumentNullException.ThrowIfNull(factory);
         var disposable = factory();
         _asyncUndoChain.Add(disposable);
     }
 
     /// <summary>批量配置 DI 服务 — 收敛入口,插件不直接持有 IServiceCollection</summary>
-    public void ConfigureServices(Action<IServiceCollection> configure)
-    {
+    public void ConfigureServices(Action<IServiceCollection> configure) {
         ArgumentNullException.ThrowIfNull(configure);
         configure(_services);
     }
@@ -75,17 +69,13 @@ public sealed class PluginContext
     /// <para>work 务必协作式响应 CancellationToken,否则卸载时等待超时抛 TimeoutException</para>
     /// <para>waitOnUnload: null=默认2秒,Zero=不等待(立即返回)</para>
     /// </summary>
-    public Task RunBackgroundTask(Func<CancellationToken, Task> work, TimeSpan? waitOnUnload = null)
-    {
+    public Task RunBackgroundTask(Func<CancellationToken, Task> work, TimeSpan? waitOnUnload = null) {
         ArgumentNullException.ThrowIfNull(work);
 
         var token = _shutdown;
         var pluginName = _pluginName;
-        var task = Task.Run(async () =>
-        {
-            try { await work(token).ConfigureAwait(false); }
-            catch (OperationCanceledException) { }
-            catch (Exception ex) { Console.WriteLine($"[{pluginName}] 后台任务异常: {ex.Message}"); }
+        var task = Task.Run(async () => {
+            try { await work(token).ConfigureAwait(false); } catch (OperationCanceledException) { } catch (Exception ex) { Console.WriteLine($"[{pluginName}] 后台任务异常: {ex.Message}"); }
         }, token);
 
         var wait = waitOnUnload ?? TimeSpan.FromSeconds(2);
@@ -109,8 +99,7 @@ public sealed class PluginContext
     /// <param name="target">订阅者(弱引用目标,死亡后自动回收)</param>
     /// <param name="handler">回调(target 作为参数传入,不捕获 target)</param>
     public void WeakSubscribe<TTarget, TArgs>(
-        object source, TTarget target, Action<TTarget, TArgs> handler) where TTarget : class
-    {
+        object source, TTarget target, Action<TTarget, TArgs> handler) where TTarget : class {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(handler);
@@ -119,18 +108,14 @@ public sealed class PluginContext
         _undoChain.Add(new NonEmptyUndo(() => { }));
     }
 
-    private static void WaitForBackgroundTaskExit(Task task, TimeSpan wait, string pluginName)
-    {
+    private static void WaitForBackgroundTaskExit(Task task, TimeSpan wait, string pluginName) {
         if (wait <= TimeSpan.Zero) return;
-        try
-        {
+        try {
             if (!task.Wait(wait))
                 throw new TimeoutException(
                     $"后台任务在 {wait.TotalSeconds:0.##}s 内未退出。" +
                     $"请确保任务正确响应 CancellationToken。");
-        }
-        catch (AggregateException aex) when (aex.InnerExceptions.All(e => e is OperationCanceledException))
-        {
+        } catch (AggregateException aex) when (aex.InnerExceptions.All(e => e is OperationCanceledException)) {
             Console.WriteLine($"[{pluginName}] 后台任务已正常取消");
         }
     }

@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.Engine;
 /// <summary>
 /// DAG 节点载荷 — 联合体：假定/证据/裁决共用一个类型
 /// </summary>
-public sealed class ReasoningPayload
-{
+public sealed class ReasoningPayload {
     /// <summary>
     /// 节点唯一标识
     /// </summary>
@@ -70,8 +69,7 @@ public sealed class ReasoningPayload
 /// <summary>
 /// 推理节点类型
 /// </summary>
-public enum ReasoningNodeType
-{
+public enum ReasoningNodeType {
     /// <summary>
     /// 假定
     /// </summary>

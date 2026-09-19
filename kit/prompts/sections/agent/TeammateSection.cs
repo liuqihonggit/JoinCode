@@ -4,8 +4,7 @@ namespace Core.Prompts.Sections;
 /// 团队成员提示词附加部分
 /// </summary>
 [PromptSection(Name = "teammate_communication", InjectOn = PromptSectionInject.CoordinatorMode, Order = 14)]
-public static class TeammateSection
-{
+public static class TeammateSection {
     /// <summary>
     /// 团队成员系统提示词附加内容
     /// </summary>
@@ -29,8 +28,7 @@ public static class TeammateSection
     /// <summary>
     /// 创建团队成员提示词部分
     /// </summary>
-    public static SystemPromptSection Create()
-    {
+    public static SystemPromptSection Create() {
         return SystemPromptSection.Cached("teammate_communication", () => TeammateSystemPromptAddendum);
     }
 }

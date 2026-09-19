@@ -1,13 +1,10 @@
 
 namespace Core.Tests.Skills;
 
-public class SkillExecutorTests
-{
+public class SkillExecutorTests {
     [Fact]
-    public void SkillDefinition_DefaultVersion_ShouldBe1_0()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_DefaultVersion_ShouldBe1_0() {
+        var skill = new SkillDefinition {
             Name = "test",
             Description = "Test",
             Steps = new List<SkillStep>()
@@ -17,10 +14,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_DefaultTimeout_ShouldBe300()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_DefaultTimeout_ShouldBe300() {
+        var skill = new SkillDefinition {
             Name = "test",
             Description = "Test",
             Steps = new List<SkillStep>()
@@ -30,10 +25,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillParameter_DefaultRequired_ShouldBeTrue()
-    {
-        var param = new SkillParameter
-        {
+    public void SkillParameter_DefaultRequired_ShouldBeTrue() {
+        var param = new SkillParameter {
             Type = "string",
             Description = "Test parameter"
         };
@@ -42,10 +35,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillStep_DefaultDescription_ShouldBeEmpty()
-    {
-        var step = new SkillStep
-        {
+    public void SkillStep_DefaultDescription_ShouldBeEmpty() {
+        var step = new SkillStep {
             Id = "step1",
             Type = SkillStepType.Prompt
         };
@@ -54,10 +45,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void LoopConfig_Properties_ShouldBeSettable()
-    {
-        var loop = new LoopConfig
-        {
+    public void LoopConfig_Properties_ShouldBeSettable() {
+        var loop = new LoopConfig {
             Count = 5,
             Condition = "true",
             Variable = "item"
@@ -69,10 +58,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillExecutionResult_DefaultValues_ShouldBeSet()
-    {
-        var result = new SkillExecutionResult
-        {
+    public void SkillExecutionResult_DefaultValues_ShouldBeSet() {
+        var result = new SkillExecutionResult {
             SkillName = "test",
             Output = "output"
         };
@@ -84,10 +71,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void StepResult_DefaultValues_ShouldBeSet()
-    {
-        var result = new StepResult
-        {
+    public void StepResult_DefaultValues_ShouldBeSet() {
+        var result = new StepResult {
             StepId = "step1"
         };
 
@@ -98,22 +83,17 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_WithParameters_ShouldStoreParameters()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_WithParameters_ShouldStoreParameters() {
+        var skill = new SkillDefinition {
             Name = "param_test",
             Description = "Test with parameters",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
-                ["required_param"] = new SkillParameter
-                {
+            Parameters = new Dictionary<string, SkillParameter> {
+                ["required_param"] = new SkillParameter {
                     Type = "string",
                     Description = "Required parameter",
                     Required = true
                 },
-                ["optional_param"] = new SkillParameter
-                {
+                ["optional_param"] = new SkillParameter {
                     Type = "integer",
                     Description = "Optional parameter",
                     Required = false,
@@ -130,10 +110,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_WithSteps_ShouldStoreSteps()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_WithSteps_ShouldStoreSteps() {
+        var skill = new SkillDefinition {
             Name = "step_test",
             Description = "Test with steps",
             Parameters = new Dictionary<string, SkillParameter>(),
@@ -163,15 +141,12 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillStep_WithLoopConfig_ShouldStoreLoop()
-    {
-        var step = new SkillStep
-        {
+    public void SkillStep_WithLoopConfig_ShouldStoreLoop() {
+        var step = new SkillStep {
             Id = "loop_step",
             Type = SkillStepType.Loop,
             Description = "Loop through items",
-            Loop = new LoopConfig
-            {
+            Loop = new LoopConfig {
                 Count = 10,
                 Variable = "item"
             },
@@ -184,10 +159,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillStep_WithCondition_ShouldStoreCondition()
-    {
-        var step = new SkillStep
-        {
+    public void SkillStep_WithCondition_ShouldStoreCondition() {
+        var step = new SkillStep {
             Id = "condition_step",
             Type = SkillStepType.Condition,
             Condition = "{{should_continue}}",
@@ -201,10 +174,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_RequiresConfirmation_ShouldBeConfigurable()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_RequiresConfirmation_ShouldBeConfigurable() {
+        var skill = new SkillDefinition {
             Name = "dangerous",
             Description = "Dangerous operation",
             Parameters = new Dictionary<string, SkillParameter>(),
@@ -216,10 +187,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_WithFrontmatterMetadata_ShouldStoreMetadata()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_WithFrontmatterMetadata_ShouldStoreMetadata() {
+        var skill = new SkillDefinition {
             Name = "metadata_test",
             Description = "Test metadata",
             Steps = new List<SkillStep>(),
@@ -244,12 +213,10 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_WithSourceInfo_ShouldTrackSource()
-    {
+    public void SkillDefinition_WithSourceInfo_ShouldTrackSource() {
         var lastModified = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        var skill = new SkillDefinition
-        {
+        var skill = new SkillDefinition {
             Name = "source_test",
             Description = "Test source tracking",
             Steps = new List<SkillStep>(),
@@ -264,10 +231,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_WithContentTemplate_ShouldStoreTemplate()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_WithContentTemplate_ShouldStoreTemplate() {
+        var skill = new SkillDefinition {
             Name = "template_test",
             Description = "Test content template",
             Steps = new List<SkillStep>(),
@@ -278,15 +243,12 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_WithExtraMetadata_ShouldStoreExtra()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_WithExtraMetadata_ShouldStoreExtra() {
+        var skill = new SkillDefinition {
             Name = "extra_test",
             Description = "Test extra metadata",
             Steps = new List<SkillStep>(),
-            Extra = new Dictionary<string, JsonElement>
-            {
+            Extra = new Dictionary<string, JsonElement> {
                 ["custom_field"] = JsonSerializer.SerializeToElement("value", SkillsJsonContext.Default.String),
                 ["count"] = JsonSerializer.SerializeToElement(42, SkillsJsonContext.Default.Int32)
             }
@@ -297,14 +259,11 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillParameter_WithValidation_ShouldStoreValidation()
-    {
-        var param = new SkillParameter
-        {
+    public void SkillParameter_WithValidation_ShouldStoreValidation() {
+        var param = new SkillParameter {
             Type = "string",
             Description = "Test with validation",
-            Validation = new ParameterValidation
-            {
+            Validation = new ParameterValidation {
                 MinLength = 5,
                 MaxLength = 100,
                 Pattern = "^[a-zA-Z]+$",
@@ -320,15 +279,12 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillStep_WithBranches_ShouldStoreBranches()
-    {
-        var step = new SkillStep
-        {
+    public void SkillStep_WithBranches_ShouldStoreBranches() {
+        var step = new SkillStep {
             Id = "branch_step",
             Type = SkillStepType.Condition,
             Description = "Conditional branching",
-            Branches = new Dictionary<string, List<SkillStep>>
-            {
+            Branches = new Dictionary<string, List<SkillStep>> {
                 ["if_true"] = new List<SkillStep>
                 {
                     new() { Id = "true_step", Type = SkillStepType.Prompt, Prompt = "True branch" }
@@ -347,10 +303,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillStep_WithTimeout_ShouldStoreTimeout()
-    {
-        var step = new SkillStep
-        {
+    public void SkillStep_WithTimeout_ShouldStoreTimeout() {
+        var step = new SkillStep {
             Id = "timeout_step",
             Type = SkillStepType.Tool,
             Tool = "shell",
@@ -361,15 +315,12 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillStep_WithRetry_ShouldStoreRetryConfig()
-    {
-        var step = new SkillStep
-        {
+    public void SkillStep_WithRetry_ShouldStoreRetryConfig() {
+        var step = new SkillStep {
             Id = "retry_step",
             Type = SkillStepType.Tool,
             Tool = "http",
-            Retry = new JoinCode.Abstractions.Models.Skill.RetryConfig
-            {
+            Retry = new JoinCode.Abstractions.Models.Skill.RetryConfig {
                 MaxAttempts = 3,
                 DelayMs = 1000,
                 ExponentialBackoff = true
@@ -383,10 +334,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void LoopConfig_WithBody_ShouldStoreBody()
-    {
-        var loop = new LoopConfig
-        {
+    public void LoopConfig_WithBody_ShouldStoreBody() {
+        var loop = new LoopConfig {
             Variable = "item",
             Body = new List<SkillStep>
             {
@@ -401,10 +350,8 @@ public class SkillExecutorTests
     }
 
     [Fact]
-    public void SkillDefinition_FluentMethods_ShouldWork()
-    {
-        var skill = new SkillDefinition
-        {
+    public void SkillDefinition_FluentMethods_ShouldWork() {
+        var skill = new SkillDefinition {
             Name = "fluent_test",
             Description = "Test fluent methods",
             Steps = new List<SkillStep>()

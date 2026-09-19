@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Utils;
 
-public enum SystemMessageSubtype
-{
+public enum SystemMessageSubtype {
     [EnumValue("none")] None,
     [EnumValue("compact_boundary")] CompactBoundary,
     [EnumValue("microcompact_boundary")] MicrocompactBoundary,

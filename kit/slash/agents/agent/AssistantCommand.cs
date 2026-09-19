@@ -5,8 +5,7 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Assistant, Description = "长期助手模式", Usage = "/assistant [on|off|status]", Category = ChatCommandCategory.Agent)]
 [ChatCommandArg("action", Type = "string", Description = "助手模式动作", Enum = new[] { "on", "off", "status" }, Default = "status")]
-public sealed class AssistantCommand : ToggleCommandBase
-{
+public sealed class AssistantCommand : ToggleCommandBase {
     /// <summary>
     /// 获取命令名称
     /// </summary>
@@ -33,11 +32,9 @@ public sealed class AssistantCommand : ToggleCommandBase
     /// </summary>
     /// <param name="args">用户输入的参数</param>
     /// <returns>切换动作，无法识别时返回 null</returns>
-    protected override ToggleAction? ResolveToggleAction(string args)
-    {
+    protected override ToggleAction? ResolveToggleAction(string args) {
         var lower = args.ToLowerInvariant();
-        return lower switch
-        {
+        return lower switch {
             "1" => ToggleAction.On,
             "0" => ToggleAction.Off,
             _ => ToggleActionExtensions.FromValue(args),
@@ -54,8 +51,7 @@ public sealed class AssistantCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>完成的任务</returns>
-    protected override Task OnEnabledAsync(ChatCommandContext context)
-    {
+    protected override Task OnEnabledAsync(ChatCommandContext context) {
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AssistantMode, "1");
         TerminalHelper.WriteLine(L.T(StringKey.HostAssistantModeEnabled));
         TerminalHelper.WriteLine(L.T(StringKey.HostAssistantEnvVarSet, JccEnvVarEnumConstants.AssistantMode));
@@ -68,8 +64,7 @@ public sealed class AssistantCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>完成的任务</returns>
-    protected override Task OnDisabledAsync(ChatCommandContext context)
-    {
+    protected override Task OnDisabledAsync(ChatCommandContext context) {
         Environment.SetEnvironmentVariable(JccEnvVarEnumConstants.AssistantMode, "0");
         TerminalHelper.WriteLine(L.T(StringKey.HostAssistantModeDisabled));
         return Task.CompletedTask;
@@ -80,8 +75,7 @@ public sealed class AssistantCommand : ToggleCommandBase
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>完成的任务</returns>
-    protected override Task PrintStatusAsync(ChatCommandContext context)
-    {
+    protected override Task PrintStatusAsync(ChatCommandContext context) {
         var assistantService = GetService<IAssistantModeService>(context);
         if (assistantService is null) return Task.CompletedTask;
 

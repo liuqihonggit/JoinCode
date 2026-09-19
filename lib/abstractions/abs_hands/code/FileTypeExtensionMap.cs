@@ -6,11 +6,9 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <para>统一 RgEngine/SearchService 两处重复定义</para>
 /// <para>扩展名格式：带点不带星号（.js），文件名项不带点（Dockerfile）</para>
 /// </summary>
-public static class FileTypeExtensionMap
-{
+public static class FileTypeExtensionMap {
     private static readonly FrozenDictionary<string, string[]> Extensions = FrozenDictionary.ToFrozenDictionary(
-        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase) {
             ["js"] = [".js", ".jsx", ".mjs", ".cjs"],
             ["ts"] = [".ts", ".tsx", ".mts", ".cts"],
             ["py"] = [".py", ".pyi"],
@@ -49,25 +47,21 @@ public static class FileTypeExtensionMap
     /// <summary>
     /// 尝试获取文件类型对应的扩展名列表
     /// </summary>
-    public static bool TryGetValue(string fileType, out string[] extensions)
-    {
+    public static bool TryGetValue(string fileType, out string[] extensions) {
         return Extensions.TryGetValue(fileType, out extensions!);
     }
 
     /// <summary>
     /// 判断文件是否匹配指定类型
     /// </summary>
-    public static bool MatchesFileType(string file, string? fileType)
-    {
+    public static bool MatchesFileType(string file, string? fileType) {
         if (string.IsNullOrEmpty(fileType))
             return true;
 
-        if (Extensions.TryGetValue(fileType, out var exts))
-        {
+        if (Extensions.TryGetValue(fileType, out var exts)) {
             var ext = Path.GetExtension(file);
             var fileName = Path.GetFileName(file);
-            foreach (var e in exts)
-            {
+            foreach (var e in exts) {
                 if (e.StartsWith('.') && string.Equals(ext, e, StringComparison.OrdinalIgnoreCase))
                     return true;
                 if (!e.StartsWith('.') && string.Equals(fileName, e, StringComparison.OrdinalIgnoreCase))

@@ -6,14 +6,12 @@ namespace JoinCode.Abstractions.Entity;
 /// <para>服务热替换(A 卸载后 C 重新 Provide)自动生效,无需快照</para>
 /// <para>线程安全由 Actor 串行保证,内部无锁</para>
 /// </summary>
-public sealed class PluginDependencyGraph
-{
+public sealed class PluginDependencyGraph {
     private readonly Dictionary<string, HashSet<Type>> _declarations = new();
     private readonly Dictionary<string, HashSet<string>> _pluginDependencies = new();
 
     /// <summary>声明插件依赖某服务类型</summary>
-    public void DeclareServiceDependency(string plugin, Type serviceType)
-    {
+    public void DeclareServiceDependency(string plugin, Type serviceType) {
         if (!_declarations.TryGetValue(plugin, out var set))
             _declarations[plugin] = set = new();
         set.Add(serviceType);
@@ -23,16 +21,14 @@ public sealed class PluginDependencyGraph
     /// 声明插件依赖另一个插件(插件名级依赖,ADR 0098 维度11整合)
     /// <para>替代 FindDependentPlugins 的静态遍历,支持拓扑排序</para>
     /// </summary>
-    public void DeclarePluginDependency(string plugin, string dependsOn)
-    {
+    public void DeclarePluginDependency(string plugin, string dependsOn) {
         if (!_pluginDependencies.TryGetValue(dependsOn, out var set))
             _pluginDependencies[dependsOn] = set = new();
         set.Add(plugin);
     }
 
     /// <summary>移除插件的所有声明 — 卸载后清理</summary>
-    public void RemovePlugin(string id)
-    {
+    public void RemovePlugin(string id) {
         _declarations.Remove(id);
         _pluginDependencies.Remove(id);
         foreach (var kv in _pluginDependencies)
@@ -49,16 +45,14 @@ public sealed class PluginDependencyGraph
     /// <param name="root">起始卸载插件</param>
     /// <param name="providerResolver">服务类型 → 当前提供者插件 id 或 null</param>
     /// <returns>拓扑卸载顺序(依赖者先,被依赖者后)</returns>
-    public IReadOnlyList<string> GetUnloadOrder(string root, Func<Type, string?> providerResolver)
-    {
+    public IReadOnlyList<string> GetUnloadOrder(string root, Func<Type, string?> providerResolver) {
         var dependents = BuildDependentsMap(providerResolver);
         var order = new List<string>();
         var visited = new HashSet<string>();
         Visit(root);
         return order;
 
-        void Visit(string n)
-        {
+        void Visit(string n) {
             if (!visited.Add(n)) return;
             if (dependents.TryGetValue(n, out var ds))
                 foreach (var d in ds) Visit(d);
@@ -67,8 +61,7 @@ public sealed class PluginDependencyGraph
     }
 
     /// <summary>描述当前依赖关系(用于诊断)</summary>
-    public string Describe(Func<Type, string?> providerResolver)
-    {
+    public string Describe(Func<Type, string?> providerResolver) {
         var dependents = BuildDependentsMap(providerResolver);
         var lines = new List<string>();
         foreach (var (provider, ds) in dependents)
@@ -77,13 +70,10 @@ public sealed class PluginDependencyGraph
         return lines.Count == 0 ? "  (空)" : string.Join(Environment.NewLine, lines);
     }
 
-    private Dictionary<string, HashSet<string>> BuildDependentsMap(Func<Type, string?> providerResolver)
-    {
+    private Dictionary<string, HashSet<string>> BuildDependentsMap(Func<Type, string?> providerResolver) {
         var dependents = new Dictionary<string, HashSet<string>>();
-        foreach (var (plugin, types) in _declarations)
-        {
-            foreach (var t in types)
-            {
+        foreach (var (plugin, types) in _declarations) {
+            foreach (var t in types) {
                 var provider = providerResolver(t);
                 if (provider == null) continue;
                 if (!dependents.TryGetValue(provider, out var ds))

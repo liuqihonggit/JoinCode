@@ -4,8 +4,7 @@ namespace Infrastructure.Utils.Resilience;
 /// 崩溃快照存储 — 线程安全的有界队列，捕获 CrashSnapshot 并提供查询/确认/报告能力
 /// </summary>
 [Register(typeof(ICrashSnapshotStore), ServiceLifetime.Singleton)]
-public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
-{
+public sealed partial class CrashSnapshotStore : ICrashSnapshotStore {
     private readonly ConcurrentQueue<CrashSnapshot> _snapshots = new();
     private readonly int _maxCapacity;
     private int _unacknowledgedCount;
@@ -19,8 +18,7 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
     /// 构造崩溃快照存储
     /// </summary>
     /// <param name="maxCapacity">最大容量，超出后淘汰最旧快照</param>
-    public CrashSnapshotStore(int maxCapacity = 200)
-    {
+    public CrashSnapshotStore(int maxCapacity = 200) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxCapacity);
         _maxCapacity = maxCapacity;
     }
@@ -39,15 +37,13 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
     /// 添加崩溃快照到存储，超出容量时淘汰最旧快照
     /// </summary>
     /// <param name="snapshot">崩溃快照</param>
-    public void Add(CrashSnapshot snapshot)
-    {
+    public void Add(CrashSnapshot snapshot) {
         ArgumentNullException.ThrowIfNull(snapshot);
 
         _snapshots.Enqueue(snapshot);
         Interlocked.Increment(ref _unacknowledgedCount);
 
-        while (_snapshots.Count > _maxCapacity && _snapshots.TryDequeue(out var removed))
-        {
+        while (_snapshots.Count > _maxCapacity && _snapshots.TryDequeue(out var removed)) {
             if (removed.State == CrashSnapshotState.Captured)
                 Interlocked.Decrement(ref _unacknowledgedCount);
         }
@@ -62,8 +58,7 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
     /// </summary>
     /// <param name="count">要获取的条数</param>
     /// <returns>快照列表（最新在前）</returns>
-    public IReadOnlyList<CrashSnapshot> GetRecent(int count = 20)
-    {
+    public IReadOnlyList<CrashSnapshot> GetRecent(int count = 20) {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         return _snapshots.Reverse().Take(count).ToList();
     }
@@ -73,8 +68,7 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
     /// </summary>
     /// <param name="fenceName">围栏名称</param>
     /// <returns>匹配的快照列表（最新在前）</returns>
-    public IReadOnlyList<CrashSnapshot> GetByFence(string fenceName)
-    {
+    public IReadOnlyList<CrashSnapshot> GetByFence(string fenceName) {
         ArgumentException.ThrowIfNullOrEmpty(fenceName);
         return _snapshots.Where(s => s.FenceName == fenceName).Reverse().ToList();
     }
@@ -91,8 +85,7 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
     /// 确认指定快照（标记为已确认，减少未确认计数）
     /// </summary>
     /// <param name="id">快照 ID</param>
-    public void Acknowledge(Guid id)
-    {
+    public void Acknowledge(Guid id) {
         var snapshot = GetById(id);
         if (snapshot is null || snapshot.State != CrashSnapshotState.Captured) return;
 
@@ -105,8 +98,7 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
     /// </summary>
     /// <param name="count">要包含的最近条数</param>
     /// <returns>格式化的报告字符串</returns>
-    public string FormatReport(int count = 20)
-    {
+    public string FormatReport(int count = 20) {
         var recent = GetRecent(count);
         if (recent.Count == 0)
             return "无崩溃快照记录。";
@@ -115,10 +107,8 @@ public sealed partial class CrashSnapshotStore : ICrashSnapshotStore
         sb.AppendLine($"崩溃快照报告（最近 {recent.Count} 条，共 {TotalCount} 条，未确认 {UnacknowledgedCount} 条）");
         sb.AppendLine(new string('─', 60));
 
-        foreach (var s in recent)
-        {
-            var stateMark = s.State switch
-            {
+        foreach (var s in recent) {
+            var stateMark = s.State switch {
                 CrashSnapshotState.Captured => "🔴",
                 CrashSnapshotState.Acknowledged => "🟡",
                 CrashSnapshotState.Resolved => "🟢",

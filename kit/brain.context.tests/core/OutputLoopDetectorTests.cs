@@ -1,23 +1,20 @@
 namespace Core.Context;
 
-public sealed class OutputLoopDetectorTests
-{
+public sealed class OutputLoopDetectorTests {
     private readonly OutputLoopDetector _sut = new(
         minPatternLength: 5,
         checkInterval: 1,
         requiredRepeats: 3);
 
     [Fact]
-    public void Detect_ShortText_ReturnsNoLoop()
-    {
+    public void Detect_ShortText_ReturnsNoLoop() {
         var result = _sut.Detect("Hello world");
 
         Assert.False(result.IsLoopDetected);
     }
 
     [Fact]
-    public void Detect_ThreeRepeats_SamePattern_ReturnsLoop()
-    {
+    public void Detect_ThreeRepeats_SamePattern_ReturnsLoop() {
         var pattern = "这是正确的代码实现。";
         var text = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 3));
 
@@ -29,8 +26,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_TwoRepeats_ReturnsNoLoop()
-    {
+    public void Detect_TwoRepeats_ReturnsNoLoop() {
         var pattern = "这是正确的代码实现。";
         var text = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 2));
 
@@ -40,8 +36,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_LongPattern_ThreeRepeats_ReturnsLoop()
-    {
+    public void Detect_LongPattern_ThreeRepeats_ReturnsLoop() {
         var pattern = new string('A', 200);
         var text = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 3));
 
@@ -52,8 +47,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_MinLengthPattern_ThreeRepeats_ReturnsLoop()
-    {
+    public void Detect_MinLengthPattern_ThreeRepeats_ReturnsLoop() {
         var pattern = new string('B', 5);
         var text = string.Concat(Enumerable.Repeat(pattern, 4));
 
@@ -64,8 +58,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_LoopStartIndex_PointsToBeforeRepetition()
-    {
+    public void Detect_LoopStartIndex_PointsToBeforeRepetition() {
         var pattern = "重复内容XYZ";
         var prefix = "这是正常的前置文本。";
         var text = prefix + string.Concat(Enumerable.Repeat(pattern, 3));
@@ -77,8 +70,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_NormalText_NoFalsePositive()
-    {
+    public void Detect_NormalText_NoFalsePositive() {
         var text = "第一段内容。第二段不同的内容。第三段又是新的内容。这些都不重复。";
 
         var result = _sut.Detect(text);
@@ -87,8 +79,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_FourRepeats_ReturnsLoopWithCount4()
-    {
+    public void Detect_FourRepeats_ReturnsLoopWithCount4() {
         var pattern = "循环段落内容。";
         var text = string.Concat(Enumerable.Repeat(pattern, 4));
 
@@ -99,8 +90,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Reset_ClearsInternalState()
-    {
+    public void Reset_ClearsInternalState() {
         var pattern = "重复内容文本。";
         var text = string.Concat(Enumerable.Repeat(pattern, 3));
 
@@ -115,8 +105,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_MixedContentWithLoopAtTail_ReturnsLoop()
-    {
+    public void Detect_MixedContentWithLoopAtTail_ReturnsLoop() {
         var prefix = "这是一段正常的分析文本，包含多个不同的句子。每个句子都有独特的含义。";
         var loopPattern = "重复的结论部分。";
         var text = prefix + string.Concat(Enumerable.Repeat(loopPattern, 3));
@@ -128,16 +117,14 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_EmptyString_ReturnsNoLoop()
-    {
+    public void Detect_EmptyString_ReturnsNoLoop() {
         var result = _sut.Detect(string.Empty);
 
         Assert.False(result.IsLoopDetected);
     }
 
     [Fact]
-    public void Detect_CheckInterval_SkipsIntermediateCalls()
-    {
+    public void Detect_CheckInterval_SkipsIntermediateCalls() {
         var detector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 100, requiredRepeats: 3);
         var pattern = new string('X', 20);
         var shortText = "短文本";
@@ -151,8 +138,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_LoopStartIndex_TruncationPreservesPrefix()
-    {
+    public void Detect_LoopStartIndex_TruncationPreservesPrefix() {
         var prefix = "这是正常回复的前半部分内容。";
         var pattern = "重复段落内容。";
         var text = prefix + string.Concat(Enumerable.Repeat(pattern, 3));
@@ -165,8 +151,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_DefaultParameters_DetectsRealisticLoop()
-    {
+    public void Detect_DefaultParameters_DetectsRealisticLoop() {
         var defaultDetector = new OutputLoopDetector();
         var pattern = "这是LLM重复输出的段落，包含了完整的句子和标点符号。";
         var text = "正常的前置回复内容。" + string.Concat(Enumerable.Repeat(pattern, 10));
@@ -177,8 +162,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_DefaultParameters_NineRepeats_NotDetected()
-    {
+    public void Detect_DefaultParameters_NineRepeats_NotDetected() {
         var defaultDetector = new OutputLoopDetector();
         var pattern = "这是LLM重复输出的段落，包含了完整的句子和标点符号。";
         var text = "正常的前置回复内容。" + string.Concat(Enumerable.Repeat(pattern, 9));
@@ -189,8 +173,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_FirstTrigger_LoopTriggerCountIs1()
-    {
+    public void Detect_FirstTrigger_LoopTriggerCountIs1() {
         var pattern = "这是正确的代码实现。";
         var text = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 3));
 
@@ -201,8 +184,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_CooldownPeriod_SecondDetectionReturnsNoLoop()
-    {
+    public void Detect_CooldownPeriod_SecondDetectionReturnsNoLoop() {
         var detector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 500, requiredRepeats: 3);
         var pattern = "这是正确的代码实现。";
         var text1 = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 3));
@@ -217,8 +199,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_CooldownExpires_DetectionResumes()
-    {
+    public void Detect_CooldownExpires_DetectionResumes() {
         var detector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 50, requiredRepeats: 3);
         var pattern = "这是正确的代码实现。";
         var text1 = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 3));
@@ -235,8 +216,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_MultipleTriggers_TriggerCountIncrements()
-    {
+    public void Detect_MultipleTriggers_TriggerCountIncrements() {
         var detector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 0, requiredRepeats: 3);
         var pattern = "这是正确的代码实现。";
         var text1 = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 3));
@@ -254,8 +234,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Reset_ClearsTriggerCountAndCooldown()
-    {
+    public void Reset_ClearsTriggerCountAndCooldown() {
         var detector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, cooldownChars: 500, requiredRepeats: 3);
         var pattern = "这是正确的代码实现。";
         var text = "前置内容" + string.Concat(Enumerable.Repeat(pattern, 3));
@@ -271,14 +250,12 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void NoLoop_StaticProperty_HasDefaultTriggerCount()
-    {
+    public void NoLoop_StaticProperty_HasDefaultTriggerCount() {
         Assert.Equal(0, LoopDetectionResult.NoLoop.LoopTriggerCount);
     }
 
     [Fact]
-    public void Detect_StringBuilder_SameResult_As_String_Overload()
-    {
+    public void Detect_StringBuilder_SameResult_As_String_Overload() {
         var pattern = "重复模式。";
         var text = string.Concat(Enumerable.Repeat(pattern, 4));
 
@@ -293,8 +270,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_StringBuilder_Skips_ToString_When_Below_MinLength()
-    {
+    public void Detect_StringBuilder_Skips_ToString_When_Below_MinLength() {
         var detector = new OutputLoopDetector(
             minPatternLength: 10, requiredRepeats: 3, checkInterval: 1);
         var sb = new StringBuilder("短");
@@ -305,8 +281,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_StringBuilder_Skips_ToString_When_Within_CheckInterval()
-    {
+    public void Detect_StringBuilder_Skips_ToString_When_Within_CheckInterval() {
         var detector = new OutputLoopDetector(
             minPatternLength: 5, requiredRepeats: 3, checkInterval: 10);
         var pattern = "重复模式。";
@@ -320,8 +295,7 @@ public sealed class OutputLoopDetectorTests
     }
 
     [Fact]
-    public void Detect_StringBuilder_After_Reset_Detects_Again()
-    {
+    public void Detect_StringBuilder_After_Reset_Detects_Again() {
         var detector = new OutputLoopDetector(minPatternLength: 5, checkInterval: 1, requiredRepeats: 3);
         var pattern = "重复模式。";
         var text = string.Concat(Enumerable.Repeat(pattern, 4));

@@ -4,13 +4,11 @@ namespace JoinCode.Hands.Desktop;
 /// 观察学习器 — 用多模态 LLM 从用户演示中学习操作模式并优化（PRD L-02/L-04）
 /// </summary>
 [Register(typeof(IObservationLearner), ServiceLifetime.Singleton)]
-public sealed partial class ObservationLearner : ServiceEntity, IObservationLearner
-{
+public sealed partial class ObservationLearner : ServiceEntity, IObservationLearner {
     private readonly IQueryService _queryService;
     private readonly ILogger<ObservationLearner>? _logger;
 
-    private static readonly ChatOptions LearningChatOptions = new()
-    {
+    private static readonly ChatOptions LearningChatOptions = new() {
         Temperature = 0.4f,
         MaxTokens = 4000
     };
@@ -18,15 +16,13 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
     /// <summary>构造观察学习器实例。</summary>
     /// <param name="queryService">LLM 查询服务，用于调用多模态模型进行操作抽象、复现与优化。</param>
     /// <param name="logger">可选的日志记录器，传入 null 时静默运行。</param>
-    public ObservationLearner(IQueryService queryService, ILogger<ObservationLearner>? logger = null)
-    {
+    public ObservationLearner(IQueryService queryService, ILogger<ObservationLearner>? logger = null) {
         _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
         _logger = logger;
     }
 
     /// <summary>操作抽象（L-02）— 将原始操作序列抽象为参数化逻辑</summary>
-    public async Task<AbstractOperationLogic> AbstractAsync(ObservedSession session, CancellationToken cancellationToken = default)
-    {
+    public async Task<AbstractOperationLogic> AbstractAsync(ObservedSession session, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(session);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -59,8 +55,7 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
     }
 
     /// <summary>观察复现（L-03）— 从抽象逻辑 + 上下文生成可执行操作序列（Macro）</summary>
-    public async Task<Macro> ReproduceAsync(AbstractOperationLogic logic, string context, CancellationToken cancellationToken = default)
-    {
+    public async Task<Macro> ReproduceAsync(AbstractOperationLogic logic, string context, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(logic);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -97,41 +92,34 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
         return ParseMacroFromResponse(responseText, logic.Name);
     }
 
-    internal static Macro ParseMacroFromResponse(string responseText, string macroName)
-    {
+    internal static Macro ParseMacroFromResponse(string responseText, string macroName) {
         var operations = ParseOperations(responseText);
         return new Macro(macroName, operations, DateTimeOffset.UtcNow);
     }
 
-    internal static IReadOnlyList<DesktopOperation> ParseOperations(string responseText)
-    {
+    internal static IReadOnlyList<DesktopOperation> ParseOperations(string responseText) {
         var json = ExtractJson(responseText);
         if (string.IsNullOrEmpty(json))
             return [];
 
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(json);
             if (!doc.RootElement.TryGetProperty("operations", out var opsProp) || opsProp.ValueKind != JsonValueKind.Array)
                 return [];
 
             var result = new List<DesktopOperation>();
-            foreach (var op in opsProp.EnumerateArray())
-            {
+            foreach (var op in opsProp.EnumerateArray()) {
                 var parsed = ParseSingleOperation(op);
                 if (parsed is not null)
                     result.Add(parsed);
             }
             return result;
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return [];
         }
     }
 
-    internal static DesktopOperation? ParseSingleOperation(JsonElement element)
-    {
+    internal static DesktopOperation? ParseSingleOperation(JsonElement element) {
         if (!element.TryGetProperty("kind", out var kindProp))
             return null;
         var kindStr = kindProp.GetString();
@@ -144,16 +132,14 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
         var succeeded = !element.TryGetProperty("succeeded", out var sProp) || sProp.GetBoolean();
 
         MouseAction? mouseAction = null;
-        if (element.TryGetProperty("mouseAction", out var maProp))
-        {
+        if (element.TryGetProperty("mouseAction", out var maProp)) {
             var maStr = maProp.GetString();
             if (!string.IsNullOrEmpty(maStr) && Enum.TryParse<MouseAction>(maStr, ignoreCase: true, out var ma))
                 mouseAction = ma;
         }
 
         KeyModifier? modifiers = null;
-        if (element.TryGetProperty("modifiers", out var modProp))
-        {
+        if (element.TryGetProperty("modifiers", out var modProp)) {
             var modStr = modProp.GetString();
             if (!string.IsNullOrEmpty(modStr) && Enum.TryParse<KeyModifier>(modStr, ignoreCase: true, out var mod))
                 modifiers = mod;
@@ -163,8 +149,7 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
     }
 
     /// <summary>步骤优化（L-04）— 分析抽象逻辑并提出优化建议</summary>
-    public async Task<string> OptimizeAsync(AbstractOperationLogic logic, CancellationToken cancellationToken = default)
-    {
+    public async Task<string> OptimizeAsync(AbstractOperationLogic logic, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(logic);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -197,11 +182,9 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
         return string.IsNullOrEmpty(responseText) ? "无法生成优化建议" : responseText;
     }
 
-    internal static string BuildOperationsDescription(ObservedSession session)
-    {
+    internal static string BuildOperationsDescription(ObservedSession session) {
         var sb = new StringBuilder(256);
-        for (var i = 0; i < session.Operations.Count; i++)
-        {
+        for (var i = 0; i < session.Operations.Count; i++) {
             var op = session.Operations[i];
             sb.AppendLine($"  [{i + 1}] {op.Kind} @ ({op.X},{op.Y})" +
                 (op.Text is not null ? $" text=\"{op.Text}\"" : string.Empty) +
@@ -212,14 +195,12 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
         return sb.ToString();
     }
 
-    internal static AbstractOperationLogic ParseAbstractLogic(string responseText, string fallbackName)
-    {
+    internal static AbstractOperationLogic ParseAbstractLogic(string responseText, string fallbackName) {
         var json = ExtractJson(responseText);
         if (string.IsNullOrEmpty(json))
             return new AbstractOperationLogic(fallbackName, "无法抽象", string.Empty, [], 0.0);
 
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -229,10 +210,8 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
             var confidence = root.TryGetProperty("confidence", out var cProp) && cProp.TryGetDouble(out var cv) ? cv : 0.5;
 
             var steps = new List<string>();
-            if (root.TryGetProperty("steps", out var stepsProp) && stepsProp.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var s in stepsProp.EnumerateArray())
-                {
+            if (root.TryGetProperty("steps", out var stepsProp) && stepsProp.ValueKind == JsonValueKind.Array) {
+                foreach (var s in stepsProp.EnumerateArray()) {
                     var step = s.GetString();
                     if (!string.IsNullOrWhiteSpace(step))
                         steps.Add(step);
@@ -240,9 +219,7 @@ public sealed partial class ObservationLearner : ServiceEntity, IObservationLear
             }
 
             return new AbstractOperationLogic(name, pattern, parameters, steps, confidence);
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             return new AbstractOperationLogic(fallbackName, "解析失败", string.Empty, [], 0.0);
         }
     }

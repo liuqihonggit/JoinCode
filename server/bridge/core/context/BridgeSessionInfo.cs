@@ -3,8 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 桥会话标识聚合 — 将 sessionId、environmentId、sessionIngressUrl 合并为单一参数
 /// </summary>
-public sealed record BridgeSessionInfo
-{
+public sealed record BridgeSessionInfo {
     /// <summary>
     /// 会话 ID
     /// </summary>

@@ -1,10 +1,8 @@
 namespace Core.Agents;
 
 
-public sealed class BuiltInAgentToolHandlersOutputTests
-{
-    private static Mock<IFileSystem> CreateFsMock()
-    {
+public sealed class BuiltInAgentToolHandlersOutputTests {
+    private static Mock<IFileSystem> CreateFsMock() {
         var fsMock = new Mock<IFileSystem>();
         fsMock.Setup(x => x.GetCurrentDirectory()).Returns("X:\\tmp");
         fsMock.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(true);
@@ -13,8 +11,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
         return fsMock;
     }
 
-    private static (BuiltInAgentToolHandlers handler, Mock<IAgentService> svc) CreateWithTruncator(string agentId, bool success, string output)
-    {
+    private static (BuiltInAgentToolHandlers handler, Mock<IAgentService> svc) CreateWithTruncator(string agentId, bool success, string output) {
         var svcMock = new Mock<IAgentService>();
         svcMock.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
                .ReturnsAsync(new JoinCode.Abstractions.Interfaces.AgentInfo { Id = agentId, Description = "test" });
@@ -30,8 +27,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
 
     private static (BuiltInAgentToolHandlers handler, Mock<IAgentService> svc, Mock<ISubAgentSummaryClient> summaryMock) CreateWithSummary(
         string agentId, bool success, string output,
-        SubAgentConfig? subAgentConfig = null)
-    {
+        SubAgentConfig? subAgentConfig = null) {
         var svcMock = new Mock<IAgentService>();
         svcMock.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
                .ReturnsAsync(new JoinCode.Abstractions.Interfaces.AgentInfo { Id = agentId, Description = "test" });
@@ -48,8 +44,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     }
 
     [Fact]
-    public async Task PlanAgentAsync_SmallOutput_WrappedInXml_NoArchive()
-    {
+    public async Task PlanAgentAsync_SmallOutput_WrappedInXml_NoArchive() {
         var (handler, _) = CreateWithTruncator("agent-small", true, "计划完成");
 
         var result = await handler.PlanAgentAsync("目标");
@@ -62,8 +57,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     }
 
     [Fact]
-    public async Task PlanAgentAsync_HugeOutput_ArchivedPointer_NoCrash()
-    {
+    public async Task PlanAgentAsync_HugeOutput_ArchivedPointer_NoCrash() {
         var big = new string('x', 300_000);
         var (handler, _) = CreateWithTruncator("agent-big", true, big);
 
@@ -75,8 +69,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     }
 
     [Fact]
-    public async Task PlanAgentAsync_NoTruncator_ReturnsRawOutput()
-    {
+    public async Task PlanAgentAsync_NoTruncator_ReturnsRawOutput() {
         var svcMock = new Mock<IAgentService>();
         svcMock.Setup(x => x.SpawnAgentAsync(It.IsAny<AgentSpawnOptions>(), It.IsAny<CancellationToken>()))
                .ReturnsAsync(new JoinCode.Abstractions.Interfaces.AgentInfo { Id = "raw", Description = "t" });
@@ -92,8 +85,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     }
 
     [Fact]
-    public async Task ExploreAgentAsync_HugeOutput_ArchivedPointer_NoCrash()
-    {
+    public async Task ExploreAgentAsync_HugeOutput_ArchivedPointer_NoCrash() {
         var big = new string('y', 300_000);
         var (handler, _) = CreateWithTruncator("agent-explore", true, big);
 
@@ -104,8 +96,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     }
 
     [Fact]
-    public async Task PlanAgentAsync_MediumOutput_L2SummarySuccess_PlaceSummary()
-    {
+    public async Task PlanAgentAsync_MediumOutput_L2SummarySuccess_PlaceSummary() {
         var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true } };
         var big = new string('x', 400 * 4);
         var (handler, _, summaryMock) = CreateWithSummary("agent-med", true, big, config);
@@ -123,8 +114,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     }
 
     [Fact]
-    public async Task PlanAgentAsync_MediumOutput_L2Failed_FallbackToL3Archive()
-    {
+    public async Task PlanAgentAsync_MediumOutput_L2Failed_FallbackToL3Archive() {
         var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true, MaxRetries = 0 } };
         var big = new string('x', 400 * 4);
         var (handler, _, summaryMock) = CreateWithSummary("agent-fail", true, big, config);
@@ -139,8 +129,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     }
 
     [Fact]
-    public async Task PlanAgentAsync_L2Disabled_FallbackToL3Archive()
-    {
+    public async Task PlanAgentAsync_L2Disabled_FallbackToL3Archive() {
         var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = false } };
         var big = new string('x', 400 * 4);
         var (handler, _, summaryMock) = CreateWithSummary("agent-disabled", true, big, config);
@@ -153,8 +142,7 @@ public sealed class BuiltInAgentToolHandlersOutputTests
     }
 
     [Fact]
-    public async Task PlanAgentAsync_SmallOutput_WithSummaryGenerator_PlaceOriginal()
-    {
+    public async Task PlanAgentAsync_SmallOutput_WithSummaryGenerator_PlaceOriginal() {
         var config = new SubAgentConfig { FallbackOutputTokenBudget = 100, Summary = new SubAgentSummaryConfig { Auto = true } };
         var (handler, _, summaryMock) = CreateWithSummary("agent-small-l2", true, "小输出", config);
 

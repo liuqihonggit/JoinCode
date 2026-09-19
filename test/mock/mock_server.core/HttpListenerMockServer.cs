@@ -1,7 +1,6 @@
 namespace MockServer.Core;
 
-public sealed class HttpListenerMockServer : IHttpMockServer
-{
+public sealed class HttpListenerMockServer : IHttpMockServer {
     private readonly HttpListener _listener;
     private readonly CancellationTokenSource _cts;
     private readonly List<CapturedRequest> _capturedRequests = [];
@@ -22,8 +21,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
         IResponseStrategy responseStrategy,
         ICacheSimulator cacheSimulator,
         int port = 0,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         ArgumentNullException.ThrowIfNull(responseStrategy);
         ArgumentNullException.ThrowIfNull(cacheSimulator);
         ArgumentOutOfRangeException.ThrowIfLessThan(port, 0);
@@ -39,8 +37,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
         _listener.Prefixes.Add($"http://localhost:{_port}/");
     }
 
-    private static int GetAvailablePort()
-    {
+    private static int GetAvailablePort() {
         using var tcpListener = new TcpListener(IPAddress.Loopback, 0);
         tcpListener.Start();
         var port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
@@ -48,14 +45,10 @@ public sealed class HttpListenerMockServer : IHttpMockServer
         return port;
     }
 
-    public Task StartAsync(int port = 0)
-    {
-        try
-        {
+    public Task StartAsync(int port = 0) {
+        try {
             _listener.Start();
-        }
-        catch (HttpListenerException ex)
-        {
+        } catch (HttpListenerException ex) {
             throw new InvalidOperationException(
                 $"HttpListener.Start() failed on port {_port}. " +
                 $"This may be a .NET runtime compatibility issue. " +
@@ -66,26 +59,21 @@ public sealed class HttpListenerMockServer : IHttpMockServer
         return Task.CompletedTask;
     }
 
-    public Task StopAsync()
-    {
+    public Task StopAsync() {
         _cts.Cancel();
         _listener.Stop();
         return Task.CompletedTask;
     }
 
-    private async Task ListenLoop(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
+    private async Task ListenLoop(CancellationToken ct) {
+        while (!ct.IsCancellationRequested) {
+            try {
                 var ctx = await _listener.GetContextAsync().ConfigureAwait(true);
                 if (ct.IsCancellationRequested) break;
 
                 var path = ctx.Request.Url?.AbsolutePath ?? "";
 
-                if (ctx.Request.HttpMethod == "GET" && path == "/shutdown")
-                {
+                if (ctx.Request.HttpMethod == "GET" && path == "/shutdown") {
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = "application/json";
                     var shutdownBytes = Encoding.UTF8.GetBytes("{\"status\":\"shutting_down\"}");
@@ -95,8 +83,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     break;
                 }
 
-                if (ctx.Request.HttpMethod == "GET")
-                {
+                if (ctx.Request.HttpMethod == "GET") {
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = "application/json";
                     var healthBytes = Encoding.UTF8.GetBytes("{\"status\":\"ok\"}");
@@ -108,8 +95,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                 using var reader = ctx.Request.InputStream.AsUtf8Reader();
                 var body = await reader.ReadToEndAsync(ct).ConfigureAwait(true);
 
-                var captured = new CapturedRequest
-                {
+                var captured = new CapturedRequest {
                     Method = ctx.Request.HttpMethod,
                     Path = path,
                     Body = body,
@@ -123,24 +109,20 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                 var cacheStats = _cacheSimulator.ComputeCacheStats(requestJson.RootElement);
 
                 await _lock.WaitAsync(ct).ConfigureAwait(true);
-                try
-                {
+                try {
                     _capturedRequests.Add(captured);
                     Stats.TotalRequests++;
 
                     // 合并到同一把锁内，避免双重锁死锁
                     if (cacheStats.CacheReadTokens > 0) Stats.CacheHits++;
                     else Stats.CacheMisses++;
-                }
-                finally
-                {
+                } finally {
                     _lock.Release();
                 }
 
                 // 检查策略是否要求返回错误状态码
                 var statusCode = _responseStrategy.GetHttpStatusCode(requestJson.RootElement);
-                if (statusCode != 200)
-                {
+                if (statusCode != 200) {
                     ctx.Response.StatusCode = statusCode;
                     ctx.Response.ContentType = "application/json";
                     var errorBody = _responseStrategy.BuildResponse(requestJson.RootElement, cacheStats);
@@ -154,8 +136,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                 var isStream = requestJson.RootElement.TryGetProperty("stream", out var streamProp)
                     && streamProp.ValueKind == JsonValueKind.True;
 
-                if (isStream && _responseStrategy.SupportsStreaming)
-                {
+                if (isStream && _responseStrategy.SupportsStreaming) {
                     ctx.Response.StatusCode = 200;
                     ctx.Response.ContentType = "text/event-stream";
                     ctx.Response.SendChunked = true;
@@ -164,16 +145,14 @@ public sealed class HttpListenerMockServer : IHttpMockServer
 
                     // 发送前导事件（Anthropic 需要 message_start + content_block_start）
                     var preamble = _responseStrategy.BuildStreamPreamble(id);
-                    if (!string.IsNullOrEmpty(preamble))
-                    {
+                    if (!string.IsNullOrEmpty(preamble)) {
                         var preambleBytes = Encoding.UTF8.GetBytes(preamble);
                         await ctx.Response.OutputStream.WriteAsync(preambleBytes, ct).ConfigureAwait(true);
                         await ctx.Response.OutputStream.FlushAsync(ct).ConfigureAwait(true);
                     }
 
                     var words = _responseStrategy.GetContentChunks();
-                    foreach (var word in words)
-                    {
+                    foreach (var word in words) {
                         var chunk = _responseStrategy.BuildStreamChunk(id, word, false);
                         var chunkBytes = Encoding.UTF8.GetBytes(chunk);
                         await ctx.Response.OutputStream.WriteAsync(chunkBytes, ct).ConfigureAwait(true);
@@ -186,9 +165,7 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     var lastBytes = Encoding.UTF8.GetBytes(lastChunk);
                     await ctx.Response.OutputStream.WriteAsync(lastBytes, ct).ConfigureAwait(true);
                     ctx.Response.Close();
-                }
-                else
-                {
+                } else {
                     var responseBody = _responseStrategy.BuildResponse(requestJson.RootElement, cacheStats);
 
                     ctx.Response.StatusCode = 200;
@@ -197,58 +174,45 @@ public sealed class HttpListenerMockServer : IHttpMockServer
                     await ctx.Response.OutputStream.WriteAsync(responseBytes, ct).ConfigureAwait(true);
                     ctx.Response.Close();
                 }
-            }
-            catch (HttpListenerException) when (ct.IsCancellationRequested) { break; }
-            catch (ObjectDisposedException) { break; }
+            } catch (HttpListenerException) when (ct.IsCancellationRequested) { break; } catch (ObjectDisposedException) { break; }
         }
     }
 
-    public CapturedRequest GetRequest(int index)
-    {
+    public CapturedRequest GetRequest(int index) {
         if (!_lock.Wait(5000))
             throw new TimeoutException("[GEN012] [E2E001] 获取请求超时：锁被 ListenLoop 持有");
-        try { return _capturedRequests[index]; }
-        finally { _lock.Release(); }
+        try { return _capturedRequests[index]; } finally { _lock.Release(); }
     }
 
-    public IReadOnlyList<CapturedRequest> GetAllRequests()
-    {
+    public IReadOnlyList<CapturedRequest> GetAllRequests() {
         if (!_lock.Wait(5000))
             throw new TimeoutException("[GEN013] [E2E002] 获取请求列表超时：锁被 ListenLoop 持有");
-        try { return _capturedRequests.ToList(); }
-        finally { _lock.Release(); }
+        try { return _capturedRequests.ToList(); } finally { _lock.Release(); }
     }
 
-    public void Clear()
-    {
+    public void Clear() {
         if (!_lock.Wait(5000))
             throw new TimeoutException("[GEN014] [E2E003] 清除请求超时：锁被 ListenLoop 持有");
-        try
-        {
+        try {
             _capturedRequests.Clear();
             _requestIndex = 0;
             Stats.TotalRequests = 0;
             Stats.CacheHits = 0;
             Stats.CacheMisses = 0;
-        }
-        finally
-        {
+        } finally {
             _lock.Release();
         }
         _cacheSimulator.ResetCache();
     }
 
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         _cts.Cancel();
         try { _listener.Stop(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Listener stop failed: {ex.Message}"); }
         try { _listener.Close(); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Listener close failed: {ex.Message}"); }
 
-        if (_listenTask is not null)
-        {
+        if (_listenTask is not null) {
             var listenTask = _listenTask;
-            return new ValueTask(listenTask.ContinueWith(t =>
-            {
+            return new ValueTask(listenTask.ContinueWith(t => {
                 if (t.IsFaulted) System.Diagnostics.Trace.WriteLine($"Listen task failed during disposal: {t.Exception!.Message}");
                 _cts.Dispose();
                 _lock.Dispose();

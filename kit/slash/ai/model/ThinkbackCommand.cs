@@ -6,25 +6,21 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Thinkback, Description = "回放 AI 的思考过程", Usage = "/thinkback [count]", Category = ChatCommandCategory.Model, ArgumentHint = "[count]")]
 [ChatCommandArg("count", Type = "number", Description = "回放最近 N 条思考记录,省略或非法时默认 1", Default = "1")]
-public sealed class ThinkbackCommand : ChatCommandBase
-{
+public sealed class ThinkbackCommand : ChatCommandBase {
     /// <summary>
     /// 执行回放命令,从思考存储中读取最近 N 条记录并输出到终端
     /// </summary>
     /// <param name="context">命令执行上下文,提供会话 ID、取消令牌与命令服务</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
-        if (services.ThinkingStore is null)
-        {
+        if (services.ThinkingStore is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}思考存储不可用{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var count = 1;
-        if (!string.IsNullOrEmpty(ChatCommandBase.GetNormalizedArgs(context)) && int.TryParse(ChatCommandBase.GetNormalizedArgs(context), out var n))
-        {
+        if (!string.IsNullOrEmpty(ChatCommandBase.GetNormalizedArgs(context)) && int.TryParse(ChatCommandBase.GetNormalizedArgs(context), out var n)) {
             count = Math.Max(1, n);
         }
 
@@ -33,29 +29,23 @@ public sealed class ThinkbackCommand : ChatCommandBase
         TerminalHelper.WriteLine("思考回放:");
         TerminalHelper.NewLine();
 
-        if (entries.Count == 0)
-        {
+        if (entries.Count == 0) {
             TerminalHelper.WriteLine("  当前会话暂无思考过程记录");
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("  当 AI 使用 extended thinking 时将自动记录");
-        }
-        else
-        {
-            for (var i = 0; i < entries.Count; i++)
-            {
+        } else {
+            for (var i = 0; i < entries.Count; i++) {
                 var entry = entries[i];
                 var index = entries.Count - i;
                 TerminalHelper.WriteLine($"  ── 思考 #{index} ──");
-                if (!string.IsNullOrEmpty(entry.ModelId))
-                {
+                if (!string.IsNullOrEmpty(entry.ModelId)) {
                     TerminalHelper.WriteLine($"  模型: {entry.ModelId}");
                 }
                 TerminalHelper.WriteLine($"  时间: {entry.Timestamp:yyyy-MM-dd HH:mm:ss UTC}");
                 TerminalHelper.NewLine();
 
                 var lines = entry.Content.Split('\n');
-                foreach (var line in lines)
-                {
+                foreach (var line in lines) {
                     TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Dim}{AnsiStyleEnumConstants.Italic}  {line}{AnsiStyleEnumConstants.Reset}");
                 }
 

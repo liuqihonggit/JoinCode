@@ -7,8 +7,7 @@ namespace Core.Bridge;
 /// 互斥重置: 切换错误类型时重置另一个轨道
 /// 放弃阈值: 24h (可配置，默认 24h)
 /// </summary>
-public sealed class BridgeBackoffStrategy
-{
+public sealed class BridgeBackoffStrategy {
     private readonly IClockService _clock;
     private readonly ILogger? _logger;
 
@@ -25,8 +24,7 @@ public sealed class BridgeBackoffStrategy
     /// <param name="clock">时钟服务</param>
     /// <param name="logger">日志记录器（可选）</param>
     /// <param name="giveUpThreshold">放弃阈值（可选，默认 24h）</param>
-    public BridgeBackoffStrategy(IClockService clock, ILogger? logger = null, TimeSpan? giveUpThreshold = null)
-    {
+    public BridgeBackoffStrategy(IClockService clock, ILogger? logger = null, TimeSpan? giveUpThreshold = null) {
         _clock = clock;
         _logger = logger;
         _giveUpThreshold = giveUpThreshold ?? TimeSpan.FromHours(24);
@@ -42,8 +40,7 @@ public sealed class BridgeBackoffStrategy
     /// 处理轮询错误 — 对齐 TS 端指数退避 + 抖动 + 双轨退避
     /// 返回 true 表示可继续重试，false 表示应放弃
     /// </summary>
-    public async Task<bool> HandleErrorAsync(Exception ex, Action? onFatalExit = null, CancellationToken ct = default)
-    {
+    public async Task<bool> HandleErrorAsync(Exception ex, Action? onFatalExit = null, CancellationToken ct = default) {
         var now = _clock.GetUtcNow();
         var isConnError = IsConnectionError(ex);
 
@@ -66,8 +63,7 @@ public sealed class BridgeBackoffStrategy
 
         // 睡眠检测: 两次错误间隔超过 240s 则重置退避预算
         var gapMs = (now - _lastErrorTime).TotalMilliseconds;
-        if (gapMs > 240_000)
-        {
+        if (gapMs > 240_000) {
             _logger?.LogDebug("BridgeBackoff: sleep detected, resetting backoff budget");
             Reset(onReconnected: null);
             return true;
@@ -75,8 +71,7 @@ public sealed class BridgeBackoffStrategy
 
         // 放弃阈值: 可配置，默认 24h
         var totalErrorMs = (now - _firstErrorTime).TotalMilliseconds;
-        if (totalErrorMs > _giveUpThreshold.TotalMilliseconds)
-        {
+        if (totalErrorMs > _giveUpThreshold.TotalMilliseconds) {
             onFatalExit?.Invoke();
             return false;
         }
@@ -86,14 +81,11 @@ public sealed class BridgeBackoffStrategy
         int maxBackoffMs;
         int errorCount;
 
-        if (isConnError)
-        {
+        if (isConnError) {
             baseBackoffMs = 2000;
             maxBackoffMs = 120_000;
             errorCount = _connErrors;
-        }
-        else
-        {
+        } else {
             baseBackoffMs = 500;
             maxBackoffMs = 30_000;
             errorCount = _generalErrors;
@@ -114,10 +106,8 @@ public sealed class BridgeBackoffStrategy
     /// <summary>
     /// 重置退避状态 — 成功通信后调用
     /// </summary>
-    public void Reset(Action<long>? onReconnected = null)
-    {
-        if (_firstErrorTime != default)
-        {
+    public void Reset(Action<long>? onReconnected = null) {
+        if (_firstErrorTime != default) {
             var disconnectedMs = (long)(_clock.GetUtcNow() - _firstErrorTime).TotalMilliseconds;
             onReconnected?.Invoke(disconnectedMs);
             _logger?.LogInformation("BridgeBackoff: reconnected after {Ms}ms", disconnectedMs);
@@ -132,8 +122,7 @@ public sealed class BridgeBackoffStrategy
     /// <summary>
     /// 判断是否为连接错误 — 对齐 TS 端 isConnectionError()
     /// </summary>
-    private static bool IsConnectionError(Exception ex)
-    {
+    private static bool IsConnectionError(Exception ex) {
         return ex is HttpRequestException
             || ex is System.Net.Sockets.SocketException
             || ex is OperationCanceledException

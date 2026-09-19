@@ -1,10 +1,8 @@
 namespace Integration.Tests.PrefixCache.Unit;
 
-public sealed class ToolCallRepairServiceTests
-{
+public sealed class ToolCallRepairServiceTests {
     [Fact]
-    public void RepairJson_TrailingCommaInObject_RemovesComma()
-    {
+    public void RepairJson_TrailingCommaInObject_RemovesComma() {
         var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Program.cs",}""");
 
         result.Success.Should().BeTrue();
@@ -14,8 +12,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TrailingCommaInArray_RemovesComma()
-    {
+    public void RepairJson_TrailingCommaInArray_RemovesComma() {
         var result = ToolCallRepairService.RepairJson("""{"paths": ["/a", "/b",]}""");
 
         result.Success.Should().BeTrue();
@@ -25,8 +22,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_UnquotedKeys_AddsQuotes()
-    {
+    public void RepairJson_UnquotedKeys_AddsQuotes() {
         var result = ToolCallRepairService.RepairJson("""{filePath: "/src/Program.cs"}""");
 
         result.Success.Should().BeTrue();
@@ -36,8 +32,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_SingleQuotedKeys_ConvertsToDoubleQuotes()
-    {
+    public void RepairJson_SingleQuotedKeys_ConvertsToDoubleQuotes() {
         var result = ToolCallRepairService.RepairJson("""{'filePath': '/src/Program.cs'}""");
 
         result.Success.Should().BeTrue();
@@ -47,8 +42,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_ValidJson_ReturnsAsIs()
-    {
+    public void RepairJson_ValidJson_ReturnsAsIs() {
         var json = """{"filePath": "/src/Program.cs"}""";
         var result = ToolCallRepairService.RepairJson(json);
 
@@ -58,8 +52,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_NumberWithZeroInMiddle_PreservesNumber()
-    {
+    public void RepairJson_NumberWithZeroInMiddle_PreservesNumber() {
         var result = ToolCallRepairService.RepairJson("""{"pr_number":206}""");
 
         result.Success.Should().BeTrue();
@@ -68,8 +61,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_Number206AsString_PreservesNumber()
-    {
+    public void RepairJson_Number206AsString_PreservesNumber() {
         var result = ToolCallRepairService.RepairJson("""{"pr_number":"206"}""");
 
         result.Success.Should().BeTrue();
@@ -78,8 +70,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_HexNumber_ConvertsToDecimal()
-    {
+    public void RepairJson_HexNumber_ConvertsToDecimal() {
         var result = ToolCallRepairService.RepairJson("""{"value":0x10}""");
 
         result.Success.Should().BeTrue();
@@ -88,8 +79,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_LeadingZeroNumber_StripsLeadingZeros()
-    {
+    public void RepairJson_LeadingZeroNumber_StripsLeadingZeros() {
         var result = ToolCallRepairService.RepairJson("""{"value":0123}""");
 
         result.Success.Should().BeTrue();
@@ -98,8 +88,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_UnquotedNumber206_PreservesNumber()
-    {
+    public void RepairJson_UnquotedNumber206_PreservesNumber() {
         var result = ToolCallRepairService.RepairJson("{pr_number:206}");
 
         result.Success.Should().BeTrue();
@@ -108,8 +97,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_EmptyString_ReturnsEmptyObject()
-    {
+    public void RepairJson_EmptyString_ReturnsEmptyObject() {
         var result = ToolCallRepairService.RepairJson("");
 
         result.Success.Should().BeTrue();
@@ -118,8 +106,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_NullInput_ReturnsEmptyObject()
-    {
+    public void RepairJson_NullInput_ReturnsEmptyObject() {
         var result = ToolCallRepairService.RepairJson(null);
 
         result.Success.Should().BeTrue();
@@ -128,8 +115,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_UnrepairableJson_ReturnsFailure()
-    {
+    public void RepairJson_UnrepairableJson_ReturnsFailure() {
         var result = ToolCallRepairService.RepairJson("{{{{not json at all");
 
         result.Success.Should().BeFalse();
@@ -137,17 +123,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_WrongParameterName_RenamesToCorrectName()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_WrongParameterName_RenamesToCorrectName() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["filePath"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["file_path"] = JsonElementHelper.FromString("/src/Program.cs")
         };
 
@@ -160,17 +142,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_ArrayWhereStringExpected_TakesFirstElement()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_ArrayWhereStringExpected_TakesFirstElement() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["filePath"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["filePath"] = JsonElementHelper.FromJson("""["/src/Program.cs", "/src/Other.cs"]""")
         };
 
@@ -182,17 +160,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_StringWhereNumberExpected_ConvertsToNumber()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_StringWhereNumberExpected_ConvertsToNumber() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["offset"] = new() { Type = "integer" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["offset"] = JsonElementHelper.FromString("42")
         };
 
@@ -204,17 +178,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_NumberWhereStringExpected_ConvertsToString()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_NumberWhereStringExpected_ConvertsToString() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["lineNumber"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["lineNumber"] = JsonElementHelper.FromInt32(42)
         };
 
@@ -226,17 +196,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_BooleanWhereStringExpected_ConvertsToString()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_BooleanWhereStringExpected_ConvertsToString() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["flag"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["flag"] = JsonElementHelper.FromBoolean(true)
         };
 
@@ -247,19 +213,15 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_MultipleWrongNames_RenamesAll()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_MultipleWrongNames_RenamesAll() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["filePath"] = new() { Type = "string" },
                 ["old_string"] = new() { Type = "string" },
                 ["new_string"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["file_path"] = JsonElementHelper.FromString("/src/a.cs"),
             ["oldString"] = JsonElementHelper.FromString("foo"),
             ["newString"] = JsonElementHelper.FromString("bar")
@@ -276,17 +238,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_NoRepairsNeeded_ReturnsOriginal()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_NoRepairsNeeded_ReturnsOriginal() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["filePath"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["filePath"] = JsonElementHelper.FromString("/src/Program.cs")
         };
 
@@ -297,11 +255,9 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_EmptySchema_ReturnsOriginal()
-    {
+    public void RepairArguments_EmptySchema_ReturnsOriginal() {
         var schema = new ToolSchema();
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["anything"] = JsonElementHelper.FromString("value")
         };
 
@@ -312,12 +268,9 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_NullArguments_ReturnsEmpty()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_NullArguments_ReturnsEmpty() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["filePath"] = new() { Type = "string" }
             }
         };
@@ -329,8 +282,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_MultipleTrailingCommas_FixesAll()
-    {
+    public void RepairJson_MultipleTrailingCommas_FixesAll() {
         var result = ToolCallRepairService.RepairJson("""{"a": 1, "b": [1, 2,],}""");
 
         result.Success.Should().BeTrue();
@@ -338,17 +290,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_ObjectWhereStringExpected_SerializesToString()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_ObjectWhereStringExpected_SerializesToString() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["query"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["query"] = JsonElementHelper.FromJson("""{"key": "value"}""")
         };
 
@@ -358,17 +306,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_ArrayOfOneWhereStringExpected_Unwraps()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_ArrayOfOneWhereStringExpected_Unwraps() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["url"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["url"] = JsonElementHelper.FromJson("""["https://example.com"]""")
         };
 
@@ -379,17 +323,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_EmptyArrayWhereStringExpected_ConvertsToEmptyString()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_EmptyArrayWhereStringExpected_ConvertsToEmptyString() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["pattern"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["pattern"] = JsonElementHelper.FromJson("[]")
         };
 
@@ -400,17 +340,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_StringWhereBooleanExpected_ConvertsToBoolean()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_StringWhereBooleanExpected_ConvertsToBoolean() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["recursive"] = new() { Type = "boolean" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["recursive"] = JsonElementHelper.FromString("true")
         };
 
@@ -420,17 +356,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_StringWhereBooleanExpected_InvalidValue_KeepsOriginal()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_StringWhereBooleanExpected_InvalidValue_KeepsOriginal() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["recursive"] = new() { Type = "boolean" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["recursive"] = JsonElementHelper.FromString("yes")
         };
 
@@ -457,8 +389,7 @@ public sealed class ToolCallRepairServiceTests
     [InlineData("web_fetch", "web_fetch")]
     [InlineData("directory_list", "directory_list")]
     [InlineData("DIRECTORY_LIST", "directory_list")]
-    public void RepairToolName_NormalizesCase(string input, string expected)
-    {
+    public void RepairToolName_NormalizesCase(string input, string expected) {
         // LLM 返回的工具名可能是任意大小写，归一化后应返回标准名
         var result = ToolCallRepairService.RepairToolName(input);
 
@@ -466,8 +397,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairToolName_UnknownTool_ReturnsOriginal()
-    {
+    public void RepairToolName_UnknownTool_ReturnsOriginal() {
         // 未知工具名（如 MCP 工具或自定义工具）应原样返回
         var result = ToolCallRepairService.RepairToolName("custom_mcp_tool");
 
@@ -475,8 +405,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairToolName_NullOrEmpty_ReturnsEmpty()
-    {
+    public void RepairToolName_NullOrEmpty_ReturnsEmpty() {
         ToolCallRepairService.RepairToolName(null).Should().BeEmpty();
         ToolCallRepairService.RepairToolName("").Should().BeEmpty();
     }
@@ -487,18 +416,14 @@ public sealed class ToolCallRepairServiceTests
     ///       但直接用原 key 存储，导致 Grep 工具收到的参数 key 仍是 "Pattern" 而非 "pattern"
     /// </summary>
     [Fact]
-    public void RepairArguments_PascalCaseParameter_RenamesToSnakeCase()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_PascalCaseParameter_RenamesToSnakeCase() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["pattern"] = new() { Type = "string" },
                 ["path"] = new() { Type = "string" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["Pattern"] = JsonElementHelper.FromString("JoinCode"),
             ["Path"] = JsonElementHelper.FromString("/src/README.md")
         };
@@ -520,18 +445,14 @@ public sealed class ToolCallRepairServiceTests
     /// 修复后: 直接匹配优先，别名不覆盖已占用的 key。
     /// </summary>
     [Fact]
-    public void RepairArguments_AliasWouldOverwriteDirectMatch_PreservesDirectMatchValue()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_AliasWouldOverwriteDirectMatch_PreservesDirectMatchValue() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["file_path"] = new() { Type = "string" }
             }
         };
         // file_path 直接匹配 schema，path 经别名→filePath→snake_case 也映射到 file_path
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["file_path"] = JsonElementHelper.FromString("/src/README.md"),
             ["path"] = JsonElementHelper.FromString("/other/path")
         };
@@ -546,18 +467,14 @@ public sealed class ToolCallRepairServiceTests
     /// 反向 JSON key 顺序也应保留直接匹配的值（验证修复不依赖 key 顺序）。
     /// </summary>
     [Fact]
-    public void RepairArguments_AliasBeforeDirectMatch_StillPreservesDirectMatchValue()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_AliasBeforeDirectMatch_StillPreservesDirectMatchValue() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["file_path"] = new() { Type = "string" }
             }
         };
         // path(别名)在前，file_path(直接匹配)在后
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["path"] = JsonElementHelper.FromString("/other/path"),
             ["file_path"] = JsonElementHelper.FromString("/src/README.md")
         };
@@ -569,8 +486,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TruncatedObject_ClosesBraces()
-    {
+    public void RepairJson_TruncatedObject_ClosesBraces() {
         var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Program.cs""");
 
         result.Success.Should().BeTrue();
@@ -580,8 +496,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TruncatedNestedObject_ClosesAllBraces()
-    {
+    public void RepairJson_TruncatedNestedObject_ClosesAllBraces() {
         var result = ToolCallRepairService.RepairJson("""{"outer": {"inner": "value""");
 
         result.Success.Should().BeTrue();
@@ -590,8 +505,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TruncatedArray_ClosesBrackets()
-    {
+    public void RepairJson_TruncatedArray_ClosesBrackets() {
         var result = ToolCallRepairService.RepairJson("""{"paths": ["/a", "/b""");
 
         result.Success.Should().BeTrue();
@@ -600,8 +514,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TruncatedString_ClosesQuote()
-    {
+    public void RepairJson_TruncatedString_ClosesQuote() {
         var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Prog""");
 
         result.Success.Should().BeTrue();
@@ -611,8 +524,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TruncatedMixedStructure_ClosesAll()
-    {
+    public void RepairJson_TruncatedMixedStructure_ClosesAll() {
         var result = ToolCallRepairService.RepairJson("""{"items": [{"name": "test""");
 
         result.Success.Should().BeTrue();
@@ -621,8 +533,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TrailingCommaAndTruncation_FixesBoth()
-    {
+    public void RepairJson_TrailingCommaAndTruncation_FixesBoth() {
         var result = ToolCallRepairService.RepairJson("""{"a": 1, "b": 2,}""");
 
         result.Success.Should().BeTrue();
@@ -632,8 +543,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TruncatedWithTrailingComma_ClosesAndRemovesComma()
-    {
+    public void RepairJson_TruncatedWithTrailingComma_ClosesAndRemovesComma() {
         var input = """{"a": 1, "b": 2,""";
         var result = ToolCallRepairService.RepairJson(input);
 
@@ -646,8 +556,7 @@ public sealed class ToolCallRepairServiceTests
     #region P0: 转义字符宽容
 
     [Fact]
-    public void RepairJson_SingleQuoteEscapeInString_RemovesEscape()
-    {
+    public void RepairJson_SingleQuoteEscapeInString_RemovesEscape() {
         var result = ToolCallRepairService.RepairJson("""{"text": "it\'s a test"}""");
 
         result.Success.Should().BeTrue();
@@ -657,8 +566,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_BareNewlineInString_EscapesNewline()
-    {
+    public void RepairJson_BareNewlineInString_EscapesNewline() {
         var json = "{\"text\": \"line1\nline2\"}";
         var result = ToolCallRepairService.RepairJson(json);
 
@@ -668,8 +576,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_BareTabInString_EscapesTab()
-    {
+    public void RepairJson_BareTabInString_EscapesTab() {
         var json = "{\"text\": \"col1\tcol2\"}";
         var result = ToolCallRepairService.RepairJson(json);
 
@@ -679,8 +586,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_LegalEscapeSequences_Preserved()
-    {
+    public void RepairJson_LegalEscapeSequences_Preserved() {
         var result = ToolCallRepairService.RepairJson("""{"text": "line1\nline2\ttab"}""");
 
         result.Success.Should().BeTrue();
@@ -694,8 +600,7 @@ public sealed class ToolCallRepairServiceTests
     #region P1: 分号结尾剥离
 
     [Fact]
-    public void RepairJson_TrailingSemicolon_StripsSemicolon()
-    {
+    public void RepairJson_TrailingSemicolon_StripsSemicolon() {
         var result = ToolCallRepairService.RepairJson("""{"key": "value"};""");
 
         result.Success.Should().BeTrue();
@@ -704,8 +609,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_TrailingSemicolonWithWhitespace_StripsSemicolon()
-    {
+    public void RepairJson_TrailingSemicolonWithWhitespace_StripsSemicolon() {
         var result = ToolCallRepairService.RepairJson("""{"key": "value"} ;  """);
 
         result.Success.Should().BeTrue();
@@ -714,8 +618,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_SemicolonInsideString_NotStripped()
-    {
+    public void RepairJson_SemicolonInsideString_NotStripped() {
         var result = ToolCallRepairService.RepairJson("""{"cmd": "echo hello; ls"}""");
 
         result.Success.Should().BeTrue();
@@ -729,8 +632,7 @@ public sealed class ToolCallRepairServiceTests
     #region P2: Infinity/NaN 字面量
 
     [Fact]
-    public void RepairJson_InfinityLiteral_QuotedAsStjString()
-    {
+    public void RepairJson_InfinityLiteral_QuotedAsStjString() {
         var result = ToolCallRepairService.RepairJson("""{"value": Infinity}""");
 
         result.Success.Should().BeTrue();
@@ -740,8 +642,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_NegativeInfinityLiteral_QuotedAsStjString()
-    {
+    public void RepairJson_NegativeInfinityLiteral_QuotedAsStjString() {
         var result = ToolCallRepairService.RepairJson("""{"value": -Infinity}""");
 
         result.Success.Should().BeTrue();
@@ -751,8 +652,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_NanLiteral_QuotedAsStjString()
-    {
+    public void RepairJson_NanLiteral_QuotedAsStjString() {
         var result = ToolCallRepairService.RepairJson("""{"value": NaN}""");
 
         result.Success.Should().BeTrue();
@@ -762,8 +662,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_InfinityInsideString_NotModified()
-    {
+    public void RepairJson_InfinityInsideString_NotModified() {
         var result = ToolCallRepairService.RepairJson("""{"desc": "approaches Infinity"}""");
 
         result.Success.Should().BeTrue();
@@ -775,8 +674,7 @@ public sealed class ToolCallRepairServiceTests
     #region P2: 单引号 value 修复
 
     [Fact]
-    public void RepairJson_SingleQuotedValue_ConvertsToDoubleQuotes()
-    {
+    public void RepairJson_SingleQuotedValue_ConvertsToDoubleQuotes() {
         var result = ToolCallRepairService.RepairJson("""{"key": 'value'}""");
 
         result.Success.Should().BeTrue();
@@ -786,8 +684,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_MixedSingleQuotedKeyAndValue_ConvertsAll()
-    {
+    public void RepairJson_MixedSingleQuotedKeyAndValue_ConvertsAll() {
         var result = ToolCallRepairService.RepairJson("""{'key': 'value'}""");
 
         result.Success.Should().BeTrue();
@@ -800,17 +697,13 @@ public sealed class ToolCallRepairServiceTests
     #region TryConvertToArray: string→array 宽容
 
     [Fact]
-    public void RepairArguments_StringJsonArrayWhereArrayExpected_ParsesToArray()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_StringJsonArrayWhereArrayExpected_ParsesToArray() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["items"] = new() { Type = "array" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["items"] = JsonElementHelper.FromString("""[{"id":1},{"id":2}]""")
         };
 
@@ -821,17 +714,13 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairArguments_StringJsonObjectWhereArrayExpected_WrapsToSingleElementArray()
-    {
-        var schema = new ToolSchema
-        {
-            Properties = new Dictionary<string, ToolSchemaProperty>
-            {
+    public void RepairArguments_StringJsonObjectWhereArrayExpected_WrapsToSingleElementArray() {
+        var schema = new ToolSchema {
+            Properties = new Dictionary<string, ToolSchemaProperty> {
                 ["items"] = new() { Type = "array" }
             }
         };
-        var args = new Dictionary<string, JsonElement>
-        {
+        var args = new Dictionary<string, JsonElement> {
             ["items"] = JsonElementHelper.FromString("""{"id":1,"name":"x"}""")
         };
 
@@ -848,8 +737,7 @@ public sealed class ToolCallRepairServiceTests
     #region FixUnquotedValues — 无引号 value 加引号（PowerShell 引号剥离）
 
     [Fact]
-    public void RepairJson_UnquotedValues_AddsQuotes()
-    {
+    public void RepairJson_UnquotedValues_AddsQuotes() {
         var result = ToolCallRepairService.RepairJson("""{"filePath": "/src/Program.cs", "mode": read}""");
 
         result.Success.Should().BeTrue();
@@ -859,8 +747,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_UnquotedKeysAndValues_AddsQuotes()
-    {
+    public void RepairJson_UnquotedKeysAndValues_AddsQuotes() {
         var result = ToolCallRepairService.RepairJson("""{filePath: /src/Program.cs}""");
 
         result.Success.Should().BeTrue();
@@ -869,8 +756,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_UnquotedValueSkipsNumbers_KeepsAsNumber()
-    {
+    public void RepairJson_UnquotedValueSkipsNumbers_KeepsAsNumber() {
         var result = ToolCallRepairService.RepairJson("""{"count": 42, "name": test}""");
 
         result.Success.Should().BeTrue();
@@ -880,8 +766,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_UnquotedValueSkipsTrueFalseNull_KeepsAsLiteral()
-    {
+    public void RepairJson_UnquotedValueSkipsTrueFalseNull_KeepsAsLiteral() {
         var result = ToolCallRepairService.RepairJson("""{"a": true, "b": false, "c": null, "d": hello}""");
 
         result.Success.Should().BeTrue();
@@ -897,8 +782,7 @@ public sealed class ToolCallRepairServiceTests
     /// 根因: FixUnquotedValues 遇到空格停止收集(第366行 !char.IsWhiteSpace),导致 "echo hello" 无法整体加引号
     /// </summary>
     [Fact]
-    public void RepairJson_UnquotedValueWithSpaces_AddsQuotes()
-    {
+    public void RepairJson_UnquotedValueWithSpaces_AddsQuotes() {
         var result = ToolCallRepairService.RepairJson("""{prompt:echo hello}""");
 
         result.Success.Should().BeTrue();
@@ -912,8 +796,7 @@ public sealed class ToolCallRepairServiceTests
     /// 带空格值 + bool 字面量混合,PowerShell 引号剥落后 jcc 应能自动修复
     /// </summary>
     [Fact]
-    public void RepairJson_UnquotedValueWithSpaces_MixedWithBoolLiteral_AddsQuotes()
-    {
+    public void RepairJson_UnquotedValueWithSpaces_MixedWithBoolLiteral_AddsQuotes() {
         var result = ToolCallRepairService.RepairJson("""{prompt:echo hello,enableWorktreeIsolation:true}""");
 
         result.Success.Should().BeTrue();
@@ -926,8 +809,7 @@ public sealed class ToolCallRepairServiceTests
     /// 带空格值 + 多对 key:value,每对的值都含空格
     /// </summary>
     [Fact]
-    public void RepairJson_UnquotedValueWithSpaces_MultiplePairs_AddsQuotes()
-    {
+    public void RepairJson_UnquotedValueWithSpaces_MultiplePairs_AddsQuotes() {
         var result = ToolCallRepairService.RepairJson("""{prompt:echo hello world,name:test agent}""");
 
         result.Success.Should().BeTrue();
@@ -940,8 +822,7 @@ public sealed class ToolCallRepairServiceTests
     /// 带空格值后紧跟嵌套对象 — 确保激进收集在遇到 { 时停止,不吞掉嵌套结构
     /// </summary>
     [Fact]
-    public void RepairJson_UnquotedValueWithSpaces_BeforeNestedObject_AddsQuotes()
-    {
+    public void RepairJson_UnquotedValueWithSpaces_BeforeNestedObject_AddsQuotes() {
         var result = ToolCallRepairService.RepairJson("""{prompt:echo hello,options:{verbose:true}}""");
 
         result.Success.Should().BeTrue();
@@ -955,8 +836,7 @@ public sealed class ToolCallRepairServiceTests
     #region StripOuterQuotes — 外层多余引号去除
 
     [Fact]
-    public void RepairJson_OuterDoubleQuotes_Stripped()
-    {
+    public void RepairJson_OuterDoubleQuotes_Stripped() {
         var result = ToolCallRepairService.RepairJson("\"{\"key\":\"value\"}\"");
 
         result.Success.Should().BeTrue();
@@ -965,8 +845,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_OuterSingleQuotes_Stripped()
-    {
+    public void RepairJson_OuterSingleQuotes_Stripped() {
         var result = ToolCallRepairService.RepairJson("'{\"key\":\"value\"}'");
 
         result.Success.Should().BeTrue();
@@ -979,8 +858,7 @@ public sealed class ToolCallRepairServiceTests
     #region FixRawNewlines — 裸换行符/制表符替换
 
     [Fact]
-    public void RepairJson_RawNewlineOutsideString_ReplacedWithEscape()
-    {
+    public void RepairJson_RawNewlineOutsideString_ReplacedWithEscape() {
         var json = "{\"key\":\"value1\"\n,\"key2\":\"value2\"}";
         var result = ToolCallRepairService.RepairJson(json);
 
@@ -991,8 +869,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_RawTab_ReplacedWithEscape()
-    {
+    public void RepairJson_RawTab_ReplacedWithEscape() {
         var json = "{\"key\":\"val\tue\"}";
         var result = ToolCallRepairService.RepairJson(json);
 
@@ -1006,8 +883,7 @@ public sealed class ToolCallRepairServiceTests
     #region FixEscapeSequences — 无效反斜杠转义（Windows 路径）
 
     [Fact]
-    public void RepairJson_InvalidBackslashEscape_Doubled()
-    {
+    public void RepairJson_InvalidBackslashEscape_Doubled() {
         var result = ToolCallRepairService.RepairJson("""{"path": "D:\data\config.txt"}""");
 
         result.Success.Should().BeTrue();
@@ -1016,8 +892,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_ValidBackslashEscape_Preserved()
-    {
+    public void RepairJson_ValidBackslashEscape_Preserved() {
         var result = ToolCallRepairService.RepairJson("""{"text": "line1\nline2"}""");
 
         result.Success.Should().BeTrue();
@@ -1030,8 +905,7 @@ public sealed class ToolCallRepairServiceTests
     #region 组合场景 — PowerShell 引号剥离 + Windows 路径
 
     [Fact]
-    public void RepairJson_PowerShellStrippedJson_WindowsPath_Repaired()
-    {
+    public void RepairJson_PowerShellStrippedJson_WindowsPath_Repaired() {
         var result = ToolCallRepairService.RepairJson("""{file_path: D:\project\README.md}""");
 
         result.Success.Should().BeTrue();
@@ -1040,8 +914,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_PowerShellStrippedJson_MultipleKeys_Repaired()
-    {
+    public void RepairJson_PowerShellStrippedJson_MultipleKeys_Repaired() {
         var result = ToolCallRepairService.RepairJson("""{file_path: D:\project\README.md, start_line: 1, end_line: 5}""");
 
         result.Success.Should().BeTrue();
@@ -1052,8 +925,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_PowerShellStrippedJson_NestedObject_Repaired()
-    {
+    public void RepairJson_PowerShellStrippedJson_NestedObject_Repaired() {
         var result = ToolCallRepairService.RepairJson("""{path: D:\test, options: {verbose: true, count: 3}}""");
 
         result.Success.Should().BeTrue();
@@ -1064,8 +936,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_PowerShellStrippedJson_ValueWithBraces_Repaired()
-    {
+    public void RepairJson_PowerShellStrippedJson_ValueWithBraces_Repaired() {
         var result = ToolCallRepairService.RepairJson("""{code:public class Foo { public void Bar() { int x = 1; } }}""");
 
         result.Success.Should().BeTrue();
@@ -1074,8 +945,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void RepairJson_PowerShellStrippedJson_CodeWithIfStatement_Repaired()
-    {
+    public void RepairJson_PowerShellStrippedJson_CodeWithIfStatement_Repaired() {
         var result = ToolCallRepairService.RepairJson("""{code:int x = 1; if (x == 1) { x = 2; } }""");
 
         result.Success.Should().BeTrue();
@@ -1091,8 +961,7 @@ public sealed class ToolCallRepairServiceTests
     /// agent_launch 找不到时,应建议前缀匹配的 agent
     /// </summary>
     [Fact]
-    public void SuggestToolNames_AgentLaunch_SuggestsAgent()
-    {
+    public void SuggestToolNames_AgentLaunch_SuggestsAgent() {
         var available = new[] { "agent", "agent_list", "agent_status", "bash", "read" };
         var suggestions = ToolCallRepairService.SuggestToolNames("agent_launch", available);
 
@@ -1104,8 +973,7 @@ public sealed class ToolCallRepairServiceTests
     /// 大小写不同的精确匹配应排第一
     /// </summary>
     [Fact]
-    public void SuggestToolNames_ExactMatchDifferentCase_ReturnsFirst()
-    {
+    public void SuggestToolNames_ExactMatchDifferentCase_ReturnsFirst() {
         var available = new[] { "agent", "bash" };
         var suggestions = ToolCallRepairService.SuggestToolNames("AGENT", available);
 
@@ -1117,8 +985,7 @@ public sealed class ToolCallRepairServiceTests
     /// 无相似工具名时返回空列表
     /// </summary>
     [Fact]
-    public void SuggestToolNames_NoSimilar_ReturnsEmpty()
-    {
+    public void SuggestToolNames_NoSimilar_ReturnsEmpty() {
         var available = new[] { "agent", "bash", "read" };
         var suggestions = ToolCallRepairService.SuggestToolNames("zzzzzzz", available);
 
@@ -1129,8 +996,7 @@ public sealed class ToolCallRepairServiceTests
     /// 拼写错误(编辑距离小)应通过编辑距离匹配建议
     /// </summary>
     [Fact]
-    public void SuggestToolNames_Typo_SuggestsByEditDistance()
-    {
+    public void SuggestToolNames_Typo_SuggestsByEditDistance() {
         var available = new[] { "agent", "bash", "read" };
         var suggestions = ToolCallRepairService.SuggestToolNames("agetn", available);
 
@@ -1141,8 +1007,7 @@ public sealed class ToolCallRepairServiceTests
     /// 空输入或空工具列表应返回空
     /// </summary>
     [Fact]
-    public void SuggestToolNames_EmptyInputOrTools_ReturnsEmpty()
-    {
+    public void SuggestToolNames_EmptyInputOrTools_ReturnsEmpty() {
         ToolCallRepairService.SuggestToolNames("", new[] { "agent" }).Should().BeEmpty();
         ToolCallRepairService.SuggestToolNames("agent", Array.Empty<string>()).Should().BeEmpty();
     }
@@ -1151,8 +1016,7 @@ public sealed class ToolCallRepairServiceTests
     /// 建议数量应限制(最多 5 个),避免输出过长
     /// </summary>
     [Fact]
-    public void SuggestToolNames_LimitsToFiveSuggestions()
-    {
+    public void SuggestToolNames_LimitsToFiveSuggestions() {
         var available = new[] { "agent", "agent_list", "agent_status", "agent_stop", "agent_get_messages", "agent_running" };
         var suggestions = ToolCallRepairService.SuggestToolNames("agent_xxx", available);
 
@@ -1164,8 +1028,7 @@ public sealed class ToolCallRepairServiceTests
     #region BuildShellCallExamples — 跨 shell 调用示例
 
     [Fact]
-    public void BuildShellCallExamples_ContainsAllShells()
-    {
+    public void BuildShellCallExamples_ContainsAllShells() {
         var examples = ToolCallRepairService.BuildShellCallExamples("agent");
 
         examples.Should().Contain("PowerShell");
@@ -1176,8 +1039,7 @@ public sealed class ToolCallRepairServiceTests
     }
 
     [Fact]
-    public void BuildShellCallExamples_ContainsToolName()
-    {
+    public void BuildShellCallExamples_ContainsToolName() {
         var examples = ToolCallRepairService.BuildShellCallExamples("my_tool");
 
         examples.Should().Contain("my_tool");
@@ -1191,8 +1053,7 @@ public sealed class ToolCallRepairServiceTests
     /// PowerShell 剥掉引号后的裸对象 {prompt:echo hello} 应触发引号转义提示
     /// </summary>
     [Fact]
-    public void BuildShellQuoteHint_StrippedJson_ReturnsHint()
-    {
+    public void BuildShellQuoteHint_StrippedJson_ReturnsHint() {
         var hint = ToolCallRepairService.BuildShellQuoteHint("{prompt:echo hello}");
 
         hint.Should().NotBeNull();
@@ -1204,8 +1065,7 @@ public sealed class ToolCallRepairServiceTests
     /// 合法 JSON(有双引号)不应触发提示
     /// </summary>
     [Fact]
-    public void BuildShellQuoteHint_ValidJson_ReturnsNull()
-    {
+    public void BuildShellQuoteHint_ValidJson_ReturnsNull() {
         var hint = ToolCallRepairService.BuildShellQuoteHint("{\"prompt\":\"hello\"}");
 
         hint.Should().BeNull();
@@ -1215,8 +1075,7 @@ public sealed class ToolCallRepairServiceTests
     /// 非 JSON(不以 { 开头)不应触发提示
     /// </summary>
     [Fact]
-    public void BuildShellQuoteHint_NoBrace_ReturnsNull()
-    {
+    public void BuildShellQuoteHint_NoBrace_ReturnsNull() {
         var hint = ToolCallRepairService.BuildShellQuoteHint("not json");
 
         hint.Should().BeNull();

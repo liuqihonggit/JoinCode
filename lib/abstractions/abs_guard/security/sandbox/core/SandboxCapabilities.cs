@@ -1,8 +1,7 @@
 namespace JoinCode.Abstractions.Security.Sandbox;
 
 [Flags]
-public enum SandboxCapabilities
-{
+public enum SandboxCapabilities {
     None = 0,
     PathRedirection = 1,
     FileSystemIsolation = 2,

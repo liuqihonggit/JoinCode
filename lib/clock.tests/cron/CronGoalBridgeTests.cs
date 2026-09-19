@@ -1,12 +1,10 @@
 
 namespace Core.Goal.Tests;
 
-public sealed class CronGoalBridgeTests
-{
+public sealed class CronGoalBridgeTests {
     private static (Mock<ICronTaskStore> taskStore, Mock<IGoalEngine> goalEngine, CronGoalBridge bridge) CreateBridge(
         IAgentDefinitionProvider? agentProvider = null,
-        ILogger<CronGoalBridge>? logger = null)
-    {
+        ILogger<CronGoalBridge>? logger = null) {
         var taskStore = new Mock<ICronTaskStore>();
         var goalEngine = new Mock<IGoalEngine>();
         var bridge = new CronGoalBridge(taskStore.Object, goalEngine.Object, agentProvider, logger);
@@ -14,20 +12,17 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public void Constructor_NullTaskStore_Throws()
-    {
+    public void Constructor_NullTaskStore_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CronGoalBridge(null!, Mock.Of<IGoalEngine>()));
     }
 
     [Fact]
-    public void Constructor_NullGoalEngine_Throws()
-    {
+    public void Constructor_NullGoalEngine_Throws() {
         Assert.Throws<ArgumentNullException>(() => new CronGoalBridge(Mock.Of<ICronTaskStore>(), null!));
     }
 
     [Fact]
-    public async Task StartAsync_WhenNotStarted_StartsScheduler()
-    {
+    public async Task StartAsync_WhenNotStarted_StartsScheduler() {
         await using var bridge = CreateBridge().bridge;
 
         Assert.False(bridge.IsStarted);
@@ -38,8 +33,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task StartAsync_WhenAlreadyStarted_DoesNothing()
-    {
+    public async Task StartAsync_WhenAlreadyStarted_DoesNothing() {
         await using var bridge = CreateBridge().bridge;
 
         await bridge.StartAsync().ConfigureAwait(true);
@@ -49,8 +43,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task StopAsync_WhenStarted_StopsScheduler()
-    {
+    public async Task StopAsync_WhenStarted_StopsScheduler() {
         var (_, _, bridge) = CreateBridge();
 
         await bridge.StartAsync().ConfigureAwait(true);
@@ -60,8 +53,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task StopAsync_WhenNotStarted_DoesNothing()
-    {
+    public async Task StopAsync_WhenNotStarted_DoesNothing() {
         var (_, _, bridge) = CreateBridge();
 
         await bridge.StopAsync().ConfigureAwait(true);
@@ -70,8 +62,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task DisposeAsync_StopsAndDisposes()
-    {
+    public async Task DisposeAsync_StopsAndDisposes() {
         var (_, _, bridge) = CreateBridge();
 
         await bridge.StartAsync().ConfigureAwait(true);
@@ -81,15 +72,13 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task HandleCronFireAsync_WhenGoalEngineRunning_Skips()
-    {
+    public async Task HandleCronFireAsync_WhenGoalEngineRunning_Skips() {
         var ctx = CreateBridge();
         var goalEngine = ctx.goalEngine;
         await using var bridge = ctx.bridge;
         goalEngine.Setup(g => g.IsRunning).Returns(true);
 
-        await bridge.HandleCronFireAsync(new CronTask
-        {
+        await bridge.HandleCronFireAsync(new CronTask {
             Id = "t1",
             CronExpression = "0 9 * * *",
             Prompt = "test",
@@ -100,16 +89,14 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task HandleCronFireAsync_WhenNotRunning_StartsGoal()
-    {
+    public async Task HandleCronFireAsync_WhenNotRunning_StartsGoal() {
         var ctx = CreateBridge();
         var goalEngine = ctx.goalEngine;
         await using var bridge = ctx.bridge;
         goalEngine.Setup(g => g.IsRunning).Returns(false);
         goalEngine.Setup(g => g.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>())).ReturnsAsync(new GoalState());
 
-        await bridge.HandleCronFireAsync(new CronTask
-        {
+        await bridge.HandleCronFireAsync(new CronTask {
             Id = "t1",
             CronExpression = "0 9 * * *",
             Prompt = "run task",
@@ -120,8 +107,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task HandleCronFireAsync_WhenStartThrowsInvalidOperation_LogsAndContinues()
-    {
+    public async Task HandleCronFireAsync_WhenStartThrowsInvalidOperation_LogsAndContinues() {
         var logger = new Mock<ILogger<CronGoalBridge>>();
         var ctx = CreateBridge(logger: logger.Object);
         var goalEngine = ctx.goalEngine;
@@ -130,8 +116,7 @@ public sealed class CronGoalBridgeTests
         goalEngine.Setup(g => g.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("已有目标正在运行"));
 
-        await bridge.HandleCronFireAsync(new CronTask
-        {
+        await bridge.HandleCronFireAsync(new CronTask {
             Id = "t1",
             CronExpression = "0 9 * * *",
             Prompt = "run task",
@@ -142,8 +127,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task HandleCronFireAsync_WhenStartThrowsException_LogsAndContinues()
-    {
+    public async Task HandleCronFireAsync_WhenStartThrowsException_LogsAndContinues() {
         var logger = new Mock<ILogger<CronGoalBridge>>();
         var ctx = CreateBridge(logger: logger.Object);
         var goalEngine = ctx.goalEngine;
@@ -152,8 +136,7 @@ public sealed class CronGoalBridgeTests
         goalEngine.Setup(g => g.StartAsync(It.IsAny<string>(), It.IsAny<List<string>?>(), It.IsAny<int?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("boom"));
 
-        await bridge.HandleCronFireAsync(new CronTask
-        {
+        await bridge.HandleCronFireAsync(new CronTask {
             Id = "t1",
             CronExpression = "0 9 * * *",
             Prompt = "run task",
@@ -162,8 +145,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task RegisterBackgroundAgentCronTasksAsync_WhenNoProvider_DoesNothing()
-    {
+    public async Task RegisterBackgroundAgentCronTasksAsync_WhenNoProvider_DoesNothing() {
         var ctx = CreateBridge();
         var taskStore = ctx.taskStore;
         await using var bridge = ctx.bridge;
@@ -174,8 +156,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task RegisterBackgroundAgentCronTasksAsync_WithBackgroundAgents_RegistersTasks()
-    {
+    public async Task RegisterBackgroundAgentCronTasksAsync_WithBackgroundAgents_RegistersTasks() {
         var taskStore = new Mock<ICronTaskStore>();
         var agentProvider = new Mock<IAgentDefinitionProvider>();
         agentProvider.Setup(a => a.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -185,8 +166,7 @@ public sealed class CronGoalBridgeTests
             });
         taskStore.Setup(t => t.GetAllTasksAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Array.Empty<CronTask>());
         taskStore.Setup(t => t.AddTaskAsync(It.IsAny<CreateCronTaskRequest>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((CreateCronTaskRequest r, CancellationToken _) => new CronTask
-            {
+            .ReturnsAsync((CreateCronTaskRequest r, CancellationToken _) => new CronTask {
                 Id = "id1",
                 CronExpression = r.CronExpression,
                 Prompt = r.Prompt,
@@ -204,8 +184,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task RegisterBackgroundAgentCronTasksAsync_WhenAlreadyRegistered_Skips()
-    {
+    public async Task RegisterBackgroundAgentCronTasksAsync_WhenAlreadyRegistered_Skips() {
         var taskStore = new Mock<ICronTaskStore>();
         var agentProvider = new Mock<IAgentDefinitionProvider>();
         agentProvider.Setup(a => a.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))
@@ -227,8 +206,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task RegisterBackgroundAgentCronTasksAsync_WhenProviderThrows_LogsAndContinues()
-    {
+    public async Task RegisterBackgroundAgentCronTasksAsync_WhenProviderThrows_LogsAndContinues() {
         var logger = new Mock<ILogger<CronGoalBridge>>();
         var agentProvider = new Mock<IAgentDefinitionProvider>();
         agentProvider.Setup(a => a.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>())).ThrowsAsync(new Exception("fail"));
@@ -240,8 +218,7 @@ public sealed class CronGoalBridgeTests
     }
 
     [Fact]
-    public async Task RegisterBackgroundAgentCronTasksAsync_NonBackgroundAgent_IsIgnored()
-    {
+    public async Task RegisterBackgroundAgentCronTasksAsync_NonBackgroundAgent_IsIgnored() {
         var taskStore = new Mock<ICronTaskStore>();
         var agentProvider = new Mock<IAgentDefinitionProvider>();
         agentProvider.Setup(a => a.GetAgentDefinitionsAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>()))

@@ -4,8 +4,7 @@ namespace Core.Context;
 /// 成本恢复中间件 — 从持久化存储恢复会话成本状态
 /// </summary>
 [Register(typeof(IChatInitMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class CostRestoreMiddleware : ServiceEntity, IChatInitMiddleware
-{
+public sealed partial class CostRestoreMiddleware : ServiceEntity, IChatInitMiddleware {
     private readonly ISessionCostPersistence? _sessionCostPersistence;
     private readonly ISessionStats _sessionStats;
     private readonly ILogger<CostRestoreMiddleware>? _logger;
@@ -16,8 +15,7 @@ public sealed partial class CostRestoreMiddleware : ServiceEntity, IChatInitMidd
     public CostRestoreMiddleware(
         ISessionStats sessionStats,
         ISessionCostPersistence? sessionCostPersistence = null,
-        ILogger<CostRestoreMiddleware>? logger = null)
-    {
+        ILogger<CostRestoreMiddleware>? logger = null) {
         _sessionCostPersistence = sessionCostPersistence;
         _sessionStats = sessionStats;
         _logger = logger;
@@ -31,14 +29,11 @@ public sealed partial class CostRestoreMiddleware : ServiceEntity, IChatInitMidd
     /// <summary>
     /// 从持久化存储恢复会话成本状态
     /// </summary>
-    public async Task InvokeAsync(ChatInitContext context, MiddlewareDelegate<ChatInitContext> next, CancellationToken ct)
-    {
-        if (_sessionCostPersistence is not null)
-        {
+    public async Task InvokeAsync(ChatInitContext context, MiddlewareDelegate<ChatInitContext> next, CancellationToken ct) {
+        if (_sessionCostPersistence is not null) {
             var sessionId = context.SessionId;
             var restoredStats = await _sessionCostPersistence.RestoreCostStateForSessionAsync(sessionId, ct).ConfigureAwait(false);
-            if (restoredStats is not null)
-            {
+            if (restoredStats is not null) {
                 _sessionStats.SeedCarryover(
                     restoredStats.CacheReadTokens,
                     restoredStats.CacheCreationTokens,

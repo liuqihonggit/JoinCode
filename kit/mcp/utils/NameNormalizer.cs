@@ -3,8 +3,7 @@ namespace McpClient;
 /// <summary>
 /// 名称规范化器 — 将名称中的非法字符替换为指定字符，并截断到最大长度
 /// </summary>
-public static partial class NameNormalizer
-{
+public static partial class NameNormalizer {
     private const int DefaultMaxNameLength = 64;
 
     /// <summary>
@@ -14,20 +13,17 @@ public static partial class NameNormalizer
     /// <param name="replacement">非法字符替换字符（默认 '_'）</param>
     /// <param name="maxLength">最大长度（默认 64）</param>
     /// <returns>规范化后的名称</returns>
-    public static string NormalizeForMcp(string name, char replacement = '_', int maxLength = DefaultMaxNameLength)
-    {
+    public static string NormalizeForMcp(string name, char replacement = '_', int maxLength = DefaultMaxNameLength) {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var normalized = InvalidCharsRegex().Replace(name, replacement.ToString());
 
-        if (normalized.StartsWith("claude.ai ", StringComparison.Ordinal))
-        {
+        if (normalized.StartsWith("claude.ai ", StringComparison.Ordinal)) {
             normalized = MultipleRepeatsRegex(replacement).Replace(normalized, replacement.ToString());
             normalized = normalized.Trim(replacement);
         }
 
-        if (normalized.Length > maxLength)
-        {
+        if (normalized.Length > maxLength) {
             normalized = normalized[..maxLength];
         }
 

@@ -4,8 +4,7 @@ namespace Core.Policy;
 /// <summary>
 /// 远程策略选项 — 配置远程策略端点、刷新间隔、缓存与通知开关
 /// </summary>
-public sealed class RemotePolicyOptions : RemoteRefreshOptionsBase
-{
+public sealed class RemotePolicyOptions : RemoteRefreshOptionsBase {
     /// <summary>配置节名称</summary>
     public const string SectionName = "RemotePolicy";
 

@@ -3,8 +3,7 @@ namespace Core.Bridge;
 /// <summary>
 /// 桥传输层上下文聚合 — 将 HttpClient + BridgeApiClient 合并为单一参数
 /// </summary>
-public sealed record BridgeTransportContext
-{
+public sealed record BridgeTransportContext {
     /// <summary>
     /// HTTP 客户端 — 用于 v1 API 调用和 SSE 传输
     /// </summary>

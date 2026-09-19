@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 代码安全验证器接口 - 验证代码是否包含危险操作
 /// </summary>
-public interface ICodeSecurityValidator
-{
+public interface ICodeSecurityValidator {
     /// <summary>
     /// 验证代码安全性
     /// </summary>

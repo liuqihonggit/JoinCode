@@ -12,8 +12,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 统一编码：options 显式指定编码优先，null 时回退到 <see cref="IProcessEncodingProvider"/> 全局编码。
 /// </para>
 /// </summary>
-public interface IProcessStartInfoBuilder
-{
+public interface IProcessStartInfoBuilder {
     /// <summary>
     /// 从 <see cref="ProcessOptions"/> 构建 <see cref="System.Diagnostics.ProcessStartInfo"/> — 一次性执行模式
     /// </summary>

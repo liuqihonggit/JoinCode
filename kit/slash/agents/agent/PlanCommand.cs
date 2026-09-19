@@ -6,70 +6,60 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Plan, Description = "计划模式管理", Usage = "/plan [on|off|status|open] [描述]", Category = ChatCommandCategory.Agent, ArgumentHint = "[on|off|status|open]", ExposeToMcp = true)]
 [ChatCommandArg("action", Type = "string", Description = "计划操作", Enum = new[] { "on", "off", "status", "open" })]
 [ChatCommandArg("description", Type = "string", Description = "计划描述（on/open 时可选）")]
-public sealed class PlanCommand : ChatCommandBase
-{
+public sealed class PlanCommand : ChatCommandBase {
     /// <summary>
     /// 执行 /plan 命令，根据子命令进入/退出/查看/打开计划模式
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
         var parts = ChatCommandBase.GetSplitArgs(context);
         var subCommand = parts.Length > 0 ? parts[0].ToLowerInvariant() : "toggle";
 
-        switch (subCommand)
-        {
+        switch (subCommand) {
             case PlanSubCommandEnumConstants.On:
             case PlanSubCommandEnumConstants.Enter:
-                await EnterPlanModeAsync(context, parts);
-                break;
+            await EnterPlanModeAsync(context, parts);
+            break;
             case PlanSubCommandEnumConstants.Off:
             case PlanSubCommandEnumConstants.Exit:
-                await ExitPlanModeAsync(context);
-                break;
+            await ExitPlanModeAsync(context);
+            break;
             case PlanSubCommandEnumConstants.Status:
-                await ShowPlanStatusAsync(context);
-                break;
-                case PlanSubCommandEnumConstants.Open:
-                await OpenPlanFileAsync(context, context.GetCommandServices().FileSystem).ConfigureAwait(false);
-                break;
+            await ShowPlanStatusAsync(context);
+            break;
+            case PlanSubCommandEnumConstants.Open:
+            await OpenPlanFileAsync(context, context.GetCommandServices().FileSystem).ConfigureAwait(false);
+            break;
             case PlanSubCommandEnumConstants.Toggle:
             default:
-                await TogglePlanModeAsync(context, args);
-                break;
+            await TogglePlanModeAsync(context, args);
+            break;
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static async Task TogglePlanModeAsync(ChatCommandContext context, string args)
-    {
+    private static async Task TogglePlanModeAsync(ChatCommandContext context, string args) {
         var planModeManager = ResolvePlanModeManager(context);
-        if (planModeManager is null)
-        {
+        if (planModeManager is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleEnumConstants.Reset}");
             await FallbackExecutePlanAsync(context, args);
             return;
         }
 
-        if (planModeManager.IsInPlanMode)
-        {
+        if (planModeManager.IsInPlanMode) {
             await ExitPlanModeAsync(context);
-        }
-        else
-        {
+        } else {
             var description = string.IsNullOrWhiteSpace(args) ? null : args;
             await EnterPlanModeAsync(context, description);
         }
     }
 
-    private static async Task EnterPlanModeAsync(ChatCommandContext context, string? description)
-    {
+    private static async Task EnterPlanModeAsync(ChatCommandContext context, string? description) {
         var planModeManager = ResolvePlanModeManager(context);
-        if (planModeManager is null)
-        {
+        if (planModeManager is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleEnumConstants.Reset}");
             await FallbackExecutePlanAsync(context, description ?? string.Empty);
             return;
@@ -79,31 +69,24 @@ public sealed class PlanCommand : ChatCommandBase
             description: description,
             cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
-        if (result.Success)
-        {
+        if (result.Success) {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}已进入计划模式{AnsiStyleEnumConstants.Reset}");
-            if (!string.IsNullOrEmpty(description))
-            {
+            if (!string.IsNullOrEmpty(description)) {
                 TerminalHelper.WriteLine($"  目标: {description}");
             }
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}进入计划模式失败: {result.ErrorMessage ?? "未知错误"}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
-    private static async Task EnterPlanModeAsync(ChatCommandContext context, string[] parts)
-    {
+    private static async Task EnterPlanModeAsync(ChatCommandContext context, string[] parts) {
         var description = parts.Length > 1 ? string.Join(" ", parts[1..]) : null;
         await EnterPlanModeAsync(context, description);
     }
 
-    private static async Task ExitPlanModeAsync(ChatCommandContext context)
-    {
+    private static async Task ExitPlanModeAsync(ChatCommandContext context) {
         var planModeManager = ResolvePlanModeManager(context);
-        if (planModeManager is null)
-        {
+        if (planModeManager is null) {
             TerminalHelper.WriteLine("计划模式管理器不可用");
             return;
         }
@@ -111,21 +94,16 @@ public sealed class PlanCommand : ChatCommandBase
         var result = await planModeManager.ExitPlanModeAsync(
             cancellationToken: context.CancellationToken).ConfigureAwait(false);
 
-        if (result.Success)
-        {
+        if (result.Success) {
             TerminalHelper.WriteLine($"{TerminalColors.Primary}已退出计划模式{AnsiStyleEnumConstants.Reset}");
-        }
-        else
-        {
+        } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}退出计划模式失败: {result.ErrorMessage ?? "未知错误"}{AnsiStyleEnumConstants.Reset}");
         }
     }
 
-    private static async Task ShowPlanStatusAsync(ChatCommandContext context)
-    {
+    private static async Task ShowPlanStatusAsync(ChatCommandContext context) {
         var planModeManager = ResolvePlanModeManager(context);
-        if (planModeManager is null)
-        {
+        if (planModeManager is null) {
             TerminalHelper.WriteLine("计划模式管理器不可用");
             return;
         }
@@ -135,18 +113,14 @@ public sealed class PlanCommand : ChatCommandBase
         TerminalHelper.WriteLine("=== 计划模式状态 ===");
         TerminalHelper.WriteLine($"  模式: {(planModeManager.IsInPlanMode ? $"{TerminalColors.Primary}已开启{AnsiStyleEnumConstants.Reset}" : "已关闭")}");
 
-        if (planState is not null && planModeManager.IsInPlanMode)
-        {
-            if (!string.IsNullOrEmpty(planState.Description))
-            {
+        if (planState is not null && planModeManager.IsInPlanMode) {
+            if (!string.IsNullOrEmpty(planState.Description)) {
                 TerminalHelper.WriteLine($"  目标: {planState.Description}");
             }
 
-            if (planState.Steps.Count > 0)
-            {
+            if (planState.Steps.Count > 0) {
                 TerminalHelper.WriteLine($"  步骤 ({planState.Steps.Count}):");
-                for (var i = 0; i < planState.Steps.Count; i++)
-                {
+                for (var i = 0; i < planState.Steps.Count; i++) {
                     var step = planState.Steps[i];
                     var check = step.IsCompleted ? "✓" : "○";
                     TerminalHelper.WriteLine($"    {check} {i + 1}. {step.Description}");
@@ -155,60 +129,47 @@ public sealed class PlanCommand : ChatCommandBase
         }
     }
 
-    private static async Task OpenPlanFileAsync(ChatCommandContext context, IFileSystem fs)
-    {
+    private static async Task OpenPlanFileAsync(ChatCommandContext context, IFileSystem fs) {
         var planFilePath = GetPlanFilePath();
-        if (planFilePath is null || !fs.FileExists(planFilePath))
-        {
+        if (planFilePath is null || !fs.FileExists(planFilePath)) {
             TerminalHelper.WriteLine("计划文件不存在");
             TerminalHelper.WriteLine("提示: 先进入计划模式 /plan on，再使用 /plan open 编辑");
             return;
         }
 
         // 非交互模式(测试/管道/CI)禁止启动外部编辑器,否则会触发桌面应用弹窗
-        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             var editor = Environment.GetEnvironmentVariable("EDITOR") ?? Environment.GetEnvironmentVariable("VISUAL") ?? "notepad";
             TerminalHelper.WriteLine($"将使用编辑器 {editor} 打开: {planFilePath}");
             return;
         }
 
-        try
-        {
+        try {
             var processService = ChatCommandBase.GetService<IProcessService>(context);
-            if (processService != null)
-            {
+            if (processService != null) {
                 await processService.OpenAsync(planFilePath).ConfigureAwait(false);
-            }
-            else
-            {
+            } else {
                 var editor = Environment.GetEnvironmentVariable("EDITOR") ?? Environment.GetEnvironmentVariable("VISUAL") ?? "notepad";
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo {
                     FileName = editor,
                     Arguments = planFilePath,
                     UseShellExecute = true
                 });
             }
             TerminalHelper.WriteLine($"已在编辑器中打开: {planFilePath}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("打开编辑器", ex);
             TerminalHelper.WriteLine($"计划文件路径: {planFilePath}");
         }
     }
 
-    private static async Task FallbackExecutePlanAsync(ChatCommandContext context, string description)
-    {
-        if (context.GetCommandServices().PlanService is null)
-        {
+    private static async Task FallbackExecutePlanAsync(ChatCommandContext context, string description) {
+        if (context.GetCommandServices().PlanService is null) {
             TerminalHelper.WriteLine("PlanService 不可用");
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(description))
-        {
+        if (string.IsNullOrWhiteSpace(description)) {
             TerminalHelper.WriteLine("请提供任务描述，例如: /plan 帮我创建一个TODO应用");
             return;
         }
@@ -217,13 +178,11 @@ public sealed class PlanCommand : ChatCommandBase
         TerminalHelper.WriteLine(result);
     }
 
-    private static IPlanModeManager? ResolvePlanModeManager(ChatCommandContext context)
-    {
+    private static IPlanModeManager? ResolvePlanModeManager(ChatCommandContext context) {
         return ChatCommandBase.GetService<IPlanModeManager>(context, typeof(IPlanModeManager));
     }
 
-    private static string? GetPlanFilePath()
-    {
+    private static string? GetPlanFilePath() {
         var appDataPath = Path.Combine(
             AppDataConstants.Paths.JccDirectory,
             "plan.md");

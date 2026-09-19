@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Token 使用记录
 /// </summary>
-public sealed record TokenUsageRecord
-{
+public sealed record TokenUsageRecord {
     /// <summary>
     /// 记录时间戳
     /// </summary>
@@ -54,8 +53,7 @@ public sealed record TokenUsageRecord
 /// <summary>
 /// 成本追踪器接口
 /// </summary>
-public interface ICostTracker
-{
+public interface ICostTracker {
     /// <summary>
     /// 记录 Token 使用
     /// </summary>
@@ -100,8 +98,7 @@ public interface ICostTracker
 /// <summary>
 /// 成本统计数据
 /// </summary>
-public sealed class CostStatistics
-{
+public sealed class CostStatistics {
     public int RequestCount { get; init; }
     public int PromptTokens { get; init; }
     public int CompletionTokens { get; init; }
@@ -121,8 +118,7 @@ public sealed class CostStatistics
 /// <summary>
 /// 模型成本统计
 /// </summary>
-public sealed class ModelCostStatistics
-{
+public sealed class ModelCostStatistics {
     public required string Model { get; init; }
     public int RequestCount { get; init; }
     public int PromptTokens { get; init; }

@@ -1,9 +1,7 @@
 namespace Infrastructure.Localization;
 
-public static partial class LocalizerInitializer
-{
-    private static void RegisterWorkflowEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries)
-    {
+public static partial class LocalizerInitializer {
+    private static void RegisterWorkflowEntries(Dictionary<string, string> defaultEntries, Dictionary<string, string> zhEntries) {
         // === WorkflowToolHandlers ===
         defaultEntries[StringKey.WorkflowPromptModeReceivedMessage] = "[Prompt Mode] Received message: {0}";
         defaultEntries[StringKey.WorkflowPromptModeHistoryCleared] = "[Prompt Mode] Chat history cleared";

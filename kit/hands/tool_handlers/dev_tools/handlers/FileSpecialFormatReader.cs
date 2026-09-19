@@ -4,8 +4,7 @@ namespace Tools.Handlers;
 /// 特殊格式文件读取器 — 封装图像/PDF/Notebook 文件的读取与 token 估算
 /// 从 FileToolHandlers 提取,统一管理非文本文件的读取逻辑
 /// </summary>
-internal sealed class FileSpecialFormatReader
-{
+internal sealed class FileSpecialFormatReader {
     private static readonly FrozenSet<string> ImageExtensions = FrozenSet.ToFrozenSet(
         ImageMediaTypeHelper.Extensions, StringComparer.OrdinalIgnoreCase);
 
@@ -19,8 +18,7 @@ internal sealed class FileSpecialFormatReader
     private readonly ILogger? _logger;
 
     /// <summary>构造 FileSpecialFormatReader</summary>
-    public FileSpecialFormatReader(IFileSystem fs, FileOperationConfig config, IFileStateCache? stateCache, FileTelemetryRecorder telemetry, FilePathResolver pathResolver, ILogger? logger = null)
-    {
+    public FileSpecialFormatReader(IFileSystem fs, FileOperationConfig config, IFileStateCache? stateCache, FileTelemetryRecorder telemetry, FilePathResolver pathResolver, ILogger? logger = null) {
         _fs = fs;
         _config = config;
         _stateCache = stateCache;
@@ -37,10 +35,8 @@ internal sealed class FileSpecialFormatReader
     /// 对齐 TS: roughTokenCountEstimationForFileType — JSON/JSONL/JSONC 密集格式用 2 字节/token，
     /// 其他文件用 4 字节/token（密集格式的单字符 token 如 { } : , " 导致实际比率更低）。
     /// </summary>
-    public static int EstimateTokenCount(string text, string? filePath = null)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
+    public static int EstimateTokenCount(string text, string? filePath = null) {
+        if (string.IsNullOrEmpty(text)) {
             return 0;
         }
 
@@ -52,8 +48,7 @@ internal sealed class FileSpecialFormatReader
     /// 根据文件扩展名返回字节/token比率。
     /// 对齐 TS: bytesPerTokenForFileType — JSON 密集格式用 2，其他用 4。
     /// </summary>
-    public static int BytesPerTokenForFileType(string? filePath)
-    {
+    public static int BytesPerTokenForFileType(string? filePath) {
         if (string.IsNullOrEmpty(filePath)) return 4;
         var ext = Path.GetExtension(filePath).TrimStart('.').ToLowerInvariant();
         return ext is "json" or "jsonl" or "jsonc" ? 2 : 4;
@@ -69,20 +64,17 @@ internal sealed class FileSpecialFormatReader
     /// 读取图像文件并返回base64编码结果。
     /// 对齐 TS: readImageWithTokenBudget + maybeResizeAndDownsampleImageBuffer
     /// </summary>
-    public async Task<ToolResult> ReadImageFileAsync(string filePath, string extension, CancellationToken cancellationToken)
-    {
+    public async Task<ToolResult> ReadImageFileAsync(string filePath, string extension, CancellationToken cancellationToken) {
         filePath = await _pathResolver.ResolveSandboxPathAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        if (!_fs.FileExists(filePath))
-        {
+        if (!_fs.FileExists(filePath)) {
             var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(filePath, _fs);
             return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
         }
 
         var originalSize = _fs.GetFileLength(filePath);
 
-        if (originalSize == 0)
-        {
+        if (originalSize == 0) {
             var emptyDiagnostic = ToolDiagnostic.Create(
                 "EmptyImageFile",
                 $"Image file is empty: {filePath}",
@@ -92,12 +84,9 @@ internal sealed class FileSpecialFormatReader
         }
 
         byte[] imageBytes;
-        try
-        {
+        try {
             imageBytes = await _fs.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             var readDiagnostic = ToolDiagnostic.Create(
                 "ImageReadFailed",
                 $"Failed to read image file: {ex.Message}",
@@ -112,12 +101,9 @@ internal sealed class FileSpecialFormatReader
             : extension;
 
         ImageResizeResult resizeResult;
-        try
-        {
+        try {
             resizeResult = await ImageResizer.ResizeAsync(imageBytes, originalSize, effectiveExtension).ConfigureAwait(false);
-        }
-        catch (InvalidOperationException ex)
-        {
+        } catch (InvalidOperationException ex) {
             _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.ResizeFailed);
             var resizeDiagnostic = ToolDiagnostic.Create(
                 "ImageResizeFailed",
@@ -129,8 +115,7 @@ internal sealed class FileSpecialFormatReader
 
         var base64Data = Convert.ToBase64String(resizeResult.Buffer);
 
-        if (base64Data.Length > FileOperationConfig.ApiImageMaxBase64Size)
-        {
+        if (base64Data.Length > FileOperationConfig.ApiImageMaxBase64Size) {
             _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.ApiLimitExceeded);
             var base64Diag = FileToolHandlers.BuildImageBase64TooLargeDiagnostic(base64Data.Length, FileOperationConfig.ApiImageMaxBase64Size);
             return ToolResultBuilder.Error().WithText(base64Diag.FormattedMessage).WithDiagnostic(base64Diag).Build();
@@ -140,19 +125,15 @@ internal sealed class FileSpecialFormatReader
         var maxTokens = _config.MaxReadTokens > 0
             ? _config.MaxReadTokens
             : DefaultMaxReadTokens;
-        if (estimatedTokens > maxTokens)
-        {
+        if (estimatedTokens > maxTokens) {
             var compressedResult = await ImageResizer.CompressWithTokenBudgetAsync(
                 resizeResult.Buffer, maxTokens, effectiveExtension).ConfigureAwait(false);
 
-            if (compressedResult is not null)
-            {
+            if (compressedResult is not null) {
                 base64Data = Convert.ToBase64String(compressedResult.Buffer);
                 resizeResult = compressedResult;
                 estimatedTokens = EstimateImageTokenCount(base64Data.Length);
-            }
-            else
-            {
+            } else {
                 _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.TokenExceeded);
                 var imgTokenDiag = FileToolHandlers.BuildImageTokenExceededDiagnostic(estimatedTokens, resizeResult.Buffer.Length, maxTokens);
                 return ToolResultBuilder.Error().WithText(imgTokenDiag.FormattedMessage).WithDiagnostic(imgTokenDiag).Build();
@@ -187,14 +168,11 @@ internal sealed class FileSpecialFormatReader
     /// 读取 PDF 文件。
     /// 对齐 TS: FileReadTool — PDF 读取决策树
     /// </summary>
-    public async Task<ToolResult> ReadPdfFileAsync(string filePath, string? pages, CancellationToken cancellationToken)
-    {
+    public async Task<ToolResult> ReadPdfFileAsync(string filePath, string? pages, CancellationToken cancellationToken) {
         PdfPageRange? parsedRange = null;
-        if (pages is not null)
-        {
+        if (pages is not null) {
             parsedRange = PdfReader.ParsePageRange(pages);
-            if (parsedRange is null)
-            {
+            if (parsedRange is null) {
                 var invalidPagesDiag = FileToolHandlers.BuildPdfInvalidPagesDiagnostic(pages);
                 return ToolResultBuilder.Error()
                     .WithText(invalidPagesDiag.FormattedMessage)
@@ -205,8 +183,7 @@ internal sealed class FileSpecialFormatReader
             var rangePageCount = parsedRange.LastPage == int.MaxValue
                 ? FileOperationConfig.PdfMaxPagesPerRead
                 : parsedRange.LastPage - parsedRange.FirstPage + 1;
-            if (rangePageCount > FileOperationConfig.PdfMaxPagesPerRead)
-            {
+            if (rangePageCount > FileOperationConfig.PdfMaxPagesPerRead) {
                 var rangeExceedDiag = FileToolHandlers.BuildPdfPageRangeExceedsMaxDiagnostic(pages, FileOperationConfig.PdfMaxPagesPerRead);
                 return ToolResultBuilder.Error()
                     .WithText(rangeExceedDiag.FormattedMessage)
@@ -217,15 +194,13 @@ internal sealed class FileSpecialFormatReader
 
         filePath = await _pathResolver.ResolveSandboxPathAsync(filePath, cancellationToken).ConfigureAwait(false);
 
-        if (parsedRange is not null)
-        {
+        if (parsedRange is not null) {
             return await ExtractPdfPagesAsync(filePath, parsedRange, cancellationToken).ConfigureAwait(false);
         }
 
         var result = await PdfReader.ReadPdfAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
             var pdfDiagnostic = ToolDiagnostic.Create(
                 "PdfReadFailed",
@@ -236,8 +211,7 @@ internal sealed class FileSpecialFormatReader
         }
 
         if (result.PageCount is not null &&
-            result.PageCount > FileOperationConfig.PdfMaxInlinePageCount)
-        {
+            result.PageCount > FileOperationConfig.PdfMaxInlinePageCount) {
             _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.Failed);
             var pageDiagnostic = ToolDiagnostic.Create(
                 "PdfTooManyPages",
@@ -252,8 +226,7 @@ internal sealed class FileSpecialFormatReader
             return ToolResultBuilder.Error().WithText(pageDiagnostic.FormattedMessage).WithDiagnostic(pageDiagnostic).Build();
         }
 
-        if (result.OriginalSize > FileOperationConfig.PdfExtractSizeThreshold)
-        {
+        if (result.OriginalSize > FileOperationConfig.PdfExtractSizeThreshold) {
             return await ExtractPdfPagesAsync(filePath, null, cancellationToken).ConfigureAwait(false);
         }
 
@@ -279,13 +252,10 @@ internal sealed class FileSpecialFormatReader
     /// 提取 PDF 页面为 JPEG 图片。
     /// 对齐 TS: extractPDFPages — 使用 PDFium 渲染页面为 JPEG，再缩放/压缩
     /// </summary>
-    public async Task<ToolResult> ExtractPdfPagesAsync(string filePath, PdfPageRange? range, CancellationToken cancellationToken)
-    {
-        if (!PdfPageRenderer.IsAvailable())
-        {
+    public async Task<ToolResult> ExtractPdfPagesAsync(string filePath, PdfPageRange? range, CancellationToken cancellationToken) {
+        if (!PdfPageRenderer.IsAvailable()) {
             var fallbackResult = await PdfReader.ReadPdfAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
-            if (!fallbackResult.Success)
-            {
+            if (!fallbackResult.Success) {
                 _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
                 var fallbackDiag = FileToolHandlers.BuildPdfFallbackReadFailedDiagnostic(fallbackResult.ErrorMessage ?? "Failed to read PDF file");
                 return ToolResultBuilder.Error().WithText(fallbackDiag.FormattedMessage).WithDiagnostic(fallbackDiag).Build();
@@ -305,8 +275,7 @@ internal sealed class FileSpecialFormatReader
         var extractResult = await PdfPageRenderer.ExtractPagesAsync(
             filePath, _fs, firstPage, lastPage, cancellationToken).ConfigureAwait(false);
 
-        if (!extractResult.Success)
-        {
+        if (!extractResult.Success) {
             _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.PdfFailed);
             var extractDiag = FileToolHandlers.BuildPdfExtractFailedDiagnostic(extractResult.ErrorMessage ?? "Failed to extract PDF pages");
             return ToolResultBuilder.Error().WithText(extractDiag.FormattedMessage).WithDiagnostic(extractDiag).Build();
@@ -323,18 +292,13 @@ internal sealed class FileSpecialFormatReader
         var builder = ToolResultBuilder.Success();
         var pageDescriptions = new List<string>();
 
-        foreach (var page in extractResult.GetPages())
-        {
+        foreach (var page in extractResult.GetPages()) {
             ImageResizeResult resizeResult;
-            try
-            {
+            try {
                 resizeResult = await ImageResizer.ResizeAsync(
                     page.JpegBytes, page.JpegBytes.Length, "jpg").ConfigureAwait(false);
-            }
-            catch (InvalidOperationException)
-            {
-                resizeResult = new ImageResizeResult
-                {
+            } catch (InvalidOperationException) {
+                resizeResult = new ImageResizeResult {
                     Buffer = page.JpegBytes,
                     MediaType = "image/jpeg",
                     OriginalWidth = page.Width,
@@ -346,8 +310,7 @@ internal sealed class FileSpecialFormatReader
 
             var base64Data = Convert.ToBase64String(resizeResult.Buffer);
 
-            if (base64Data.Length > FileOperationConfig.ApiImageMaxBase64Size)
-            {
+            if (base64Data.Length > FileOperationConfig.ApiImageMaxBase64Size) {
                 pageDescriptions.Add($"Page {page.PageNumber}: too large to include ({ContentReplacementConstants.FormatFileSize(resizeResult.Buffer.Length)})");
                 continue;
             }
@@ -381,34 +344,27 @@ internal sealed class FileSpecialFormatReader
     /// 读取 Notebook 文件并格式化输出
     /// 对齐 TS: FileReadTool → notebook.ts readNotebook + mapNotebookCellsToToolResult
     /// </summary>
-    public async Task<ToolResult> ReadNotebookFileAsync(string filePath, CancellationToken cancellationToken)
-    {
+    public async Task<ToolResult> ReadNotebookFileAsync(string filePath, CancellationToken cancellationToken) {
         filePath = await _pathResolver.ResolveSandboxPathAsync(filePath, cancellationToken).ConfigureAwait(false);
 
         var existingState = _stateCache?.GetReadState(filePath);
-        if (existingState is not null && !existingState.IsPartialView)
-        {
-            try
-            {
+        if (existingState is not null && !existingState.IsPartialView) {
+            try {
                 var currentMtimeMs = new DateTimeOffset(_fs.GetLastWriteTimeUtc(filePath)).ToUnixTimeMilliseconds();
-                if (currentMtimeMs == existingState.TimestampMs)
-                {
+                if (currentMtimeMs == existingState.TimestampMs) {
                     _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.Ok);
                     return ToolResultBuilder.Success()
                         .WithText("File unchanged since last read. The content from the earlier Read tool_result in this conversation is still current — refer to that instead of re-reading.")
                         .Build();
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "Notebook 文件 stat 检查失败，降级为完整读取");
             }
         }
 
         var result = await NotebookReader.ReadNotebookAsync(filePath, _fs, cancellationToken).ConfigureAwait(false);
 
-        if (!result.Success)
-        {
+        if (!result.Success) {
             _telemetry.RecordFileMetrics(FileOperationType.Read, FileOperationResult.NotebookFailed);
             var nbDiagnostic = ToolDiagnostic.Create(
                 "NotebookReadFailed",
@@ -428,10 +384,8 @@ internal sealed class FileSpecialFormatReader
 
         var builder = ToolResultBuilder.Success().WithText(result.GetText());
 
-        if (result.Images is { Count: > 0 })
-        {
-            foreach (var image in result.Images)
-            {
+        if (result.Images is { Count: > 0 }) {
+            foreach (var image in result.Images) {
                 builder.WithImage(image.Base64Data, image.MediaType);
             }
         }

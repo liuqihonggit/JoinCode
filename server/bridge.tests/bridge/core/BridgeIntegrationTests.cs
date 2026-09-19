@@ -5,10 +5,8 @@ namespace Bridge.Tests;
 /// Bridge 集成测试
 /// 验证 Bridge 各组件之间的集成点
 /// </summary>
-public sealed class BridgeIntegrationTests
-{
-    private static Mock<IFileOperationService> CreateFileOpMock()
-    {
+public sealed class BridgeIntegrationTests {
+    private static Mock<IFileOperationService> CreateFileOpMock() {
         var mock = new Mock<IFileOperationService>();
         mock.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
         return mock;
@@ -17,8 +15,7 @@ public sealed class BridgeIntegrationTests
     #region BridgeServerHostedService + CapacityWakeService
 
     [Fact]
-    public async Task BridgeServerHostedService_StartsCapacityWake()
-    {
+    public async Task BridgeServerHostedService_StartsCapacityWake() {
         // Arrange
         var fileOpMock = CreateFileOpMock();
         var bridgeServer = new BridgeServer(
@@ -48,8 +45,7 @@ public sealed class BridgeIntegrationTests
     }
 
     [Fact]
-    public async Task BridgeServerHostedService_WithoutCapacityWake_StillStarts()
-    {
+    public async Task BridgeServerHostedService_WithoutCapacityWake_StillStarts() {
         // Arrange
         var fileOpMock = CreateFileOpMock();
         var bridgeServer = new BridgeServer(
@@ -74,15 +70,13 @@ public sealed class BridgeIntegrationTests
     #region BridgeServer + BridgeUIService 会话注册/注销
 
     [Fact]
-    public async Task BridgeServer_RegistersSessionToUIService()
-    {
+    public async Task BridgeServer_RegistersSessionToUIService() {
         // Arrange
         var uiService = new BridgeUIService(logger: NullLogger<BridgeUIService>.Instance);
 
         // BridgeServer 构造函数中会订阅 PeerSessionManager 事件
         // 我们直接测试 UIService 的注册行为
-        var session = new BridgeSessionDisplay
-        {
+        var session = new BridgeSessionDisplay {
             SessionId = "test-client-001",
             ClientName = "test-client-001",
             Status = "connected",
@@ -100,12 +94,10 @@ public sealed class BridgeIntegrationTests
     }
 
     [Fact]
-    public async Task BridgeServer_UnregistersSessionFromUIService()
-    {
+    public async Task BridgeServer_UnregistersSessionFromUIService() {
         // Arrange
         var uiService = new BridgeUIService(logger: NullLogger<BridgeUIService>.Instance);
-        var session = new BridgeSessionDisplay
-        {
+        var session = new BridgeSessionDisplay {
             SessionId = "test-client-002",
             ClientName = "test-client-002",
             Status = "connected",
@@ -126,8 +118,7 @@ public sealed class BridgeIntegrationTests
     #region BridgeClient + JwtService
 
     [Fact]
-    public void BridgeClient_GeneratesJwtTokenOnStart()
-    {
+    public void BridgeClient_GeneratesJwtTokenOnStart() {
         // Arrange
         var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-integration-test" }, NullLogger.Instance);
 
@@ -144,8 +135,7 @@ public sealed class BridgeIntegrationTests
     }
 
     [Fact]
-    public void BridgeClient_JwtTokenRefreshWorks()
-    {
+    public void BridgeClient_JwtTokenRefreshWorks() {
         // Arrange
         var jwtService = new BridgeJwtService(new BridgeConfig { JwtSecretKey = "test-secret-key-for-refresh-test" }, NullLogger.Instance);
         // 使用 299 秒过期，使其立即进入刷新窗口（剩余 <= 300 秒）
@@ -164,11 +154,9 @@ public sealed class BridgeIntegrationTests
     #region BridgeClient + PollConfigManager
 
     [Fact]
-    public async Task BridgeClient_UsesPollConfigForIntervals()
-    {
+    public async Task BridgeClient_UsesPollConfigForIntervals() {
         // Arrange
-        var pollConfig = new PollConfig
-        {
+        var pollConfig = new PollConfig {
             IntervalMs = 200,
             MaxIntervalMs = 5000,
             BackoffMultiplier = 2.0,
@@ -192,8 +180,7 @@ public sealed class BridgeIntegrationTests
     }
 
     [Fact]
-    public async Task BridgeClient_PollConfigResetToDefault()
-    {
+    public async Task BridgeClient_PollConfigResetToDefault() {
         // Arrange
         var pollConfigManager = new PollConfigManager(
             new PollConfig { IntervalMs = 500, MaxIntervalMs = 10000 },
@@ -216,12 +203,10 @@ public sealed class BridgeIntegrationTests
     #region BridgeServer + FlushGate
 
     [Fact]
-    public async Task BridgeServer_FlushGateBatchesMessages()
-    {
+    public async Task BridgeServer_FlushGateBatchesMessages() {
         // Arrange
         await using var flushGate = new FlushGate<BridgeServerMessage>(
-            new FlushGateOptions
-            {
+            new FlushGateOptions {
                 MaxBatchSize = 3,
                 FlushIntervalMs = 60000 // 长间隔，避免定时触发
             },
@@ -251,12 +236,10 @@ public sealed class BridgeIntegrationTests
     }
 
     [Fact]
-    public async Task BridgeServer_FlushGateManualFlush()
-    {
+    public async Task BridgeServer_FlushGateManualFlush() {
         // Arrange
         await using var flushGate = new FlushGate<BridgeServerMessage>(
-            new FlushGateOptions
-            {
+            new FlushGateOptions {
                 MaxBatchSize = 100, // 大批次，避免自动触发
                 FlushIntervalMs = 60000
             },
@@ -277,13 +260,11 @@ public sealed class BridgeIntegrationTests
     }
 
     [Fact]
-    public async Task BridgeServer_BroadcastAsync_RoutesThroughFlushGate()
-    {
+    public async Task BridgeServer_BroadcastAsync_RoutesThroughFlushGate() {
         // Arrange - 测试定时刷新路由（BridgeServer 生产环境使用 FlushIntervalMs=100）
         var fakeTime = new FakeTimeProvider();
         await using var flushGate = new FlushGate<BridgeServerMessage>(
-            new FlushGateOptions
-            {
+            new FlushGateOptions {
                 MaxBatchSize = 100, // 大批次，避免满批触发
                 FlushIntervalMs = 50 // 短间隔，快速触发定时刷新
             },
@@ -306,8 +287,7 @@ public sealed class BridgeIntegrationTests
         // 等待定时器回调执行 — Task.Delay continuation 在线程池调度，
         // 需要轮询等待 FlushAsync 完成并触发 BatchFlushed 事件
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        while (flushedBatches.Count == 0 && !cts.Token.IsCancellationRequested)
-        {
+        while (flushedBatches.Count == 0 && !cts.Token.IsCancellationRequested) {
             await Task.Delay(10).ConfigureAwait(true);
         }
 
@@ -321,17 +301,14 @@ public sealed class BridgeIntegrationTests
     #region BridgeServer + PeerSessionManager
 
     [Fact]
-    public async Task BridgeServer_RoutesPeerMessages()
-    {
+    public async Task BridgeServer_RoutesPeerMessages() {
         // Arrange
         await using var peerSessionManager = new PeerSessionManager(NullLogger<PeerSessionManager>.Instance);
 
         // 模拟 BridgeServer 订阅 PeerSessionManager.PeerMessageSent 事件
         List<BridgeServerMessage> routedMessages = new();
-        peerSessionManager.PeerMessageSent += (_, e) =>
-        {
-            var serverMessage = new BridgeServerMessage
-            {
+        peerSessionManager.PeerMessageSent += (_, e) => {
+            var serverMessage = new BridgeServerMessage {
                 Type = "peer_message",
                 Data = JsonDocument.Parse(e.Message.ToJson()).RootElement
             };
@@ -352,8 +329,7 @@ public sealed class BridgeIntegrationTests
     }
 
     [Fact]
-    public async Task BridgeServer_PeerSessionConnectedEvent()
-    {
+    public async Task BridgeServer_PeerSessionConnectedEvent() {
         // Arrange
         await using var peerSessionManager = new PeerSessionManager(NullLogger<PeerSessionManager>.Instance);
         PeerSession? connectedSession = null;
@@ -374,8 +350,7 @@ public sealed class BridgeIntegrationTests
     #region BridgeClient + BridgeApiClient
 
     [Fact]
-    public async Task BridgeClient_ApiClientHealthCheck_WithMockHandler()
-    {
+    public async Task BridgeClient_ApiClientHealthCheck_WithMockHandler() {
         // Arrange - 使用模拟 HttpMessageHandler
         var handler = new MockHttpMessageHandler(
             new HttpResponseMessage(System.Net.HttpStatusCode.OK));
@@ -394,8 +369,7 @@ public sealed class BridgeIntegrationTests
     }
 
     [Fact]
-    public async Task BridgeClient_ApiClientHealthCheck_FailsOnUnavailable()
-    {
+    public async Task BridgeClient_ApiClientHealthCheck_FailsOnUnavailable() {
         // Arrange - 使用抛出异常的模拟 Handler
         var handler = new MockFailingHttpMessageHandler();
         var httpClient = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) };
@@ -418,19 +392,16 @@ public sealed class BridgeIntegrationTests
     /// <summary>
     /// 模拟 HTTP 消息处理器 - 返回固定响应
     /// </summary>
-    private sealed class MockHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class MockHttpMessageHandler : HttpMessageHandler {
         private readonly HttpResponseMessage _response;
 
-        public MockHttpMessageHandler(HttpResponseMessage response)
-        {
+        public MockHttpMessageHandler(HttpResponseMessage response) {
             _response = response;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
-            CancellationToken cancellationToken)
-        {
+            CancellationToken cancellationToken) {
             return Task.FromResult(_response);
         }
     }
@@ -438,12 +409,10 @@ public sealed class BridgeIntegrationTests
     /// <summary>
     /// 模拟失败的 HTTP 消息处理器
     /// </summary>
-    private sealed class MockFailingHttpMessageHandler : HttpMessageHandler
-    {
+    private sealed class MockFailingHttpMessageHandler : HttpMessageHandler {
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
-            CancellationToken cancellationToken)
-        {
+            CancellationToken cancellationToken) {
             throw new HttpRequestException("Connection refused");
         }
     }

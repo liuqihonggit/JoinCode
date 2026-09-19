@@ -4,8 +4,7 @@ namespace Services.Api.Vcr;
 /// <summary>
 /// VCR（录像/回放）配置选项
 /// </summary>
-public sealed class VcrOptions
-{
+public sealed class VcrOptions {
     /// <summary>
     /// VCR 运行模式
     /// </summary>

@@ -5,14 +5,12 @@ namespace Core.Agents;
 /// 统一管道版本：主代理 no-op，路径 B（SubOptions 已存在）no-op
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 ContextSetupMiddleware 实例，注入子代理上下文访问器及可选依赖
     /// </summary>
-    public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null, ISkillService? skillService = null, IModelConfigLoader? modelConfigLoader = null, ILogger<ContextSetupMiddleware>? logger = null)
-    {
+    public ContextSetupMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IFileStateCache? fileStateCache = null, ISkillService? skillService = null, IModelConfigLoader? modelConfigLoader = null, ILogger<ContextSetupMiddleware>? logger = null) {
         _subAgentContextAccessor = subAgentContextAccessor;
         _fileStateCache = fileStateCache;
         _skillService = skillService;
@@ -34,10 +32,8 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (context.IsMainAgent || context.SpawnOptions is null || context.SubOptions is not null)
-        {
+    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (context.IsMainAgent || context.SpawnOptions is null || context.SubOptions is not null) {
             await next(context, ct).ConfigureAwait(false);
             return;
         }
@@ -47,13 +43,11 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
 
         var skills = context.Definition?.Skills;
         MessageList? initialMessageList = null;
-        if (skills is not null && skills.Count > 0 && _skillService is not null)
-        {
+        if (skills is not null && skills.Count > 0 && _skillService is not null) {
             initialMessageList = await BuildSkillPreloadMessageListAsync(skills, ct).ConfigureAwait(false);
         }
 
-        var subOptions = new SubAgentOptions
-        {
+        var subOptions = new SubAgentOptions {
             Role = context.SpawnOptions.Role,
             Variant = context.SpawnOptions.Variant,
             AdditionalInstructions = context.SpawnOptions.Prompt,
@@ -93,8 +87,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     /// <para>null/空 也视为继承父级(隐式 inherit,与 JoinCode 默认 'inherit' 语义一致)</para>
     /// <para>Bedrock 跨区域前缀继承: 若父模型有区域前缀且 provider 是 Bedrock,子代理模型继承相同前缀</para>
     /// </summary>
-    private string? ResolveSubagentModel(UnifiedSpawnContext context)
-    {
+    private string? ResolveSubagentModel(UnifiedSpawnContext context) {
         var envModel = Environment.GetEnvironmentVariable("JCC_SUBAGENT_MODEL");
         if (!string.IsNullOrEmpty(envModel))
             return envModel;
@@ -113,8 +106,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     /// <summary>
     /// 获取父线程(主代理)模型 ID — 从 SubAgentContext.CacheSafeParams.ModelId 读取
     /// </summary>
-    private string? GetParentModel()
-    {
+    private string? GetParentModel() {
         return _subAgentContextAccessor.Current?.CacheSafeParams?.ModelId;
     }
 
@@ -123,8 +115,7 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     /// <para>对齐 TS 原版 getBedrockRegionPrefix(parentModel) + getAPIProvider() === 'bedrock'</para>
     /// <para>无 IModelConfigLoader 或父模型未识别 provider 时,isBedrockProvider=false(不应用前缀)</para>
     /// </summary>
-    private (string? parentRegionPrefix, bool isBedrockProvider) AnalyzeParentProvider(string? parentModel)
-    {
+    private (string? parentRegionPrefix, bool isBedrockProvider) AnalyzeParentProvider(string? parentModel) {
         if (string.IsNullOrEmpty(parentModel))
             return (null, false);
 
@@ -146,16 +137,13 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     /// <summary>
     /// 构建 skill 预加载消息列表 — 对齐 TS 原版 skills 字段: spawn 时预加载 skill 内容到 initialMessages
     /// </summary>
-    private async Task<MessageList> BuildSkillPreloadMessageListAsync(List<string> skills, CancellationToken ct)
-    {
+    private async Task<MessageList> BuildSkillPreloadMessageListAsync(List<string> skills, CancellationToken ct) {
         var messageList = new MessageList();
-        foreach (var skillName in skills)
-        {
+        foreach (var skillName in skills) {
             if (string.IsNullOrWhiteSpace(skillName) || _skillService is null)
                 continue;
 
-            try
-            {
+            try {
                 var skill = await _skillService.GetSkillAsync(skillName, ct).ConfigureAwait(false);
                 if (skill is null)
                     continue;
@@ -163,13 +151,10 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
                 var content = skill.Steps is not null && skill.Steps.Count > 0
                     ? skill.Steps[0].Prompt
                     : skill.ContentTemplate;
-                if (!string.IsNullOrWhiteSpace(content))
-                {
+                if (!string.IsNullOrWhiteSpace(content)) {
                     messageList.AddUserMessage($"[Skill: {skillName}]\n{content}");
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "[ContextSetupMiddleware] 预加载 skill {SkillName} 失败", skillName);
             }
         }
@@ -177,27 +162,23 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
     }
 
     private CacheSafeParams? BuildFilteredCacheSafeParams(
-        JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition)
-    {
+        JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition) {
         var parentParams = _subAgentContextAccessor.Current?.CacheSafeParams;
         if (parentParams is null) return null;
 
         var cloned = parentParams.Clone();
 
         var userContext = cloned.UserContext;
-        if (definition?.OmitProjectRules == true)
-        {
+        if (definition?.OmitProjectRules == true) {
             userContext = FilterKey(userContext, ClaudeCompatConstants.ContextKeyProjectRules);
         }
 
         var systemContext = cloned.SystemContext;
-        if (definition?.OmitGitStatus == true)
-        {
+        if (definition?.OmitGitStatus == true) {
             systemContext = FilterKey(systemContext, "gitStatus");
         }
 
-        return new CacheSafeParams
-        {
+        return new CacheSafeParams {
             RenderedSystemPrompt = cloned.RenderedSystemPrompt,
             ModelId = cloned.ModelId,
             ToolNames = cloned.ToolNames,
@@ -207,15 +188,13 @@ public sealed partial class ContextSetupMiddleware : ServiceEntity, IUnifiedSpaw
         };
     }
 
-    private static Dictionary<string, string> FilterKey(Dictionary<string, string> dict, string key)
-    {
+    private static Dictionary<string, string> FilterKey(Dictionary<string, string> dict, string key) {
         var filtered = new Dictionary<string, string>(dict);
         filtered.Remove(key);
         return filtered;
     }
 
-    private static List<string>? MergeAllowedTools(IEnumerable<string>? callerTools, List<string>? definitionTools)
-    {
+    private static List<string>? MergeAllowedTools(IEnumerable<string>? callerTools, List<string>? definitionTools) {
         if (callerTools is not null && callerTools.Any())
             return callerTools.ToList();
         return definitionTools;

@@ -4,8 +4,7 @@ namespace McpClient.Transports;
 /// <summary>
 /// WebSocket MCP 传输 — 继承 TransportBase 共享连接管理内核，实现 IMcpTransport 桥接 JSON-RPC 协议
 /// </summary>
-public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
-{
+public sealed partial class WebSocketTransport : TransportBase, IMcpTransport {
     private readonly McpServerConnectionConfig _config;
     private readonly IMcpAuthProvider? _authProvider;
     private readonly ILogger<WebSocketTransport>? _logger;
@@ -27,8 +26,7 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     public WebSocketTransport(
         McpServerConnectionConfig config,
         IMcpAuthProvider? authProvider = null,
-        ILogger<WebSocketTransport>? logger = null)
-    {
+        ILogger<WebSocketTransport>? logger = null) {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _authProvider = authProvider;
         _logger = logger;
@@ -39,32 +37,24 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    protected override async Task ConnectCoreAsync(CancellationToken ct)
-    {
+    protected override async Task ConnectCoreAsync(CancellationToken ct) {
         _logger?.LogInformation("正在连接 WebSocket MCP 服务器: {Url}", _config.Endpoint);
 
         _ws = new System.Net.WebSockets.ClientWebSocket();
 
-        if (_config.Headers != null)
-        {
-            foreach (var (key, value) in _config.Headers)
-            {
+        if (_config.Headers != null) {
+            foreach (var (key, value) in _config.Headers) {
                 _ws.Options.SetRequestHeader(key, value);
             }
         }
 
-        if (_authProvider != null)
-        {
-            try
-            {
+        if (_authProvider != null) {
+            try {
                 var token = await _authProvider.GetAccessTokenAsync(ct).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(token))
-                {
+                if (!string.IsNullOrEmpty(token)) {
                     _ws.Options.SetRequestHeader("Authorization", $"Bearer {token}");
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, "获取认证令牌失败，尝试无认证连接");
             }
         }
@@ -85,19 +75,14 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    protected override async Task DisconnectCoreAsync(CancellationToken ct)
-    {
+    protected override async Task DisconnectCoreAsync(CancellationToken ct) {
         _logger?.LogInformation("正在断开 WebSocket 连接...");
 
-        if (_ws != null && _ws.State == System.Net.WebSockets.WebSocketState.Open)
-        {
-            try
-            {
+        if (_ws != null && _ws.State == System.Net.WebSockets.WebSocketState.Open) {
+            try {
                 using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromSeconds(5));
                 await _ws.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "Client disconnecting", cts.Token).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogDebug("关闭 WebSocket 时出错: {Error}", ex.Message);
             }
         }
@@ -106,10 +91,8 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    protected override async Task SendCoreAsync(ReadOnlyMemory<byte> payload, CancellationToken ct)
-    {
-        if (_ws == null || _ws.State != System.Net.WebSockets.WebSocketState.Open)
-        {
+    protected override async Task SendCoreAsync(ReadOnlyMemory<byte> payload, CancellationToken ct) {
+        if (_ws == null || _ws.State != System.Net.WebSockets.WebSocketState.Open) {
             throw new InvalidOperationException(McpErrorMessages.WebSocketNotConnected);
         }
 
@@ -117,27 +100,22 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     }
 
     /// <summary>IMcpTransport: 发送 JSON-RPC 消息（序列化为字节后委托给基类）</summary>
-    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
-    {
+    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default) {
         var json = message.ToJson();
         var bytes = Encoding.UTF8.GetBytes(json);
         await SendAsync(bytes, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
-    {
+    private async Task ReceiveLoopAsync(CancellationToken cancellationToken) {
         var buffer = new byte[8192];
         var messageBuilder = new StringBuilder();
 
-        try
-        {
-            while (!cancellationToken.IsCancellationRequested && _ws != null && _ws.State == System.Net.WebSockets.WebSocketState.Open)
-            {
+        try {
+            while (!cancellationToken.IsCancellationRequested && _ws != null && _ws.State == System.Net.WebSockets.WebSocketState.Open) {
                 var segment = new ArraySegment<byte>(buffer);
                 var result = await _ws.ReceiveAsync(segment, cancellationToken).ConfigureAwait(false);
 
-                if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
-                {
+                if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close) {
                     _logger?.LogInformation("WebSocket 服务器发起关闭");
                     break;
                 }
@@ -145,54 +123,38 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
                 var chunk = Encoding.UTF8.GetString(buffer, 0, result.Count);
                 messageBuilder.Append(chunk);
 
-                if (result.EndOfMessage)
-                {
+                if (result.EndOfMessage) {
                     var messageText = messageBuilder.ToString();
                     messageBuilder.Clear();
 
-                    if (!string.IsNullOrWhiteSpace(messageText))
-                    {
+                    if (!string.IsNullOrWhiteSpace(messageText)) {
                         // 通知基类收到字节载荷
                         var payload = Encoding.UTF8.GetBytes(messageText);
                         OnPayloadReceived(payload);
 
                         // 桥接到 MCP 协议层
-                        try
-                        {
+                        try {
                             var rpcMessage = McpMessageExtensions.FromJson(messageText);
                             MessageReceived?.Invoke(this, new McpMessageReceivedEventArgs { Message = rpcMessage });
-                        }
-                        catch (Exception ex)
-                        {
+                        } catch (Exception ex) {
                             _logger?.LogError(ex, "解析 WebSocket 消息失败: {Message}", messageText);
                         }
                     }
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (System.Net.WebSockets.WebSocketException ex)
-        {
+        } catch (OperationCanceledException) {
+        } catch (System.Net.WebSockets.WebSocketException ex) {
             _logger?.LogError(ex, "WebSocket 接收异常");
-            if (IsRunning)
-            {
+            if (IsRunning) {
                 OnErrorOccurred(ex);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "WebSocket 接收循环异常");
-            if (IsRunning)
-            {
+            if (IsRunning) {
                 OnErrorOccurred(ex);
             }
-        }
-        finally
-        {
-            if (IsRunning)
-            {
+        } finally {
+            if (IsRunning) {
                 IsRunning = false;
                 OnConnectionClosed();
             }
@@ -200,8 +162,7 @@ public sealed partial class WebSocketTransport : TransportBase, IMcpTransport
     }
 
     /// <inheritdoc/>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         _ws?.Dispose();
         _receiveLock.Dispose();
         await base.DisposeAsync().ConfigureAwait(false);

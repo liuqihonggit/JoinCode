@@ -1,13 +1,11 @@
 namespace Bridge.Tests.Gate;
 
 
-public sealed class BridgeGateMiddlewareTests
-{
+public sealed class BridgeGateMiddlewareTests {
     // === BridgeGateEnabledMiddleware ===
 
     [Fact]
-    public async Task Enabled_BridgeDisabled_Fails()
-    {
+    public async Task Enabled_BridgeDisabled_Fails() {
         var mw = new BridgeGateEnabledMiddleware();
         var ctx = CreateContext(bridgeEnabled: false);
 
@@ -17,8 +15,7 @@ public sealed class BridgeGateMiddlewareTests
     }
 
     [Fact]
-    public async Task Enabled_BridgeEnabled_Continues()
-    {
+    public async Task Enabled_BridgeEnabled_Continues() {
         var mw = new BridgeGateEnabledMiddleware();
         var ctx = CreateContext(bridgeEnabled: true);
 
@@ -30,8 +27,7 @@ public sealed class BridgeGateMiddlewareTests
     // === BridgeGateOAuthMiddleware ===
 
     [Fact]
-    public async Task OAuth_NoToken_Fails()
-    {
+    public async Task OAuth_NoToken_Fails() {
         var mw = new BridgeGateOAuthMiddleware();
         var ctx = CreateContext(getAccessToken: () => null);
 
@@ -41,8 +37,7 @@ public sealed class BridgeGateMiddlewareTests
     }
 
     [Fact]
-    public async Task OAuth_HasToken_Continues()
-    {
+    public async Task OAuth_HasToken_Continues() {
         var mw = new BridgeGateOAuthMiddleware();
         var ctx = CreateContext(getAccessToken: () => "test-token");
 
@@ -55,15 +50,13 @@ public sealed class BridgeGateMiddlewareTests
     // === BridgeGateDeadTokenBackoffMiddleware ===
 
     [Fact]
-    public async Task DeadToken_SameExpiryAndCount3_Fails()
-    {
+    public async Task DeadToken_SameExpiryAndCount3_Fails() {
         var mw = new BridgeGateDeadTokenBackoffMiddleware();
         var deadState = new Mock<IBridgeOAuthDeadTokenState>();
         deadState.Setup(x => x.DeadExpiresAt).Returns(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         deadState.Setup(x => x.DeadFailCount).Returns(3);
 
-        var ctx = CreateContext(options: new BridgeInitOptions
-        {
+        var ctx = CreateContext(options: new BridgeInitOptions {
             DeadTokenState = deadState.Object,
             GetOAuthTokenExpiry = () => new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
         });
@@ -74,15 +67,13 @@ public sealed class BridgeGateMiddlewareTests
     }
 
     [Fact]
-    public async Task DeadToken_DifferentExpiry_Continues()
-    {
+    public async Task DeadToken_DifferentExpiry_Continues() {
         var mw = new BridgeGateDeadTokenBackoffMiddleware();
         var deadState = new Mock<IBridgeOAuthDeadTokenState>();
         deadState.Setup(x => x.DeadExpiresAt).Returns(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         deadState.Setup(x => x.DeadFailCount).Returns(3);
 
-        var ctx = CreateContext(options: new BridgeInitOptions
-        {
+        var ctx = CreateContext(options: new BridgeInitOptions {
             DeadTokenState = deadState.Object,
             GetOAuthTokenExpiry = () => new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero),
         });
@@ -95,8 +86,7 @@ public sealed class BridgeGateMiddlewareTests
     // === BridgeGatePolicyMiddleware ===
 
     [Fact]
-    public async Task Policy_NotAllowed_Fails()
-    {
+    public async Task Policy_NotAllowed_Fails() {
         var mw = new BridgeGatePolicyMiddleware();
         var ctx = CreateContext(options: new BridgeInitOptions { IsPolicyAllowed = _ => false });
 
@@ -106,8 +96,7 @@ public sealed class BridgeGateMiddlewareTests
     }
 
     [Fact]
-    public async Task Policy_Allowed_Continues()
-    {
+    public async Task Policy_Allowed_Continues() {
         var mw = new BridgeGatePolicyMiddleware();
         var ctx = CreateContext(options: new BridgeInitOptions { IsPolicyAllowed = _ => true });
 
@@ -117,8 +106,7 @@ public sealed class BridgeGateMiddlewareTests
     }
 
     [Fact]
-    public async Task Policy_NullPolicy_Continues()
-    {
+    public async Task Policy_NullPolicy_Continues() {
         var mw = new BridgeGatePolicyMiddleware();
         var ctx = CreateContext();
 
@@ -130,8 +118,7 @@ public sealed class BridgeGateMiddlewareTests
     // === BridgeGateOrgUUIDMiddleware ===
 
     [Fact]
-    public async Task OrgUUID_NoUUID_Fails()
-    {
+    public async Task OrgUUID_NoUUID_Fails() {
         var mw = new BridgeGateOrgUUIDMiddleware();
         var ctx = CreateContext(getOrgUUID: () => null);
 
@@ -141,8 +128,7 @@ public sealed class BridgeGateMiddlewareTests
     }
 
     [Fact]
-    public async Task OrgUUID_HasUUID_Continues()
-    {
+    public async Task OrgUUID_HasUUID_Continues() {
         var mw = new BridgeGateOrgUUIDMiddleware();
         var ctx = CreateContext(getOrgUUID: () => "org-123");
 
@@ -155,8 +141,7 @@ public sealed class BridgeGateMiddlewareTests
     // === Full Gate Pipeline ===
 
     [Fact]
-    public async Task FullGatePipeline_AllPass_Continues()
-    {
+    public async Task FullGatePipeline_AllPass_Continues() {
         var pipeline = new PipelineBuilder<BridgeInitGateContext>()
             .WithShortCircuit(ctx => ctx.Failed)
             .Use(new BridgeGateEnabledMiddleware())
@@ -175,8 +160,7 @@ public sealed class BridgeGateMiddlewareTests
     }
 
     [Fact]
-    public async Task FullGatePipeline_BridgeDisabled_ShortCircuits()
-    {
+    public async Task FullGatePipeline_BridgeDisabled_ShortCircuits() {
         var pipeline = new PipelineBuilder<BridgeInitGateContext>()
             .WithShortCircuit(ctx => ctx.Failed)
             .Use(new BridgeGateEnabledMiddleware())
@@ -196,10 +180,8 @@ public sealed class BridgeGateMiddlewareTests
         Func<string?>? getAccessToken = null,
         Func<string?>? getOrgUUID = null,
         Func<string>? getBaseUrl = null,
-        BridgeInitOptions? options = null)
-    {
-        return new BridgeInitGateContext
-        {
+        BridgeInitOptions? options = null) {
+        return new BridgeInitGateContext {
             Options = options ?? new BridgeInitOptions(),
             BridgeEnabled = bridgeEnabled,
             GetAccessToken = getAccessToken ?? (() => "default-token"),

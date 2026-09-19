@@ -4,8 +4,7 @@ namespace Services.CodeIndex;
 /// 渐进式信息披露服务 — 根据披露级别（索引/关系/源码）逐步返回符号信息
 /// </summary>
 [Register(typeof(IProgressiveDisclosure), ServiceLifetime.Singleton)]
-public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgressiveDisclosure
-{
+public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgressiveDisclosure {
     private readonly ICodeIndexer _indexer;
     private readonly ILogger<ProgressiveDisclosureService>? _logger;
     private readonly IFileSystem _fs;
@@ -16,8 +15,7 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
     /// <param name="indexer">代码索引器</param>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="logger">日志记录器</param>
-    public ProgressiveDisclosureService(ICodeIndexer indexer, IFileSystem fs, ILogger<ProgressiveDisclosureService>? logger = null)
-    {
+    public ProgressiveDisclosureService(ICodeIndexer indexer, IFileSystem fs, ILogger<ProgressiveDisclosureService>? logger = null) {
         _indexer = indexer ?? throw new ArgumentNullException(nameof(indexer));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
@@ -30,18 +28,15 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
     /// <param name="level">披露级别（索引/关系/源码）</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>披露结果</returns>
-    public async Task<DisclosureResult> DiscloseAsync(string query, DisclosureLevel level, CancellationToken ct)
-    {
+    public async Task<DisclosureResult> DiscloseAsync(string query, DisclosureLevel level, CancellationToken ct) {
         ArgumentNullException.ThrowIfNull(query);
 
         var searchResult = await _indexer.Searcher.SearchAsync(query, ct).ConfigureAwait(false);
-        if (searchResult.Items.Count == 0)
-        {
+        if (searchResult.Items.Count == 0) {
             return EmptyResult(query, level);
         }
 
-        return level switch
-        {
+        return level switch {
             DisclosureLevel.Index => await BuildIndexLevelAsync(query, searchResult.Items, ct).ConfigureAwait(false),
             DisclosureLevel.Relationships => await BuildRelationshipsLevelAsync(query, searchResult.Items, ct).ConfigureAwait(false),
             DisclosureLevel.Source => await BuildSourceLevelAsync(query, searchResult.Items, ct).ConfigureAwait(false),
@@ -55,10 +50,8 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
     /// <param name="previous">上一次的披露结果</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>展开后的披露结果</returns>
-    public async Task<DisclosureResult> ExpandAsync(DisclosureResult previous, CancellationToken ct)
-    {
-        if (!previous.HasMoreDetails)
-        {
+    public async Task<DisclosureResult> ExpandAsync(DisclosureResult previous, CancellationToken ct) {
+        if (!previous.HasMoreDetails) {
             return previous;
         }
 
@@ -66,10 +59,8 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         return await DiscloseAsync(previous.Query, nextLevel, ct).ConfigureAwait(false);
     }
 
-    private static DisclosureResult EmptyResult(string query, DisclosureLevel level)
-    {
-        return new DisclosureResult
-        {
+    private static DisclosureResult EmptyResult(string query, DisclosureLevel level) {
+        return new DisclosureResult {
             Query = query,
             Level = level,
             FormattedContent = L.T(StringKey.ProgressiveDisclosureNoSymbolsFound, query),
@@ -78,8 +69,7 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         };
     }
 
-    private static Task<DisclosureResult> BuildIndexLevelAsync(string query, IReadOnlyList<SymbolInfo> symbols, CancellationToken ct)
-    {
+    private static Task<DisclosureResult> BuildIndexLevelAsync(string query, IReadOnlyList<SymbolInfo> symbols, CancellationToken ct) {
         var sb = new StringBuilder();
         sb.Append(L.T(StringKey.ProgressiveDisclosureSymbolIndex));
         sb.Append(query);
@@ -92,8 +82,7 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
 
         var content = sb.ToString();
 
-        return Task.FromResult(new DisclosureResult
-        {
+        return Task.FromResult(new DisclosureResult {
             Query = query,
             Level = DisclosureLevel.Index,
             FormattedContent = content,
@@ -102,8 +91,7 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         });
     }
 
-    private async Task<DisclosureResult> BuildRelationshipsLevelAsync(string query, IReadOnlyList<SymbolInfo> symbols, CancellationToken ct)
-    {
+    private async Task<DisclosureResult> BuildRelationshipsLevelAsync(string query, IReadOnlyList<SymbolInfo> symbols, CancellationToken ct) {
         var indexResult = await BuildIndexLevelAsync(query, symbols, ct).ConfigureAwait(false);
         var sb = new StringBuilder(indexResult.FormattedContent);
         sb.AppendLine();
@@ -119,10 +107,8 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         var symbolResults = new (CallEdge[] Callers, CallEdge[] Callees, DependencyEdge[] Inheritors, DependencyEdge[] Dependencies)[symbols.Take(5).Count()];
         var symbolList = symbols.Take(5).ToArray();
 
-        var symbolTasks = symbolList.Select(async (s, idx) =>
-        {
-            try
-            {
+        var symbolTasks = symbolList.Select(async (s, idx) => {
+            try {
                 var callersTask = _indexer.CallGraph.GetCallersAsync(s.Name, ct);
                 var calleesTask = _indexer.CallGraph.GetCalleesAsync(s.Name, ct);
                 var inheritorsTask = _indexer.DependencyGraph.GetInheritorsAsync(s.Name, ct);
@@ -136,9 +122,7 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
                     (await inheritorsTask.ConfigureAwait(false)).ToArray(),
                     (await depsTask.ConfigureAwait(false)).ToArray()
                 );
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogWarning(ex, L.T(StringKey.ProgressiveDisclosureRelationshipFailed), s.Name);
                 symbolResults[idx] = ([], [], [], []);
             }
@@ -147,18 +131,15 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         await Task.WhenAll(symbolTasks).ConfigureAwait(false);
 
         // 串行格式化输出（StringBuilder 非线程安全）
-        for (var i = 0; i < symbolList.Length; i++)
-        {
+        for (var i = 0; i < symbolList.Length; i++) {
             var s = symbolList[i];
             var (symCallers, symCallees, symInheritors, symDeps) = symbolResults[i];
 
-            if (symCallers.Length > 0)
-            {
+            if (symCallers.Length > 0) {
                 sb.Append("### ");
                 sb.Append(s.Name);
                 sb.Append(L.T(StringKey.ProgressiveDisclosureCallers));
-                foreach (var caller in symCallers.Take(10))
-                {
+                foreach (var caller in symCallers.Take(10)) {
                     sb.Append("- `");
                     sb.Append(caller.CallerSymbol);
                     sb.Append("` (");
@@ -171,13 +152,11 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
                 callers.AddRange(symCallers);
             }
 
-            if (symCallees.Length > 0)
-            {
+            if (symCallees.Length > 0) {
                 sb.Append("### ");
                 sb.Append(s.Name);
                 sb.Append(L.T(StringKey.ProgressiveDisclosureCallees));
-                foreach (var callee in symCallees.Take(10))
-                {
+                foreach (var callee in symCallees.Take(10)) {
                     sb.Append("- `");
                     sb.Append(callee.CalleeSymbol);
                     sb.Append("` (");
@@ -190,13 +169,11 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
                 callees.AddRange(symCallees);
             }
 
-            if (symInheritors.Length > 0)
-            {
+            if (symInheritors.Length > 0) {
                 sb.Append("### ");
                 sb.Append(s.Name);
                 sb.Append(L.T(StringKey.ProgressiveDisclosureInheritors));
-                foreach (var inh in symInheritors.Take(10))
-                {
+                foreach (var inh in symInheritors.Take(10)) {
                     sb.Append("- `");
                     sb.Append(inh.TargetSymbol);
                     sb.Append("` (");
@@ -207,13 +184,11 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
                 inheritors.AddRange(symInheritors);
             }
 
-            if (symDeps.Length > 0)
-            {
+            if (symDeps.Length > 0) {
                 sb.Append("### ");
                 sb.Append(s.Name);
                 sb.Append(L.T(StringKey.ProgressiveDisclosureDependencies));
-                foreach (var dep in symDeps.Take(10))
-                {
+                foreach (var dep in symDeps.Take(10)) {
                     sb.Append("- `");
                     sb.Append(dep.TargetSymbol);
                     sb.Append("` (");
@@ -227,8 +202,7 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
 
         var content = sb.ToString();
 
-        return new DisclosureResult
-        {
+        return new DisclosureResult {
             Query = query,
             Level = DisclosureLevel.Relationships,
             FormattedContent = content,
@@ -241,8 +215,7 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         };
     }
 
-    private async Task<DisclosureResult> BuildSourceLevelAsync(string query, IReadOnlyList<SymbolInfo> symbols, CancellationToken ct)
-    {
+    private async Task<DisclosureResult> BuildSourceLevelAsync(string query, IReadOnlyList<SymbolInfo> symbols, CancellationToken ct) {
         var relResult = await BuildRelationshipsLevelAsync(query, symbols, ct).ConfigureAwait(false);
         var sb = new StringBuilder(relResult.FormattedContent);
         sb.AppendLine();
@@ -254,10 +227,8 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         var results = await Task.WhenAll(snippetTasks).ConfigureAwait(false);
 
         var snippets = new List<SourceSnippet>(results.Length);
-        foreach (var (snippet, formattedSection) in results)
-        {
-            if (snippet is not null && formattedSection is not null)
-            {
+        foreach (var (snippet, formattedSection) in results) {
+            if (snippet is not null && formattedSection is not null) {
                 snippets.Add(snippet);
                 sb.Append(formattedSection);
             }
@@ -265,8 +236,7 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
 
         var finalContent = sb.ToString();
 
-        return new DisclosureResult
-        {
+        return new DisclosureResult {
             Query = query,
             Level = DisclosureLevel.Source,
             FormattedContent = finalContent,
@@ -280,12 +250,9 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
         };
     }
 
-    private async Task<(SourceSnippet? Snippet, string? FormattedSection)> ReadSnippetSectionAsync(SymbolInfo s, CancellationToken ct)
-    {
-        try
-        {
-            if (!_fs.FileExists(s.FilePath))
-            {
+    private async Task<(SourceSnippet? Snippet, string? FormattedSection)> ReadSnippetSectionAsync(SymbolInfo s, CancellationToken ct) {
+        try {
+            if (!_fs.FileExists(s.FilePath)) {
                 return (null, null);
             }
 
@@ -293,14 +260,12 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
             var startLine = Math.Max(0, s.StartLine - 1);
             var endLine = Math.Min(lines.Length, s.EndLine);
 
-            if (startLine >= lines.Length)
-            {
+            if (startLine >= lines.Length) {
                 return (null, null);
             }
 
             var fileContent = string.Join("\n", lines[startLine..endLine]);
-            var snippet = new SourceSnippet
-            {
+            var snippet = new SourceSnippet {
                 FilePath = s.FilePath,
                 StartLine = s.StartLine,
                 EndLine = s.EndLine,
@@ -324,21 +289,17 @@ public sealed partial class ProgressiveDisclosureService : ServiceEntity, IProgr
             sectionSb.AppendLine();
 
             return (snippet, sectionSb.ToString());
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.ProgressiveDisclosureReadSourceFailed), s.FilePath);
             return (null, null);
         }
     }
 
-    private static int EstimateTokens(string content)
-    {
+    private static int EstimateTokens(string content) {
         return Math.Max(1, content.Length / 4);
     }
 
-    private static string FormatSymbolIndex(SymbolInfo s)
-    {
+    private static string FormatSymbolIndex(SymbolInfo s) {
         var parent = string.IsNullOrEmpty(s.ParentSymbol) ? "" : $" (in {s.ParentSymbol})";
         return $"{s.Kind} **{s.Name}**{parent} → `{s.FilePath}:{s.StartLine}-{s.EndLine}`";
     }

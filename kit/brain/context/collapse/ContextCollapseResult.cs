@@ -4,8 +4,7 @@ namespace Core.Context.Collapse;
 /// <summary>
 /// 上下文折叠结果
 /// </summary>
-public sealed class ContextCollapseResult
-{
+public sealed class ContextCollapseResult {
     /// <summary>
     /// 是否发生了折叠
     /// </summary>
@@ -57,8 +56,7 @@ public sealed class ContextCollapseResult
 /// <summary>
 /// 单个折叠段的详细信息
 /// </summary>
-public sealed class CollapsedSegmentInfo
-{
+public sealed class CollapsedSegmentInfo {
     /// <summary>
     /// 段唯一标识
     /// </summary>

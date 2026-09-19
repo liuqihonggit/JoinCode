@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// <summary>
 /// Shell 命令分类器 - 对命令进行语义分析和分类
 /// </summary>
-public interface ICommandClassifier
-{
+public interface ICommandClassifier {
     /// <summary>
     /// 对命令进行分类
     /// </summary>

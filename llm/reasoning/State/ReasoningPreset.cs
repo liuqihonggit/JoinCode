@@ -3,8 +3,7 @@ namespace JoinCode.Reasoning.State;
 /// <summary>
 /// 推理严格度预设 — 对应不同罪名的证明标准
 /// </summary>
-public enum ReasoningPreset
-{
+public enum ReasoningPreset {
     /// <summary>
     /// 杀人罪 — 证据阈值最高，闭环锁死，排除合理怀疑
     /// </summary>

@@ -1,11 +1,9 @@
 
 namespace Bridge.Tests.Phase7B;
 
-public sealed class BridgeFlushGateTests
-{
+public sealed class BridgeFlushGateTests {
     [Fact]
-    public void Start_End_Cycle()
-    {
+    public void Start_End_Cycle() {
         var gate = new BridgeFlushGate<string>();
         Assert.False(gate.Active);
 
@@ -17,8 +15,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void Enqueue_WhenActive_Enqueued()
-    {
+    public void Enqueue_WhenActive_Enqueued() {
         var gate = new BridgeFlushGate<string>();
         gate.Start();
 
@@ -27,8 +24,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void Enqueue_WhenNotActive_Dropped()
-    {
+    public void Enqueue_WhenNotActive_Dropped() {
         var gate = new BridgeFlushGate<string>();
 
         var enqueued = gate.Enqueue("item1");
@@ -36,8 +32,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void Drop_ClearsQueueAndDeactivates()
-    {
+    public void Drop_ClearsQueueAndDeactivates() {
         var gate = new BridgeFlushGate<string>();
         gate.Start();
         gate.Enqueue("item1");
@@ -51,8 +46,7 @@ public sealed class BridgeFlushGateTests
     }
 
     [Fact]
-    public void Deactivate_StopsAndClears()
-    {
+    public void Deactivate_StopsAndClears() {
         var gate = new BridgeFlushGate<string>();
         gate.Start();
         gate.Enqueue("item1");

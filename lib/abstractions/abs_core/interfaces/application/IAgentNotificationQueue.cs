@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 代理通知队列 — 对齐 TS messageQueueManager + enqueuePendingNotification
 /// 后台代理完成时入队，Query 循环 drain 时消费
 /// </summary>
-public interface IAgentNotificationQueue
-{
+public interface IAgentNotificationQueue {
     /// <summary>
     /// 入队通知（后台代理完成时调用）
     /// </summary>
@@ -28,8 +27,7 @@ public interface IAgentNotificationQueue
 /// <summary>
 /// 队列中的通知条目
 /// </summary>
-public sealed record QueuedNotification
-{
+public sealed record QueuedNotification {
     public required string Xml { get; init; }
     public string? TargetAgentId { get; init; }
     public DateTime EnqueuedAt { get; init; } = DateTime.UtcNow;

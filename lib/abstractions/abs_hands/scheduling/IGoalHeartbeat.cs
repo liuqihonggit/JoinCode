@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 目标心跳接口 — 管理目标引擎的活动状态追踪和定时心跳回调
 /// </summary>
-public interface IGoalHeartbeat : IAsyncDisposable
-{
+public interface IGoalHeartbeat : IAsyncDisposable {
     /// <summary>当前活动引用计数</summary>
     int RefCount { get; }
 

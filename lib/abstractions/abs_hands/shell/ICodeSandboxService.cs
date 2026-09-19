@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 代码沙箱服务接口 - 在隔离环境中执行代码
 /// </summary>
-public interface ICodeSandboxService
-{
+public interface ICodeSandboxService {
     /// <summary>
     /// 在沙箱中执行 C# 代码
     /// </summary>

@@ -1,11 +1,9 @@
 
 namespace Core.Tests.Context;
 
-public class ContextHierarchyTests
-{
+public class ContextHierarchyTests {
     [Fact]
-    public async Task Constructor_DefaultValues_ShouldBeCorrect()
-    {
+    public async Task Constructor_DefaultValues_ShouldBeCorrect() {
         var hierarchy = ContextHierarchy.Create();
 
         hierarchy.TokenThreshold.Should().Be(4000);
@@ -14,10 +12,8 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public void Constructor_WithOptions_ShouldUseOptions()
-    {
-        var options = new ContextHierarchyOptions
-        {
+    public void Constructor_WithOptions_ShouldUseOptions() {
+        var options = new ContextHierarchyOptions {
             TokenThreshold = 2000,
             AutoCompressionEnabled = false,
             MaxLayers = 5,
@@ -30,8 +26,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task AddLayerAsync_SingleLayer_ShouldAddSuccessfully()
-    {
+    public async Task AddLayerAsync_SingleLayer_ShouldAddSuccessfully() {
         var hierarchy = ContextHierarchy.Create();
         var layer = ContextLayer.CreateDetailed("Test content", "TestLayer");
 
@@ -43,8 +38,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task AddLayerAsync_MultipleLayers_ShouldMaintainOrder()
-    {
+    public async Task AddLayerAsync_MultipleLayers_ShouldMaintainOrder() {
         var hierarchy = ContextHierarchy.Create();
 
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Summary content", "SummaryLayer")).ConfigureAwait(true);
@@ -59,8 +53,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task AddLayerAsync_DuplicateType_ShouldReplaceExisting()
-    {
+    public async Task AddLayerAsync_DuplicateType_ShouldReplaceExisting() {
         var hierarchy = ContextHierarchy.Create();
 
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Original content", "OriginalLayer")).ConfigureAwait(true);
@@ -72,8 +65,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task RemoveLayerAsync_ExistingLayer_ShouldRemoveSuccessfully()
-    {
+    public async Task RemoveLayerAsync_ExistingLayer_ShouldRemoveSuccessfully() {
         var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Test content", "TestLayer")).ConfigureAwait(true);
 
@@ -84,8 +76,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task RemoveLayerAsync_NonExistingLayer_ShouldReturnFalse()
-    {
+    public async Task RemoveLayerAsync_NonExistingLayer_ShouldReturnFalse() {
         var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.RemoveLayerAsync(ContextLayerType.Detailed).ConfigureAwait(true);
@@ -94,8 +85,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task GetLayerAsync_ExistingLayer_ShouldReturnLayer()
-    {
+    public async Task GetLayerAsync_ExistingLayer_ShouldReturnLayer() {
         var hierarchy = ContextHierarchy.Create();
         var layer = ContextLayer.CreateDetailed("Test content", "TestLayer");
         await hierarchy.AddLayerAsync(layer).ConfigureAwait(true);
@@ -107,8 +97,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task GetLayerAsync_NonExistingLayer_ShouldReturnNull()
-    {
+    public async Task GetLayerAsync_NonExistingLayer_ShouldReturnNull() {
         var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.GetLayerAsync(ContextLayerType.Detailed).ConfigureAwait(true);
@@ -117,8 +106,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task GetTotalTokenCountAsync_EmptyHierarchy_ShouldReturnZero()
-    {
+    public async Task GetTotalTokenCountAsync_EmptyHierarchy_ShouldReturnZero() {
         var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.GetTotalTokenCountAsync().ConfigureAwait(true);
@@ -127,8 +115,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task GetTotalTokenCountAsync_WithLayers_ShouldSumCorrectly()
-    {
+    public async Task GetTotalTokenCountAsync_WithLayers_ShouldSumCorrectly() {
         var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Content 1 with more text to have tokens", "Layer1")).ConfigureAwait(true);
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Content 2", "Layer2")).ConfigureAwait(true);
@@ -139,8 +126,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task GetEffectiveContextAsync_EmptyHierarchy_ShouldReturnEmptyString()
-    {
+    public async Task GetEffectiveContextAsync_EmptyHierarchy_ShouldReturnEmptyString() {
         var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.GetEffectiveContextAsync().ConfigureAwait(true);
@@ -149,8 +135,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task GetEffectiveContextAsync_WithLayers_ShouldMergeCorrectly()
-    {
+    public async Task GetEffectiveContextAsync_WithLayers_ShouldMergeCorrectly() {
         var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Detailed line 1\nDetailed line 2", "DetailedLayer")).ConfigureAwait(true);
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Summary content", "SummaryLayer")).ConfigureAwait(true);
@@ -164,8 +149,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task PromoteToLayerAsync_WithValidLayer_ShouldPromoteSuccessfully()
-    {
+    public async Task PromoteToLayerAsync_WithValidLayer_ShouldPromoteSuccessfully() {
         var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateDetailed("Line 1\nLine 2\nLine 3\nLine 4", "TestLayer")).ConfigureAwait(true);
 
@@ -180,8 +164,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task PromoteToLayerAsync_WithoutCurrentLayer_ShouldThrowException()
-    {
+    public async Task PromoteToLayerAsync_WithoutCurrentLayer_ShouldThrowException() {
         var hierarchy = ContextHierarchy.Create();
 
         Func<Task> act = async () => await hierarchy.PromoteToLayerAsync(
@@ -192,8 +175,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task PromoteToLayerAsync_ToSameOrLowerLayer_ShouldThrowException()
-    {
+    public async Task PromoteToLayerAsync_ToSameOrLowerLayer_ShouldThrowException() {
         var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Summary content", "TestLayer")).ConfigureAwait(true);
 
@@ -205,8 +187,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task DemoteToLayerAsync_WithCompressedLayer_ShouldRestoreSuccessfully()
-    {
+    public async Task DemoteToLayerAsync_WithCompressedLayer_ShouldRestoreSuccessfully() {
         var hierarchy = ContextHierarchy.Create();
         var layer = ContextLayer.CreateDetailed("Original detailed content that is long enough to be compressed when needed", "TestLayer");
         layer.Compress();
@@ -218,8 +199,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task DemoteToLayerAsync_WithoutCompression_ShouldReturnFalse()
-    {
+    public async Task DemoteToLayerAsync_WithoutCompression_ShouldReturnFalse() {
         var hierarchy = ContextHierarchy.Create();
         await hierarchy.AddLayerAsync(ContextLayer.CreateSummary("Not compressed content", "TestLayer")).ConfigureAwait(true);
 
@@ -229,8 +209,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public async Task DemoteToLayerAsync_NonExistingLayer_ShouldReturnFalse()
-    {
+    public async Task DemoteToLayerAsync_NonExistingLayer_ShouldReturnFalse() {
         var hierarchy = ContextHierarchy.Create();
 
         var result = await hierarchy.DemoteToLayerAsync(ContextLayerType.Summary).ConfigureAwait(true);
@@ -239,8 +218,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public void ContextLayer_CreateDetailed_ShouldCreateCorrectType()
-    {
+    public void ContextLayer_CreateDetailed_ShouldCreateCorrectType() {
         var layer = ContextLayer.CreateDetailed("Test content", "TestLayer");
 
         layer.LayerType.Should().Be(ContextLayerType.Detailed);
@@ -249,8 +227,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public void ContextLayer_CreateSummary_ShouldCreateCorrectType()
-    {
+    public void ContextLayer_CreateSummary_ShouldCreateCorrectType() {
         var layer = ContextLayer.CreateSummary("Summary content", "TestLayer");
 
         layer.LayerType.Should().Be(ContextLayerType.Summary);
@@ -258,8 +235,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public void ContextLayer_CreateIndex_ShouldCreateCorrectType()
-    {
+    public void ContextLayer_CreateIndex_ShouldCreateCorrectType() {
         var layer = ContextLayer.CreateIndex("Index content", "TestLayer");
 
         layer.LayerType.Should().Be(ContextLayerType.Index);
@@ -270,14 +246,12 @@ public class ContextHierarchyTests
     [InlineData(ContextLayerType.Detailed)]
     [InlineData(ContextLayerType.Summary)]
     [InlineData(ContextLayerType.Index)]
-    public void ContextLayerType_AllTypes_ShouldBeDefined(ContextLayerType type)
-    {
+    public void ContextLayerType_AllTypes_ShouldBeDefined(ContextLayerType type) {
         Enum.IsDefined(typeof(ContextLayerType), type).Should().BeTrue();
     }
 
     [Fact]
-    public void ContextHierarchyOptions_DefaultValues_ShouldBeCorrect()
-    {
+    public void ContextHierarchyOptions_DefaultValues_ShouldBeCorrect() {
         var options = new ContextHierarchyOptions();
 
         options.TokenThreshold.Should().Be(4000);
@@ -287,8 +261,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public void ContextLayer_Compress_ShouldReduceContent()
-    {
+    public void ContextLayer_Compress_ShouldReduceContent() {
         var layer = ContextLayer.CreateDetailed(
             "This is a very long content that should be compressed when the compress method is called. " +
             "It contains multiple sentences and should be reduced in size.",
@@ -301,8 +274,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public void ContextLayer_Decompress_ShouldRestoreContent()
-    {
+    public void ContextLayer_Decompress_ShouldRestoreContent() {
         var originalContent = "Original content that will be compressed and then decompressed";
         var layer = ContextLayer.CreateDetailed(originalContent, "TestLayer");
 
@@ -314,16 +286,14 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public void ContextLayer_TokenCount_ShouldBeCalculatedCorrectly()
-    {
+    public void ContextLayer_TokenCount_ShouldBeCalculatedCorrectly() {
         var layer = ContextLayer.CreateDetailed("Hello world test content", "TestLayer");
 
         layer.TokenCount.Should().BeGreaterThan(0);
     }
 
     [Fact]
-    public void ContextLayer_Metadata_ShouldStoreLayerName()
-    {
+    public void ContextLayer_Metadata_ShouldStoreLayerName() {
         var layer = ContextLayer.CreateDetailed("Test content", "TestLayerName");
 
         layer.Metadata.Should().NotBeNull();
@@ -331,8 +301,7 @@ public class ContextHierarchyTests
     }
 
     [Fact]
-    public void ContextLayer_Metadata_Compression_ShouldTrackTokenCounts()
-    {
+    public void ContextLayer_Metadata_Compression_ShouldTrackTokenCounts() {
         var layer = ContextLayer.CreateDetailed("This is a test content with enough length to have meaningful token counts for testing compression tracking functionality", "TestLayer");
         var originalTokens = layer.TokenCount;
 

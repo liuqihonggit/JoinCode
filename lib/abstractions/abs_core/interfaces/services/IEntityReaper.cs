@@ -6,8 +6,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 超时检测：entity.IsTimedOut → 触发 EntityTimeout 事件
 /// 泄漏检测：超龄未 Dispose 的 Entity → 告警
 /// </summary>
-public interface IEntityReaper
-{
+public interface IEntityReaper {
     /// <summary>
     /// 执行一次扫描 — 遍历所有 Entity，回收/超时检测/泄漏检测
     /// </summary>

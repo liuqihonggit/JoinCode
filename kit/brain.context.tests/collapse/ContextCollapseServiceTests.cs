@@ -1,19 +1,16 @@
 namespace Core.Tests.Context.Collapse;
 
-public class ContextCollapseServiceTests
-{
+public class ContextCollapseServiceTests {
     private readonly ContextCollapseService _service = new(NullLogger<ContextCollapseService>.Instance);
 
     [Fact]
-    public async Task CollapseAsync_EmptyContent_ShouldThrowArgumentException()
-    {
+    public async Task CollapseAsync_EmptyContent_ShouldThrowArgumentException() {
         var act = async () => await _service.CollapseAsync("").ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task CollapseAsync_ShortContent_ShouldNotCollapse()
-    {
+    public async Task CollapseAsync_ShortContent_ShouldNotCollapse() {
         var result = await _service.CollapseAsync("short content").ConfigureAwait(true);
 
         result.Should().NotBeNull();
@@ -22,8 +19,7 @@ public class ContextCollapseServiceTests
     }
 
     [Fact]
-    public async Task CollapseAsync_LongContentWithCodeBlocks_ShouldIdentifySegments()
-    {
+    public async Task CollapseAsync_LongContentWithCodeBlocks_ShouldIdentifySegments() {
         var content = BuildContentWithCodeBlocks(5);
         var segments = await _service.IdentifyCollapsibleSegmentsAsync(content).ConfigureAwait(true);
 
@@ -31,8 +27,7 @@ public class ContextCollapseServiceTests
     }
 
     [Fact]
-    public async Task CollapseAsync_WithAggressiveOptions_ShouldCollapseMore()
-    {
+    public async Task CollapseAsync_WithAggressiveOptions_ShouldCollapseMore() {
         var content = BuildContentWithCodeBlocks(10);
         var options = ContextCollapseOptions.Aggressive;
 
@@ -43,8 +38,7 @@ public class ContextCollapseServiceTests
     }
 
     [Fact]
-    public async Task CollapseAsync_WithConservativeOptions_ShouldPreserveMore()
-    {
+    public async Task CollapseAsync_WithConservativeOptions_ShouldPreserveMore() {
         var content = BuildContentWithCodeBlocks(10);
         var options = ContextCollapseOptions.Conservative;
 
@@ -55,8 +49,7 @@ public class ContextCollapseServiceTests
     }
 
     [Fact]
-    public async Task CollapseAsync_WithBalancedOptions_ShouldUseBalancedStrategy()
-    {
+    public async Task CollapseAsync_WithBalancedOptions_ShouldUseBalancedStrategy() {
         var content = BuildContentWithCodeBlocks(10);
         var options = ContextCollapseOptions.Balanced;
 
@@ -67,8 +60,7 @@ public class ContextCollapseServiceTests
     }
 
     [Fact]
-    public async Task CollapseAsync_ResultShouldContainTokenCounts()
-    {
+    public async Task CollapseAsync_ResultShouldContainTokenCounts() {
         var content = BuildContentWithCodeBlocks(8);
 
         var result = await _service.CollapseAsync(content).ConfigureAwait(true);
@@ -78,38 +70,32 @@ public class ContextCollapseServiceTests
     }
 
     [Fact]
-    public async Task IdentifyCollapsibleSegmentsAsync_EmptyContent_ShouldThrowArgumentException()
-    {
+    public async Task IdentifyCollapsibleSegmentsAsync_EmptyContent_ShouldThrowArgumentException() {
         var act = async () => await _service.IdentifyCollapsibleSegmentsAsync("").ConfigureAwait(true);
         await act.Should().ThrowAsync<ArgumentException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task IdentifyCollapsibleSegmentsAsync_ShortContent_ShouldReturnEmpty()
-    {
+    public async Task IdentifyCollapsibleSegmentsAsync_ShortContent_ShouldReturnEmpty() {
         var segments = await _service.IdentifyCollapsibleSegmentsAsync("short content").ConfigureAwait(true);
 
         segments.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task GenerateSummaryAsync_ShouldReturnSummary()
-    {
+    public async Task GenerateSummaryAsync_ShouldReturnSummary() {
         var content = BuildContentWithCodeBlocks(5);
         var segments = await _service.IdentifyCollapsibleSegmentsAsync(content).ConfigureAwait(true);
 
-        if (segments.Count > 0)
-        {
+        if (segments.Count > 0) {
             var summary = await _service.GenerateSummaryAsync(segments[0]).ConfigureAwait(true);
             summary.Should().NotBeNullOrEmpty();
         }
     }
 
-    private static string BuildContentWithCodeBlocks(int blockCount)
-    {
+    private static string BuildContentWithCodeBlocks(int blockCount) {
         var sb = new StringBuilder();
-        for (var i = 0; i < blockCount; i++)
-        {
+        for (var i = 0; i < blockCount; i++) {
             sb.AppendLine($"Some text before code block {i}.");
             sb.AppendLine("```csharp");
             sb.AppendLine($"// Code block {i}");

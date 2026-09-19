@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Agent 任务状态变更事件参数
 /// </summary>
-public sealed class AgentTaskStatusChangedEventArgs : EventArgs
-{
+public sealed class AgentTaskStatusChangedEventArgs : EventArgs {
     /// <summary>
     /// 任务 ID
     /// </summary>
@@ -38,8 +37,7 @@ public sealed class AgentTaskStatusChangedEventArgs : EventArgs
         string taskId,
         TaskExecutionStatus oldStatus,
         TaskExecutionStatus newStatus,
-        string? message = null)
-    {
+        string? message = null) {
         TaskId = taskId;
         OldStatus = oldStatus;
         NewStatus = newStatus;

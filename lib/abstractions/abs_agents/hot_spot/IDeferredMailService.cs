@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 延迟邮件服务 — 邮件标记"将在 N 轮后自动打开，或任务结束之后注入"
 /// Worker 可继续当前任务稍后再看，减少中断
 /// </summary>
-public interface IDeferredMailService
-{
+public interface IDeferredMailService {
     /// <summary>
     /// 投递延迟邮件（存入待投递队列，N 轮后自动到期）
     /// </summary>

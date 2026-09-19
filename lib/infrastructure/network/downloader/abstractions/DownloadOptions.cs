@@ -4,8 +4,7 @@ namespace Infrastructure.Network.Downloader;
 /// 下载选项 — 控制并发度、断点续传、分片大小、超时等
 /// <para>MaxThreads=1 时单线程顺序下载;>1 时用 PLINQ 并发分片</para>
 /// </summary>
-public sealed class DownloadOptions
-{
+public sealed class DownloadOptions {
     /// <summary>并发线程数:1=单线程顺序,>1=多线程 PLINQ 并发分片。默认 1</summary>
     public int MaxThreads { get; init; } = 1;
 
@@ -31,8 +30,7 @@ public sealed class DownloadOptions
     public string? ProxyUrl { get; init; }
 
     /// <summary>校验 MaxThreads 合法性(>=1)</summary>
-    public void Validate()
-    {
+    public void Validate() {
         if (MaxThreads < 1)
             throw new ArgumentOutOfRangeException(nameof(MaxThreads), MaxThreads, "[DOWN003] MaxThreads 必须 >= 1");
         if (ChunkSize is { } cs && cs <= 0)

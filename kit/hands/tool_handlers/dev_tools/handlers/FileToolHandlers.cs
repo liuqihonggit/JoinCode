@@ -6,8 +6,7 @@ namespace Tools.Handlers;
 /// 文件工具处理器 — 提供 Read/Write/Edit/List/Patch/Snip/Delete/Diagnostics 等文件操作工具
 /// </summary>
 [McpToolDispatch(ToolCategory.File)]
-public partial class FileToolHandlers : IDisposable
-{
+public partial class FileToolHandlers : IDisposable {
     private readonly CancellationTokenSource _disposeCts = new();
     private bool _disposed;
 
@@ -38,8 +37,7 @@ public partial class FileToolHandlers : IDisposable
         IFileOperationService fileOperationService,
         IFileSystem fs,
         FileToolHandlersContext? context = null,
-        ILogger<FileToolHandlers>? logger = null)
-    {
+        ILogger<FileToolHandlers>? logger = null) {
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _logger = logger;
@@ -66,8 +64,7 @@ public partial class FileToolHandlers : IDisposable
     /// <summary>
     /// 释放资源 — 取消所有待处理的操作
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _disposeCts.CancelAndDisposeSafe(_logger);
@@ -79,17 +76,14 @@ public partial class FileToolHandlers : IDisposable
     /// 替换字符串中第一个匹配项（用于预模拟编辑）。
     /// 对齐 TS: file.replace(actualOldString, new_string) — 非替换所有时只替换第一个匹配
     /// </summary>
-    private static string ReplaceFirst(string text, string search, string replace)
-    {
+    private static string ReplaceFirst(string text, string search, string replace) {
         var index = text.IndexOf(search, StringComparison.Ordinal);
         if (index < 0) return text;
         return string.Concat(text.AsSpan(0, index), replace, text.AsSpan(index + search.Length));
     }
 
-    internal static string AddLineNumbers(string content, int startLine, bool compact)
-    {
-        if (string.IsNullOrEmpty(content))
-        {
+    internal static string AddLineNumbers(string content, int startLine, bool compact) {
+        if (string.IsNullOrEmpty(content)) {
             return string.Empty;
         }
 
@@ -97,11 +91,9 @@ public partial class FileToolHandlers : IDisposable
 
         // 紧凑格式：行号 + 制表符 + 内容（cat -n 风格）
         // 对齐 TS: isCompactLinePrefixEnabled — LLM 训练数据匹配度高，每行省 ~5 空格 token
-        if (compact)
-        {
+        if (compact) {
             var compactSb = new StringBuilder(content.Length + lines.Length * 4);
-            for (var i = 0; i < lines.Length; i++)
-            {
+            for (var i = 0; i < lines.Length; i++) {
                 compactSb.Append(startLine + i);
                 compactSb.Append('\t');
                 compactSb.AppendLine(lines[i]);
@@ -116,8 +108,7 @@ public partial class FileToolHandlers : IDisposable
         var padWidth = Math.Max(maxDigits, 6);
 
         var sb = new StringBuilder(content.Length + lines.Length * (padWidth + 2));
-        for (var i = 0; i < lines.Length; i++)
-        {
+        for (var i = 0; i < lines.Length; i++) {
             var lineNum = startLine + i;
             sb.Append(lineNum.ToString().PadLeft(padWidth));
             sb.Append('\u2192');

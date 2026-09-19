@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// LSP 协议方法名枚举 — 替代原 LspMethods 静态常量类
 /// </summary>
-public enum LspMethod
-{
+public enum LspMethod {
     [EnumValue("initialize")] Initialize,
     [EnumValue("initialized")] Initialized,
     [EnumValue("shutdown")] Shutdown,

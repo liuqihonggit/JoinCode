@@ -5,16 +5,14 @@ namespace Core.Configuration;
 /// 用此 Provider 直接输出到 Console.Error，--debuglog 时 minLevel=Debug，否则 Warning。
 /// 替代 Diag.WriteLine 临时埋点，让 logger?.LogDebug 贯穿 config loading 全链路。
 /// </summary>
-public sealed class StderrLoggerProvider : ILoggerProvider
-{
+public sealed class StderrLoggerProvider : ILoggerProvider {
     private readonly LogLevel _minLevel;
 
     /// <summary>
     /// 构造 stderr LoggerProvider — 按最低级别过滤，直接输出到 Console.Error
     /// </summary>
     ///; <param name="minLevel">最低日志级别，低于此级别的日志被丢弃</param>
-    public StderrLoggerProvider(LogLevel minLevel = LogLevel.Warning)
-    {
+    public StderrLoggerProvider(LogLevel minLevel = LogLevel.Warning) {
         _minLevel = minLevel;
     }
 
@@ -29,13 +27,11 @@ public sealed class StderrLoggerProvider : ILoggerProvider
     public void Dispose() { }
 }
 
-internal sealed class StderrLogger : ILogger
-{
+internal sealed class StderrLogger : ILogger {
     private readonly string _category;
     private readonly LogLevel _minLevel;
 
-    internal StderrLogger(string category, LogLevel minLevel)
-    {
+    internal StderrLogger(string category, LogLevel minLevel) {
         _category = category;
         _minLevel = minLevel;
     }
@@ -44,15 +40,13 @@ internal sealed class StderrLogger : ILogger
 
     public bool IsEnabled(LogLevel logLevel) => logLevel >= _minLevel;
 
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-    {
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) {
         if (!IsEnabled(logLevel)) return;
 
         var message = formatter(state, exception);
         if (string.IsNullOrEmpty(message) && exception is null) return;
 
-        var levelStr = logLevel switch
-        {
+        var levelStr = logLevel switch {
             LogLevel.Trace => "trce",
             LogLevel.Debug => "dbug",
             LogLevel.Information => "info",

@@ -1,10 +1,8 @@
 namespace Core.Tests.Plugins;
 
-public sealed class RunModeRegistryTests
-{
+public sealed class RunModeRegistryTests {
     [Fact]
-    public void Get_Standard_HasFullToolset()
-    {
+    public void Get_Standard_HasFullToolset() {
         var desc = RunModeRegistry.Get(RunMode.Standard);
         Assert.Equal("Standard", desc.DisplayName);
         Assert.True(desc.SupportsSubAgents);
@@ -15,8 +13,7 @@ public sealed class RunModeRegistryTests
     }
 
     [Fact]
-    public void Get_Code_HasCodeSdk()
-    {
+    public void Get_Code_HasCodeSdk() {
         var desc = RunModeRegistry.Get(RunMode.Code);
         Assert.Equal("Code", desc.DisplayName);
         Assert.Contains("code_sdk", desc.AvailableTools);
@@ -24,8 +21,7 @@ public sealed class RunModeRegistryTests
     }
 
     [Fact]
-    public void Get_Minimal_OnlyTwoTools()
-    {
+    public void Get_Minimal_OnlyTwoTools() {
         var desc = RunModeRegistry.Get(RunMode.Minimal);
         Assert.Equal("Minimal", desc.DisplayName);
         Assert.Equal(2, desc.AvailableTools.Length);
@@ -36,8 +32,7 @@ public sealed class RunModeRegistryTests
     }
 
     [Fact]
-    public void Get_Creator_SupportsInspectionAndExperiments()
-    {
+    public void Get_Creator_SupportsInspectionAndExperiments() {
         var desc = RunModeRegistry.Get(RunMode.Creator);
         Assert.Equal("Creator", desc.DisplayName);
         Assert.True(desc.SupportsRuntimeInspection);
@@ -47,15 +42,13 @@ public sealed class RunModeRegistryTests
     }
 
     [Fact]
-    public void List_ReturnsAllFourModes()
-    {
+    public void List_ReturnsAllFourModes() {
         var all = RunModeRegistry.List();
         Assert.Equal(4, all.Count);
     }
 
     [Fact]
-    public void Exists_TrueForAllDefinedModes()
-    {
+    public void Exists_TrueForAllDefinedModes() {
         Assert.True(RunModeRegistry.Exists(RunMode.Standard));
         Assert.True(RunModeRegistry.Exists(RunMode.Code));
         Assert.True(RunModeRegistry.Exists(RunMode.Minimal));
@@ -63,8 +56,7 @@ public sealed class RunModeRegistryTests
     }
 
     [Fact]
-    public void Get_EachMode_ReturnsCorrectDescriptor()
-    {
+    public void Get_EachMode_ReturnsCorrectDescriptor() {
         Assert.Equal(RunMode.Standard, RunModeRegistry.Get(RunMode.Standard).Mode);
         Assert.Equal(RunMode.Code, RunModeRegistry.Get(RunMode.Code).Mode);
         Assert.Equal(RunMode.Minimal, RunModeRegistry.Get(RunMode.Minimal).Mode);
@@ -72,8 +64,7 @@ public sealed class RunModeRegistryTests
     }
 
     [Fact]
-    public void Standard_AndMinimal_ShareShellTool()
-    {
+    public void Standard_AndMinimal_ShareShellTool() {
         var standard = RunModeRegistry.Get(RunMode.Standard);
         var minimal = RunModeRegistry.Get(RunMode.Minimal);
         Assert.Contains("shell", standard.AvailableTools);
@@ -81,12 +72,10 @@ public sealed class RunModeRegistryTests
     }
 
     [Fact]
-    public void Creator_IsSupersetOfStandard()
-    {
+    public void Creator_IsSupersetOfStandard() {
         var creator = RunModeRegistry.Get(RunMode.Creator);
         var standard = RunModeRegistry.Get(RunMode.Standard);
-        foreach (var tool in standard.AvailableTools)
-        {
+        foreach (var tool in standard.AvailableTools) {
             Assert.Contains(tool, creator.AvailableTools);
         }
     }

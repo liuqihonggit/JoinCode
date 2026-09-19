@@ -3,13 +3,11 @@ namespace Sync.Tests.ToolHandlers;
 /// <summary>
 /// GitSubCommand 枚举 + GitToolHandlers 参数构建 单元测试
 /// </summary>
-public sealed class GitToolHandlersTests
-{
+public sealed class GitToolHandlersTests {
     // === GitSubCommand 枚举源码生成器测试 ===
 
     [Fact]
-    public void GitSubCommand_ToValue_AllValues()
-    {
+    public void GitSubCommand_ToValue_AllValues() {
         // 验证每个枚举值映射到正确的字符串
         GitSubCommand.Status.ToValue().Should().Be("status");
         GitSubCommand.Add.ToValue().Should().Be("add");
@@ -30,8 +28,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public void GitSubCommand_FromValue_KnownValues()
-    {
+    public void GitSubCommand_FromValue_KnownValues() {
         // 验证 FromValue 返回正确的枚举值
         GitSubCommandExtensions.FromValue("status").Should().Be(GitSubCommand.Status);
         GitSubCommandExtensions.FromValue("add").Should().Be(GitSubCommand.Add);
@@ -48,16 +45,14 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public void GitSubCommand_FromValue_UnknownValue()
-    {
+    public void GitSubCommand_FromValue_UnknownValue() {
         // 验证未知值返回 null
         GitSubCommandExtensions.FromValue("unknown").Should().BeNull();
         GitSubCommandExtensions.FromValue("not_a_command").Should().BeNull();
     }
 
     [Fact]
-    public void GitSubCommand_FromValue_CaseInsensitive()
-    {
+    public void GitSubCommand_FromValue_CaseInsensitive() {
         // 源码生成器使用 OrdinalIgnoreCase，大小写不敏感匹配
         GitSubCommandExtensions.FromValue("STATUS").Should().Be(GitSubCommand.Status);
         GitSubCommandExtensions.FromValue("Add").Should().Be(GitSubCommand.Add);
@@ -65,15 +60,13 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public void GitSubCommand_AllEnumValues_HaveToValueMapping()
-    {
+    public void GitSubCommand_AllEnumValues_HaveToValueMapping() {
         // 验证所有枚举值都能通过 ToValue 映射到非空字符串
         var allValues = Enum.GetValues<GitSubCommand>();
         allValues.Should().NotBeEmpty();
 
         // 验证每个值都有映射，且与 GitSubCommandEnumConstants 常量一致
-        foreach (var value in allValues)
-        {
+        foreach (var value in allValues) {
             var mapped = value.ToValue();
             mapped.Should().NotBeNullOrEmpty($"枚举值 {value} 应有 ToValue 映射");
         }
@@ -91,8 +84,7 @@ public sealed class GitToolHandlersTests
     private readonly GitToolHandlers _handler = new(new IO.FileSystem.PhysicalFileSystem(), new StubGitCommandRunner());
 
     [Fact]
-    public async Task GitToolHandlers_GitAdd_EmptyPath_ReturnsError()
-    {
+    public async Task GitToolHandlers_GitAdd_EmptyPath_ReturnsError() {
         // 空路径应返回错误
         var result = await _handler.GitAddAsync("", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
@@ -101,8 +93,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public async Task GitToolHandlers_GitAdd_WhitespacePath_ReturnsError()
-    {
+    public async Task GitToolHandlers_GitAdd_WhitespacePath_ReturnsError() {
         // 纯空白路径应返回错误
         var result = await _handler.GitAddAsync("   ", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
@@ -111,8 +102,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public async Task GitToolHandlers_GitCommit_EmptyMessage_ReturnsError()
-    {
+    public async Task GitToolHandlers_GitCommit_EmptyMessage_ReturnsError() {
         // 空提交消息应返回错误
         var result = await _handler.GitCommitAsync("", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
@@ -121,8 +111,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public async Task GitToolHandlers_GitCommit_WhitespaceMessage_ReturnsError()
-    {
+    public async Task GitToolHandlers_GitCommit_WhitespaceMessage_ReturnsError() {
         // 纯空白提交消息应返回错误
         var result = await _handler.GitCommitAsync("   ", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
@@ -131,8 +120,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public async Task GitToolHandlers_GitBranch_EmptyBranchName_ReturnsError()
-    {
+    public async Task GitToolHandlers_GitBranch_EmptyBranchName_ReturnsError() {
         // 空分支名应返回错误
         var result = await _handler.GitBranchAsync("", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
@@ -141,8 +129,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public async Task GitToolHandlers_GitBranch_WhitespaceBranchName_ReturnsError()
-    {
+    public async Task GitToolHandlers_GitBranch_WhitespaceBranchName_ReturnsError() {
         // 纯空白分支名应返回错误
         var result = await _handler.GitBranchAsync("   ", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
@@ -151,8 +138,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public async Task GitToolHandlers_GitClone_EmptyUrl_ReturnsError()
-    {
+    public async Task GitToolHandlers_GitClone_EmptyUrl_ReturnsError() {
         // 空 URL 应返回错误
         var result = await _handler.GitCloneAsync("", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
@@ -161,8 +147,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public async Task GitToolHandlers_GitClone_WhitespaceUrl_ReturnsError()
-    {
+    public async Task GitToolHandlers_GitClone_WhitespaceUrl_ReturnsError() {
         // 纯空白 URL 应返回错误
         var result = await _handler.GitCloneAsync("   ", cancellationToken: CancellationToken.None).ConfigureAwait(true);
 
@@ -176,8 +161,7 @@ public sealed class GitToolHandlersTests
     /// 导致 GitDiffProvider.GetStagedFileNamesAsync 抛 ArgumentException。
     /// </summary>
     [Fact]
-    public async Task GitToolHandlers_GitCommit_EmptyWorkingDir_WithSecurityInterceptor_DoesNotThrow()
-    {
+    public async Task GitToolHandlers_GitCommit_EmptyWorkingDir_WithSecurityInterceptor_DoesNotThrow() {
         var handlerWithInterceptor = new GitToolHandlers(
             new IO.FileSystem.PhysicalFileSystem(),
             new StubGitCommandRunner(),
@@ -192,8 +176,7 @@ public sealed class GitToolHandlersTests
     }
 
     [Fact]
-    public async Task GitToolHandlers_GitCommit_WhitespaceWorkingDir_WithSecurityInterceptor_DoesNotThrow()
-    {
+    public async Task GitToolHandlers_GitCommit_WhitespaceWorkingDir_WithSecurityInterceptor_DoesNotThrow() {
         var handlerWithInterceptor = new GitToolHandlers(
             new IO.FileSystem.PhysicalFileSystem(),
             new StubGitCommandRunner(),
@@ -207,8 +190,7 @@ public sealed class GitToolHandlersTests
         result.IsError.Should().BeFalse();
     }
 
-    private sealed class StubGitCommandRunner : IGitCommandRunner
-    {
+    private sealed class StubGitCommandRunner : IGitCommandRunner {
         public Task<GitCommandResult> ExecuteAsync(string arguments, string? workingDirectory = null, CancellationToken ct = default)
             => Task.FromResult(new GitCommandResult { Success = true, Output = string.Empty, Error = string.Empty, ExitCode = 0 });
 
@@ -223,12 +205,10 @@ public sealed class GitToolHandlersTests
     /// 模拟真实 GitSecurityInterceptor 行为：对空字符串 workingDirectory 抛 ArgumentException，
     /// 对有效路径返回 ScanResult.Safe。
     /// </summary>
-    private sealed class StubGitSecurityInterceptor : IGitSecurityInterceptor
-    {
+    private sealed class StubGitSecurityInterceptor : IGitSecurityInterceptor {
         public int Priority => 0;
 
-        public Task<ScanResult> ScanBeforeCommitAsync(string workingDirectory, CancellationToken ct = default)
-        {
+        public Task<ScanResult> ScanBeforeCommitAsync(string workingDirectory, CancellationToken ct = default) {
             ArgumentException.ThrowIfNullOrWhiteSpace(workingDirectory);
             return Task.FromResult(ScanResult.Safe);
         }

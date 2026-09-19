@@ -3,14 +3,12 @@ namespace JoinCode.Gui.Tests.SlashCommands;
 /// <summary>
 /// SlashCommandRanker 单元测试 — 验证完全匹配优先、权重前置、长度升序、字母序兜底。
 /// </summary>
-public class SlashCommandRankerTests
-{
+public class SlashCommandRankerTests {
     private static SlashCommandItem Item(string name) =>
         new() { Name = name, Description = "" };
 
     [Fact]
-    public void Rank_ExactMatch_GoesFirst()
-    {
+    public void Rank_ExactMatch_GoesFirst() {
         var candidates = new List<SlashCommandItem>
         {
             Item("/apple"),
@@ -24,8 +22,7 @@ public class SlashCommandRankerTests
     }
 
     [Fact]
-    public void Rank_ShorterName_BeforeLonger_WhenNoWeight()
-    {
+    public void Rank_ShorterName_BeforeLonger_WhenNoWeight() {
         var candidates = new List<SlashCommandItem>
         {
             Item("/application"),
@@ -39,8 +36,7 @@ public class SlashCommandRankerTests
     }
 
     [Fact]
-    public void Rank_Weight_PromotesHigherWeight()
-    {
+    public void Rank_Weight_PromotesHigherWeight() {
         var candidates = new List<SlashCommandItem>
         {
             Item("/apple"),
@@ -54,8 +50,7 @@ public class SlashCommandRankerTests
     }
 
     [Fact]
-    public void Rank_ExactMatch_BeatsWeight()
-    {
+    public void Rank_ExactMatch_BeatsWeight() {
         var candidates = new List<SlashCommandItem>
         {
             Item("/apple"),
@@ -69,15 +64,13 @@ public class SlashCommandRankerTests
     }
 
     [Fact]
-    public void Rank_EmptyCandidates_ReturnsEmpty()
-    {
+    public void Rank_EmptyCandidates_ReturnsEmpty() {
         var ranked = SlashCommandRanker.Rank(Array.Empty<SlashCommandItem>(), "/a");
         ranked.Should().BeEmpty();
     }
 
     [Fact]
-    public void Rank_SingleCandidate_ReturnsAsIs()
-    {
+    public void Rank_SingleCandidate_ReturnsAsIs() {
         var single = Item("/apple");
         var ranked = SlashCommandRanker.Rank(new[] { single }, "/a");
         ranked.Should().HaveCount(1);
@@ -85,8 +78,7 @@ public class SlashCommandRankerTests
     }
 
     [Fact]
-    public void Rank_AlphabeticalOrder_AsTiebreaker()
-    {
+    public void Rank_AlphabeticalOrder_AsTiebreaker() {
         var candidates = new List<SlashCommandItem>
         {
             Item("/banana"),
@@ -100,8 +92,7 @@ public class SlashCommandRankerTests
     }
 
     [Fact]
-    public void Rank_NoWeights_FallsBackToLengthThenAlpha()
-    {
+    public void Rank_NoWeights_FallsBackToLengthThenAlpha() {
         var candidates = new List<SlashCommandItem>
         {
             Item("/copy"),

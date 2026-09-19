@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// Brief/System/其他小工具名称枚举
 /// </summary>
-public enum SystemToolName
-{
+public enum SystemToolName {
     [EnumValue("brief_mode")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     BriefMode,

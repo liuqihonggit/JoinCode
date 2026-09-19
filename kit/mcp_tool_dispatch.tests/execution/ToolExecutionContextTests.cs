@@ -1,12 +1,9 @@
 namespace McpToolRegistry.Tests;
 
-public class ToolExecutionContextTests
-{
+public class ToolExecutionContextTests {
     [Fact]
-    public void IsShortCircuited_NoResult_ReturnsFalse()
-    {
-        var context = new ToolExecutionContext
-        {
+    public void IsShortCircuited_NoResult_ReturnsFalse() {
+        var context = new ToolExecutionContext {
             ToolName = "test",
             Arguments = []
         };
@@ -15,14 +12,11 @@ public class ToolExecutionContextTests
     }
 
     [Fact]
-    public void IsShortCircuited_WithResult_ReturnsTrue()
-    {
-        var context = new ToolExecutionContext
-        {
+    public void IsShortCircuited_WithResult_ReturnsTrue() {
+        var context = new ToolExecutionContext {
             ToolName = "test",
             Arguments = [],
-            Result = new ToolResult
-            {
+            Result = new ToolResult {
                 Content = [new ToolContent { Type = ToolContentType.Text, Text = "done" }],
                 IsError = false
             }
@@ -32,10 +26,8 @@ public class ToolExecutionContextTests
     }
 
     [Fact]
-    public void Arguments_CanBeModified()
-    {
-        var context = new ToolExecutionContext
-        {
+    public void Arguments_CanBeModified() {
+        var context = new ToolExecutionContext {
             ToolName = "test",
             Arguments = []
         };
@@ -45,10 +37,8 @@ public class ToolExecutionContextTests
     }
 
     [Fact]
-    public void AgentMode_DefaultsToAuto()
-    {
-        var context = new ToolExecutionContext
-        {
+    public void AgentMode_DefaultsToAuto() {
+        var context = new ToolExecutionContext {
             ToolName = "test",
             Arguments = []
         };

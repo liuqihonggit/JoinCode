@@ -4,8 +4,7 @@ namespace McpToolRegistry;
 /// 远程 MCP 客户端管理器 — 管理远程客户端的注册、注销、同步、重连等生命周期，并通过中间件管道编排同步流程
 /// </summary>
 [Register(typeof(IRemoteClientManager), ServiceLifetime.Singleton)]
-public sealed partial class RemoteClientManager : IRemoteClientManager
-{
+public sealed partial class RemoteClientManager : IRemoteClientManager {
     private const int MaxReconnectAttempts = 5;
     private const int InitialBackoffMs = 2000;
     private const int MaxBackoffMs = 300000;
@@ -44,8 +43,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         McpReconnectAcceptLevel acceptLevel = McpReconnectAcceptLevel.IdentityOnly,
         IEnumerable<IRemoteSyncMiddleware>? syncMiddlewares = null,
         IClockService? clock = null,
-        INetworkConnectivityService? networkService = null)
-    {
+        INetworkConnectivityService? networkService = null) {
         ArgumentNullException.ThrowIfNull(toolRegistry);
         ArgumentNullException.ThrowIfNull(logger);
 
@@ -58,95 +56,73 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         _toolSpecCache = new RemoteToolSpecCache();
         _reconnectCts = new RemoteReconnectCtsRegistry();
 
-        if (syncMiddlewares is not null && loggerFactory is not null)
-        {
+        if (syncMiddlewares is not null && loggerFactory is not null) {
             _syncPipeline = new PipelineBuilder<RemoteSyncContext>()
                 .WithLoggingScope(loggerFactory)
                 .UseRange(syncMiddlewares)
                 .Build();
-        }
-        else if (syncMiddlewares is not null)
-        {
+        } else if (syncMiddlewares is not null) {
             _syncPipeline = new MiddlewarePipeline<RemoteSyncContext>(syncMiddlewares);
         }
     }
 
-    private void OnClientNotificationReceived(string clientId, McpNotificationReceivedEventArgs args)
-    {
+    private void OnClientNotificationReceived(string clientId, McpNotificationReceivedEventArgs args) {
         var method = McpMethodExtensions.FromValue(args.Method);
-        switch (method)
-        {
+        switch (method) {
             case McpMethod.NotificationToolsListChanged:
-                _logger.LogInformation("远程客户端 {ClientId} 发送工具列表变更通知，触发自动同步", clientId);
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var result = await SyncToolsAsync(clientId).ConfigureAwait(false);
+            _logger.LogInformation("远程客户端 {ClientId} 发送工具列表变更通知，触发自动同步", clientId);
+            _ = Task.Run(async () => {
+                try {
+                    var result = await SyncToolsAsync(clientId).ConfigureAwait(false);
 
-                        ToolsListChanged?.Invoke(this, new ToolsListChangedEventArgs
-                        {
-                            ClientId = clientId,
-                            SyncResult = result
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "处理远程客户端 {ClientId} 工具变更通知时同步失败", clientId);
-                    }
-                });
-                break;
+                    ToolsListChanged?.Invoke(this, new ToolsListChangedEventArgs {
+                        ClientId = clientId,
+                        SyncResult = result
+                    });
+                } catch (Exception ex) {
+                    _logger.LogError(ex, "处理远程客户端 {ClientId} 工具变更通知时同步失败", clientId);
+                }
+            });
+            break;
 
             case McpMethod.NotificationResourcesListChanged:
-                _logger.LogInformation("远程客户端 {ClientId} 发送资源列表变更通知，触发自动同步", clientId);
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var result = await SyncResourcesAsync(clientId).ConfigureAwait(false);
+            _logger.LogInformation("远程客户端 {ClientId} 发送资源列表变更通知，触发自动同步", clientId);
+            _ = Task.Run(async () => {
+                try {
+                    var result = await SyncResourcesAsync(clientId).ConfigureAwait(false);
 
-                        ResourcesListChanged?.Invoke(this, new ResourcesListChangedEventArgs
-                        {
-                            ClientId = clientId,
-                            SyncResult = result
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "处理远程客户端 {ClientId} 资源变更通知时同步失败", clientId);
-                    }
-                });
-                break;
+                    ResourcesListChanged?.Invoke(this, new ResourcesListChangedEventArgs {
+                        ClientId = clientId,
+                        SyncResult = result
+                    });
+                } catch (Exception ex) {
+                    _logger.LogError(ex, "处理远程客户端 {ClientId} 资源变更通知时同步失败", clientId);
+                }
+            });
+            break;
 
             case McpMethod.NotificationPromptsListChanged:
-                _logger.LogInformation("远程客户端 {ClientId} 发送提示模板列表变更通知，触发自动同步", clientId);
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        var result = await SyncPromptsAsync(clientId).ConfigureAwait(false);
+            _logger.LogInformation("远程客户端 {ClientId} 发送提示模板列表变更通知，触发自动同步", clientId);
+            _ = Task.Run(async () => {
+                try {
+                    var result = await SyncPromptsAsync(clientId).ConfigureAwait(false);
 
-                        PromptsListChanged?.Invoke(this, new PromptsListChangedEventArgs
-                        {
-                            ClientId = clientId,
-                            SyncResult = result
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "处理远程客户端 {ClientId} 提示模板变更通知时同步失败", clientId);
-                    }
-                });
-                break;
+                    PromptsListChanged?.Invoke(this, new PromptsListChangedEventArgs {
+                        ClientId = clientId,
+                        SyncResult = result
+                    });
+                } catch (Exception ex) {
+                    _logger.LogError(ex, "处理远程客户端 {ClientId} 提示模板变更通知时同步失败", clientId);
+                }
+            });
+            break;
         }
     }
 
-    private void OnClientConnectionLost(string clientId, McpConnectionLostEventArgs args)
-    {
+    private void OnClientConnectionLost(string clientId, McpConnectionLostEventArgs args) {
         _logger.LogWarning("远程客户端 {ClientId} 连接丢失 (Transport={TransportType})", clientId, args.TransportType);
 
-        if (args.TransportType == "stdio")
-        {
+        if (args.TransportType == "stdio") {
             _logger.LogInformation("Stdio 客户端 {ClientId} 不自动重连，标记为断开", clientId);
             return;
         }
@@ -157,71 +133,54 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 等待网络恢复 — 网络不可用时阻塞等待(带 30s 超时),恢复后继续重连
     /// </summary>
-    private async Task WaitForNetworkAsync(CancellationToken ct)
-    {
+    private async Task WaitForNetworkAsync(CancellationToken ct) {
         if (_networkService is null) return;
         if (_networkService.IsNetworkAvailable()) return;
 
         _logger.LogWarning("远程客户端重连:网络不可用,等待恢复...");
 
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) =>
-        {
+        EventHandler<NetworkConnectivityChangedEventArgs> handler = (_, e) => {
             if (e.CurrentState != NetworkConnectivityState.Offline) tcs.TrySetResult(true);
         };
         _networkService.StateChanged += handler;
-        try
-        {
-            if (!_networkService.IsNetworkAvailable())
-            {
+        try {
+            if (!_networkService.IsNetworkAvailable()) {
                 await tcs.Task.WaitAsync(TimeSpan.FromSeconds(30), ct).ConfigureAwait(false);
             }
-        }
-        catch (TimeoutException)
-        {
+        } catch (TimeoutException) {
             _logger.LogWarning("远程客户端重连:等待网络恢复超时(30s),继续重连");
-        }
-        finally
-        {
+        } finally {
             _networkService.StateChanged -= handler;
         }
 
         _logger.LogInformation("远程客户端重连:网络已恢复");
     }
 
-    private async Task ReconnectWithBackoffAsync(string clientId, string transportType)
-    {
+    private async Task ReconnectWithBackoffAsync(string clientId, string transportType) {
         var reconnectCts = _reconnectCts.Setup(clientId);
 
-        try
-        {
-            for (int attempt = 1; attempt <= MaxReconnectAttempts; attempt++)
-            {
+        try {
+            for (var attempt = 1; attempt <= MaxReconnectAttempts; attempt++) {
                 if (reconnectCts.IsCancellationRequested) return;
 
                 _logger.LogInformation(
                     "远程客户端 {ClientId} 重连尝试 {Attempt}/{Max} (Transport={TransportType})",
                     clientId, attempt, MaxReconnectAttempts, transportType);
 
-                try
-                {
+                try {
                     await ReconnectClientAsync(clientId, reconnectCts.Token).ConfigureAwait(false);
 
                     _logger.LogInformation("远程客户端 {ClientId} 重连成功", clientId);
                     return;
-                }
-                catch (OperationCanceledException)
-                {
+                } catch (OperationCanceledException) {
                     return;
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger.LogWarning(ex,
                         "远程客户端 {ClientId} 重连尝试 {Attempt} 失败",
                         clientId, attempt);
 
-                    if (attempt == MaxReconnectAttempts)
-                    {
+                    if (attempt == MaxReconnectAttempts) {
                         _logger.LogError("远程客户端 {ClientId} 在 {Max} 次重连后仍然失败，放弃重连",
                             clientId, MaxReconnectAttempts);
                         return;
@@ -234,36 +193,28 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                     await Task.Delay(backoff.CalculateDelay(attempt - 1), reconnectCts.Token).ConfigureAwait(false);
                 }
             }
-        }
-        finally
-        {
+        } finally {
             _reconnectCts.Cleanup(clientId, reconnectCts);
         }
     }
 
-    private async Task ReconnectClientAsync(string clientId, CancellationToken cancellationToken)
-    {
+    private async Task ReconnectClientAsync(string clientId, CancellationToken cancellationToken) {
         var client = _clients.GetClient(clientId);
 
-        if (client == null)
-        {
+        if (client == null) {
             throw new InvalidOperationException($"[MCP024] 客户端 '{clientId}' 未找到");
         }
 
-        try
-        {
+        try {
             await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogWarning(ex, "RemoteClientManager: Disconnect failed during reconnect for client");
         }
 
         await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
 
         var syncResult = await SyncToolsAsync(clientId, cancellationToken).ConfigureAwait(false);
-        if (!syncResult.Success)
-        {
+        if (!syncResult.Success) {
             _logger.LogWarning("重连后同步工具失败: {Error}", syncResult.ErrorMessage);
         }
     }
@@ -271,13 +222,11 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 注册远程 MCP 客户端（异步）
     /// </summary>
-    public Task RegisterClientAsync(string clientId, IMcpClient client, CancellationToken cancellationToken = default)
-    {
+    public Task RegisterClientAsync(string clientId, IMcpClient client, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
         ArgumentNullException.ThrowIfNull(client);
 
-        if (!_clients.TryAdd(clientId, client))
-        {
+        if (!_clients.TryAdd(clientId, client)) {
             throw new InvalidOperationException($"[MCP025] 远程客户端 '{clientId}' 已注册");
         }
 
@@ -291,12 +240,10 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 注销远程 MCP 客户端
     /// </summary>
-    public async Task<bool> UnregisterClientAsync(string clientId, CancellationToken cancellationToken = default)
-    {
+    public async Task<bool> UnregisterClientAsync(string clientId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
 
-        if (await _clients.TryRemoveAsync(clientId).ConfigureAwait(false))
-        {
+        if (await _clients.TryRemoveAsync(clientId).ConfigureAwait(false)) {
             _toolSpecCache.Remove(clientId);
             _reconnectCts.CancelAndRemove(clientId);
 
@@ -310,8 +257,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 获取远程客户端（异步）
     /// </summary>
-    public Task<IMcpClient?> GetClientAsync(string clientId, CancellationToken cancellationToken = default)
-    {
+    public Task<IMcpClient?> GetClientAsync(string clientId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
         return Task.FromResult(_clients.GetClient(clientId));
     }
@@ -330,24 +276,20 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <returns>工具同步结果</returns>
     public async Task<RemoteToolsSyncResult> SyncToolsAsync(
         string clientId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
 
-        if (_syncPipeline is not null)
-        {
+        if (_syncPipeline is not null) {
             return await SyncToolsViaPipelineAsync(clientId, cancellationToken).ConfigureAwait(false);
         }
 
         return await SyncToolsDirectAsync(clientId, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<RemoteToolsSyncResult> SyncToolsViaPipelineAsync(string clientId, CancellationToken cancellationToken)
-    {
+    private async Task<RemoteToolsSyncResult> SyncToolsViaPipelineAsync(string clientId, CancellationToken cancellationToken) {
         var (client, previousSpecs) = GetClientAndSpecs(clientId);
 
-        var ctx = new RemoteSyncContext
-        {
+        var ctx = new RemoteSyncContext {
             ClientId = clientId,
             Operation = RemoteSyncOperation.Tools,
             AcceptLevel = _acceptLevel,
@@ -357,21 +299,18 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         };
 
         var pipeline = _syncPipeline;
-        if (pipeline is not null)
-        {
+        if (pipeline is not null) {
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
-        if (ctx.SyncedNames.Count > 0)
-        {
+        if (ctx.SyncedNames.Count > 0) {
             var newSpecs = ctx.ToolsResult?.GetData()
                 .Select(t => new ToolSpec(
                     McpNameNormalizer.BuildMcpToolName(clientId, t.Name),
                     t.Description,
                     t.InputSchema?.ToString()))
                 .ToList();
-            if (newSpecs is not null)
-            {
+            if (newSpecs is not null) {
                 _toolSpecCache.Update(clientId, newSpecs);
             }
         }
@@ -385,21 +324,17 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     }
 
     private async Task<RemoteToolsSyncResult> SyncToolsDirectAsync(
-        string clientId, CancellationToken cancellationToken)
-    {
+        string clientId, CancellationToken cancellationToken) {
         var (client, previousSpecs) = GetClientAndSpecs(clientId);
 
-        if (client == null)
-        {
+        if (client == null) {
             return new RemoteToolsSyncResult(false, Array.Empty<string>(), $"'{'\''}{clientId}{'\''} 未找到");
         }
 
-        try
-        {
+        try {
             var toolsResult = await client.ListToolsAsync(cancellationToken);
 
-            if (!toolsResult.Success)
-            {
+            if (!toolsResult.Success) {
                 return new RemoteToolsSyncResult(false, Array.Empty<string>(), toolsResult.ErrorMessage);
             }
 
@@ -412,23 +347,20 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
 
             ToolDriftReport? driftReport = null;
             McpReconnectResult? reconnectResult = null;
-            if (previousSpecs is { Count: > 0 })
-            {
+            if (previousSpecs is { Count: > 0 }) {
                 driftReport = ToolListDriftClassifier.Classify(previousSpecs, newSpecs);
                 _logger.LogInformation(
                     "远程客户端 {ClientId} 工具漂移检测: {DriftKind} - {Summary}",
                     clientId, driftReport.Kind, driftReport.Summary);
 
-                if (!driftReport.IsCacheSafe)
-                {
+                if (!driftReport.IsCacheSafe) {
                     _logger.LogWarning(
                         "远程客户端 {ClientId} 检测到缓存不安全漂移: {DriftKind}，前缀缓存可能失效",
                         clientId, driftReport.Kind);
                 }
 
                 reconnectResult = McpReconnectPolicy.Decide(driftReport, _acceptLevel);
-                if (!reconnectResult.Accepted)
-                {
+                if (!reconnectResult.Accepted) {
                     _logger.LogWarning(
                         "远程客户端 {ClientId} 重连策略拒绝同步: {Reason}",
                         clientId, reconnectResult.Reason);
@@ -440,8 +372,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
             }
 
             var toolItems = toolsResult.GetData()
-                .Select(tool =>
-                {
+                .Select(tool => {
                     var remoteToolHandler = new RemoteMcpToolDispatch(clientId, client, tool);
                     var fullToolName = McpNameNormalizer.BuildMcpToolName(clientId, tool.Name);
                     return (FullToolName: fullToolName, Handler: remoteToolHandler);
@@ -458,9 +389,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 toolItems.Count);
 
             return new RemoteToolsSyncResult(true, toolItems.Select(t => t.FullToolName).ToList(), DriftReport: driftReport, ReconnectResult: reconnectResult);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "从远程客户端 {ClientId} 同步工具失败", clientId);
             return new RemoteToolsSyncResult(false, Array.Empty<string>(), ex.Message);
         }
@@ -475,24 +404,20 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// </summary>
     public async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesAsync(
         string clientId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
 
-        if (_syncPipeline is not null)
-        {
+        if (_syncPipeline is not null) {
             return await SyncResourcesViaPipelineAsync(clientId, cancellationToken).ConfigureAwait(false);
         }
 
         return await SyncResourcesDirectAsync(clientId, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesViaPipelineAsync(string clientId, CancellationToken cancellationToken)
-    {
+    private async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesViaPipelineAsync(string clientId, CancellationToken cancellationToken) {
         var client = _clients.GetClient(clientId);
 
-        var ctx = new RemoteSyncContext
-        {
+        var ctx = new RemoteSyncContext {
             ClientId = clientId,
             Operation = RemoteSyncOperation.Resources,
             CancellationToken = cancellationToken,
@@ -500,8 +425,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         };
 
         var pipeline = _syncPipeline;
-        if (pipeline is not null)
-        {
+        if (pipeline is not null) {
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
@@ -511,21 +435,17 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     }
 
     private async Task<OperationResult<IReadOnlyList<string>>> SyncResourcesDirectAsync(
-        string clientId, CancellationToken cancellationToken)
-    {
+        string clientId, CancellationToken cancellationToken) {
         var client = _clients.GetClient(clientId);
 
-        if (client == null)
-        {
+        if (client == null) {
             return OperationResult<IReadOnlyList<string>>.Fail($"客户端 '{clientId}' 未找到");
         }
 
-        try
-        {
+        try {
             var resourcesResult = await client.ListResourcesAsync(cancellationToken);
 
-            if (!resourcesResult.Success)
-            {
+            if (!resourcesResult.Success) {
                 return OperationResult<IReadOnlyList<string>>.Fail(resourcesResult.ErrorMessage ?? "Unknown error");
             }
 
@@ -539,9 +459,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 resourceUris.Count);
 
             return OperationResult<IReadOnlyList<string>>.Ok(resourceUris);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "从远程客户端 {ClientId} 同步资源失败", clientId);
             return OperationResult<IReadOnlyList<string>>.Fail(ex.Message);
         }
@@ -552,24 +470,20 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// </summary>
     public async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsAsync(
         string clientId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrEmpty(clientId);
 
-        if (_syncPipeline is not null)
-        {
+        if (_syncPipeline is not null) {
             return await SyncPromptsViaPipelineAsync(clientId, cancellationToken).ConfigureAwait(false);
         }
 
         return await SyncPromptsDirectAsync(clientId, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsViaPipelineAsync(string clientId, CancellationToken cancellationToken)
-    {
+    private async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsViaPipelineAsync(string clientId, CancellationToken cancellationToken) {
         var client = _clients.GetClient(clientId);
 
-        var ctx = new RemoteSyncContext
-        {
+        var ctx = new RemoteSyncContext {
             ClientId = clientId,
             Operation = RemoteSyncOperation.Prompts,
             CancellationToken = cancellationToken,
@@ -577,8 +491,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
         };
 
         var pipeline = _syncPipeline;
-        if (pipeline is not null)
-        {
+        if (pipeline is not null) {
             await pipeline.ExecuteAsync(ctx, cancellationToken).ConfigureAwait(false);
         }
 
@@ -588,21 +501,17 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     }
 
     private async Task<OperationResult<IReadOnlyList<string>>> SyncPromptsDirectAsync(
-        string clientId, CancellationToken cancellationToken)
-    {
+        string clientId, CancellationToken cancellationToken) {
         var client = _clients.GetClient(clientId);
 
-        if (client == null)
-        {
+        if (client == null) {
             return OperationResult<IReadOnlyList<string>>.Fail($"客户端 '{clientId}' 未找到");
         }
 
-        try
-        {
+        try {
             var promptsResult = await client.ListPromptsAsync(cancellationToken);
 
-            if (!promptsResult.Success)
-            {
+            if (!promptsResult.Success) {
                 return OperationResult<IReadOnlyList<string>>.Fail(promptsResult.ErrorMessage ?? "Unknown error");
             }
 
@@ -616,9 +525,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
                 promptNames.Count);
 
             return OperationResult<IReadOnlyList<string>>.Ok(promptNames);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger.LogError(ex, "从远程客户端 {ClientId} 同步提示模板失败", clientId);
             return OperationResult<IReadOnlyList<string>>.Fail(ex.Message);
         }
@@ -633,8 +540,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 清除所有远程客户端
     /// </summary>
-    public async Task ClearAllClientsAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task ClearAllClientsAsync(CancellationToken cancellationToken = default) {
         await _clients.ClearAllAsync().ConfigureAwait(false);
         _toolSpecCache.Clear();
         _logger.LogInformation("所有远程 MCP 客户端已清除");
@@ -643,8 +549,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 清除缓存（工具规格缓存等）
     /// </summary>
-    public void ClearCache()
-    {
+    public void ClearCache() {
         _toolSpecCache.Clear();
         _logger.LogDebug("RemoteClientManager cache cleared");
     }
@@ -652,8 +557,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager
     /// <summary>
     /// 异步释放资源 — 释放所有远程客户端及重连令牌
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         _reconnectCts.CancelAll();

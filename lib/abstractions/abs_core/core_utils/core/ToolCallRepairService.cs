@@ -1,14 +1,12 @@
 namespace JoinCode.Abstractions.Utils;
 
-public sealed class ToolCallRepairResult
-{
+public sealed class ToolCallRepairResult {
     public required bool Success { get; init; }
     public required string RepairedJson { get; init; }
     public string? RepairHint { get; init; }
 }
 
-public sealed class ArgumentRepairResult
-{
+public sealed class ArgumentRepairResult {
     public required Dictionary<string, JsonElement> RepairedArguments { get; init; }
     public string? RepairHint { get; init; }
 }
@@ -21,8 +19,7 @@ public sealed class ArgumentRepairResult
 /// <para>ToolNameResolver: 工具名归一化/推荐</para>
 /// <para>ShellCallExampleBuilder: Shell 调用示例生成</para>
 /// </summary>
-internal static class ToolCallRepairService
-{
+internal static class ToolCallRepairService {
     /// <summary>
     /// 修复 LLM 生成的非法 JSON — 委托给 JsonRepairPipeline
     /// </summary>
@@ -35,8 +32,7 @@ internal static class ToolCallRepairService
     public static ArgumentRepairResult RepairArguments(
         string toolName,
         Dictionary<string, JsonElement> arguments,
-        ToolSchema? schema)
-    {
+        ToolSchema? schema) {
         if (arguments is null || arguments.Count == 0)
             return new ArgumentRepairResult { RepairedArguments = arguments ?? new Dictionary<string, JsonElement>() };
 
@@ -48,23 +44,20 @@ internal static class ToolCallRepairService
         var modified = false;
 
         var nameRepairs = ParameterNameRepairer.RepairParameterNames(arguments, schema);
-        if (nameRepairs.Modified)
-        {
+        if (nameRepairs.Modified) {
             repaired = nameRepairs.Arguments;
             hints.Add(nameRepairs.Hint ?? "Parameter names repaired");
             modified = true;
         }
 
         var typeRepairs = ArgumentTypeCoercer.RepairArgumentTypes(repaired, schema);
-        if (typeRepairs.Modified)
-        {
+        if (typeRepairs.Modified) {
             repaired = typeRepairs.Arguments;
             hints.Add(typeRepairs.Hint ?? "Argument types repaired");
             modified = true;
         }
 
-        return new ArgumentRepairResult
-        {
+        return new ArgumentRepairResult {
             RepairedArguments = modified ? repaired : arguments,
             RepairHint = hints.Count > 0 ? string.Join("; ", hints) : null
         };

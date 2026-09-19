@@ -1,56 +1,48 @@
 namespace Host.Tests.ChatCommands;
 
-public sealed class UsageCommandTests
-{
+public sealed class UsageCommandTests {
     [Fact]
-    public void Name_Should_Be_usage()
-    {
+    public void Name_Should_Be_usage() {
         var cmd = new UsageCommand();
         cmd.Name.Should().Be("usage");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new UsageCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Be_exact()
-    {
+    public void Usage_Should_Be_exact() {
         var cmd = new UsageCommand();
         cmd.Usage.Should().Be("/usage");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new UsageCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public void Aliases_Should_Contain_rate_limit()
-    {
+    public void Aliases_Should_Contain_rate_limit() {
         var cmd = new UsageCommand();
         cmd.Aliases.Should().Contain("rate-limit");
     }
 
     [Fact]
-    public async Task Execute_Should_Return_Continue()
-    {
+    public async Task Execute_Should_Return_Continue() {
         var cmd = new UsageCommand();
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);
@@ -60,13 +52,11 @@ public sealed class UsageCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithUsageTracker_Should_Show_Token_Stats()
-    {
+    public async Task Execute_WithUsageTracker_Should_Show_Token_Stats() {
         var cmd = new UsageCommand();
         var usageTracker = new Mock<IUsageTracker>();
         usageTracker.Setup(ut => ut.GetTodayStatistics())
-            .Returns(new TokenUsageStatistics
-            {
+            .Returns(new TokenUsageStatistics {
                 TotalInputTokens = 5000,
                 TotalOutputTokens = 2000,
                 TotalRequests = 3,
@@ -75,14 +65,13 @@ public sealed class UsageCommandTests
         var context = new ChatCommandContext {
             Arguments = "",
             CancellationToken = CancellationToken.None,
-             Services = new CommandServiceProvider(new CommandServices
-             {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
                 UsageTracker = usageTracker.Object,
-             FileSystem = TestFileSystem.Current,
-             }),
+                FileSystem = TestFileSystem.Current,
+            }),
         };
 
         var result = await cmd.ExecuteAsync(context).ConfigureAwait(true);

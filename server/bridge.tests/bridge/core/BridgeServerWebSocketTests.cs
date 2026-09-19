@@ -7,15 +7,13 @@ namespace Bridge.Tests;
 /// 标记为 Integration 类别，避免拖慢快速测试
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class BridgeServerWebSocketTests : IAsyncDisposable
-{
+public sealed class BridgeServerWebSocketTests : IAsyncDisposable {
     private readonly int _port;
     private readonly BridgeServer _server;
     private readonly CancellationTokenSource _cts = new(TimeSpan.FromSeconds(10));
     private bool _disposed;
 
-    public BridgeServerWebSocketTests()
-    {
+    public BridgeServerWebSocketTests() {
         // 选择一个不太可能冲突的端口（避开 3456 默认端口与常用端口）
         _port = Random.Shared.Next(8800, 9800);
         _server = new BridgeServer(
@@ -25,28 +23,23 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
             actuatorRegistry: CreateShellServiceMock().Object,
             ideService: CreateIdeServiceMock().Object);
         // 守卫：Start() 端口绑定失败时抛 HttpListenerException，提供诊断信息
-        try { _server.Start(); }
-        catch (Exception ex) { throw new InvalidOperationException($"[UTU005] BridgeServer.Start() failed on port {_port}: {ex.Message}", ex); }
+        try { _server.Start(); } catch (Exception ex) { throw new InvalidOperationException($"[UTU005] BridgeServer.Start() failed on port {_port}: {ex.Message}", ex); }
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
-        try { await _server.StopAsync(CancellationToken.None); }
-        catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose server failed: {ex.Message}"); }
+        try { await _server.StopAsync(CancellationToken.None); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose server failed: {ex.Message}"); }
         _cts.DisposeSafe();
     }
 
-    private static Mock<IFileOperationService> CreateFileOpMock()
-    {
+    private static Mock<IFileOperationService> CreateFileOpMock() {
         var mock = new Mock<IFileOperationService>();
         mock.Setup(f => f.FileExists(It.IsAny<string>())).Returns(false);
         return mock;
     }
 
-    private static Mock<ISystemActuatorRegistry> CreateShellServiceMock()
-    {
+    private static Mock<ISystemActuatorRegistry> CreateShellServiceMock() {
         var actuatorMock = new Mock<ISystemActuator>();
         actuatorMock.Setup(s => s.ExecuteAsync(
                 It.Is<string>(c => c == "echo hello"),
@@ -54,8 +47,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
                 It.IsAny<string?>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SystemActuatorExecutionResult
-            {
+            .ReturnsAsync(new SystemActuatorExecutionResult {
                 Stdout = "hello",
                 Stderr = "",
                 ExitCode = 0
@@ -66,8 +58,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
                 It.IsAny<string?>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SystemActuatorExecutionResult
-            {
+            .ReturnsAsync(new SystemActuatorExecutionResult {
                 Stdout = "",
                 Stderr = "command not found",
                 ExitCode = 127
@@ -77,8 +68,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
         return registryMock;
     }
 
-    private static Mock<IIdeIntegrationService> CreateIdeServiceMock()
-    {
+    private static Mock<IIdeIntegrationService> CreateIdeServiceMock() {
         var mock = new Mock<IIdeIntegrationService>();
         mock.Setup(i => i.SetSelectionAsync(
                 It.IsAny<string>(),
@@ -91,8 +81,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
         return mock;
     }
 
-    private async Task<BridgeServerMessage> SendAndReceiveAsync(BridgeServerMessage request)
-    {
+    private async Task<BridgeServerMessage> SendAndReceiveAsync(BridgeServerMessage request) {
         using var client = new ClientWebSocket();
         await client.ConnectAsync(new Uri($"ws://localhost:{_port}/"), _cts.Token).ConfigureAwait(true);
 
@@ -107,8 +96,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
         var connectedJson = Encoding.UTF8.GetString(buffer, 0, received.Count);
 
         // 如果第一帧就是响应（比如 connected 直接被合并），尝试解析
-        if (JsonDocument.Parse(connectedJson).RootElement.GetProperty("type").GetString() == "connected")
-        {
+        if (JsonDocument.Parse(connectedJson).RootElement.GetProperty("type").GetString() == "connected") {
             received = await client.ReceiveAsync(buffer, _cts.Token).ConfigureAwait(true);
             received.MessageType.Should().Be(WebSocketMessageType.Text);
             var responseJson = Encoding.UTF8.GetString(buffer, 0, received.Count);
@@ -124,11 +112,9 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
     /// 用例1: executeCommand "echo hello" 应返回 success=true, output="hello", exitCode=0
     /// </summary>
     [Fact]
-    public async Task WebSocket_ExecuteCommand_EchoHello_ShouldReturnSuccessWithOutput()
-    {
+    public async Task WebSocket_ExecuteCommand_EchoHello_ShouldReturnSuccessWithOutput() {
         // Arrange
-        var request = new BridgeServerMessage
-        {
+        var request = new BridgeServerMessage {
             Type = "executeCommand",
             Data = JsonDocument.Parse("""{"command":"echo hello"}""").RootElement
         };
@@ -150,11 +136,9 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
     /// 用例2: executeCommand 无效命令应返回 success=false, exitCode!=0, error 非空
     /// </summary>
     [Fact]
-    public async Task WebSocket_ExecuteCommand_InvalidCommand_ShouldReturnFailureWithStdError()
-    {
+    public async Task WebSocket_ExecuteCommand_InvalidCommand_ShouldReturnFailureWithStdError() {
         // Arrange
-        var request = new BridgeServerMessage
-        {
+        var request = new BridgeServerMessage {
             Type = "executeCommand",
             Data = JsonDocument.Parse("""{"command":"nonexistent-cmd-xxx"}""").RootElement
         };
@@ -175,11 +159,9 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
     /// 用例3: setSelection 有效文件+选区 应返回 success=true
     /// </summary>
     [Fact]
-    public async Task WebSocket_SetSelection_WithIdeConnected_ShouldSucceed()
-    {
+    public async Task WebSocket_SetSelection_WithIdeConnected_ShouldSucceed() {
         // Arrange
-        var request = new BridgeServerMessage
-        {
+        var request = new BridgeServerMessage {
             Type = "setSelection",
             Data = JsonDocument.Parse("""{"file":"test.cs","startLine":5,"startCol":1,"endLine":5,"endCol":10}""").RootElement
         };
@@ -198,8 +180,7 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
     /// 用例4: 无 IDE 服务注入时 setSelection 应返回 success=false, error 包含 IDE
     /// </summary>
     [Fact]
-    public async Task WebSocket_SetSelection_WithoutIdeService_ShouldReturnFailure()
-    {
+    public async Task WebSocket_SetSelection_WithoutIdeService_ShouldReturnFailure() {
         // Arrange — 启动一个无 IDE 服务的 BridgeServer 实例
         var port = Random.Shared.Next(9800, 9999);
         using var serverNoIde = new BridgeServer(
@@ -209,12 +190,10 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
             actuatorRegistry: CreateShellServiceMock().Object,
             ideService: null);
         // 守卫：Start() 端口绑定失败时抛异常，提供诊断信息
-        try { serverNoIde.Start(); }
-        catch (Exception ex) { throw new InvalidOperationException($"[UTU006] BridgeServer.Start() failed on port {port}: {ex.Message}", ex); }
+        try { serverNoIde.Start(); } catch (Exception ex) { throw new InvalidOperationException($"[UTU006] BridgeServer.Start() failed on port {port}: {ex.Message}", ex); }
         // 守卫：StopAsync 可能卡住，5 秒超时保护
         using var stopCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        try
-        {
+        try {
             using var client = new ClientWebSocket();
             await client.ConnectAsync(new Uri($"ws://localhost:{port}/"), _cts.Token).ConfigureAwait(true);
 
@@ -239,11 +218,8 @@ public sealed class BridgeServerWebSocketTests : IAsyncDisposable
             data!.Success.Should().BeFalse();
             data.Error.Should().NotBeNullOrEmpty();
             data.Error.Should().Contain("IDE");
-        }
-        finally
-        {
-            try { await serverNoIde.StopAsync(stopCts.Token).ConfigureAwait(true); }
-            catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose serverNoIde failed: {ex.Message}"); }
+        } finally {
+            try { await serverNoIde.StopAsync(stopCts.Token).ConfigureAwait(true); } catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"Dispose serverNoIde failed: {ex.Message}"); }
         }
     }
 }

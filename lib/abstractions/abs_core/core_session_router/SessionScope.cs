@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// 内部结构: map&lt;ObjectId, Entity&gt; 实际存储 + map&lt;ObjectType, HashSet&lt;ObjectId&gt;&gt; 类型分桶索引
 /// 会话 Dispose 时清理其所有 Entity
 /// </summary>
-public sealed class SessionScope : IDisposable
-{
+public sealed class SessionScope : IDisposable {
     private readonly ConcurrentDictionary<ObjectId, Entity> _entities = new();
     private readonly ConcurrentDictionary<ObjectType, HashSet<ObjectId>> _typeIndex = new();
     private readonly AsyncLock _indexLock = new("SessionScope");
@@ -28,8 +27,7 @@ public sealed class SessionScope : IDisposable
     /// <summary>Dispose 期间失败的 Entity 数量 — 诊断用，0 表示全部成功</summary>
     public int DisposeFailures => _disposeFailures;
 
-    internal SessionScope(ObjectId sessionId)
-    {
+    internal SessionScope(ObjectId sessionId) {
         if (sessionId.IsEmpty)
             throw new ArgumentException("SessionId 不能为空", nameof(sessionId));
         SessionId = sessionId;
@@ -39,8 +37,7 @@ public sealed class SessionScope : IDisposable
     /// <summary>
     /// 注册 Entity 到此会话作用域 — 已存在则不覆盖
     /// </summary>
-    public void Register(Entity entity)
-    {
+    public void Register(Entity entity) {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(entity);
         if (!_entities.TryAdd(entity.ObjectId, entity)) return;
@@ -50,8 +47,7 @@ public sealed class SessionScope : IDisposable
     /// <summary>
     /// 注销 Entity — 返回是否移除成功
     /// </summary>
-    public bool Unregister(ObjectId entityId)
-    {
+    public bool Unregister(ObjectId entityId) {
         if (!_entities.TryRemove(entityId, out var entity)) return false;
         RemoveFromTypeIndex(entity);
         return true;
@@ -79,11 +75,9 @@ public sealed class SessionScope : IDisposable
     /// <summary>
     /// 按 ObjectType 分桶获取 — O(1) 索引查找，对应注册工厂 map(ObjectType -&gt; HashSet of ObjectId)
     /// </summary>
-    public IEnumerable<Entity> GetAll(ObjectType type)
-    {
+    public IEnumerable<Entity> GetAll(ObjectType type) {
         if (!_typeIndex.TryGetValue(type, out var ids)) yield break;
-        foreach (var id in ids)
-        {
+        foreach (var id in ids) {
             if (_entities.TryGetValue(id, out var e))
                 yield return e;
         }
@@ -92,11 +86,9 @@ public sealed class SessionScope : IDisposable
     /// <summary>
     /// 按 CLR 类型获取所有 — 遍历过滤，调用方友好
     /// </summary>
-    public IReadOnlyList<T> GetAll<T>() where T : Entity
-    {
+    public IReadOnlyList<T> GetAll<T>() where T : Entity {
         var result = new List<T>();
-        foreach (var entity in _entities.Values)
-        {
+        foreach (var entity in _entities.Values) {
             if (entity is T typed)
                 result.Add(typed);
         }
@@ -107,17 +99,14 @@ public sealed class SessionScope : IDisposable
     /// 释放此会话作用域 — Dispose 所有注册的 Entity，清空索引
     /// 单个 Entity Dispose 失败不中断其他 Entity 清理，失败计数记录到 DisposeFailures
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
 
         Cache.Clear();
 
-        foreach (var entity in _entities.Values)
-        {
-            try { entity.Dispose(); }
-            catch (Exception) { Interlocked.Increment(ref _disposeFailures); }
+        foreach (var entity in _entities.Values) {
+            try { entity.Dispose(); } catch (Exception) { Interlocked.Increment(ref _disposeFailures); }
         }
 
         _entities.Clear();
@@ -125,23 +114,18 @@ public sealed class SessionScope : IDisposable
         _indexLock.Dispose();
     }
 
-    private void AddToTypeIndex(Entity entity)
-    {
+    private void AddToTypeIndex(Entity entity) {
         var type = entity.ObjectId.Type;
         var set = _typeIndex.GetOrAdd(type, _ => new HashSet<ObjectId>());
-        using (_indexLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时"))
-        {
+        using (_indexLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时")) {
             set.Add(entity.ObjectId);
         }
     }
 
-    private void RemoveFromTypeIndex(Entity entity)
-    {
+    private void RemoveFromTypeIndex(Entity entity) {
         var type = entity.ObjectId.Type;
-        if (_typeIndex.TryGetValue(type, out var set))
-        {
-            using (_indexLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时"))
-            {
+        if (_typeIndex.TryGetValue(type, out var set)) {
+            using (_indexLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_indexLock.Name}' 等待超时")) {
                 set.Remove(entity.ObjectId);
             }
         }

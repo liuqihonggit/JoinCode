@@ -7,22 +7,19 @@ namespace JoinCode.ChatCommands;
 /// </summary>
 [ChatCommand(Name = ChatCommandNameEnumConstants.Stats, Description = "查看会话统计", Usage = "/stats [--today|--total|--7d|--30d|--all|--session]", Category = ChatCommandCategory.Info, Aliases = ["stat"], ExposeToMcp = true)]
 [ChatCommandArg("scope", Type = "string", Description = "统计范围: today=今日, total=累计, session=当前会话, 7d=近7天, 30d=近30天, all=全部", Enum = new[] { "today", "total", "7d", "30d", "all", "session" }, Default = "today")]
-public sealed class StatsCommand : ChatCommandBase
-{
+public sealed class StatsCommand : ChatCommandBase {
     private readonly IClockService _clock = SystemClockService.Instance;
     /// <summary>
     /// 执行统计命令,根据 scope 参数选择今日/累计/会话/7天/30天/全部统计模式并渲染输出
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、会话 ID 与命令服务</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var scope = args.Length > 0 ? args[0].ToLowerInvariant().TrimStart('-') : "today";
 
         // 跨会话统计模式 — 对齐 TS Stats.tsx aggregateJoinCodeStatsForRange
-        if (scope is "7d" or "30d" or "all")
-        {
+        if (scope is "7d" or "30d" or "all") {
             await ShowCrossSessionStatsAsync(context, scope).ConfigureAwait(false);
             return ChatCommandResult.Continue();
         }
@@ -30,10 +27,8 @@ public sealed class StatsCommand : ChatCommandBase
         // 回退到 UsageTracker 模式
         var usageTracker = context.GetCommandServices().UsageTracker;
 
-        if (usageTracker is null)
-        {
-            var fallbackData = new StatsData
-            {
+        if (usageTracker is null) {
+            var fallbackData = new StatsData {
                 TotalSessions = 1,
                 ActiveDays = 1,
             };
@@ -42,15 +37,13 @@ public sealed class StatsCommand : ChatCommandBase
             return ChatCommandResult.Continue();
         }
 
-        TokenUsageStatistics stats = scope switch
-        {
+        var stats = scope switch {
             "total" => usageTracker.GetTotalStatistics(),
             "session" => usageTracker.GetSessionStatistics(context.SessionId),
             _ => usageTracker.GetTodayStatistics()
         };
 
-        if (stats is null)
-        {
+        if (stats is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}  暂无统计数据{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
@@ -59,8 +52,7 @@ public sealed class StatsCommand : ChatCommandBase
 
         TerminalHelper.WriteLine(new StatsRenderer().Render(data));
 
-        if (stats is not null && (stats.TotalCacheCreationTokens > 0 || stats.TotalCacheReadTokens > 0))
-        {
+        if (stats is not null && (stats.TotalCacheCreationTokens > 0 || stats.TotalCacheReadTokens > 0)) {
             TerminalHelper.WriteLine($"{TerminalColors.Muted}  缓存创建: {stats.TotalCacheCreationTokens:N0}, 缓存读取: {stats.TotalCacheReadTokens:N0}{AnsiStyleEnumConstants.Reset}");
         }
 
@@ -71,11 +63,9 @@ public sealed class StatsCommand : ChatCommandBase
     /// 跨会话统计 — 对齐 TS Stats.tsx OverviewTab
     /// 包含：活动热力图、Streaks、PeakActivity、FunFactoid、FavoriteModel
     /// </summary>
-    private async Task ShowCrossSessionStatsAsync(ChatCommandContext context, string scope)
-    {
+    private async Task ShowCrossSessionStatsAsync(ChatCommandContext context, string scope) {
         var scanner = ChatCommandBase.GetService<IInsightSessionScanner>(context);
-        if (scanner is null)
-        {
+        if (scanner is null) {
             TerminalHelper.WriteLine("会话扫描服务不可用，无法获取跨会话统计。");
             TerminalHelper.WriteLine("使用 /stats --today 查看今日统计。");
             return;
@@ -84,12 +74,10 @@ public sealed class StatsCommand : ChatCommandBase
         TerminalHelper.WriteLine("正在扫描会话文件...");
         TerminalHelper.NewLine();
 
-        try
-        {
+        try {
             var sessions = await scanner.ScanAllSessionsAsync(context.CancellationToken).ConfigureAwait(false);
 
-            if (sessions.Count == 0)
-            {
+            if (sessions.Count == 0) {
                 TerminalHelper.WriteLine("未找到会话记录。开始使用以解锁统计数据！");
                 return;
             }
@@ -100,13 +88,9 @@ public sealed class StatsCommand : ChatCommandBase
 
             // 渲染输出 — 对齐 TS OverviewTab
             await RenderOverviewAsync(aggregated, scope).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             TerminalHelper.WriteLine("扫描已取消。");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             TerminalHelper.WriteLine($"扫描会话失败: {ex.Message}");
             TerminalHelper.WriteLine("使用 /stats --today 查看今日统计。");
         }
@@ -115,12 +99,10 @@ public sealed class StatsCommand : ChatCommandBase
     /// <summary>
     /// 按日期范围过滤会话 — 对齐 TS StatsDateRange: 7d/30d/all
     /// </summary>
-    private IReadOnlyList<InsightSessionMeta> FilterByDateRange(IReadOnlyList<InsightSessionMeta> sessions, string scope)
-    {
+    private IReadOnlyList<InsightSessionMeta> FilterByDateRange(IReadOnlyList<InsightSessionMeta> sessions, string scope) {
         if (scope == "all") return sessions;
 
-        var cutoff = scope switch
-        {
+        var cutoff = scope switch {
             "7d" => _clock.GetUtcNow().AddDays(-7),
             "30d" => _clock.GetUtcNow().AddDays(-30),
             _ => DateTime.MinValue
@@ -129,10 +111,8 @@ public sealed class StatsCommand : ChatCommandBase
         if (cutoff == DateTime.MinValue) return sessions;
 
         var result = new List<InsightSessionMeta>();
-        foreach (var s in sessions)
-        {
-            if (s.StartTime != default && s.StartTime >= cutoff)
-            {
+        foreach (var s in sessions) {
+            if (s.StartTime != default && s.StartTime >= cutoff) {
                 result.Add(s);
             }
         }
@@ -143,10 +123,8 @@ public sealed class StatsCommand : ChatCommandBase
     /// <summary>
     /// 渲染 Overview — 对齐 TS Stats.tsx OverviewTab 布局
     /// </summary>
-    private async Task RenderOverviewAsync(AggregatedInsightData data, string scope)
-    {
-        var rangeLabel = scope switch
-        {
+    private async Task RenderOverviewAsync(AggregatedInsightData data, string scope) {
+        var rangeLabel = scope switch {
             "7d" => "Last 7 days",
             "30d" => "Last 30 days",
             "all" => "All time",
@@ -158,15 +136,13 @@ public sealed class StatsCommand : ChatCommandBase
         overviewContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Stats — {rangeLabel}{AnsiStyleEnumConstants.Reset}");
         overviewContent.AppendLine();
 
-        if (data.DailyActivities.Count > 0)
-        {
+        if (data.DailyActivities.Count > 0) {
             var heatmap = TerminalCharts.ActivityHeatmap(data.DailyActivities, title: "Activity Heatmap");
             overviewContent.AppendLine(heatmap);
             overviewContent.AppendLine();
         }
 
-        if (!string.IsNullOrEmpty(data.FavoriteModel))
-        {
+        if (!string.IsNullOrEmpty(data.FavoriteModel)) {
             overviewContent.Append(TerminalColors.Muted);
             overviewContent.Append("  Favorite model: ");
             overviewContent.Append(AnsiStyleEnumConstants.Reset);
@@ -178,16 +154,14 @@ public sealed class StatsCommand : ChatCommandBase
         overviewContent.Append(AnsiStyleEnumConstants.Reset);
         overviewContent.AppendLine(NumberFormatter.FormatCompact(data.TotalSessions));
 
-        if (data.TotalDurationHours > 0)
-        {
+        if (data.TotalDurationHours > 0) {
             overviewContent.Append(TerminalColors.Muted);
             overviewContent.Append("  Total duration: ");
             overviewContent.Append(AnsiStyleEnumConstants.Reset);
             overviewContent.AppendLine($"{data.TotalDurationHours:F1}h");
         }
 
-        var rangeDays = scope switch
-        {
+        var rangeDays = scope switch {
             "7d" => 7,
             "30d" => 30,
             _ => data.DaysActive
@@ -205,8 +179,7 @@ public sealed class StatsCommand : ChatCommandBase
         overviewContent.Append($"{AnsiStyleEnumConstants.Bold}{data.LongestStreak}{AnsiStyleEnumConstants.Reset}");
         overviewContent.AppendLine(data.LongestStreak == 1 ? " day" : " days");
 
-        if (data.PeakActivityDay.HasValue)
-        {
+        if (data.PeakActivityDay.HasValue) {
             overviewContent.Append(TerminalColors.Muted);
             overviewContent.Append("  Most active day: ");
             overviewContent.Append(AnsiStyleEnumConstants.Reset);
@@ -219,8 +192,7 @@ public sealed class StatsCommand : ChatCommandBase
         overviewContent.Append($"{AnsiStyleEnumConstants.Bold}{data.CurrentStreak}{AnsiStyleEnumConstants.Reset}");
         overviewContent.AppendLine(data.CurrentStreak == 1 ? " day" : " days");
 
-        if (data.PeakActivityHour > 0)
-        {
+        if (data.PeakActivityHour > 0) {
             overviewContent.Append(TerminalColors.Muted);
             overviewContent.Append("  Peak activity hour: ");
             overviewContent.Append(AnsiStyleEnumConstants.Reset);
@@ -228,8 +200,7 @@ public sealed class StatsCommand : ChatCommandBase
         }
 
         var factoid = TerminalCharts.FunFactoid(data.TotalInputTokens + data.TotalOutputTokens, data.DaysActive, data.TotalDurationHours);
-        if (!string.IsNullOrEmpty(factoid))
-        {
+        if (!string.IsNullOrEmpty(factoid)) {
             overviewContent.AppendLine();
             overviewContent.AppendLine($"{TerminalColors.Accent}  {factoid}{AnsiStyleEnumConstants.Reset}");
         }
@@ -251,16 +222,14 @@ public sealed class StatsCommand : ChatCommandBase
         tokenContent.Append("  Output: ");
         tokenContent.Append(AnsiStyleEnumConstants.Reset);
         tokenContent.AppendLine(NumberFormatter.FormatCompact(data.TotalOutputTokens));
-        if (data.TotalCostUsd > 0)
-        {
+        if (data.TotalCostUsd > 0) {
             tokenContent.Append(TerminalColors.Muted);
             tokenContent.Append("  Estimated cost: ");
             tokenContent.Append(AnsiStyleEnumConstants.Reset);
             tokenContent.AppendLine($"${data.TotalCostUsd:F4}");
         }
 
-        if (data.GitCommits > 0 || data.GitPushes > 0)
-        {
+        if (data.GitCommits > 0 || data.GitPushes > 0) {
             tokenContent.AppendLine();
             tokenContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Git{AnsiStyleEnumConstants.Reset}");
             tokenContent.Append(TerminalColors.Muted);
@@ -273,8 +242,7 @@ public sealed class StatsCommand : ChatCommandBase
             tokenContent.AppendLine(data.GitPushes.ToString());
         }
 
-        if (data.TotalLinesAdded > 0 || data.TotalLinesRemoved > 0)
-        {
+        if (data.TotalLinesAdded > 0 || data.TotalLinesRemoved > 0) {
             tokenContent.AppendLine();
             tokenContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Code Changes{AnsiStyleEnumConstants.Reset}");
             tokenContent.Append(TerminalColors.Muted);
@@ -298,13 +266,11 @@ public sealed class StatsCommand : ChatCommandBase
             .Take(16)
             .ToList();
 
-        if (topTools.Count > 0)
-        {
+        if (topTools.Count > 0) {
             toolsContent.AppendLine($"{AnsiStyleEnumConstants.Bold}Top Tools{AnsiStyleEnumConstants.Reset}");
             toolsContent.AppendLine();
             var maxToolCount = topTools.Max(kvp => kvp.Value);
-            foreach (var (tool, count) in topTools)
-            {
+            foreach (var (tool, count) in topTools) {
                 var barLength = maxToolCount > 0 ? (int)Math.Ceiling((double)count / maxToolCount * 16) : 0;
                 var bar = new string('█', barLength);
                 toolsContent.Append(TerminalColors.Primary);
@@ -312,9 +278,7 @@ public sealed class StatsCommand : ChatCommandBase
                 toolsContent.Append(AnsiStyleEnumConstants.Reset);
                 toolsContent.AppendLine(count.ToString());
             }
-        }
-        else
-        {
+        } else {
             toolsContent.AppendLine("  暂无工具使用数据");
         }
 
@@ -323,8 +287,7 @@ public sealed class StatsCommand : ChatCommandBase
 
         var panel = new TabPanel(
             ["概览", "Token用量", "工具使用"],
-            tabIndex => tabIndex switch
-            {
+            tabIndex => tabIndex switch {
                 0 => overviewContent.ToString(),
                 1 => tokenContent.ToString(),
                 2 => toolsContent.ToString(),
@@ -334,12 +297,10 @@ public sealed class StatsCommand : ChatCommandBase
         await panel.ShowAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
-    private StatsData MapToStatsData(TokenUsageStatistics stats, ChatCommandContext context)
-    {
+    private StatsData MapToStatsData(TokenUsageStatistics stats, ChatCommandContext context) {
         if (stats is null) return new StatsData { TotalSessions = 0, ActiveDays = 0 };
 
-        var data = new StatsData
-        {
+        var data = new StatsData {
             TotalSessions = stats.TotalRequests > 0 ? 1 : 0,
             TotalInputTokens = (int)Math.Min(stats.TotalInputTokens, int.MaxValue),
             TotalOutputTokens = (int)Math.Min(stats.TotalOutputTokens, int.MaxValue),
@@ -349,10 +310,8 @@ public sealed class StatsCommand : ChatCommandBase
         };
 
         var modelStats = stats.ModelStatistics;
-        if (modelStats is not null)
-        {
-            foreach (var kvp in modelStats)
-            {
+        if (modelStats is not null) {
+            foreach (var kvp in modelStats) {
                 var ms = kvp.Value;
                 if (ms is null) continue;
                 data.ModelBreakdown.Add(new ModelStats(

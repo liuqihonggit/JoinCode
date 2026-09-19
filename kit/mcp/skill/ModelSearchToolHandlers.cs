@@ -7,8 +7,7 @@ namespace McpToolDispatch;
 /// <para>数据源 IModelConfigLoader.Config.Providers → ModelSearchEntry 列表</para>
 /// </summary>
 [McpToolDispatch(SystemToolNameEnumConstants.ModelSearch, Kind = ToolKind.System)]
-public partial class ModelSearchToolHandlers
-{
+public partial class ModelSearchToolHandlers {
     private readonly IModelConfigLoader _modelConfigLoader;
     private readonly ILogger<ModelSearchToolHandlers>? _logger;
 
@@ -17,8 +16,7 @@ public partial class ModelSearchToolHandlers
     /// </summary>
     /// <param name="modelConfigLoader">模型配置加载器</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public ModelSearchToolHandlers(IModelConfigLoader modelConfigLoader, ILogger<ModelSearchToolHandlers>? logger = null)
-    {
+    public ModelSearchToolHandlers(IModelConfigLoader modelConfigLoader, ILogger<ModelSearchToolHandlers>? logger = null) {
         _modelConfigLoader = modelConfigLoader ?? throw new ArgumentNullException(nameof(modelConfigLoader));
         _logger = logger;
     }
@@ -34,13 +32,11 @@ public partial class ModelSearchToolHandlers
     public Task<ToolResult> SearchModelsAsync(
         [McpToolParameter("查找查询：'list_groups' 列出功能分组；'map[功能Key]' 列出支持该功能的模型（如 map[generateImage]）；'map[功能Key][vendor]' 按 vendor 过滤；关键词模糊搜索模型名/显示名")] string query,
         [McpToolParameter("最大结果数（可选，默认 20）", Required = false)] int? max_results = 20,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (string.IsNullOrWhiteSpace(query))
             return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.ModelSearchQueryCannotBeEmpty)).Build());
 
-        try
-        {
+        try {
             var entries = BuildEntries();
             var engine = new ModelSearchEngine(entries);
             var result = engine.Search(query, max_results ?? 20);
@@ -49,30 +45,22 @@ public partial class ModelSearchToolHandlers
             response.AppendLine(L.T(StringKey.ModelSearchResultTitle, query));
             response.AppendLine();
 
-            if (result.Lines.Count == 0)
-            {
+            if (result.Lines.Count == 0) {
                 response.AppendLine(L.T(StringKey.ModelSearchNoMatch));
                 response.AppendLine(L.T(StringKey.ModelSearchRegisteredCount, entries.Count));
                 response.AppendLine(L.T(StringKey.ModelSearchHint));
-            }
-            else
-            {
-                if (result.IsGroupList)
-                {
+            } else {
+                if (result.IsGroupList) {
                     response.AppendLine(L.T(StringKey.ModelSearchGroupListHeader));
                     response.AppendLine();
                     foreach (var line in result.Lines)
                         response.AppendLine($"  {line}");
-                }
-                else if (result.IsModelList)
-                {
+                } else if (result.IsModelList) {
                     response.AppendLine(L.T(StringKey.ModelSearchModelListHeader));
                     response.AppendLine();
                     foreach (var line in result.Lines)
                         response.AppendLine($"  {line}");
-                }
-                else
-                {
+                } else {
                     foreach (var line in result.Lines)
                         response.AppendLine($"  {line}");
                 }
@@ -82,22 +70,16 @@ public partial class ModelSearchToolHandlers
             }
 
             return Task.FromResult(ToolResultBuilder.Success().WithText(response.ToString()).Build());
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
+        } catch (OperationCanceledException) { throw; } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.ModelSearchFailedLog), query);
             return Task.FromResult(ToolResultBuilder.Error().WithText(L.T(StringKey.ModelSearchFailed, ex.Message)).Build());
         }
     }
 
-    private List<ModelSearchEntry> BuildEntries()
-    {
+    private List<ModelSearchEntry> BuildEntries() {
         var entries = new List<ModelSearchEntry>();
-        foreach (var provider in _modelConfigLoader.Config.Providers)
-        {
-            foreach (var model in provider.Value.Models)
-            {
+        foreach (var provider in _modelConfigLoader.Config.Providers) {
+            foreach (var model in provider.Value.Models) {
                 entries.Add(new ModelSearchEntry(
                     provider.Key,
                     model.Id,

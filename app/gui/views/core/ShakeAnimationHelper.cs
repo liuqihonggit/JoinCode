@@ -4,8 +4,7 @@ namespace JoinCode.Gui.Views;
 /// 窗口震动动画公共工具 — X 轴阻尼震动，可对任意 <see cref="Visual"/> 施加。
 /// 提取自 <see cref="PermissionDialog"/> 的 StartShakeAnimation 私有方法，供 MCP shake_window 工具复用。
 /// </summary>
-public static class ShakeAnimationHelper
-{
+public static class ShakeAnimationHelper {
     /// <summary>
     /// X 轴偏移序列 — 阻尼衰减: -8→+8→-6→+6→-4→+4→-2→+2→0
     /// </summary>
@@ -22,17 +21,14 @@ public static class ShakeAnimationHelper
     /// </summary>
     /// <param name="target">要震动的视觉元素（如 Window、Border 等）。</param>
     /// <param name="cancellationToken">取消令牌（可选）。</param>
-    public static void Shake(Visual target, CancellationToken cancellationToken = default)
-    {
+    public static void Shake(Visual target, CancellationToken cancellationToken = default) {
         var shakeTransform = new TranslateTransform();
         target.RenderTransform = shakeTransform;
 
         var stepIndex = 0;
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(StepMs) };
-        timer.Tick += (_, _) =>
-        {
-            if (cancellationToken.IsCancellationRequested || stepIndex >= s_offsets.Length)
-            {
+        timer.Tick += (_, _) => {
+            if (cancellationToken.IsCancellationRequested || stepIndex >= s_offsets.Length) {
                 timer.Stop();
                 shakeTransform.X = 0;
                 return;
@@ -49,8 +45,7 @@ public static class ShakeAnimationHelper
     /// </summary>
     /// <param name="window">要震动的窗口。</param>
     /// <param name="cancellationToken">取消令牌（可选）。</param>
-    public static void ShakeWindow(Window window, CancellationToken cancellationToken = default)
-    {
+    public static void ShakeWindow(Window window, CancellationToken cancellationToken = default) {
         Shake(window, cancellationToken);
     }
 }

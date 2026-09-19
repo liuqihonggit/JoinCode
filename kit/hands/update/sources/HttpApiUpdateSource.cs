@@ -5,8 +5,7 @@ namespace IO.Services.Update;
 /// 支持服务端动态逻辑（灰度发布、下载统计、多渠道分发）
 /// > ADR: 0064
 /// </summary>
-public sealed class HttpApiUpdateSource : IUpdateSource
-{
+public sealed class HttpApiUpdateSource : IUpdateSource {
     private readonly HttpClient _httpClient;
     private readonly string _apiBaseUrl;
     private readonly ILogger<HttpApiUpdateSource>? _logger;
@@ -17,8 +16,7 @@ public sealed class HttpApiUpdateSource : IUpdateSource
     /// <param name="httpClient">HTTP 客户端</param>
     /// <param name="apiBaseUrl">API 基础 URL</param>
     /// <param name="logger">日志器（可选）</param>
-    public HttpApiUpdateSource(HttpClient httpClient, string apiBaseUrl, ILogger<HttpApiUpdateSource>? logger = null)
-    {
+    public HttpApiUpdateSource(HttpClient httpClient, string apiBaseUrl, ILogger<HttpApiUpdateSource>? logger = null) {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _apiBaseUrl = apiBaseUrl.TrimEnd('/') ?? throw new ArgumentNullException(nameof(apiBaseUrl));
         _logger = logger;
@@ -34,10 +32,8 @@ public sealed class HttpApiUpdateSource : IUpdateSource
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>更新清单；请求失败时返回 null</returns>
-    public async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default) {
+        try {
             _logger?.LogDebug("HttpApiUpdateSource: 检查版本 {Url}", _apiBaseUrl);
 
             var url = $"{_apiBaseUrl}/api/version/check";
@@ -49,9 +45,7 @@ public sealed class HttpApiUpdateSource : IUpdateSource
 
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             return StaticFileUpdateSource.ParseManifest(json);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "HttpApiUpdateSource: 检查版本失败 {Url}", _apiBaseUrl);
             return null;
         }
@@ -67,8 +61,7 @@ public sealed class HttpApiUpdateSource : IUpdateSource
     public async Task<Stream> DownloadAsync(
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(entry);
 
         var url = $"{_apiBaseUrl}/api/download/{Uri.EscapeDataString(entry.Version)}";

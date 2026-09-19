@@ -6,8 +6,7 @@ namespace Core.Configuration;
 /// <para>死循环防护: MarkInternalWrite 继承基类,通过 Actor 邮箱串行化,无窗口竞态。</para>
 /// </summary>
 [Register(typeof(IConfigChangeNotifier), ServiceLifetime.Singleton)]
-public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfigChangeNotifier
-{
+public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfigChangeNotifier {
     private readonly ILogger<ConfigChangeNotifier>? _logger;
     private readonly ITelemetryService? _telemetryService;
 
@@ -18,8 +17,7 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
     /// <param name="logger">日志记录器(可选)</param>
     /// <param name="telemetryService">遥测服务(可选)</param>
     public ConfigChangeNotifier(IFileSystem fs, ILogger<ConfigChangeNotifier>? logger = null, ITelemetryService? telemetryService = null)
-        : base(fs, 1000)
-    {
+        : base(fs, 1000) {
         _logger = logger;
         _telemetryService = telemetryService;
     }
@@ -70,24 +68,21 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
         => TrySend(new FileWatcherStopCmd());
 
     /// <summary>文件变更处理 — IsConfigFile 过滤后触发 ConfigChanged 事件</summary>
-    protected override ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct)
-    {
+    protected override ValueTask HandleFileChangedAsync(string filePath, WatcherChangeTypes kind, DateTimeOffset timestamp, CancellationToken ct) {
         if (!IsConfigFile(filePath)) return ValueTask.CompletedTask;
         RaiseConfigChanged(filePath, kind.ToString());
         return ValueTask.CompletedTask;
     }
 
     /// <summary>文件重命名处理 — IsConfigFile 过滤后触发 ConfigChanged 事件</summary>
-    protected override ValueTask HandleFileRenamedAsync(string oldPath, string newPath, DateTimeOffset timestamp, CancellationToken ct)
-    {
+    protected override ValueTask HandleFileRenamedAsync(string oldPath, string newPath, DateTimeOffset timestamp, CancellationToken ct) {
         if (!IsConfigFile(newPath)) return ValueTask.CompletedTask;
         RaiseConfigChanged(newPath, "Renamed");
         return ValueTask.CompletedTask;
     }
 
     /// <summary>自定义命令处理 — StartMonitoringCmd 启动监控</summary>
-    protected override async ValueTask HandleCustomCommandAsync(FileWatcherCommand cmd, CancellationToken ct)
-    {
+    protected override async ValueTask HandleCustomCommandAsync(FileWatcherCommand cmd, CancellationToken ct) {
         if (cmd is not StartMonitoringCmd start) return;
 
         TrySend(new FileWatcherStopCmd());
@@ -101,12 +96,10 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
     }
 
     /// <summary>向上遍历找到最顶层有配置文件的目录 — 从该目录向下监控覆盖所有配置文件</summary>
-    private string FindWatchRoot(string workingDirectory)
-    {
+    private string FindWatchRoot(string workingDirectory) {
         var current = FileSystem.GetFullPath(workingDirectory);
         var topMost = current;
-        while (current != null)
-        {
+        while (current != null) {
             if (HasConfigFiles(current))
                 topMost = current;
             current = FileSystem.GetParentPath(current);
@@ -114,8 +107,7 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
         return topMost;
     }
 
-    private bool HasConfigFiles(string dir)
-    {
+    private bool HasConfigFiles(string dir) {
         foreach (var fileName in RootConfigFiles)
             if (FileSystem.FileExists(Path.Combine(dir, fileName))) return true;
 
@@ -136,12 +128,9 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
         return false;
     }
 
-    private void RaiseConfigChanged(string filePath, string changeType)
-    {
-        try
-        {
-            var args = new ConfigChangeEventArgs
-            {
+    private void RaiseConfigChanged(string filePath, string changeType) {
+        try {
+            var args = new ConfigChangeEventArgs {
                 FilePath = filePath,
                 ChangeType = changeType,
                 Timestamp = DateTimeOffset.Now
@@ -149,9 +138,7 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
             ConfigChanged?.Invoke(this, args);
             _logger?.LogDebug("[ConfigChangeNotifier] 配置文件变更通知: {Path} ({ChangeType})", filePath, changeType);
             RecordConfigChangeMetrics(changeType, true);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[ConfigChangeNotifier] 触发配置变更事件时出错: {Path}", filePath);
             RecordConfigChangeMetrics(changeType, false);
         }
@@ -160,25 +147,21 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
     private void RecordConfigChangeMetrics(string changeType, bool isSuccess)
         => _telemetryService?.RecordCount("config.change.count", new() { ["change_type"] = changeType, ["success"] = isSuccess.ToString() }, description: "Config change notification count");
 
-    private bool IsConfigFile(string filePath)
-    {
+    private bool IsConfigFile(string filePath) {
         var fileName = Path.GetFileName(filePath);
         var ext = Path.GetExtension(filePath);
 
-        if (string.Equals(ext, ".md", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.Equals(ext, ".md", StringComparison.OrdinalIgnoreCase)) {
             var dirName = Path.GetDirectoryName(filePath);
             if (dirName == null) return false;
 
             var parentName = FileSystem.GetDirectoryName(dirName);
             if (parentName.Equals("rules", StringComparison.OrdinalIgnoreCase)
-                || parentName.Equals("commands", StringComparison.OrdinalIgnoreCase))
-            {
+                || parentName.Equals("commands", StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
 
-            foreach (var rootFile in RootConfigFiles)
-            {
+            foreach (var rootFile in RootConfigFiles) {
                 if (string.Equals(fileName, rootFile, StringComparison.OrdinalIgnoreCase))
                     return true;
             }
@@ -186,10 +169,8 @@ public sealed partial class ConfigChangeNotifier : FileWatcherActorBase, IConfig
             return false;
         }
 
-        if (string.Equals(ext, ".json", StringComparison.OrdinalIgnoreCase))
-        {
-            foreach (var configFile in AppDataConfigFiles)
-            {
+        if (string.Equals(ext, ".json", StringComparison.OrdinalIgnoreCase)) {
+            foreach (var configFile in AppDataConfigFiles) {
                 if (string.Equals(fileName, configFile, StringComparison.OrdinalIgnoreCase))
                     return true;
             }

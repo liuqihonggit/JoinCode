@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 内容替换结果 — 工具调用后的内容替换和预算应用结果
 /// </summary>
-public sealed record ContentReplacementResult
-{
+public sealed record ContentReplacementResult {
     /// <summary>
     /// 替换后的工具结果文本（null 表示无需替换）
     /// </summary>
@@ -26,8 +25,7 @@ public sealed record ContentReplacementResult
 /// 负责超大工具结果持久化、per-message 预算检查、transcript 记录
 /// </summary>
 [Register(typeof(IChatContentReplacer), ServiceLifetime.Singleton)]
-public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentReplacer
-{
+public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentReplacer {
 
     /// <summary>
     /// 初始化聊天内容替换处理器
@@ -35,8 +33,7 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
     /// <param name="contentReplacementService">内容替换服务（可选，null 时禁用替换）</param>
     /// <param name="transcriptService">transcript 持久化服务（可选）</param>
     /// <param name="logger">可选日志记录器</param>
-    public ChatContentReplacer(IContentReplacementService? contentReplacementService = null, ITranscriptService? transcriptService = null, ILogger<ChatContentReplacer>? logger = null)
-    {
+    public ChatContentReplacer(IContentReplacementService? contentReplacementService = null, ITranscriptService? transcriptService = null, ILogger<ChatContentReplacer>? logger = null) {
         _contentReplacementService = contentReplacementService;
         _transcriptService = transcriptService;
         _logger = logger;
@@ -49,8 +46,7 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
     /// 对齐 TS provisionContentReplacementState — 初始化内容替换状态
     /// 功能开关关闭时返回 null，query 会跳过整个预算执行
     /// </summary>
-    public ContentReplacementState? ProvisionState(IReadOnlyList<ApiMessage>? initialMessages = null)
-    {
+    public ContentReplacementState? ProvisionState(IReadOnlyList<ApiMessage>? initialMessages = null) {
         if (_contentReplacementService is null) return null;
         return _contentReplacementService.ProvisionContentReplacementState(initialMessages);
     }
@@ -59,8 +55,7 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
     /// 对齐 TS maybePersistLargeToolResult — 即时持久化超大工具结果
     /// 纯函数：不修改 state，仅返回替换字符串
     /// </summary>
-    public string? MaybePersistLargeToolResult(string toolName, string toolUseId, string content, string sessionId)
-    {
+    public string? MaybePersistLargeToolResult(string toolName, string toolUseId, string content, string sessionId) {
         if (_contentReplacementService is null) return null;
         return _contentReplacementService.MaybePersistLargeToolResult(toolName, toolUseId, content, sessionId);
     }
@@ -73,10 +68,8 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
         IReadOnlyList<ApiMessage> messages,
         ContentReplacementState state,
         string sessionId,
-        CancellationToken cancellationToken = default)
-    {
-        if (_contentReplacementService is null || state is null)
-        {
+        CancellationToken cancellationToken = default) {
+        if (_contentReplacementService is null || state is null) {
             return new ContentReplacementResult { NewlyReplaced = [] };
         }
 
@@ -85,19 +78,14 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         // 对齐 TS writeToTranscript — 持久化 newlyReplaced 记录到 transcript
-        if (newlyReplaced.Count > 0)
-        {
+        if (newlyReplaced.Count > 0) {
             _logger?.LogDebug("Budget replaced {Count} tool results", newlyReplaced.Count);
 
             // 对齐 TS recordContentReplacement — 持久化到 transcript JSONL
-            if (_transcriptService is not null)
-            {
-                try
-                {
+            if (_transcriptService is not null) {
+                try {
                     await _transcriptService.InsertContentReplacementAsync(sessionId, newlyReplaced, cancellationToken).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "Failed to persist content replacement records to transcript");
                 }
             }
@@ -105,13 +93,11 @@ public sealed partial class ChatContentReplacer : ServiceEntity, IChatContentRep
 
         // 仅当消息有变化时返回预算消息列表
         IReadOnlyList<ApiMessage>? budgetedMessages = null;
-        if (newlyReplaced.Count > 0 || budgeted.Count != messages.Count)
-        {
+        if (newlyReplaced.Count > 0 || budgeted.Count != messages.Count) {
             budgetedMessages = budgeted;
         }
 
-        return new ContentReplacementResult
-        {
+        return new ContentReplacementResult {
             BudgetedMessages = budgetedMessages,
             NewlyReplaced = newlyReplaced
         };

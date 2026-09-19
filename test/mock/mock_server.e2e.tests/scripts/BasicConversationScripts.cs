@@ -1,9 +1,7 @@
 namespace MockServer.E2E.Tests.Scripts;
 
-public static class BasicConversationScripts
-{
-    public static ConversationScript SingleTurnTextOnly => new()
-    {
+public static class BasicConversationScripts {
+    public static ConversationScript SingleTurnTextOnly => new() {
         Name = "单轮纯文本对话",
         Turns =
         [
@@ -24,8 +22,7 @@ public static class BasicConversationScripts
         ]
     };
 
-    public static ConversationScript SingleTurnNonInteractive => new()
-    {
+    public static ConversationScript SingleTurnNonInteractive => new() {
         Name = "非交互模式单轮对话",
         Turns =
         [
@@ -46,8 +43,7 @@ public static class BasicConversationScripts
         ]
     };
 
-    public static ConversationScript SingleTurnWithToolCall => new()
-    {
+    public static ConversationScript SingleTurnWithToolCall => new() {
         Name = "单轮工具调用对话",
         Turns =
         [
@@ -79,8 +75,7 @@ public static class BasicConversationScripts
         ]
     };
 
-    public static ConversationScript MultiTurnMemory => new()
-    {
+    public static ConversationScript MultiTurnMemory => new() {
         Name = "多轮对话记忆",
         Turns =
         [
@@ -126,8 +121,7 @@ public static class BasicConversationScripts
         ]
     };
 
-    public static ConversationScript StreamingResponse => new()
-    {
+    public static ConversationScript StreamingResponse => new() {
         Name = "流式响应测试",
         Turns =
         [

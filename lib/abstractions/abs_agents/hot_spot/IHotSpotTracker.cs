@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 热文件 contract_claim>=1 即归队长；非热文件 contract_claim>=阈值才触发
 /// internal_claim 不触发热点；队长修改不计入认领集合
 /// </summary>
-public interface IHotSpotTracker
-{
+public interface IHotSpotTracker {
     /// <summary>
     /// 判断某文件是否触发热点
     /// </summary>

@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Hooks;
 /// 钩子事件类型
 /// 参考 TS 原版 的 HookEvent 设计
 /// </summary>
-public enum HookEvent
-{
+public enum HookEvent {
     // ========== 工具使用相关 ==========
     /// <summary>工具使用前</summary>
     [EnumValue("preToolUse")] PreToolUse,
@@ -108,10 +107,8 @@ public enum HookEvent
 /// <summary>
 /// HookEvent 扩展方法
 /// </summary>
-public static class HookEventDisplayExtensions
-{
-    public static string ToEventName(this HookEvent hookEvent)
-    {
+public static class HookEventDisplayExtensions {
+    public static string ToEventName(this HookEvent hookEvent) {
         return hookEvent.ToString();
     }
 
@@ -130,10 +127,8 @@ public static class HookEventDisplayExtensions
     /// <summary>
     /// 获取事件的匹配器元数据字段
     /// </summary>
-    public static string? GetMatcherField(this HookEvent hookEvent)
-    {
-        return hookEvent switch
-        {
+    public static string? GetMatcherField(this HookEvent hookEvent) {
+        return hookEvent switch {
             HookEvent.PreToolUse => ToolNameField,
             HookEvent.PostToolUse => ToolNameField,
             HookEvent.PostToolUseFailure => ToolNameField,
@@ -161,18 +156,15 @@ public static class HookEventDisplayExtensions
     /// <summary>
     /// 检查事件是否需要匹配器
     /// </summary>
-    public static bool RequiresMatcher(this HookEvent hookEvent)
-    {
+    public static bool RequiresMatcher(this HookEvent hookEvent) {
         return GetMatcherField(hookEvent) != null;
     }
 
     /// <summary>
     /// 检查事件是否支持阻塞
     /// </summary>
-    public static bool SupportsBlocking(this HookEvent hookEvent)
-    {
-        return hookEvent switch
-        {
+    public static bool SupportsBlocking(this HookEvent hookEvent) {
+        return hookEvent switch {
             HookEvent.PreToolUse => true,
             HookEvent.UserPromptSubmit => true,
             HookEvent.PreCompact => true,

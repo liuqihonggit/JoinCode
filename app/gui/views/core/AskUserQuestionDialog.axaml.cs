@@ -5,31 +5,27 @@ namespace JoinCode.Gui.Views;
 /// MCP AskUserQuestion 工具调用时由 AvaloniaInteractiveService 触发弹出。
 /// 颜色全部通过 GuiPalette 语义 token 获取，支持明暗主题切换。
 /// </summary>
-public sealed partial class AskUserQuestionDialog : Window
-{
+public sealed partial class AskUserQuestionDialog : Window {
     private readonly List<QuestionOption> _options = [];
     private readonly bool _multiSelect;
     private readonly List<int> _selectedIndices = [];
 
     /// <summary>初始化 AskUserQuestionDialog 实例</summary>
-    public AskUserQuestionDialog()
-    {
+    public AskUserQuestionDialog() {
         InitializeComponent();
         CancelButton.Click += (_, _) => Close(null);
         ConfirmFreeInputButton.Click += (_, _) => OnConfirmFreeInput();
     }
 
     /// <summary>以指定问题项构建 AskUserQuestionDialog 弹窗</summary>
-    public AskUserQuestionDialog(QuestionItem question) : this()
-    {
+    public AskUserQuestionDialog(QuestionItem question) : this() {
         _options = question.Options;
         _multiSelect = question.MultiSelect;
 
         HeaderBlock.Text = question.Header;
         QuestionBlock.Text = question.Question;
 
-        for (int i = 0; i < question.Options.Count; i++)
-        {
+        for (var i = 0; i < question.Options.Count; i++) {
             var idx = i;
             var opt = question.Options[i];
             var display = string.IsNullOrWhiteSpace(opt.Description)
@@ -47,10 +43,8 @@ public sealed partial class AskUserQuestionDialog : Window
     }
 
     /// <summary>选项按钮 — 默认按钮样式（实底+边框保证静态可点击性），主题联动走 DynamicResource</summary>
-    private static Button CreateOptionButton(string text)
-    {
-        return new Button
-        {
+    private static Button CreateOptionButton(string text) {
+        return new Button {
             Content = text,
             MinWidth = 360,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
@@ -61,39 +55,31 @@ public sealed partial class AskUserQuestionDialog : Window
         };
     }
 
-    private void OnOptionSelected(int index)
-    {
-        if (_multiSelect)
-        {
+    private void OnOptionSelected(int index) {
+        if (_multiSelect) {
             if (_selectedIndices.Contains(index))
                 _selectedIndices.Remove(index);
             else
                 _selectedIndices.Add(index);
 
-            if (_selectedIndices.Count > 0 && _options is not null)
-            {
+            if (_selectedIndices.Count > 0 && _options is not null) {
                 var selected = _selectedIndices.Select(i => _options[i].Label).ToList();
                 Close(AskUserQuestionResult.MultiSelectResult(selected));
             }
-        }
-        else
-        {
+        } else {
             Close(AskUserQuestionResult.SuccessResult(_options?[index].Label ?? ""));
         }
     }
 
-    private void OnFreeInputSelected()
-    {
+    private void OnFreeInputSelected() {
         FreeInputBox.IsVisible = true;
         ConfirmFreeInputButton.IsVisible = true;
         FreeInputBox.Focus();
     }
 
-    private void OnConfirmFreeInput()
-    {
+    private void OnConfirmFreeInput() {
         var text = FreeInputBox.Text;
-        if (string.IsNullOrWhiteSpace(text))
-        {
+        if (string.IsNullOrWhiteSpace(text)) {
             Close(AskUserQuestionResult.CancelledResult());
             return;
         }

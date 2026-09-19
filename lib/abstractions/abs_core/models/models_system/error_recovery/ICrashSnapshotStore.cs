@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Models.ErrorRecovery;
 
-public interface ICrashSnapshotStore
-{
+public interface ICrashSnapshotStore {
     void Add(CrashSnapshot snapshot);
     IReadOnlyList<CrashSnapshot> GetRecent(int count = 20);
     IReadOnlyList<CrashSnapshot> GetByFence(string fenceName);

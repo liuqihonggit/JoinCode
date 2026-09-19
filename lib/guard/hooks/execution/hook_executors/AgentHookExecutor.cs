@@ -6,8 +6,7 @@ namespace Core.Hooks.Execution;
 /// 使用专门的验证代理进行工具调用验证
 /// </summary>
 [Register(typeof(IHookExecutor), ServiceLifetime.Singleton)]
-public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
-{
+public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook> {
     private readonly IAgentService? _agentService;
     private readonly IModelConfigLoader _modelConfigLoader;
 
@@ -18,8 +17,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
         IAgentService? agentService = null,
         IModelConfigLoader? modelConfigLoader = null,
         ILogger<AgentHookExecutor>? logger = null)
-        : base(logger)
-    {
+        : base(logger) {
         _agentService = agentService;
         _modelConfigLoader = modelConfigLoader ?? new ModelConfigLoader();
     }
@@ -31,13 +29,11 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
     public override async Task<HookResult> ExecuteTypedAsync(
         AgentHook hook,
         HookInput input,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         LogExecutionStart(hook, input);
         var stopwatch = Stopwatch.StartNew();
 
-        try
-        {
+        try {
             var context = CreateContext(hook, input);
             var inputJson = PrepareInputJson(input);
             var processedPrompt = SubstituteArguments(hook.Prompt, inputJson);
@@ -50,17 +46,11 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
 
             LogExecutionComplete(hook, result, stopwatch.Elapsed);
             return result;
-        }
-        catch (HookTimeoutException)
-        {
+        } catch (HookTimeoutException) {
             throw;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "Failed to execute agent hook");
             return HookResult.NonBlockingError(
                 error: ex.Message,
@@ -72,8 +62,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
         AgentHook hook,
         string prompt,
         HookInput input,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         // 构建验证代理的完整提示
         var fullPrompt = BuildAgentPrompt(prompt, input);
 
@@ -81,8 +70,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
         var model = hook.Model ?? _modelConfigLoader.GetDefaultModelId(VendorKindEnumConstants.Anthropic);
 
         // 调用代理服务 — 未注册时返回非阻塞错误（不阻断 DI 链路）
-        if (_agentService is null)
-        {
+        if (_agentService is null) {
             return HookResult.NonBlockingError("IAgentService 未注册，代理验证钩子不可用");
         }
 
@@ -96,8 +84,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
         return ParseAgentResponse(response, input);
     }
 
-    private string BuildAgentPrompt(string userPrompt, HookInput input)
-    {
+    private string BuildAgentPrompt(string userPrompt, HookInput input) {
         var payloadJson = JsonSerializer.Serialize(input.Payload, HooksJsonContext.Default.DictionaryStringJsonElement);
 
         return $$$"""
@@ -130,10 +117,8 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
             """;
     }
 
-    private HookResult ParseAgentResponse(AgentResponse response, HookInput input)
-    {
-        if (!response.Success)
-        {
+    private HookResult ParseAgentResponse(AgentResponse response, HookInput input) {
+        if (!response.Success) {
             Logger?.LogWarning("Agent execution failed: {Error}", response.Error);
             return HookResult.NonBlockingError(
                 error: response.Error ?? "Agent execution failed",
@@ -143,17 +128,14 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
         // 提取 JSON 响应
         var jsonContent = ExtractJsonFromResponse(response.Content);
 
-        if (string.IsNullOrEmpty(jsonContent))
-        {
+        if (string.IsNullOrEmpty(jsonContent)) {
             Logger?.LogWarning("Agent response did not contain valid JSON");
             return HookResult.Success(message: "Agent validation passed (no JSON)");
         }
 
-        try
-        {
+        try {
             var hookDecision = LlmJsonHelper.Deserialize(jsonContent, HooksJsonContext.Default.HookDecision, out var repairHint);
-            if (hookDecision is null)
-            {
+            if (hookDecision is null) {
                 if (!string.IsNullOrEmpty(repairHint))
                     Logger?.LogWarning("Agent Hook JSON 反序列化失败/已宽容修复: {Detail}", repairHint);
                 return HookResult.Success(message: "Agent validation passed (empty response)");
@@ -170,8 +152,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
                 decisionStr,
                 confidence);
 
-            return decision switch
-            {
+            return decision switch {
                 PermissionBehavior.Block when confidence > 0.7 => HookResult.Blocking(
                     error: reason ?? "Blocked by validation agent",
                     command: input.ToolName ?? "unknown",
@@ -181,8 +162,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
                     error: reason ?? "Validation agent warning",
                     message: $"[Low confidence block] {reason}"),
 
-                PermissionBehavior.Ask => new HookResult
-                {
+                PermissionBehavior.Ask => new HookResult {
                     Outcome = HookOutcome.Success,
                     Message = reason,
                     PreventContinuation = !shouldContinue,
@@ -193,9 +173,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
                     message: reason ?? "Agent validation passed",
                     additionalContext: $"Confidence: {confidence:F0%}")
             };
-        }
-        catch (JsonException ex)
-        {
+        } catch (JsonException ex) {
             Logger?.LogWarning(ex, "Failed to parse agent JSON response");
             return HookResult.Success(
                 message: "Agent validation passed",
@@ -208,8 +186,7 @@ public sealed partial class AgentHookExecutor : HookExecutorBase<AgentHook>
 /// <summary>
 /// 代理服务接口
 /// </summary>
-public interface IAgentService
-{
+public interface IAgentService {
     /// <summary>
     /// 运行代理
     /// </summary>
@@ -223,8 +200,7 @@ public interface IAgentService
 /// <summary>
 /// 代理响应
 /// </summary>
-public sealed record AgentResponse
-{
+public sealed record AgentResponse {
     /// <summary>是否执行成功</summary>
     public required bool Success { get; init; }
     /// <summary>响应内容</summary>

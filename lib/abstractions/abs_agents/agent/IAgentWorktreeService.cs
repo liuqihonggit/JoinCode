@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 智能体 Worktree 服务接口，管理智能体的 Git Worktree 隔离
 /// </summary>
-public interface IAgentWorktreeService
-{
+public interface IAgentWorktreeService {
     /// <summary>
     /// 为智能体创建或恢复 Git Worktree
     /// </summary>

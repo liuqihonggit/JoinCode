@@ -3,8 +3,7 @@ namespace Core.Agents;
 /// <summary>
 /// 子智能体信封状态 — L0 XML state 属性值
 /// </summary>
-public enum SubAgentEnvelopeState
-{
+public enum SubAgentEnvelopeState {
     /// <summary>子智能体执行完成</summary>
     [EnumValue("completed")]
     Completed,
@@ -18,8 +17,7 @@ public enum SubAgentEnvelopeState
 /// <para>对齐 openCode renderOutput: task/summary/task_result XML 标签。</para>
 /// <para>content 不转义（LLM 伪 XML，对齐 openCode），agentId/summary 转义防注入。</para>
 /// </summary>
-public static class SubAgentOutputEnvelope
-{
+public static class SubAgentOutputEnvelope {
     private const int MaxSummaryChars = 100;
 
     /// <summary>
@@ -29,8 +27,7 @@ public static class SubAgentOutputEnvelope
     /// <param name="state">完成/错误状态</param>
     /// <param name="summary">一句话概要（可选，null 则省略 summary 标签）</param>
     /// <param name="content">输出正文（O / 自摘要 S / 落盘指针）</param>
-    public static string Wrap(string agentId, SubAgentEnvelopeState state, string? summary, string content)
-    {
+    public static string Wrap(string agentId, SubAgentEnvelopeState state, string? summary, string content) {
         var stateStr = state == SubAgentEnvelopeState.Error ? "error" : "completed";
         var summaryLine = string.IsNullOrWhiteSpace(summary) ? "" : $"<summary>{EscapeXml(summary)}</summary>\n";
         return $"<task id=\"{EscapeXml(agentId)}\" state=\"{stateStr}\">\n{summaryLine}<task_result>\n{content}\n</task_result>\n</task>";
@@ -39,8 +36,7 @@ public static class SubAgentOutputEnvelope
     /// <summary>
     /// 从子智能体完整输出提取一句话概要 — 取首行,限长 MaxSummaryChars
     /// </summary>
-    public static string? ExtractSummary(string output)
-    {
+    public static string? ExtractSummary(string output) {
         if (string.IsNullOrEmpty(output)) return null;
         var nlIdx = output.IndexOf('\n');
         var firstLine = nlIdx >= 0 ? output[..nlIdx] : output;
@@ -50,8 +46,7 @@ public static class SubAgentOutputEnvelope
         return trimmed[..MaxSummaryChars] + "…";
     }
 
-    private static string EscapeXml(string value)
-    {
+    private static string EscapeXml(string value) {
         return value
             .Replace("&", "&amp;")
             .Replace("<", "&lt;")

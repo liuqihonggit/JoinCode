@@ -5,8 +5,7 @@ namespace Core.Security.Interceptors;
 /// Git 安全拦截器 — 在 git_commit / git_add 工具执行前扫描暂存区,拦截敏感文件与密钥泄露
 /// </summary>
 [Register(typeof(IGitSecurityInterceptor), ServiceLifetime.Singleton)]
-public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurityInterceptor
-{
+public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurityInterceptor {
     private readonly IGitDiffProvider _diffProvider;
     private readonly IGitSecretScanner _scanner;
     private readonly ILogger<GitSecurityInterceptor> _logger;
@@ -29,8 +28,7 @@ public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurity
     public GitSecurityInterceptor(
         IGitDiffProvider diffProvider,
         IGitSecretScanner scanner,
-        ILogger<GitSecurityInterceptor> logger)
-    {
+        ILogger<GitSecurityInterceptor> logger) {
         _diffProvider = diffProvider ?? throw new ArgumentNullException(nameof(diffProvider));
         _scanner = scanner ?? throw new ArgumentNullException(nameof(scanner));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -41,35 +39,30 @@ public sealed partial class GitSecurityInterceptor : ServiceEntity, IGitSecurity
     /// </summary>
     /// <param name="toolName">工具名称</param>
     /// <returns>需要扫描返回 true,否则返回 false</returns>
-    public static bool ShouldScanTool(string toolName)
-    {
+    public static bool ShouldScanTool(string toolName) {
         return ScannedTools.Contains(toolName);
     }
 
     /// <inheritdoc />
-    public async Task<ScanResult> ScanBeforeCommitAsync(string workingDirectory, CancellationToken ct = default)
-    {
+    public async Task<ScanResult> ScanBeforeCommitAsync(string workingDirectory, CancellationToken ct = default) {
         _logger.LogDebug("开始安全扫描: WorkingDir={WorkingDir}", workingDirectory);
 
         var stagedFiles = await _diffProvider.GetStagedFileNamesAsync(workingDirectory, ct).ConfigureAwait(false);
 
-        if (stagedFiles.Count == 0)
-        {
+        if (stagedFiles.Count == 0) {
             _logger.LogDebug("暂存区为空，跳过安全扫描");
             return ScanResult.Safe;
         }
 
         var fileNameResult = await _scanner.ScanFileNamesAsync(stagedFiles, ct).ConfigureAwait(false);
-        if (fileNameResult.IsBlocked)
-        {
+        if (fileNameResult.IsBlocked) {
             _logger.LogWarning("文件名安全扫描拦截: {Count} 个敏感文件", fileNameResult.Findings.Count);
             return fileNameResult;
         }
 
         var diffOutput = await _diffProvider.GetStagedDiffAsync(workingDirectory, ct).ConfigureAwait(false);
         var contentResult = await _scanner.ScanContentAsync(diffOutput, ct).ConfigureAwait(false);
-        if (contentResult.IsBlocked)
-        {
+        if (contentResult.IsBlocked) {
             _logger.LogWarning("内容安全扫描拦截: {Count} 个密钥泄露", contentResult.Findings.Count);
             return contentResult;
         }

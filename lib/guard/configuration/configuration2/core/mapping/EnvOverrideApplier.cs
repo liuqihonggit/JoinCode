@@ -5,8 +5,7 @@ namespace Core.Configuration;
 /// 流程:先读 settings.json → 再用 JCC_* 环境变量覆盖 SettingsJson 字段 → 最后映射到 WorkflowConfig。
 /// 重构后: 环境变量覆盖写入 current 内部字段和 vendor 字典
 /// </summary>
-public static class EnvOverrideApplier
-{
+public static class EnvOverrideApplier {
     /// <summary>
     /// vendor → 推断信息表 — 聚合协议和 API Key 环境变量名,按 vendor 名索引
     /// 合并原 ProtocolByVendor + ApiKeyEnvVarByVendor 两个字典(key 同为 vendor 名)
@@ -32,8 +31,7 @@ public static class EnvOverrideApplier
     /// JCC_ENDPOINT → 覆盖 vendor[current.profile].endpoint
     /// JCC_PROFILE → 设置 current.profile
     /// </summary>
-    public static SettingsJson Apply(SettingsJson? settings)
-    {
+    public static SettingsJson Apply(SettingsJson? settings) {
         settings ??= new SettingsJson();
 
         var envVendor = Environment.GetEnvironmentVariable(JccEnvVar.Vendor.ToValue());
@@ -55,18 +53,15 @@ public static class EnvOverrideApplier
 
         // 构建 override 的 vendor 字典 — 环境变量覆盖写入对应 profile
         Dictionary<string, ProfileSettings>? overrideVendor = null;
-        if (!string.IsNullOrEmpty(profileName))
-        {
+        if (!string.IsNullOrEmpty(profileName)) {
             var existingProfile = settings.Vendor is not null && settings.Vendor.TryGetValue(profileName, out var ep)
                 ? ep : null;
 
             var inferredProtocol = InferProtocol(envVendor ?? existingProfile?.Provider);
             var inferredApiKeyEnvVar = InferApiKeyEnvVar(envVendor ?? existingProfile?.Provider);
 
-            overrideVendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase)
-            {
-                [profileName] = new ProfileSettings
-                {
+            overrideVendor = new Dictionary<string, ProfileSettings>(StringComparer.OrdinalIgnoreCase) {
+                [profileName] = new ProfileSettings {
                     Provider = !string.IsNullOrEmpty(envVendor) ? envVendor : existingProfile?.Provider,
                     Protocol = existingProfile?.Protocol ?? inferredProtocol,
                     ApiKeyEnvVar = inferredApiKeyEnvVar ?? existingProfile?.ApiKeyEnvVar,
@@ -78,13 +73,11 @@ public static class EnvOverrideApplier
         }
 
         // 构建 override 的 current — 设置 profile
-        var overrideCurrent = new CurrentSettings
-        {
+        var overrideCurrent = new CurrentSettings {
             Profile = effectiveProfile,
         };
 
-        var overrideSettings = new SettingsJson
-        {
+        var overrideSettings = new SettingsJson {
             Vendor = overrideVendor ?? [],
             Current = overrideCurrent,
         };
@@ -95,8 +88,7 @@ public static class EnvOverrideApplier
     /// <summary>
     /// 根据 vendor 名推断协议 — 查表: anthropic/azure 有专属协议，其余 openai-compatible
     /// </summary>
-    internal static string? InferProtocol(string? vendor)
-    {
+    internal static string? InferProtocol(string? vendor) {
         if (string.IsNullOrEmpty(vendor)) return null;
         return (VendorInferences.TryGetValue(vendor, out var info)
             ? info.Protocol
@@ -106,8 +98,7 @@ public static class EnvOverrideApplier
     /// <summary>
     /// 根据 vendor 名推断 API Key 环境变量名 — 查表: 6 个供应商有映射, 其余返回 null
     /// </summary>
-    internal static string? InferApiKeyEnvVar(string? vendor)
-    {
+    internal static string? InferApiKeyEnvVar(string? vendor) {
         if (string.IsNullOrEmpty(vendor)) return null;
         return VendorInferences.TryGetValue(vendor, out var info) ? info.ApiKeyEnvVar : null;
     }

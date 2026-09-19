@@ -4,16 +4,14 @@ namespace Core.Prompts.Sections;
 /// 模型信息部分 - 关于当前使用的AI模型
 /// </summary>
 [PromptSection(Name = "model_info", Order = 67, IsDynamic = true)]
-public sealed class ModelInfoSection
-{
+public sealed class ModelInfoSection {
     private readonly IModelConfigLoader _modelConfigLoader;
 
     /// <summary>
     /// 初始化 <see cref="ModelInfoSection"/> 实例。
     /// </summary>
     /// <param name="modelConfigLoader">模型配置加载器。</param>
-    public ModelInfoSection(IModelConfigLoader modelConfigLoader)
-    {
+    public ModelInfoSection(IModelConfigLoader modelConfigLoader) {
         _modelConfigLoader = modelConfigLoader;
     }
 
@@ -21,12 +19,10 @@ public sealed class ModelInfoSection
     /// 获取模型信息部分的内容。
     /// </summary>
     /// <returns>模型信息文本；未设置模型 ID 时返回 <c>null</c>。</returns>
-    public string? GetContent()
-    {
+    public string? GetContent() {
         var modelId = PromptConfigSnapshot.Current.ModelId;
         var modelName = PromptConfigSnapshot.Current.ModelName;
-        if (string.IsNullOrWhiteSpace(modelId))
-        {
+        if (string.IsNullOrWhiteSpace(modelId)) {
             return null;
         }
 
@@ -51,8 +47,7 @@ public sealed class ModelInfoSection
     public static SystemPromptSection Create() =>
         SystemPromptSection.Dynamic("model_info", () => new ModelInfoSection(new ModelConfigLoader()).GetContent());
 
-    private string? GetKnowledgeCutoff(string modelId)
-    {
+    private string? GetKnowledgeCutoff(string modelId) {
         return _modelConfigLoader.FindModelByModelId(modelId)?.KnowledgeCutoff;
     }
 }

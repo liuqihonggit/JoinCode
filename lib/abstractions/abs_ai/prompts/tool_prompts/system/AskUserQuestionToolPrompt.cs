@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// AskUserQuestionTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = InteractionToolName.AskUserQuestion, Category = ToolPromptCategory.System)]
-public static class AskUserQuestionToolPrompt
-{
+public static class AskUserQuestionToolPrompt {
     public const string ToolName = InteractionToolNameEnumConstants.AskUserQuestion;
 
     public const string Description = "向用户询问多项选择问题以收集信息、澄清歧义、了解偏好、做出决策或向他们提供选择。";
@@ -40,8 +39,7 @@ public static class AskUserQuestionToolPrompt
     /// <summary>
     /// 获取工具提示词
     /// </summary>
-    public static string GetPrompt(string exitPlanModeToolName)
-    {
+    public static string GetPrompt(string exitPlanModeToolName) {
         return $@"当你需要在执行期间向用户提问时使用此工具。这允许你：
 1. 收集用户偏好或要求
 2. 澄清模糊的指令

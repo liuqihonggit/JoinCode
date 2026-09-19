@@ -1,11 +1,9 @@
 namespace JoinCode.Reasoning.Tests;
 
 
-public sealed class DagTests
-{
+public sealed class DagTests {
     [Fact]
-    public void AddNode_ShouldSucceed()
-    {
+    public void AddNode_ShouldSucceed() {
         var dag = new Dag<string>();
         var result = dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         Assert.True(result.Success);
@@ -13,8 +11,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void AddNode_Duplicate_ShouldFail()
-    {
+    public void AddNode_Duplicate_ShouldFail() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         var result = dag.AddNode(new DagNode<string> { Id = "a", Payload = "A2" });
@@ -22,8 +19,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void AddEdge_ShouldLinkNodes()
-    {
+    public void AddEdge_ShouldLinkNodes() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -35,8 +31,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void AddEdge_SelfLoop_ShouldFail()
-    {
+    public void AddEdge_SelfLoop_ShouldFail() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         var result = dag.AddEdge(new DagEdge { FromId = "a", ToId = "a" });
@@ -44,8 +39,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void AddEdge_Cycle_ShouldFail()
-    {
+    public void AddEdge_Cycle_ShouldFail() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -61,8 +55,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void HasCycle_NoCycle_ShouldReturnFalse()
-    {
+    public void HasCycle_NoCycle_ShouldReturnFalse() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -74,8 +67,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void TopologicalSort_ShouldReturnCorrectOrder()
-    {
+    public void TopologicalSort_ShouldReturnCorrectOrder() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -91,8 +83,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void TopologicalSort_Diamond_ShouldRespectDependencies()
-    {
+    public void TopologicalSort_Diamond_ShouldRespectDependencies() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -112,8 +103,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void GetDescendants_ShouldReturnAllDownstream()
-    {
+    public void GetDescendants_ShouldReturnAllDownstream() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -128,8 +118,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void GetAncestors_ShouldReturnAllUpstream()
-    {
+    public void GetAncestors_ShouldReturnAllUpstream() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -144,8 +133,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void GetAffectedSubgraph_ShouldReturnOnlyDescendants()
-    {
+    public void GetAffectedSubgraph_ShouldReturnOnlyDescendants() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -163,8 +151,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void RemoveNode_ShouldRemoveAssociatedEdges()
-    {
+    public void RemoveNode_ShouldRemoveAssociatedEdges() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -181,8 +168,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void FindAllCycles_ShouldDetectCycleWhenEdgeRejected()
-    {
+    public void FindAllCycles_ShouldDetectCycleWhenEdgeRejected() {
         var dag = new Dag<string>();
         dag.AddNode(new DagNode<string> { Id = "a", Payload = "A" });
         dag.AddNode(new DagNode<string> { Id = "b", Payload = "B" });
@@ -195,8 +181,7 @@ public sealed class DagTests
     }
 
     [Fact]
-    public void Version_ShouldIncrementOnMutation()
-    {
+    public void Version_ShouldIncrementOnMutation() {
         var dag = new Dag<string>();
         var v0 = dag.Version;
 

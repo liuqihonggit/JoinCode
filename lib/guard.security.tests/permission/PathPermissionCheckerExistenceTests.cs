@@ -4,13 +4,11 @@ namespace Core.Tests.Permission;
 /// PathPermissionChecker 路径存在性检查单元测试 — 验证步骤8.5
 /// 工作目录外读取路径不存在时直接返回 Invalid(不进 ask 面板),乱码路径同理
 /// </summary>
-public class PathPermissionCheckerExistenceTests
-{
+public class PathPermissionCheckerExistenceTests {
     private const string WorkingDir = @"D:\test\project";
 
     [Fact]
-    public void WorkDirOutside_NonExistentPath_ReturnsInvalid()
-    {
+    public void WorkDirOutside_NonExistentPath_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
         var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -21,8 +19,7 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void WorkDirOutside_ExistingFile_ReturnsAsk()
-    {
+    public void WorkDirOutside_ExistingFile_ReturnsAsk() {
         var existingPath = @"D:\other\existing.txt";
         var fs = CreateFileSystem(WorkingDir);
         fs.Setup(x => x.FileExists(It.Is<string>(p => p.Contains("existing", StringComparison.OrdinalIgnoreCase)))).Returns(true);
@@ -36,8 +33,7 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void WorkDirInside_NonExistentPath_ReturnsAllow()
-    {
+    public void WorkDirInside_NonExistentPath_ReturnsAllow() {
         var fs = CreateFileSystem(WorkingDir);
         var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -47,8 +43,7 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void GarbledPath_WithReplacementChar_ReturnsInvalid()
-    {
+    public void GarbledPath_WithReplacementChar_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
         var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -61,8 +56,7 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void GarbledPath_WithControlChar_ReturnsInvalid()
-    {
+    public void GarbledPath_WithControlChar_ReturnsInvalid() {
         var fs = CreateFileSystem(WorkingDir);
         var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -75,8 +69,7 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void UncPath_NonExistent_ReturnsAsk_Step1Priority()
-    {
+    public void UncPath_NonExistent_ReturnsAsk_Step1Priority() {
         var fs = CreateFileSystem(WorkingDir);
         var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -87,11 +80,9 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void DenyRule_NonExistentPath_ReturnsDeny_Step3Priority()
-    {
+    public void DenyRule_NonExistentPath_ReturnsDeny_Step3Priority() {
         var fs = CreateFileSystem(WorkingDir);
-        var denyRule = new PathPermissionRule
-        {
+        var denyRule = new PathPermissionRule {
             ToolType = PathPermissionToolType.Read,
             Behavior = PermissionBehavior.Deny,
             Pattern = @"D:\blocked\**",
@@ -105,8 +96,7 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void WritePermission_NonExistentPath_DoesNotCheckExistence()
-    {
+    public void WritePermission_NonExistentPath_DoesNotCheckExistence() {
         var fs = CreateFileSystem(WorkingDir);
         var sut = new PathPermissionChecker(fs.Object, WorkingDir);
 
@@ -117,8 +107,7 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void WorkDirOutside_ExistingDirectory_ReturnsAsk()
-    {
+    public void WorkDirOutside_ExistingDirectory_ReturnsAsk() {
         var fs = CreateFileSystem(WorkingDir);
         fs.Setup(x => x.DirectoryExists(It.Is<string>(p => p.Contains("existingdir", StringComparison.OrdinalIgnoreCase)))).Returns(true);
 
@@ -130,11 +119,9 @@ public class PathPermissionCheckerExistenceTests
     }
 
     [Fact]
-    public void AllowRule_NonExistentPath_ReturnsAllow_Step8Priority()
-    {
+    public void AllowRule_NonExistentPath_ReturnsAllow_Step8Priority() {
         var fs = CreateFileSystem(WorkingDir);
-        var allowRule = new PathPermissionRule
-        {
+        var allowRule = new PathPermissionRule {
             ToolType = PathPermissionToolType.Read,
             Behavior = PermissionBehavior.Allow,
             Pattern = @"D:\allowed\**",
@@ -147,8 +134,7 @@ public class PathPermissionCheckerExistenceTests
         result.Decision.Should().Be(PermissionBehavior.Allow);
     }
 
-    private static Mock<IFileSystem> CreateFileSystem(string workingDir)
-    {
+    private static Mock<IFileSystem> CreateFileSystem(string workingDir) {
         var fs = new Mock<IFileSystem>();
         fs.Setup(x => x.GetCurrentDirectory()).Returns(workingDir);
         fs.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);

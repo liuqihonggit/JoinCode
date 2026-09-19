@@ -3,8 +3,7 @@ namespace JoinCode.Transport.Bridge;
 /// <summary>
 /// Bridge 传输层接口 — 抽象 Bridge 消息的底层传输机制
 /// </summary>
-public interface IBridgeTransport
-{
+public interface IBridgeTransport {
     /// <summary>启动传输层</summary>
     Task StartAsync(CancellationToken cancellationToken = default);
 
@@ -28,8 +27,7 @@ public interface IBridgeTransport
 /// <summary>
 /// 传输消息接收事件参数
 /// </summary>
-public sealed class TransportMessageReceivedEventArgs(string message) : EventArgs
-{
+public sealed class TransportMessageReceivedEventArgs(string message) : EventArgs {
     /// <summary>接收到的消息字符串</summary>
     public string Message { get; } = message;
 }

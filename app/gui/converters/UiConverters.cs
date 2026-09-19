@@ -4,14 +4,11 @@ namespace JoinCode.Gui.Converters;
 /// (IsUser, Kind) → 消息卡片色条/角色名颜色：工具消息用工具色、思考用紫色、其余按角色蓝/淡青。
 /// 取自身份配色，随主题切换。
 /// </summary>
-public sealed class MsgBarBrushConverter : IMultiValueConverter
-{
+public sealed class MsgBarBrushConverter : IMultiValueConverter {
     /// <summary>转换值</summary>
-    public object Convert(IList<object?> values, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-    {
+    public object Convert(IList<object?> values, Type targetType, object? parameter, System.Globalization.CultureInfo culture) {
         var s = GuiPalette.Current;
-        if (values.Count >= 2 && values[1] is ViewModels.ChatUiMessageKind kind)
-        {
+        if (values.Count >= 2 && values[1] is ViewModels.ChatUiMessageKind kind) {
             if (kind is ViewModels.ChatUiMessageKind.ToolCall or ViewModels.ChatUiMessageKind.ToolResult)
                 return GuiPalette.ToBrush(s.ToolLabel);
             if (kind == ViewModels.ChatUiMessageKind.Thinking)
@@ -26,11 +23,9 @@ public sealed class MsgBarBrushConverter : IMultiValueConverter
 /// <summary>
 /// 布尔 → 角色标签色：User 蓝色，Assistant 淡青。颜色取自身份配色，随主题切换。
 /// </summary>
-public sealed class BoolToRoleBrushConverter : IValueConverter
-{
+public sealed class BoolToRoleBrushConverter : IValueConverter {
     /// <summary>转换值</summary>
-    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-    {
+    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) {
         var s = GuiPalette.Current;
         return value is true
             ? GuiPalette.ToBrush(s.RoleUser)
@@ -45,14 +40,11 @@ public sealed class BoolToRoleBrushConverter : IValueConverter
 /// <summary>
 /// 会话状态 → 指示器颜色：就绪绿 / 思考黄 / 错误红。取自身份配色，随主题切换。
 /// </summary>
-public sealed class StatusToBrushConverter : IValueConverter
-{
+public sealed class StatusToBrushConverter : IValueConverter {
     /// <summary>转换值</summary>
-    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-    {
+    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) {
         var s = GuiPalette.Current;
-        return value switch
-        {
+        return value switch {
             ViewModels.StatusKind.Busy => GuiPalette.ToBrush(s.BusyText),
             ViewModels.StatusKind.Error => GuiPalette.ToBrush(s.ErrorText),
             _ => GuiPalette.ToBrush(s.SuccessText)
@@ -67,11 +59,9 @@ public sealed class StatusToBrushConverter : IValueConverter
 /// <summary>
 /// 布尔 → 警示前景色：超限用错误色，否则次要文字色。取自身份配色，随主题切换。
 /// </summary>
-public sealed class BoolToWarnBrushConverter : IValueConverter
-{
+public sealed class BoolToWarnBrushConverter : IValueConverter {
     /// <summary>转换值</summary>
-    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-    {
+    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) {
         var s = GuiPalette.Current;
         return value is true
             ? GuiPalette.ToBrush(s.ErrorText)
@@ -86,8 +76,7 @@ public sealed class BoolToWarnBrushConverter : IValueConverter
 /// <summary>
 /// 布尔 → 警示前景色：超限用错误色，否则次要文字色。取自身份配色，随主题切换。
 /// </summary>
-public sealed class BoolToThinkingOpacityConverter : IValueConverter
-{
+public sealed class BoolToThinkingOpacityConverter : IValueConverter {
     /// <summary>转换值</summary>
     public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
         => value is true ? 0.82 : 1.0;
@@ -100,11 +89,9 @@ public sealed class BoolToThinkingOpacityConverter : IValueConverter
 /// <summary>
 /// 布尔 → 会话条目高亮底色：选中时高亮色，未选中透明。取自身份配色，随主题切换。
 /// </summary>
-public sealed class BoolToSessionHighlightConverter : IValueConverter
-{
+public sealed class BoolToSessionHighlightConverter : IValueConverter {
     /// <summary>转换值</summary>
-    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
-    {
+    public object Convert(object? value, Type targetType, object? parameter, System.Globalization.CultureInfo culture) {
         return value is true
             ? GuiPalette.ToBrush(GuiPalette.Current.SessionHighlight)
             : Brushes.Transparent;

@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class CacheSafeParams
-{
+public sealed class CacheSafeParams {
     public string? RenderedSystemPrompt { get; init; }
     public string? ModelId { get; init; }
     public IReadOnlyList<string> ToolNames { get; init; } = [];
@@ -9,10 +8,8 @@ public sealed class CacheSafeParams
     public Dictionary<string, string> SystemContext { get; init; } = [];
     public ContentReplacementState? ContentReplacementState { get; init; }
 
-    public CacheSafeParams Clone()
-    {
-        return new CacheSafeParams
-        {
+    public CacheSafeParams Clone() {
+        return new CacheSafeParams {
             RenderedSystemPrompt = RenderedSystemPrompt,
             ModelId = ModelId,
             ToolNames = ToolNames,

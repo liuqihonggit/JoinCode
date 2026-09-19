@@ -4,21 +4,17 @@ namespace Core.Skills.BuiltIn;
 /// <summary>
 /// 猎人技能 — 深度搜索和追踪代码模式，支持定义、引用、关联多维度分析
 /// </summary>
-public sealed class HunterSkill
-{
+public sealed class HunterSkill {
     /// <summary>
     /// 创建技能定义
     /// </summary>
     /// <returns>猎人技能的技能定义</returns>
-    public static SkillDefinition CreateDefinition()
-    {
-        return new SkillDefinition
-        {
+    public static SkillDefinition CreateDefinition() {
+        return new SkillDefinition {
             Name = "hunter",
             Description = "深度搜索和追踪代码模式",
             Version = "1.0",
-            Parameters = new Dictionary<string, SkillParameter>
-            {
+            Parameters = new Dictionary<string, SkillParameter> {
                 ["target"] = new() { Type = "string", Description = "搜索目标（类名、函数名、模式、字符串等）", Required = true },
                 ["scope"] = new() { Type = "string", Description = "搜索范围（如目录路径、文件类型过滤）", Required = false },
                 ["depth"] = new() { Type = "integer", Description = "搜索深度（1=仅定义，2=含引用，3=含关联）", Required = false, DefaultValue = 2, Validation = new ParameterValidation { Min = 1, Max = 5 } }

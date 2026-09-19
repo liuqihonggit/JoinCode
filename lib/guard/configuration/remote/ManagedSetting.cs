@@ -4,8 +4,7 @@ namespace Core.Configuration.Remote;
 /// <summary>
 /// 托管设置项 — 描述一个由远程服务管理的键值对设置
 /// </summary>
-public sealed class ManagedSetting
-{
+public sealed class ManagedSetting {
     /// <summary>设置键名</summary>
     public required string Key { get; init; }
     /// <summary>设置值</summary>
@@ -25,8 +24,7 @@ public sealed class ManagedSetting
 /// <summary>
 /// 设置作用域枚举 — 标识设置生效的层级范围
 /// </summary>
-public enum SettingScope
-{
+public enum SettingScope {
     /// <summary>用户级设置 — 仅对当前用户生效</summary>
     [EnumValue("user")] User,
     /// <summary>团队级设置 — 对整个团队生效</summary>

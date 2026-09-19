@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Security;
 /// [EnumValue] 特性由 EnumMetadataGenerator 自动生成 PermissionBehaviorEnumConstants + PermissionBehaviorExtensions
 /// 合并自: HookDecisionType (Block), ShellSecurityBehavior (Passthrough)
 /// </summary>
-public enum PermissionBehavior
-{
+public enum PermissionBehavior {
     /// <summary>允许执行</summary>
     [EnumValue("allow")] Allow = 0,
 

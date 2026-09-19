@@ -1,11 +1,9 @@
 
 namespace Bridge.Tests.Phase7B;
 
-public sealed class NullBridgeLoggerTests
-{
+public sealed class NullBridgeLoggerTests {
     [Fact]
-    public void NullBridgeLogger_DoesNotThrow()
-    {
+    public void NullBridgeLogger_DoesNotThrow() {
         IBridgeLogger logger = new NullBridgeLogger();
 
         // 所有方法调用不应抛异常
@@ -31,8 +29,7 @@ public sealed class NullBridgeLoggerTests
     }
 
     [Fact]
-    public void BridgeStatusState_EnumValues()
-    {
+    public void BridgeStatusState_EnumValues() {
         Assert.True(Enum.IsDefined<BridgeStatusState>(BridgeStatusState.Idle));
         Assert.True(Enum.IsDefined<BridgeStatusState>(BridgeStatusState.Attached));
         Assert.True(Enum.IsDefined<BridgeStatusState>(BridgeStatusState.Reconnecting));
@@ -41,8 +38,7 @@ public sealed class NullBridgeLoggerTests
     }
 
     [Fact]
-    public void BridgeSessionActivity_EnumValues()
-    {
+    public void BridgeSessionActivity_EnumValues() {
         Assert.True(Enum.IsDefined<BridgeSessionActivity>(BridgeSessionActivity.Idle));
         Assert.True(Enum.IsDefined<BridgeSessionActivity>(BridgeSessionActivity.Thinking));
         Assert.True(Enum.IsDefined<BridgeSessionActivity>(BridgeSessionActivity.Responding));

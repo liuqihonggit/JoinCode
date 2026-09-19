@@ -3,11 +3,9 @@ namespace Core.Utils;
 /// <summary>
 /// NetworkMailbox 单元测试 — 用 MockPlatformBotAdapter 验证邮箱与平台适配器的交互。
 /// </summary>
-public class NetworkMailboxTest
-{
+public class NetworkMailboxTest {
     [Fact]
-    public async Task StartAsync_应启动适配器并开始接收循环()
-    {
+    public async Task StartAsync_应启动适配器并开始接收循环() {
         var adapter = new MockPlatformBotAdapter("test-platform");
         await using var mailbox = new NetworkMailbox(adapter);
 
@@ -19,8 +17,7 @@ public class NetworkMailboxTest
     }
 
     [Fact]
-    public async Task TellAsync_应本地投递且调用适配器发送()
-    {
+    public async Task TellAsync_应本地投递且调用适配器发送() {
         var adapter = new MockPlatformBotAdapter("test");
         await using var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
@@ -36,8 +33,7 @@ public class NetworkMailboxTest
     }
 
     [Fact]
-    public async Task TellBroadcastAsync_应对所有Agent发送()
-    {
+    public async Task TellBroadcastAsync_应对所有Agent发送() {
         var adapter = new MockPlatformBotAdapter("test");
         await using var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
@@ -55,8 +51,7 @@ public class NetworkMailboxTest
     }
 
     [Fact]
-    public async Task TellBroadcastAsync_应排除指定Agent()
-    {
+    public async Task TellBroadcastAsync_应排除指定Agent() {
         var adapter = new MockPlatformBotAdapter("test");
         await using var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
@@ -74,8 +69,7 @@ public class NetworkMailboxTest
     }
 
     [Fact]
-    public async Task 适配器收到消息_应投递到对应Agent()
-    {
+    public async Task 适配器收到消息_应投递到对应Agent() {
         var adapter = new MockPlatformBotAdapter("test");
         await using var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
@@ -96,16 +90,14 @@ public class NetworkMailboxTest
     /// 紧接的 ReceiveAsync 在 agent 未注册时返回空流导致 null。轮询 GetRegisteredAgents 确认注册完成。
     /// 与 MailboxBaseTest.WaitForRegistrationAsync 保持同一模式。
     /// </summary>
-    private static async Task WaitForRegistrationAsync(NetworkMailbox mailbox, string agentId, TimeSpan? timeout = null)
-    {
+    private static async Task WaitForRegistrationAsync(NetworkMailbox mailbox, string agentId, TimeSpan? timeout = null) {
         var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
         while (DateTime.UtcNow < deadline && !mailbox.GetRegisteredAgents().Contains(agentId))
             await Task.Delay(10);
     }
 
     [Fact]
-    public async Task DisposeAsync_应释放适配器()
-    {
+    public async Task DisposeAsync_应释放适配器() {
         var adapter = new MockPlatformBotAdapter("test");
         var mailbox = new NetworkMailbox(adapter);
         await mailbox.StartAsync();
@@ -119,8 +111,7 @@ public class NetworkMailboxTest
 /// <summary>
 /// Mock 平台适配器 — 记录发送消息，支持手动投递接收消息。
 /// </summary>
-internal sealed class MockPlatformBotAdapter : IPlatformBotAdapter
-{
+internal sealed class MockPlatformBotAdapter : IPlatformBotAdapter {
     private readonly Channel<PlatformMessage> _receiveChannel = Channel.CreateUnbounded<PlatformMessage>();
     private int _started;
     private int _disposed;
@@ -130,19 +121,16 @@ internal sealed class MockPlatformBotAdapter : IPlatformBotAdapter
     public bool IsConnected => Volatile.Read(ref _started) != 0 && Volatile.Read(ref _disposed) == 0;
     public bool IsDisposed => Volatile.Read(ref _disposed) != 0;
 
-    public MockPlatformBotAdapter(string platformName = "mock")
-    {
+    public MockPlatformBotAdapter(string platformName = "mock") {
         PlatformName = platformName;
     }
 
-    public ValueTask StartAsync(CancellationToken ct = default)
-    {
+    public ValueTask StartAsync(CancellationToken ct = default) {
         Interlocked.Exchange(ref _started, 1);
         return ValueTask.CompletedTask;
     }
 
-    public ValueTask<string?> SendAsync(string targetId, string text, CancellationToken ct = default)
-    {
+    public ValueTask<string?> SendAsync(string targetId, string text, CancellationToken ct = default) {
         SentMessages.Add((targetId, text));
         return ValueTask.FromResult<string?>($"mock-msg-{SentMessages.Count}");
     }
@@ -152,8 +140,7 @@ internal sealed class MockPlatformBotAdapter : IPlatformBotAdapter
 
     public void Deliver(PlatformMessage message) => _receiveChannel.Writer.TryWrite(message);
 
-    public ValueTask DisposeAsync()
-    {
+    public ValueTask DisposeAsync() {
         Interlocked.Exchange(ref _disposed, 1);
         _receiveChannel.Writer.TryComplete();
         return ValueTask.CompletedTask;

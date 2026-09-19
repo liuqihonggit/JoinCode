@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 剪贴板服务接口 - 跨平台剪贴板读写
 /// </summary>
-public interface IClipboardService
-{
+public interface IClipboardService {
     /// <summary>
     /// 设置剪贴板文本内容
     /// </summary>

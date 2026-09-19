@@ -4,8 +4,7 @@ namespace Core.Bridge.Handlers;
 /// <summary>
 /// 控制请求处理器抽象基类 — 提供 ControlRequest 处理的通用流程
 /// </summary>
-public abstract class ControlRequestHandlerBase : IMessageHandler
-{
+public abstract class ControlRequestHandlerBase : IMessageHandler {
     /// <summary>消息类型标识</summary>
     public abstract string MessageType { get; }
 
@@ -19,14 +18,11 @@ public abstract class ControlRequestHandlerBase : IMessageHandler
     /// <param name="context">消息处理上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>处理后的桥消息（成功响应或错误消息）</returns>
-    public async Task<BridgeMessage> HandleAsync(BridgeMessage message, MessageHandlerContext context, CancellationToken cancellationToken = default)
-    {
+    public async Task<BridgeMessage> HandleAsync(BridgeMessage message, MessageHandlerContext context, CancellationToken cancellationToken = default) {
         context.Logger?.LogInformation("[{Handler}] 处理 {Type} 请求", GetType().Name, MessageType);
 
-        if (message is not ControlRequest request)
-        {
-            return new ErrorMessage
-            {
+        if (message is not ControlRequest request) {
+            return new ErrorMessage {
                 Code = -32600,
                 Message = InvalidRequestMessage
             };
@@ -34,12 +30,9 @@ public abstract class ControlRequestHandlerBase : IMessageHandler
 
         var parameters = request.GetParams();
 
-        try
-        {
+        try {
             return await HandleActionAsync(request, parameters, context, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             context.Logger?.LogError(ex, "[{Handler}] {Type} 操作失败", GetType().Name, MessageType);
             return CreateErrorResponse(request, ex.Message);
         }
@@ -61,10 +54,8 @@ public abstract class ControlRequestHandlerBase : IMessageHandler
     /// <param name="request">原始请求</param>
     /// <param name="result">结果数据（可选）</param>
     /// <returns>成功控制响应</returns>
-    protected static ControlResponse CreateSuccessResponse(ControlRequest request, JsonElement? result = null)
-    {
-        return new ControlResponse
-        {
+    protected static ControlResponse CreateSuccessResponse(ControlRequest request, JsonElement? result = null) {
+        return new ControlResponse {
             Id = Guid.NewGuid().ToString("N"),
             RequestId = request.Id,
             Success = true,
@@ -78,10 +69,8 @@ public abstract class ControlRequestHandlerBase : IMessageHandler
     /// <param name="request">原始请求</param>
     /// <param name="error">错误消息</param>
     /// <returns>失败控制响应</returns>
-    protected static ControlResponse CreateErrorResponse(ControlRequest request, string error)
-    {
-        return new ControlResponse
-        {
+    protected static ControlResponse CreateErrorResponse(ControlRequest request, string error) {
+        return new ControlResponse {
             Id = Guid.NewGuid().ToString("N"),
             RequestId = request.Id,
             Success = false,
@@ -95,8 +84,7 @@ public abstract class ControlRequestHandlerBase : IMessageHandler
     /// <param name="parameters">参数字典</param>
     /// <param name="key">参数键</param>
     /// <returns>字符串值；不存在时返回 null</returns>
-    protected static string? GetOptionalString(Dictionary<string, JsonElement> parameters, string key)
-    {
+    protected static string? GetOptionalString(Dictionary<string, JsonElement> parameters, string key) {
         return parameters.TryGetValue(key, out var element) ? element.GetString() : null;
     }
 
@@ -106,8 +94,7 @@ public abstract class ControlRequestHandlerBase : IMessageHandler
     /// <param name="parameters">参数字典</param>
     /// <param name="key">参数键</param>
     /// <returns>字符串值；不存在或为 null 时返回 string.Empty</returns>
-    protected static string GetRequiredString(Dictionary<string, JsonElement> parameters, string key)
-    {
+    protected static string GetRequiredString(Dictionary<string, JsonElement> parameters, string key) {
         return parameters.TryGetValue(key, out var element) ? element.GetString() ?? string.Empty : string.Empty;
     }
 }

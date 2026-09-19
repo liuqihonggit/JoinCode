@@ -12,16 +12,14 @@ public interface IAsyncHost : IHost, IAsyncDisposable;
 /// 异步 Host 包装器 — 将 <see cref="IHost"/> 包装为 <see cref="IAsyncHost"/>。
 /// <para>运行时 Host 实例已实现 IAsyncDisposable,此包装器仅让编译时类型暴露 DisposeAsync。</para>
 /// </summary>
-internal sealed class AsyncHostWrapper : IAsyncHost
-{
+internal sealed class AsyncHostWrapper : IAsyncHost {
     private readonly IHost _inner;
     public AsyncHostWrapper(IHost inner) => _inner = inner;
     public IServiceProvider Services => _inner.Services;
     public Task StartAsync(CancellationToken cancellationToken = default) => _inner.StartAsync(cancellationToken);
     public Task StopAsync(CancellationToken cancellationToken = default) => _inner.StopAsync(cancellationToken);
     public void Dispose() => _inner.Dispose();
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_inner is IAsyncDisposable ad)
             await ad.DisposeAsync().ConfigureAwait(false);
         else
@@ -33,11 +31,9 @@ internal sealed class AsyncHostWrapper : IAsyncHost
 /// 引擎会话工厂 — 收拢 LoadConfig + BuildHost + ConfigureModules + ShellCapabilityInit，
 /// CLI 和 GUI 统一调用，消除双引擎初始化差异。
 /// </summary>
-public sealed class EngineSessionFactory
-{
+public sealed class EngineSessionFactory {
     /// <summary>引擎会话创建结果 — 包含调用方所需的全部引擎对象</summary>
-    public sealed class Result
-    {
+    public sealed class Result {
         /// <summary>DI 服务提供者 — 用于解析 IExecutionSettingsProvider、IConfigurationService 等辅助服务</summary>
         public required IServiceProvider Services { get; init; }
 
@@ -63,8 +59,7 @@ public sealed class EngineSessionFactory
     /// CLI 的 Program.Main 调用此方法，替代手动 LoadConfig+BuildHost+ConfigureModules。
     /// </summary>
     public static Task<Result> CreateCliSessionAsync(
-        CommandLineOptions options, IFileSystem fs, CancellationToken cancellationToken = default)
-    {
+        CommandLineOptions options, IFileSystem fs, CancellationToken cancellationToken = default) {
         return CreateCoreAsync(
             options, fs,
             builder => builder
@@ -85,27 +80,23 @@ public sealed class EngineSessionFactory
     /// </summary>
     public static Task<Result> CreateGuiSessionAsync(
         IEnumerable<IAppModule>? extraModules = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var fs = IO.FileSystem.FileSystemFactory.Create();
-        var options = new CommandLineOptions
-        {
+        var options = new CommandLineOptions {
             NonInteractive = true,
             TrustWorkspace = true,
         };
 
         return CreateCoreAsync(
             options, fs,
-            builder =>
-            {
+            builder => {
                 builder = builder
                     .UseModule<Modules.CoreModule>()
                     .UseModule<Modules.ClockModule>()
                     .UseModule<Modules.BrowserModule>()
                     .UseModule<Modules.HousekeepingModule>()
                     .UseModule<Modules.McpInitModule>();
-                if (extraModules is not null)
-                {
+                if (extraModules is not null) {
                     foreach (var module in extraModules)
                         builder = builder.UseModule(module);
                 }
@@ -124,8 +115,7 @@ public sealed class EngineSessionFactory
         IFileSystem fs,
         Func<ApplicationBuilder, ApplicationBuilder> configureModules,
         CancellationToken cancellationToken,
-        bool clearPipeEndpoint = false)
-    {
+        bool clearPipeEndpoint = false) {
         await new Entry.StartupWorkflow().EnsureConfigFilesExistAsync(fs).ConfigureAwait(false);
 
         var modelConfigLoader = new ModelConfigLoader();
@@ -156,8 +146,7 @@ public sealed class EngineSessionFactory
 
         var chatService = host.Services.GetRequiredService<IChatService>();
 
-        return new Result
-        {
+        return new Result {
             Services = host.Services,
             ChatService = chatService,
             Config = config,
@@ -172,8 +161,7 @@ public sealed class EngineSessionFactory
     /// <para>DI 容器构建后 IModelConfigLoader 单例为空，需将 providers 数据灌入 DI 单例</para>
     /// <para>否则 SessionController.DetectModalityMismatch 从 DI 获取空实例，导致模态校验误报</para>
     /// </summary>
-    private static void SyncModelConfigToDi(IServiceProvider services, IModelConfigLoader source)
-    {
+    private static void SyncModelConfigToDi(IServiceProvider services, IModelConfigLoader source) {
         var diModelConfigLoader = services.GetService<IModelConfigLoader>();
         if (diModelConfigLoader is null || diModelConfigLoader == source) return;
 
@@ -187,12 +175,9 @@ public sealed class EngineSessionFactory
     private static void StartModelFetchBackground(
         IFileSystem fs,
         IServiceProvider services,
-        CancellationToken cancellationToken)
-    {
-        _ = Task.Run(async () =>
-        {
-            try
-            {
+        CancellationToken cancellationToken) {
+        _ = Task.Run(async () => {
+            try {
                 var settings = await SettingsLoader.LoadUserSettingsAsync(fs, cancellationToken).ConfigureAwait(false);
                 if (settings is null || !settings.AutoFetchModels) return;
 
@@ -203,9 +188,7 @@ public sealed class EngineSessionFactory
                 var startupService = new ModelFetchStartupService(fetcher, writer, services.GetService<ISettingsChangeApplier>(), services.GetService<ILogger<ModelFetchStartupService>>());
 
                 await startupService.ExecuteAsync(settings, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 services.GetService<ILogger<EngineSessionFactory>>()?.LogWarning(ex, "[EngineSessionFactory] 模型列表后台拉取失败，不影响启动");
             }
         }, cancellationToken);

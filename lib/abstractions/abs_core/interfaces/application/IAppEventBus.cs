@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// 应用级强类型事件 — 对齐 Reasonix event.Event
 /// 将"发生了什么"与"如何显示"解耦
 /// </summary>
-public sealed record AppEvent
-{
+public sealed record AppEvent {
     /// <summary>事件类型</summary>
     public required ServiceMessageType Kind { get; init; }
 
@@ -24,8 +23,7 @@ public sealed record AppEvent
     /// <summary>会话 ID（可选）</summary>
     public string? SessionId { get; init; }
 
-    public static AppEvent Create(ServiceMessageType kind, string? detail = null, object? data = null, string? sender = null, string? sessionId = null) => new()
-    {
+    public static AppEvent Create(ServiceMessageType kind, string? detail = null, object? data = null, string? sender = null, string? sessionId = null) => new() {
         Kind = kind,
         Detail = detail,
         Data = data,
@@ -38,8 +36,7 @@ public sealed record AppEvent
 /// 应用级事件总线接口 — 强类型事件发布/订阅
 /// 内部可基于 ServiceMessageBus 实现
 /// </summary>
-public interface IAppEventBus
-{
+public interface IAppEventBus {
     /// <summary>
     /// 发布应用级事件
     /// </summary>

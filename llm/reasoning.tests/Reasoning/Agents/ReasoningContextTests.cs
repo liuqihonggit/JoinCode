@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Agents;
 
-public sealed class ReasoningContextTests
-{
+public sealed class ReasoningContextTests {
     [Fact]
-    public void GetConeContextForRole_WhenOrchestratorIsNull_ReturnsEmpty()
-    {
+    public void GetConeContextForRole_WhenOrchestratorIsNull_ReturnsEmpty() {
         var context = CreateContext(orchestrator: null);
 
         var result = context.GetConeContextForRole(AgentRole.Prosecutor);
@@ -13,8 +11,7 @@ public sealed class ReasoningContextTests
     }
 
     [Fact]
-    public void GetConeContextForRole_WhenRoleConeMissing_ReturnsEmpty()
-    {
+    public void GetConeContextForRole_WhenRoleConeMissing_ReturnsEmpty() {
         var orchestrator = new ConeOrchestrator();
         var context = CreateContext(orchestrator);
 
@@ -24,13 +21,11 @@ public sealed class ReasoningContextTests
     }
 
     [Fact]
-    public void GetConeContextForRole_WhenConeExists_ReturnsContext()
-    {
+    public void GetConeContextForRole_WhenConeExists_ReturnsContext() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         var cone = orchestrator.GetRole(AgentRole.Prosecutor)!;
-        cone.AddFragment(new ObservationFragment
-        {
+        cone.AddFragment(new ObservationFragment {
             FragmentId = "f1",
             SourceItemId = "item1",
             RoleChain = AgentRole.Prosecutor,
@@ -47,8 +42,7 @@ public sealed class ReasoningContextTests
     }
 
     [Fact]
-    public void GetVisibleItemsForRole_WhenOrchestratorIsNull_ReturnsAllItems()
-    {
+    public void GetVisibleItemsForRole_WhenOrchestratorIsNull_ReturnsAllItems() {
         var items = new List<DataItem> { new() { Content = "item1" } };
         var context = CreateContext(orchestrator: null, items: items);
 
@@ -59,8 +53,7 @@ public sealed class ReasoningContextTests
     }
 
     [Fact]
-    public void GetVisibleItemsForRole_WhenRoleConeMissing_ReturnsAllItems()
-    {
+    public void GetVisibleItemsForRole_WhenRoleConeMissing_ReturnsAllItems() {
         var items = new List<DataItem> { new() { Content = "item1" } };
         var orchestrator = new ConeOrchestrator();
         var context = CreateContext(orchestrator, items: items);
@@ -71,13 +64,11 @@ public sealed class ReasoningContextTests
     }
 
     [Fact]
-    public void GetVisibleItemsForRole_WhenConeExists_IncludesVisibleSourceIds()
-    {
+    public void GetVisibleItemsForRole_WhenConeExists_IncludesVisibleSourceIds() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         var cone = orchestrator.GetRole(AgentRole.Prosecutor)!;
-        cone.AddFragment(new ObservationFragment
-        {
+        cone.AddFragment(new ObservationFragment {
             FragmentId = "f1",
             SourceItemId = "visible1",
             RoleChain = AgentRole.Prosecutor,
@@ -99,13 +90,11 @@ public sealed class ReasoningContextTests
     }
 
     [Fact]
-    public void GetVisibleItemsForRole_AssumptionsAreAlwaysVisible()
-    {
+    public void GetVisibleItemsForRole_AssumptionsAreAlwaysVisible() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         var cone = orchestrator.GetRole(AgentRole.Prosecutor)!;
-        cone.AddFragment(new ObservationFragment
-        {
+        cone.AddFragment(new ObservationFragment {
             FragmentId = "f1",
             SourceItemId = "visible1",
             RoleChain = AgentRole.Prosecutor,
@@ -127,8 +116,7 @@ public sealed class ReasoningContextTests
     }
 
     [Fact]
-    public void GetVisibleEvidenceForRole_WhenOrchestratorIsNull_ReturnsAllEvidence()
-    {
+    public void GetVisibleEvidenceForRole_WhenOrchestratorIsNull_ReturnsAllEvidence() {
         var evidence = new List<EvidenceRecord>
         {
             new() { Content = "ev1", Category = EvidenceCategory.Documentary, SubmittedBy = AgentRole.Prosecutor },
@@ -141,13 +129,11 @@ public sealed class ReasoningContextTests
     }
 
     [Fact]
-    public void GetVisibleEvidenceForRole_WhenConeExists_FiltersByVisibleSourceIds()
-    {
+    public void GetVisibleEvidenceForRole_WhenConeExists_FiltersByVisibleSourceIds() {
         var orchestrator = new ConeOrchestrator();
         orchestrator.RegisterRole(AgentRole.Prosecutor, 5);
         var cone = orchestrator.GetRole(AgentRole.Prosecutor)!;
-        cone.AddFragment(new ObservationFragment
-        {
+        cone.AddFragment(new ObservationFragment {
             FragmentId = "f1",
             SourceItemId = "ev1",
             RoleChain = AgentRole.Prosecutor,
@@ -171,10 +157,8 @@ public sealed class ReasoningContextTests
     private static ReasoningContext CreateContext(
         ConeOrchestrator? orchestrator,
         IEnumerable<DataItem>? items = null,
-        IEnumerable<EvidenceRecord>? evidence = null)
-    {
-        return new ReasoningContext
-        {
+        IEnumerable<EvidenceRecord>? evidence = null) {
+        return new ReasoningContext {
             AllItems = items ?? [],
             AllEvidence = evidence ?? [],
             Dag = new Dag<ReasoningPayload>(),

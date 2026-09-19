@@ -5,8 +5,7 @@ namespace Infrastructure.Network.Downloader;
 /// <para>终态: Completed/Cancelled/Failed,不可再转换</para>
 /// <para>非终态: Idle/Downloading/Paused/Merging,可响应 Pause/Resume/Cancel</para>
 /// </summary>
-public enum DownloadState
-{
+public enum DownloadState {
     /// <summary>已创建,未启动</summary>
     [EnumValue("idle")] Idle,
 

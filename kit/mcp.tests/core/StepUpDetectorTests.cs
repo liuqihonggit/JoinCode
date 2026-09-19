@@ -1,24 +1,20 @@
 namespace Mcp.Tests;
 
-public sealed class StepUpDetectorTests
-{
+public sealed class StepUpDetectorTests {
     [Fact]
-    public void DetectStepUp_Non403_ReturnsNull()
-    {
+    public void DetectStepUp_Non403_ReturnsNull() {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
         StepUpDetector.DetectStepUp(response, null).Should().BeNull();
     }
 
     [Fact]
-    public void DetectStepUp_403NoWwwAuth_ReturnsNull()
-    {
+    public void DetectStepUp_403NoWwwAuth_ReturnsNull() {
         var response = new HttpResponseMessage(HttpStatusCode.Forbidden);
         StepUpDetector.DetectStepUp(response, null).Should().BeNull();
     }
 
     [Fact]
-    public void DetectStepUp_403WithInsufficientScope_ReturnsScope()
-    {
+    public void DetectStepUp_403WithInsufficientScope_ReturnsScope() {
         var response = new HttpResponseMessage(HttpStatusCode.Forbidden);
         response.Headers.WwwAuthenticate.ParseAdd("Bearer error=\"insufficient_scope\", scope=\"read:admin\"");
 
@@ -27,8 +23,7 @@ public sealed class StepUpDetectorTests
     }
 
     [Fact]
-    public void DetectStepUp_403WithInsufficientScope_NotifyAuthProvider()
-    {
+    public void DetectStepUp_403WithInsufficientScope_NotifyAuthProvider() {
         var response = new HttpResponseMessage(HttpStatusCode.Forbidden);
         response.Headers.WwwAuthenticate.ParseAdd("Bearer error=\"insufficient_scope\", scope=\"write:data\"");
 
@@ -41,8 +36,7 @@ public sealed class StepUpDetectorTests
     }
 
     [Fact]
-    public void DetectStepUp_403WithoutInsufficientScope_ReturnsNull()
-    {
+    public void DetectStepUp_403WithoutInsufficientScope_ReturnsNull() {
         var response = new HttpResponseMessage(HttpStatusCode.Forbidden);
         response.Headers.WwwAuthenticate.ParseAdd("Bearer error=\"invalid_token\"");
 
@@ -50,8 +44,7 @@ public sealed class StepUpDetectorTests
     }
 
     [Fact]
-    public void DetectStepUp_NonBearerScheme_ReturnsNull()
-    {
+    public void DetectStepUp_NonBearerScheme_ReturnsNull() {
         var response = new HttpResponseMessage(HttpStatusCode.Forbidden);
         response.Headers.WwwAuthenticate.ParseAdd("Basic realm=\"test\"");
 
@@ -59,8 +52,7 @@ public sealed class StepUpDetectorTests
     }
 
     [Fact]
-    public void DetectStepUp_NullResponse_Throws()
-    {
+    public void DetectStepUp_NullResponse_Throws() {
         Assert.Throws<ArgumentNullException>(() => StepUpDetector.DetectStepUp(null!, null));
     }
 }

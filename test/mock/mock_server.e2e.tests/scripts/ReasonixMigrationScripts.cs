@@ -5,14 +5,12 @@ namespace MockServer.E2E.Tests.Scripts;
 /// P0: complete_step 证据门控 / SSRF 防护 / 截断 JSON 修复
 /// P1: SessionController / 双模型 / 事件流
 /// </summary>
-public static class CompleteStepScripts
-{
+public static class CompleteStepScripts {
     /// <summary>
     /// P0-1: complete_step 工具调用 — 验证步骤完成证据门控
     /// MockServer 模拟 AI 调用 complete_step 工具，jcc 应正确处理
     /// </summary>
-    public static ConversationScript CompleteStepToolCall => new()
-    {
+    public static ConversationScript CompleteStepToolCall => new() {
         Name = "complete_step 工具调用",
         Turns =
         [
@@ -46,8 +44,7 @@ public static class CompleteStepScripts
     /// <summary>
     /// P0-1: complete_step 多步骤完成 — 验证多轮证据门控
     /// </summary>
-    public static ConversationScript CompleteStepMultiRound => new()
-    {
+    public static ConversationScript CompleteStepMultiRound => new() {
         Name = "complete_step 多步骤完成",
         Turns =
         [
@@ -101,15 +98,13 @@ public static class CompleteStepScripts
     };
 }
 
-public static class SsrfGuardScripts
-{
+public static class SsrfGuardScripts {
     /// <summary>
     /// P0-2: SSRF 防护 — 验证 web 工具调用不崩溃
     /// MockServer 模拟 AI 调用 web_fetch 工具，jcc 应正确处理
     /// 注意：SSRF 防护是中间件层拦截，E2E 测试验证的是工具调用链路不被破坏
     /// </summary>
-    public static ConversationScript WebFetchToolCall => new()
-    {
+    public static ConversationScript WebFetchToolCall => new() {
         Name = "web_fetch 工具调用（SSRF 防护链路）",
         Turns =
         [
@@ -140,13 +135,11 @@ public static class SsrfGuardScripts
     };
 }
 
-public static class SessionControllerScripts
-{
+public static class SessionControllerScripts {
     /// <summary>
     /// P1-2: SessionController — 验证流式文本响应通过统一事件消费
     /// </summary>
-    public static ConversationScript StreamingTextViaController => new()
-    {
+    public static ConversationScript StreamingTextViaController => new() {
         Name = "流式文本响应（SessionController 统一消费）",
         Turns =
         [
@@ -172,8 +165,7 @@ public static class SessionControllerScripts
     /// P1-2: SessionController — 验证工具调用事件通过统一消费
     /// 使用 Read 工具（自动允许访问已存在文件，不会被权限拒绝）
     /// </summary>
-    public static ConversationScript ToolCallViaController => new()
-    {
+    public static ConversationScript ToolCallViaController => new() {
         Name = "工具调用事件（SessionController 统一消费）",
         Turns =
         [
@@ -207,8 +199,7 @@ public static class SessionControllerScripts
     /// <summary>
     /// P1-2: SessionController — 验证 API 超时检测
     /// </summary>
-    public static ConversationScript ApiTimeoutDetection => new()
-    {
+    public static ConversationScript ApiTimeoutDetection => new() {
         Name = "API 超时检测（SessionController 10s 无响应）",
         Turns =
         [
@@ -231,8 +222,7 @@ public static class SessionControllerScripts
     /// <summary>
     /// P1-2: SessionController — 验证思考内容 + 文本响应
     /// </summary>
-    public static ConversationScript ThinkingAndTextViaController => new()
-    {
+    public static ConversationScript ThinkingAndTextViaController => new() {
         Name = "思考+文本响应（SessionController 统一消费）",
         Turns =
         [
@@ -255,14 +245,12 @@ public static class SessionControllerScripts
     };
 }
 
-public static class TruncatedJsonScripts
-{
+public static class TruncatedJsonScripts {
     /// <summary>
     /// P0-3: 截断 JSON 修复 — 验证流式响应中截断的 JSON 不导致崩溃
     /// MockServer 正常返回，验证 jcc 的 JSON 解析链路健壮
     /// </summary>
-    public static ConversationScript StreamingWithComplexResponse => new()
-    {
+    public static ConversationScript StreamingWithComplexResponse => new() {
         Name = "流式复杂响应（截断 JSON 修复链路）",
         Turns =
         [
@@ -286,15 +274,13 @@ public static class TruncatedJsonScripts
     };
 }
 
-public static class DualModelScripts
-{
+public static class DualModelScripts {
     /// <summary>
     /// P1-1: 双模型分离 — 验证工具调用后正常回复
     /// MockServer 模拟 AI 先调用工具再回复，验证 ModelCoordinator 链路
     /// 注意：双模型的 Planner/Executor 切换是内部行为，E2E 测试验证的是端到端不崩溃
     /// </summary>
-    public static ConversationScript ToolCallThenAnalysis => new()
-    {
+    public static ConversationScript ToolCallThenAnalysis => new() {
         Name = "工具调用后分析回复（双模型链路）",
         Turns =
         [
@@ -329,8 +315,7 @@ public static class DualModelScripts
     /// P1-1: 双模型分离 — 验证多工具调用后综合回复
     /// 模拟 Planner 先收集信息，Executor 再综合回复的场景
     /// </summary>
-    public static ConversationScript MultiToolCallThenSynthesis => new()
-    {
+    public static ConversationScript MultiToolCallThenSynthesis => new() {
         Name = "多工具调用后综合回复（双模型链路）",
         Turns =
         [
@@ -371,8 +356,7 @@ public static class DualModelScripts
     /// P1-1: 双模型分离 — 验证空计划检测（NoOpPlanDetector）
     /// 模拟 AI 直接回复文本（不需要工具调用），验证 NoOpPlan 检测不干扰正常流程
     /// </summary>
-    public static ConversationScript DirectTextNoPlan => new()
-    {
+    public static ConversationScript DirectTextNoPlan => new() {
         Name = "直接文本回复（空计划检测链路）",
         Turns =
         [
@@ -394,15 +378,13 @@ public static class DualModelScripts
     };
 }
 
-public static class EventStreamScripts
-{
+public static class EventStreamScripts {
     /// <summary>
     /// P1-3: 统一强类型事件流 — 验证多轮对话事件传递
     /// AppEventBus + ServiceMessageType 的端到端验证
     /// 事件流是内部架构，E2E 验证的是多轮对话不丢失上下文
     /// </summary>
-    public static ConversationScript ThreeTurnContextPreservation => new()
-    {
+    public static ConversationScript ThreeTurnContextPreservation => new() {
         Name = "三轮上下文保持（事件流链路）",
         Turns =
         [
@@ -462,8 +444,7 @@ public static class EventStreamScripts
     /// <summary>
     /// P1-3: 统一强类型事件流 — 验证工具进度事件传递
     /// </summary>
-    public static ConversationScript ToolProgressEventStream => new()
-    {
+    public static ConversationScript ToolProgressEventStream => new() {
         Name = "工具进度事件流",
         Turns =
         [

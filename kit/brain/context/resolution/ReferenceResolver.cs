@@ -6,16 +6,14 @@ namespace Core.Context.Resolution;
 /// 集成 ISearchService 进行文件搜索，支持模糊匹配和精确匹配
 /// </summary>
 [Register(typeof(IReferenceResolver), JoinCode.Abstractions.Attributes.ServiceLifetime.Scoped)]
-public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolver
-{
+public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolver {
     private readonly ISearchService _searchService;
     private readonly IFileOperationService _fileOperationService;
     private readonly ICodeIndexer? _codeIndexer;
     private readonly ILogger<ReferenceResolver>? _logger;
 
     // 目录别名映射表
-    private static readonly FrozenDictionary<string, string[]> DirectoryAliases = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly FrozenDictionary<string, string[]> DirectoryAliases = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase) {
         ["工具"] = ["tools", "tool", "ToolHandlers", "Commands"],
         ["工具实现"] = ["tools", "ToolHandlers"],
         ["命令"] = ["commands", "command", "Commands"],
@@ -36,8 +34,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     }.ToFrozenDictionary();
 
     // 文件扩展名映射
-    private static readonly FrozenDictionary<string, string[]> ExtensionPatterns = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly FrozenDictionary<string, string[]> ExtensionPatterns = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase) {
         [".cs"] = ["*.cs"],
         [".ts"] = ["*.ts", "*.tsx"],
         [".js"] = ["*.js", "*.jsx"],
@@ -61,8 +58,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     /// <param name="fileOperationService">文件操作服务</param>
     /// <param name="codeIndexer">代码索引器（可选）</param>
     /// <param name="logger">日志记录器（可选）</param>
-    public ReferenceResolver(ISearchService searchService, IFileOperationService fileOperationService, ICodeIndexer? codeIndexer = null, ILogger<ReferenceResolver>? logger = null)
-    {
+    public ReferenceResolver(ISearchService searchService, IFileOperationService fileOperationService, ICodeIndexer? codeIndexer = null, ILogger<ReferenceResolver>? logger = null) {
         _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
         _fileOperationService = fileOperationService ?? throw new ArgumentNullException(nameof(fileOperationService));
         _codeIndexer = codeIndexer;
@@ -73,66 +69,54 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     public async Task<CodeReference> ResolveCodeReferenceAsync(
         string reference,
         ReferenceResolutionOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var opts = options ?? ReferenceResolutionOptions.Default;
         var projectRoot = GetProjectRoot(opts);
 
         _logger?.LogInformation("解析代码引用: {Reference}", reference);
 
-        try
-        {
+        try {
             // 0. 尝试 CodeIndex 符号搜索（优先级最高）
-            if (_codeIndexer is not null)
-            {
+            if (_codeIndexer is not null) {
                 var codeIndexResult = await TryCodeIndexSearchAsync(reference, opts, cancellationToken).ConfigureAwait(false);
-                if (codeIndexResult != null && codeIndexResult.FileMatches.Count > 0)
-                {
+                if (codeIndexResult != null && codeIndexResult.FileMatches.Count > 0) {
                     return codeIndexResult;
                 }
             }
 
             // 1. 尝试精确匹配（作为完整路径）
             var exactPath = _fileOperationService.CombinePath(projectRoot, reference.Replace('/', Path.DirectorySeparatorChar));
-            if (_fileOperationService.DirectoryExists(exactPath))
-            {
+            if (_fileOperationService.DirectoryExists(exactPath)) {
                 return await ResolveDirectoryReferenceAsync(reference, exactPath, opts, cancellationToken).ConfigureAwait(false);
             }
-            if (_fileOperationService.FileExists(exactPath))
-            {
+            if (_fileOperationService.FileExists(exactPath)) {
                 return ResolveFileReference(reference, exactPath, ReferenceMatchType.Exact);
             }
 
             // 2. 尝试作为 Glob 模式匹配
             var globResult = await TryGlobMatchAsync(reference, projectRoot, opts, cancellationToken).ConfigureAwait(false);
-            if (globResult != null && globResult.FileMatches.Count > 0)
-            {
+            if (globResult != null && globResult.FileMatches.Count > 0) {
                 return globResult;
             }
 
             // 3. 尝试模糊匹配（解析路径各部分）
-            if (opts.EnableFuzzyMatching)
-            {
+            if (opts.EnableFuzzyMatching) {
                 var fuzzyResult = await TryFuzzyMatchAsync(reference, projectRoot, opts, cancellationToken).ConfigureAwait(false);
-                if (fuzzyResult != null && fuzzyResult.FileMatches.Count > 0)
-                {
+                if (fuzzyResult != null && fuzzyResult.FileMatches.Count > 0) {
                     return fuzzyResult;
                 }
             }
 
             // 4. 尝试部分匹配
             var partialResult = await TryPartialMatchAsync(reference, projectRoot, opts, cancellationToken).ConfigureAwait(false);
-            if (partialResult != null && partialResult.FileMatches.Count > 0)
-            {
+            if (partialResult != null && partialResult.FileMatches.Count > 0) {
                 return partialResult;
             }
 
             // 未找到匹配
             _logger?.LogWarning("无法解析代码引用: {Reference}", reference);
             return CodeReference.Unresolved(reference);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "解析代码引用时发生错误: {Reference}", reference);
             return CodeReference.Unresolved(reference);
         }
@@ -142,29 +126,24 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     public async Task<IReadOnlyList<CodeReference>> FindMatchingFilesAsync(
         string description,
         ReferenceResolutionOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var opts = options ?? ReferenceResolutionOptions.Default;
         var projectRoot = GetProjectRoot(opts);
         var results = new List<CodeReference>();
 
         _logger?.LogInformation("根据描述查找文件: {Description}", description);
 
-        try
-        {
+        try {
             // 0. 尝试 CodeIndex 符号搜索（优先级最高）
-            if (_codeIndexer is not null)
-            {
+            if (_codeIndexer is not null) {
                 var codeIndexResults = await TryCodeIndexFindMatchingAsync(description, opts, cancellationToken).ConfigureAwait(false);
-                if (codeIndexResults.Count > 0)
-                {
+                if (codeIndexResults.Count > 0) {
                     return codeIndexResults;
                 }
             }
 
             // 1. 检查是否是目录别名（并行解析）
-            if (DirectoryAliases.TryGetValue(description, out var aliases))
-            {
+            if (DirectoryAliases.TryGetValue(description, out var aliases)) {
                 var aliasTasks = aliases.Select(alias => ResolveCodeReferenceAsync(alias, opts, cancellationToken));
                 var aliasResults = await Task.WhenAll(aliasTasks).ConfigureAwait(false);
                 results.AddRange(aliasResults.Where(r => r.IsResolved));
@@ -172,8 +151,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
 
             // 2. 尝试 Glob 搜索（并行执行）
             var globPatterns = InferGlobPatterns(description);
-            var globTasks = globPatterns.Select(async pattern =>
-            {
+            var globTasks = globPatterns.Select(async pattern => {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var searchResult = await _searchService.GlobSearchAsync(
@@ -181,18 +159,15 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                     projectRoot,
                     cancellationToken).ConfigureAwait(false);
 
-                if (searchResult.Success && searchResult.Filenames.Count > 0)
-                {
+                if (searchResult.Success && searchResult.Filenames.Count > 0) {
                     var fileMatches = searchResult.Filenames
                         .Select(f => FileMatch.Create(f, ReferenceMatchType.Fuzzy, CalculateRelevanceScore(f, description)))
                         .Where(fm => fm.RelevanceScore >= opts.MinRelevanceScore)
                         .Take(opts.MaxResults)
                         .ToList();
 
-                    if (fileMatches.Count > 0)
-                    {
-                        return new CodeReference
-                        {
+                    if (fileMatches.Count > 0) {
+                        return new CodeReference {
                             ReferencePath = description,
                             ResolvedPath = projectRoot,
                             MatchType = ReferenceMatchType.Fuzzy,
@@ -208,23 +183,17 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
             results.AddRange(globResults.Where(r => r != null)!);
 
             // 3. 尝试 Grep 搜索（在文件内容中查找）
-            if (results.Count == 0)
-            {
+            if (results.Count == 0) {
                 var grepResult = await TryGrepSearchAsync(description, projectRoot, opts, cancellationToken).ConfigureAwait(false);
-                if (grepResult.Count > 0)
-                {
+                if (grepResult.Count > 0) {
                     results.AddRange(grepResult);
                 }
             }
 
             return results.DistinctBy(r => r.ResolvedPath).ToList();
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "查找匹配文件时发生错误: {Description}", description);
             return results;
         }
@@ -233,32 +202,27 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     /// <inheritdoc />
     public async Task<ReferenceIndex> BuildReferenceIndexAsync(
         string projectRoot,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var index = new ReferenceIndex(projectRoot);
         var stopwatch = Stopwatch.StartNew();
 
         _logger?.LogInformation("开始构建代码引用索引: {ProjectRoot}", projectRoot);
 
-        try
-        {
+        try {
             var searchResult = await _searchService.GlobSearchAsync(
                 "**/*",
                 projectRoot,
                 cancellationToken).ConfigureAwait(false);
 
-            if (!searchResult.Success)
-            {
+            if (!searchResult.Success) {
                 _logger?.LogWarning("构建索引时搜索失败: {Error}", searchResult.ErrorMessage);
                 return index;
             }
 
-            foreach (var filePath in searchResult.Filenames)
-            {
+            foreach (var filePath in searchResult.Filenames) {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                try
-                {
+                try {
                     // 使用 IFileOperationService 检查文件存在，支持 InMemoryFileSystem
                     if (!_fileOperationService.FileExists(filePath)) continue;
 
@@ -272,8 +236,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
 
                     // 获取文件大小：优先通过 ListDirectoryAsync 获取，回退到默认值 0
                     long fileSize = 0;
-                    try
-                    {
+                    try {
                         var dirPath = Path.GetDirectoryName(filePath) ?? projectRoot;
                         var fileName = Path.GetFileName(filePath);
                         var dirList = await _fileOperationService
@@ -281,9 +244,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                             .ConfigureAwait(false);
                         var entry = dirList.Files.FirstOrDefault(f => f.Name == fileName);
                         fileSize = entry?.Size ?? 0;
-                    }
-                    catch (Exception ex)
-                    {
+                    } catch (Exception ex) {
                         // 无法获取文件大小时使用默认值
                         _logger?.LogWarning("获取代码引用文件大小时失败: {Error}", ex.Message);
                     }
@@ -296,9 +257,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                         fileSize);
 
                     index.AddReference(indexedRef);
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     _logger?.LogWarning(ex, "索引文件失败: {FilePath}", filePath);
                 }
             }
@@ -310,13 +269,9 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 stopwatch.ElapsedMilliseconds);
 
             return index;
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "构建代码引用索引时发生错误");
             return index;
         }
@@ -327,15 +282,12 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     private async Task<CodeReference?> TryCodeIndexSearchAsync(
         string reference,
         ReferenceResolutionOptions opts,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var codeIndexer = _codeIndexer;
         if (codeIndexer is null) return null;
-        try
-        {
+        try {
             var searchResult = await codeIndexer.Searcher.SearchAsync(reference, cancellationToken).ConfigureAwait(false);
-            if (searchResult.Items.Count == 0)
-            {
+            if (searchResult.Items.Count == 0) {
                 return null;
             }
 
@@ -348,17 +300,14 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 .Take(opts.MaxResults)
                 .ToList();
 
-            return new CodeReference
-            {
+            return new CodeReference {
                 ReferencePath = reference,
                 ResolvedPath = searchResult.Items[0].FilePath,
                 MatchType = ReferenceMatchType.Exact,
                 RelevanceScore = 0.95,
                 FileMatches = fileMatches
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "CodeIndex 搜索失败，降级到文件搜索");
             return null;
         }
@@ -367,15 +316,12 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     private async Task<IReadOnlyList<CodeReference>> TryCodeIndexFindMatchingAsync(
         string description,
         ReferenceResolutionOptions opts,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var codeIndexer = _codeIndexer;
         if (codeIndexer is null) return [];
-        try
-        {
+        try {
             var searchResult = await codeIndexer.Searcher.SearchAsync(description, cancellationToken).ConfigureAwait(false);
-            if (searchResult.Items.Count == 0)
-            {
+            if (searchResult.Items.Count == 0) {
                 return [];
             }
 
@@ -384,8 +330,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 .Take(opts.MaxResults)
                 .ToList();
 
-            var results = grouped.Select(group => new CodeReference
-            {
+            var results = grouped.Select(group => new CodeReference {
                 ReferencePath = description,
                 ResolvedPath = group.Key,
                 MatchType = ReferenceMatchType.Exact,
@@ -398,18 +343,14 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
             }).ToList();
 
             return results;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "CodeIndex 搜索失败，降级到文件搜索");
             return [];
         }
     }
 
-    private string GetProjectRoot(ReferenceResolutionOptions opts)
-    {
-        if (!string.IsNullOrEmpty(opts.ProjectRoot))
-        {
+    private string GetProjectRoot(ReferenceResolutionOptions opts) {
+        if (!string.IsNullOrEmpty(opts.ProjectRoot)) {
             return _fileOperationService.GetFullPath(opts.ProjectRoot);
         }
 
@@ -420,8 +361,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         string reference,
         string directoryPath,
         ReferenceResolutionOptions opts,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var fileMatches = new List<FileMatch>();
 
         // 获取目录下的文件
@@ -434,10 +374,8 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 directoryPath,
                 cancellationToken).ConfigureAwait(false);
 
-            if (searchResult.Success)
-            {
-                foreach (var file in searchResult.Filenames.Take(opts.MaxResults))
-                {
+            if (searchResult.Success) {
+                foreach (var file in searchResult.Filenames.Take(opts.MaxResults)) {
                     fileMatches.Add(FileMatch.Create(
                         file,
                         ReferenceMatchType.Exact,
@@ -447,8 +385,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
             }
         }
 
-        return new CodeReference
-        {
+        return new CodeReference {
             ReferencePath = reference,
             ResolvedPath = directoryPath,
             MatchType = ReferenceMatchType.Exact,
@@ -457,12 +394,10 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         };
     }
 
-    private CodeReference ResolveFileReference(string reference, string filePath, ReferenceMatchType matchType)
-    {
+    private CodeReference ResolveFileReference(string reference, string filePath, ReferenceMatchType matchType) {
         var fileMatch = FileMatch.Create(filePath, matchType, 1.0, "精确匹配");
 
-        return new CodeReference
-        {
+        return new CodeReference {
             ReferencePath = reference,
             ResolvedPath = filePath,
             MatchType = matchType,
@@ -475,28 +410,24 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         string reference,
         string projectRoot,
         ReferenceResolutionOptions opts,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         // 转换路径分隔符并尝试作为 Glob 模式
         var globPattern = reference.Replace('/', Path.DirectorySeparatorChar);
 
         // 如果包含通配符，直接使用
-        if (globPattern.Contains('*') || globPattern.Contains('?'))
-        {
+        if (globPattern.Contains('*') || globPattern.Contains('?')) {
             var searchResult = await _searchService.GlobSearchAsync(
                 globPattern,
                 projectRoot,
                 cancellationToken).ConfigureAwait(false);
 
-            if (searchResult.Success && searchResult.Filenames.Count > 0)
-            {
+            if (searchResult.Success && searchResult.Filenames.Count > 0) {
                 var fileMatches = searchResult.Filenames
                     .Select(f => FileMatch.Create(f, ReferenceMatchType.Pattern, 0.9, "Glob 模式匹配"))
                     .Take(opts.MaxResults)
                     .ToList();
 
-                return new CodeReference
-                {
+                return new CodeReference {
                     ReferencePath = reference,
                     ResolvedPath = projectRoot,
                     MatchType = ReferenceMatchType.Pattern,
@@ -513,26 +444,21 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         string reference,
         string projectRoot,
         ReferenceResolutionOptions opts,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var parts = reference.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
         var currentPath = projectRoot;
         var matchedParts = new List<string>();
         var allMatches = new List<FileMatch>();
 
-        foreach (var part in parts)
-        {
+        foreach (var part in parts) {
             cancellationToken.ThrowIfCancellationRequested();
 
             // 检查是否是目录别名
-            if (DirectoryAliases.TryGetValue(part, out var aliases))
-            {
+            if (DirectoryAliases.TryGetValue(part, out var aliases)) {
                 var found = false;
-                foreach (var alias in aliases)
-                {
+                foreach (var alias in aliases) {
                     var aliasPath = _fileOperationService.CombinePath(currentPath, alias);
-                    if (_fileOperationService.DirectoryExists(aliasPath))
-                    {
+                    if (_fileOperationService.DirectoryExists(aliasPath)) {
                         currentPath = aliasPath;
                         matchedParts.Add(alias);
                         found = true;
@@ -540,59 +466,44 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                     }
                 }
 
-                if (!found)
-                {
+                if (!found) {
                     // 尝试直接匹配
                     var directPath = _fileOperationService.CombinePath(currentPath, part);
-                    if (_fileOperationService.DirectoryExists(directPath))
-                    {
+                    if (_fileOperationService.DirectoryExists(directPath)) {
                         currentPath = directPath;
                         matchedParts.Add(part);
-                    }
-                    else
-                    {
+                    } else {
                         // 尝试模糊匹配目录名
                         var fuzzyDir = await FindFuzzyDirectoryAsync(currentPath, part, cancellationToken).ConfigureAwait(false);
-                        if (fuzzyDir != null)
-                        {
+                        if (fuzzyDir != null) {
                             currentPath = fuzzyDir;
                             matchedParts.Add(Path.GetFileName(fuzzyDir));
                         }
                     }
                 }
-            }
-            else
-            {
+            } else {
                 // 尝试直接匹配
                 var directPath = _fileOperationService.CombinePath(currentPath, part);
-                if (_fileOperationService.DirectoryExists(directPath))
-                {
+                if (_fileOperationService.DirectoryExists(directPath)) {
                     currentPath = directPath;
                     matchedParts.Add(part);
-                }
-                else if (_fileOperationService.FileExists(directPath))
-                {
+                } else if (_fileOperationService.FileExists(directPath)) {
                     allMatches.Add(FileMatch.Create(
                         directPath,
                         ReferenceMatchType.Fuzzy,
                         CalculateRelevanceScore(directPath, reference),
                         "模糊匹配"));
-                }
-                else
-                {
+                } else {
                     // 尝试作为 Glob 模式
                     var searchResult = await _searchService.GlobSearchAsync(
                         $"**/{part}",
                         currentPath,
                         cancellationToken).ConfigureAwait(false);
 
-                    if (searchResult.Success)
-                    {
-                        foreach (var file in searchResult.Filenames)
-                        {
+                    if (searchResult.Success) {
+                        foreach (var file in searchResult.Filenames) {
                             var score = CalculateRelevanceScore(file, part);
-                            if (score >= opts.FuzzyMatchThreshold)
-                            {
+                            if (score >= opts.FuzzyMatchThreshold) {
                                 allMatches.Add(FileMatch.Create(
                                     file,
                                     ReferenceMatchType.Fuzzy,
@@ -606,8 +517,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         }
 
         // 如果匹配到了目录，获取目录内容
-        if (matchedParts.Count > 0 && allMatches.Count == 0)
-        {
+        if (matchedParts.Count > 0 && allMatches.Count == 0) {
             return await ResolveDirectoryReferenceAsync(
                 reference,
                 currentPath,
@@ -615,15 +525,13 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 cancellationToken).ConfigureAwait(false);
         }
 
-        if (allMatches.Count > 0)
-        {
+        if (allMatches.Count > 0) {
             var bestMatches = allMatches
                 .OrderByDescending(m => m.RelevanceScore)
                 .Take(opts.MaxResults)
                 .ToList();
 
-            return new CodeReference
-            {
+            return new CodeReference {
                 ReferencePath = reference,
                 ResolvedPath = bestMatches[0].FilePath,
                 MatchType = ReferenceMatchType.Fuzzy,
@@ -639,11 +547,9 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         string reference,
         string projectRoot,
         ReferenceResolutionOptions opts,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var fileName = Path.GetFileName(reference);
-        if (string.IsNullOrEmpty(fileName))
-        {
+        if (string.IsNullOrEmpty(fileName)) {
             fileName = reference;
         }
 
@@ -653,8 +559,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
             projectRoot,
             cancellationToken).ConfigureAwait(false);
 
-        if (searchResult.Success && searchResult.Filenames.Count > 0)
-        {
+        if (searchResult.Success && searchResult.Filenames.Count > 0) {
             var fileMatches = searchResult.Filenames
                 .Select(f => FileMatch.Create(
                     f,
@@ -665,10 +570,8 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 .Take(opts.MaxResults)
                 .ToList();
 
-            if (fileMatches.Count > 0)
-            {
-                return new CodeReference
-                {
+            if (fileMatches.Count > 0) {
+                return new CodeReference {
                     ReferencePath = reference,
                     ResolvedPath = fileMatches[0].FilePath,
                     MatchType = ReferenceMatchType.Partial,
@@ -684,10 +587,8 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     private async Task<string?> FindFuzzyDirectoryAsync(
         string parentPath,
         string targetName,
-        CancellationToken cancellationToken)
-    {
-        if (!_fileOperationService.DirectoryExists(parentPath))
-        {
+        CancellationToken cancellationToken) {
+        if (!_fileOperationService.DirectoryExists(parentPath)) {
             return null;
         }
 
@@ -705,15 +606,12 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         string description,
         string projectRoot,
         ReferenceResolutionOptions opts,
-        CancellationToken cancellationToken)
-    {
+        CancellationToken cancellationToken) {
         var results = new List<CodeReference>();
 
-        try
-        {
+        try {
             var grepResult = await _searchService.GrepSearchAsync(
-                new GrepSearchInput
-                {
+                new GrepSearchInput {
                     Pattern = Regex.Escape(description),
                     Path = projectRoot,
                     OutputMode = SearchOutputMode.Files,
@@ -722,8 +620,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            if (grepResult.Success && grepResult.Filenames.Count > 0)
-            {
+            if (grepResult.Success && grepResult.Filenames.Count > 0) {
                 var fileMatches = grepResult.Filenames
                     .Select(f => FileMatch.Create(
                         f,
@@ -732,8 +629,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                         "内容匹配"))
                     .ToList();
 
-                results.Add(new CodeReference
-                {
+                results.Add(new CodeReference {
                     ReferencePath = description,
                     ResolvedPath = projectRoot,
                     MatchType = ReferenceMatchType.Fuzzy,
@@ -741,27 +637,21 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
                     FileMatches = fileMatches
                 });
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Grep 搜索失败");
         }
 
         return results;
     }
 
-    private static List<string> InferGlobPatterns(string description)
-    {
+    private static List<string> InferGlobPatterns(string description) {
         var patterns = new List<string>();
 
         // 检查是否有扩展名
         var extension = Path.GetExtension(description);
-        if (!string.IsNullOrEmpty(extension) && ExtensionPatterns.TryGetValue(extension, out var extPatterns))
-        {
+        if (!string.IsNullOrEmpty(extension) && ExtensionPatterns.TryGetValue(extension, out var extPatterns)) {
             patterns.AddRange(extPatterns);
-        }
-        else
-        {
+        } else {
             // 默认搜索常见代码文件
             patterns.Add($"**/*{description}*.cs");
             patterns.Add($"**/*{description}*.ts");
@@ -772,8 +662,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         return patterns;
     }
 
-    private static List<string> ExtractKeywords(string relativePath)
-    {
+    private static List<string> ExtractKeywords(string relativePath) {
         var parts = relativePath.Split(['/', '\\', '.', '_', '-'], StringSplitOptions.RemoveEmptyEntries);
 
         return parts
@@ -782,15 +671,12 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
             .ToList();
     }
 
-    private static IEnumerable<string> SplitCamelCase(string input)
-    {
+    private static IEnumerable<string> SplitCamelCase(string input) {
         var words = new List<string>();
         var currentWord = new System.Text.StringBuilder();
 
-        foreach (char c in input)
-        {
-            if (char.IsUpper(c) && currentWord.Length > 0)
-            {
+        foreach (var c in input) {
+            if (char.IsUpper(c) && currentWord.Length > 0) {
                 // 使用 Span 避免 ToLowerInvariant 分配
                 words.Add(currentWord.ToString());
                 currentWord.Clear();
@@ -798,33 +684,28 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
             currentWord.Append(c);
         }
 
-        if (currentWord.Length > 0)
-        {
+        if (currentWord.Length > 0) {
             words.Add(currentWord.ToString());
         }
 
         return words;
     }
 
-    private static double CalculateRelevanceScore(string filePath, string query)
-    {
+    private static double CalculateRelevanceScore(string filePath, string query) {
         var fileName = Path.GetFileNameWithoutExtension(filePath) ?? string.Empty;
 
         // 使用 OrdinalIgnoreCase 比较避免 ToLowerInvariant 分配
-        if (fileName.Equals(query, StringComparison.OrdinalIgnoreCase))
-        {
+        if (fileName.Equals(query, StringComparison.OrdinalIgnoreCase)) {
             return 1.0;
         }
 
         // 文件名包含查询 - 使用 Span 和 OrdinalIgnoreCase
-        if (ContainsOrdinalIgnoreCase(fileName.AsSpan(), query.AsSpan()))
-        {
+        if (ContainsOrdinalIgnoreCase(fileName.AsSpan(), query.AsSpan())) {
             return 0.9;
         }
 
         // 查询包含文件名
-        if (ContainsOrdinalIgnoreCase(query.AsSpan(), fileName.AsSpan()))
-        {
+        if (ContainsOrdinalIgnoreCase(query.AsSpan(), fileName.AsSpan())) {
             return 0.8;
         }
 
@@ -837,31 +718,26 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
     /// <summary>
     /// 使用 OrdinalIgnoreCase 检查 Span 是否包含子串
     /// </summary>
-    private static bool ContainsOrdinalIgnoreCase(ReadOnlySpan<char> source, ReadOnlySpan<char> value)
-    {
+    private static bool ContainsOrdinalIgnoreCase(ReadOnlySpan<char> source, ReadOnlySpan<char> value) {
         if (value.IsEmpty) return true;
         if (source.IsEmpty) return false;
 
-        for (int i = 0; i <= source.Length - value.Length; i++)
-        {
+        for (var i = 0; i <= source.Length - value.Length; i++) {
             if (source.Slice(i, value.Length).Equals(value, StringComparison.OrdinalIgnoreCase))
                 return true;
         }
         return false;
     }
 
-    private static double CalculateSimilarity(string s1, string s2)
-    {
-        if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
-        {
+    private static double CalculateSimilarity(string s1, string s2) {
+        if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2)) {
             return 0.0;
         }
 
         var longer = s1.Length > s2.Length ? s1 : s2;
         var shorter = s1.Length > s2.Length ? s2 : s1;
 
-        if (longer.Length == 0)
-        {
+        if (longer.Length == 0) {
             return 1.0;
         }
 
@@ -869,8 +745,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         return (longer.Length - distance) / (double)longer.Length;
     }
 
-    private static int CalculateLevenshteinDistance(string s1, string s2)
-    {
+    private static int CalculateLevenshteinDistance(string s1, string s2) {
         var n = s1.Length;
         var m = s2.Length;
         var d = new int[n + 1, m + 1];
@@ -878,20 +753,16 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         if (n == 0) return m;
         if (m == 0) return n;
 
-        for (var i = 0; i <= n; i++)
-        {
+        for (var i = 0; i <= n; i++) {
             d[i, 0] = i;
         }
 
-        for (var j = 0; j <= m; j++)
-        {
+        for (var j = 0; j <= m; j++) {
             d[0, j] = j;
         }
 
-        for (var i = 1; i <= n; i++)
-        {
-            for (var j = 1; j <= m; j++)
-            {
+        for (var i = 1; i <= n; i++) {
+            for (var j = 1; j <= m; j++) {
                 var cost = (s2[j - 1] == s1[i - 1]) ? 0 : 1;
 
                 d[i, j] = Math.Min(

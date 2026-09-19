@@ -5,8 +5,7 @@ namespace JoinCode.Cli.Display;
 /// 通过 [EnumValue] 源码生成器自动生成 ToValue()/FromValue() 和 ToolExecutionStatusEnumConstants。
 /// 消费方禁止硬编码 "OK"/"FAIL" 字符串，统一通过枚举获取。
 /// </summary>
-public enum ToolExecutionStatus
-{
+public enum ToolExecutionStatus {
     /// <summary>工具执行成功</summary>
     [EnumValue("OK")] Ok,
 

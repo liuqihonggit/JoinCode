@@ -3,8 +3,7 @@ namespace MockServer.E2E.Tests;
 /// <summary>
 /// Agent / 子代理 spawn 工具 E2E 覆盖测试 — 拆分自 CoverageExpansionTests 以启用 xUnit 集合并行
 /// </summary>
-public sealed class AgentToolCoverageTests : CoverageTestBase
-{
+public sealed class AgentToolCoverageTests : CoverageTestBase {
     public AgentToolCoverageTests(ITestOutputHelper output) : base(output) { }
 
     // ============================================================
@@ -12,20 +11,17 @@ public sealed class AgentToolCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task AgentSpawn_ToolCall_ShouldSpawnSubAgent()
-    {
+    public async Task AgentSpawn_ToolCall_ShouldSpawnSubAgent() {
         await RunScriptAsync(MissingCoverageScripts.AgentSpawnToolCall).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task AgentSpawnViaSpawnTool_ShouldWork()
-    {
+    public async Task AgentSpawnViaSpawnTool_ShouldWork() {
         await RunScriptAsync(MissingCoverageScripts.AgentSpawnViaTool).ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task AgentWorktreeIsolation_ShouldCreateWorktree()
-    {
+    public async Task AgentWorktreeIsolation_ShouldCreateWorktree() {
         await RunScriptAsync(MissingCoverageScripts.AgentWorktreeIsolation).ConfigureAwait(true);
     }
 
@@ -34,8 +30,7 @@ public sealed class AgentToolCoverageTests : CoverageTestBase
     // ============================================================
 
     [Fact]
-    public async Task AgentTools_Batch_ShouldCoverAll()
-    {
+    public async Task AgentTools_Batch_ShouldCoverAll() {
         await RunScriptAsync(BatchAgentToolScripts.AgentToolsBatch).ConfigureAwait(true);
     }
 }

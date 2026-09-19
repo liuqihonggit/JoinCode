@@ -1,8 +1,7 @@
 namespace Core.Utils;
 
 /// <summary>编译请求 — 全局编译队列的工作单元。</summary>
-public sealed record GlobalBuildRequest
-{
+public sealed record GlobalBuildRequest {
     /// <summary>请求唯一标识。</summary>
     public required string RequestId { get; init; }
 
@@ -20,8 +19,7 @@ public sealed record GlobalBuildRequest
 }
 
 /// <summary>编译结果。</summary>
-public sealed record GlobalBuildResult
-{
+public sealed record GlobalBuildResult {
     /// <summary>对应请求标识。</summary>
     public required string RequestId { get; init; }
 
@@ -73,8 +71,7 @@ public delegate ValueTask<GlobalBuildResult> GlobalBuildExecutor(GlobalBuildRequ
 /// <para>从机模式：编译请求转发到主机，等待主机执行结果（TODO: 跨进程请求-响应）。</para>
 /// <para>防 OOM：全局串行保证内存峰值只有一个编译的量，多进程叠加不会 OOM。</para>
 /// </summary>
-public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuildEvent>
-{
+public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuildEvent> {
     private readonly GlobalBuildExecutor _executor;
     private readonly ITransportTopology? _transport;
     private readonly ILogger? _logger;
@@ -91,8 +88,7 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
         GlobalBuildExecutor executor,
         ITransportTopology? transport = null,
         ILogger? logger = null)
-        : base(ActorBackpressure.Build, outputCapacity: 64)
-    {
+        : base(ActorBackpressure.Build, outputCapacity: 64) {
         _executor = executor ?? throw new ArgumentNullException(nameof(executor));
         _transport = transport;
         _logger = logger;
@@ -113,8 +109,7 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
     /// <param name="request">编译请求</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>编译结果 Task（await 等待结果）</returns>
-    public async Task<GlobalBuildResult> EnqueueAsync(GlobalBuildRequest request, CancellationToken ct = default)
-    {
+    public async Task<GlobalBuildResult> EnqueueAsync(GlobalBuildRequest request, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<GlobalBuildResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         _pending[request.RequestId] = tcs;
 
@@ -134,23 +129,20 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
     /// <summary>
     /// 命令处理 — Consumer 线程串行执行，保证同一时刻只有一个编译在跑。
     /// </summary>
-    protected override async ValueTask HandleAsync(GlobalBuildCommand cmd, CancellationToken ct)
-    {
-        switch (cmd)
-        {
+    protected override async ValueTask HandleAsync(GlobalBuildCommand cmd, CancellationToken ct) {
+        switch (cmd) {
             case EnqueueGlobalBuildCmd enqueue:
-                await HandleEnqueueAsync(enqueue, ct).ConfigureAwait(false);
-                break;
+            await HandleEnqueueAsync(enqueue, ct).ConfigureAwait(false);
+            break;
             case CancelGlobalBuildCmd cancel:
-                HandleCancel(cancel.RequestId);
-                break;
+            HandleCancel(cancel.RequestId);
+            break;
             default:
-                throw new InvalidOperationException($"Unknown build command: {cmd?.GetType().Name}");
+            throw new InvalidOperationException($"Unknown build command: {cmd?.GetType().Name}");
         }
     }
 
-    private async ValueTask HandleEnqueueAsync(EnqueueGlobalBuildCmd cmd, CancellationToken ct)
-    {
+    private async ValueTask HandleEnqueueAsync(EnqueueGlobalBuildCmd cmd, CancellationToken ct) {
         var request = cmd.Request;
         Volatile.Write(ref _currentBuild, request);
         TryPublish(new GlobalBuildStartedEvt(request.RequestId, request.ProjectPath));
@@ -159,13 +151,11 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
             "GlobalBuildQueue: build started (id={Id}, project={Project}, from={Process})",
             request.RequestId, request.ProjectPath, request.RequestingProcessId);
 
-        try
-        {
+        try {
             var result = await _executor(request, ct).ConfigureAwait(false);
             TryPublish(new GlobalBuildCompletedEvt(result));
 
-            if (cmd.Tcs is not null)
-            {
+            if (cmd.Tcs is not null) {
                 cmd.Tcs.TrySetResult(result);
             }
             _pending.TryRemove(request.RequestId, out _);
@@ -173,16 +163,11 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
             _logger?.LogInformation(
                 "GlobalBuildQueue: build completed (id={Id}, success={Success}, duration={Duration:F1}s)",
                 request.RequestId, result.Success, result.Duration.TotalSeconds);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
+        } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
             cmd.Tcs?.TrySetCanceled(ct);
             _pending.TryRemove(request.RequestId, out _);
-        }
-        catch (Exception ex)
-        {
-            var failedResult = new GlobalBuildResult
-            {
+        } catch (Exception ex) {
+            var failedResult = new GlobalBuildResult {
                 RequestId = request.RequestId,
                 Success = false,
                 Output = ex.ToString(),
@@ -194,17 +179,13 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
             _pending.TryRemove(request.RequestId, out _);
 
             _logger?.LogError(ex, "GlobalBuildQueue: build failed (id={Id})", request.RequestId);
-        }
-        finally
-        {
+        } finally {
             Volatile.Write(ref _currentBuild, null);
         }
     }
 
-    private void HandleCancel(string requestId)
-    {
-        if (_pending.TryRemove(requestId, out var tcs))
-        {
+    private void HandleCancel(string requestId) {
+        if (_pending.TryRemove(requestId, out var tcs)) {
             tcs.TrySetCanceled();
             _logger?.LogInformation("GlobalBuildQueue: build cancelled (id={Id})", requestId);
         }
@@ -213,11 +194,9 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
     /// <summary>
     /// 获取当前队列状态快照 — 用于主机上下文同步。
     /// </summary>
-    public BuildQueueState GetQueueState()
-    {
+    public BuildQueueState GetQueueState() {
         var current = Volatile.Read(ref _currentBuild);
-        return new BuildQueueState
-        {
+        return new BuildQueueState {
             PendingCount = _pending.Count,
             RunningCount = current is not null ? 1 : 0,
             PendingTasks = _pending.Keys.ToArray()
@@ -227,8 +206,7 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
     /// <summary>
     /// 释放全局编译队列 — 释放传输层。
     /// </summary>
-    public override async ValueTask DisposeAsync()
-    {
+    public override async ValueTask DisposeAsync() {
         if (_transport is not null) await _transport.DisposeAsync().ConfigureAwait(false);
         await base.DisposeAsync().ConfigureAwait(false);
     }

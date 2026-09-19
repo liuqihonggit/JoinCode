@@ -5,8 +5,7 @@ namespace IO.Services.Update;
 /// 子类只需重写 <see cref="GetLatestReleaseUrl"/> 和 <see cref="ParseRelease"/> 即可
 /// > ADR: 0064
 /// </summary>
-public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
-{
+public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource {
     /// <summary>
     /// HTTP 客户端
     /// </summary>
@@ -31,8 +30,7 @@ public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
     protected GitHostMirrorUpdateSourceBase(
         HttpClient httpClient,
         string mirrorBaseUrl,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         HttpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         MirrorBaseUrl = mirrorBaseUrl?.TrimEnd('/') ?? throw new ArgumentNullException(nameof(mirrorBaseUrl));
         Logger = logger;
@@ -58,10 +56,8 @@ public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>更新清单；拉取或解析失败时返回 null</returns>
-    public virtual async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default)
-    {
-        try
-        {
+    public virtual async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default) {
+        try {
             var url = GetLatestReleaseUrl();
             Logger?.LogDebug("{TypeName}: 拉取最新 release {Url}", GetType().Name, url);
 
@@ -73,9 +69,7 @@ public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
 
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             return ParseRelease(json);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Logger?.LogError(ex, "{TypeName}: 拉取失败 {Url}", GetType().Name, GetLatestReleaseUrl());
             return null;
         }
@@ -91,8 +85,7 @@ public abstract class GitHostMirrorUpdateSourceBase : IUpdateSource
     public virtual async Task<Stream> DownloadAsync(
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(entry);
 
         Logger?.LogDebug("{TypeName}: 下载 {Url}", GetType().Name, entry.DownloadUrl);

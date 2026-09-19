@@ -8,8 +8,7 @@ namespace MockServer.E2E.Tests.E2E;
 /// 通过 MockServer 模拟 LLM 响应，验证集群 DAG 执行不卡死、退出码正确
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed partial class ClusterE2ETests : IAsyncLifetime
-{
+public sealed partial class ClusterE2ETests : IAsyncLifetime {
     private readonly ITestOutputHelper _output;
     private Process? _mockServerProcess;
     private int _mockServerPort;
@@ -19,8 +18,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
 
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public async Task DisposeAsync()
-    {
+    public async Task DisposeAsync() {
         await KillProcessAsync(_jccProcess);
         await KillProcessAsync(_mockServerProcess);
     }
@@ -29,8 +27,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
     /// 集群非交互模式 — jcc -p "并行编写三个模块的文档" 应在 30s 内正常退出（退出码 0）
     /// </summary>
     [Fact]
-    public async Task ClusterNonInteractive_ShouldCompleteWithoutTimeout()
-    {
+    public async Task ClusterNonInteractive_ShouldCompleteWithoutTimeout() {
         var configPath = WriteClusterMockServerConfig();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
@@ -46,8 +43,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
 
         _output.WriteLine($"[ClusterE2E] jcc.exe 退出码: {exitCode}, 耗时: {elapsed.TotalSeconds:F1}s");
 
-        if (!string.IsNullOrEmpty(stderr))
-        {
+        if (!string.IsNullOrEmpty(stderr)) {
             var stderrLines = stderr.Split('\n').Where(l => l.Contains("[STEP]") || l.Contains("[AI对话结束]") || l.Contains("cluster", StringComparison.OrdinalIgnoreCase)).Take(20);
             foreach (var line in stderrLines)
                 _output.WriteLine($"[ClusterE2E:stderr] {line.TrimEnd('\r')}");
@@ -61,8 +57,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
     /// 集群流程 — MockServer 应收到多个请求（主进程 + Worker 子进程）
     /// </summary>
     [Fact]
-    public async Task ClusterNonInteractive_MockServerShouldReceiveMultipleRequests()
-    {
+    public async Task ClusterNonInteractive_MockServerShouldReceiveMultipleRequests() {
         var configPath = WriteClusterMockServerConfig();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
@@ -83,8 +78,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
     /// 集群流程 — 输出应包含集群相关关键词
     /// </summary>
     [Fact]
-    public async Task ClusterNonInteractive_OutputShouldContainClusterKeywords()
-    {
+    public async Task ClusterNonInteractive_OutputShouldContainClusterKeywords() {
         var configPath = WriteClusterMockServerConfig();
         await StartMockServerAsync(configPath).ConfigureAwait(true);
 
@@ -99,8 +93,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         exitCode.Should().Be(0);
 
         _output.WriteLine($"[ClusterE2E] stdout 长度: {stdout.Length}");
-        if (stdout.Length > 0)
-        {
+        if (stdout.Length > 0) {
             var preview = stdout.Length > 500 ? stdout[..500] + "..." : stdout;
             _output.WriteLine($"[ClusterE2E] stdout 预览: {preview}");
         }
@@ -113,16 +106,14 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         int mockServerPort,
         string prompt,
         int awaitSeconds = 30,
-        int timeoutSeconds = 60)
-    {
+        int timeoutSeconds = 60) {
         var stateDir = Path.Combine(Path.GetTempPath(), $"jcc_cluster_e2e_{Guid.NewGuid():N}");
         Directory.CreateDirectory(stateDir);
         E2eSettingsJsonHelper.WriteSettingsJsonToStateDir(stateDir);
 
         var args = $"--trust --debuglog --await {awaitSeconds} -p \"{prompt}\"";
 
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = exePath,
             Arguments = args,
             RedirectStandardOutput = true,
@@ -150,15 +141,13 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         var stdoutBuilder = new StringBuilder();
         var stderrBuilder = new StringBuilder();
 
-        _jccProcess.OutputDataReceived += (_, e) =>
-        {
+        _jccProcess.OutputDataReceived += (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             stdoutBuilder.AppendLine(e.Data);
             _output.WriteLine($"[jcc:out] {e.Data}");
         };
 
-        _jccProcess.ErrorDataReceived += (_, e) =>
-        {
+        _jccProcess.ErrorDataReceived += (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             stderrBuilder.AppendLine(e.Data);
             _output.WriteLine($"[jcc:err] {e.Data}");
@@ -175,8 +164,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
 
         var sw = Stopwatch.StartNew();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-        try
-        {
+        try {
             var code = await exitTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
             sw.Stop();
 
@@ -184,9 +172,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
 
             DumpJccErrorLog(code, stateDir);
             return (code, sw.Elapsed, stdoutBuilder.ToString(), stderrBuilder.ToString());
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             sw.Stop();
             _output.WriteLine("[ClusterE2E] jcc.exe 超时，强制终止");
             DumpJccErrorLog(-1, stateDir);
@@ -198,31 +184,25 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
     /// jcc 退出码非 0 时，读取并打印 jcc_error.log 全文到测试输出（含完整 StackTrace）。
     /// 路径: {stateDir}/runtime/jcc_error.log（JCC_APP_DATA_FOLDER=stateDir 时）。
     /// </summary>
-    private void DumpJccErrorLog(int exitCode, string stateDir)
-    {
+    private void DumpJccErrorLog(int exitCode, string stateDir) {
         if (exitCode == 0) return;
         var errorLogPath = Path.Combine(stateDir, "runtime", "jcc_error.log");
-        try
-        {
+        try {
             if (!File.Exists(errorLogPath)) return;
             var content = File.ReadAllText(errorLogPath);
             _output.WriteLine($"[ClusterE2E] jcc_error.log (exit={exitCode}, {content.Length} chars):");
             foreach (var line in content.Split('\n'))
                 _output.WriteLine($"[ClusterE2E:errorlog] {line.TrimEnd('\r')}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _output.WriteLine($"[ClusterE2E] 读取 jcc_error.log 失败: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
-    private async Task StartMockServerAsync(string configPath)
-    {
+    private async Task StartMockServerAsync(string configPath) {
         var mockServerExe = ResolveMockServerPath();
         _output.WriteLine($"[ClusterE2E] MockServer.exe: {mockServerExe}");
 
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = mockServerExe,
             Arguments = $"--config \"{configPath}\" --port 0",
             RedirectStandardOutput = true,
@@ -239,13 +219,11 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         var readyTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         var readyMarker = "[OpenAI]   URL:";
 
-        _mockServerProcess.OutputDataReceived += (_, e) =>
-        {
+        _mockServerProcess.OutputDataReceived += (_, e) => {
             if (string.IsNullOrEmpty(e.Data)) return;
             _output.WriteLine($"[MockServer:out] {e.Data}");
             var idx = e.Data.IndexOf(readyMarker, StringComparison.OrdinalIgnoreCase);
-            if (idx >= 0)
-            {
+            if (idx >= 0) {
                 var urlPart = e.Data[(idx + readyMarker.Length)..].Trim();
                 var match = PortRegex().Match(urlPart);
                 if (match.Success && int.TryParse(match.Groups[1].Value, out var port))
@@ -253,8 +231,7 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
             }
         };
 
-        _mockServerProcess.ErrorDataReceived += (_, e) =>
-        {
+        _mockServerProcess.ErrorDataReceived += (_, e) => {
             if (!string.IsNullOrEmpty(e.Data))
                 _output.WriteLine($"[MockServer:ERR] {e.Data}");
         };
@@ -266,19 +243,15 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         _mockServerProcess.BeginErrorReadLine();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-        try
-        {
+        try {
             _mockServerPort = await readyTcs.Task.WaitAsync(cts.Token).ConfigureAwait(true);
             _output.WriteLine($"[ClusterE2E] MockServer 就绪, 端口: {_mockServerPort}");
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             throw new InvalidOperationException("等待 MockServer 就绪超时");
         }
     }
 
-    private static string WriteClusterMockServerConfig()
-    {
+    private static string WriteClusterMockServerConfig() {
         var configDir = Path.Combine(Path.GetTempPath(), $"jcc_cluster_mock_{Guid.NewGuid():N}");
         Directory.CreateDirectory(configDir);
 
@@ -302,35 +275,29 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         return configPath;
     }
 
-    private static string ResolveJccExePath()
-    {
+    private static string ResolveJccExePath() {
         var baseDir = AppContext.BaseDirectory;
         var artifactsBin = FindArtifactsBinRoot(baseDir);
-        if (artifactsBin is not null)
-        {
+        if (artifactsBin is not null) {
             var found = SearchExe(artifactsBin, "jcc.exe");
             if (found is not null) return found;
         }
         throw new InvalidOperationException($"jcc.exe 未找到 (baseDir={baseDir})");
     }
 
-    private static string ResolveMockServerPath()
-    {
+    private static string ResolveMockServerPath() {
         var baseDir = AppContext.BaseDirectory;
         var artifactsBin = FindArtifactsBinRoot(baseDir);
-        if (artifactsBin is not null)
-        {
+        if (artifactsBin is not null) {
             var found = SearchExe(artifactsBin, "JoinCode.OpenAI.MockServer.exe");
             if (found is not null) return found;
         }
         throw new InvalidOperationException($"MockServer.exe 未找到 (baseDir={baseDir})");
     }
 
-    private static string? FindArtifactsBinRoot(string baseDir)
-    {
+    private static string? FindArtifactsBinRoot(string baseDir) {
         var dir = baseDir;
-        for (var i = 0; i < 10; i++)
-        {
+        for (var i = 0; i < 10; i++) {
             var candidate = Path.Combine(dir, "artifacts", "bin");
             if (Directory.Exists(candidate)) return candidate;
             var parent = Path.GetDirectoryName(dir);
@@ -340,12 +307,9 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         return null;
     }
 
-    private static string? SearchExe(string root, string exeName)
-    {
-        foreach (var dir in Directory.GetDirectories(root, "*", SearchOption.TopDirectoryOnly))
-        {
-            foreach (var subDir in Directory.GetDirectories(dir, "*", SearchOption.AllDirectories))
-            {
+    private static string? SearchExe(string root, string exeName) {
+        foreach (var dir in Directory.GetDirectories(root, "*", SearchOption.TopDirectoryOnly)) {
+            foreach (var subDir in Directory.GetDirectories(dir, "*", SearchOption.AllDirectories)) {
                 var path = Path.Combine(subDir, exeName);
                 if (File.Exists(path)) return path;
             }
@@ -353,16 +317,12 @@ public sealed partial class ClusterE2ETests : IAsyncLifetime
         return null;
     }
 
-    private static async Task KillProcessAsync(Process? process)
-    {
+    private static async Task KillProcessAsync(Process? process) {
         if (process is null || process.HasExited) return;
-        try
-        {
+        try {
             process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync().ConfigureAwait(true);
-        }
-        catch (InvalidOperationException ex) { Debug.WriteLine($"[KillProcess] InvalidOperationException: {ex.Message}"); }
-        catch (System.ComponentModel.Win32Exception ex) { Debug.WriteLine($"[KillProcess] Win32Exception: {ex.Message}"); }
+        } catch (InvalidOperationException ex) { Debug.WriteLine($"[KillProcess] InvalidOperationException: {ex.Message}"); } catch (System.ComponentModel.Win32Exception ex) { Debug.WriteLine($"[KillProcess] Win32Exception: {ex.Message}"); }
     }
 
     [GeneratedRegex(@"localhost:(\d+)")]

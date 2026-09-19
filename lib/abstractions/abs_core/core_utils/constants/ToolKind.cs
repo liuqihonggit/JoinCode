@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Utils;
 /// 工具类型枚举 — 区分系统内置/MCP远程/报错时动态注入
 /// 对齐 [McpToolDispatch] 特性的 Kind 属性，源码生成器据此决定注入策略
 /// </summary>
-public enum ToolKind
-{
+public enum ToolKind {
     /// <summary>系统内置工具 — 始终注入系统提示词</summary>
     [EnumValue("system")] System,
 

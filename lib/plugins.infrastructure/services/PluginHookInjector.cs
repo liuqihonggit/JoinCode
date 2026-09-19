@@ -3,8 +3,7 @@ namespace Core.Plugins;
 /// <summary>
 /// 插件钩子注入器接口 — 管理插件向宿主事件注入的钩子，支持注入、移除和查询
 /// </summary>
-public interface IPluginHookInjector
-{
+public interface IPluginHookInjector {
     /// <summary>注入 Hooks — 返回撤销函数(可逆效应)</summary>
     Task<Action> InjectHooksAsync(string pluginName, IReadOnlyList<PluginHookDefinition> hooks, CancellationToken ct = default);
     /// <summary>移除指定插件注入的全部钩子</summary>
@@ -16,8 +15,7 @@ public interface IPluginHookInjector
 /// <summary>
 /// 插件钩子定义 — 描述钩子名称、目标事件、类型以及可选的命令、匹配器和条件
 /// </summary>
-public sealed partial class PluginHookDefinition
-{
+public sealed partial class PluginHookDefinition {
     /// <summary>钩子名称</summary>
     public required string HookName { get; init; }
     /// <summary>目标事件名称</summary>
@@ -36,8 +34,7 @@ public sealed partial class PluginHookDefinition
 /// 插件钩子注入器 — 管理插件钩子的注入、移除和查询，依赖 PluginManager 判断插件是否已加载
 /// </summary>
 [Register(typeof(IPluginHookInjector), ServiceLifetime.Singleton)]
-public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjector
-{
+public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjector {
     private readonly IPluginManager _pluginManager;
     private readonly ILogger<PluginHookInjector>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -52,8 +49,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
     public PluginHookInjector(
         IPluginManager pluginManager,
         ILogger<PluginHookInjector>? logger = null,
-        ITelemetryService? telemetryService = null)
-    {
+        ITelemetryService? telemetryService = null) {
         _pluginManager = pluginManager ?? throw new ArgumentNullException(nameof(pluginManager));
         _logger = logger;
         _telemetryService = telemetryService;
@@ -67,13 +63,11 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
     /// <param name="hooks">钩子定义列表</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>撤销函数，调用后移除该插件注入的全部钩子</returns>
-    public async Task<Action> InjectHooksAsync(string pluginName, IReadOnlyList<PluginHookDefinition> hooks, CancellationToken ct = default)
-    {
+    public async Task<Action> InjectHooksAsync(string pluginName, IReadOnlyList<PluginHookDefinition> hooks, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
         ArgumentNullException.ThrowIfNull(hooks);
 
-        if (!_pluginManager.IsPluginLoaded(pluginName))
-        {
+        if (!_pluginManager.IsPluginLoaded(pluginName)) {
             throw new InvalidOperationException(PluginErrors.NotLoadedForHook(pluginName));
         }
 
@@ -83,8 +77,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
 
         RecordHookInjectorMetrics("inject", pluginName, hooks.Count, true);
 
-        foreach (var hook in hooks)
-        {
+        foreach (var hook in hooks) {
             _logger?.LogInformation(
                 "[PluginHookInjector] 注入 Hook: {HookName} -> {TargetEvent} (插件: {Plugin})",
                 hook.HookName, hook.TargetEvent, pluginName);
@@ -92,10 +85,8 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
 
         await Task.CompletedTask.ConfigureAwait(false);
 
-        return () =>
-        {
-            if (_injectedHooks.TryRemove(pluginName, out var removed))
-            {
+        return () => {
+            if (_injectedHooks.TryRemove(pluginName, out var removed)) {
                 RecordHookInjectorMetrics("remove", pluginName, removed.Count, true);
             }
         };
@@ -106,15 +97,12 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
     /// </summary>
     /// <param name="pluginName">插件名称</param>
     /// <param name="ct">取消令牌</param>
-    public async Task RemoveHooksAsync(string pluginName, CancellationToken ct = default)
-    {
+    public async Task RemoveHooksAsync(string pluginName, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
 
-        if (_injectedHooks.TryRemove(pluginName, out var hooks))
-        {
+        if (_injectedHooks.TryRemove(pluginName, out var hooks)) {
             RecordHookInjectorMetrics("remove", pluginName, hooks.Count, true);
-            foreach (var hook in hooks)
-            {
+            foreach (var hook in hooks) {
                 _logger?.LogInformation(
                     "[PluginHookInjector] 移除 Hook: {HookName} (插件: {Plugin})",
                     hook.HookName, pluginName);
@@ -129,8 +117,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
     /// </summary>
     /// <param name="pluginName">插件名称</param>
     /// <returns>钩子定义列表，未注入则返回空集合</returns>
-    public IEnumerable<PluginHookDefinition> GetInjectedHooks(string pluginName)
-    {
+    public IEnumerable<PluginHookDefinition> GetInjectedHooks(string pluginName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(pluginName);
 
         return _injectedHooks.TryGetValue(pluginName, out var hooks)
@@ -138,8 +125,7 @@ public sealed partial class PluginHookInjector : ServiceEntity, IPluginHookInjec
             : Array.Empty<PluginHookDefinition>();
     }
 
-    private void RecordHookInjectorMetrics(string operation, string pluginName, int hookCount, bool isSuccess)
-    {
+    private void RecordHookInjectorMetrics(string operation, string pluginName, int hookCount, bool isSuccess) {
         var tags = new Dictionary<string, string> { ["operation"] = operation, ["plugin"] = pluginName, ["success"] = isSuccess.ToString() };
         _telemetryService?.RecordCount("plugin.hook.count", tags, "count", "Plugin hook operation count");
         _telemetryService?.RecordHistogram("plugin.hook.hook_count", hookCount, new Dictionary<string, string> { ["operation"] = operation, ["plugin"] = pluginName }, "count", "Number of hooks in operation");

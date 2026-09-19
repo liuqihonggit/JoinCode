@@ -4,8 +4,7 @@ namespace IO.ProcessService;
 /// 物理进程服务 — 委托给 System.Diagnostics.Process
 /// 内部强制先读 stdout/stderr 再 WaitForExit，消除 JCC3003 死锁风险
 /// </summary>
-public sealed class PhysicalProcessService : IProcessService
-{
+public sealed class PhysicalProcessService : IProcessService {
     private readonly ILogger<PhysicalProcessService>? _logger;
     private readonly ProcessStartInfoBuilder _builder;
 
@@ -16,15 +15,13 @@ public sealed class PhysicalProcessService : IProcessService
     /// <param name="logger">日志记录器（可选）</param>
     public PhysicalProcessService(
         ProcessStartInfoBuilder builder,
-        ILogger<PhysicalProcessService>? logger = null)
-    {
+        ILogger<PhysicalProcessService>? logger = null) {
         _builder = builder ?? throw new ArgumentNullException(nameof(builder));
         _logger = logger;
     }
 
     /// <inheritdoc/>
-    public async Task<ProcessResult> ExecuteAsync(ProcessOptions options, CancellationToken ct = default)
-    {
+    public async Task<ProcessResult> ExecuteAsync(ProcessOptions options, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(options);
 
         var psi = _builder.Build(options);
@@ -35,17 +32,13 @@ public sealed class PhysicalProcessService : IProcessService
         _logger?.LogDebug("[Process] 执行: {FileName} {Arguments}", options.FileName, argsDisplay);
 
         System.Diagnostics.Process? startedProcess;
-        try
-        {
+        try {
             startedProcess = System.Diagnostics.Process.Start(psi);
-        }
-        catch (Exception startEx)
-        {
+        } catch (Exception startEx) {
             _logger?.LogDebug(startEx, "[Process] 启动失败: {FileName}", options.FileName);
             throw;
         }
-        if (startedProcess is null)
-        {
+        if (startedProcess is null) {
             throw new InvalidOperationException($"[INF014] 无法启动进程: {options.FileName}");
         }
         using var process = startedProcess;
@@ -59,34 +52,24 @@ public sealed class PhysicalProcessService : IProcessService
             ? process.StandardError.ReadToEndAsync(ct)
             : Task.FromResult(string.Empty);
 
-        if (options.TimeoutMs is > 0)
-        {
+        if (options.TimeoutMs is > 0) {
             using var cts = TimeoutHelper.CreateLinkedTimeout(ct, TimeSpan.FromMilliseconds(options.TimeoutMs.Value));
-            try
-            {
+            try {
                 await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 _logger?.LogDebug("[Process] 超时, 终止 PID={Id}", process.Id);
                 process.Kill();
-                return new ProcessResult
-                {
+                return new ProcessResult {
                     ExitCode = -1,
                     StandardOutput = string.Empty,
                     StandardError = "进程执行超时",
                     ExecutionTime = sw.Elapsed
                 };
             }
-        }
-        else
-        {
-            try
-            {
+        } else {
+            try {
                 await process.WaitForExitAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 try { process.Kill(); } catch (Exception killEx) { _logger?.LogDebug(killEx, "[Process] 取消后杀进程失败: PID={Id}", process.Id); }
                 throw;
             }
@@ -96,8 +79,7 @@ public sealed class PhysicalProcessService : IProcessService
 
         _logger?.LogDebug("[Process] 完成: PID={Id}, exitCode={ExitCode}, time={Ms}ms", process.Id, process.ExitCode, sw.ElapsedMilliseconds);
 
-        return new ProcessResult
-        {
+        return new ProcessResult {
             ExitCode = process.ExitCode,
             StandardOutput = await stdoutTask.ConfigureAwait(false),
             StandardError = await stderrTask.ConfigureAwait(false),
@@ -106,8 +88,7 @@ public sealed class PhysicalProcessService : IProcessService
     }
 
     /// <inheritdoc/>
-    public Task<IInteractiveProcess> StartInteractiveAsync(InteractiveProcessOptions options, CancellationToken ct = default)
-    {
+    public Task<IInteractiveProcess> StartInteractiveAsync(InteractiveProcessOptions options, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(options);
 
         var psi = _builder.BuildInteractive(options);
@@ -128,32 +109,25 @@ public sealed class PhysicalProcessService : IProcessService
     }
 
     /// <inheritdoc/>
-    public async Task<bool> OpenAsync(string path, CancellationToken ct = default)
-    {
+    public async Task<bool> OpenAsync(string path, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        try
-        {
+        try {
             using var process = System.Diagnostics.Process.Start(_builder.BuildShellOpen(path));
             return process != null;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "[Process] 打开失败: {Path}", path);
             return false;
         }
     }
 
     /// <inheritdoc/>
-    public async Task<string?> FindExecutableAsync(string name, CancellationToken ct = default)
-    {
+    public async Task<string?> FindExecutableAsync(string name, CancellationToken ct = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var cmd = OperatingSystem.IsWindows() ? "where" : "which";
-        try
-        {
-            var result = await ExecuteAsync(new ProcessOptions
-            {
+        try {
+            var result = await ExecuteAsync(new ProcessOptions {
                 FileName = cmd,
                 Arguments = name,
                 RedirectStandardOutput = true,
@@ -165,11 +139,9 @@ public sealed class PhysicalProcessService : IProcessService
 
             var output = result.StandardOutput.Trim();
 
-            if (OperatingSystem.IsWindows())
-            {
+            if (OperatingSystem.IsWindows()) {
                 var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                foreach (var line in lines)
-                {
+                foreach (var line in lines) {
                     var trimmed = line.Trim();
                     if (!trimmed.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase))
                         return trimmed;
@@ -178,23 +150,17 @@ public sealed class PhysicalProcessService : IProcessService
             }
 
             return string.IsNullOrWhiteSpace(output) ? null : output.Split('\n')[0].Trim();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "[Process] 查找可执行文件失败: {Name}", name);
             return null;
         }
     }
 
     /// <inheritdoc/>
-    public bool IsProcessRunning(string processName)
-    {
-        try
-        {
+    public bool IsProcessRunning(string processName) {
+        try {
             return System.Diagnostics.Process.GetProcessesByName(processName).Length > 0;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "[Process] 检查进程运行状态失败: {ProcessName}", processName);
             return false;
         }
@@ -203,8 +169,7 @@ public sealed class PhysicalProcessService : IProcessService
     /// <summary>
     /// 物理交互式进程实现 — 包装 System.Diagnostics.Process，提供标准输入/输出流和错误数据事件
     /// </summary>
-    private sealed class PhysicalInteractiveProcess : IInteractiveProcess
-    {
+    private sealed class PhysicalInteractiveProcess : IInteractiveProcess {
         private readonly System.Diagnostics.Process _process;
         private readonly ILogger? _logger;
 
@@ -213,14 +178,12 @@ public sealed class PhysicalProcessService : IProcessService
         /// </summary>
         /// <param name="process">底层进程实例</param>
         /// <param name="logger">日志记录器（可选）</param>
-        public PhysicalInteractiveProcess(System.Diagnostics.Process process, ILogger? logger)
-        {
+        public PhysicalInteractiveProcess(System.Diagnostics.Process process, ILogger? logger) {
             _process = process;
             _logger = logger;
             StandardInput = new StreamWriter(_process.StandardInput.BaseStream) { AutoFlush = true };
             StandardOutput = new StreamReader(_process.StandardOutput.BaseStream);
-            _process.ErrorDataReceived += (_, e) =>
-            {
+            _process.ErrorDataReceived += (_, e) => {
                 if (e.Data != null) ErrorDataReceived?.Invoke(this, e.Data);
             };
         }
@@ -235,12 +198,9 @@ public sealed class PhysicalProcessService : IProcessService
         public int Id => _process.Id;
 
         /// <inheritdoc/>
-        public bool HasExited
-        {
-            get
-            {
-                try { return _process.HasExited; }
-                catch { return true; }
+        public bool HasExited {
+            get {
+                try { return _process.HasExited; } catch { return true; }
             }
         }
 
@@ -255,21 +215,16 @@ public sealed class PhysicalProcessService : IProcessService
             => _process.WaitForExitAsync(ct);
 
         /// <inheritdoc/>
-        public void Kill()
-        {
-            try { _process.Kill(); }
-            catch (Exception ex) { _logger?.LogDebug(ex, "[Process] 终止进程失败: PID={Id}", _process.Id); }
+        public void Kill() {
+            try { _process.Kill(); } catch (Exception ex) { _logger?.LogDebug(ex, "[Process] 终止进程失败: PID={Id}", _process.Id); }
         }
 
         /// <inheritdoc/>
-        public ValueTask DisposeAsync()
-        {
-            try
-            {
+        public ValueTask DisposeAsync() {
+            try {
                 if (!_process.HasExited)
                     _process.Kill();
-            }
-            catch (Exception ex) { _logger?.LogDebug(ex, "[Process] Dispose时终止进程失败: PID={Id}", _process.Id); }
+            } catch (Exception ex) { _logger?.LogDebug(ex, "[Process] Dispose时终止进程失败: PID={Id}", _process.Id); }
 
             StandardInput.Dispose();
             StandardOutput.Dispose();

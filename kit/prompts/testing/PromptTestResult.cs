@@ -3,8 +3,7 @@ namespace Core.Prompts.Testing;
 /// <summary>
 /// 提示词触发测试结果
 /// </summary>
-public sealed record PromptTriggerResult
-{
+public sealed record PromptTriggerResult {
     /// <summary>
     /// 获取 Section 名称。
     /// </summary>
@@ -64,8 +63,7 @@ public sealed record PromptTriggerResult
         bool isCorrect,
         string? conditionDescription = null,
         string? output = null,
-        TimeSpan? duration = null)
-    {
+        TimeSpan? duration = null) {
         SectionName = sectionName;
         ScenarioName = scenarioName;
         IsTriggered = isTriggered;
@@ -80,8 +78,7 @@ public sealed record PromptTriggerResult
 /// <summary>
 /// 提示词触发测试报告
 /// </summary>
-public sealed class PromptTriggerReport
-{
+public sealed class PromptTriggerReport {
     private readonly List<PromptTriggerResult> _results = new();
 
     /// <summary>
@@ -123,8 +120,7 @@ public sealed class PromptTriggerReport
     /// 添加单个测试结果。
     /// </summary>
     /// <param name="result">要添加的测试结果。</param>
-    public void AddResult(PromptTriggerResult result)
-    {
+    public void AddResult(PromptTriggerResult result) {
         _results.Add(result);
     }
 
@@ -132,16 +128,14 @@ public sealed class PromptTriggerReport
     /// 添加多个测试结果。
     /// </summary>
     /// <param name="results">要添加的测试结果集合。</param>
-    public void AddResults(IEnumerable<PromptTriggerResult> results)
-    {
+    public void AddResults(IEnumerable<PromptTriggerResult> results) {
         _results.AddRange(results);
     }
 
     /// <summary>
     /// 按场景分组的结果
     /// </summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<PromptTriggerResult>> GetResultsByScenario()
-    {
+    public IReadOnlyDictionary<string, IReadOnlyList<PromptTriggerResult>> GetResultsByScenario() {
         return _results
             .GroupBy(r => r.ScenarioName)
             .ToDictionary(
@@ -153,8 +147,7 @@ public sealed class PromptTriggerReport
     /// <summary>
     /// 按Section分组的结果
     /// </summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<PromptTriggerResult>> GetResultsBySection()
-    {
+    public IReadOnlyDictionary<string, IReadOnlyList<PromptTriggerResult>> GetResultsBySection() {
         return _results
             .GroupBy(r => r.SectionName)
             .ToDictionary(
@@ -166,8 +159,7 @@ public sealed class PromptTriggerReport
     /// <summary>
     /// 获取失败的测试结果
     /// </summary>
-    public IReadOnlyList<PromptTriggerResult> GetFailedResults()
-    {
+    public IReadOnlyList<PromptTriggerResult> GetFailedResults() {
         return _results.Where(r => !r.IsCorrect).ToList();
     }
 }

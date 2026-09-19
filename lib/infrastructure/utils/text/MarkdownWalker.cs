@@ -3,8 +3,7 @@ namespace Core.Utils;
 /// <summary>
 /// Markdown遍历选项
 /// </summary>
-public sealed class MarkdownWalkerOptions
-{
+public sealed class MarkdownWalkerOptions {
     /// <summary>
     /// 是否在遇到SKILL.md目录时停止递归
     /// 默认为true
@@ -32,8 +31,7 @@ public sealed class MarkdownWalkerOptions
 /// <summary>
 /// Markdown文件信息
 /// </summary>
-public sealed class MarkdownFileInfo
-{
+public sealed class MarkdownFileInfo {
     /// <summary>
     /// 文件完整路径
     /// </summary>
@@ -69,8 +67,7 @@ public sealed class MarkdownFileInfo
 /// Markdown文件遍历器
 /// 递归遍历目录，识别SKILL.md文件，支持命名空间追踪
 /// </summary>
-public sealed class MarkdownWalker
-{
+public sealed class MarkdownWalker {
     private readonly MarkdownWalkerOptions _options;
     private readonly HashSet<string> _excludeDirSet;
     private readonly IFileSystem _fs;
@@ -80,8 +77,7 @@ public sealed class MarkdownWalker
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
     /// <param name="options">遍历选项</param>
-    public MarkdownWalker(IFileSystem fs, MarkdownWalkerOptions? options = null)
-    {
+    public MarkdownWalker(IFileSystem fs, MarkdownWalkerOptions? options = null) {
         _fs = fs ?? throw new ArgumentNullException(nameof(fs));
         _options = options ?? new MarkdownWalkerOptions();
         _excludeDirSet = new HashSet<string>(_options.ExcludeDirs, StringComparer.OrdinalIgnoreCase);
@@ -92,8 +88,7 @@ public sealed class MarkdownWalker
     /// </summary>
     /// <param name="rootPath">根目录路径</param>
     /// <returns>Markdown文件信息列表</returns>
-    public IReadOnlyList<MarkdownFileInfo> Walk(string rootPath)
-    {
+    public IReadOnlyList<MarkdownFileInfo> Walk(string rootPath) {
         if (!_fs.DirectoryExists(rootPath))
             throw new DirectoryNotFoundException($"[INF047] 目录不存在: {rootPath}");
 
@@ -111,13 +106,11 @@ public sealed class MarkdownWalker
     /// <param name="rootPath">根目录路径</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>Markdown文件信息列表</returns>
-    public Task<IReadOnlyList<MarkdownFileInfo>> WalkAsync(string rootPath, CancellationToken cancellationToken = default)
-    {
+    public Task<IReadOnlyList<MarkdownFileInfo>> WalkAsync(string rootPath, CancellationToken cancellationToken = default) {
         return Task.Run(() => Walk(rootPath), cancellationToken);
     }
 
-    private void WalkDirectory(string rootDirPath, string currentDirPath, string currentNamespace, List<MarkdownFileInfo> results)
-    {
+    private void WalkDirectory(string rootDirPath, string currentDirPath, string currentNamespace, List<MarkdownFileInfo> results) {
         var currentDirName = _fs.GetDirectoryName(currentDirPath);
         var relativePath = DirectoryHelper.GetRelativePath(rootDirPath, currentDirPath);
         var namespacePart = BuildNamespace(currentNamespace, currentDirName);
@@ -128,13 +121,11 @@ public sealed class MarkdownWalker
         var hasSkillFile = _fs.FileExists(skillFilePath);
 
         // 处理Markdown文件
-        foreach (var mdFile in _fs.GetFiles(currentDirPath, "*.md", SearchOption.TopDirectoryOnly))
-        {
+        foreach (var mdFile in _fs.GetFiles(currentDirPath, "*.md", SearchOption.TopDirectoryOnly)) {
             var fileName = Path.GetFileName(mdFile);
             var isSkillFile = fileName.Equals(skillFileName, StringComparison.OrdinalIgnoreCase);
 
-            results.Add(new MarkdownFileInfo
-            {
+            results.Add(new MarkdownFileInfo {
                 FullPath = mdFile,
                 RelativePath = DirectoryHelper.GetRelativePath(rootDirPath, mdFile),
                 FileName = fileName,
@@ -149,8 +140,7 @@ public sealed class MarkdownWalker
             return;
 
         // 递归处理子目录
-        foreach (var subDirPath in _fs.GetDirectories(currentDirPath, "*", SearchOption.TopDirectoryOnly))
-        {
+        foreach (var subDirPath in _fs.GetDirectories(currentDirPath, "*", SearchOption.TopDirectoryOnly)) {
             // 跳过排除的目录
             var subDirName = Path.GetFileName(subDirPath);
             if (_excludeDirSet.Contains(subDirName))
@@ -160,8 +150,7 @@ public sealed class MarkdownWalker
         }
     }
 
-    private static string BuildNamespace(string parentNamespace, string dirName)
-    {
+    private static string BuildNamespace(string parentNamespace, string dirName) {
         // 如果是根目录，使用目录名作为命名空间
         if (string.IsNullOrEmpty(parentNamespace))
             return SanitizeNamespace(dirName);
@@ -169,19 +158,14 @@ public sealed class MarkdownWalker
         return $"{parentNamespace}.{SanitizeNamespace(dirName)}";
     }
 
-    private static string SanitizeNamespace(string name)
-    {
+    private static string SanitizeNamespace(string name) {
         // 移除或替换不适合命名空间的字符
         var sanitized = new System.Text.StringBuilder();
 
-        foreach (var c in name)
-        {
-            if (char.IsLetterOrDigit(c) || c == '_')
-            {
+        foreach (var c in name) {
+            if (char.IsLetterOrDigit(c) || c == '_') {
                 sanitized.Append(c);
-            }
-            else if (c == '-' || c == ' ')
-            {
+            } else if (c == '-' || c == ' ') {
                 sanitized.Append('_');
             }
         }

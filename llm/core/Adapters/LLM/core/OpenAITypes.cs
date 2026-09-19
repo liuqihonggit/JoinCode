@@ -1,8 +1,7 @@
 
 namespace Api.LLM;
 
-internal sealed class OpenAIChatRequest
-{
+internal sealed class OpenAIChatRequest {
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
 
@@ -79,8 +78,7 @@ internal sealed class OpenAIChatRequest
 /// OpenAI 流式响应选项 — 控制 stream 模式下的额外数据返回。
 /// 真实 API: stream_options.include_usage=true 时, 最后一个 chunk 包含 usage 字段。
 /// </summary>
-internal sealed class OpenAIStreamOptions
-{
+internal sealed class OpenAIStreamOptions {
     [JsonPropertyName("include_usage")]
     public bool IncludeUsage { get; set; }
 }
@@ -91,8 +89,7 @@ internal sealed class OpenAIStreamOptions
 /// 使用 JsonConverter 实现 AOT 兼容的多态序列化（DeepSeek vision / OpenAI vision 等多模态模型）
 /// </summary>
 [JsonConverter(typeof(OpenAIMessageContentConverter))]
-internal sealed class OpenAIMessageContent
-{
+internal sealed class OpenAIMessageContent {
     public string? Text { get; init; }
     public List<OpenAIContentPart> Parts { get; init; } = [];
 
@@ -107,8 +104,7 @@ internal sealed class OpenAIMessageContent
 /// OpenAI content part — 多模态内容块，type=text 时填 Text，type=image_url 时填 ImageUrl
 /// 对齐 OpenAI Chat Completions content block 格式（DeepSeek vision 兼容）
 /// </summary>
-internal sealed class OpenAIContentPart
-{
+internal sealed class OpenAIContentPart {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "text";
 
@@ -124,8 +120,7 @@ internal sealed class OpenAIContentPart
 /// <summary>
 /// OpenAI image_url — url 为 data:image/xxx;base64,... 内联格式或 http(s) 外链
 /// </summary>
-internal sealed class OpenAIImageUrl
-{
+internal sealed class OpenAIImageUrl {
     [JsonPropertyName("url")]
     public string Url { get; set; } = string.Empty;
 
@@ -135,8 +130,7 @@ internal sealed class OpenAIImageUrl
     public string? Detail { get; set; }
 }
 
-internal sealed class OpenAIApiMessage
-{
+internal sealed class OpenAIApiMessage {
     [JsonPropertyName("role")]
     public string Role { get; set; } = string.Empty;
 
@@ -161,8 +155,7 @@ internal sealed class OpenAIApiMessage
     public string? Name { get; set; }
 }
 
-internal sealed class OpenAIChatResponse
-{
+internal sealed class OpenAIChatResponse {
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
@@ -188,8 +181,7 @@ internal sealed class OpenAIChatResponse
 /// PromptTokens → PromptTokens, CompletionTokens → CompletionTokens,
 /// PromptCacheHitTokens + PromptCacheMissTokens → CacheCreationInputTokens/CacheReadInputTokens
 /// </summary>
-internal sealed class OpenAIUsage
-{
+internal sealed class OpenAIUsage {
     [JsonPropertyName("prompt_tokens")]
     public int PromptTokens { get; set; }
 
@@ -212,14 +204,12 @@ internal sealed class OpenAIUsage
     public int? PromptCacheMissTokens { get; set; }
 }
 
-internal sealed class OpenAIPromptTokensDetails
-{
+internal sealed class OpenAIPromptTokensDetails {
     [JsonPropertyName("cached_tokens")]
     public int CachedTokens { get; set; }
 }
 
-internal sealed class OpenAIChoice
-{
+internal sealed class OpenAIChoice {
     [JsonPropertyName("index")]
     public int Index { get; set; }
 
@@ -233,8 +223,7 @@ internal sealed class OpenAIChoice
     public string? FinishReason { get; set; }
 }
 
-internal sealed class OpenAIChatChunk
-{
+internal sealed class OpenAIChatChunk {
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
@@ -261,8 +250,7 @@ internal sealed class OpenAIChatChunk
     public OpenAIUsage? Usage { get; set; }
 }
 
-internal sealed class OpenAITool
-{
+internal sealed class OpenAITool {
     [JsonPropertyName("type")]
     public string Type { get; set; } = "function";
 
@@ -270,8 +258,7 @@ internal sealed class OpenAITool
     public OpenAIFunctionDefinition Function { get; set; } = new();
 }
 
-internal sealed class OpenAIFunctionDefinition
-{
+internal sealed class OpenAIFunctionDefinition {
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
@@ -284,22 +271,19 @@ internal sealed class OpenAIFunctionDefinition
     public OpenAIFunctionParameters? Parameters { get; set; }
 }
 
-internal sealed class OpenAIFunctionParameters : InputSchemaBase
-{
+internal sealed class OpenAIFunctionParameters : InputSchemaBase {
     [JsonPropertyName("properties")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public Dictionary<string, OpenAIParameterProperty> Properties { get; set; } = [];
 }
 
-internal sealed class OpenAIParameterProperty : SchemaProperty
-{
+internal sealed class OpenAIParameterProperty : SchemaProperty {
     [JsonPropertyName("enum")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public List<string> Enum { get; set; } = [];
 }
 
-internal sealed class OpenAIToolCall
-{
+internal sealed class OpenAIToolCall {
     [JsonPropertyName("index")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Index { get; set; }
@@ -317,8 +301,7 @@ internal sealed class OpenAIToolCall
     public OpenAIToolCallFunction? Function { get; set; }
 }
 
-internal sealed class OpenAIToolCallFunction
-{
+internal sealed class OpenAIToolCallFunction {
     [JsonPropertyName("name")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Name { get; set; }
@@ -331,8 +314,7 @@ internal sealed class OpenAIToolCallFunction
 /// <summary>
 /// DeepSeek V4 思考模式选项 — thinking:{"type":"enabled"} 开启思考模式
 /// </summary>
-internal sealed class OpenAIThinkingOptions
-{
+internal sealed class OpenAIThinkingOptions {
     [JsonPropertyName("type")]
     public string Type { get; set; } = string.Empty;
 }
@@ -340,8 +322,7 @@ internal sealed class OpenAIThinkingOptions
 /// <summary>
 /// 两阶段工具加载 — MCP 工具分组（只有组名+工具名，不含完整 schema）
 /// </summary>
-internal sealed class OpenAIToolGroup
-{
+internal sealed class OpenAIToolGroup {
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
@@ -355,19 +336,15 @@ internal sealed class OpenAIToolGroup
 /// 反序列化：JSON 字符串 → Text，JSON 数组 → Parts
 /// 对齐 AnthropicMessageContentConverter — 支持 OpenAI/DeepSeek vision 多模态 content
 /// </summary>
-internal sealed class OpenAIMessageContentConverter : JsonConverter<OpenAIMessageContent?>
-{
-    public override OpenAIMessageContent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
+internal sealed class OpenAIMessageContentConverter : JsonConverter<OpenAIMessageContent?> {
+    public override OpenAIMessageContent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) {
         if (reader.TokenType == JsonTokenType.String)
             return new OpenAIMessageContent { Text = reader.GetString() };
 
-        if (reader.TokenType == JsonTokenType.StartArray)
-        {
+        if (reader.TokenType == JsonTokenType.StartArray) {
             var parts = new List<OpenAIContentPart>();
             using var doc = JsonDocument.ParseValue(ref reader);
-            foreach (var element in doc.RootElement.EnumerateArray())
-            {
+            foreach (var element in doc.RootElement.EnumerateArray()) {
                 var part = element.Deserialize(NativeJsonContext.Default.OpenAIContentPart);
                 if (part is not null)
                     parts.Add(part);
@@ -378,22 +355,18 @@ internal sealed class OpenAIMessageContentConverter : JsonConverter<OpenAIMessag
         return null;
     }
 
-    public override void Write(Utf8JsonWriter writer, OpenAIMessageContent? value, JsonSerializerOptions options)
-    {
-        if (value is null)
-        {
+    public override void Write(Utf8JsonWriter writer, OpenAIMessageContent? value, JsonSerializerOptions options) {
+        if (value is null) {
             writer.WriteNullValue();
             return;
         }
 
-        if (value.Text is not null)
-        {
+        if (value.Text is not null) {
             writer.WriteStringValue(value.Text);
             return;
         }
 
-        if (value.Parts.Count > 0)
-        {
+        if (value.Parts.Count > 0) {
             writer.WriteStartArray();
             foreach (var part in value.Parts)
                 JsonSerializer.Serialize(writer, part, NativeJsonContext.Default.OpenAIContentPart);

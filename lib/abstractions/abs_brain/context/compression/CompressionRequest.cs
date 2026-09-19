@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Brain.Context.Compression;
 
-public sealed record CompressionRequest
-{
+public sealed record CompressionRequest {
     public ContextLayerType TargetLayer { get; init; } = ContextLayerType.Summary;
 
     public int CompressionLevel { get; init; } = 3;
@@ -28,8 +27,7 @@ public sealed record CompressionRequest
 
     public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
 
-    public double GetTargetCompressionRatio() => CompressionLevel switch
-    {
+    public double GetTargetCompressionRatio() => CompressionLevel switch {
         1 => 0.8,
         2 => 0.6,
         3 => 0.5,
@@ -38,10 +36,8 @@ public sealed record CompressionRequest
         _ => 0.5
     };
 
-    public CompressionOptions ToCompressionOptions()
-    {
-        return new CompressionOptions
-        {
+    public CompressionOptions ToCompressionOptions() {
+        return new CompressionOptions {
             TargetCompressionRatio = GetTargetCompressionRatio(),
             MaxOutputTokens = MaxOutputTokens,
             PreserveSignatures = PreserveSignatures,
@@ -52,10 +48,8 @@ public sealed record CompressionRequest
         };
     }
 
-    public static CompressionRequest Light(ContextLayerType targetLayer = ContextLayerType.Summary)
-    {
-        return new CompressionRequest
-        {
+    public static CompressionRequest Light(ContextLayerType targetLayer = ContextLayerType.Summary) {
+        return new CompressionRequest {
             TargetLayer = targetLayer,
             CompressionLevel = 1,
             MaxOutputTokens = 8000,
@@ -63,10 +57,8 @@ public sealed record CompressionRequest
         };
     }
 
-    public static CompressionRequest Standard(ContextLayerType targetLayer = ContextLayerType.Summary)
-    {
-        return new CompressionRequest
-        {
+    public static CompressionRequest Standard(ContextLayerType targetLayer = ContextLayerType.Summary) {
+        return new CompressionRequest {
             TargetLayer = targetLayer,
             CompressionLevel = 3,
             MaxOutputTokens = 4000,
@@ -74,10 +66,8 @@ public sealed record CompressionRequest
         };
     }
 
-    public static CompressionRequest Aggressive(ContextLayerType targetLayer = ContextLayerType.Index)
-    {
-        return new CompressionRequest
-        {
+    public static CompressionRequest Aggressive(ContextLayerType targetLayer = ContextLayerType.Index) {
+        return new CompressionRequest {
             TargetLayer = targetLayer,
             CompressionLevel = 5,
             MaxOutputTokens = 2000,
@@ -87,10 +77,8 @@ public sealed record CompressionRequest
         };
     }
 
-    public static CompressionRequest ForCode(ContextLayerType targetLayer = ContextLayerType.Summary)
-    {
-        return new CompressionRequest
-        {
+    public static CompressionRequest ForCode(ContextLayerType targetLayer = ContextLayerType.Summary) {
+        return new CompressionRequest {
             TargetLayer = targetLayer,
             CompressionLevel = 3,
             ContentType = ContentType.Code,
@@ -101,10 +89,8 @@ public sealed record CompressionRequest
         };
     }
 
-    public static CompressionRequest ForDialogue(ContextLayerType targetLayer = ContextLayerType.Summary)
-    {
-        return new CompressionRequest
-        {
+    public static CompressionRequest ForDialogue(ContextLayerType targetLayer = ContextLayerType.Summary) {
+        return new CompressionRequest {
             TargetLayer = targetLayer,
             CompressionLevel = 3,
             ContentType = ContentType.Dialogue,

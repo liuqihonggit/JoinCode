@@ -7,8 +7,7 @@ namespace JoinCode.Abstractions.Attributes;
 /// 与 [EnumValue] 配合使用，[EnumValue] 提供工具名字符串，[SecurityClass] 提供安全分类
 /// </remarks>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
-public sealed class SecurityClassAttribute : Attribute
-{
+public sealed class SecurityClassAttribute : Attribute {
     /// <summary>
     /// 安全分类 — 决定工具属于哪个安全集合
     /// 可选值: "readonly" / "safe-write" / "sensitive" / "destructive"

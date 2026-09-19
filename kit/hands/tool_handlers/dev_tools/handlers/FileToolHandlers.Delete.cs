@@ -1,19 +1,16 @@
 namespace Tools.Handlers;
 
-public partial class FileToolHandlers
-{
+public partial class FileToolHandlers {
     /// <summary>删除指定文件，删除前自动备份以支持恢复</summary>
     [McpTool(FileToolNameEnumConstants.FileDelete, "Delete the specified file", "file")]
     public async Task<ToolResult> FileDeleteAsync(
         [McpToolParameter("File path, relative or absolute")] string file_path,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         // ── 参数校验 ──
         var validationError = ValidationHelper.CombineErrors(
             ValidationHelper.ValidateRequired(file_path, "file_path"),
             ValidationHelper.ValidateStringLength(file_path, 4096, "file_path"));
-        if (validationError != null)
-        {
+        if (validationError != null) {
             var validationDiag = BuildValidationErrorDiagnostic(validationError);
             return ToolResultBuilder.Error().WithText(validationDiag.FormattedMessage).WithDiagnostic(validationDiag).Build();
         }
@@ -30,8 +27,7 @@ public partial class FileToolHandlers
         if (safety.Rejection is not null) return safety.Rejection;
         file_path = safety.Context.ResolvedPath;
 
-        if (!_fs.FileExists(file_path))
-        {
+        if (!_fs.FileExists(file_path)) {
             RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Failed);
             var diagnostic = FileSuggestionHelper.BuildFileNotFoundDiagnostic(file_path, _fs);
             return ToolResultBuilder.Error().WithText(diagnostic.FormattedMessage).WithDiagnostic(diagnostic).Build();
@@ -41,8 +37,7 @@ public partial class FileToolHandlers
             file_path,
             cancellationToken).ConfigureAwait(false);
 
-        if (!success)
-        {
+        if (!success) {
             RecordFileMetrics(FileOperationType.Delete, FileOperationResult.Failed);
             var deleteMsg = $"Failed to delete file: {file_path}\n[诊断] 文件存在但删除失败，可能被其他进程锁定或无删除权限。";
             return ToolResultBuilder.Error().WithText(deleteMsg)

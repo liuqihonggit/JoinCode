@@ -4,15 +4,13 @@ namespace Core.Configuration.Providers;
 /// <summary>
 /// OpenAI 兼容协议供应商定义基类 — 为 OpenAI 兼容供应商提供通用实现骨架
 /// </summary>
-public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefinition
-{
+public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefinition {
     /// <summary>模型配置加载器，用于读取供应商配置</summary>
     protected readonly IModelConfigLoader _modelConfigLoader;
 
     /// <summary>构造函数 — 注入模型配置加载器</summary>
     /// <param name="modelConfigLoader">模型配置加载器</param>
-    protected OpenAICompatibleProviderDefinitionBase(IModelConfigLoader modelConfigLoader)
-    {
+    protected OpenAICompatibleProviderDefinitionBase(IModelConfigLoader modelConfigLoader) {
         _modelConfigLoader = modelConfigLoader;
     }
 
@@ -56,14 +54,12 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     protected virtual string AuthHeaderValuePrefix => "Bearer ";
 
     /// <inheritdoc />
-    public virtual string GetBaseUrl(ProviderConfig config)
-    {
+    public virtual string GetBaseUrl(ProviderConfig config) {
         return !string.IsNullOrEmpty(config.Endpoint) ? config.Endpoint.TrimEnd('/') + "/" : DefaultBaseUrl;
     }
 
     /// <inheritdoc />
-    public virtual string GetChatEndpoint(ProviderConfig config)
-    {
+    public virtual string GetChatEndpoint(ProviderConfig config) {
         if (config.ProtocolKind == ProtocolKind.OpenAiResponses)
             return "responses";
         if (!string.IsNullOrEmpty(config.Endpoint) && config.Endpoint.TrimEnd('/').EndsWith(ChatCompletionsPath, StringComparison.OrdinalIgnoreCase))
@@ -72,8 +68,7 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     }
 
     /// <inheritdoc />
-    public virtual void ConfigureHttpClient(HttpClient client, ProviderConfig config)
-    {
+    public virtual void ConfigureHttpClient(HttpClient client, ProviderConfig config) {
         if (!string.IsNullOrEmpty(config.ApiKey))
             client.DefaultRequestHeaders.Add(AuthHeaderName, $"{AuthHeaderValuePrefix}{config.ApiKey}");
     }
@@ -82,8 +77,7 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     public abstract string? ResolveApiKeyFromEnv();
 
     /// <inheritdoc />
-    public virtual bool IsValid(ProviderConfig config)
-    {
+    public virtual bool IsValid(ProviderConfig config) {
         return !string.IsNullOrWhiteSpace(config.ApiKey);
     }
 
@@ -91,38 +85,32 @@ public abstract class OpenAICompatibleProviderDefinitionBase : IProviderDefiniti
     public virtual IEnumerable<ModelEntry> AvailableModels => _modelConfigLoader.GetModels(ProviderConfigKey);
 
     /// <inheritdoc />
-    public virtual string? ResolveAlias(string input)
-    {
+    public virtual string? ResolveAlias(string input) {
         return _modelConfigLoader.ResolveAlias(ProviderConfigKey, input);
     }
 
     /// <inheritdoc />
-    public virtual bool SupportsFastMode(string modelId)
-    {
+    public virtual bool SupportsFastMode(string modelId) {
         return _modelConfigLoader.SupportsFastMode(ProviderConfigKey, modelId);
     }
 
     /// <inheritdoc />
-    public virtual bool SupportsEffort(string modelId)
-    {
+    public virtual bool SupportsEffort(string modelId) {
         return _modelConfigLoader.SupportsEffort(ProviderConfigKey, modelId);
     }
 
     /// <inheritdoc />
-    public virtual bool SupportsMaxEffort(string modelId)
-    {
+    public virtual bool SupportsMaxEffort(string modelId) {
         return _modelConfigLoader.SupportsMaxEffort(ProviderConfigKey, modelId);
     }
 
     /// <inheritdoc />
-    public virtual bool SupportsModality(string modelId, ModelModalityKind modality)
-    {
+    public virtual bool SupportsModality(string modelId, ModelModalityKind modality) {
         return _modelConfigLoader.SupportsModality(ProviderConfigKey, modelId, modality);
     }
 
     /// <inheritdoc />
-    public virtual ModelModalityKind GetModalities(string modelId)
-    {
+    public virtual ModelModalityKind GetModalities(string modelId) {
         return _modelConfigLoader.GetModalities(ProviderConfigKey, modelId);
     }
 

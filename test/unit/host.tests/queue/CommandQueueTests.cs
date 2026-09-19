@@ -3,11 +3,9 @@ namespace Host.Tests.Queue;
 /// <summary>
 /// CommandQueue 单元测试 — 验证优先级排序、FIFO、线程安全、快照。
 /// </summary>
-public class CommandQueueTests
-{
+public class CommandQueueTests {
     [Fact]
-    public void Enqueue_Dequeue_SingleItem_ReturnsItem()
-    {
+    public void Enqueue_Dequeue_SingleItem_ReturnsItem() {
         var queue = new CommandQueue();
         var cmd = new QueuedCommand("hello", CommandOrigin.User, QueuePriority.Next);
 
@@ -20,16 +18,14 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public void Dequeue_EmptyQueue_ReturnsNull()
-    {
+    public void Dequeue_EmptyQueue_ReturnsNull() {
         var queue = new CommandQueue();
         Assert.Null(queue.Dequeue());
         Assert.Equal(0, queue.Count);
     }
 
     [Fact]
-    public void Dequeue_PriorityOrder_NowBeforeNextBeforeLater()
-    {
+    public void Dequeue_PriorityOrder_NowBeforeNextBeforeLater() {
         var queue = new CommandQueue();
         queue.Enqueue(new QueuedCommand("later", CommandOrigin.TaskNotification, QueuePriority.Later));
         queue.Enqueue(new QueuedCommand("next", CommandOrigin.User, QueuePriority.Next));
@@ -41,8 +37,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public void Dequeue_SamePriority_FifoOrder()
-    {
+    public void Dequeue_SamePriority_FifoOrder() {
         var queue = new CommandQueue();
         queue.Enqueue(new QueuedCommand("first", CommandOrigin.User, QueuePriority.Next));
         queue.Enqueue(new QueuedCommand("second", CommandOrigin.User, QueuePriority.Next));
@@ -54,8 +49,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public void Dequeue_MixedPriority_NowAlwaysFirst()
-    {
+    public void Dequeue_MixedPriority_NowAlwaysFirst() {
         var queue = new CommandQueue();
         queue.Enqueue(new QueuedCommand("next1", CommandOrigin.User, QueuePriority.Next));
         queue.Enqueue(new QueuedCommand("next2", CommandOrigin.User, QueuePriority.Next));
@@ -67,8 +61,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public void Count_TracksEnqueueAndDequeue()
-    {
+    public void Count_TracksEnqueueAndDequeue() {
         var queue = new CommandQueue();
         Assert.Equal(0, queue.Count);
 
@@ -84,8 +77,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public void GetSnapshot_CapturesCurrentState()
-    {
+    public void GetSnapshot_CapturesCurrentState() {
         var queue = new CommandQueue();
         queue.Enqueue(new QueuedCommand("now-cmd", CommandOrigin.PermissionResponse, QueuePriority.Now));
         queue.Enqueue(new QueuedCommand("next-cmd", CommandOrigin.User, QueuePriority.Next));
@@ -103,15 +95,13 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public async Task ConcurrentEnqueueDequeue_ThreadSafe()
-    {
+    public async Task ConcurrentEnqueueDequeue_ThreadSafe() {
         var queue = new CommandQueue();
         const int itemsPerProducer = 100;
         const int producerCount = 4;
 
-        var producers = Enumerable.Range(0, producerCount).Select(i => Task.Run(() =>
-        {
-            for (int j = 0; j < itemsPerProducer; j++)
+        var producers = Enumerable.Range(0, producerCount).Select(i => Task.Run(() => {
+            for (var j = 0; j < itemsPerProducer; j++)
                 queue.Enqueue(new QueuedCommand($"p{i}-{j}", CommandOrigin.User, QueuePriority.Next));
         })).ToArray();
 
@@ -128,8 +118,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public void TryDequeue_ReturnsTrueWhenNonEmpty()
-    {
+    public void TryDequeue_ReturnsTrueWhenNonEmpty() {
         var queue = new CommandQueue();
         queue.Enqueue(new QueuedCommand("test", CommandOrigin.User, QueuePriority.Next));
 
@@ -138,15 +127,13 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public void TryDequeue_ReturnsFalseWhenEmpty()
-    {
+    public void TryDequeue_ReturnsFalseWhenEmpty() {
         var queue = new CommandQueue();
         Assert.False(queue.TryDequeue(out _));
     }
 
     [Fact]
-    public async Task DequeueAsync_AfterEnqueue_ReturnsItemImmediately()
-    {
+    public async Task DequeueAsync_AfterEnqueue_ReturnsItemImmediately() {
         var queue = new CommandQueue();
         queue.Enqueue(new QueuedCommand("hello", CommandOrigin.User, QueuePriority.Next));
 
@@ -159,8 +146,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public async Task DequeueAsync_EmptyQueue_WaitsUntilEnqueueThenReturns()
-    {
+    public async Task DequeueAsync_EmptyQueue_WaitsUntilEnqueueThenReturns() {
         var queue = new CommandQueue();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 
@@ -175,8 +161,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public async Task DequeueAsync_PriorityOrder_NowBeforeNextBeforeLater()
-    {
+    public async Task DequeueAsync_PriorityOrder_NowBeforeNextBeforeLater() {
         var queue = new CommandQueue();
         queue.Enqueue(new QueuedCommand("later", CommandOrigin.TaskNotification, QueuePriority.Later));
         queue.Enqueue(new QueuedCommand("next", CommandOrigin.User, QueuePriority.Next));
@@ -189,8 +174,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public async Task DequeueAsync_Cancellation_ThrowsOperationCanceledException()
-    {
+    public async Task DequeueAsync_Cancellation_ThrowsOperationCanceledException() {
         var queue = new CommandQueue();
         using var cts = new CancellationTokenSource();
         cts.CancelAfter(TimeSpan.FromMilliseconds(100));
@@ -199,8 +183,7 @@ public class CommandQueueTests
     }
 
     [Fact]
-    public async Task DequeueAsync_MultipleWaiters_EachReceivesOneItem()
-    {
+    public async Task DequeueAsync_MultipleWaiters_EachReceivesOneItem() {
         var queue = new CommandQueue();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 

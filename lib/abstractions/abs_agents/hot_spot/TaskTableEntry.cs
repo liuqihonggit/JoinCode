@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Agent;
 /// <summary>
 /// 任务表条目 — 任务表.md 的一行，含热点标注
 /// </summary>
-public sealed record TaskTableEntry
-{
+public sealed record TaskTableEntry {
     public required string Id { get; init; }
     public required string Description { get; init; }
     public required IReadOnlyList<string> Files { get; init; } = [];

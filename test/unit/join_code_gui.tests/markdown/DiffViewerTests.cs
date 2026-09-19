@@ -4,10 +4,8 @@ namespace JoinCode.Gui.Tests.Markdown;
 /// DiffViewer 渲染测试 — 验证双列行号（旧/新）、增删着色、多 hunk 渲染、空状态。
 /// </summary>
 [Collection("GuiUiSequential")]
-public sealed class DiffViewerTests
-{
-    private static DiffViewer Render(StructuredPatchHunk[]? hunks)
-    {
+public sealed class DiffViewerTests {
+    private static DiffViewer Render(StructuredPatchHunk[]? hunks) {
         var viewer = new DiffViewer { Hunks = hunks };
         var win = new Window { Content = viewer, Width = 600, Height = 400 };
         win.Show();
@@ -18,8 +16,7 @@ public sealed class DiffViewerTests
         => viewer.GetVisualDescendants().OfType<SelectableTextBlock>().ToList();
 
     private static StructuredPatchHunk SingleHunk(params PatchLine[] lines)
-        => new()
-        {
+        => new() {
             OldStart = 1,
             OldLines = lines.Length,
             NewStart = 1,
@@ -29,8 +26,7 @@ public sealed class DiffViewerTests
         };
 
     [AvaloniaFact]
-    public void Render_ShowsOldAndNewLineNumberColumns()
-    {
+    public void Render_ShowsOldAndNewLineNumberColumns() {
         var hunk = SingleHunk(
             new PatchLine { Type = PatchLineType.Context, Content = "keep", OldLineNumber = 1, NewLineNumber = 1 },
             new PatchLine { Type = PatchLineType.Removed, Content = "old", OldLineNumber = 2, NewLineNumber = null },
@@ -46,24 +42,21 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Render_NullHunks_NoChildren()
-    {
+    public void Render_NullHunks_NoChildren() {
         var viewer = Render(null);
 
         viewer.Children.Should().BeEmpty();
     }
 
     [AvaloniaFact]
-    public void Render_EmptyHunksArray_NoChildren()
-    {
+    public void Render_EmptyHunksArray_NoChildren() {
         var viewer = Render([]);
 
         viewer.Children.Should().BeEmpty();
     }
 
     [AvaloniaFact]
-    public void Render_MultipleHunks_CreatesOneBorderPerHunk()
-    {
+    public void Render_MultipleHunks_CreatesOneBorderPerHunk() {
         var hunk1 = SingleHunk(new PatchLine { Type = PatchLineType.Context, Content = "a", OldLineNumber = 1, NewLineNumber = 1 });
         var hunk2 = SingleHunk(new PatchLine { Type = PatchLineType.Context, Content = "b", OldLineNumber = 1, NewLineNumber = 1 });
 
@@ -73,10 +66,8 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Render_HunkHeader_IsDisplayedAsText()
-    {
-        var hunk = new StructuredPatchHunk
-        {
+    public void Render_HunkHeader_IsDisplayedAsText() {
+        var hunk = new StructuredPatchHunk {
             OldStart = 1,
             OldLines = 1,
             NewStart = 1,
@@ -92,10 +83,8 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Render_EmptyHeader_GeneratesDefaultHeader()
-    {
-        var hunk = new StructuredPatchHunk
-        {
+    public void Render_EmptyHeader_GeneratesDefaultHeader() {
+        var hunk = new StructuredPatchHunk {
             OldStart = 2,
             OldLines = 3,
             NewStart = 2,
@@ -111,8 +100,7 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Render_AddedLine_HasPlusPrefix()
-    {
+    public void Render_AddedLine_HasPlusPrefix() {
         var hunk = SingleHunk(new PatchLine { Type = PatchLineType.Added, Content = "added", OldLineNumber = null, NewLineNumber = 1 });
 
         var viewer = Render([hunk]);
@@ -123,8 +111,7 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Render_RemovedLine_HasMinusPrefix()
-    {
+    public void Render_RemovedLine_HasMinusPrefix() {
         var hunk = SingleHunk(new PatchLine { Type = PatchLineType.Removed, Content = "removed", OldLineNumber = 1, NewLineNumber = null });
 
         var viewer = Render([hunk]);
@@ -135,8 +122,7 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Render_ContextLine_HasSpacePrefix()
-    {
+    public void Render_ContextLine_HasSpacePrefix() {
         var hunk = SingleHunk(new PatchLine { Type = PatchLineType.Context, Content = "ctx", OldLineNumber = 1, NewLineNumber = 1 });
 
         var viewer = Render([hunk]);
@@ -147,8 +133,7 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Render_AddedLine_HasGreenForeground()
-    {
+    public void Render_AddedLine_HasGreenForeground() {
         var hunk = SingleHunk(new PatchLine { Type = PatchLineType.Added, Content = "x", OldLineNumber = null, NewLineNumber = 1 });
 
         var viewer = Render([hunk]);
@@ -159,8 +144,7 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Render_RemovedLine_HasRedForeground()
-    {
+    public void Render_RemovedLine_HasRedForeground() {
         var hunk = SingleHunk(new PatchLine { Type = PatchLineType.Removed, Content = "x", OldLineNumber = 1, NewLineNumber = null });
 
         var viewer = Render([hunk]);
@@ -171,8 +155,7 @@ public sealed class DiffViewerTests
     }
 
     [AvaloniaFact]
-    public void Rebuild_AfterHunksChange_UpdatesChildren()
-    {
+    public void Rebuild_AfterHunksChange_UpdatesChildren() {
         var viewer = new DiffViewer { Hunks = null };
         var win = new Window { Content = viewer, Width = 600, Height = 400 };
         win.Show();

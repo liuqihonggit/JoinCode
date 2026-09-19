@@ -4,10 +4,8 @@ namespace JoinCode.Abstractions.Models.ErrorRecovery;
 /// 错误分类器 — 从错误消息中提取关键词，映射到 ErrorCategory 枚举
 /// 统一 DiagnoseErrorAsync 和 FixShellErrorAsync 的分类逻辑
 /// </summary>
-public static class ErrorClassifier
-{
-    public static ToolErrorCategory Classify(string errorMessage)
-    {
+public static class ErrorClassifier {
+    public static ToolErrorCategory Classify(string errorMessage) {
         if (string.IsNullOrEmpty(errorMessage))
             return ToolErrorCategory.Unknown;
 

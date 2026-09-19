@@ -5,8 +5,7 @@ namespace Memdir.Sync;
 /// 冲突类型枚举
 /// 定义团队记忆同步时可能出现的冲突类型
 /// </summary>
-public enum ConflictType
-{
+public enum ConflictType {
     /// <summary>
     /// 内容不一致 - 本地与远程内容不同
     /// </summary>
@@ -30,8 +29,7 @@ public enum ConflictType
 /// 团队记忆冲突记录
 /// 描述同步过程中发现的具体冲突
 /// </summary>
-public sealed record TeamMemoryConflict
-{
+public sealed record TeamMemoryConflict {
     /// <summary>
     /// 冲突涉及的记忆 ID
     /// </summary>
@@ -67,8 +65,7 @@ public sealed record TeamMemoryConflict
 /// 团队同步状态
 /// 描述某个团队的记忆同步状态
 /// </summary>
-public sealed record TeamSyncStatus
-{
+public sealed record TeamSyncStatus {
     /// <summary>
     /// 团队 ID
     /// </summary>

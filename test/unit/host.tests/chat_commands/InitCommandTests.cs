@@ -5,39 +5,33 @@ namespace Host.Tests.ChatCommands;
 /// InitCommand 单元测试 — 覆盖 /init quick 路径
 /// 验证目标:统一使用 AppDataConstants.AppDataFolder 创建目录和写入文件
 /// </summary>
-public sealed class InitCommandTests
-{
+public sealed class InitCommandTests {
     [Fact]
-    public void Name_Should_Be_init()
-    {
+    public void Name_Should_Be_init() {
         var cmd = new InitCommand();
         cmd.Name.Should().Be("init");
     }
 
     [Fact]
-    public void Description_Should_Not_Be_Empty()
-    {
+    public void Description_Should_Not_Be_Empty() {
         var cmd = new InitCommand();
         cmd.Description.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public void Usage_Should_Start_With_Slash()
-    {
+    public void Usage_Should_Start_With_Slash() {
         var cmd = new InitCommand();
         cmd.Usage.Should().StartWith("/init");
     }
 
     [Fact]
-    public void IsHidden_Should_Be_False()
-    {
+    public void IsHidden_Should_Be_False() {
         var cmd = new InitCommand();
         cmd.IsHidden.Should().BeFalse();
     }
 
     [Fact]
-    public async Task Execute_WithQuick_Should_Create_JccDirectory_Using_AppDataConstants()
-    {
+    public async Task Execute_WithQuick_Should_Create_JccDirectory_Using_AppDataConstants() {
         var fs = new InMemoryFileSystem();
         var cwd = "/test/init-unit";
         fs.SetCurrentDirectory(cwd);
@@ -58,8 +52,7 @@ public sealed class InitCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithQuick_Should_Write_Files_To_AppDataConstants_Path()
-    {
+    public async Task Execute_WithQuick_Should_Write_Files_To_AppDataConstants_Path() {
         var fs = new InMemoryFileSystem();
         var cwd = "/test/init-files";
         fs.SetCurrentDirectory(cwd);
@@ -94,8 +87,7 @@ public sealed class InitCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithQuickAlias_Q_Should_Behave_Like_Quick()
-    {
+    public async Task Execute_WithQuickAlias_Q_Should_Behave_Like_Quick() {
         // Arrange — "q" 是 "quick" 的别名
         var fs = new InMemoryFileSystem();
         var cwd = "/test/init-q";
@@ -115,19 +107,16 @@ public sealed class InitCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithQuick_Should_Not_Throw_When_ConfigService_Unavailable()
-    {
+    public async Task Execute_WithQuick_Should_Not_Throw_When_ConfigService_Unavailable() {
         // Arrange — ServiceProvider 为 null 时,RegisterProjectConfigAsync 应安全跳过
         var fs = new InMemoryFileSystem();
         fs.SetCurrentDirectory("/test/init-no-config");
 
         var cmd = new InitCommand();
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = "quick",
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),
@@ -145,8 +134,7 @@ public sealed class InitCommandTests
     }
 
     [Fact]
-    public async Task Execute_WithQuick_Should_Skip_Existing_Files()
-    {
+    public async Task Execute_WithQuick_Should_Skip_Existing_Files() {
         // Arrange — 已存在的文件不应被覆盖
         var fs = new InMemoryFileSystem();
         var cwd = "/test/init-existing";
@@ -168,14 +156,11 @@ public sealed class InitCommandTests
         content.Should().Be(existingContent, "已存在的 project_rules.md 不应被覆盖");
     }
 
-    private static ChatCommandContext BuildContext(string arguments, IFileSystem fs)
-    {
-        return new ChatCommandContext
-        {
+    private static ChatCommandContext BuildContext(string arguments, IFileSystem fs) {
+        return new ChatCommandContext {
             Arguments = arguments,
             CancellationToken = CancellationToken.None,
-            Services = new CommandServiceProvider(new CommandServices
-            {
+            Services = new CommandServiceProvider(new CommandServices {
                 ChatService = Mock.Of<IChatService>(),
                 CodeService = Mock.Of<ICodeService>(),
                 PlanService = Mock.Of<IPlanService>(),

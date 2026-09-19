@@ -1,13 +1,11 @@
 namespace Core.Tests.Plugins;
 
-public sealed class EffectScopeTests
-{
+public sealed class EffectScopeTests {
     private static void DisposeSync(EffectScope scope)
         => _ = scope.DisposeAsync().AsTask();
 
     [Fact]
-    public void Add_AppliesImmediately()
-    {
+    public void Add_AppliesImmediately() {
         var scope = new EffectScope();
         var applied = false;
         scope.Add(() => applied = true, () => { });
@@ -17,8 +15,7 @@ public sealed class EffectScopeTests
     }
 
     [Fact]
-    public void Dispose_RevertsInReverseOrder()
-    {
+    public void Dispose_RevertsInReverseOrder() {
         var scope = new EffectScope();
         var log = new List<int>();
         scope.Add(() => log.Add(1), () => log.Add(-1), "first");
@@ -29,8 +26,7 @@ public sealed class EffectScopeTests
     }
 
     [Fact]
-    public async Task DisposeAsync_AsyncBeforeSync()
-    {
+    public async Task DisposeAsync_AsyncBeforeSync() {
         var scope = new EffectScope();
         var log = new List<string>();
         scope.Add(() => log.Add("sync-apply"), () => log.Add("sync-revert"));
@@ -40,8 +36,7 @@ public sealed class EffectScopeTests
     }
 
     [Fact]
-    public void OnRevertFailed_InvokedOnRevertException()
-    {
+    public void OnRevertFailed_InvokedOnRevertException() {
         Exception? caught = null;
         string? caughtDesc = null;
         var scope = new EffectScope((ex, desc) => { caught = ex; caughtDesc = desc; });
@@ -53,24 +48,21 @@ public sealed class EffectScopeTests
     }
 
     [Fact]
-    public void Add_ThrowsIfDisposed()
-    {
+    public void Add_ThrowsIfDisposed() {
         var scope = new EffectScope();
         DisposeSync(scope);
         Assert.Throws<ObjectDisposedException>(() => scope.Add(() => { }, () => { }));
     }
 
     [Fact]
-    public void Add_NullRevert_Throws()
-    {
+    public void Add_NullRevert_Throws() {
         var scope = new EffectScope();
         Assert.Throws<ArgumentNullException>(() => scope.Add(() => { }, null!));
         DisposeSync(scope);
     }
 
     [Fact]
-    public void Dispose_Idempotent()
-    {
+    public void Dispose_Idempotent() {
         var scope = new EffectScope();
         var count = 0;
         scope.Add(() => { }, () => count++);
@@ -79,8 +71,7 @@ public sealed class EffectScopeTests
         Assert.Equal(1, count);
     }
 
-    private sealed class AsyncDisposable : IAsyncDisposable
-    {
+    private sealed class AsyncDisposable : IAsyncDisposable {
         private readonly Action _onDispose;
         private bool _disposed;
         public AsyncDisposable(Action onDispose) => _onDispose = onDispose;

@@ -5,15 +5,13 @@ namespace CodeFixes;
 /// 将 AOT 不兼容的 object 值类型替换为 JsonElement
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(Jcc1001CodeFixProvider))]
-public sealed class Jcc1001CodeFixProvider : CodeFixProvider
-{
+public sealed class Jcc1001CodeFixProvider : CodeFixProvider {
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create("JCC1001", "JCC1002", "JCC1003");
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
-    public override async Task RegisterCodeFixesAsync(CodeFixContext context)
-    {
+    public override async Task RegisterCodeFixesAsync(CodeFixContext context) {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
         if (root is null) return;
 
@@ -32,8 +30,7 @@ public sealed class Jcc1001CodeFixProvider : CodeFixProvider
     }
 
     private static async Task<Document> ReplaceObjectWithJsonElement(
-        Document document, SyntaxNode node, CancellationToken ct)
-    {
+        Document document, SyntaxNode node, CancellationToken ct) {
         var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
         if (root is null) return document;
 
@@ -41,8 +38,7 @@ public sealed class Jcc1001CodeFixProvider : CodeFixProvider
         var dictTypes = new List<GenericNameSyntax>();
         CollectDictionaryObjectTypes(node, dictTypes);
 
-        if (dictTypes.Count == 0)
-        {
+        if (dictTypes.Count == 0) {
             // 节点本身可能就是类型节点
             if (node is GenericNameSyntax generic && IsDictionaryStringObject(generic))
                 dictTypes.Add(generic);
@@ -65,10 +61,8 @@ public sealed class Jcc1001CodeFixProvider : CodeFixProvider
     /// <summary>
     /// 收集节点中的所有 Dictionary&lt;string, object&gt; 类型引用
     /// </summary>
-    private static void CollectDictionaryObjectTypes(SyntaxNode node, List<GenericNameSyntax> results)
-    {
-        foreach (var descendant in node.DescendantNodesAndSelf())
-        {
+    private static void CollectDictionaryObjectTypes(SyntaxNode node, List<GenericNameSyntax> results) {
+        foreach (var descendant in node.DescendantNodesAndSelf()) {
             if (descendant is GenericNameSyntax generic && IsDictionaryStringObject(generic))
                 results.Add(generic);
         }
@@ -77,8 +71,7 @@ public sealed class Jcc1001CodeFixProvider : CodeFixProvider
     /// <summary>
     /// 判断是否是 Dictionary&lt;string, object&gt; 或 Dictionary&lt;string, object?&gt;
     /// </summary>
-    private static bool IsDictionaryStringObject(GenericNameSyntax generic)
-    {
+    private static bool IsDictionaryStringObject(GenericNameSyntax generic) {
         if (generic.Identifier.ValueText != "Dictionary") return false;
         var args = generic.TypeArgumentList.Arguments;
         if (args.Count != 2) return false;
@@ -95,8 +88,7 @@ public sealed class Jcc1001CodeFixProvider : CodeFixProvider
     /// <summary>
     /// 将 Dictionary&lt;string, object&gt; 替换为 Dictionary&lt;string, JsonElement&gt;
     /// </summary>
-    private static GenericNameSyntax ReplaceDictionaryObjectType(GenericNameSyntax original)
-    {
+    private static GenericNameSyntax ReplaceDictionaryObjectType(GenericNameSyntax original) {
         var args = original.TypeArgumentList.Arguments;
         // 保留 string 参数，替换 object/object? 为 JsonElement
         var newSecondArg = SyntaxFactory.IdentifierName("JsonElement");
@@ -115,15 +107,13 @@ public sealed class Jcc1001CodeFixProvider : CodeFixProvider
 /// JCC6005 CodeFix: List.Insert(0, item) → list.Add(item) + 循环后 list.Reverse()
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(Jcc6005CodeFixProvider))]
-public sealed class Jcc6005CodeFixProvider : CodeFixProvider
-{
+public sealed class Jcc6005CodeFixProvider : CodeFixProvider {
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create("JCC6005");
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
-    public override async Task RegisterCodeFixesAsync(CodeFixContext context)
-    {
+    public override async Task RegisterCodeFixesAsync(CodeFixContext context) {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
         if (root is null) return;
 
@@ -142,8 +132,7 @@ public sealed class Jcc6005CodeFixProvider : CodeFixProvider
     }
 
     private static async Task<Document> ReplaceInsertWithAddReverse(
-        Document document, InvocationExpressionSyntax invocation, CancellationToken ct)
-    {
+        Document document, InvocationExpressionSyntax invocation, CancellationToken ct) {
         var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
         if (root is null) return document;
 
@@ -198,12 +187,9 @@ public sealed class Jcc6005CodeFixProvider : CodeFixProvider
 
         var newStatements = parentBlock.Statements.ToList();
         var loopIndex = newStatements.FindIndex(s => s.SpanStart >= loopInNewRoot.SpanStart);
-        if (loopIndex >= 0)
-        {
+        if (loopIndex >= 0) {
             newStatements.Insert(loopIndex + 1, reverseStatement);
-        }
-        else
-        {
+        } else {
             newStatements.Add(reverseStatement);
         }
 
@@ -212,11 +198,9 @@ public sealed class Jcc6005CodeFixProvider : CodeFixProvider
         return document.WithSyntaxRoot(finalRoot);
     }
 
-    private static SyntaxNode? FindEnclosingLoop(SyntaxNode node)
-    {
+    private static SyntaxNode? FindEnclosingLoop(SyntaxNode node) {
         var current = node.Parent;
-        while (current is not null)
-        {
+        while (current is not null) {
             if (current is ForEachStatementSyntax or ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax)
                 return current;
             current = current.Parent;
@@ -230,15 +214,13 @@ public sealed class Jcc6005CodeFixProvider : CodeFixProvider
 /// 在循环前添加 var set = new HashSet&lt;T&gt;(list); 将循环内的 list.Contains → set.Contains
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(Jcc6002CodeFixProvider))]
-public sealed class Jcc6002CodeFixProvider : CodeFixProvider
-{
+public sealed class Jcc6002CodeFixProvider : CodeFixProvider {
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create("JCC6002");
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
-    public override async Task RegisterCodeFixesAsync(CodeFixContext context)
-    {
+    public override async Task RegisterCodeFixesAsync(CodeFixContext context) {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
         if (root is null) return;
 
@@ -263,8 +245,7 @@ public sealed class Jcc6002CodeFixProvider : CodeFixProvider
 
     private static async Task<Document> ReplaceWithHashSet(
         Document document, InvocationExpressionSyntax invocation,
-        MemberAccessExpressionSyntax memberAccess, CancellationToken ct)
-    {
+        MemberAccessExpressionSyntax memberAccess, CancellationToken ct) {
         var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
         if (root is null) return document;
 
@@ -339,8 +320,7 @@ public sealed class Jcc6002CodeFixProvider : CodeFixProvider
         // 在循环语句前插入 HashSet 声明，带正确缩进
         var newStatements = parentBlock.Statements.ToList();
         var loopIndex = newStatements.FindIndex(s => s.SpanStart >= loopInNewRoot.SpanStart);
-        if (loopIndex >= 0)
-        {
+        if (loopIndex >= 0) {
             var declWithTrivia = setDeclaration
                 .WithLeadingTrivia(indentation)
                 .WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed);
@@ -352,10 +332,8 @@ public sealed class Jcc6002CodeFixProvider : CodeFixProvider
         return document.WithSyntaxRoot(finalRoot);
     }
 
-    private static ITypeSymbol? GetElementType(ISymbol symbol)
-    {
-        var type = symbol switch
-        {
+    private static ITypeSymbol? GetElementType(ISymbol symbol) {
+        var type = symbol switch {
             ILocalSymbol local => local.Type,
             IFieldSymbol field => field.Type,
             IParameterSymbol param => param.Type,
@@ -365,8 +343,7 @@ public sealed class Jcc6002CodeFixProvider : CodeFixProvider
 
         if (type is null) return null;
 
-        if (type is INamedTypeSymbol namedType && namedType.IsGenericType)
-        {
+        if (type is INamedTypeSymbol namedType && namedType.IsGenericType) {
             var typeArgs = namedType.TypeArguments;
             if (typeArgs.Length > 0)
                 return typeArgs[0];
@@ -375,11 +352,9 @@ public sealed class Jcc6002CodeFixProvider : CodeFixProvider
         return null;
     }
 
-    private static SyntaxNode? FindEnclosingLoop(SyntaxNode node)
-    {
+    private static SyntaxNode? FindEnclosingLoop(SyntaxNode node) {
         var current = node.Parent;
-        while (current is not null)
-        {
+        while (current is not null) {
             if (current is ForEachStatementSyntax or ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax)
                 return current;
             current = current.Parent;
@@ -391,19 +366,16 @@ public sealed class Jcc6002CodeFixProvider : CodeFixProvider
 /// <summary>
 /// CodeFixProvider 共享的缩进提取工具
 /// </summary>
-internal static class CodeFixIndentationHelper
-{
+internal static class CodeFixIndentationHelper {
     /// <summary>
     /// 从语句的 leading trivia 中提取缩进（空格/制表符序列）
     /// </summary>
-    public static SyntaxTrivia GetIndentation(StatementSyntax? statement)
-    {
+    public static SyntaxTrivia GetIndentation(StatementSyntax? statement) {
         if (statement is null)
             return SyntaxFactory.Whitespace("    ");
 
         var leadingTrivia = statement.GetLeadingTrivia();
-        foreach (var trivia in leadingTrivia.Reverse())
-        {
+        foreach (var trivia in leadingTrivia.Reverse()) {
             if (trivia.IsKind(SyntaxKind.WhitespaceTrivia))
                 return trivia;
         }
@@ -416,15 +388,13 @@ internal static class CodeFixIndentationHelper
 /// JCC4005 CodeFix: SemaphoreSlim 字段未在 Dispose 中释放 → 自动添加 Dispose 调用
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(Jcc4005CodeFixProvider))]
-public sealed class Jcc4005CodeFixProvider : CodeFixProvider
-{
+public sealed class Jcc4005CodeFixProvider : CodeFixProvider {
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create("JCC4005");
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
-    public override async Task RegisterCodeFixesAsync(CodeFixContext context)
-    {
+    public override async Task RegisterCodeFixesAsync(CodeFixContext context) {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
         if (root is null) return;
 
@@ -449,8 +419,7 @@ public sealed class Jcc4005CodeFixProvider : CodeFixProvider
     }
 
     private static async Task<Document> AddDisposeCall(
-        Document document, SyntaxNode fieldNode, string fieldName, CancellationToken ct)
-    {
+        Document document, SyntaxNode fieldNode, string fieldName, CancellationToken ct) {
         var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
         if (root is null) return document;
 
@@ -467,8 +436,7 @@ public sealed class Jcc4005CodeFixProvider : CodeFixProvider
 
         var newRoot = root;
 
-        if (disposeMethod.Body is not null)
-        {
+        if (disposeMethod.Body is not null) {
             // 块体方法: 在方法体末尾添加 _field.Dispose();
             var disposeStatement = CreateDisposeStatement(fieldName, disposeMethod);
 
@@ -476,9 +444,7 @@ public sealed class Jcc4005CodeFixProvider : CodeFixProvider
             var newBody = disposeMethod.Body.WithStatements(newStatements);
             var newDisposeMethod = disposeMethod.WithBody(newBody);
             newRoot = root.ReplaceNode(disposeMethod, newDisposeMethod);
-        }
-        else if (disposeMethod.ExpressionBody is not null)
-        {
+        } else if (disposeMethod.ExpressionBody is not null) {
             // 表达式体方法: 转换为块体并添加 Dispose 调用
             var existingExpr = disposeMethod.ExpressionBody.Expression;
 
@@ -500,8 +466,7 @@ public sealed class Jcc4005CodeFixProvider : CodeFixProvider
         return document.WithSyntaxRoot(newRoot);
     }
 
-    private static StatementSyntax CreateDisposeStatement(string fieldName, MethodDeclarationSyntax disposeMethod)
-    {
+    private static StatementSyntax CreateDisposeStatement(string fieldName, MethodDeclarationSyntax disposeMethod) {
         // 从方法体的第一条语句获取缩进，如果没有则用默认缩进
         var indentation = disposeMethod.Body?.Statements.FirstOrDefault() is { } firstStmt
             ? CodeFixIndentationHelper.GetIndentation(firstStmt)
@@ -521,8 +486,7 @@ public sealed class Jcc4005CodeFixProvider : CodeFixProvider
     /// <summary>
     /// 从诊断消息中提取字段名（格式: "SemaphoreSlim 字段 'xxx' 未在 Dispose..."）
     /// </summary>
-    private static string? ExtractFieldNameFromMessage(string message)
-    {
+    private static string? ExtractFieldNameFromMessage(string message) {
         var start = message.IndexOf('\'');
         if (start < 0) return null;
         var end = message.IndexOf('\'', start + 1);
@@ -530,11 +494,9 @@ public sealed class Jcc4005CodeFixProvider : CodeFixProvider
         return message.Substring(start + 1, end - start - 1);
     }
 
-    private static TypeDeclarationSyntax? FindEnclosingTypeDeclaration(SyntaxNode node)
-    {
+    private static TypeDeclarationSyntax? FindEnclosingTypeDeclaration(SyntaxNode node) {
         var current = node.Parent;
-        while (current is not null)
-        {
+        while (current is not null) {
             if (current is TypeDeclarationSyntax typeDecl)
                 return typeDecl;
             current = current.Parent;
@@ -547,15 +509,13 @@ public sealed class Jcc4005CodeFixProvider : CodeFixProvider
 /// JCC4006 CodeFix: ConcurrentDictionary&lt;SemaphoreSlim&gt; 未逐个 Dispose → 添加 foreach Dispose + Clear
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(Jcc4006CodeFixProvider))]
-public sealed class Jcc4006CodeFixProvider : CodeFixProvider
-{
+public sealed class Jcc4006CodeFixProvider : CodeFixProvider {
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create("JCC4006");
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
-    public override async Task RegisterCodeFixesAsync(CodeFixContext context)
-    {
+    public override async Task RegisterCodeFixesAsync(CodeFixContext context) {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
         if (root is null) return;
 
@@ -576,8 +536,7 @@ public sealed class Jcc4006CodeFixProvider : CodeFixProvider
     }
 
     private static async Task<Document> AddForEachDispose(
-        Document document, SyntaxNode fieldNode, string fieldName, CancellationToken ct)
-    {
+        Document document, SyntaxNode fieldNode, string fieldName, CancellationToken ct) {
         var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
         if (root is null) return document;
 
@@ -598,17 +557,14 @@ public sealed class Jcc4006CodeFixProvider : CodeFixProvider
         // 构造: _field.Clear();
         var clearStatement = CreateClearStatement(fieldName, disposeMethod);
 
-        if (disposeMethod.Body is not null)
-        {
+        if (disposeMethod.Body is not null) {
             var newStatements = disposeMethod.Body.Statements
                 .Add(forEachStatement)
                 .Add(clearStatement);
             var newBody = disposeMethod.Body.WithStatements(newStatements);
             var newDisposeMethod = disposeMethod.WithBody(newBody);
             newRoot = root.ReplaceNode(disposeMethod, newDisposeMethod);
-        }
-        else if (disposeMethod.ExpressionBody is not null)
-        {
+        } else if (disposeMethod.ExpressionBody is not null) {
             var existingExpr = disposeMethod.ExpressionBody.Expression;
             var existingStatement = SyntaxFactory.ExpressionStatement(existingExpr)
                 .WithLeadingTrivia(SyntaxFactory.Whitespace("    "))
@@ -626,8 +582,7 @@ public sealed class Jcc4006CodeFixProvider : CodeFixProvider
         return document.WithSyntaxRoot(newRoot);
     }
 
-    private static ForEachStatementSyntax CreateForEachDisposeStatement(string fieldName, MethodDeclarationSyntax disposeMethod)
-    {
+    private static ForEachStatementSyntax CreateForEachDisposeStatement(string fieldName, MethodDeclarationSyntax disposeMethod) {
         var indentation = disposeMethod.Body?.Statements.FirstOrDefault() is { } firstStmt
             ? CodeFixIndentationHelper.GetIndentation(firstStmt)
             : SyntaxFactory.Whitespace("        ");
@@ -659,8 +614,7 @@ public sealed class Jcc4006CodeFixProvider : CodeFixProvider
             .WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed);
     }
 
-    private static StatementSyntax CreateClearStatement(string fieldName, MethodDeclarationSyntax disposeMethod)
-    {
+    private static StatementSyntax CreateClearStatement(string fieldName, MethodDeclarationSyntax disposeMethod) {
         var indentation = disposeMethod.Body?.Statements.FirstOrDefault() is { } firstStmt
             ? CodeFixIndentationHelper.GetIndentation(firstStmt)
             : SyntaxFactory.Whitespace("        ");
@@ -676,8 +630,7 @@ public sealed class Jcc4006CodeFixProvider : CodeFixProvider
             .WithTrailingTrivia(SyntaxFactory.CarriageReturnLineFeed);
     }
 
-    private static string? ExtractFieldNameFromMessage(string message)
-    {
+    private static string? ExtractFieldNameFromMessage(string message) {
         var start = message.IndexOf('\'');
         if (start < 0) return null;
         var end = message.IndexOf('\'', start + 1);
@@ -685,11 +638,9 @@ public sealed class Jcc4006CodeFixProvider : CodeFixProvider
         return message.Substring(start + 1, end - start - 1);
     }
 
-    private static TypeDeclarationSyntax? FindEnclosingTypeDeclaration(SyntaxNode node)
-    {
+    private static TypeDeclarationSyntax? FindEnclosingTypeDeclaration(SyntaxNode node) {
         var current = node.Parent;
-        while (current is not null)
-        {
+        while (current is not null) {
             if (current is TypeDeclarationSyntax typeDecl)
                 return typeDecl;
             current = current.Parent;
@@ -702,15 +653,13 @@ public sealed class Jcc4006CodeFixProvider : CodeFixProvider
 /// JCC3009 CodeFix: 测试代码移除 ConfigureAwait(false)
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(Jcc3009CodeFixProvider))]
-public sealed class Jcc3009CodeFixProvider : CodeFixProvider
-{
+public sealed class Jcc3009CodeFixProvider : CodeFixProvider {
     public override ImmutableArray<string> FixableDiagnosticIds =>
         ImmutableArray.Create("JCC3009");
 
     public override FixAllProvider GetFixAllProvider() => WellKnownFixAllProviders.BatchFixer;
 
-    public override async Task RegisterCodeFixesAsync(CodeFixContext context)
-    {
+    public override async Task RegisterCodeFixesAsync(CodeFixContext context) {
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
         if (root is null) return;
 
@@ -728,8 +677,7 @@ public sealed class Jcc3009CodeFixProvider : CodeFixProvider
     }
 
     private static async Task<Document> RemoveConfigureAwaitFalse(
-        Document document, SyntaxNode node, CancellationToken ct)
-    {
+        Document document, SyntaxNode node, CancellationToken ct) {
         var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
         if (root is null) return document;
 
@@ -738,8 +686,7 @@ public sealed class Jcc3009CodeFixProvider : CodeFixProvider
 
         if (awaitExpr.Expression is InvocationExpressionSyntax invocation &&
             invocation.Expression is MemberAccessExpressionSyntax memberAccess &&
-            memberAccess.Name.Identifier.ValueText == "ConfigureAwait")
-        {
+            memberAccess.Name.Identifier.ValueText == "ConfigureAwait") {
             var awaitedExpression = memberAccess.Expression;
             var newAwaitExpr = awaitExpr.WithExpression(awaitedExpression);
             var newRoot = root.ReplaceNode(awaitExpr, newAwaitExpr);

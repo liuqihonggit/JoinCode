@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Shell.PowerShell;
 
-public sealed record PsSecurityResult : ShellPermissionCheckResult
-{
+public sealed record PsSecurityResult : ShellPermissionCheckResult {
     public string? BlockedPath { get; init; }
 
     public string? Suggestions { get; init; }

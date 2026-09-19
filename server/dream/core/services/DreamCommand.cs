@@ -6,8 +6,7 @@ namespace JoinCode.Dream.Commands;
 /// <para>继承 PluginResourceBase 获得 ObjectId + 引用计数 + 心跳 — 命令本身就是资源</para>
 /// </summary>
 [Command(Name = "dream", Description = "手动触发记忆整合（做梦）", Usage = "/dream [force]")]
-public sealed partial class DreamCommand : PluginResourceBase, ICommand
-{
+public sealed partial class DreamCommand : PluginResourceBase, ICommand {
     private readonly IDreamFeature _dreamFeature;
     private readonly ILogger<DreamCommand>? _logger;
 
@@ -21,8 +20,7 @@ public sealed partial class DreamCommand : PluginResourceBase, ICommand
         string ownerPluginName,
         IDreamFeature dreamFeature,
         ILogger<DreamCommand>? logger = null)
-        : base(ownerPluginName, PluginResourceKind.Command, "dream")
-    {
+        : base(ownerPluginName, PluginResourceKind.Command, "dream") {
         _dreamFeature = dreamFeature ?? throw new ArgumentNullException(nameof(dreamFeature));
         _logger = logger;
     }
@@ -42,8 +40,7 @@ public sealed partial class DreamCommand : PluginResourceBase, ICommand
     /// <param name="context">命令上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步执行操作的任务</returns>
-    public async Task ExecuteAsync(ICommandContext context, CancellationToken cancellationToken = default)
-    {
+    public async Task ExecuteAsync(ICommandContext context, CancellationToken cancellationToken = default) {
         var force = context.Arguments.Length > 0 &&
                     context.Arguments[0].Equals("force", StringComparison.OrdinalIgnoreCase);
 
@@ -51,27 +48,23 @@ public sealed partial class DreamCommand : PluginResourceBase, ICommand
         context.Output(force ? "模式: 强制触发" : "模式: 自动门控");
         context.Output("");
 
-        try
-        {
+        try {
             // 执行做梦 - 使用功能接口
             var result = await _dreamFeature.ExecuteAsync(
                 new DreamRequest(Force: force),
                 cancellationToken).ConfigureAwait(false);
 
-            if (result.IsSkipped)
-            {
+            if (result.IsSkipped) {
                 context.OutputWarning($"做梦被跳过: {result.Content}");
                 return;
             }
 
-            if (!result.IsSuccess)
-            {
+            if (!result.IsSuccess) {
                 context.OutputError($"做梦失败: {result.Content}");
                 return;
             }
 
-            if (!string.IsNullOrEmpty(result.Content))
-            {
+            if (!string.IsNullOrEmpty(result.Content)) {
                 context.OutputSuccess("做梦完成！");
                 context.Output($"任务ID: {result.TaskId}");
                 context.Output($"处理会话: {result.SessionsProcessed}");
@@ -79,18 +72,12 @@ public sealed partial class DreamCommand : PluginResourceBase, ICommand
                 context.Output("");
                 context.Output("整合结果:");
                 context.Output(result.Content);
-            }
-            else
-            {
+            } else {
                 context.OutputWarning("做梦未产生结果");
             }
-        }
-        catch (OperationCanceledException)
-        {
+        } catch (OperationCanceledException) {
             context.OutputWarning("做梦任务已取消");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "执行做梦命令失败");
             context.OutputError($"做梦失败: {ex.Message}");
         }
@@ -102,8 +89,7 @@ public sealed partial class DreamCommand : PluginResourceBase, ICommand
 /// <para>继承 PluginResourceBase 获得 ObjectId + 引用计数 + 心跳 — 命令本身就是资源</para>
 /// </summary>
 [Command(Name = "dream-tasks", Description = "查看做梦任务状态", Usage = "/dream-tasks [list|kill <taskId>]")]
-public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
-{
+public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand {
     private readonly IDreamFeature _dreamFeature;
     private readonly ILogger<DreamTasksCommand>? _logger;
 
@@ -117,8 +103,7 @@ public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
         string ownerPluginName,
         IDreamFeature dreamFeature,
         ILogger<DreamTasksCommand>? logger = null)
-        : base(ownerPluginName, PluginResourceKind.Command, "dream-tasks")
-    {
+        : base(ownerPluginName, PluginResourceKind.Command, "dream-tasks") {
         _dreamFeature = dreamFeature ?? throw new ArgumentNullException(nameof(dreamFeature));
         _logger = logger;
     }
@@ -138,33 +123,29 @@ public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
     /// <param name="context">命令上下文</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步执行操作的任务</returns>
-    public async Task ExecuteAsync(ICommandContext context, CancellationToken cancellationToken = default)
-    {
+    public async Task ExecuteAsync(ICommandContext context, CancellationToken cancellationToken = default) {
         var action = context.Arguments.Length > 0 ? context.Arguments[0].ToLowerInvariant() : "list";
 
-        switch (action)
-        {
+        switch (action) {
             case "list":
-                await ListTasksAsync(context, cancellationToken).ConfigureAwait(false);
-                break;
+            await ListTasksAsync(context, cancellationToken).ConfigureAwait(false);
+            break;
             case "kill":
-                await KillTaskAsync(context, cancellationToken).ConfigureAwait(false);
-                break;
+            await KillTaskAsync(context, cancellationToken).ConfigureAwait(false);
+            break;
             default:
-                context.OutputError($"未知操作: {action}");
-                context.Output("可用操作: list, kill <taskId>");
-                break;
+            context.OutputError($"未知操作: {action}");
+            context.Output("可用操作: list, kill <taskId>");
+            break;
         }
 
         await Task.CompletedTask.ConfigureAwait(false);
     }
 
-    private async Task ListTasksAsync(ICommandContext context, CancellationToken cancellationToken)
-    {
+    private async Task ListTasksAsync(ICommandContext context, CancellationToken cancellationToken) {
         var tasks = await _dreamFeature.ListTasksAsync(cancellationToken).ConfigureAwait(false);
 
-        if (tasks.Count == 0)
-        {
+        if (tasks.Count == 0) {
             context.Output("当前没有做梦任务");
             return;
         }
@@ -172,8 +153,7 @@ public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
         context.Output($"=== 做梦任务列表 ({tasks.Count}) ===");
         context.Output("");
 
-        foreach (var (id, task) in tasks.OrderByDescending(t => t.Value.StartTime))
-        {
+        foreach (var (id, task) in tasks.OrderByDescending(t => t.Value.StartTime)) {
             var duration = task.EndTime.HasValue
                 ? task.EndTime.Value - task.StartTime
                 : DateTime.UtcNow - task.StartTime;
@@ -185,8 +165,7 @@ public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
             context.Output($"  回合: {task.Turns.Count}");
             context.Output($"  耗时: {duration.TotalSeconds:F1}s");
 
-            if (task.Turns.Count > 0)
-            {
+            if (task.Turns.Count > 0) {
                 var lastTurn = task.Turns[^1];
                 context.Output($"  最新: {lastTurn.Text[..Math.Min(50, lastTurn.Text.Length)]}...");
             }
@@ -195,10 +174,8 @@ public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
         }
     }
 
-    private async Task KillTaskAsync(ICommandContext context, CancellationToken cancellationToken)
-    {
-        if (context.Arguments.Length < 2)
-        {
+    private async Task KillTaskAsync(ICommandContext context, CancellationToken cancellationToken) {
+        if (context.Arguments.Length < 2) {
             context.OutputError("用法: /dream-tasks kill <taskId>");
             return;
         }
@@ -206,14 +183,12 @@ public sealed partial class DreamTasksCommand : PluginResourceBase, ICommand
         var taskId = context.Arguments[1];
         var task = await _dreamFeature.GetTaskStatusAsync(taskId, cancellationToken).ConfigureAwait(false);
 
-        if (task == null)
-        {
+        if (task == null) {
             context.OutputError($"任务不存在: {taskId}");
             return;
         }
 
-        if (task.IsTerminal)
-        {
+        if (task.IsTerminal) {
             context.OutputWarning($"任务 {taskId} 已处于终态 ({task.Status})");
             return;
         }

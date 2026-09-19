@@ -1,7 +1,6 @@
 namespace Core.DependencyInjection;
 
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     /// <summary>
     /// 注册 Bridge 服务：BridgeConfig、TransportConfiguration、BridgeApiClient 工厂、
     /// V1/V2 初始化管道、HandleWork 管道、Shutdown 管道、Run 管道等。
@@ -9,8 +8,7 @@ public static partial class ServiceRegistration
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddBridgeServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddBridgeServices(this IServiceCollection services) {
         // 以下服务已通过 [Register] 自动注册，无需手动注册：
         // BridgeJwtService — [Register]（从 BridgeConfig 构造）
         // IWorkSecretStore — [Register]（WorkSecretStore，从 BridgeConfig 构造）
@@ -72,8 +70,7 @@ public static partial class ServiceRegistration
         // BridgeApiClient 手动工厂注册 — 覆盖 [Register] 自动注册
         // 原因: BridgeApiClient 有两个 public 构造函数（HttpClient 版和 BridgeConfig 版），DI 容器无法选择导致歧义
         // 工厂方法明确使用 BridgeConfig 版构造函数，避免歧义
-        services.AddSingleton<BridgeApiClient>(sp =>
-        {
+        services.AddSingleton<BridgeApiClient>(sp => {
             var config = sp.GetService<BridgeConfig>();
             var options = sp.GetService<BridgeApiOptions>();
             var logger = sp.GetService<ILogger<BridgeApiClient>>();
@@ -83,8 +80,7 @@ public static partial class ServiceRegistration
         // TransportConfiguration 需从 BridgeConfig 初始化，不能 [Register]（跨组件依赖）
         services.AddSingleton<TransportConfiguration>(sp => {
             var config = sp.GetRequiredService<BridgeConfig>();
-            return new TransportConfiguration
-            {
+            return new TransportConfiguration {
                 PreferredProtocol = config.Protocol,
                 WebSocketEndpoint = config.WebSocketEndpoint,
                 SseEndpoint = config.SseEndpoint,
@@ -103,8 +99,7 @@ public static partial class ServiceRegistration
                 .Use(sp.GetRequiredService<V1SessionCreationMiddleware>())
                 .Use(sp.GetRequiredService<V1PointerWriteMiddleware>())
                 .Use(sp.GetRequiredService<V1WorkPollSetupMiddleware>())
-                .OnError((ctx, ex) =>
-                {
+                .OnError((ctx, ex) => {
                     ctx.Logger?.LogError(ex, "Bridge v1 init step failed");
                 })
                 .Build());
@@ -117,8 +112,7 @@ public static partial class ServiceRegistration
                 .Use(sp.GetRequiredService<V2CredentialsMiddleware>())
                 .Use(sp.GetRequiredService<V2TransportSetupMiddleware>())
                 .Use(sp.GetRequiredService<V2TokenRefreshAndCallbacksMiddleware>())
-                .OnError((ctx, ex) =>
-                {
+                .OnError((ctx, ex) => {
                     ctx.Logger?.LogError(ex, "Bridge v2 init step failed");
                 })
                 .Build());

@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Brain.Context.Resolution;
 /// 引用解析选项
 /// </summary>
 [RegisterOptions]
-public sealed record ReferenceResolutionOptions
-{
+public sealed record ReferenceResolutionOptions {
     /// <summary>
     /// 搜索深度限制（目录层级）
     /// </summary>
@@ -86,8 +85,7 @@ public sealed record ReferenceResolutionOptions
     /// <summary>
     /// 构造默认排除模式:固定列表 + 从 VcsInternal 分类派生的 **/segment/** 模式
     /// </summary>
-    private static IReadOnlyList<string> BuildDefaultExcludePatterns()
-    {
+    private static IReadOnlyList<string> BuildDefaultExcludePatterns() {
         var fixedPatterns = new[]
         {
             "**/node_modules/**",
@@ -115,8 +113,7 @@ public sealed record ReferenceResolutionOptions
     /// <summary>
     /// 创建精确匹配选项
     /// </summary>
-    public static ReferenceResolutionOptions ExactMatch => new()
-    {
+    public static ReferenceResolutionOptions ExactMatch => new() {
         EnableFuzzyMatching = false,
         MinRelevanceScore = 1.0
     };
@@ -124,8 +121,7 @@ public sealed record ReferenceResolutionOptions
     /// <summary>
     /// 创建模糊匹配选项
     /// </summary>
-    public static ReferenceResolutionOptions FuzzyMatch => new()
-    {
+    public static ReferenceResolutionOptions FuzzyMatch => new() {
         EnableFuzzyMatching = true,
         FuzzyMatchThreshold = 0.5,
         MinRelevanceScore = 0.2
@@ -135,8 +131,7 @@ public sealed record ReferenceResolutionOptions
 /// <summary>
 /// 引用解析选项构建器 - 支持链式配置
 /// </summary>
-public sealed class ReferenceResolutionOptionsBuilder
-{
+public sealed class ReferenceResolutionOptionsBuilder {
     private int _searchDepth = 10;
     private List<string> _includePatterns = new()
     {
@@ -159,8 +154,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     private string? _projectRoot;
     private bool _includeSubdirectories = true;
 
-    private ReferenceResolutionOptionsBuilder()
-    {
+    private ReferenceResolutionOptionsBuilder() {
     }
 
     /// <summary>
@@ -191,8 +185,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置搜索深度限制
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithSearchDepth(int depth)
-    {
+    public ReferenceResolutionOptionsBuilder WithSearchDepth(int depth) {
         _searchDepth = depth;
         return this;
     }
@@ -200,8 +193,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置包含的文件模式列表（替换现有）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithIncludePatterns(params string[] patterns)
-    {
+    public ReferenceResolutionOptionsBuilder WithIncludePatterns(params string[] patterns) {
         _includePatterns = patterns.ToList();
         return this;
     }
@@ -209,8 +201,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 添加包含的文件模式
     /// </summary>
-    public ReferenceResolutionOptionsBuilder AddIncludePattern(string pattern)
-    {
+    public ReferenceResolutionOptionsBuilder AddIncludePattern(string pattern) {
         _includePatterns.Add(pattern);
         return this;
     }
@@ -218,8 +209,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置排除的文件模式列表（替换现有）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithExcludePatterns(params string[] patterns)
-    {
+    public ReferenceResolutionOptionsBuilder WithExcludePatterns(params string[] patterns) {
         _excludePatterns = patterns.ToList();
         return this;
     }
@@ -227,8 +217,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 添加排除的文件模式
     /// </summary>
-    public ReferenceResolutionOptionsBuilder AddExcludePattern(string pattern)
-    {
+    public ReferenceResolutionOptionsBuilder AddExcludePattern(string pattern) {
         _excludePatterns.Add(pattern);
         return this;
     }
@@ -236,8 +225,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置最小相关度评分阈值
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithMinRelevanceScore(double score)
-    {
+    public ReferenceResolutionOptionsBuilder WithMinRelevanceScore(double score) {
         _minRelevanceScore = score;
         return this;
     }
@@ -245,8 +233,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置最大返回结果数
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithMaxResults(int maxResults)
-    {
+    public ReferenceResolutionOptionsBuilder WithMaxResults(int maxResults) {
         _maxResults = maxResults;
         return this;
     }
@@ -254,8 +241,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 启用模糊匹配
     /// </summary>
-    public ReferenceResolutionOptionsBuilder EnableFuzzyMatching()
-    {
+    public ReferenceResolutionOptionsBuilder EnableFuzzyMatching() {
         _enableFuzzyMatching = true;
         return this;
     }
@@ -263,8 +249,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 禁用模糊匹配
     /// </summary>
-    public ReferenceResolutionOptionsBuilder DisableFuzzyMatching()
-    {
+    public ReferenceResolutionOptionsBuilder DisableFuzzyMatching() {
         _enableFuzzyMatching = false;
         return this;
     }
@@ -272,8 +257,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置是否启用模糊匹配
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithFuzzyMatching(bool enable)
-    {
+    public ReferenceResolutionOptionsBuilder WithFuzzyMatching(bool enable) {
         _enableFuzzyMatching = enable;
         return this;
     }
@@ -281,8 +265,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置模糊匹配的相似度阈值
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithFuzzyMatchThreshold(double threshold)
-    {
+    public ReferenceResolutionOptionsBuilder WithFuzzyMatchThreshold(double threshold) {
         _fuzzyMatchThreshold = threshold;
         return this;
     }
@@ -290,8 +273,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置项目根目录
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithProjectRoot(string projectRoot)
-    {
+    public ReferenceResolutionOptionsBuilder WithProjectRoot(string projectRoot) {
         _projectRoot = projectRoot;
         return this;
     }
@@ -299,8 +281,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 清除项目根目录（使用当前目录）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder ClearProjectRoot()
-    {
+    public ReferenceResolutionOptionsBuilder ClearProjectRoot() {
         _projectRoot = null;
         return this;
     }
@@ -308,8 +289,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 启用子目录搜索
     /// </summary>
-    public ReferenceResolutionOptionsBuilder IncludeSubdirectories()
-    {
+    public ReferenceResolutionOptionsBuilder IncludeSubdirectories() {
         _includeSubdirectories = true;
         return this;
     }
@@ -317,8 +297,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 禁用子目录搜索（仅搜索根目录）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder ExcludeSubdirectories()
-    {
+    public ReferenceResolutionOptionsBuilder ExcludeSubdirectories() {
         _includeSubdirectories = false;
         return this;
     }
@@ -326,8 +305,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 设置是否包含子目录
     /// </summary>
-    public ReferenceResolutionOptionsBuilder WithIncludeSubdirectories(bool include)
-    {
+    public ReferenceResolutionOptionsBuilder WithIncludeSubdirectories(bool include) {
         _includeSubdirectories = include;
         return this;
     }
@@ -335,8 +313,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 使用 C# 项目配置
     /// </summary>
-    public ReferenceResolutionOptionsBuilder UseCSharpProject()
-    {
+    public ReferenceResolutionOptionsBuilder UseCSharpProject() {
         _includePatterns = new List<string>
         {
             "**/*.cs",
@@ -349,8 +326,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 使用 TypeScript/JavaScript 项目配置
     /// </summary>
-    public ReferenceResolutionOptionsBuilder UseTypeScriptProject()
-    {
+    public ReferenceResolutionOptionsBuilder UseTypeScriptProject() {
         _includePatterns = new List<string>
         {
             "**/*.ts",
@@ -366,8 +342,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 使用 Python 项目配置
     /// </summary>
-    public ReferenceResolutionOptionsBuilder UsePythonProject()
-    {
+    public ReferenceResolutionOptionsBuilder UsePythonProject() {
         _includePatterns = new List<string>
         {
             "**/*.py",
@@ -381,8 +356,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 使用文档配置（仅 Markdown）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder UseDocumentationMode()
-    {
+    public ReferenceResolutionOptionsBuilder UseDocumentationMode() {
         _includePatterns = new List<string>
         {
             "**/*.md",
@@ -395,8 +369,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 使用宽松搜索配置（更多结果，更低阈值）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder UseLooseSearch()
-    {
+    public ReferenceResolutionOptionsBuilder UseLooseSearch() {
         _minRelevanceScore = 0.1;
         _fuzzyMatchThreshold = 0.4;
         _maxResults = WorkflowConstants.ContextCompression.MaxReferenceEntries;
@@ -407,8 +380,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 使用严格搜索配置（更少结果，更高阈值）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder UseStrictSearch()
-    {
+    public ReferenceResolutionOptionsBuilder UseStrictSearch() {
         _minRelevanceScore = 0.7;
         _fuzzyMatchThreshold = 0.8;
         _maxResults = 20;
@@ -419,8 +391,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 使用浅层搜索配置（搜索深度较浅）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder UseShallowSearch()
-    {
+    public ReferenceResolutionOptionsBuilder UseShallowSearch() {
         _searchDepth = 3;
         _includeSubdirectories = false;
         return this;
@@ -429,8 +400,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 使用深层搜索配置（搜索深度较深）
     /// </summary>
-    public ReferenceResolutionOptionsBuilder UseDeepSearch()
-    {
+    public ReferenceResolutionOptionsBuilder UseDeepSearch() {
         _searchDepth = 20;
         _includeSubdirectories = true;
         return this;
@@ -439,8 +409,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 清除所有包含模式
     /// </summary>
-    public ReferenceResolutionOptionsBuilder ClearIncludePatterns()
-    {
+    public ReferenceResolutionOptionsBuilder ClearIncludePatterns() {
         _includePatterns.Clear();
         return this;
     }
@@ -448,8 +417,7 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 清除所有排除模式
     /// </summary>
-    public ReferenceResolutionOptionsBuilder ClearExcludePatterns()
-    {
+    public ReferenceResolutionOptionsBuilder ClearExcludePatterns() {
         _excludePatterns.Clear();
         return this;
     }
@@ -457,10 +425,8 @@ public sealed class ReferenceResolutionOptionsBuilder
     /// <summary>
     /// 构建引用解析选项
     /// </summary>
-    public ReferenceResolutionOptions Build()
-    {
-        return new ReferenceResolutionOptions
-        {
+    public ReferenceResolutionOptions Build() {
+        return new ReferenceResolutionOptions {
             SearchDepth = _searchDepth,
             IncludePatterns = _includePatterns,
             ExcludePatterns = _excludePatterns,

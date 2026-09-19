@@ -4,8 +4,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// Workflow 执行进度推送接口 — 统一聚合各步骤状态变更事件
 /// </summary>
-public interface IWorkflowProgressSink
-{
+public interface IWorkflowProgressSink {
     /// <summary>步骤开始执行</summary>
     void OnStepStarted(string workflowId, string stepId, string stepName);
 

@@ -16,15 +16,13 @@ namespace State.Tests;
 ///
 /// 修复方案: 把 FileMode.Append 改为 FileMode.OpenOrCreate (OpenOrCreate 不会抛 FileNotFoundException)
 /// </summary>
-public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable
-{
+public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable {
     private readonly string _tempDir;
     private readonly IO.FileSystem.PhysicalFileSystem _fs;
     private readonly TranscriptFileWriter _writer;
     private bool _disposed;
 
-    public TranscriptFileWriterPhysicalTests()
-    {
+    public TranscriptFileWriterPhysicalTests() {
         _tempDir = Path.Combine(Path.GetTempPath(), $"transcript_test_{Guid.NewGuid():N}");
         _fs = new IO.FileSystem.PhysicalFileSystem();
         _fs.CreateDirectory(_tempDir);
@@ -36,8 +34,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable
     /// (这个测试用 PhysicalFileSystem 而不是 InMemoryFileSystem,因为后者不会复现此 bug)
     /// </summary>
     [Fact]
-    public async Task AppendEntriesAsync_FileNotExists_ShouldNotThrowFileNotFoundException()
-    {
+    public async Task AppendEntriesAsync_FileNotExists_ShouldNotThrowFileNotFoundException() {
         // Arrange — 使用一个绝对不存在的文件路径
         var filePath = Path.Combine(_tempDir, "nonexistent-session.json");
         _fs.FileExists(filePath).Should().BeFalse("前提: 文件确实不存在");
@@ -70,27 +67,20 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable
     /// 这是 E2E 测试中 TranscriptFileWriter.AppendEntriesAsync 抛错的直接原因
     /// </summary>
     [Fact]
-    public void FileModeAppend_FileNotExists_ThrowsFileNotFoundException()
-    {
+    public void FileModeAppend_FileNotExists_ThrowsFileNotFoundException() {
         // Arrange — 使用一个绝对不存在的文件路径
         var filePath = Path.Combine(_tempDir, "verify-filemode-append.json");
         _fs.FileExists(filePath).Should().BeFalse("前提: 文件确实不存在");
 
         Exception? caught = null;
         // Act — 通过 IFileSystem.CreateStream(FileMode.Append),模拟 AppendEntriesAsync 的行为
-        try
-        {
+        try {
             _fs.CreateStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None).Dispose();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             caught = ex;
-        }
-        finally
-        {
+        } finally {
             // 清理
-            if (_fs.FileExists(filePath))
-            {
+            if (_fs.FileExists(filePath)) {
                 _fs.DeleteFile(filePath);
             }
         }
@@ -108,8 +98,7 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable
     /// 这可能是 E2E 测试中错误的真正根因
     /// </summary>
     [Fact]
-    public void FileModeAppend_DirectoryNotExists_ThrowsDirectoryNotFoundException()
-    {
+    public void FileModeAppend_DirectoryNotExists_ThrowsDirectoryNotFoundException() {
         // Arrange — 使用一个不存在的目录路径
         var nonexistentDir = Path.Combine(_tempDir, "nonexistent-dir");
         var filePath = Path.Combine(nonexistentDir, "test.json");
@@ -117,22 +106,15 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable
 
         Exception? caught = null;
         // Act — 直接调用 CreateStream(FileMode.Append),不先创建目录
-        try
-        {
+        try {
             _fs.CreateStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None).Dispose();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             caught = ex;
-        }
-        finally
-        {
-            if (_fs.FileExists(filePath))
-            {
+        } finally {
+            if (_fs.FileExists(filePath)) {
                 _fs.DeleteFile(filePath);
             }
-            if (_fs.DirectoryExists(nonexistentDir))
-            {
+            if (_fs.DirectoryExists(nonexistentDir)) {
                 _fs.DeleteDirectory(nonexistentDir, recursive: true);
             }
         }
@@ -149,23 +131,17 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable
     /// 验证修复: FileMode.OpenOrCreate 在文件不存在时不抛 FileNotFoundException
     /// </summary>
     [Fact]
-    public void FileModeOpenOrCreate_FileNotExists_DoesNotThrowFileNotFoundException()
-    {
+    public void FileModeOpenOrCreate_FileNotExists_DoesNotThrowFileNotFoundException() {
         // Arrange
         var filePath = Path.Combine(_tempDir, "verify-filemode-openorcreate.json");
         _fs.FileExists(filePath).Should().BeFalse("前提: 文件确实不存在");
 
         // Act — 直接调用 CreateStream(FileMode.OpenOrCreate)
-        var act = () =>
-        {
-            try
-            {
+        var act = () => {
+            try {
                 _fs.CreateStream(filePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None).Dispose();
-            }
-            finally
-            {
-                if (_fs.FileExists(filePath))
-                {
+            } finally {
+                if (_fs.FileExists(filePath)) {
                     _fs.DeleteFile(filePath);
                 }
             }
@@ -176,18 +152,14 @@ public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable
             "验证修复: FileMode.OpenOrCreate 在文件不存在时不抛 FileNotFoundException");
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
 
         await _writer.DisposeAsync();
-        try
-        {
+        try {
             _fs.DeleteDirectory(_tempDir, recursive: true);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             // 测试清理失败不影响结果,仅记录到 Console.Error
             Console.Error.WriteLine($"[TranscriptFileWriterPhysicalTests] 清理临时目录失败: {ex.Message}");
         }

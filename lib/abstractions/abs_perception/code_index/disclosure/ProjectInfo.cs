@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.CodeIndex;
 
-public sealed record ProjectInfo
-{
+public sealed record ProjectInfo {
     public required string Name { get; init; }
     public required string FilePath { get; init; }
     public string? TargetFramework { get; init; }

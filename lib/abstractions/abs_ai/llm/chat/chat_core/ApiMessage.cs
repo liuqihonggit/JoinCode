@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.LLM.Chat;
 
-public sealed class ApiMessage
-{
+public sealed class ApiMessage {
     public MessageRole Role { get; init; }
     public string? Content { get; init; }
     public IReadOnlyDictionary<string, JsonElement> Metadata { get; init; } = new Dictionary<string, JsonElement>();
@@ -17,8 +16,7 @@ public sealed class ApiMessage
 
     public ApiMessage() { }
 
-    public ApiMessage(MessageRole role, string? content, IReadOnlyDictionary<string, JsonElement>? metadata = null, string? modelId = null, TokenUsage? tokenUsage = null)
-    {
+    public ApiMessage(MessageRole role, string? content, IReadOnlyDictionary<string, JsonElement>? metadata = null, string? modelId = null, TokenUsage? tokenUsage = null) {
         Role = role;
         Content = content;
         Metadata = metadata ?? new Dictionary<string, JsonElement>();

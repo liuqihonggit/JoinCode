@@ -1,12 +1,10 @@
 namespace Core.Tests.Plugins;
 
-public sealed class PluginDependencyGraphTests
-{
+public sealed class PluginDependencyGraphTests {
     private interface IService { }
 
     [Fact]
-    public void GetUnloadOrder_DependentsFirst_ProviderLast()
-    {
+    public void GetUnloadOrder_DependentsFirst_ProviderLast() {
         var graph = new PluginDependencyGraph();
         graph.DeclareServiceDependency("B", typeof(IService));
         graph.DeclareServiceDependency("C", typeof(IService));
@@ -18,8 +16,7 @@ public sealed class PluginDependencyGraphTests
     }
 
     [Fact]
-    public void GetUnloadOrder_ServiceHotSwap_DynamicResolve()
-    {
+    public void GetUnloadOrder_ServiceHotSwap_DynamicResolve() {
         var graph = new PluginDependencyGraph();
         graph.DeclareServiceDependency("E", typeof(IService));
         var order = graph.GetUnloadOrder("D2", t => t == typeof(IService) ? "D2" : null);
@@ -27,8 +24,7 @@ public sealed class PluginDependencyGraphTests
     }
 
     [Fact]
-    public void RemovePlugin_ClearsDeclarations()
-    {
+    public void RemovePlugin_ClearsDeclarations() {
         var graph = new PluginDependencyGraph();
         graph.DeclareServiceDependency("B", typeof(IService));
         graph.RemovePlugin("B");
@@ -37,8 +33,7 @@ public sealed class PluginDependencyGraphTests
     }
 
     [Fact]
-    public void GetUnloadOrder_NoProvider_SkipsEdge()
-    {
+    public void GetUnloadOrder_NoProvider_SkipsEdge() {
         var graph = new PluginDependencyGraph();
         graph.DeclareServiceDependency("B", typeof(IService));
         var order = graph.GetUnloadOrder("D", _ => null);
@@ -46,8 +41,7 @@ public sealed class PluginDependencyGraphTests
     }
 
     [Fact]
-    public void Describe_ShowsDependencyRelations()
-    {
+    public void Describe_ShowsDependencyRelations() {
         var graph = new PluginDependencyGraph();
         graph.DeclareServiceDependency("B", typeof(IService));
         var desc = graph.Describe(t => t == typeof(IService) ? "D" : null);

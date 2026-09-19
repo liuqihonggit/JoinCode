@@ -7,8 +7,7 @@ namespace Core.Context.Compact;
 /// 核心消费链路：ExtractMemoriesSection.BuildExtractAutoOnlyPrompt/BuildExtractCombinedPrompt() → IForkSubAgentManager.ForkAsync()
 /// </summary>
 [Register(typeof(IPostSamplingCallback), ServiceLifetime.Singleton)]
-public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSamplingCallback
-{
+public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSamplingCallback {
 
     private readonly IFileSystem _fileSystem;
     private readonly IForkSubAgentManager? _forkManager;
@@ -26,8 +25,7 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
     public ExtractMemoriesCallback(
         IFileSystem fileSystem,
         IForkSubAgentManager? forkManager = null,
-        ILogger<ExtractMemoriesCallback>? logger = null)
-    {
+        ILogger<ExtractMemoriesCallback>? logger = null) {
         _fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
         _forkManager = forkManager;
         _logger = logger;
@@ -37,8 +35,7 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
     /// 采样后回调：按轮次触发后台记忆提取，派生子代理读取并更新记忆文件
     /// </summary>
     /// <param name="context">采样后上下文，包含 token 估算、会话 ID 等</param>
-    public async Task OnPostSamplingAsync(PostSamplingContext context)
-    {
+    public async Task OnPostSamplingAsync(PostSamplingContext context) {
         if (context.QuerySource != "repl_main_thread") return;
         if (_inProgress) return;
 
@@ -49,8 +46,7 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
         _turnsSinceLastExtraction = 0;
         _inProgress = true;
 
-        try
-        {
+        try {
             var memoryDir = GetMemoryDirectory();
             var existingMemories = FormatMemoryManifest(memoryDir);
 
@@ -61,10 +57,8 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
 
             _logger?.LogDebug("ExtractMemories 提取提示词已构建，长度={Length}", userPrompt.Length);
 
-            if (_forkManager is not null && context.SessionId is not null)
-            {
-                var forkOptions = new ForkOptions
-                {
+            if (_forkManager is not null && context.SessionId is not null) {
+                var forkOptions = new ForkOptions {
                     ParentSessionId = context.SessionId,
                     TaskDescription = "extract_memories",
                     AllowedTools = [FileToolNameEnumConstants.FileRead, SearchToolNameEnumConstants.Grep, SearchToolNameEnumConstants.Glob, FileToolNameEnumConstants.FileEdit],
@@ -80,35 +74,26 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
 
                 _logger?.LogDebug("ExtractMemories forked agent 完成: ForkId={ForkId}, State={State}",
                     result.ForkId, result.State);
-            }
-            else
-            {
+            } else {
                 _logger?.LogDebug("ExtractMemories forked agent 不可用（IForkSubAgentManager 或 SessionId 缺失），跳过执行");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "ExtractMemories 提取回调执行失败");
-        }
-        finally
-        {
+        } finally {
             _inProgress = false;
         }
     }
 
-    private string GetMemoryDirectory()
-    {
+    private string GetMemoryDirectory() {
         var cwd = _fileSystem.GetCurrentDirectory();
         return Path.Combine(cwd, AppDataConstants.AppDataFolder, "memory");
     }
 
-    private string FormatMemoryManifest(string memoryDir)
-    {
+    private string FormatMemoryManifest(string memoryDir) {
         if (!_fileSystem.DirectoryExists(memoryDir))
             return string.Empty;
 
-        try
-        {
+        try {
             var files = _fileSystem.GetFiles(memoryDir, "*.md", SearchOption.TopDirectoryOnly);
             if (files.Length == 0)
                 return string.Empty;
@@ -117,16 +102,13 @@ public sealed partial class ExtractMemoriesCallback : ServiceEntity, IPostSampli
             sb.AppendLine("## 现有记忆文件");
             sb.AppendLine();
 
-            foreach (var file in files)
-            {
+            foreach (var file in files) {
                 var name = Path.GetFileNameWithoutExtension(file);
                 sb.AppendLine($"- {name}.md");
             }
 
             return sb.ToString();
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "扫描记忆目录失败: {Dir}", memoryDir);
             return string.Empty;
         }

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 窗口管理服务 — 枚举/激活/移动/关闭（Win32 EnumWindows 封装）
 /// </summary>
-public interface IWindowManagementService
-{
+public interface IWindowManagementService {
     /// <summary>枚举所有可见顶层窗口</summary>
     Task<IReadOnlyList<WindowInfo>> EnumerateAsync(CancellationToken cancellationToken = default);
 

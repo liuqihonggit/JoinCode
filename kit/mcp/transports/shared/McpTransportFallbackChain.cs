@@ -4,8 +4,7 @@ namespace McpClient.Transports;
 /// MCP 客户端传输降级链 — 按优先级依次尝试多个传输,运行时错误自动切换到下一个可用传输。
 /// 集成熔断器、健康检查与降级指标,提供容错的连接管理。
 /// </summary>
-public sealed class McpTransportFallbackChain : IMcpTransport
-{
+public sealed class McpTransportFallbackChain : IMcpTransport {
     private readonly IMcpTransport[] _transports;
     private readonly ITransportHealthCheck[] _healthChecks;
     private readonly TransportFallbackConfig _config;
@@ -48,8 +47,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
         IMcpTransport[] transports,
         ITransportHealthCheck[] healthChecks,
         TransportFallbackConfig config,
-        ILogger? logger = null)
-    {
+        ILogger? logger = null) {
         _transports = transports ?? throw new ArgumentNullException(nameof(transports));
         _healthChecks = healthChecks ?? [];
         _config = config ?? new TransportFallbackConfig();
@@ -59,8 +57,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
             throw new ArgumentException("At least one transport is required", nameof(transports));
 
         _circuitBreakers = new UnifiedCircuitBreaker[_transports.Length];
-        for (var i = 0; i < _transports.Length; i++)
-        {
+        for (var i = 0; i < _transports.Length; i++) {
             _circuitBreakers[i] = new UnifiedCircuitBreaker(
                 $"mcp-transport-{i}",
                 _config.CircuitBreakerFailureThreshold,
@@ -76,12 +73,10 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步启动操作的任务</returns>
-    public async Task StartAsync(CancellationToken ct = default)
-    {
+    public async Task StartAsync(CancellationToken ct = default) {
         if (IsRunning) return;
 
-        if (!_config.Enabled)
-        {
+        if (!_config.Enabled) {
             _logger?.LogWarning("[TransportFallback] Fallback chain disabled, using first transport only");
             await _transports[0].StartAsync(ct).ConfigureAwait(false);
             _activeTransport = _transports[0];
@@ -95,37 +90,30 @@ public sealed class McpTransportFallbackChain : IMcpTransport
 
         var chainStart = DateTimeOffset.UtcNow;
 
-        for (var i = 0; i < _transports.Length; i++)
-        {
+        for (var i = 0; i < _transports.Length; i++) {
             if (chainCts.Token.IsCancellationRequested) break;
 
-            if (_config.CircuitBreakerEnabled && !_circuitBreakers[i].TryProbe())
-            {
+            if (_config.CircuitBreakerEnabled && !_circuitBreakers[i].TryProbe()) {
                 _logger?.LogWarning("[TransportFallback] Transport {Type} circuit breaker open, skipping (failures={Failures}, cooldown={CooldownMs}ms)",
                     _transports[i].GetType().Name, _circuitBreakers[i].ConsecutiveFailures, _config.CircuitBreakerCoolDownMs);
                 continue;
             }
 
-            if (_config.HealthCheckEnabled && i < _healthChecks.Length)
-            {
+            if (_config.HealthCheckEnabled && i < _healthChecks.Length) {
                 using var hcCts = CancellationTokenSource.CreateLinkedTokenSource(chainCts.Token);
                 hcCts.CancelAfter(_config.HealthCheckTimeoutMs);
 
                 TransportHealthResult health;
-                try
-                {
+                try {
                     health = await _healthChecks[i].CheckAsync(hcCts.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
+                } catch (OperationCanceledException) {
                     health = TransportHealthResult.Unavailable(
                         _healthChecks[i].TransportType,
                         TransportUnavailabilityCategory.NetworkUnreachable,
                         "Health check timed out", TimeSpan.FromMilliseconds(_config.HealthCheckTimeoutMs));
                 }
 
-                if (!health.IsAvailable)
-                {
+                if (!health.IsAvailable) {
                     _logger?.LogWarning("[TransportFallback] Transport {Type} health check failed: {Reason} (category={Category}, duration={Duration}ms)",
                         _transports[i].GetType().Name, health.UnavailableReason, health.Category, health.CheckDuration.TotalMilliseconds);
                     _circuitBreakers[i].RecordFailure();
@@ -137,8 +125,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
             using var transportCts = CancellationTokenSource.CreateLinkedTokenSource(chainCts.Token);
             transportCts.CancelAfter(_config.ConnectTimeoutMs);
 
-            try
-            {
+            try {
                 await _transports[i].StartAsync(transportCts.Token).ConfigureAwait(false);
                 _activeTransport = _transports[i];
                 _activeIndex = i;
@@ -150,16 +137,12 @@ public sealed class McpTransportFallbackChain : IMcpTransport
                 _logger?.LogInformation("[TransportFallback] Connected via {Type} (priority={Priority}, elapsed={Elapsed}ms)",
                     _transports[i].GetType().Name, i + 1, elapsed);
                 return;
-            }
-            catch (OperationCanceledException) when (transportCts.Token.IsCancellationRequested && !ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (transportCts.Token.IsCancellationRequested && !ct.IsCancellationRequested) {
                 _logger?.LogWarning("[TransportFallback] Transport {Type} connect timeout ({TimeoutMs}ms), trying next",
                     _transports[i].GetType().Name, _config.ConnectTimeoutMs);
                 _circuitBreakers[i].RecordFailure();
                 _metrics.RecordFailure(i);
-            }
-            catch (Exception ex) when (i < _transports.Length - 1 && !ct.IsCancellationRequested)
-            {
+            } catch (Exception ex) when (i < _transports.Length - 1 && !ct.IsCancellationRequested) {
                 _logger?.LogWarning(ex, "[TransportFallback] Transport {Type} connect failed, trying next",
                     _transports[i].GetType().Name);
                 _circuitBreakers[i].RecordFailure();
@@ -177,10 +160,8 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     /// </summary>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步停止操作的任务</returns>
-    public async Task StopAsync(CancellationToken ct = default)
-    {
-        if (_activeTransport is not null)
-        {
+    public async Task StopAsync(CancellationToken ct = default) {
+        if (_activeTransport is not null) {
             UnwireEvents(_activeTransport);
             await _activeTransport.StopAsync(ct).ConfigureAwait(false);
             _activeTransport = null;
@@ -194,29 +175,25 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     /// <param name="message">JSON-RPC 消息</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步发送操作的任务</returns>
-    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default)
-    {
+    public async Task SendMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken = default) {
         if (_activeTransport is null)
             throw new InvalidOperationException("No active transport");
 
         await _activeTransport.SendMessageAsync(message, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task OnActiveTransportErrorAsync(Exception ex)
-    {
+    private async Task OnActiveTransportErrorAsync(Exception ex) {
         if (_activeIndex < 0 || _activeIndex >= _transports.Length - 1) return;
 
         IMcpTransport? oldTransport;
         int nextIndex;
         int oldIndex;
 
-        using (var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时"))
-        {
+        using (var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时")) {
             if (_activeIndex >= _transports.Length - 1) return;
 
             nextIndex = FindNextAvailableTransport(_activeIndex + 1);
-            if (nextIndex < 0)
-            {
+            if (nextIndex < 0) {
                 _logger?.LogWarning("[TransportFallback] No available fallback transport (all circuit breakers open)");
                 return;
             }
@@ -230,10 +207,8 @@ public sealed class McpTransportFallbackChain : IMcpTransport
 
         var fallbackStart = DateTimeOffset.UtcNow;
 
-        try
-        {
-            if (oldTransport is not null)
-            {
+        try {
+            if (oldTransport is not null) {
                 UnwireEvents(oldTransport);
                 await oldTransport.StopAsync(CancellationToken.None).ConfigureAwait(false);
             }
@@ -241,8 +216,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
             await _transports[nextIndex].StartAsync(CancellationToken.None).ConfigureAwait(false);
 
             string fromType;
-            using (var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时"))
-            {
+            using (var guard = await _switchLock.TryLockAsync(CancellationToken.None).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_switchLock.Name}' 等待超时")) {
                 fromType = _transports[oldIndex].GetType().Name;
                 _activeTransport = _transports[nextIndex];
                 _activeIndex = nextIndex;
@@ -253,8 +227,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
             var duration = (DateTimeOffset.UtcNow - fallbackStart).TotalMilliseconds;
             _metrics.RecordFallback(oldIndex, nextIndex, (long)duration);
 
-            FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs
-            {
+            FallbackOccurred?.Invoke(this, new TransportFallbackEventArgs {
                 FromTransportType = fromType,
                 ToTransportType = _transports[nextIndex].GetType().Name,
                 Reason = ex.Message,
@@ -265,9 +238,7 @@ public sealed class McpTransportFallbackChain : IMcpTransport
 
             _logger?.LogInformation("[TransportFallback] Fallback to {Type} succeeded (duration={Duration}ms)",
                 _transports[nextIndex].GetType().Name, duration);
-        }
-        catch (Exception fallbackEx)
-        {
+        } catch (Exception fallbackEx) {
             _logger?.LogWarning(fallbackEx, "[TransportFallback] Fallback to {Type} also failed",
                 _transports[nextIndex].GetType().Name);
             _circuitBreakers[nextIndex].RecordFailure();
@@ -275,49 +246,40 @@ public sealed class McpTransportFallbackChain : IMcpTransport
 
     }
 
-    private int FindNextAvailableTransport(int startIndex)
-    {
-        for (var i = startIndex; i < _transports.Length; i++)
-        {
+    private int FindNextAvailableTransport(int startIndex) {
+        for (var i = startIndex; i < _transports.Length; i++) {
             if (!_config.CircuitBreakerEnabled || !_circuitBreakers[i].IsOpen)
                 return i;
         }
         return -1;
     }
 
-    private int CountCircuitOpen()
-    {
+    private int CountCircuitOpen() {
         var count = 0;
-        for (var i = 0; i < _circuitBreakers.Length; i++)
-        {
+        for (var i = 0; i < _circuitBreakers.Length; i++) {
             if (_circuitBreakers[i].IsOpen) count++;
         }
         return count;
     }
 
-    private void WireEvents(IMcpTransport transport)
-    {
+    private void WireEvents(IMcpTransport transport) {
         transport.MessageReceived += OnTransportMessageReceived;
         transport.ErrorOccurred += OnTransportError;
     }
 
-    private void UnwireEvents(IMcpTransport transport)
-    {
+    private void UnwireEvents(IMcpTransport transport) {
         transport.MessageReceived -= OnTransportMessageReceived;
         transport.ErrorOccurred -= OnTransportError;
     }
 
-    private void OnTransportMessageReceived(object? sender, McpMessageReceivedEventArgs e)
-    {
+    private void OnTransportMessageReceived(object? sender, McpMessageReceivedEventArgs e) {
         MessageReceived?.Invoke(this, e);
     }
 
-    private void OnTransportError(object? sender, McpTransportErrorEventArgs e)
-    {
+    private void OnTransportError(object? sender, McpTransportErrorEventArgs e) {
         ErrorOccurred?.Invoke(this, e);
 
-        if (IsRunning)
-        {
+        if (IsRunning) {
             _ = OnActiveTransportErrorAsync(e.Exception);
         }
     }
@@ -326,15 +288,13 @@ public sealed class McpTransportFallbackChain : IMcpTransport
     /// 异步释放资源 — 停止活跃传输、释放切换锁、释放全部传输
     /// </summary>
     /// <returns>表示异步释放操作的任务</returns>
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
 
         await StopAsync(CancellationToken.None).ConfigureAwait(false);
         _switchLock.Dispose();
 
-        foreach (var transport in _transports)
-        {
+        foreach (var transport in _transports) {
             await transport.DisposeAsync().ConfigureAwait(false);
         }
 

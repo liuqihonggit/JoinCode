@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Web服务接口
 /// </summary>
-public interface IWebService
-{
+public interface IWebService {
     /// <summary>
     /// 执行Web搜索（Anthropic服务端搜索或兼容搜索API）
     /// </summary>

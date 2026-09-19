@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// Bash工具提示词 — 对齐 TS BashTool prompt.ts
 /// </summary>
 [ToolPrompt(ToolName = ShellToolName.Bash, Category = ToolPromptCategory.Shell)]
-public static class BashToolPrompt
-{
+public static class BashToolPrompt {
     public static string GetDescription() => $"""
         执行 shell 命令。工作目录在命令之间持久化；shell 状态（变量、函数）不会。
 

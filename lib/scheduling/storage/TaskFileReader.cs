@@ -5,15 +5,13 @@ namespace Core.Scheduling;
 /// 任务文件读取工具类
 /// </summary>
 [Register(typeof(ITaskFileReader), ServiceLifetime.Singleton)]
-public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
-{
+public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader {
 
     /// <summary>
     /// 初始化任务文件读取器
     /// </summary>
     /// <param name="fileOperationService">文件操作服务</param>
-    public TaskFileReader(IFileOperationService fileOperationService)
-    {
+    public TaskFileReader(IFileOperationService fileOperationService) {
         _fileOperationService = fileOperationService;
     }
     private readonly IFileOperationService _fileOperationService;
@@ -26,25 +24,18 @@ public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
     /// <returns>任务元数据，如果文件不存在或格式错误返回null</returns>
     public async Task<FileTaskMetadata?> ReadAsync(
         string filePath,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
+        CancellationToken cancellationToken = default) {
+        try {
             var result = await _fileOperationService.ReadFileAsync(filePath, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (!result.Success || string.IsNullOrWhiteSpace(result.Content))
-            {
+            if (!result.Success || string.IsNullOrWhiteSpace(result.Content)) {
                 return null;
             }
 
             return RelaxedJsonSerializer.Deserialize(result.Content, SchedulingJsonContext.Default.FileTaskMetadata);
-        }
-        catch (JsonException)
-        {
+        } catch (JsonException) {
             // JSON格式错误
             return null;
-        }
-        catch (IOException)
-        {
+        } catch (IOException) {
             // IO错误
             return null;
         }
@@ -58,12 +49,10 @@ public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
     /// <returns>任务元数据列表</returns>
     public async Task<List<FileTaskMetadata>> ReadAllAsync(
         string directoryPath,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var tasks = new List<FileTaskMetadata>();
 
-        if (!_fileOperationService.DirectoryExists(directoryPath))
-        {
+        if (!_fileOperationService.DirectoryExists(directoryPath)) {
             return tasks;
         }
 
@@ -72,8 +61,7 @@ public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
             $"{TaskDirectoryOptions.TaskFilePrefix}*{TaskDirectoryOptions.TaskFileExtension}",
             SearchOption.TopDirectoryOnly);
 
-        var readTasks = taskFiles.Select(async filePath =>
-        {
+        var readTasks = taskFiles.Select(async filePath => {
             cancellationToken.ThrowIfCancellationRequested();
             return await ReadAsync(filePath, cancellationToken).ConfigureAwait(false);
         });
@@ -86,8 +74,7 @@ public sealed partial class TaskFileReader : ServiceEntity, ITaskFileReader
     /// <summary>
     /// 检查任务文件是否存在
     /// </summary>
-    public bool Exists(string filePath)
-    {
+    public bool Exists(string filePath) {
         return _fileOperationService.FileExists(filePath);
     }
 }

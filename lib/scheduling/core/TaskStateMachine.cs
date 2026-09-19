@@ -3,8 +3,7 @@ namespace Core.Scheduling;
 /// <summary>
 /// 任务状态机 — 基于预定义的状态转移表管理任务生命周期状态转换
 /// </summary>
-public sealed class TaskStateMachine
-{
+public sealed class TaskStateMachine {
     private static readonly FrozenDictionary<TaskState, FrozenSet<TaskState>> Transitions = CreateTransitionTable();
 
     private readonly StateMachine<TaskState> _stateMachine;
@@ -13,8 +12,7 @@ public sealed class TaskStateMachine
     /// 初始化任务状态机实例
     /// </summary>
     /// <param name="initialState">初始状态,默认为 Pending</param>
-    public TaskStateMachine(TaskState initialState = TaskState.Pending)
-    {
+    public TaskStateMachine(TaskState initialState = TaskState.Pending) {
         _stateMachine = new StateMachine<TaskState>(Transitions, initialState);
         _stateMachine.StateChanged += OnStateChanged;
     }
@@ -59,8 +57,7 @@ public sealed class TaskStateMachine
     /// 判断当前状态是否为终态(Completed/Failed/Cancelled/Stopped)
     /// </summary>
     /// <returns>是终态返回 true,否则返回 false</returns>
-    public bool IsTerminalState()
-    {
+    public bool IsTerminalState() {
         return CurrentState is TaskState.Completed
                or TaskState.Failed
                or TaskState.Cancelled
@@ -71,20 +68,16 @@ public sealed class TaskStateMachine
     /// 判断当前状态是否可以执行(Pending 或 WaitingForDependency)
     /// </summary>
     /// <returns>可执行返回 true,否则返回 false</returns>
-    public bool CanExecute()
-    {
+    public bool CanExecute() {
         return CurrentState is TaskState.Pending or TaskState.WaitingForDependency;
     }
 
-    private void OnStateChanged(object? sender, StateChangedEventArgs<TaskState> e)
-    {
+    private void OnStateChanged(object? sender, StateChangedEventArgs<TaskState> e) {
         StateChanged?.Invoke(this, e);
     }
 
-    private static FrozenDictionary<TaskState, FrozenSet<TaskState>> CreateTransitionTable()
-    {
-        return new Dictionary<TaskState, FrozenSet<TaskState>>
-        {
+    private static FrozenDictionary<TaskState, FrozenSet<TaskState>> CreateTransitionTable() {
+        return new Dictionary<TaskState, FrozenSet<TaskState>> {
             [TaskState.Pending] = new HashSet<TaskState>
             {
                 TaskState.WaitingForDependency,

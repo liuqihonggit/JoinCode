@@ -5,8 +5,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// Bridge 连接状态
 /// </summary>
-public enum BridgeConnectionState
-{
+public enum BridgeConnectionState {
     /// <summary>
     /// 空闲状态
     /// </summary>
@@ -41,8 +40,7 @@ public enum BridgeConnectionState
 /// <summary>
 /// Bridge 状态指示器 — CLI 简化版
 /// </summary>
-public static class BridgeStatusIndicator
-{
+public static class BridgeStatusIndicator {
     /// <summary>
     /// 渲染连接状态为带颜色的状态文本
     /// </summary>
@@ -55,8 +53,7 @@ public static class BridgeStatusIndicator
     /// </summary>
     /// <param name="state">连接状态</param>
     /// <returns>带 ANSI 颜色的状态文本</returns>
-    public static string GetStatusText(BridgeConnectionState state) => state switch
-    {
+    public static string GetStatusText(BridgeConnectionState state) => state switch {
         BridgeConnectionState.Connected => $"{TerminalColors.Success}● 已连接{AnsiStyleEnumConstants.Reset}",
         BridgeConnectionState.Connecting => $"{TerminalColors.Warning}● 连接中...{AnsiStyleEnumConstants.Reset}",
         BridgeConnectionState.Disconnected => $"{TerminalColors.Muted}○ 未连接{AnsiStyleEnumConstants.Reset}",

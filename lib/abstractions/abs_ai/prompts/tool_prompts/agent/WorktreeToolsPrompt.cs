@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Prompts.ToolPrompts;
 /// EnterWorktreeTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = WorktreeToolName.EnterWorktree, Category = ToolPromptCategory.Agent)]
-public static class EnterWorktreeToolPrompt
-{
+public static class EnterWorktreeToolPrompt {
     public const string ToolName = WorktreeToolNameEnumConstants.EnterWorktree;
 
     public static string Prompt { get; } = $"""
@@ -43,8 +42,7 @@ public static class EnterWorktreeToolPrompt
 /// ExitWorktreeTool 提示词
 /// </summary>
 [ToolPrompt(ToolName = WorktreeToolName.ExitWorktree, Category = ToolPromptCategory.Agent)]
-public static class ExitWorktreeToolPrompt
-{
+public static class ExitWorktreeToolPrompt {
     public const string ToolName = WorktreeToolNameEnumConstants.ExitWorktree;
 
     public const string Prompt = """

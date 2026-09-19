@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Security.Shell;
 
-public static class BashSecurityConstants
-{
+public static class BashSecurityConstants {
     public static readonly FrozenSet<string> EvalLikeBuiltins = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
         "eval", "source", ".", "exec", "command", "builtin",
@@ -61,14 +60,10 @@ public static class BashSecurityConstants
         StringComparer.OrdinalIgnoreCase,
         "export", "local", "readonly", "declare", "typeset", "nameref");
 
-    public static bool HasExecFlag(string[] a)
-    {
-        for (var i = 1; i < a.Length; i++)
-        {
-            if (a[i].StartsWith('-') && a[i].Length > 1)
-            {
-                for (var j = 1; j < a[i].Length; j++)
-                {
+    public static bool HasExecFlag(string[] a) {
+        for (var i = 1; i < a.Length; i++) {
+            if (a[i].StartsWith('-') && a[i].Length > 1) {
+                for (var j = 1; j < a[i].Length; j++) {
                     if (a[i][j] is 'e' or 's') return true;
                 }
             }
@@ -76,14 +71,10 @@ public static class BashSecurityConstants
         return false;
     }
 
-    public static bool HasCompgenDangerFlag(string[] a)
-    {
-        for (var i = 1; i < a.Length; i++)
-        {
-            if (a[i].StartsWith('-') && a[i].Length > 1 && a[i][1] != '-')
-            {
-                for (var j = 1; j < a[i].Length; j++)
-                {
+    public static bool HasCompgenDangerFlag(string[] a) {
+        for (var i = 1; i < a.Length; i++) {
+            if (a[i].StartsWith('-') && a[i].Length > 1 && a[i][1] != '-') {
+                for (var j = 1; j < a[i].Length; j++) {
                     if (a[i][j] is 'C' or 'F' or 'W') return true;
                 }
             }

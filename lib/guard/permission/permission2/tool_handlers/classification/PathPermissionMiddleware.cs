@@ -6,8 +6,7 @@ namespace Core.Permission;
 /// 对齐 TS checkReadPermissionForTool / checkWritePermissionForTool
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissionMiddleware {
     private readonly IPathPermissionChecker? _pathPermissionChecker;
 
     /// <inheritdoc />
@@ -17,14 +16,12 @@ public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissio
     /// <summary>
     /// 创建 PathPermissionMiddleware
     /// </summary>
-    public PathPermissionMiddleware(IPathPermissionChecker? pathPermissionChecker = null)
-    {
+    public PathPermissionMiddleware(IPathPermissionChecker? pathPermissionChecker = null) {
         _pathPermissionChecker = pathPermissionChecker;
     }
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         if (_pathPermissionChecker is null || context.Arguments is null)
             return next(context, ct);
 
@@ -36,8 +33,7 @@ public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissio
             return next(context, ct);
 
         var pathResult = CheckPathPermission(context);
-        if (pathResult is not null && !pathResult.IsApproved)
-        {
+        if (pathResult is not null && !pathResult.IsApproved) {
             context.Result = pathResult;
             return Task.CompletedTask;
         }
@@ -48,8 +44,7 @@ public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissio
     /// <summary>
     /// 路径级权限检查 — 对齐 TS checkReadPermissionForTool / checkWritePermissionForTool
     /// </summary>
-    private ToolPermissionCheckResult? CheckPathPermission(PermissionCheckContext context)
-    {
+    private ToolPermissionCheckResult? CheckPathPermission(PermissionCheckContext context) {
         var checker = _pathPermissionChecker ?? throw new InvalidOperationException("Path permission checker not available.");
         var path = context.Arguments is not null ? PermissionCheckContext.ExtractPathFromArguments(context.Arguments) : null;
         if (string.IsNullOrEmpty(path))
@@ -57,15 +52,13 @@ public sealed partial class PathPermissionMiddleware : ServiceEntity, IPermissio
 
         var toolName = context.ToolName;
         // 读取工具: 调用 CheckReadPermission
-        if (PermissionCheckContext.IsFileReadTool(toolName))
-        {
+        if (PermissionCheckContext.IsFileReadTool(toolName)) {
             var result = checker.CheckReadPermission(path);
             return PermissionCheckContext.MapPathResult(result);
         }
 
         // 写入/编辑工具: 调用 CheckWritePermission
-        if (PermissionCheckContext.IsFileWriteTool(toolName))
-        {
+        if (PermissionCheckContext.IsFileWriteTool(toolName)) {
             var result = checker.CheckWritePermission(path);
             return PermissionCheckContext.MapPathResult(result);
         }

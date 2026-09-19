@@ -3,8 +3,7 @@ namespace Services.Api;
 /// <summary>
 /// API 错误响应包装模型
 /// </summary>
-public sealed class ApiErrorResponse
-{
+public sealed class ApiErrorResponse {
     /// <summary>
     /// 错误详情
     /// </summary>
@@ -21,8 +20,7 @@ public sealed class ApiErrorResponse
 /// <summary>
 /// API 错误详情模型
 /// </summary>
-public sealed class ApiErrorDetail
-{
+public sealed class ApiErrorDetail {
     /// <summary>
     /// 错误消息
     /// </summary>
@@ -33,8 +31,7 @@ public sealed class ApiErrorDetail
 /// <summary>
 /// Token 用量 API 响应模型
 /// </summary>
-public sealed class TokenUsageResponse
-{
+public sealed class TokenUsageResponse {
     /// <summary>
     /// Token 用量详情
     /// </summary>
@@ -46,8 +43,7 @@ public sealed class TokenUsageResponse
 /// Token 用量 API 响应详情 — 兼容 OpenAI (prompt_tokens/completion_tokens) 和 Anthropic (input_tokens/output_tokens) 命名
 /// 统一映射到 <see cref="JoinCode.Abstractions.LLM.Chat.TokenUsage"/>
 /// </summary>
-public sealed class TokenUsageDetail
-{
+public sealed class TokenUsageDetail {
     /// <summary>
     /// 输入 Token 数（OpenAI 命名）
     /// </summary>

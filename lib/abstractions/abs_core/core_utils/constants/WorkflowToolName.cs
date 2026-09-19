@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Utils;
 /// <summary>
 /// 工作流工具名称枚举
 /// </summary>
-public enum WorkflowToolName
-{
+public enum WorkflowToolName {
     [EnumValue("workflow")]
     [SecurityClass("safe-write", AutoAllowed = true, PlanAllowed = false, AskAllowed = true)]
     WorkflowCreate,

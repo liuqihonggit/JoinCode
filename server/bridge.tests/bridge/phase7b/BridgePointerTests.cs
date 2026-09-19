@@ -3,28 +3,23 @@
 #pragma warning disable JCC9001, JCC9002
 namespace Bridge.Tests.Phase7B;
 
-public sealed class BridgePointerTests : IDisposable
-{
+public sealed class BridgePointerTests : IDisposable {
     private readonly BridgePointerService _service;
     private bool _disposed;
 
-    public BridgePointerTests()
-    {
+    public BridgePointerTests() {
         _service = new BridgePointerService(new InMemoryFileSystem());
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
     }
 
     [Fact]
-    public async Task WriteAsync_ReadAsync_RoundTrip()
-    {
+    public async Task WriteAsync_ReadAsync_RoundTrip() {
         var testDir = "/bridge_pointer_test";
-        var pointer = new BridgePointer
-        {
+        var pointer = new BridgePointer {
             SessionId = "cse_test123",
             EnvironmentId = "env_456",
             Source = "standalone",
@@ -39,19 +34,16 @@ public sealed class BridgePointerTests : IDisposable
     }
 
     [Fact]
-    public async Task ReadAsync_NoFile_ReturnsNull()
-    {
+    public async Task ReadAsync_NoFile_ReturnsNull() {
         var testDir = "/bridge_pointer_test_empty";
         var read = await _service.ReadAsync(testDir).ConfigureAwait(true);
         Assert.Null(read);
     }
 
     [Fact]
-    public async Task ClearAsync_RemovesPointer()
-    {
+    public async Task ClearAsync_RemovesPointer() {
         var testDir = "/bridge_pointer_test_clear";
-        var pointer = new BridgePointer
-        {
+        var pointer = new BridgePointer {
             SessionId = "cse_test",
             EnvironmentId = "env_test",
             Source = "REPL",

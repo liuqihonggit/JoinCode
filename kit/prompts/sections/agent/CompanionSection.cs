@@ -4,13 +4,11 @@ namespace Core.Prompts.Sections;
 /// Companion (Buddy) 提示词部分
 /// </summary>
 [PromptSection(Name = "companion", Order = 15)]
-public static class CompanionSection
-{
+public static class CompanionSection {
     /// <summary>
     /// 获取伙伴介绍文本
     /// </summary>
-    public static string? GetContent()
-    {
+    public static string? GetContent() {
         var name = PromptConfigSnapshot.Current.CompanionName;
         var species = PromptConfigSnapshot.Current.CompanionSpecies;
         if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(species))
@@ -21,8 +19,7 @@ public static class CompanionSection
     /// <summary>
     /// 获取伙伴介绍文本
     /// </summary>
-    public static string GetCompanionIntroText(string name, string species)
-    {
+    public static string GetCompanionIntroText(string name, string species) {
         return $@"# 伙伴
 
 一只名叫 {name} 的小 {species} 坐在用户输入框旁边，偶尔会在气泡中评论。

@@ -40,15 +40,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         _defaultOptions = defaultOptions ?? new WorktreeOptions();
         _telemetryService = telemetryService;
 
-        if (createMiddlewares != null && loggerFactory != null)
-        {
+        if (createMiddlewares != null && loggerFactory != null) {
             _createPipeline = new PipelineBuilder<WorktreeCreateContext>()
                 .WithLoggingScope(loggerFactory)
                 .UseRange(createMiddlewares.OrderBy(m => m.Order))
                 .Build();
-        }
-        else if (createMiddlewares != null)
-        {
+        } else if (createMiddlewares != null) {
             _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares.OrderBy(m => m.Order));
         }
 
@@ -68,10 +65,8 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         string? gitRootPath = null,
         WorktreeOptions? options = null,
         CancellationToken cancellationToken = default) {
-        if (_createPipeline != null)
-        {
-            var context = new WorktreeCreateContext
-            {
+        if (_createPipeline != null) {
+            var context = new WorktreeCreateContext {
                 AgentId = agentId,
                 GitRootPath = gitRootPath,
                 Options = options ?? _defaultOptions,
@@ -81,12 +76,10 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
             await using var span = _telemetryService?.StartSpan("worktree.create", TelemetrySpanKind.Server);
             span?.SetTag("worktree.agent_id", agentId);
 
-            try
-            {
+            try {
                 await _createPipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
 
-                if (context.Failed)
-                {
+                if (context.Failed) {
                     span?.SetStatus(TelemetryStatusCode.Error, context.ErrorMessage);
                     RecordWorktreeMetrics("create", isSuccess: false);
                     return WorktreeCreateResult.FailureResult(context.ErrorMessage ?? "未知错误");
@@ -97,9 +90,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                 RecordWorktreeMetrics("create", isSuccess: true);
 
                 return context.Result ?? WorktreeCreateResult.FailureResult("未知错误");
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger?.LogError(ex, "创建 worktree 时出错: {AgentId}", agentId);
                 span?.SetStatus(TelemetryStatusCode.Error, ex.Message);
                 span?.RecordException(ex);
@@ -387,13 +378,11 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         var worktrees = new List<string>();
         var outputSpan = result.Output.AsSpan();
 
-        while (!outputSpan.IsEmpty)
-        {
+        while (!outputSpan.IsEmpty) {
             var newlineIndex = outputSpan.IndexOf('\n');
             var line = newlineIndex >= 0 ? outputSpan[..newlineIndex] : outputSpan;
 
-            if (line.StartsWith("worktree ".AsSpan()))
-            {
+            if (line.StartsWith("worktree ".AsSpan())) {
                 var path = line[9..].Trim();
                 worktrees.Add(path.ToString());
             }
@@ -459,8 +448,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
             var root = jsonStr.Length > 0 ? JsonNode.Parse(jsonStr) as JsonObject : new JsonObject();
 
             root ??= new JsonObject();
-            root["activeWorktreeSession"] = new JsonObject
-            {
+            root["activeWorktreeSession"] = new JsonObject {
                 ["originalCwd"] = session.OriginalCwd,
                 ["worktreePath"] = session.WorktreePath,
                 ["worktreeName"] = session.AgentId,
@@ -476,15 +464,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
             var updatedJson = WorktreeJsonFormatting.FormatJsonNode(root);
 
             var dir = Path.GetDirectoryName(localSettingsPath);
-            if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir))
-            {
+            if (!string.IsNullOrEmpty(dir) && !_fileOperationService.DirectoryExists(dir)) {
                 _fileOperationService.CreateDirectory(dir);
             }
 
             await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "持久化 worktree 会话失败");
         }
     }
@@ -510,9 +495,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
 
             var updatedJson = WorktreeJsonFormatting.FormatJsonNode(root);
             await _fileOperationService.WriteFileAsync(localSettingsPath, updatedJson).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogDebug(ex, "清除 worktree 会话持久化失败");
         }
     }
@@ -541,18 +524,15 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         var normalizedWorktreePath = Path.GetFullPath(worktreePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var outputSpan = result.Output.AsSpan();
 
-        while (!outputSpan.IsEmpty)
-        {
+        while (!outputSpan.IsEmpty) {
             var newlineIndex = outputSpan.IndexOf('\n');
             var line = newlineIndex >= 0 ? outputSpan[..newlineIndex] : outputSpan;
 
-            if (line.StartsWith("worktree ".AsSpan()))
-            {
+            if (line.StartsWith("worktree ".AsSpan())) {
                 var listedPath = line[9..].Trim().ToString();
                 var normalizedListedPath = Path.GetFullPath(listedPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-                if (string.Equals(normalizedWorktreePath, normalizedListedPath, StringComparison.OrdinalIgnoreCase))
-                {
+                if (string.Equals(normalizedWorktreePath, normalizedListedPath, StringComparison.OrdinalIgnoreCase)) {
                     return true;
                 }
             }
@@ -678,13 +658,11 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
     /// <para>_sessions 是 Dictionary 非线程安全，故读操作（GetSession/GetAllSessions）也经 Actor。</para>
     /// </summary>
-    private sealed class WorktreeSessionActor : ActorBase<WorktreeSessionCommand, Unit>
-    {
+    private sealed class WorktreeSessionActor : ActorBase<WorktreeSessionCommand, Unit> {
         private readonly AgentWorktreeService _owner;
         private readonly ILogger<AgentWorktreeService>? _logger;
 
-        public WorktreeSessionActor(AgentWorktreeService owner, ILogger<AgentWorktreeService>? logger) : base()
-        {
+        public WorktreeSessionActor(AgentWorktreeService owner, ILogger<AgentWorktreeService>? logger) : base() {
             _owner = owner;
             _logger = logger;
         }
@@ -697,46 +675,39 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
             => await base.AskAwait(tcs, ct).ConfigureAwait(false);
 
-        protected override async ValueTask HandleAsync(WorktreeSessionCommand cmd, CancellationToken ct)
-        {
-            try
-            {
-                switch (cmd)
-                {
+        protected override async ValueTask HandleAsync(WorktreeSessionCommand cmd, CancellationToken ct) {
+            try {
+                switch (cmd) {
                     case GetSessionCmd(var agentId, var reply):
-                        reply.SetResult(_owner.GetSessionInternal(agentId));
-                        break;
+                    reply.SetResult(_owner.GetSessionInternal(agentId));
+                    break;
                     case GetAllSessionsCmd(var reply):
-                        reply.SetResult(_owner.GetAllSessionsInternal());
-                        break;
+                    reply.SetResult(_owner.GetAllSessionsInternal());
+                    break;
                     case SaveSessionCmd(var session, var reply):
-                        await _owner.SaveSessionInternalAsync(session).ConfigureAwait(false);
-                        reply.SetResult();
-                        break;
+                    await _owner.SaveSessionInternalAsync(session).ConfigureAwait(false);
+                    reply.SetResult();
+                    break;
                     case RemoveSessionCmd(var agentId, var reply):
-                        await _owner.RemoveSessionInternalAsync(agentId).ConfigureAwait(false);
-                        reply.SetResult();
-                        break;
+                    await _owner.RemoveSessionInternalAsync(agentId).ConfigureAwait(false);
+                    reply.SetResult();
+                    break;
                 }
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
+            } catch (OperationCanceledException) { throw; } catch (Exception ex) {
                 _logger?.LogWarning(ex, "WorktreeSessionActor 命令处理异常");
-                switch (cmd)
-                {
+                switch (cmd) {
                     case GetSessionCmd(_, var reply):
-                        reply.TrySetException(ex);
-                        break;
+                    reply.TrySetException(ex);
+                    break;
                     case GetAllSessionsCmd(var reply):
-                        reply.TrySetException(ex);
-                        break;
+                    reply.TrySetException(ex);
+                    break;
                     case SaveSessionCmd(_, var reply):
-                        reply.TrySetException(ex);
-                        break;
+                    reply.TrySetException(ex);
+                    break;
                     case RemoveSessionCmd(_, var reply):
-                        reply.TrySetException(ex);
-                        break;
+                    reply.TrySetException(ex);
+                    break;
                 }
             }
         }

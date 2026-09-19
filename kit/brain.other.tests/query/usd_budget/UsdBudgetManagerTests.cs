@@ -1,30 +1,26 @@
 namespace Core.Tests.Query.UsdBudget;
 
-public class UsdBudgetManagerTests : IAsyncDisposable
-{
+public class UsdBudgetManagerTests : IAsyncDisposable {
     private readonly Mock<JoinCode.Abstractions.Interfaces.ICostTracker> _costTrackerMock = new();
     private readonly QueryEngineConfig _config = new() { MaxUsdBudget = 10.0m, UsdAlertThreshold = 0.8 };
     private readonly UsdBudgetManager _manager;
     private bool _disposed;
 
-    public UsdBudgetManagerTests()
-    {
+    public UsdBudgetManagerTests() {
         var optionsMock = new Mock<IOptions<QueryEngineConfig>>();
         optionsMock.SetupGet(o => o.Value).Returns(_config);
         _manager = new UsdBudgetManager(_costTrackerMock.Object, optionsMock.Object, NullLogger<UsdBudgetManager>.Instance);
     }
 
     [Fact]
-    public async Task IsBudgetExceededAsync_UnderBudget_ShouldReturnFalse()
-    {
+    public async Task IsBudgetExceededAsync_UnderBudget_ShouldReturnFalse() {
         var result = await _manager.IsBudgetExceededAsync().ConfigureAwait(true);
 
         result.Should().BeFalse();
     }
 
     [Fact]
-    public async Task IsBudgetExceededAsync_OverBudget_ShouldReturnTrue()
-    {
+    public async Task IsBudgetExceededAsync_OverBudget_ShouldReturnTrue() {
         await _manager.RecordCostAsync(8.0m, "api call").ConfigureAwait(true);
         await _manager.RecordCostAsync(3.0m, "another call").ConfigureAwait(true);
 
@@ -34,8 +30,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RecordCostAsync_ShouldAccumulateCosts()
-    {
+    public async Task RecordCostAsync_ShouldAccumulateCosts() {
         await _manager.RecordCostAsync(2.0m, "first call").ConfigureAwait(true);
         await _manager.RecordCostAsync(3.0m, "second call").ConfigureAwait(true);
 
@@ -46,8 +41,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task BudgetAlert_AtThreshold_ShouldFireEvent()
-    {
+    public async Task BudgetAlert_AtThreshold_ShouldFireEvent() {
         UsdBudgetAlertEventArgs? alertArgs = null;
         _manager.BudgetAlert += (_, args) => alertArgs = args;
 
@@ -60,8 +54,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task BudgetAlert_BelowThreshold_ShouldNotFireEvent()
-    {
+    public async Task BudgetAlert_BelowThreshold_ShouldNotFireEvent() {
         var eventFired = false;
         _manager.BudgetAlert += (_, _) => eventFired = true;
 
@@ -71,8 +64,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsBudgetExceededAsync_NoBudgetConfigured_ShouldReturnFalse()
-    {
+    public async Task IsBudgetExceededAsync_NoBudgetConfigured_ShouldReturnFalse() {
         var configNoBudget = new QueryEngineConfig { MaxUsdBudget = null };
         var optionsMock = new Mock<IOptions<QueryEngineConfig>>();
         optionsMock.SetupGet(o => o.Value).Returns(configNoBudget);
@@ -84,8 +76,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RecordCostAsync_NoBudgetConfigured_ShouldNotRecord()
-    {
+    public async Task RecordCostAsync_NoBudgetConfigured_ShouldNotRecord() {
         var configNoBudget = new QueryEngineConfig { MaxUsdBudget = null };
         var optionsMock = new Mock<IOptions<QueryEngineConfig>>();
         optionsMock.SetupGet(o => o.Value).Returns(configNoBudget);
@@ -98,8 +89,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetBudgetStatusAsync_ShouldReturnCorrectStatus()
-    {
+    public async Task GetBudgetStatusAsync_ShouldReturnCorrectStatus() {
         await _manager.RecordCostAsync(3.0m, "call").ConfigureAwait(true);
 
         var status = await _manager.GetBudgetStatusAsync().ConfigureAwait(true);
@@ -111,16 +101,14 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RecordCostAsync_NullReason_ShouldThrowArgumentNullException()
-    {
+    public async Task RecordCostAsync_NullReason_ShouldThrowArgumentNullException() {
         var act = async () => await _manager.RecordCostAsync(1.0m, null!).ConfigureAwait(true);
 
         await act.Should().ThrowAsync<ArgumentNullException>().ConfigureAwait(true);
     }
 
     [Fact]
-    public async Task BudgetAlert_ShouldFireOnlyOnce()
-    {
+    public async Task BudgetAlert_ShouldFireOnlyOnce() {
         var alertCount = 0;
         _manager.BudgetAlert += (_, _) => alertCount++;
 
@@ -131,8 +119,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsBudgetExceededAsync_ZeroBudget_ShouldReturnFalse()
-    {
+    public async Task IsBudgetExceededAsync_ZeroBudget_ShouldReturnFalse() {
         var configZero = new QueryEngineConfig { MaxUsdBudget = 0m };
         var optionsMock = new Mock<IOptions<QueryEngineConfig>>();
         optionsMock.SetupGet(o => o.Value).Returns(configZero);
@@ -144,8 +131,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetBudgetStatusAsync_ZeroBudget_ShouldReturnUnlimitedRemaining()
-    {
+    public async Task GetBudgetStatusAsync_ZeroBudget_ShouldReturnUnlimitedRemaining() {
         var configZero = new QueryEngineConfig { MaxUsdBudget = 0m };
         var optionsMock = new Mock<IOptions<QueryEngineConfig>>();
         optionsMock.SetupGet(o => o.Value).Returns(configZero);
@@ -160,8 +146,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task IsBudgetExceededAsync_ExactlyAtBudgetLimit_ShouldReturnTrue()
-    {
+    public async Task IsBudgetExceededAsync_ExactlyAtBudgetLimit_ShouldReturnTrue() {
         await _manager.RecordCostAsync(10.0m, "call").ConfigureAwait(true);
 
         var result = await _manager.IsBudgetExceededAsync().ConfigureAwait(true);
@@ -170,8 +155,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetBudgetStatusAsync_ExactlyAtBudgetLimit_ShouldBeExceeded()
-    {
+    public async Task GetBudgetStatusAsync_ExactlyAtBudgetLimit_ShouldBeExceeded() {
         await _manager.RecordCostAsync(10.0m, "call").ConfigureAwait(true);
 
         var status = await _manager.GetBudgetStatusAsync().ConfigureAwait(true);
@@ -181,8 +165,7 @@ public class UsdBudgetManagerTests : IAsyncDisposable
         status.IsExceeded.Should().BeTrue();
     }
 
-    public async ValueTask DisposeAsync()
-    {
+    public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
         await _manager.DisposeSafeAsync();

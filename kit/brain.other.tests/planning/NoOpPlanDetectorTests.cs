@@ -1,7 +1,6 @@
 namespace Brain.Tests.Unit.Planning;
 
-public sealed class NoOpPlanDetectorTests
-{
+public sealed class NoOpPlanDetectorTests {
     [Theory]
     [InlineData("no changes needed")]
     [InlineData("No changes are needed")]
@@ -14,8 +13,7 @@ public sealed class NoOpPlanDetectorTests
     [InlineData("无需改动")]
     [InlineData("无需修改")]
     [InlineData("已经解决")]
-    public void IsNoOpPlan_WithNoOpPhrases_ReturnsTrue(string plan)
-    {
+    public void IsNoOpPlan_WithNoOpPhrases_ReturnsTrue(string plan) {
         Assert.True(NoOpPlanDetector.IsNoOpPlan(plan));
     }
 
@@ -27,38 +25,32 @@ public sealed class NoOpPlanDetectorTests
     [InlineData("修复这个问题")]
     [InlineData("重构代码结构")]
     [InlineData("已经实现")]
-    public void IsNoOpPlan_WithActionPhrases_ReturnsFalse(string plan)
-    {
+    public void IsNoOpPlan_WithActionPhrases_ReturnsFalse(string plan) {
         Assert.False(NoOpPlanDetector.IsNoOpPlan(plan));
     }
 
     [Fact]
-    public void IsNoOpPlan_WithEmptyString_ReturnsFalse()
-    {
+    public void IsNoOpPlan_WithEmptyString_ReturnsFalse() {
         Assert.False(NoOpPlanDetector.IsNoOpPlan(""));
     }
 
     [Fact]
-    public void IsNoOpPlan_WithWhitespace_ReturnsFalse()
-    {
+    public void IsNoOpPlan_WithWhitespace_ReturnsFalse() {
         Assert.False(NoOpPlanDetector.IsNoOpPlan("   "));
     }
 
     [Fact]
-    public void IsNoOpPlan_WithNegatedNoOp_ReturnsFalse()
-    {
+    public void IsNoOpPlan_WithNegatedNoOp_ReturnsFalse() {
         Assert.False(NoOpPlanDetector.IsNoOpPlan("This is not no changes needed"));
     }
 
     [Fact]
-    public void IsNoOpPlan_WithMixedContent_ReturnsFalse()
-    {
+    public void IsNoOpPlan_WithMixedContent_ReturnsFalse() {
         Assert.False(NoOpPlanDetector.IsNoOpPlan("no changes needed, but we should add tests"));
     }
 
     [Fact]
-    public void IsNoOpPlan_WithLongerContext_ReturnsTrue()
-    {
+    public void IsNoOpPlan_WithLongerContext_ReturnsTrue() {
         Assert.True(NoOpPlanDetector.IsNoOpPlan("After reviewing the code, no changes needed. The implementation is correct."));
     }
 }

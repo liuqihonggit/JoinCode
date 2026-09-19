@@ -1,10 +1,8 @@
 namespace Infra.Tests.Resilience;
 
-public sealed class CrashSnapshotTests
-{
+public sealed class CrashSnapshotTests {
     [Fact]
-    public void CrashSnapshot_Captures_Basic_Exception_Info()
-    {
+    public void CrashSnapshot_Captures_Basic_Exception_Info() {
         var ex = new WorkflowException("test error", ErrorCode.WorkflowExecution.ToValue());
         var snapshot = new CrashSnapshot("TestFence", CrashSeverity.Error, ex);
 
@@ -19,8 +17,7 @@ public sealed class CrashSnapshotTests
     }
 
     [Fact]
-    public void CrashSnapshot_Extracts_ErrorCode_From_WorkflowException()
-    {
+    public void CrashSnapshot_Extracts_ErrorCode_From_WorkflowException() {
         var ex = ApiException.RateLimit("test-endpoint");
         var snapshot = new CrashSnapshot("ApiFence", CrashSeverity.Warning, ex);
 
@@ -29,8 +26,7 @@ public sealed class CrashSnapshotTests
     }
 
     [Fact]
-    public void CrashSnapshot_Chain_Builds_InnerExceptions()
-    {
+    public void CrashSnapshot_Chain_Builds_InnerExceptions() {
         var inner = new InvalidOperationException("inner error");
         var outer = new WorkflowException("outer error", inner, ErrorCode.WorkflowExecution.ToValue());
         var snapshot = new CrashSnapshot("ChainFence", CrashSeverity.Error, outer);
@@ -43,11 +39,9 @@ public sealed class CrashSnapshotTests
     }
 
     [Fact]
-    public void CrashSnapshot_WithContext_Populates_ExecutionContext()
-    {
+    public void CrashSnapshot_WithContext_Populates_ExecutionContext() {
         var ex = new Exception("boom");
-        var ctx = new CrashExecutionContext
-        {
+        var ctx = new CrashExecutionContext {
             ToolName = "Bash",
             TurnIndex = 3,
             RequestId = "req-123",
@@ -61,8 +55,7 @@ public sealed class CrashSnapshotTests
     }
 
     [Fact]
-    public void CrashSnapshot_ToSummary_Includes_Key_Info()
-    {
+    public void CrashSnapshot_ToSummary_Includes_Key_Info() {
         var ex = new WorkflowException("test", ErrorCode.ApiTimeout.ToValue());
         var ctx = new CrashExecutionContext { ToolName = "Read", TurnIndex = 5 };
         var snapshot = new CrashSnapshot("SumFence", CrashSeverity.Fatal, ex, ctx);
@@ -76,8 +69,7 @@ public sealed class CrashSnapshotTests
     }
 
     [Fact]
-    public void CrashSnapshot_Tags_And_Attachments_Work()
-    {
+    public void CrashSnapshot_Tags_And_Attachments_Work() {
         var ex = new Exception("tagged");
         var snapshot = new CrashSnapshot("TagFence", CrashSeverity.Error, ex);
         snapshot.WithTag("env", "production");
@@ -88,13 +80,11 @@ public sealed class CrashSnapshotTests
     }
 }
 
-public sealed class CrashSnapshotStoreTests
-{
+public sealed class CrashSnapshotStoreTests {
     private readonly CrashSnapshotStore _store = new(maxCapacity: 10);
 
     [Fact]
-    public void Add_Increments_Count()
-    {
+    public void Add_Increments_Count() {
         var ex = new Exception("test");
         var snapshot = new CrashSnapshot("F1", CrashSeverity.Error, ex);
 
@@ -105,8 +95,7 @@ public sealed class CrashSnapshotStoreTests
     }
 
     [Fact]
-    public void GetRecent_Returns_Latest_First()
-    {
+    public void GetRecent_Returns_Latest_First() {
         for (var i = 0; i < 5; i++)
             _store.Add(new CrashSnapshot($"F{i}", CrashSeverity.Error, new Exception($"e{i}")));
 
@@ -117,8 +106,7 @@ public sealed class CrashSnapshotStoreTests
     }
 
     [Fact]
-    public void GetByFence_Filters_Correctly()
-    {
+    public void GetByFence_Filters_Correctly() {
         _store.Add(new CrashSnapshot("Alpha", CrashSeverity.Error, new Exception("a1")));
         _store.Add(new CrashSnapshot("Beta", CrashSeverity.Error, new Exception("b1")));
         _store.Add(new CrashSnapshot("Alpha", CrashSeverity.Fatal, new Exception("a2")));
@@ -129,8 +117,7 @@ public sealed class CrashSnapshotStoreTests
     }
 
     [Fact]
-    public void Acknowledge_Changes_State()
-    {
+    public void Acknowledge_Changes_State() {
         var snapshot = new CrashSnapshot("Ack", CrashSeverity.Error, new Exception("ack"));
         _store.Add(snapshot);
 
@@ -141,12 +128,10 @@ public sealed class CrashSnapshotStoreTests
     }
 
     [Fact]
-    public void Store_Evicts_Oldest_When_Over_Capacity()
-    {
+    public void Store_Evicts_Oldest_When_Over_Capacity() {
         var smallStore = new CrashSnapshotStore(maxCapacity: 3);
         var ids = new List<Guid>();
-        for (var i = 0; i < 5; i++)
-        {
+        for (var i = 0; i < 5; i++) {
             var s = new CrashSnapshot($"F{i}", CrashSeverity.Error, new Exception($"e{i}"));
             ids.Add(s.Id);
             smallStore.Add(s);
@@ -158,8 +143,7 @@ public sealed class CrashSnapshotStoreTests
     }
 
     [Fact]
-    public void SnapshotAdded_Event_Fires()
-    {
+    public void SnapshotAdded_Event_Fires() {
         CrashSnapshot? captured = null;
         _store.SnapshotAdded += (_, s) => captured = s;
 
@@ -171,8 +155,7 @@ public sealed class CrashSnapshotStoreTests
     }
 
     [Fact]
-    public void FormatReport_Returns_NonEmpty_String()
-    {
+    public void FormatReport_Returns_NonEmpty_String() {
         _store.Add(new CrashSnapshot("R1", CrashSeverity.Error, new Exception("r1")));
         _store.Add(new CrashSnapshot("R2", CrashSeverity.Fatal, new Exception("r2")));
 
@@ -183,11 +166,9 @@ public sealed class CrashSnapshotStoreTests
     }
 }
 
-public sealed class FaultFenceTests
-{
+public sealed class FaultFenceTests {
     [Fact]
-    public async Task ExecuteAsync_Success_Returns_Value()
-    {
+    public async Task ExecuteAsync_Success_Returns_Value() {
         var fence = new FaultFence("SuccessFence");
         var result = await fence.ExecuteAsync(() => Task.FromResult(42));
         result.Should().Be(42);
@@ -196,8 +177,7 @@ public sealed class FaultFenceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_Exception_Captures_Snapshot()
-    {
+    public async Task ExecuteAsync_Exception_Captures_Snapshot() {
         var store = new CrashSnapshotStore();
         var fence = new FaultFence("ExFence", store: store);
 
@@ -210,8 +190,7 @@ public sealed class FaultFenceTests
     }
 
     [Fact]
-    public void TryExecute_Returns_FaultFenceResult()
-    {
+    public void TryExecute_Returns_FaultFenceResult() {
         var fence = new FaultFence("TryFence");
         var result = fence.TryExecute(() => "ok");
 
@@ -221,8 +200,7 @@ public sealed class FaultFenceTests
     }
 
     [Fact]
-    public void TryExecute_Exception_Returns_Snapshot()
-    {
+    public void TryExecute_Exception_Returns_Snapshot() {
         var store = new CrashSnapshotStore();
         var fence = new FaultFence("TryExFence", store: store);
 
@@ -234,8 +212,7 @@ public sealed class FaultFenceTests
     }
 
     [Fact]
-    public async Task TryExecuteAsync_Exception_DoesNotThrow()
-    {
+    public async Task TryExecuteAsync_Exception_DoesNotThrow() {
         var fence = new FaultFence("TryAsyncFence");
         var result = await fence.TryExecuteAsync<int>(() => throw new Exception("async fail"));
 
@@ -244,8 +221,7 @@ public sealed class FaultFenceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_Fatal_Exception_Interrupts()
-    {
+    public async Task ExecuteAsync_Fatal_Exception_Interrupts() {
         var fence = new FaultFence("FatalFence", shouldInterrupt: ex => ex is OutOfMemoryException);
 
         var act = async () => await fence.ExecuteAsync<int>(() => throw new OutOfMemoryException());
@@ -255,8 +231,7 @@ public sealed class FaultFenceTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_NonFatal_Exception_DoesNotInterrupt()
-    {
+    public async Task ExecuteAsync_NonFatal_Exception_DoesNotInterrupt() {
         var fence = new FaultFence("NonFatalFence", shouldInterrupt: ex => ex is OutOfMemoryException);
 
         var act = async () => await fence.ExecuteAsync<int>(() => throw new InvalidOperationException());
@@ -266,8 +241,7 @@ public sealed class FaultFenceTests
     }
 
     [Fact]
-    public void CaptureSnapshot_Creates_Snapshot_With_Context()
-    {
+    public void CaptureSnapshot_Creates_Snapshot_With_Context() {
         var store = new CrashSnapshotStore();
         var fence = new FaultFence("CaptureFence", store: store);
         var ex = ApiException.RateLimit("test-endpoint");
@@ -282,8 +256,7 @@ public sealed class FaultFenceTests
     }
 
     [Fact]
-    public void SeverityClassifier_Customizes_Severity()
-    {
+    public void SeverityClassifier_Customizes_Severity() {
         var fence = new FaultFence("SeverityFence",
             severityClassifier: ex => ex is TimeoutException ? CrashSeverity.Warning : CrashSeverity.Fatal);
         var store = new CrashSnapshotStore();

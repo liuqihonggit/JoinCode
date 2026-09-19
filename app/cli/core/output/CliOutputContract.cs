@@ -4,8 +4,7 @@ namespace JoinCode.Cli.Output;
 /// CLI 输出契约 — stdout/stderr 严格分离的结构化写入器
 /// 对齐架构指南：stdout 只输出结构化数据，stderr 只输出日志和提示
 /// </summary>
-public sealed class CliOutputContract
-{
+public sealed class CliOutputContract {
     private readonly bool _jsonMode;
     private readonly CliOutputJsonContext _jsonContext;
 
@@ -14,8 +13,7 @@ public sealed class CliOutputContract
     /// </summary>
     /// <param name="jsonMode">是否启用 JSON 结构化输出模式</param>
     /// <param name="jsonContext">JSON 序列化上下文，用于 NativeAOT 兼容的序列化</param>
-    public CliOutputContract(bool jsonMode, CliOutputJsonContext jsonContext)
-    {
+    public CliOutputContract(bool jsonMode, CliOutputJsonContext jsonContext) {
         _jsonMode = jsonMode;
         _jsonContext = jsonContext;
     }
@@ -25,16 +23,12 @@ public sealed class CliOutputContract
     /// JSON 模式: 输出 {ok:true, data:..., meta:...}
     /// 文本模式: 直接输出 data 的 ToString()
     /// </summary>
-    public void WriteData(object? data, CliOutputMeta? meta = null)
-    {
-        if (_jsonMode)
-        {
+    public void WriteData(object? data, CliOutputMeta? meta = null) {
+        if (_jsonMode) {
             var envelope = CliOutputEnvelope.Success(data, meta);
             var json = RelaxedJsonSerializer.Serialize(envelope, _jsonContext);
             Console.WriteLine(json);
-        }
-        else
-        {
+        } else {
             if (data is not null)
                 TerminalHelper.WriteLine(data.ToString());
         }
@@ -45,26 +39,19 @@ public sealed class CliOutputContract
     /// JSON 模式: stderr 输出 {ok:false, error:{code,message,hint,retryable}}
     /// 文本模式: stderr 输出人类可读错误（带颜色）
     /// </summary>
-    public void WriteError(CliStructuredError error)
-    {
-        if (_jsonMode)
-        {
+    public void WriteError(CliStructuredError error) {
+        if (_jsonMode) {
             var envelope = CliOutputEnvelope.Fail(error);
             var json = RelaxedJsonSerializer.Serialize(envelope, _jsonContext);
             TerminalHelper.WriteError(json);
-        }
-        else
-        {
-            using (TerminalHelper.SetColorRaw(ConsoleColor.Red))
-            {
+        } else {
+            using (TerminalHelper.SetColorRaw(ConsoleColor.Red)) {
                 TerminalHelper.WriteErrorRaw($"  ✖ [{error.Code}] {error.Message}");
                 TerminalHelper.WriteError();
             }
 
-            if (!string.IsNullOrEmpty(error.Hint))
-            {
-                using (TerminalHelper.SetColorRaw(ConsoleColor.Cyan))
-                {
+            if (!string.IsNullOrEmpty(error.Hint)) {
+                using (TerminalHelper.SetColorRaw(ConsoleColor.Cyan)) {
                     TerminalHelper.WriteErrorRaw($"  💡 {error.Hint}");
                     TerminalHelper.WriteError();
                 }
@@ -75,8 +62,7 @@ public sealed class CliOutputContract
     /// <summary>
     /// 写入日志/提示到 stderr（不影响 stdout 数据流）
     /// </summary>
-    public void WriteLog(string message)
-    {
+    public void WriteLog(string message) {
         TerminalHelper.WriteError(message);
     }
 }

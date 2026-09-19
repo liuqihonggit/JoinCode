@@ -3,8 +3,7 @@ namespace JoinCode.Cli;
 /// <summary>
 /// 纯 CLI 会话 — 使用纯控制台 I/O。
 /// </summary>
-public sealed class CliSession
-{
+public sealed class CliSession {
     private readonly ICodeService _codeService;
     private readonly IPlanService _planService;
     private readonly IToolRegistry _toolRegistry;
@@ -65,8 +64,7 @@ public sealed class CliSession
         CliServiceContext? optionalServices = null,
         IClockService? clock = null,
         ILogger<CliSession>? logger = null,
-        string? sessionId = null)
-    {
+        string? sessionId = null) {
         _clock = clock ?? SystemClockService.Instance;
         _logger = logger;
         _sessionStartedAt = _clock.GetUtcNow();
@@ -77,8 +75,7 @@ public sealed class CliSession
         _optionalServices = optionalServices;
         _commandRegistry = optionalServices?.ServiceProvider?.GetService<ChatCommandRegistry>()
             ?? new ChatCommandRegistry();
-        if (optionalServices?.ServiceProvider?.GetService<ChatCommandRegistry>() is null)
-        {
+        if (optionalServices?.ServiceProvider?.GetService<ChatCommandRegistry>() is null) {
             GeneratedCommandRegistration.RegisterAllChatCommands(_commandRegistry);
         }
 
@@ -104,8 +101,7 @@ public sealed class CliSession
             optionalServices?.ServiceProvider,
             mainAgent: mainAgent);
 
-        _commandServices = new CommandServices
-        {
+        _commandServices = new CommandServices {
             ChatService = chatService,
             CodeService = _codeService,
             PlanService = _planService,
@@ -151,8 +147,7 @@ public sealed class CliSession
     /// 管道各中间件对主代理 no-op（Definition/Prompt/ContextSetup/LifecycleSpawn 等），仅 RecordContext/PermissionRouting/Metadata 生效
     /// 返回 null 表示 DI 中无 IQueryEngine，SessionController 回退到直接调用 ChatService
     /// </summary>
-    private AgentBase? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider)
-    {
+    private AgentBase? CreateMainAgent(IChatService chatService, IServiceProvider? serviceProvider) {
         if (serviceProvider is null) return null;
         var queryEngine = serviceProvider.GetService<IQueryEngine>();
         if (queryEngine is null) return null;
@@ -170,20 +165,15 @@ public sealed class CliSession
             contextManager: contextManager);
 
         var spawnPipeline = serviceProvider.GetService<MiddlewarePipeline<UnifiedSpawnContext>>();
-        if (spawnPipeline is not null)
-        {
-            try
-            {
-                var context = new UnifiedSpawnContext
-                {
+        if (spawnPipeline is not null) {
+            try {
+                var context = new UnifiedSpawnContext {
                     Task = string.Empty,
                     IsMainAgent = true,
                     Agent = mainAgent,
                 };
                 spawnPipeline.ExecuteAsync(context, default).GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 serviceProvider.GetService<ILogger<CliSession>>()?.LogWarning(ex, "[CliSession] 主代理走统一管道失败，回退到直接创建");
             }
         }
@@ -195,8 +185,7 @@ public sealed class CliSession
     /// 覆盖会话 ID — 恢复历史会话时调用，将 sessionId 设为原会话 ID，
     /// 同步更新 GoalEngine/GoalRegistry 的会话隔离标识，使持久化状态关联到原会话。
     /// </summary>
-    public void OverrideSessionId(string sessionId)
-    {
+    public void OverrideSessionId(string sessionId) {
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         _sessionId = sessionId;
         _optionalServices?.GoalEngine?.SetSessionId(sessionId);
@@ -208,8 +197,7 @@ public sealed class CliSession
     /// <summary>
     /// 初始化 — 加载自定义命令
     /// </summary>
-    public async Task InitializeAsync(CancellationToken cancellationToken = default)
-    {
+    public async Task InitializeAsync(CancellationToken cancellationToken = default) {
         var loader = new CustomCommandLoader(_fs);
         var workingDir = _fs.GetCurrentDirectory();
         var projectCommands = await loader.LoadProjectCommandsAsync(workingDir, cancellationToken).ConfigureAwait(false);
@@ -217,21 +205,16 @@ public sealed class CliSession
         foreach (var cmd in projectCommands) _commandRegistry.Register(new CustomChatCommand(cmd));
         foreach (var cmd in userCommands) _commandRegistry.Register(new CustomChatCommand(cmd));
 
-        if (_optionalServices?.TranscriptService is { } transcriptSvc)
-        {
-            try
-            {
-                await transcriptSvc.SaveSessionInfoAsync(_sessionId, new SessionInfo
-                {
+        if (_optionalServices?.TranscriptService is { } transcriptSvc) {
+            try {
+                await transcriptSvc.SaveSessionInfoAsync(_sessionId, new SessionInfo {
                     Id = _sessionId,
                     ProjectPath = workingDir,
                     ModelId = Environment.GetEnvironmentVariable("JCC_MODEL_ID") ?? string.Empty,
                     Vendor = Environment.GetEnvironmentVariable("JCC_VENDOR") ?? string.Empty,
                     CreatedAt = _sessionStartedAt
                 }, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
+            } catch (Exception ex) when (ex is not OperationCanceledException) {
                 _logger?.LogWarning(ex, "[CliSession] 保存 SessionInfo 失败");
             }
         }
@@ -250,8 +233,7 @@ public sealed class CliSession
     /// <summary>
     /// 处理用户输入 — 命令或聊天消息
     /// </summary>
-    public async Task ProcessUserInputAsync(string input, CancellationToken cancellationToken = default)
-    {
+    public async Task ProcessUserInputAsync(string input, CancellationToken cancellationToken = default) {
         if (!IsRunning) return;
         if (string.IsNullOrWhiteSpace(input)) return;
 
@@ -266,62 +248,48 @@ public sealed class CliSession
         span?.SetTag("input.length", input.Length);
         span?.SetTag("session.id", _sessionId);
 
-        try
-        {
-            if (input.StartsWith('/'))
-            {
+        try {
+            if (input.StartsWith('/')) {
                 await HandleCommandAsync(input, cancellationToken);
-            }
-            else if (Cli.Commands.Prefix.PrefixCommandRouter.IsPrefixCommand(input))
-            {
+            } else if (Cli.Commands.Prefix.PrefixCommandRouter.IsPrefixCommand(input)) {
                 await HandlePrefixCommandAsync(input, cancellationToken);
-            }
-            else
-            {
+            } else {
                 _turnDiffService.RecordUserPrompt(input);
                 await StreamResponseAsync(input, cancellationToken);
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             span?.SetTag("error", true);
             span?.SetTag("error.message", ex.Message);
             throw;
         }
     }
 
-    private async Task HandlePrefixCommandAsync(string input, CancellationToken cancellationToken)
-    {
+    private async Task HandlePrefixCommandAsync(string input, CancellationToken cancellationToken) {
         Diag.WriteLifecycle($"[DIAG-CLI] HandlePrefixCommandAsync entry: input='{(input.Length > 60 ? input[..60] + "..." : input)}'");
 
-        var context = new PrefixCommandContext
-        {
+        var context = new PrefixCommandContext {
             Services = new CommandServiceProvider(_commandServices, _optionalServices?.ServiceProvider),
             CancellationToken = cancellationToken,
         };
 
         var result = await Cli.Commands.Prefix.PrefixCommandRouter.ExecuteAsync(input, context, cancellationToken).ConfigureAwait(false);
-        if (!result.Handled)
-        {
+        if (!result.Handled) {
             TerminalHelper.WriteLine($"未识别的前缀命令: {input}");
             return;
         }
 
         TerminalHelper.WriteLine(result.Output);
 
-        if (result.ShouldInjectToAi)
-        {
+        if (result.ShouldInjectToAi) {
             _turnDiffService.RecordUserPrompt(input);
             await StreamResponseAsync(result.Output, cancellationToken);
         }
     }
 
-    private async Task HandleCommandAsync(string input, CancellationToken cancellationToken)
-    {
+    private async Task HandleCommandAsync(string input, CancellationToken cancellationToken) {
         Diag.WriteLifecycle($"[DIAG-CLI] HandleCommandAsync entry: input='{(input.Length > 60 ? input[..60] + "..." : input)}'");
         var parseResult = _commandRegistry.Parse(input);
-        if (!parseResult.IsSuccess)
-        {
+        if (!parseResult.IsSuccess) {
             Diag.WriteLifecycle($"[DIAG-CLI] Parse FAILED for: '{input}', error={parseResult.ErrorMessage}");
             return;
         }
@@ -329,8 +297,7 @@ public sealed class CliSession
         Diag.WriteLifecycle($"[DIAG-CLI] Parse OK, commandName={parseResult.CommandName}, arguments={parseResult.Arguments}");
         var descriptor = await _cmdMap.ResolveAsync(parseResult.CommandName ?? throw new InvalidOperationException("CommandName should not be null after successful parse"), cancellationToken).ConfigureAwait(false);
         var command = descriptor?.SlashCommand;
-        if (command == null)
-        {
+        if (command == null) {
             var allCommands = _commandRegistry.GetAllCommands().Keys.OrderBy(k => k).ToArray();
             Diag.WriteLifecycle($"[DIAG-CLI] Command NOT FOUND: '{parseResult.CommandName}', registeredCount={allCommands.Length}, registered=[{string.Join(", ", allCommands)}]");
             ShowUnknownCommandHelp();
@@ -339,45 +306,36 @@ public sealed class CliSession
 
         Diag.WriteLifecycle($"[DIAG-CLI] Command resolved: name={command.Name}, type={command.GetType().FullName}");
 
-        var context = new ChatCommandContext
-        {
+        var context = new ChatCommandContext {
             Arguments = parseResult.Arguments,
             CancellationToken = cancellationToken,
             SessionStartedAt = _sessionStartedAt,
             SessionId = _sessionId,
             Services = new CommandServiceProvider(_commandServices, _optionalServices?.ServiceProvider),
-            ClearScreen = () =>
-            {
+            ClearScreen = () => {
                 try { System.Console.Clear(); } catch (IOException ex) { _logger?.LogWarning(ex, "清屏失败"); }
             },
-            Confirm = msg =>
-            {
+            Confirm = msg => {
                 if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return false;
                 TerminalHelper.WriteRaw(msg + " (y/N) ");
                 var response = TerminalHelper.ReadLine();
                 return response?.ToLowerInvariant() == "y";
             },
-            Prompt = msg =>
-            {
+            Prompt = msg => {
                 if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return null;
                 TerminalHelper.WriteRaw(msg);
                 return TerminalHelper.ReadLine();
             },
-            ReadPassword = prompt =>
-            {
+            ReadPassword = prompt => {
                 if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) return string.Empty;
                 TerminalHelper.WriteRaw(prompt);
                 var password = new StringBuilder();
-                while (true)
-                {
+                while (true) {
                     var key = TerminalHelper.ReadKey(true);
                     if (key.Key == ConsoleKey.Enter) break;
-                    if (key.Key == ConsoleKey.Backspace)
-                    {
+                    if (key.Key == ConsoleKey.Backspace) {
                         if (password.Length > 0) password.Remove(password.Length - 1, 1);
-                    }
-                    else
-                    {
+                    } else {
                         password.Append(key.KeyChar);
                     }
                 }
@@ -392,90 +350,69 @@ public sealed class CliSession
         TerminalHelper.SetOut(commandWriter);
 
         ChatCommandResult result;
-        try
-        {
+        try {
             Diag.WriteLifecycle($"[DIAG-CLI] executing command '{command.Name}', args='{parseResult.Arguments}'");
             result = await command.ExecuteAsync(context);
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' returned: ShouldContinue={result.ShouldContinue}, resultType={result.GetType().FullName}");
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' THREW {ex.GetType().Name}: {ex.Message}");
             throw;
-        }
-        finally
-        {
+        } finally {
             TerminalHelper.SetOut(originalOut);
             commandWriter.Flush();
         }
 
         var outputText = commandOutput.ToString();
         Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' outputLen={outputText.Length}, outputPreview='{(outputText.Length > 200 ? outputText[..200] + "..." : outputText)}'");
-        if (!string.IsNullOrWhiteSpace(outputText))
-        {
+        if (!string.IsNullOrWhiteSpace(outputText)) {
             TerminalHelper.WriteLine(outputText.TrimEnd());
         }
 
-        if (!result.ShouldContinue)
-        {
+        if (!result.ShouldContinue) {
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' ShouldContinue=false, calling Stop()");
             Stop();
         }
     }
 
-    private void ShowUnknownCommandHelp()
-    {
+    private void ShowUnknownCommandHelp() {
         var sb = new StringBuilder();
         sb.AppendLine();
         sb.AppendLine("未知命令。可用命令:");
-        foreach (var info in _commandRegistry.GetCommandInfos())
-        {
+        foreach (var info in _commandRegistry.GetCommandInfos()) {
             sb.AppendLine($"  {info.Usage,-24} {info.Description}");
         }
         sb.AppendLine();
         TerminalHelper.WriteLine(sb.ToString().TrimEnd());
     }
 
-    private async Task StreamResponseAsync(string input, CancellationToken cancellationToken)
-    {
+    private async Task StreamResponseAsync(string input, CancellationToken cancellationToken) {
         Diag.WriteLine($"[CliSession] StreamResponseAsync entry: input='{input}'");
 
         var result = await _controller.StreamResponseAsync(input, cancellationToken).ConfigureAwait(false);
 
-        if (result.Succeeded)
-        {
+        if (result.Succeeded) {
             TerminalHelper.NewLine();
             LastResponse = result.Response;
             // T6：transcript 写入已下沉引擎 TranscriptPersistMiddleware（增量含工具轮次），
             // 此处不再手动 AppendEntries 双写；sessionId 同源由构造函数注入保证
-        }
-        else if (result.TimedOut)
-        {
+        } else if (result.TimedOut) {
             Diag.WriteLine($"[CliSession] API timeout ({result.TimeoutMs}ms no response)");
             throw new TimeoutException($"API 请求超时（{result.TimeoutMs / 1000}s 无响应）");
-        }
-        else if (result.WasCancelled)
-        {
+        } else if (result.WasCancelled) {
             Diag.WriteLine("[CliSession] OperationCanceledException (cancelled)");
             LastResponse = result.Response;
-            if (!string.IsNullOrEmpty(LastResponse))
-            {
+            if (!string.IsNullOrEmpty(LastResponse)) {
                 TerminalHelper.NewLine();
             }
-        }
-        else
-        {
+        } else {
             Diag.WriteLine($"[CliSession] Exception: {result.ErrorMessage}");
-            if (!string.IsNullOrEmpty(result.ErrorCode))
-            {
+            if (!string.IsNullOrEmpty(result.ErrorCode)) {
                 TerminalHelper.WriteLine();
                 TerminalHelper.WriteLine($"✖ {result.ErrorMessage}");
                 if (result.IsRetryable)
                     TerminalHelper.WriteLine("  此错误通常可重试，请稍后再试。");
                 TerminalHelper.WriteLine("  请检查：1. API Key 配置  2. 网络连接  3. API 服务状态");
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"错误: {result.ErrorMessage}");
             }
             LastResponse = result.Response;

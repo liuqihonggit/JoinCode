@@ -4,15 +4,13 @@ namespace McpClient.Mcpb;
 /// MCPB 哈希计算中间件 — 计算文件内容哈希，确定解压目标路径
 /// </summary>
 [Register(typeof(IMcpbMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class McpbHashMiddleware : ServiceEntity, IMcpbMiddleware
-{
+public sealed partial class McpbHashMiddleware : ServiceEntity, IMcpbMiddleware {
 
     /// <summary>
     /// 初始化 MCPB 哈希计算中间件
     /// </summary>
     /// <param name="fs">文件系统抽象</param>
-    public McpbHashMiddleware(IFileSystem fs)
-    {
+    public McpbHashMiddleware(IFileSystem fs) {
         _fs = fs;
     }
     private readonly IFileSystem _fs;
@@ -25,8 +23,7 @@ public sealed partial class McpbHashMiddleware : ServiceEntity, IMcpbMiddleware
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(McpbLoadContext context, MiddlewareDelegate<McpbLoadContext> next, CancellationToken ct) {
         var filePath = context.LocalFilePath;
 
         using var stream = _fs.OpenRead(filePath);

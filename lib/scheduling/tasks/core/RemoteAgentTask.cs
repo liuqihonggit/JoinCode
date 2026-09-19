@@ -4,8 +4,7 @@ namespace Core.Scheduling.Tasks;
 /// <summary>
 /// 远程智能体任务执行器接口 — 定义远程任务执行、可用性检查与取消能力
 /// </summary>
-public interface IRemoteAgentTaskExecutor
-{
+public interface IRemoteAgentTaskExecutor {
     /// <summary>
     /// 异步执行远程智能体任务
     /// </summary>
@@ -33,8 +32,7 @@ public interface IRemoteAgentTaskExecutor
 /// <summary>
 /// 远程智能体任务定义 — 描述一次远程执行的请求参数
 /// </summary>
-public sealed partial class RemoteAgentTaskDefinition
-{
+public sealed partial class RemoteAgentTaskDefinition {
     /// <summary>任务唯一标识</summary>
     public required string TaskId { get; init; }
     /// <summary>远程端点地址</summary>
@@ -55,8 +53,7 @@ public sealed partial class RemoteAgentTaskDefinition
 /// 远程智能体任务执行器 — 通过 HTTP 调用远程端点执行任务,支持重试与遥测
 /// </summary>
 [Register(typeof(IRemoteAgentTaskExecutor), ServiceLifetime.Singleton)]
-public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgentTaskExecutor
-{
+public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgentTaskExecutor {
     private readonly HttpClient _httpClient;
     private readonly ILogger<RemoteAgentTaskExecutor>? _logger;
     private readonly ITelemetryService? _telemetryService;
@@ -69,8 +66,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
     /// <param name="logger">日志记录器,为空时不记录日志</param>
     /// <param name="telemetryService">遥测服务,为空时不记录遥测指标</param>
     /// <param name="clock">时钟服务,为空时使用系统默认时钟</param>
-    public RemoteAgentTaskExecutor(HttpClient httpClient, ILogger<RemoteAgentTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null)
-    {
+    public RemoteAgentTaskExecutor(HttpClient httpClient, ILogger<RemoteAgentTaskExecutor>? logger = null, ITelemetryService? telemetryService = null, IClockService? clock = null) {
         _httpClient = httpClient;
         _logger = logger;
         _telemetryService = telemetryService;
@@ -78,17 +74,14 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
     }
 
     /// <inheritdoc/>
-    public async Task<AgentTaskResult> ExecuteRemoteAsync(RemoteAgentTaskDefinition definition, CancellationToken ct = default)
-    {
+    public async Task<AgentTaskResult> ExecuteRemoteAsync(RemoteAgentTaskDefinition definition, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(definition);
 
         var startTime = _clock.GetUtcNow();
         var remainingRetries = definition.MaxRetries;
 
-        while (remainingRetries >= 0)
-        {
-            try
-            {
+        while (remainingRetries >= 0) {
+            try {
                 var request = BuildExecuteRequest(definition);
                 using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
@@ -96,8 +89,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
                 var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 var result = RelaxedJsonSerializer.Deserialize(json, SchedulingTasksJsonContext.Default.RemoteAgentExecuteResponse);
 
-                if (result is null)
-                {
+                if (result is null) {
                     return AgentTaskResult.Failure(definition.TaskId, "remote", "Failed to deserialize remote response");
                 }
 
@@ -106,19 +98,13 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
                 return result.Success
                     ? AgentTaskResult.Success(definition.TaskId, "remote", result.Output ?? string.Empty, elapsed)
                     : AgentTaskResult.Failure(definition.TaskId, "remote", result.Error ?? "Remote execution failed", elapsed);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (ct.IsCancellationRequested) {
                 throw;
-            }
-            catch (Exception ex) when (remainingRetries > 0)
-            {
+            } catch (Exception ex) when (remainingRetries > 0) {
                 _logger?.LogWarning(ex, "Remote agent task {TaskId} failed, retrying ({RetriesLeft} left)", definition.TaskId, remainingRetries);
                 remainingRetries--;
                 await Task.Delay(TimeSpan.FromMilliseconds(500 * (definition.MaxRetries - remainingRetries)), ct).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 var elapsed = (long)(_clock.GetUtcNow() - startTime).TotalMilliseconds;
                 RecordRemoteMetrics("execute", false);
                 return AgentTaskResult.Failure(definition.TaskId, "remote", ex.Message, elapsed);
@@ -130,36 +116,26 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
     }
 
     /// <inheritdoc/>
-    public async Task<bool> IsRemoteAvailableAsync(string endpoint, CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task<bool> IsRemoteAvailableAsync(string endpoint, CancellationToken ct = default) {
+        try {
             using var response = await _httpClient.GetAsync($"{endpoint.TrimEnd('/')}/api/agent/health", ct).ConfigureAwait(false);
             return response.IsSuccessStatusCode;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }
 
     /// <inheritdoc/>
-    public async Task CancelRemoteAsync(string taskId, CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task CancelRemoteAsync(string taskId, CancellationToken ct = default) {
+        try {
             await _httpClient.DeleteAsync($"/api/agent/cancel/{taskId}", ct).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "Failed to cancel remote task {TaskId}", taskId);
         }
     }
 
-    private HttpRequestMessage BuildExecuteRequest(RemoteAgentTaskDefinition definition)
-    {
-        var payload = new RemoteAgentExecuteRequest
-        {
+    private HttpRequestMessage BuildExecuteRequest(RemoteAgentTaskDefinition definition) {
+        var payload = new RemoteAgentExecuteRequest {
             TaskId = definition.TaskId,
             TaskDescription = definition.TaskDescription,
             SystemPrompt = definition.SystemPrompt,
@@ -167,15 +143,12 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
         };
 
         var json = JsonSerializer.Serialize(payload, SchedulingTasksJsonContext.Default.RemoteAgentExecuteRequest);
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{definition.Endpoint.TrimEnd('/')}/api/agent/execute")
-        {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{definition.Endpoint.TrimEnd('/')}/api/agent/execute") {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
 
-        if (definition.Headers is not null)
-        {
-            foreach (var (key, value) in definition.Headers)
-            {
+        if (definition.Headers is not null) {
+            foreach (var (key, value) in definition.Headers) {
                 request.Headers.TryAddWithoutValidation(key, value);
             }
         }
@@ -190,8 +163,7 @@ public sealed partial class RemoteAgentTaskExecutor : ServiceEntity, IRemoteAgen
 /// <summary>
 /// 远程智能体执行请求体 — 序列化后发送到远程端点
 /// </summary>
-public sealed partial class RemoteAgentExecuteRequest
-{
+public sealed partial class RemoteAgentExecuteRequest {
     /// <summary>任务唯一标识</summary>
     public required string TaskId { get; init; }
     /// <summary>任务描述</summary>
@@ -205,8 +177,7 @@ public sealed partial class RemoteAgentExecuteRequest
 /// <summary>
 /// 远程智能体执行响应体 — 从远程端点反序列化的执行结果
 /// </summary>
-public sealed partial class RemoteAgentExecuteResponse
-{
+public sealed partial class RemoteAgentExecuteResponse {
     /// <summary>执行是否成功</summary>
     public bool Success { get; init; }
     /// <summary>执行输出内容,失败时为空</summary>

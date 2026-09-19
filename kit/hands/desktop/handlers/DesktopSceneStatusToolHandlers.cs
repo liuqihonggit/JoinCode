@@ -4,16 +4,14 @@ namespace Tools.Handlers;
 /// 桌面情景模式 status 工具处理器 — 查看夹逼进度（当前层/格子/历史路径）
 /// </summary>
 [McpToolDispatch(ToolCategory.DesktopControl)]
-public sealed class DesktopSceneStatusToolHandlers
-{
+public sealed class DesktopSceneStatusToolHandlers {
     private readonly IDesktopSceneStateStore _stateStore;
 
     /// <summary>
     /// 初始化 status 工具处理器
     /// </summary>
     /// <param name="stateStore">场景状态存储服务</param>
-    public DesktopSceneStatusToolHandlers(IDesktopSceneStateStore stateStore)
-    {
+    public DesktopSceneStatusToolHandlers(IDesktopSceneStateStore stateStore) {
         _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
     }
 
@@ -26,8 +24,7 @@ public sealed class DesktopSceneStatusToolHandlers
     [McpTool("desktop_scene_status", "查看当前夹逼进度：当前层/格子/历史路径。用于纠偏或跨调用恢复。", "desktop")]
     public async Task<ToolResult> StatusAsync(
         [McpToolParameter("场景 ID", Required = true)] string sceneId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var state = await _stateStore.LoadAsync(sceneId, cancellationToken).ConfigureAwait(false);
         if (state is null)
             return ToolResultBuilder.Success().WithText($"场景 {sceneId} 不存在，请先调 desktop_look 创建场景。").Build();

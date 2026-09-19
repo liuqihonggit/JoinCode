@@ -10,61 +10,50 @@ namespace JoinCode.ChatCommands;
 [ChatCommand(Name = ChatCommandNameEnumConstants.Plugin, Description = "管理插件", Usage = "/plugin [list|install|uninstall|enable|disable] [name]", Category = ChatCommandCategory.Tools, Aliases = ["plugins", "marketplace"], ArgumentHint = "[list|install|uninstall|enable|disable]")]
 [ChatCommandArg("action", Type = "string", Description = "插件操作", Enum = new[] { "list", "install", "uninstall", "enable", "disable" })]
 [ChatCommandArg("name", Type = "string", Description = "插件名称")]
-public sealed class PluginCommand : ChatCommandBase
-{
+public sealed class PluginCommand : ChatCommandBase {
     /// <summary>
     /// 异步执行 /plugin 命令，管理插件列表/安装/卸载/启用/禁用
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context)
-    {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var pluginManager = context.GetCommandServices().PluginManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
-        if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase))
-        {
+        if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase)) {
             return await ListPluginsAsync(pluginManager);
         }
 
-        if (args.StartsWith("install", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.StartsWith("install", StringComparison.OrdinalIgnoreCase)) {
             var path = args["install".Length..].Trim();
-            if (string.IsNullOrEmpty(path))
-            {
+            if (string.IsNullOrEmpty(path)) {
                 TerminalHelper.WriteLine("用法: /plugin install <exe-path>");
                 return ChatCommandResult.Continue();
             }
             return await InstallPluginAsync(pluginManager, path, context);
         }
 
-        if (args.StartsWith("uninstall", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.StartsWith("uninstall", StringComparison.OrdinalIgnoreCase)) {
             var name = args["uninstall".Length..].Trim();
-            if (string.IsNullOrEmpty(name))
-            {
+            if (string.IsNullOrEmpty(name)) {
                 TerminalHelper.WriteLine("用法: /plugin uninstall <name>");
                 return ChatCommandResult.Continue();
             }
             return await UnloadPluginAsync(pluginManager, name);
         }
 
-        if (args.StartsWith("enable", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.StartsWith("enable", StringComparison.OrdinalIgnoreCase)) {
             var name = args["enable".Length..].Trim();
-            if (string.IsNullOrEmpty(name))
-            {
+            if (string.IsNullOrEmpty(name)) {
                 TerminalHelper.WriteLine("用法: /plugin enable <name>");
                 return ChatCommandResult.Continue();
             }
             return await TogglePluginAsync(name, enable: true, context);
         }
 
-        if (args.StartsWith("disable", StringComparison.OrdinalIgnoreCase))
-        {
+        if (args.StartsWith("disable", StringComparison.OrdinalIgnoreCase)) {
             var name = args["disable".Length..].Trim();
-            if (string.IsNullOrEmpty(name))
-            {
+            if (string.IsNullOrEmpty(name)) {
                 TerminalHelper.WriteLine("用法: /plugin disable <name>");
                 return ChatCommandResult.Continue();
             }
@@ -76,28 +65,23 @@ public sealed class PluginCommand : ChatCommandBase
         return ChatCommandResult.Continue();
     }
 
-    private static Task<ChatCommandResult> ListPluginsAsync(IPluginManager? pluginManager)
-    {
-        if (pluginManager is null)
-        {
+    private static Task<ChatCommandResult> ListPluginsAsync(IPluginManager? pluginManager) {
+        if (pluginManager is null) {
             TerminalHelper.WriteLine("插件管理器未初始化");
             return Task.FromResult(ChatCommandResult.Continue());
         }
 
         var allPlugins = new List<(string Name, string Type, string Status)>();
 
-        foreach (var name in pluginManager.LoadedWorkflowPluginNames)
-        {
+        foreach (var name in pluginManager.LoadedWorkflowPluginNames) {
             allPlugins.Add((name, "工作流", "已加载"));
         }
 
-        foreach (var name in pluginManager.LoadedExternalPluginNames)
-        {
+        foreach (var name in pluginManager.LoadedExternalPluginNames) {
             allPlugins.Add((name, "外部", "已加载"));
         }
 
-        if (allPlugins.Count == 0)
-        {
+        if (allPlugins.Count == 0) {
             TerminalHelper.WriteLine("  当前无已加载的插件");
             TerminalHelper.NewLine();
             TerminalHelper.WriteLine("使用 /plugin install <exe-path> 安装插件");
@@ -105,8 +89,7 @@ public sealed class PluginCommand : ChatCommandBase
         }
 
         // 交互模式：PaginatedList
-        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-        {
+        if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
             var list = new PaginatedList<(string Name, string Type, string Status)>(
                 "插件列表",
                 allPlugins.ToArray(),
@@ -120,8 +103,7 @@ public sealed class PluginCommand : ChatCommandBase
         // 非交互模式：纯文本
         TerminalHelper.WriteLine("插件列表:");
         TerminalHelper.NewLine();
-        foreach (var p in allPlugins)
-        {
+        foreach (var p in allPlugins) {
             TerminalHelper.WriteLine($"  {p.Name} ({p.Type}) — {p.Status}");
         }
         TerminalHelper.NewLine();
@@ -129,136 +111,104 @@ public sealed class PluginCommand : ChatCommandBase
         return Task.FromResult(ChatCommandResult.Continue());
     }
 
-    private static async Task<ChatCommandResult> InstallPluginAsync(IPluginManager? pluginManager, string exePath, ChatCommandContext context)
-    {
-        if (pluginManager is null)
-        {
+    private static async Task<ChatCommandResult> InstallPluginAsync(IPluginManager? pluginManager, string exePath, ChatCommandContext context) {
+        if (pluginManager is null) {
             TerminalHelper.WriteLine("插件管理器未初始化");
             return ChatCommandResult.Continue();
         }
 
-        if (!context.GetCommandServices().FileSystem.FileExists(exePath))
-        {
+        if (!context.GetCommandServices().FileSystem.FileExists(exePath)) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}插件路径不存在: {exePath}{AnsiStyleEnumConstants.Reset}");
             return ChatCommandResult.Continue();
         }
 
         var pluginName = Path.GetFileNameWithoutExtension(exePath);
 
-        try
-        {
+        try {
             var host = await pluginManager.LoadExternalPluginAsync(exePath, pluginName, context.CancellationToken).ConfigureAwait(false);
             TerminalHelper.WriteLine($"{TerminalColors.Success}已安装并加载插件: {pluginName}{AnsiStyleEnumConstants.Reset}");
 
             var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
-            if (configService is not null)
-            {
+            if (configService is not null) {
                 var autoLoadJson = await configService.GetAsync("plugins.autoLoadExternalPlugins", context.CancellationToken).ConfigureAwait(false);
                 var autoLoad = string.IsNullOrEmpty(autoLoadJson)
                     ? new List<string>()
                     : RelaxedJsonSerializer.Deserialize(autoLoadJson, CliJsonContext.Default.ListString) ?? new List<string>();
                 var autoLoadSet = new HashSet<string>(autoLoad, StringComparer.OrdinalIgnoreCase);
-                if (!autoLoadSet.Contains(pluginName))
-                {
+                if (!autoLoadSet.Contains(pluginName)) {
                     autoLoad.Add(pluginName);
                     var updatedJson = RelaxedJsonSerializer.Serialize(autoLoad, CliJsonContext.Default);
                     await configService.SetAsync("plugins.autoLoadExternalPlugins", updatedJson, context.CancellationToken).ConfigureAwait(false);
                     TerminalHelper.WriteLine($"已添加到自动加载列表: {pluginName}");
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("安装插件", ex);
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static async Task<ChatCommandResult> TogglePluginAsync(string name, bool enable, ChatCommandContext context)
-    {
+    private static async Task<ChatCommandResult> TogglePluginAsync(string name, bool enable, ChatCommandContext context) {
         var configService = ChatCommandBase.GetService<IConfigurationService>(context, typeof(IConfigurationService));
-        if (configService is null)
-        {
-            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive)
-            {
+        if (configService is null) {
+            if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 TerminalHelper.WriteLine("配置服务未初始化，无法修改插件状态");
             }
             return ChatCommandResult.Continue();
         }
 
-        try
-        {
+        try {
             var disabledJson = await configService.GetAsync("plugins.disabledPlugins", context.CancellationToken).ConfigureAwait(false);
             var disabled = string.IsNullOrEmpty(disabledJson)
                 ? new List<string>()
                 : RelaxedJsonSerializer.Deserialize(disabledJson, CliJsonContext.Default.ListString) ?? new List<string>();
 
-            if (enable)
-            {
-                if (disabled.Remove(name))
-                {
+            if (enable) {
+                if (disabled.Remove(name)) {
                     var updatedJson = RelaxedJsonSerializer.Serialize(disabled, CliJsonContext.Default);
                     await configService.SetAsync("plugins.disabledPlugins", updatedJson, context.CancellationToken).ConfigureAwait(false);
                     TerminalHelper.WriteLine($"{TerminalColors.Success}已启用插件: {name}（重启后生效）{AnsiStyleEnumConstants.Reset}");
-                }
-                else
-                {
+                } else {
                     TerminalHelper.WriteLine($"插件 '{name}' 未被禁用");
                 }
-            }
-            else
-            {
+            } else {
                 var disabledSet = new HashSet<string>(disabled, StringComparer.OrdinalIgnoreCase);
-                if (!disabledSet.Contains(name))
-                {
+                if (!disabledSet.Contains(name)) {
                     disabled.Add(name);
                     var updatedJson = RelaxedJsonSerializer.Serialize(disabled, CliJsonContext.Default);
                     await configService.SetAsync("plugins.disabledPlugins", updatedJson, context.CancellationToken).ConfigureAwait(false);
                     TerminalHelper.WriteLine($"{TerminalColors.Success}已禁用插件: {name}（重启后生效）{AnsiStyleEnumConstants.Reset}");
-                }
-                else
-                {
+                } else {
                     TerminalHelper.WriteLine($"插件 '{name}' 已被禁用");
                 }
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError($"{(enable ? "启用" : "禁用")}插件", ex);
         }
 
         return ChatCommandResult.Continue();
     }
 
-    private static async Task<ChatCommandResult> UnloadPluginAsync(IPluginManager? pluginManager, string name)
-    {
-        if (pluginManager is null)
-        {
+    private static async Task<ChatCommandResult> UnloadPluginAsync(IPluginManager? pluginManager, string name) {
+        if (pluginManager is null) {
             TerminalHelper.WriteLine("插件管理器未初始化");
             return ChatCommandResult.Continue();
         }
 
-        if (!pluginManager.IsPluginLoaded(name))
-        {
+        if (!pluginManager.IsPluginLoaded(name)) {
             TerminalHelper.WriteLine($"插件 '{name}' 未加载");
             return ChatCommandResult.Continue();
         }
 
-        try
-        {
+        try {
             var result = await pluginManager.UnloadPluginAsync(name).ConfigureAwait(false);
-            if (result.IsSuccess)
-            {
+            if (result.IsSuccess) {
                 TerminalHelper.WriteLine($"已卸载插件: {name}");
-            }
-            else
-            {
+            } else {
                 TerminalHelper.WriteLine($"卸载插件失败: {name} - {result.ErrorMessage}");
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             ChatCommandBase.HandleError("卸载插件", ex);
         }
 

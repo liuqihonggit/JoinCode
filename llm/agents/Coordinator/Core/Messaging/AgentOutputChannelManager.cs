@@ -6,8 +6,7 @@ namespace Core.Agents.Coordinator.Core.Messaging;
 /// /switch 命令通过 AgentOutputDisplayMode 过滤，不匹配的 chunk 跳过不显示
 /// </summary>
 [Register(typeof(JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager), ServiceLifetime.Singleton)]
-public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager
-{
+public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.Abstractions.Interfaces.IAgentOutputChannelManager {
     private readonly System.Threading.Channels.Channel<JoinCode.Abstractions.Interfaces.AgentOutputChunk> _outputChannel =
         System.Threading.Channels.Channel.CreateUnbounded<JoinCode.Abstractions.Interfaces.AgentOutputChunk>();
     private readonly ConcurrentDictionary<string, string?> _activeAgents = new();
@@ -18,16 +17,14 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     /// 构造 Agent 输出 channel 管理器实例
     /// </summary>
     /// <param name="logger">可选日志记录器</param>
-    public AgentOutputChannelManager(ILogger? logger = null)
-    {
+    public AgentOutputChannelManager(ILogger? logger = null) {
         _logger = logger;
     }
 
     /// <summary>
     /// 注册 Agent
     /// </summary>
-    public void Register(string agentId, string? displayName)
-    {
+    public void Register(string agentId, string? displayName) {
         ArgumentException.ThrowIfNullOrWhiteSpace(agentId);
         _activeAgents[agentId] = displayName;
     }
@@ -35,19 +32,16 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     /// <summary>
     /// 注销 Agent
     /// </summary>
-    public void Unregister(string agentId)
-    {
+    public void Unregister(string agentId) {
         _activeAgents.TryRemove(agentId, out _);
     }
 
     /// <summary>
     /// 向输出 channel 写入 chunk
     /// </summary>
-    public void Write(string agentId, string? agentName, string content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType type)
-    {
+    public void Write(string agentId, string? agentName, string content, JoinCode.Abstractions.Interfaces.AgentOutputChunkType type) {
         if (string.IsNullOrEmpty(content)) return;
-        _outputChannel.Writer.TryWrite(new JoinCode.Abstractions.Interfaces.AgentOutputChunk
-        {
+        _outputChannel.Writer.TryWrite(new JoinCode.Abstractions.Interfaces.AgentOutputChunk {
             AgentId = agentId,
             AgentName = agentName,
             Content = content,
@@ -59,10 +53,8 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     /// 从输出 channel 拉取所有 chunk
     /// </summary>
     public async IAsyncEnumerable<JoinCode.Abstractions.Interfaces.AgentOutputChunk> ReadAllAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        await foreach (var chunk in _outputChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
-        {
+        [EnumeratorCancellation] CancellationToken cancellationToken) {
+        await foreach (var chunk in _outputChannel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false)) {
             yield return chunk;
         }
     }
@@ -70,10 +62,8 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     /// <summary>
     /// 获取所有活跃 Agent 列表
     /// </summary>
-    public IReadOnlyList<JoinCode.Abstractions.Interfaces.AgentOutputInfo> GetActiveAgents()
-    {
-        return _activeAgents.Select(kv => new JoinCode.Abstractions.Interfaces.AgentOutputInfo
-        {
+    public IReadOnlyList<JoinCode.Abstractions.Interfaces.AgentOutputInfo> GetActiveAgents() {
+        return _activeAgents.Select(kv => new JoinCode.Abstractions.Interfaces.AgentOutputInfo {
             AgentId = kv.Key,
             DisplayName = kv.Value
         }).ToList();
@@ -82,8 +72,7 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     /// <summary>
     /// 设置输出显示模式
     /// </summary>
-    public void SetDisplayMode(string? targetAgentId)
-    {
+    public void SetDisplayMode(string? targetAgentId) {
         _displayModeTarget = targetAgentId;
     }
 
@@ -95,8 +84,7 @@ public sealed partial class AgentOutputChannelManager : ServiceEntity, JoinCode.
     /// <summary>
     /// 判断指定 Agent 的输出是否应显示
     /// </summary>
-    public bool ShouldDisplay(string agentId)
-    {
+    public bool ShouldDisplay(string agentId) {
         var target = _displayModeTarget;
         return target is null || string.Equals(target, agentId, StringComparison.OrdinalIgnoreCase);
     }

@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// Agent 任务结果接口 - 定义任务执行结果的通用结构
 /// </summary>
-public interface IAgentTaskResult
-{
+public interface IAgentTaskResult {
     /// <summary>
     /// 任务唯一标识符
     /// </summary>

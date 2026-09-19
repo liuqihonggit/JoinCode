@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// worktree 决策策略 — 两层决策：LLM 全局 enableWorktree + 节点 Variant==Code 自动开
 /// 探索/审查只读不改不开 worktree，改代码节点需要物理隔离防冲突
 /// </summary>
-public interface IWorktreeDecisionPolicy
-{
+public interface IWorktreeDecisionPolicy {
     /// <summary>
     /// 第一层：LLM 全局决策 — 根据任务难度判断是否开启 worktree
     /// </summary>

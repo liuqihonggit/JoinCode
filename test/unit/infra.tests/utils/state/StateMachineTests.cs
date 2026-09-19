@@ -1,8 +1,7 @@
 namespace Infra.Tests.Utils.State;
 
 
-public enum TestState
-{
+public enum TestState {
     Idle,
     Running,
     Paused,
@@ -10,12 +9,9 @@ public enum TestState
     Failed
 }
 
-public class StateMachineTests
-{
-    private static StateMachine<TestState> CreateStateMachine(TestState initialState = TestState.Idle)
-    {
-        var transitions = new Dictionary<TestState, FrozenSet<TestState>>
-        {
+public class StateMachineTests {
+    private static StateMachine<TestState> CreateStateMachine(TestState initialState = TestState.Idle) {
+        var transitions = new Dictionary<TestState, FrozenSet<TestState>> {
             [TestState.Idle] = new HashSet<TestState> { TestState.Running }.ToFrozenSet(),
             [TestState.Running] = new HashSet<TestState> { TestState.Paused, TestState.Completed, TestState.Failed }.ToFrozenSet(),
             [TestState.Paused] = new HashSet<TestState> { TestState.Running, TestState.Failed }.ToFrozenSet(),
@@ -27,66 +23,57 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void CurrentState_Default_ShouldBeInitial()
-    {
+    public void CurrentState_Default_ShouldBeInitial() {
         var sm = CreateStateMachine();
         sm.CurrentState.Should().Be(TestState.Idle);
     }
 
     [Fact]
-    public void CurrentState_CustomInitial_ShouldBeSet()
-    {
+    public void CurrentState_CustomInitial_ShouldBeSet() {
         var sm = CreateStateMachine(TestState.Running);
         sm.CurrentState.Should().Be(TestState.Running);
     }
 
     [Fact]
-    public void CanTransitionTo_ValidTransition_ShouldReturnTrue()
-    {
+    public void CanTransitionTo_ValidTransition_ShouldReturnTrue() {
         var sm = CreateStateMachine();
         sm.CanTransitionTo(TestState.Idle, TestState.Running).Should().BeTrue();
     }
 
     [Fact]
-    public void CanTransitionTo_InvalidTransition_ShouldReturnFalse()
-    {
+    public void CanTransitionTo_InvalidTransition_ShouldReturnFalse() {
         var sm = CreateStateMachine();
         sm.CanTransitionTo(TestState.Idle, TestState.Completed).Should().BeFalse();
     }
 
     [Fact]
-    public void CanTransitionTo_SameState_ShouldReturnTrue()
-    {
+    public void CanTransitionTo_SameState_ShouldReturnTrue() {
         var sm = CreateStateMachine();
         sm.CanTransitionTo(TestState.Idle, TestState.Idle).Should().BeTrue();
         sm.CanTransitionTo(TestState.Running, TestState.Running).Should().BeTrue();
     }
 
     [Fact]
-    public void CanTransitionTo_SingleArg_Valid_ShouldReturnTrue()
-    {
+    public void CanTransitionTo_SingleArg_Valid_ShouldReturnTrue() {
         var sm = CreateStateMachine();
         sm.CanTransitionTo(TestState.Running).Should().BeTrue();
     }
 
     [Fact]
-    public void CanTransitionTo_SingleArg_Invalid_ShouldReturnFalse()
-    {
+    public void CanTransitionTo_SingleArg_Invalid_ShouldReturnFalse() {
         var sm = CreateStateMachine();
         sm.CanTransitionTo(TestState.Completed).Should().BeFalse();
     }
 
     [Fact]
-    public void TransitionTo_ValidTransition_ShouldSucceed()
-    {
+    public void TransitionTo_ValidTransition_ShouldSucceed() {
         var sm = CreateStateMachine();
         sm.TransitionTo(TestState.Running);
         sm.CurrentState.Should().Be(TestState.Running);
     }
 
     [Fact]
-    public void TransitionTo_InvalidTransition_ShouldThrow()
-    {
+    public void TransitionTo_InvalidTransition_ShouldThrow() {
         var sm = CreateStateMachine();
         var act = () => sm.TransitionTo(TestState.Completed);
         act.Should().Throw<InvalidOperationException>()
@@ -94,39 +81,34 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void TryTransitionTo_ValidTransition_ShouldReturnTrue()
-    {
+    public void TryTransitionTo_ValidTransition_ShouldReturnTrue() {
         var sm = CreateStateMachine();
         sm.TryTransitionTo(TestState.Running).Should().BeTrue();
         sm.CurrentState.Should().Be(TestState.Running);
     }
 
     [Fact]
-    public void TryTransitionTo_InvalidTransition_ShouldReturnFalse()
-    {
+    public void TryTransitionTo_InvalidTransition_ShouldReturnFalse() {
         var sm = CreateStateMachine();
         sm.TryTransitionTo(TestState.Completed).Should().BeFalse();
         sm.CurrentState.Should().Be(TestState.Idle);
     }
 
     [Fact]
-    public void TryTransitionTo_SameState_ShouldReturnTrue()
-    {
+    public void TryTransitionTo_SameState_ShouldReturnTrue() {
         var sm = CreateStateMachine();
         sm.TryTransitionTo(TestState.Idle).Should().BeTrue();
     }
 
     [Fact]
-    public void ForceTransitionTo_ShouldTransitionWithoutValidation()
-    {
+    public void ForceTransitionTo_ShouldTransitionWithoutValidation() {
         var sm = CreateStateMachine();
         sm.ForceTransitionTo(TestState.Completed);
         sm.CurrentState.Should().Be(TestState.Completed);
     }
 
     [Fact]
-    public void Reset_ToInitialState_ShouldSucceed()
-    {
+    public void Reset_ToInitialState_ShouldSucceed() {
         var sm = CreateStateMachine();
         sm.TransitionTo(TestState.Running);
         sm.Reset(TestState.Idle);
@@ -134,8 +116,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void Reset_WhenAlreadyAtInitial_ShouldNotFireEvent()
-    {
+    public void Reset_WhenAlreadyAtInitial_ShouldNotFireEvent() {
         var sm = CreateStateMachine();
         var eventFired = false;
         sm.StateChanged += (_, _) => eventFired = true;
@@ -144,8 +125,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void Reset_ShouldFireEvent()
-    {
+    public void Reset_ShouldFireEvent() {
         var sm = CreateStateMachine();
         sm.TransitionTo(TestState.Running);
         StateChangedEventArgs<TestState>? capturedArgs = null;
@@ -157,8 +137,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void StateChanged_ShouldFireOnTransitionTo()
-    {
+    public void StateChanged_ShouldFireOnTransitionTo() {
         var sm = CreateStateMachine();
         StateChangedEventArgs<TestState>? capturedArgs = null;
         sm.StateChanged += (_, args) => capturedArgs = args;
@@ -170,8 +149,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void StateChanged_ShouldNotFireOnFailedTryTransitionTo()
-    {
+    public void StateChanged_ShouldNotFireOnFailedTryTransitionTo() {
         var sm = CreateStateMachine();
         var eventFired = false;
         sm.StateChanged += (_, _) => eventFired = true;
@@ -180,8 +158,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void StateChanged_ShouldFireOnForceTransitionTo()
-    {
+    public void StateChanged_ShouldFireOnForceTransitionTo() {
         var sm = CreateStateMachine();
         StateChangedEventArgs<TestState>? capturedArgs = null;
         sm.StateChanged += (_, args) => capturedArgs = args;
@@ -192,8 +169,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void GetValidNextStates_ShouldReturnValidStates()
-    {
+    public void GetValidNextStates_ShouldReturnValidStates() {
         var sm = CreateStateMachine();
         var nextStates = sm.GetValidNextStates();
         nextStates.Should().Contain(TestState.Running);
@@ -201,8 +177,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void GetValidNextStates_FromTerminalState_ShouldReturnEmpty()
-    {
+    public void GetValidNextStates_FromTerminalState_ShouldReturnEmpty() {
         var sm = CreateStateMachine();
         sm.TransitionTo(TestState.Running);
         sm.TransitionTo(TestState.Completed);
@@ -211,8 +186,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void MultipleTransitions_ShouldWorkCorrectly()
-    {
+    public void MultipleTransitions_ShouldWorkCorrectly() {
         var sm = CreateStateMachine();
         var states = new List<TestState>();
         sm.StateChanged += (_, args) => states.Add(args.NewState);
@@ -227,14 +201,12 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void StateChanged_WithClockService_ShouldUseClockTimestamp()
-    {
+    public void StateChanged_WithClockService_ShouldUseClockTimestamp() {
         var fakeTime = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
         var mockClock = new Mock<IClockService>();
         mockClock.Setup(c => c.GetUtcNow()).Returns(fakeTime);
 
-        var transitions = new Dictionary<TestState, FrozenSet<TestState>>
-        {
+        var transitions = new Dictionary<TestState, FrozenSet<TestState>> {
             [TestState.Idle] = new HashSet<TestState> { TestState.Running }.ToFrozenSet()
         }.ToFrozenDictionary();
 
@@ -249,10 +221,8 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void IsTerminalState_WithTerminalStates_ShouldReturnTrue()
-    {
-        var transitions = new Dictionary<TestState, FrozenSet<TestState>>
-        {
+    public void IsTerminalState_WithTerminalStates_ShouldReturnTrue() {
+        var transitions = new Dictionary<TestState, FrozenSet<TestState>> {
             [TestState.Idle] = new HashSet<TestState> { TestState.Running }.ToFrozenSet(),
             [TestState.Running] = new HashSet<TestState> { TestState.Completed, TestState.Failed }.ToFrozenSet(),
             [TestState.Completed] = new HashSet<TestState>().ToFrozenSet(),
@@ -270,10 +240,8 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void IsTerminalState_WithoutTerminalStates_ShouldInferFromEmptyTransitions()
-    {
-        var transitions = new Dictionary<TestState, FrozenSet<TestState>>
-        {
+    public void IsTerminalState_WithoutTerminalStates_ShouldInferFromEmptyTransitions() {
+        var transitions = new Dictionary<TestState, FrozenSet<TestState>> {
             [TestState.Idle] = new HashSet<TestState> { TestState.Running }.ToFrozenSet(),
             [TestState.Running] = new HashSet<TestState> { TestState.Failed }.ToFrozenSet(),
             [TestState.Failed] = new HashSet<TestState>().ToFrozenSet()
@@ -287,8 +255,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void TransitionFailed_ShouldFireOnInvalidTransition()
-    {
+    public void TransitionFailed_ShouldFireOnInvalidTransition() {
         var sm = CreateStateMachine();
         TransitionFailedEventArgs<TestState>? failedArgs = null;
         sm.TransitionFailed += (_, args) => failedArgs = args;
@@ -302,8 +269,7 @@ public class StateMachineTests
     }
 
     [Fact]
-    public void TransitionFailed_ShouldNotFireOnValidTransition()
-    {
+    public void TransitionFailed_ShouldNotFireOnValidTransition() {
         var sm = CreateStateMachine();
         var failedFired = false;
         sm.TransitionFailed += (_, _) => failedFired = true;

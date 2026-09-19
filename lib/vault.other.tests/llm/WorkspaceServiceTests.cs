@@ -1,10 +1,8 @@
 namespace Core.Tests.LLM;
 
-public sealed class WorkspaceServiceTests
-{
+public sealed class WorkspaceServiceTests {
     [Fact]
-    public void AddDirectory_ShouldAddPath()
-    {
+    public void AddDirectory_ShouldAddPath() {
         var service = new WorkspaceService();
         var tempPath = Path.GetTempPath();
 
@@ -15,8 +13,7 @@ public sealed class WorkspaceServiceTests
     }
 
     [Fact]
-    public void AddDirectory_SamePathTwice_ShouldReturnFalse()
-    {
+    public void AddDirectory_SamePathTwice_ShouldReturnFalse() {
         var service = new WorkspaceService();
         var tempPath = Path.GetTempPath();
 
@@ -28,8 +25,7 @@ public sealed class WorkspaceServiceTests
     }
 
     [Fact]
-    public void AddDirectory_NullPath_ShouldThrow()
-    {
+    public void AddDirectory_NullPath_ShouldThrow() {
         var service = new WorkspaceService();
 
         var act = () => service.AddDirectory(null!);
@@ -38,8 +34,7 @@ public sealed class WorkspaceServiceTests
     }
 
     [Fact]
-    public void RemoveDirectory_ShouldRemovePath()
-    {
+    public void RemoveDirectory_ShouldRemovePath() {
         var service = new WorkspaceService();
         var tempPath = Path.GetTempPath();
         service.AddDirectory(tempPath);
@@ -51,8 +46,7 @@ public sealed class WorkspaceServiceTests
     }
 
     [Fact]
-    public void RemoveDirectory_NonExistent_ShouldReturnFalse()
-    {
+    public void RemoveDirectory_NonExistent_ShouldReturnFalse() {
         var service = new WorkspaceService();
 
         var removed = service.RemoveDirectory(Path.GetTempPath());
@@ -61,8 +55,7 @@ public sealed class WorkspaceServiceTests
     }
 
     [Fact]
-    public void GetAdditionalDirectories_ShouldReturnFullPath()
-    {
+    public void GetAdditionalDirectories_ShouldReturnFullPath() {
         var service = new WorkspaceService();
         var tempPath = Path.GetTempPath();
         var expected = Path.GetFullPath(tempPath);
@@ -73,8 +66,7 @@ public sealed class WorkspaceServiceTests
     }
 
     [Fact]
-    public void Clear_ShouldRemoveAllDirectories()
-    {
+    public void Clear_ShouldRemoveAllDirectories() {
         var service = new WorkspaceService();
         service.AddDirectory(Path.GetTempPath());
 
@@ -84,8 +76,7 @@ public sealed class WorkspaceServiceTests
     }
 
     [Fact]
-    public void AddDirectory_MultiplePaths_ShouldReturnAll()
-    {
+    public void AddDirectory_MultiplePaths_ShouldReturnAll() {
         var service = new WorkspaceService();
         var temp1 = Path.GetTempPath();
         var temp2 = Path.Combine(Path.GetTempPath(), "..");

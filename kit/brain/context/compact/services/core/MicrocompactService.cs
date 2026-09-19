@@ -15,8 +15,7 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
     /// 初始化 <see cref="MicrocompactService"/> 实例
     /// </summary>
     /// <param name="clock">时钟服务，用于时间间隔压缩判断</param>
-    public MicrocompactService(IClockService clock)
-    {
+    public MicrocompactService(IClockService clock) {
         _clock = clock;
     }
     private readonly IClockService _clock;
@@ -38,13 +37,12 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
     /// </summary>
     private static readonly HashSet<string> CompactableTools = BuildCompactableTools();
 
-    private static HashSet<string> BuildCompactableTools()
-    {
+    private static HashSet<string> BuildCompactableTools() {
         var tools = new HashSet<string>(StringComparer.Ordinal);
 
         // ShellExecution — 所有 Shell 工具结果都可压缩（ShellToolBase.IsCompactable）
         // 新增 Shell 枚举值时自动纳入，无需手动添加
-        foreach (ShellToolName value in Enum.GetValues<ShellToolName>())
+        foreach (var value in Enum.GetValues<ShellToolName>())
             tools.Add(value.ToValue());
 
         // FileRead — 文件读写编辑工具

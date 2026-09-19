@@ -9,8 +9,7 @@ namespace JoinCode.Abstractions.Network;
 /// 消费方应仅依赖此接口,不再直接使用 IHttpProxyService 做网络判断
 /// </para>
 /// </summary>
-public interface INetworkConnectivityService
-{
+public interface INetworkConnectivityService {
     /// <summary>
     /// 当前网络连接状态(实时快照)
     /// </summary>

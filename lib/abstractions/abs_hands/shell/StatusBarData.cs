@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Shell;
 /// 与 <see cref="JoinCode.Abstractions.LLM.Chat.TokenUsage"/> 的关系：
 /// InputTokens ← PromptTokens, OutputTokens ← CompletionTokens
 /// </summary>
-public sealed class StatusBarData
-{
+public sealed class StatusBarData {
     public string Model { get; set; } = "";
     public int InputTokens { get; set; }
     public int OutputTokens { get; set; }

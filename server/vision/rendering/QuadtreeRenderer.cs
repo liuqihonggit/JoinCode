@@ -5,20 +5,17 @@ namespace JoinCode.Vision.Rendering;
 /// 渲染规格：虚线 + 线性比例宽度(线宽=baseWidth/2^depth) + 透明度(alpha→SKColor alpha)
 /// </summary>
 [Register(typeof(IQuadtreeRenderer), ServiceLifetime.Singleton)]
-public sealed partial class QuadtreeRenderer : IQuadtreeRenderer
-{
+public sealed partial class QuadtreeRenderer : IQuadtreeRenderer {
     private readonly IQuadtreeAnnotator _annotator;
     private const float BaseStrokeWidth = 2.0f;
 
     /// <param name="annotator">四叉树标注器（用于 ZoomAsync 重新构建子图网格）</param>
-    public QuadtreeRenderer(IQuadtreeAnnotator annotator)
-    {
+    public QuadtreeRenderer(IQuadtreeAnnotator annotator) {
         _annotator = annotator ?? throw new ArgumentNullException(nameof(annotator));
     }
 
     /// <summary>渲染虚线网格叠加到原图 — 仅渲染 alpha≠-1 的格子</summary>
-    public Task<QuadtreeRenderResult> RenderAsync(string imageBase64, QuadtreeGrid grid, CancellationToken cancellationToken = default)
-    {
+    public Task<QuadtreeRenderResult> RenderAsync(string imageBase64, QuadtreeGrid grid, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(imageBase64);
         ArgumentNullException.ThrowIfNull(grid);
         cancellationToken.ThrowIfCancellationRequested();
@@ -35,16 +32,14 @@ public sealed partial class QuadtreeRenderer : IQuadtreeRenderer
         canvas.DrawBitmap(original, 0, 0, SKSamplingOptions.Default);
 
         var strokeWidth = BaseStrokeWidth / (1 << grid.Depth);
-        using var paint = new SKPaint
-        {
+        using var paint = new SKPaint {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = strokeWidth,
             PathEffect = SKPathEffect.CreateDash([6f, 4f], 0),
             IsAntialias = true
         };
 
-        foreach (var cell in grid.Cells)
-        {
+        foreach (var cell in grid.Cells) {
             if (cell.Alpha <= -1) continue;
             var alphaByte = (byte)Math.Clamp(cell.Alpha * 255, 0, 255);
             paint.Color = new SKColor(255, 0, 0, alphaByte);
@@ -66,8 +61,7 @@ public sealed partial class QuadtreeRenderer : IQuadtreeRenderer
         int imageHeight,
         int sourceDepth,
         int targetDepth,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(imageBase64);
         ArgumentException.ThrowIfNullOrWhiteSpace(cellCode);
 

@@ -5,8 +5,7 @@ namespace McpToolDispatch;
 /// <para>核心优化: gh_release_download 复用 IDownloader 多线程分片 + 断点续传,解决下载失败痛点</para>
 /// <para>gh_release_upload 走 uploads.github.com 二进制上传（IGitHubApiClient.UploadAssetAsync）</para>
 /// </summary>
-public partial class GitHubToolHandlers
-{
+public partial class GitHubToolHandlers {
     /// <summary>
     /// 列出 Release — 调 REST API 获取 Release 列表，精简输出（含 asset 摘要）
     /// </summary>
@@ -15,8 +14,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("数量限制(默认 30)", Required = false)] int? limit = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -30,18 +28,14 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 精简 Release 列表 JSON — 只保留关键字段，去掉冗余 URL 和 author 对象，便于人类浏览和 AI 解析
     /// </summary>
-    private static string SummarizeReleaseList(string json)
-    {
-        try
-        {
+    private static string SummarizeReleaseList(string json) {
+        try {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return json;
             var buffer = new ArrayBufferWriter<byte>();
-            using (var writer = new Utf8JsonWriter(buffer))
-            {
+            using (var writer = new Utf8JsonWriter(buffer)) {
                 writer.WriteStartArray();
-                foreach (var release in doc.RootElement.EnumerateArray())
-                {
+                foreach (var release in doc.RootElement.EnumerateArray()) {
                     writer.WriteStartObject();
                     CopyProperty(release, writer, "id");
                     CopyProperty(release, writer, "tag_name");
@@ -50,12 +44,10 @@ public partial class GitHubToolHandlers
                     CopyProperty(release, writer, "prerelease");
                     CopyProperty(release, writer, "created_at");
                     CopyProperty(release, writer, "published_at");
-                    if (release.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
-                    {
+                    if (release.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array) {
                         writer.WritePropertyName("assets");
                         writer.WriteStartArray();
-                        foreach (var asset in assets.EnumerateArray())
-                        {
+                        foreach (var asset in assets.EnumerateArray()) {
                             writer.WriteStartObject();
                             CopyProperty(asset, writer, "name");
                             CopyProperty(asset, writer, "size");
@@ -68,9 +60,7 @@ public partial class GitHubToolHandlers
                 writer.WriteEndArray();
             }
             return Encoding.UTF8.GetString(buffer.WrittenSpan);
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return json;
         }
     }
@@ -83,8 +73,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("Release tag 名称", Required = true)] string tag,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -107,8 +96,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("目标 commit/branch(可选)", Required = false)] string? target = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -140,8 +128,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("是否启用断点续传(默认 true)", Required = false)] bool? resume = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -151,33 +138,27 @@ public partial class GitHubToolHandlers
         if (!viewResult.Success) return Fail(viewResult.Error);
 
         List<(string name, string url)> assets;
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(viewResult.Body);
             assets = [];
-            foreach (var asset in doc.RootElement.GetProperty("assets").EnumerateArray())
-            {
+            foreach (var asset in doc.RootElement.GetProperty("assets").EnumerateArray()) {
                 var name = asset.GetProperty("name").GetString() ?? string.Empty;
                 var url = asset.GetProperty("browser_download_url").GetString() ?? string.Empty;
                 if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
                 if (!string.IsNullOrWhiteSpace(pattern) && !SimpleMatch(pattern, name)) continue;
                 assets.Add((name, url));
             }
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             return ToolResultBuilder.Error().WithText($"解析 Release asset 列表失败: {ex.Message}").Build();
         }
 
-        if (assets.Count == 0)
-        {
+        if (assets.Count == 0) {
             return ToolResultBuilder.Error().WithText($"Release {tag} 没有匹配的 asset{(string.IsNullOrWhiteSpace(pattern) ? string.Empty : $" (pattern={pattern})")}").Build();
         }
 
         _fs.CreateDirectory(dir);
 
-        var options = new DownloadOptions
-        {
+        var options = new DownloadOptions {
             MaxThreads = max_threads ?? 4,
             Resume = resume ?? true,
         };
@@ -185,34 +166,24 @@ public partial class GitHubToolHandlers
         var sb = new StringBuilder();
         var successCount = 0;
         var failCount = 0;
-        foreach (var (name, url) in assets)
-        {
+        foreach (var (name, url) in assets) {
             var filePath = _fs.CombinePath(dir, name);
-            try
-            {
+            try {
                 var session = _downloader.StartDownload(url, filePath, options, null, cancellationToken);
-                await using (session.ConfigureAwait(false))
-                {
+                await using (session.ConfigureAwait(false)) {
                     var dlResult = await session.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
-                    if (dlResult.Success)
-                    {
+                    if (dlResult.Success) {
                         successCount++;
                         var sizeStr = ContentReplacementConstants.FormatFileSize(dlResult.TotalBytes);
                         sb.AppendLine($"[OK] {name} ({sizeStr}, {dlResult.Elapsed.TotalSeconds:F1}s)");
-                    }
-                    else
-                    {
+                    } else {
                         failCount++;
                         sb.AppendLine($"[FAIL] {name}: {dlResult.ErrorMessage ?? "下载失败"}");
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
+            } catch (OperationCanceledException) {
                 return ToolResultBuilder.Error().WithText("下载已取消").Build();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 failCount++;
                 sb.AppendLine($"[FAIL] {name}: {ex.Message}");
             }
@@ -234,8 +205,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("要上传的文件路径(多个用逗号分隔)", Required = true)] string files,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -245,37 +215,28 @@ public partial class GitHubToolHandlers
         if (!viewResult.Success) return Fail(viewResult.Error);
 
         long releaseId;
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(viewResult.Body);
             releaseId = doc.RootElement.GetProperty("id").GetInt64();
-        }
-        catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
+        } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
         var filePaths = files.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var sb = new StringBuilder();
         var successCount = 0;
         var failCount = 0;
-        foreach (var filePath in filePaths)
-        {
+        foreach (var filePath in filePaths) {
             var fileName = Path.GetFileName(filePath);
-            try
-            {
+            try {
                 using var fileStream = _fs.OpenRead(filePath);
                 var uploadResult = await _apiClient.UploadAssetAsync(owner, repoName, releaseId, fileName, fileStream, cancellationToken).ConfigureAwait(false);
-                if (uploadResult.Success)
-                {
+                if (uploadResult.Success) {
                     successCount++;
                     sb.AppendLine($"[OK] {fileName}");
-                }
-                else
-                {
+                } else {
                     failCount++;
                     sb.AppendLine($"[FAIL] {fileName}: {uploadResult.Error}");
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 failCount++;
                 sb.AppendLine($"[FAIL] {fileName}: {ex.Message}");
             }
@@ -297,8 +258,7 @@ public partial class GitHubToolHandlers
         [McpToolParameter("是否跳过确认(默认 true)", Required = false)] bool? yes = null,
         [McpToolParameter("仓库(可选,默认当前仓库)", Required = false)] string? repo = null,
         [McpToolParameter("工作目录(可选)", Required = false)] string? working_dir = null,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         if (_apiClient is null) return ApiClientNotConfigured();
         var resolved = await ResolveOwnerRepoAsync(repo, working_dir, cancellationToken).ConfigureAwait(false);
         if (resolved is null) return RepoNotResolved();
@@ -308,12 +268,10 @@ public partial class GitHubToolHandlers
         if (!viewResult.Success) return Fail(viewResult.Error);
 
         long releaseId;
-        try
-        {
+        try {
             using var doc = JsonDocument.Parse(viewResult.Body);
             releaseId = doc.RootElement.GetProperty("id").GetInt64();
-        }
-        catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
+        } catch (Exception ex) { return Fail($"解析 Release id 失败: {ex.Message}"); }
 
         var result = await _apiClient.SendAsync(HttpMethod.Delete, $"repos/{owner}/{repoName}/releases/{releaseId}", ct: cancellationToken).ConfigureAwait(false);
         return result.Success ? Ok(result.Body, $"已删除 Release {tag}") : Fail(result.Error);
@@ -322,8 +280,7 @@ public partial class GitHubToolHandlers
     /// <summary>
     /// 简单通配符匹配 — 支持 * 通配
     /// </summary>
-    private static bool SimpleMatch(string pattern, string name)
-    {
+    private static bool SimpleMatch(string pattern, string name) {
         if (string.IsNullOrEmpty(pattern)) return true;
         if (pattern == "*") return true;
         if (!pattern.Contains('*')) return name == pattern;

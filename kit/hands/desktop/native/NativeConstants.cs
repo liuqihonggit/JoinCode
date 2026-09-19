@@ -3,8 +3,7 @@ namespace JoinCode.Hands.Desktop.Native;
 /// <summary>
 /// Win32 桌面操作常量 — SendInput/MOUSEEVENTF/KEYEVENTF/窗口消息/BitBlt 光栅操作
 /// </summary>
-internal static class NativeConstants
-{
+internal static class NativeConstants {
     // SendInput 类型
     public const uint INPUT_MOUSE = 0;
     public const uint INPUT_KEYBOARD = 1;

@@ -3,8 +3,7 @@ namespace Core.Security.Services;
 /// <summary>
 /// 自动模式分类器接口 — 对工具调用进行安全分类,决定自动批准/需确认/需审批/阻断
 /// </summary>
-public interface IAutoModeClassifier
-{
+public interface IAutoModeClassifier {
     /// <summary>
     /// 对工具调用请求进行安全分类
     /// </summary>
@@ -14,8 +13,7 @@ public interface IAutoModeClassifier
 /// <summary>
 /// 分类请求 — 描述待分类的工具调用
 /// </summary>
-public sealed partial class ClassificationRequest
-{
+public sealed partial class ClassificationRequest {
     /// <summary>工具名称</summary>
     public required string ToolName { get; init; }
     /// <summary>工具调用参数</summary>
@@ -27,8 +25,7 @@ public sealed partial class ClassificationRequest
 /// <summary>
 /// 分类结果 — 包含安全级别、置信度、原因与建议动作
 /// </summary>
-public sealed partial class ClassificationResult
-{
+public sealed partial class ClassificationResult {
     /// <summary>安全分类级别</summary>
     public required SecurityClassification Classification { get; init; }
     /// <summary>置信度(0.0-1.0)</summary>
@@ -53,7 +50,8 @@ public enum SecurityClassification {
     /// <summary>高风险 — 需审批</summary>
     [EnumValue("highRisk")] HighRisk,
     /// <summary>危险 — 直接阻止</summary>
-    [EnumValue("dangerous")] Dangerous }
+    [EnumValue("dangerous")] Dangerous
+}
 
 /// <summary>
 /// 安全动作 — 分类器建议的处置方式
@@ -67,16 +65,16 @@ public enum SecurityAction {
     /// <summary>需要审批 — 提交审批流程</summary>
     [EnumValue("requireApproval")] RequireApproval,
     /// <summary>阻止 — 拒绝执行</summary>
-    [EnumValue("block")] Block }
+    [EnumValue("block")] Block
+}
 
 /// <summary>
 /// 自动模式分类器实现 — 基于工具名、操作类型、危险命令模式与敏感路径的综合判定
 /// </summary>
 [Register(typeof(IAutoModeClassifier), ServiceLifetime.Singleton)]
-public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassifier
-{
+public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassifier {
     private static readonly string[] DangerousCommandPatterns =
-    new[] { 
+    new[] {
         "rm -rf /", "rm -rf ~", "del /f /s /q c:",
         "format", "fdisk", "mkfs",
         "dd if=", ":(){ :|:& };:",
@@ -110,15 +108,13 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
     /// <summary>
     /// 构造自动模式分类器
     /// </summary>
-    public AutoModeClassifier(ILogger<AutoModeClassifier>? logger = null, ITelemetryService? telemetryService = null)
-    {
+    public AutoModeClassifier(ILogger<AutoModeClassifier>? logger = null, ITelemetryService? telemetryService = null) {
         _logger = logger;
         _telemetryService = telemetryService;
     }
 
     /// <inheritdoc />
-    public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default)
-    {
+    public Task<ClassificationResult> ClassifyAsync(ClassificationRequest request, CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(request);
 
         var result = ClassifyInternal(request);
@@ -131,12 +127,9 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
         return Task.FromResult(result);
     }
 
-    private ClassificationResult ClassifyInternal(ClassificationRequest request)
-    {
-        if (ToolClassification.ReadOnlyTools.Contains(request.ToolName) || IsReadOperation(request.OperationType))
-        {
-            return new ClassificationResult
-            {
+    private ClassificationResult ClassifyInternal(ClassificationRequest request) {
+        if (ToolClassification.ReadOnlyTools.Contains(request.ToolName) || IsReadOperation(request.OperationType)) {
+            return new ClassificationResult {
                 Classification = SecurityClassification.Safe,
                 Confidence = 0.95,
                 Reason = "只读操作",
@@ -144,10 +137,8 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
             };
         }
 
-        if (IsDangerousCommand(request))
-        {
-            return new ClassificationResult
-            {
+        if (IsDangerousCommand(request)) {
+            return new ClassificationResult {
                 Classification = SecurityClassification.Dangerous,
                 Confidence = 0.99,
                 Reason = "检测到危险命令模式",
@@ -155,10 +146,8 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
             };
         }
 
-        if (ToolClassification.SensitiveTools.Contains(request.ToolName))
-        {
-            return new ClassificationResult
-            {
+        if (ToolClassification.SensitiveTools.Contains(request.ToolName)) {
+            return new ClassificationResult {
                 Classification = SecurityClassification.HighRisk,
                 Confidence = 0.9,
                 Reason = "敏感工具操作",
@@ -166,10 +155,8 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
             };
         }
 
-        if (IsSensitivePathOperation(request))
-        {
-            return new ClassificationResult
-            {
+        if (IsSensitivePathOperation(request)) {
+            return new ClassificationResult {
                 Classification = SecurityClassification.MediumRisk,
                 Confidence = 0.8,
                 Reason = "涉及敏感路径",
@@ -177,10 +164,8 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
             };
         }
 
-        if (ToolClassification.SafeWriteTools.Contains(request.ToolName) || IsWriteOperation(request.OperationType))
-        {
-            return new ClassificationResult
-            {
+        if (ToolClassification.SafeWriteTools.Contains(request.ToolName) || IsWriteOperation(request.OperationType)) {
+            return new ClassificationResult {
                 Classification = SecurityClassification.LowRisk,
                 Confidence = 0.85,
                 Reason = "非敏感写入操作",
@@ -188,8 +173,7 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
             };
         }
 
-        return new ClassificationResult
-        {
+        return new ClassificationResult {
             Classification = SecurityClassification.MediumRisk,
             Confidence = 0.6,
             Reason = "未知操作类型，默认中等风险",
@@ -205,17 +189,13 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
     private static bool IsWriteOperation(OperationType operationType)
         => BitMask.Contains(WriteOperationMask, operationType);
 
-    private static bool IsDangerousCommand(ClassificationRequest request)
-    {
-        if (!request.Parameters.TryGetValue("command", out var commandObj) || commandObj.ValueKind != JsonValueKind.String || commandObj.GetString() is not string command)
-        {
+    private static bool IsDangerousCommand(ClassificationRequest request) {
+        if (!request.Parameters.TryGetValue("command", out var commandObj) || commandObj.ValueKind != JsonValueKind.String || commandObj.GetString() is not string command) {
             return false;
         }
 
-        foreach (var regex in DangerousCommandRegexes)
-        {
-            if (regex.IsMatch(command))
-            {
+        foreach (var regex in DangerousCommandRegexes) {
+            if (regex.IsMatch(command)) {
                 return true;
             }
         }
@@ -223,14 +203,10 @@ public sealed partial class AutoModeClassifier : ServiceEntity, IAutoModeClassif
         return false;
     }
 
-    private static bool IsSensitivePathOperation(ClassificationRequest request)
-    {
-        foreach (var kvp in request.Parameters)
-        {
-            if (kvp.Value.ValueKind == JsonValueKind.String && kvp.Value.GetString() is string strValue)
-            {
-                if (SecurityPatterns.IsSensitivePathSegment(strValue))
-                {
+    private static bool IsSensitivePathOperation(ClassificationRequest request) {
+        foreach (var kvp in request.Parameters) {
+            if (kvp.Value.ValueKind == JsonValueKind.String && kvp.Value.GetString() is string strValue) {
+                if (SecurityPatterns.IsSensitivePathSegment(strValue)) {
                     return true;
                 }
             }

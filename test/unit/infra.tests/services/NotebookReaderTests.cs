@@ -1,36 +1,30 @@
 namespace Infrastructure.Tests.Services;
 
-public sealed class NotebookReaderTests
-{
+public sealed class NotebookReaderTests {
     private static readonly IFileSystem Fs = TestFileSystem.Current;
 
     [Fact]
-    public void IsNotebookExtension_IpynbFile_ReturnsTrue()
-    {
+    public void IsNotebookExtension_IpynbFile_ReturnsTrue() {
         NotebookReader.IsNotebookExtension("notebook.ipynb").Should().BeTrue();
     }
 
     [Fact]
-    public void IsNotebookExtension_UpperCase_ReturnsTrue()
-    {
+    public void IsNotebookExtension_UpperCase_ReturnsTrue() {
         NotebookReader.IsNotebookExtension("NOTEBOOK.IPYNB").Should().BeTrue();
     }
 
     [Fact]
-    public void IsNotebookExtension_NonNotebookFile_ReturnsFalse()
-    {
+    public void IsNotebookExtension_NonNotebookFile_ReturnsFalse() {
         NotebookReader.IsNotebookExtension("script.py").Should().BeFalse();
     }
 
     [Fact]
-    public void IsNotebookExtension_NoExtension_ReturnsFalse()
-    {
+    public void IsNotebookExtension_NoExtension_ReturnsFalse() {
         NotebookReader.IsNotebookExtension("notebook").Should().BeFalse();
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_NonExistentFile_ReturnsError()
-    {
+    public async Task ReadNotebookAsync_NonExistentFile_ReturnsError() {
         var result = await NotebookReader.ReadNotebookAsync(
             $"/test/nonexistent_{Guid.NewGuid()}.ipynb", Fs).ConfigureAwait(true);
         result.Success.Should().BeFalse();
@@ -38,8 +32,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_InvalidJson_ReturnsError()
-    {
+    public async Task ReadNotebookAsync_InvalidJson_ReturnsError() {
         var path = $"/test/invalid_{Guid.NewGuid():N}.ipynb";
         await Fs.WriteAllTextAsync(path, "not valid json").ConfigureAwait(true);
         var result = await NotebookReader.ReadNotebookAsync(path, Fs).ConfigureAwait(true);
@@ -48,8 +41,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_ValidNotebook_ReturnsFormattedContent()
-    {
+    public async Task ReadNotebookAsync_ValidNotebook_ReturnsFormattedContent() {
         var path = $"/test/valid_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -78,8 +70,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_MarkdownCell_IncludesCellType()
-    {
+    public async Task ReadNotebookAsync_MarkdownCell_IncludesCellType() {
         var path = $"/test/md_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -105,8 +96,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_CodeCellWithOutput_IncludesOutput()
-    {
+    public async Task ReadNotebookAsync_CodeCellWithOutput_IncludesOutput() {
         var path = $"/test/codeout_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -138,8 +128,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_ErrorOutput_IncludesErrorInfo()
-    {
+    public async Task ReadNotebookAsync_ErrorOutput_IncludesErrorInfo() {
         var path = $"/test/err_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -173,8 +162,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_NonPythonLanguage_IncludesLanguageTag()
-    {
+    public async Task ReadNotebookAsync_NonPythonLanguage_IncludesLanguageTag() {
         var path = $"/test/lang_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -200,8 +188,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_CellWithoutId_UsesIndexAsId()
-    {
+    public async Task ReadNotebookAsync_CellWithoutId_UsesIndexAsId() {
         var path = $"/test/noid_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -225,8 +212,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_EmptyCells_ReturnsEmptyContent()
-    {
+    public async Task ReadNotebookAsync_EmptyCells_ReturnsEmptyContent() {
         var path = $"/test/empty_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -244,8 +230,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_ExecuteResultOutput_IncludesText()
-    {
+    public async Task ReadNotebookAsync_ExecuteResultOutput_IncludesText() {
         var path = $"/test/exec_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -277,8 +262,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_ImagePngOutput_ExtractsImage()
-    {
+    public async Task ReadNotebookAsync_ImagePngOutput_ExtractsImage() {
         var path = $"/test/imgpng_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -317,8 +301,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_ImageJpegOutput_ExtractsImage()
-    {
+    public async Task ReadNotebookAsync_ImageJpegOutput_ExtractsImage() {
         var path = $"/test/imgjpg_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -355,8 +338,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_MultipleImageOutputs_ExtractsAllImages()
-    {
+    public async Task ReadNotebookAsync_MultipleImageOutputs_ExtractsAllImages() {
         var path = $"/test/multi_{Guid.NewGuid():N}.ipynb";
         var json = """
         {
@@ -400,8 +382,7 @@ public sealed class NotebookReaderTests
     }
 
     [Fact]
-    public async Task ReadNotebookAsync_StreamOutput_NoImageExtracted()
-    {
+    public async Task ReadNotebookAsync_StreamOutput_NoImageExtracted() {
         var path = $"/test/stream_{Guid.NewGuid():N}.ipynb";
         var json = """
         {

@@ -3,11 +3,9 @@ namespace Core.Tests.Agents.Coordinator;
 /// <summary>
 /// MailboxMessageSink 单元测试 — 验证跨进程消息投递到内存 Channel
 /// </summary>
-public sealed class MailboxMessageSinkTests
-{
+public sealed class MailboxMessageSinkTests {
     [Fact]
-    public async Task DeliverAsync_CallsDeliverInboundAsync_MessageReachesChannel()
-    {
+    public async Task DeliverAsync_CallsDeliverInboundAsync_MessageReachesChannel() {
         await using var mailbox = new InProcessMailbox();
         mailbox.RegisterAgent("agent1");
         await Task.Delay(100);
@@ -17,8 +15,7 @@ public sealed class MailboxMessageSinkTests
         await sink.DeliverAsync("agent1", msg);
 
         var received = new List<AgentMsg>();
-        await foreach (var m in mailbox.ReceiveAsync("agent1", CancellationToken.None))
-        {
+        await foreach (var m in mailbox.ReceiveAsync("agent1", CancellationToken.None)) {
             received.Add(m);
             break;
         }
@@ -27,8 +24,7 @@ public sealed class MailboxMessageSinkTests
     }
 
     [Fact]
-    public void Constructor_NonInProcessMailbox_Throws()
-    {
+    public void Constructor_NonInProcessMailbox_Throws() {
         var mockMailbox = new Mock<IMailbox>();
 
         var act = () => new MailboxMessageSink(mockMailbox.Object);
@@ -37,8 +33,7 @@ public sealed class MailboxMessageSinkTests
     }
 
     [Fact]
-    public async Task DeliverAsync_ExceptionInMailbox_DoesNotPropagate()
-    {
+    public async Task DeliverAsync_ExceptionInMailbox_DoesNotPropagate() {
         await using var mailbox = new InProcessMailbox();
         var sink = new MailboxMessageSink(mailbox);
         var msg = new AgentMsg { FromAgentId = "sender", ToAgentId = "agent1", MessageType = "text", Content = "hello" };

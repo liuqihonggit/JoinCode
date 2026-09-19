@@ -1,23 +1,19 @@
 namespace Core.Goal.Tests;
 
 
-public sealed class GoalStateStoreTests
-{
+public sealed class GoalStateStoreTests {
     private const string SessionId = "test-session";
 
-    private static GoalStateStore CreateStore(InMemoryFileSystem? fs = null, string? baseDir = null)
-    {
+    private static GoalStateStore CreateStore(InMemoryFileSystem? fs = null, string? baseDir = null) {
         fs ??= new InMemoryFileSystem();
         baseDir ??= "/test-goal-state";
         return new GoalStateStore(fs, baseDir);
     }
 
     [Fact]
-    public async Task SaveLoad_Should_RoundTrip()
-    {
+    public async Task SaveLoad_Should_RoundTrip() {
         var store = CreateStore();
-        var state = new GoalState
-        {
+        var state = new GoalState {
             GoalId = "g1",
             Objective = "test objective",
             Status = GoalStatus.Pursuing,
@@ -38,16 +34,14 @@ public sealed class GoalStateStoreTests
     }
 
     [Fact]
-    public async Task Load_NonExistent_Should_ReturnNull()
-    {
+    public async Task Load_NonExistent_Should_ReturnNull() {
         var store = CreateStore();
         var loaded = await store.LoadAsync(SessionId, "non-existent");
         Assert.Null(loaded);
     }
 
     [Fact]
-    public async Task Delete_Should_RemoveState()
-    {
+    public async Task Delete_Should_RemoveState() {
         var store = CreateStore();
         var state = new GoalState { GoalId = "g2", Objective = "to delete", Status = GoalStatus.Pursuing, SessionId = SessionId };
 
@@ -59,8 +53,7 @@ public sealed class GoalStateStoreTests
     }
 
     [Fact]
-    public async Task GetActiveGoals_Should_FilterPursuingAndPaused()
-    {
+    public async Task GetActiveGoals_Should_FilterPursuingAndPaused() {
         var store = CreateStore();
         await store.SaveAsync(new GoalState { GoalId = "pursuing", Objective = "a", Status = GoalStatus.Pursuing, SessionId = SessionId });
         await store.SaveAsync(new GoalState { GoalId = "paused", Objective = "b", Status = GoalStatus.Paused, SessionId = SessionId });
@@ -75,8 +68,7 @@ public sealed class GoalStateStoreTests
     }
 
     [Fact]
-    public async Task Save_Overwrite_Should_UpdateExisting()
-    {
+    public async Task Save_Overwrite_Should_UpdateExisting() {
         var store = CreateStore();
 
         await store.SaveAsync(new GoalState { GoalId = "g3", Objective = "v1", Status = GoalStatus.Pursuing, SessionId = SessionId, TokensUsed = 10 });

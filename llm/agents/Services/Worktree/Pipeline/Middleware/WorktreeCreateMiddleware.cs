@@ -4,14 +4,12 @@ namespace Core.Agents.Worktree;
 /// Worktree 创建中间件 — git worktree add + 可选稀疏检出（失败回滚）
 /// </summary>
 [Register(typeof(IWorktreeCreateMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeCreateMiddleware
-{
+public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeCreateMiddleware {
 
     /// <summary>
     /// 构造 WorktreeCreateMiddleware 实例，注入延迟加载的管道操作、文件操作服务、时钟服务及日志器
     /// </summary>
-    public WorktreeCreateMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IFileOperationService fs, IClockService clock, ILogger<WorktreeCreateMiddleware>? logger = null)
-    {
+    public WorktreeCreateMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IFileOperationService fs, IClockService clock, ILogger<WorktreeCreateMiddleware>? logger = null) {
         _worktreeService = worktreeService;
         _fs = fs;
         _clock = clock;
@@ -32,8 +30,7 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
     /// <param name="context">worktree 创建上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
-    {
+    public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct) {
         WorktreeContextEnricher.EnsureAllPaths(context, _fs);
         var opts = context.Options ?? new WorktreeOptions();
         var gitRoot = context.GitRoot;
@@ -55,17 +52,14 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
 
         var createResult = await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, worktreeAddArgs, ct).ConfigureAwait(false);
 
-        if (!createResult.Success)
-        {
+        if (!createResult.Success) {
             context.Fail($"创建 worktree 失败: {createResult.Error}");
             return;
         }
 
-        if (hasSparsePaths)
-        {
+        if (hasSparsePaths) {
             var sparseResult = await _worktreeService.Value.ApplySparseCheckoutAsync(worktreePath, opts.SparsePaths!, ct).ConfigureAwait(false);
-            if (!sparseResult)
-            {
+            if (!sparseResult) {
                 _logger?.LogWarning("应用稀疏检出失败，回滚 worktree: {WorktreePath}", worktreePath);
                 await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, $"worktree remove --force \"{worktreePath}\"", ct).ConfigureAwait(false);
                 await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, $"branch -D {branchName}", ct).ConfigureAwait(false);
@@ -74,8 +68,7 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
             }
 
             var checkoutResult = await _worktreeService.Value.ExecuteGitCommandAsync(worktreePath, "checkout HEAD", ct).ConfigureAwait(false);
-            if (!checkoutResult.Success)
-            {
+            if (!checkoutResult.Success) {
                 _logger?.LogWarning("稀疏检出 checkout HEAD 失败，回滚 worktree: {WorktreePath}", worktreePath);
                 await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, $"worktree remove --force \"{worktreePath}\"", ct).ConfigureAwait(false);
                 await _worktreeService.Value.ExecuteGitCommandAsync(gitRoot, $"branch -D {branchName}", ct).ConfigureAwait(false);

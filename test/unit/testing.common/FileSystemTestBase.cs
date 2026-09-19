@@ -5,8 +5,7 @@ namespace Testing.Common;
 /// 用法: 测试类继承此类，通过 FileSystem 属性获取 IFileSystem 实例
 /// 切换方式: 修改 UseRealFileSystem 静态属性即可全局切换
 /// </summary>
-public abstract class FileSystemTestBase
-{
+public abstract class FileSystemTestBase {
     /// <summary>
     /// 全局切换: true = PhysicalFileSystem (真实磁盘), false = InMemoryFileSystem (内存)
     /// 默认 false，即使用内存文件系统实现0磁盘读写

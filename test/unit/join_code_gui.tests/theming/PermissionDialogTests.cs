@@ -5,15 +5,12 @@ namespace JoinCode.Gui.Tests.Theming;
 /// 验证：① 弹窗能正常显示且包含三枚决策按钮；② 点击按钮返回对应决策；
 /// ③ 关闭窗口等价于拒绝。覆盖 View 层弹窗闭环接线，避免仅"编译过但运行时崩"。
 /// </summary>
-public sealed class PermissionDialogTests
-{
+public sealed class PermissionDialogTests {
     /// <summary>展示弹窗并返回 Task，用于等待 ShowDialog 完成</summary>
-    private static async Task<PermissionConfirmationDecision> ShowDialogAndClickAsync(string buttonText)
-    {
+    private static async Task<PermissionConfirmationDecision> ShowDialogAndClickAsync(string buttonText) {
         var host = new Window { Width = 200, Height = 200 };
         host.Show();
-        try
-        {
+        try {
             var request = new PermissionConfirmationRequest("bash", "运行命令 echo hi？", "req-smoke", "rule-content");
             var dialog = new PermissionDialog(request);
             var resultTask = dialog.ShowDialog<PermissionConfirmationDecision>(host);
@@ -24,25 +21,20 @@ public sealed class PermissionDialogTests
             button.Command?.Execute(null);
 
             return await resultTask;
-        }
-        finally
-        {
+        } finally {
             host.Close();
         }
     }
 
     /// <summary>递归查找文本匹配的按钮（Headless 无布局线程，直接遍历可视树）</summary>
-    private static async Task<Button?> FindButtonAsync(Window dialog, string text)
-    {
+    private static async Task<Button?> FindButtonAsync(Window dialog, string text) {
         // 通过 RunJobs 泵起 UI 事件循环让 Content 挂载进可视树（Headless 无真实时钟）
-        for (int i = 0; i < 50; i++)
-        {
+        for (var i = 0; i < 50; i++) {
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             var found = dialog.GetVisualDescendants()
                 .OfType<Button>()
                 .FirstOrDefault(b => b.Content?.ToString() == text);
-            if (found is not null)
-            {
+            if (found is not null) {
                 return found;
             }
             await Task.Yield();
@@ -51,41 +43,34 @@ public sealed class PermissionDialogTests
     }
 
     [AvaloniaFact]
-    public void Dialog_ContainsThreeDecisionButtons()
-    {
+    public void Dialog_ContainsThreeDecisionButtons() {
         var request = new PermissionConfirmationRequest("bash", "运行命令 echo hi？", "req-1", "rule");
         var dialog = new PermissionDialog(request);
         dialog.Show();
-        try
-        {
+        try {
             var buttons = dialog.GetVisualDescendants().OfType<Button>().ToList();
             buttons.ShouldContainText("拒绝");
             buttons.ShouldContainText("允许本次");
             buttons.ShouldContainText("始终允许");
-        }
-        finally
-        {
+        } finally {
             dialog.Close();
         }
     }
 
     [AvaloniaFact]
-    public async Task ClickAllow_ReturnsAllow()
-    {
+    public async Task ClickAllow_ReturnsAllow() {
         var decision = await ShowDialogAndClickAsync("允许本次");
         Assert.Equal(PermissionConfirmationDecision.Allow, decision);
     }
 
     [AvaloniaFact]
-    public async Task ClickAlwaysAllow_ReturnsAlwaysAllow()
-    {
+    public async Task ClickAlwaysAllow_ReturnsAlwaysAllow() {
         var decision = await ShowDialogAndClickAsync("始终允许");
         Assert.Equal(PermissionConfirmationDecision.AlwaysAllow, decision);
     }
 
     [AvaloniaFact]
-    public async Task ClickDeny_ReturnsDeny()
-    {
+    public async Task ClickDeny_ReturnsDeny() {
         var decision = await ShowDialogAndClickAsync("拒绝");
         Assert.Equal(PermissionConfirmationDecision.Deny, decision);
     }
@@ -97,12 +82,10 @@ public sealed class PermissionDialogTests
     /// Deny(=0)。若有人调整枚举顺序，本测试立即红灯，防止"关窗=批准"安全漏洞回归。
     /// </summary>
     [AvaloniaFact]
-    public async Task CloseWindowWithoutClicking_ReturnsDeny()
-    {
+    public async Task CloseWindowWithoutClicking_ReturnsDeny() {
         var host = new Window { Width = 200, Height = 200 };
         host.Show();
-        try
-        {
+        try {
             var request = new PermissionConfirmationRequest("bash", "运行命令 echo hi？", "req-close", "rule-content");
             var dialog = new PermissionDialog(request);
             var resultTask = dialog.ShowDialog<PermissionConfirmationDecision>(host);
@@ -113,9 +96,7 @@ public sealed class PermissionDialogTests
 
             var decision = await resultTask;
             Assert.Equal(PermissionConfirmationDecision.Deny, decision);
-        }
-        finally
-        {
+        } finally {
             host.Close();
         }
     }
@@ -126,17 +107,14 @@ public sealed class PermissionDialogTests
     /// 阻断"重排枚举成员导致默认值漂移"的重构事故。
     /// </summary>
     [Fact]
-    public void DefaultDecision_MustBeDeny()
-    {
+    public void DefaultDecision_MustBeDeny() {
         Assert.Equal(PermissionConfirmationDecision.Deny, default(PermissionConfirmationDecision));
     }
 }
 
 /// <summary>为测试断言补一个小的断言扩展（避免引入额外断言库依赖）</summary>
-internal static class ButtonListAssertExtensions
-{
-    public static void ShouldContainText(this IEnumerable<Button> buttons, string text)
-    {
+internal static class ButtonListAssertExtensions {
+    public static void ShouldContainText(this IEnumerable<Button> buttons, string text) {
         Assert.Contains(buttons, b => b.Content?.ToString() == text);
     }
 }

@@ -5,20 +5,17 @@ namespace Core.Permission;
 /// 危险操作中间件 — Default 模式下检查危险操作
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class DangerousOperationMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class DangerousOperationMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         if (context.CurrentMode != PermissionMode.Auto)
             return next(context, ct);
 
-        if (IsDangerousOperation(context))
-        {
+        if (IsDangerousOperation(context)) {
             context.Result = ToolPermissionCheckResult.PendingConfirmation($"工具 '{context.ToolName}' 可能执行危险操作，请确认是否继续？");
             return Task.CompletedTask;
         }
@@ -29,8 +26,7 @@ public sealed partial class DangerousOperationMiddleware : ServiceEntity, IPermi
     /// <summary>
     /// 检查是否为危险操作
     /// </summary>
-    private static bool IsDangerousOperation(PermissionCheckContext context)
-    {
+    private static bool IsDangerousOperation(PermissionCheckContext context) {
         if (context.Config.DangerousOperationPatterns.Any(pattern =>
             PermissionCheckContext.MatchesPattern(context.ToolName, pattern.Pattern, pattern.PatternType)))
             return true;

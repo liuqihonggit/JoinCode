@@ -5,8 +5,7 @@ namespace IO.Services.Update;
 /// 服务器只托管静态文件，无服务端逻辑（nginx/Python http.server/GitHub Pages 均可）
 /// > ADR: 0064
 /// </summary>
-public sealed class StaticFileUpdateSource : IUpdateSource
-{
+public sealed class StaticFileUpdateSource : IUpdateSource {
     private readonly HttpClient _httpClient;
     private readonly string _manifestUrl;
     private readonly ILogger<StaticFileUpdateSource>? _logger;
@@ -17,8 +16,7 @@ public sealed class StaticFileUpdateSource : IUpdateSource
     /// <param name="httpClient">HTTP 客户端</param>
     /// <param name="manifestUrl">清单 URL（manifest.json 的完整地址）</param>
     /// <param name="logger">日志器</param>
-    public StaticFileUpdateSource(HttpClient httpClient, string manifestUrl, ILogger<StaticFileUpdateSource>? logger = null)
-    {
+    public StaticFileUpdateSource(HttpClient httpClient, string manifestUrl, ILogger<StaticFileUpdateSource>? logger = null) {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _manifestUrl = manifestUrl ?? throw new ArgumentNullException(nameof(manifestUrl));
         _logger = logger;
@@ -28,10 +26,8 @@ public sealed class StaticFileUpdateSource : IUpdateSource
     public UpdateSourceType Type => UpdateSourceType.Static;
 
     /// <inheritdoc/>
-    public async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default)
-    {
-        try
-        {
+    public async Task<UpdateManifest?> GetManifestAsync(CancellationToken ct = default) {
+        try {
             _logger?.LogDebug("StaticFileUpdateSource: 拉取清单 {Url}", _manifestUrl);
 
             using var request = new HttpRequestMessage(HttpMethod.Get, _manifestUrl);
@@ -42,9 +38,7 @@ public sealed class StaticFileUpdateSource : IUpdateSource
 
             var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             return ParseManifest(json);
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "StaticFileUpdateSource: 拉取清单失败 {Url}", _manifestUrl);
             return null;
         }
@@ -54,8 +48,7 @@ public sealed class StaticFileUpdateSource : IUpdateSource
     public async Task<Stream> DownloadAsync(
         UpdateManifestEntry entry,
         IProgress<UpdateDownloadProgress>? progress = null,
-        CancellationToken ct = default)
-    {
+        CancellationToken ct = default) {
         ArgumentNullException.ThrowIfNull(entry);
 
         var downloadUrl = ResolveDownloadUrl(entry.DownloadUrl);
@@ -73,8 +66,7 @@ public sealed class StaticFileUpdateSource : IUpdateSource
     /// <summary>
     /// 解析下载 URL — 相对 URL 解析为相对于清单地址的绝对 URL
     /// </summary>
-    private string ResolveDownloadUrl(string downloadUrl)
-    {
+    private string ResolveDownloadUrl(string downloadUrl) {
         if (Uri.IsWellFormedUriString(downloadUrl, UriKind.Absolute))
             return downloadUrl;
 
@@ -86,8 +78,7 @@ public sealed class StaticFileUpdateSource : IUpdateSource
     /// 手动解析 manifest.json（避免新增 JsonContext，AOT 友好）
     /// 供 LocalFileUpdateSource 等其他源复用
     /// </summary>
-    internal static UpdateManifest ParseManifest(string json)
-    {
+    internal static UpdateManifest ParseManifest(string json) {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
@@ -97,24 +88,20 @@ public sealed class StaticFileUpdateSource : IUpdateSource
         var channel = root.TryGetProperty("channel", out var channelEl) ? channelEl.GetString() ?? "stable" : "stable";
 
         var releases = new List<UpdateManifestEntry>();
-        if (root.TryGetProperty("releases", out var releasesEl) && releasesEl.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var entry in releasesEl.EnumerateArray())
-            {
+        if (root.TryGetProperty("releases", out var releasesEl) && releasesEl.ValueKind == JsonValueKind.Array) {
+            foreach (var entry in releasesEl.EnumerateArray()) {
                 releases.Add(ParseEntry(entry));
             }
         }
 
-        return new UpdateManifest
-        {
+        return new UpdateManifest {
             LatestVersion = latestVersion,
             Channel = channel,
             Releases = releases.AsReadOnly()
         };
     }
 
-    private static UpdateManifestEntry ParseEntry(JsonElement element)
-    {
+    private static UpdateManifestEntry ParseEntry(JsonElement element) {
         var version = element.GetProperty("version").GetString()
             ?? throw new InvalidOperationException("release 条目缺少 version");
         var downloadUrl = element.GetProperty("downloadUrl").GetString()
@@ -122,8 +109,7 @@ public sealed class StaticFileUpdateSource : IUpdateSource
         var sha256 = element.GetProperty("sha256").GetString()
             ?? throw new InvalidOperationException("release 条目缺少 sha256");
 
-        return new UpdateManifestEntry
-        {
+        return new UpdateManifestEntry {
             Version = version,
             DownloadUrl = downloadUrl,
             Sha256 = sha256,

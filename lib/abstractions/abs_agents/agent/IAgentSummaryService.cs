@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// 代理执行指标
 /// </summary>
-public sealed record AgentExecutionMetrics
-{
+public sealed record AgentExecutionMetrics {
     /// <summary>
     /// 执行开始时间
     /// </summary>
@@ -63,8 +62,7 @@ public sealed record AgentExecutionMetrics
 /// <summary>
 /// 代理执行摘要
 /// </summary>
-public sealed record AgentExecutionSummary
-{
+public sealed record AgentExecutionSummary {
     /// <summary>
     /// 执行ID
     /// </summary>
@@ -114,8 +112,7 @@ public sealed record AgentExecutionSummary
 /// <summary>
 /// 代理统计信息
 /// </summary>
-public sealed record AgentStatistics
-{
+public sealed record AgentStatistics {
     /// <summary>
     /// 代理名称
     /// </summary>
@@ -167,8 +164,7 @@ public sealed record AgentStatistics
 /// <summary>
 /// 系统整体统计
 /// </summary>
-public sealed record SystemStatistics
-{
+public sealed record SystemStatistics {
     /// <summary>
     /// 总代理数
     /// </summary>
@@ -210,8 +206,7 @@ public sealed record SystemStatistics
 /// <summary>
 /// 代理摘要服务接口
 /// </summary>
-public interface IAgentSummaryService
-{
+public interface IAgentSummaryService {
     /// <summary>
     /// 开始执行跟踪
     /// </summary>

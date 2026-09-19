@@ -3,13 +3,11 @@ namespace JccAuditCli;
 /// <summary>
 /// 项目审计引擎：编译项目并收集诊断
 /// </summary>
-public sealed class AuditEngine
-{
+public sealed class AuditEngine {
     private readonly List<DiagnosticAnalyzer> _analyzers;
     private const int MaxConcurrency = 8;
 
-    public AuditEngine(List<DiagnosticAnalyzer> analyzers)
-    {
+    public AuditEngine(List<DiagnosticAnalyzer> analyzers) {
         _analyzers = analyzers;
     }
 
@@ -17,15 +15,13 @@ public sealed class AuditEngine
     /// 审计解决方案中的所有项目
     /// 支持 .sln（MSBuildWorkspace 原生）和 .slnx（手动解析后逐个加载）
     /// </summary>
-    public async Task<AuditReport> AuditSolutionAsync(string solutionPath, bool skipTests = false, CancellationToken ct = default)
-    {
+    public async Task<AuditReport> AuditSolutionAsync(string solutionPath, bool skipTests = false, CancellationToken ct = default) {
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
         Console.WriteLine($"正在加载解决方案: {solutionPath}");
 
         var ext = Path.GetExtension(solutionPath).ToLowerInvariant();
 
-        if (ext == ".slnx")
-        {
+        if (ext == ".slnx") {
             return await AuditSlnxAsync(solutionPath, skipTests, ct);
         }
 
@@ -38,10 +34,8 @@ public sealed class AuditEngine
 
         var solution = await workspace.OpenSolutionAsync(solutionPath, cancellationToken: ct);
 
-        if (workspace.Diagnostics.Count > 0)
-        {
-            foreach (var diag in workspace.Diagnostics.Where(d => d.Kind == WorkspaceDiagnosticKind.Failure))
-            {
+        if (workspace.Diagnostics.Count > 0) {
+            foreach (var diag in workspace.Diagnostics.Where(d => d.Kind == WorkspaceDiagnosticKind.Failure)) {
                 Console.Error.WriteLine($"  工作区警告: {diag.Message}");
             }
         }
@@ -57,8 +51,7 @@ public sealed class AuditEngine
         totalSw.Stop();
         Console.WriteLine($"审计完成，耗时: {totalSw.Elapsed.TotalSeconds:F1}s");
 
-        return new AuditReport
-        {
+        return new AuditReport {
             TargetPath = solutionPath,
             Timestamp = DateTime.UtcNow,
             TotalProjects = projectResults.Count,
@@ -71,8 +64,7 @@ public sealed class AuditEngine
     /// 审计 .slnx 解决方案：解析项目列表后逐个加载
     /// 使用单个 MSBuildWorkspace 避免重复初始化
     /// </summary>
-    private async Task<AuditReport> AuditSlnxAsync(string slnxPath, bool skipTests, CancellationToken ct)
-    {
+    private async Task<AuditReport> AuditSlnxAsync(string slnxPath, bool skipTests, CancellationToken ct) {
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
         var projectPaths = SlnxParser.ParseProjectPaths(slnxPath);
         Console.WriteLine($"  .slnx 包含 {projectPaths.Count} 个项目");
@@ -96,20 +88,17 @@ public sealed class AuditEngine
         var loadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // 先收集当前 workspace 已有的项目（理论上为空，但防御性编程）
-        foreach (var p in workspace.CurrentSolution.Projects)
-        {
+        foreach (var p in workspace.CurrentSolution.Projects) {
             if (p.FilePath is not null)
                 loadedPaths.Add(p.FilePath);
         }
 
-        foreach (var projectPath in filteredPaths)
-        {
+        foreach (var projectPath in filteredPaths) {
             if (ct.IsCancellationRequested) break;
 
             // 跳过已加载的项目（可能作为依赖被自动加载）
             var fullPath = Path.GetFullPath(projectPath);
-            if (loadedPaths.Contains(fullPath))
-            {
+            if (loadedPaths.Contains(fullPath)) {
                 // 从 workspace 中获取已加载的项目
                 var existing = workspace.CurrentSolution.Projects
                     .FirstOrDefault(p => p.FilePath is not null &&
@@ -119,20 +108,16 @@ public sealed class AuditEngine
                 continue;
             }
 
-            try
-            {
+            try {
                 var project = await workspace.OpenProjectAsync(projectPath, cancellationToken: ct);
                 projects.Add(project);
 
                 // 记录此次加载引入的所有新项目（依赖项）
-                foreach (var p in workspace.CurrentSolution.Projects)
-                {
+                foreach (var p in workspace.CurrentSolution.Projects) {
                     if (p.FilePath is not null)
                         loadedPaths.Add(Path.GetFullPath(p.FilePath));
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
             }
         }
@@ -144,11 +129,9 @@ public sealed class AuditEngine
 
         // 阶段3：DI 循环依赖检测（跨项目）
         var cycles = await DetectDiCyclesAsync(projects, ct);
-        if (cycles.Count > 0)
-        {
+        if (cycles.Count > 0) {
             Console.WriteLine($"  发现 {cycles.Count} 个 DI 循环依赖:");
-            foreach (var cycle in cycles)
-            {
+            foreach (var cycle in cycles) {
                 Console.WriteLine($"    循环: {string.Join(" → ", cycle.Path)}");
             }
         }
@@ -159,11 +142,9 @@ public sealed class AuditEngine
 
         // 阶段4：胖构造函数检测（参数 > 阈值，建议中间件模式重构）
         var fatCtors = await DetectFatConstructorsAsync(projects, ct);
-        if (fatCtors.Count > 0)
-        {
+        if (fatCtors.Count > 0) {
             Console.WriteLine($"  发现 {fatCtors.Count} 个胖构造函数（参数 > {ConstructorParamCounter.DefaultThreshold}）:");
-            foreach (var fc in fatCtors.OrderByDescending(c => c.ParameterCount).Take(10))
-            {
+            foreach (var fc in fatCtors.OrderByDescending(c => c.ParameterCount).Take(10)) {
                 Console.WriteLine($"    [{fc.ParameterCount}] {fc.ClassName} - {fc.ConstructorSignature}");
             }
         }
@@ -173,11 +154,9 @@ public sealed class AuditEngine
 
         // 阶段5：IDisposable/IAsyncDisposable 一致性检测
         var disposableIssues = await DetectDisposableConsistencyAsync(projects, ct);
-        if (disposableIssues.Count > 0)
-        {
+        if (disposableIssues.Count > 0) {
             Console.WriteLine($"  发现 {disposableIssues.Count} 个 IDisposable 一致性问题:");
-            foreach (var di in disposableIssues)
-            {
+            foreach (var di in disposableIssues) {
                 Console.WriteLine($"    [{di.RuleId}] {di.TypeName}: {di.Message}");
             }
         }
@@ -188,8 +167,7 @@ public sealed class AuditEngine
         totalSw.Stop();
         Console.WriteLine($"审计完成，耗时: {totalSw.Elapsed.TotalSeconds:F1}s");
 
-        return new AuditReport
-        {
+        return new AuditReport {
             TargetPath = slnxPath,
             Timestamp = DateTime.UtcNow,
             TotalProjects = projectResults.Count,
@@ -201,8 +179,7 @@ public sealed class AuditEngine
     /// <summary>
     /// 审计单个项目
     /// </summary>
-    public async Task<AuditReport> AuditProjectAsync(string projectPath, CancellationToken ct = default)
-    {
+    public async Task<AuditReport> AuditProjectAsync(string projectPath, CancellationToken ct = default) {
         var msbuildProps = CreateMsBuildProps();
 
         using var workspace = MSBuildWorkspace.Create(msbuildProps);
@@ -211,8 +188,7 @@ public sealed class AuditEngine
         var project = await workspace.OpenProjectAsync(projectPath, cancellationToken: ct);
         var result = await AuditProjectCoreAsync(project, ct);
 
-        return new AuditReport
-        {
+        return new AuditReport {
             TargetPath = projectPath,
             Timestamp = DateTime.UtcNow,
             TotalProjects = 1,
@@ -226,8 +202,7 @@ public sealed class AuditEngine
     /// 返回 LayerAuditReport，用于独立 layer-audit 子命令
     /// </summary>
     public async Task<LayerAuditReport> AuditLayersAsync(
-        string solutionPath, bool skipTests = false, CancellationToken ct = default)
-    {
+        string solutionPath, bool skipTests = false, CancellationToken ct = default) {
         Console.WriteLine($"正在加载解决方案（层依赖审计）: {solutionPath}");
 
         var msbuildProps = CreateMsBuildProps();
@@ -243,24 +218,19 @@ public sealed class AuditEngine
         var projects = new List<Project>();
         var loadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var projectPath in filteredPaths)
-        {
+        foreach (var projectPath in filteredPaths) {
             if (ct.IsCancellationRequested) break;
             var fullPath = Path.GetFullPath(projectPath);
             if (loadedPaths.Contains(fullPath)) continue;
 
-            try
-            {
+            try {
                 var project = await workspace.OpenProjectAsync(projectPath, cancellationToken: ct);
                 projects.Add(project);
-                foreach (var p in workspace.CurrentSolution.Projects)
-                {
+                foreach (var p in workspace.CurrentSolution.Projects) {
                     if (p.FilePath is not null)
                         loadedPaths.Add(Path.GetFullPath(p.FilePath));
                 }
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
             }
         }
@@ -272,8 +242,7 @@ public sealed class AuditEngine
 
         Console.WriteLine($"  发现 {violations.Count} 个层依赖违规（{errorCount} Error）");
 
-        return new LayerAuditReport
-        {
+        return new LayerAuditReport {
             TargetPath = solutionPath,
             TotalProjects = projects.Count,
             TotalViolations = violations.Count,
@@ -288,8 +257,7 @@ public sealed class AuditEngine
     /// </summary>
     public async Task<ConstructorParamReport> AuditConstructorsAsync(
         string solutionPath, int threshold = ConstructorParamCounter.DefaultThreshold,
-        bool skipTests = false, CancellationToken ct = default)
-    {
+        bool skipTests = false, CancellationToken ct = default) {
         var totalSw = System.Diagnostics.Stopwatch.StartNew();
         Console.WriteLine($"正在加载解决方案（构造函数审计）: {solutionPath}");
 
@@ -301,8 +269,7 @@ public sealed class AuditEngine
         workspace.SkipUnrecognizedProjects = true;
         workspace.LoadMetadataForReferencedProjects = false;
 
-        if (ext == ".slnx" || ext == ".sln")
-        {
+        if (ext == ".slnx" || ext == ".sln") {
             var projectPaths = SlnxParser.ParseProjectPaths(solutionPath);
             var filteredPaths = projectPaths
                 .Where(p => !p.Contains("Generator", StringComparison.Ordinal))
@@ -313,19 +280,16 @@ public sealed class AuditEngine
 
             projects = [];
             var loadedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var p in workspace.CurrentSolution.Projects)
-            {
+            foreach (var p in workspace.CurrentSolution.Projects) {
                 if (p.FilePath is not null)
                     loadedPaths.Add(p.FilePath);
             }
 
-            foreach (var projectPath in filteredPaths)
-            {
+            foreach (var projectPath in filteredPaths) {
                 if (ct.IsCancellationRequested) break;
 
                 var fullPath = Path.GetFullPath(projectPath);
-                if (loadedPaths.Contains(fullPath))
-                {
+                if (loadedPaths.Contains(fullPath)) {
                     var existing = workspace.CurrentSolution.Projects
                         .FirstOrDefault(p => p.FilePath is not null &&
                             string.Equals(Path.GetFullPath(p.FilePath), fullPath, StringComparison.OrdinalIgnoreCase));
@@ -334,29 +298,21 @@ public sealed class AuditEngine
                     continue;
                 }
 
-                try
-                {
+                try {
                     var project = await workspace.OpenProjectAsync(projectPath, cancellationToken: ct);
                     projects.Add(project);
-                    foreach (var p in workspace.CurrentSolution.Projects)
-                    {
+                    foreach (var p in workspace.CurrentSolution.Projects) {
                         if (p.FilePath is not null)
                             loadedPaths.Add(Path.GetFullPath(p.FilePath));
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     Console.Error.WriteLine($"  加载项目失败: {Path.GetFileName(projectPath)} - {ex.Message}");
                 }
             }
-        }
-        else if (ext == ".csproj")
-        {
+        } else if (ext == ".csproj") {
             var project = await workspace.OpenProjectAsync(solutionPath, cancellationToken: ct);
             projects = [project];
-        }
-        else
-        {
+        } else {
             throw new ArgumentException($"[GEN064] 不支持的文件类型: {ext}。请提供 .csproj 或 .slnx 文件。");
         }
 
@@ -366,17 +322,14 @@ public sealed class AuditEngine
         var semaphore = new SemaphoreSlim(MaxConcurrency);
         var completed = 0;
 
-        var tasks = projects.Select(async project =>
-        {
+        var tasks = projects.Select(async project => {
             await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
+            try {
                 using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 projectCts.CancelAfter(TimeSpan.FromSeconds(120));
 
                 var compilation = await project.GetCompilationAsync(projectCts.Token).ConfigureAwait(false);
-                if (compilation is null)
-                {
+                if (compilation is null) {
                     Console.Error.WriteLine($"  编译失败: {project.Name}");
                     return Enumerable.Empty<ConstructorParamInfo>();
                 }
@@ -386,21 +339,15 @@ public sealed class AuditEngine
                 Console.WriteLine($"  [{count}/{projects.Count}] {project.Name} - {fatCtors.Count} 个胖构造函数");
 
                 return fatCtors.AsEnumerable();
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 var count = Interlocked.Increment(ref completed);
                 Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目超时: {project.Name}");
                 return Enumerable.Empty<ConstructorParamInfo>();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 var count = Interlocked.Increment(ref completed);
                 Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目失败: {project.Name} - {ex.Message}");
                 return Enumerable.Empty<ConstructorParamInfo>();
-            }
-            finally
-            {
+            } finally {
                 semaphore.Release();
             }
         });
@@ -413,8 +360,7 @@ public sealed class AuditEngine
         totalSw.Stop();
         Console.WriteLine($"构造函数审计完成，耗时: {totalSw.Elapsed.TotalSeconds:F1}s");
 
-        return new ConstructorParamReport
-        {
+        return new ConstructorParamReport {
             TargetPath = solutionPath,
             Timestamp = DateTime.UtcNow,
             Threshold = threshold,
@@ -427,17 +373,14 @@ public sealed class AuditEngine
     /// 并行处理项目列表：编译 + 分析
     /// </summary>
     private async Task<List<ProjectAuditResult>> ProcessProjectsParallelAsync(
-        IReadOnlyList<Project> projects, CancellationToken ct)
-    {
+        IReadOnlyList<Project> projects, CancellationToken ct) {
         var results = new ProjectAuditResult[projects.Count];
         var completed = 0;
         var semaphore = new SemaphoreSlim(MaxConcurrency);
 
-        var tasks = projects.Select(async (project, index) =>
-        {
+        var tasks = projects.Select(async (project, index) => {
             await semaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
+            try {
                 using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 projectCts.CancelAfter(TimeSpan.FromSeconds(120));
 
@@ -449,29 +392,21 @@ public sealed class AuditEngine
                 Console.WriteLine($"  [{count}/{projects.Count}] {project.Name} - {result.TotalDiagnostics} 条诊断 ({sw.Elapsed.TotalSeconds:F1}s)");
 
                 results[index] = result;
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
+            } catch (OperationCanceledException) when (!ct.IsCancellationRequested) {
                 var count = Interlocked.Increment(ref completed);
                 Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目超时: {project.Name}");
-                results[index] = new ProjectAuditResult
-                {
+                results[index] = new ProjectAuditResult {
                     ProjectName = project.Name,
                     ProjectPath = project.FilePath ?? string.Empty,
                 };
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 var count = Interlocked.Increment(ref completed);
                 Console.Error.WriteLine($"  [{count}/{projects.Count}] 项目失败: {project.Name} - {ex.Message}");
-                results[index] = new ProjectAuditResult
-                {
+                results[index] = new ProjectAuditResult {
                     ProjectName = project.Name,
                     ProjectPath = project.FilePath ?? string.Empty,
                 };
-            }
-            finally
-            {
+            } finally {
                 semaphore.Release();
             }
         });
@@ -484,15 +419,12 @@ public sealed class AuditEngine
     /// <summary>
     /// 审计单个 Roslyn Project 对象（核心逻辑）
     /// </summary>
-    private async Task<ProjectAuditResult> AuditProjectCoreAsync(Project project, CancellationToken ct)
-    {
+    private async Task<ProjectAuditResult> AuditProjectCoreAsync(Project project, CancellationToken ct) {
         // 获取编译结果
         var compilation = await project.GetCompilationAsync(ct).ConfigureAwait(false);
-        if (compilation is null)
-        {
+        if (compilation is null) {
             Console.Error.WriteLine($"  编译失败: {project.Name}");
-            return new ProjectAuditResult
-            {
+            return new ProjectAuditResult {
                 ProjectName = project.Name,
                 ProjectPath = project.FilePath ?? string.Empty,
             };
@@ -504,11 +436,9 @@ public sealed class AuditEngine
         // 清除 NoWarn 对 JCC 规则的抑制，确保审计能检测到所有违规
         var specificOptions = compilation.Options.SpecificDiagnosticOptions;
         var modifiedOptions = new Dictionary<string, ReportDiagnostic>(specificOptions);
-        foreach (var kvp in specificOptions)
-        {
+        foreach (var kvp in specificOptions) {
             if (kvp.Key.StartsWith("JCC", StringComparison.Ordinal) &&
-                kvp.Value == ReportDiagnostic.Suppress)
-            {
+                kvp.Value == ReportDiagnostic.Suppress) {
                 modifiedOptions[kvp.Key] = ReportDiagnostic.Warn;
             }
         }
@@ -523,11 +453,9 @@ public sealed class AuditEngine
             .Where(d => d.Id.StartsWith("JCC", StringComparison.Ordinal))
             .ToList();
 
-        var auditDiagnostics = diagnostics.Select(d =>
-        {
+        var auditDiagnostics = diagnostics.Select(d => {
             var lineSpan = d.Location.GetLineSpan();
-            return new AuditDiagnostic
-            {
+            return new AuditDiagnostic {
                 RuleId = d.Id,
                 Severity = d.Severity.ToString(),
                 Message = d.GetMessage(),
@@ -538,8 +466,7 @@ public sealed class AuditEngine
             };
         }).ToList();
 
-        return new ProjectAuditResult
-        {
+        return new ProjectAuditResult {
             ProjectName = project.Name,
             ProjectPath = project.FilePath ?? string.Empty,
             TotalDiagnostics = auditDiagnostics.Count,
@@ -553,10 +480,8 @@ public sealed class AuditEngine
     /// <summary>
     /// 创建 MSBuild 属性字典：跳过不必要的构建步骤
     /// </summary>
-    private static Dictionary<string, string> CreateMsBuildProps()
-    {
-        return new Dictionary<string, string>
-        {
+    private static Dictionary<string, string> CreateMsBuildProps() {
+        return new Dictionary<string, string> {
             ["BuildProjectReferences"] = "false",
             ["SkipResolvePackageAssets"] = "true",
         };
@@ -565,8 +490,7 @@ public sealed class AuditEngine
     /// <summary>
     /// 判断项目名称是否为测试项目
     /// </summary>
-    private static bool IsTestProject(string projectName)
-    {
+    private static bool IsTestProject(string projectName) {
         return projectName.Contains("Test", StringComparison.Ordinal) ||
                projectName.Contains("Benchmark", StringComparison.Ordinal) ||
                projectName.Contains("MockServer", StringComparison.Ordinal) ||
@@ -576,8 +500,7 @@ public sealed class AuditEngine
     /// <summary>
     /// 判断项目路径是否为测试项目
     /// </summary>
-    private static bool IsTestProjectPath(string projectPath)
-    {
+    private static bool IsTestProjectPath(string projectPath) {
         return projectPath.Contains("\\tests\\", StringComparison.Ordinal) ||
                projectPath.Contains("/tests/", StringComparison.Ordinal) ||
                projectPath.Contains("MockServer", StringComparison.Ordinal);
@@ -587,14 +510,12 @@ public sealed class AuditEngine
     /// 检测所有项目的 DI 循环依赖
     /// </summary>
     private async Task<List<DiCycleInfo>> DetectDiCyclesAsync(
-        IReadOnlyList<Project> projects, CancellationToken ct)
-    {
+        IReadOnlyList<Project> projects, CancellationToken ct) {
         var allRegistrations = new List<ServiceRegistration>();
         var allDependencies = new List<ConstructorDependency>();
 
         // 从每个项目中提取 DI 注册和构造函数依赖
-        var extractTasks = projects.Select(async project =>
-        {
+        var extractTasks = projects.Select(async project => {
             using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             projectCts.CancelAfter(TimeSpan.FromSeconds(120));
 
@@ -607,16 +528,14 @@ public sealed class AuditEngine
         });
 
         var extractResults = await Task.WhenAll(extractTasks).ConfigureAwait(false);
-        foreach (var (regs, deps) in extractResults)
-        {
+        foreach (var (regs, deps) in extractResults) {
             allRegistrations.AddRange(regs);
             allDependencies.AddRange(deps);
         }
 
         // 构建服务到实现的映射
         var serviceToImpl = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var reg in allRegistrations)
-        {
+        foreach (var reg in allRegistrations) {
             if (reg.ServiceType != reg.ImplementationType)
                 serviceToImpl[reg.ServiceType] = reg.ImplementationType;
         }
@@ -629,22 +548,18 @@ public sealed class AuditEngine
     /// <summary>
     /// 将 DI 循环结果转换为 ProjectAuditResult
     /// </summary>
-    private static ProjectAuditResult[] BuildCycleAuditResults(List<DiCycleInfo> cycles)
-    {
+    private static ProjectAuditResult[] BuildCycleAuditResults(List<DiCycleInfo> cycles) {
         if (cycles.Count == 0)
             return [];
 
         var diagnostics = new List<AuditDiagnostic>(cycles.Count);
-        foreach (var cycle in cycles)
-        {
+        foreach (var cycle in cycles) {
             var cyclePath = string.Join(" → ", cycle.Path);
             var message = $"DI 循环依赖: {cyclePath}。服务在构造时相互依赖，会导致 StackOverflowException。";
 
             // 为循环的每条边创建诊断
-            foreach (var edge in cycle.Edges)
-            {
-                diagnostics.Add(new AuditDiagnostic
-                {
+            foreach (var edge in cycle.Edges) {
+                diagnostics.Add(new AuditDiagnostic {
                     RuleId = "JCC9001",
                     Severity = "Error",
                     Message = message,
@@ -672,12 +587,10 @@ public sealed class AuditEngine
     /// 检测所有项目的胖构造函数（参数数量超过阈值）
     /// </summary>
     private async Task<List<ConstructorParamInfo>> DetectFatConstructorsAsync(
-        IReadOnlyList<Project> projects, CancellationToken ct)
-    {
+        IReadOnlyList<Project> projects, CancellationToken ct) {
         var allFatCtors = new List<ConstructorParamInfo>();
 
-        var extractTasks = projects.Select(async project =>
-        {
+        var extractTasks = projects.Select(async project => {
             using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             projectCts.CancelAfter(TimeSpan.FromSeconds(120));
 
@@ -689,8 +602,7 @@ public sealed class AuditEngine
         });
 
         var extractResults = await Task.WhenAll(extractTasks).ConfigureAwait(false);
-        foreach (var ctors in extractResults)
-        {
+        foreach (var ctors in extractResults) {
             allFatCtors.AddRange(ctors);
         }
 
@@ -700,20 +612,17 @@ public sealed class AuditEngine
     /// <summary>
     /// 将胖构造函数结果转换为 ProjectAuditResult
     /// </summary>
-    private static ProjectAuditResult[] BuildFatCtorAuditResults(List<ConstructorParamInfo> fatCtors)
-    {
+    private static ProjectAuditResult[] BuildFatCtorAuditResults(List<ConstructorParamInfo> fatCtors) {
         if (fatCtors.Count == 0)
             return [];
 
         var diagnostics = new List<AuditDiagnostic>(fatCtors.Count);
-        foreach (var ctor in fatCtors)
-        {
+        foreach (var ctor in fatCtors) {
             var paramList = string.Join(", ", ctor.ParameterTypes);
             var message = $"胖构造函数: {ctor.ClassName} 有 {ctor.ParameterCount} 个参数（{paramList}）。" +
                          $"建议重构为中间件模式，将相关参数聚合为中间件上下文，减少构造函数注入。";
 
-            diagnostics.Add(new AuditDiagnostic
-            {
+            diagnostics.Add(new AuditDiagnostic {
                 RuleId = "JCC9003",
                 Severity = ctor.ParameterCount >= 12 ? "Error" : "Warning",
                 Message = message,
@@ -740,12 +649,10 @@ public sealed class AuditEngine
     }
 
     private async Task<List<DisposableConsistencyInfo>> DetectDisposableConsistencyAsync(
-        IReadOnlyList<Project> projects, CancellationToken ct)
-    {
+        IReadOnlyList<Project> projects, CancellationToken ct) {
         var allIssues = new List<DisposableConsistencyInfo>();
 
-        var extractTasks = projects.Select(async project =>
-        {
+        var extractTasks = projects.Select(async project => {
             using var projectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             projectCts.CancelAfter(TimeSpan.FromSeconds(120));
 
@@ -757,24 +664,20 @@ public sealed class AuditEngine
         });
 
         var extractResults = await Task.WhenAll(extractTasks).ConfigureAwait(false);
-        foreach (var issues in extractResults)
-        {
+        foreach (var issues in extractResults) {
             allIssues.AddRange(issues);
         }
 
         return allIssues;
     }
 
-    private static ProjectAuditResult[] BuildDisposableAuditResults(List<DisposableConsistencyInfo> issues)
-    {
+    private static ProjectAuditResult[] BuildDisposableAuditResults(List<DisposableConsistencyInfo> issues) {
         if (issues.Count == 0)
             return [];
 
         var diagnostics = new List<AuditDiagnostic>(issues.Count);
-        foreach (var issue in issues)
-        {
-            diagnostics.Add(new AuditDiagnostic
-            {
+        foreach (var issue in issues) {
+            diagnostics.Add(new AuditDiagnostic {
                 RuleId = issue.RuleId,
                 Severity = issue.Severity,
                 Message = issue.Message,

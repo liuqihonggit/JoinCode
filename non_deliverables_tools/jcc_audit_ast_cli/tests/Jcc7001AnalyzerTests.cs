@@ -1,30 +1,27 @@
-namespace JccAuditCli.Tests;
 
-using System.Collections.Immutable;
-using System.Reflection;
+using AotSafety.Generator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
-using AotSafety.Generator;
+using System.Collections.Immutable;
+using System.Reflection;
 
+namespace JccAuditCli.Tests;
 /// <summary>
 /// JCC7001 分析器的单元测试
 /// 验证：lambda 内的方法调用、泛型方法调用、方法组引用等场景
 /// </summary>
-public sealed class Jcc7001AnalyzerTests
-{
+public sealed class Jcc7001AnalyzerTests {
     private static readonly DiagnosticAnalyzer Analyzer = new DeadCodeRules();
 
-    private static async Task<List<Diagnostic>> GetDiagnosticsAsync(string source)
-    {
+    private static async Task<List<Diagnostic>> GetDiagnosticsAsync(string source) {
         var compilation = await CreateCompilationAsync(source);
         var compilationWithAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create(Analyzer));
         var diagnostics = await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(CancellationToken.None);
         return diagnostics.Where(d => d.Id == "JCC7001").ToList();
     }
 
-    private static async Task<Compilation> CreateCompilationAsync(string source)
-    {
+    private static async Task<Compilation> CreateCompilationAsync(string source) {
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
         var references = Basic.Reference.Assemblies.Net80.References.All
             .Cast<PortableExecutableReference>()
@@ -40,8 +37,7 @@ public sealed class Jcc7001AnalyzerTests
         var errors = compilation.GetDiagnostics()
             .Where(d => d.Severity == DiagnosticSeverity.Error)
             .ToList();
-        if (errors.Count > 0)
-        {
+        if (errors.Count > 0) {
             var msg = string.Join("\n", errors.Select(e => e.ToString()));
             throw new InvalidOperationException($"[GEN066] 测试源码有编译错误:\n{msg}");
         }
@@ -53,8 +49,7 @@ public sealed class Jcc7001AnalyzerTests
     /// 验证：lambda 内调用 private static 方法，不应报 JCC7001
     /// </summary>
     [Fact]
-    public async Task LambdaCall_PrivateStaticMethod_ShouldNotReport()
-    {
+    public async Task LambdaCall_PrivateStaticMethod_ShouldNotReport() {
         var source = """
             using System;
             using System.Collections.Generic;
@@ -91,8 +86,7 @@ public sealed class Jcc7001AnalyzerTests
     /// 验证：Configure lambda 内调用 private static 方法（模拟 DI 注册场景）
     /// </summary>
     [Fact]
-    public async Task ConfigureLambdaCall_PrivateStaticMethod_ShouldNotReport()
-    {
+    public async Task ConfigureLambdaCall_PrivateStaticMethod_ShouldNotReport() {
         var source = """
             using System;
             using System.Collections.Generic;
@@ -133,8 +127,7 @@ public sealed class Jcc7001AnalyzerTests
     /// 这是 Brain 项目中 CreateDefaultReminderConfigs 的精确复现
     /// </summary>
     [Fact]
-    public async Task ExtensionMethod_ConfigureLambda_PrivateStaticMethod_ShouldNotReport()
-    {
+    public async Task ExtensionMethod_ConfigureLambda_PrivateStaticMethod_ShouldNotReport() {
         var source = """
             using System;
             using System.Collections.Generic;
@@ -174,8 +167,7 @@ public sealed class Jcc7001AnalyzerTests
     /// 验证：泛型方法调用，不应报 JCC7001
     /// </summary>
     [Fact]
-    public async Task GenericMethodCall_ShouldNotReport()
-    {
+    public async Task GenericMethodCall_ShouldNotReport() {
         var source = """
             public sealed class Validator
             {
@@ -206,8 +198,7 @@ public sealed class Jcc7001AnalyzerTests
     /// 验证：方法组引用（如 .Where(IsPathLike)），不应报 JCC7001
     /// </summary>
     [Fact]
-    public async Task MethodGroupReference_ShouldNotReport()
-    {
+    public async Task MethodGroupReference_ShouldNotReport() {
         var source = """
             using System;
             using System.Collections.Generic;
@@ -236,8 +227,7 @@ public sealed class Jcc7001AnalyzerTests
     /// 验证：真正未引用的 private 方法，应报 JCC7001
     /// </summary>
     [Fact]
-    public async Task TrulyUnreferencedMethod_ShouldReport()
-    {
+    public async Task TrulyUnreferencedMethod_ShouldReport() {
         var source = """
             public sealed class DeadCode
             {

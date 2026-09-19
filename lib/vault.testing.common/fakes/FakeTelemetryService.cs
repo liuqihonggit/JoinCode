@@ -4,8 +4,7 @@ namespace Core.Tests.Fakes;
 /// <summary>
 /// 测试用遥测服务 — 记录计数与直方图调用，便于验证业务指标。
 /// </summary>
-public sealed class FakeTelemetryService : ITelemetryService
-{
+public sealed class FakeTelemetryService : ITelemetryService {
     private readonly List<CounterRecord> _counters = new();
     private readonly List<HistogramRecord> _histograms = new();
 
@@ -46,12 +45,10 @@ public sealed class FakeTelemetryService : ITelemetryService
 
     public sealed record HistogramRecord(string Name, double Value, Dictionary<string, string>? Tags);
 
-    private sealed class FakeCounter : ITelemetryCounter
-    {
+    private sealed class FakeCounter : ITelemetryCounter {
         private readonly FakeTelemetryService _service;
 
-        public FakeCounter(FakeTelemetryService service, string name)
-        {
+        public FakeCounter(FakeTelemetryService service, string name) {
             _service = service;
             Name = name;
         }
@@ -62,12 +59,10 @@ public sealed class FakeTelemetryService : ITelemetryService
             => _service.AddCounter(Name, value, tags);
     }
 
-    private sealed class FakeHistogram : ITelemetryHistogram
-    {
+    private sealed class FakeHistogram : ITelemetryHistogram {
         private readonly FakeTelemetryService _service;
 
-        public FakeHistogram(FakeTelemetryService service, string name)
-        {
+        public FakeHistogram(FakeTelemetryService service, string name) {
             _service = service;
             Name = name;
         }
@@ -78,19 +73,16 @@ public sealed class FakeTelemetryService : ITelemetryService
             => _service.AddHistogram(Name, value, tags);
     }
 
-    private sealed class FakeGauge : ITelemetryGauge
-    {
+    private sealed class FakeGauge : ITelemetryGauge {
         public FakeGauge(string name) => Name = name;
 
         public string Name { get; }
 
-        public void Record(double value, Dictionary<string, string>? tags = null)
-        {
+        public void Record(double value, Dictionary<string, string>? tags = null) {
         }
     }
 
-    private sealed class NullTelemetrySpan : ITelemetrySpan
-    {
+    private sealed class NullTelemetrySpan : ITelemetrySpan {
         public string SpanId => Guid.Empty.ToString();
 
         public string TraceId => Guid.Empty.ToString();

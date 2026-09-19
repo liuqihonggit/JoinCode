@@ -4,15 +4,13 @@ namespace Core.Scheduling;
 /// <summary>
 /// 执行上下文 - 封装并行执行的状态
 /// </summary>
-internal sealed class ExecutionContext : IAsyncDisposable
-{
+internal sealed class ExecutionContext : IAsyncDisposable {
     private readonly ConcurrentDictionary<string, byte> _completedTaskIds;
     private readonly List<Task> _runningTasks;
     private readonly AsyncLock _runningTasksLock = new();
     private int _isDisposed;
 
-    public ExecutionContext(ExecutionOptions options,  CancellationToken cancellationToken)
-    {
+    public ExecutionContext(ExecutionOptions options, CancellationToken cancellationToken) {
         Options = options;
         CancellationToken = cancellationToken;
         ConcurrencyLock = new AsyncLock(nameof(ExecutionContext) + ".Concurrency", options.MaxConcurrentTasks, options.MaxConcurrentTasks);
@@ -27,10 +25,8 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// <summary>
     /// 添加运行中的任务 - 线程安全
     /// </summary>
-    public async Task AddRunningTaskAsync(Task task)
-    {
-                using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时"))
-        {
+    public async Task AddRunningTaskAsync(Task task) {
+        using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
             _runningTasks.Add(task);
         }
     }
@@ -38,10 +34,8 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// <summary>
     /// 获取运行中的任务列表快照 - 线程安全
     /// </summary>
-    public async Task<List<Task>> GetRunningTasksSnapshotAsync()
-    {
-                using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时"))
-        {
+    public async Task<List<Task>> GetRunningTasksSnapshotAsync() {
+        using (await _runningTasksLock.TryLockAsync(CancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
             return _runningTasks.ToList();
         }
     }
@@ -49,10 +43,8 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// <summary>
     /// 清理已完成的任务 - 线程安全
     /// </summary>
-    public async Task CleanupCompletedTasksAsync(CancellationToken cancellationToken = default)
-    {
-                using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时"))
-        {
+    public async Task CleanupCompletedTasksAsync(CancellationToken cancellationToken = default) {
+        using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
             _runningTasks.RemoveAll(t => t.IsCompleted);
         }
     }
@@ -60,10 +52,8 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// <summary>
     /// 获取运行中任务数量 - 线程安全
     /// </summary>
-    public async Task<int> GetRunningTaskCountAsync(CancellationToken cancellationToken = default)
-    {
-                using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时"))
-        {
+    public async Task<int> GetRunningTaskCountAsync(CancellationToken cancellationToken = default) {
+        using (await _runningTasksLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_runningTasksLock.Name}' 等待超时")) {
             return _runningTasks.Count;
         }
     }
@@ -86,10 +76,8 @@ internal sealed class ExecutionContext : IAsyncDisposable
     /// <summary>
     /// 异步释放资源
     /// </summary>
-    public async ValueTask DisposeAsync()
-    {
-        if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
-        {
+    public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _isDisposed, 1) != 0) {
             return;
         }
 

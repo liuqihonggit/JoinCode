@@ -10,8 +10,7 @@ namespace Core.Context;
 ///     &lt;/｜DSML｜invoke&gt;
 ///   &lt;/｜DSML｜tool_calls&gt;
 /// </summary>
-public sealed class DsmlToolCallParser : ITextToolCallParser
-{
+public sealed class DsmlToolCallParser : ITextToolCallParser {
     private const string ToolCallsOpen = "<\uFF5CDSML\uFF5Ctool_calls>";
     private const string ToolCallsClose = "</\uFF5CDSML\uFF5Ctool_calls>";
 
@@ -24,8 +23,7 @@ public sealed class DsmlToolCallParser : ITextToolCallParser
         RegexOptions.Singleline | RegexOptions.Compiled);
 
     /// <inheritdoc />
-    public TextToolCallParseResult? TryParse(ReadOnlySpan<char> content)
-    {
+    public TextToolCallParseResult? TryParse(ReadOnlySpan<char> content) {
         if (content.IsEmpty) return null;
 
         var text = content.ToString();
@@ -40,13 +38,11 @@ public sealed class DsmlToolCallParser : ITextToolCallParser
 
         var toolCalls = new List<ToolCallEntry>();
         var matches = InvokeRegex.Matches(block);
-        foreach (Match m in matches)
-        {
+        foreach (Match m in matches) {
             var toolName = m.Groups[1].Value;
             var invokeBody = m.Groups[2].Value;
             var arguments = ParseArguments(invokeBody);
-            toolCalls.Add(new ToolCallEntry
-            {
+            toolCalls.Add(new ToolCallEntry {
                 Id = null,
                 Name = toolName,
                 Arguments = arguments
@@ -58,8 +54,7 @@ public sealed class DsmlToolCallParser : ITextToolCallParser
         string? remaining = null;
         var before = text.AsSpan(0, startIdx);
         var after = text.AsSpan(endIdx + ToolCallsClose.Length);
-        if (!before.IsEmpty || !after.IsEmpty)
-        {
+        if (!before.IsEmpty || !after.IsEmpty) {
             var sb = new StringBuilder(before.Length + after.Length);
             sb.Append(before);
             sb.Append(after);
@@ -67,21 +62,18 @@ public sealed class DsmlToolCallParser : ITextToolCallParser
             if (remaining.Length == 0) remaining = null;
         }
 
-        return new TextToolCallParseResult
-        {
+        return new TextToolCallParseResult {
             ToolCalls = toolCalls,
             RemainingText = remaining
         };
     }
 
-    private static string ParseArguments(string invokeBody)
-    {
+    private static string ParseArguments(string invokeBody) {
         var paramMatches = ParameterRegex.Matches(invokeBody);
         if (paramMatches.Count == 0) return "{}";
 
         var sb = new StringBuilder("{");
-        for (var i = 0; i < paramMatches.Count; i++)
-        {
+        for (var i = 0; i < paramMatches.Count; i++) {
             if (i > 0) sb.Append(',');
             var name = paramMatches[i].Groups[1].Value;
             var value = paramMatches[i].Groups[2].Value;

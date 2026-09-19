@@ -3,8 +3,7 @@ namespace Core.Context;
 /// <summary>
 /// 流式块处理动作
 /// </summary>
-public enum ChunkAction
-{
+public enum ChunkAction {
     /// <summary>跳过当前块，继续处理下一个</summary>
     [EnumValue("continue")] Continue,
     /// <summary>发射事件并继续</summary>
@@ -18,8 +17,7 @@ public enum ChunkAction
 /// <summary>
 /// 一轮迭代的累积状态
 /// </summary>
-public sealed partial class IterationState
-{
+public sealed partial class IterationState {
     /// <summary>链路调用 ID — 格式: {sessionId短码}.{序号}，由 LLMInvocationHandler 入口设置</summary>
     public string? CallId { get; set; }
     /// <summary>累积的助手文本响应</summary>
@@ -48,8 +46,7 @@ public sealed partial class IterationState
 /// <summary>
 /// 流式块处理结果
 /// </summary>
-public sealed record StreamChunkResult
-{
+public sealed record StreamChunkResult {
     /// <summary>
     /// 处理动作
     /// </summary>
@@ -66,8 +63,7 @@ public sealed record StreamChunkResult
 /// 负责元数据解析、思考/内容分离、循环检测、用量提取
 /// </summary>
 [Register(typeof(IChatStreamChunkProcessor), ServiceLifetime.Singleton)]
-public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStreamChunkProcessor
-{
+public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStreamChunkProcessor {
     private readonly IOutputLoopDetector _loopDetector;
     private readonly IChatUsageProcessor _usageProcessor;
     private readonly ILogger<ChatStreamChunkProcessor>? _logger;
@@ -78,8 +74,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
     public ChatStreamChunkProcessor(
         IOutputLoopDetector loopDetector,
         IChatUsageProcessor usageProcessor,
-        ILogger<ChatStreamChunkProcessor>? logger = null)
-    {
+        ILogger<ChatStreamChunkProcessor>? logger = null) {
         _loopDetector = loopDetector;
         _usageProcessor = usageProcessor;
         _logger = logger;
@@ -96,13 +91,11 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
     /// <param name="chunk">流式事件</param>
     /// <param name="state">迭代状态</param>
     /// <param name="streamingToolExecution">是否启用流式工具执行模式 — true 时检测到工具调用不 Break，继续流式</param>
-    public StreamChunkResult ProcessChunk(StreamEvent chunk, IterationState state, bool streamingToolExecution = false)
-    {
+    public StreamChunkResult ProcessChunk(StreamEvent chunk, IterationState state, bool streamingToolExecution = false) {
         // 1. 工具调用检测 — 统一读 AllToolCalls 数组（含0~N个工具调用）
         if (chunk.Metadata?.TryGetValue("AllToolCalls", out var allEl) == true &&
             allEl.ValueKind == JsonValueKind.Array &&
-            allEl.GetArrayLength() > 0)
-        {
+            allEl.GetArrayLength() > 0) {
             ParseAllToolCalls(allEl, state, _logger);
 
             // 设置 state 的单工具调用字段（兼容现有逻辑）— 取第一个
@@ -115,54 +108,45 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
         }
 
         // 2. server_tool_use 进度事件
-        if (chunk.Metadata?.TryGetValue("server_tool_use", out var stuEl) == true && stuEl.ValueKind == JsonValueKind.True)
-        {
+        if (chunk.Metadata?.TryGetValue("server_tool_use", out var stuEl) == true && stuEl.ValueKind == JsonValueKind.True) {
             var toolName = chunk.Metadata?.TryGetValue("tool_name", out var tnEl) == true && tnEl.ValueKind == JsonValueKind.String
                 ? tnEl.GetString() ?? "web_search" : "web_search";
             var toolUseId = chunk.Metadata?.TryGetValue("tool_use_id", out var tuiEl) == true && tuiEl.ValueKind == JsonValueKind.String
                 ? tuiEl.GetString() : null;
 
-            if (chunk.Metadata?.TryGetValue("query_update", out var quEl) == true && quEl.ValueKind == JsonValueKind.String)
-            {
+            if (chunk.Metadata?.TryGetValue("query_update", out var quEl) == true && quEl.ValueKind == JsonValueKind.String) {
                 var query = quEl.GetString() ?? "";
-                return new StreamChunkResult
-                {
+                return new StreamChunkResult {
                     Action = ChunkAction.Continue,
                     Events = [ChatStreamEvent.ToolProgress(toolName, "query_update", query, toolUseId)]
                 };
             }
 
-            return new StreamChunkResult
-            {
+            return new StreamChunkResult {
                 Action = ChunkAction.Continue,
                 Events = [ChatStreamEvent.ToolProgress(toolName, "server_tool_use", "Searching…", toolUseId)]
             };
         }
 
         // 3. web_search_result 进度事件
-        if (chunk.Metadata?.TryGetValue("web_search_result", out var wsrEl) == true && wsrEl.ValueKind == JsonValueKind.True)
-        {
+        if (chunk.Metadata?.TryGetValue("web_search_result", out var wsrEl) == true && wsrEl.ValueKind == JsonValueKind.True) {
             var toolName = "web_search";
             var toolUseId = chunk.Metadata?.TryGetValue("tool_use_id", out var tuiEl2) == true && tuiEl2.ValueKind == JsonValueKind.String
                 ? tuiEl2.GetString() : null;
 
-            if (chunk.Metadata?.TryGetValue("search_links", out var slEl) == true && slEl.ValueKind == JsonValueKind.String)
-            {
+            if (chunk.Metadata?.TryGetValue("search_links", out var slEl) == true && slEl.ValueKind == JsonValueKind.String) {
                 var links = slEl.GetString() ?? "";
                 var linkCount = links.Count(c => c == '\n');
-                return new StreamChunkResult
-                {
+                return new StreamChunkResult {
                     Action = ChunkAction.Continue,
                     Events = [ChatStreamEvent.ToolProgress(toolName, "search_results_received",
                         $"Found {linkCount} results", toolUseId)]
                 };
             }
 
-            if (chunk.Metadata?.TryGetValue("search_error", out var seEl) == true && seEl.ValueKind == JsonValueKind.String)
-            {
+            if (chunk.Metadata?.TryGetValue("search_error", out var seEl) == true && seEl.ValueKind == JsonValueKind.String) {
                 var errorCode = seEl.GetString() ?? "unknown";
-                return new StreamChunkResult
-                {
+                return new StreamChunkResult {
                     Action = ChunkAction.Continue,
                     Events = [ChatStreamEvent.ToolProgress(toolName, "search_results_received",
                         $"Search error: {errorCode}", toolUseId)]
@@ -179,61 +163,47 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
         ChatStreamEvent[] events = [];
         var shouldBreak = false;
 
-        if (chunk.Content is not null)
-        {
-            if (isThinking)
-            {
+        if (chunk.Content is not null) {
+            if (isThinking) {
                 state.ThinkingResponse.Append(chunk.Content);
                 events = [ChatStreamEvent.Thinking(chunk.Content)];
-            }
-            else
-            {
+            } else {
                 state.FullResponse.Append(chunk.Content);
 
                 var loopResult = _loopDetector.Detect(state.FullResponse);
-                if (loopResult.IsLoopDetected)
-                {
+                if (loopResult.IsLoopDetected) {
                     _logger?.LogWarning("[ChatStreamChunkProcessor] 检测到LLM循环输出，第{N}次触发，重复模式长度: {Len}, 重复次数: {Count}",
                         loopResult.LoopTriggerCount, loopResult.RepeatedPattern?.Length ?? 0, loopResult.RepeatCount);
                     events = [
                         ChatStreamEvent.Text(chunk.Content),
                         ChatStreamEvent.LoopDetected(loopResult.LoopTriggerCount, loopResult.LoopStartIndex, loopResult.RepeatedPattern)
                     ];
-                }
-                else
-                {
+                } else {
                     events = [ChatStreamEvent.Text(chunk.Content)];
                 }
             }
         }
 
         // 5. 用量提取
-        if (chunk.Metadata?.TryGetValue("Usage", out var usageEl) == true && usageEl.ValueKind == JsonValueKind.Object)
-        {
-            try
-            {
+        if (chunk.Metadata?.TryGetValue("Usage", out var usageEl) == true && usageEl.ValueKind == JsonValueKind.Object) {
+            try {
                 state.StreamUsage = JsonSerializer.Deserialize<TokenUsage>(usageEl, ChatServiceJsonContext.Default.TokenUsage);
-            }
-            catch (Exception ex) when (ex is JsonException or FormatException)
-            {
+            } catch (Exception ex) when (ex is JsonException or FormatException) {
                 _logger?.LogWarning(ex, "TokenUsage 反序列化失败，跳过 Usage 数据");
             }
         }
 
         // 6. 限流数据提取
-        if (chunk.Metadata is not null)
-        {
+        if (chunk.Metadata is not null) {
             _usageProcessor.TryExtractRateLimitData(chunk.Metadata);
         }
 
         // 7. 模型 ID 追踪
-        if (chunk.ModelId is not null)
-        {
+        if (chunk.ModelId is not null) {
             state.StreamModelId = chunk.ModelId;
         }
 
-        return new StreamChunkResult
-        {
+        return new StreamChunkResult {
             Action = shouldBreak ? ChunkAction.Break : (events.Length > 0 ? ChunkAction.Yield : ChunkAction.Continue),
             Events = events
         };
@@ -244,10 +214,8 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
     /// 格式: [{"Id":"...","Name":"...","Arguments":"..."},...]
     /// 对每个工具调用独立执行参数修复（RepairToolName + RepairJson）
     /// </summary>
-    private static void ParseAllToolCalls(JsonElement allEl, IterationState state, ILogger<ChatStreamChunkProcessor>? logger = null)
-    {
-        foreach (var item in allEl.EnumerateArray())
-        {
+    private static void ParseAllToolCalls(JsonElement allEl, IterationState state, ILogger<ChatStreamChunkProcessor>? logger = null) {
+        foreach (var item in allEl.EnumerateArray()) {
             string? id = null;
             string? name = null;
             var arguments = "{}";
@@ -266,8 +234,7 @@ public sealed partial class ChatStreamChunkProcessor : ServiceEntity, IChatStrea
             var jsonRepair = LlmJsonHelper.RepairJson(arguments, logger);
             var repairedArgs = jsonRepair.Success ? jsonRepair.RepairedJson : arguments;
 
-            state.ToolCalls.Add(new ToolCallEntry
-            {
+            state.ToolCalls.Add(new ToolCallEntry {
                 Id = id,
                 Name = repairedName,
                 Arguments = repairedArgs

@@ -6,8 +6,7 @@ namespace JoinCode.Gui.ViewModels;
 /// 纯 C# 无 UI 依赖，行为对齐 TS 原版：尾部 N 条活动 + 连续搜索/读取折叠 + 展开上限 LRU 驱逐
 /// （展开管理语义移植自旧 TUI SubAgentCardManager）。
 /// </summary>
-public sealed class SubAgentRunTracker
-{
+public sealed class SubAgentRunTracker {
     private readonly int _maxVisibleActivities;
     private readonly int _maxExpanded;
 
@@ -25,8 +24,7 @@ public sealed class SubAgentRunTracker
         "grep", "glob", "read", "FileRead", "FileSearch", "Search", "LS", "List");
 
     /// <summary>初始化 SubAgentRunTracker 实例</summary>
-    public SubAgentRunTracker(int maxVisibleActivities = 3, int maxExpanded = 3)
-    {
+    public SubAgentRunTracker(int maxVisibleActivities = 3, int maxExpanded = 3) {
         _maxVisibleActivities = maxVisibleActivities;
         _maxExpanded = maxExpanded;
     }
@@ -44,27 +42,23 @@ public sealed class SubAgentRunTracker
     /// 消费一条子代理事件 — 未知 agentId 的活动事件静默忽略；
     /// 终态后的迟到事件不复活统计。返回被 LRU 驱逐的展开项 ID（null 表示无驱逐）。
     /// </summary>
-    public string? Observe(ChatStreamEvent evt)
-    {
+    public string? Observe(ChatStreamEvent evt) {
         if (!evt.IsSubAgentActivity || evt.AgentId is null)
             return null;
 
-        switch (evt.Type)
-        {
+        switch (evt.Type) {
             case ChatStreamEventType.AgentStarted:
-                OnStarted(evt);
-                return null;
+            OnStarted(evt);
+            return null;
             case ChatStreamEventType.AgentFinished:
-                return OnFinished(evt);
+            return OnFinished(evt);
             default:
-                OnActivity(evt);
-                return null;
+            OnActivity(evt);
+            return null;
         }
     }
-    private void OnStarted(ChatStreamEvent evt)
-    {
-        if (_runs.TryGetValue(evt.AgentId!, out var existing))
-        {
+    private void OnStarted(ChatStreamEvent evt) {
+        if (_runs.TryGetValue(evt.AgentId!, out var existing)) {
             // 重复 Started（重试等）— 刷新元数据但不重置状态
             if (evt.AgentName is not null)
                 existing.Name = evt.AgentName;
@@ -73,8 +67,7 @@ public sealed class SubAgentRunTracker
             return;
         }
 
-        var run = new SubAgentRun
-        {
+        var run = new SubAgentRun {
             AgentId = evt.AgentId!,
             Name = evt.AgentName ?? evt.AgentRole ?? "agent",
             Description = evt.AgentDescription ?? string.Empty,
@@ -84,64 +77,58 @@ public sealed class SubAgentRunTracker
         _runs[evt.AgentId!] = run;
     }
 
-    private void OnActivity(ChatStreamEvent evt)
-    {
+    private void OnActivity(ChatStreamEvent evt) {
         if (!_runs.TryGetValue(evt.AgentId!, out var run) || run.State != SubAgentRunState.Running)
             return;
 
-        switch (evt.Type)
-        {
+        switch (evt.Type) {
             case ChatStreamEventType.ToolCallStart when !string.IsNullOrEmpty(evt.ToolName):
-                var calling = $"正在调用 {evt.ToolName}…";
-                AppendCollapsed(run, calling);
-                run.LastActivityText = calling;
-                run.AppendTranscript("·", $"调用 {evt.ToolName}");
-                break;
+            var calling = $"正在调用 {evt.ToolName}…";
+            AppendCollapsed(run, calling);
+            run.LastActivityText = calling;
+            run.AppendTranscript("·", $"调用 {evt.ToolName}");
+            break;
 
             case ChatStreamEventType.ToolCallEnd when !string.IsNullOrEmpty(evt.ToolName):
-                run.ToolUseCount++;
-                string endText;
-                if (SearchReadTools.Contains(evt.ToolName))
-                {
-                    // 连续第 2 次起折叠成计数摘要（对齐 TS 原版：单次不折叠，保留工具名可读性）
-                    run.SearchReadStreak++;
-                    endText = run.SearchReadStreak >= 2
-                        ? $"搜索/读取 {run.SearchReadStreak} 次…"
-                        : $"✓ {evt.ToolName}";
-                }
-                else
-                {
-                    run.SearchReadStreak = 0;
-                    endText = evt.IsToolError ? $"✗ {evt.ToolName}" : $"✓ {evt.ToolName}";
-                }
+            run.ToolUseCount++;
+            string endText;
+            if (SearchReadTools.Contains(evt.ToolName)) {
+                // 连续第 2 次起折叠成计数摘要（对齐 TS 原版：单次不折叠，保留工具名可读性）
+                run.SearchReadStreak++;
+                endText = run.SearchReadStreak >= 2
+                    ? $"搜索/读取 {run.SearchReadStreak} 次…"
+                    : $"✓ {evt.ToolName}";
+            } else {
+                run.SearchReadStreak = 0;
+                endText = evt.IsToolError ? $"✗ {evt.ToolName}" : $"✓ {evt.ToolName}";
+            }
 
-                AppendCollapsed(run, endText);
-                run.LastActivityText = endText;
-                run.AppendTranscript(evt.IsToolError ? "✗" : "✓",
-                    $"{evt.ToolName} → {(evt.ToolResultText is { Length: > 200 } t ? t[..200] + "…" : evt.ToolResultText ?? "(无结果)")}");
-                break;
+            AppendCollapsed(run, endText);
+            run.LastActivityText = endText;
+            run.AppendTranscript(evt.IsToolError ? "✗" : "✓",
+                $"{evt.ToolName} → {(evt.ToolResultText is { Length: > 200 } t ? t[..200] + "…" : evt.ToolResultText ?? "(无结果)")}");
+            break;
 
             case ChatStreamEventType.Content when !string.IsNullOrWhiteSpace(evt.Content):
-                var content = evt.Content.Length > 80 ? evt.Content[..80] + "…" : evt.Content;
-                AppendCollapsed(run, content);
-                run.LastActivityText = content;
-                run.AppendTranscript("¶", evt.Content);
-                break;
+            var content = evt.Content.Length > 80 ? evt.Content[..80] + "…" : evt.Content;
+            AppendCollapsed(run, content);
+            run.LastActivityText = content;
+            run.AppendTranscript("¶", evt.Content);
+            break;
 
             case ChatStreamEventType.Thinking when !string.IsNullOrEmpty(evt.ThinkingContent):
-                run.AppendTranscript("◌", evt.ThinkingContent);
-                break;
+            run.AppendTranscript("◌", evt.ThinkingContent);
+            break;
 
             case ChatStreamEventType.ToolProgress when !string.IsNullOrEmpty(evt.ProgressMessage):
-                AppendCollapsed(run, evt.ProgressMessage);
-                run.LastActivityText = evt.ProgressMessage;
-                run.AppendTranscript("…", evt.ProgressMessage);
-                break;
+            AppendCollapsed(run, evt.ProgressMessage);
+            run.LastActivityText = evt.ProgressMessage;
+            run.AppendTranscript("…", evt.ProgressMessage);
+            break;
         }
     }
 
-    private string? OnFinished(ChatStreamEvent evt)
-    {
+    private string? OnFinished(ChatStreamEvent evt) {
         if (!_runs.TryGetValue(evt.AgentId!, out var run))
             return null;
 
@@ -157,11 +144,9 @@ public sealed class SubAgentRunTracker
         return null;
     }
 
-    private void AppendCollapsed(SubAgentRun run, string text)
-    {
+    private void AppendCollapsed(SubAgentRun run, string text) {
         run._visibleActivities.Add(text);
-        if (run._visibleActivities.Count > _maxVisibleActivities)
-        {
+        if (run._visibleActivities.Count > _maxVisibleActivities) {
             run._visibleActivities.RemoveAt(0);
             run.HiddenActivityCount++;
         }
@@ -173,19 +158,15 @@ public sealed class SubAgentRunTracker
     public IReadOnlyList<string> Expanded => [.. _expandedOrder];
 
     /// <summary>指定 agent 是否已展开</summary>
-    public bool IsExpanded(string agentId)
-    {
-        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时"))
-        {
+    public bool IsExpanded(string agentId) {
+        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时")) {
             return _expandedSet.Contains(agentId);
         }
     }
 
     /// <summary>展开 agent — 超过上限时自动折叠最早展开的，返回被驱逐者 ID（null 表示无驱逐）</summary>
-    public string? Expand(string agentId)
-    {
-        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时"))
-        {
+    public string? Expand(string agentId) {
+        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时")) {
             if (!_expandedSet.Add(agentId))
                 return null;
 
@@ -202,10 +183,8 @@ public sealed class SubAgentRunTracker
     }
 
     /// <summary>折叠 agent（false 表示原本未展开）</summary>
-    public bool Collapse(string agentId)
-    {
-        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时"))
-        {
+    public bool Collapse(string agentId) {
+        using (_expandedOrderLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_expandedOrderLock.Name}' 等待超时")) {
             if (!_expandedSet.Remove(agentId))
                 return false;
             var node = _expandedOrder.Find(agentId);

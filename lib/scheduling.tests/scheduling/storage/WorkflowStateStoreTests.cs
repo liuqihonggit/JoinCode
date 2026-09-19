@@ -1,19 +1,16 @@
 
 namespace Core.Tests.Scheduling.Storage;
 
-public sealed class WorkflowStateStoreTests : IDisposable
-{
+public sealed class WorkflowStateStoreTests : IDisposable {
     private readonly InMemoryFileOperationService _fileOperationService;
     private const string PersistDir = "/test/workflow-states";
     private bool _disposed;
 
-    public WorkflowStateStoreTests()
-    {
+    public WorkflowStateStoreTests() {
         _fileOperationService = new InMemoryFileOperationService();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
         _fileOperationService.DisposeSafe();
@@ -21,13 +18,10 @@ public sealed class WorkflowStateStoreTests : IDisposable
 
     private WorkflowStateStore CreateStore() => new(_fileOperationService, PersistDir);
 
-    private static WorkflowSnapshot CreateSampleSnapshot(string workflowId = "wf-1")
-    {
-        return new WorkflowSnapshot
-        {
+    private static WorkflowSnapshot CreateSampleSnapshot(string workflowId = "wf-1") {
+        return new WorkflowSnapshot {
             WorkflowId = workflowId,
-            StepStates = new Dictionary<string, StepState>
-            {
+            StepStates = new Dictionary<string, StepState> {
                 ["step-a"] = StepState.Completed,
                 ["step-b"] = StepState.Failed
             },
@@ -37,8 +31,7 @@ public sealed class WorkflowStateStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveAndLoad_RoundTrip_ShouldPreserveData()
-    {
+    public async Task SaveAndLoad_RoundTrip_ShouldPreserveData() {
         var store = CreateStore();
         var snapshot = CreateSampleSnapshot();
 
@@ -55,8 +48,7 @@ public sealed class WorkflowStateStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadSnapshot_NonExistent_ShouldReturnNull()
-    {
+    public async Task LoadSnapshot_NonExistent_ShouldReturnNull() {
         var store = CreateStore();
 
         var loaded = await store.LoadSnapshotAsync("non-existent");
@@ -65,8 +57,7 @@ public sealed class WorkflowStateStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadSnapshot_CorruptFile_ShouldReturnNullAndQuarantine()
-    {
+    public async Task LoadSnapshot_CorruptFile_ShouldReturnNullAndQuarantine() {
         var store = CreateStore();
         _fileOperationService.FileSystem.CreateDirectory(PersistDir);
         var filePath = $"{PersistDir}/workflow_wf-corrupt.state.json";
@@ -81,8 +72,7 @@ public sealed class WorkflowStateStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveSnapshot_ShouldUseAtomicWrite_WithTempFileMove()
-    {
+    public async Task SaveSnapshot_ShouldUseAtomicWrite_WithTempFileMove() {
         var store = CreateStore();
         _fileOperationService.FileSystem.CreateDirectory(PersistDir);
 
@@ -95,8 +85,7 @@ public sealed class WorkflowStateStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveSnapshot_DifferentWorkflows_ShouldNotConflict()
-    {
+    public async Task SaveSnapshot_DifferentWorkflows_ShouldNotConflict() {
         var store = CreateStore();
 
         await store.SaveSnapshotAsync("wf-a", CreateSampleSnapshot("wf-a"));
@@ -110,20 +99,17 @@ public sealed class WorkflowStateStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveSnapshot_OverwriteExisting_ShouldReplace()
-    {
+    public async Task SaveSnapshot_OverwriteExisting_ShouldReplace() {
         var store = CreateStore();
 
-        var first = new WorkflowSnapshot
-        {
+        var first = new WorkflowSnapshot {
             WorkflowId = "wf-overwrite",
             StepStates = new Dictionary<string, StepState> { ["old"] = StepState.Completed },
             LastUpdated = DateTimeOffset.UtcNow
         };
         await store.SaveSnapshotAsync("wf-overwrite", first);
 
-        var second = new WorkflowSnapshot
-        {
+        var second = new WorkflowSnapshot {
             WorkflowId = "wf-overwrite",
             StepStates = new Dictionary<string, StepState> { ["new"] = StepState.Completed },
             LastUpdated = DateTimeOffset.UtcNow

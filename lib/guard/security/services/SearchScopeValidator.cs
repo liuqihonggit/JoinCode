@@ -7,16 +7,14 @@ namespace JoinCode.Abstractions.Security.Shell;
 /// </summary>
 [Register(typeof(ISearchScopeValidator), ServiceLifetime.Singleton)]
 [Register(typeof(ISearchScopeReloadable), ServiceLifetime.Singleton)]
-public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeValidator, ISearchScopeReloadable
-{
+public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeValidator, ISearchScopeReloadable {
     private static readonly FrozenSet<string> SearchCommands = FrozenSet.Create(
         StringComparer.OrdinalIgnoreCase,
         "rg", "grep", "egrep", "fgrep", "ag", "ack",
         "find", "fd", "fdfind", "locate", "mlocate");
 
     private static readonly FrozenDictionary<string, FrozenSet<string>> BuiltInDangerousFlags =
-        new Dictionary<string, FrozenSet<string>>(StringComparer.OrdinalIgnoreCase)
-        {
+        new Dictionary<string, FrozenSet<string>>(StringComparer.OrdinalIgnoreCase) {
             ["rg"] = FrozenSet.Create(
                 StringComparer.OrdinalIgnoreCase,
                 "--no-ignore", "--no-ignore-parent", "--no-ignore-vcs",
@@ -49,32 +47,26 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
     private volatile FrozenSet<string> _mergedExcessivePathPrefixes = BuiltInExcessivePathPrefixes;
 
     /// <inheritdoc/>
-    public SearchScopeValidationResult? Validate(ShellCommand command, string workingDirectory)
-    {
-        if (!_enabled)
-        {
+    public SearchScopeValidationResult? Validate(ShellCommand command, string workingDirectory) {
+        if (!_enabled) {
             return null;
         }
 
-        if (!SearchCommands.Contains(command.CommandName))
-        {
+        if (!SearchCommands.Contains(command.CommandName)) {
             return null;
         }
 
         var risks = new List<string>();
 
-        if (HasDangerousFlags(command, out var dangerousFlagDetails) && dangerousFlagDetails is not null)
-        {
+        if (HasDangerousFlags(command, out var dangerousFlagDetails) && dangerousFlagDetails is not null) {
             risks.Add(dangerousFlagDetails);
         }
 
-        if (HasExcessivePath(command, out var pathDetails) && pathDetails is not null)
-        {
+        if (HasExcessivePath(command, out var pathDetails) && pathDetails is not null) {
             risks.Add(pathDetails);
         }
 
-        if (risks.Count == 0)
-        {
+        if (risks.Count == 0) {
             return null;
         }
 
@@ -90,8 +82,7 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
     /// <summary>
     /// 热重载搜索范围配置 — 双变量切换模式：构建新快照 → 原子替换引用
     /// </summary>
-    public void ReloadSearchScope(SearchScopeConfig config)
-    {
+    public void ReloadSearchScope(SearchScopeConfig config) {
         _enabled = config.Enabled;
 
         var mergedFlags = MergeDangerousFlags(config.ExtraDangerousFlags);
@@ -102,33 +93,25 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
     }
 
     private static FrozenDictionary<string, FrozenSet<string>> MergeDangerousFlags(
-        Dictionary<string, FrozenSet<string>> extra)
-    {
-        if (extra.Count == 0)
-        {
+        Dictionary<string, FrozenSet<string>> extra) {
+        if (extra.Count == 0) {
             return BuiltInDangerousFlags;
         }
 
         var merged = new Dictionary<string, FrozenSet<string>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (cmd, flags) in BuiltInDangerousFlags)
-        {
-            if (extra.TryGetValue(cmd, out var extraFlags))
-            {
+        foreach (var (cmd, flags) in BuiltInDangerousFlags) {
+            if (extra.TryGetValue(cmd, out var extraFlags)) {
                 merged[cmd] = FrozenSet.Create(
                     StringComparer.OrdinalIgnoreCase,
                     [.. flags, .. extraFlags]);
-            }
-            else
-            {
+            } else {
                 merged[cmd] = flags;
             }
         }
 
-        foreach (var (cmd, flags) in extra)
-        {
-            if (!merged.ContainsKey(cmd))
-            {
+        foreach (var (cmd, flags) in extra) {
+            if (!merged.ContainsKey(cmd)) {
                 merged[cmd] = flags;
             }
         }
@@ -136,10 +119,8 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
         return merged.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static FrozenSet<string> MergeExcessivePathPrefixes(FrozenSet<string> extra)
-    {
-        if (extra.Count == 0)
-        {
+    private static FrozenSet<string> MergeExcessivePathPrefixes(FrozenSet<string> extra) {
+        if (extra.Count == 0) {
             return BuiltInExcessivePathPrefixes;
         }
 
@@ -148,31 +129,26 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
             [.. BuiltInExcessivePathPrefixes, .. extra]);
     }
 
-    private bool HasDangerousFlags(ShellCommand command, out string? details)
-    {
+    private bool HasDangerousFlags(ShellCommand command, out string? details) {
         details = null;
 
         var flags = _mergedDangerousFlags;
-        if (!flags.TryGetValue(command.CommandName, out var cmdFlags))
-        {
+        if (!flags.TryGetValue(command.CommandName, out var cmdFlags)) {
             return false;
         }
 
         var found = new List<string>();
-        foreach (var arg in command.Arguments)
-        {
+        foreach (var arg in command.Arguments) {
             var normalizedArg = arg.StartsWith("--", StringComparison.Ordinal)
                 ? arg.Split('=', 2)[0]
                 : arg;
 
-            if (cmdFlags.Contains(normalizedArg))
-            {
+            if (cmdFlags.Contains(normalizedArg)) {
                 found.Add(arg);
             }
         }
 
-        if (found.Count == 0)
-        {
+        if (found.Count == 0) {
             return false;
         }
 
@@ -180,29 +156,24 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
         return true;
     }
 
-    private bool HasExcessivePath(ShellCommand command, out string? details)
-    {
+    private bool HasExcessivePath(ShellCommand command, out string? details) {
         details = null;
 
         var prefixes = _mergedExcessivePathPrefixes;
 
-        foreach (var arg in command.Arguments)
-        {
-            if (!IsPathLike(arg))
-            {
+        foreach (var arg in command.Arguments) {
+            if (!IsPathLike(arg)) {
                 continue;
             }
 
             var normalized = arg.Replace('/', '\\').TrimEnd('\\');
 
-            if (prefixes.Contains(normalized) || prefixes.Contains(arg))
-            {
+            if (prefixes.Contains(normalized) || prefixes.Contains(arg)) {
                 details = $"搜索路径过大: '{arg}' — 搜索系统根目录可能导致长时间卡顿";
                 return true;
             }
 
-            if (DriveRootPattern.IsMatch(arg))
-            {
+            if (DriveRootPattern.IsMatch(arg)) {
                 details = $"搜索路径过大: '{arg}' — 搜索盘符根目录可能导致长时间卡顿";
                 return true;
             }
@@ -211,12 +182,10 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
         return false;
     }
 
-    private static string BuildSuggestion(string commandName, bool hasDangerousFlags)
-    {
+    private static string BuildSuggestion(string commandName, bool hasDangerousFlags) {
         var sb = new StringBuilder();
 
-        if (hasDangerousFlags)
-        {
+        if (hasDangerousFlags) {
             sb.Append(commandName.Equals("rg", StringComparison.OrdinalIgnoreCase)
                 ? "移除 --no-ignore/-u 等标志，让 rg 遵守 .gitignore 规则"
                 : "避免使用会忽略忽略规则的标志");
@@ -227,25 +196,20 @@ public sealed partial class SearchScopeValidator : ServiceEntity, ISearchScopeVa
         return sb.ToString();
     }
 
-    private static bool IsPathLike(string arg)
-    {
-        if (string.IsNullOrEmpty(arg))
-        {
+    private static bool IsPathLike(string arg) {
+        if (string.IsNullOrEmpty(arg)) {
             return false;
         }
 
-        if (arg.Length >= 2 && char.IsLetter(arg[0]) && arg[1] == ':')
-        {
+        if (arg.Length >= 2 && char.IsLetter(arg[0]) && arg[1] == ':') {
             return true;
         }
 
-        if (arg.StartsWith('/') || arg.StartsWith("./") || arg.StartsWith("../"))
-        {
+        if (arg.StartsWith('/') || arg.StartsWith("./") || arg.StartsWith("../")) {
             return true;
         }
 
-        if (arg.Contains('/') || arg.Contains('\\'))
-        {
+        if (arg.Contains('/') || arg.Contains('\\')) {
             return true;
         }
 

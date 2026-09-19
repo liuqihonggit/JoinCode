@@ -5,26 +5,22 @@ namespace Core.Permission;
 /// Plan 模式中间件 — Plan 模式下读取操作自动批准，写入操作需确认
 /// </summary>
 [Register(typeof(IPermissionMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class PlanModeMiddleware : ServiceEntity, IPermissionMiddleware
-{
+public sealed partial class PlanModeMiddleware : ServiceEntity, IPermissionMiddleware {
     /// <inheritdoc />
 
     /// <inheritdoc />
 
     /// <inheritdoc />
-    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct)
-    {
+    public Task InvokeAsync(PermissionCheckContext context, MiddlewareDelegate<PermissionCheckContext> next, CancellationToken ct) {
         if (context.CurrentMode != PermissionMode.Plan)
             return next(context, ct);
 
-        if (context.IsReadOperation(context.ToolName))
-        {
+        if (context.IsReadOperation(context.ToolName)) {
             context.Result = ToolPermissionCheckResult.Approved();
             return Task.CompletedTask;
         }
 
-        if (context.IsWriteOperation(context.ToolName))
-        {
+        if (context.IsWriteOperation(context.ToolName)) {
             context.Result = ToolPermissionCheckResult.PendingConfirmation($"计划模式：工具 '{context.ToolName}' 将执行写入操作，是否批量批准此类操作？");
             return Task.CompletedTask;
         }

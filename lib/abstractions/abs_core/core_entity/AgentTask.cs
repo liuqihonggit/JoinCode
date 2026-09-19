@@ -5,8 +5,7 @@ namespace JoinCode.Abstractions.Entity;
 /// ObjectId + 任务描述 + 创建时间 + 独立注册器 + 静态属性暴露
 /// 替代 TaskItem record（TaskItem 仍保留为 ITaskService 的 DTO，AgentTask 是运行时实体）
 /// </summary>
-public sealed class AgentTask : Entity
-{
+public sealed class AgentTask : Entity {
     public string Title { get; }
     public string? Description { get; init; }
     public TaskType Type { get; init; }
@@ -35,8 +34,7 @@ public sealed class AgentTask : Entity
         IEnumerable<string>? tags = null,
         string? displayName = null,
         ObjectId sessionId = default)
-        : base(ObjectType.Task, sessionId, displayName ?? title)
-    {
+        : base(ObjectType.Task, sessionId, displayName ?? title) {
         Title = title;
         Type = type;
         Priority = priority;
@@ -54,8 +52,7 @@ public sealed class AgentTask : Entity
     /// <summary>
     /// 惰性释放 — 持久化服务确认数据全部写入后才调用
     /// </summary>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         Registry.Remove(ObjectId);
         base.Dispose();
     }
@@ -63,8 +60,7 @@ public sealed class AgentTask : Entity
     /// <summary>
     /// 转换为 TaskItem DTO（供 ITaskService 持久化层使用）
     /// </summary>
-    public TaskItem ToTaskItem() => new()
-    {
+    public TaskItem ToTaskItem() => new() {
         Id = UniqueId,
         Title = Title,
         Description = Description,
@@ -87,8 +83,7 @@ public sealed class AgentTask : Entity
         dueDate: item.DueDate,
         tags: item.Tags,
         displayName: item.Id,
-        sessionId: sessionId)
-    {
+        sessionId: sessionId) {
         Status = TaskExecutionStatusExtensions.FromValue(item.Status) ?? TaskExecutionStatus.Pending
     };
 
@@ -96,8 +91,7 @@ public sealed class AgentTask : Entity
     /// 跨会话深拷贝 — 新 ObjectId + 目标会话，深拷贝所有字段
     /// AssigneeObjectId/ParentTaskObjectId 通过 CloneContext 重映射，找不到抛异常
     /// </summary>
-    public override Entity Clone(CloneContext context)
-    {
+    public override Entity Clone(CloneContext context) {
         var cloned = new AgentTask(
             title: Title,
             type: Type,
@@ -109,8 +103,7 @@ public sealed class AgentTask : Entity
             dueDate: DueDate,
             tags: Tags.ToList(),
             displayName: DisplayName,
-            sessionId: context.TargetSessionId)
-        {
+            sessionId: context.TargetSessionId) {
             Status = Status
         };
         context.Map(ObjectId, cloned.ObjectId);

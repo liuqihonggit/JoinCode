@@ -5,8 +5,7 @@ namespace JoinCode.Gui.Markdown;
 /// 颜色全部取自 <see cref="GuiPalette.Current"/>，随主题实时切换。
 /// 每行前缀对齐 git diff：添加行 '+'、删除行 '-'、上下文行 ' '。
 /// </summary>
-public sealed class DiffViewer : StackPanel
-{
+public sealed class DiffViewer : StackPanel {
     /// <summary>待渲染的 Hunk 数组；变化时重建子控件树</summary>
     public static readonly StyledProperty<StructuredPatchHunk[]?> HunksProperty =
         AvaloniaProperty.Register<DiffViewer, StructuredPatchHunk[]?>(nameof(Hunks));
@@ -14,48 +13,40 @@ public sealed class DiffViewer : StackPanel
     private static readonly FontFamily MonoFont = new("Consolas");
 
     /// <summary>初始化 Diff 渲染控件</summary>
-    public DiffViewer()
-    {
+    public DiffViewer() {
         Spacing = 4;
     }
 
     /// <summary>待渲染的 Hunk 数组；变化时重建子控件树</summary>
-    public StructuredPatchHunk[]? Hunks
-    {
+    public StructuredPatchHunk[]? Hunks {
         get => GetValue(HunksProperty);
         set => SetValue(HunksProperty, value);
     }
 
     /// <inheritdoc />
-    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
-    {
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change) {
         base.OnPropertyChanged(change);
-        if (change.Property == HunksProperty)
-        {
+        if (change.Property == HunksProperty) {
             Rebuild();
         }
     }
 
     /// <summary>根据当前 Hunks 重建子控件树</summary>
-    public void Rebuild()
-    {
+    public void Rebuild() {
         Children.Clear();
         var hunks = Hunks;
         if (hunks is null || hunks.Length == 0)
             return;
 
-        foreach (var hunk in hunks)
-        {
-            if (BuildHunk(hunk) is { } control)
-            {
+        foreach (var hunk in hunks) {
+            if (BuildHunk(hunk) is { } control) {
                 Children.Add(control);
             }
         }
     }
 
     /// <summary>渲染单个 Hunk：header + 行列表</summary>
-    private static Control BuildHunk(StructuredPatchHunk hunk)
-    {
+    private static Control BuildHunk(StructuredPatchHunk hunk) {
         var scheme = GuiPalette.Current;
         var stack = new StackPanel { Spacing = 0 };
 
@@ -63,8 +54,7 @@ public sealed class DiffViewer : StackPanel
         var headerText = string.IsNullOrEmpty(hunk.Header)
             ? $"@@ -{hunk.OldStart},{hunk.OldLines} +{hunk.NewStart},{hunk.NewLines} @@"
             : hunk.Header;
-        var header = new SelectableTextBlock
-        {
+        var header = new SelectableTextBlock {
             Text = headerText,
             SelectionBrush = ToBrush("#6680c0"),
             FontFamily = MonoFont,
@@ -77,13 +67,11 @@ public sealed class DiffViewer : StackPanel
         stack.Children.Add(header);
 
         // Diff 行
-        foreach (var line in hunk.Lines)
-        {
+        foreach (var line in hunk.Lines) {
             stack.Children.Add(BuildDiffLine(line, scheme));
         }
 
-        return new Border
-        {
+        return new Border {
             BorderBrush = ToBrush(scheme.Divider),
             BorderThickness = new Thickness(0, 0, 0, 1),
             ClipToBounds = true,
@@ -92,10 +80,8 @@ public sealed class DiffViewer : StackPanel
     }
 
     /// <summary>渲染单行 Diff：旧行号 + 新行号 + 前缀 + 内容，按增删类型着色</summary>
-    private static Control BuildDiffLine(PatchLine line, GuiPalette.Scheme scheme)
-    {
-        var (prefix, foreground, background) = line.Type switch
-        {
+    private static Control BuildDiffLine(PatchLine line, GuiPalette.Scheme scheme) {
+        var (prefix, foreground, background) = line.Type switch {
             PatchLineType.Added => ("+", ToBrush(scheme.SuccessText), ToBrush(scheme.DiffAddedBackground)),
             PatchLineType.Removed => ("-", ToBrush(scheme.ErrorText), ToBrush(scheme.DiffRemovedBackground)),
             _ => (" ", ToBrush(scheme.SecondaryText), Brushes.Transparent)
@@ -104,8 +90,7 @@ public sealed class DiffViewer : StackPanel
         var oldLineNum = line.OldLineNumber?.ToString() ?? "";
         var newLineNum = line.NewLineNumber?.ToString() ?? "";
 
-        var row = new Grid
-        {
+        var row = new Grid {
             ColumnDefinitions = new ColumnDefinitions("Auto,Auto,Auto,*"),
             Background = background
         };
@@ -121,8 +106,7 @@ public sealed class DiffViewer : StackPanel
         row.Children.Add(newNumBlock);
 
         // 前缀 (+/-/space)
-        var prefixBlock = new SelectableTextBlock
-        {
+        var prefixBlock = new SelectableTextBlock {
             Text = prefix,
             SelectionBrush = ToBrush("#6680c0"),
             FontFamily = MonoFont,
@@ -135,8 +119,7 @@ public sealed class DiffViewer : StackPanel
         row.Children.Add(prefixBlock);
 
         // 内容
-        var contentBlock = new SelectableTextBlock
-        {
+        var contentBlock = new SelectableTextBlock {
             Text = line.Content,
             SelectionBrush = ToBrush("#6680c0"),
             FontFamily = MonoFont,
@@ -154,8 +137,7 @@ public sealed class DiffViewer : StackPanel
 
     /// <summary>构建行号单元格</summary>
     private static SelectableTextBlock BuildLineNumberBlock(string text, GuiPalette.Scheme scheme)
-        => new()
-        {
+        => new() {
             Text = text,
             SelectionBrush = ToBrush("#6680c0"),
             FontFamily = MonoFont,

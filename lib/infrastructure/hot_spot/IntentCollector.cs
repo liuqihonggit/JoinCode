@@ -5,8 +5,7 @@ namespace Infrastructure.HotSpot;
 /// 按 filePath 索引意图，支持多 Worker 并发上报和清理
 /// </summary>
 [Register(typeof(IIntentCollector), ServiceLifetime.Singleton)]
-public sealed class IntentCollector : IIntentCollector
-{
+public sealed class IntentCollector : IIntentCollector {
     private readonly ConcurrentDictionary<string, List<FileModifyIntent>> _intentsByFile = new();
     private readonly ConcurrentDictionary<string, AsyncLock> _locks = new();
     private readonly IClockService _clock;
@@ -15,8 +14,7 @@ public sealed class IntentCollector : IIntentCollector
     /// 构造意图收集器
     /// </summary>
     /// <param name="clock">时钟服务，默认使用系统时钟</param>
-    public IntentCollector(IClockService? clock = null)
-    {
+    public IntentCollector(IClockService? clock = null) {
         _clock = clock ?? SystemClockService.Instance;
     }
 
@@ -27,20 +25,17 @@ public sealed class IntentCollector : IIntentCollector
     /// <param name="intents">文件修改意图列表</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task ReportAsync(string workerId, IReadOnlyList<FileModifyIntent> intents, CancellationToken cancellationToken = default)
-    {
+    public Task ReportAsync(string workerId, IReadOnlyList<FileModifyIntent> intents, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
         ArgumentNullException.ThrowIfNull(intents);
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        foreach (var intent in intents)
-        {
+        foreach (var intent in intents) {
             cancellationToken.ThrowIfCancellationRequested();
             var key = NormalizePath(intent.FilePath);
             var lk = GetLock(key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时"))
-            {
+            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
                 _intentsByFile.GetOrAdd(key, _ => []).Add(intent);
             }
         }
@@ -53,13 +48,11 @@ public sealed class IntentCollector : IIntentCollector
     /// </summary>
     /// <param name="filePath">文件路径</param>
     /// <returns>该文件的修改意图列表，无记录则返回空列表</returns>
-    public IReadOnlyList<FileModifyIntent> GetIntents(string filePath)
-    {
+    public IReadOnlyList<FileModifyIntent> GetIntents(string filePath) {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var key = NormalizePath(filePath);
         var lk = GetLock(key);
-        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时"))
-        {
+        using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
             if (_intentsByFile.TryGetValue(key, out var list))
                 return [.. list];
         }
@@ -70,14 +63,11 @@ public sealed class IntentCollector : IIntentCollector
     /// 获取所有文件的所有修改意图
     /// </summary>
     /// <returns>全部修改意图列表</returns>
-    public IReadOnlyList<FileModifyIntent> GetAllIntents()
-    {
+    public IReadOnlyList<FileModifyIntent> GetAllIntents() {
         var all = new List<FileModifyIntent>();
-        foreach (var kvp in _intentsByFile)
-        {
+        foreach (var kvp in _intentsByFile) {
             var lk = GetLock(kvp.Key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时"))
-            {
+            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
                 all.AddRange(kvp.Value);
             }
         }
@@ -90,17 +80,14 @@ public sealed class IntentCollector : IIntentCollector
     /// <param name="workerId">Worker ID</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>表示异步操作的任务</returns>
-    public Task RemoveWorkerAsync(string workerId, CancellationToken cancellationToken = default)
-    {
+    public Task RemoveWorkerAsync(string workerId, CancellationToken cancellationToken = default) {
         ArgumentException.ThrowIfNullOrWhiteSpace(workerId);
         cancellationToken.ThrowIfCancellationRequested();
 
-        foreach (var kvp in _intentsByFile)
-        {
+        foreach (var kvp in _intentsByFile) {
             cancellationToken.ThrowIfCancellationRequested();
             var lk = GetLock(kvp.Key);
-            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时"))
-            {
+            using (lk.TryLock() ?? throw new System.TimeoutException($"锁 '{lk.Name}' 等待超时")) {
                 kvp.Value.RemoveAll(x => x.WorkerId == workerId);
             }
         }

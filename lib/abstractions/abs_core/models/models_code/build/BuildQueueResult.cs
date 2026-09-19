@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Models.Build;
 /// <summary>
 /// 编译队列结果
 /// </summary>
-public sealed record BuildQueueResult
-{
+public sealed record BuildQueueResult {
     /// <summary>
     /// 编译 ID
     /// </summary>

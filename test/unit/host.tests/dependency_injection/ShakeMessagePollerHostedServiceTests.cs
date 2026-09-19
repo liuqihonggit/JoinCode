@@ -5,10 +5,8 @@ namespace Host.Tests.DependencyInjection;
 /// <summary>
 /// ShakeMessagePollerHostedService 单元测试 — 验证跨进程 shake 消息轮询行为
 /// </summary>
-public sealed class ShakeMessagePollerHostedServiceTests
-{
-    private static Mock<IWindowShakeCoordinator> CreateCoordinator(bool enabled = true, bool canShake = true)
-    {
+public sealed class ShakeMessagePollerHostedServiceTests {
+    private static Mock<IWindowShakeCoordinator> CreateCoordinator(bool enabled = true, bool canShake = true) {
         var mock = new Mock<IWindowShakeCoordinator>();
         mock.SetupGet(x => x.IsShakeEnabled).Returns(enabled);
         mock.Setup(x => x.TryAcquireShakeSlot()).Returns(canShake);
@@ -16,8 +14,7 @@ public sealed class ShakeMessagePollerHostedServiceTests
     }
 
     private static CoordinatorMessage CreateShakeMessage(string messageType = "shake")
-        => new()
-        {
+        => new() {
             MessageId = Guid.NewGuid().ToString("N"),
             FromAgentId = "bot-123",
             ToAgentId = "all-agents",
@@ -29,8 +26,7 @@ public sealed class ShakeMessagePollerHostedServiceTests
         };
 
     [Fact]
-    public async Task StartAsync_MailboxServiceNull_DoesNotStartPolling()
-    {
+    public async Task StartAsync_MailboxServiceNull_DoesNotStartPolling() {
         var coordinator = CreateCoordinator();
         var service = new ShakeMessagePollerHostedService(coordinator.Object);
 
@@ -41,8 +37,7 @@ public sealed class ShakeMessagePollerHostedServiceTests
     }
 
     [Fact]
-    public async Task PollOnceAsync_ReceivesShakeMessage_ShakesWindow()
-    {
+    public async Task PollOnceAsync_ReceivesShakeMessage_ShakesWindow() {
         var mailboxMock = new Mock<ITeammateMailboxService>();
         var shakeMsg = CreateShakeMessage();
         mailboxMock.Setup(x => x.ReadUnreadAsync("all-agents", "shake-broadcast", It.IsAny<CancellationToken>()))
@@ -64,8 +59,7 @@ public sealed class ShakeMessagePollerHostedServiceTests
     }
 
     [Fact]
-    public async Task PollOnceAsync_NoShakeMessages_DoesNotShake()
-    {
+    public async Task PollOnceAsync_NoShakeMessages_DoesNotShake() {
         var mailboxMock = new Mock<ITeammateMailboxService>();
         mailboxMock.Setup(x => x.ReadUnreadAsync("all-agents", "shake-broadcast", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CoordinatorMessage>());
@@ -83,8 +77,7 @@ public sealed class ShakeMessagePollerHostedServiceTests
     }
 
     [Fact]
-    public async Task PollOnceAsync_NonShakeMessages_DoesNotShake()
-    {
+    public async Task PollOnceAsync_NonShakeMessages_DoesNotShake() {
         var mailboxMock = new Mock<ITeammateMailboxService>();
         mailboxMock.Setup(x => x.ReadUnreadAsync("all-agents", "shake-broadcast", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CoordinatorMessage> { CreateShakeMessage("text"), CreateShakeMessage("status") });
@@ -100,8 +93,7 @@ public sealed class ShakeMessagePollerHostedServiceTests
     }
 
     [Fact]
-    public async Task PollOnceAsync_CoordinatorDisabled_DoesNotShake()
-    {
+    public async Task PollOnceAsync_CoordinatorDisabled_DoesNotShake() {
         var mailboxMock = new Mock<ITeammateMailboxService>();
         mailboxMock.Setup(x => x.ReadUnreadAsync("all-agents", "shake-broadcast", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CoordinatorMessage> { CreateShakeMessage() });
@@ -117,8 +109,7 @@ public sealed class ShakeMessagePollerHostedServiceTests
     }
 
     [Fact]
-    public async Task PollOnceAsync_ShakeServiceNull_MarksAsReadWithoutShaking()
-    {
+    public async Task PollOnceAsync_ShakeServiceNull_MarksAsReadWithoutShaking() {
         var mailboxMock = new Mock<ITeammateMailboxService>();
         mailboxMock.Setup(x => x.ReadUnreadAsync("all-agents", "shake-broadcast", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<CoordinatorMessage> { CreateShakeMessage() });

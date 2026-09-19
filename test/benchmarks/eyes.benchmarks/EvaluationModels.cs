@@ -1,7 +1,6 @@
 namespace JoinCode.CodeIndex.Benchmarks;
 
-public sealed record TestCase
-{
+public sealed record TestCase {
     public required string Id { get; init; }
     public required string Category { get; init; }
     public required string ExpectedLayer { get; init; }
@@ -14,8 +13,7 @@ public sealed record TestCase
     public int? MaxDepth { get; init; }
 }
 
-public sealed record EvaluationResult
-{
+public sealed record EvaluationResult {
     public required string TestCaseId { get; init; }
     public required string Category { get; init; }
     public required bool Passed { get; init; }
@@ -28,8 +26,7 @@ public sealed record EvaluationResult
     public required string[] ExtraResults { get; init; }
 }
 
-public sealed record EvaluationSummary
-{
+public sealed record EvaluationSummary {
     public required string Layer { get; init; }
     public required int TotalCases { get; init; }
     public required int PassedCases { get; init; }

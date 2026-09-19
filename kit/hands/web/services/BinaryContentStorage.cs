@@ -5,8 +5,7 @@ namespace Services.Web;
 /// 将二进制响应（PDF、图片等）的原始字节保存到 ~/.jcc/sessions/{sessionId}/tool-results/{persistId}.{ext}
 /// </summary>
 [Register(typeof(IBinaryContentStorage), ServiceLifetime.Singleton)]
-public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContentStorage
-{
+public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContentStorage {
     private readonly ILogger<BinaryContentStorage>? _logger;
     private readonly IClockService _clock;
     private readonly IFileSystem _fs;
@@ -17,8 +16,7 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
     /// <param name="fs">文件系统抽象，用于写入持久化文件。</param>
     /// <param name="logger">可选的日志记录器。</param>
     /// <param name="clock">可选的时钟服务，用于生成持久化 ID 时间戳。</param>
-    public BinaryContentStorage(IFileSystem fs, ILogger<BinaryContentStorage>? logger = null, IClockService? clock = null)
-    {
+    public BinaryContentStorage(IFileSystem fs, ILogger<BinaryContentStorage>? logger = null, IClockService? clock = null) {
         ArgumentNullException.ThrowIfNull(fs);
         _fs = fs;
         _logger = logger;
@@ -38,32 +36,26 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
         byte[] bytes,
         string? mimeType,
         string persistId,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var ext = MimeTypeExtensionMapper.GetExtension(mimeType);
         var directory = GetToolResultsDirectory();
         var fileName = $"{persistId}.{ext}";
         var filePath = Path.Combine(directory, fileName);
 
-        try
-        {
+        try {
             DirectoryHelper.EnsureDirectoryExists(_fs, directory);
             await _fs.WriteAllBytesAsync(filePath, bytes, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogDebug("二进制内容已持久化: {Path}, Size={Size}, Ext={Ext}", filePath, bytes.Length, ext);
 
-            return new BinaryPersistResult
-            {
+            return new BinaryPersistResult {
                 FilePath = filePath,
                 Size = bytes.Length,
                 Extension = ext
             };
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogError(ex, "二进制内容持久化失败: {Path}", filePath);
-            return new BinaryPersistResult
-            {
+            return new BinaryPersistResult {
                 Error = ex.Message
             };
         }
@@ -73,8 +65,7 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
     /// 生成持久化ID — 对齐TS版: webfetch-{timestamp}-{random6chars}
     /// </summary>
     /// <returns>格式为 webfetch-{毫秒时间戳}-{6位随机十六进制} 的持久化 ID。</returns>
-    public string GeneratePersistId()
-    {
+    public string GeneratePersistId() {
         var timestamp = _clock.GetUtcNowOffset().ToUnixTimeMilliseconds();
         var random = Random.Shared.Next(0, 0x1000000).ToString("x6")[..6];
         return $"webfetch-{timestamp}-{random}";
@@ -85,8 +76,7 @@ public sealed partial class BinaryContentStorage : ServiceEntity, IBinaryContent
     /// 路径: ~/.jcc/sessions/{sessionId}/tool-results/
     /// sessionId 从 SubAgentContext.Current 获取（AsyncLocal），无上下文时回退到 "shared"
     /// </summary>
-    private string GetToolResultsDirectory()
-    {
+    private string GetToolResultsDirectory() {
         var sessionId = SubAgentContext.Current?.SessionId ?? global::Core.Utils.SessionIdFactory.DefaultSessionId;
         var safeId = sessionId.Replace('/', '_').Replace('\\', '_');
         return Path.Combine(AppDataConstants.Paths.SessionsDirectory, safeId, AppDataConstants.ToolResultsFolderName);

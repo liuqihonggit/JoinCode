@@ -4,8 +4,7 @@ namespace JoinCode.Abstractions.Models.FileIO;
 /// 图像媒体类型枚举 — [EnumValue] 由 EnumMetadataGenerator 自动生成映射
 /// 对齐 TS: IMAGE_EXTENSIONS + imageMediaTypes
 /// </summary>
-public enum ImageMediaType
-{
+public enum ImageMediaType {
     [EnumValue("png")] Png,
     [EnumValue("jpg")] Jpg,
     [EnumValue("jpeg")] Jpeg,
@@ -16,13 +15,12 @@ public enum ImageMediaType
 /// <summary>
 /// 图像媒体类型辅助类 — 提供扩展名集合和MIME类型查询
 /// </summary>
-public static class ImageMediaTypeHelper
-{
+public static class ImageMediaTypeHelper {
     /// <summary>
     /// 所有支持的图像扩展名（小写，用于 FrozenSet 构造）
     /// </summary>
     public static readonly string[] Extensions =
-    new[] { 
+    new[] {
         ImageMediaType.Png.ToValue(),
         ImageMediaType.Jpg.ToValue(),
         ImageMediaType.Jpeg.ToValue(),
@@ -48,8 +46,7 @@ public static class ImageMediaTypeHelper
     /// </summary>
     /// <param name="buffer">图像字节数组（至少需要 12 字节用于 WebP 检测）</param>
     /// <returns>检测到的图像类型，未知格式返回 null</returns>
-    public static ImageMediaType? DetectFromMagicBytes(ReadOnlySpan<byte> buffer)
-    {
+    public static ImageMediaType? DetectFromMagicBytes(ReadOnlySpan<byte> buffer) {
         if (buffer.Length < 4)
             return null;
 
@@ -82,21 +79,17 @@ public static class ImageMediaTypeHelper
     /// </summary>
     /// <param name="base64Data">Base64 编码的图像数据</param>
     /// <returns>检测到的图像类型，解码失败或未知格式返回 null</returns>
-    public static ImageMediaType? DetectFromBase64(string base64Data)
-    {
+    public static ImageMediaType? DetectFromBase64(string base64Data) {
         if (string.IsNullOrEmpty(base64Data))
             return null;
 
-        try
-        {
+        try {
             // 仅解码前 12 字节用于 magic bytes 检测
             var buffer = new Span<byte>(new byte[12]);
             if (!Convert.TryFromBase64String(base64Data, buffer, out _))
                 return null;
             return DetectFromMagicBytes(buffer);
-        }
-        catch
-        {
+        } catch {
             return null;
         }
     }

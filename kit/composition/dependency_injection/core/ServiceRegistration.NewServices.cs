@@ -1,8 +1,7 @@
 
 namespace Core.DependencyInjection;
 
-public static partial class ServiceRegistration
-{
+public static partial class ServiceRegistration {
     /// <summary>
     /// 注册新增服务：VoiceService、VcrService、PreventSleepService、SkillSearchService、
     /// ContextCollapseService、AwaySummaryService、RemotePolicyService、RemoteManagedSettingsService、
@@ -11,8 +10,7 @@ public static partial class ServiceRegistration
     /// </summary>
     /// <param name="services">DI 容器。</param>
     /// <returns>已注册服务的 <see cref="IServiceCollection"/> 实例。</returns>
-    public static IServiceCollection AddNewServices(this IServiceCollection services)
-    {
+    public static IServiceCollection AddNewServices(this IServiceCollection services) {
         // VoiceService, VcrService, PreventSleepService, SkillSearchService,
         // ContextCollapseService, AwaySummaryService, RemotePolicyService,
         // RemoteManagedSettingsService, IFeatureFlagService (FeatureFlagService),

@@ -5,8 +5,7 @@ namespace JoinCode.Cli.Commands.Prefix;
 /// 对齐 SlashCommandRunner 模式，但处理前缀命令而非斜杠命令。
 /// !! 优先于 ! 解析，避免 !! 被 ! 误匹配。
 /// </summary>
-public static class PrefixCommandRouter
-{
+public static class PrefixCommandRouter {
     private static readonly ShellPrefixCommandHandler _shellHandler = new();
     private static readonly SilentShellPrefixCommandHandler _silentHandler = new();
 
@@ -20,13 +19,11 @@ public static class PrefixCommandRouter
     /// <summary>
     /// 解析前缀命令，返回 (前缀, 命令内容)；非前缀命令返回 null。
     /// </summary>
-    public static (string Prefix, string Command)? Parse(string input)
-    {
+    public static (string Prefix, string Command)? Parse(string input) {
         if (string.IsNullOrEmpty(input) || input[0] != '!')
             return null;
 
-        if (input.Length >= 2 && input[1] == '!')
-        {
+        if (input.Length >= 2 && input[1] == '!') {
             var cmd = input[2..].TrimStart();
             if (cmd.Length == 0)
                 return null;
@@ -48,15 +45,13 @@ public static class PrefixCommandRouter
     public static async Task<PrefixCommandResult> ExecuteAsync(
         string input,
         PrefixCommandContext context,
-        CancellationToken cancellationToken = default)
-    {
+        CancellationToken cancellationToken = default) {
         var parsed = Parse(input);
         if (parsed is null)
             return PrefixCommandResult.NotHandled;
 
         var (prefix, command) = parsed.Value;
-        IPrefixCommandHandler? handler = prefix switch
-        {
+        IPrefixCommandHandler? handler = prefix switch {
             "!!" => _silentHandler,
             "!" => _shellHandler,
             _ => null,

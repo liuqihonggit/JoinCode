@@ -3,13 +3,11 @@ namespace Hands.Tests.Shell;
 /// <summary>
 /// AbsoluteTimeoutMiddleware 单元测试 — 验证超时策略驱动的绝对超时中间件
 /// </summary>
-public class AbsoluteTimeoutMiddlewareTests
-{
+public class AbsoluteTimeoutMiddlewareTests {
     private static ShellExecutionConfig DefaultConfig => new() { AbsoluteTimeoutSeconds = 120 };
 
     [Fact]
-    public async Task NonePolicy_DoesNotEnforceTimeout()
-    {
+    public async Task NonePolicy_DoesNotEnforceTimeout() {
         var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
         var context = CreateContext(ToolTimeoutPolicy.None);
 
@@ -21,8 +19,7 @@ public class AbsoluteTimeoutMiddlewareTests
     }
 
     [Fact]
-    public async Task AbsoluteTwoMinutes_NextCompletes_ResultNotModified()
-    {
+    public async Task AbsoluteTwoMinutes_NextCompletes_ResultNotModified() {
         var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
 
@@ -32,16 +29,13 @@ public class AbsoluteTimeoutMiddlewareTests
     }
 
     [Fact]
-    public async Task AbsoluteTwoMinutes_TimeoutFires_SetsErrorResultWithResumeHint()
-    {
+    public async Task AbsoluteTwoMinutes_TimeoutFires_SetsErrorResultWithResumeHint() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 1 };
         var sut = new AbsoluteTimeoutMiddleware(config);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
 
-        await sut.InvokeAsync(context, async (_, ct) =>
-        {
-            try { await Task.Delay(TimeSpan.FromSeconds(5), ct); }
-            catch (OperationCanceledException) { throw; }
+        await sut.InvokeAsync(context, async (_, ct) => {
+            try { await Task.Delay(TimeSpan.FromSeconds(5), ct); } catch (OperationCanceledException) { throw; }
         }, CancellationToken.None);
 
         context.Result.Should().NotBeNull();
@@ -57,8 +51,7 @@ public class AbsoluteTimeoutMiddlewareTests
     }
 
     [Fact]
-    public async Task ConfigZero_FallsBackToPolicyValue()
-    {
+    public async Task ConfigZero_FallsBackToPolicyValue() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 0 };
         var sut = new AbsoluteTimeoutMiddleware(config);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
@@ -69,16 +62,13 @@ public class AbsoluteTimeoutMiddlewareTests
     }
 
     [Fact]
-    public async Task ConfigOverride_UsesConfigValue()
-    {
+    public async Task ConfigOverride_UsesConfigValue() {
         var config = new ShellExecutionConfig { AbsoluteTimeoutSeconds = 1 };
         var sut = new AbsoluteTimeoutMiddleware(config);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
 
-        await sut.InvokeAsync(context, async (_, ct) =>
-        {
-            try { await Task.Delay(TimeSpan.FromSeconds(5), ct); }
-            catch (OperationCanceledException) { throw; }
+        await sut.InvokeAsync(context, async (_, ct) => {
+            try { await Task.Delay(TimeSpan.FromSeconds(5), ct); } catch (OperationCanceledException) { throw; }
         }, CancellationToken.None);
 
         context.Result.Should().NotBeNull();
@@ -91,27 +81,23 @@ public class AbsoluteTimeoutMiddlewareTests
     }
 
     [Fact]
-    public async Task ExternalCancellation_PropagatesNormally()
-    {
+    public async Task ExternalCancellation_PropagatesNormally() {
         var sut = new AbsoluteTimeoutMiddleware(DefaultConfig);
         var context = CreateContext(ToolTimeoutPolicy.AbsoluteTwoMinutes);
         using var cts = new CancellationTokenSource();
 
-        await sut.Invoking(async x => await x.InvokeAsync(context, async (_, ct) =>
-        {
+        await sut.Invoking(async x => await x.InvokeAsync(context, async (_, ct) => {
             cts.Cancel();
             await Task.Delay(100, ct);
         }, cts.Token))
             .Should().ThrowAsync<OperationCanceledException>();
     }
 
-    private static ShellPipelineContext CreateContext(ToolTimeoutPolicy policy)
-    {
+    private static ShellPipelineContext CreateContext(ToolTimeoutPolicy policy) {
         var provider = new Mock<ISystemActuator>();
         provider.SetupGet(x => x.Kind).Returns(SystemActuatorKind.Bash);
 
-        return new ShellPipelineContext
-        {
+        return new ShellPipelineContext {
             Command = "echo test",
             Provider = provider.Object,
             TimeoutPolicy = policy,
@@ -119,8 +105,7 @@ public class AbsoluteTimeoutMiddlewareTests
     }
 
     [Fact]
-    public void BuildTimeoutDiagnostic_ReturnsCorrectStructure()
-    {
+    public void BuildTimeoutDiagnostic_ReturnsCorrectStructure() {
         var diagnostic = AbsoluteTimeoutMiddleware.BuildTimeoutDiagnostic("msg", "cmd", 30, "Bash");
 
         diagnostic.Reason.Should().Be("命令执行超时");
@@ -136,11 +121,9 @@ public class AbsoluteTimeoutMiddlewareTests
 /// <summary>
 /// ToolTimeoutPolicy 单元测试 — 验证超时策略记录的预设值
 /// </summary>
-public class ToolTimeoutPolicyTests
-{
+public class ToolTimeoutPolicyTests {
     [Fact]
-    public void None_HasNoAbsoluteTimeout()
-    {
+    public void None_HasNoAbsoluteTimeout() {
         var policy = ToolTimeoutPolicy.None;
 
         policy.AbsoluteTimeoutSeconds.Should().BeNull();
@@ -149,8 +132,7 @@ public class ToolTimeoutPolicyTests
     }
 
     [Fact]
-    public void AbsoluteTwoMinutes_HasCorrectValues()
-    {
+    public void AbsoluteTwoMinutes_HasCorrectValues() {
         var policy = ToolTimeoutPolicy.AbsoluteTwoMinutes;
 
         policy.AbsoluteTimeoutSeconds.Should().Be(120);
@@ -159,8 +141,7 @@ public class ToolTimeoutPolicyTests
     }
 
     [Fact]
-    public void None_IsImmutable()
-    {
+    public void None_IsImmutable() {
         var policy1 = ToolTimeoutPolicy.None;
         var policy2 = ToolTimeoutPolicy.None;
 
@@ -168,8 +149,7 @@ public class ToolTimeoutPolicyTests
     }
 
     [Fact]
-    public void AbsoluteTwoMinutes_IsImmutable()
-    {
+    public void AbsoluteTwoMinutes_IsImmutable() {
         var policy1 = ToolTimeoutPolicy.AbsoluteTwoMinutes;
         var policy2 = ToolTimeoutPolicy.AbsoluteTwoMinutes;
 
@@ -180,19 +160,16 @@ public class ToolTimeoutPolicyTests
 /// <summary>
 /// ToolHandlerGroupBase 继承体系单元测试 — 验证组基类的超时策略
 /// </summary>
-public class ToolHandlerGroupTests
-{
+public class ToolHandlerGroupTests {
     [Fact]
-    public void OneShotCommandGroup_HasAbsoluteTwoMinutesPolicy()
-    {
+    public void OneShotCommandGroup_HasAbsoluteTwoMinutesPolicy() {
         var group = new TestOneShotCommandGroup();
 
         group.TimeoutPolicy.Should().Be(ToolTimeoutPolicy.AbsoluteTwoMinutes);
     }
 
     [Fact]
-    public void LongRunningGroup_HasNonePolicy()
-    {
+    public void LongRunningGroup_HasNonePolicy() {
         var group = new TestLongRunningGroup();
 
         group.TimeoutPolicy.Should().Be(ToolTimeoutPolicy.None);

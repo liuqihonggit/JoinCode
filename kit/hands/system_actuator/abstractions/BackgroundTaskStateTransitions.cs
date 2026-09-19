@@ -5,8 +5,7 @@ namespace Services.SystemActuator;
 /// <para>原 RegisterContextAsync 异步回调 + CancelTaskAsync + KillAllRunningAsync 分散赋值,现统一 guard</para>
 /// <para>与 AgentStateMachine 转换表不同:后台任务不支持重试(Completed→Running 禁止),不支持 Paused</para>
 /// </summary>
-internal static class BackgroundTaskStateTransitions
-{
+internal static class BackgroundTaskStateTransitions {
     /// <summary>
     /// 是否为终态 — Completed/Failed/Cancelled 为终态,不可再转换
     /// </summary>

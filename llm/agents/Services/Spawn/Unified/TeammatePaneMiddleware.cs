@@ -6,14 +6,12 @@ namespace Core.Agents;
 /// 主代理 no-op
 /// </summary>
 [Register(typeof(IUnifiedSpawnMiddleware), ServiceLifetime.Singleton)]
-public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpawnMiddleware
-{
+public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpawnMiddleware {
 
     /// <summary>
     /// 构造 TeammatePaneMiddleware 实例，注入子代理上下文访问器、日志器及可选的布局管理器
     /// </summary>
-    public TeammatePaneMiddleware(ISubAgentContextAccessor subAgentContextAccessor, ILogger<TeammatePaneMiddleware> logger, ITeammateLayoutManager? layoutManager = null)
-    {
+    public TeammatePaneMiddleware(ISubAgentContextAccessor subAgentContextAccessor, ILogger<TeammatePaneMiddleware> logger, ITeammateLayoutManager? layoutManager = null) {
         _subAgentContextAccessor = subAgentContextAccessor;
         _logger = logger;
         _layoutManager = layoutManager;
@@ -31,19 +29,14 @@ public sealed partial class TeammatePaneMiddleware : ServiceEntity, IUnifiedSpaw
     /// <param name="context">统一 Spawn 上下文</param>
     /// <param name="next">下一个中间件委托</param>
     /// <param name="ct">取消令牌</param>
-    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct)
-    {
-        if (!context.IsMainAgent && _layoutManager is not null && context.Agent is not null)
-        {
-            try
-            {
+    public async Task InvokeAsync(UnifiedSpawnContext context, MiddlewareDelegate<UnifiedSpawnContext> next, CancellationToken ct) {
+        if (!context.IsMainAgent && _layoutManager is not null && context.Agent is not null) {
+            try {
                 var agentType = _subAgentContextAccessor.Current?.Variant?.ToValue() ?? _subAgentContextAccessor.Current?.Role.ToValue() ?? "agent";
                 var command = $"# Agent: {context.Task}";
                 await _layoutManager.CreateTeammatePaneAsync(context.AgentId, agentType, command, context.CancellationToken).ConfigureAwait(false);
                 context.TeammatePaneCreated = true;
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 _logger.LogWarning(ex, "[TeammatePane] 创建 Teammate {AgentId} Pane 失败", context.AgentId);
             }
         }

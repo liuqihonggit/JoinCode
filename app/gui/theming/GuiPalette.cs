@@ -6,11 +6,9 @@ namespace JoinCode.Gui.Theming;
 /// 支持按 <see cref="GuiThemeVariant"/> 提供明/暗两套（可扩展更多主题）；切换时以 <c>ThemeDictionaries</c> 形式注入
 /// 应用资源字典，使 XAML 中 {DynamicResource} 自动解析对应主题的 <see cref="IBrush"/>。
 /// </summary>
-public static class GuiPalette
-{
+public static class GuiPalette {
     /// <summary>主题变体：Dark（默认）/ Light，可扩展未来主题。</summary>
-    public enum GuiThemeVariant
-    {
+    public enum GuiThemeVariant {
         /// <summary>暗色主题（默认）</summary>
         [EnumValue("dark")]
         Dark,
@@ -20,8 +18,7 @@ public static class GuiPalette
     }
 
     /// <summary>一组语义颜色（单个主题的静态数据）。</summary>
-    public sealed class Scheme
-    {
+    public sealed class Scheme {
         /// <summary>窗口背景色</summary>
         public string WindowBackground { get; init; } = "#1e1e1e";
         /// <summary>侧边栏背景色</summary>
@@ -146,8 +143,7 @@ public static class GuiPalette
         public string DangerLevelBlack { get; init; } = "#8b0000";
 
         /// <summary>遍历全部 token 值，供对比度校验与资源注入使用。</summary>
-        public IEnumerable<string> AllTokens()
-        {
+        public IEnumerable<string> AllTokens() {
             yield return WindowBackground;
             yield return SidebarBackground;
             yield return SidebarTitle;
@@ -206,8 +202,7 @@ public static class GuiPalette
     }
 
     private static readonly Scheme Dark = new();
-    private static readonly Scheme Light = new()
-    {
+    private static readonly Scheme Light = new() {
         WindowBackground = "#f5f5f5",
         SidebarBackground = "#ececec",
         SidebarTitle = "#1f1f1f",
@@ -271,8 +266,7 @@ public static class GuiPalette
     private static GuiThemeVariant _currentVariant = GuiThemeVariant.Dark;
 
     /// <summary>当前生效主题变体（由主窗口在切换时更新，转换器据此取色）。</summary>
-    public static GuiThemeVariant CurrentVariant
-    {
+    public static GuiThemeVariant CurrentVariant {
         get => _currentVariant;
         set => _currentVariant = value;
     }
@@ -281,26 +275,22 @@ public static class GuiPalette
     public static Scheme Current => SchemeFor(_currentVariant);
 
     /// <summary>以"主题 → Brush 资源字典"的形式生成 ThemeDictionaries，供 Application 注入。</summary>
-    public static IReadOnlyDictionary<GuiThemeVariant, ResourceDictionary> BuildResourceDictionaries()
-    {
-        var result = new Dictionary<GuiThemeVariant, ResourceDictionary>
-        {
+    public static IReadOnlyDictionary<GuiThemeVariant, ResourceDictionary> BuildResourceDictionaries() {
+        var result = new Dictionary<GuiThemeVariant, ResourceDictionary> {
             [GuiThemeVariant.Dark] = BuildDictionary(Dark),
             [GuiThemeVariant.Light] = BuildDictionary(Light)
         };
         return result;
     }
 
-    private static ResourceDictionary BuildDictionary(Scheme scheme)
-    {
+    private static ResourceDictionary BuildDictionary(Scheme scheme) {
         var dict = new ResourceDictionary();
         foreach (var (key, value) in SemanticTuples(scheme))
             dict[key] = ToBrush(value);
         return dict;
     }
 
-    private static IEnumerable<(string Key, string Value)> SemanticTuples(Scheme s)
-    {
+    private static IEnumerable<(string Key, string Value)> SemanticTuples(Scheme s) {
         yield return ("GuiWindowBackground", s.WindowBackground);
         yield return ("GuiSidebarBackground", s.SidebarBackground);
         yield return ("GuiSidebarTitle", s.SidebarTitle);
@@ -346,15 +336,15 @@ public static class GuiPalette
         yield return ("GuiAccentSubtle", s.AccentSubtle);
         yield return ("GuiAccentSubtleHover", s.AccentSubtleHover);
         yield return ("GuiAccentHover", s.AccentHover);
-            yield return ("GuiCardHover", s.CardHover);
-            yield return ("GuiComposerBackground", s.ComposerBackground);
-            yield return ("GuiCodeBlockBackground", s.CodeBlockBackground);
-            yield return ("GuiDiffAddedBackground", s.DiffAddedBackground);
-            yield return ("GuiDiffRemovedBackground", s.DiffRemovedBackground);
-            yield return ("GuiDangerLevelYellow", s.DangerLevelYellow);
-            yield return ("GuiDangerLevelGreen", s.DangerLevelGreen);
-            yield return ("GuiDangerLevelRed", s.DangerLevelRed);
-            yield return ("GuiDangerLevelBlack", s.DangerLevelBlack);
+        yield return ("GuiCardHover", s.CardHover);
+        yield return ("GuiComposerBackground", s.ComposerBackground);
+        yield return ("GuiCodeBlockBackground", s.CodeBlockBackground);
+        yield return ("GuiDiffAddedBackground", s.DiffAddedBackground);
+        yield return ("GuiDiffRemovedBackground", s.DiffRemovedBackground);
+        yield return ("GuiDangerLevelYellow", s.DangerLevelYellow);
+        yield return ("GuiDangerLevelGreen", s.DangerLevelGreen);
+        yield return ("GuiDangerLevelRed", s.DangerLevelRed);
+        yield return ("GuiDangerLevelBlack", s.DangerLevelBlack);
     }
 
     /// <summary>解析十六进制色为不可变画刷（供资源和转换器共用）。</summary>
@@ -362,8 +352,7 @@ public static class GuiPalette
         => new SolidColorBrush(Color.Parse(hex));
 
     /// <summary>计算两色 WCAG 相对亮度。</summary>
-    public static double RelativeLuminance(Color c)
-    {
+    public static double RelativeLuminance(Color c) {
         double L(double v) => v <= 0.03928
             ? v / 12.92
             : Math.Pow((v + 0.055) / 1.055, 2.4);
@@ -371,8 +360,7 @@ public static class GuiPalette
     }
 
     /// <summary>计算两色对比度（1 到 21）。</summary>
-    public static double ContrastRatio(Color a, Color b)
-    {
+    public static double ContrastRatio(Color a, Color b) {
         var la = RelativeLuminance(a);
         var lb = RelativeLuminance(b);
         var lighter = Math.Max(la, lb);

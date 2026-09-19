@@ -1,7 +1,6 @@
 namespace JoinCode.Abstractions.Localization;
 
-public static partial class StringKey
-{
+public static partial class StringKey {
     // === NotebookToolHandlers ===
     public const string NotebookFilePathCannotBeEmpty = "NotebookFilePathCannotBeEmpty";
     public const string NotebookFileAlreadyExists = "NotebookFileAlreadyExists";

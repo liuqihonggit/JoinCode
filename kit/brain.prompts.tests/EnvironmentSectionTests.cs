@@ -1,10 +1,8 @@
 namespace Core.Tests.Prompts;
 
-public sealed class EnvironmentSectionTests
-{
+public sealed class EnvironmentSectionTests {
     [Fact]
-    public void GetContent_ShouldContainCurrentDate()
-    {
+    public void GetContent_ShouldContainCurrentDate() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         fs.SetCurrentDirectory("/test/project");
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { FileSystem = fs });
@@ -17,8 +15,7 @@ public sealed class EnvironmentSectionTests
     }
 
     [Fact]
-    public void GetContent_ShouldContainDateBeforeWorkingDirectory()
-    {
+    public void GetContent_ShouldContainDateBeforeWorkingDirectory() {
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         fs.SetCurrentDirectory("/test/project");
         PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions { FileSystem = fs });
@@ -34,13 +31,11 @@ public sealed class EnvironmentSectionTests
     }
 
     [Fact]
-    public void GetContent_WithInjectedClock_ShouldUseClockDate()
-    {
+    public void GetContent_WithInjectedClock_ShouldUseClockDate() {
         var fixedDate = new DateTime(2026, 1, 15, 10, 30, 0);
         var fs = new Testing.Common.Services.InMemoryFileSystem();
         fs.SetCurrentDirectory("/test/project");
-        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions
-        {
+        PromptConfigSnapshot.SetCurrent(new SystemPromptProviderOptions {
             FileSystem = fs,
             Clock = new FakeClock(fixedDate)
         });
@@ -51,8 +46,7 @@ public sealed class EnvironmentSectionTests
         content.Should().Contain("当前日期: 2026-01-15");
     }
 
-    private sealed class FakeClock : IClockService
-    {
+    private sealed class FakeClock : IClockService {
         private readonly DateTime _localNow;
         public FakeClock(DateTime localNow) => _localNow = localNow;
         public TimeProvider TimeProvider => TimeProvider.System;

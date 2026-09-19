@@ -5,8 +5,7 @@ namespace Core.Planning;
 /// <para>原 PlanModeManager 各方法内联直接赋值，现统一提取为转换表</para>
 /// <para>Draft 可转 AwaitingApproval/Executing/Cancelled，Executing 可转 Completed/Failed/Cancelled</para>
 /// </summary>
-public static class PlanStateTransitions
-{
+public static class PlanStateTransitions {
     /// <summary>
     /// 状态转换位掩码表 — 索引为 (int)PlanStatus，值为目标状态位掩码。
     /// 替代 FrozenDictionary&lt;PlanStatus, FrozenSet&lt;PlanStatus&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
@@ -24,10 +23,8 @@ public static class PlanStateTransitions
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
     /// </summary>
-    public static bool CanTransitionTo(PlanStatus current, PlanStatus target)
-    {
-        if (current == target)
-        {
+    public static bool CanTransitionTo(PlanStatus current, PlanStatus target) {
+        if (current == target) {
             return true;
         }
 
@@ -46,8 +43,7 @@ public static class PlanStateTransitions
 /// <para>Pending 可转 Approved/Rejected/Skipped，Approved 可转 Executing，Executing 可转 Completed/Failed</para>
 /// <para>Rejected 可转 Pending(修改后重置)或 Approved(重新批准)</para>
 /// </summary>
-public static class PlanStepTransitions
-{
+public static class PlanStepTransitions {
     /// <summary>
     /// 状态转换位掩码表 — 索引为 (int)PlanStepStatus，值为目标状态位掩码。
     /// 替代 FrozenDictionary&lt;PlanStepStatus, FrozenSet&lt;PlanStepStatus&gt;&gt;，O(1) 数组索引 + 位运算无哈希查找。
@@ -66,10 +62,8 @@ public static class PlanStepTransitions
     /// <summary>
     /// 是否可从 current 转换到 target — 自环合法
     /// </summary>
-    public static bool CanTransitionTo(PlanStepStatus current, PlanStepStatus target)
-    {
-        if (current == target)
-        {
+    public static bool CanTransitionTo(PlanStepStatus current, PlanStepStatus target) {
+        if (current == target) {
             return true;
         }
 

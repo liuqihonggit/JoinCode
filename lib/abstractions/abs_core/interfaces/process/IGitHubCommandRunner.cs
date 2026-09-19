@@ -3,8 +3,7 @@ namespace JoinCode.Abstractions.Interfaces;
 /// <summary>
 /// GitHub CLI 命令执行结果
 /// </summary>
-public sealed class GitHubCommandResult
-{
+public sealed class GitHubCommandResult {
     public required bool Success { get; init; }
     public string Output { get; init; } = string.Empty;
     public string Error { get; init; } = string.Empty;
@@ -14,8 +13,7 @@ public sealed class GitHubCommandResult
 /// <summary>
 /// PR 创建结果
 /// </summary>
-public sealed class PrCreateResult
-{
+public sealed class PrCreateResult {
     public required bool Success { get; init; }
     public string? PrUrl { get; init; }
     public string? PrNumber { get; init; }
@@ -25,8 +23,7 @@ public sealed class PrCreateResult
 /// <summary>
 /// PR 列表项
 /// </summary>
-public sealed class PrListItem
-{
+public sealed class PrListItem {
     public string Number { get; init; } = string.Empty;
     public string Title { get; init; } = string.Empty;
     public string Branch { get; init; } = string.Empty;
@@ -37,8 +34,7 @@ public sealed class PrListItem
 /// <summary>
 /// PR 列表结果
 /// </summary>
-public sealed class PrListResult
-{
+public sealed class PrListResult {
     public required bool Success { get; init; }
     public IReadOnlyList<PrListItem> Items { get; init; } = [];
     public string Error { get; init; } = string.Empty;
@@ -54,8 +50,7 @@ public sealed class PrListResult
 /// 4. 重试机制（指数退避，解决网络超时问题）
 /// </para>
 /// </summary>
-public interface IGitHubCommandRunner
-{
+public interface IGitHubCommandRunner {
     /// <summary>
     /// 执行 gh 命令并返回结果
     /// </summary>

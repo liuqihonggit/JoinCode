@@ -10,8 +10,7 @@ namespace Infrastructure.Network;
 /// </para>
 /// </summary>
 [Register(typeof(INetworkConnectivityService), ServiceLifetime.Singleton)]
-public sealed partial class NetworkConnectivityService : ServiceEntity, INetworkConnectivityService
-{
+public sealed partial class NetworkConnectivityService : ServiceEntity, INetworkConnectivityService {
     private readonly ILogger<NetworkConnectivityService>? _logger;
     private readonly Func<IReadOnlyList<NetworkInterfaceInfo>> _interfaceProvider;
     private readonly Func<bool> _vpnProcessDetector;
@@ -38,8 +37,7 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
         TimeProvider? timeProvider = null,
         Func<IReadOnlyList<NetworkInterfaceInfo>>? interfaceProvider = null,
         Func<bool>? vpnProcessDetector = null,
-        Func<bool>? proxyEnvDetector = null)
-    {
+        Func<bool>? proxyEnvDetector = null) {
         _logger = logger;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _interfaceProvider = interfaceProvider ?? DiscoverInterfaces;
@@ -50,20 +48,17 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     }
 
     /// <inheritdoc/>
-    public NetworkConnectivityState CurrentState
-    {
+    public NetworkConnectivityState CurrentState {
         get { using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState; }
     }
 
     /// <inheritdoc/>
-    public bool IsNetworkAvailable()
-    {
+    public bool IsNetworkAvailable() {
         using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState != NetworkConnectivityState.Offline;
     }
 
     /// <inheritdoc/>
-    public bool IsVpnActive()
-    {
+    public bool IsVpnActive() {
         using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) return _currentState == NetworkConnectivityState.OnlineWithVpn;
     }
 
@@ -71,11 +66,9 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     public IReadOnlyList<NetworkInterfaceInfo> GetActiveInterfaces() => _interfaceProvider();
 
     /// <inheritdoc/>
-    public NetworkRoute GetCurrentRoute()
-    {
+    public NetworkRoute GetCurrentRoute() {
         var state = CurrentState;
-        return state switch
-        {
+        return state switch {
             NetworkConnectivityState.OnlineWithVpn => new NetworkRoute { Type = NetworkRouteType.Vpn, ViaInterface = FindVpnInterfaceName() },
             NetworkConnectivityState.OnlineWithProxy => new NetworkRoute { Type = NetworkRouteType.Proxy, ProxyUrl = GetProxyUrlFromEnv() },
             _ => new NetworkRoute { Type = NetworkRouteType.Direct },
@@ -90,22 +83,19 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     /// </summary>
     internal void RefreshState() => OnNetworkChanged("manual refresh");
 
-    private string? FindVpnInterfaceName()
-    {
+    private string? FindVpnInterfaceName() {
         var interfaces = _interfaceProvider();
         return interfaces.FirstOrDefault(i => i.Kind == NetworkInterfaceKind.VpnTunnel)?.Name;
     }
 
-    private static string? GetProxyUrlFromEnv()
-    {
+    private static string? GetProxyUrlFromEnv() {
         return Environment.GetEnvironmentVariable("HTTPS_PROXY")
             ?? Environment.GetEnvironmentVariable("HTTP_PROXY")
             ?? Environment.GetEnvironmentVariable("https_proxy")
             ?? Environment.GetEnvironmentVariable("http_proxy");
     }
 
-    private NetworkConnectivityState ComputeState()
-    {
+    private NetworkConnectivityState ComputeState() {
         var interfaces = _interfaceProvider();
         var hasNonLoopbackUp = interfaces.Any(i => i.IsUp && i.Kind != NetworkInterfaceKind.Loopback);
         if (!hasNonLoopbackUp) return NetworkConnectivityState.Offline;
@@ -119,12 +109,10 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
         return NetworkConnectivityState.Online;
     }
 
-    private void OnNetworkChanged(string reason)
-    {
+    private void OnNetworkChanged(string reason) {
         var newState = ComputeState();
         NetworkConnectivityState previous;
-        using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时"))
-        {
+        using (_stateLock.TryLock() ?? throw new System.TimeoutException($"锁 '{_stateLock.Name}' 等待超时")) {
             if (_currentState == newState) return;
             previous = _currentState;
             _currentState = newState;
@@ -132,8 +120,7 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
 
         _logger?.LogInformation("网络状态变化: {Previous} → {Current} ({Reason})", previous, newState, reason);
 
-        StateChanged?.Invoke(this, new NetworkConnectivityChangedEventArgs
-        {
+        StateChanged?.Invoke(this, new NetworkConnectivityChangedEventArgs {
             PreviousState = previous,
             CurrentState = newState,
             Timestamp = _timeProvider.GetLocalNow(),
@@ -141,31 +128,23 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
         });
     }
 
-    private void SubscribeNetworkChange()
-    {
+    private void SubscribeNetworkChange() {
         if (_subscribed) return;
-        try
-        {
+        try {
             NetworkChange.NetworkAvailabilityChanged += OnNetworkAvailabilityChanged;
             NetworkChange.NetworkAddressChanged += OnNetworkAddressChanged;
             _subscribed = true;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "订阅 NetworkChange 事件失败,网络状态将不会自动刷新");
         }
     }
 
-    private void UnsubscribeNetworkChange()
-    {
+    private void UnsubscribeNetworkChange() {
         if (!_subscribed) return;
-        try
-        {
+        try {
             NetworkChange.NetworkAvailabilityChanged -= OnNetworkAvailabilityChanged;
             NetworkChange.NetworkAddressChanged -= OnNetworkAddressChanged;
-        }
-        catch (Exception ex)
-        {
+        } catch (Exception ex) {
             _logger?.LogWarning(ex, "取消订阅 NetworkChange 事件失败");
         }
         _subscribed = false;
@@ -175,23 +154,18 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
     private void OnNetworkAddressChanged(object? sender, EventArgs e) => OnNetworkChanged("network address changed");
 
     /// <inheritdoc/>
-    public override void Dispose()
-    {
+    public override void Dispose() {
         UnsubscribeNetworkChange();
         _stateLock.Dispose();
         base.Dispose();
     }
 
-    private static IReadOnlyList<NetworkInterfaceInfo> DiscoverInterfaces()
-    {
-        try
-        {
+    private static IReadOnlyList<NetworkInterfaceInfo> DiscoverInterfaces() {
+        try {
             var result = new List<NetworkInterfaceInfo>();
-            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-            {
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces()) {
                 if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                result.Add(new NetworkInterfaceInfo
-                {
+                result.Add(new NetworkInterfaceInfo {
                     Name = ni.Name,
                     Description = ni.Description,
                     Kind = ClassifyInterface(ni),
@@ -204,17 +178,13 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
                 });
             }
             return result;
-        }
-        catch (Exception)
-        {
+        } catch (Exception) {
             return [];
         }
     }
 
-    private static NetworkInterfaceKind ClassifyInterface(NetworkInterface ni)
-    {
-        return ni.NetworkInterfaceType switch
-        {
+    private static NetworkInterfaceKind ClassifyInterface(NetworkInterface ni) {
+        return ni.NetworkInterfaceType switch {
             NetworkInterfaceType.Ethernet => NetworkInterfaceKind.Ethernet,
             NetworkInterfaceType.Wireless80211 => NetworkInterfaceKind.Wireless,
             NetworkInterfaceType.Loopback => NetworkInterfaceKind.Loopback,
@@ -222,28 +192,21 @@ public sealed partial class NetworkConnectivityService : ServiceEntity, INetwork
         };
     }
 
-    private static NetworkInterfaceKind ClassifyByVpnKeyword(NetworkInterface ni)
-    {
+    private static NetworkInterfaceKind ClassifyByVpnKeyword(NetworkInterface ni) {
         if (VpnKeywords.Any(k => ni.Name.Contains(k, StringComparison.OrdinalIgnoreCase))
-            || VpnKeywords.Any(k => ni.Description.Contains(k, StringComparison.OrdinalIgnoreCase)))
-        {
+            || VpnKeywords.Any(k => ni.Description.Contains(k, StringComparison.OrdinalIgnoreCase))) {
             return NetworkInterfaceKind.VpnTunnel;
         }
         return NetworkInterfaceKind.Unknown;
     }
 
-    private static bool DetectVpnProcesses()
-    {
-        try
-        {
-            foreach (var proc in VpnProcessNames)
-            {
+    private static bool DetectVpnProcesses() {
+        try {
+            foreach (var proc in VpnProcessNames) {
                 if (Process.GetProcessesByName(proc).Length > 0) return true;
             }
             return false;
-        }
-        catch
-        {
+        } catch {
             return false;
         }
     }

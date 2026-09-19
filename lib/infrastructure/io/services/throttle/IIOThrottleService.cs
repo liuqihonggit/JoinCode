@@ -3,8 +3,7 @@ namespace IO.Services;
 /// <summary>
 /// IO 限流服务接口 - 提供全局文件操作流量控制
 /// </summary>
-public interface IIOThrottleService
-{
+public interface IIOThrottleService {
     /// <summary>
     /// 获取当前并发操作数
     /// </summary>
@@ -39,8 +38,7 @@ public interface IIOThrottleService
 /// <summary>
 /// IO 执行许可 - 使用 using 语句自动释放资源
 /// </summary>
-public interface IIOExecutionLease : IDisposable
-{
+public interface IIOExecutionLease : IDisposable {
     /// <summary>
     /// 获取许可的时间戳
     /// </summary>
@@ -55,8 +53,7 @@ public interface IIOExecutionLease : IDisposable
 /// <summary>
 /// IO 操作类型
 /// </summary>
-public enum IOOperationType
-{
+public enum IOOperationType {
     /// <summary>
     /// 读操作
     /// </summary>

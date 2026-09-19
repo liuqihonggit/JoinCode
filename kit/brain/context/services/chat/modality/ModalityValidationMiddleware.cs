@@ -9,8 +9,7 @@ namespace Core.Context.Modality;
 /// <para>管道位置：TokenBudget 之后、PreChat 之前</para>
 /// </summary>
 [Register(typeof(IChatMiddleware), ServiceLifetime.Singleton)]
-public sealed class ModalityValidationMiddleware : IChatMiddleware
-{
+public sealed class ModalityValidationMiddleware : IChatMiddleware {
     private readonly IModelConfigLoader _modelConfigLoader;
     private readonly WorkflowConfig _config;
     private readonly MediaIntentDetector _detector;
@@ -27,8 +26,7 @@ public sealed class ModalityValidationMiddleware : IChatMiddleware
         IModelConfigLoader modelConfigLoader,
         WorkflowConfig config,
         MediaIntentDetector detector,
-        ILogger<ModalityValidationMiddleware>? logger = null)
-    {
+        ILogger<ModalityValidationMiddleware>? logger = null) {
         _modelConfigLoader = modelConfigLoader;
         _config = config;
         _detector = detector;
@@ -45,12 +43,10 @@ public sealed class ModalityValidationMiddleware : IChatMiddleware
     public async IAsyncEnumerable<ChatStreamEvent> InvokeAsync(
         ChatMiddlewareContext context,
         StreamMiddlewareDelegate<ChatMiddlewareContext, ChatStreamEvent> next,
-        [EnumeratorCancellation] CancellationToken ct)
-    {
+        [EnumeratorCancellation] CancellationToken ct) {
         var detection = _detector.Detect(context.Message);
 
-        if (detection.DetectedModalities == ModelModalityKind.None)
-        {
+        if (detection.DetectedModalities == ModelModalityKind.None) {
             await foreach (var evt in next(context, ct).ConfigureAwait(false))
                 yield return evt;
             yield break;
@@ -61,8 +57,7 @@ public sealed class ModalityValidationMiddleware : IChatMiddleware
         var modelModalities = _modelConfigLoader.GetModalities(vendor, modelId);
 
         var missing = detection.DetectedModalities & ~modelModalities;
-        if (missing == ModelModalityKind.None)
-        {
+        if (missing == ModelModalityKind.None) {
             await foreach (var evt in next(context, ct).ConfigureAwait(false))
                 yield return evt;
             yield break;

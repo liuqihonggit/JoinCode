@@ -5,8 +5,7 @@ namespace Services.OAuth;
 /// PKCE 生成器接口
 /// 生成 PKCE 参数用于 OAuth 2.0 授权码流程
 /// </summary>
-public interface IPkceGenerator
-{
+public interface IPkceGenerator {
     /// <summary>
     /// 生成 PKCE 参数
     /// </summary>
@@ -26,8 +25,7 @@ public interface IPkceGenerator
 /// <summary>
 /// PKCE 参数
 /// </summary>
-public sealed record PkceParameters
-{
+public sealed record PkceParameters {
     /// <summary>
     /// code_verifier (43-128 字符)
     /// </summary>
@@ -49,8 +47,7 @@ public sealed record PkceParameters
 /// 使用 S256 方法
 /// </summary>
 [Register(typeof(IPkceGenerator), ServiceLifetime.Singleton)]
-public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator
-{
+public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator {
     private const int MinVerifierLength = 43;
     private const int MaxVerifierLength = 128;
     private const int DefaultVerifierLength = 128;
@@ -60,13 +57,11 @@ public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~".ToCharArray();
 
     /// <inheritdoc />
-    public PkceParameters Generate()
-    {
+    public PkceParameters Generate() {
         var verifier = GenerateCodeVerifier();
         var challenge = GenerateCodeChallenge(verifier);
 
-        return new PkceParameters
-        {
+        return new PkceParameters {
             CodeVerifier = verifier,
             CodeChallenge = challenge,
             CodeChallengeMethod = CodeChallengeMethod
@@ -74,20 +69,16 @@ public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator
     }
 
     /// <inheritdoc />
-    public bool Verify(string verifier, string challenge, string method)
-    {
-        if (string.IsNullOrEmpty(verifier) || string.IsNullOrEmpty(challenge))
-        {
+    public bool Verify(string verifier, string challenge, string method) {
+        if (string.IsNullOrEmpty(verifier) || string.IsNullOrEmpty(challenge)) {
             return false;
         }
 
-        if (verifier.Length < MinVerifierLength || verifier.Length > MaxVerifierLength)
-        {
+        if (verifier.Length < MinVerifierLength || verifier.Length > MaxVerifierLength) {
             return false;
         }
 
-        return method.ToUpperInvariant() switch
-        {
+        return method.ToUpperInvariant() switch {
             "S256" => GenerateCodeChallenge(verifier) == challenge,
             "PLAIN" => verifier == challenge,
             _ => false
@@ -97,8 +88,7 @@ public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator
     /// <summary>
     /// 生成 code_verifier
     /// </summary>
-    private static string GenerateCodeVerifier()
-    {
+    private static string GenerateCodeVerifier() {
         var bytes = new byte[DefaultVerifierLength];
         RandomNumberGenerator.Fill(bytes);
 
@@ -108,8 +98,7 @@ public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator
     /// <summary>
     /// 生成 code_challenge (SHA256 base64url)
     /// </summary>
-    private static string GenerateCodeChallenge(string verifier)
-    {
+    private static string GenerateCodeChallenge(string verifier) {
         var bytes = Encoding.ASCII.GetBytes(verifier);
         var hash = SHA256.HashData(bytes);
         return Base64UrlEncode(hash);
@@ -118,8 +107,7 @@ public sealed partial class PkceGenerator : ServiceEntity, IPkceGenerator
     /// <summary>
     /// Base64Url 编码
     /// </summary>
-    private static string Base64UrlEncode(byte[] bytes)
-    {
+    private static string Base64UrlEncode(byte[] bytes) {
         return Convert.ToBase64String(bytes)
             .TrimEnd('=')
             .Replace('+', '-')

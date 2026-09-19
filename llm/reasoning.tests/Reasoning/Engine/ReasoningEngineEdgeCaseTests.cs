@@ -1,10 +1,8 @@
 namespace JoinCode.Reasoning.Tests.Engine;
 
-public sealed class ReasoningEngineEdgeCaseTests
-{
+public sealed class ReasoningEngineEdgeCaseTests {
     [Fact]
-    public async Task AddAssumptionsAsync_ShouldRejectDuplicateContentEvenWithDifferentIds()
-    {
+    public async Task AddAssumptionsAsync_ShouldRejectDuplicateContentEvenWithDifferentIds() {
         var engine = CreateEngine();
         var item1 = new DataItem { Id = "id1", Content = "重复", State = DataState.Assumption };
         var item2 = new DataItem { Id = "id2", Content = "重复", State = DataState.Assumption };
@@ -16,8 +14,7 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task AddAssumptionsAsync_AllowsRejectedDuplicateContent()
-    {
+    public async Task AddAssumptionsAsync_AllowsRejectedDuplicateContent() {
         var engine = CreateEngine();
         var item = new DataItem { Id = "id1", Content = "内容", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
@@ -31,11 +28,9 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task AddEvidence_WhenClaimDoesNotExist_LogsWarningAndReturns()
-    {
+    public async Task AddEvidence_WhenClaimDoesNotExist_LogsWarningAndReturns() {
         var engine = CreateEngine();
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "证据",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -48,14 +43,12 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task AddEvidence_WouldCreateCycle_RemovesNodeAndReturns()
-    {
+    public async Task AddEvidence_WouldCreateCycle_RemovesNodeAndReturns() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Id = item.Id,
             Content = "证据",
             Category = EvidenceCategory.Documentary,
@@ -69,8 +62,7 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task PropagateEvidenceFailure_WhenEvidenceNotFound_ReturnsWithoutError()
-    {
+    public async Task PropagateEvidenceFailure_WhenEvidenceNotFound_ReturnsWithoutError() {
         var engine = CreateEngine();
 
         engine.PropagateEvidenceFailure("missing");
@@ -79,14 +71,12 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task PropagateEvidenceFailure_DowngradesEvidenceTrustLevel()
-    {
+    public async Task PropagateEvidenceFailure_DowngradesEvidenceTrustLevel() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "证据",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.DirectEvidence,
@@ -102,14 +92,12 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task ApplyVerdicts_Accept_ShouldCreateFactNodeAndVerdictEdge()
-    {
+    public async Task ApplyVerdicts_Accept_ShouldCreateFactNodeAndVerdictEdge() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var verdict = new Verdict
-        {
+        var verdict = new Verdict {
             ClaimId = item.Id,
             Decision = VerdictDecision.Accept,
             Reason = "证据充分",
@@ -125,14 +113,12 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task ApplyVerdicts_Reject_ShouldSetRejectedState()
-    {
+    public async Task ApplyVerdicts_Reject_ShouldSetRejectedState() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var verdict = new Verdict
-        {
+        var verdict = new Verdict {
             ClaimId = item.Id,
             Decision = VerdictDecision.Reject,
             Reason = "证据不足",
@@ -147,14 +133,12 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task ApplyVerdicts_Pending_ShouldSetPendingEvidenceState()
-    {
+    public async Task ApplyVerdicts_Pending_ShouldSetPendingEvidenceState() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var verdict = new Verdict
-        {
+        var verdict = new Verdict {
             ClaimId = item.Id,
             Decision = VerdictDecision.Pending,
             Reason = "需要补充",
@@ -168,14 +152,12 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task ApplyVerdicts_PartiallyAccept_ShouldSetVerifiedState()
-    {
+    public async Task ApplyVerdicts_PartiallyAccept_ShouldSetVerifiedState() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var verdict = new Verdict
-        {
+        var verdict = new Verdict {
             ClaimId = item.Id,
             Decision = VerdictDecision.PartiallyAccept,
             Reason = "部分接受",
@@ -190,14 +172,12 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task ApplyVerdicts_ClaimNotFound_DoesNothing()
-    {
+    public async Task ApplyVerdicts_ClaimNotFound_DoesNothing() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var verdict = new Verdict
-        {
+        var verdict = new Verdict {
             ClaimId = "missing",
             Decision = VerdictDecision.Accept,
             Reason = "证据充分",
@@ -210,8 +190,7 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task Reset_ClearsAllNodesAndBudget()
-    {
+    public async Task Reset_ClearsAllNodesAndBudget() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
@@ -225,8 +204,7 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task RunAdversarialProcessAsync_WhenBudgetExhausted_DoesNotIncrementRound()
-    {
+    public async Task RunAdversarialProcessAsync_WhenBudgetExhausted_DoesNotIncrementRound() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 0, MaxTokens = 100000 };
         var engine = CreateEngine(options);
 
@@ -237,14 +215,12 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task GetSummary_ShouldCountEvidenceNodes()
-    {
+    public async Task GetSummary_ShouldCountEvidenceNodes() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        var evidence = new EvidenceRecord
-        {
+        var evidence = new EvidenceRecord {
             Content = "证据",
             Category = EvidenceCategory.Documentary,
             TrustLevel = TrustLevel.Moderate,
@@ -257,8 +233,7 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task SetUrlVerifier_AndRun_ShouldNotThrow()
-    {
+    public async Task SetUrlVerifier_AndRun_ShouldNotThrow() {
         var engine = CreateEngine();
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
@@ -274,8 +249,7 @@ public sealed class ReasoningEngineEdgeCaseTests
     }
 
     [Fact]
-    public async Task ContinueAsync_RoundsOnly_DoesNotRefillTokens()
-    {
+    public async Task ContinueAsync_RoundsOnly_DoesNotRefillTokens() {
         var options = new ReasoningOptions { MaxAdversarialRounds = 1, MaxTokens = 100000, DefaultRefillTokens = 5000 };
         var engine = CreateEngine(options);
         var item = new DataItem { Content = "假定1", State = DataState.Assumption };
@@ -287,8 +261,7 @@ public sealed class ReasoningEngineEdgeCaseTests
         Assert.Equal(100000, budget.TokensBudget);
     }
 
-    private static ReasoningEngine CreateEngine(ReasoningOptions? options = null)
-    {
+    private static ReasoningEngine CreateEngine(ReasoningOptions? options = null) {
         var agents = new ReasoningAgent[]
         {
             new ProsecutorAgent(new FakeQueryEngine(), NullLogger<ProsecutorAgent>.Instance),
@@ -298,19 +271,15 @@ public sealed class ReasoningEngineEdgeCaseTests
         return new ReasoningEngine(agents, NullLogger<ReasoningEngine>.Instance, options);
     }
 
-    private static async Task RunApplyVerdicts(ReasoningEngine engine, IReadOnlyList<Verdict> verdicts)
-    {
+    private static async Task RunApplyVerdicts(ReasoningEngine engine, IReadOnlyList<Verdict> verdicts) {
         var method = typeof(ReasoningEngine).GetMethod("ApplyVerdicts", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         method!.Invoke(engine, [verdicts]);
         await Task.CompletedTask;
     }
 
-    private sealed class TestHandler : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-            {
+    private sealed class TestHandler : HttpMessageHandler {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) {
                 Content = new StringContent("content"),
             });
         }

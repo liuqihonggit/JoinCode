@@ -1,7 +1,6 @@
 namespace JoinCode.CodeIndex.Benchmarks;
 
-public sealed class L1EvaluationTests : IDisposable
-{
+public sealed class L1EvaluationTests : IDisposable {
     private readonly string _workspaceRoot;
     private readonly InMemoryIndexStore _store;
     private readonly CodeIndexer _indexer;
@@ -9,8 +8,7 @@ public sealed class L1EvaluationTests : IDisposable
     private readonly IFileSystem _fs = new IO.FileSystem.PhysicalFileSystem();
     private bool _disposed;
 
-    public L1EvaluationTests()
-    {
+    public L1EvaluationTests() {
         _workspaceRoot = Path.Combine(Path.GetTempPath(), $"bench_l1_{Guid.NewGuid():N}");
         _fs.CreateDirectory(_workspaceRoot);
         _store = new InMemoryIndexStore();
@@ -19,20 +17,16 @@ public sealed class L1EvaluationTests : IDisposable
         SeedWorkspace();
     }
 
-    public void Dispose()
-    {
+    public void Dispose() {
         if (_disposed) return;
         _disposed = true;
-        try { _indexer.Dispose(); }
-        finally { _store.Dispose(); }
+        try { _indexer.Dispose(); } finally { _store.Dispose(); }
 
-        try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); }
-        catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
+        try { if (_fs.DirectoryExists(_workspaceRoot)) _fs.DeleteDirectory(_workspaceRoot, true); } catch (Exception ex) { Debug.WriteLine($"Failed to delete directory {_workspaceRoot}: {ex.Message}"); }
     }
 
-    private void SeedWorkspace()
-    {
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "UserService.cs"), """
+    private void SeedWorkspace() {
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "UserService.cs"), """
             using System;
             namespace MyApp.Services {
                 public class UserService {
@@ -45,7 +39,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "UserService.cs"), """
                 }
             }
             """);
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "OrderService.cs"), """
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "OrderService.cs"), """
             namespace MyApp.Services {
                 public class OrderService {
                     private readonly UserService _user;
@@ -57,7 +51,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "OrderService.cs"), """
                 }
             }
             """);
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "Repository.cs"), """
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "Repository.cs"), """
             using System.Collections.Generic;
             public interface IRepository<T> {
                 T GetById(int id);
@@ -70,7 +64,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Repository.cs"), """
                 public void Save(T entity) { }
             }
             """);
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "Calculator.cs"), """
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "Calculator.cs"), """
             public class Calculator {
                 public int Compute(int a, int b) { return Helper.Square(a) + Helper.Square(b); }
                 public int Sum(int a, int b) { return Helper.Square(a + b); }
@@ -79,7 +73,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Calculator.cs"), """
                 public static int Square(int x) => x * x;
             }
             """);
-_fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
+        _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
             public class Controller {
                 private readonly UserService _svc;
                 public Controller(UserService svc) { _svc = svc; }
@@ -92,8 +86,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
     }
 
     [Fact]
-    public async Task L1_ExactSearch_PassRateAbove80()
-    {
+    public async Task L1_ExactSearch_PassRateAbove80() {
         var results = await Task.WhenAll(
             TestCaseRepository.GetL1TestCases()
                 .Where(c => c.Category == "exact_search")
@@ -105,8 +98,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
     }
 
     [Fact]
-    public async Task L1_FuzzySearch_PassRateAbove60()
-    {
+    public async Task L1_FuzzySearch_PassRateAbove60() {
         var results = await Task.WhenAll(
             TestCaseRepository.GetL1TestCases()
                 .Where(c => c.Category == "fuzzy_search")
@@ -117,8 +109,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
     }
 
     [Fact]
-    public async Task L1_CrossFileSearch_PassRateAbove70()
-    {
+    public async Task L1_CrossFileSearch_PassRateAbove70() {
         var results = await Task.WhenAll(
             TestCaseRepository.GetL1TestCases()
                 .Where(c => c.Category == "cross_file_search")
@@ -130,8 +121,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
 
     [Fact]
     [Trait("Category", "Benchmark")]
-    public async Task L1_AllCases_ResponseTimeUnder100ms()
-    {
+    public async Task L1_AllCases_ResponseTimeUnder100ms() {
         var results = await Task.WhenAll(
             TestCaseRepository.GetL1TestCases()
                 .Select(EvaluateL1CaseAsync)).ConfigureAwait(true);
@@ -140,8 +130,7 @@ _fs.WriteAllText(Path.Combine(_workspaceRoot, "Controller.cs"), """
         Assert.True(summary.P95Ms < 100, $"L1 P95 响应时间 {summary.P95Ms}ms > 100ms");
     }
 
-    private async Task<EvaluationResult> EvaluateL1CaseAsync(TestCase tc)
-    {
+    private async Task<EvaluationResult> EvaluateL1CaseAsync(TestCase tc) {
         var sw = Stopwatch.StartNew();
         var searchResult = await _indexer.Searcher.SearchAsync(tc.Query, CancellationToken.None).ConfigureAwait(true);
         sw.Stop();

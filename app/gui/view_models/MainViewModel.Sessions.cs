@@ -113,7 +113,7 @@ public sealed partial class MainViewModel {
 
         // 需求11：子会话点击展示内容（SubSessionMessages 缓存或引擎加载）
         if (session.IsSubSession) {
-            await LoadSubSessionContentAsync(session).ConfigureAwait(false);
+            await LoadSubSessionContentAsync(session).ConfigureAwait(true);
             return;
         }
 
@@ -137,7 +137,7 @@ public sealed partial class MainViewModel {
 
         // 把持久化历史灌入底层引擎上下文 — GUI 新进程 StateService 内存为空，
         // SwitchSession 仅切换 sessionId 不加载历史，需显式灌入否则发送时 LLM 收不到历史
-        await _session.LoadHistoryAsync(historyForEngine).ConfigureAwait(false);
+        await _session.LoadHistoryAsync(historyForEngine).ConfigureAwait(true);
     }
 
     /// <summary>重命名指定会话（标题由视图双击触发，空标题忽略）</summary>

@@ -139,7 +139,7 @@ public sealed partial class MainWindow : Window {
     private bool ShowConfirmDialog(string message) {
         var task = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () => {
             var dialog = new ConfirmDialogWindow(message);
-            return await dialog.ShowDialog<bool?>(this).ConfigureAwait(false);
+            return await dialog.ShowDialog<bool?>(this).ConfigureAwait(true);
         });
         return task.GetAwaiter().GetResult() == true;
     }
@@ -157,7 +157,7 @@ public sealed partial class MainWindow : Window {
             : "连接异常，对话已停止。\n详情见 dumps/send_error.log。";
         _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () => {
             var dialog = new ConfirmDialogWindow(message);
-            await dialog.ShowDialog<bool?>(this).ConfigureAwait(false);
+            await dialog.ShowDialog<bool?>(this).ConfigureAwait(true);
         });
     }
 
@@ -165,13 +165,13 @@ public sealed partial class MainWindow : Window {
     private async Task<Hosting.PermissionConfirmationDecision> ShowPermissionDialogAsync(
         Hosting.PermissionConfirmationRequest request) {
         var dialog = new PermissionDialog(request);
-        return await dialog.ShowDialog<Hosting.PermissionConfirmationDecision>(this).ConfigureAwait(false);
+        return await dialog.ShowDialog<Hosting.PermissionConfirmationDecision>(this).ConfigureAwait(true);
     }
 
     /// <summary>AskUserQuestion 回调：弹出多选对话框获取用户选择；关闭窗口等价于取消</summary>
     private async Task<AskUserQuestionResult> ShowAskUserQuestionDialogAsync(QuestionItem question) {
         var dialog = new AskUserQuestionDialog(question);
-        return (await dialog.ShowDialog<AskUserQuestionResult>(this).ConfigureAwait(false)) ?? AskUserQuestionResult.CancelledResult();
+        return (await dialog.ShowDialog<AskUserQuestionResult>(this).ConfigureAwait(true)) ?? AskUserQuestionResult.CancelledResult();
     }
 
     /// <summary>窗口级快捷键：Ctrl+N 新建会话 / Ctrl+L 清空 / Esc 收起设置面板或停止生成</summary>

@@ -111,7 +111,7 @@ public sealed partial class MainViewModel {
         _ = Task.Run(() => PopulateSubSessionsAsync(Sessions.ToArray()));
         _ = Task.Run(async () => {
             try {
-                var tools = await session.GetAvailableToolsAsync().WaitAsync(Timeout).ConfigureAwait(false);
+                var tools = await session.GetAvailableToolsAsync().WaitAsync(Timeout).ConfigureAwait(true);
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => _availableToolsCache = tools);
             } catch (Exception ex) {
                 ViewModelDiagnosticsLogger.WriteError(ex);
@@ -119,7 +119,7 @@ public sealed partial class MainViewModel {
         });
         _ = Task.Run(async () => {
             try {
-                var agents = await session.GetAvailableSubAgentsAsync().WaitAsync(Timeout).ConfigureAwait(false);
+                var agents = await session.GetAvailableSubAgentsAsync().WaitAsync(Timeout).ConfigureAwait(true);
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => _availableSubAgentsCache = agents);
             } catch (Exception ex) {
                 ViewModelDiagnosticsLogger.WriteError(ex);
@@ -208,8 +208,8 @@ public sealed partial class MainViewModel {
         _sendCts?.Dispose();
         _sendCts = null;
         if (_realSession is not null)
-            await _realSession.DisposeAsync().ConfigureAwait(false);
+            await _realSession.DisposeAsync().ConfigureAwait(true);
         if (_mockSession is not null)
-            await _mockSession.DisposeAsync().ConfigureAwait(false);
+            await _mockSession.DisposeAsync().ConfigureAwait(true);
     }
 }

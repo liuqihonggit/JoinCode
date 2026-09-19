@@ -93,12 +93,12 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
 
     private static readonly DiagnosticDescriptor RuleConfigureAwaitTrueForUiAnimation = new(
         "JCC3014",
-        "异步规范: UI 动画方法禁止 ConfigureAwait(false)",
-        "UI 动画方法（名称含 Animation/Animate）中使用了 ConfigureAwait(false). UI 动画循环必须在 UI 线程执行 ApplyAnimationFrame，ConfigureAwait(false) 会导致 await 后不回到 UI 线程，动画帧在错误线程应用，引发布局计算异常和线程安全违规. 必须使用 ConfigureAwait(true) 保持 UI 线程亲和性.",
+        "异步规范: UI 层禁止 ConfigureAwait(false)",
+        "UI 层（Gui/Tui 项目）中使用了 ConfigureAwait(false). UI 层异步操作后续通常操作 UI 控件，必须在 UI 线程继续执行；ConfigureAwait(false) 会导致 await 后不回到 UI 线程，引发布局计算异常和线程安全违规. 必须使用 ConfigureAwait(true) 保持 UI 线程亲和性.",
         "AsyncCorrectness",
         DiagnosticSeverity.Error,
         true,
-        "UI animation methods must use ConfigureAwait(true) to stay on UI thread. ConfigureAwait(false) breaks thread affinity for ApplyAnimationFrame calls.");
+        "UI layer (Gui/Tui) must use ConfigureAwait(true) to stay on UI thread. ConfigureAwait(false) breaks thread affinity for UI control access.");
 
     private static readonly DiagnosticDescriptor RuleTaskDelayIntInTests = new(
         "JCC3010",
@@ -680,6 +680,7 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         var isTestProject = IsTestProject(context.Compilation);
         var isRoslynProject = IsRoslynProject(context.Compilation);
         var isApplicationProject = IsApplicationProject(context.Compilation);
+        var isUiProject = IsUiProject(context.Compilation);
         var isLibraryProject = !isTestProject && !isRoslynProject && !isApplicationProject;
 
         context.RegisterSyntaxNodeAction(
@@ -689,7 +690,7 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
             ctx => AnalyzeConfigureAwaitTrueForTests(ctx, isTestProject),
             SyntaxKind.AwaitExpression);
         context.RegisterSyntaxNodeAction(
-            AnalyzeConfigureAwaitTrueForUiAnimation,
+            ctx => AnalyzeConfigureAwaitTrueForUiAnimation(ctx, isUiProject),
             SyntaxKind.AwaitExpression);
         context.RegisterSyntaxNodeAction(
             ctx => AnalyzeTaskDelayInTests(ctx, isTestProject),
@@ -788,27 +789,39 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
     }
 
     /// <summary>
-    /// JCC3014: UI 动画方法禁止 ConfigureAwait(false) — 动画循环必须在 UI 线程执行 ApplyAnimationFrame。
-    /// 检测方法名含 Animation/Animate 的 async 方法中 await 用了 ConfigureAwait(false)。
+    /// JCC3014: UI 层禁止 ConfigureAwait(false) — UI 层异步操作后续操作 UI 控件，必须在 UI 线程继续。
+    /// 检测 Gui/Tui 项目中所有 await 用了 ConfigureAwait(false)。
     /// </summary>
-    private static void AnalyzeConfigureAwaitTrueForUiAnimation(SyntaxNodeAnalysisContext ctx) {
+    private static void AnalyzeConfigureAwaitTrueForUiAnimation(SyntaxNodeAnalysisContext ctx, bool isUiProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
 
         if (ctx.Node is not AwaitExpressionSyntax awaitExpr) return;
 
-        if (!HasConfigureAwaitFalse(awaitExpr)) return;
+        if (!isUiProject) return;
 
         if (IsTaskYield(awaitExpr)) return;
 
-        var methodDecl = awaitExpr.FirstAncestorOrSelf<MethodDeclarationSyntax>();
-        if (methodDecl is null) return;
+        if (HasConfigureAwaitFalse(awaitExpr)) {
+            ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitTrueForUiAnimation, awaitExpr.GetLocation()));
+        }
+    }
 
-        var methodName = methodDecl.Identifier.ValueText.AsSpan();
-        if (!methodName.Contains("Animation".AsSpan(), StringComparison.Ordinal) &&
-            !methodName.Contains("Animate".AsSpan(), StringComparison.Ordinal))
-            return;
-
-        ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitTrueForUiAnimation, awaitExpr.GetLocation()));
+    /// <summary>
+    /// 检测项目是否为 UI 层（Gui/Tui，引用 Avalonia 或程序集名含 Gui/Tui）。解决方案无关。
+    /// </summary>
+    private static bool IsUiProject(Compilation compilation) {
+        var name = compilation.AssemblyName.AsSpan();
+        if (name.Contains("Gui".AsSpan(), StringComparison.Ordinal) ||
+            name.Contains("Tui".AsSpan(), StringComparison.Ordinal))
+            return true;
+        foreach (var reference in compilation.References) {
+            if (reference is not PortableExecutableReference peRef) continue;
+            var display = peRef.Display;
+            if (display is null) continue;
+            if (display.AsSpan().Contains("Avalonia".AsSpan(), StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     private static bool IsTaskYield(AwaitExpressionSyntax awaitExpr) {

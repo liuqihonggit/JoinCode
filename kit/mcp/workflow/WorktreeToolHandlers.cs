@@ -12,6 +12,7 @@ public class WorktreeToolHandlers
     private readonly IAgentWorktreeService _worktreeService;
     private readonly IWorktreeMergeService _mergeService;
     private readonly IFileSystem _fs;
+    private readonly IAgentWorktreeManager? _worktreeManager;
 
     /// <summary>
     /// 初始化 Worktree 工具处理器
@@ -19,7 +20,8 @@ public class WorktreeToolHandlers
     /// <param name="worktreeService">Worktree 服务实例</param>
     /// <param name="mergeService">Worktree 合并服务实例</param>
     /// <param name="fs">文件系统抽象</param>
-    public WorktreeToolHandlers(IAgentWorktreeService worktreeService, IWorktreeMergeService mergeService, IFileSystem fs)
+    /// <param name="worktreeManager">可选 Worktree 管理器,用于跨进程强制清理</param>
+    public WorktreeToolHandlers(IAgentWorktreeService worktreeService, IWorktreeMergeService mergeService, IFileSystem fs, IAgentWorktreeManager? worktreeManager = null)
     {
         ArgumentNullException.ThrowIfNull(worktreeService);
         ArgumentNullException.ThrowIfNull(mergeService);
@@ -27,6 +29,7 @@ public class WorktreeToolHandlers
         _worktreeService = worktreeService;
         _mergeService = mergeService;
         _fs = fs;
+        _worktreeManager = worktreeManager;
     }
 
     /// <summary>
@@ -102,7 +105,16 @@ public class WorktreeToolHandlers
             }
         }
 
+        // 优先走 worktreeService(同进程),失败时走 worktreeManager(跨进程重建+直接 git 命令)
         var result = await _worktreeService.RemoveAgentWorktreeAsync(agent_id, force ?? false, cancellationToken);
+        if (!result.Success && _worktreeManager is not null)
+        {
+            var cleanupDetail = await _worktreeManager.ForceRemoveWorktreeAsync(agent_id, cancellationToken).ConfigureAwait(false);
+            if (!cleanupDetail.Kept && cleanupDetail.WorktreePath is null)
+            {
+                result = WorktreeCleanupResult.SuccessResult(force ?? false);
+            }
+        }
 
         if (!result.Success)
         {

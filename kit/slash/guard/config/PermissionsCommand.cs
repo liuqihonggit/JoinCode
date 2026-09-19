@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /permissions 命令 — 管理权限规则和工作区目录

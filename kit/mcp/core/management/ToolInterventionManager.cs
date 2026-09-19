@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch;
+namespace McpToolDispatch;
 
 /// <summary>
 /// 工具干预管理器 — 读取干预配置，支持运行时添加/移除干预规则

@@ -1,4 +1,4 @@
-﻿
+
 namespace JoinCode.Abstractions.State;
 
 /// <summary>

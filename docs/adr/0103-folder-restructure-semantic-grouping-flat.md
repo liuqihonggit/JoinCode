@@ -9,7 +9,7 @@
 > 决策者: 用户主导
 > 影响: 112 个 csproj 全量迁移 + 10 个 slnx 归集 + 消除 src/+tests/ 双层
 > 取代: [ADR 0102](0102-folder-restructure-functional-driven.md)(数字前缀方案,proposed → superseded by 0103)
-> 详细设计: [docs/design/flatten-restructure-plan.md](../design/flatten-restructure-plan.md)
+> 详细设计: [docs/design/DSG004-flatten-restructure-plan.md](../design/DSG004-flatten-restructure-plan.md)
 
 ## 背景
 

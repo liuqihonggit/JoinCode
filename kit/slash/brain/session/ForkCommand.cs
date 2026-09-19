@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /fork 命令 — 创建当前对话的分支，复制主对话消息到新会话 ID。

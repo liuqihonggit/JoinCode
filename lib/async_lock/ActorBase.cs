@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 全双工 Actor 基类 — 输入 Channel + 输出 Channel。

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// MCP认证配置类型枚举 — 用于McpAuthToolHandlers持久化标识

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /bridge-kick 命令 — 断开指定 Bridge 连接

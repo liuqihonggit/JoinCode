@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Worktree;
+namespace Core.Agents.Worktree;
 
 /// <summary>
 /// worktree 删除状态机 — 显式状态枚举驱动，删除失败时转入 Diagnosing 探测根因。

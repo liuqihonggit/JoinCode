@@ -1,4 +1,4 @@
-﻿namespace Core.Context;
+namespace Core.Context;
 
 /// <summary>
 /// 流式工具执行器接口 — StreamingToolExecutor 与 StreamingToolExecutorActor 共同实现。

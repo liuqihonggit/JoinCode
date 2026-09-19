@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 上下文快照提供者委托 — 主机调用以收集当前上下文快照。

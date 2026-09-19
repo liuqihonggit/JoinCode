@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Pipeline;
+namespace JoinCode.Abstractions.Pipeline;
 
 /// <summary>
 /// 中间件异常处理策略

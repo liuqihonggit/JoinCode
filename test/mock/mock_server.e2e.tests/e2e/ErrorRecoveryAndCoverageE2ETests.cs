@@ -1,4 +1,4 @@
-﻿namespace MockServer.E2E.Tests;
+namespace MockServer.E2E.Tests;
 
 [Trait("Category", "Integration")]
 public sealed class ApiErrorRecoveryE2ETests : CoverageTestBase

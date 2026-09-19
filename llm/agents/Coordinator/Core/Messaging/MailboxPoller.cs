@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// 邮箱轮询器 — 周期性从文件邮箱拉取未读消息并投递到进程内邮箱或消息接收器

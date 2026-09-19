@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// REPL语言类型枚举

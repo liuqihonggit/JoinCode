@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli;
+namespace JoinCode.Cli;
 
 /// <summary>
 /// 洞察数据聚合器 — CLI 简化版

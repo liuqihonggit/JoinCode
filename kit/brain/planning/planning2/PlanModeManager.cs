@@ -2,6 +2,21 @@
 namespace Core.Planning;
 
 /// <summary>
+/// 计划历史 Actor 命令类型 — 串行化 _planHistory 访问，消除显式锁 — TASK001
+/// </summary>
+public abstract record PlanModeCommand;
+
+/// <summary>退出计划模式 — 锁内部分（_planHistory.Add）走 Actor 串行化</summary>
+public sealed record ExitPlanModeCmd(
+    PlanState Plan,
+    TaskCompletionSource Reply) : PlanModeCommand;
+
+/// <summary>获取计划历史 — 对应 GetPlanHistoryAsync</summary>
+public sealed record GetPlanHistoryCmd(
+    int Limit,
+    TaskCompletionSource<List<PlanState>> Reply) : PlanModeCommand;
+
+/// <summary>
 /// 计划模式管理器实现
 /// </summary>
 [Register(typeof(IPlanModeManager), ServiceLifetime.Singleton)]
@@ -9,7 +24,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, PlanState> _plans = new();
     private readonly List<PlanState> _planHistory = new();
-    private readonly AsyncLock _historyLock = new();
+    private readonly PlanHistoryActor _actor;
     private readonly ITelemetryService? _telemetryService;
     private readonly IToolPermissionManager? _permissionManager;
     private readonly ITeammateMailboxService? _mailboxService;
@@ -75,6 +90,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         _subAgentContextAccessor = subAgentContextAccessor ?? new SubAgentContextAccessor();
         _logger = logger;
         _fileStore = new PlanFileStore(fs, clock, logger);
+        _actor = new PlanHistoryActor(this, logger);
     }
 
     /// <summary>
@@ -287,11 +303,11 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         plan.Status = plan.Status == PlanStatus.Executing ? PlanStatus.Cancelled : plan.Status;
         plan.LastUpdatedAt = _clock.GetUtcNow();
 
-        // 添加到历史记录
-        using var guard = await _historyLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时");
+        // 添加到历史记录 — 通过 Actor 串行化，消除显式锁 — TASK001
+        var exitReply = new TaskCompletionSource();
+        await _actor.SendAsync(new ExitPlanModeCmd(plan, exitReply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(exitReply, cancellationToken).ConfigureAwait(false);
 
-        _planHistory.Add(plan);
-    
 
         // 对齐 TS: 退出时不自动写文件 — plan 文件由模型通过 FileWriteTool 写入
         // TS ExitPlanModeV2Tool.call() 仅在用户通过 CCR 编辑了 plan 时才同步写入磁盘
@@ -707,18 +723,16 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         int limit = 10,
         CancellationToken cancellationToken = default)
     {
-        using var guard = await _historyLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_historyLock.Name}' 等待超时");
-
-        var history = _planHistory.AsEnumerable().Reverse().Take(limit).ToList();
-        return history;
-    
+        var reply = new TaskCompletionSource<List<PlanState>>();
+        await _actor.SendAsync(new GetPlanHistoryCmd(limit, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
-        _historyLock.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
     }
 
     private string GeneratePlanId()
@@ -881,5 +895,57 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
 
         // 通知等待方
         tcs.TrySetResult(response);
+    }
+
+    /// <summary>
+    /// 计划历史 Actor — 串行化 _planHistory 访问，消除显式锁 — TASK001
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class PlanHistoryActor : ActorBase<PlanModeCommand, Unit>
+    {
+        private readonly PlanModeManager _owner;
+        private readonly ILogger<PlanModeManager>? _logger;
+
+        public PlanHistoryActor(PlanModeManager owner, ILogger<PlanModeManager>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 PlanModeManager 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        /// <summary>Ask 模式等待回复（无返回值） — 暴露 protected AskAwait 供 PlanModeManager 调用</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override ValueTask HandleAsync(PlanModeCommand cmd, CancellationToken ct)
+        {
+            try
+            {
+                switch (cmd)
+                {
+                    case ExitPlanModeCmd(var plan, var reply):
+                        _owner._planHistory.Add(plan);
+                        reply.SetResult();
+                        break;
+                    case GetPlanHistoryCmd(var limit, var reply):
+                        reply.SetResult(_owner._planHistory.AsEnumerable().Reverse().Take(limit).ToList());
+                        break;
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "PlanHistoryActor 命令处理异常");
+                switch (cmd)
+                {
+                    case ExitPlanModeCmd(_, var reply): reply.SetException(ex); break;
+                    case GetPlanHistoryCmd(_, var reply): reply.SetException(ex); break;
+                }
+            }
+            return ValueTask.CompletedTask;
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Services.Lsp;
+namespace Services.Lsp;
 
 #region LSP Server Config (JSON-RPC 连接配置，非 Contracts 模型)
 

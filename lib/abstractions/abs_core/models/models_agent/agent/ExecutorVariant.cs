@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.Agent;
+namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// 执行者变体 — 不同专长的执行者 Agent

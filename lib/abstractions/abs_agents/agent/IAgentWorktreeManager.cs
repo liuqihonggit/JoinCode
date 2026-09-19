@@ -23,6 +23,17 @@ public sealed class WorktreeEventArgs : EventArgs
 }
 
 /// <summary>
+/// Worktree 清理模式 — 驱动清理状态机决策
+/// </summary>
+public enum WorktreeCleanupMode
+{
+    /// <summary>任务自然完成:无变更删除,有变更保留(对齐 TS cleanupWorktreeIfNeeded)</summary>
+    OnTaskComplete,
+    /// <summary>强制删除:不管有无变更(worktree_remove 工具调用)</summary>
+    ForceRemove
+}
+
+/// <summary>
 /// Worktree 清理详情 — 对齐 TS cleanupWorktreeIfNeeded 返回值
 /// </summary>
 public sealed class WorktreeCleanupDetail
@@ -85,10 +96,17 @@ public interface IAgentWorktreeManager
     Task<AgentWorktreeSession?> CreateWorktreeForAgentAsync(string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 清理 Agent 的 Worktree — 对齐 TS cleanupWorktreeIfNeeded
-    /// 无变更时自动删除，有变更时保留 worktree 并返回路径/分支信息
+    /// 清理 Agent 的 Worktree — 状态机驱动,所有差异在本函数体内。
+    /// OnTaskComplete: 无变更删除,有变更保留(任务自然完成路径调用)。
+    /// ForceRemove: 强制删除(worktree_remove 工具调用)。
+    /// agent_stop 不调用此方法(保留 worktree 供检查)。
     /// </summary>
-    Task<WorktreeCleanupDetail> CleanupWorktreeAsync(string agentId, CancellationToken cancellationToken = default);
+    Task<WorktreeCleanupDetail> CleanupWorktreeAsync(string agentId, WorktreeCleanupMode mode = WorktreeCleanupMode.OnTaskComplete, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 强制移除 Agent 的 Worktree — CleanupWorktreeAsync(ForceRemove) 的便捷包装。
+    /// </summary>
+    Task<WorktreeCleanupDetail> ForceRemoveWorktreeAsync(string agentId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取Agent的Worktree会话

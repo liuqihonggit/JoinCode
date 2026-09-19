@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 消息优先级 — 多通道优先级邮箱用。

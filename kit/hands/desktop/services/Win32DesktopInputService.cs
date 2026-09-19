@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Hands.Desktop;
+namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 桌面输入模拟服务 — Win32 SendInput/SetCursorPos 封装

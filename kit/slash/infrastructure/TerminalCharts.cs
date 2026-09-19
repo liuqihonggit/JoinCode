@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli;
+namespace JoinCode.Cli;
 
 // ─── TerminalCharts ───
 

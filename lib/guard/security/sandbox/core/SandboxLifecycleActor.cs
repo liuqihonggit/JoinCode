@@ -1,4 +1,4 @@
-﻿namespace Core.Security.Sandbox;
+namespace Core.Security.Sandbox;
 
 /// <summary>
 /// 沙箱生命周期 Actor 命令 — Channel 中的消息类型

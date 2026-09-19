@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /debuglog 子选项标志枚举 — [EnumValue] 由 EnumMetadataGenerator 自动生成 DebugLogFlagEnumConstants + DebugLogFlagExtensions

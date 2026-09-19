@@ -1,4 +1,4 @@
-﻿namespace JoinCode;
+namespace JoinCode;
 
 /// <summary>
 /// 工具直调子命令参数 — mcp_call 和 slash_call 共享

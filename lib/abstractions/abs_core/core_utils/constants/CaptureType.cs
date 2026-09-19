@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 终端捕获类型枚举

@@ -20,7 +20,7 @@ MCP 传输层面临多种故障：网络中断、服务端崩溃、沙箱拦截�
 
 **关键约束**：L1 健康检查不能只做 TCP 端口检查，必须检测沙箱/OS 拦截，否则误判服务可用。
 
-定位文件：`docs/design/TransportFallbackChain.md`、`docs/design/UnifiedResilienceArchitecture.md`
+定位文件：`docs/design/DSG014-TransportFallbackChain.md`、`docs/design/DSG013-UnifiedResilienceArchitecture.md`
 
 ## 替代方案
 

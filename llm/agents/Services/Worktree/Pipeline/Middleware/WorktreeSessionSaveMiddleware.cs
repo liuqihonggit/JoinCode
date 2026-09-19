@@ -8,22 +8,27 @@ public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWork
 {
 
     /// <summary>
-    /// 构造 WorktreeSessionSaveMiddleware 实例，注入延迟加载的管道操作、时钟服务、遥测服务及日志器
+    /// 构造 WorktreeSessionSaveMiddleware 实例，注入延迟加载的管道操作、文件操作服务、时钟服务、遥测服务及日志器
     /// </summary>
-    public WorktreeSessionSaveMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IClockService clock, ITelemetryService? telemetryService = null, ILogger<WorktreeSessionSaveMiddleware>? logger = null)
+    public WorktreeSessionSaveMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IFileOperationService fs, IClockService clock, ITelemetryService? telemetryService = null, ILogger<WorktreeSessionSaveMiddleware>? logger = null)
     {
         _worktreeService = worktreeService;
+        _fs = fs;
         _clock = clock;
         _telemetryService = telemetryService;
         _logger = logger;
     }
     private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly IFileOperationService _fs;
     private readonly ITelemetryService? _telemetryService;
     private readonly ILogger<WorktreeSessionSaveMiddleware>? _logger;
     private readonly IClockService _clock;
 
     /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
+
+    /// <summary>执行优先级:会话保存最后执行</summary>
+    public int Order => 700;
 
     /// <summary>
     /// 执行会话保存：恢复模式跳过；否则构建会话对象、保存并记录遥测，设置上下文结果
@@ -38,6 +43,8 @@ public sealed partial class WorktreeSessionSaveMiddleware : ServiceEntity, IWork
             await next(context, ct).ConfigureAwait(false);
             return;
         }
+
+        WorktreeContextEnricher.EnsureAllPaths(context, _fs);
 
         var opts = context.Options ?? new WorktreeOptions();
         var creationDurationMs = context.CreationStartTime.HasValue

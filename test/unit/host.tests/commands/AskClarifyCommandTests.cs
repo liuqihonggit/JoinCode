@@ -1,4 +1,4 @@
-﻿namespace Core.Tests.Commands;
+namespace Core.Tests.Commands;
 
 /// <summary>
 /// /?? 需求澄清命令单元测试

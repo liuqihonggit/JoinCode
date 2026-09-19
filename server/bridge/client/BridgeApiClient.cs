@@ -1,4 +1,4 @@
-﻿namespace Core.Bridge;
+namespace Core.Bridge;
 
 
 #region CCR 数据模型 — 对齐 TS 端 bridgeApi.ts / types.ts

@@ -39,7 +39,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
                 _messageBrokerMock.Object.UnregisterAgent(ctx.AgentId);
                 if (_worktreeManagerMock.Object.IsWorktreeIsolationEnabled)
                 {
-                    await _worktreeManagerMock.Object.CleanupWorktreeAsync(ctx.AgentId, ct);
+                    await _worktreeManagerMock.Object.CleanupWorktreeAsync(ctx.AgentId, cancellationToken: ct);
                 }
                 await next(ctx, ct);
             })], onError: (_, _) => { });
@@ -270,7 +270,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
         // Arrange
         var agentId = "test-agent";
         _worktreeManagerMock.Setup(x => x.IsWorktreeIsolationEnabled).Returns(true);
-        _worktreeManagerMock.Setup(x => x.CleanupWorktreeAsync(agentId, default))
+        _worktreeManagerMock.Setup(x => x.CleanupWorktreeAsync(agentId, It.IsAny<WorktreeCleanupMode>(), default))
             .ReturnsAsync(WorktreeCleanupDetail.SuccessfullyRemoved);
 
         // Act
@@ -278,7 +278,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime
 
         // Assert
         _messageBrokerMock.Verify(x => x.UnregisterAgent(agentId), Times.Once);
-        _worktreeManagerMock.Verify(x => x.CleanupWorktreeAsync(agentId, default), Times.Once);
+        _worktreeManagerMock.Verify(x => x.CleanupWorktreeAsync(agentId, It.IsAny<WorktreeCleanupMode>(), default), Times.Once);
         _lifecycleManagerMock.Verify(x => x.DisposeAgentAsync(agentId, default), Times.Once);
     }
 

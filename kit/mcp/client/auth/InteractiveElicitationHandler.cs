@@ -1,4 +1,4 @@
-﻿namespace McpClient;
+namespace McpClient;
 
 /// <summary>
 /// 交互式 Elicitation 处理器 — 通过用户交互服务（IUserInteractionService）将服务器的 elicitation 请求转发给终端用户,

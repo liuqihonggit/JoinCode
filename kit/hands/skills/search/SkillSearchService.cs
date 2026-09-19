@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Skills.Search;
 
 /// <summary>

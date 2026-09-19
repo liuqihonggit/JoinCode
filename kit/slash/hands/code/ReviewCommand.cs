@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /review 命令 — 审查 Pull Request 或代码变更

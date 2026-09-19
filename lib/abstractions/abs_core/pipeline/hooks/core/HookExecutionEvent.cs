@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Hooks;
+namespace JoinCode.Abstractions.Hooks;
 
 /// <summary>
 /// 钩子执行事件类型

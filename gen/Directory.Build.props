@@ -34,7 +34,7 @@
   </PropertyGroup>
 
   <!-- === Generator 项目: 移除根目录带入的 Using（netstandard2.0 不支持） === -->
-  <ItemGroup Condition="!$(MSBuildProjectName.Contains('.Tests'))">
+  <ItemGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS'))">
     <Using Remove="System.Collections.Concurrent" />
     <Using Remove="System.Diagnostics" />
     <Using Remove="System.Text.Json" />
@@ -43,7 +43,7 @@
   </ItemGroup>
 
   <!-- === 测试项目覆盖配置 === -->
-  <PropertyGroup Condition="$(MSBuildProjectName.Contains('.Tests'))">
+  <PropertyGroup Condition="$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS'))">
     <TargetFramework>net10.0</TargetFramework>
     <EnforceExtendedAnalyzerRules>false</EnforceExtendedAnalyzerRules>
     <IsTestProject>true</IsTestProject>

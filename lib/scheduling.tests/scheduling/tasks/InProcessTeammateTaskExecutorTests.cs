@@ -370,7 +370,7 @@ public class InProcessTeammateTaskExecutorTests
             .Setup(x => x.CreateWorktreeForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(wtSession);
         worktreeManagerMock
-            .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<WorktreeCleanupMode>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(WorktreeCleanupDetail.SuccessfullyRemoved);
 
         var executor = new InProcessTeammateTaskExecutor(
@@ -392,7 +392,7 @@ public class InProcessTeammateTaskExecutorTests
 
         result.IsSuccess.Should().BeTrue();
         worktreeManagerMock.Verify(x => x.CreateWorktreeForAgentAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()), Times.Once);
-        worktreeManagerMock.Verify(x => x.CleanupWorktreeAsync(agent.ObjectId.UniqueId, It.IsAny<CancellationToken>()), Times.Once);
+        worktreeManagerMock.Verify(x => x.CleanupWorktreeAsync(agent.ObjectId.UniqueId, It.IsAny<WorktreeCleanupMode>(), It.IsAny<CancellationToken>()), Times.Once);
         agent.Options.WorktreePath.Should().Be("D:\\repo\\.worktrees\\agent-wt");
         agent.Options.WorktreeBranch.Should().Be("wt/agent-wt");
     }
@@ -423,7 +423,7 @@ public class InProcessTeammateTaskExecutorTests
             .Setup(x => x.CreateWorktreeForAgentAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((AgentWorktreeSession?)null);
         worktreeManagerMock
-            .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.CleanupWorktreeAsync(It.IsAny<string>(), It.IsAny<WorktreeCleanupMode>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(WorktreeCleanupDetail.NotIsolated);
 
         var executor = new InProcessTeammateTaskExecutor(

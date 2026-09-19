@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 网关配置 — 限流/重试/熔断参数。

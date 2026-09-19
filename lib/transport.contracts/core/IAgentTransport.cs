@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport;
+namespace JoinCode.Transport;
 
 /// <summary>
 /// 传输层事件参数

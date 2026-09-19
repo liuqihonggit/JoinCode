@@ -1,8 +1,9 @@
 namespace Core.Bridge;
 
 /// <summary>
-/// 子进程 IO 通道 — 封装进程读写、队列缓冲、transcript 写入、stdin 锁、读取任务生命周期
+/// 子进程 IO 通道 — 封装进程读写、队列缓冲、transcript 写入、stdin Actor、读取任务生命周期
 /// 从 BridgeSubprocessHandle 提取,所有进程交互和 IO 资源释放集中于此
+/// TASK001: stdin 写入迁移到 Actor 邮箱管道，消除 AsyncLock
 /// </summary>
 internal sealed class SubprocessIoChannels : IAsyncDisposable
 {
@@ -11,7 +12,7 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
 
     private readonly IInteractiveProcess _process;
     private readonly ResilientSubprocess? _resilientSubprocess;
-    private readonly AsyncLock _stdinLock = new();
+    private readonly StdinActor _actor;
     private readonly Queue<string> _stderrQueue;
     private readonly Queue<string> _activityQueue;
     private readonly ILogger? _logger;
@@ -54,6 +55,7 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
         _stderrQueue = new Queue<string>(MaxStderrLines);
         _activityQueue = new Queue<string>(MaxActivities);
         _readCts = new CancellationTokenSource();
+        _actor = new StdinActor(this, logger);
         _process.ErrorDataReceived += OnErrorDataReceived;
     }
 
@@ -65,6 +67,7 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
 
     /// <summary>
     /// 向 stdin 写入数据 — 对齐 TS 端 writeStdin
+    /// 韧性模式直接走 _resilientSubprocess,非韧性模式经 Actor 邮箱串行化 — TASK001
     /// </summary>
     public async Task WriteStdinAsync(string data, CancellationToken ct = default)
     {
@@ -81,7 +84,16 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
             return;
         }
 
-        using var guard = await _stdinLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_stdinLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new WriteStdinCmd(data, reply), ct).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// stdin 写入实际执行 — 由 StdinActor Consumer 串行调用,无需锁
+    /// </summary>
+    private async Task WriteStdinInternalAsync(string data, CancellationToken ct)
+    {
         try
         {
             if (_process.StandardInput.BaseStream is null || !_process.StandardInput.BaseStream.CanWrite)
@@ -172,7 +184,7 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
         else
             await _process.DisposeSafeAsync(_logger).ConfigureAwait(false);
 
-        _stdinLock.DisposeSafe(_logger);
+        await _actor.DisposeAsync().ConfigureAwait(false);
         _transcriptStream.DisposeSafe(_logger);
         _transcriptStream = null;
     }
@@ -187,4 +199,44 @@ internal sealed class SubprocessIoChannels : IAsyncDisposable
         }
         queue.Enqueue(item);
     }
+
+    /// <summary>
+    /// stdin 写入 Actor — 串行化 WriteStdinAsync 调用,消除 AsyncLock — TASK001
+    /// <para>命令通过 Channel 投递,Consumer 单线程串行处理,天然无竞态。</para>
+    /// </summary>
+    private sealed class StdinActor : ActorBase<WriteStdinCmd, Unit>
+    {
+        private readonly SubprocessIoChannels _owner;
+        private readonly ILogger? _logger;
+
+        public StdinActor(SubprocessIoChannels owner, ILogger? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 SubprocessIoChannels 调用</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(WriteStdinCmd cmd, CancellationToken ct)
+        {
+            try
+            {
+                await _owner.WriteStdinInternalAsync(cmd.Data, ct).ConfigureAwait(false);
+                cmd.Reply.SetResult();
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "[SubprocessHandle] StdinActor 命令处理异常");
+                cmd.Reply.SetResult();
+            }
+        }
+    }
 }
+
+/// <summary>
+/// stdin 写入 Actor 命令 — WriteStdinAsync 的 Actor 化封装 — TASK001
+/// </summary>
+internal sealed record WriteStdinCmd(string Data, TaskCompletionSource Reply);

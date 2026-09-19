@@ -249,13 +249,21 @@ public abstract class SystemActuatorBase : ToolExecutionEntity, ISystemActuator
     }
 
     private string ResolveWorkingDirectory(string? workingDirectory, bool disableSandbox)
+        => ResolveWorkingDirectoryCore(workingDirectory, _fs, _sandboxManager, disableSandbox);
+
+    /// <summary>
+    /// 解析工作目录核心逻辑 — 提取为 internal static 便于单元测试
+    /// 优先级: 显式 workingDirectory > SubAgentContext.CwdOverride > 进程级 cwd
+    /// </summary>
+    internal static string ResolveWorkingDirectoryCore(
+        string? workingDirectory, IFileSystem fs, ISandboxManager? sandboxManager, bool disableSandbox)
     {
         var cwd = string.IsNullOrEmpty(workingDirectory)
-            ? _fs.GetCurrentDirectory()
+            ? SubAgentContext.GetEffectiveCwd(fs.GetCurrentDirectory())
             : Path.GetFullPath(workingDirectory);
 
-        if (!disableSandbox && _sandboxManager != null && _sandboxManager.IsInSandbox)
-            cwd = _sandboxManager.ResolvePath(cwd);
+        if (!disableSandbox && sandboxManager != null && sandboxManager.IsInSandbox)
+            cwd = sandboxManager.ResolvePath(cwd);
 
         return cwd;
     }

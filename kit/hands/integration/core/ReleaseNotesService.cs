@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 /// <summary>
 /// Release Notes 服务 — 拉取 GitHub Releases 并提供本地缓存

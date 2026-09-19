@@ -1,4 +1,4 @@
-﻿namespace Core.Agents;
+namespace Core.Agents;
 
 /// <summary>
 /// 子智能体信封状态 — L0 XML state 属性值

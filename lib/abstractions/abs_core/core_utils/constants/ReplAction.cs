@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// REPL 操作类型枚举

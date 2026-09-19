@@ -1,4 +1,4 @@
-﻿namespace McpProtocol;
+namespace McpProtocol;
 
 /// <summary>
 /// MCP Streamable HTTP 服务端 — 对齐 2025-11-25 规范:单端点 POST/GET/DELETE,

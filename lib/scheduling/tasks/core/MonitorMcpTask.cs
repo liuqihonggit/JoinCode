@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Scheduling.Tasks;
 
 /// <summary>

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.ErrorRecovery;
+namespace JoinCode.Abstractions.Models.ErrorRecovery;
 
 public sealed class CrashSnapshot
 {

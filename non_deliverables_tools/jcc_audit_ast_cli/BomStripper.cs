@@ -14,7 +14,7 @@ public static class BomStripper
     /// <summary>
     /// 排除目录名（路径任一段匹配则跳过）：bin/obj/.xxx/.git/.vs/artifacts/node_modules
     /// </summary>
-    public static readonly string[] ExcludedDirectories = new[] { "bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules" };
+    public static readonly string[] ExcludedDirectories = new[] { "bin", "obj", ".xxx", ".git", ".vs", "artifacts", "node_modules", ".nuget" };
 
     /// <summary>
     /// 排除文件后缀/模式：.Designer.cs / .Generated.cs / .g.cs

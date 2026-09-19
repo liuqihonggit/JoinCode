@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// Worktree退出操作枚举

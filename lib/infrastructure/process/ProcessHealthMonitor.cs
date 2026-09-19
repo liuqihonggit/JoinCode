@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.Subprocess;
+namespace Infrastructure.Subprocess;
 
 /// <summary>
 /// 进程健康监控命令 — Actor 消息类型

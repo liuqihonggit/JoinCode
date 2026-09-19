@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /upgrade 命令 — 对齐 TS upgrade.ts + ADR 0064 自动更新

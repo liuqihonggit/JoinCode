@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 /// <summary>
 /// GitHub 服务 — 管理 PR 订阅列表，支持加载、订阅、取消订阅并持久化到配置

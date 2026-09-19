@@ -1,4 +1,4 @@
-﻿namespace Composition.Tests.Commands;
+namespace Composition.Tests.Commands;
 
 /// <summary>
 /// DebugLogCommand 单元测试 — 验证参数解析、默认行为、clear 功能

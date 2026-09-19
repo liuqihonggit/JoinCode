@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli.Display;
+namespace JoinCode.Cli.Display;
 
 /// <summary>
 /// 工具执行状态标记 — CLI 输出 [OK]/[FAIL] 的唯一数据源。

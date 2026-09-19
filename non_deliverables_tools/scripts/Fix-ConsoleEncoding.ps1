@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     控制台编码检测与修复脚本 - 一键解决中文乱码
 .DESCRIPTION

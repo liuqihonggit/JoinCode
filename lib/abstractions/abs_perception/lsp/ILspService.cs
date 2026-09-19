@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces.Lsp;
+namespace JoinCode.Abstractions.Interfaces.Lsp;
 
 /// <summary>
 /// LSP 服务类型枚举

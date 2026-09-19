@@ -23,7 +23,7 @@ MCP 客户端支持多种传输协议（Stdio、StreamableHTTP、SSE、WebSocket
 **服务端 fallback** = 首选 + 运行时降级
 **客户端 fallback** = 连接 + 断连 + 熔断
 
-定位文件：`docs/design/TransportFallbackChain.md`
+定位文件：`docs/design/DSG014-TransportFallbackChain.md`
 
 ## 替代方案
 

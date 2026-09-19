@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Entity;
+namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 工具执行实体 — 每次工具调用都创建一个实例

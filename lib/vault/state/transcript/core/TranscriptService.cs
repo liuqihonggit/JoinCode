@@ -1,4 +1,4 @@
-﻿namespace State;
+namespace State;
 
 /// <summary>
 /// 会话转录服务实现 — 负责将 TranscriptEntry 持久化到每会话子目录,支持加载、列表、删除、自定义标题与旧格式迁移。
@@ -397,11 +397,11 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
     /// <summary>
     /// 释放转录文件写入器资源。
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
-        _writer.Dispose();
-        base.Dispose();
+        await _writer.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

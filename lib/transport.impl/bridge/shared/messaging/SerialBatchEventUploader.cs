@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport.Bridge;
+namespace JoinCode.Transport.Bridge;
 
 /// <summary>
 /// 可重试错误 — 对齐 TS 端 SerialBatchEventUploader.RetryableError

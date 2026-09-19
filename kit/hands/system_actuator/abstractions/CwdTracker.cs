@@ -1,4 +1,4 @@
-﻿namespace Services.SystemActuator;
+namespace Services.SystemActuator;
 
 internal sealed class CwdTracker : IAsyncDisposable
 {

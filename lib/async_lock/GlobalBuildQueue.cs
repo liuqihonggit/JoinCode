@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>编译请求 — 全局编译队列的工作单元。</summary>
 public sealed record GlobalBuildRequest

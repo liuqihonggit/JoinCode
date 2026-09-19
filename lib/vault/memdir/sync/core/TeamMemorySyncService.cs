@@ -1,4 +1,4 @@
-﻿namespace Memdir.Sync;
+namespace Memdir.Sync;
 
 /// <summary>
 /// 团队记忆同步命令标记接口 — 所有同步管道命令实现此接口,由 Actor 邮箱串行处理。

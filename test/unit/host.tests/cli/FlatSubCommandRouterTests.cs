@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.Cli;
+namespace Host.Tests.Cli;
 
 /// <summary>
 /// FlatSubCommandRouter 参数解析测试 — 验证布尔标志不误吞 key=value 参数

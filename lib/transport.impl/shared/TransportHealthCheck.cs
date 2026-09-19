@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport;
+namespace JoinCode.Transport;
 
 /// <summary>
 /// 传输健康检查接口 — 检测传输是否可用

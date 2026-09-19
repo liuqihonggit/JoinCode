@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// 精简模式切换命令 — 启用/禁用 SimpleModeService，简化提示词、减少工具集、最小化 UI、自动确认

@@ -23,6 +23,9 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
     private readonly IClockService _clock;
 
 
+    /// <summary>执行优先级:worktree 创建在 Git 信息获取之后</summary>
+    public int Order => 500;
+
     /// <summary>
     /// 执行 worktree 创建：git worktree add + 可选稀疏检出，失败时回滚已创建的 worktree 与分支
     /// </summary>
@@ -31,27 +34,11 @@ public sealed partial class WorktreeCreateMiddleware : ServiceEntity, IWorktreeC
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
+        WorktreeContextEnricher.EnsureAllPaths(context, _fs);
         var opts = context.Options ?? new WorktreeOptions();
         var gitRoot = context.GitRoot;
-        if (string.IsNullOrEmpty(gitRoot))
-        {
-            gitRoot = !string.IsNullOrEmpty(context.OriginalCwd) ? context.OriginalCwd : _fs.GetCurrentDirectory();
-            context.GitRoot = gitRoot;
-        }
         var worktreePath = context.WorktreePath;
         var branchName = context.BranchName;
-
-        if (string.IsNullOrEmpty(branchName))
-        {
-            branchName = AgentWorktreeSession.GenerateBranchName(context.AgentId);
-            context.BranchName = branchName;
-        }
-
-        if (string.IsNullOrEmpty(worktreePath))
-        {
-            worktreePath = AgentWorktreeSession.GenerateWorktreePath(gitRoot, context.AgentId);
-            context.WorktreePath = worktreePath;
-        }
 
         context.CreationStartTime = _clock.GetUtcNow();
         _logger?.LogInformation("创建新 worktree: {WorktreePath}, Agent: {AgentId}", worktreePath, context.AgentId);

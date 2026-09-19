@@ -45,7 +45,7 @@ public class ParallelExecutionEngineTests
                 _messageBrokerMock.Object.UnregisterAgent(ctx.AgentId);
                 if (_worktreeManagerMock.Object.IsWorktreeIsolationEnabled)
                 {
-                    await _worktreeManagerMock.Object.CleanupWorktreeAsync(ctx.AgentId, ct);
+                    await _worktreeManagerMock.Object.CleanupWorktreeAsync(ctx.AgentId, cancellationToken: ct);
                 }
                 await next(ctx, ct);
             })], onError: (_, _) => { });

@@ -9,16 +9,21 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
 {
 
     /// <summary>
-    /// 构造 WorktreeGitInfoMiddleware 实例，注入延迟加载的管道操作及日志器
+    /// 构造 WorktreeGitInfoMiddleware 实例，注入延迟加载的管道操作、文件操作服务及日志器
     /// </summary>
-    public WorktreeGitInfoMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, ILogger<WorktreeGitInfoMiddleware>? logger = null)
+    public WorktreeGitInfoMiddleware(Lazy<IWorktreePipelineOperations> worktreeService, IFileOperationService fs, ILogger<WorktreeGitInfoMiddleware>? logger = null)
     {
         _worktreeService = worktreeService;
+        _fs = fs;
         _logger = logger;
     }
     private readonly Lazy<IWorktreePipelineOperations> _worktreeService;
+    private readonly IFileOperationService _fs;
     private readonly ILogger<WorktreeGitInfoMiddleware>? _logger;
 
+
+    /// <summary>执行优先级:Git 信息获取在恢复检查之后</summary>
+    public int Order => 400;
 
     /// <summary>
     /// 执行 Git 信息获取：获取当前分支、HEAD commit SHA，并按 PR 号/基准分支/默认分支解析基础引用
@@ -28,6 +33,7 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
+        WorktreeContextEnricher.EnsureGitRoot(context, _fs);
         var gitRoot = context.GitRoot;
 
         context.OriginalBranch = await _worktreeService.Value.GetCurrentBranchAsync(gitRoot).ConfigureAwait(false);
@@ -65,39 +71,10 @@ public sealed partial class WorktreeGitInfoMiddleware : ServiceEntity, IWorktree
         }
         else
         {
-            var defaultBranch = await _worktreeService.Value.GetDefaultBranchAsync(gitRoot).ConfigureAwait(false);
-            if (defaultBranch is not null)
-            {
-                var originRef = $"origin/{defaultBranch}";
-                var originSha = await _worktreeService.Value.ResolveRefAsync(gitRoot, originRef).ConfigureAwait(false);
-
-                if (originSha is not null)
-                {
-                    context.BaseBranch = originRef;
-                    context.BaseCommitSha = originSha;
-                    _logger?.LogDebug("本地已有 origin ref，跳过 fetch: {Ref} -> {Sha}", originRef, originSha);
-                }
-                else
-                {
-                    var fetchResult = await _worktreeService.Value.ExecuteGitCommandAsync(
-                        gitRoot, $"fetch origin {defaultBranch}", ct).ConfigureAwait(false);
-
-                    if (fetchResult.Success)
-                    {
-                        context.BaseBranch = originRef;
-                        var fetchedSha = await _worktreeService.Value.ResolveRefAsync(gitRoot, originRef).ConfigureAwait(false);
-                        if (fetchedSha is not null)
-                        {
-                            context.BaseCommitSha = fetchedSha;
-                        }
-                    }
-                    else
-                    {
-                        context.BaseBranch = "HEAD";
-                        _logger?.LogDebug("fetch origin {Branch} 失败，回退到 HEAD: {Error}", defaultBranch, fetchResult.Error);
-                    }
-                }
-            }
+            // 未指定 BaseBranch/PrNumber 时,基于当前 HEAD 创建子 worktree(而非 origin/main)
+            // 理由:子代理隔离应在当前 worktree 的代码基础上工作,不从 main 创建(代码可能不同)
+            context.BaseBranch = "HEAD";
+            _logger?.LogInformation("未指定 BaseBranch,基于当前 HEAD 创建子 worktree (不 fetch origin/main)");
         }
 
         await next(context, ct).ConfigureAwait(false);

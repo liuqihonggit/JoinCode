@@ -1,4 +1,4 @@
-﻿namespace JoinCode;
+namespace JoinCode;
 
 /// <summary>
 /// 程序入口点 — 显式声明应用启动流程
@@ -85,7 +85,7 @@ class Program
             var engineResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, fs);
 
             var config = engineResult.Config;
-            using var host = engineResult.Host;
+            await using var host = engineResult.Host;
 
             logger = host.Services.GetService<ILogger<Program>>();
 

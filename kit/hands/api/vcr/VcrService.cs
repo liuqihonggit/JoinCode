@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.Api.Vcr;
 
 /// <summary>
@@ -11,11 +11,10 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     private readonly VcrOptions _options;
     private readonly ILogger<VcrService>? _logger;
     private readonly IFileSystem _fs;
-    private readonly AsyncLock _fileLock = new();
+    private readonly VcrActor _actor;
     private readonly ConcurrentDictionary<string, VcrCassette> _cassetteCache = new(StringComparer.OrdinalIgnoreCase);
 
     private VcrMode _currentMode;
-    private bool _disposed;
 
     /// <summary>
     /// 当前 VCR 模式
@@ -41,6 +40,7 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         _fs = fs;
         _logger = logger;
         _currentMode = options.Mode;
+        _actor = new VcrActor(this, logger);
     }
 
     /// <summary>
@@ -60,13 +60,24 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
             return cached;
         }
 
-        using var guard = await _fileLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_fileLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<VcrCassette>();
+        await _actor.SendAsync(new LoadCassetteCmd(cacheKey, name, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
-        var filePath = cacheKey;
+    /// <summary>
+    /// 加载 cassette 锁内逻辑 — 由 VcrActor Consumer 串行调用，无锁访问共享状态
+    /// </summary>
+    /// <param name="filePath">cassette 文件路径</param>
+    /// <param name="name">cassette 名称</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>加载到的 cassette 实例</returns>
+    private async Task<VcrCassette> LoadCassetteInternalAsync(string filePath, string name, CancellationToken cancellationToken)
+    {
         if (!_fs.FileExists(filePath))
         {
             var cassette = new VcrCassette { Name = name };
-            _cassetteCache[cacheKey] = cassette;
+            _cassetteCache[filePath] = cassette;
             _logger?.LogDebug("创建新 cassette: {Name}", name);
             return cassette;
         }
@@ -77,10 +88,9 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
             loaded = new VcrCassette { Name = name };
         }
 
-        _cassetteCache[cacheKey] = loaded;
+        _cassetteCache[filePath] = loaded;
         _logger?.LogDebug("加载 cassette: {Name}, 交互数={Count}", name, loaded.Interactions.Count);
         return loaded;
-    
     }
 
     /// <summary>
@@ -95,9 +105,21 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
         ArgumentNullException.ThrowIfNull(cassette);
         ArgumentException.ThrowIfNullOrEmpty(cassette.Name);
 
-        using var guard = await _fileLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_fileLock.Name}' 等待超时");
-
         var filePath = GetCassettePath(cassette.Name, directory);
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new SaveCassetteCmd(filePath, cassette, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 保存 cassette 锁内逻辑 — 由 VcrActor Consumer 串行调用，无锁访问共享状态
+    /// </summary>
+    /// <param name="filePath">cassette 文件路径</param>
+    /// <param name="cassette">cassette 实例</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>表示异步保存操作的任务</returns>
+    private async Task SaveCassetteInternalAsync(string filePath, VcrCassette cassette, CancellationToken cancellationToken)
+    {
         var dir = Path.GetDirectoryName(filePath);
         DirectoryHelper.EnsureDirectoryExists(_fs, dir);
 
@@ -106,7 +128,6 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
 
         _cassetteCache[filePath] = cassette;
         _logger?.LogDebug("保存 cassette: {Name}, 交互数={Count}", cassette.Name, cassette.Interactions.Count);
-    
     }
 
     /// <summary>
@@ -234,14 +255,63 @@ public sealed partial class VcrService : ServiceEntity, IVcrService, JoinCode.Ab
     }
 
     /// <summary>
-    /// 释放文件锁资源
+    /// 异步释放资源 — await Actor 完全退出
     /// </summary>
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
-        _fileLock.Dispose();
-        base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// VCR 文件操作 Actor — 串行化 cassette 加载/保存，消除显式锁 — TASK001
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class VcrActor : ActorBase<VcrCommand, Unit>
+    {
+        private readonly VcrService _owner;
+        private readonly ILogger<VcrService>? _logger;
+
+        public VcrActor(VcrService owner, ILogger<VcrService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 VcrService 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        /// <summary>Ask 模式等待回复（无返回值） — 暴露 protected AskAwait 供 VcrService 调用</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(VcrCommand cmd, CancellationToken ct)
+        {
+            switch (cmd)
+            {
+                case LoadCassetteCmd(var filePath, var name, var reply):
+                    try
+                    {
+                        reply.SetResult(await _owner.LoadCassetteInternalAsync(filePath, name, ct).ConfigureAwait(false));
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex) { reply.SetException(ex); }
+                    break;
+                case SaveCassetteCmd(var filePath, var cassette, var reply):
+                    try
+                    {
+                        await _owner.SaveCassetteInternalAsync(filePath, cassette, ct).ConfigureAwait(false);
+                        reply.SetResult();
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception ex) { reply.SetException(ex); }
+                    break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "VcrActor 命令处理异常");
     }
 
     /// <summary>

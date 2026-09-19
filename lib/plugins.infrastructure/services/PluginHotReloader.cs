@@ -1,4 +1,4 @@
-﻿namespace Core.Plugins;
+namespace Core.Plugins;
 
 /// <summary>
 /// 插件热重载服务接口 — 监控插件目录变更，自动卸载并重新加载插件

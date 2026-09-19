@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator;
+namespace Core.Agents.Coordinator;
 
 /// <summary>
 /// tmux 终端面板后端 — 通过 tmux CLI 创建并管理队友面板，支持在 tmux 会话内嵌套或外部独立会话两种模式

@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch.Tests.Execution;
+namespace McpToolDispatch.Tests.Execution;
 
 /// <summary>
 /// ToolHealthMonitor 单元测试 — 验证评分增减、提示词阈值、时间衰减、重置、黑名单、降权

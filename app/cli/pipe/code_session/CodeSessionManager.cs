@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Pipe;
+namespace JoinCode.Pipe;
 
 /// <summary>代码会话管理器 — 维护代码会话的创建、查询、删除、列表与工作目录更新，线程安全</summary>
 [Register(typeof(CodeSessionManager), ServiceLifetime.Singleton)]

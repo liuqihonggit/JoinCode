@@ -308,7 +308,7 @@ jcc --debuglog -p "hello"
 
 ## Architecture
 
-> ✅ **Architecture migration complete** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) restructured from numeric prefixes (`00_generators/`~`09_app_*`) to semantic grouping (`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`) with flat internals (eliminating `src/`+`tests/` double layer). See [docs/design/flatten-restructure-plan.md](docs/design/flatten-restructure-plan.md). Paths below reflect the new semantic structure.
+> ✅ **Architecture migration complete** — [ADR 0103](docs/adr/0103-folder-restructure-semantic-grouping-flat.md) restructured from numeric prefixes (`00_generators/`~`09_app_*`) to semantic grouping (`build/ gen/ lib/ llm/ kit/ server/ app/ test/ tool/`) with flat internals (eliminating `src/`+`tests/` double layer). See [docs/design/DSG004-flatten-restructure-plan.md](docs/design/DSG004-flatten-restructure-plan.md). Paths below reflect the new semantic structure.
 
 JoinCode uses a **seven-layer solution isolation** architecture with strict
 dependency ordering:
@@ -449,9 +449,9 @@ From low to high:
 | Document | Description |
 |----------|-------------|
 | [Available Models](docs/reference/models.md) | 51 models across 6 providers (aliases, context length, notes) |
-| [Technical Details](docs/design/technical-details.md) | Fault tolerance / prefix caching / loop intervention / parallel load / serial build |
-| [Small Model Strategy](docs/design/small-model-strategy.md) | Engineering strategies for small model scenarios (synonyms / prohibitions / counterexamples / match) |
-| [Architecture Index](docs/design/architecture-index.md) | Component dependency graph / detail table / internal structure / middleware pipelines / build commands |
+| [Technical Details](docs/design/DSG002-technical-details.md) | Fault tolerance / prefix caching / loop intervention / parallel load / serial build |
+| [Small Model Strategy](docs/design/DSG003-small-model-strategy.md) | Engineering strategies for small model scenarios (synonyms / prohibitions / counterexamples / match) |
+| [Architecture Index](docs/design/DSG001-architecture-index.md) | Component dependency graph / detail table / internal structure / middleware pipelines / build commands |
 | [Architecture Decision Records](docs/adr/README.md) | ADRs: *why* choice A over B |
 
 ---

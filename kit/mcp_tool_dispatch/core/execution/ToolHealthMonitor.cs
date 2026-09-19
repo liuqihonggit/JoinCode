@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch;
+namespace McpToolDispatch;
 
 /// <summary>
 /// 工具健康监控命令 — Actor 消息类型

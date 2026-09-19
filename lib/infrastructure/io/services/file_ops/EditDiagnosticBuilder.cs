@@ -1,4 +1,4 @@
-﻿namespace Infrastructure.IO.Services.FileOps;
+namespace Infrastructure.IO.Services.FileOps;
 
 /// <summary>
 /// oldString 匹配失败的分类原因。

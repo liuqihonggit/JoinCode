@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli.Output;
+namespace JoinCode.Cli.Output;
 
 /// <summary>
 /// 命令风险分级 — 对齐架构指南安全设计

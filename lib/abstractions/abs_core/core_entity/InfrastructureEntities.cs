@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Entity;
+namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 构建实体 — 派生自 Entity，编译队列管理

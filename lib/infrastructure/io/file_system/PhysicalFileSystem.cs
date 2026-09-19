@@ -1,4 +1,4 @@
-﻿namespace IO.FileSystem;
+namespace IO.FileSystem;
 
 /// <summary>
 /// 物理文件系统实现 — 直接委托给 System.IO.File / System.IO.Directory
@@ -15,16 +15,20 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     private static readonly Encoding s_utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 
     /// <summary>
-    /// per-file 编辑锁 — 同一文件的 EditFileAsync 串行化，不同文件并行。
-    /// 锁按规范路径缓存，生命周期与 PhysicalFileSystem（Singleton）相同。
+    /// 文件编辑 Actor — 串行化所有 EditFileAsync 调用，消除 per-path AsyncLock — TASK001
     /// </summary>
-    private readonly EditLockRegistry _editLocks = new();
+    private readonly EditFileActor _editActor;
+
+    /// <summary>
+    /// 初始化物理文件系统及编辑 Actor
+    /// </summary>
+    public PhysicalFileSystem() => _editActor = new EditFileActor(this);
 
     /// <inheritdoc />
-    public override void Dispose()
+    public override async ValueTask DisposeAsync()
     {
-        _editLocks.Dispose();
-        base.Dispose();
+        await _editActor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -143,21 +147,14 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
     /// <inheritdoc />
     public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
     {
-        var normalizedPath = Path.GetFullPath(path);
-        var editLock = _editLocks.GetOrAdd(normalizedPath);
-        var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(false);
-        if (releaser is null)
-            throw new TimeoutException($"编辑文件锁超时: {path}");
-        using (releaser)
+        var reply = new TaskCompletionSource<object?>();
+        Func<byte[], CancellationToken, Task<(byte[]? NewContent, object? Result)>> wrapped = async (bytes, ct) =>
         {
-            var bytes = await ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
-            var (newContent, result) = await transform(bytes, cancellationToken).ConfigureAwait(false);
-            if (newContent is not null)
-            {
-                await WriteAllBytesAsync(path, newContent, cancellationToken).ConfigureAwait(false);
-            }
-            return result;
-        }
+            var (newContent, result) = await transform(bytes, ct).ConfigureAwait(false);
+            return (newContent, (object?)result);
+        };
+        await _editActor.SendAsync(new EditFileCmd(path, wrapped, reply), cancellationToken).ConfigureAwait(false);
+        return (T)(await _editActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false))!;
     }
 
     // === File 存在/删除/移动/复制 ===
@@ -396,5 +393,33 @@ public sealed partial class PhysicalFileSystem : ServiceEntity, IFileSystem
             lines[i] = content.Substring(start, length);
         }
         return Task.FromResult(lines);
+    }
+
+    /// <summary>
+    /// 物理文件编辑 Actor — 串行化 EditFileAsync 读-改-写事务，消除 per-path AsyncLock — TASK001
+    /// </summary>
+    private sealed class EditFileActor : ActorBase<EditFileCmd, Unit>
+    {
+        private readonly PhysicalFileSystem _owner;
+
+        public EditFileActor(PhysicalFileSystem owner) : base() => _owner = owner;
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 PhysicalFileSystem 调用</summary>
+        public async Task<object?> AskReplyAsync(TaskCompletionSource<object?> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(EditFileCmd cmd, CancellationToken ct)
+        {
+            try
+            {
+                var bytes = await _owner.ReadAllBytesAsync(cmd.Path, ct).ConfigureAwait(false);
+                var (newContent, result) = await cmd.Transform(bytes, ct).ConfigureAwait(false);
+                if (newContent is not null)
+                    await _owner.WriteAllBytesAsync(cmd.Path, newContent, ct).ConfigureAwait(false);
+                cmd.Reply.SetResult(result);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { cmd.Reply.SetException(ex); }
+        }
     }
 }

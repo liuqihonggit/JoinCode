@@ -1,4 +1,4 @@
-﻿namespace Core.DependencyInjection;
+namespace Core.DependencyInjection;
 
 /// <summary>
 /// 系统执行器初始化器 — 应用启动时调用一次

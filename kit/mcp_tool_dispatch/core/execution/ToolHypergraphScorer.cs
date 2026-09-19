@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch;
+namespace McpToolDispatch;
 
 /// <summary>
 /// 工具链超图评分器 — 融合独立评分与超边共享评分，避免错误压制导致链路断裂

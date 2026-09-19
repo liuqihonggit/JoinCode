@@ -1,4 +1,4 @@
-﻿namespace Services.Lsp;
+namespace Services.Lsp;
 
 /// <summary>
 /// LSP 服务 — 封装语言服务器协议操作，提供定义跳转、引用查找、悬停、补全等能力

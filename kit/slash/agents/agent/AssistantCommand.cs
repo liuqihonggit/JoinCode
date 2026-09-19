@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /assistant 命令 — 长期助手模式开关，支持开启、关闭和查看状态

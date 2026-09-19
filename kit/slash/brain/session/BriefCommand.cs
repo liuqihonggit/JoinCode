@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /brief 命令 — 切换简要消息模式，启用后 LLM 通过 SendUserMessage 工具回复用户。

@@ -107,7 +107,7 @@ public sealed partial class ForkExecutionMiddleware : ServiceEntity, IForkMiddle
 
         try
         {
-            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, ct).ConfigureAwait(false);
+            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken: ct).ConfigureAwait(false);
             if (cleanupDetail.Kept)
             {
                 _logger?.LogInformation("Fork agent {AgentId} worktree kept: {Path} (reason: {Reason})",

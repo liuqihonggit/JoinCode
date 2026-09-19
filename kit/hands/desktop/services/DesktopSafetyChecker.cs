@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Hands.Desktop;
+namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 桌面操作安全检查器 — 撤销元意识（PRD U-01/U-02/U-04）的生产实现

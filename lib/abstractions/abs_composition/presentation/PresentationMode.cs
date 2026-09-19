@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces;
+namespace JoinCode.Abstractions.Interfaces;
 
 /// <summary>
 /// 表示层模式 — 决定使用 CLI 还是 TUI

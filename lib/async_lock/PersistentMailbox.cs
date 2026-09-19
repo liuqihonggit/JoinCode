@@ -1,4 +1,4 @@
-﻿namespace Core.Utils;
+namespace Core.Utils;
 
 /// <summary>
 /// 持久化存储接口 — 横切关注点,可替换实现(文件/Redis/数据库)。

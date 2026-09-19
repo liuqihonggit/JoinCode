@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.Goal;
+namespace JoinCode.Abstractions.Models.Goal;
 
 /// <summary>
 /// 子任务优先级

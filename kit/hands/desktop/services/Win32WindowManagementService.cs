@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Hands.Desktop;
+namespace JoinCode.Hands.Desktop;
 
 /// <summary>
 /// 窗口管理服务 — Win32 EnumWindows/SetForegroundWindow/MoveWindow/PostMessage 封装

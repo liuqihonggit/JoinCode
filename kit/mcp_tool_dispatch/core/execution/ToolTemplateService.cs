@@ -1,4 +1,4 @@
-﻿namespace McpToolDispatch;
+namespace McpToolDispatch;
 
 /// <summary>
 /// 工具模板服务 — 从 ~/.jcc/tool-templates/ 加载模板，动态创建并注册工具

@@ -1,4 +1,4 @@
-﻿namespace Core.Memdir;
+namespace Core.Memdir;
 
 /// <summary>
 /// 思考记录存储实现 — 按会话 ID 维护思考条目列表,支持加载、保存、查询最近/最新条目与清空操作。
@@ -12,7 +12,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     private readonly IFileSystem _fs;
     private readonly ILogger<ThinkingStore>? _logger;
     private readonly IClockService _clock;
-    private readonly AsyncLock _saveLock = new();
+    private readonly ThinkingStoreActor _actor;
     private readonly CancellationTokenSource _disposeCts = new();
     private bool _disposed;
 
@@ -26,6 +26,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         _fs = fs;
         _logger = logger;
         _clock = clock ?? SystemClockService.Instance;
+        _actor = new ThinkingStoreActor(this, logger);
     }
 
     /// <inheritdoc />
@@ -127,7 +128,13 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
 
     private async Task SaveAsync(CancellationToken cancellationToken)
     {
-        using var guard = await _saveLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_saveLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<Unit>();
+        await _actor.SendAsync(new ThinkingSaveCmd(reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SaveInternalAsync(CancellationToken cancellationToken)
+    {
         try
         {
             var data = new ThinkingStoreData();
@@ -151,7 +158,7 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
     }
 
     /// <summary>
-    /// 释放取消令牌、保存锁等资源。
+    /// 释放取消令牌等同步资源。
     /// </summary>
     public override void Dispose()
     {
@@ -159,11 +166,55 @@ public sealed partial class ThinkingStore : ServiceEntity, IThinkingStore, IDisp
         _disposed = true;
 
         _disposeCts.CancelAndDisposeSafe(_logger);
-        _saveLock.Dispose();
         base.Dispose();
     }
 
+    /// <summary>异步释放资源 — await Actor 完全退出，禁止 fire-and-forget（JCC9200）</summary>
+    public override async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _disposeCts.CancelAndDisposeSafe(_logger);
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
     private string GetFilePath() => Path.Combine(_storagePath, "thinking_store.json");
+
+    /// <summary>
+    /// 思考记录存储 Actor — 串行化文件写操作，消除显式锁 — TASK001
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class ThinkingStoreActor : ActorBase<ThinkingStoreCommand, Unit>
+    {
+        private readonly ThinkingStore _owner;
+        private readonly ILogger<ThinkingStore>? _logger;
+
+        public ThinkingStoreActor(ThinkingStore owner, ILogger<ThinkingStore>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 ThinkingStore 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(ThinkingStoreCommand cmd, CancellationToken ct)
+        {
+            switch (cmd)
+            {
+                case ThinkingSaveCmd(var reply):
+                    await _owner.SaveInternalAsync(ct).ConfigureAwait(false);
+                    reply.SetResult(Unit.Value);
+                    break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "ThinkingStoreActor 命令处理异常");
+    }
 }
 
 internal sealed class ThinkingStoreData

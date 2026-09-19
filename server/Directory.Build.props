@@ -3,7 +3,7 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <!-- === src 项目配置 === -->
-  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests'))">
+  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS'))">
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- 强制 XML 文档注释完整：移除继承的 CS1591 屏蔽并升级为错误（Debug+Release 均生效，CI 能真正验证文档完整性） -->
@@ -17,12 +17,12 @@
   </PropertyGroup>
 
   <!-- src 项目：Logging.Abstractions -->
-  <ItemGroup Condition="!$(MSBuildProjectName.Contains('.Tests'))">
+  <ItemGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS'))">
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="$(MicrosoftExtensionsLoggingAbstractionsVersion)" />
   </ItemGroup>
 
   <!-- === tests 项目配置 === -->
-  <PropertyGroup Condition="$(MSBuildProjectName.Contains('.Tests'))">
+  <PropertyGroup Condition="$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS'))">
     <IsTestProject>true</IsTestProject>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -38,7 +38,7 @@
   </PropertyGroup>
 
   <!-- tests 项目：测试框架包引用 -->
-  <ItemGroup Condition="$(MSBuildProjectName.Contains('.Tests'))">
+  <ItemGroup Condition="$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS'))">
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
     <PackageReference Include="xunit" Version="$(XunitVersion)" />
     <PackageReference Include="xunit.runner.visualstudio" Version="$(XunitRunnerVisualStudioVersion)">
@@ -57,7 +57,7 @@
     <Using Include="System.Linq" />
   </ItemGroup>
 
-  <ItemGroup Condition="$(MSBuildProjectName.Contains('.Tests'))">
+  <ItemGroup Condition="$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS'))">
     <Using Include="Xunit" />
     <Using Include="Moq" />
     <Using Include="FluentAssertions" />

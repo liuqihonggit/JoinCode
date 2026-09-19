@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /proactive 命令 — 主动执行模式切换，控制 LLM 是否在用户未输入时自主推进任务。

@@ -153,7 +153,7 @@
 - `services/Mcp/src/GlobalUsings.cs` — 加 Infrastructure.Network.Downloader
 - `services/Mcp/tests/Unit/GitHubToolHandlersTests.cs` — 8 个单元测试
 - `services/Mcp/tests/Unit/GlobalUsings.cs` — 加 JoinCode.Abstractions.Interfaces + Infrastructure.Network.Downloader
-- `docs/task/GitHubMCP工具复刻任务清单.md` — 本文档
+- `docs/task/TASK008-GitHubMCP工具复刻任务清单.md` — 本文档
 
 <!-- 🤖 Auto Decision: 2026-09-05 -->
 <!-- 决策: GitHubToolName 用枚举+[EnumValue]+[SecurityClass] 模式,源码生成器自动生成 GitHubToolNameConstants -->

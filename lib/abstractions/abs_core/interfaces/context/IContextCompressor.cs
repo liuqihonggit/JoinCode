@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Interfaces.Context;
+namespace JoinCode.Abstractions.Interfaces.Context;
 
 /// <summary>
 /// 上下文压缩器接口 — 通用压缩，支持 code/dialogue/reference_index/text/log 五种内容类型

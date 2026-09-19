@@ -1,4 +1,4 @@
-﻿namespace Core.Prompts.Utils;
+namespace Core.Prompts.Utils;
 
 /// <summary>
 /// 动态关键词词表服务 — 从 ~/.jcc/keyword-sections.json 加载关键词配置，支持文件监控热加载
@@ -9,7 +9,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     private readonly IFileSystem _fs;
     private readonly ILogger<DynamicKeywordConfigService>? _logger;
 
-    private readonly AsyncLock _reloadLock = new();
+    private readonly ReloadActor _actor;
     private volatile DynamicKeywordConfig _config = new();
     private IFileSystemWatcher? _watcher;
     private int _disposed;
@@ -28,6 +28,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
     {
         _fs = fs;
         _logger = logger;
+        _actor = new ReloadActor(this, logger);
         LoadConfig();
         StartWatching();
     }
@@ -109,24 +110,67 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
 
     private async Task ReloadOnFileChangeAsync()
     {
-        using var guard = await _reloadLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_reloadLock.Name}' 等待超时");
-
-        LoadConfig();
-        ConfigChanged?.Invoke(this, EventArgs.Empty);
-    
+        var reply = new TaskCompletionSource();
+        await _actor.SendAsync(new ReloadConfigCmd(reply), CancellationToken.None).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 释放托管资源，停止文件监听并清理配置缓存。
+    /// 重载配置内部实现 — 由 ReloadActor Consumer 串行调用，无锁安全。
+    /// <para>TASK001: 原 AsyncLock 保护逻辑迁移到 Actor 邮箱管道，Consumer 单线程串行处理。</para>
     /// </summary>
-    public override void Dispose()
+    private void ReloadConfigInternal()
+    {
+        LoadConfig();
+        ConfigChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>
+    /// 异步释放资源 — 停止文件监听并 await Actor 完全退出 — TASK001
+    /// </summary>
+    public override async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
         _watcher?.Dispose();
-        _reloadLock.Dispose();
-            base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 配置重载 Actor — 串行化 ReloadOnFileChangeAsync，消除显式锁 — TASK001
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// </summary>
+    private sealed class ReloadActor : ActorBase<ReloadConfigCmd, Unit>
+    {
+        private readonly DynamicKeywordConfigService _owner;
+        private readonly ILogger<DynamicKeywordConfigService>? _logger;
+
+        public ReloadActor(DynamicKeywordConfigService owner, ILogger<DynamicKeywordConfigService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 DynamicKeywordConfigService 调用</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override ValueTask HandleAsync(ReloadConfigCmd cmd, CancellationToken ct)
+        {
+            try
+            {
+                _owner.ReloadConfigInternal();
+                cmd.Reply.SetResult();
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { cmd.Reply.SetException(ex); }
+            return default;
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "ReloadActor 命令处理异常");
     }
 }
 
@@ -184,3 +228,9 @@ public interface IDynamicKeywordConfigService
 [JsonSerializable(typeof(DynamicKeywordSection))]
 [JsonSerializable(typeof(Dictionary<string, DynamicKeywordSection>))]
 internal sealed partial class DynamicKeywordConfigJsonContext : JsonSerializerContext;
+
+/// <summary>
+/// 配置重载命令 — 对应 ReloadOnFileChangeAsync，由 ReloadActor Consumer 串行处理。
+/// <para>TASK001: AsyncLock+文件 I/O 迁移到 Actor 邮箱管道，消除显式锁。</para>
+/// </summary>
+public sealed record ReloadConfigCmd(TaskCompletionSource Reply);

@@ -15,17 +15,29 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
     /// <param name="forkManager">可选 fork 管理器，用于 fork 当前代理</param>
     /// <param name="telemetryService">可选遥测服务</param>
     /// <param name="teammateExecutor">可选进程内 teammate 执行器，优先于 fork 路径</param>
-    public AgentForkMiddleware(ISubAgentContextAccessor subAgentContextAccessor, IForkSubAgentManager? forkManager = null, ITelemetryService? telemetryService = null, IInProcessTeammateTaskExecutor? teammateExecutor = null)
+    /// <param name="worktreeDecisionPolicy">可选 worktree 决策策略，未显式传 isolation 时决定 Teammate 隔离模式</param>
+    /// <param name="worktreeManager">可选 worktree 管理器，提供全局隔离开关状态</param>
+    public AgentForkMiddleware(
+        ISubAgentContextAccessor subAgentContextAccessor,
+        IForkSubAgentManager? forkManager = null,
+        ITelemetryService? telemetryService = null,
+        IInProcessTeammateTaskExecutor? teammateExecutor = null,
+        IWorktreeDecisionPolicy? worktreeDecisionPolicy = null,
+        IAgentWorktreeManager? worktreeManager = null)
     {
         _subAgentContextAccessor = subAgentContextAccessor;
         _forkManager = forkManager;
         _telemetryService = telemetryService;
         _teammateExecutor = teammateExecutor;
+        _worktreeDecisionPolicy = worktreeDecisionPolicy;
+        _worktreeManager = worktreeManager;
     }
     private readonly IForkSubAgentManager? _forkManager;
     private readonly ITelemetryService? _telemetryService;
     private readonly ISubAgentContextAccessor _subAgentContextAccessor;
     private readonly IInProcessTeammateTaskExecutor? _teammateExecutor;
+    private readonly IWorktreeDecisionPolicy? _worktreeDecisionPolicy;
+    private readonly IAgentWorktreeManager? _worktreeManager;
 
     /// <inheritdoc />
     public int Order => 200;
@@ -72,7 +84,7 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
             ParentSessionId = sessionId,
             ContinuousMode = true,
             MaxIterations = 200,
-            IsolationMode = AgentIsolationModeExtensions.FromValue(context.Isolation) ?? AgentIsolationMode.None
+            IsolationMode = ResolveTeammateIsolationMode(context.Isolation)
         };
 
         await _teammateExecutor!.ExecuteTeammateAsync(definition, ct).ConfigureAwait(false);
@@ -97,6 +109,22 @@ public sealed partial class AgentForkMiddleware : ServiceEntity, IAgentToolMiddl
             .WithText(response.ToString())
             .Build();
         context.Result = context.ForkResult;
+    }
+
+    /// <summary>
+    /// 解析 Teammate 隔离模式 — 优先级: 显式 isolation > WorktreeDecisionPolicy.Decide > None
+    /// </summary>
+    private AgentIsolationMode ResolveTeammateIsolationMode(string? explicitIsolation)
+    {
+        var explicitMode = AgentIsolationModeExtensions.FromValue(explicitIsolation);
+        if (explicitMode is not null)
+            return explicitMode.Value;
+
+        if (_worktreeDecisionPolicy is null || _worktreeManager is null)
+            return AgentIsolationMode.None;
+
+        var enableWorktree = _worktreeManager.IsWorktreeIsolationEnabled;
+        return _worktreeDecisionPolicy.Decide(enableWorktree, ExecutorVariant.Teammate);
     }
 
     private async Task ExecuteForkPathAsync(AgentToolContext context, CancellationToken ct)

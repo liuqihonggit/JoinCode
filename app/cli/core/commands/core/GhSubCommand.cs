@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CliCommands;
+namespace JoinCode.CliCommands;
 
 /// <summary>
 /// GitHub 子命令 — <c>jcc gh &lt;group&gt; &lt;action&gt; [位置参数...] [--选项 值] [--json]</c>

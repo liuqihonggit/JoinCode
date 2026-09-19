@@ -78,20 +78,48 @@ ADR 引用 design/plans，但不重复其内容。
 
 ## 不适用范围（禁止写成 ADR）
 
-ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下内容**不属于架构决策**，禁止写成 ADR：
+> **核心原则：ADR 是全局决策文档，不是任务文档。用户要求做任务时，先写 task，不要写 ADR。**
 
-- **Bug 修复报告** — bug 修复是"修对了什么"，不是架构取舍。根因+修复+验证记录在 commit message + 测试里
-- **功能开发日志** — 新功能实现过程不是决策。用 `docs/task/` 或 commit message
+ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下内容**不属于架构决策**，禁止写成 ADR，一律写 task：
+
+- **Bug 修复报告** — bug 修复是"修对了什么"，不是架构取舍。写 `docs/task/` + commit message（根因+修复+验证）+ 测试复现
+- **功能开发日志** — 新功能实现过程不是决策。写 `docs/task/`
+- **重构任务清单** — 重构是"做什么"的执行计划，不是架构取舍。写 `docs/task/` 或 `docs/refactor/`
 - **代码审查记录** — review 发现不是决策。用 PR comment
 - **排错/调试过程** — 调试过程不是决策。用 commit message 或 `docs/design/`
 
-**判断标准**：如果"替代方案"部分是空的或凑数的（没有真正"考虑过但放弃"的方案），那它大概率不是 ADR，而是 bug 报告或功能日志。
+### 判断标准（动手前必问）
 
-**正确做法**：bug 修复用 commit message（含根因+修复+验证），TDD 用测试复现，不需要 ADR。只有跨模块的"为什么选 A 放弃 B"才写 ADR。
+```
+是否有真正的"考虑过但放弃的替代方案"？
+  ├─ 有 + 跨模块影响 → 架构决策 → 写 ADR（proposed → accepted）
+  └─ 没有 / 凑数的 / 单模块内部 → bug 修复 / 功能开发 / 重构 → 写 task
+```
+
+**"替代方案"三问检验**：
+1. 替代方案是否真实考虑过？（不是事后补凑的）
+2. 替代方案是否有明确的放弃原因？（不是"也可以"）
+3. 决策是否影响多个模块？（单模块内部决策留代码注释）
+
+任一为否 → 不是 ADR，写 task。
+
+### 工作流
+
+```
+用户要求做任务
+  ├─ 判断是否为跨模块架构决策？
+  │   ├─ 是 → 先写 ADR（proposed）→ 实现 → ADR 改 accepted
+  │   └─ 否 → 先写 task → 实现 → commit message 记录根因/验证
+  └─ 已误写成 ADR 的非决策工作 → 转为 task，原 ADR 归档到 .xxx/
+```
+
+### 例外：工程规范类 ADR
+
+工程**指南/规范/禁令**类 ADR（如测试规则、平台禁令）记录的是"怎么做"而非"选 A 放弃 B"，仍可写 ADR，但须用 `## 规范` / `## 详细内容` / `## 禁令` 节代替 `## 决策` + `## 后果`，且必须是全局生效的规则。
 
 ## 统计
 
-- 总数：**105** | accepted：**100** | superseded：**5** | proposed：**0**
+- 总数：**103** | accepted：**100** | superseded：**5** | proposed：**0**
 
 ## 完整索引（按编号）
 
@@ -174,7 +202,7 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0077](0077-mockserver-jcc-joint-testing.md) | MockServer + jcc 联合测试 | accepted | 2026-09-08 |
 | [0078](0078-merge-e2e-synonym-rules.md) | 合并与 E2E 同义词规则 | accepted | 2026-09-08 |
 | [0079](0079-anti-pattern-examples.md) | 反例清单（踩过的坑，禁止再犯） | accepted | 2026-09-08 |
-| [0080](0080-manual-exe-testing-guide.md) | 手动测试 exe 功能与推荐配置 | accepted | 2026-09-08 |
+| [0080](0080-manual-exe-testing-guide.md) | 手动测试 exe 与测试执行规则 | accepted | 2026-09-08 |
 | [0081](0081-seven-layer-build-strategy.md) | 七层解决方案架构与编译策略 | accepted | 2026-09-08 |
 | [0082](0082-gui-async-test-avalonia.md) | GUI 异步 UI 测试与启动 exe 测试 | accepted | 2026-09-08 |
 | [0083](0083-e2e-script-mode-spec.md) | E2E 测试脚本模式规范 | accepted | 2026-09-08 |
@@ -182,7 +210,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0085](0085-data-container-selection-spec.md) | 数据容器选型规范 | accepted | 2026-09-08 |
 | [0086](0086-core-tech-selection-lock-design.md) | 核心技术选型与锁设计 | accepted | 2026-09-08 |
 | [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 C# 源码禁令与导向 | accepted | 2026-09-08 |
-| [0088](0088-test-execution-rules.md) | 测试执行规则 | accepted | 2026-09-08 |
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 自带工具统一入口 — 禁止系统/宿主环境的 gh / rg | accepted | 2026-09-08 |
 | [0090](0090-jcc-gh-cli-subcommand.md) | `jcc gh` CLI 子命令 — 扁平元动词 + schema 驱动参数绑定 | accepted | 2026-09-08 |
 | [0091](0091-actor-duplex-inplace-upgrade.md) | Actor 全双工改造 — 直接改 ActorBase（无后向兼容） | accepted | 2026-09-08 |
@@ -267,10 +294,9 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0076](0076-dotnet-test-build-output-rules.md) | .NET 测试和构建输出禁令与 CLI 运行时测试 | accepted | 2026-09-08 |
 | [0077](0077-mockserver-jcc-joint-testing.md) | MockServer + jcc 联合测试 | accepted | 2026-09-08 |
 | [0078](0078-merge-e2e-synonym-rules.md) | 合并与 E2E 同义词规则 | accepted | 2026-09-08 |
-| [0080](0080-manual-exe-testing-guide.md) | 手动测试 exe 功能与推荐配置 | accepted | 2026-09-08 |
+| [0080](0080-manual-exe-testing-guide.md) | 手动测试 exe 与测试执行规则 | accepted | 2026-09-08 |
 | [0082](0082-gui-async-test-avalonia.md) | GUI 异步 UI 测试与启动 exe 测试 | accepted | 2026-09-08 |
 | [0083](0083-e2e-script-mode-spec.md) | E2E 测试脚本模式规范 | accepted | 2026-09-08 |
-| [0088](0088-test-execution-rules.md) | 测试执行规则 | accepted | 2026-09-08 |
 
 ### 平台与传输层
 
@@ -415,6 +441,6 @@ ADR 是**统筹架构决策**的文档（"为什么选 A 放弃 B"）。以下�
 | [0083](0083-e2e-script-mode-spec.md) | E2E 脚本 | E2E 脚本模式 Mode 必须由输入推导 |
 | [0084](0084-platform-windows-env-rules.md) | 平台操作禁令 | 禁用会卡交互的命令、PowerShell 严禁 HEREDOC |
 | [0087](0087-batch-replace-csharp-source-rules.md) | 批量替换 | 必须先在单文件验证 → 才能推广到全部位置 |
-| [0088](0088-test-execution-rules.md) | 测试执行 | 子智能体禁止全量测试，编译+冒烟后由主智能体执行 |
+| [0080](0080-manual-exe-testing-guide.md) | 测试执行 | 手动测试规范 + 全局测试命令 + 卡死排查 + throw 探针法 + 子智能体禁止全量测试 |
 | [0089](0089-jcc-builtin-tools-only-no-system-gh-rg.md) | jcc 工具统一入口 | ⛔ 禁止系统/宿主 gh/rg，统一用 `jcc rg` / `jcc mcp_call gh_*` / `jcc gh` |
 | [0113](0113-mtp-perturbation-bash-defense.md) | MTP 扰动防御 | Agent 层 BashDefense node 链兜住 MTP 单字符扰动，不依赖供应商关 MTP |

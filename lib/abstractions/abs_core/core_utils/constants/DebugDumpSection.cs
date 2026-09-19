@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// 调试信息 dump 选项位标志枚举 — 启动时用户交互选择要显示的诊断信息类别

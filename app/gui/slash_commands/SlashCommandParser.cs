@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Gui.SlashCommands;
+namespace JoinCode.Gui.SlashCommands;
 
 /// <summary>补全模式 — 命令名/命令参数/文件/工具</summary>
 public enum SlashCompletionMode

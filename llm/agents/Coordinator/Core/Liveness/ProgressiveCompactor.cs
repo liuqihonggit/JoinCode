@@ -1,4 +1,4 @@
-﻿namespace Core.Agents.Coordinator.Liveness;
+namespace Core.Agents.Coordinator.Liveness;
 
 /// <summary>
 /// 压缩级别 — 渐进式 escalation 三级

@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Entity;
+namespace JoinCode.Abstractions.Entity;
 
 /// <summary>
 /// 服务实体基类 — 所有 DI 服务的统一基类

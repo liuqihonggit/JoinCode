@@ -1,4 +1,4 @@
-﻿namespace JoinCode.CliCommands;
+namespace JoinCode.CliCommands;
 
 /// <summary>
 /// mcp_list 元命令 — 列出所有 MCP 工具。

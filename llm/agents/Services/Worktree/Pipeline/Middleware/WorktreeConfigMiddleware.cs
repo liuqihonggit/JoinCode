@@ -23,6 +23,9 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
     /// <summary>中间件错误处理策略：继续执行后续中间件</summary>
     public ErrorBehavior OnError => ErrorBehavior.Continue;
 
+    /// <summary>执行优先级:配置复制在 worktree 创建之后(依赖 WorktreePath 已指向真实目录)</summary>
+    public int Order => 600;
+
     /// <summary>
     /// 执行配置复制：复制配置文件、.worktreeinclude 文件、hooks 路径与符号链接（全部 best-effort）
     /// </summary>
@@ -31,9 +34,13 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
     /// <param name="ct">取消令牌</param>
     public async Task InvokeAsync(WorktreeCreateContext context, MiddlewareDelegate<WorktreeCreateContext> next, CancellationToken ct)
     {
+        WorktreeContextEnricher.EnsureAllPaths(context, _fs);
         var opts = context.Options ?? new WorktreeOptions();
         var gitRoot = context.GitRoot;
         var worktreePath = context.WorktreePath;
+
+        _logger?.LogInformation("ConfigMiddleware 开始: GitRoot={GitRoot}, WorktreePath={WorktreePath}, ConfigFilesToCopy={Count}",
+            gitRoot, worktreePath, opts.ConfigFilesToCopy?.Count ?? 0);
 
         await CopyConfigFilesAsync(gitRoot, worktreePath, opts).ConfigureAwait(false);
         await CopyWorktreeIncludeFilesAsync(gitRoot, worktreePath, ct).ConfigureAwait(false);
@@ -51,8 +58,12 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
     {
         if (options.ConfigFilesToCopy is not { Count: > 0 })
         {
+            _logger?.LogWarning("ConfigFilesToCopy 为空或 null,跳过配置文件复制");
             return;
         }
+
+        _logger?.LogInformation("复制配置文件: GitRoot={GitRoot}, WorktreePath={WorktreePath}, 文件列表=[{Files}]",
+            gitRoot, worktreePath, string.Join(", ", options.ConfigFilesToCopy));
 
         foreach (var relativePath in options.ConfigFilesToCopy)
         {
@@ -61,8 +72,18 @@ public sealed partial class WorktreeConfigMiddleware : ServiceEntity, IWorktreeC
                 var sourcePath = _fs.CombinePath(gitRoot, relativePath);
                 var destPath = _fs.CombinePath(worktreePath, relativePath);
 
+                _logger?.LogDebug("配置文件路径: Source={Source}, Dest={Dest}, SourceExists={Exists}",
+                    sourcePath, destPath, _fs.FileExists(sourcePath));
+
                 if (!_fs.FileExists(sourcePath))
                 {
+                    _logger?.LogWarning("源配置文件不存在,跳过: {Source}", sourcePath);
+                    continue;
+                }
+
+                if (string.Equals(sourcePath, destPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger?.LogDebug("源和目标相同,跳过复制: {Path}", sourcePath);
                     continue;
                 }
 

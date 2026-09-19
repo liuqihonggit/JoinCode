@@ -1,4 +1,4 @@
-﻿namespace JoinCode;
+namespace JoinCode;
 
 /// <summary>
 /// mcp_serve 子命令参数 — [CliOption] 由 CliOptionGenerator 自动生成 McpServeArgParser + McpServeArgCliOptionConstants

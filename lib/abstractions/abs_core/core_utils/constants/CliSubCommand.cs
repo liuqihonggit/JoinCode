@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Utils;
+namespace JoinCode.Abstractions.Utils;
 
 /// <summary>
 /// CLI 入口级子命令 — 源码生成器自动生成 CliSubCommandEnumConstants + CliSubCommandExtensions + SubCommandHelpText

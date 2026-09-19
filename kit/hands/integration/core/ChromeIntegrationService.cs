@@ -1,4 +1,4 @@
-﻿namespace IO.Services;
+namespace IO.Services;
 
 /// <summary>
 /// Chrome 集成服务 — 检测 Chrome 扩展、管理连接状态与默认启用开关

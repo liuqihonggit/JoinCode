@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Cli;
+namespace JoinCode.Cli;
 
 /// <summary>
 /// CLI 命令控制台实现 — 包装 TerminalHelper，通过 CommandTerminal.SetConsole 注入。

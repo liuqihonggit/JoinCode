@@ -1,4 +1,4 @@
-﻿namespace Sync.Tests.ToolHandlers;
+namespace Sync.Tests.ToolHandlers;
 
 /// <summary>
 /// GitSubCommand 枚举 + GitToolHandlers 参数构建 单元测试

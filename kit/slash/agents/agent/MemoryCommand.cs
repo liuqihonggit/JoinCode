@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /memory 命令 — 编辑和管理记忆文件，支持编辑、打开、添加、搜索、列表、统计、健康检查和清理操作

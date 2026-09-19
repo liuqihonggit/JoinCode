@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Abstractions.Models.Agent;
+namespace JoinCode.Abstractions.Models.Agent;
 
 /// <summary>
 /// 延迟邮件标记 — [Flags] 位标志枚举，一封邮件可同时携带多个冲突标记

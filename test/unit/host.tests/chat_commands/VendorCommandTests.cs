@@ -1,4 +1,4 @@
-﻿namespace Host.Tests.ChatCommands;
+namespace Host.Tests.ChatCommands;
 
 /// <summary>
 /// /vendor 供应商切换命令测试 — 运行时切换供应商并写回配置。

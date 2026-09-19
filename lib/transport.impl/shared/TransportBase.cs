@@ -1,4 +1,4 @@
-﻿namespace JoinCode.Transport;
+namespace JoinCode.Transport;
 
 /// <summary>
 /// 通用传输基类 — 提供生命周期管理、发送锁、事件触发的标准实现

@@ -1,15 +1,15 @@
-﻿using System.Threading;
+using System.Threading;
 namespace IO.FileSystem;
 
 /// <summary>
 /// 内存文件系统实现 — 纯内存, 0磁盘IO, 用于测试
 /// </summary>
-public sealed class InMemoryFileSystem : IFileSystem
+public sealed class InMemoryFileSystem : IFileSystem, IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, InMemoryFileEntry> _files = new();
     private readonly ConcurrentDictionary<string, InMemoryDirectoryEntry> _directories = new();
     private readonly WatcherRegistry _watcherRegistry = new();
-    private readonly EditLockRegistry _editLocks = new();
+    private readonly EditFileActor _editActor;
     private string _currentDirectory = "/test";
 
     /// <summary>
@@ -19,6 +19,7 @@ public sealed class InMemoryFileSystem : IFileSystem
     {
         _directories[string.Empty] = new InMemoryDirectoryEntry { FullPath = string.Empty };
         _directories[NormalizePath(_currentDirectory)] = new InMemoryDirectoryEntry { FullPath = NormalizePath(_currentDirectory) };
+        _editActor = new EditFileActor(this);
     }
 
     // === File 写操作 ===
@@ -231,21 +232,14 @@ public sealed class InMemoryFileSystem : IFileSystem
     /// <inheritdoc />
     public async Task<T> EditFileAsync<T>(string path, Func<byte[], CancellationToken, Task<(byte[]? NewContent, T Result)>> transform, CancellationToken cancellationToken = default)
     {
-        var normalizedPath = NormalizePath(path);
-        var editLock = _editLocks.GetOrAdd(normalizedPath);
-        var releaser = await editLock.TryLockAsync(cancellationToken).ConfigureAwait(false);
-        if (releaser is null)
-            throw new TimeoutException($"编辑文件锁超时: {path}");
-        using (releaser)
+        var reply = new TaskCompletionSource<object?>();
+        Func<byte[], CancellationToken, Task<(byte[]? NewContent, object? Result)>> wrapped = async (bytes, ct) =>
         {
-            var bytes = await ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
-            var (newContent, result) = await transform(bytes, cancellationToken).ConfigureAwait(false);
-            if (newContent is not null)
-            {
-                await WriteAllBytesAsync(path, newContent, cancellationToken).ConfigureAwait(false);
-            }
-            return result;
-        }
+            var (newContent, result) = await transform(bytes, ct).ConfigureAwait(false);
+            return (newContent, (object?)result);
+        };
+        await _editActor.SendAsync(new EditFileCmd(path, wrapped, reply), cancellationToken).ConfigureAwait(false);
+        return (T)(await _editActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false))!;
     }
 
     // === File 存在/删除/移动/复制 ===
@@ -724,6 +718,40 @@ public sealed class InMemoryFileSystem : IFileSystem
             _fs.WriteAllBytes(_path.Replace('/', '\\'), data);
             _inner.Dispose();
             base.Dispose(disposing);
+        }
+    }
+
+    /// <summary>
+    /// 异步释放资源 — 释放编辑 Actor — TASK001
+    /// </summary>
+    public async ValueTask DisposeAsync()
+        => await _editActor.DisposeAsync().ConfigureAwait(false);
+
+    /// <summary>
+    /// 内存文件编辑 Actor — 串行化 EditFileAsync 读-改-写事务，消除 per-path AsyncLock — TASK001
+    /// </summary>
+    private sealed class EditFileActor : ActorBase<EditFileCmd, Unit>
+    {
+        private readonly InMemoryFileSystem _owner;
+
+        public EditFileActor(InMemoryFileSystem owner) : base() => _owner = owner;
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 InMemoryFileSystem 调用</summary>
+        public async Task<object?> AskReplyAsync(TaskCompletionSource<object?> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(EditFileCmd cmd, CancellationToken ct)
+        {
+            try
+            {
+                var bytes = await _owner.ReadAllBytesAsync(cmd.Path, ct).ConfigureAwait(false);
+                var (newContent, result) = await cmd.Transform(bytes, ct).ConfigureAwait(false);
+                if (newContent is not null)
+                    await _owner.WriteAllBytesAsync(cmd.Path, newContent, ct).ConfigureAwait(false);
+                cmd.Reply.SetResult(result);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { cmd.Reply.SetException(ex); }
         }
     }
 }

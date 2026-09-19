@@ -1,4 +1,4 @@
-﻿namespace McpClient.Transports;
+namespace McpClient.Transports;
 
 /// <summary>
 /// MCP 服务端传输降级链 — 按优先级依次尝试多个服务端传输,

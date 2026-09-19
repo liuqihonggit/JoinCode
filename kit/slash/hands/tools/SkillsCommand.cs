@@ -1,4 +1,4 @@
-﻿namespace JoinCode.ChatCommands;
+namespace JoinCode.ChatCommands;
 
 /// <summary>
 /// /skills 命令 — 查看可用技能（自定义命令），支持列表浏览和详情查看

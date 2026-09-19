@@ -1,4 +1,4 @@
-﻿namespace Tools.Handlers;
+namespace Tools.Handlers;
 
 /// <summary>
 /// 长时间任务注册表 — 跟踪超时续期任务，支持 resume/continue/stop 操作

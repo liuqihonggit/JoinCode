@@ -4,15 +4,16 @@ namespace State;
 /// <summary>
 /// 共享的 Transcript 文件写入器 — 提取自 TranscriptService 和 AgentTranscriptService
 /// 封装 JSONL 格式的追加写入和读取逻辑，消除两个服务间的重复代码
-/// 并发保护：AsyncLock（SemaphoreSlim(1,1)），异步友好，无线程亲和问题
+/// 并发保护：Actor 邮箱管道串行化写操作，消除显式锁 — TASK001
 /// </summary>
-internal sealed class TranscriptFileWriter : IDisposable
+internal sealed class TranscriptFileWriter : IAsyncDisposable
 {
-    private readonly AsyncLock _writeLock;
+    private readonly TranscriptFileWriterActor _actor;
     private readonly string _sessionsDirectory;
     private readonly ILogger? _logger;
     private readonly IFileSystem _fs;
     private readonly IPasteStore? _pasteStore;
+    private int _disposed;
 
     private const int MaxPastedContentLength = 1024;
 
@@ -24,7 +25,7 @@ internal sealed class TranscriptFileWriter : IDisposable
         _sessionsDirectory = sessionsDirectory;
         _logger = logger;
         _pasteStore = pasteStore;
-        _writeLock = new AsyncLock(nameof(TranscriptFileWriter));
+        _actor = new TranscriptFileWriterActor(this, logger);
     }
 
     private bool IsFileSystemRestricted
@@ -57,9 +58,14 @@ internal sealed class TranscriptFileWriter : IDisposable
     {
         ArgumentNullException.ThrowIfNull(entry);
 
-        var entryToWrite = MaybeOffloadToPasteStore(entry);
+        var reply = new TaskCompletionSource<Unit>();
+        await _actor.SendAsync(new AppendEntryCmd(filePath, entry, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
-        using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_writeLock.Name}' 等待超时");
+    private async Task AppendEntryInternalAsync(string filePath, TranscriptEntry entry, CancellationToken cancellationToken)
+    {
+        var entryToWrite = MaybeOffloadToPasteStore(entry);
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
@@ -87,7 +93,13 @@ internal sealed class TranscriptFileWriter : IDisposable
 
         _logger?.LogDebug("AppendEntriesAsync: filePath={FilePath}, count={Count}", filePath, entries.Count);
 
-        using var guard = await _writeLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_writeLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<Unit>();
+        await _actor.SendAsync(new AppendEntriesCmd(filePath, entries, reply), cancellationToken).ConfigureAwait(false);
+        await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task AppendEntriesInternalAsync(string filePath, IReadOnlyList<TranscriptEntry> entries, CancellationToken cancellationToken)
+    {
         try
         {
             EnsureDirectoryExists(Path.GetDirectoryName(filePath));
@@ -222,7 +234,47 @@ internal sealed class TranscriptFileWriter : IDisposable
         }
     }
 
-    public void Dispose() => _writeLock.Dispose();
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        await _actor.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Transcript 文件写入 Actor — 串行化写操作，消除显式锁 — TASK001
+    /// </summary>
+    private sealed class TranscriptFileWriterActor : ActorBase<TranscriptFileWriterCommand, Unit>
+    {
+        private readonly TranscriptFileWriter _owner;
+        private readonly ILogger? _logger;
+
+        public TranscriptFileWriterActor(TranscriptFileWriter owner, ILogger? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(TranscriptFileWriterCommand cmd, CancellationToken ct)
+        {
+            switch (cmd)
+            {
+                case AppendEntryCmd(var filePath, var entry, var reply):
+                    await _owner.AppendEntryInternalAsync(filePath, entry, ct).ConfigureAwait(false);
+                    reply.SetResult(Unit.Value);
+                    break;
+                case AppendEntriesCmd(var filePath, var entries, var reply):
+                    await _owner.AppendEntriesInternalAsync(filePath, entries, ct).ConfigureAwait(false);
+                    reply.SetResult(Unit.Value);
+                    break;
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "TranscriptFileWriterActor 命令处理异常");
+    }
 
     private void LogRestrictedWarning(string marker, string filePath)
     {

@@ -1,4 +1,4 @@
-﻿
+
 namespace Services.SystemPower;
 
 /// <summary>

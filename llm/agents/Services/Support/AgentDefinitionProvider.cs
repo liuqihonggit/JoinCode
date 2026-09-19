@@ -1,4 +1,4 @@
-﻿namespace Core.Agents;
+namespace Core.Agents;
 
 /// <summary>
 /// 代理定义提供者 — 加载内置、用户、项目及插件代理定义，支持缓存与变更刷新
@@ -15,6 +15,7 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         _fs = fs;
         _logger = logger;
         _pluginAgentLoader = pluginAgentLoader;
+        _actor = new DefinitionLoaderActor(this, logger);
         if (pluginAgentLoader is not null)
         {
             pluginAgentLoader.Changed += (_, _) => ClearCache();
@@ -23,11 +24,11 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
     private readonly IFileSystem _fs;
     private readonly ILogger<AgentDefinitionProvider>? _logger;
     private readonly IPluginAgentLoader? _pluginAgentLoader;
+    private readonly DefinitionLoaderActor _actor;
     private volatile List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> _cachedDefinitions = [];
     private volatile ILookup<(JoinCode.Abstractions.Models.Agent.AgentRole Role, JoinCode.Abstractions.Models.Agent.ExecutorVariant? Variant), JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition> _cachedDefinitionMap
         = Array.Empty<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>().ToLookup(d => (d.Role, d.Variant));
     private volatile bool _cacheLoaded;
-    private readonly AsyncLock _cacheLock = new();
 
     private static readonly string[] ProjectAgentDirs =
     new[] { 
@@ -49,8 +50,21 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         if (_cacheLoaded)
             return _cachedDefinitions;
 
-        using var guard = await _cacheLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_cacheLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>>();
+        await _actor.SendAsync(new GetDefinitionsCmd(workingDirectory, reply), cancellationToken).ConfigureAwait(false);
+        return await _actor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 加载代理定义内部实现 — 由 Actor Consumer 串行调用，天然无竞态，无需锁
+    /// </summary>
+    /// <param name="workingDirectory">工作目录（用于加载项目级定义，可选）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>去重后的代理定义列表</returns>
+    private async Task<List<JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition>> GetDefinitionsInternalAsync(
+        string? workingDirectory,
+        CancellationToken cancellationToken)
+    {
         if (_cacheLoaded)
             return _cachedDefinitions;
 
@@ -79,7 +93,6 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         _cachedDefinitionMap = _cachedDefinitions.ToLookup(d => (d.Role, d.Variant));
         _cacheLoaded = true;
         return _cachedDefinitions;
-    
     }
 
     /// <summary>
@@ -723,10 +736,45 @@ public sealed partial class AgentDefinitionProvider : ServiceEntity, JoinCode.Ab
         return (AgentRole.Executor, null);
     }
 
-    /// <summary>释放资源 — 释放定义缓存锁</summary>
-    public override void Dispose()
+    /// <summary>异步释放资源 — await Actor 完全退出</summary>
+    public override async ValueTask DisposeAsync()
     {
-        _cacheLock.Dispose();
-        base.Dispose();
+        await _actor.DisposeAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 代理定义加载 Actor — 串行化 GetAgentDefinitionsAsync 加载操作，消除 AsyncLock + double-check 锁 — TASK001
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// <para>读快速路径（_cacheLoaded volatile 检查）不经 Actor，命中缓存直接返回。</para>
+    /// </summary>
+    private sealed class DefinitionLoaderActor : ActorBase<GetDefinitionsCmd, Unit>
+    {
+        private readonly AgentDefinitionProvider _owner;
+        private readonly ILogger<AgentDefinitionProvider>? _logger;
+
+        public DefinitionLoaderActor(AgentDefinitionProvider owner, ILogger<AgentDefinitionProvider>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 AgentDefinitionProvider 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(GetDefinitionsCmd cmd, CancellationToken ct)
+        {
+            try
+            {
+                var result = await _owner.GetDefinitionsInternalAsync(cmd.WorkingDirectory, ct).ConfigureAwait(false);
+                cmd.Reply.SetResult(result);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { cmd.Reply.SetException(ex); }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "DefinitionLoaderActor 命令处理异常");
     }
 }

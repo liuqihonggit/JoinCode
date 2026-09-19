@@ -15,7 +15,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     private readonly WorktreeOptions _defaultOptions;
     private readonly ITelemetryService? _telemetryService;
     private readonly Dictionary<string, AgentWorktreeSession> _sessions = new();
-    private readonly AsyncLock _sessionLock = new();
+    private readonly WorktreeSessionActor _sessionActor;
     private readonly MiddlewarePipeline<WorktreeCreateContext>? _createPipeline;
     private int _disposed;
 
@@ -44,13 +44,15 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         {
             _createPipeline = new PipelineBuilder<WorktreeCreateContext>()
                 .WithLoggingScope(loggerFactory)
-                .UseRange(createMiddlewares)
+                .UseRange(createMiddlewares.OrderBy(m => m.Order))
                 .Build();
         }
         else if (createMiddlewares != null)
         {
-            _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares);
+            _createPipeline = new MiddlewarePipeline<WorktreeCreateContext>(createMiddlewares.OrderBy(m => m.Order));
         }
+
+        _sessionActor = new WorktreeSessionActor(this, _logger);
     }
 
     /// <summary>
@@ -182,11 +184,16 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>worktree 会话；不存在时返回 null</returns>
     public async Task<AgentWorktreeSession?> GetSessionAsync(string agentId, CancellationToken cancellationToken = default) {
-        using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
-
-        return _sessions.TryGetValue(agentId, out var session) ? session : null;
-    
+        var reply = new TaskCompletionSource<AgentWorktreeSession?>();
+        await _sessionActor.SendAsync(new GetSessionCmd(agentId, reply), cancellationToken).ConfigureAwait(false);
+        return await _sessionActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// 获取会话的内部实现 — 由 Actor Consumer 串行调用，无需锁
+    /// </summary>
+    private AgentWorktreeSession? GetSessionInternal(string agentId)
+        => _sessions.TryGetValue(agentId, out var session) ? session : null;
 
     /// <summary>
     /// 判断指定代理是否有活跃的 worktree（会话存在且目录存在）
@@ -208,11 +215,16 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>所有 worktree 会话集合</returns>
     public async Task<IEnumerable<AgentWorktreeSession>> GetAllSessionsAsync(CancellationToken cancellationToken = default) {
-        using var guard = await _sessionLock.TryLockAsync(cancellationToken).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
-
-        return _sessions.Values;
-    
+        var reply = new TaskCompletionSource<IReadOnlyList<AgentWorktreeSession>>();
+        await _sessionActor.SendAsync(new GetAllSessionsCmd(reply), cancellationToken).ConfigureAwait(false);
+        return await _sessionActor.AskReplyAsync(reply, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// 获取所有会话的内部实现 — 由 Actor Consumer 串行调用，无需锁
+    /// </summary>
+    private IReadOnlyList<AgentWorktreeSession> GetAllSessionsInternal()
+        => _sessions.Values.ToList();
 
     /// <summary>
     /// 清理过期的临时 worktree，按最后写入时间与未提交/未推送检查筛选
@@ -405,11 +417,16 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// </summary>
     /// <param name="session">要保存的 worktree 会话</param>
     public async Task SaveSessionAsync(AgentWorktreeSession session) {
-        using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _sessionActor.SendAsync(new SaveSessionCmd(session, reply), default).ConfigureAwait(false);
+        await _sessionActor.AskReplyAsync(reply, default).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 保存会话的内部实现 — 由 Actor Consumer 串行调用，无需锁
+    /// </summary>
+    private async Task SaveSessionInternalAsync(AgentWorktreeSession session) {
         _sessions[session.AgentId] = session;
-    
-
         await PersistActiveWorktreeSessionAsync(session).ConfigureAwait(false);
     }
 
@@ -418,11 +435,16 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     /// </summary>
     /// <param name="agentId">代理唯一标识</param>
     internal async Task RemoveSessionAsync(string agentId) {
-        using var guard = await _sessionLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_sessionLock.Name}' 等待超时");
+        var reply = new TaskCompletionSource();
+        await _sessionActor.SendAsync(new RemoveSessionCmd(agentId, reply), default).ConfigureAwait(false);
+        await _sessionActor.AskReplyAsync(reply, default).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// 移除会话的内部实现 — 由 Actor Consumer 串行调用，无需锁
+    /// </summary>
+    private async Task RemoveSessionInternalAsync(string agentId) {
         _sessions.Remove(agentId);
-    
-
         await ClearActiveWorktreeSessionAsync().ConfigureAwait(false);
     }
 
@@ -496,28 +518,12 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
     }
 
     /// <summary>
-    /// 异步释放资源，强制移除所有活跃 worktree 会话
+    /// 异步释放资源 — 仅释放 Actor,不自动删除 worktree。
+    /// worktree 生命周期由显式 worktree_remove 指令控制,不由进程退出自动清理。
     /// </summary>
-    public ValueTask DisposeAsync() {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0) return ValueTask.CompletedTask;
-        var tasks = new List<Task>();
-        foreach (var kvp in _sessions)
-        {
-            var agentId = kvp.Key;
-            var logger = _logger;
-            tasks.Add(RemoveAgentWorktreeAsync(agentId, force: true).ContinueWith(
-                static (t, state) =>
-                {
-                    var (l, id) = ((ILogger<AgentWorktreeService>?, string))state!;
-                    if (t.IsFaulted && t.Exception is not null)
-                        l?.LogDebug(t.Exception, "DisposeAsync 清理 worktree 会话 {AgentId} 失败", id);
-                },
-                (logger, agentId),
-                TaskContinuationOptions.ExecuteSynchronously));
-        }
-        _sessions.Clear();
-        _sessionLock.Dispose();
-        return tasks.Count == 0 ? ValueTask.CompletedTask : new ValueTask(Task.WhenAll(tasks));
+    public async ValueTask DisposeAsync() {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        await _sessionActor.DisposeAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -666,4 +672,76 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         => _gitRunner.ExecuteAsync(arguments, workingDirectory, cancellationToken);
 
     #endregion
+
+    /// <summary>
+    /// Worktree 会话管理 Actor — 串行化所有 _sessions 字典访问，消除显式 AsyncLock — TASK001
+    /// <para>命令通过 Channel 投递，Consumer 单线程串行处理，天然无竞态。</para>
+    /// <para>_sessions 是 Dictionary 非线程安全，故读操作（GetSession/GetAllSessions）也经 Actor。</para>
+    /// </summary>
+    private sealed class WorktreeSessionActor : ActorBase<WorktreeSessionCommand, Unit>
+    {
+        private readonly AgentWorktreeService _owner;
+        private readonly ILogger<AgentWorktreeService>? _logger;
+
+        public WorktreeSessionActor(AgentWorktreeService owner, ILogger<AgentWorktreeService>? logger) : base()
+        {
+            _owner = owner;
+            _logger = logger;
+        }
+
+        /// <summary>Ask 模式等待回复 — 暴露 protected AskAwait 供 AgentWorktreeService 调用</summary>
+        public async Task<T> AskReplyAsync<T>(TaskCompletionSource<T> tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        /// <summary>Ask 模式等待回复（无返回值）— 暴露 protected AskAwait 非泛型重载</summary>
+        public async Task AskReplyAsync(TaskCompletionSource tcs, CancellationToken ct = default)
+            => await base.AskAwait(tcs, ct).ConfigureAwait(false);
+
+        protected override async ValueTask HandleAsync(WorktreeSessionCommand cmd, CancellationToken ct)
+        {
+            try
+            {
+                switch (cmd)
+                {
+                    case GetSessionCmd(var agentId, var reply):
+                        reply.SetResult(_owner.GetSessionInternal(agentId));
+                        break;
+                    case GetAllSessionsCmd(var reply):
+                        reply.SetResult(_owner.GetAllSessionsInternal());
+                        break;
+                    case SaveSessionCmd(var session, var reply):
+                        await _owner.SaveSessionInternalAsync(session).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                    case RemoveSessionCmd(var agentId, var reply):
+                        await _owner.RemoveSessionInternalAsync(agentId).ConfigureAwait(false);
+                        reply.SetResult();
+                        break;
+                }
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "WorktreeSessionActor 命令处理异常");
+                switch (cmd)
+                {
+                    case GetSessionCmd(_, var reply):
+                        reply.TrySetException(ex);
+                        break;
+                    case GetAllSessionsCmd(var reply):
+                        reply.TrySetException(ex);
+                        break;
+                    case SaveSessionCmd(_, var reply):
+                        reply.TrySetException(ex);
+                        break;
+                    case RemoveSessionCmd(_, var reply):
+                        reply.TrySetException(ex);
+                        break;
+                }
+            }
+        }
+
+        protected override void OnConsumerError(Exception ex)
+            => _logger?.LogWarning(ex, "WorktreeSessionActor Consumer 异常");
+    }
 }

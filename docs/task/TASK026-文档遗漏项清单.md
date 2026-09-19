@@ -49,7 +49,7 @@
 
 ### 4. 多模态隐喻显露工具 - M2/M3/M4模块 ✅ 已实现
 
-**文件**: `docs/design/多模态隐喻显露工具-PRD.md`
+**文件**: `docs/design/DSG019-多模态隐喻显露工具-PRD.md`
 
 **状态**: ✅ 已实现 — M1/M2/M3/M4全部13个工具已落地
 
@@ -65,7 +65,7 @@
 
 ### 5. lock-to-channel-pipeline - P1/P2 ✅ 已实现
 
-**文件**: `docs/refactor/lock-to-channel-pipeline-plan.md`
+**文件**: `docs/refactor/REF007-lock-to-channel-pipeline-plan.md`
 
 **状态**: ✅ 已实现 — P0/P1/P2全部完成
 
@@ -95,7 +95,7 @@
 
 ### 6. 文件工具统一安全防御 - ValidateWriteSafetyAsync ✅ 已实现
 
-**文件**: `docs/task/文件工具统一安全防御改造.md`
+**文件**: `docs/task/TASK021-文件工具统一安全防御改造.md`
 
 **状态**: ✅ 已实现 — 5个工具全部接入 WriteDefenseService 防御链
 
@@ -112,7 +112,7 @@
 
 ### 7. mmap-span优化 ✅ 全部已实现
 
-**文件**: `docs/task/mmap-span-优化工作计划.md`
+**文件**: `docs/task/TASK013-mmap-span-优化工作计划.md`
 
 **状态**: ✅ 全部已实现 — T1-高1~高4 + T2-1~T2-4 全部完成（6项已落地 + 2项文件不存在废案）
 

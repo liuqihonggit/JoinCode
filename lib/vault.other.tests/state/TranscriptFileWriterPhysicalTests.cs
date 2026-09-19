@@ -16,7 +16,7 @@ namespace State.Tests;
 ///
 /// 修复方案: 把 FileMode.Append 改为 FileMode.OpenOrCreate (OpenOrCreate 不会抛 FileNotFoundException)
 /// </summary>
-public sealed class TranscriptFileWriterPhysicalTests : IDisposable
+public sealed class TranscriptFileWriterPhysicalTests : IAsyncDisposable
 {
     private readonly string _tempDir;
     private readonly IO.FileSystem.PhysicalFileSystem _fs;
@@ -176,12 +176,12 @@ public sealed class TranscriptFileWriterPhysicalTests : IDisposable
             "验证修复: FileMode.OpenOrCreate 在文件不存在时不抛 FileNotFoundException");
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (_disposed) return;
         _disposed = true;
 
-        _writer.DisposeSafe();
+        await _writer.DisposeAsync();
         try
         {
             _fs.DeleteDirectory(_tempDir, recursive: true);

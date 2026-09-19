@@ -1,4 +1,4 @@
-﻿namespace Core.Agents;
+namespace Core.Agents;
 
 /// <summary>
 /// AgentServiceImpl 可选依赖聚合 — 4 个可选服务封装为单个参数
@@ -298,7 +298,6 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
         }
 
         await CleanupMcpServersIfNeededAsync(agentId, cancellationToken).ConfigureAwait(false);
-        await CleanupWorktreeIfNeededAsync(agentId, cancellationToken).ConfigureAwait(false);
 
         return await _lifecycleManager.CancelAgentAsync(agentId, cancellationToken).ConfigureAwait(false);
     }
@@ -313,7 +312,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
 
         try
         {
-            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken).ConfigureAwait(false);
+            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken: cancellationToken).ConfigureAwait(false);
             if (cleanupDetail.Kept)
             {
                 _logger?.LogInformation("Agent {AgentId} worktree kept: {Path} (reason: {Reason})",
@@ -878,7 +877,7 @@ public sealed partial class AgentServiceImpl : ServiceEntity, JoinCode.Abstracti
                 {
                     try
                     {
-                        await _worktreeManager.CleanupWorktreeAsync(agentId, CancellationToken.None).ConfigureAwait(false);
+                        await _worktreeManager.CleanupWorktreeAsync(agentId, cancellationToken: CancellationToken.None).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

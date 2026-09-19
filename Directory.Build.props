@@ -45,12 +45,12 @@
 
   <!-- === AOT / 裁剪 统一配置 === -->
   <!-- 源码项目（非 Tests、非 Generator）：启用 AOT 兼容性分析 -->
-  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(EnforceExtendedAnalyzerRules)' != 'true' AND '$(ExcludeJccAnalyzers)' != 'true'">
+  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS')) AND '$(EnforceExtendedAnalyzerRules)' != 'true' AND '$(ExcludeJccAnalyzers)' != 'true'">
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <!-- 源码项目 Release：启用裁剪分析 + AOT 发布 -->
-  <PropertyGroup Condition="!$(MSBuildProjectName.Contains('.Tests')) AND '$(EnforceExtendedAnalyzerRules)' != 'true' AND '$(Configuration)' == 'Release'">
+  <PropertyGroup Condition="!$(MSBuildProjectName.ToUpperInvariant().Contains('.TESTS')) AND '$(EnforceExtendedAnalyzerRules)' != 'true' AND '$(Configuration)' == 'Release'">
     <PublishAot>true</PublishAot>
     <TrimMode>full</TrimMode>
   </PropertyGroup>

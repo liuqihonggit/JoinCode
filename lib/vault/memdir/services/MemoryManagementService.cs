@@ -1,4 +1,4 @@
-﻿
+
 namespace Core.Memdir;
 
 #region Memory Management Models

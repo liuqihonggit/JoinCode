@@ -1,4 +1,4 @@
-﻿namespace McpClient;
+namespace McpClient;
 
 /// <summary>
 /// MCP OAuth 认证服务 — 编排 PKCE 授权完整流程：生成授权 URL → 监听回调 → 交换授权码

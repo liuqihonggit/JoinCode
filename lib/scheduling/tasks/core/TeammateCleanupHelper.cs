@@ -47,7 +47,7 @@ internal sealed class TeammateCleanupHelper
         if (_worktreeManager is null) return;
         try
         {
-            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(state.Agent.ObjectId.UniqueId, CancellationToken.None).ConfigureAwait(false);
+            var cleanupDetail = await _worktreeManager.CleanupWorktreeAsync(state.Agent.ObjectId.UniqueId, cancellationToken: CancellationToken.None).ConfigureAwait(false);
             if (cleanupDetail.Kept)
             {
                 _logger?.LogInformation("Teammate {TeammateId} worktree kept: {Path} (reason: {Reason})",

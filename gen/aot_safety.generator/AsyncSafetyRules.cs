@@ -91,6 +91,15 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         true,
         "Test code must not use ConfigureAwait(false). Default ConfigureAwait(true) is implicit, no need to specify explicitly.");
 
+    private static readonly DiagnosticDescriptor RuleConfigureAwaitTrueForUiAnimation = new(
+        "JCC3014",
+        "异步规范: UI 动画方法禁止 ConfigureAwait(false)",
+        "UI 动画方法（名称含 Animation/Animate）中使用了 ConfigureAwait(false). UI 动画循环必须在 UI 线程执行 ApplyAnimationFrame，ConfigureAwait(false) 会导致 await 后不回到 UI 线程，动画帧在错误线程应用，引发布局计算异常和线程安全违规. 必须使用 ConfigureAwait(true) 保持 UI 线程亲和性.",
+        "AsyncCorrectness",
+        DiagnosticSeverity.Error,
+        true,
+        "UI animation methods must use ConfigureAwait(true) to stay on UI thread. ConfigureAwait(false) breaks thread affinity for ApplyAnimationFrame calls.");
+
     private static readonly DiagnosticDescriptor RuleTaskDelayIntInTests = new(
         "JCC3010",
         "测试性能: Task.Delay({0}ms) 真实等待",
@@ -143,6 +152,7 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
             RuleProcessDeadlock, RuleUnreadStderr,
             RuleAsyncVoid, RuleBlockingAsyncCall,
             RuleSequentialAwaitInLoop, RuleConfigureAwaitFalse, RuleConfigureAwaitTrueForTests,
+            RuleConfigureAwaitTrueForUiAnimation,
             RuleTaskDelayIntInTests, RuleTaskDelayTimeSpanInTests, RuleTaskDelayUnknownInTests,
             RuleEmptyCatchBlock);
 
@@ -679,6 +689,9 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
             ctx => AnalyzeConfigureAwaitTrueForTests(ctx, isTestProject),
             SyntaxKind.AwaitExpression);
         context.RegisterSyntaxNodeAction(
+            AnalyzeConfigureAwaitTrueForUiAnimation,
+            SyntaxKind.AwaitExpression);
+        context.RegisterSyntaxNodeAction(
             ctx => AnalyzeTaskDelayInTests(ctx, isTestProject),
             SyntaxKind.InvocationExpression);
     }
@@ -772,6 +785,30 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         if (HasConfigureAwaitFalse(awaitExpr)) {
             ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitTrueForTests, awaitExpr.GetLocation()));
         }
+    }
+
+    /// <summary>
+    /// JCC3014: UI 动画方法禁止 ConfigureAwait(false) — 动画循环必须在 UI 线程执行 ApplyAnimationFrame。
+    /// 检测方法名含 Animation/Animate 的 async 方法中 await 用了 ConfigureAwait(false)。
+    /// </summary>
+    private static void AnalyzeConfigureAwaitTrueForUiAnimation(SyntaxNodeAnalysisContext ctx) {
+        if (ctx.CancellationToken.IsCancellationRequested) return;
+
+        if (ctx.Node is not AwaitExpressionSyntax awaitExpr) return;
+
+        if (!HasConfigureAwaitFalse(awaitExpr)) return;
+
+        if (IsTaskYield(awaitExpr)) return;
+
+        var methodDecl = awaitExpr.FirstAncestorOrSelf<MethodDeclarationSyntax>();
+        if (methodDecl is null) return;
+
+        var methodName = methodDecl.Identifier.ValueText.AsSpan();
+        if (!methodName.Contains("Animation".AsSpan(), StringComparison.Ordinal) &&
+            !methodName.Contains("Animate".AsSpan(), StringComparison.Ordinal))
+            return;
+
+        ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitTrueForUiAnimation, awaitExpr.GetLocation()));
     }
 
     private static bool IsTaskYield(AwaitExpressionSyntax awaitExpr) {

@@ -22,6 +22,7 @@ New Diagnostics:
 - DPSK3007: Sequential await in loop should use Task.WhenAll for concurrent execution.
 - DPSK3008: Library code await must use ConfigureAwait(false).
 - DPSK3009: Test code await must use ConfigureAwait(true).
+- DPSK3014: UI animation methods must use ConfigureAwait(true) to stay on UI thread.
 - DPSK4001: lock statement in async method may cause deadlock; use SemaphoreSlim.
 - DPSK4002: SemaphoreSlim.Wait() without timeout may hang indefinitely.
 - DPSK5001: Thread.Sleep blocks the thread; use Task.Delay instead.

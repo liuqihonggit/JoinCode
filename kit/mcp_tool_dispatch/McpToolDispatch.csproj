@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.McpToolDispatch</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.McpToolDispatch</RootNamespace>
     <AssemblyName>JoinCode.McpToolDispatch</AssemblyName>
     <PackageId>JoinCode.McpToolDispatch</PackageId>
     <Description>JoinCode McpToolDispatch 子系统 — MCP 工具调度、执行管道、权限检查</Description>

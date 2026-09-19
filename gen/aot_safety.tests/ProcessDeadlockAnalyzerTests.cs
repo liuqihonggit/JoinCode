@@ -15,8 +15,8 @@ public class ProcessDeadlockAnalyzerTests {
                     {
                         var process = new Process();
                         process.Start();
-                        await process.WaitForExitAsync(ct).ConfigureAwait(false);
-                        var output = await process.StandardOutput.ReadToEndAsync().ConfigureAwait(false);
+                        await process.WaitForExitAsync(ct);
+                        var output = await process.StandardOutput.ReadToEndAsync();
                     }
                 }
                 """
@@ -44,8 +44,8 @@ public class ProcessDeadlockAnalyzerTests {
                         process.Start();
                         var stdoutTask = process.StandardOutput.ReadToEndAsync();
                         var stderrTask = process.StandardError.ReadToEndAsync();
-                        await process.WaitForExitAsync(ct).ConfigureAwait(false);
-                        await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+                        await process.WaitForExitAsync(ct);
+                        await Task.WhenAll(stdoutTask, stderrTask);
                     }
                 }
                 """
@@ -122,7 +122,7 @@ public class ProcessDeadlockAnalyzerTests {
                         var process = new Process();
                         process.StartInfo = psi;
                         process.Start();
-                        var stderr = await process.StandardError.ReadToEndAsync().ConfigureAwait(false);
+                        var stderr = await process.StandardError.ReadToEndAsync();
                     }
                 }
                 """

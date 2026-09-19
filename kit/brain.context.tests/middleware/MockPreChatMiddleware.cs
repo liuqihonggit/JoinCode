@@ -18,7 +18,7 @@ public sealed class MockPreChatMiddleware : IChatMiddleware {
             DynamicContentHash = "mock"
         };
 
-        await foreach (var evt in next(context, ct).ConfigureAwait(false)) {
+        await foreach (var evt in next(context, ct)) {
             yield return evt;
         }
     }

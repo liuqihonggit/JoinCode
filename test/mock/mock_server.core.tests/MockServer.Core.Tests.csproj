@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>MockServer.Core.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>MockServer.Core.Tests</RootNamespace>
     <AssemblyName>JoinCode.MockServer.Core.Tests</AssemblyName>
     <Description>MockServer.Core 单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012;NU1510</NoWarn>

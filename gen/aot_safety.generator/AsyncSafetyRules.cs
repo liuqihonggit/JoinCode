@@ -93,12 +93,12 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
 
     private static readonly DiagnosticDescriptor RuleConfigureAwaitTrueForUiAnimation = new(
         "JCC3014",
-        "异步规范: UI 层禁止 ConfigureAwait(false)",
-        "UI 层（Gui/Tui 项目）中使用了 ConfigureAwait(false). UI 层异步操作后续通常操作 UI 控件，必须在 UI 线程继续执行；ConfigureAwait(false) 会导致 await 后不回到 UI 线程，引发布局计算异常和线程安全违规. 必须使用 ConfigureAwait(true) 保持 UI 线程亲和性.",
+        "异步规范: UI 层禁止 ConfigureAwait 调用",
+        "UI 层（Gui/Tui 项目）中使用了 ConfigureAwait 调用. UI 层异步操作后续通常操作 UI 控件，必须在 UI 线程继续执行；省略 ConfigureAwait 让默认行为（ConfigureAwait(true)）生效即可. 显式 ConfigureAwait(true) 冗余，ConfigureAwait(false) 破坏 UI 线程亲和性.",
         "AsyncCorrectness",
         DiagnosticSeverity.Error,
         true,
-        "UI layer (Gui/Tui) must use ConfigureAwait(true) to stay on UI thread. ConfigureAwait(false) breaks thread affinity for UI control access.");
+        "UI layer (Gui/Tui) must not call ConfigureAwait at all. Omit it to let default ConfigureAwait(true) take effect. Explicit ConfigureAwait(true) is redundant; ConfigureAwait(false) breaks UI thread affinity.");
 
     private static readonly DiagnosticDescriptor RuleTaskDelayIntInTests = new(
         "JCC3010",
@@ -162,7 +162,6 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         context.RegisterSyntaxNodeAction(AnalyzeInteractiveInput, SyntaxKind.InvocationExpression);
         context.RegisterSyntaxNodeAction(AnalyzeProcessDeadlock, SyntaxKind.AwaitExpression);
         context.RegisterSyntaxNodeAction(AnalyzeAsyncVoid, SyntaxKind.MethodDeclaration);
-        context.RegisterSyntaxNodeAction(AnalyzeBlockingAsyncCall, SyntaxKind.SimpleMemberAccessExpression);
         context.RegisterSyntaxNodeAction(AnalyzeSequentialAwaitInLoop, SyntaxKind.AwaitExpression);
         context.RegisterCompilationStartAction(RegisterAsyncCodePathAnalysis);
         context.RegisterSyntaxNodeAction(AnalyzeEmptyCatchBlock, SyntaxKind.CatchClause);
@@ -501,7 +500,7 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         return false;
     }
 
-    private static void AnalyzeBlockingAsyncCall(SyntaxNodeAnalysisContext ctx) {
+    private static void AnalyzeBlockingAsyncCall(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
 
         if (ctx.Node is not MemberAccessExpressionSyntax memberAccess) return;
@@ -532,7 +531,7 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         if (!isTaskType) return;
 
         if (IsInsideMainMethod(memberAccess)) return;
-        if (AotSafetyHelpers.IsInsideTestMethod(memberAccess)) return;
+        if (isTestProject) return;
 
         if (IsInsideConstructor(memberAccess)) return;
 
@@ -674,14 +673,13 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
     }
 
     /// <summary>
-    /// 注册 JCC3008/JCC3009/JCC3010-JCC3012 分析，缓存项目类型检测结果（解决方案无关）
+    /// 注册 JCC3008/JCC3009/JCC3010-JCC3012/JCC3014 分析，通过 MSBuild ProjectType 属性区分项目类型（项目无关）。
     /// </summary>
     private static void RegisterAsyncCodePathAnalysis(CompilationStartAnalysisContext context) {
-        var isTestProject = IsTestProject(context.Compilation);
-        var isRoslynProject = IsRoslynProject(context.Compilation);
-        var isApplicationProject = IsApplicationProject(context.Compilation);
-        var isUiProject = IsUiProject(context.Compilation);
-        var isLibraryProject = !isTestProject && !isRoslynProject && !isApplicationProject;
+        var projectType = GetProjectType(context.Compilation, context.Options.AnalyzerConfigOptionsProvider);
+        var isLibraryProject = projectType == "library";
+        var isTestProject = projectType == "test";
+        var isUiProject = projectType == "ui";
 
         context.RegisterSyntaxNodeAction(
             ctx => AnalyzeConfigureAwaitFalse(ctx, isLibraryProject),
@@ -695,49 +693,21 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         context.RegisterSyntaxNodeAction(
             ctx => AnalyzeTaskDelayInTests(ctx, isTestProject),
             SyntaxKind.InvocationExpression);
+        context.RegisterSyntaxNodeAction(
+            ctx => AnalyzeBlockingAsyncCall(ctx, isTestProject),
+            SyntaxKind.SimpleMemberAccessExpression);
     }
 
     /// <summary>
-    /// 检测项目是否引用了测试框架（xUnit/NUnit/MSTest）。解决方案无关。
+    /// 从 AnalyzerConfigOptions 读取 build_property.ProjectType（MSBuild 属性标签）。项目无关。
     /// </summary>
-    private static bool IsTestProject(Compilation compilation) {
-        foreach (var reference in compilation.References) {
-            if (reference is not PortableExecutableReference peRef) continue;
-            var display = peRef.Display;
-            if (display is null) continue;
-            var displaySpan = display.AsSpan();
-            if (displaySpan.Contains("xunit.core".AsSpan(), StringComparison.OrdinalIgnoreCase) ||
-                displaySpan.Contains("nunit.framework".AsSpan(), StringComparison.OrdinalIgnoreCase) ||
-                displaySpan.Contains("Microsoft.VisualStudio.TestPlatform".AsSpan(), StringComparison.OrdinalIgnoreCase))
-                return true;
+    private static string GetProjectType(Compilation compilation, AnalyzerConfigOptionsProvider optionsProvider) {
+        foreach (var tree in compilation.SyntaxTrees) {
+            if (optionsProvider.GetOptions(tree).TryGetValue("build_property.ProjectType", out var value)) {
+                return value ?? "";
+            }
         }
-        return false;
-    }
-
-    /// <summary>
-    /// 检测项目是否引用了 Microsoft.CodeAnalysis.CSharp（Roslyn 项目）。解决方案无关。
-    /// </summary>
-    private static bool IsRoslynProject(Compilation compilation) {
-        var targetSpan = "Microsoft.CodeAnalysis.CSharp".AsSpan();
-        foreach (var reference in compilation.References) {
-            if (reference is not PortableExecutableReference peRef) continue;
-            var display = peRef.Display;
-            if (display is null) continue;
-            if (display.AsSpan().Contains(targetSpan, StringComparison.Ordinal))
-                return true;
-        }
-        return false;
-    }
-
-    /// <summary>
-    /// 检测项目是否为应用入口（cli/gui/tui/sdk），非库代码。解决方案无关。
-    /// </summary>
-    private static bool IsApplicationProject(Compilation compilation) {
-        var name = compilation.AssemblyName.AsSpan();
-        return name.Equals("JoinCode".AsSpan(), StringComparison.Ordinal) ||
-               name.Contains("Gui".AsSpan(), StringComparison.Ordinal) ||
-               name.Contains("Tui".AsSpan(), StringComparison.Ordinal) ||
-               name.Equals("Sdk".AsSpan(), StringComparison.Ordinal);
+        return "";
     }
 
     private static void AnalyzeConfigureAwaitFalse(SyntaxNodeAnalysisContext ctx, bool isLibraryProject) {
@@ -779,8 +749,6 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
 
         if (!isTestProject) return;
 
-        if (!AotSafetyHelpers.IsInsideTestMethod(awaitExpr)) return;
-
         if (IsTaskYield(awaitExpr)) return;
 
         if (HasConfigureAwaitFalse(awaitExpr)) {
@@ -789,8 +757,8 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
     }
 
     /// <summary>
-    /// JCC3014: UI 层禁止 ConfigureAwait(false) — UI 层异步操作后续操作 UI 控件，必须在 UI 线程继续。
-    /// 检测 Gui/Tui 项目中所有 await 用了 ConfigureAwait(false)。
+    /// JCC3014: UI 层禁止 ConfigureAwait 调用 — UI 层省略 ConfigureAwait 让默认行为（true）生效。
+    /// 检测 Gui/Tui 项目中所有 await 用了任何 ConfigureAwait（无论 true/false）。
     /// </summary>
     private static void AnalyzeConfigureAwaitTrueForUiAnimation(SyntaxNodeAnalysisContext ctx, bool isUiProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
@@ -801,26 +769,22 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
 
         if (IsTaskYield(awaitExpr)) return;
 
-        if (HasConfigureAwaitFalse(awaitExpr)) {
+        if (HasConfigureAwaitAny(awaitExpr)) {
             ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitTrueForUiAnimation, awaitExpr.GetLocation()));
         }
     }
 
     /// <summary>
-    /// 检测项目是否为 UI 层（Gui/Tui，引用 Avalonia 或程序集名含 Gui/Tui）。解决方案无关。
+    /// 检测 await 表达式是否调用了任何 ConfigureAwait（无论 true/false）。
     /// </summary>
-    private static bool IsUiProject(Compilation compilation) {
-        var name = compilation.AssemblyName.AsSpan();
-        if (name.Contains("Gui".AsSpan(), StringComparison.Ordinal) ||
-            name.Contains("Tui".AsSpan(), StringComparison.Ordinal))
-            return true;
-        foreach (var reference in compilation.References) {
-            if (reference is not PortableExecutableReference peRef) continue;
-            var display = peRef.Display;
-            if (display is null) continue;
-            if (display.AsSpan().Contains("Avalonia".AsSpan(), StringComparison.OrdinalIgnoreCase))
+    private static bool HasConfigureAwaitAny(AwaitExpressionSyntax awaitExpr) {
+        if (awaitExpr.Expression is InvocationExpressionSyntax configureAwaitInvocation) {
+            if (configureAwaitInvocation.Expression is MemberAccessExpressionSyntax memberAccess &&
+                memberAccess.Name.Identifier.ValueText == "ConfigureAwait") {
                 return true;
+            }
         }
+
         return false;
     }
 
@@ -849,8 +813,6 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         if (containingType.Name != "Task" || symbol.Name != "Delay") return;
 
         if (!isTestProject) return;
-
-        if (!AotSafetyHelpers.IsInsideTestMethod(invocation)) return;
 
         var args = invocation.ArgumentList.Arguments;
         if (args.Count > 0) {

@@ -19,7 +19,7 @@ public class ContentionBench {
     public async Task AsyncLock_Contention_Async() {
         var tasks = new Task[Concurrency];
         for (var i = 0; i < Concurrency; i++)
-            tasks[i] = Task.Run(async () => { using var g = await _asyncLock.TryLockAsync().ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_asyncLock.Name}' 等待超时"); });
+            tasks[i] = Task.Run(async () => { using var g = await _asyncLock.TryLockAsync() ?? throw new System.TimeoutException($"锁 '{_asyncLock.Name}' 等待超时"); });
         await Task.WhenAll(tasks);
     }
 

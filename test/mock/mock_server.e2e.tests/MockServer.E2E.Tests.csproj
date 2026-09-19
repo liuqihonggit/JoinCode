@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>MockServer.E2E.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>MockServer.E2E.Tests</RootNamespace>
     <AssemblyName>JoinCode.MockServer.E2E.Tests</AssemblyName>
     <Description>MockServer E2E 测试 - 启动真实 MockServer.exe + jcc.exe 进程级端到端测试（覆盖 OpenAI/Anthropic/DeepSeek 三供应商）</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

@@ -61,7 +61,7 @@ public sealed class TerminalGuiInteractiveService : IInteractiveService {
         var answers = new Dictionary<string, string>();
         foreach (var q in questions) {
             cancellationToken.ThrowIfCancellationRequested();
-            var result = await ShowSingleAsync(q, cancellationToken).ConfigureAwait(false);
+            var result = await ShowSingleAsync(q, cancellationToken);
             if (!result.Success)
                 return result;
             answers[q.Question] = result.Answer

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Reasoning</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Reasoning</RootNamespace>
     <AssemblyName>JoinCode.Reasoning</AssemblyName>
     <PackageId>JoinCode.Reasoning</PackageId>
     <Description>JoinCode Reasoning 子系统 — 结构化推理引擎、三权分立Agent、证据验证</Description>

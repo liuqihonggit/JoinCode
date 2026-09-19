@@ -312,7 +312,7 @@ public sealed class StdioProcessManager : IAsyncDisposable {
         if (_disposed) return;
         _disposed = true;
 
-        await StopAsync().ConfigureAwait(false);
+        await StopAsync();
     }
     private void SignalOutputChanged() {
         var oldTcs = _outputChangedTcs;

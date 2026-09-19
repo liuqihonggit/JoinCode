@@ -103,6 +103,7 @@
 
 
   <ItemGroup>
+    <CompilerVisibleProperty Include="ProjectType" />
     <Using Include="System.Collections.Concurrent" />
     <Using Include="System.Diagnostics" />
     <Using Include="System.Text.Json" />

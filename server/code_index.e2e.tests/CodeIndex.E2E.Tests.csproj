@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>CodeIndex.E2E.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>CodeIndex.E2E.Tests</RootNamespace>
     <AssemblyName>JoinCode.CodeIndex.E2E.Tests</AssemblyName>
     <Description>JoinCode CodeIndex E2E 集成测试</Description>
     <NoWarn>$(NoWarn);JCC3007</NoWarn>

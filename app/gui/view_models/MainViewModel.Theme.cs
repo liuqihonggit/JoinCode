@@ -8,7 +8,7 @@ public sealed partial class MainViewModel {
     private void LoadThemeFromSettings() {
         _ = Task.Run(async () => {
             try {
-                var theme = await _session.GetThemeAsync().WaitAsync(Timeout).ConfigureAwait(true);
+                var theme = await _session.GetThemeAsync().WaitAsync(Timeout);
                 // Auto 保持默认 IsDarkTheme（GUI 无 Auto 选项，避免按时间覆盖用户上次明确选择）
                 if (theme is ThemeKind.Auto)
                     return;

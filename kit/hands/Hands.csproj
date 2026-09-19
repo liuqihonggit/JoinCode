@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Hands</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Hands</RootNamespace>
     <AssemblyName>JoinCode.Hands</AssemblyName>
     <Description>JoinCode Hands 子系统 — 技能执行、工具处理器、Shell、Web、Notebook、API、缓存</Description>
     <PackageId>JoinCode.Hands</PackageId>

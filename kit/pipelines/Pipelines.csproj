@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Pipelines</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Pipelines</RootNamespace>
     <AssemblyName>JoinCode.Pipelines</AssemblyName>
     <PackageId>JoinCode.Pipelines</PackageId>
     <Description>JoinCode Pipelines — 共享中间件管道注册，供 CLI 与 GUI 宿主统一复用，消除两套管道注册漂移</Description>

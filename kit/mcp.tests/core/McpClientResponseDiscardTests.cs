@@ -2,7 +2,7 @@ namespace Mcp.Tests;
 
 /// <summary>
 /// McpClient 响应处理丢弃异常回归测试
-/// 根因: OnTransportMessageReceived 中 `ProcessResponseAsync(response).ConfigureAwait(false);`
+/// 根因: OnTransportMessageReceived 中 `ProcessResponseAsync(response);`
 /// 裸语句丢弃 Task，客户端释放后到达的响应在 Actor 已释放时抛 ObjectDisposedException，
 /// 异常成为未观察异常被静默丢弃（多级报错缺失）。
 /// </summary>

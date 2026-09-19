@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>CodeIndex.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>CodeIndex.Tests</RootNamespace>
     <AssemblyName>JoinCode.CodeIndex.Tests</AssemblyName>
     <Description>CodeIndex 组件单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007</NoWarn>

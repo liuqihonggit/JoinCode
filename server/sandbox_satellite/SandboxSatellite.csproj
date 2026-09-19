@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+        <ProjectType>library</ProjectType>
+  <OutputType>Exe</OutputType>
     <RootNamespace>JoinCode.SandboxSatellite</RootNamespace>
     <AssemblyName>jcc-sandbox</AssemblyName>
     <Description>JoinCode 沙箱卫星进程 — 在隔离环境中执行高风险命令，通过 stdin/stdout NDJSON 与主进程通信</Description>

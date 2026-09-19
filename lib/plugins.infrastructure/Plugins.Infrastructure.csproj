@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Plugins.Infrastructure</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Plugins.Infrastructure</RootNamespace>
     <AssemblyName>JoinCode.Plugins.Infrastructure</AssemblyName>
     <AllowPack>true</AllowPack>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

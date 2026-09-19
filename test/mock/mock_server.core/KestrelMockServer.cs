@@ -309,7 +309,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
 
     private async Task DisposeCoreAsync() {
         if (_app is not null) {
-            await _app.DisposeSafeAsync().ConfigureAwait(false);
+            await _app.DisposeSafeAsync();
         }
 
         if (_runTask is not null) {

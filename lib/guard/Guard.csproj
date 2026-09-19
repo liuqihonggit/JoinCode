@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Guard</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Guard</RootNamespace>
     <AssemblyName>JoinCode.Guard</AssemblyName>
     <PackageId>JoinCode.Guard</PackageId>
     <Description>JoinCode Guard 子系统 — 权限管理、安全护栏、Hook 系统、配置加载、OAuth 认证</Description>

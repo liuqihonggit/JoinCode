@@ -60,18 +60,18 @@ public sealed class AvaloniaInteractiveService : IInteractiveService {
 
             AskUserQuestionResult result;
             if (Dispatcher.UIThread.CheckAccess()) {
-                result = await ShowDialogCallback(q).ConfigureAwait(true);
+                result = await ShowDialogCallback(q);
             } else {
                 var tcs = new TaskCompletionSource<AskUserQuestionResult>();
                 Dispatcher.UIThread.Post(async () => {
                     try {
-                        var r = await ShowDialogCallback(q).ConfigureAwait(true);
+                        var r = await ShowDialogCallback(q);
                         tcs.SetResult(r);
                     } catch (Exception ex) {
                         tcs.SetException(ex);
                     }
                 }, DispatcherPriority.Normal);
-                result = await tcs.Task.ConfigureAwait(true);
+                result = await tcs.Task;
             }
 
             if (!result.Success || result.Cancelled)

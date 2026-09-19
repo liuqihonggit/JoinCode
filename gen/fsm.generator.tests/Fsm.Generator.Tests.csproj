@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Fsm.Generator.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Fsm.Generator.Tests</RootNamespace>
     <AssemblyName>JoinCode.Fsm.Generator.Tests</AssemblyName>
     <Description>Fsm 源码生成器单元测试</Description>
     <IsAotCompatible>false</IsAotCompatible>

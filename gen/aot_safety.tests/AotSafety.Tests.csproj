@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>AotSafety.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>AotSafety.Tests</RootNamespace>
     <AssemblyName>JoinCode.AotSafety.Tests</AssemblyName>
     <Description>AotSafety 分析器单元测试</Description>
     <IsAotCompatible>false</IsAotCompatible>

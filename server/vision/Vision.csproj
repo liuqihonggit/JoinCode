@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Vision</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Vision</RootNamespace>
     <AssemblyName>JoinCode.Vision</AssemblyName>
     <Description>JoinCode Vision 子系统 — 多模态隐喻显露工具（四叉树标注/隐喻拓扑/时序隐喻/测量）</Description>
   </PropertyGroup>

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Composition</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Composition</RootNamespace>
     <AssemblyName>JoinCode.Composition</AssemblyName>
     <PackageId>JoinCode.Composition</PackageId>
     <Description>JoinCode Composition 子系统 — 系统集成层，负责协调所有组件的依赖注入注册和桥接服务</Description>

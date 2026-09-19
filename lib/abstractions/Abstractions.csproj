@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>JoinCode 抽象层 — 纯接口 + DTO + 管道契约 + 特性标记，零实现代码</Description>
+        <ProjectType>library</ProjectType>
+  <Description>JoinCode 抽象层 — 纯接口 + DTO + 管道契约 + 特性标记，零实现代码</Description>
     <AllowPack>true</AllowPack>
   </PropertyGroup>
 

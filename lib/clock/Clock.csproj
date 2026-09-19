@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Clock</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Clock</RootNamespace>
     <AssemblyName>JoinCode.Clock</AssemblyName>
     <PackageId>JoinCode.Clock</PackageId>
     <Description>JoinCode ⏰ Clock 子系统 — 目标引擎、工作流宿主</Description>

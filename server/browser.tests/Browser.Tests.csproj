@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <RootNamespace>Browser.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Browser.Tests</RootNamespace>
     <AssemblyName>JoinCode.Browser.Tests</AssemblyName>
     <Description>JoinCode Browser 插件单元测试</Description>
   </PropertyGroup>

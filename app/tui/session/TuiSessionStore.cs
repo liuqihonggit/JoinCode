@@ -34,14 +34,14 @@ internal sealed class TuiSessionStore {
             ModelId = config.Provider?.ModelId ?? string.Empty,
             Vendor = config.Provider?.Vendor ?? string.Empty,
             CreatedAt = DateTime.UtcNow,
-        }, cancellationToken).ConfigureAwait(false);
+        }, cancellationToken);
     }
 
     /// <summary>
     /// 列出最近的会话摘要 — 供 /sessions 列表展示（T7）。
     /// </summary>
     public async Task<IReadOnlyList<TranscriptSummary>> ListSessionsAsync(int limit = 20, CancellationToken cancellationToken = default) {
-        return await _transcriptService.ListTranscriptsAsync(limit, cancellationToken).ConfigureAwait(false);
+        return await _transcriptService.ListTranscriptsAsync(limit, cancellationToken);
     }
 
     /// <summary>
@@ -74,6 +74,6 @@ internal sealed class TuiSessionStore {
 
         contextManager.SwitchSession(targetSessionId);
         SessionId = targetSessionId;
-        await Task.CompletedTask.ConfigureAwait(false);
+        await Task.CompletedTask;
     }
 }

@@ -85,7 +85,7 @@ public sealed partial class SlashPaletteView : UserControl {
             if (gen != _animGeneration)
                 return;
             ApplyAnimationFrame(Math.Min(ms / totalMs, 1.0));
-            await System.Threading.Tasks.Task.Delay(15).ConfigureAwait(true);
+            await System.Threading.Tasks.Task.Delay(15);
         }
         if (gen != _animGeneration)
             return;

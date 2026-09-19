@@ -10,7 +10,7 @@ public class AgentOutputChannelManagerTests {
         CancellationToken ct) {
         var chunks = new List<JoinCode.Abstractions.Interfaces.AgentOutputChunk>();
         try {
-            await foreach (var chunk in manager.ReadAllAsync(ct).ConfigureAwait(false)) {
+            await foreach (var chunk in manager.ReadAllAsync(ct)) {
                 chunks.Add(chunk);
                 if (chunks.Count >= expectedCount) break;
             }

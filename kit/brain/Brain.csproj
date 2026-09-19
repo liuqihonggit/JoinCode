@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Brain</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Brain</RootNamespace>
     <AssemblyName>JoinCode.Brain</AssemblyName>
     <PackageId>JoinCode.Brain</PackageId>
     <Description>JoinCode Brain 子系统 — 查询引擎、上下文管理、提示词构建、计划模式、成本追踪</Description>

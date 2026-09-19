@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Gui.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>JoinCode.Gui.Tests</RootNamespace>
     <AssemblyName>JoinCode.Gui.Tests</AssemblyName>
     <NoWarn>$(NoWarn);NU1903</NoWarn>
   </PropertyGroup>

@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Infra.Services.Tests</RootNamespace>
+        <ProjectType>test</ProjectType>
+  <RootNamespace>Infra.Services.Tests</RootNamespace>
     <AssemblyName>JoinCode.Infra.Services.Tests</AssemblyName>
     <Description>JoinCode Infrastructure Services 单元测试</Description>
     <NoWarn>$(NoWarn);JCC3007;JCC3010;JCC3011;JCC3012</NoWarn>

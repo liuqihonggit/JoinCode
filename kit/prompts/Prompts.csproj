@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>JoinCode.Brain.Prompts</RootNamespace>
+        <ProjectType>library</ProjectType>
+  <RootNamespace>JoinCode.Brain.Prompts</RootNamespace>
     <AssemblyName>JoinCode.Brain.Prompts</AssemblyName>
     <PackageId>JoinCode.Brain.Prompts</PackageId>
     <Description>JoinCode Brain Prompts 子系统 — 系统提示词构建、段落管理、模板、测试触发、计划提示词</Description>

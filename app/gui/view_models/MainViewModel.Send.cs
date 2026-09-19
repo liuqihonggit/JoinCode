@@ -43,15 +43,15 @@ public sealed partial class MainViewModel {
         var (agentName, text) = parsed.Value;
         Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = rawInput, Timestamp = DateTime.Now });
 
-        var agentId = await _session.FindSubAgentIdByNameAsync(agentName).ConfigureAwait(true);
+        var agentId = await _session.FindSubAgentIdByNameAsync(agentName);
         if (agentId is null) {
-            var agents = await _session.GetBackgroundAgentsAsync().ConfigureAwait(true);
+            var agents = await _session.GetBackgroundAgentsAsync();
             var list = string.Join(", ", agents.Select(a => a.Name));
             AddSystemMessage($"⚠ 未找到子代理 @{agentName}，当前运行中: [{list}]");
             return;
         }
 
-        var ok = await _session.ForwardInputToSubAgentAsync(agentId, text).ConfigureAwait(true);
+        var ok = await _session.ForwardInputToSubAgentAsync(agentId, text);
         AddSystemMessage(ok ? $"📤 已转发给 @{agentName}" : $"⚠ 转发给 @{agentName} 失败");
     }
 
@@ -61,11 +61,11 @@ public sealed partial class MainViewModel {
     /// </summary>
     private async Task TryAutoForwardToSingleAgentAsync(string message) {
         try {
-            var agents = await _session.GetBackgroundAgentsAsync().ConfigureAwait(true);
+            var agents = await _session.GetBackgroundAgentsAsync();
             if (agents.Count != 1)
                 return;
 
-            await _session.ForwardInputToSubAgentAsync(agents[0].AgentId, message).ConfigureAwait(true);
+            await _session.ForwardInputToSubAgentAsync(agents[0].AgentId, message);
             Messages.Add(new ChatUiMessage { Role = MessageRole.User, Content = message, Timestamp = DateTime.Now });
             AddSystemMessage($"📤 已转发给 @{agents[0].Name}");
         } catch (Exception ex) {
@@ -89,7 +89,7 @@ public sealed partial class MainViewModel {
             return;
 
         var path = runVm.WorktreePath
-            ?? await _session.GetSubAgentWorktreePathAsync(runVm.AgentId).ConfigureAwait(true);
+            ?? await _session.GetSubAgentWorktreePathAsync(runVm.AgentId);
 
         if (string.IsNullOrEmpty(path) || !System.IO.Directory.Exists(path)) {
             AddSystemMessage($"⚠ 子代理 {runVm.Run.Name} 未使用 worktree 隔离（无独立目录）");
@@ -117,21 +117,21 @@ public sealed partial class MainViewModel {
         // F4 规则1：@提及直发子代理 — 绕过主代理 LLM，不受 IsBusy 拦截（对齐 CLI ReplLoopStep）
         if (message[0] == '@') {
             InputText = string.Empty;
-            await HandleMentionAsync(message).ConfigureAwait(true);
+            await HandleMentionAsync(message);
             return;
         }
 
         // !! 前缀命令 — 静默执行/打开，不触发 AI，不受 IsBusy 拦截（对齐 PI !! 设计）
         if (prefixParsed is { Prefix: "!!" }) {
             InputText = string.Empty;
-            await HandleSilentPrefixCommandAsync(message).ConfigureAwait(true);
+            await HandleSilentPrefixCommandAsync(message);
             return;
         }
 
         // F4 规则2：处理中且恰好一个运行中子代理 → 自动转发给它（对齐 CLI 单代理转发规则）
         if (IsBusy) {
             InputText = string.Empty;
-            await TryAutoForwardToSingleAgentAsync(message).ConfigureAwait(true);
+            await TryAutoForwardToSingleAgentAsync(message);
             return;
         }
 
@@ -149,7 +149,7 @@ public sealed partial class MainViewModel {
         try {
             // ! 前缀命令路由 — 执行 shell 命令，输出注入 AI 上下文（对齐 PI ! 设计）
             if (prefixParsed is { Prefix: "!" }) {
-                await HandleShellPrefixCommandAsync(message, _sendCts.Token).ConfigureAwait(true);
+                await HandleShellPrefixCommandAsync(message, _sendCts.Token);
                 StatusText = "就绪";
                 return;
             }
@@ -163,7 +163,7 @@ public sealed partial class MainViewModel {
                 });
                 string output;
                 try {
-                    output = await _session.ExecuteSlashCommandAsync(message, _sendCts.Token).ConfigureAwait(true);
+                    output = await _session.ExecuteSlashCommandAsync(message, _sendCts.Token);
                 } catch (Exception ex) {
                     output = $"命令执行失败: {ex.Message}";
                     ViewModelDiagnosticsLogger.WriteError(ex);
@@ -174,14 +174,14 @@ public sealed partial class MainViewModel {
                     : $"{commandEcho.Content}\n{output}";
                 // T1：命令可能改变引擎上下文（/resume 装入历史、/clear 清空、/compact 压缩），
                 // 重读引擎历史刷新消息列表，否则恢复的会话在界面不可见；命令回显保留在末尾
-                await ReloadMessagesFromEngineAsync(commandEcho).ConfigureAwait(true);
+                await ReloadMessagesFromEngineAsync(commandEcho);
                 StatusText = "就绪";
                 return;
             }
 
             // 应用编辑后的系统提示词（对齐 CLI --system-prompt：经 IChatService.SetSystemPromptAsync）
             if (!string.IsNullOrWhiteSpace(SystemPrompt)) {
-                await _session.SetSystemPromptAsync(SystemPrompt, _sendCts.Token).ConfigureAwait(true);
+                await _session.SetSystemPromptAsync(SystemPrompt, _sendCts.Token);
             }
 
             Messages.Add(new ChatUiMessage {

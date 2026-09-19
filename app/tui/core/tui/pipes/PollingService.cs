@@ -50,7 +50,7 @@ public sealed class PollingService : IAsyncDisposable {
             timer.Dispose();
         }
         if (pollTask is not null) {
-            await pollTask.ConfigureAwait(false);
+            await pollTask;
         }
     }
 
@@ -60,7 +60,7 @@ public sealed class PollingService : IAsyncDisposable {
     }
 
     private async Task PollLoopAsync() {
-        while (_timer is not null && await _timer.WaitForNextTickAsync().ConfigureAwait(false)) {
+        while (_timer is not null && await _timer.WaitForNextTickAsync()) {
             try {
                 PollAllPipes();
             } catch (OperationCanceledException) {
@@ -95,7 +95,7 @@ public sealed class PollingService : IAsyncDisposable {
     public async ValueTask DisposeAsync() {
         if (_disposed) return;
         _disposed = true;
-        await StopAsync().ConfigureAwait(false);
+        await StopAsync();
         _semaphore.Dispose();
     }
 }

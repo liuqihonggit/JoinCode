@@ -56,7 +56,7 @@ public sealed partial class ParallelExecutionEngine : IAsyncDisposable {
         var allTasks = _scheduler.GetAllTasks();
         _logger?.LogInformation($"总任务数量: {allTasks.Count}");
 
-        var context = new ExecutionContext(options, _cts.Token);
+        await using var context = new ExecutionContext(options, _cts.Token);
         var executor = new TaskExecutor(_agentCoordinator, _scheduler, _logger, _cts, _agentExecutionRecords, _subAgentContextAccessor);
 
         try {

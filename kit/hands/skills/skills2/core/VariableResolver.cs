@@ -116,7 +116,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
     }
 
     private static string ResolveNestedName(string name, Dictionary<string, JsonElement> variables) {
-        var resolver = new VariableResolver();
+        using var resolver = new VariableResolver();
         var result = name;
         for (var i = 0; i < 10 && result.Contains("{{"); i++) {
             result = resolver.Resolve(result, variables, false);

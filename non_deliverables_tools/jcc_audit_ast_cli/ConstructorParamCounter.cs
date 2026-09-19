@@ -6,8 +6,7 @@ namespace JccAuditCli;
 /// 构造函数参数计数检测器：扫描所有类的构造函数，找出参数数量超过阈值的构造函数
 /// 用于识别可重构为中间件模式的高耦合类
 /// </summary>
-public static class ConstructorParamCounter
-{
+public static class ConstructorParamCounter {
     /// <summary>
     /// 默认参数数量阈值：超过此值视为"胖构造函数"，建议重构
     /// </summary>
@@ -18,12 +17,10 @@ public static class ConstructorParamCounter
     /// </summary>
     /// <param name="compilation">Roslyn Compilation</param>
     /// <param name="threshold">参数数量阈值（默认 8）</param>
-    public static List<ConstructorParamInfo> Extract(Compilation compilation, int threshold = DefaultThreshold)
-    {
+    public static List<ConstructorParamInfo> Extract(Compilation compilation, int threshold = DefaultThreshold) {
         var results = new List<ConstructorParamInfo>();
 
-        foreach (var syntaxTree in compilation.SyntaxTrees)
-        {
+        foreach (var syntaxTree in compilation.SyntaxTrees) {
             var filePath = syntaxTree.FilePath ?? string.Empty;
             if (filePath.Contains("\\obj\\", StringComparison.Ordinal) ||
                 filePath.Contains("/obj/", StringComparison.Ordinal))
@@ -37,12 +34,10 @@ public static class ConstructorParamCounter
     }
 
     private static void ExtractFromTree(SyntaxTree syntaxTree, SemanticModel semanticModel,
-        string filePath, int threshold, List<ConstructorParamInfo> results)
-    {
+        string filePath, int threshold, List<ConstructorParamInfo> results) {
         var root = syntaxTree.GetRoot();
 
-        foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-        {
+        foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>()) {
             // 跳过抽象类和接口（接口不会有构造函数，但防御性检查）
             if (classDecl.Modifiers.Any(m => m.Text == "static"))
                 continue;
@@ -60,21 +55,18 @@ public static class ConstructorParamCounter
             ConstructorDeclarationSyntax? fattestCtor = null;
             var maxParamCount = 0;
 
-            foreach (var ctor in classDecl.Members.OfType<ConstructorDeclarationSyntax>())
-            {
+            foreach (var ctor in classDecl.Members.OfType<ConstructorDeclarationSyntax>()) {
                 var parameters = ctor.ParameterList?.Parameters;
                 if (parameters is null)
                     continue;
 
                 // 过滤基础设施类型后的有效参数数量
-                var effectiveCount = parameters.Value.Count(p =>
-                {
+                var effectiveCount = parameters.Value.Count(p => {
                     var paramType = p.Type?.ToString() ?? string.Empty;
                     return !IsInfrastructureType(paramType);
                 });
 
-                if (effectiveCount > maxParamCount)
-                {
+                if (effectiveCount > maxParamCount) {
                     maxParamCount = effectiveCount;
                     fattestCtor = ctor;
                 }
@@ -86,11 +78,9 @@ public static class ConstructorParamCounter
             // 提取参数类型列表（过滤基础设施类型）
             var paramTypes = new List<string>();
             var allParams = fattestCtor.ParameterList!.Parameters;
-            foreach (var param in allParams)
-            {
+            foreach (var param in allParams) {
                 var paramType = param.Type?.ToString() ?? "object";
-                if (!IsInfrastructureType(paramType))
-                {
+                if (!IsInfrastructureType(paramType)) {
                     paramTypes.Add(paramType);
                 }
             }
@@ -111,8 +101,7 @@ public static class ConstructorParamCounter
     /// <summary>
     /// 判断是否应跳过该类（与 DiRegistrationExtractor 保持一致）
     /// </summary>
-    private static bool ShouldSkipClass(string className, string ns)
-    {
+    private static bool ShouldSkipClass(string className, string ns) {
         return className is "Program" or "Startup" or "Configuration" or "Options" or "Config"
                || className.EndsWith("Attribute", StringComparison.Ordinal)
                || className.EndsWith("Tests", StringComparison.Ordinal)
@@ -126,8 +115,7 @@ public static class ConstructorParamCounter
     /// 判断是否为基础设施类型（不计入有效参数数量）
     /// 与 DiRegistrationExtractor.IsInfrastructureType 保持一致
     /// </summary>
-    private static bool IsInfrastructureType(string type)
-    {
+    private static bool IsInfrastructureType(string type) {
         return type == "IServiceProvider"
                || type == "IServiceScopeFactory"
                || type == "IConfiguration"
@@ -141,11 +129,9 @@ public static class ConstructorParamCounter
     /// <summary>
     /// 构造函数签名（用于报告展示）
     /// </summary>
-    private static string BuildSignature(string className, SeparatedSyntaxList<ParameterSyntax> parameters)
-    {
+    private static string BuildSignature(string className, SeparatedSyntaxList<ParameterSyntax> parameters) {
         var parts = new List<string>(parameters.Count);
-        foreach (var param in parameters)
-        {
+        foreach (var param in parameters) {
             var paramType = param.Type?.ToString() ?? "object";
             var paramName = param.Identifier.ToString();
             parts.Add($"{paramType} {paramName}");

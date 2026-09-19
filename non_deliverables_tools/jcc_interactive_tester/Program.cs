@@ -9,15 +9,12 @@ namespace JccInteractiveTester;
 /// <summary>
 /// jcc.exe 交互式测试器 — 通过 stderr 生命周期标记 [DONE]/[READY] 驱动输入时序
 /// </summary>
-internal static class Program
-{
-    private static async Task<int> Main(string[] args)
-    {
+internal static class Program {
+    private static async Task<int> Main(string[] args) {
         var jccExe = args.Length > 0 ? args[0]
             : @"D:\project\w1\artifacts\bin\JoinCode\Debug\net10.0\jcc.exe";
 
-        var psi = new ProcessStartInfo
-        {
+        var psi = new ProcessStartInfo {
             FileName = jccExe,
             Arguments = "--trust --await 180 --permission-mode bypass --force-interactive",
             UseShellExecute = false,
@@ -40,11 +37,9 @@ internal static class Program
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
         // 异步读 stdout — 直接输出到控制台
-        _ = Task.Run(async () =>
-        {
+        _ = Task.Run(async () => {
             var buf = new char[4096];
-            while (!cts.Token.IsCancellationRequested)
-            {
+            while (!cts.Token.IsCancellationRequested) {
                 var read = await p.StandardOutput.ReadAsync(buf, cts.Token).ConfigureAwait(false);
                 if (read == 0) break;
                 Console.Write(buf, 0, read);
@@ -52,11 +47,9 @@ internal static class Program
         }, cts.Token);
 
         // 异步读 stderr — 检测生命周期标记 [READY]/[DONE]
-        _ = Task.Run(async () =>
-        {
+        _ = Task.Run(async () => {
             string? line;
-            while ((line = await p.StandardError.ReadLineAsync(cts.Token).ConfigureAwait(false)) is not null)
-            {
+            while ((line = await p.StandardError.ReadLineAsync(cts.Token).ConfigureAwait(false)) is not null) {
                 Console.WriteLine(line);
                 if (line.Contains("[AI助手] 就绪")) readyTcs.TrySetResult();
                 if (line.Contains("[AI对话结束]")) doneTcs.TrySetResult();
@@ -76,8 +69,7 @@ internal static class Program
             ("第3轮: read README", "你看到我的README.md内容了吗？请用read工具读取README.md"),
         };
 
-        for (var i = 0; i < turns.Count; i++)
-        {
+        for (var i = 0; i < turns.Count; i++) {
             var (label, input) = turns[i];
             Console.WriteLine($"\n========== {label} ==========");
 

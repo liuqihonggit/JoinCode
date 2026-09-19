@@ -3,8 +3,7 @@ namespace JccAuditCli;
 /// <summary>
 /// 单条诊断记录
 /// </summary>
-public sealed record AuditDiagnostic
-{
+public sealed record AuditDiagnostic {
     public string RuleId { get; init; } = string.Empty;
     public string Severity { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
@@ -17,8 +16,7 @@ public sealed record AuditDiagnostic
 /// <summary>
 /// 项目审计结果
 /// </summary>
-public sealed record ProjectAuditResult
-{
+public sealed record ProjectAuditResult {
     public string ProjectName { get; init; } = string.Empty;
     public string ProjectPath { get; init; } = string.Empty;
     public int TotalDiagnostics { get; init; }
@@ -31,8 +29,7 @@ public sealed record ProjectAuditResult
 /// <summary>
 /// 审计报告
 /// </summary>
-public sealed record AuditReport
-{
+public sealed record AuditReport {
     public string TargetPath { get; init; } = string.Empty;
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public int TotalProjects { get; init; }
@@ -67,8 +64,7 @@ public sealed partial class AuditReportContext : JsonSerializerContext;
 /// <summary>
 /// 构造函数参数计数审计报告
 /// </summary>
-public sealed record ConstructorParamReport
-{
+public sealed record ConstructorParamReport {
     public string TargetPath { get; init; } = string.Empty;
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public int Threshold { get; init; }
@@ -79,8 +75,7 @@ public sealed record ConstructorParamReport
 /// <summary>
 /// 单个文件的行数信息
 /// </summary>
-public sealed record FileInfoEntry
-{
+public sealed record FileInfoEntry {
     public string FilePath { get; init; } = string.Empty;
     public string FullPath { get; init; } = string.Empty;
     public int LineCount { get; init; }
@@ -89,8 +84,7 @@ public sealed record FileInfoEntry
 /// <summary>
 /// 文件行数统计报告（Top N 大文件）
 /// </summary>
-public sealed record FileLineReport
-{
+public sealed record FileLineReport {
     public string RootPath { get; init; } = string.Empty;
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public int TopN { get; init; }
@@ -104,8 +98,7 @@ public sealed record FileLineReport
 /// <summary>
 /// 单个 BOM 移除记录
 /// </summary>
-public sealed record BomStripEntry
-{
+public sealed record BomStripEntry {
     public string FilePath { get; init; } = string.Empty;
     public string FullPath { get; init; } = string.Empty;
 }
@@ -113,8 +106,7 @@ public sealed record BomStripEntry
 /// <summary>
 /// UTF-8 BOM 移除报告
 /// </summary>
-public sealed record BomStripReport
-{
+public sealed record BomStripReport {
     public string RootPath { get; init; } = string.Empty;
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
     public int TotalCsFiles { get; init; }

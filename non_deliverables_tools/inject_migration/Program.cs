@@ -3,8 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Text;
 
-if (args.Length < 1)
-{
+if (args.Length < 1) {
     Console.WriteLine("Usage: InjectMigration <directory> [--dry-run]");
     return;
 }
@@ -50,10 +49,8 @@ var primitiveTypes = new HashSet<string>
     "Version", "Stream", "Type", "Action", "Func", "Task", "ValueTask"
 };
 
-foreach (var file in csFiles)
-{
-    try
-    {
+foreach (var file in csFiles) {
+    try {
         var source = IO.FileSystem.SafeFileIO.ReadAllText(file);
         var tree = CSharpSyntaxTree.ParseText(source);
         var root = tree.GetRoot();
@@ -65,27 +62,19 @@ foreach (var file in csFiles)
         var rewriter = new InjectMigrationRewriter(diSuffixes, knownDIConcreteTypes, primitiveTypes);
         var newRoot = rewriter.Visit(root);
 
-        if (newRoot != root)
-        {
-            if (dryRun)
-            {
+        if (newRoot != root) {
+            if (dryRun) {
                 Console.WriteLine($"[DRY-RUN] Would update: {Path.GetRelativePath(rootDir, file)}");
-            }
-            else
-            {
+            } else {
                 var newSource = newRoot.ToFullString();
                 IO.FileSystem.SafeFileIO.WriteAllText(file, newSource);
                 Console.WriteLine($"Updated: {Path.GetRelativePath(rootDir, file)}");
             }
             totalUpdated++;
-        }
-        else
-        {
+        } else {
             totalSkipped++;
         }
-    }
-    catch (Exception ex)
-    {
+    } catch (Exception ex) {
         Console.WriteLine($"ERROR: {Path.GetRelativePath(rootDir, file)}: {ex.Message}");
         totalErrors++;
     }
@@ -96,10 +85,8 @@ Console.WriteLine($"\nDone. Updated: {totalUpdated}, Skipped: {totalSkipped}, Er
 sealed class InjectMigrationRewriter(
     HashSet<string> diSuffixes,
     HashSet<string> knownDIConcreteTypes,
-    HashSet<string> primitiveTypes) : CSharpSyntaxRewriter
-{
-    public override SyntaxNode VisitClassDeclaration(ClassDeclarationSyntax node)
-    {
+    HashSet<string> primitiveTypes) : CSharpSyntaxRewriter {
+    public override SyntaxNode VisitClassDeclaration(ClassDeclarationSyntax node) {
         // 只处理有 [Register] 特性的类
         var hasRegister = node.AttributeLists.Any(al => al.Attributes.Any(a => a.Name.ToString() == "Register"));
         if (!hasRegister)
@@ -124,10 +111,8 @@ sealed class InjectMigrationRewriter(
 
         // 检查所有参数是否都是DI类型
         var allDI = true;
-        foreach (var param in ctor.ParameterList.Parameters)
-        {
-            if (!IsDIType(param.Type))
-            {
+        foreach (var param in ctor.ParameterList.Parameters) {
+            if (!IsDIType(param.Type)) {
                 allDI = false;
                 break;
             }
@@ -141,17 +126,14 @@ sealed class InjectMigrationRewriter(
         if (body is null)
             return base.VisitClassDeclaration(node);
 
-        foreach (var stmt in body.Statements)
-        {
-            if (stmt is ExpressionStatementSyntax ess && ess.Expression is AssignmentExpressionSyntax aes)
-            {
+        foreach (var stmt in body.Statements) {
+            if (stmt is ExpressionStatementSyntax ess && ess.Expression is AssignmentExpressionSyntax aes) {
                 // 允许: _field = param;
                 // 允许: _field = param ?? throw ...;
                 // 允许: ArgumentNullException.ThrowIfNull(param);
                 continue;
             }
-            if (stmt is ExpressionStatementSyntax ess2 && ess2.Expression is InvocationExpressionSyntax)
-            {
+            if (stmt is ExpressionStatementSyntax ess2 && ess2.Expression is InvocationExpressionSyntax) {
                 // 允许: ArgumentNullException.ThrowIfNull(param);
                 var expr = ess2.Expression.ToString();
                 if (expr.StartsWith("ArgumentNullException.ThrowIfNull") || expr.StartsWith("ArgumentException.ThrowIfNullOrEmpty"))
@@ -181,18 +163,15 @@ sealed class InjectMigrationRewriter(
 
         var newMembers = new List<MemberDeclarationSyntax>();
 
-        foreach (var member in node.Members)
-        {
+        foreach (var member in node.Members) {
             if (member == ctor)
                 continue; // 删除构造函数
 
-            if (member is FieldDeclarationSyntax field)
-            {
+            if (member is FieldDeclarationSyntax field) {
                 var fieldName = field.Declaration.Variables.First().Identifier.Text;
                 // 检查字段名是否匹配构造函数参数名（_paramName 或 paramName）
                 var matchingParam = ctorParamNames.FirstOrDefault(pn => fieldName == "_" + pn || fieldName == pn);
-                if (matchingParam != null && !existingInjectFields.Contains(fieldName))
-                {
+                if (matchingParam != null && !existingInjectFields.Contains(fieldName)) {
                     // 给字段添加 特性
                     var injectAttr = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName("Inject"));
                     var attrList = SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(injectAttr));
@@ -208,16 +187,14 @@ sealed class InjectMigrationRewriter(
         // 类声明加 partial
         var newClass = node.WithMembers(new SyntaxList<MemberDeclarationSyntax>(newMembers));
 
-        if (!newClass.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
-        {
+        if (!newClass.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword))) {
             newClass = newClass.AddModifiers(SyntaxFactory.Token(SyntaxKind.PartialKeyword));
         }
 
         return base.VisitClassDeclaration(newClass);
     }
 
-    private bool IsDIType(TypeSyntax? type)
-    {
+    private bool IsDIType(TypeSyntax? type) {
         if (type is null) return false;
 
         var typeName = type.ToString()
@@ -264,8 +241,7 @@ sealed class InjectMigrationRewriter(
             return true;
 
         // 检查DI后缀
-        foreach (var suffix in diSuffixes)
-        {
+        foreach (var suffix in diSuffixes) {
             if (typeName.EndsWith(suffix))
                 return true;
         }

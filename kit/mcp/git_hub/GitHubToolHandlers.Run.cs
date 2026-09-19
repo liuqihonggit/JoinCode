@@ -70,12 +70,12 @@ public partial class GitHubToolHandlers {
 
         // === filter=failed: 智能过滤测试失败(状态机提取 Failed+Error+StackTrace,Rust 风格输出) ===
         if (string.Equals(filter, "failed", StringComparison.OrdinalIgnoreCase)) {
-            return await FilterFailedTestsAsync(owner, repoName, run_id, job_id, maxLines, skip, cancellationToken);
+            return await FilterFailedTestsAsync(owner, repoName, run_id, job_id, maxLines, skip, cancellationToken).ConfigureAwait(false);
         }
 
         // === expand=failed: 只拉失败步骤日志(量少,不缓存) ===
         if (string.Equals(expand, "failed", StringComparison.OrdinalIgnoreCase)) {
-            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, true, "失败步骤", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.FailedHint, skip);
+            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, true, "失败步骤", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.FailedHint, skip).ConfigureAwait(false);
         }
 
         // === expand=steps 或 expand=step:Name: 两级缓存(ADR 0067) ===
@@ -102,7 +102,7 @@ public partial class GitHubToolHandlers {
 
             // expand=step:Name/section:Type: 从 Level2 内容缓存读取(ADR 0067)
             if (expandStep is not null && sectionType is not null) {
-                var sectionLines = await GetOrFetchSectionAsync(owner, repoName, run_id, job_id, expandStep, sectionType, working_dir, wantRefresh, cancellationToken);
+                var sectionLines = await GetOrFetchSectionAsync(owner, repoName, run_id, job_id, expandStep, sectionType, working_dir, wantRefresh, cancellationToken).ConfigureAwait(false);
                 if (sectionLines is null)
                     return Ok($"未找到步骤 '{expandStep}' 或 section '{sectionType}'，建议先 expand=step:{expandStep} 查看 section 摘要");
 
@@ -116,7 +116,7 @@ public partial class GitHubToolHandlers {
             }
 
             // 其余情况(expand=steps 或 expand=step:Name): 从 Level1 摘要缓存读取
-            var summary = await GetOrFetchSummaryAsync(owner, repoName, run_id, job_id, working_dir, wantRefresh, cancellationToken);
+            var summary = await GetOrFetchSummaryAsync(owner, repoName, run_id, job_id, working_dir, wantRefresh, cancellationToken).ConfigureAwait(false);
             if (summary is null) return Fail("日志拉取失败");
 
             // expand=steps: 返回步骤列表(有 error 的步骤标 ❌)
@@ -149,7 +149,7 @@ public partial class GitHubToolHandlers {
 
         if (wantLog) {
             // log=true: 用 REST API 日志流 + 过滤/分页
-            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, false, "日志", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.LogHint, skip);
+            return await StreamAndFilterAsync(owner, repoName, run_id, job_id, false, "日志", markers, filterLevel, maxLines, cancellationToken, GitHubRunLogHints.LogHint, skip).ConfigureAwait(false);
         }
 
         // log=false: 获取 run 详情 JSON

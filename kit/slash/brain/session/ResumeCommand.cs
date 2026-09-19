@@ -38,9 +38,9 @@ public sealed class ResumeCommand : ChatCommandBase {
         var args = GetNormalizedArgs(context);
         if (!string.IsNullOrWhiteSpace(args)) {
             var searchTerm = args.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? args;
-            await ResumeWithArgumentAsync(searchTerm, context);
+            await ResumeWithArgumentAsync(searchTerm, context).ConfigureAwait(false);
         } else {
-            await ListSessionsAsync(context, showAllProjects: false);
+            await ListSessionsAsync(context, showAllProjects: false).ConfigureAwait(false);
         }
 
         return ChatCommandResult.Continue();
@@ -57,7 +57,7 @@ public sealed class ResumeCommand : ChatCommandBase {
         if (transcriptService is not null) {
             try {
                 if (await transcriptService.TranscriptExistsAsync(searchTerm, context.CancellationToken).ConfigureAwait(false)) {
-                    await ResumeSessionAsync(searchTerm, context, ResumeEntrypoint.SlashCommandSessionId);
+                    await ResumeSessionAsync(searchTerm, context, ResumeEntrypoint.SlashCommandSessionId).ConfigureAwait(false);
                     return;
                 }
             } catch (ArgumentException) {
@@ -78,7 +78,7 @@ public sealed class ResumeCommand : ChatCommandBase {
 
         if (titleMatches.Count == 1) {
             // 唯一匹配 → 直接恢复
-            await ResumeSessionAsync(titleMatches[0].Id, context, ResumeEntrypoint.SlashCommandTitle);
+            await ResumeSessionAsync(titleMatches[0].Id, context, ResumeEntrypoint.SlashCommandTitle).ConfigureAwait(false);
             return;
         }
 
@@ -198,7 +198,7 @@ public sealed class ResumeCommand : ChatCommandBase {
             }
 
             // L3.5: 从选择器恢复 → SlashCommandPicker
-            await ResumeSessionAsync(result.Selected.SessionId, context, ResumeEntrypoint.SlashCommandPicker);
+            await ResumeSessionAsync(result.Selected.SessionId, context, ResumeEntrypoint.SlashCommandPicker).ConfigureAwait(false);
             return;
         }
 
@@ -231,7 +231,7 @@ public sealed class ResumeCommand : ChatCommandBase {
 
         // L3.4: 全项目切换
         if (input.Trim().Equals("a", StringComparison.OrdinalIgnoreCase)) {
-            await ListSessionsAsync(context, !showAllProjects);
+            await ListSessionsAsync(context, !showAllProjects).ConfigureAwait(false);
             return;
         }
 
@@ -242,7 +242,7 @@ public sealed class ResumeCommand : ChatCommandBase {
 
         if (int.TryParse(input, out var choice) && choice >= 1 && choice <= entries.Count) {
             // L3.5: 从编号选择恢复 → SlashCommandPicker
-            await ResumeSessionAsync(entries[choice - 1].SessionId, context, ResumeEntrypoint.SlashCommandPicker);
+            await ResumeSessionAsync(entries[choice - 1].SessionId, context, ResumeEntrypoint.SlashCommandPicker).ConfigureAwait(false);
         } else {
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostResumeInvalidChoice)}{AnsiStyleEnumConstants.Reset}");
         }
@@ -339,7 +339,7 @@ public sealed class ResumeCommand : ChatCommandBase {
             // 对齐 TS: checkCrossProjectResume
             var info = await transcriptService.GetSessionInfoAsync(sessionId, context.CancellationToken).ConfigureAwait(false);
             var projectPath = info?.ProjectPath ?? string.Empty;
-            var crossProjectResult = await CheckCrossProjectResumeAsync(projectPath, context, context.Services?.GetService<ILogger<ResumeCommand>>());
+            var crossProjectResult = await CheckCrossProjectResumeAsync(projectPath, context, context.Services?.GetService<ILogger<ResumeCommand>>()).ConfigureAwait(false);
             if (crossProjectResult.IsCrossProject && !crossProjectResult.IsSameRepoWorktree) {
                 // 不同项目 — 生成命令并复制到剪贴板
                 var command = $"cd {crossProjectResult.ProjectPath} && jcc --resume {sessionId}";

@@ -116,13 +116,13 @@ public sealed class StreamingFallbackDecorator : IQueryService {
             return await ExecuteFallbackAsync(
                 chatHistory, executionSettings, kernel, cancellationToken,
                 new StreamingFallbackTriggeredException("Stream idle timeout", FallbackCause.Watchdog, ex),
-                events);
+                events).ConfigureAwait(false);
         } catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
             return new StreamingResult(events, fellBack: false);
         } catch (StreamingFallbackTriggeredException ex) {
-            return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex, events);
+            return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex, events).ConfigureAwait(false);
         } catch (Exception ex) when (ShouldFallback(ex, cancellationToken)) {
-            return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex, events);
+            return await ExecuteFallbackAsync(chatHistory, executionSettings, kernel, cancellationToken, ex, events).ConfigureAwait(false);
         }
     }
 

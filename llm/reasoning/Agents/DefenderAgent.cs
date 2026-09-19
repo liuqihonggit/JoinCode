@@ -59,7 +59,7 @@ public sealed class DefenderAgent : ReasoningAgent {
             var itemsText = string.Join("\n", targets.Select((x, i) => $"{i + 1}. [{x.State}] {x.Content}"));
             var userPrompt = $"请审查以下项目，提出反驳证据和质疑：\n{itemsText}";
 
-            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
+            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct).ConfigureAwait(false);
 
             var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.DefenderTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
             if (llmResponse is not null) {

@@ -30,29 +30,29 @@ internal sealed class StartupWorkflow {
     }
 
     internal static async Task RunOnboardingIfNeededAsync(IOnboardingService onboardingService, CommandLineOptions options, IFileSystem fs, bool hasApiKey, IProviderDefinitionRegistry registry, WorkflowConfig? config = null) {
-        await onboardingService.InitializeAsync();
+        await onboardingService.InitializeAsync().ConfigureAwait(false);
 
         if (onboardingService.IsOnboardingComplete) {
             return;
         }
 
         if (options.TrustWorkspace) {
-            await onboardingService.CompleteAsync();
+            await onboardingService.CompleteAsync().ConfigureAwait(false);
             return;
         }
 
         if (hasApiKey) {
-            await onboardingService.CompleteAsync();
+            await onboardingService.CompleteAsync().ConfigureAwait(false);
             return;
         }
 
-        await onboardingService.StartAsync();
+        await onboardingService.StartAsync().ConfigureAwait(false);
 
         while (!onboardingService.IsOnboardingComplete) {
             var state = onboardingService.CurrentState;
 
             if (state.CurrentStep == OnboardingStep.ApiKey) {
-                var (success, errorMessage) = await PromptAndSaveProviderConfigAsync(config, fs, registry);
+                var (success, errorMessage) = await PromptAndSaveProviderConfigAsync(config, fs, registry).ConfigureAwait(false);
                 if (!success && !string.IsNullOrEmpty(errorMessage)) {
                     Cli.TerminalHelper.WriteLine();
                     Cli.TerminalHelper.WriteLine(errorMessage);
@@ -60,13 +60,13 @@ internal sealed class StartupWorkflow {
                     if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                         Cli.TerminalHelper.ReadKey(intercept: true);
                     }
-                    await onboardingService.CompleteAsync();
+                    await onboardingService.CompleteAsync().ConfigureAwait(false);
                     return;
                 } else if (!success) {
-                    await onboardingService.CompleteAsync();
+                    await onboardingService.CompleteAsync().ConfigureAwait(false);
                     return;
                 }
-                await onboardingService.NextStepAsync();
+                await onboardingService.NextStepAsync().ConfigureAwait(false);
                 continue;
             }
 
@@ -75,7 +75,7 @@ internal sealed class StartupWorkflow {
             Cli.TerminalHelper.WriteLine("按 Enter 继续，Esc 跳过");
 
             if (Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
-                await onboardingService.CompleteAsync();
+                await onboardingService.CompleteAsync().ConfigureAwait(false);
                 break;
             } else {
                 var key = Cli.TerminalHelper.ReadKey(intercept: true);
@@ -83,13 +83,13 @@ internal sealed class StartupWorkflow {
                 switch (key.Key) {
                     case ConsoleKey.Enter:
                     if (state.CurrentStep == OnboardingStep.Complete || state.CurrentStepIndex >= state.TotalSteps - 1) {
-                        await onboardingService.CompleteAsync();
+                        await onboardingService.CompleteAsync().ConfigureAwait(false);
                     } else {
-                        await onboardingService.NextStepAsync();
+                        await onboardingService.NextStepAsync().ConfigureAwait(false);
                     }
                     break;
                     case ConsoleKey.Escape:
-                    await onboardingService.SkipAsync();
+                    await onboardingService.SkipAsync().ConfigureAwait(false);
                     break;
                 }
             }
@@ -177,15 +177,15 @@ internal sealed class StartupWorkflow {
         // 多态：通过 IProviderDefinition.IsCompoundAuthFormat + ExtractApiKeyFromCompound 保存到文件
         if (definition is not null && definition.IsCompoundAuthFormat(credentials)) {
             var extractedKey = definition.ExtractApiKeyFromCompound(credentials);
-            await ConfigLoader.SaveApiKeyToJccAsync(provider, extractedKey ?? credentials, fs);
+            await ConfigLoader.SaveApiKeyToJccAsync(provider, extractedKey ?? credentials, fs).ConfigureAwait(false);
             if (endpoint is not null) {
-                await ConfigLoader.SaveSettingToSettingsJsonAsync("endpoint", endpoint, fs);
+                await ConfigLoader.SaveSettingToSettingsJsonAsync("endpoint", endpoint, fs).ConfigureAwait(false);
             }
         } else {
-            await ConfigLoader.SaveApiKeyToJccAsync(provider, credentials, fs);
+            await ConfigLoader.SaveApiKeyToJccAsync(provider, credentials, fs).ConfigureAwait(false);
         }
 
-        await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", provider, fs);
+        await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", provider, fs).ConfigureAwait(false);
 
         return (true, null);
     }

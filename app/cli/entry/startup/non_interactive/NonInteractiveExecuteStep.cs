@@ -28,7 +28,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
                 context.ExitCode = (int)ExitCode.GeneralError;
                 return;
             }
-            await session.ProcessUserInputAsync(prompt, ct);
+            await session.ProcessUserInputAsync(prompt, ct).ConfigureAwait(false);
             await Console.Out.FlushAsync().ConfigureAwait(false);
             Diag.WriteLifecycle("[AI对话结束]");
             Diag.WriteLine("[STEP] ExecuteStep ProcessUserInputAsync returned, stdout flushed");
@@ -62,7 +62,7 @@ internal sealed partial class NonInteractiveExecuteStep : ServiceEntity, IMiddle
 
         Diag.WriteLine("[STEP] ExecuteStep done, calling next");
         Diag.WriteLifecycle("[EXIT]");
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 
     /// <summary>

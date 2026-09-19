@@ -15,16 +15,16 @@ public sealed partial class MainViewModel {
     {
         try {
             // 1. 先获取 worktree 路径（Stop 之前 — Stop 之后无变更的 worktree 会被自动清理）
-            var worktreePath = await _session.GetSubAgentWorktreePathAsync(teammateId);
+            var worktreePath = await _session.GetSubAgentWorktreePathAsync(teammateId).ConfigureAwait(true);
 
             // 2. 提取 worktree diff 摘要（对齐 PRD 4.6 — 供 mainAgent 分析接手）
             var diffSummary = string.Empty;
             if (!string.IsNullOrEmpty(worktreePath) && System.IO.Directory.Exists(worktreePath)) {
-                diffSummary = await ExtractWorktreeDiffSummaryAsync(worktreePath);
+                diffSummary = await ExtractWorktreeDiffSummaryAsync(worktreePath).ConfigureAwait(true);
             }
 
             // 3. 真正终止子代理（Stop 内部会调 CleanupWorktreeAsync — 有变更保留，无变更删除）
-            var ok = await _session.StopBackgroundAgentAsync(teammateId);
+            var ok = await _session.StopBackgroundAgentAsync(teammateId).ConfigureAwait(true);
 
             // 4. 构造接手消息注入主会话触发 mainAgent（对齐 PRD 4.6）
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () => {
@@ -37,7 +37,7 @@ public sealed partial class MainViewModel {
                     if (!IsBusy) {
                         // 主会话空闲 — 自动注入并触发 mainAgent
                         InputText = takeoverMessage;
-                        await SendCommand.ExecuteAsync(null);
+                        await SendCommand.ExecuteAsync(null).ConfigureAwait(true);
                     } else {
                         // 主会话正忙 — 预填输入框，用户发送完后自动触发
                         InputText = takeoverMessage;
@@ -49,7 +49,7 @@ public sealed partial class MainViewModel {
                         : $"子代理超时终止失败: {teammateId}";
                 }
                 OnPropertyChanged(nameof(CanStop));
-            });
+            }).ConfigureAwait(true);
         } catch (Exception ex) {
             ViewModelDiagnosticsLogger.WriteError(ex);
         }
@@ -72,9 +72,9 @@ public sealed partial class MainViewModel {
                 return string.Empty;
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-            var output = await stdoutTask;
-            await stderrTask;
+            await proc.WaitForExitAsync().ConfigureAwait(true);
+            var output = await stdoutTask.ConfigureAwait(true);
+            await stderrTask.ConfigureAwait(true);
             return output.Trim();
         } catch {
             return string.Empty;
@@ -109,7 +109,7 @@ public sealed partial class MainViewModel {
             return;
         }
         try {
-            var records = await _session.GetMessagesAsync(CancellationToken.None);
+            var records = await _session.GetMessagesAsync(CancellationToken.None).ConfigureAwait(true);
             foreach (var r in records) {
                 if (!string.IsNullOrWhiteSpace(r.Content))
                     Messages.Add(new ChatUiMessage { Role = MessageRoleExtensions.FromValue(r.Role) ?? MessageRole.User, Content = r.Content, Timestamp = r.Timestamp });
@@ -125,7 +125,7 @@ public sealed partial class MainViewModel {
     /// </summary>
     public async Task StopSubAgentAsync(SessionItem subSession) {
         try {
-            var ok = await _session.StopBackgroundAgentAsync(subSession.Id);
+            var ok = await _session.StopBackgroundAgentAsync(subSession.Id).ConfigureAwait(true);
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
                 if (ok)
                     subSession.SubSessionState = "Cancelled";
@@ -153,7 +153,7 @@ public sealed partial class MainViewModel {
     /// </summary>
     public async Task InterruptSubAgentAsync(SessionItem subSession) {
         try {
-            var ok = await _session.InterruptSubAgentAsync(subSession.Id);
+            var ok = await _session.InterruptSubAgentAsync(subSession.Id).ConfigureAwait(true);
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {
                 if (ok) {
                     subSession.SubSessionState = "Interrupted";
@@ -202,7 +202,7 @@ public sealed partial class MainViewModel {
     public async Task PopulateSubSessionsAsync(SessionItem[] sessions) {
         try {
             foreach (var session in sessions) {
-                var subs = await _session.GetSubSessionsAsync(session.Id);
+                var subs = await _session.GetSubSessionsAsync(session.Id).ConfigureAwait(true);
                 if (subs.Count == 0)
                     continue;
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => {

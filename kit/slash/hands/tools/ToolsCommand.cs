@@ -18,7 +18,7 @@ public sealed class ToolsCommand : ChatCommandBase {
             return ChatCommandResult.Continue();
         }
 
-        var tools = await services.ToolRegistry.GetAllToolInfosAsync(context.CancellationToken);
+        var tools = await services.ToolRegistry.GetAllToolInfosAsync(context.CancellationToken).ConfigureAwait(false);
 
         if (tools.Count == 0) {
             TerminalHelper.WriteLine("没有注册的工具。");

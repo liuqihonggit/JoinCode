@@ -35,7 +35,7 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
     public async Task<EnvironmentReport> ProbeEnvironmentAsync(bool forceRescan = false, CancellationToken ct = default) {
         var tcs = TcsFactory.Create<EnvironmentReport>();
         await SendAsync(new ProbeEnvCmd(forceRescan, ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -114,13 +114,13 @@ public sealed class EnvironmentProbeService : ActorBase<IEnvProbeCommand, Unit>,
 
             var components = new List<ComponentScore>
             {
-                await ProbeComponentAsync("git", "Git", ["--version"], "git version"),
-                await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null),
-                await ProbeComponentAsync("python", "Python", ["--version"], "Python"),
-                await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null),
-                await ProbeComponentAsync("node", "Node.js", ["--version"], null),
-                await ProbeComponentAsync("wsl", "WSL2", ["--status"], null),
-                await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version"),
+                await ProbeComponentAsync("git", "Git", ["--version"], "git version").ConfigureAwait(false),
+                await ProbeComponentAsync("powershell", "PowerShell", ["-Command", "$PSVersionTable.PSVersion.ToString()"], null).ConfigureAwait(false),
+                await ProbeComponentAsync("python", "Python", ["--version"], "Python").ConfigureAwait(false),
+                await ProbeComponentAsync("dotnet", ".NET SDK", ["--version"], null).ConfigureAwait(false),
+                await ProbeComponentAsync("node", "Node.js", ["--version"], null).ConfigureAwait(false),
+                await ProbeComponentAsync("wsl", "WSL2", ["--status"], null).ConfigureAwait(false),
+                await ProbeComponentAsync("docker", "Docker", ["--version"], "Docker version").ConfigureAwait(false),
             };
 
             var report = new EnvironmentReport {

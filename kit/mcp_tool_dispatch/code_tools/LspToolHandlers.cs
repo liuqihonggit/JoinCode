@@ -58,7 +58,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -99,7 +99,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ public class LspToolHandlers {
             response.AppendLine(content);
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -174,7 +174,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -200,7 +200,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -287,7 +287,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -325,7 +325,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -377,7 +377,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -429,7 +429,7 @@ public class LspToolHandlers {
             }
 
             return ToolResultBuilder.Success().WithText(response.ToString()).Build();
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     #region Private Methods

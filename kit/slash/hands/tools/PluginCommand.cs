@@ -21,7 +21,7 @@ public sealed class PluginCommand : ChatCommandBase {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase)) {
-            return await ListPluginsAsync(pluginManager);
+            return await ListPluginsAsync(pluginManager).ConfigureAwait(false);
         }
 
         if (args.StartsWith("install", StringComparison.OrdinalIgnoreCase)) {
@@ -30,7 +30,7 @@ public sealed class PluginCommand : ChatCommandBase {
                 TerminalHelper.WriteLine("用法: /plugin install <exe-path>");
                 return ChatCommandResult.Continue();
             }
-            return await InstallPluginAsync(pluginManager, path, context);
+            return await InstallPluginAsync(pluginManager, path, context).ConfigureAwait(false);
         }
 
         if (args.StartsWith("uninstall", StringComparison.OrdinalIgnoreCase)) {
@@ -39,7 +39,7 @@ public sealed class PluginCommand : ChatCommandBase {
                 TerminalHelper.WriteLine("用法: /plugin uninstall <name>");
                 return ChatCommandResult.Continue();
             }
-            return await UnloadPluginAsync(pluginManager, name);
+            return await UnloadPluginAsync(pluginManager, name).ConfigureAwait(false);
         }
 
         if (args.StartsWith("enable", StringComparison.OrdinalIgnoreCase)) {
@@ -48,7 +48,7 @@ public sealed class PluginCommand : ChatCommandBase {
                 TerminalHelper.WriteLine("用法: /plugin enable <name>");
                 return ChatCommandResult.Continue();
             }
-            return await TogglePluginAsync(name, enable: true, context);
+            return await TogglePluginAsync(name, enable: true, context).ConfigureAwait(false);
         }
 
         if (args.StartsWith("disable", StringComparison.OrdinalIgnoreCase)) {
@@ -57,7 +57,7 @@ public sealed class PluginCommand : ChatCommandBase {
                 TerminalHelper.WriteLine("用法: /plugin disable <name>");
                 return ChatCommandResult.Continue();
             }
-            return await TogglePluginAsync(name, enable: false, context);
+            return await TogglePluginAsync(name, enable: false, context).ConfigureAwait(false);
         }
 
         TerminalHelper.WriteLine($"未知操作: {args}");

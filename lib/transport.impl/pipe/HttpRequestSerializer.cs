@@ -56,7 +56,7 @@ public static class HttpRequestSerializer {
 
         // 请求体
         if (request.Content != null) {
-            var body = await request.Content.ReadAsStringAsync(cancellationToken);
+            var body = await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             builder.Append(body);
         }
 

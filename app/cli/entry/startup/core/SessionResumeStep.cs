@@ -14,7 +14,7 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
 
         // 无 --continue 也无 --resume → 跳过
         if (!options.ContinueSession && string.IsNullOrEmpty(options.ResumeSessionId)) {
-            await next(context, ct);
+            await next(context, ct).ConfigureAwait(false);
             return;
         }
 
@@ -22,14 +22,14 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
         if (session is null) {
             // Session 未初始化 — 无法恢复，但允许继续启动（不阻塞）
             Diag.WriteLine("[STEP] SessionResume skipped: Session not initialized");
-            await next(context, ct);
+            await next(context, ct).ConfigureAwait(false);
             return;
         }
 
         var transcriptService = context.Host.Services.GetService<ITranscriptService>();
         if (transcriptService is null) {
             Diag.WriteLine("[STEP] SessionResume skipped: ITranscriptService not available");
-            await next(context, ct);
+            await next(context, ct).ConfigureAwait(false);
             return;
         }
 
@@ -44,7 +44,7 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
                 : $"未找到会话: {options.ResumeSessionId}";
             Cli.TerminalHelper.WriteLine(hint);
             Diag.WriteLine($"[STEP] SessionResume: {hint}");
-            await next(context, ct);
+            await next(context, ct).ConfigureAwait(false);
             return;
         }
 
@@ -70,7 +70,7 @@ internal sealed partial class SessionResumeStep : ServiceEntity, IMiddleware<Sta
         Cli.TerminalHelper.WriteLine($"已恢复会话: {title} ({messages.Count} 条消息)");
         Diag.WriteLine($"[STEP] SessionResume: restored {sessionId} with {messages.Count} messages");
 
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 
     /// <summary>

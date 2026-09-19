@@ -385,7 +385,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     public async Task StopTeammateAsync(string teammateId, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StopTeammateCmd(teammateId, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -419,7 +419,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     public async Task<bool> InterruptTeammateAsync(string teammateId, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         await SendAsync(new InterruptTeammateCmd(teammateId, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -494,7 +494,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
     async Task ITeammateRuntime.SetCurrentWorkCtsAsync(string teammateId, CancellationTokenSource workCts, CancellationToken lifecycleCt) {
         var tcs = TcsFactory.Create();
         await SendAsync(new SetWorkCtsCmd(teammateId, workCts, tcs), lifecycleCt).ConfigureAwait(false);
-        await AskAwait(tcs, lifecycleCt);
+        await AskAwait(tcs, lifecycleCt).ConfigureAwait(false);
     }
 
     async Task ITeammateRuntime.ClearCurrentWorkCtsAsync(string teammateId) {
@@ -505,7 +505,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
         try {
             var tcs = TcsFactory.Create();
             await SendAsync(new TryCleanupTeammateCmd(teammateId, tcs), CancellationToken.None).ConfigureAwait(false);
-            await AskAwait(tcs, CancellationToken.None);
+            await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
         } catch (Exception ex) {
             _logger?.LogWarning(ex, L.T(StringKey.CleanupTeammateAttemptFailedLog, teammateId));
         }
@@ -661,7 +661,7 @@ public sealed partial class InProcessTeammateTaskExecutor : ActorBase<ITeammateC
 
             var registerTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             await _owner.SendAsync(new RegisterTeammateCmd(_teammateId, _state, _pendingChannel, registerTcs), _externalCt).ConfigureAwait(false);
-            await _owner.AskAwait(registerTcs, _externalCt);
+            await _owner.AskAwait(registerTcs, _externalCt).ConfigureAwait(false);
             _registered = true;
         }
 

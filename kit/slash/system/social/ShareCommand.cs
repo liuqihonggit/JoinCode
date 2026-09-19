@@ -18,7 +18,7 @@ public sealed class ShareCommand : ChatCommandBase {
         TerminalHelper.NewLine();
 
         try {
-            var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken);
+            var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
 
             if (history.Count == 0) {
                 TerminalHelper.WriteLine($"  {TerminalColors.Muted}暂无对话内容可分享{AnsiStyleEnumConstants.Reset}");

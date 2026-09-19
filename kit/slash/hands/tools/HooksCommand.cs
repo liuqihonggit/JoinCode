@@ -18,15 +18,15 @@ public sealed class HooksCommand : ChatCommandBase {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase)) {
-            return await ListHooksAsync(hookManager);
+            return await ListHooksAsync(hookManager).ConfigureAwait(false);
         }
 
         if (args.StartsWith("add", StringComparison.OrdinalIgnoreCase)) {
-            return await AddHookAsync(hookManager, args, context.CancellationToken);
+            return await AddHookAsync(hookManager, args, context.CancellationToken).ConfigureAwait(false);
         }
 
         if (args.StartsWith("remove", StringComparison.OrdinalIgnoreCase)) {
-            return await RemoveHookAsync(hookManager, args, context.CancellationToken);
+            return await RemoveHookAsync(hookManager, args, context.CancellationToken).ConfigureAwait(false);
         }
 
         if (args.StartsWith("test", StringComparison.OrdinalIgnoreCase)) {

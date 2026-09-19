@@ -35,7 +35,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry {
     public async Task RegisterToolAsync(IToolHandler handler, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(handler);
 
-        await _toolRegistry.RegisterToolAsync(handler, cancellationToken);
+        await _toolRegistry.RegisterToolAsync(handler, cancellationToken).ConfigureAwait(false);
 
         _logger?.LogDebug("MCP tool registered via adapter: {ToolName}", handler.Name);
     }
@@ -60,7 +60,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry {
         ArgumentNullException.ThrowIfNull(handler);
 
         var delegateHandler = new DelegateToolHandler(name, description, inputSchema, handler, kind, groupName, timeoutPolicy, category);
-        await _toolRegistry.RegisterToolAsync(delegateHandler, cancellationToken);
+        await _toolRegistry.RegisterToolAsync(delegateHandler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -148,7 +148,7 @@ public sealed partial class ToolRegistryAdapter : IMcpToolRegistry {
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>以工具名为键的处理器只读字典</returns>
     public async Task<IReadOnlyDictionary<string, IToolHandler>> GetAllToolsAsync(CancellationToken cancellationToken = default) {
-        return await _toolRegistry.GetAllToolsAsync(cancellationToken);
+        return await _toolRegistry.GetAllToolsAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

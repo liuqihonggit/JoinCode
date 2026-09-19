@@ -164,7 +164,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
         }
         var tcs = TcsFactory.Create<bool>();
         await SendAsync(new IsBudgetExceededCmd(tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -175,7 +175,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
     public async Task<UsdBudgetStatus> GetBudgetStatusAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create<UsdBudgetStatus>();
         await SendAsync(new GetBudgetStatusCmd(tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -192,7 +192,7 @@ public sealed partial class UsdBudgetManager : ActorBase<IUsdBudgetCommand, Unit
         }
         var tcs = TcsFactory.Create();
         await SendAsync(new RecordCostCmd(costUsd, reason, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

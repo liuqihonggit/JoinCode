@@ -77,7 +77,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     public async Task AllocateBudgetAsync(long amount, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new AllocateBudgetCmd(amount, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -91,7 +91,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     public async Task ConsumeTokensAsync(long amount, string reason, string? toolName = null, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new ConsumeTokensCmd(amount, reason, toolName, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -102,7 +102,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     public async Task<long> GetRemainingBudgetAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create<long>();
         await SendAsync(new GetRemainingBudgetCmd(tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
         }
         var tcs = TcsFactory.Create();
         await SendAsync(new SetBudgetAlertThresholdCmd(threshold, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, 
     public async Task ResetBudgetAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new ResetBudgetCmd(tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

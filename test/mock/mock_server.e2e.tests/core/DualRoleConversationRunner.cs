@@ -286,8 +286,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             ct.ThrowIfCancellationRequested();
 
             if (!_processManager!.IsRunning) {
-                await Task.Delay(300, ct).ConfigureAwait(true);
-                var exitOutput = await _processManager.GetOutputAsync().ConfigureAwait(true);
+                var exitOutput = await WaitForOutputAfterExitAsync(TimeSpan.FromSeconds(2), ct).ConfigureAwait(true);
                 if (exitOutput.Length > 0) {
                     _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出（NonInteractive），输出长度={Len}", exitOutput.Length);
                     return exitOutput;
@@ -329,7 +328,7 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
         }
 
         if (!_processManager!.IsRunning) {
-            var exitOutput = await _processManager!.GetOutputAsync().ConfigureAwait(true);
+            var exitOutput = await WaitForOutputAfterExitAsync(TimeSpan.FromSeconds(2), ct).ConfigureAwait(true);
             if (exitOutput.Length > 0) {
                 _logger.LogInformation("[DualRoleRunner] jcc.exe 进程已退出（NonInteractive 超时后），输出长度={Len}", exitOutput.Length);
                 return exitOutput;
@@ -342,6 +341,21 @@ public sealed class DualRoleConversationRunner : IAsyncDisposable {
             throw new InvalidOperationException($"[GEN020] jcc.exe 进程已退出且无输出, stderr={exitError}");
         }
 
+        return await _processManager!.GetOutputAsync().ConfigureAwait(true);
+    }
+
+    /// <summary>
+    /// 进程退出后轮询等待 stdout pipe 刷新 — CI 环境 pipe flush 可能 &gt;300ms,固定等待会误判无输出。
+    /// 轮询直到输出非空或超时,兼顾快速通过和 CI 调度容忍。
+    /// </summary>
+    private async Task<string> WaitForOutputAfterExitAsync(TimeSpan pollTimeout, CancellationToken ct) {
+        var deadline = DateTime.UtcNow + pollTimeout;
+        while (DateTime.UtcNow < deadline) {
+            ct.ThrowIfCancellationRequested();
+            var output = await _processManager!.GetOutputAsync().ConfigureAwait(true);
+            if (output.Length > 0) return output;
+            await Task.Delay(50, ct).ConfigureAwait(true);
+        }
         return await _processManager!.GetOutputAsync().ConfigureAwait(true);
     }
 

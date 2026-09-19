@@ -16,15 +16,15 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
         context.HasApiKey = !string.IsNullOrEmpty(context.Config.Provider.ApiKey);
         if (context.HasApiKey) {
-            await next(context, ct);
+            await next(context, ct).ConfigureAwait(false);
             return;
         }
 
-        var configured = await ShowProviderMenuAsync(context.Config, context.FileSystem, ct);
+        var configured = await ShowProviderMenuAsync(context.Config, context.FileSystem, ct).ConfigureAwait(false);
         if (!configured) return;  // 短路
 
         context.HasApiKey = true;
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 
     private async Task<bool> ShowProviderMenuAsync(WorkflowConfig config, IFileSystem fs, CancellationToken ct) {
@@ -59,7 +59,7 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
             var choice = Cli.TerminalHelper.ReadLine()?.Trim();
 
             if (int.TryParse(choice, out var idx) && idx >= 1 && idx <= providers.Count) {
-                await ConfigureProviderAsync(config, fs, providers[idx - 1].ProviderName);
+                await ConfigureProviderAsync(config, fs, providers[idx - 1].ProviderName).ConfigureAwait(false);
                 if (!string.IsNullOrEmpty(config.Provider.ApiKey)) return true;
                 continue;
             }
@@ -109,7 +109,7 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
                 return;
             }
 
-            await ConfigLoader.SaveSettingToSettingsJsonAsync("endpoint", endpoint.Trim(), fs);
+            await ConfigLoader.SaveSettingToSettingsJsonAsync("endpoint", endpoint.Trim(), fs).ConfigureAwait(false);
             config.Provider.Endpoint = endpoint.Trim();
         }
 
@@ -122,8 +122,8 @@ internal sealed partial class ProviderSetupStep : ServiceEntity, IMiddleware<Sta
             config.Provider.Endpoint ??= definition.DefaultEndpoint;
         }
 
-        await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs);
-        await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", provider, fs);
+        await ConfigLoader.SaveApiKeyToJccAsync(provider, apiKey, fs).ConfigureAwait(false);
+        await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", provider, fs).ConfigureAwait(false);
 
         Cli.TerminalHelper.WriteLine("API Key 已保存。");
     }

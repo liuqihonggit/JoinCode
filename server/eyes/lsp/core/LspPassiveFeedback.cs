@@ -79,7 +79,7 @@ public sealed partial class LspPassiveFeedback : ServiceEntity, ILspPassiveFeedb
                     _logger?.LogDebug(ex, "Error processing diagnostics from {ServerName}", serverName);
                 }
 
-                await ValueTask.CompletedTask;
+                await ValueTask.CompletedTask.ConfigureAwait(false);
             });
     }
 

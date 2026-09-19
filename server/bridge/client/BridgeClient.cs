@@ -80,7 +80,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     public async ValueTask<BridgeClientState> GetStateAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create<BridgeClientState>();
         await SendAsync(new GetStateCmd(ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>接收到原始消息事件（去重/Echo 过滤前）</summary>
@@ -141,7 +141,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     public async Task StartAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StartCmd(ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>标记客户端为已停止（原子操作，无需锁）</summary>
@@ -155,7 +155,7 @@ public sealed partial class BridgeClient : ActorBase<IBridgeCommand, Unit>, IAsy
     public async Task StopAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StopCmd(ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

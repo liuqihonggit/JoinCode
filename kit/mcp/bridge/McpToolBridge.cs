@@ -21,7 +21,7 @@ public sealed class McpToolBridge {
     /// OnError 工具在 tool_groups 中有名称，工具失败时由 OnErrorToolInjectionMiddleware 强行注入完整 schema
     /// </summary>
     public async Task<IReadOnlyList<IToolGroup>> CreatePluginAsync(CancellationToken cancellationToken = default) {
-        var allTools = await _toolRegistry.GetAllToolsAsync(cancellationToken);
+        var allTools = await _toolRegistry.GetAllToolsAsync(cancellationToken).ConfigureAwait(false);
 
         var visibleHandlers = allTools.Values;
 

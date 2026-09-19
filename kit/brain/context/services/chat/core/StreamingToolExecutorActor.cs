@@ -102,7 +102,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
         if (_discarded) return [];
         var tcs = new TaskCompletionSource<IReadOnlyList<StreamingToolResult>>();
         await SendAsync(new GetCompletedQuery(tcs)).ConfigureAwait(false);
-        return await AskAwait(tcs, CancellationToken.None);
+        return await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -111,7 +111,7 @@ public sealed class StreamingToolExecutorActor : ActorBase<StreamingToolExecutor
 
         var remainingTcs = new TaskCompletionSource<List<Task<StreamingToolResult>>>();
         await SendAsync(new GetRemainingQuery(remainingTcs)).ConfigureAwait(false);
-        var pendingTasks = await AskAwait(remainingTcs, CancellationToken.None);
+        var pendingTasks = await AskAwait(remainingTcs, CancellationToken.None).ConfigureAwait(false);
 
         if (pendingTasks.Count > 0) {
             await Task.WhenAll(pendingTasks).ConfigureAwait(false);

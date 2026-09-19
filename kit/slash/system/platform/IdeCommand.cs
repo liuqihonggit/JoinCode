@@ -32,15 +32,15 @@ public sealed class IdeCommand : ChatCommandBase {
             break;
             case PlatformActionEnumConstants.Connect:
             case "c":
-            await HandleConnectionAsync(ideService, ToggleAction.On);
+            await HandleConnectionAsync(ideService, ToggleAction.On).ConfigureAwait(false);
             break;
             case PlatformActionEnumConstants.Disconnect:
             case "d":
-            await HandleConnectionAsync(ideService, ToggleAction.Off);
+            await HandleConnectionAsync(ideService, ToggleAction.Off).ConfigureAwait(false);
             break;
             case PlatformActionEnumConstants.Open:
             case "o":
-            await HandleOpenAsync(ideService, parts.Length > 1 ? parts[1] : "");
+            await HandleOpenAsync(ideService, parts.Length > 1 ? parts[1] : "").ConfigureAwait(false);
             break;
             case PlatformActionEnumConstants.Status:
             case "s":

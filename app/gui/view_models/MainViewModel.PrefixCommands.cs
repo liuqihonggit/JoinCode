@@ -12,7 +12,7 @@ public sealed partial class MainViewModel {
         var context = new PrefixCommandContext {
             CancellationToken = System.Threading.CancellationToken.None,
         };
-        var result = await Cli.Commands.Prefix.PrefixCommandRouter.ExecuteAsync(message, context);
+        var result = await Cli.Commands.Prefix.PrefixCommandRouter.ExecuteAsync(message, context).ConfigureAwait(true);
         if (!result.Handled) {
             AddSystemMessage($"未识别的命令: {message}");
             return;
@@ -25,7 +25,7 @@ public sealed partial class MainViewModel {
     /// </summary>
     private async Task HandleShellPrefixCommandAsync(string message, System.Threading.CancellationToken ct) {
         var context = new PrefixCommandContext { CancellationToken = ct };
-        var result = await Cli.Commands.Prefix.PrefixCommandRouter.ExecuteAsync(message, context, ct);
+        var result = await Cli.Commands.Prefix.PrefixCommandRouter.ExecuteAsync(message, context, ct).ConfigureAwait(true);
         if (!result.Handled || string.IsNullOrWhiteSpace(result.Output)) {
             AddSystemMessage($"未识别的命令: {message}");
             return;

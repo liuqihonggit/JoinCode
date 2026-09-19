@@ -45,7 +45,7 @@ public abstract class PeriodicBackgroundServiceBase : IHostedService, IAsyncDisp
 
         if (_loopTask is not null) {
             try {
-                await _loopTask.ConfigureAwait(true);
+                await _loopTask.ConfigureAwait(false);
             } catch (OperationCanceledException) {
             }
         }

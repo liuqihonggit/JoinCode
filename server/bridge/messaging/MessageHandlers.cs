@@ -186,7 +186,7 @@ public sealed class ToolsListHandler : IMessageHandler {
         context.Logger?.LogInformation("[ToolsListHandler] 处理工具列表请求");
 
         var tools = context.ToolRegistry != null
-            ? (await context.ToolRegistry.GetAllToolsAsync(cancellationToken)).Values
+            ? (await context.ToolRegistry.GetAllToolsAsync(cancellationToken).ConfigureAwait(false)).Values
                 .Select(tool => new BridgeToolDefinition {
                     Name = tool.Name,
                     Description = tool.Description,

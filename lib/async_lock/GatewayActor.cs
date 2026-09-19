@@ -100,7 +100,7 @@ public sealed class GatewayActor<TRequest, TResponse> : ActorBase<GatewayActor<T
     public async Task<TResponse> CallAsync(TRequest request, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<TResponse>();
         await SendAsync(new CallCommand(request, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>Consumer 线程内处理调用命令</summary>

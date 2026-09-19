@@ -82,10 +82,10 @@ public sealed class PipeHttpClient : IDisposable {
 
         _logger?.LogDebug("{Method} GET {Uri} with JsonTypeInfo", nameof(GetFromJsonAsync), requestUri);
 
-        var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        var response = await _httpClient.GetAsync(requestUri, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<T>(jsonTypeInfo, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<T>(jsonTypeInfo, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

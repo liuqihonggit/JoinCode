@@ -91,6 +91,15 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         true,
         "Test code must not use ConfigureAwait(false). Default ConfigureAwait(true) is implicit, no need to specify explicitly.");
 
+    private static readonly DiagnosticDescriptor RuleConfigureAwaitTrueForUiAnimation = new(
+        "JCC3014",
+        "异步规范: UI 层禁止 ConfigureAwait(false)",
+        "UI 层（Gui/Tui 项目）中使用了 ConfigureAwait(false). UI 层异步操作后续通常操作 UI 控件，必须在 UI 线程继续执行；ConfigureAwait(false) 会导致 await 后不回到 UI 线程，引发布局计算异常和线程安全违规. 必须使用 ConfigureAwait(true) 保持 UI 线程亲和性.",
+        "AsyncCorrectness",
+        DiagnosticSeverity.Error,
+        true,
+        "UI layer (Gui/Tui) must use ConfigureAwait(true) to stay on UI thread. ConfigureAwait(false) breaks thread affinity for UI control access.");
+
     private static readonly DiagnosticDescriptor RuleTaskDelayIntInTests = new(
         "JCC3010",
         "测试性能: Task.Delay({0}ms) 真实等待",
@@ -143,6 +152,7 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
             RuleProcessDeadlock, RuleUnreadStderr,
             RuleAsyncVoid, RuleBlockingAsyncCall,
             RuleSequentialAwaitInLoop, RuleConfigureAwaitFalse, RuleConfigureAwaitTrueForTests,
+            RuleConfigureAwaitTrueForUiAnimation,
             RuleTaskDelayIntInTests, RuleTaskDelayTimeSpanInTests, RuleTaskDelayUnknownInTests,
             RuleEmptyCatchBlock);
 
@@ -669,13 +679,18 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
     private static void RegisterAsyncCodePathAnalysis(CompilationStartAnalysisContext context) {
         var isTestProject = IsTestProject(context.Compilation);
         var isRoslynProject = IsRoslynProject(context.Compilation);
-        var isLibraryProject = !isTestProject && !isRoslynProject;
+        var isApplicationProject = IsApplicationProject(context.Compilation);
+        var isUiProject = IsUiProject(context.Compilation);
+        var isLibraryProject = !isTestProject && !isRoslynProject && !isApplicationProject;
 
         context.RegisterSyntaxNodeAction(
             ctx => AnalyzeConfigureAwaitFalse(ctx, isLibraryProject),
             SyntaxKind.AwaitExpression);
         context.RegisterSyntaxNodeAction(
             ctx => AnalyzeConfigureAwaitTrueForTests(ctx, isTestProject),
+            SyntaxKind.AwaitExpression);
+        context.RegisterSyntaxNodeAction(
+            ctx => AnalyzeConfigureAwaitTrueForUiAnimation(ctx, isUiProject),
             SyntaxKind.AwaitExpression);
         context.RegisterSyntaxNodeAction(
             ctx => AnalyzeTaskDelayInTests(ctx, isTestProject),
@@ -714,6 +729,17 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         return false;
     }
 
+    /// <summary>
+    /// 检测项目是否为应用入口（cli/gui/tui/sdk），非库代码。解决方案无关。
+    /// </summary>
+    private static bool IsApplicationProject(Compilation compilation) {
+        var name = compilation.AssemblyName.AsSpan();
+        return name.Equals("JoinCode".AsSpan(), StringComparison.Ordinal) ||
+               name.Contains("Gui".AsSpan(), StringComparison.Ordinal) ||
+               name.Contains("Tui".AsSpan(), StringComparison.Ordinal) ||
+               name.Equals("Sdk".AsSpan(), StringComparison.Ordinal);
+    }
+
     private static void AnalyzeConfigureAwaitFalse(SyntaxNodeAnalysisContext ctx, bool isLibraryProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
 
@@ -722,6 +748,8 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         if (!isLibraryProject) return;
 
         if (HasConfigureAwaitFalse(awaitExpr)) return;
+
+        if (IsTaskYield(awaitExpr)) return;
 
         ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitFalse, awaitExpr.GetLocation()));
     }
@@ -758,6 +786,42 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         if (HasConfigureAwaitFalse(awaitExpr)) {
             ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitTrueForTests, awaitExpr.GetLocation()));
         }
+    }
+
+    /// <summary>
+    /// JCC3014: UI 层禁止 ConfigureAwait(false) — UI 层异步操作后续操作 UI 控件，必须在 UI 线程继续。
+    /// 检测 Gui/Tui 项目中所有 await 用了 ConfigureAwait(false)。
+    /// </summary>
+    private static void AnalyzeConfigureAwaitTrueForUiAnimation(SyntaxNodeAnalysisContext ctx, bool isUiProject) {
+        if (ctx.CancellationToken.IsCancellationRequested) return;
+
+        if (ctx.Node is not AwaitExpressionSyntax awaitExpr) return;
+
+        if (!isUiProject) return;
+
+        if (IsTaskYield(awaitExpr)) return;
+
+        if (HasConfigureAwaitFalse(awaitExpr)) {
+            ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitTrueForUiAnimation, awaitExpr.GetLocation()));
+        }
+    }
+
+    /// <summary>
+    /// 检测项目是否为 UI 层（Gui/Tui，引用 Avalonia 或程序集名含 Gui/Tui）。解决方案无关。
+    /// </summary>
+    private static bool IsUiProject(Compilation compilation) {
+        var name = compilation.AssemblyName.AsSpan();
+        if (name.Contains("Gui".AsSpan(), StringComparison.Ordinal) ||
+            name.Contains("Tui".AsSpan(), StringComparison.Ordinal))
+            return true;
+        foreach (var reference in compilation.References) {
+            if (reference is not PortableExecutableReference peRef) continue;
+            var display = peRef.Display;
+            if (display is null) continue;
+            if (display.AsSpan().Contains("Avalonia".AsSpan(), StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 
     private static bool IsTaskYield(AwaitExpressionSyntax awaitExpr) {

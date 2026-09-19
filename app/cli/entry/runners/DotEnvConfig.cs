@@ -100,23 +100,23 @@ internal sealed class DotEnvConfig {
     /// </summary>
     public async Task ApplyToConfigAsync(JoinCode.Abstractions.Interfaces.IFileSystem fs) {
         if (ApiKey is not null && Vendor is not null) {
-            await ConfigLoader.SaveApiKeyToJccAsync(Vendor, ApiKey, fs);
+            await ConfigLoader.SaveApiKeyToJccAsync(Vendor, ApiKey, fs).ConfigureAwait(false);
         }
 
         if (Vendor is not null) {
-            await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", Vendor, fs);
+            await ConfigLoader.SaveSettingToSettingsJsonAsync("provider", Vendor, fs).ConfigureAwait(false);
         }
 
         if (Endpoint is not null) {
-            await ConfigLoader.SaveSettingToSettingsJsonAsync("endpoint", Endpoint, fs);
+            await ConfigLoader.SaveSettingToSettingsJsonAsync("endpoint", Endpoint, fs).ConfigureAwait(false);
         }
 
         if (ModelId is not null) {
-            await ConfigLoader.SaveSettingToSettingsJsonAsync("modelId", ModelId, fs);
+            await ConfigLoader.SaveSettingToSettingsJsonAsync("modelId", ModelId, fs).ConfigureAwait(false);
         }
 
         if (EffortLevel is not null) {
-            await ConfigLoader.SaveSettingToSettingsJsonAsync("effortLevel", EffortLevel, fs);
+            await ConfigLoader.SaveSettingToSettingsJsonAsync("effortLevel", EffortLevel, fs).ConfigureAwait(false);
         }
     }
 

@@ -101,21 +101,21 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
     public async Task StartAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StartSyncCmd(tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task StopAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StopSyncCmd(tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task SyncAsync(string? filePath = null, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new SyncCmd(filePath, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -127,7 +127,7 @@ public sealed partial class TeamMemorySyncService : ActorBase<ITeamMemorySyncCom
         ArgumentException.ThrowIfNullOrEmpty(filePath);
         var tcs = TcsFactory.Create<SyncConflictResolution>();
         await SendAsync(new ResolveConflictCmd(filePath, resolution, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private void OnSyncTimerTick(object? state) {

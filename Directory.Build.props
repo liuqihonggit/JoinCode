@@ -12,7 +12,8 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors />
-    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD100;VSTHRD101;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;JCC1004;JCC10004;JCC1005;JCC1006;JCC3008;JCC1010;JCC6010;JCC10001;JCC10002;JCC10005;JCC10006;JCC10007</NoWarn>
+    <WarningsNotAsErrors>JCC1009</WarningsNotAsErrors>
+    <NoWarn>$(NoWarn);CS1591;VSTHRD002;VSTHRD100;VSTHRD101;VSTHRD103;VSTHRD105;VSTHRD110;VSTHRD200;JCC1004;JCC10004;JCC1005;JCC1006;JCC1010;JCC6010;JCC10001;JCC10002;JCC10005;JCC10006;JCC10007</NoWarn>
     <InvariantGlobalization>true</InvariantGlobalization>
     <SatelliteResourceLanguages>zh-CN</SatelliteResourceLanguages>
     <!-- 分析器开关：/p:JccAnalyzers=false 禁用自定义分析器(AotSafety+CodeFixes)，加速迭代编译 -->

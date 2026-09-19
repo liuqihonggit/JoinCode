@@ -89,7 +89,7 @@ public sealed class FileEditor {
                     $"File too large ({fileLength} bytes) to edit. Maximum editable file size is 1 GB");
             }
 
-            var (originalContent, hasCrlf, fileEncoding) = await ReadFileWithLineEndingDetectionAsync(normalizedPath2, cancellationToken);
+            var (originalContent, hasCrlf, fileEncoding) = await ReadFileWithLineEndingDetectionAsync(normalizedPath2, cancellationToken).ConfigureAwait(false);
 
             var normalizedOld = oldString.Replace("\r\n", "\n");
             var normalizedNew = newString.Replace("\r\n", "\n");
@@ -169,7 +169,7 @@ public sealed class FileEditor {
                 updatedContent = updatedContent.Replace("\n", "\r\n");
             }
 
-            await WriteFileWithLockAsync(normalizedPath2, updatedContent, cancellationToken, fileEncoding);
+            await WriteFileWithLockAsync(normalizedPath2, updatedContent, cancellationToken, fileEncoding).ConfigureAwait(false);
 
             _logger?.LogInformation(
                 "File edited: {FilePath} (replaced {Count} occurrence(s))",
@@ -236,7 +236,7 @@ public sealed class FileEditor {
                 using var stream = _fs.CreateStream(normalizedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 using var reader = new StreamReader(stream, fileEncoding);
                 string? line;
-                while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+                while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null)
                     allLines.Add(line);
             }
             var totalLines = allLines.Count;
@@ -275,7 +275,7 @@ public sealed class FileEditor {
             var updatedFileContent = string.Join("\n", resultLines);
 
             // Write file — 保持原始编码
-            await WriteFileWithLockAsync(normalizedPath, updatedFileContent, cancellationToken, fileEncoding);
+            await WriteFileWithLockAsync(normalizedPath, updatedFileContent, cancellationToken, fileEncoding).ConfigureAwait(false);
 
             _logger?.LogInformation(
                 "File line range edited: {FilePath} (lines {StartLine}-{EndLine}, replaced {Count} lines)",
@@ -327,7 +327,7 @@ public sealed class FileEditor {
 
     private async Task<(string Content, bool HasCrlf, Encoding Encoding)> ReadFileWithLineEndingDetectionAsync(string path, CancellationToken ct) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
-        var result = await FileLockService.AcquireAsync(path, timeout, ct);
+        var result = await FileLockService.AcquireAsync(path, timeout, ct).ConfigureAwait(false);
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 
@@ -348,7 +348,7 @@ public sealed class FileEditor {
 
     private async Task<(string Content, Encoding Encoding)> ReadFileWithEncodingAsync(string path, CancellationToken ct) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
-        var result = await FileLockService.AcquireAsync(path, timeout, ct);
+        var result = await FileLockService.AcquireAsync(path, timeout, ct).ConfigureAwait(false);
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 
@@ -368,7 +368,7 @@ public sealed class FileEditor {
 
     private async Task WriteFileWithLockAsync(string path, string content, CancellationToken ct, Encoding? encoding = null) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
-        var result = await FileLockService.AcquireAsync(path, timeout, ct);
+        var result = await FileLockService.AcquireAsync(path, timeout, ct).ConfigureAwait(false);
         if (!result.Success)
             throw new TimeoutException($"Lock acquisition timed out: {path}");
 

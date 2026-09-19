@@ -19,28 +19,28 @@ public sealed class McpCommand : ChatCommandBase {
         switch (actionStr) {
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
-            await ListServersAsync(context);
+            await ListServersAsync(context).ConfigureAwait(false);
             break;
             case McpActionEnumConstants.Status:
-            await ShowStatusAsync(context);
+            await ShowStatusAsync(context).ConfigureAwait(false);
             break;
             case CrudActionEnumConstants.Create:
             case CrudActionEnumConstants.New:
-            await AddServerAsync(context, args);
+            await AddServerAsync(context, args).ConfigureAwait(false);
             break;
             case CrudActionEnumConstants.Delete:
             case CrudActionEnumConstants.Rm:
             case CrudActionEnumConstants.Remove:
-            await RemoveServerAsync(context, args);
+            await RemoveServerAsync(context, args).ConfigureAwait(false);
             break;
             case McpActionEnumConstants.Reconnect:
-            await ReconnectServerAsync(context, args);
+            await ReconnectServerAsync(context, args).ConfigureAwait(false);
             break;
             case McpActionEnumConstants.Enable:
-            await ToggleServerAsync(context, args, ToggleAction.On);
+            await ToggleServerAsync(context, args, ToggleAction.On).ConfigureAwait(false);
             break;
             case McpActionEnumConstants.Disable:
-            await ToggleServerAsync(context, args, ToggleAction.Off);
+            await ToggleServerAsync(context, args, ToggleAction.Off).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"{TerminalColors.Error}未知操作: {actionStr}{AnsiStyleEnumConstants.Reset}");

@@ -250,12 +250,12 @@ public sealed class CliSession {
 
         try {
             if (input.StartsWith('/')) {
-                await HandleCommandAsync(input, cancellationToken);
+                await HandleCommandAsync(input, cancellationToken).ConfigureAwait(false);
             } else if (Cli.Commands.Prefix.PrefixCommandRouter.IsPrefixCommand(input)) {
-                await HandlePrefixCommandAsync(input, cancellationToken);
+                await HandlePrefixCommandAsync(input, cancellationToken).ConfigureAwait(false);
             } else {
                 _turnDiffService.RecordUserPrompt(input);
-                await StreamResponseAsync(input, cancellationToken);
+                await StreamResponseAsync(input, cancellationToken).ConfigureAwait(false);
             }
         } catch (Exception ex) {
             span?.SetTag("error", true);
@@ -282,7 +282,7 @@ public sealed class CliSession {
 
         if (result.ShouldInjectToAi) {
             _turnDiffService.RecordUserPrompt(input);
-            await StreamResponseAsync(result.Output, cancellationToken);
+            await StreamResponseAsync(result.Output, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -352,7 +352,7 @@ public sealed class CliSession {
         ChatCommandResult result;
         try {
             Diag.WriteLifecycle($"[DIAG-CLI] executing command '{command.Name}', args='{parseResult.Arguments}'");
-            result = await command.ExecuteAsync(context);
+            result = await command.ExecuteAsync(context).ConfigureAwait(false);
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' returned: ShouldContinue={result.ShouldContinue}, resultType={result.GetType().FullName}");
         } catch (Exception ex) {
             Diag.WriteLifecycle($"[DIAG-CLI] command '{command.Name}' THREW {ex.GetType().Name}: {ex.Message}");

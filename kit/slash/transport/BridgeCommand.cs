@@ -21,19 +21,19 @@ public sealed class BridgeCommand : ChatCommandBase {
 
         switch (action) {
             case BridgeActionEnumConstants.Qr:
-            await ShowQrCodeAsync(context);
+            await ShowQrCodeAsync(context).ConfigureAwait(false);
             break;
             case BridgeActionEnumConstants.Sessions:
-            await ShowSessionsAsync(context);
+            await ShowSessionsAsync(context).ConfigureAwait(false);
             break;
             case BridgeActionEnumConstants.Status:
             ShowStatus(context);
             break;
             case BridgeActionEnumConstants.Connect:
-            await ToggleConnectionAsync(context, ToggleAction.On);
+            await ToggleConnectionAsync(context, ToggleAction.On).ConfigureAwait(false);
             break;
             case BridgeActionEnumConstants.Disconnect:
-            await ToggleConnectionAsync(context, ToggleAction.Off);
+            await ToggleConnectionAsync(context, ToggleAction.Off).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"{TerminalColors.Error}未知操作: {action}{AnsiStyleEnumConstants.Reset}");

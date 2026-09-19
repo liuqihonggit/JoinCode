@@ -26,7 +26,7 @@ public static class ToolHandlerExtensions {
         this IMcpToolRegistry registry,
         IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default) {
-        var result = await GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch.RegisterAllMcpToolDispatchAsync(registry, serviceProvider, cancellationToken);
+        var result = await GeneratedToolHandlerRegistration_JoinCode_McpToolDispatch.RegisterAllMcpToolDispatchAsync(registry, serviceProvider, cancellationToken).ConfigureAwait(false);
         return result;
     }
 }

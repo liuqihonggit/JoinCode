@@ -114,7 +114,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<WorkflowPluginHost>();
         await SendAsync(new LoadWorkflowCmd(() => new TPlugin(), tcs, ct), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task<WorkflowPluginHost> LoadWorkflowPluginCoreAsync(IWorkflowPlugin plugin, CancellationToken ct) {
@@ -256,7 +256,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<ExternalPluginHost>();
         await SendAsync(new LoadExternalCmd(exePath, pluginName, tcs, ct), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     #region Native DLL Plugin (AOT Compatible, ADR 0099)
@@ -272,7 +272,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<NativePluginHost>();
         await SendAsync(new LoadNativeCmd(dllPath, pluginName, configJson, tcs, ct), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task<NativePluginHost> LoadNativePluginCoreAsync(
@@ -441,7 +441,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<PluginUnloadResult>();
         await SendAsync(new UnloadCmd(pluginName, tcs, ct), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task<PluginUnloadResult> UnloadPluginCoreAsync(string pluginName, CancellationToken ct) {
@@ -514,7 +514,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         ThrowIfDisposed();
         var tcs = new TaskCompletionSource<IReadOnlyList<PluginUnloadResult>>();
         await SendAsync(new UnloadAllCmd(tcs, ct), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task<IReadOnlyList<PluginUnloadResult>> UnloadAllPluginsCoreAsync(CancellationToken ct) {

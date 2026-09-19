@@ -13,7 +13,7 @@ tab_width = 4
 
 # 新行首选项
 end_of_line = crlf
-insert_final_newline = false
+insert_final_newline = true
 
 #### .NET 编码约定 ####
 
@@ -231,3 +231,15 @@ dotnet_naming_style.begins_with_i.capitalization = pascal_case
 # 分析器路径检测已修复（lib/subsystems → foundation/infrastructure/core/services/composition），
 # 全部库代码层（foundation/infrastructure/core/services/composition）已验证无遗漏。
 # 使用默认 warning 级别，详见 ADR 0045
+
+#### 档2：代码质量规则强制 error ####
+dotnet_diagnostic.JCC3013.severity = error
+dotnet_diagnostic.JCC5002.severity = error
+dotnet_diagnostic.JCC4001.severity = error
+dotnet_diagnostic.JCC9301.severity = error
+dotnet_diagnostic.JCC3008.severity = error
+dotnet_diagnostic.JCC3006.severity = error
+dotnet_diagnostic.JCC5001.severity = error
+
+#### 档3：卫语句检测（先 suggestion，验证后升 warning → error） ####
+dotnet_diagnostic.JCC1009.severity = suggestion

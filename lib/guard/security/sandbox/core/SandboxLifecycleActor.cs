@@ -49,7 +49,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     public async Task<SandboxInfo> EnterAsync(SandboxOptions options, CancellationToken ct) {
         var tcs = TcsFactory.Create<SandboxInfo>();
         await SendAsync(new EnterSandboxCmd(options, ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     public async Task ExitAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new ExitSandboxCmd(ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -67,7 +67,7 @@ internal sealed class SandboxLifecycleActor : ActorBase<ISandboxCommand, Unit> {
     public async Task SwitchAsync(SandboxType type, CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new SwitchProviderCmd(type, ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     protected override async ValueTask HandleAsync(ISandboxCommand command, CancellationToken ct) {

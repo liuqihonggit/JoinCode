@@ -21,6 +21,6 @@ internal sealed partial class ExitCleanupStep : ServiceEntity, IMiddleware<Start
 
         Cli.TerminalHelper.WriteLine("正在退出应用程序...再见！");
 
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 }

@@ -88,7 +88,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity {
             }
 
             RecordAgentToolMetrics("plan", true);
-            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken).ConfigureAwait(false)).Build();
         } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.PlanAgentErrorLog));
             RecordAgentToolMetrics("plan", false);
@@ -134,7 +134,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity {
             }
 
             RecordAgentToolMetrics("explore", true);
-            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken).ConfigureAwait(false)).Build();
         } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.ExploreAgentErrorLog));
             RecordAgentToolMetrics("explore", false);
@@ -180,7 +180,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity {
             }
 
             RecordAgentToolMetrics("verification", true);
-            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken).ConfigureAwait(false)).Build();
         } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.VerificationAgentErrorLog));
             RecordAgentToolMetrics("verification", false);
@@ -224,7 +224,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity {
             }
 
             RecordAgentToolMetrics("general", true);
-            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken).ConfigureAwait(false)).Build();
         } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.GeneralAgentErrorLog));
             RecordAgentToolMetrics("general", false);
@@ -277,7 +277,7 @@ public partial class BuiltInAgentToolHandlers : ServiceEntity {
             }
 
             RecordAgentToolMetrics("guide", true);
-            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken)).Build();
+            return ToolResultBuilder.Success().WithText(await BuildAgentOutputAsync(agentInfo.Id, result.Output, cancellationToken).ConfigureAwait(false)).Build();
         } catch (Exception ex) {
             _logger?.LogError(ex, L.T(StringKey.GuideAgentErrorLog));
             RecordAgentToolMetrics("guide", false);

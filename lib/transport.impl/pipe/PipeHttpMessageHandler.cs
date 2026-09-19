@@ -42,20 +42,20 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler {
 
         try {
             // 连接到管道服务器
-            await pipeClient.ConnectAsync(ConnectTimeoutMs, cancellationToken);
+            await pipeClient.ConnectAsync(ConnectTimeoutMs, cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("Connected to pipe: {PipeName}", _pipeName);
 
             // 序列化请求
-            var requestText = await HttpRequestSerializer.SerializeAsync(request, cancellationToken);
+            var requestText = await HttpRequestSerializer.SerializeAsync(request, cancellationToken).ConfigureAwait(false);
             var requestBytes = Encoding.UTF8.GetBytes(requestText);
 
             // 发送请求（包含长度前缀便于服务器解析）
-            await pipeClient.WriteAsync(requestBytes, cancellationToken);
-            await pipeClient.FlushAsync(cancellationToken);
+            await pipeClient.WriteAsync(requestBytes, cancellationToken).ConfigureAwait(false);
+            await pipeClient.FlushAsync(cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("Request sent, length: {Length} bytes", requestBytes.Length);
 
             // 读取响应
-            var responseText = await ReadResponseAsync(pipeClient, cancellationToken);
+            var responseText = await ReadResponseAsync(pipeClient, cancellationToken).ConfigureAwait(false);
             _logger?.LogDebug("Response received, length: {Length} bytes", responseText.Length);
 
             // 解析响应
@@ -74,8 +74,8 @@ public sealed class PipeHttpMessageHandler : HttpMessageHandler {
         var buffer = new byte[ReadBufferSize];
 
         int bytesRead;
-        while ((bytesRead = await pipeClient.ReadAsync(buffer, cancellationToken)) > 0) {
-            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+        while ((bytesRead = await pipeClient.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0) {
+            await memoryStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
         }
 
         return Encoding.UTF8.GetString(memoryStream.ToArray());

@@ -180,7 +180,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     public async Task<ToolHealthRecord> RecordSuccessAsync(string toolName, CancellationToken ct = default) {
         var tcs = TcsFactory.Create<ToolHealthRecord>();
         await SendAsync(new RecordSuccessCmd(toolName, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -193,7 +193,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     public async Task<ToolHealthRecord> RecordFailureAsync(string toolName, string? errorMessage, CancellationToken ct = default) {
         var tcs = TcsFactory.Create<ToolHealthRecord>();
         await SendAsync(new RecordFailureCmd(toolName, errorMessage, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -225,7 +225,7 @@ public sealed class ToolHealthMonitor : ActorBase<IToolHealthCommand, Unit>, ITo
     public async Task ResetToolAsync(string toolName, CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new ResetToolCmd(toolName, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

@@ -62,7 +62,7 @@ class Program {
             if (!hasHelp) {
                 var subCmdIndex = FindSubCommandIndex(args);
                 if (subCmdIndex is int idx)
-                    return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx));
+                    return await App.Builder.ApplicationBuilder.RunSubCommandAsync(ReorderSubCommandToFront(args, idx)).ConfigureAwait(false);
             }
 
             // 4. 参数解析 → CommandLineOptions（后续全部使用 options，不再传递原始 args）
@@ -75,7 +75,7 @@ class Program {
 
             var fs = IO.FileSystem.FileSystemFactory.Create();
 
-            var engineResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, fs);
+            var engineResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, fs).ConfigureAwait(false);
 
             var config = engineResult.Config;
             await using var host = engineResult.Host;
@@ -84,9 +84,9 @@ class Program {
 
             int exitCode;
             if (options.IsNonInteractiveMode)
-                exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host);
+                exitCode = await Entry.NonInteractiveModeRunner.RunAsync(config, options, host).ConfigureAwait(false);
             else {
-                await Entry.InteractiveModeRunner.RunAsync(config, options, host);
+                await Entry.InteractiveModeRunner.RunAsync(config, options, host).ConfigureAwait(false);
                 exitCode = 0;
             }
 

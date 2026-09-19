@@ -173,7 +173,7 @@ public partial class SleepToolHandlers {
             _logger?.LogInformation(L.T(StringKey.SleepUntilStartLog),
                 targetDateTime, waitDuration.TotalSeconds);
 
-            await Task.Delay(waitDuration, cancellationToken);
+            await Task.Delay(waitDuration, cancellationToken).ConfigureAwait(false);
 
             return ToolResultBuilder.Success()
                 .WithText(L.T(StringKey.SleepUntilReached, targetDateTime.ToString("yyyy-MM-dd HH:mm:ss")))

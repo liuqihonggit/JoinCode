@@ -87,21 +87,21 @@ public sealed partial class GoalHeartbeat : ActorBase<IGoalHeartbeatCommand, Uni
     public async Task StartActivityAsync(SessionActivityReason reason) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StartActivityCmd(reason, tcs)).ConfigureAwait(false);
-        await AskAwait(tcs, CancellationToken.None);
+        await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task StopActivityAsync(SessionActivityReason reason) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StopActivityCmd(reason, tcs)).ConfigureAwait(false);
-        await AskAwait(tcs, CancellationToken.None);
+        await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
     public async Task ResetAsync() {
         var tcs = TcsFactory.Create();
         await SendAsync(new ResetHeartbeatCmd(tcs)).ConfigureAwait(false);
-        await AskAwait(tcs, CancellationToken.None);
+        await AskAwait(tcs, CancellationToken.None).ConfigureAwait(false);
     }
 
     /// <summary>

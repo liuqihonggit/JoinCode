@@ -99,7 +99,7 @@ public class WorkflowToolHandlers {
             command,
             (cmd, ct) => Task.FromResult(PromptTemplates.WorkflowExecute(cmd.Task)),
             async (cmd, ct) => {
-                var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Task, ct);
+                var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Task, ct).ConfigureAwait(false);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -120,7 +120,7 @@ public class WorkflowToolHandlers {
             command,
             (cmd, ct) => Task.FromResult(PromptTemplates.PlanCreateAndExecute(cmd.Prompt)),
             async (cmd, ct) => {
-                var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Prompt, ct);
+                var result = await (_planService ?? throw new InvalidOperationException("PlanService is not available")).ExecutePlanAsync(cmd.Prompt, ct).ConfigureAwait(false);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -141,7 +141,7 @@ public class WorkflowToolHandlers {
             command,
             (cmd, ct) => Task.FromResult(PromptTemplates.GenerateCode(cmd.Requirement)),
             async (cmd, ct) => {
-                var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).GenerateCodeAsync(cmd.Requirement, ct);
+                var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).GenerateCodeAsync(cmd.Requirement, ct).ConfigureAwait(false);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -168,7 +168,7 @@ public class WorkflowToolHandlers {
                 return Task.FromResult(PromptTemplates.AnalyzeCode(cmd.AnalysisType, analysisPrompt, cmd.Code));
             },
             async (cmd, ct) => {
-                var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).AnalyzeCodeAsync(cmd.Code, ct);
+                var result = await (_codeService ?? throw new InvalidOperationException("CodeService is not available")).AnalyzeCodeAsync(cmd.Code, ct).ConfigureAwait(false);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -189,14 +189,14 @@ public class WorkflowToolHandlers {
             command,
             async (cmd, ct) => {
                 // 在提示词模式下，也记录对话历史
-                await RecordApiMessageAsync(MessageRoleEnumConstants.User, cmd.Message, ct);
+                await RecordApiMessageAsync(MessageRoleEnumConstants.User, cmd.Message, ct).ConfigureAwait(false);
                 var prompt = PromptTemplates.Chat(cmd.Message);
                 // 模拟助手回复
-                await RecordApiMessageAsync(MessageRoleEnumConstants.Assistant, L.T(StringKey.WorkflowPromptModeReceivedMessage, cmd.Message), ct);
+                await RecordApiMessageAsync(MessageRoleEnumConstants.Assistant, L.T(StringKey.WorkflowPromptModeReceivedMessage, cmd.Message), ct).ConfigureAwait(false);
                 return prompt;
             },
             async (cmd, ct) => {
-                var result = await (_chatService ?? throw new InvalidOperationException("ChatService is not available")).SendMessageAsync(cmd.Message);
+                var result = await (_chatService ?? throw new InvalidOperationException("ChatService is not available")).SendMessageAsync(cmd.Message).ConfigureAwait(false);
                 return ToolResultBuilder.Success().WithText(result).Build();
             },
             cancellationToken);
@@ -211,7 +211,7 @@ public class WorkflowToolHandlers {
     public async Task<ToolResult> WorkflowClearHistoryAsync(CancellationToken cancellationToken = default) {
         if (IsPromptOnlyMode()) {
             // 在提示词模式下，清空内存历史
-            await ClearInMemoryHistoryAsync(cancellationToken);
+            await ClearInMemoryHistoryAsync(cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeHistoryCleared)).Build();
         }
 
@@ -219,7 +219,7 @@ public class WorkflowToolHandlers {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
         }
 
-        await _chatService.ClearHistoryAsync();
+        await _chatService.ClearHistoryAsync().ConfigureAwait(false);
         return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowChatHistoryCleared)).Build();
     }
 
@@ -232,7 +232,7 @@ public class WorkflowToolHandlers {
     public async Task<ToolResult> WorkflowGetHistoryAsync(CancellationToken cancellationToken = default) {
         if (IsPromptOnlyMode()) {
             // 在提示词模式下，返回内存中的历史
-            var history = await GetInMemoryHistoryAsync(cancellationToken);
+            var history = await GetInMemoryHistoryAsync(cancellationToken).ConfigureAwait(false);
             if (history.Count == 0) {
                 return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowPromptModeNoHistory)).Build();
             }
@@ -245,7 +245,7 @@ public class WorkflowToolHandlers {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.WorkflowChatServiceUnavailable)).Build();
         }
 
-        var serviceHistory = await _chatService.GetMessageListAsync();
+        var serviceHistory = await _chatService.GetMessageListAsync().ConfigureAwait(false);
         if (serviceHistory == null || serviceHistory.Count == 0) {
             return ToolResultBuilder.Success().WithText(L.T(StringKey.WorkflowNoChatHistory)).Build();
         }
@@ -286,7 +286,7 @@ public class WorkflowToolHandlers {
         }
 
         if (IsPromptOnlyMode()) {
-            var prompt = await promptGenerator(command, cancellationToken);
+            var prompt = await promptGenerator(command, cancellationToken).ConfigureAwait(false);
             return ToolResultBuilder.Success().WithText(prompt).Build();
         }
 
@@ -296,7 +296,7 @@ public class WorkflowToolHandlers {
                 .Build();
         }
 
-        return await execution(command, cancellationToken);
+        return await execution(command, cancellationToken).ConfigureAwait(false);
     }
 
     private static ToolResult? ValidateCommand<TCommand>(TCommand command) {

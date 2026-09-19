@@ -73,7 +73,7 @@ public sealed class JudgeAgent : ReasoningAgent {
             var defCount = visibleEvidence.Count(e => e.SubmittedBy == AgentRole.Defender);
             var userPrompt = $"请对以下假定做出裁决：\n{itemsText}\n\n当前证据概况：控方{prosCount}条，辩方{defCount}条";
 
-            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
+            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct).ConfigureAwait(false);
 
             var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.JudgeTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
             if (llmResponse is not null) {

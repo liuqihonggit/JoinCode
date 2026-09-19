@@ -92,6 +92,16 @@ if (!c) return;
 
 ## 进度
 
-- [ ] 档1：格式风格强制
-- [ ] 档2：代码质量强制
-- [ ] 档3：新增卫语句检测
+- [x] 档1：格式风格强制（commit de158c24c）
+- [x] 档2：代码质量强制（commit 6cee2afb8）
+- [x] 档3：新增卫语句检测（commit e7fbbba2c）
+  - JCC1009 分析器已写，Warning 级别，638 处违规
+  - WarningsNotAsErrors=JCC1009 排除 TreatWarningsAsErrors 提升
+  - insert_final_newline=true 已改
+  - CodeFix 尚未写
+
+## 后续
+
+- 638 处 JCC1009 warning 待处理（修复或保持 warning）
+- JCC1009 CodeFix 自动转换（可选）
+- 验证后升 JCC1009 为 error

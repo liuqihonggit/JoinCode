@@ -165,9 +165,8 @@ public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {
             if (idisposableType is null) return;
 
             var implementsIAsyncDisposable = type.AllInterfaces.Contains(iasyncDisposableType, SymbolEqualityComparer.Default);
-            var implementsIDisposable = type.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default);
 
-            if (implementsIAsyncDisposable && !implementsIDisposable) {
+            if (implementsIAsyncDisposable && !IsWhitelistedDualInterface(type)) {
                 var typeName = type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     RuleSyncUsingOnAsyncDisposable,
@@ -289,9 +288,7 @@ public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {
             || SymbolEqualityComparer.Default.Equals(receiverType, iasyncDisposableType);
         if (!implementsIAsyncDisposable) return;
 
-        var implementsIDisposable = receiverType.AllInterfaces.Contains(idisposableType, SymbolEqualityComparer.Default)
-            || SymbolEqualityComparer.Default.Equals(receiverType, idisposableType);
-        if (implementsIDisposable) return;
+        if (IsWhitelistedDualInterface(receiverType)) return;
 
         if (IsInsideDisposeMethod(invocation)) return;
 
@@ -300,6 +297,12 @@ public sealed class DisposableConsistencyRules : DiagnosticAnalyzer {
             RuleSyncDisposeOnAsyncDisposable,
             invocation.GetLocation(),
             typeName));
+    }
+
+    private static bool IsWhitelistedDualInterface(INamedTypeSymbol type) {
+        var fullName = type.OriginalDefinition.ToDisplayString();
+        return fullName is "System.Threading.CancellationTokenSource"
+            or "System.IO.MemoryStream";
     }
 
     private static bool IsInsideDisposeMethod(SyntaxNode node) {

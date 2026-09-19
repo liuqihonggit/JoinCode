@@ -435,7 +435,7 @@ public class DisposableConsistencyRulesTests {
     }
 
     [Fact]
-    public async Task SyncDisposeOnDualInterface_NoJCC9107() {
+    public async Task SyncDisposeOnDualInterface_ReportsJCC9107() {
         var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestCode = """
@@ -445,7 +445,7 @@ public class DisposableConsistencyRulesTests {
                 {
                     void Method(DualDisposable x)
                     {
-                        x.Dispose();
+                        {|#1:x.Dispose()|};
                     }
                 }
                 class {|#0:DualDisposable|} : IDisposable, IAsyncDisposable
@@ -457,7 +457,27 @@ public class DisposableConsistencyRulesTests {
             ExpectedDiagnostics =
             {
                 new DiagnosticResult("JCC9103", DiagnosticSeverity.Error).WithLocation(0).WithArguments("DualDisposable"),
+                new DiagnosticResult("JCC9107", DiagnosticSeverity.Error).WithLocation(1).WithArguments("DualDisposable"),
             },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task SyncDispose_OnCancellationTokenSource_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                class TestClass
+                {
+                    void Method(CancellationTokenSource cts)
+                    {
+                        cts.Dispose();
+                    }
+                }
+                """,
         };
         await test.RunAsync().ConfigureAwait(true);
     }
@@ -699,6 +719,90 @@ public class DisposableConsistencyRulesTests {
                     {
                         if (_disposed) return;
                         _disposed = true;
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task UsingVar_OnDualInterfaceBclType_ReportsJCC9104() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.IO;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task Method()
+                    {
+                        {|#0:using|} var stream = new FileStream("test", FileMode.Open, FileAccess.Read);
+                    }
+                }
+                """,
+            ExpectedDiagnostics =
+            {
+                new DiagnosticResult("JCC9104", DiagnosticSeverity.Error).WithLocation(0).WithArguments("FileStream"),
+            },
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task UsingVar_OnCancellationTokenSource_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.Threading;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task Method()
+                    {
+                        using var cts = new CancellationTokenSource();
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task UsingVar_OnMemoryStream_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.IO;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task Method()
+                    {
+                        using var ms = new MemoryStream();
+                    }
+                }
+                """,
+        };
+        await test.RunAsync().ConfigureAwait(true);
+    }
+
+    [Fact]
+    public async Task AwaitUsingVar_OnDualInterfaceBclType_NoDiagnostic() {
+        var test = new CSharpAnalyzerTest<DisposableConsistencyRules, DefaultVerifier> {
+            ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
+            TestCode = """
+                using System;
+                using System.IO;
+                using System.Threading.Tasks;
+                class TestClass
+                {
+                    async Task Method()
+                    {
+                        await using var stream = new FileStream("test", FileMode.Open, FileAccess.Read);
                     }
                 }
                 """,

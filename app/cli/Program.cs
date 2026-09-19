@@ -85,7 +85,7 @@ class Program
             var engineResult = await App.Builder.EngineSessionFactory.CreateCliSessionAsync(options, fs);
 
             var config = engineResult.Config;
-            using var host = engineResult.Host;
+            await using var host = engineResult.Host;
 
             logger = host.Services.GetService<ILogger<Program>>();
 

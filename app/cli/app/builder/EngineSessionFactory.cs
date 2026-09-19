@@ -1,6 +1,35 @@
 namespace JoinCode.App.Builder;
 
 /// <summary>
+/// 异步可释放 Host — 同时实现 <see cref="IHost"/> + <see cref="IAsyncDisposable"/>。
+/// <para>Microsoft.Extensions.Hosting 的 IHost 接口只暴露同步 Dispose,但运行时 Host 实例实现 IAsyncDisposable。</para>
+/// <para>此接口让编译时类型暴露 DisposeAsync,使调用方可用 <c>await using</c> 正确异步释放,</para>
+/// <para>避免 <c>using var</c> 调同步 Dispose 在持有异步资源(Actor/Channel)时阻塞线程池导致 Consumer 死锁。</para>
+/// </summary>
+public interface IAsyncHost : IHost, IAsyncDisposable;
+
+/// <summary>
+/// 异步 Host 包装器 — 将 <see cref="IHost"/> 包装为 <see cref="IAsyncHost"/>。
+/// <para>运行时 Host 实例已实现 IAsyncDisposable,此包装器仅让编译时类型暴露 DisposeAsync。</para>
+/// </summary>
+internal sealed class AsyncHostWrapper : IAsyncHost
+{
+    private readonly IHost _inner;
+    public AsyncHostWrapper(IHost inner) => _inner = inner;
+    public IServiceProvider Services => _inner.Services;
+    public Task StartAsync(CancellationToken cancellationToken = default) => _inner.StartAsync(cancellationToken);
+    public Task StopAsync(CancellationToken cancellationToken = default) => _inner.StopAsync(cancellationToken);
+    public void Dispose() => _inner.Dispose();
+    public async ValueTask DisposeAsync()
+    {
+        if (_inner is IAsyncDisposable ad)
+            await ad.DisposeAsync().ConfigureAwait(false);
+        else
+            _inner.Dispose();
+    }
+}
+
+/// <summary>
 /// 引擎会话工厂 — 收拢 LoadConfig + BuildHost + ConfigureModules + ShellCapabilityInit，
 /// CLI 和 GUI 统一调用，消除双引擎初始化差异。
 /// </summary>
@@ -25,8 +54,8 @@ public sealed class EngineSessionFactory
         /// </summary>
         public required string SessionId { get; init; }
 
-        /// <summary>Host 实例 — 调用方负责 Dispose</summary>
-        public required IHost Host { get; init; }
+        /// <summary>异步可释放 Host — 调用方用 <c>await using</c> 确保异步 DisposeAsync 释放,避免同步 Dispose 线程池死锁</summary>
+        public required IAsyncHost Host { get; init; }
     }
 
     /// <summary>
@@ -133,7 +162,7 @@ public sealed class EngineSessionFactory
             ChatService = chatService,
             Config = config,
             SessionId = engineSessionId,
-            Host = host,
+            Host = new AsyncHostWrapper(host),
         };
     }
 

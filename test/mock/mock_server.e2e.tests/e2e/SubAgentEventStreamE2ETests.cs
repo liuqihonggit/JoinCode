@@ -120,8 +120,8 @@ public sealed class SubAgentEventStreamE2ETests
             {
                 // Host 内部服务（BuildQueueService）的 Dispose 链路存在二次处置敏感，
                 // 此处仅尽力清理，不得掩盖 try 块中的原始断言/运行时异常
-                try { session.Host.Dispose(); }
-                catch (Exception disposeEx) { _output.WriteLine($"[E2E清理] Host.Dispose 异常(已忽略): {disposeEx.Message}"); }
+                try { await session.Host.DisposeAsync(); }
+                catch (Exception disposeEx) { _output.WriteLine($"[E2E清理] Host.DisposeAsync 异常(已忽略): {disposeEx.Message}"); }
             }
         }
         finally

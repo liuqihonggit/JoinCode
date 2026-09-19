@@ -138,7 +138,7 @@ public sealed class McpCliCommand
         return 0;
     }, ct: ct);
 
-    internal static async Task<IHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default)
+    internal static async Task<IAsyncHost> BuildHostAsync(string? vendor = null, string? model = null, CancellationToken ct = default)
     {
         var fs = IO.FileSystem.FileSystemFactory.Create();
         var options = new CommandLineOptions { NonInteractive = true, TrustWorkspace = true, SkipModelFetch = true, SkipProviderValidation = true };
@@ -162,7 +162,7 @@ public sealed class McpCliCommand
             return 1;
         }
 
-        using var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
+        await using var appHost = await BuildHostAsync(ct: ct).ConfigureAwait(false);
 
         var registry = appHost.Services.GetRequiredService<IMcpToolRegistry>();
         var toolCount = await registry.GetCountAsync(ct).ConfigureAwait(false);

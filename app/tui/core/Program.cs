@@ -20,11 +20,19 @@ internal static class Program
             var result = EngineSessionFactory.CreateGuiSessionAsync(
                 extraModules: [new Hosting.TuiInteractionModule()],
                 cancellationToken: awaitCts.Token).GetAwaiter().GetResult();
-            using var host = result.Host;
-            WriteDiag("[Main] session created, starting TuiModeRunner");
-            TuiModeRunner.RunAsync(result.Config, result.Services, awaitCts.Token).GetAwaiter().GetResult();
-            WriteDiag("[Main] TuiModeRunner returned normally");
-            return 0;
+            var host = result.Host;
+            try
+            {
+                WriteDiag("[Main] session created, starting TuiModeRunner");
+                TuiModeRunner.RunAsync(result.Config, result.Services, awaitCts.Token).GetAwaiter().GetResult();
+                WriteDiag("[Main] TuiModeRunner returned normally");
+                return 0;
+            }
+            finally
+            {
+                // IAsyncHost.DisposeAsync — 主线程同步等异步释放,不占线程池,Actor Consumer 可正常退出
+                host.DisposeAsync().GetAwaiter().GetResult();
+            }
         }
         catch (OperationCanceledException)
         {

@@ -22,7 +22,7 @@ public class ShellBuildInterceptMiddlewareTests {
                 QueuePosition = 0,
             });
 
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var context = CreateContext(command: "dotnet build JoinCode.slnx -c Release");
 
         await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);
@@ -50,7 +50,7 @@ public class ShellBuildInterceptMiddlewareTests {
             });
 
         var nextCalled = false;
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var context = CreateContext(command: "dotnet build JoinCode.slnx -c Release");
 
         await sut.InvokeAsync(context, (ctx, ct) => { nextCalled = true; return Task.CompletedTask; }, CancellationToken.None).ConfigureAwait(true);
@@ -61,7 +61,7 @@ public class ShellBuildInterceptMiddlewareTests {
     [Fact]
     public async Task InvokeAsync_NonBuildCommand_CallsNext() {
         var queueMock = new Mock<IBuildQueueService>();
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
 
         var nextCalled = false;
         var context = CreateContext(command: "dotnet --info");
@@ -96,7 +96,7 @@ public class ShellBuildInterceptMiddlewareTests {
                 QueuePosition = 0,
             });
 
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var context = CreateContext(command: command);
 
         await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);
@@ -115,7 +115,7 @@ public class ShellBuildInterceptMiddlewareTests {
     [InlineData("dir")]
     public async Task InvokeAsync_IgnoresNonBuildCommands(string command) {
         var queueMock = new Mock<IBuildQueueService>();
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
 
         var nextCalled = false;
         var context = CreateContext(command: command);
@@ -144,7 +144,7 @@ public class ShellBuildInterceptMiddlewareTests {
                 QueuePosition = 0,
             });
 
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var testWorkDir = Path.GetTempPath();
         var context = CreateContext(command: "dotnet build JoinCode.slnx", workingDirectory: testWorkDir);
 
@@ -176,7 +176,7 @@ public class ShellBuildInterceptMiddlewareTests {
                 },
             });
 
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var context = CreateContext(command: "dotnet build JoinCode.slnx");
 
         await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);
@@ -205,7 +205,7 @@ public class ShellBuildInterceptMiddlewareTests {
                 QueuePosition = 0,
             });
 
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var context = CreateContext(command: "dotnet build JoinCode.slnx");
 
         await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);
@@ -234,7 +234,7 @@ public class ShellBuildInterceptMiddlewareTests {
                 QueuePosition = 0,
             });
 
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var context = CreateContext(command: "dotnet build JoinCode.slnx");
 
         await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);
@@ -259,7 +259,7 @@ public class ShellBuildInterceptMiddlewareTests {
                 Status = BuildQueueEntryStatus.Cancelled,
             });
 
-        var sut = CreateSut(buildQueueService: queueMock.Object);
+        await using var sut = CreateSut(buildQueueService: queueMock.Object);
         var context = CreateContext(command: "dotnet build JoinCode.slnx");
 
         await sut.InvokeAsync(context, Next, CancellationToken.None).ConfigureAwait(true);

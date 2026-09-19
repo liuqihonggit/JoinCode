@@ -15,7 +15,7 @@ public class AgentForkMiddlewareTests {
             .Callback<ForkOptions, CancellationToken>((o, _) => capturedOptions = o)
             .ReturnsAsync(new ForkResult { ForkId = "fork-1", State = ForkState.Running });
 
-        var sut = new AgentForkMiddleware(
+        await using var sut = new AgentForkMiddleware(
             new SubAgentContextAccessor(),
             forkManager.Object);
 
@@ -49,7 +49,7 @@ public class AgentForkMiddlewareTests {
     [Fact]
     public async Task NonForkPath_WhenSubagentTypeProvided_ShouldNotEmit() {
         var forkManager = new Mock<IForkSubAgentManager>();
-        var sut = new AgentForkMiddleware(
+        await using var sut = new AgentForkMiddleware(
             new SubAgentContextAccessor(),
             forkManager.Object);
 

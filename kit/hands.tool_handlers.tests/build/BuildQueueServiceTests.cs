@@ -6,7 +6,7 @@ namespace Hands.Tests.Build;
 public class BuildQueueServiceTests {
     [Fact]
     public async Task SubmitAsync_ReturnsBuildId() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var request = CreateRequest();
 
         var buildId = await sut.SubmitAsync(request, CancellationToken.None).ConfigureAwait(true);
@@ -17,7 +17,7 @@ public class BuildQueueServiceTests {
 
     [Fact]
     public async Task SubmitAsync_EntryExists() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
         var request = CreateRequest();
 
         var buildId = await sut.SubmitAsync(request, CancellationToken.None).ConfigureAwait(true);
@@ -34,7 +34,7 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SystemActuatorExecutionResult.SuccessResult("Build succeeded.", ""));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
         var request = CreateRequest();
 
         var buildId = await sut.SubmitAsync(request, CancellationToken.None).ConfigureAwait(true);
@@ -53,7 +53,7 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SystemActuatorExecutionResult.FailureResult("Build failed.", "error output", "stderr"));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
         var request = CreateRequest();
 
         var buildId = await sut.SubmitAsync(request, CancellationToken.None).ConfigureAwait(true);
@@ -71,27 +71,34 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .Returns(async () => await buildTcs.Task.ConfigureAwait(true));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
         var request = CreateRequest();
 
-        var buildId = await sut.SubmitAsync(request, CancellationToken.None).ConfigureAwait(true);
+        try
+        {
+            var buildId = await sut.SubmitAsync(request, CancellationToken.None).ConfigureAwait(true);
 
-        await Task.Delay(200).ConfigureAwait(true);
+            await Task.Delay(200).ConfigureAwait(true);
 
-        var cancelled = await sut.CancelAsync(buildId, CancellationToken.None).ConfigureAwait(true);
+            var cancelled = await sut.CancelAsync(buildId, CancellationToken.None).ConfigureAwait(true);
 
-        cancelled.Should().BeTrue();
+            cancelled.Should().BeTrue();
 
-        buildTcs.SetCanceled();
-        await Task.Delay(100).ConfigureAwait(true);
+            buildTcs.SetCanceled();
+            await Task.Delay(100).ConfigureAwait(true);
 
-        var entry = sut.GetBuild(buildId);
-        entry!.Status.Should().BeOneOf(BuildQueueEntryStatus.Cancelled, BuildQueueEntryStatus.Cancelling);
+            var entry = sut.GetBuild(buildId);
+            entry!.Status.Should().BeOneOf(BuildQueueEntryStatus.Cancelled, BuildQueueEntryStatus.Cancelling);
+        }
+        finally
+        {
+            buildTcs.TrySetCanceled();
+        }
     }
 
     [Fact]
     public async Task CancelAsync_NonExistentBuild_ReturnsFalse() {
-        var sut = CreateSut();
+        await using var sut = CreateSut();
 
         var cancelled = await sut.CancelAsync("b-9999", CancellationToken.None).ConfigureAwait(true);
 
@@ -105,7 +112,7 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SystemActuatorExecutionResult.SuccessResult("ok", ""));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
 
         var buildId = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
         await sut.WaitAsync(buildId, CancellationToken.None).ConfigureAwait(true);
@@ -121,7 +128,7 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SystemActuatorExecutionResult.SuccessResult("Build OK", ""));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
 
         var id1 = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
         await sut.WaitAsync(id1, CancellationToken.None).ConfigureAwait(true);
@@ -157,20 +164,28 @@ public class BuildQueueServiceTests {
                 }
             });
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
 
-        var id1 = await sut.SubmitAsync(CreateRequest(command: "dotnet build ProjA.slnx"), CancellationToken.None).ConfigureAwait(true);
-        var id2 = await sut.SubmitAsync(CreateRequest(command: "dotnet build ProjB.slnx"), CancellationToken.None).ConfigureAwait(true);
+        try
+        {
+            var id1 = await sut.SubmitAsync(CreateRequest(command: "dotnet build ProjA.slnx"), CancellationToken.None).ConfigureAwait(true);
+            var id2 = await sut.SubmitAsync(CreateRequest(command: "dotnet build ProjB.slnx"), CancellationToken.None).ConfigureAwait(true);
 
-        await Task.Delay(200).ConfigureAwait(true);
+            await Task.Delay(200).ConfigureAwait(true);
 
-        tcs1.SetResult(SystemActuatorExecutionResult.SuccessResult("ok1", ""));
-        tcs2.SetResult(SystemActuatorExecutionResult.SuccessResult("ok2", ""));
+            tcs1.SetResult(SystemActuatorExecutionResult.SuccessResult("ok1", ""));
+            tcs2.SetResult(SystemActuatorExecutionResult.SuccessResult("ok2", ""));
 
-        await sut.WaitAsync(id1, CancellationToken.None).ConfigureAwait(true);
-        await sut.WaitAsync(id2, CancellationToken.None).ConfigureAwait(true);
+            await sut.WaitAsync(id1, CancellationToken.None).ConfigureAwait(true);
+            await sut.WaitAsync(id2, CancellationToken.None).ConfigureAwait(true);
 
-        buildOrder.Should().ContainInOrder("start1", "end1", "start2", "end2");
+            buildOrder.Should().ContainInOrder("start1", "end1", "start2", "end2");
+        }
+        finally
+        {
+            tcs1.TrySetCanceled();
+            tcs2.TrySetCanceled();
+        }
     }
 
     /// <summary>
@@ -183,7 +198,7 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SystemActuatorExecutionResult.SuccessResult("ok", ""));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
 
         var id1 = await sut.SubmitAsync(CreateRequest(command: "cmd-a"), CancellationToken.None).ConfigureAwait(true);
         var id2 = await sut.SubmitAsync(CreateRequest(command: "cmd-b"), CancellationToken.None).ConfigureAwait(true);
@@ -207,7 +222,7 @@ public class BuildQueueServiceTests {
     public async Task CrossProcessLock_BuildWaits_WhenLockHeldByOtherProcess() {
         // 使用唯一的锁文件路径，避免与其他测试冲突
         var lockPath = Path.Combine(Path.GetTempPath(), $"JoinCode.Build.CrossProc.{Guid.NewGuid():N}.lock");
-        var fs = new PhysicalFileSystem();
+        await using var fs = new PhysicalFileSystem();
 
         // 模拟另一个进程持有锁文件 — 通过 IFileSystem 以独占方式打开
         var holdingStream = fs.CreateStream(
@@ -238,7 +253,7 @@ public class BuildQueueServiceTests {
             buildStarted.Task.IsCompleted.Should().BeFalse("build should be blocked waiting for cross-process lock");
 
             // 释放锁文件 — 模拟其他进程完成构建
-            holdingStream.Dispose();
+            await holdingStream.DisposeAsync().ConfigureAwait(true);
 
             // 等待构建完成 — 锁释放后构建应立即启动并完成
             var result = await sut.WaitAsync(buildId, CancellationToken.None).ConfigureAwait(true);
@@ -269,7 +284,7 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SystemActuatorExecutionResult.SuccessResult("ok", ""));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
 
         var id1 = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
         await sut.WaitAsync(id1, CancellationToken.None).ConfigureAwait(true);
@@ -288,7 +303,7 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SystemActuatorExecutionResult.SuccessResult("line1\nline2\nline3\nline4\nline5", ""));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
 
         var buildId = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
         await sut.WaitAsync(buildId, CancellationToken.None).ConfigureAwait(true);
@@ -304,7 +319,7 @@ public class BuildQueueServiceTests {
                 It.IsAny<string?>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(SystemActuatorExecutionResult.SuccessResult("line1\nline2\nline3", ""));
 
-        var sut = CreateSut(actuator: shellMock.Object);
+        await using var sut = CreateSut(actuator: shellMock.Object);
 
         var buildId = await sut.SubmitAsync(CreateRequest(), CancellationToken.None).ConfigureAwait(true);
         await sut.WaitAsync(buildId, CancellationToken.None).ConfigureAwait(true);

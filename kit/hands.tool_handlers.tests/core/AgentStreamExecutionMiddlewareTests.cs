@@ -27,7 +27,7 @@ public class AgentStreamExecutionMiddlewareTests {
     }
 
     private static async Task<IReadOnlyList<ChatStreamEvent>> InvokeAsync(AgentStreamChunk[] chunks) {
-        var sut = new AgentStreamExecutionMiddleware(CreateAgentService(chunks).Object);
+        await using var sut = new AgentStreamExecutionMiddleware(CreateAgentService(chunks).Object);
         var context = CreateContext();
         var channel = new SubAgentEventChannel();
 
@@ -100,7 +100,7 @@ public class AgentStreamExecutionMiddlewareTests {
     [Fact]
     public async Task WithoutChannel_Should_NotThrow() {
         // 无 GUI 通道时（CLI 纯文本模式等）静默跳过发射，执行不受影响
-        var sut = new AgentStreamExecutionMiddleware(CreateAgentService(
+        await using var sut = new AgentStreamExecutionMiddleware(CreateAgentService(
             new AgentStreamChunk { Type = AgentStreamChunkType.Complete, Content = "done", ExecutionTimeMs = 1, AgentId = "ag-5" }).Object);
         var context = CreateContext();
 

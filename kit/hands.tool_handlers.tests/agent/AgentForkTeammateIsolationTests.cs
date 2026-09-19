@@ -10,7 +10,7 @@ public sealed class AgentForkTeammateIsolationTests {
         InProcessTeammateDefinition? capturedDefinition = null;
         var teammateExecutor = CreateTeammateExecutor(d => capturedDefinition = d);
         var worktreeManager = CreateWorktreeManager(isolationEnabled: true);
-        var sut = new AgentForkMiddleware(
+        await using var sut = new AgentForkMiddleware(
             CreateContextAccessor(),
             teammateExecutor: teammateExecutor,
             worktreeDecisionPolicy: new WorktreeDecisionPolicy(),
@@ -28,7 +28,7 @@ public sealed class AgentForkTeammateIsolationTests {
     public async Task Teammate_ExplicitWorktree_Isolation_OverridesDecisionPolicy() {
         InProcessTeammateDefinition? capturedDefinition = null;
         var teammateExecutor = CreateTeammateExecutor(d => capturedDefinition = d);
-        var sut = new AgentForkMiddleware(
+        await using var sut = new AgentForkMiddleware(
             CreateContextAccessor(),
             teammateExecutor: teammateExecutor,
             worktreeDecisionPolicy: new WorktreeDecisionPolicy(),
@@ -46,7 +46,7 @@ public sealed class AgentForkTeammateIsolationTests {
     public async Task Teammate_ExplicitNone_Isolation_OverridesDecisionPolicy() {
         InProcessTeammateDefinition? capturedDefinition = null;
         var teammateExecutor = CreateTeammateExecutor(d => capturedDefinition = d);
-        var sut = new AgentForkMiddleware(
+        await using var sut = new AgentForkMiddleware(
             CreateContextAccessor(),
             teammateExecutor: teammateExecutor,
             worktreeDecisionPolicy: new WorktreeDecisionPolicy(),
@@ -64,7 +64,7 @@ public sealed class AgentForkTeammateIsolationTests {
     public async Task Teammate_NoDecisionPolicy_FallsBackToNone() {
         InProcessTeammateDefinition? capturedDefinition = null;
         var teammateExecutor = CreateTeammateExecutor(d => capturedDefinition = d);
-        var sut = new AgentForkMiddleware(
+        await using var sut = new AgentForkMiddleware(
             CreateContextAccessor(),
             teammateExecutor: teammateExecutor);
 
@@ -80,7 +80,7 @@ public sealed class AgentForkTeammateIsolationTests {
     public async Task Teammate_WorktreeDisabled_GlobalSwitch_ReturnsNone() {
         InProcessTeammateDefinition? capturedDefinition = null;
         var teammateExecutor = CreateTeammateExecutor(d => capturedDefinition = d);
-        var sut = new AgentForkMiddleware(
+        await using var sut = new AgentForkMiddleware(
             CreateContextAccessor(),
             teammateExecutor: teammateExecutor,
             worktreeDecisionPolicy: new WorktreeDecisionPolicy(),

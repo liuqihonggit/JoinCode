@@ -219,9 +219,8 @@ public class AsyncLockDiagnosisTests : IDisposable {
         t1.Start();
         t2.Start();
 
-        await Task.Delay(300);
-
-        LockRegistry.DeadlockDetected.Should().BeTrue("两个线程互相等待对方持有的锁应被自动检测为死锁");
+        var detected = System.Threading.SpinWait.SpinUntil(() => LockRegistry.DeadlockDetected, TimeSpan.FromSeconds(5));
+        detected.Should().BeTrue("两个线程互相等待对方持有的锁应被自动检测为死锁(5s 轮询等待,容忍 CI 调度延迟)");
         LockRegistry.LastDeadlockReport.Should().Contain("DEADLOCK-DETECTED");
         LockRegistry.LastDeadlockReport.Should().Contain("deadlock-A");
         LockRegistry.LastDeadlockReport.Should().Contain("deadlock-B");

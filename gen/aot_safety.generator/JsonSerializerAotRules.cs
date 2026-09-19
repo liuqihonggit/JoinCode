@@ -49,12 +49,26 @@ public sealed class JsonSerializerAotRules : DiagnosticAnalyzer {
     public override void Initialize(AnalysisContext context) {
         context.EnableConcurrentExecution();
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-        context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeObjectCreation, SyntaxKind.ObjectCreationExpression);
-        context.RegisterSyntaxNodeAction(AnalyzeImplicitObjectCreation, SyntaxKind.ImplicitObjectCreationExpression);
+
+        context.RegisterCompilationStartAction(compilationContext => {
+            var projectContext = ProjectContext.From(
+                compilationContext.Compilation,
+                compilationContext.Options.AnalyzerConfigOptionsProvider);
+            var isTestProject = projectContext.IsTest;
+
+            compilationContext.RegisterSyntaxNodeAction(
+                ctx => AnalyzeInvocation(ctx, isTestProject),
+                SyntaxKind.InvocationExpression);
+            compilationContext.RegisterSyntaxNodeAction(
+                ctx => AnalyzeObjectCreation(ctx, isTestProject),
+                SyntaxKind.ObjectCreationExpression);
+            compilationContext.RegisterSyntaxNodeAction(
+                ctx => AnalyzeImplicitObjectCreation(ctx, isTestProject),
+                SyntaxKind.ImplicitObjectCreationExpression);
+        });
     }
 
-    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext ctx) {
+    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
 
         if (ctx.Node is not InvocationExpressionSyntax invocation) return;
@@ -69,7 +83,7 @@ public sealed class JsonSerializerAotRules : DiagnosticAnalyzer {
 
         if (HasJsonTypeInfoParameter(method)) return;
 
-        if (IsInsideTestCode(ctx.Node)) return;
+        if (isTestProject) return;
 
         if (IsJsonElementOnlySerializeToElement(method, invocation)) return;
 
@@ -81,7 +95,7 @@ public sealed class JsonSerializerAotRules : DiagnosticAnalyzer {
             method.Name));
     }
 
-    private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext ctx) {
+    private static void AnalyzeObjectCreation(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
 
         if (ctx.Node is not ObjectCreationExpressionSyntax creation) return;
@@ -98,7 +112,7 @@ public sealed class JsonSerializerAotRules : DiagnosticAnalyzer {
 
         if (!IsJsonSerializerOptionsType(typeSymbol)) return;
 
-        if (IsInsideTestCode(ctx.Node)) return;
+        if (isTestProject) return;
 
         if (HasTypeInfoResolverInitializer(creation)) return;
 
@@ -112,7 +126,7 @@ public sealed class JsonSerializerAotRules : DiagnosticAnalyzer {
             details));
     }
 
-    private static void AnalyzeImplicitObjectCreation(SyntaxNodeAnalysisContext ctx) {
+    private static void AnalyzeImplicitObjectCreation(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
 
         if (ctx.Node is not ImplicitObjectCreationExpressionSyntax creation) return;
@@ -125,7 +139,7 @@ public sealed class JsonSerializerAotRules : DiagnosticAnalyzer {
 
         if (!IsJsonSerializerOptionsType(constructedType)) return;
 
-        if (IsInsideTestCode(ctx.Node)) return;
+        if (isTestProject) return;
 
         if (HasTypeInfoResolverInitializerForImplicit(creation)) return;
 
@@ -154,10 +168,6 @@ public sealed class JsonSerializerAotRules : DiagnosticAnalyzer {
         }
 
         return false;
-    }
-
-    private static bool IsInsideTestCode(SyntaxNode node) {
-        return AotSafetyHelpers.IsInsideTestMethod(node);
     }
 
     private static bool IsJsonElementOnlySerializeToElement(IMethodSymbol method, InvocationExpressionSyntax invocation) {

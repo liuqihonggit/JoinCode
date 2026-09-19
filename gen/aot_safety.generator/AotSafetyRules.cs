@@ -118,17 +118,28 @@ public sealed class AotSafetyRules : DiagnosticAnalyzer {
     public override void Initialize(AnalysisContext context) {
         context.EnableConcurrentExecution();
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
-        context.RegisterSyntaxNodeAction(AnalyzeNode,
-            SyntaxKind.ObjectCreationExpression,
-            SyntaxKind.VariableDeclaration,
-            SyntaxKind.PropertyDeclaration,
-            SyntaxKind.FieldDeclaration,
-            SyntaxKind.Parameter);
-        context.RegisterSyntaxNodeAction(AnalyzeDynamicKeyword, SyntaxKind.IdentifierName);
+
+        context.RegisterCompilationStartAction(compilationContext => {
+            var projectContext = ProjectContext.From(
+                compilationContext.Compilation,
+                compilationContext.Options.AnalyzerConfigOptionsProvider);
+            var isTestProject = projectContext.IsTest;
+
+            compilationContext.RegisterSyntaxNodeAction(AnalyzeNode,
+                SyntaxKind.ObjectCreationExpression,
+                SyntaxKind.VariableDeclaration,
+                SyntaxKind.PropertyDeclaration,
+                SyntaxKind.FieldDeclaration,
+                SyntaxKind.Parameter);
+            compilationContext.RegisterSyntaxNodeAction(AnalyzeDynamicKeyword, SyntaxKind.IdentifierName);
+            compilationContext.RegisterSyntaxNodeAction(
+                ctx => AnalyzeTooManyParameters(ctx, isTestProject),
+                SyntaxKind.MethodDeclaration);
+            compilationContext.RegisterSyntaxNodeAction(AnalyzeSwitchOnString, SyntaxKind.SwitchStatement);
+            compilationContext.RegisterSyntaxNodeAction(AnalyzeReflectionApi, SyntaxKind.InvocationExpression);
+        });
+
         context.RegisterCompilationStartAction(RegisterUsingInCsFileAnalysis);
-        context.RegisterSyntaxNodeAction(AnalyzeTooManyParameters, SyntaxKind.MethodDeclaration);
-        context.RegisterSyntaxNodeAction(AnalyzeSwitchOnString, SyntaxKind.SwitchStatement);
-        context.RegisterSyntaxNodeAction(AnalyzeReflectionApi, SyntaxKind.InvocationExpression);
     }
 
     private static void AnalyzeNode(SyntaxNodeAnalysisContext ctx) {
@@ -293,7 +304,7 @@ public sealed class AotSafetyRules : DiagnosticAnalyzer {
     /// <summary>
     /// JCC1006: 方法参数超过8个应封装为类
     /// </summary>
-    private static void AnalyzeTooManyParameters(SyntaxNodeAnalysisContext ctx) {
+    private static void AnalyzeTooManyParameters(SyntaxNodeAnalysisContext ctx, bool isTestProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
 
         if (ctx.Node is not MethodDeclarationSyntax methodDecl) return;
@@ -307,7 +318,7 @@ public sealed class AotSafetyRules : DiagnosticAnalyzer {
 
         if (methodDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword))) return;
 
-        if (AotSafetyHelpers.IsInsideTestMethod(methodDecl)) return;
+        if (isTestProject) return;
 
         var methodName = methodDecl.Identifier.ValueText;
         if (methodName == "Main") return;

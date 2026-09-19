@@ -18,44 +18,6 @@ public static class AotSafetyHelpers {
     }
 
     /// <summary>
-    /// 判断是否在测试方法内（通过 [Fact]/[Theory] 等特性判断）
-    /// </summary>
-    public static bool IsInsideTestMethod(SyntaxNode node) {
-        var current = node.Parent;
-        var foundTestClass = false;
-        while (current is not null) {
-            if (current is MethodDeclarationSyntax methodDecl) {
-                if (methodDecl.AttributeLists.Any(al =>
-                    al.Attributes.Any(a => {
-                        var name = a.Name.ToString();
-                        return name == "Fact" || name == "Theory" || name == "TestMethod" ||
-                               name == "Test" || name == "InlineData" ||
-                               name.Contains("Fact", StringComparison.Ordinal) ||
-                               name.Contains("Test", StringComparison.Ordinal);
-                    })))
-                    return true;
-            }
-
-            if (current is ClassDeclarationSyntax classDecl) {
-                var className = classDecl.Identifier.ValueText;
-                if (className.EndsWith("Tests", StringComparison.Ordinal) ||
-                    className.EndsWith("Test", StringComparison.Ordinal))
-                    foundTestClass = true;
-            }
-
-            if (current is BaseNamespaceDeclarationSyntax nsDecl) {
-                var nsName = nsDecl.Name.ToString();
-                if (nsName.EndsWith(".Tests", StringComparison.Ordinal) ||
-                    nsName.EndsWith(".Test", StringComparison.Ordinal))
-                    foundTestClass = true;
-            }
-
-            current = current.Parent;
-        }
-        return foundTestClass;
-    }
-
-    /// <summary>
     /// 查找包含指定节点的类型声明
     /// </summary>
     public static TypeDeclarationSyntax? FindEnclosingTypeDeclaration(SyntaxNode node) {

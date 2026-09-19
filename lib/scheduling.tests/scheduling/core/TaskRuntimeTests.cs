@@ -100,7 +100,7 @@ public class TaskRuntimeTests : IDisposable {
 
     [Fact]
     public async Task ListTasksAsync_ShouldPage() {
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             await _runtime.CreateTaskAsync(new RuntimeTaskInput { Description = $"task-{i}" });
         }
 

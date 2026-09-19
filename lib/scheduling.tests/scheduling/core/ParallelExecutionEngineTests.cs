@@ -150,6 +150,6 @@ public class ParallelExecutionEngineTests {
     #endregion
 }
 
-file sealed class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext> {
+sealed file class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext> {
     public Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct) => invoke(context, next, ct);
 }

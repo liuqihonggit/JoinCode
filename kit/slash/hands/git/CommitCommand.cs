@@ -26,7 +26,7 @@ public sealed class CommitCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         // 渐进式披露:首次调用返回说明不执行,二次确认执行(SessionId 为空时跳过,兼容测试)
         var sessionId = context.SessionId;
         if (!string.IsNullOrEmpty(sessionId)) {

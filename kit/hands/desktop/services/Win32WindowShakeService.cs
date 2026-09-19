@@ -285,9 +285,9 @@ public sealed class Win32WindowShakeService : ServiceEntity, IWindowShakeService
     /// 从同一进程的多个窗口中选择最佳震动目标 — 排除"Program Manager"，优先有标题且面积最大的窗口。
     /// </summary>
     private static IntPtr SelectBestWindow(List<IntPtr> hwnds) {
-        IntPtr bestWithTitle = IntPtr.Zero;
+        var bestWithTitle = IntPtr.Zero;
         var bestTitleArea = 0;
-        IntPtr bestAny = IntPtr.Zero;
+        var bestAny = IntPtr.Zero;
         var bestAnyArea = 0;
 
         foreach (var hwnd in hwnds) {

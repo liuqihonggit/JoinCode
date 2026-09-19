@@ -13,7 +13,7 @@ public sealed class ResilientSubprocess : IAsyncDisposable {
     private readonly ResilientChannel _outputChannel;
     private ProcessHealthMonitor? _healthMonitor;
     private ProcessRestartManager? _restartManager;
-    private UnifiedCircuitBreaker? _circuitBreaker;
+    private readonly UnifiedCircuitBreaker? _circuitBreaker;
     private readonly CancellationTokenSource _disposeCts = new();
     private int _disposed;
 

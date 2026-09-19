@@ -25,7 +25,7 @@ public sealed partial class AskUserQuestionDialog : Window {
         HeaderBlock.Text = question.Header;
         QuestionBlock.Text = question.Question;
 
-        for (int i = 0; i < question.Options.Count; i++) {
+        for (var i = 0; i < question.Options.Count; i++) {
             var idx = i;
             var opt = question.Options[i];
             var display = string.IsNullOrWhiteSpace(opt.Description)

@@ -153,7 +153,7 @@ public sealed class ConsolidationLockTests : IDisposable {
         };
 
         // Act - 添加超过30个回合
-        for (int i = 0; i < 35; i++) {
+        for (var i = 0; i < 35; i++) {
             task.AddTurn(new DreamTurn { Text = $"Turn {i}", ToolUseCount = 0 }, Array.Empty<string>());
         }
 

@@ -52,7 +52,7 @@ public sealed class GraphToolHandlers {
             sb.AppendLine($"Detected {communities.Count} communities:");
             sb.AppendLine();
 
-            for (int i = 0; i < communities.Count; i++) {
+            for (var i = 0; i < communities.Count; i++) {
                 var c = communities[i];
                 sb.AppendLine($"Community {c.CommunityId}: {c.MemberCount} members, {c.InternalEdges} internal edges, {c.ExternalEdges} external edges");
                 var preview = c.Members.Take(5);
@@ -92,7 +92,7 @@ public sealed class GraphToolHandlers {
             sb.AppendLine($"Top {hubs.Count} hub nodes:");
             sb.AppendLine();
 
-            for (int i = 0; i < hubs.Count; i++) {
+            for (var i = 0; i < hubs.Count; i++) {
                 var h = hubs[i];
                 sb.AppendLine($"{i + 1}. {h.SymbolName} (in={h.InDegree}, out={h.OutDegree}, total={h.TotalDegree})");
                 if (!string.IsNullOrEmpty(h.FilePath))
@@ -354,7 +354,7 @@ public sealed class GraphToolHandlers {
             sb.AppendLine($"Query: \"{result.Query}\" — {result.TotalMatches} total matches, showing {result.Matches.Count}:");
             sb.AppendLine();
 
-            for (int i = 0; i < result.Matches.Count; i++) {
+            for (var i = 0; i < result.Matches.Count; i++) {
                 var m = result.Matches[i];
                 sb.AppendLine($"{i + 1}. {m.SymbolName} [{m.Kind}] (score={m.RelevanceScore})");
                 sb.AppendLine($"   {m.FilePath}");
@@ -398,7 +398,7 @@ public sealed class GraphToolHandlers {
             sb.AppendLine($"Path from '{result.FromSymbol}' to '{result.ToSymbol}' (length={result.PathLength}):");
             sb.AppendLine();
 
-            for (int i = 0; i < result.PathNodes.Count; i++) {
+            for (var i = 0; i < result.PathNodes.Count; i++) {
                 sb.AppendLine($"  {i}: {result.PathNodes[i]}");
                 if (i < result.PathEdges.Count)
                     sb.AppendLine($"     └─[{result.PathEdges[i].CallKind}]→");

@@ -141,9 +141,9 @@ public sealed class ReasoningAgentBaseTests {
             return System.Threading.Tasks.Task.FromResult(new AgentAction { AgentRole = Role });
         }
 
-        public new static string? ExtractJsonObject(string content, ILogger? logger = null) => ReasoningAgent.ExtractJsonObject(content, logger);
+        public static new string? ExtractJsonObject(string content, ILogger? logger = null) => ReasoningAgent.ExtractJsonObject(content, logger);
 
-        public new static TrustLevel ParseTrustLevel(string? value) => ReasoningAgent.ParseTrustLevel(value);
+        public static new TrustLevel ParseTrustLevel(string? value) => ReasoningAgent.ParseTrustLevel(value);
 
         public new Task<string> CompressPromptIfNeededAsync(ReasoningContext context, AgentRole role, string userPrompt, CancellationToken ct)
             => base.CompressPromptIfNeededAsync(context, role, userPrompt, ct);

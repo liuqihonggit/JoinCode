@@ -83,7 +83,7 @@ internal static class GitHubRunLogFilter {
 
         var take = Math.Min(lines.Count - skipLines, maxLines);
         var sb = new StringBuilder(take * 80);
-        for (int i = skipLines; i < skipLines + take; i++) {
+        for (var i = skipLines; i < skipLines + take; i++) {
             sb.Append(lines[i]);
             sb.Append('\n');
         }

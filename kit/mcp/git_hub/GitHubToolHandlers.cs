@@ -73,7 +73,7 @@ public partial class GitHubToolHandlers {
         if (ranges.Count <= maxLines) return output;
         var sb = new StringBuilder(maxLines * 80);
         var span = output.AsSpan();
-        for (int i = 0; i < maxLines; i++) {
+        for (var i = 0; i < maxLines; i++) {
             var (start, length) = ranges[i];
             sb.Append(span.Slice(start, length));
             sb.Append('\n');

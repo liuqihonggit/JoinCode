@@ -451,7 +451,7 @@ class Program {
     /// 从 args 中提取 -h/--help 后的 topic 参数 — 用于多级渐进式展开帮助
     /// </summary>
     private static string? GetHelpTopic(string[] args) {
-        for (int i = 0; i < args.Length - 1; i++) {
+        for (var i = 0; i < args.Length - 1; i++) {
             if (args[i] is "-h" or "--help") {
                 var next = args[i + 1];
                 if (!next.StartsWith('-'))

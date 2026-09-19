@@ -198,9 +198,9 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
 
         // 列表已按层级类型排序（低到高），所以从后往前遍历（高到低）
         var sb = new StringBuilder();
-        bool first = true;
+        var first = true;
 
-        for (int i = _layers.Count - 1; i >= 0; i--) {
+        for (var i = _layers.Count - 1; i >= 0; i--) {
             var layer = _layers[i];
             if (string.IsNullOrWhiteSpace(layer.Content)) {
                 continue;
@@ -223,7 +223,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
         using var guard = await _lock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_lock.Name}' 等待超时");
 
         var total = 0;
-        for (int i = 0; i < _layers.Count; i++) {
+        for (var i = 0; i < _layers.Count; i++) {
             total += _layers[i].TokenCount;
         }
         return total;
@@ -235,11 +235,11 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     /// </summary>
     private void InsertSorted(IContextLayer layer) {
         // 二分查找插入位置
-        int left = 0;
-        int right = _layers.Count;
+        var left = 0;
+        var right = _layers.Count;
 
         while (left < right) {
-            int mid = left + (right - left) / 2;
+            var mid = left + (right - left) / 2;
             if (_layers[mid].LayerType < layer.LayerType) {
                 left = mid + 1;
             } else {
@@ -257,7 +257,7 @@ public sealed partial class ContextHierarchy : ServiceEntity, IContextHierarchy,
     private async Task CheckAndTriggerAutoCompressionAsync(CancellationToken ct = default) {
         // 计算总token数（不获取锁，因为调用方已持有）
         var totalTokens = 0;
-        for (int i = 0; i < _layers.Count; i++) {
+        for (var i = 0; i < _layers.Count; i++) {
             totalTokens += _layers[i].TokenCount;
         }
 

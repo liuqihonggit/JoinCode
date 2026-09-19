@@ -112,8 +112,8 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             }
 
             var lines = new System.Text.StringBuilder();
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++) {
+            for (var y = 0; y < height; y++) {
+                for (var x = 0; x < width; x++) {
                     var ch = buffer[y * width + x].Char;
                     lines.Append(ch == '\0' ? ' ' : ch);
                 }
@@ -147,8 +147,8 @@ public sealed partial class TerminalCaptureService : ServiceEntity, ITerminalCap
             }
 
             var lines = new System.Text.StringBuilder();
-            for (int y = 0; y < readLines; y++) {
-                for (int x = 0; x < width; x++) {
+            for (var y = 0; y < readLines; y++) {
+                for (var x = 0; x < width; x++) {
                     var ch = buffer[y * width + x].Char;
                     lines.Append(ch == '\0' ? ' ' : ch);
                 }

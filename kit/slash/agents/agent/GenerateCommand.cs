@@ -22,7 +22,7 @@ public sealed partial class GenerateCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         Diag.WriteLine($"[GenerateCommand] ExecuteAsync entry, Arguments='{context.Arguments}'");
         if (string.IsNullOrWhiteSpace(context.Arguments)) {
             _logger?.LogWarning("请提供代码描述，例如: /generate 创建一个Hello World程序");

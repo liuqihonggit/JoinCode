@@ -185,7 +185,7 @@ public sealed class ServiceMessageBusTests {
     public async Task PublishAsync_HistoryTrimming_KeepsMaxItems() {
         using var bus = new ServiceMessageBus(maxHistoryPerChannel: 3);
 
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             await bus.PublishAsync(ServiceMessage.Create("test", "sender", i)).ConfigureAwait(true);
         }
 

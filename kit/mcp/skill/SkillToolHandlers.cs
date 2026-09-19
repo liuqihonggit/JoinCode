@@ -252,7 +252,7 @@ public class SkillToolHandlers {
             var responseBuilder = new StringBuilder(256);
             var progressMessages = new List<SkillProgressMessage>();
             string? agentId = null;
-            bool hasError = false;
+            var hasError = false;
             string? errorMessage = null;
 
             await foreach (var chunk in (_agentService ?? throw new InvalidOperationException("AgentService is not available")).RunAgentStreamAsync(spawnOptions, cancellationToken).ConfigureAwait(false)) {

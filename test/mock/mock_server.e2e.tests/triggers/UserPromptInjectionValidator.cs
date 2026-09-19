@@ -193,7 +193,7 @@ public sealed class UserPromptInjectionValidator {
 
         var lowerInput = userInput.ToLowerInvariant();
         var matchedKeywords = new List<string>();
-        InjectionType detectedType = InjectionType.None;
+        var detectedType = InjectionType.None;
 
         foreach (var (type, keywords) in InjectionKeywords) {
             foreach (var keyword in keywords) {

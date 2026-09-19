@@ -13,7 +13,7 @@ public sealed class InsightsCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>表示命令执行完成的任务,结果为继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
 
         if (args is "stats" or "s") {
@@ -562,7 +562,7 @@ public sealed class InsightsCommand : ChatCommandBase {
 /// <summary>
 /// LINQ 风格的字符串连接扩展
 /// </summary>
-file static class InsightsStringExtensions {
+static file class InsightsStringExtensions {
     public static string Join(this IEnumerable<string> source, string separator) =>
         string.Join(separator, source);
 }

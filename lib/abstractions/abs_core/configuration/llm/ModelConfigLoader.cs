@@ -69,7 +69,7 @@ public sealed class ModelConfigLoader : IModelConfigLoader {
             return [];
 
         var entries = new ModelEntry[providerConfig.Models.Count];
-        for (int i = 0; i < providerConfig.Models.Count; i++) {
+        for (var i = 0; i < providerConfig.Models.Count; i++) {
             var m = providerConfig.Models[i];
             entries[i] = new ModelEntry(m.Id, m.DisplayName, m.ContextWindow, m.Description);
         }

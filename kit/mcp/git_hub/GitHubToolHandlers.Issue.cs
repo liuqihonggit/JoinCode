@@ -85,7 +85,7 @@ public partial class GitHubToolHandlers {
         if (!string.IsNullOrWhiteSpace(label)) {
             var labels = label.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var labelArr = new StringBuilder("[");
-            for (int i = 0; i < labels.Length; i++) {
+            for (var i = 0; i < labels.Length; i++) {
                 if (i > 0) labelArr.Append(',');
                 labelArr.Append(JsonEscapeString(labels[i]));
             }

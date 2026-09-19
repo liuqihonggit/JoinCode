@@ -65,7 +65,7 @@ public sealed partial class GitHubApiClient : ServiceEntity, IGitHubApiClient {
         var effectivePath = NormalizePath(path);
         var allBodies = new List<string>();
         string? nextUrl = null;
-        int lastStatusCode = 0;
+        var lastStatusCode = 0;
         var isFirstPage = true;
 
         while (true) {

@@ -119,7 +119,7 @@ public static class CronJitterHelper {
 
         const int maxIter = 366 * 24 * 60;
 
-        for (int i = 0; i < maxIter; i++) {
+        for (var i = 0; i < maxIter; i++) {
             var month = t.Month;
             if (!monthSet.Contains(month)) {
                 t = new DateTimeOffset(t.Year, t.Month, 1, 0, 0, 0, t.Offset).AddMonths(1);
@@ -129,7 +129,7 @@ public static class CronJitterHelper {
             var dom = t.Day;
             var dow = (int)t.DayOfWeek;
 
-            bool dayMatches = domWild && dowWild
+            var dayMatches = domWild && dowWild
                 ? true
                 : domWild
                     ? dowSet.Contains(dow)

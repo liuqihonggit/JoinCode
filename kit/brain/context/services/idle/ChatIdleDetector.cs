@@ -64,7 +64,7 @@ public sealed partial class ChatIdleDetector : ServiceEntity, IChatIdleDetector 
     private async Task<bool> DetectToolUsageAsync(CancellationToken cancellationToken) {
         try {
             var history = await _contextManager.GetMessageListAsync(cancellationToken).ConfigureAwait(false);
-            for (int i = history.Count - 1; i >= 0; i--) {
+            for (var i = history.Count - 1; i >= 0; i--) {
                 if (history[i].Role == MessageRole.Tool) {
                     return true;
                 }

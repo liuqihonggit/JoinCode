@@ -74,7 +74,7 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime {
     public async Task SpawnSubAgentsAsync_BatchCreation_ShouldCreateAllAgents() {
         var tasks = new[] { "Task 1", "Task 2", "Task 3" };
 
-        for (int i = 0; i < tasks.Length; i++) {
+        for (var i = 0; i < tasks.Length; i++) {
             var task = tasks[i];
             var agent = new AgentBase(task, null, _queryEngineMock.Object, null);
             _lifecycleManagerMock.Setup(x => x.SpawnSubAgentAsync(task, null, default))
@@ -409,6 +409,6 @@ public class AgentCoordinatorExtendedTests : IAsyncLifetime {
     }
 }
 
-file sealed class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext> {
+sealed file class ActionMiddleware<TContext>(Func<TContext, MiddlewareDelegate<TContext>, CancellationToken, Task> invoke) : IMiddleware<TContext> {
     public Task InvokeAsync(TContext context, MiddlewareDelegate<TContext> next, CancellationToken ct) => invoke(context, next, ct);
 }

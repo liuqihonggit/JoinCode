@@ -63,7 +63,7 @@ public sealed class ToolIdleReminderServiceTests {
     public async Task CheckAndGenerateRemindersAsync_ReminderThrottle_PreventsFrequentReminders() {
         var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 5)]);
 
-        for (int i = 0; i < 3; i++) service.RecordAssistantTurn(null);
+        for (var i = 0; i < 3; i++) service.RecordAssistantTurn(null);
 
         var first = await service.CheckAndGenerateRemindersAsync().ConfigureAwait(true);
         Assert.Single(first);
@@ -78,12 +78,12 @@ public sealed class ToolIdleReminderServiceTests {
     public async Task CheckAndGenerateRemindersAsync_AfterThrottlePeriod_GeneratesAgain() {
         var service = new ToolIdleReminderService([CreateConfig(turnsSinceUse: 2, turnsBetweenReminders: 3)]);
 
-        for (int i = 0; i < 3; i++) service.RecordAssistantTurn(null);
+        for (var i = 0; i < 3; i++) service.RecordAssistantTurn(null);
 
         var first = await service.CheckAndGenerateRemindersAsync().ConfigureAwait(true);
         Assert.Single(first);
 
-        for (int i = 0; i < 4; i++) service.RecordAssistantTurn(null);
+        for (var i = 0; i < 4; i++) service.RecordAssistantTurn(null);
 
         var second = await service.CheckAndGenerateRemindersAsync().ConfigureAwait(true);
         Assert.Single(second);

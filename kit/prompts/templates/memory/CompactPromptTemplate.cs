@@ -6,7 +6,7 @@ namespace Core.Prompts.Templates.Memory;
 /// </summary>
 [PromptTemplate(Name = "compact", Category = PromptTemplateCategory.Memory, Description = "上下文压缩提示词模板，生成对话摘要", HasParameters = true)]
 public static class CompactPromptTemplate {
-    private static string NoToolsPreamble = $@"
+    private static readonly string NoToolsPreamble = $@"
 重要：仅用文本回复。不要调用任何工具。
 
 - 不要使用 {FileToolNameEnumConstants.FileRead}、{ShellToolNameEnumConstants.Bash}、{SearchToolNameEnumConstants.Grep}、{SearchToolNameEnumConstants.Glob}、{FileToolNameEnumConstants.FileEdit}、{FileToolNameEnumConstants.FileWrite} 或任何其他工具。

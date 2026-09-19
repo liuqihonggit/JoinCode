@@ -41,7 +41,7 @@ public class MemoryManagementToolHandlers {
         if (result.RelevantMemories.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoRelevantMemories));
         } else {
-            for (int i = 0; i < result.RelevantMemories.Count; i++) {
+            for (var i = 0; i < result.RelevantMemories.Count; i++) {
                 var scored = result.RelevantMemories[i];
                 var memory = scored.Memory;
 
@@ -337,7 +337,7 @@ public class MemoryManagementToolHandlers {
         if (result.RelevantMemories.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoRelevantMemories));
         } else {
-            for (int i = 0; i < result.RelevantMemories.Count; i++) {
+            for (var i = 0; i < result.RelevantMemories.Count; i++) {
                 var scored = result.RelevantMemories[i];
                 var memory = scored.Memory;
 

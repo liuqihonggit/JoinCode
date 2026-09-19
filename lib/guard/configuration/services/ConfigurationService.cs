@@ -43,7 +43,7 @@ public sealed partial class ConfigurationService : ServiceEntity, IConfiguration
 
         // 2. 按存储源分流读取 — 对齐 TS: global → ~/.claude.json, settings → ~/.claude/settings.json
         try {
-            string? diskValue = source == SettingSource.GlobalConfig
+            var diskValue = source == SettingSource.GlobalConfig
                 ? await ConfigLoader.LoadSettingFromGlobalConfigAsync(key, _fs, cancellationToken, _logger).ConfigureAwait(false)
                 : await ConfigLoader.LoadSettingFromSettingsJsonAsync(key, _fs, cancellationToken, _logger).ConfigureAwait(false);
 

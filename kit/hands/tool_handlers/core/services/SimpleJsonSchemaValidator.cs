@@ -78,7 +78,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
             if (requiredNode is not JsonArray reqArray) {
                 errors.Add(new ValidationError { Path = $"{path}.required", Message = "Schema 'required' must be an array" });
             } else {
-                for (int i = 0; i < reqArray.Count; i++) {
+                for (var i = 0; i < reqArray.Count; i++) {
                     if (reqArray[i] is not JsonValue rv || !rv.TryGetValue(out string? _)) {
                         errors.Add(new ValidationError { Path = $"{path}.required[{i}]", Message = "Each 'required' item must be a string" });
                     }
@@ -196,7 +196,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
         var expectedType = typeNode!.GetValue<string>();
         var actualType = GetJsonTypeName(instance);
 
-        bool typeMatch = expectedType switch {
+        var typeMatch = expectedType switch {
             "number" => actualType is "number" or "integer",
             _ => actualType == expectedType
         };
@@ -342,7 +342,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
 
         // Items schema
         if (schema.TryGetPropertyValue("items", out var itemsSchema)) {
-            for (int i = 0; i < instance.Count; i++) {
+            for (var i = 0; i < instance.Count; i++) {
                 ValidateNode(instance[i], itemsSchema, $"{path}[{i}]", errors);
             }
         }
@@ -392,7 +392,7 @@ public sealed partial class SimpleJsonSchemaValidator : ServiceEntity, IJsonSche
 
         if (a is JsonArray aArr && b is JsonArray bArr) {
             if (aArr.Count != bArr.Count) return false;
-            for (int i = 0; i < aArr.Count; i++) {
+            for (var i = 0; i < aArr.Count; i++) {
                 if (!JsonNodeDeepEquals(aArr[i], bArr[i])) return false;
             }
             return true;

@@ -52,7 +52,7 @@ public sealed class FalvCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args is JccCliArgEnumConstants.HelpAlias__h or JccCliArgEnumConstants.Help) {
@@ -225,7 +225,7 @@ public sealed class FalvCommand : ChatCommandBase {
     private static void ShowCone(IReasoningEngine engine) {
         TerminalHelper.WriteLine("=== 有限视锥 ===");
 
-        foreach (JoinCode.Abstractions.Models.Agent.AgentRole role in Enum.GetValues<JoinCode.Abstractions.Models.Agent.AgentRole>()) {
+        foreach (var role in Enum.GetValues<JoinCode.Abstractions.Models.Agent.AgentRole>()) {
             var expanded = engine.ExpandFragment(role, "", "*");
             var coneContext = engine switch {
                 ReasoningEngine re => re.ConeOrchestrator.GetRole(role)?.GetConeContext() ?? "无数据",

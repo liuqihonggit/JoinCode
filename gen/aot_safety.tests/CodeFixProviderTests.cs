@@ -1,7 +1,7 @@
-namespace AotSafety.Tests;
 
 using CodeFixes;
 
+namespace AotSafety.Tests;
 public class Jcc6005CodeFixProviderTests {
     [Fact]
     public async Task InsertAtZero_InLoop_ReportsJCC6005() {

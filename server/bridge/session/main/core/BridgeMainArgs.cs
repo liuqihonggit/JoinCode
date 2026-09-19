@@ -62,7 +62,7 @@ public static class BridgeMainArgsParser {
         ArgumentNullException.ThrowIfNull(args);
 
         var result = BridgeCliArgParser.Parse(args);
-        string? error = result.Error;
+        var error = result.Error;
 
         int? sessionTimeoutMs = null;
         if (result.SessionTimeout is not null) {

@@ -72,7 +72,7 @@ public sealed class ToolArgumentParser {
         var inQuotes = false;
         var quoteChar = '\0';
 
-        for (int i = 0; i < arguments.Length; i++) {
+        for (var i = 0; i < arguments.Length; i++) {
             var c = arguments[i];
 
             if (!inQuotes && (c == '"' || c == '\'')) {

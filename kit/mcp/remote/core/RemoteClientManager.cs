@@ -161,7 +161,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
         var reconnectCts = _reconnectCts.Setup(clientId);
 
         try {
-            for (int attempt = 1; attempt <= MaxReconnectAttempts; attempt++) {
+            for (var attempt = 1; attempt <= MaxReconnectAttempts; attempt++) {
                 if (reconnectCts.IsCancellationRequested) return;
 
                 _logger.LogInformation(

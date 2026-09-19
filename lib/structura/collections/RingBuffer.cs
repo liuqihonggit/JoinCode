@@ -18,7 +18,7 @@ public sealed class RingBuffer<T> {
 #pragma warning disable 0169
     private struct PaddedInt {
         internal int Value;
-        private long _p1, _p2, _p3, _p4, _p5, _p6, _p7;
+        private readonly long _p1, _p2, _p3, _p4, _p5, _p6, _p7;
     }
 #pragma warning restore 0169
 

@@ -234,7 +234,7 @@ public sealed class HookEventCaptureTests : OpenAIMockTestBase {
         });
 
         // Act - 模拟多次进度更新
-        for (int i = 0; i < 3; i++) {
+        for (var i = 0; i < 3; i++) {
             _broadcaster.BroadcastProgress(
                 hookId: "test-hook-8",
                 hookName: "ProgressTest",

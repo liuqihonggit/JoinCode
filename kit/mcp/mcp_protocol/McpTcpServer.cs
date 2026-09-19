@@ -230,7 +230,7 @@ public sealed class McpTcpServer : ServiceEntity {
         }
 
         // 读取 body
-        string body = string.Empty;
+        var body = string.Empty;
         if (headers.TryGetValue("Content-Length", out var lenStr) && int.TryParse(lenStr, out var contentLength) && contentLength > 0) {
             if (contentLength > 10 * 1024 * 1024) {
                 throw new InvalidOperationException("HTTP body 过大(>10MB)");

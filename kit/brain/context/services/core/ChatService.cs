@@ -31,7 +31,7 @@ public partial class ChatService : IChatService {
     /// <summary>
     /// 文件读取监听器订阅 — 用于追踪最近读取的文件，压缩后恢复上下文
     /// </summary>
-    private IDisposable? _fileReadListenerSubscription;
+    private readonly IDisposable? _fileReadListenerSubscription;
 
     /// <summary>
     /// 初始化聊天服务，注入上下文管理器、中间件管道和可选文件读取监听器

@@ -42,7 +42,7 @@ public sealed partial class MicrocompactService : ServiceEntity, IMicrocompactSe
 
         // ShellExecution — 所有 Shell 工具结果都可压缩（ShellToolBase.IsCompactable）
         // 新增 Shell 枚举值时自动纳入，无需手动添加
-        foreach (ShellToolName value in Enum.GetValues<ShellToolName>())
+        foreach (var value in Enum.GetValues<ShellToolName>())
             tools.Add(value.ToValue());
 
         // FileRead — 文件读写编辑工具

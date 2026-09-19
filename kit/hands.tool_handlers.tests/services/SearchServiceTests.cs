@@ -201,7 +201,7 @@ public sealed class SearchServiceTests : IDisposable {
     [Fact]
     public async Task GrepSearchAsync_WithHeadLimit_LimitsResults() {
         // Arrange
-        for (int i = 0; i < 10; i++) {
+        for (var i = 0; i < 10; i++) {
             _fileOperationService.FileSystem.WriteAllText($"{_testDir}/file{i}.cs", "class Test {}");
         }
 

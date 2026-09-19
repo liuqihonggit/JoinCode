@@ -72,7 +72,7 @@ public sealed partial class ShellSedInterceptMiddleware : ServiceEntity, IShellM
 
         // 二次调用确认：检查是否有待确认的编辑 — 对齐 TS _simulatedSedEdit
         var cache = GetCurrentCache();
-        PendingSedConfirmation? pending = cache?.Get<PendingSedConfirmation>(filePath);
+        var pending = cache?.Get<PendingSedConfirmation>(filePath);
         if (pending is null && _fallbackEdits.TryGetValue(filePath, out var fallbackPending))
             pending = fallbackPending;
 

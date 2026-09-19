@@ -29,7 +29,7 @@ public static class CronExpressionParser {
         if (parts.Length != 5) return null;
 
         var expanded = new int[5][];
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             var result = ExpandField(parts[i], FieldRanges[i]);
             if (result == null) return null;
             expanded[i] = result;
@@ -59,7 +59,7 @@ public static class CronExpressionParser {
             if (stepMatch.Success) {
                 var step = stepMatch.Groups[1].Success ? int.Parse(stepMatch.Groups[1].Value) : 1;
                 if (step < 1) return null;
-                for (int i = min; i <= max; i += step)
+                for (var i = min; i <= max; i += step)
                     result.Add(i);
                 continue;
             }
@@ -75,7 +75,7 @@ public static class CronExpressionParser {
 
                 if (lo > hi || step < 1 || lo < min || hi > effMax) return null;
 
-                for (int i = lo; i <= hi; i += step) {
+                for (var i = lo; i <= hi; i += step) {
                     result.Add(isDow && i == 7 ? 0 : i);
                 }
                 continue;

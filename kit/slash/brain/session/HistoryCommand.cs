@@ -11,7 +11,7 @@ public sealed class HistoryCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         await DisplayMessageListAsync(context.GetCommandServices().ChatService).ConfigureAwait(false);
         return ChatCommandResult.Continue();
     }

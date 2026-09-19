@@ -13,7 +13,7 @@ public sealed class WorkflowsCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文，包含参数、服务容器、取消令牌等</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         if (string.IsNullOrEmpty(args) || args.Equals("list", StringComparison.OrdinalIgnoreCase)) {

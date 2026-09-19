@@ -274,7 +274,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService {
 
     /// <inheritdoc />
     public NotebookEditResult ClearAllOutputs(NotebookDocument notebook) {
-        for (int i = 0; i < notebook.Cells.Count; i++) {
+        for (var i = 0; i < notebook.Cells.Count; i++) {
             var cell = notebook.Cells[i];
             if (cell.Type == NotebookCellType.Code) {
                 notebook.Cells[i] = cell with {
@@ -331,7 +331,7 @@ public sealed partial class NotebookService : ServiceEntity, INotebookService {
         // 使用 Random.Shared 生成类似 TS 的 base36 随机 ID
         const string chars = "0123456789abcdefghijklmnopqrstuvwxyz";
         var span = new char[13];
-        for (int i = 0; i < span.Length; i++)
+        for (var i = 0; i < span.Length; i++)
             span[i] = chars[Random.Shared.Next(chars.Length)];
         return new string(span);
     }

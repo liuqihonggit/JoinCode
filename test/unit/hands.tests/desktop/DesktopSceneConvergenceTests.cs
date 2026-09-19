@@ -11,7 +11,7 @@ public sealed class DesktopSceneConvergenceTests {
         const int initialHeight = 1080;
         var initialArea = (long)initialWidth * initialHeight;
 
-        for (int depth = 1; depth <= 10; depth++) {
+        for (var depth = 1; depth <= 10; depth++) {
             var actualWidth = initialWidth / (1 << depth);
             var actualHeight = initialHeight / (1 << depth);
             var actualArea = (long)actualWidth * actualHeight;

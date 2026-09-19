@@ -22,7 +22,7 @@ public sealed partial class McpWebSocketClient : McpNetworkClient<Transports.Web
 
     private static Transports.WebSocketTransport CreateTransport(
         McpServerConnectionConfig config, IMcpAuthProvider? authProvider, ILogger? logger) {
-        IMcpAuthProvider? resolvedAuthProvider = authProvider;
+        var resolvedAuthProvider = authProvider;
         if (resolvedAuthProvider == null && config.Auth != null) {
             resolvedAuthProvider = McpAuthProviderFactory.Create(config.Auth, logger);
         }

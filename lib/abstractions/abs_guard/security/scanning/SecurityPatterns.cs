@@ -229,7 +229,7 @@ public static partial class SecurityPatterns {
     public static string RuleIdToLabel(string ruleId) {
         var parts = ruleId.Split('-');
         var result = new string[parts.Length];
-        for (int i = 0; i < parts.Length; i++) {
+        for (var i = 0; i < parts.Length; i++) {
             result[i] = RuleIdLabels.GetValueOrDefault(parts[i], Capitalize(parts[i]));
         }
         return string.Join(' ', result);
@@ -486,7 +486,7 @@ public static partial class SecurityPatterns {
         if (string.IsNullOrWhiteSpace(content))
             return findings;
 
-        int lineNumber = 0;
+        var lineNumber = 0;
         foreach (var line in content.Split('\n')) {
             lineNumber++;
             var trimmedLine = line.TrimStart();

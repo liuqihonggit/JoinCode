@@ -240,7 +240,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
         }
         await SendAsync(new SetForkCtsCmd(forkId, null), ct).ConfigureAwait(false);
 
-        string? agentIdToCancel = snapshot.AgentId;
+        var agentIdToCancel = snapshot.AgentId;
         if (agentIdToCancel is not null) {
             await SendAsync(new SetForkAgentIdCmd(forkId, null), ct).ConfigureAwait(false);
             StopMailboxPollingIfNeeded(agentIdToCancel);

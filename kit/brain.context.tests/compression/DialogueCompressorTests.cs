@@ -126,7 +126,7 @@ AI: I'm fine!";
         // 创建足够多的对话轮次（超过 DialogueRoundsToPreserve=2）
         // 需要至少3个完整轮次（User+Assistant）才能触发压缩
         var dialogueLines = new List<string>();
-        for (int i = 0; i < 6; i++) {
+        for (var i = 0; i < 6; i++) {
             dialogueLines.Add($"User: Question {i}");
             dialogueLines.Add($"Assistant: Answer {i} with some detailed explanation and code examples");
         }

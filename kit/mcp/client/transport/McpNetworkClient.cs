@@ -86,7 +86,7 @@ public abstract class McpNetworkClient<TTransport> : McpClientBase
     /// <returns>服务器返回的 JSON-RPC 响应。</returns>
     protected override async Task<JsonRpcResponse> SendRequestAsync(JsonRpcRequest request, CancellationToken cancellationToken) {
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
-        int requestId = request.GetIdAsInt();
+        var requestId = request.GetIdAsInt();
 
         await _requestRegistry.RegisterAsync(requestId, tcs, cancellationToken).ConfigureAwait(false);
 

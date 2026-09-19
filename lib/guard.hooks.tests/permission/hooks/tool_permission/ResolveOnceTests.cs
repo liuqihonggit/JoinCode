@@ -108,7 +108,7 @@ public class ResolveOnceTests {
 
     [Fact]
     public void Resolve_NullValue_ShouldWork() {
-        string? resolvedValue = "initial";
+        var resolvedValue = "initial";
         var resolveOnce = new ResolveOnce<string?>(v => resolvedValue = v);
 
         resolveOnce.Resolve(null);
@@ -133,7 +133,7 @@ public class ResolveOnceTests {
         var successfulClaims = 0;
         var tasks = new List<Task>();
 
-        for (int i = 0; i < 100; i++) {
+        for (var i = 0; i < 100; i++) {
             tasks.Add(Task.Run(() => {
                 if (resolveOnce.Claim()) {
                     Interlocked.Increment(ref successfulClaims);

@@ -15,7 +15,7 @@ public sealed class BridgeCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文，提供子操作参数与服务提供者</param>
     /// <returns>表示命令执行结果的 <see cref="ChatCommandResult"/>，始终为 Continue</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : "status";
 

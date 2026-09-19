@@ -11,7 +11,7 @@ public sealed class ReviewCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context);
 
         // 无参数时：交互式选择审查方式

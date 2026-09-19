@@ -21,7 +21,7 @@ public sealed partial class ExecuteCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         if (string.IsNullOrWhiteSpace(context.Arguments)) {
             // 兼容方案: 保留 LogWarning (logger 非 null 时记录日志)
             // 新增 TerminalHelper.WriteLine 确保用户可见反馈 (E2E 测试环境下 logger 为 null)

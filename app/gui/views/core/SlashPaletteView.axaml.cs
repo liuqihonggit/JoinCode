@@ -102,9 +102,9 @@ public sealed partial class SlashPaletteView : UserControl {
         var root = PaletteRoot;
         if (root is null)
             return;
-        double eased = 1 - Math.Pow(1 - t, 3);
+        var eased = 1 - Math.Pow(1 - t, 3);
         root.Opacity = _animOpening ? eased : 1 - eased;
-        double y = (_animOpening ? PaletteSlideOffset : 0) * (1 - eased);
+        var y = (_animOpening ? PaletteSlideOffset : 0) * (1 - eased);
         root.RenderTransform = TransformOperations.Parse($"translateY({y:F2}px)");
     }
 
@@ -129,7 +129,7 @@ public sealed partial class SlashPaletteView : UserControl {
             return;
         var top = (container.TransformToVisual(scroll) ?? default).Transform(default).Y;
         var bottom = top + container.Bounds.Height;
-        double dy = top < 0 ? top
+        var dy = top < 0 ? top
             : bottom > scroll.Viewport.Height ? bottom - scroll.Viewport.Height
             : 0;
         if (Math.Abs(dy) > 0.5)

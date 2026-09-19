@@ -92,20 +92,20 @@ public sealed partial class SessionScanner : ServiceEntity, IInsightSessionScann
         var userMessageTimestamps = new List<DateTime>();
         DateTime? lastAssistantTime = null;
 
-        int userMessageCount = 0;
-        int assistantMessageCount = 0;
+        var userMessageCount = 0;
+        var assistantMessageCount = 0;
         long inputTokens = 0;
         long outputTokens = 0;
-        int gitCommits = 0;
-        int gitPushes = 0;
-        int linesAdded = 0;
-        int linesRemoved = 0;
-        int userInterruptions = 0;
-        int toolErrors = 0;
-        bool usesTaskAgent = false;
-        bool usesMcp = false;
-        bool usesWebSearch = false;
-        bool usesWebFetch = false;
+        var gitCommits = 0;
+        var gitPushes = 0;
+        var linesAdded = 0;
+        var linesRemoved = 0;
+        var userInterruptions = 0;
+        var toolErrors = 0;
+        var usesTaskAgent = false;
+        var usesMcp = false;
+        var usesWebSearch = false;
+        var usesWebFetch = false;
         string? firstPrompt = null;
         decimal estimatedCost = 0;
 

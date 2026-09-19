@@ -11,7 +11,7 @@ public sealed class ExitCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>表示异步操作的任务，承载命令执行结果。</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         // T9：UI 注入确认回调优先（GUI 弹窗/TUI 对话框），回退 CLI 终端 y/N。
         // 非交互环境且无注入回调时直接退出（测试/PTY 场景，无法确认）
         if (context.Confirm is { } confirm) {

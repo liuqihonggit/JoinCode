@@ -69,7 +69,7 @@ public sealed partial class VariableResolver : ServiceEntity, IVariableResolver 
 
         var sb = new StringBuilder(input);
 
-        foreach (Match match in variablesToProcess.OrderByDescending(m => m.Index)) {
+        foreach (var match in variablesToProcess.OrderByDescending(m => m.Index)) {
             var variableContent = match.Groups["content"].Value.Trim();
             var parsedVariable = GetOrParseVariable(variableContent);
             var replacement = GetReplacementValue(parsedVariable, variables, throwOnMissing);

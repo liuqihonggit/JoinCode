@@ -6,7 +6,7 @@ namespace Bridge.Tests;
 /// 测试批量添加、手动/自动刷新、事件触发
 /// </summary>
 public sealed class FlushGateTests : IAsyncDisposable {
-    private FlushGate<string> _sut = new(logger: NullLogger.Instance);
+    private readonly FlushGate<string> _sut = new(logger: NullLogger.Instance);
 
     private static FlushGate<string> CreateSut(FlushGateOptions? options = null) =>
         new(options, NullLogger.Instance);

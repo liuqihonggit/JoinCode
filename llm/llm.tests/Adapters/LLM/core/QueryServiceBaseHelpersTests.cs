@@ -121,7 +121,7 @@ public class QueryServiceBaseHelpersTests {
             CancellationToken cancellationToken = default)
             => AsyncEnumerable.Empty<StreamEvent>();
 
-        public new static string MapClrTypeToJsonSchemaType(Type? type)
+        public static new string MapClrTypeToJsonSchemaType(Type? type)
             => QueryServiceBase.MapClrTypeToJsonSchemaType(type);
     }
 

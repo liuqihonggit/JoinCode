@@ -1,7 +1,7 @@
-namespace Abs.Tests.Utils;
 
 using Testing.Common.Services;
 
+namespace Abs.Tests.Utils;
 /// <summary>
 /// TempFileScope 单元测试 — 验证临时文件路径预留与 Dispose 自动删除（含幂等、文件不存在不抛）
 /// </summary>

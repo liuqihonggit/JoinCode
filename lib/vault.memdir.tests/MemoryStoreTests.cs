@@ -110,7 +110,7 @@ public class MemoryStoreTests : IDisposable {
     [Fact]
     public void Search_WithLimit_ShouldRespectLimit() {
         // Arrange
-        for (int i = 0; i < 20; i++) {
+        for (var i = 0; i < 20; i++) {
             _store.AddMemory($"Memory number {i}");
         }
 
@@ -472,7 +472,7 @@ public class MemoryStoreTests : IDisposable {
     [Fact]
     public void SearchByTags_WithLimit_RespectsLimitAfterMaterialization() {
         // Arrange - 添加5条匹配记忆
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             _store.AddMemory($"标签记忆 {i}", tags: new List<string> { "limit" });
         }
 
@@ -486,7 +486,7 @@ public class MemoryStoreTests : IDisposable {
     [Fact]
     public void SearchByType_WithLimit_RespectsLimitAfterMaterialization() {
         // Arrange - 添加5条匹配记忆
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             _store.AddMemory($"类型记忆 {i}", MemoryType.User);
         }
 

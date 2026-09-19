@@ -36,7 +36,7 @@ public partial class Store<TState> : IStore<TState>, IDisposable where TState : 
         IStorePersistence<TState>? persistence = null,
         ILogger<Store<TState>>? logger = null,
         CancellationToken cancellationToken = default) {
-        TState initialState = defaultState;
+        var initialState = defaultState;
 
         if (persistence != null) {
             try {

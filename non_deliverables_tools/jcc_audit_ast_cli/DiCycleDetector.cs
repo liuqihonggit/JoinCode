@@ -1,7 +1,7 @@
-namespace JccAuditCli;
 
 using Structura.Dag;
 
+namespace JccAuditCli;
 /// <summary>
 /// DI 循环依赖检测器：构建全局有向图，检测循环
 /// </summary>

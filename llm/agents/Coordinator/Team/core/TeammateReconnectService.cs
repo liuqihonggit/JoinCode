@@ -188,7 +188,7 @@ public sealed partial class TeammateReconnectService : ServiceEntity, JoinCode.A
             };
         }
 
-        JoinCode.Abstractions.Interfaces.ReconnectStatus worstStatus = JoinCode.Abstractions.Interfaces.ReconnectStatus.Success;
+        var worstStatus = JoinCode.Abstractions.Interfaces.ReconnectStatus.Success;
         var totalAttempts = 0;
 
         foreach (var teammate in disconnected) {

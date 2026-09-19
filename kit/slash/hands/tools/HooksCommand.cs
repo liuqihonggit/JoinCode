@@ -13,7 +13,7 @@ public sealed class HooksCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var hookManager = context.GetCommandServices().HookConfigurationManager;
         var args = ChatCommandBase.GetNormalizedArgs(context);
 

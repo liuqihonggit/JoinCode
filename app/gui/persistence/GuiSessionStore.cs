@@ -127,7 +127,7 @@ public sealed class GuiSessionStore {
             }
 
             var info = _transcriptService.GetSessionInfoAsync(sessionId).GetAwaiter().GetResult();
-            string customTitle = string.Empty;
+            var customTitle = string.Empty;
             try {
                 customTitle = _transcriptService.GetCustomTitleAsync(sessionId).GetAwaiter().GetResult() ?? string.Empty;
             } catch (Exception ex) {

@@ -36,7 +36,7 @@ public sealed class BufferedStreamingDecorator : IQueryService {
         var contentBuilder = new StringBuilder();
         var metadata = new Dictionary<string, JsonElement>();
         string? modelId = null;
-        MessageRole role = MessageRole.Assistant;
+        var role = MessageRole.Assistant;
         TokenUsage? usage = null;
 
         await foreach (var evt in _inner.GetStreamEventContentsAsync(

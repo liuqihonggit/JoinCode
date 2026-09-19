@@ -280,13 +280,13 @@ public sealed class QueryServiceBaseHelperTests {
         public new StreamEvent? EnrichWithRateLimitMetadata(StreamEvent msg)
             => base.EnrichWithRateLimitMetadata(msg);
 
-        public new static string MapClrTypeToJsonSchemaType(Type? type)
+        public static new string MapClrTypeToJsonSchemaType(Type? type)
             => QueryServiceBase.MapClrTypeToJsonSchemaType(type);
 
-        public new static string GetBaseUrl(ProviderConfig config)
+        public static new string GetBaseUrl(ProviderConfig config)
             => QueryServiceBase.GetBaseUrl(config);
 
-        public new static string GetChatEndpoint(ProviderConfig config)
+        public static new string GetChatEndpoint(ProviderConfig config)
             => QueryServiceBase.GetChatEndpoint(config);
     }
 

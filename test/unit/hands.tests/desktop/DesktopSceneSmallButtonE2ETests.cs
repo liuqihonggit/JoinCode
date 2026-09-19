@@ -63,7 +63,7 @@ public sealed class DesktopSceneSmallButtonE2ETests {
         var capture = await captureService.CaptureWithGridAsync(sceneId, 2);
         var previousArea = (long)capture.ImageWidth * capture.ImageHeight;
 
-        for (int i = 1; i <= 5; i++) {
+        for (var i = 1; i <= 5; i++) {
             var zoom = await zoomService.ZoomAsync(sceneId, 1);
             var currentArea = (long)zoom.RegionWidth * zoom.RegionHeight;
             currentArea.Should().BeLessThanOrEqualTo(previousArea / 4 + 1,

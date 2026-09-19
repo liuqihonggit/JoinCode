@@ -38,7 +38,7 @@ internal sealed class ChatRoomViewBuilder {
         }).ToList();
 
         var onlineCount = members.Count(m => m.Status == ChatRoomMemberStatus.Online);
-        DateTime? lastMessageAt = room.LastMessageAt;
+        var lastMessageAt = room.LastMessageAt;
 
         return new ChatRoomInfo {
             ChatRoomId = team.TeamId,

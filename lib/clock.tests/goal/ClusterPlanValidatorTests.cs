@@ -27,7 +27,7 @@ public sealed class ClusterPlanValidatorTests {
     }
 
     private static void AddNSubTasks(List<SubTaskDefinition> tasks, int n) {
-        for (int i = 0; i < n; i++) {
+        for (var i = 0; i < n; i++) {
             tasks.Add(new SubTaskDefinition { Id = $"sub_{i}", Title = $"T{i}", Description = $"D{i}", OwnedFiles = [$"file{i}.cs"] });
         }
     }
@@ -59,7 +59,7 @@ public sealed class ClusterPlanValidatorTests {
     [Fact]
     public void Validate_TooManySubTasks_Should_Return_Invalid() {
         var plan = CreatePlan(tasks => {
-            for (int i = 0; i < 10; i++) {
+            for (var i = 0; i < 10; i++) {
                 tasks.Add(new SubTaskDefinition { Id = $"sub_{i}", Title = $"T{i}", Description = $"D{i}", OwnedFiles = [$"file{i}.cs"] });
             }
         });
@@ -180,7 +180,7 @@ public sealed class ClusterPlanValidatorTests {
     [Fact]
     public void Validate_MaxSubTasks_Boundary_Should_Pass() {
         var plan = CreatePlan(tasks => {
-            for (int i = 0; i < 8; i++) {
+            for (var i = 0; i < 8; i++) {
                 tasks.Add(new SubTaskDefinition { Id = $"sub_{i}", Title = $"T{i}", Description = $"D{i}", OwnedFiles = [$"file{i}.cs"] });
             }
         });

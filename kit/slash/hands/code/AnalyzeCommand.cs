@@ -21,7 +21,7 @@ public sealed partial class AnalyzeCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         if (string.IsNullOrWhiteSpace(context.Arguments)) {
             TerminalHelper.WriteLine("请提供要分析的代码，例如: /analyze function test()");
             return ChatCommandResult.Continue();

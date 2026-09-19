@@ -222,7 +222,7 @@ public class NotebookToolHandlers {
     }
 
     private static int ResolveCellIndex(NotebookDocument notebook, string cellId) {
-        for (int i = 0; i < notebook.Cells.Count; i++) {
+        for (var i = 0; i < notebook.Cells.Count; i++) {
             if (notebook.Cells[i].Id == cellId)
                 return i;
         }
@@ -250,7 +250,7 @@ public class NotebookToolHandlers {
         sb.Append($"\n[诊断] notebook 共 {notebook.Cells.Count} 个 cell，可用 ID:");
 
         var maxList = Math.Min(notebook.Cells.Count, 20);
-        for (int i = 0; i < maxList; i++) {
+        for (var i = 0; i < maxList; i++) {
             var id = notebook.Cells[i].Id ?? $"cell-{i}";
             sb.Append($"\n  - \"{id}\" (index {i})");
         }
@@ -373,7 +373,7 @@ public class NotebookToolHandlers {
             response.AppendLine($"{ObjectSymbol.File.ToValue()} {L.T(StringKey.NotebookCellContentHeader)}");
             response.AppendLine();
 
-            for (int i = 0; i < notebook.Cells.Count; i++) {
+            for (var i = 0; i < notebook.Cells.Count; i++) {
                 var cell = notebook.Cells[i];
                 response.AppendLine(L.T(StringKey.NotebookCellSeparator, i, cell.Type));
                 response.AppendLine(cell.SourceText);

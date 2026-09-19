@@ -473,7 +473,7 @@ public sealed class McpToolDispatchGenerator : IIncrementalGenerator {
 
     private static string ToSnakeCase(string name) {
         var sb = new StringBuilder(name.Length + 4);
-        for (int i = 0; i < name.Length; i++) {
+        for (var i = 0; i < name.Length; i++) {
             var c = name[i];
             if (char.IsUpper(c) && i > 0)
                 sb.Append('_');

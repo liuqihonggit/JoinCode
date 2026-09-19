@@ -183,7 +183,7 @@ public sealed partial class AgentMcpServerManager : ServiceEntity, JoinCode.Abst
         if (_mcpClientFactory is null)
             throw new InvalidOperationException("[MCP007] IMcpClientFactory 未注册，无法创建 MCP 客户端");
 
-        IMcpClient client = _mcpClientFactory.CreateClient(connectionConfig, enableFallback: true, logger: _logger);
+        var client = _mcpClientFactory.CreateClient(connectionConfig, enableFallback: true, logger: _logger);
 
         await client.ConnectAsync(cancellationToken).ConfigureAwait(false);
         await _remoteClientManager.RegisterClientAsync(clientId, client, cancellationToken).ConfigureAwait(false);

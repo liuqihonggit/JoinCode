@@ -1,7 +1,7 @@
-namespace Abs.Tests.Utils;
 
 using Testing.Common.Services;
 
+namespace Abs.Tests.Utils;
 /// <summary>
 /// CwdScope 单元测试 — 验证工作目录切换与 Dispose 自动恢复（含幂等）
 /// </summary>

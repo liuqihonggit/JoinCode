@@ -14,7 +14,7 @@ internal static class ArgumentTypeCoercer {
         ToolSchema schema) {
         var repairs = new List<string>();
         var repaired = new Dictionary<string, JsonElement>(arguments.Count);
-        bool modified = false;
+        var modified = false;
 
         foreach (var (key, value) in arguments) {
             if (!schema.Properties.TryGetValue(key, out var propSchema)) {

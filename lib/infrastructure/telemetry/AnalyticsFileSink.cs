@@ -90,7 +90,7 @@ public sealed partial class AnalyticsFileSink : IAnalyticsFileSink, IAsyncDispos
     private readonly int _batchSize;
     private readonly string _outputDirectory;
     private readonly CancellationTokenSource _cts;
-    private Task? _flushTask;
+    private readonly Task? _flushTask;
     private int _isDisposed;
     private static int s_fileCounter;
 

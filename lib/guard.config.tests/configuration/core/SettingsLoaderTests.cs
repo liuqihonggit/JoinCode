@@ -324,7 +324,7 @@ public class SettingsLoaderTests : IDisposable {
             // Windows 并行测试时偶发 UnauthorizedAccessException(目录刚被前一个测试清理),
             // 增加重试机制,确保临时目录稳定创建
             const int maxRetries = 3;
-            for (int i = 0; i < maxRetries; i++) {
+            for (var i = 0; i < maxRetries; i++) {
                 try {
                     if (!_fs.DirectoryExists(dir))
                         _fs.CreateDirectory(dir);

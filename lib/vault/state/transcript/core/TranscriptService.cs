@@ -80,7 +80,7 @@ public sealed partial class TranscriptService : ServiceEntity, ITranscriptServic
                     var transcriptPath = Path.Combine(dir, "transcript.json");
                     if (!_fs.FileExists(transcriptPath)) continue;
 
-                    int entryCount = 0;
+                    var entryCount = 0;
                     string? preview = null;
 
                     try {

@@ -129,7 +129,7 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator {
         sb.AppendLine($"    /// <summary>{description}</summary>");
         sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = new HashSet<string>(StringComparer.OrdinalIgnoreCase)");
         sb.AppendLine("    {");
-        for (int i = 0; i < matching.Count; i++) {
+        for (var i = 0; i < matching.Count; i++) {
             var comma = i < matching.Count - 1 ? "," : ",";
             sb.AppendLine($"        \"{EscapeString(matching[i].ToolName)}\"{comma}");
         }
@@ -149,7 +149,7 @@ public sealed class SecurityClassGenerator : IIncrementalGenerator {
         sb.AppendLine($"    /// <summary>{description}</summary>");
         sb.AppendLine($"    public static readonly FrozenSet<string> {setName} = new HashSet<string>(StringComparer.OrdinalIgnoreCase)");
         sb.AppendLine("    {");
-        for (int i = 0; i < matching.Count; i++) {
+        for (var i = 0; i < matching.Count; i++) {
             sb.AppendLine($"        \"{EscapeString(matching[i].ToolName)}\",");
         }
         sb.AppendLine("    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);");

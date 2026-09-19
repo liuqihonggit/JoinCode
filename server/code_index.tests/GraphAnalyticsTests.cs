@@ -53,7 +53,7 @@ public sealed class GraphAnalyticsTests : IDisposable {
 
     [Fact]
     public async Task QueryAsync_RespectsMaxResults() {
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
             InsertSymbol($"Handler{i}", $"Svc.Handler{i}", SymbolKind.Class, $"h{i}.cs", "Svc");
 
         var result = await _analytics.QueryAsync("Handler", 3, CancellationToken.None).ConfigureAwait(true);

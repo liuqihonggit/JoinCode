@@ -42,7 +42,7 @@ internal sealed class PluginLifecycleTracker {
     /// <summary>执行插件同步撤销链 — 按逆序执行所有撤销函数,完成后从加载顺序移除</summary>
     public void ExecuteUndoChain(string pluginName) {
         if (_undoChain.Remove(pluginName, out var undoChain)) {
-            for (int i = undoChain.Count - 1; i >= 0; i--) {
+            for (var i = undoChain.Count - 1; i >= 0; i--) {
                 try { undoChain[i](); } catch (Exception ex) {
                     _logger?.LogWarning(ex, "插件 {PluginName} 撤销链第 {Index} 项执行失败", pluginName, i);
                     _reportDiagnostic?.Invoke(new PluginDiagnostic {
@@ -61,7 +61,7 @@ internal sealed class PluginLifecycleTracker {
     /// <summary>执行插件异步撤销链 — 按逆序 await DisposeAsync</summary>
     public async Task ExecuteAsyncUndoChainAsync(string pluginName, CancellationToken ct) {
         if (_asyncUndoChain.Remove(pluginName, out var chain)) {
-            for (int i = chain.Count - 1; i >= 0; i--) {
+            for (var i = chain.Count - 1; i >= 0; i--) {
                 try { await chain[i].DisposeAsync().ConfigureAwait(false); } catch (Exception ex) {
                     _logger?.LogWarning(ex, "插件 {PluginName} async 撤销链第 {Index} 项失败", pluginName, i);
                     _reportDiagnostic?.Invoke(new PluginDiagnostic {

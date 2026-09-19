@@ -223,7 +223,7 @@ public static class DestructiveCommandAnalyzer {
 
         foreach (var definition in DangerousCommands) {
             // 使用预编译的正则表达式，避免每次重新编译
-            bool isMatch = definition.CompiledRegex?.IsMatch(command) ?? false;
+            var isMatch = definition.CompiledRegex?.IsMatch(command) ?? false;
 
             if (isMatch) {
                 detectedCommands.Add(definition.Pattern);

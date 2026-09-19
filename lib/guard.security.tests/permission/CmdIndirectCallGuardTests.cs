@@ -1,9 +1,9 @@
-namespace Guard.Security.Tests;
 
 using Core.Hooks.Execution.Interception;
 using Core.Hooks.Execution.Interception.Guards;
 using Core.Security.DangerClassification;
 
+namespace Guard.Security.Tests;
 /// <summary>
 /// CmdIndirectCallGuard 单元测试 — ADR 0012 阶段4
 /// 验证 cmd /c 和 powershell -Command 间接调用内层命令递归分类

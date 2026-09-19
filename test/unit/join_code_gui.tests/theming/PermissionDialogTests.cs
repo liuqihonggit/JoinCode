@@ -29,7 +29,7 @@ public sealed class PermissionDialogTests {
     /// <summary>递归查找文本匹配的按钮（Headless 无布局线程，直接遍历可视树）</summary>
     private static async Task<Button?> FindButtonAsync(Window dialog, string text) {
         // 通过 RunJobs 泵起 UI 事件循环让 Content 挂载进可视树（Headless 无真实时钟）
-        for (int i = 0; i < 50; i++) {
+        for (var i = 0; i < 50; i++) {
             Avalonia.Threading.Dispatcher.UIThread.RunJobs();
             var found = dialog.GetVisualDescendants()
                 .OfType<Button>()

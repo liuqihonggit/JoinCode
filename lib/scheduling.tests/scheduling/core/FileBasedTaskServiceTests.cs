@@ -230,7 +230,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
         var tasks = new List<TaskItem>();
 
         // Act - 顺序创建5个任务
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             var result = await _service.CreateTaskAsync($"任务{i}", null, null, null, "medium", null).ConfigureAwait(true);
             Assert.True(result.Success, $"创建任务{i}失败: {result.ErrorMessage}");
             tasks.Add(result.Data!);
@@ -242,7 +242,7 @@ public sealed class FileBasedTaskServiceTests : IDisposable {
 
         // 验证ID是递增的
         var idNumbers = ids.Select(id => int.Parse(id.Replace("task-", ""))).OrderBy(n => n).ToList();
-        for (int i = 0; i < idNumbers.Count - 1; i++) {
+        for (var i = 0; i < idNumbers.Count - 1; i++) {
             Assert.True(idNumbers[i] < idNumbers[i + 1], "ID应该是递增的");
         }
 

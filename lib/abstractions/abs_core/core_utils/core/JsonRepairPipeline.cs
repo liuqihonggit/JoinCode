@@ -91,7 +91,7 @@ internal static class JsonRepairPipeline {
         sb.Append('"');
         sb.Append(keySpan);
         sb.Append("\":\"");
-        for (int i = 0; i < valueSpan.Length; i++) {
+        for (var i = 0; i < valueSpan.Length; i++) {
             if (valueSpan[i] == '\\')
                 sb.Append("\\\\");
             else if (valueSpan[i] == '"')
@@ -127,13 +127,13 @@ internal static class JsonRepairPipeline {
     }
 
     private static string RemoveTrailingCommas(string json, List<string> hints) {
-        bool changed = false;
+        var changed = false;
         var result = new StringBuilder(json.Length);
-        int i = 0;
+        var i = 0;
 
         while (i < json.Length) {
             if (json[i] == '"') {
-                int start = i;
+                var start = i;
                 i++;
                 while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
@@ -145,7 +145,7 @@ internal static class JsonRepairPipeline {
             }
 
             if (json[i] == ',') {
-                int j = i + 1;
+                var j = i + 1;
                 while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
 
                 if (j < json.Length && (json[j] == '}' || json[j] == ']')) {
@@ -166,13 +166,13 @@ internal static class JsonRepairPipeline {
     }
 
     private static string FixUnquotedKeys(string json, List<string> hints) {
-        bool changed = false;
+        var changed = false;
         var result = new StringBuilder(json.Length);
-        int i = 0;
+        var i = 0;
 
         while (i < json.Length) {
             if (json[i] == '"') {
-                int start = i;
+                var start = i;
                 i++;
                 while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
@@ -193,10 +193,10 @@ internal static class JsonRepairPipeline {
                 }
 
                 if (i < json.Length && (char.IsLetter(json[i]) || json[i] == '_')) {
-                    int keyStart = i;
+                    var keyStart = i;
                     while (i < json.Length && (char.IsLetterOrDigit(json[i]) || json[i] == '_')) i++;
 
-                    int j = i;
+                    var j = i;
                     while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
 
                     if (j < json.Length && json[j] == ':') {
@@ -227,15 +227,15 @@ internal static class JsonRepairPipeline {
     /// <para>字符级遍历，正确跳过字符串内的冒号，不会误处理字符串内的 :value, 模式</para>
     /// </summary>
     private static string FixUnquotedValues(string json, List<string> hints) {
-        bool changed = false;
+        var changed = false;
         var result = new StringBuilder(json.Length);
-        int i = 0;
+        var i = 0;
 
         // 将 json[start..end] 加双引号后追加到 result,裸反斜杠转义为 \\ (JSON 合法)
         static void AppendQuotedValue(StringBuilder sb, string s, int start, int end) {
             sb.Append('"');
             var span = s.AsSpan(start, end - start);
-            for (int k = 0; k < span.Length; k++) {
+            for (var k = 0; k < span.Length; k++) {
                 if (span[k] == '\\')
                     sb.Append("\\\\");
                 else
@@ -246,7 +246,7 @@ internal static class JsonRepairPipeline {
 
         while (i < json.Length) {
             if (json[i] == '"') {
-                int start = i;
+                var start = i;
                 i++;
                 while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
@@ -258,7 +258,7 @@ internal static class JsonRepairPipeline {
             }
 
             if (json[i] == '\'') {
-                int start = i;
+                var start = i;
                 i++;
                 while (i < json.Length && json[i] != '\'') i++;
                 if (i < json.Length) i++;
@@ -279,13 +279,13 @@ internal static class JsonRepairPipeline {
                 if (IsLiteralAt(json, i, "true") || IsLiteralAt(json, i, "false") || IsLiteralAt(json, i, "null"))
                     continue;
 
-                int valueStart = i;
+                var valueStart = i;
                 // 保守收集: 到空格/逗号/}/] 停(值不含空格的快速路径)
                 while (i < json.Length && json[i] != ',' && json[i] != '}' && json[i] != ']' && !char.IsWhiteSpace(json[i]))
                     i++;
 
                 if (i > valueStart) {
-                    int j = i;
+                    var j = i;
                     while (j < json.Length && char.IsWhiteSpace(json[j])) j++;
                     if (j < json.Length && (json[j] == ',' || json[j] == '}' || json[j] == ']')) {
                         AppendQuotedValue(result, json, valueStart, i);
@@ -301,13 +301,13 @@ internal static class JsonRepairPipeline {
                     i++;
 
                 // 去掉尾部空白(避免 "echo hello " 带尾部空格在引号内)
-                int valueEnd = i;
+                var valueEnd = i;
                 while (valueEnd > valueStart && char.IsWhiteSpace(json[valueEnd - 1])) valueEnd--;
 
                 if (valueEnd > valueStart) {
                     AppendQuotedValue(result, json, valueStart, valueEnd);
                     // 尾部空白在引号外原样输出
-                    for (int k = valueEnd; k < i; k++)
+                    for (var k = valueEnd; k < i; k++)
                         result.Append(json[k]);
                     changed = true;
                     continue;
@@ -333,7 +333,7 @@ internal static class JsonRepairPipeline {
     /// </summary>
     private static bool IsLiteralAt(string s, int index, string literal) {
         if (index + literal.Length > s.Length) return false;
-        for (int k = 0; k < literal.Length; k++) {
+        for (var k = 0; k < literal.Length; k++) {
             if (char.ToLowerInvariant(s[index + k]) != literal[k]) return false;
         }
         if (index + literal.Length < s.Length) {
@@ -391,13 +391,13 @@ internal static class JsonRepairPipeline {
     }
 
     private static string FixSingleQuotedStrings(string json, List<string> hints) {
-        bool changed = false;
+        var changed = false;
         var result = new StringBuilder(json.Length);
-        int i = 0;
+        var i = 0;
 
         while (i < json.Length) {
             if (json[i] == '"') {
-                int start = i;
+                var start = i;
                 i++;
                 while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
@@ -409,8 +409,8 @@ internal static class JsonRepairPipeline {
             }
 
             if (json[i] == '\'') {
-                int contentStart = i + 1;
-                int contentEnd = contentStart;
+                var contentStart = i + 1;
+                var contentEnd = contentStart;
                 while (contentEnd < json.Length && json[contentEnd] != '\'') contentEnd++;
 
                 if (contentEnd < json.Length) {
@@ -444,13 +444,13 @@ internal static class JsonRepairPipeline {
     /// 3. 无效反斜杠转义（如 \p \w \R）→ 双写反斜杠（\\p \\w \\R），处理 Windows 路径
     /// </summary>
     private static string FixEscapeSequences(string json, List<string> hints) {
-        bool changed = false;
+        var changed = false;
         var result = new StringBuilder(json.Length);
-        int i = 0;
+        var i = 0;
 
         while (i < json.Length) {
             if (json[i] == '"') {
-                int start = i;
+                var start = i;
                 i++;
                 while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) {
@@ -519,14 +519,14 @@ internal static class JsonRepairPipeline {
     /// 由 JsonLenientCoercer 在类型转换层进一步处理。
     /// </summary>
     private static string FixNamedFloatingPointLiterals(string json, List<string> hints) {
-        bool changed = false;
+        var changed = false;
         var literals = new List<string>();
         var result = new StringBuilder(json.Length);
-        int i = 0;
+        var i = 0;
 
         while (i < json.Length) {
             if (json[i] == '"') {
-                int start = i;
+                var start = i;
                 i++;
                 while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
@@ -590,13 +590,13 @@ internal static class JsonRepairPipeline {
         c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_';
 
     private static string FixHexAndLeadingZeroNumbers(string json, List<string> hints) {
-        bool changed = false;
+        var changed = false;
         var result = new StringBuilder(json.Length);
-        int i = 0;
+        var i = 0;
 
         while (i < json.Length) {
             if (json[i] == '"') {
-                int start = i;
+                var start = i;
                 i++;
                 while (i < json.Length) {
                     if (json[i] == '\\' && i + 1 < json.Length) { i += 2; continue; }
@@ -610,8 +610,8 @@ internal static class JsonRepairPipeline {
             // 十六进制：0x / 0X 后跟十六进制数字（仅在数字 token 起点触发，避免 206 中的 0x 误匹配）
             if (json[i] == '0' && i + 1 < json.Length && (json[i + 1] == 'x' || json[i + 1] == 'X')
                 && (i == 0 || !IsAlphaNumeric(json[i - 1]))) {
-                int j = i + 2;
-                int hexStart = j;
+                var j = i + 2;
+                var hexStart = j;
                 while (j < json.Length && IsHexDigit(json[j])) j++;
 
                 if (j > hexStart
@@ -628,10 +628,10 @@ internal static class JsonRepairPipeline {
             // 仅在数字 token 起点触发（前一个字符非字母数字），避免 206 中的 06 被误判为前导零
             if (json[i] == '0' && i + 1 < json.Length && json[i + 1] is >= '0' and <= '9'
                 && (i == 0 || !IsAlphaNumeric(json[i - 1]))) {
-                int j = i + 1;
+                var j = i + 1;
                 while (j < json.Length && json[j] is >= '0' and <= '9') j++;
 
-                int k = i;
+                var k = i;
                 while (k < j - 1 && json[k] == '0') k++;
 
                 result.Append(json.AsSpan(k, j - k));

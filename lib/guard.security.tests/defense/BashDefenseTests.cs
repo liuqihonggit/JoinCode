@@ -1,8 +1,8 @@
-namespace Guard.Security.Tests;
 
 using Core.Hooks.Execution.Interception;
 using Core.Hooks.Execution.Interception.Defense;
 
+namespace Guard.Security.Tests;
 /// <summary>
 /// BashDefense 链式构建器 + RetainedDeviceNode + BashDefenseService 单元测试
 /// — MTP 扰动纵深防御（计划 docs/plan/safety/mtp-perturbation-defense-plan.md 阶段1）

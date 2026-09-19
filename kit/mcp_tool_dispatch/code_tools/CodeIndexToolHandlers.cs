@@ -45,7 +45,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.FoundSymbolsCount, result.TotalCount, result.ElapsedMs));
             sb.AppendLine();
 
-            for (int i = 0; i < Math.Min(result.Items.Count, 30); i++) {
+            for (var i = 0; i < Math.Min(result.Items.Count, 30); i++) {
                 var symbol = result.Items[i];
                 sb.AppendLine($"{i + 1}. {FormatSymbolKind(symbol.Kind)} {symbol.Name}");
                 sb.AppendLine($"   {L.T(StringKey.LabelLocation, symbol.FilePath, symbol.StartLine)}");
@@ -120,7 +120,7 @@ public sealed class CodeIndexToolHandlers {
 
             // === 匹配符号 ===
             sb.AppendLine("=== 匹配符号 ===");
-            for (int i = 0; i < result.MatchedSymbols.Count; i++) {
+            for (var i = 0; i < result.MatchedSymbols.Count; i++) {
                 var symbol = result.MatchedSymbols[i];
                 sb.AppendLine($"{i + 1}. {FormatSymbolKind(symbol.Kind)} {symbol.Name}");
                 sb.AppendLine($"   {L.T(StringKey.LabelLocation, symbol.FilePath, symbol.StartLine)}");
@@ -133,7 +133,7 @@ public sealed class CodeIndexToolHandlers {
             // === 引用 ===
             if (result.References.Count > 0) {
                 sb.AppendLine("=== 引用 ===");
-                for (int i = 0; i < result.References.Count; i++) {
+                for (var i = 0; i < result.References.Count; i++) {
                     var symbol = result.References[i];
                     sb.AppendLine($"{i + 1}. {FormatSymbolKind(symbol.Kind)} {symbol.Name}");
                     sb.AppendLine($"   {L.T(StringKey.LabelLocation, symbol.FilePath, symbol.StartLine)}");
@@ -144,7 +144,7 @@ public sealed class CodeIndexToolHandlers {
             // === 调用方 ===
             if (result.Callers.Count > 0) {
                 sb.AppendLine("=== 调用方 ===");
-                for (int i = 0; i < result.Callers.Count; i++) {
+                for (var i = 0; i < result.Callers.Count; i++) {
                     var edge = result.Callers[i];
                     sb.AppendLine($"{i + 1}. {edge.CallerSymbol} [{edge.CallKind}]");
                     sb.AppendLine($"   {L.T(StringKey.LabelCallSite, edge.CallSiteFilePath, edge.CallSiteLine)}");
@@ -155,7 +155,7 @@ public sealed class CodeIndexToolHandlers {
             // === 被调用方 ===
             if (result.Callees.Count > 0) {
                 sb.AppendLine("=== 被调用方 ===");
-                for (int i = 0; i < result.Callees.Count; i++) {
+                for (var i = 0; i < result.Callees.Count; i++) {
                     var edge = result.Callees[i];
                     sb.AppendLine($"{i + 1}. {edge.CalleeSymbol} [{edge.CallKind}]");
                     sb.AppendLine($"   {L.T(StringKey.LabelCallSite, edge.CallSiteFilePath, edge.CallSiteLine)}");
@@ -284,7 +284,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.CallersOfSymbol, symbol_name, callers.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < callers.Count; i++) {
+            for (var i = 0; i < callers.Count; i++) {
                 var edge = callers[i];
                 sb.AppendLine($"{i + 1}. {edge.CallerSymbol} [{edge.CallKind}]");
                 sb.AppendLine($"   {L.T(StringKey.LabelCallSite, edge.CallSiteFilePath, edge.CallSiteLine)}");
@@ -323,7 +323,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.CalleesOfSymbol, symbol_name, callees.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < callees.Count; i++) {
+            for (var i = 0; i < callees.Count; i++) {
                 var edge = callees[i];
                 sb.AppendLine($"{i + 1}. {edge.CalleeSymbol} [{edge.CallKind}]");
                 sb.AppendLine($"   {L.T(StringKey.LabelCallSite, edge.CallSiteFilePath, edge.CallSiteLine)}");
@@ -368,7 +368,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.CallChainSteps, from, to, chain.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < chain.Count; i++) {
+            for (var i = 0; i < chain.Count; i++) {
                 var edge = chain[i];
                 sb.AppendLine($"{i + 1}. {edge.CallerSymbol} → {edge.CalleeSymbol} [{edge.CallKind}]");
                 sb.AppendLine($"   {L.T(StringKey.LabelLocation, edge.CallSiteFilePath, edge.CallSiteLine)}");
@@ -407,7 +407,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.ImpactScopeOfSymbol, symbol_name, scope.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < scope.Count; i++) {
+            for (var i = 0; i < scope.Count; i++) {
                 sb.AppendLine($"{i + 1}. {scope[i]}");
             }
 
@@ -443,7 +443,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.InheritorsOfSymbol, symbol_name, inheritors.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < inheritors.Count; i++) {
+            for (var i = 0; i < inheritors.Count; i++) {
                 var edge = inheritors[i];
                 sb.AppendLine($"{i + 1}. {edge.SourceSymbol} [{edge.DependencyKind}]");
                 sb.AppendLine();
@@ -481,7 +481,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.DependenciesOfSymbol, symbol_name, deps.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < deps.Count; i++) {
+            for (var i = 0; i < deps.Count; i++) {
                 var edge = deps[i];
                 sb.AppendLine($"{i + 1}. → {edge.TargetSymbol} [{edge.DependencyKind}]");
                 sb.AppendLine();
@@ -519,7 +519,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.AffectedFilesOfModify, file_path, files.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < files.Count; i++) {
+            for (var i = 0; i < files.Count; i++) {
                 sb.AppendLine($"{i + 1}. {files[i]}");
             }
 
@@ -667,7 +667,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.ProjectDependenciesOf, project_path, deps.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < deps.Count; i++) {
+            for (var i = 0; i < deps.Count; i++) {
                 sb.AppendLine($"{i + 1}. {deps[i].TargetProjectPath}");
             }
 
@@ -703,7 +703,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.ProjectDependentsOf, project_path, dependents.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < dependents.Count; i++) {
+            for (var i = 0; i < dependents.Count; i++) {
                 sb.AppendLine($"{i + 1}. {dependents[i].SourceProjectPath}");
             }
 
@@ -739,7 +739,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.AffectedProjectsOfModify, file_path, projects.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < projects.Count; i++) {
+            for (var i = 0; i < projects.Count; i++) {
                 sb.AppendLine($"{i + 1}. {projects[i]}");
             }
 
@@ -775,7 +775,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.ProjectNuGetPackages, project_path, packages.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < packages.Count; i++) {
+            for (var i = 0; i < packages.Count; i++) {
                 var pkg = packages[i];
                 sb.AppendLine($"{i + 1}. {pkg.PackageName}{(pkg.Version is not null ? $" ({pkg.Version})" : "")}");
             }
@@ -812,7 +812,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.ProjectsUsingNuGet, package_name, projects.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < projects.Count; i++) {
+            for (var i = 0; i < projects.Count; i++) {
                 sb.AppendLine($"{i + 1}. {projects[i]}");
             }
 
@@ -842,7 +842,7 @@ public sealed class CodeIndexToolHandlers {
             sb.AppendLine(L.T(StringKey.WorkspaceProjects, projects.Count));
             sb.AppendLine();
 
-            for (int i = 0; i < projects.Count; i++) {
+            for (var i = 0; i < projects.Count; i++) {
                 var project = projects[i];
                 sb.AppendLine($"{i + 1}. {project.Name}");
                 sb.AppendLine($"   {L.T(StringKey.LabelPath, project.FilePath)}");

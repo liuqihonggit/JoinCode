@@ -38,7 +38,7 @@ public sealed class DialogRenderTests {
 
     /// <summary>取帧指定像素颜色（RGBA 字节序）</summary>
     private static (byte R, byte G, byte B) PixelAt(byte[] px, int width, int x, int y) {
-        int i = y * width * 4 + x * 4;
+        var i = y * width * 4 + x * 4;
         return (px[i], px[i + 1], px[i + 2]);
     }
 
@@ -146,7 +146,7 @@ public sealed class DialogRenderTests {
 
             // 窗口背景必须是主题暗色 #1e1e1e（旧实现无 Background → 亮白窗口在暗色主题下突兀）
             var px = ReadPixels(frame);
-            int w = frame.PixelSize.Width;
+            var w = frame.PixelSize.Width;
             var corner = PixelAt(px, w, 5, 5);
             Assert.True(corner.R < 0x30 && corner.G < 0x30 && corner.B < 0x30,
                 $"对话框背景非暗色主题色：RGB=({corner.R},{corner.G},{corner.B})，疑似未主题化");
@@ -172,7 +172,7 @@ public sealed class DialogRenderTests {
                 ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
             SavePng(frame, Path.Combine(dump, "permission-dark.png"));
             var px = ReadPixels(frame);
-            int w = frame.PixelSize.Width;
+            var w = frame.PixelSize.Width;
             var corner = PixelAt(px, w, 5, 5);
             Assert.True(corner.R < 0x30 && corner.G < 0x30 && corner.B < 0x30,
                 $"权限对话框背景非暗色主题色：RGB=({corner.R},{corner.G},{corner.B})");
@@ -204,7 +204,7 @@ public sealed class DialogRenderTests {
                 ?? throw new InvalidOperationException("CaptureRenderedFrame 返回 null");
             SavePng(frame, Path.Combine(dump, "askuser-dark.png"));
             var px = ReadPixels(frame);
-            int w = frame.PixelSize.Width;
+            var w = frame.PixelSize.Width;
             var corner = PixelAt(px, w, 5, 5);
             Assert.True(corner.R < 0x30 && corner.G < 0x30 && corner.B < 0x30,
                 $"提问对话框背景非暗色主题色：RGB=({corner.R},{corner.G},{corner.B})");

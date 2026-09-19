@@ -101,7 +101,7 @@ public class CommandQueueTests {
         const int producerCount = 4;
 
         var producers = Enumerable.Range(0, producerCount).Select(i => Task.Run(() => {
-            for (int j = 0; j < itemsPerProducer; j++)
+            for (var j = 0; j < itemsPerProducer; j++)
                 queue.Enqueue(new QueuedCommand($"p{i}-{j}", CommandOrigin.User, QueuePriority.Next));
         })).ToArray();
 

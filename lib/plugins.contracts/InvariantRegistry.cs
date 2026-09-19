@@ -105,7 +105,7 @@ public sealed class InvariantRegistry {
     public ICollection<string> RegisteredPackages => _registrations.Keys;
 
     private static bool AnyMatch(Regex[] regexes, string input) {
-        for (int i = 0; i < regexes.Length; i++) {
+        for (var i = 0; i < regexes.Length; i++) {
             if (regexes[i].IsMatch(input)) return true;
         }
         return false;
@@ -114,7 +114,7 @@ public sealed class InvariantRegistry {
     private static Regex[] CompilePatterns(string[]? patterns) {
         if (patterns is null || patterns.Length == 0) return Array.Empty<Regex>();
         var regexes = new Regex[patterns.Length];
-        for (int i = 0; i < patterns.Length; i++) {
+        for (var i = 0; i < patterns.Length; i++) {
             regexes[i] = new Regex(patterns[i], RegexOptions.Compiled | RegexOptions.CultureInvariant);
         }
         return regexes;

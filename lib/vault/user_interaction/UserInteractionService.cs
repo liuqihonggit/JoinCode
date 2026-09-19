@@ -26,7 +26,7 @@ public sealed partial class UserInteractionService : ServiceEntity, IUserInterac
         _logger?.LogInformation(L.T(StringKey.VaultLogHeadlessAsk), question);
 
         if (options?.Count > 0) {
-            for (int i = 0; i < options.Count; i++) {
+            for (var i = 0; i < options.Count; i++) {
                 _logger?.LogDebug(L.T(StringKey.VaultLogOption), i + 1, options[i]);
             }
         }

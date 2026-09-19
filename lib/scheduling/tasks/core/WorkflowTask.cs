@@ -504,7 +504,7 @@ public sealed partial class WorkflowTaskExecutor : ServiceEntity, IWorkflowTaskE
         var stepStart = _clock.GetUtcNow();
 
         try {
-            JsonElement stepResult = step.StepType switch {
+            var stepResult = step.StepType switch {
                 WorkflowStepType.ToolCall => JsonElementHelper.FromString(await ExecuteToolCallStepAsync(step, ct).ConfigureAwait(false)),
                 WorkflowStepType.AgentTask => JsonElementHelper.FromString(await ExecuteAgentTaskStepAsync(step, ct).ConfigureAwait(false)),
                 WorkflowStepType.SubWorkflow => JsonElementHelper.FromString(await ExecuteSubWorkflowStepAsync(step, runState, ct).ConfigureAwait(false)),

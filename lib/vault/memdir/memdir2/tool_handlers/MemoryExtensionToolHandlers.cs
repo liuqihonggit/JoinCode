@@ -103,7 +103,7 @@ public class MemoryExtensionToolHandlers {
         if (results.Count == 0) {
             response.AppendLine(L.T(StringKey.VaultNoPastConversationMemories));
         } else {
-            for (int i = 0; i < results.Count; i++) {
+            for (var i = 0; i < results.Count; i++) {
                 var memory = results[i];
                 var ageDays = (_clock.GetUtcNow() - memory.CreatedAt).Days;
                 var ageLabel = ageDays switch {

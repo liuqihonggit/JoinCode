@@ -43,7 +43,7 @@ public sealed partial class AgentPromptBuilder : ServiceEntity, JoinCode.Abstrac
         JoinCode.Abstractions.Prompts.ToolPrompts.AgentDefinition? definition = null;
         if (!string.IsNullOrWhiteSpace(agentType)) {
             var role = AgentRole.Executor;
-            ExecutorVariant? variant = ExecutorVariantExtensions.FromValue(agentType);
+            var variant = ExecutorVariantExtensions.FromValue(agentType);
             definition = await _definitionProvider.GetAgentDefinitionAsync(role, variant, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 

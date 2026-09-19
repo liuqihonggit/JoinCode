@@ -90,7 +90,7 @@ public class PlanModeToolHandlers {
         }
 
         // 对齐 TS AllowedPrompt: 将 Dictionary[] 转换为结构化 AllowedPrompt[]
-        AllowedPrompt[]? typedPrompts = allowed_prompts?.Select(d => new AllowedPrompt {
+        var typedPrompts = allowed_prompts?.Select(d => new AllowedPrompt {
             Tool = d.TryGetValue("tool", out var toolEl) ? toolEl.GetString() ?? AllowedPromptToolEnumConstants.Bash : AllowedPromptToolEnumConstants.Bash,
             Prompt = d.TryGetValue("prompt", out var promptEl) ? promptEl.GetString() ?? "" : ""
         }).ToArray();

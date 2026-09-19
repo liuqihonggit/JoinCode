@@ -1,4 +1,3 @@
-namespace JccAuditCli.Tests;
 
 using AotSafety.Generator;
 using Microsoft.CodeAnalysis;
@@ -7,6 +6,7 @@ using Microsoft.CodeAnalysis.Diagnostics;
 using System.Collections.Immutable;
 using System.Reflection;
 
+namespace JccAuditCli.Tests;
 /// <summary>
 /// JCC7001 分析器的单元测试
 /// 验证：lambda 内的方法调用、泛型方法调用、方法组引用等场景

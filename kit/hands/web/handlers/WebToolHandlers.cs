@@ -221,7 +221,7 @@ public class WebToolHandlers {
         // 对齐 TS 版 mapToolResultToToolResultBlockParam 格式
         if (result.Results.Count > 0) {
             response.AppendLine("Links:");
-            for (int i = 0; i < result.Results.Count; i++) {
+            for (var i = 0; i < result.Results.Count; i++) {
                 var item = result.Results[i];
                 response.AppendLine($"{i + 1}. [{item.Title}]({item.Url})");
 

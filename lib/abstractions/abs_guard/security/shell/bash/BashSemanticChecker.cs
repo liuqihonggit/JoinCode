@@ -111,7 +111,7 @@ public static class BashSemanticChecker {
     }
 
     private static BashSemanticCheckResult CheckSubscriptEvalFlags(string name, string[] a) {
-        FrozenSet<string>? dangerFlags = name switch {
+        var dangerFlags = name switch {
             "test" or "[" => BashSecurityConstants.SubscriptEvalFlagsTest,
             "printf" => BashSecurityConstants.SubscriptEvalFlagsPrintf,
             "wait" => BashSecurityConstants.SubscriptEvalFlagsWait,

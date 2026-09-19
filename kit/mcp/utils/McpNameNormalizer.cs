@@ -48,7 +48,7 @@ public static partial class McpNameNormalizer {
         }
 
         var serverName = parts[1];
-        string? toolName = parts.Length > 2 ? string.Join("__", parts[2..]) : null;
+        var toolName = parts.Length > 2 ? string.Join("__", parts[2..]) : null;
 
         return (serverName, toolName);
     }

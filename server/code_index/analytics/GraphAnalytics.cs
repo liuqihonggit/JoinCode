@@ -127,7 +127,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         var edgeSet = new HashSet<CallEdge>();
         var frontier = new HashSet<string>(StringComparer.Ordinal) { centerSymbol };
 
-        for (int i = 0; i < hops && frontier.Count > 0; i++) {
+        for (var i = 0; i < hops && frontier.Count > 0; i++) {
             var nextFrontier = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var sym in frontier) {
@@ -317,7 +317,7 @@ public sealed class GraphAnalytics : ServiceEntity, IGraphAnalytics {
         foreach (var sym in allSymbols)
             labels[sym] = id++;
 
-        for (int iter = 0; iter < 20; iter++) {
+        for (var iter = 0; iter < 20; iter++) {
             var changed = false;
             foreach (var sym in allSymbols) {
                 var neighborLabels = new List<int>();

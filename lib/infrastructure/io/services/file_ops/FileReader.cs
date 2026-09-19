@@ -102,9 +102,9 @@ public sealed class FileReader {
         if (startIndex < 0) startIndex = 0;
 
         var lines = new List<string>();
-        int totalLines = 0;
-        int linesToSkip = startIndex;
-        int? linesToTake = limit;
+        var totalLines = 0;
+        var linesToSkip = startIndex;
+        var linesToTake = limit;
 
         var encoding = await FileEncodingDetector.DetectFromFileAsync(filePath, _fs, cancellationToken, _logger).ConfigureAwait(false);
         var rawContent = await _fs.ReadAllTextAsync(filePath, encoding, cancellationToken).ConfigureAwait(false);
@@ -166,7 +166,7 @@ public sealed class FileReader {
 
             if (bytesRead == 0) return (false, "Empty file");
 
-            int nonPrintableCount = 0;
+            var nonPrintableCount = 0;
             for (var i = 0; i < bytesRead; i++) {
                 var b = buffer[i];
                 // Null byte is always binary

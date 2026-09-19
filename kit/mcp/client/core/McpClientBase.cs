@@ -157,7 +157,7 @@ public abstract class McpClientBase : IMcpClient {
     protected async Task ProcessResponseAsync(JsonRpcResponse response, CancellationToken cancellationToken = default) {
         if (response.Id == null) return;
 
-        int requestId = response.GetIdAsInt();
+        var requestId = response.GetIdAsInt();
         await _requestRegistry.CompleteAsync(requestId, response, cancellationToken).ConfigureAwait(false);
     }
 

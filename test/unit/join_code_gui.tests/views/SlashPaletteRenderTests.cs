@@ -40,9 +40,9 @@ public sealed class SlashPaletteRenderTests {
     /// <summary>比较两帧指定区域的像素差异（任一通道差 &gt; 8 视为有差异）</summary>
     private static bool RegionDiffers(byte[] a, byte[] b, int width, int y0, int y1, int x0, int x1) {
         var stride = width * 4;
-        for (int y = y0; y <= y1; y++) {
-            for (int x = x0; x <= x1; x++) {
-                int i = y * stride + x * 4;
+        for (var y = y0; y <= y1; y++) {
+            for (var x = x0; x <= x1; x++) {
+                var i = y * stride + x * 4;
                 if (Math.Abs(a[i] - b[i]) > 8 || Math.Abs(a[i + 1] - b[i + 1]) > 8 || Math.Abs(a[i + 2] - b[i + 2]) > 8)
                     return true;
             }
@@ -53,9 +53,9 @@ public sealed class SlashPaletteRenderTests {
     /// <summary>找出两帧全部差异像素的最低（最大 y）行 — 用于断言面板锚定窗口下部</summary>
     private static int LowestDiffRow(byte[] a, byte[] b, int width, int height) {
         var stride = width * 4;
-        for (int y = height - 1; y >= 0; y--) {
-            for (int x = 0; x < width; x++) {
-                int i = y * stride + x * 4;
+        for (var y = height - 1; y >= 0; y--) {
+            for (var x = 0; x < width; x++) {
+                var i = y * stride + x * 4;
                 if (Math.Abs(a[i] - b[i]) > 8 || Math.Abs(a[i + 1] - b[i + 1]) > 8 || Math.Abs(a[i + 2] - b[i + 2]) > 8)
                     return y;
             }
@@ -192,7 +192,7 @@ public sealed class SlashPaletteRenderTests {
             var list = win.GetVisualDescendants().OfType<ListBox>().First(x => x.Name == "PaletteList");
 
             // 真实键盘管线：连按 ↓ 走 InputBar KeyDown → vm.SlashNavigate → ScrollIntoView
-            for (int i = 0; i < vm.SlashSuggestions.Count - 1; i++) {
+            for (var i = 0; i < vm.SlashSuggestions.Count - 1; i++) {
                 var tb = win.GetVisualDescendants().OfType<TextBox>().First(x => x.Name == "InputTextBox");
                 tb.RaiseEvent(new Avalonia.Input.KeyEventArgs {
                     RoutedEvent = Avalonia.Input.InputElement.KeyDownEvent,

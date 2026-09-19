@@ -164,7 +164,7 @@ public partial class ChatContextManagerThreePartTests {
         var sut = CreateSut();
         await sut.UpdateSystemPromptAsync("immutable system prompt").ConfigureAwait(true);
 
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             await sut.ClearDynamicSystemMessagesAsync().ConfigureAwait(true);
             await sut.AddDynamicSystemMessageAsync($"dynamic turn {i}").ConfigureAwait(true);
             await sut.AddUserMessageAsync($"user turn {i}").ConfigureAwait(true);
@@ -176,7 +176,7 @@ public partial class ChatContextManagerThreePartTests {
         history[0].Content.Should().Be("immutable system prompt");
         history[0].Metadata.Should().BeEmpty();
 
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             var dynamicIdx = 1;
             var userIdx = 2 + i * 3;
             var assistantIdx = 3 + i * 3;

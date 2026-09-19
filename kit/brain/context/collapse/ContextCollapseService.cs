@@ -234,7 +234,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     private static string GenerateCodeBlockSummary(CollapsibleSegment segment, int maxLen) {
         var contentSpan = segment.Content.AsSpan();
         var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
-        string firstLine = "";
+        var firstLine = "";
         foreach (var (start, length) in ranges) {
             var lineSpan = contentSpan.Slice(start, length);
             if (!lineSpan.IsWhiteSpace()) {
@@ -252,7 +252,7 @@ public sealed partial class ContextCollapseService : ServiceEntity, IContextColl
     private static string GenerateRepetitiveSummary(CollapsibleSegment segment, int maxLen) {
         var contentSpan = segment.Content.AsSpan();
         var ranges = LineSpanIndexer.BuildLineRanges(contentSpan);
-        string sample = "";
+        var sample = "";
         var nonEmptyCount = 0;
         foreach (var (start, length) in ranges) {
             if (length == 0) continue;

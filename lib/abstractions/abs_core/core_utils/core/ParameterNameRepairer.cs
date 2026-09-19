@@ -132,7 +132,7 @@ internal static class ParameterNameRepairer {
     private static string ToSnakeCase(string name) {
         if (string.IsNullOrEmpty(name)) return name;
         var sb = new StringBuilder(name.Length + 4);
-        for (int i = 0; i < name.Length; i++) {
+        for (var i = 0; i < name.Length; i++) {
             if (i > 0 && char.IsUpper(name[i]) && (char.IsLower(name[i - 1]) || (i + 1 < name.Length && char.IsLower(name[i + 1]))))
                 sb.Append('_');
             sb.Append(char.ToLowerInvariant(name[i]));
@@ -146,7 +146,7 @@ internal static class ParameterNameRepairer {
         if (parts.Length <= 1) return name;
         var sb = new StringBuilder(name.Length);
         sb.Append(parts[0].ToLowerInvariant());
-        for (int i = 1; i < parts.Length; i++) {
+        for (var i = 1; i < parts.Length; i++) {
             if (parts[i].Length > 0) {
                 sb.Append(char.ToUpperInvariant(parts[i][0]));
                 sb.Append(parts[i].Substring(1).ToLowerInvariant());

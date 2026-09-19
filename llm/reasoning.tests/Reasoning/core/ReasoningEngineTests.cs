@@ -553,7 +553,7 @@ public sealed class ReasoningEngineTests {
         var item = new DataItem { Content = "假定1", State = DataState.Assumption, Source = "测试" };
         await engine.AddAssumptionsAsync([item], CancellationToken.None);
 
-        foreach (AgentRole role in new[] { AgentRole.Prosecutor, AgentRole.Defender, AgentRole.Judge }) {
+        foreach (var role in new[] { AgentRole.Prosecutor, AgentRole.Defender, AgentRole.Judge }) {
             var cone = engine.ConeOrchestrator.GetRole(role);
             Assert.NotNull(cone);
             Assert.True(cone.AllFragments.Count > 0);

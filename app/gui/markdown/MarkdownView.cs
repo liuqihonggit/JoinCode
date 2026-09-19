@@ -173,7 +173,7 @@ public sealed class MarkdownView : StackPanel {
     /// <summary>列表 → 每项一行（无序 • / 有序 N.）</summary>
     private static Control BuildList(MarkdownList list, GuiPalette.Scheme scheme, double baseSize) {
         var stack = new StackPanel { Spacing = 2 };
-        for (int i = 0; i < list.Items.Count; i++) {
+        for (var i = 0; i < list.Items.Count; i++) {
             var prefix = list.Ordered ? $"{i + 1}. " : "• ";
             var item = new SelectableTextBlock {
                 FontSize = baseSize,
@@ -199,14 +199,14 @@ public sealed class MarkdownView : StackPanel {
         var colCount = table.Header.Count;
         var grid = new Grid();
         var defs = new ColumnDefinitions();
-        for (int c = 0; c < colCount; c++) {
+        for (var c = 0; c < colCount; c++) {
             defs.Add(new ColumnDefinition(GridLength.Auto));
         }
         grid.ColumnDefinitions = defs;
         grid.RowDefinitions = new RowDefinitions(
             string.Join(",", Enumerable.Repeat("Auto", table.Rows.Count + 1)));
 
-        for (int c = 0; c < colCount; c++) {
+        for (var c = 0; c < colCount; c++) {
             var cell = new SelectableTextBlock {
                 Text = table.Header[c],
                 FontWeight = FontWeight.Bold,
@@ -220,8 +220,8 @@ public sealed class MarkdownView : StackPanel {
             grid.Children.Add(cell);
         }
 
-        for (int r = 0; r < table.Rows.Count; r++) {
-            for (int c = 0; c < Math.Min(colCount, table.Rows[r].Count); c++) {
+        for (var r = 0; r < table.Rows.Count; r++) {
+            for (var c = 0; c < Math.Min(colCount, table.Rows[r].Count); c++) {
                 var cell = new SelectableTextBlock {
                     Text = table.Rows[r][c],
                     FontSize = 12,

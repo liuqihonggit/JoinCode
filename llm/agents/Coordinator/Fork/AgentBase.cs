@@ -392,7 +392,7 @@ public class AgentBase : Entity, IAgent {
         var succeeded = true;
         string? errorMessage = null;
 
-        IAsyncEnumerable<QueryStreamChunk> queryStream = queryOptions is not null
+        var queryStream = queryOptions is not null
             ? _queryEngine.QueryAsync(prompt, chatHistory, queryOptions, linkedToken)
             : _queryEngine.QueryAsync(prompt, chatHistory, linkedToken);
 

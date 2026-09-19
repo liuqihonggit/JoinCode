@@ -14,8 +14,8 @@ internal sealed class PromptTemplateGenerator : AttributeRegistrationGeneratorBa
         if (string.IsNullOrEmpty(name))
             return null;
 
-        string contentMethod = "";
-        bool isFieldAccess = false;
+        var contentMethod = "";
+        var isFieldAccess = false;
 
         if (!hasParameters) {
             if (!string.IsNullOrEmpty(contentMember)) {

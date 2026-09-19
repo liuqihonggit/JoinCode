@@ -136,11 +136,11 @@ internal static class ToolNameResolver {
 
         var prev = new int[b.Length + 1];
         var curr = new int[b.Length + 1];
-        for (int j = 0; j <= b.Length; j++) prev[j] = j;
+        for (var j = 0; j <= b.Length; j++) prev[j] = j;
 
-        for (int i = 1; i <= a.Length; i++) {
+        for (var i = 1; i <= a.Length; i++) {
             curr[0] = i;
-            for (int j = 1; j <= b.Length; j++) {
+            for (var j = 1; j <= b.Length; j++) {
                 var cost = char.ToLowerInvariant(a[i - 1]) == char.ToLowerInvariant(b[j - 1]) ? 0 : 1;
                 curr[j] = Math.Min(Math.Min(prev[j] + 1, curr[j - 1] + 1), prev[j - 1] + cost);
             }

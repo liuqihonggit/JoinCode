@@ -22,7 +22,7 @@ public sealed partial class McpHttpClient : McpNetworkClient<Transports.HttpTran
 
     private static Transports.HttpTransport CreateTransport(
         McpServerConnectionConfig config, IMcpAuthProvider? authProvider, ILogger? logger) {
-        IMcpAuthProvider? resolvedAuthProvider = authProvider;
+        var resolvedAuthProvider = authProvider;
         if (resolvedAuthProvider == null && config.Auth != null) {
             resolvedAuthProvider = McpAuthProviderFactory.Create(config.Auth, logger);
         }

@@ -15,7 +15,7 @@ public sealed class InitCommand(IModelConfigLoader? modelConfigLoader = null) : 
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var isQuick = args is "quick" or "q" || IsQuickModeFromJson(args);
 

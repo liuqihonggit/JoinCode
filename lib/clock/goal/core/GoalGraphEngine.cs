@@ -236,7 +236,7 @@ public sealed partial class GoalGraphEngine : ServiceEntity, ISubAgentConcurrenc
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(payload.TimeoutSeconds));
 
         try {
-            NodeResult result = await _nodeExecutor.ExecuteAsync(nodeId, payload, context, timeoutCts.Token).ConfigureAwait(false);
+            var result = await _nodeExecutor.ExecuteAsync(nodeId, payload, context, timeoutCts.Token).ConfigureAwait(false);
 
             payload.Output = result.Output;
             payload.Routes = result.Routes;

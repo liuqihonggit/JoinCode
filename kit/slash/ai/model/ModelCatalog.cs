@@ -33,7 +33,7 @@ public sealed partial class ModelCatalog(IProviderDefinitionRegistry registry, I
 
             var baseList = baseModels.ToList();
             var result = new ModelEntry[baseList.Count + 1];
-            for (int i = 0; i < baseList.Count; i++)
+            for (var i = 0; i < baseList.Count; i++)
                 result[i] = baseList[i];
             result[baseList.Count] = new ModelEntry(
                 customModelId,

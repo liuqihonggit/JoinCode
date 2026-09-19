@@ -15,7 +15,7 @@ public sealed partial class MagicDocsManager : ServiceEntity, IFileReadListener,
     private readonly ILogger<MagicDocsManager>? _logger;
     private readonly MagicDocsActor _actor;
     private readonly Dictionary<string, MagicDocEntry> _trackedDocs = new(StringComparer.OrdinalIgnoreCase);
-    private IDisposable? _fileReadSubscription;
+    private readonly IDisposable? _fileReadSubscription;
 
     /// <summary>
     /// 构造 MagicDocs 管理服务。

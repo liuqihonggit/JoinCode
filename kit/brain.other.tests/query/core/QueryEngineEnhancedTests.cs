@@ -209,7 +209,7 @@ public class QueryEngineEnhancedTests {
         var tasks = new List<Task>();
 
         // Act
-        for (int i = 0; i < 100; i++) {
+        for (var i = 0; i < 100; i++) {
             tasks.Add(Task.Run(() => tracker.TrackUsage(10, 5)));
         }
         await Task.WhenAll(tasks).ConfigureAwait(true);

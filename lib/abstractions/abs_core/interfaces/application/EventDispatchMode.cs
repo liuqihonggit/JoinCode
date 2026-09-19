@@ -38,7 +38,7 @@ public static class EventDispatcher {
         IReadOnlyList<Func<T, CancellationToken, Task>> handlers,
         T arg,
         CancellationToken ct) {
-        for (int i = 0; i < handlers.Count; i++) {
+        for (var i = 0; i < handlers.Count; i++) {
             _ = handlers[i](arg, ct);
         }
         return Task.CompletedTask;
@@ -54,7 +54,7 @@ public static class EventDispatcher {
         CancellationToken ct) {
         if (handlers.Count == 0) return;
         var tasks = new Task[handlers.Count];
-        for (int i = 0; i < handlers.Count; i++) {
+        for (var i = 0; i < handlers.Count; i++) {
             tasks[i] = handlers[i](arg, ct);
         }
         await Task.WhenAll(tasks).ConfigureAwait(false);
@@ -68,7 +68,7 @@ public static class EventDispatcher {
         IReadOnlyList<Func<T, CancellationToken, Task>> handlers,
         T arg,
         CancellationToken ct) {
-        for (int i = 0; i < handlers.Count; i++) {
+        for (var i = 0; i < handlers.Count; i++) {
             await handlers[i](arg, ct).ConfigureAwait(false);
         }
     }
@@ -82,7 +82,7 @@ public static class EventDispatcher {
         IReadOnlyList<Func<T, CancellationToken, Task<bool>>> handlers,
         T arg,
         CancellationToken ct) {
-        for (int i = 0; i < handlers.Count; i++) {
+        for (var i = 0; i < handlers.Count; i++) {
             if (await handlers[i](arg, ct).ConfigureAwait(false))
                 return true;
         }
@@ -102,7 +102,7 @@ public static class EventDispatcher {
         if (handlers.Count == 0) return initial;
 
         Func<CancellationToken, Task<T>> next = _ => Task.FromResult(initial);
-        for (int i = handlers.Count - 1; i >= 0; i--) {
+        for (var i = handlers.Count - 1; i >= 0; i--) {
             var handler = handlers[i];
             var innerNext = next;
             next = token => handler(initial, innerNext, token);

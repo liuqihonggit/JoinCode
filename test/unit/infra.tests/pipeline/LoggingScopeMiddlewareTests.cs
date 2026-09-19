@@ -111,7 +111,7 @@ public sealed class LoggingScopeMiddlewareTests {
 
     [Fact]
     public async Task Middleware_DefaultSelector_NonEntity_GetsEmpty() {
-        ObjectId capturedObjectId = ObjectId.Empty;
+        var capturedObjectId = ObjectId.Empty;
 
         var middleware = new LoggingScopeMiddleware<string>();
 

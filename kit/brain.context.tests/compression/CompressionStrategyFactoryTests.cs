@@ -88,7 +88,7 @@ method AnotherMethod";
     public void GetStrategiesForType_ShouldReturnOrderedByPriority() {
         var strategies = _factory.GetStrategiesForType(ContentType.Code).ToList();
 
-        for (int i = 1; i < strategies.Count; i++) {
+        for (var i = 1; i < strategies.Count; i++) {
             strategies[i - 1].Priority.Should().BeGreaterThanOrEqualTo(strategies[i].Priority);
         }
     }

@@ -1,7 +1,7 @@
-namespace Abs.Tests.Utils;
 
 using Testing.Common.Services;
 
+namespace Abs.Tests.Utils;
 /// <summary>
 /// TempDirScope 单元测试 — 验证临时目录创建与 DisposeAsync 自动清理（含幂等、目录已删不抛）
 /// </summary>

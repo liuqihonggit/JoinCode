@@ -104,7 +104,7 @@ public static class DescriptionRulesSection {
                 while (i < text.Length && IsCJKChar(text[i])) i++;
                 var segment = text[start..i];
                 if (segment.Length >= 2) {
-                    for (int j = 0; j <= segment.Length - 2; j++) {
+                    for (var j = 0; j <= segment.Length - 2; j++) {
                         bigrams.Add(segment[j..(j + 2)]);
                     }
                 }

@@ -198,7 +198,7 @@ internal sealed class BridgeSessionMonitor {
         if (_owner._pendingCleanups.Count > 0) {
             try {
                 using var guard = await _owner._cleanupLock.TryLockAsync(ct).ConfigureAwait(false) ?? throw new System.TimeoutException($"锁 '{_owner._cleanupLock.Name}' 等待超时");
-                Task[] cleanups = _owner._pendingCleanups.ToArray();
+                var cleanups = _owner._pendingCleanups.ToArray();
                 await Task.WhenAll(cleanups).WaitAsync(
                     TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
             } catch (Exception ex) {

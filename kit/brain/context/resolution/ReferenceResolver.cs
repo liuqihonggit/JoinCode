@@ -675,7 +675,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         var words = new List<string>();
         var currentWord = new System.Text.StringBuilder();
 
-        foreach (char c in input) {
+        foreach (var c in input) {
             if (char.IsUpper(c) && currentWord.Length > 0) {
                 // 使用 Span 避免 ToLowerInvariant 分配
                 words.Add(currentWord.ToString());
@@ -722,7 +722,7 @@ public sealed partial class ReferenceResolver : ServiceEntity, IReferenceResolve
         if (value.IsEmpty) return true;
         if (source.IsEmpty) return false;
 
-        for (int i = 0; i <= source.Length - value.Length; i++) {
+        for (var i = 0; i <= source.Length - value.Length; i++) {
             if (source.Slice(i, value.Length).Equals(value, StringComparison.OrdinalIgnoreCase))
                 return true;
         }

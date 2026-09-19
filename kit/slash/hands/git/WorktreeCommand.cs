@@ -13,7 +13,7 @@ public sealed class WorktreeCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         if (context.GetCommandServices().WorktreeService is not { } worktreeService) {
             if (!Core.Utils.TestEnvironmentDetector.IsNonInteractive) {
                 TerminalHelper.WriteLine($"{TerminalColors.Error}Worktree 服务未初始化{AnsiStyleEnumConstants.Reset}");

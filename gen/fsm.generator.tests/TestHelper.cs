@@ -1,7 +1,7 @@
-namespace Fsm.Generator.Tests;
 
 using JoinCode.Abstractions.Attributes;
 
+namespace Fsm.Generator.Tests;
 /// <summary>
 /// 源码生成器运行结果
 /// </summary>

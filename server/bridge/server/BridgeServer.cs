@@ -35,7 +35,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
     private readonly BridgeUIService? _bridgeUIService;
     private readonly ISystemActuatorRegistry? _actuatorRegistry;
     private readonly IIdeIntegrationService? _ideService;
-    private FlushGate<BridgeServerMessage>? _outgoingFlushGate;
+    private readonly FlushGate<BridgeServerMessage>? _outgoingFlushGate;
     private volatile int _gateActive;
 
     /// <summary>
@@ -184,7 +184,7 @@ public sealed partial class BridgeServer : ServiceEntity, IDisposable {
     /// 处理 WebSocket 连接
     /// </summary>
     private async Task HandleWebSocketAsync(HttpListenerContext context, CancellationToken cancellationToken) {
-        string clientId = Guid.NewGuid().ToString("N")[..8];
+        var clientId = Guid.NewGuid().ToString("N")[..8];
 
         try {
             var wsContext = await context.AcceptWebSocketAsync(null).ConfigureAwait(false);

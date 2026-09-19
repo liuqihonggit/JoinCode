@@ -32,9 +32,9 @@ public sealed partial class TodoService : ServiceEntity, ITodoService, IDisposab
     /// <inheritdoc />
     public async Task<TodoServiceResult> WriteTodosAsync(List<TodoItemInput> todos, CancellationToken cancellationToken = default) {
         ArgumentNullException.ThrowIfNull(todos);
-        int createdCount = 0;
-        int updatedCount = 0;
-        int deletedCount = 0;
+        var createdCount = 0;
+        var updatedCount = 0;
+        var deletedCount = 0;
 
         var pendingTasks = new List<Task>();
 

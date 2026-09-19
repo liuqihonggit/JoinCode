@@ -14,7 +14,7 @@ public sealed class StatsCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、会话 ID 与命令服务</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var scope = args.Length > 0 ? args[0].ToLowerInvariant().TrimStart('-') : "today";
 
@@ -37,7 +37,7 @@ public sealed class StatsCommand : ChatCommandBase {
             return ChatCommandResult.Continue();
         }
 
-        TokenUsageStatistics stats = scope switch {
+        var stats = scope switch {
             "total" => usageTracker.GetTotalStatistics(),
             "session" => usageTracker.GetSessionStatistics(context.SessionId),
             _ => usageTracker.GetTodayStatistics()

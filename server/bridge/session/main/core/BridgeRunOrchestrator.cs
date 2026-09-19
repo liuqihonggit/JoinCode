@@ -36,7 +36,7 @@ internal sealed class BridgeRunOrchestrator {
             ["worktree_available"] = (_owner._deps.IsWorktreeAvailable?.Invoke() ?? false).ToString(),
         });
 
-        string? initialSessionId = ctx.ResumeSessionId;
+        var initialSessionId = ctx.ResumeSessionId;
         if (initialSessionId is null) {
             var createdSessionId = await _owner.TryCreateInitialSessionAsync(
                 ctx.Args.Name, _owner._deps.PermissionMode, config, ct).ConfigureAwait(false);
@@ -252,7 +252,7 @@ internal sealed class BridgeRunOrchestrator {
 
         // 9.5 创建初始会话 — 对齐 TS 端: createBridgeSession
         // preCreateSession 且非 KAIROS 恢复模式时，预创建一个会话
-        string? initialSessionId = resumeSessionId;
+        var initialSessionId = resumeSessionId;
         if (initialSessionId is null) {
             var createdSessionId = await _owner.TryCreateInitialSessionAsync(
                 args.Name, _owner._deps.PermissionMode, config, ct).ConfigureAwait(false);

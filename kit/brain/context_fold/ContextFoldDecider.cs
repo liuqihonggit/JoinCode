@@ -314,7 +314,7 @@ public static class ContextFoldDecider {
 
         if (ranges.Count > t.SnipHeadLines + t.SnipTailLines) {
             var headSb = new StringBuilder(t.SnipHeadLines * 80);
-            for (int i = 0; i < t.SnipHeadLines; i++) {
+            for (var i = 0; i < t.SnipHeadLines; i++) {
                 if (i > 0) headSb.Append('\n');
                 var (hs, hl) = ranges[i];
                 headSb.Append(span.Slice(hs, hl));
@@ -323,7 +323,7 @@ public static class ContextFoldDecider {
 
             var tailSb = new StringBuilder(t.SnipTailLines * 80);
             var tailStart = ranges.Count - t.SnipTailLines;
-            for (int i = tailStart; i < ranges.Count; i++) {
+            for (var i = tailStart; i < ranges.Count; i++) {
                 if (i > tailStart) tailSb.Append('\n');
                 var (ts, tl) = ranges[i];
                 tailSb.Append(span.Slice(ts, tl));

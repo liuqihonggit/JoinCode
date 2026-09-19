@@ -11,7 +11,7 @@ public sealed class ToolsCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
         if (services.ToolRegistry is null) {
             TerminalHelper.WriteLine("工具注册表不可用。");

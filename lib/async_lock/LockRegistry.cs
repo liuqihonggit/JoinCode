@@ -366,7 +366,7 @@ public static class LockRegistry {
         foreach (var startId in waitEdges.Keys) {
             var chain = new List<(int flowId, LockInfo lk)>();
             var current = startId;
-            for (int step = 0; step <= waitEdges.Count; step++) {
+            for (var step = 0; step <= waitEdges.Count; step++) {
                 if (!waitEdges.TryGetValue(current, out var edge))
                     break;
                 chain.Add((current, edge.lk));

@@ -399,13 +399,13 @@ public partial class ContextCompressionIntegrationTests {
         sb.AppendLine("    public partial class GeneratedClass");
         sb.AppendLine("    {");
 
-        for (int i = 0; i < methodCount; i++) {
+        for (var i = 0; i < methodCount; i++) {
             sb.AppendLine($"        private int _field{i};");
         }
 
         sb.AppendLine();
 
-        for (int i = 0; i < methodCount; i++) {
+        for (var i = 0; i < methodCount; i++) {
             sb.AppendLine($"        public void Method{i}(int param{i})");
             sb.AppendLine("        {");
             sb.AppendLine($"            var localVar{i} = param{i} * 2;");
@@ -426,7 +426,7 @@ public partial class ContextCompressionIntegrationTests {
     private static string GenerateDialogueContent(int roundCount) {
         var sb = new System.Text.StringBuilder();
 
-        for (int i = 0; i < roundCount; i++) {
+        for (var i = 0; i < roundCount; i++) {
             sb.AppendLine($"[User] Message {i}: Can you help me with this code?");
             sb.AppendLine($"[Assistant] Response {i}: Sure, here's how you can do it...");
             sb.AppendLine($"    You need to implement the following:");
@@ -447,7 +447,7 @@ public partial class ContextCompressionIntegrationTests {
     private static string GenerateTextContent(int paragraphCount) {
         var sb = new System.Text.StringBuilder();
 
-        for (int i = 0; i < paragraphCount; i++) {
+        for (var i = 0; i < paragraphCount; i++) {
             sb.AppendLine($"Paragraph {i}: This is a sample text content that needs to be compressed. " +
                 "It contains various information about the system design and implementation details. " +
                 "The content is intentionally verbose to test compression effectiveness. " +

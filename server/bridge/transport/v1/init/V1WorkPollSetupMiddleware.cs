@@ -63,7 +63,7 @@ internal sealed partial class V1WorkPollSetupMiddleware : ServiceEntity, IMiddle
         // 订阅工作接收事件
         IReplBridgeTransport? currentTransport = null;
         var getOAuthToken = parameters.GetAccessToken;
-        int v2Generation = 0;
+        var v2Generation = 0;
         var transportFactory = ctx.TransportFactory;
 
         pollLoop.WorkReceived += (_, e) => {

@@ -159,7 +159,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 RecordSearchMetrics("grep", 0, false);
                 return GrepSearchResult.FailureResult($"Invalid regular expression: {regexError}");
             }
-            Regex regex = compiledRegex!;
+            var regex = compiledRegex!;
 
             var filenames = new List<string>();
             var contentLines = new List<string>();

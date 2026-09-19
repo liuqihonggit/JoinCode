@@ -40,7 +40,7 @@ public static class AlcUnloadVerifier {
         alc.Unload();
         alc = null!;
 
-        for (int i = 0; i < 10; i++) {
+        for (var i = 0; i < 10; i++) {
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }

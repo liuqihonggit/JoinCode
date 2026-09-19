@@ -45,7 +45,7 @@ public sealed class JsonRpcIdConverter : JsonConverter<JsonRpcId> {
             return JsonRpcId.FromString(reader.GetString()!);
 
         if (reader.TokenType == JsonTokenType.Number) {
-            if (reader.TryGetInt64(out long longValue))
+            if (reader.TryGetInt64(out var longValue))
                 return JsonRpcId.FromNumber(longValue);
         }
 

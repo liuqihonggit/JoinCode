@@ -160,7 +160,7 @@ public sealed class SessionEventLog {
     /// <summary>按 seq 查找</summary>
     public SessionEvent? Find(int seq) {
         lock (_lock) {
-            for (int i = 0; i < _events.Count; i++) {
+            for (var i = 0; i < _events.Count; i++) {
                 if (_events[i].Seq == seq) return _events[i];
             }
             return null;
@@ -171,7 +171,7 @@ public sealed class SessionEventLog {
     public IReadOnlyList<SessionEvent> After(int seq) {
         lock (_lock) {
             var result = new List<SessionEvent>();
-            for (int i = 0; i < _events.Count; i++) {
+            for (var i = 0; i < _events.Count; i++) {
                 if (_events[i].Seq > seq) result.Add(_events[i]);
             }
             return result;
@@ -182,7 +182,7 @@ public sealed class SessionEventLog {
     public IReadOnlyList<SessionEvent> Until(int seq) {
         lock (_lock) {
             var result = new List<SessionEvent>();
-            for (int i = 0; i < _events.Count; i++) {
+            for (var i = 0; i < _events.Count; i++) {
                 if (_events[i].Seq <= seq) result.Add(_events[i]);
             }
             return result;
@@ -215,7 +215,7 @@ public static class SessionEventRebuilder {
         IReadOnlySet<string>? knownTypes = null) {
         ArgumentNullException.ThrowIfNull(events);
         var result = new List<SessionEvent>(events.Count);
-        for (int i = 0; i < events.Count; i++) {
+        for (var i = 0; i < events.Count; i++) {
             var evt = events[i];
             if (knownTypes is not null && !knownTypes.Contains(evt.Type) && !evt.Ignorable) {
                 throw new InvalidOperationException(

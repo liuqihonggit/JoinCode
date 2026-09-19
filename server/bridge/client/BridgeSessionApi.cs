@@ -95,7 +95,7 @@ public static class BridgeSessionApi {
 
         var url = gitRepoUrl.Trim();
         string? owner = null, name = null;
-        string host = "github.com";
+        var host = "github.com";
 
         var repoMatch = System.Text.RegularExpressions.Regex.Match(url, @"(?:[^/]+/){3}([^/]+)/([^/.]+)");
         if (repoMatch.Success) {

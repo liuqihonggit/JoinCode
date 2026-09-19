@@ -12,7 +12,7 @@ public sealed class ReleaseNotesCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数与取消令牌</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var releaseNotesService = ChatCommandBase.GetService<IReleaseNotesService>(context);
         var version = ChatCommandBase.GetNormalizedArgs(context);
         var currentVersion = typeof(ReleaseNotesCommand).Assembly.GetName().Version?.ToString() ?? "unknown";

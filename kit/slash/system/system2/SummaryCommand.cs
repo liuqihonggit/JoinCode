@@ -12,7 +12,7 @@ public sealed class SummaryCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文，包含会话 ID、开始时间、取消令牌等</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         TerminalHelper.WriteLine($"{TerminalColors.Primary}会话摘要{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 

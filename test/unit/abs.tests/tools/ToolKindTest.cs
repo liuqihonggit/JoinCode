@@ -92,7 +92,7 @@ public sealed class ToolKindTest {
 
     [Fact]
     public void RoundTrip_AllValues_ToValueThenFromValue_ReturnsOriginal() {
-        foreach (ToolKind kind in Enum.GetValues<ToolKind>()) {
+        foreach (var kind in Enum.GetValues<ToolKind>()) {
             var value = kind.ToValue();
             var restored = ToolKindExtensions.FromValue(value);
             restored.Should().Be(kind, $"ToValue('{kind}') → '{value}' → FromValue should return {kind}");

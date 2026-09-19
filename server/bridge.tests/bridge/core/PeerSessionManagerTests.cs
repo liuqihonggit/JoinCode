@@ -6,7 +6,7 @@ namespace Bridge.Tests;
 /// 测试对等会话创建、状态转换、事件触发和查询
 /// </summary>
 public sealed class PeerSessionManagerTests : IAsyncDisposable {
-    private PeerSessionManager _sut = new(NullLogger<PeerSessionManager>.Instance);
+    private readonly PeerSessionManager _sut = new(NullLogger<PeerSessionManager>.Instance);
 
     private static PeerSessionManager CreateSut() => new(NullLogger<PeerSessionManager>.Instance);
 

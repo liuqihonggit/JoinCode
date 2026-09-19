@@ -472,8 +472,8 @@ public sealed class BridgeWorkPollLoop : ServiceEntity {
 
         // 解码工作密钥 — 对齐 TS 端 decodeWorkSecret(work.secret)
         bool? secretUseCodeSessions = null;
-        string? ingressToken = work.SessionIngressToken;
-        string? apiBaseUrl = work.ApiBaseUrl;
+        var ingressToken = work.SessionIngressToken;
+        var apiBaseUrl = work.ApiBaseUrl;
 
         if (!string.IsNullOrEmpty(work.Secret)) {
             try {

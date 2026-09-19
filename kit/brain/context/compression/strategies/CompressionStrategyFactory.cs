@@ -19,7 +19,7 @@ public partial class CompressionStrategyFactory : ServiceEntity, ICompressionStr
         _strategies = new Dictionary<string, ICompressionStrategy>(StringComparer.OrdinalIgnoreCase);
         _strategiesByType = new Dictionary<ContentType, List<ICompressionStrategy>>();
 
-        foreach (ContentType type in Enum.GetValues<ContentType>()) {
+        foreach (var type in Enum.GetValues<ContentType>()) {
             _strategiesByType[type] = new List<ICompressionStrategy>();
         }
 

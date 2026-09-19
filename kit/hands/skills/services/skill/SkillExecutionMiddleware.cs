@@ -77,7 +77,7 @@ public sealed partial class SkillExecutionMiddleware : ServiceEntity, ISkillMidd
         Dictionary<string, JsonElement> variables,
         SkillContext context) {
         try {
-            string? output = step.Type switch {
+            var output = step.Type switch {
                 SkillStepType.Tool => await ExecuteToolStepAsync(step, variables, context).ConfigureAwait(false),
                 SkillStepType.Prompt => await ExecutePromptStepAsync(step, variables, context).ConfigureAwait(false),
                 SkillStepType.Loop => await ExecuteLoopStepAsync(step, variables, context).ConfigureAwait(false),

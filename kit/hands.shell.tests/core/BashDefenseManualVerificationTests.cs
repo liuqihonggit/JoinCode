@@ -1,7 +1,7 @@
-namespace Hands.Tests.Shell;
 
 using Core.Security.DangerClassification;
 
+namespace Hands.Tests.Shell;
 /// <summary>
 /// BashDefense 链手动验证 — 实际执行 bash 命令验证防御链行为（非 mock）
 /// </summary>

@@ -85,7 +85,7 @@ public sealed class PluginAgentLoader : ServiceEntity, IPluginAgentLoader {
         bool changed;
         do {
             changed = false;
-            for (int i = _loadOrder.Count - 1; i >= 0; i--) {
+            for (var i = _loadOrder.Count - 1; i >= 0; i--) {
                 var entry = _loadOrder[i];
                 if (pluginsToRemove.Contains(entry.PluginName))
                     continue;

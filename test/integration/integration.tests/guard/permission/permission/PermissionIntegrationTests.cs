@@ -374,7 +374,7 @@ public class PermissionIntegrationTests : IAsyncDisposable {
         await _registryWithPermission.RegisterToolAsync(mockHandler.Object).ConfigureAwait(true);
 
         var tasks = new List<Task<ToolResult>>();
-        for (int i = 0; i < 50; i++) {
+        for (var i = 0; i < 50; i++) {
             tasks.Add(_permissionExecutor.ExecuteAsync("concurrent_tool", new Dictionary<string, JsonElement>()));
         }
 

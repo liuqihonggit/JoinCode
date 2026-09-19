@@ -97,11 +97,11 @@ public static class PluginPatchApplicator {
         var result = new List<PluginConfigRow>(rows);
         var warnings = new List<string>();
         var idIndex = new Dictionary<string, int>();
-        for (int i = 0; i < result.Count; i++) {
+        for (var i = 0; i < result.Count; i++) {
             idIndex[result[i].Id] = i;
         }
 
-        for (int i = 0; i < patch.Entries.Count; i++) {
+        for (var i = 0; i < patch.Entries.Count; i++) {
             var entry = patch.Entries[i];
             idIndex.TryGetValue(entry.Id, out var idx);
             var found = idx >= 0 && idx < result.Count && result[idx].Id == entry.Id;
@@ -112,7 +112,7 @@ public static class PluginPatchApplicator {
                     warnings.Add($"patch id '{entry.Id}' 找不到目标行，insert 跳过");
                     continue;
                 }
-                for (int j = 0; j < insertList.Count; j++) {
+                for (var j = 0; j < insertList.Count; j++) {
                     var insert = insertList[j];
                     var newRow = new PluginConfigRow {
                         Id = insert.Id,
@@ -155,7 +155,7 @@ public static class PluginPatchApplicator {
         ArgumentNullException.ThrowIfNull(baseRows);
         var rows = new List<PluginConfigRow>(baseRows);
         var allWarnings = new List<string>();
-        for (int i = 0; i < layers.Length; i++) {
+        for (var i = 0; i < layers.Length; i++) {
             var result = Apply(rows, layers[i]);
             rows = result.Rows;
             allWarnings.AddRange(result.Warnings);
@@ -194,7 +194,7 @@ public sealed class PluginProfile {
     /// </summary>
     public IReadOnlyList<PluginPatch> CollectLayers() {
         var layers = new List<PluginPatch>();
-        for (int i = 0; i < Bundles.Count; i++) {
+        for (var i = 0; i < Bundles.Count; i++) {
             if (Bundles[i].Patch is { } bp) layers.Add(bp);
         }
         if (Patch is { } pp) layers.Add(pp);

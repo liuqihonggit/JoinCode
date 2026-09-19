@@ -78,7 +78,7 @@ public sealed class TerminalInteractiveService : IInteractiveService {
             TerminalHelper.WriteLine(q.Question);
             TerminalHelper.WriteLine();
 
-            for (int i = 0; i < q.Options.Count; i++) {
+            for (var i = 0; i < q.Options.Count; i++) {
                 var opt = q.Options[i];
                 TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {opt.Label}");
                 if (!string.IsNullOrWhiteSpace(opt.Description))
@@ -114,7 +114,7 @@ public sealed class TerminalInteractiveService : IInteractiveService {
         TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{question}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.WriteLine();
 
-        for (int i = 0; i < options.Count; i++) {
+        for (var i = 0; i < options.Count; i++) {
             TerminalHelper.WriteLine($"  {AnsiStyleEnumConstants.Bold}{i + 1}.{AnsiStyleEnumConstants.Reset} {options[i]}");
         }
 

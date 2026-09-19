@@ -110,7 +110,7 @@ public static class NotebookReader {
         var sb = new StringBuilder();
         var images = new List<NotebookImage>();
 
-        for (int i = 0; i < doc.Cells.Count; i++) {
+        for (var i = 0; i < doc.Cells.Count; i++) {
             var cell = doc.Cells[i];
             var cellId = cell.Id ?? $"cell-{i}";
             var sourceText = cell.SourceText;
@@ -234,7 +234,7 @@ public static class NotebookReader {
     /// 检查输出是否过大（对齐 TS: isLargeOutputs）
     /// </summary>
     private static bool IsLargeOutputs(List<NotebookOutput> outputs) {
-        int size = 0;
+        var size = 0;
         foreach (var output in outputs) {
             if (output.Text is not null)
                 size += string.Join("", output.Text).Length;

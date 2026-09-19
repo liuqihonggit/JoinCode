@@ -12,7 +12,7 @@ public sealed class StickersCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文，包含取消令牌</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var stickerService = ChatCommandBase.GetService<IStickerService>(context);
 
         if (stickerService is null)

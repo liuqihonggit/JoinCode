@@ -48,8 +48,8 @@ public sealed partial class GitSecretScanner : ServiceEntity, IGitSecretScanner 
 
         var allFindings = new List<SecretFinding>();
         var currentFile = string.Empty;
-        int hunkLineNumber = 0;
-        int lineIndex = 0;
+        var hunkLineNumber = 0;
+        var lineIndex = 0;
 
         foreach (var line in diffOutput.Split('\n')) {
             lineIndex++;

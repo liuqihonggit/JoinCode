@@ -49,7 +49,7 @@ public sealed class PluginManagerE2ETests {
     public async Task ActorSerializes_ConcurrentLoads() {
         await using var pm = CreatePluginManager();
         var tasks = new List<Task>();
-        for (int i = 0; i < 5; i++) {
+        for (var i = 0; i < 5; i++) {
             tasks.Add(Task.Run(async () => {
                 try { await pm.UnloadPluginAsync($"plugin-{i}"); } catch (Exception ex) { Console.WriteLine($"卸载失败: {ex.Message}"); }
             }));

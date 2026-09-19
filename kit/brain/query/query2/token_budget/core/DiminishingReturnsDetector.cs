@@ -110,7 +110,7 @@ public sealed partial class DiminishingReturnsDetector : ServiceEntity, IDiminis
             }
 
             var isDiminishing = _consecutiveLowValueCount >= ConsecutiveThreshold;
-            string? recommendation = isDiminishing switch {
+            var recommendation = isDiminishing switch {
                 true when _consecutiveLowValueCount >= ConsecutiveThreshold + 2 => "Stop iteration - sustained diminishing returns",
                 true => "Consider compacting context or switching strategy",
                 _ => null

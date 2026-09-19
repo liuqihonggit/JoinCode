@@ -139,7 +139,7 @@ public sealed class PermissionCheckContext {
 
         for (var i = 0; i < patterns.Count; i++) {
             var pattern = patterns[i];
-            string resolvedPath = pattern.PathType == PathType.SpecialFolder
+            var resolvedPath = pattern.PathType == PathType.SpecialFolder
                 ? ResolveSpecialFolder(pattern.Path)
                 : pattern.Path;
 
@@ -232,7 +232,7 @@ public sealed class PermissionCheckContext {
         if (value.Length > source.Length)
             return false;
 
-        for (int i = 0; i <= source.Length - value.Length; i++) {
+        for (var i = 0; i <= source.Length - value.Length; i++) {
             if (MatchesOrdinalIgnoreCase(source.Slice(i, value.Length), value))
                 return true;
         }
@@ -247,7 +247,7 @@ public sealed class PermissionCheckContext {
         if (a.Length != b.Length)
             return false;
 
-        for (int i = 0; i < a.Length; i++) {
+        for (var i = 0; i < a.Length; i++) {
             if (char.ToUpperInvariant(a[i]) != char.ToUpperInvariant(b[i]))
                 return false;
         }

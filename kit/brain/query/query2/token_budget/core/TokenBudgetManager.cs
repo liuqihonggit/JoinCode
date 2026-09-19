@@ -47,7 +47,7 @@ public sealed record ResetBudgetCmd(TaskCompletionSource Tcs) : ITokenBudgetComm
 [Register(typeof(ITokenBudgetManager), ServiceLifetime.Singleton)]
 public partial class TokenBudgetManager : ActorBase<ITokenBudgetCommand, Unit>, ITokenBudgetManager, IAsyncDisposable {
     private readonly ITelemetryService? _telemetryService;
-    private TokenBudget _budget = new();
+    private readonly TokenBudget _budget = new();
     private double _alertThreshold = 0.0;
     private int _disposed;
 

@@ -241,7 +241,7 @@ public sealed class RealApiCacheTests {
         var doc = JsonDocument.Parse(body);
         var usage = doc.RootElement.GetProperty("usage");
 
-        int cachedTokens = 0;
+        var cachedTokens = 0;
         if (usage.TryGetProperty("prompt_tokens_details", out var details)) {
             if (details.TryGetProperty("cached_tokens", out var ct))
                 cachedTokens = ct.GetInt32();

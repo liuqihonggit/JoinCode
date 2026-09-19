@@ -63,7 +63,7 @@ public sealed class NotebookCellDiagnosticTests {
     [Fact]
     public void BuildCellNotFoundMessage_TooManyCells_TruncatesList() {
         var cells = new List<NotebookCell>();
-        for (int i = 0; i < 25; i++) {
+        for (var i = 0; i < 25; i++) {
             cells.Add(new NotebookCell { Id = $"cell-{i}", CellType = "code" });
         }
 

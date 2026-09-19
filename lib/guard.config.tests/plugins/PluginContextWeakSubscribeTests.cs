@@ -28,7 +28,7 @@ public sealed class PluginContextWeakSubscribeTests {
         var ctx = new PluginContext("test", services);
         var source = new EventSource();
 
-        WeakReference<Subscriber> weakRef = CreateAndSubscribe(ctx, source);
+        var weakRef = CreateAndSubscribe(ctx, source);
 
         GC.Collect();
         GC.WaitForPendingFinalizers();

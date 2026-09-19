@@ -463,7 +463,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         plan.Status = PlanStatus.Executing;
         var results = new List<string>();
 
-        for (int i = plan.CurrentStepIndex; i < plan.Steps.Count; i++) {
+        for (var i = plan.CurrentStepIndex; i < plan.Steps.Count; i++) {
             var step = plan.Steps[i];
 
             if (step.Status == PlanStepStatus.Approved) {
@@ -589,7 +589,7 @@ public sealed partial class PlanModeManager : IPlanModeManager, IAsyncDisposable
         plan.Steps.RemoveAt(stepIndex);
 
         // 重新索引
-        for (int i = 0; i < plan.Steps.Count; i++) {
+        for (var i = 0; i < plan.Steps.Count; i++) {
             plan.Steps[i] = plan.Steps[i] with { Index = i };
         }
 

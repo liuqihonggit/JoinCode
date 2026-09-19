@@ -11,7 +11,7 @@ public sealed class MemoryCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文</param>
     /// <returns>命令执行结果</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : null;
 
@@ -88,7 +88,7 @@ public sealed class MemoryCommand : ChatCommandBase {
         TerminalHelper.WriteLine($"{AnsiStyleEnumConstants.Bold}{L.T(StringKey.HostMemoryFilesHeader)}{AnsiStyleEnumConstants.Reset}");
         TerminalHelper.NewLine();
 
-        for (int i = 0; i < files.Count; i++) {
+        for (var i = 0; i < files.Count; i++) {
             var (label, _, desc, exists) = files[i];
             var existsLabel = exists ? "" : " (new)";
             var color = exists ? TerminalColors.Success : TerminalColors.Muted;
@@ -246,7 +246,7 @@ public sealed class MemoryCommand : ChatCommandBase {
         var type = MemoryType.User;
         var tags = new List<string>();
 
-        for (int i = 1; i < args.Length; i++) {
+        for (var i = 1; i < args.Length; i++) {
             if (args[i] == "--type" && i + 1 < args.Length) {
                 var parsed = MemoryTypeExtensions.FromValue(args[i + 1]);
                 if (parsed is not null)
@@ -428,7 +428,7 @@ public sealed class MemoryCommand : ChatCommandBase {
         int? archiveDays = null;
         int? deleteDays = null;
 
-        for (int i = 1; i < args.Length; i++) {
+        for (var i = 1; i < args.Length; i++) {
             if (args[i] == "--archive-days" && i + 1 < args.Length && int.TryParse(args[i + 1], out var ad)) {
                 archiveDays = ad;
                 i++;

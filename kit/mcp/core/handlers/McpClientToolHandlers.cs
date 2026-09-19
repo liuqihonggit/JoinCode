@@ -297,7 +297,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
             response.AppendLine(L.T(StringKey.McpServerToolsList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.GetData().Count; i++) {
+            for (var i = 0; i < result.GetData().Count; i++) {
                 var tool = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {tool.Name}");
                 if (!string.IsNullOrEmpty(tool.Description)) {
@@ -393,7 +393,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
             response.AppendLine(L.T(StringKey.McpServerResourcesList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.GetData().Count; i++) {
+            for (var i = 0; i < result.GetData().Count; i++) {
                 var resource = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {resource.Name}");
                 response.AppendLine($"   {L.T(StringKey.LabelUri, resource.Uri)}");
@@ -498,7 +498,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
             response.AppendLine(L.T(StringKey.McpServerPromptsList, result.GetData().Count));
             response.AppendLine();
 
-            for (int i = 0; i < result.GetData().Count; i++) {
+            for (var i = 0; i < result.GetData().Count; i++) {
                 var prompt = result.GetData()[i];
                 response.AppendLine($"{i + 1}. {prompt.Name}");
                 if (!string.IsNullOrEmpty(prompt.Description)) {

@@ -68,7 +68,7 @@ public sealed partial class BuddyService : ServiceEntity, IBuddyService {
 
     private static int HashUserId(string userId) {
         unchecked {
-            int hash = 5381;
+            var hash = 5381;
             var combined = userId + Salt;
             foreach (var c in combined)
                 hash = ((hash << 5) + hash) + c;

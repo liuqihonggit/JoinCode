@@ -21,7 +21,7 @@ public sealed class SessionTrajectory {
     public IReadOnlyDictionary<string, IReadOnlyList<SessionEvent>> GroupByType() {
         var events = _log.Events;
         var groups = new Dictionary<string, List<SessionEvent>>();
-        for (int i = 0; i < events.Count; i++) {
+        for (var i = 0; i < events.Count; i++) {
             var e = events[i];
             if (!groups.TryGetValue(e.Type, out var list)) {
                 list = new List<SessionEvent>();
@@ -38,7 +38,7 @@ public sealed class SessionTrajectory {
     public IReadOnlyList<SessionEvent> OfType(string type) {
         var events = _log.Events;
         var result = new List<SessionEvent>();
-        for (int i = 0; i < events.Count; i++) {
+        for (var i = 0; i < events.Count; i++) {
             if (events[i].Type == type) result.Add(events[i]);
         }
         return result;
@@ -74,7 +74,7 @@ public static class SessionReplay {
         ArgumentNullException.ThrowIfNull(source);
         var forked = new SessionEventLog(clock);
         var events = source.Until(atSeq);
-        for (int i = 0; i < events.Count; i++) {
+        for (var i = 0; i < events.Count; i++) {
             var e = events[i];
             forked.Append(e.Type, e.Data, e.SurfaceOp, e.SourceEventSeqs, e.Ignorable);
         }

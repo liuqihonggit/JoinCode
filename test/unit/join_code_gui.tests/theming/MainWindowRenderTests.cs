@@ -50,10 +50,10 @@ public sealed class MainWindowRenderTests {
         var bytes = ReadPixels(frame);
         var stride = frame.PixelSize.Width * 4;
         double sum = 0;
-        int n = 0;
-        for (int py = y; py < y + h; py++) {
-            for (int px = x; px < x + w; px++) {
-                int i = py * stride + px * 4;
+        var n = 0;
+        for (var py = y; py < y + h; py++) {
+            for (var px = x; px < x + w; px++) {
+                var i = py * stride + px * 4;
                 double b = bytes[i], g = bytes[i + 1], r = bytes[i + 2];
                 sum += 0.299 * r + 0.587 * g + 0.114 * b;
                 n++;
@@ -67,8 +67,8 @@ public sealed class MainWindowRenderTests {
         var bytes = ReadPixels(frame);
         var stride = frame.PixelSize.Width * 4;
         var seen = new System.Collections.Generic.Dictionary<string, int>();
-        for (int px = x0; px <= x1; px++) {
-            int i = y * stride + px * 4;
+        for (var px = x0; px <= x1; px++) {
+            var i = y * stride + px * 4;
             var c = $"#{bytes[i + 2]:X2}{bytes[i + 1]:X2}{bytes[i]:X2}";
             seen[c] = seen.TryGetValue(c, out var n) ? n + 1 : 1;
         }
@@ -145,9 +145,9 @@ public sealed class MainWindowRenderTests {
         var stride = frame.PixelSize.Width * 4;
         // 选中的第一个会话条目渲染在侧栏顶部区域,采样它的背景像素
         var found = false;
-        for (int y = 100; y < 180; y++) {
-            for (int x = 40; x < 200; x++) {
-                int i = y * stride + x * 4;
+        for (var y = 100; y < 180; y++) {
+            for (var x = 40; x < 200; x++) {
+                var i = y * stride + x * 4;
                 var c = $"{bytes[i]:X2}{bytes[i + 1]:X2}{bytes[i + 2]:X2}";
                 if (c.Equals(hex, StringComparison.OrdinalIgnoreCase)) {
                     found = true;

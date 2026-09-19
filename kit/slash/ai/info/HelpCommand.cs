@@ -56,7 +56,7 @@ public sealed class HelpCommand : ChatCommandBase {
 
         // 按枚举定义顺序输出（会话→模型→代码→...→其他）
         var result = new List<CommandCategoryGroup>();
-        foreach (ChatCommandCategory cat in Enum.GetValues<ChatCommandCategory>()) {
+        foreach (var cat in Enum.GetValues<ChatCommandCategory>()) {
             if (groups.TryGetValue(cat, out var cmds) && cmds.Count > 0) {
                 result.Add(new CommandCategoryGroup(cat, cmds));
             }

@@ -11,7 +11,7 @@ public sealed partial class BashSystemActuator : SystemActuatorBase {
     public const string ShellPrefixEnvVar = "JCC_SHELL_PREFIX";
 
     private readonly IEnvironmentProbeService? _probeService;
-    private string? _snapshotFilePath;
+    private readonly string? _snapshotFilePath;
 
     private static readonly string SnapshotDir = AppDataConstants.Paths.ShellSnapshotsDirectory;
 

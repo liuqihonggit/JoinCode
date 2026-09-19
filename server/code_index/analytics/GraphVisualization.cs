@@ -51,7 +51,7 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
         var edges = new List<CallEdge>();
         var frontier = new HashSet<string>(StringComparer.Ordinal) { centerSymbol };
 
-        for (int i = 0; i < hops && frontier.Count > 0; i++) {
+        for (var i = 0; i < hops && frontier.Count > 0; i++) {
             var nextFrontier = new HashSet<string>(StringComparer.Ordinal);
             foreach (var sym in frontier) {
                 if (_store.CallsByCaller.TryGetValue(sym, out var callees))
@@ -123,7 +123,7 @@ public sealed class GraphVisualization : ServiceEntity, IGraphVisualization {
         sb.AppendLine("</head><body><script>");
         sb.AppendLine("const data={nodes:[");
         var nodeList = nodes.ToList();
-        for (int i = 0; i < nodeList.Count; i++)
+        for (var i = 0; i < nodeList.Count; i++)
             sb.AppendLine($"{{id:\"{EscapeJs(nodeList[i])}\",group:1}},");
         sb.AppendLine("],links:[");
         foreach (var e in edges)

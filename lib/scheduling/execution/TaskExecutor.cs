@@ -114,7 +114,7 @@ internal sealed class TaskExecutor {
         if (_agentCoordinator == null) return Array.Empty<IAgent>();
 
         var subAgents = new List<IAgent>();
-        for (int i = 0; i < task.RequiredAgents; i++) {
+        for (var i = 0; i < task.RequiredAgents; i++) {
             var agent = await CreateSingleSubAgentAsync(task, taskContext, options, i).ConfigureAwait(false);
             subAgents.Add(agent);
         }
@@ -162,7 +162,7 @@ internal sealed class TaskExecutor {
     /// 记录Agent创建日志
     /// </summary>
     private void LogAgentCreation(string taskName, IReadOnlyList<IAgent> subAgents, int totalAgents) {
-        for (int i = 0; i < subAgents.Count; i++) {
+        for (var i = 0; i < subAgents.Count; i++) {
             _logger?.LogInformation(L.T(StringKey.CreateSubAgentLog, taskName, subAgents[i].ObjectId.UniqueId, i + 1, totalAgents));
         }
     }
@@ -257,7 +257,7 @@ internal sealed class TaskExecutor {
         };
         _executionRecords[task.Id] = record;
 
-        for (int i = 0; i < results.Count; i++) {
+        for (var i = 0; i < results.Count; i++) {
             var result = results[i];
             sb.AppendLine(L.T(StringKey.AgentResultHeader, i + 1, result.AgentId));
             sb.AppendLine($"Status: {(result.IsSuccess ? L.T(StringKey.StatusSuccess) : L.T(StringKey.StatusFailed))}");
@@ -318,7 +318,7 @@ internal sealed class TaskExecutor {
         sb.AppendLine(L.T(StringKey.MultiAgentResultTitle));
         sb.AppendLine();
 
-        for (int i = 0; i < successfulOutputs.Count; i++) {
+        for (var i = 0; i < successfulOutputs.Count; i++) {
             sb.AppendLine(L.T(StringKey.AgentContributionHeader, i + 1));
             sb.AppendLine(successfulOutputs[i]);
             sb.AppendLine();

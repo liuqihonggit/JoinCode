@@ -66,9 +66,9 @@ public sealed class GuiBeautifyRenderTests {
     private static bool HasUserBarPixel(WriteableBitmap frame, byte r, byte g, byte b) {
         var bytes = ReadPixels(frame);
         int w = frame.PixelSize.Width, h = frame.PixelSize.Height, stride = w * 4;
-        for (int y = 60; y < h - 120; y++) {
-            for (int x = 198; x < w - 20; x++) {
-                int i = y * stride + x * 4;
+        for (var y = 60; y < h - 120; y++) {
+            for (var x = 198; x < w - 20; x++) {
+                var i = y * stride + x * 4;
                 if (Math.Abs(bytes[i] - r) <= 16 && Math.Abs(bytes[i + 1] - g) <= 16 && Math.Abs(bytes[i + 2] - b) <= 16)
                     return true;
             }

@@ -18,7 +18,7 @@ public sealed class StatusCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文，提供会话、服务与取消令牌</param>
     /// <returns>表示命令执行结果的 <see cref="ChatCommandResult"/>，始终为 Continue</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
         // 预收集数据
         var version = GetType().Assembly.GetName().Version?.ToString() ?? "unknown";

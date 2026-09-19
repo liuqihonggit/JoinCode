@@ -72,7 +72,7 @@ public partial class BundledSkillToolHandlers {
             response.AppendLine($"Found {suggestions.Count} simplification suggestions:");
             response.AppendLine();
 
-            for (int i = 0; i < suggestions.Count; i++) {
+            for (var i = 0; i < suggestions.Count; i++) {
                 var (category, line, suggestion) = suggestions[i];
                 response.AppendLine($"{i + 1}. [{category}] Line {line}");
                 response.AppendLine($"   {suggestion}");
@@ -356,7 +356,7 @@ public partial class BundledSkillToolHandlers {
         // 提供通用的替代方案建议
         var suggestions = GetStuckSuggestions(current_approach, obstacle);
 
-        for (int i = 0; i < suggestions.Count; i++) {
+        for (var i = 0; i < suggestions.Count; i++) {
             response.AppendLine($"{i + 1}. {suggestions[i].Title}");
             response.AppendLine($"   {suggestions[i].Description}");
             response.AppendLine();
@@ -417,7 +417,7 @@ public partial class BundledSkillToolHandlers {
         var suggestions = new List<(string Category, int Line, string Suggestion)>();
         var lines = content.Split('\n');
 
-        for (int i = 0; i < lines.Length; i++) {
+        for (var i = 0; i < lines.Length; i++) {
             var line = lines[i];
             var lineNum = i + 1;
 

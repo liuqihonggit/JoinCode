@@ -52,7 +52,7 @@ public sealed class AgentRunVm : INotifyPropertyChanged {
     public bool IsFailed { get => _isFailed; private set { if (_isFailed != value) { _isFailed = value; Raise(nameof(IsFailed)); } } }
 
     /// <summary>尾部活动行（Refresh 时整体重建 — 行数固定 ≤3，重建成本可忽略）</summary>
-    private ObservableCollection<string> _activityLines = [];
+    private readonly ObservableCollection<string> _activityLines = [];
     /// <summary>尾部活动行集合（Refresh 时整体重建，行数固定 ≤3）</summary>
     public ObservableCollection<string> ActivityLines => _activityLines;
 

@@ -12,7 +12,7 @@ public sealed class DesktopCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文，包含会话 ID 与取消令牌</param>
     /// <returns>命令执行结果（始终为 Continue，表示不中断主对话流）</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var handoffService = ChatCommandBase.GetService<IDesktopHandoffService>(context);
 
         if (handoffService is null)

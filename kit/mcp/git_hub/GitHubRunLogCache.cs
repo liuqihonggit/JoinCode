@@ -245,7 +245,7 @@ internal sealed class GitHubRunLogCache {
             var tasks = jobIds.Select(async jobId => {
                 await semaphore.WaitAsync(ct).ConfigureAwait(false);
                 try {
-                    for (int attempt = 0; attempt < 3; attempt++) {
+                    for (var attempt = 0; attempt < 3; attempt++) {
                         try {
                             var lines = new List<string>();
                             await foreach (var line in _apiClient.GetJobLogsAsync(owner, repo, jobId, ct).ConfigureAwait(false)) {

@@ -1,7 +1,7 @@
-namespace JccAuditCli;
 
 using Structura.Dag;
 
+namespace JccAuditCli;
 /// <summary>
 /// 层依赖审计器：检测七层架构（Generators→Foundation→Infrastructure→Core→Services→Composition→App）
 /// 之间的非法依赖（反向依赖、跨层引用、循环依赖）

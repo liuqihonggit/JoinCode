@@ -540,7 +540,7 @@ public partial class PluginManager : ActorBase<PluginManagerCommand, PluginManag
         }
 
         // 最后按加载顺序逆序卸载 workflow
-        List<string> workflowPluginNames = _lifecycleTracker.GetLoadOrderReversed();
+        var workflowPluginNames = _lifecycleTracker.GetLoadOrderReversed();
 
         foreach (var pluginName in workflowPluginNames) {
             if (_plugins.TryRemove(pluginName, out var host) && host is WorkflowPluginHost workflowHost) {

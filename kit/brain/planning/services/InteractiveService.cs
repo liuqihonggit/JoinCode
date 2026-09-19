@@ -28,7 +28,7 @@ public sealed partial class InteractiveService : ServiceEntity, IInteractiveServ
         _logger?.LogInformation("[Ask] {Question}", question);
 
         if (options?.Count > 0) {
-            for (int i = 0; i < options.Count; i++) {
+            for (var i = 0; i < options.Count; i++) {
                 _logger?.LogDebug("Option {Index}: {Option}", i + 1, options[i]);
             }
         }

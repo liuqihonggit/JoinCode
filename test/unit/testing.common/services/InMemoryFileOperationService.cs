@@ -7,7 +7,7 @@ namespace Testing.Common.Services;
 public sealed class InMemoryFileOperationService : IFileOperationService, IDisposable {
     private readonly InMemoryFileSystem _fileSystem;
     private readonly ILogger<InMemoryFileOperationService>? _logger;
-    private string _currentDirectory = "/test";
+    private readonly string _currentDirectory = "/test";
     private bool _disposed;
 
     public InMemoryFileOperationService(InMemoryFileSystem? fileSystem = null, ILogger<InMemoryFileOperationService>? logger = null) {
@@ -70,7 +70,7 @@ public sealed class InMemoryFileOperationService : IFileOperationService, IDispo
 
             var content = _fileSystem.ReadAllText(filePath);
             var originalContent = content;
-            int replaceCount = 0;
+            var replaceCount = 0;
 
             if (replaceAll) {
                 replaceCount = content.Split(oldString).Length - 1;

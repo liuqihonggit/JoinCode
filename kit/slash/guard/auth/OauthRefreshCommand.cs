@@ -14,7 +14,7 @@ public sealed class OauthRefreshCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数、服务、取消令牌等</param>
     /// <returns>命令执行结果,始终返回 Continue 表示继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
         if (services.TokenStorage is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}OAuth Token 存储不可用{AnsiStyleEnumConstants.Reset}");

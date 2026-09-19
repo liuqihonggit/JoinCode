@@ -12,7 +12,7 @@ public sealed class ThinkbackCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文,提供会话 ID、取消令牌与命令服务</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var services = context.GetCommandServices();
         if (services.ThinkingStore is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Error}思考存储不可用{AnsiStyleEnumConstants.Reset}");

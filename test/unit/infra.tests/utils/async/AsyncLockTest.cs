@@ -61,9 +61,9 @@ public class AsyncLockTest {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         const int N = 10;
         var acquireOrder = new ConcurrentQueue<int>();
-        int currentHolders = 0;
-        int maxConcurrent = 0;
-        int completedCount = 0;
+        var currentHolders = 0;
+        var maxConcurrent = 0;
+        var completedCount = 0;
 
         var startGate = new TaskCompletionSource<bool>();
         var tasks = Enumerable.Range(0, N).Select(async i => {
@@ -303,10 +303,10 @@ public class AsyncLockTest {
     public async Task LockAsync_HighConcurrency_AllAcquiredExactlyOnce() {
         var asyncLock = new AsyncLock(nameof(AsyncLockTest));
         const int N = 100;
-        int currentHolders = 0;
-        int maxConcurrent = 0;
-        int completedCount = 0;
-        int acquireCount = 0;
+        var currentHolders = 0;
+        var maxConcurrent = 0;
+        var completedCount = 0;
+        var acquireCount = 0;
 
         var startGate = new TaskCompletionSource<bool>();
         var tasks = Enumerable.Range(0, N).Select(async _ => {

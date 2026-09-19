@@ -16,7 +16,7 @@ public sealed class StoreSelector<TState, TSelected> : IStoreSelector<TState, TS
     private readonly ILogger<StoreSelector<TState, TSelected>>? _logger;
 
     private TSelected _currentValue;
-    private IDisposable? _storeSubscription;
+    private readonly IDisposable? _storeSubscription;
     private int _disposed;
 
     /// <summary>

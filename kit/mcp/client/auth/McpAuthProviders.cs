@@ -181,7 +181,7 @@ public sealed class OAuth2AuthProvider : IMcpAuthProvider, IAsyncDisposable {
     private readonly List<string> _scopes;
     private readonly AsyncLock _refreshLock = new();
 
-    private McpAuthContext _authContext = new();
+    private readonly McpAuthContext _authContext = new();
     private string? _pendingStepUpScope;
     private int _disposed;
 

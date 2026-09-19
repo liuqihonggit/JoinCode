@@ -11,7 +11,7 @@ public sealed class KestrelMockServer : IHttpMockServer {
     private int _requestIndex;
     private WebApplication? _app;
     private Task? _runTask;
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
     private IHostApplicationLifetime? _appLifetime;
     private string _dumpDir = string.Empty;
 

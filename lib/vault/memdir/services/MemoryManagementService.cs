@@ -370,12 +370,12 @@ public sealed partial class MemoryManagementService : ServiceEntity, IMemoryMana
         _logger?.LogInformation(L.T(StringKey.VaultLogScanMemory), query, category ?? L.T(StringKey.VaultAllCategory));
 
         // 将字符串 category 转换为 MemoryType
-        MemoryType? memoryType = MemoryTypeExtensions.FromValue(category);
+        var memoryType = MemoryTypeExtensions.FromValue(category);
 
         List<MemoryEntry> results;
         if (_optional?.MemoryScanner != null) {
             // 使用 IMemoryScanner 获取记忆
-            IReadOnlyList<MemoryEntry> scanResults = memoryType.HasValue
+            var scanResults = memoryType.HasValue
                 ? await _optional.MemoryScanner.ScanByTypeAsync(memoryType.Value, ct).ConfigureAwait(false)
                 : await _optional.MemoryScanner.ScanAllAsync(ct).ConfigureAwait(false);
             results = scanResults.ToList();

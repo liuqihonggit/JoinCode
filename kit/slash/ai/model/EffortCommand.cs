@@ -15,7 +15,7 @@ public sealed class EffortCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文,提供参数与状态栏数据</param>
     /// <returns>表示命令执行结果的任务,始终返回 Continue 以继续会话</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetNormalizedArgs(context).ToLowerInvariant();
         var statusBar = context.GetCommandServices().StatusBarData;
         var settingsProvider = context.GetCommandServices().ExecutionSettingsProvider;

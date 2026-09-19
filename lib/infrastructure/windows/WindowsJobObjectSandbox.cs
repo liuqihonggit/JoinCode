@@ -38,7 +38,7 @@ public sealed class WindowsJobObjectSandbox : IDisposable {
         }
 
         var info = new JobObjectNative.JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
-        uint limitFlags = JobObjectNative.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        var limitFlags = JobObjectNative.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
         if (memoryLimitBytes.HasValue && memoryLimitBytes.Value > 0) {
             limitFlags |= JobObjectNative.JOB_OBJECT_LIMIT_PROCESS_MEMORY;

@@ -38,9 +38,9 @@ public sealed partial class GdiScreenCaptureService : ServiceEntity, IScreenCapt
         var hdcScreen = User32NativeMethods.GetDC(IntPtr.Zero);
         if (hdcScreen == IntPtr.Zero) return string.Empty;
 
-        IntPtr hdcMem = IntPtr.Zero;
-        IntPtr hBitmap = IntPtr.Zero;
-        IntPtr hOld = IntPtr.Zero;
+        var hdcMem = IntPtr.Zero;
+        var hBitmap = IntPtr.Zero;
+        var hOld = IntPtr.Zero;
 
         try {
             hdcMem = Gdi32NativeMethods.CreateCompatibleDC(hdcScreen);

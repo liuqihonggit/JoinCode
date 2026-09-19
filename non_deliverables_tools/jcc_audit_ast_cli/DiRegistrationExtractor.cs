@@ -339,7 +339,7 @@ public static class DiRegistrationExtractor {
         foreach (var attrList in classDecl.AttributeLists) {
             foreach (var attr in attrList.Attributes) {
                 var attrName = GetAttributeShortName(attr.Name);
-                string? lifetime = attrName switch {
+                var lifetime = attrName switch {
                     "Register" => "Singleton",
                     _ => null
                 };

@@ -28,7 +28,7 @@ public static class LineEndingDetector {
         var crlfCount = 0;
         var lfCount = 0;
 
-        for (int i = 0; i < span.Length; i++) {
+        for (var i = 0; i < span.Length; i++) {
             if (span[i] == '\n') {
                 if (i > 0 && span[i - 1] == '\r')
                     crlfCount++;

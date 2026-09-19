@@ -291,7 +291,7 @@ public sealed class McpStdioClient : McpClientBase {
         var requestStart = _clock.GetUtcNowOffset();
 
         var tcs = new TaskCompletionSource<JsonRpcResponse>();
-        int requestId = request.GetIdAsInt();
+        var requestId = request.GetIdAsInt();
 
         await _requestRegistry.RegisterAsync(requestId, tcs, cancellationToken).ConfigureAwait(false);
 

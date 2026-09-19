@@ -193,7 +193,7 @@ public sealed partial class CronScheduler : ActorBase<ICronSchedulerCommand, Uni
             break;
 
             case CronGetNextFireCmd(var tcs):
-            long min = long.MaxValue;
+            var min = long.MaxValue;
             foreach (var time in _nextFireAt.Values) {
                 if (time < min) min = time;
             }

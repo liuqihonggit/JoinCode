@@ -27,7 +27,7 @@ public static class FileSizeFormatter {
         int charsWritten;
 
         double value = bytes;
-        int unitIndex = 0;
+        var unitIndex = 0;
 
         while (value >= 1024 && unitIndex < Units.Length - 1) {
             value /= 1024;
@@ -54,7 +54,7 @@ public static class FileSizeFormatter {
         charsWritten++;
 
         var unit = Units[unitIndex];
-        for (int i = 0; i < unit.Length; i++) {
+        for (var i = 0; i < unit.Length; i++) {
             buffer[charsWritten + i] = unit[i];
         }
         charsWritten += unit.Length;

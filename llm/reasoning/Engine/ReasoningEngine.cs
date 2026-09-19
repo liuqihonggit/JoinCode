@@ -92,7 +92,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
 
             _logger.LogInformation("[假定] {Content} (ID:{Id})", item.Content, item.Id);
 
-            foreach (AgentRole role in Enum.GetValues<AgentRole>()) {
+            foreach (var role in Enum.GetValues<AgentRole>()) {
                 var cone = _coneOrchestrator.GetRole(role);
                 if (cone is not null) {
                     var fragment = _coneOrchestrator.CreateFragmentFromItem(role, item);
@@ -553,7 +553,7 @@ public sealed class ReasoningEngine : IReasoningEngine {
         _budget.Reset(_options.MaxAdversarialRounds, _options.MaxTokens);
         _lastRunAt = null;
 
-        foreach (AgentRole role in Enum.GetValues<AgentRole>()) {
+        foreach (var role in Enum.GetValues<AgentRole>()) {
             _coneOrchestrator.RegisterRole(role, _options.ConeWindowSize);
         }
 

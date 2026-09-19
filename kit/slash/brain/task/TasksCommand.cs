@@ -11,7 +11,7 @@ public sealed class TasksCommand : ChatCommandBase {
     /// </summary>
     /// <param name="context">命令执行上下文。</param>
     /// <returns>命令执行结果。</returns>
-    public async override Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
+    public override async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var args = ChatCommandBase.GetSplitArgs(context);
         var action = args.Length > 0 ? args[0].ToLowerInvariant() : null;
 
@@ -201,7 +201,7 @@ public sealed class TasksCommand : ChatCommandBase {
         var priority = "medium";
         string? assignee = null;
 
-        for (int i = 1; i < args.Length; i++) {
+        for (var i = 1; i < args.Length; i++) {
             if (args[i] == "--priority" && i + 1 < args.Length) {
                 priority = args[i + 1];
                 i++;
@@ -254,7 +254,7 @@ public sealed class TasksCommand : ChatCommandBase {
         string? newStatus = null;
         string? newPriority = null;
 
-        for (int i = 2; i < args.Length; i++) {
+        for (var i = 2; i < args.Length; i++) {
             if (args[i] == "--title" && i + 1 < args.Length) {
                 newTitle = args[i + 1];
                 i++;

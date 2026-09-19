@@ -205,8 +205,8 @@ public sealed partial class CodeSessionApiHandler : ServiceEntity {
         using var reader = context.Request.InputStream.AsUtf8Reader();
         var body = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
 
-        string projectName = string.Empty;
-        string workDirectory = string.Empty;
+        var projectName = string.Empty;
+        var workDirectory = string.Empty;
 
         if (!string.IsNullOrEmpty(body)) {
             var doc = JsonDocument.Parse(body);

@@ -10,7 +10,7 @@ public sealed class UpdateServer {
     private readonly string _contentRoot;
     private readonly IFileSystem _fs;
     private WebApplication? _app;
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
 
     /// <summary>服务器基础 URL</summary>
     public string Url => $"http://localhost:{_port}";

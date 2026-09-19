@@ -89,10 +89,10 @@ public sealed partial class MainViewModel {
     private void ApplyPreferencesToEngine() {
         _ = Task.Run(async () => {
             try {
-                await _session.SetTemperatureAsync((float)Temperature).WaitAsync(Timeout);
-                await _session.SetMaxTokensAsync(MaxTokens).WaitAsync(Timeout);
+                await _session.SetTemperatureAsync((float)Temperature).WaitAsync(Timeout).ConfigureAwait(false);
+                await _session.SetMaxTokensAsync(MaxTokens).WaitAsync(Timeout).ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(SystemPrompt))
-                    await _session.SetSystemPromptAsync(SystemPrompt).WaitAsync(Timeout);
+                    await _session.SetSystemPromptAsync(SystemPrompt).WaitAsync(Timeout).ConfigureAwait(false);
             } catch (Exception ex) {
                 ViewModelDiagnosticsLogger.WriteError(ex);
             }

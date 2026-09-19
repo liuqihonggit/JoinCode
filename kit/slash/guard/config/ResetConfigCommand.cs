@@ -21,20 +21,20 @@ public sealed class ResetConfigCommand : ChatCommandBase {
         var jccDir = Path.Combine(appDataRoot, AppDataConstants.AppDataFolder);
 
         if (args == "all" || string.IsNullOrEmpty(args)) {
-            await ResetAllAsync(jccDir, fs, context.CancellationToken);
+            await ResetAllAsync(jccDir, fs, context.CancellationToken).ConfigureAwait(false);
         } else {
             switch (args) {
                 case "auth":
-                await ResetAuthAsync(jccDir, fs, context.CancellationToken);
+                await ResetAuthAsync(jccDir, fs, context.CancellationToken).ConfigureAwait(false);
                 break;
                 case "settings":
-                await ResetSettingsAsync(jccDir, fs, context.CancellationToken);
+                await ResetSettingsAsync(jccDir, fs, context.CancellationToken).ConfigureAwait(false);
                 break;
                 case "trust":
-                await ResetTrustAsync(jccDir, fs, context.CancellationToken);
+                await ResetTrustAsync(jccDir, fs, context.CancellationToken).ConfigureAwait(false);
                 break;
                 case "onboarding":
-                await ResetOnboardingAsync(jccDir, fs, context.CancellationToken);
+                await ResetOnboardingAsync(jccDir, fs, context.CancellationToken).ConfigureAwait(false);
                 break;
                 default:
                 TerminalHelper.WriteLine($"未知选项: {args}");
@@ -50,10 +50,10 @@ public sealed class ResetConfigCommand : ChatCommandBase {
         TerminalHelper.WriteLine("重置所有配置文件...");
         TerminalHelper.NewLine();
 
-        await ResetAuthAsync(jccDir, fs, ct);
-        await ResetSettingsAsync(jccDir, fs, ct);
-        await ResetTrustAsync(jccDir, fs, ct);
-        await ResetOnboardingAsync(jccDir, fs, ct);
+        await ResetAuthAsync(jccDir, fs, ct).ConfigureAwait(false);
+        await ResetSettingsAsync(jccDir, fs, ct).ConfigureAwait(false);
+        await ResetTrustAsync(jccDir, fs, ct).ConfigureAwait(false);
+        await ResetOnboardingAsync(jccDir, fs, ct).ConfigureAwait(false);
 
         TerminalHelper.NewLine();
         TerminalHelper.WriteLine($"{TerminalColors.Success}✓ 所有配置已重置{AnsiStyleEnumConstants.Reset}");

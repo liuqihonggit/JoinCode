@@ -23,23 +23,23 @@ public sealed class PermissionsCommand : ChatCommandBase {
         switch (crudAction, permAction) {
             case (CrudAction.List, _):
             case (CrudAction.Ls, _):
-            await ListRulesAsync(context);
+            await ListRulesAsync(context).ConfigureAwait(false);
             break;
             case (_, PermissionsAction.Add):
-            await AddRuleAsync(context, args);
+            await AddRuleAsync(context, args).ConfigureAwait(false);
             break;
             case (CrudAction.Remove, _):
             case (CrudAction.Delete, _):
             case (CrudAction.Rm, _):
-            await RemoveRuleAsync(context, args);
+            await RemoveRuleAsync(context, args).ConfigureAwait(false);
             break;
             case (_, PermissionsAction.Clear):
-            await ClearRulesAsync(context);
+            await ClearRulesAsync(context).ConfigureAwait(false);
             break;
             case (_, PermissionsAction.Workspace):
             case (_, PermissionsAction.Dirs):
             case (_, PermissionsAction.Directories):
-            await ManageWorkspaceAsync(context, args);
+            await ManageWorkspaceAsync(context, args).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.PermissionsUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");
@@ -269,15 +269,15 @@ public sealed class PermissionsCommand : ChatCommandBase {
                 break;
             }
             case (_, PermissionsAction.Add):
-            await AddWorkspaceDirectoryAsync(context, args);
+            await AddWorkspaceDirectoryAsync(context, args).ConfigureAwait(false);
             break;
             case (CrudAction.Remove, _):
             case (CrudAction.Delete, _):
             case (CrudAction.Rm, _):
-            await RemoveWorkspaceDirectoryAsync(context, args);
+            await RemoveWorkspaceDirectoryAsync(context, args).ConfigureAwait(false);
             break;
             case (_, PermissionsAction.Clear):
-            await ClearWorkspaceDirectoriesAsync(context);
+            await ClearWorkspaceDirectoriesAsync(context).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"{TerminalColors.Error}{string.Format(L.T(StringKey.PermissionsUnknownWorkspaceAction), subAction)}{AnsiStyleEnumConstants.Reset}");

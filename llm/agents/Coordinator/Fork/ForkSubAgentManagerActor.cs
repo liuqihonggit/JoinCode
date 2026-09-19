@@ -207,7 +207,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     public async Task<IReadOnlyList<ForkSubAgent>> GetActiveForksAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<IReadOnlyList<ForkSubAgent>>();
         await SendAsync(new GetActiveForksQuery(tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -219,7 +219,7 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     public async Task<ForkResult> MergeForkAsync(string forkId, CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<ForkResult>();
         await SendAsync(new MergeForkQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -443,19 +443,19 @@ public sealed partial class ForkSubAgentManagerActor : ActorBase<ForkSubAgentMan
     private async Task<int> AskForkDepthAsync(string parentSessionId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<int>();
         await SendAsync(new CalculateForkDepthQuery(parentSessionId, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task<ForkResult> AskBuildForkResultAsync(string forkId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<ForkResult>();
         await SendAsync(new BuildForkResultQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task<ForkEntrySnapshot?> AskForkEntryAsync(string forkId, CancellationToken ct) {
         var tcs = new TaskCompletionSource<ForkEntrySnapshot?>();
         await SendAsync(new GetForkEntrySnapshotQuery(forkId, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     private async Task RunBackgroundForkAsync(string forkId, IAgent agent, string taskDescription,

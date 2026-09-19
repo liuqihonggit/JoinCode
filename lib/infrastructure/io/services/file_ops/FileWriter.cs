@@ -45,7 +45,7 @@ public sealed class FileWriter {
             Encoding? fileEncoding = null;
 
             if (operation == "update") {
-                var (existingContent, encoding) = await ReadFileWithEncodingAsync(normalizedPath, cancellationToken);
+                var (existingContent, encoding) = await ReadFileWithEncodingAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
                 originalContent = existingContent;
                 fileEncoding = encoding;
             }
@@ -55,7 +55,7 @@ public sealed class FileWriter {
             DirectoryHelper.EnsureDirectoryExists(_fs, directory);
 
             // 对齐 TS: writeTextContent — 保持原始编码写入
-            await WriteFileWithLockAsync(normalizedPath, content, cancellationToken, fileEncoding);
+            await WriteFileWithLockAsync(normalizedPath, content, cancellationToken, fileEncoding).ConfigureAwait(false);
 
             _logger?.LogInformation("文件已写入: {FilePath} (操作: {Operation})", normalizedPath, operation);
 
@@ -88,7 +88,7 @@ public sealed class FileWriter {
                 return false;
             }
 
-            await DeleteFileWithLockAsync(normalizedPath, cancellationToken);
+            await DeleteFileWithLockAsync(normalizedPath, cancellationToken).ConfigureAwait(false);
             _logger?.LogInformation("文件已删除: {FilePath}", normalizedPath);
             return true;
         } catch (Exception ex) {
@@ -114,7 +114,7 @@ public sealed class FileWriter {
                 _fs.CreateDirectory(destDir);
             }
 
-            await CopyFileWithLockAsync(normalizedSource, normalizedDest, cancellationToken);
+            await CopyFileWithLockAsync(normalizedSource, normalizedDest, cancellationToken).ConfigureAwait(false);
             return true;
         } catch (Exception ex) {
             _logger?.LogError(ex, "复制文件失败: {Source} -> {Dest}", normalizedSource, normalizedDest);
@@ -139,7 +139,7 @@ public sealed class FileWriter {
                 _fs.CreateDirectory(destDir);
             }
 
-            await MoveFileWithLockAsync(normalizedSource, normalizedDest, cancellationToken);
+            await MoveFileWithLockAsync(normalizedSource, normalizedDest, cancellationToken).ConfigureAwait(false);
             return true;
         } catch (Exception ex) {
             _logger?.LogError(ex, "移动文件失败: {Source} -> {Dest}", normalizedSource, normalizedDest);
@@ -180,7 +180,7 @@ public sealed class FileWriter {
 
     private async Task<(string Content, Encoding Encoding)> ReadFileWithEncodingAsync(string path, CancellationToken ct) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
-        var result = await FileLockService.AcquireAsync(path, timeout, ct);
+        var result = await FileLockService.AcquireAsync(path, timeout, ct).ConfigureAwait(false);
         if (!result.Success)
             throw new TimeoutException($"[INF016] 获取锁超时: {path}");
 
@@ -200,7 +200,7 @@ public sealed class FileWriter {
 
     private async Task WriteFileWithLockAsync(string path, string content, CancellationToken ct, Encoding? encoding = null) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
-        var result = await FileLockService.AcquireAsync(path, timeout, ct);
+        var result = await FileLockService.AcquireAsync(path, timeout, ct).ConfigureAwait(false);
         if (!result.Success)
             throw new TimeoutException($"[INF017] 获取锁超时: {path}");
 
@@ -219,7 +219,7 @@ public sealed class FileWriter {
 
     private async Task DeleteFileWithLockAsync(string path, CancellationToken ct) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
-        var result = await FileLockService.AcquireAsync(path, timeout, ct);
+        var result = await FileLockService.AcquireAsync(path, timeout, ct).ConfigureAwait(false);
         if (!result.Success)
             throw new TimeoutException($"[INF018] 获取锁超时: {path}");
 
@@ -230,7 +230,7 @@ public sealed class FileWriter {
 
     private async Task CopyFileWithLockAsync(string source, string dest, CancellationToken ct) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
-        var result = await FileLockService.AcquireBatchAsync([source, dest], timeout, ct);
+        var result = await FileLockService.AcquireBatchAsync([source, dest], timeout, ct).ConfigureAwait(false);
         if (!result.Success)
             throw new TimeoutException($"[INF019] 获取锁超时");
 
@@ -241,7 +241,7 @@ public sealed class FileWriter {
 
     private async Task MoveFileWithLockAsync(string source, string dest, CancellationToken ct) {
         var timeout = IsTestEnvironment() ? TimeSpan.FromSeconds(5) : TimeSpan.FromSeconds(30);
-        var result = await FileLockService.AcquireBatchAsync([source, dest], timeout, ct);
+        var result = await FileLockService.AcquireBatchAsync([source, dest], timeout, ct).ConfigureAwait(false);
         if (!result.Success)
             throw new TimeoutException($"[INF020] 获取锁超时");
 

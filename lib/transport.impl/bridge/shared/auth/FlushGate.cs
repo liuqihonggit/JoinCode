@@ -92,7 +92,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     public async Task<int> GetCurrentBatchSizeAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         await SendAsync(new FlushGetSizeCmd<T>(tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -102,7 +102,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
         var tcs = TcsFactory.Create();
         await SendAsync(new FlushStartCmd<T>(tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     public async Task StopAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new FlushStopCmd<T>(tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -122,7 +122,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
         ObjectDisposedException.ThrowIf(_isDisposed != 0, this);
         var tcs = TcsFactory.Create();
         await SendAsync(new FlushAddCmd<T>(item, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -131,7 +131,7 @@ public sealed class FlushGate<T> : ActorBase<IFlushGateCommand<T>, Unit>, IFlush
     public async Task FlushAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new FlushManualCmd<T>(tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

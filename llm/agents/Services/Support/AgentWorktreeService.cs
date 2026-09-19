@@ -123,11 +123,11 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
         span?.SetTag("worktree.force", force);
 
         try {
-            if (!force && await HasUncommittedChangesAsync(session.WorktreePath, cancellationToken)) {
+            if (!force && await HasUncommittedChangesAsync(session.WorktreePath, cancellationToken).ConfigureAwait(false)) {
                 return WorktreeCleanupResult.BlockedResult("worktree 中有未提交的更改");
             }
 
-            if (!force && await HasUnpushedCommitsAsync(session.WorktreePath, session.BaseCommitSha, cancellationToken)) {
+            if (!force && await HasUnpushedCommitsAsync(session.WorktreePath, session.BaseCommitSha, cancellationToken).ConfigureAwait(false)) {
                 return WorktreeCleanupResult.BlockedResult("worktree 中有未推送的提交");
             }
 
@@ -257,7 +257,7 @@ public sealed partial class AgentWorktreeService : IAgentWorktreeService, IWorkt
                     continue;
                 }
 
-                if (opts.CheckUncommittedChanges && await HasUncommittedChangesAsync(entry, cancellationToken)) {
+                if (opts.CheckUncommittedChanges && await HasUncommittedChangesAsync(entry, cancellationToken).ConfigureAwait(false)) {
                     _logger?.LogDebug("跳过清理：worktree 有未提交更改: {Worktree}", entry);
                     continue;
                 }

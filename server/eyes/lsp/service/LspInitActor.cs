@@ -38,7 +38,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit> {
     public async Task InitializeAsync(List<LspInstanceConfig> configs, CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new InitializeCmd(configs, ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -48,7 +48,7 @@ internal sealed class LspInitActor : ActorBase<ILspCommand, Unit> {
     public async Task ShutdownAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new ShutdownCmd(ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

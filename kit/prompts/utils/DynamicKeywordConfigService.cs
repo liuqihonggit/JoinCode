@@ -87,7 +87,7 @@ public sealed partial class DynamicKeywordConfigService : ServiceEntity, IDynami
             _watcher = _fs.Watch(dir, ConfigFileName);
             _watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size;
             _watcher.DebounceInterval = TimeSpan.FromMilliseconds(200);
-            _watcher.DebouncedChanged += async (_, _) => await ReloadOnFileChangeAsync();
+            _watcher.DebouncedChanged += async (_, _) => await ReloadOnFileChangeAsync().ConfigureAwait(false);
             _watcher.EnableRaisingEvents = true;
         } catch (Exception ex) {
             _logger?.LogWarning(ex, "启动动态关键词配置文件监控失败");

@@ -8,7 +8,7 @@ internal sealed partial class NonInteractivePromptStep : ServiceEntity, IMiddlew
         Diag.WriteLine($"[STEP] PromptStep options.Prompt={(string.IsNullOrWhiteSpace(prompt) ? "<null/empty>" : $"'{prompt}'")}");
         if (string.IsNullOrWhiteSpace(prompt)) {
             Diag.WriteLine("[STEP] PromptStep reading from stdin...");
-            prompt = await System.Console.In.ReadToEndAsync(ct);
+            prompt = await System.Console.In.ReadToEndAsync(ct).ConfigureAwait(false);
             Diag.WriteLine($"[STEP] PromptStep stdin read, length={prompt?.Length ?? 0}");
         }
 
@@ -21,6 +21,6 @@ internal sealed partial class NonInteractivePromptStep : ServiceEntity, IMiddlew
 
         context.NonInteractivePrompt = prompt;
         Diag.WriteLine("[STEP] PromptStep done, calling next");
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 }

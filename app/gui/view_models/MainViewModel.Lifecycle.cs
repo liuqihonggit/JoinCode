@@ -111,7 +111,7 @@ public sealed partial class MainViewModel {
         _ = Task.Run(() => PopulateSubSessionsAsync(Sessions.ToArray()));
         _ = Task.Run(async () => {
             try {
-                var tools = await session.GetAvailableToolsAsync().WaitAsync(Timeout);
+                var tools = await session.GetAvailableToolsAsync().WaitAsync(Timeout).ConfigureAwait(false);
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => _availableToolsCache = tools);
             } catch (Exception ex) {
                 ViewModelDiagnosticsLogger.WriteError(ex);
@@ -119,7 +119,7 @@ public sealed partial class MainViewModel {
         });
         _ = Task.Run(async () => {
             try {
-                var agents = await session.GetAvailableSubAgentsAsync().WaitAsync(Timeout);
+                var agents = await session.GetAvailableSubAgentsAsync().WaitAsync(Timeout).ConfigureAwait(false);
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => _availableSubAgentsCache = agents);
             } catch (Exception ex) {
                 ViewModelDiagnosticsLogger.WriteError(ex);

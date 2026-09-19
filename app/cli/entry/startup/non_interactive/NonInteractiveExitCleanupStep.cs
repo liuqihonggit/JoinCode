@@ -16,6 +16,6 @@ internal sealed partial class NonInteractiveExitCleanupStep : ServiceEntity, IMi
             await stopHookManager.OnStopAsync(stopContext, ct).ConfigureAwait(false);
         }
 
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 }

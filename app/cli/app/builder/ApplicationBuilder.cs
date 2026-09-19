@@ -141,7 +141,7 @@ public sealed class ApplicationBuilder {
                 configService: bridgeServices.GetService<IConfigurationService>(),
                 logger: bridgeServices.GetService<ILogger<ChatCommands.Bridge.BridgeMainCommand>>());
             var bridgeArgs = args.Length > 1 ? args[1..] : [];
-            return await command.ExecuteAsync(bridgeArgs);
+            return await command.ExecuteAsync(bridgeArgs).ConfigureAwait(false);
         }
 
         // schema 子命令 — 输出 CLI 参数定义 JSON（对齐架构指南可发现性：Schema 自省）
@@ -336,11 +336,11 @@ public sealed class ApplicationBuilder {
         };
 
         try {
-            config = await loader.LoadConfigAsync(fs);
+            config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
         } catch (ConfigurationException ex) when (ex.Message.Contains("API Key")) {
             if (dotEnv is not null) {
-                await dotEnv.ApplyToConfigAsync(fs);
-                config = await loader.LoadConfigAsync(fs);
+                await dotEnv.ApplyToConfigAsync(fs).ConfigureAwait(false);
+                config = await loader.LoadConfigAsync(fs).ConfigureAwait(false);
             } else {
                 throw;
             }

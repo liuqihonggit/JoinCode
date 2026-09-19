@@ -17,7 +17,7 @@ public sealed class SummaryCommand : ChatCommandBase {
         TerminalHelper.NewLine();
 
         try {
-            var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken);
+            var history = await context.GetCommandServices().ChatService.GetMessageListAsync(context.CancellationToken).ConfigureAwait(false);
 
             if (history.Count == 0) {
                 TerminalHelper.WriteLine($"  {TerminalColors.Muted}暂无对话记录{AnsiStyleEnumConstants.Reset}");

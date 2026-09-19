@@ -68,7 +68,7 @@ public sealed class McpStdioClient : McpClientBase {
                 RedirectStandardError = true,
             };
 
-            _interactiveProcess = await effectiveProcessService.StartInteractiveAsync(opts, cancellationToken);
+            _interactiveProcess = await effectiveProcessService.StartInteractiveAsync(opts, cancellationToken).ConfigureAwait(false);
             _interactiveProcess.ErrorDataReceived += OnInteractiveErrorDataReceived;
 
             _stdinWriter = _interactiveProcess.StandardInput;
@@ -81,7 +81,7 @@ public sealed class McpStdioClient : McpClientBase {
             _writeCts = new CancellationTokenSource();
             _writeConsumerTask = Task.Run(() => WriteLoopAsync(_writeCts.Token), _writeCts.Token);
 
-            await PerformHandshakeAsync(cancellationToken);
+            await PerformHandshakeAsync(cancellationToken).ConfigureAwait(false);
 
             IsConnected = true;
             _connectionSpan?.SetStatus(TelemetryStatusCode.Ok);
@@ -105,7 +105,7 @@ public sealed class McpStdioClient : McpClientBase {
                 errorCounter.Add(1, new Dictionary<string, string> { ["server"] = _config.Name });
             }
 
-            await CleanupAsync();
+            await CleanupAsync().ConfigureAwait(false);
             throw;
         }
     }
@@ -148,7 +148,7 @@ public sealed class McpStdioClient : McpClientBase {
 
         _logger?.LogInformation("正在断开 MCP 客户端连接...");
 
-        await CleanupAsync();
+        await CleanupAsync().ConfigureAwait(false);
         IsConnected = false;
 
         _connectionSpan?.SetStatus(TelemetryStatusCode.Ok);
@@ -167,7 +167,7 @@ public sealed class McpStdioClient : McpClientBase {
 
         if (_readTask != null) {
             try {
-                await _readTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+                await _readTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             } catch (Exception ex) {
                 _logger?.LogDebug("等待读取任务完成时出错: {Error}", ex.Message);
             }
@@ -175,14 +175,14 @@ public sealed class McpStdioClient : McpClientBase {
 
         if (_writeConsumerTask != null) {
             try {
-                await _writeConsumerTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+                await _writeConsumerTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             } catch (Exception ex) {
                 _logger?.LogDebug("等待写消费者任务完成时出错: {Error}", ex.Message);
             }
         }
 
         if (_interactiveProcess != null) {
-            await _interactiveProcess.DisposeAsync();
+            await _interactiveProcess.DisposeAsync().ConfigureAwait(false);
             _interactiveProcess = null;
         }
 
@@ -192,7 +192,7 @@ public sealed class McpStdioClient : McpClientBase {
         _readCts?.Dispose();
         _writeCts?.Dispose();
 
-        await CancelPendingRequestsAsync(cancellationToken);
+        await CancelPendingRequestsAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private void OnInteractiveErrorDataReceived(object? sender, string data) {
@@ -204,7 +204,7 @@ public sealed class McpStdioClient : McpClientBase {
     private async Task ReadLoopAsync(CancellationToken cancellationToken) {
         try {
             while (!cancellationToken.IsCancellationRequested && _stdoutReader != null) {
-                var line = await _stdoutReader.ReadLineAsync(cancellationToken);
+                var line = await _stdoutReader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
                 if (line == null) {
                     break;
                 }
@@ -217,7 +217,7 @@ public sealed class McpStdioClient : McpClientBase {
 
                 try {
                     var message = McpMessageExtensions.FromJson(line);
-                    await ProcessMessageAsync(message, cancellationToken);
+                    await ProcessMessageAsync(message, cancellationToken).ConfigureAwait(false);
                 } catch (Exception ex) {
                     _logger?.LogError(ex, "解析消息失败: {Message}", line);
                 }
@@ -254,7 +254,7 @@ public sealed class McpStdioClient : McpClientBase {
     private async Task ProcessMessageAsync(JsonRpcMessage message, CancellationToken cancellationToken) {
         switch (message) {
             case JsonRpcResponse response:
-            await ProcessResponseAsync(response, cancellationToken);
+            await ProcessResponseAsync(response, cancellationToken).ConfigureAwait(false);
             break;
 
             case JsonRpcNotification notification:
@@ -262,7 +262,7 @@ public sealed class McpStdioClient : McpClientBase {
             break;
 
             case JsonRpcRequest request:
-            await HandleServerRequestAsync(request, cancellationToken);
+            await HandleServerRequestAsync(request, cancellationToken).ConfigureAwait(false);
             break;
         }
     }
@@ -303,7 +303,7 @@ public sealed class McpStdioClient : McpClientBase {
 
             using var cts = TimeoutHelper.CreateLinkedTimeout(cancellationToken, TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
 
-            var response = await tcs.Task.WaitAsync(cts.Token);
+            var response = await tcs.Task.WaitAsync(cts.Token).ConfigureAwait(false);
 
             requestSpan?.SetStatus(response.Error != null ? TelemetryStatusCode.Error : TelemetryStatusCode.Ok);
             RecordRequestMetrics(request.Method, requestStart);

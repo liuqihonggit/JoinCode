@@ -18,6 +18,6 @@ internal sealed partial class NonInteractiveApiKeyCheckStep : ServiceEntity, IMi
             return;
         }
         Diag.WriteLine("[STEP] ApiKeyCheck done, calling next");
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 }

@@ -57,11 +57,11 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         var goalEngine = host.Services.GetService<IGoalEngine>();
         var cronTaskStore = host.Services.GetService<ICronTaskStore>();
 
-        await StartCronGoalBridgeAsync(host.Services, goalEngine, cronTaskStore, ct);
+        await StartCronGoalBridgeAsync(host.Services, goalEngine, cronTaskStore, ct).ConfigureAwait(false);
 
         // 显式触发 CodeIndexService.StartAsync — 构造 AST + 启动 FileWatcher(方案B)
         // 可剥离: 通过 GetService 获取,失败不阻塞启动;性能差时删除此段即可完全剥离
-        await StartCodeIndexServiceAsync(host.Services, ct);
+        await StartCodeIndexServiceAsync(host.Services, ct).ConfigureAwait(false);
 
         // 显式激活子代理卡死防护纵深防御体系（ADR 0106）— 协调器注册为 Singleton 但无消费方注入，DI 懒创建导致 Start() 永不调用
         try {
@@ -77,10 +77,10 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         var engineSessionId = context.SessionId ?? host.Services.GetService<IChatContextManager>()?.SessionId;
         context.SessionId = engineSessionId;
         var session = new CliSession(chatService, codeService, planService, toolRegistry, host.Services.GetRequiredService<IFileSystem>(), services, sessionId: engineSessionId);
-        await session.InitializeAsync(ct);
+        await session.InitializeAsync(ct).ConfigureAwait(false);
 
         context.Session = session;
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 
     private static async Task StartCronGoalBridgeAsync(IServiceProvider services, IGoalEngine? goalEngine, ICronTaskStore? cronTaskStore, CancellationToken ct) {
@@ -88,7 +88,7 @@ internal sealed partial class SessionInitStep : ServiceEntity, IMiddleware<Start
         var logger = services.GetService<ILogger<CronGoalBridge>>();
         var agentDefProvider = services.GetService<IAgentDefinitionProvider>();
         var bridge = new CronGoalBridge(cronTaskStore, goalEngine, agentDefProvider, logger);
-        await bridge.StartAsync(ct);
+        await bridge.StartAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>

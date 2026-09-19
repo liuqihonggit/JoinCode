@@ -76,14 +76,14 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
     public async Task StartRecordingAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new StartRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
     public async Task<VoiceRecordingResult> StopRecordingAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<VoiceRecordingResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         await SendAsync(new StopRecordingCmd(ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -249,7 +249,7 @@ public sealed partial class VoiceService : ActorBase<IVoiceCommand, Unit>, IVoic
             while (!ct.IsCancellationRequested) {
                 var tcs = TcsFactory.Create();
                 await SendAsync(new WriteAudioCmd(buffer, tcs), ct).ConfigureAwait(false);
-                await AskAwait(tcs, ct);
+                await AskAwait(tcs, ct).ConfigureAwait(false);
 
                 await Task.Delay(100, ct).ConfigureAwait(false);
             }

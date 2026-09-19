@@ -115,7 +115,7 @@ public sealed class GlobalBuildQueue : ActorBase<GlobalBuildCommand, GlobalBuild
 
         await SendAsync(new EnqueueGlobalBuildCmd(request, tcs), ct).ConfigureAwait(false);
 
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

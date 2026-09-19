@@ -20,21 +20,21 @@ public sealed class PlanCommand : ChatCommandBase {
         switch (subCommand) {
             case PlanSubCommandEnumConstants.On:
             case PlanSubCommandEnumConstants.Enter:
-            await EnterPlanModeAsync(context, parts);
+            await EnterPlanModeAsync(context, parts).ConfigureAwait(false);
             break;
             case PlanSubCommandEnumConstants.Off:
             case PlanSubCommandEnumConstants.Exit:
-            await ExitPlanModeAsync(context);
+            await ExitPlanModeAsync(context).ConfigureAwait(false);
             break;
             case PlanSubCommandEnumConstants.Status:
-            await ShowPlanStatusAsync(context);
+            await ShowPlanStatusAsync(context).ConfigureAwait(false);
             break;
             case PlanSubCommandEnumConstants.Open:
             await OpenPlanFileAsync(context, context.GetCommandServices().FileSystem).ConfigureAwait(false);
             break;
             case PlanSubCommandEnumConstants.Toggle:
             default:
-            await TogglePlanModeAsync(context, args);
+            await TogglePlanModeAsync(context, args).ConfigureAwait(false);
             break;
         }
 
@@ -45,15 +45,15 @@ public sealed class PlanCommand : ChatCommandBase {
         var planModeManager = ResolvePlanModeManager(context);
         if (planModeManager is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleEnumConstants.Reset}");
-            await FallbackExecutePlanAsync(context, args);
+            await FallbackExecutePlanAsync(context, args).ConfigureAwait(false);
             return;
         }
 
         if (planModeManager.IsInPlanMode) {
-            await ExitPlanModeAsync(context);
+            await ExitPlanModeAsync(context).ConfigureAwait(false);
         } else {
             var description = string.IsNullOrWhiteSpace(args) ? null : args;
-            await EnterPlanModeAsync(context, description);
+            await EnterPlanModeAsync(context, description).ConfigureAwait(false);
         }
     }
 
@@ -61,7 +61,7 @@ public sealed class PlanCommand : ChatCommandBase {
         var planModeManager = ResolvePlanModeManager(context);
         if (planModeManager is null) {
             TerminalHelper.WriteLine($"{TerminalColors.Warning}计划模式管理器不可用，尝试通过 PlanService 执行{AnsiStyleEnumConstants.Reset}");
-            await FallbackExecutePlanAsync(context, description ?? string.Empty);
+            await FallbackExecutePlanAsync(context, description ?? string.Empty).ConfigureAwait(false);
             return;
         }
 
@@ -81,7 +81,7 @@ public sealed class PlanCommand : ChatCommandBase {
 
     private static async Task EnterPlanModeAsync(ChatCommandContext context, string[] parts) {
         var description = parts.Length > 1 ? string.Join(" ", parts[1..]) : null;
-        await EnterPlanModeAsync(context, description);
+        await EnterPlanModeAsync(context, description).ConfigureAwait(false);
     }
 
     private static async Task ExitPlanModeAsync(ChatCommandContext context) {

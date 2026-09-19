@@ -33,7 +33,7 @@ public sealed partial class GenerateCommand : ChatCommandBase {
 
         _logger?.LogInformation("正在生成代码...");
         TerminalHelper.WriteLine("正在生成代码...");
-        var result = await context.GetCommandServices().CodeService.GenerateCodeAsync(context.Arguments, context.CancellationToken);
+        var result = await context.GetCommandServices().CodeService.GenerateCodeAsync(context.Arguments, context.CancellationToken).ConfigureAwait(false);
 
         _logger?.LogInformation("生成的代码:\n==============\n{Result}", result);
         TerminalHelper.WriteLine($"生成的代码:\n==============\n{result}");

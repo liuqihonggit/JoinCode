@@ -20,7 +20,7 @@ public sealed partial class PipeQueryService : IQueryService {
         IChatClient? kernel = null,
         CancellationToken cancellationToken = default) {
         var request = CreateChatRequest(chatHistory, executionSettings, stream: false);
-        var response = await SendRequestAsync(request, cancellationToken);
+        var response = await SendRequestAsync(request, cancellationToken).ConfigureAwait(false);
 
         return response.Choices.Select(ConvertToApiMessage).ToList();
     }
@@ -95,7 +95,7 @@ public sealed partial class PipeQueryService : IQueryService {
 
             _logger?.LogInformation("Connecting to pipe: {PipeName}", config.PipeName);
 
-            await pipeClient.ConnectAsync(config.ConnectionTimeoutMs, cancellationToken);
+            await pipeClient.ConnectAsync(config.ConnectionTimeoutMs, cancellationToken).ConfigureAwait(false);
 
             _logger?.LogInformation("Connected to pipe: {PipeName}", config.PipeName);
 
@@ -138,7 +138,7 @@ public sealed partial class PipeQueryService : IQueryService {
 
         response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         var result = RelaxedJsonSerializer.Deserialize(responseJson, PipeJsonContext.Default.OpenAIChatResponse);
 
         if (result == null) {
@@ -160,11 +160,11 @@ public sealed partial class PipeQueryService : IQueryService {
 
         response.EnsureSuccessStatusCode();
 
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = stream.AsUtf8Reader();
 
         string? line;
-        while ((line = await reader.ReadLineAsync(cancellationToken)) != null) {
+        while ((line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false)) != null) {
             if (cancellationToken.IsCancellationRequested) yield break;
             if (string.IsNullOrWhiteSpace(line)) continue;
             if (!line.StartsWith("data: ")) continue;

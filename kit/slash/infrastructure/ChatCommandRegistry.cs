@@ -157,7 +157,7 @@ internal sealed class LegacyCommandAdapter : IChatCommand {
 
     public async Task<ChatCommandResult> ExecuteAsync(ChatCommandContext context) {
         var legacyContext = new LegacyCommandContext(context, _legacyCommand.Name);
-        await _legacyCommand.ExecuteAsync(legacyContext, context.CancellationToken);
+        await _legacyCommand.ExecuteAsync(legacyContext, context.CancellationToken).ConfigureAwait(false);
         return ChatCommandResult.Continue();
     }
 }

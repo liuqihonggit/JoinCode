@@ -25,13 +25,13 @@ internal sealed class TaskPersistActor : ActorBase<ITaskPersistCommand, Unit> {
     public async Task PersistAsync(CancellationToken ct) {
         var tcs = TcsFactory.Create();
         await SendAsync(new PersistCmd(ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<RuntimeTask>> RecoverTasksAsync(string? goalId, CancellationToken ct) {
         var tcs = TcsFactory.Create<IReadOnlyList<RuntimeTask>>();
         await SendAsync(new RecoverCmd(goalId, ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     protected override async ValueTask HandleAsync(ITaskPersistCommand command, CancellationToken ct) {

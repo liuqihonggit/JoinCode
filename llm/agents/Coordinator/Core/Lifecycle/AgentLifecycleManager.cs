@@ -97,7 +97,7 @@ public sealed partial class AgentLifecycleManager : ServiceEntity, IAgentLifecyc
     /// 执行单个Agent
     /// </summary>
     public async Task<SubAgentResult> ExecuteAsync(IAgent agent, CancellationToken cancellationToken = default) {
-        if (!await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Running, "开始执行", cancellationToken)) {
+        if (!await _stateMachine.TryTransitionAsync(agent.ObjectId.UniqueId, TaskExecutionStatus.Running, "开始执行", cancellationToken).ConfigureAwait(false)) {
             return CreateErrorResult(agent.ObjectId.UniqueId, "Agent状态不允许执行");
         }
 

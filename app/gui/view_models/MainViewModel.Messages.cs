@@ -119,7 +119,7 @@ public sealed partial class MainViewModel {
     /// <param name="echoToKeep">保留在列表末尾的命令回显消息</param>
     private async Task ReloadMessagesFromEngineAsync(ChatUiMessage echoToKeep) {
         try {
-            var records = await _session.GetMessagesAsync(_sendCts?.Token ?? CancellationToken.None);
+            var records = await _session.GetMessagesAsync(_sendCts?.Token ?? CancellationToken.None).ConfigureAwait(false);
             Messages.Clear();
             foreach (var record in records) {
                 if (string.IsNullOrWhiteSpace(record.Content))
@@ -184,12 +184,12 @@ public sealed partial class MainViewModel {
             return;
         var lastUserIndex = Messages.IndexOf(lastUser);
 
-        await _session.RewindLastTurnAsync();
+        await _session.RewindLastTurnAsync().ConfigureAwait(false);
         while (Messages.Count > lastUserIndex)
             Messages.RemoveAt(Messages.Count - 1);
 
         InputText = lastUser.Content;
-        await SendAsync();
+        await SendAsync().ConfigureAwait(false);
     }
 
     /// <summary>是否有可重新生成的上一轮回复（O(1) 计数器查找）</summary>
@@ -201,7 +201,7 @@ public sealed partial class MainViewModel {
 
     private async Task ClearHistoryInternalAsync() {
         Messages.Clear();
-        await _session.ClearHistoryAsync();
+        await _session.ClearHistoryAsync().ConfigureAwait(false);
     }
 
     /// <summary>会话导出为文本（`角色 时间: 内容` 格式，供复制/下载）</summary>

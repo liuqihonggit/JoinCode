@@ -19,10 +19,10 @@ public sealed class AgentsCommand : ChatCommandBase {
         switch (action) {
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
-            await ListAgentsAsync(context);
+            await ListAgentsAsync(context).ConfigureAwait(false);
             break;
             case "info":
-            await ShowAgentInfoAsync(context, args);
+            await ShowAgentInfoAsync(context, args).ConfigureAwait(false);
             break;
             default:
             TerminalHelper.WriteLine($"{TerminalColors.Error}{L.T(StringKey.HostAgentsUnknownAction, action)}{AnsiStyleEnumConstants.Reset}");

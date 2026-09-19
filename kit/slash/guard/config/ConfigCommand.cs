@@ -42,20 +42,20 @@ public sealed class ConfigCommand : ChatCommandBase {
 
         switch (action) {
             case "get":
-            await GetConfigAsync(context, args);
+            await GetConfigAsync(context, args).ConfigureAwait(false);
             break;
             case "set":
-            await SetConfigAsync(context, args);
+            await SetConfigAsync(context, args).ConfigureAwait(false);
             break;
             case CrudActionEnumConstants.Remove:
             case CrudActionEnumConstants.Delete:
             case CrudActionEnumConstants.Rm:
-            await RemoveConfigAsync(context, args);
+            await RemoveConfigAsync(context, args).ConfigureAwait(false);
             break;
             case CrudActionEnumConstants.List:
             case CrudActionEnumConstants.Ls:
             default:
-            await ListConfigAsync(context);
+            await ListConfigAsync(context).ConfigureAwait(false);
             break;
         }
 

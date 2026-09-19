@@ -92,7 +92,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     public async Task MarkAwayAsync(CancellationToken ct = default) {
         var tcs = TcsFactory.Create();
         await SendAsync(new MarkAwayCmd(tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -103,7 +103,7 @@ public sealed partial class AwaySummaryService : ActorBase<IAwaySummaryCommand, 
     public async Task<AwaySummaryResult> GenerateSummaryAsync(CancellationToken ct = default) {
         var tcs = new TaskCompletionSource<AwaySummaryResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         await SendAsync(new GenerateSummaryCmd(tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

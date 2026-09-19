@@ -6,9 +6,9 @@ namespace JoinCode.Entry;
 [Register(typeof(IMiddleware<StartupContext>), ServiceLifetime.Singleton)]
 internal sealed partial class WorkspaceTrustStep : ServiceEntity, IMiddleware<StartupContext> {
     public async Task InvokeAsync(StartupContext context, MiddlewareDelegate<StartupContext> next, CancellationToken ct) {
-        if (!await StartupWorkflow.CheckWorkspaceTrustAsync(context.Options, context.FileSystem))
+        if (!await StartupWorkflow.CheckWorkspaceTrustAsync(context.Options, context.FileSystem).ConfigureAwait(false))
             return;  // 短路
 
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 }

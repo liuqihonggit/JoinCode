@@ -47,7 +47,7 @@ internal static class NonInteractiveModeRunner {
             .Build();
 
         Diag.WriteLine("[RUN] pipeline built, executing...");
-        await pipeline.ExecuteAsync(context, CancellationToken.None);
+        await pipeline.ExecuteAsync(context, CancellationToken.None).ConfigureAwait(false);
         Diag.WriteLine($"[RUN] pipeline done, exitCode={context.ExitCode}");
 
         // JSON 模式: 输出最终结果信封

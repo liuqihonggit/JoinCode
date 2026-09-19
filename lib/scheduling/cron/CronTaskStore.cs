@@ -99,7 +99,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<IReadOnlyList<CronTask>>();
         await SendAsync(new GetAllTasksCmd(ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -111,7 +111,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
 
         var tcs = TcsFactory.Create<CronTask>();
         await SendAsync(new AddTaskCmd(request, ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -122,7 +122,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
 
         var tcs = TcsFactory.Create();
         await SendAsync(new RemoveTasksCmd(idSet, ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -133,7 +133,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
 
         var tcs = TcsFactory.Create();
         await SendAsync(new MarkTasksFiredCmd(idSet, firedAt, ct, tcs), ct).ConfigureAwait(false);
-        await AskAwait(tcs, ct);
+        await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -141,7 +141,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<CronTask?>();
         await SendAsync(new GetTaskByIdCmd(id, ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -149,7 +149,7 @@ public sealed partial class FileCronTaskStore : ActorBase<ICronStoreCommand, Uni
         ObjectDisposedException.ThrowIf(_disposed != 0, this);
         var tcs = TcsFactory.Create<IReadOnlyList<CronTask>>();
         await SendAsync(new GetTasksByAgentIdCmd(agentId, ct, tcs), ct).ConfigureAwait(false);
-        return await AskAwait(tcs, ct);
+        return await AskAwait(tcs, ct).ConfigureAwait(false);
     }
 
     /// <summary>

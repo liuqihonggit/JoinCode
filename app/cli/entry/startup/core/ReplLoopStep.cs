@@ -214,7 +214,7 @@ internal sealed partial class ReplLoopStep : ServiceEntity, IMiddleware<StartupC
         loopCts.Dispose();
 
         Diag.WriteLifecycle("[EXIT]");
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
 
         async Task ProcessSingleInputAsync(string combined, ReplStepScope scope) {
             try {

@@ -117,21 +117,21 @@ public sealed partial class MainViewModel {
         // F4 规则1：@提及直发子代理 — 绕过主代理 LLM，不受 IsBusy 拦截（对齐 CLI ReplLoopStep）
         if (message[0] == '@') {
             InputText = string.Empty;
-            await HandleMentionAsync(message);
+            await HandleMentionAsync(message).ConfigureAwait(false);
             return;
         }
 
         // !! 前缀命令 — 静默执行/打开，不触发 AI，不受 IsBusy 拦截（对齐 PI !! 设计）
         if (prefixParsed is { Prefix: "!!" }) {
             InputText = string.Empty;
-            await HandleSilentPrefixCommandAsync(message);
+            await HandleSilentPrefixCommandAsync(message).ConfigureAwait(false);
             return;
         }
 
         // F4 规则2：处理中且恰好一个运行中子代理 → 自动转发给它（对齐 CLI 单代理转发规则）
         if (IsBusy) {
             InputText = string.Empty;
-            await TryAutoForwardToSingleAgentAsync(message);
+            await TryAutoForwardToSingleAgentAsync(message).ConfigureAwait(false);
             return;
         }
 
@@ -149,7 +149,7 @@ public sealed partial class MainViewModel {
         try {
             // ! 前缀命令路由 — 执行 shell 命令，输出注入 AI 上下文（对齐 PI ! 设计）
             if (prefixParsed is { Prefix: "!" }) {
-                await HandleShellPrefixCommandAsync(message, _sendCts.Token);
+                await HandleShellPrefixCommandAsync(message, _sendCts.Token).ConfigureAwait(false);
                 StatusText = "就绪";
                 return;
             }
@@ -163,7 +163,7 @@ public sealed partial class MainViewModel {
                 });
                 string output;
                 try {
-                    output = await _session.ExecuteSlashCommandAsync(message, _sendCts.Token);
+                    output = await _session.ExecuteSlashCommandAsync(message, _sendCts.Token).ConfigureAwait(false);
                 } catch (Exception ex) {
                     output = $"命令执行失败: {ex.Message}";
                     ViewModelDiagnosticsLogger.WriteError(ex);
@@ -174,14 +174,14 @@ public sealed partial class MainViewModel {
                     : $"{commandEcho.Content}\n{output}";
                 // T1：命令可能改变引擎上下文（/resume 装入历史、/clear 清空、/compact 压缩），
                 // 重读引擎历史刷新消息列表，否则恢复的会话在界面不可见；命令回显保留在末尾
-                await ReloadMessagesFromEngineAsync(commandEcho);
+                await ReloadMessagesFromEngineAsync(commandEcho).ConfigureAwait(false);
                 StatusText = "就绪";
                 return;
             }
 
             // 应用编辑后的系统提示词（对齐 CLI --system-prompt：经 IChatService.SetSystemPromptAsync）
             if (!string.IsNullOrWhiteSpace(SystemPrompt)) {
-                await _session.SetSystemPromptAsync(SystemPrompt, _sendCts.Token);
+                await _session.SetSystemPromptAsync(SystemPrompt, _sendCts.Token).ConfigureAwait(false);
             }
 
             Messages.Add(new ChatUiMessage {

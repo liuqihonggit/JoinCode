@@ -152,7 +152,7 @@ public class SkillToolHandlers {
         }
 
         var ctx = new ExecutionContext(cancellationToken);
-        var result = await _skillService.ExecuteAsync(skill_name, parameters, ctx);
+        var result = await _skillService.ExecuteAsync(skill_name, parameters, ctx).ConfigureAwait(false);
 
         var response = new StringBuilder(256);
         response.AppendLine(L.T(StringKey.LabelSkill, result.SkillName));

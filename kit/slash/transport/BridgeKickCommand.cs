@@ -28,14 +28,14 @@ public sealed class BridgeKickCommand : ChatCommandBase {
         }
 
         try {
-            var state = await bridgeClient.GetStateAsync(context.CancellationToken);
+            var state = await bridgeClient.GetStateAsync(context.CancellationToken).ConfigureAwait(false);
 
             if (state.ConnectionState == TransportConnectionState.Disconnected) {
                 TerminalHelper.WriteLine($"{TerminalColors.Muted}Bridge连接已处于断开状态{AnsiStyleEnumConstants.Reset}");
                 return ChatCommandResult.Continue();
             }
 
-            await bridgeClient.StopAsync(context.CancellationToken);
+            await bridgeClient.StopAsync(context.CancellationToken).ConfigureAwait(false);
 
             TerminalHelper.WriteLine($"{TerminalColors.Success}已断开Bridge连接 [{sessionId}]{AnsiStyleEnumConstants.Reset}");
         } catch (Exception ex) {

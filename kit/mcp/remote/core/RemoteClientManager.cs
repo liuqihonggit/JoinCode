@@ -332,7 +332,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
         }
 
         try {
-            var toolsResult = await client.ListToolsAsync(cancellationToken);
+            var toolsResult = await client.ListToolsAsync(cancellationToken).ConfigureAwait(false);
 
             if (!toolsResult.Success) {
                 return new RemoteToolsSyncResult(false, Array.Empty<string>(), toolsResult.ErrorMessage);
@@ -443,7 +443,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
         }
 
         try {
-            var resourcesResult = await client.ListResourcesAsync(cancellationToken);
+            var resourcesResult = await client.ListResourcesAsync(cancellationToken).ConfigureAwait(false);
 
             if (!resourcesResult.Success) {
                 return OperationResult<IReadOnlyList<string>>.Fail(resourcesResult.ErrorMessage ?? "Unknown error");
@@ -509,7 +509,7 @@ public sealed partial class RemoteClientManager : IRemoteClientManager {
         }
 
         try {
-            var promptsResult = await client.ListPromptsAsync(cancellationToken);
+            var promptsResult = await client.ListPromptsAsync(cancellationToken).ConfigureAwait(false);
 
             if (!promptsResult.Success) {
                 return OperationResult<IReadOnlyList<string>>.Fail(promptsResult.ErrorMessage ?? "Unknown error");

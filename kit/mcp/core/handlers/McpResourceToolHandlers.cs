@@ -33,7 +33,7 @@ public class McpResourceToolHandlers {
         response.AppendLine();
 
         // 获取所有远程客户端
-        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
+        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken).ConfigureAwait(false);
 
         if (clients.Count == 0) {
             response.AppendLine("No connected MCP remote clients");
@@ -48,7 +48,7 @@ public class McpResourceToolHandlers {
             response.AppendLine($"{ObjectSymbol.ArrowRight.ToValue()} Client: {clientId}");
 
             try {
-                var result = await client.ListResourcesAsync(cancellationToken);
+                var result = await client.ListResourcesAsync(cancellationToken).ConfigureAwait(false);
 
                 if (!result.Success) {
                     response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list resources: {result.ErrorMessage}");
@@ -93,7 +93,7 @@ public class McpResourceToolHandlers {
         }
 
         // 获取所有远程客户端
-        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
+        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken).ConfigureAwait(false);
 
         if (clients.Count == 0) {
             return ToolResultBuilder.Error().WithText("No connected MCP remote clients").Build();
@@ -105,12 +105,12 @@ public class McpResourceToolHandlers {
                 return ToolResultBuilder.Error().WithText($"Client not found: {client_id}").Build();
             }
 
-            return await ReadResourceFromClientAsync(specificClient, uri, client_id, cancellationToken);
+            return await ReadResourceFromClientAsync(specificClient, uri, client_id, cancellationToken).ConfigureAwait(false);
         }
 
         // 尝试所有客户端
         foreach (var (clientId, client) in clients) {
-            var result = await ReadResourceFromClientAsync(client, uri, clientId, cancellationToken);
+            var result = await ReadResourceFromClientAsync(client, uri, clientId, cancellationToken).ConfigureAwait(false);
 
             // 如果成功，返回结果
             if (result.IsError != true) {
@@ -132,7 +132,7 @@ public class McpResourceToolHandlers {
         response.AppendLine($"{ObjectSymbol.Pencil.ToValue()} MCP Prompt Templates");
         response.AppendLine();
 
-        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
+        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken).ConfigureAwait(false);
 
         if (clients.Count == 0) {
             response.AppendLine("No connected MCP remote clients");
@@ -148,7 +148,7 @@ public class McpResourceToolHandlers {
 
             try {
                 // 尝试获取提示模板列表
-                var result = await client.ListPromptsAsync(cancellationToken);
+                var result = await client.ListPromptsAsync(cancellationToken).ConfigureAwait(false);
 
                 if (!result.Success) {
                     response.AppendLine($"   {StatusSymbol.Cross.ToValue()} Failed to list prompts: {result.ErrorMessage}");
@@ -198,7 +198,7 @@ public class McpResourceToolHandlers {
         }
 
         // 获取所有远程客户端
-        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
+        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken).ConfigureAwait(false);
 
         if (clients.Count == 0) {
             return ToolResultBuilder.Error().WithText("No connected MCP remote clients").Build();
@@ -222,12 +222,12 @@ public class McpResourceToolHandlers {
                 return ToolResultBuilder.Error().WithText($"Client not found: {client_id}").Build();
             }
 
-            return await GetPromptFromClientAsync(specificClient, prompt_name, args, client_id, cancellationToken);
+            return await GetPromptFromClientAsync(specificClient, prompt_name, args, client_id, cancellationToken).ConfigureAwait(false);
         }
 
         // 尝试所有客户端
         foreach (var (clientId, client) in clients) {
-            var result = await GetPromptFromClientAsync(client, prompt_name, args, clientId, cancellationToken);
+            var result = await GetPromptFromClientAsync(client, prompt_name, args, clientId, cancellationToken).ConfigureAwait(false);
 
             // 如果成功，返回结果
             if (result.IsError != true) {
@@ -244,7 +244,7 @@ public class McpResourceToolHandlers {
     [McpTool(McpToolNameEnumConstants.McpListClients, "List all connected MCP remote clients", "mcp")]
     public async Task<ToolResult> McpListClientsAsync(
         CancellationToken cancellationToken = default) {
-        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken);
+        var clients = await _toolRegistry.GetAllRemoteClientsAsync(cancellationToken).ConfigureAwait(false);
 
         var response = new System.Text.StringBuilder();
         response.AppendLine($"{ObjectSymbol.ArrowRight.ToValue()} MCP Remote Clients");
@@ -280,7 +280,7 @@ public class McpResourceToolHandlers {
         string clientId,
         CancellationToken cancellationToken) {
         try {
-            var result = await client.ReadResourceAsync(uri, cancellationToken);
+            var result = await client.ReadResourceAsync(uri, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success) {
                 return ToolResultBuilder.Error().WithText($"Failed to read resource: {result.ErrorMessage}").Build();
@@ -323,7 +323,7 @@ public class McpResourceToolHandlers {
         string clientId,
         CancellationToken cancellationToken) {
         try {
-            var result = await client.GetPromptAsync(promptName, arguments, cancellationToken);
+            var result = await client.GetPromptAsync(promptName, arguments, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success) {
                 return ToolResultBuilder.Error().WithText($"Failed to get prompt: {result.ErrorMessage}").Build();

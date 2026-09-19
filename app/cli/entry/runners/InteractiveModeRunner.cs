@@ -29,6 +29,6 @@ internal static class InteractiveModeRunner {
             .OnError((ctx, ex) => Cli.TerminalHelper.WriteLine($"启动失败: {ex.Message}"))
             .Build();
 
-        await pipeline.ExecuteAsync(context, cancellationToken);
+        await pipeline.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -13,7 +13,7 @@ internal sealed partial class SystemPromptApplyStep : ServiceEntity, IMiddleware
 
         // 无 --system-prompt 也无 --append-system-prompt → 跳过
         if (string.IsNullOrEmpty(options.SystemPrompt) && string.IsNullOrEmpty(options.AppendSystemPrompt)) {
-            await next(context, ct);
+            await next(context, ct).ConfigureAwait(false);
             return;
         }
 
@@ -38,6 +38,6 @@ internal sealed partial class SystemPromptApplyStep : ServiceEntity, IMiddleware
             Diag.WriteLine($"[STEP] SystemPromptApply: --append-system-prompt 已应用，长度={options.AppendSystemPrompt.Length}");
         }
 
-        await next(context, ct);
+        await next(context, ct).ConfigureAwait(false);
     }
 }

@@ -130,7 +130,7 @@ public sealed partial class SearchService : ServiceEntity, ISearchService {
                 RecordSearchMetrics("glob", stopwatch.ElapsedMilliseconds, false);
                 return GlobSearchResult.FailureResult(ex.Message);
             }
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

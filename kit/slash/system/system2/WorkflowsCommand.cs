@@ -26,7 +26,7 @@ public sealed class WorkflowsCommand : ChatCommandBase {
                 TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsRunUsage));
                 return ChatCommandResult.Continue();
             }
-            return await RunWorkflowAsync(context, name);
+            return await RunWorkflowAsync(context, name).ConfigureAwait(false);
         }
 
         if (args.StartsWith("status", StringComparison.OrdinalIgnoreCase)) {
@@ -35,7 +35,7 @@ public sealed class WorkflowsCommand : ChatCommandBase {
                 TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsStatusUsage));
                 return ChatCommandResult.Continue();
             }
-            return await GetWorkflowStatusAsync(context, workflowId);
+            return await GetWorkflowStatusAsync(context, workflowId).ConfigureAwait(false);
         }
 
         TerminalHelper.WriteLine(L.T(StringKey.HostWorkflowsUnknownAction, args));

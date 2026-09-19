@@ -669,7 +669,8 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
     private static void RegisterAsyncCodePathAnalysis(CompilationStartAnalysisContext context) {
         var isTestProject = IsTestProject(context.Compilation);
         var isRoslynProject = IsRoslynProject(context.Compilation);
-        var isLibraryProject = !isTestProject && !isRoslynProject;
+        var isApplicationProject = IsApplicationProject(context.Compilation);
+        var isLibraryProject = !isTestProject && !isRoslynProject && !isApplicationProject;
 
         context.RegisterSyntaxNodeAction(
             ctx => AnalyzeConfigureAwaitFalse(ctx, isLibraryProject),
@@ -714,6 +715,17 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         return false;
     }
 
+    /// <summary>
+    /// 检测项目是否为应用入口（cli/gui/tui/sdk），非库代码。解决方案无关。
+    /// </summary>
+    private static bool IsApplicationProject(Compilation compilation) {
+        var name = compilation.AssemblyName.AsSpan();
+        return name.Equals("JoinCode".AsSpan(), StringComparison.Ordinal) ||
+               name.Contains("Gui".AsSpan(), StringComparison.Ordinal) ||
+               name.Contains("Tui".AsSpan(), StringComparison.Ordinal) ||
+               name.Equals("Sdk".AsSpan(), StringComparison.Ordinal);
+    }
+
     private static void AnalyzeConfigureAwaitFalse(SyntaxNodeAnalysisContext ctx, bool isLibraryProject) {
         if (ctx.CancellationToken.IsCancellationRequested) return;
 
@@ -722,6 +734,8 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         if (!isLibraryProject) return;
 
         if (HasConfigureAwaitFalse(awaitExpr)) return;
+
+        if (IsTaskYield(awaitExpr)) return;
 
         ctx.ReportDiagnostic(Diagnostic.Create(RuleConfigureAwaitFalse, awaitExpr.GetLocation()));
     }

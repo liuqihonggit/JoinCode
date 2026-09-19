@@ -194,7 +194,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
             }
 
-            await client.DisconnectAsync(cancellationToken);
+            await client.DisconnectAsync(cancellationToken).ConfigureAwait(false);
             _clients.Remove(connection_name);
             _connectionConfigs.TryRemove(connection_name, out _);
 
@@ -281,13 +281,13 @@ public partial class McpClientToolHandlers : ServiceEntity {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        var client = await GetClientAsync(connection_name, cancellationToken);
+        var client = await GetClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
         if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
         return await ToolResultBuilder.SafeExecuteAsync(async () => {
-            var result = await client.ListToolsAsync(cancellationToken);
+            var result = await client.ListToolsAsync(cancellationToken).ConfigureAwait(false);
 
             if (!result.Success) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ListToolsFailed, result.ErrorMessage)).Build();
@@ -327,7 +327,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ToolNameCannotBeEmpty)).Build();
         }
 
-        var client = await GetClientAsync(connection_name, cancellationToken);
+        var client = await GetClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
         if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
@@ -340,7 +340,7 @@ public partial class McpClientToolHandlers : ServiceEntity {
                     _logger?.LogInformation("[McpClient] tool 参数 JSON 已修复: {RepairHint}", repairHint);
             }
 
-            var result = await client.CallToolAsync(tool_name, arguments, cancellationToken);
+            var result = await client.CallToolAsync(tool_name, arguments, cancellationToken).ConfigureAwait(false);
 
             var builder = result.IsError ? ToolResultBuilder.Error() : ToolResultBuilder.Success();
 
@@ -377,13 +377,13 @@ public partial class McpClientToolHandlers : ServiceEntity {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        var client = await GetClientAsync(connection_name, cancellationToken);
+        var client = await GetClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
         if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
         return await ToolResultBuilder.SafeExecuteAsync(async () => {
-            var result = await client.ListResourcesAsync(cancellationToken);
+            var result = await client.ListResourcesAsync(cancellationToken).ConfigureAwait(false);
 
             if (!result.Success) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ListResourcesFailed, result.ErrorMessage)).Build();
@@ -426,13 +426,13 @@ public partial class McpClientToolHandlers : ServiceEntity {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ResourceUriCannotBeEmpty)).Build();
         }
 
-        var client = await GetClientAsync(connection_name, cancellationToken);
+        var client = await GetClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
         if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
         return await ToolResultBuilder.SafeExecuteAsync(async () => {
-            var result = await client.ReadResourceAsync(resource_uri, cancellationToken);
+            var result = await client.ReadResourceAsync(resource_uri, cancellationToken).ConfigureAwait(false);
 
             if (!result.Success) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ReadResourceFailed, result.ErrorMessage)).Build();
@@ -482,13 +482,13 @@ public partial class McpClientToolHandlers : ServiceEntity {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNameCannotBeEmpty)).Build();
         }
 
-        var client = await GetClientAsync(connection_name, cancellationToken);
+        var client = await GetClientAsync(connection_name, cancellationToken).ConfigureAwait(false);
         if (client == null) {
             return ToolResultBuilder.Error().WithText(L.T(StringKey.ConnectionNotFound, connection_name)).Build();
         }
 
         return await ToolResultBuilder.SafeExecuteAsync(async () => {
-            var result = await client.ListPromptsAsync(cancellationToken);
+            var result = await client.ListPromptsAsync(cancellationToken).ConfigureAwait(false);
 
             if (!result.Success) {
                 return ToolResultBuilder.Error().WithText(L.T(StringKey.ListPromptsFailed, result.ErrorMessage)).Build();

@@ -44,7 +44,7 @@ public sealed class ProsecutorAgent : ReasoningAgent {
             var claimsText = string.Join("\n", unverified.Select((x, i) => $"{i + 1}. {x.Content}"));
             var userPrompt = $"请为以下假定各提出至少一条支持证据：\n{claimsText}";
 
-            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct);
+            userPrompt = await CompressPromptIfNeededAsync(context, Role, userPrompt, ct).ConfigureAwait(false);
 
             var (llmResponse, usage, promptTokens) = await CallLlmAsync(userPrompt, temperature: context.Options.ProsecutorTemperature, maxTokens: context.Options.DefaultLlmMaxTokens, ct: ct).ConfigureAwait(false);
             if (llmResponse is not null) {

@@ -402,13 +402,14 @@ public class DynamicAndAsyncSafetyAnalyzerTests {
 
     [Fact]
     public async Task AwaitWithoutConfigureAwaitInLib_ReportsJCC3008() {
-        var test = new CSharpAnalyzerTest<AsyncSafetyRules, DefaultVerifier> {
+        TestAsyncSafetyRules.ProjectType = ProjectType.Library;
+        var test = new CSharpAnalyzerTest<TestAsyncSafetyRules, DefaultVerifier> {
             ReferenceAssemblies = ReferenceAssemblies.Net.Net80,
             TestState =
             {
                 Sources =
                 {
-                    ("infrastructure/SomeService.cs", """
+                    ("SomeService.cs", """
                         {|#1:using System.Threading.Tasks;|}
                         class SomeService
                         {

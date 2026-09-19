@@ -9,7 +9,7 @@
     <EnableAotAnalyzer>false</EnableAotAnalyzer>
     <PublishAot>false</PublishAot>
     <ExcludeJccAnalyzers>true</ExcludeJccAnalyzers>
-    <NoWarn>$(NoWarn);NU1701;NU1608;JCC3007</NoWarn>
+    <NoWarn>$(NoWarn);NU1701;NU1608;JCC3007;RS1041;RS1038</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

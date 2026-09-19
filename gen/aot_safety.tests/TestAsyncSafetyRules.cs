@@ -1,11 +1,14 @@
-namespace AotSafety.Generator;
+namespace AotSafety.Tests;
 
 /// <summary>
-/// 异步安全分析器主入口 — 从 RuleRegistry map 获取所有规则,收集 descriptors 并注册。
-/// 每个规则是独立类/文件,通过 [AnalyzerRule] 特性自动发现,无需手动逐个注册。
+/// 测试辅助分析器 — 包装 AsyncSafetyRules 的规则注册,但允许测试手动设置 ProjectType。
+/// 解决 CSharpAnalyzerTest 的 AnalyzerConfigFiles 不传递 build_property.XXX 的问题。
+/// 用法: TestAsyncSafetyRules.ProjectType = ProjectType.Library; 然后用作分析器。
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
-public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
+public sealed class TestAsyncSafetyRules : DiagnosticAnalyzer {
+    public static ProjectType ProjectType { get; set; } = ProjectType.Unknown;
+
     private static readonly IReadOnlyList<DiagnosticDescriptor> AllDescriptors =
         RuleRegistry.All.SelectMany(r => r.Descriptors).ToArray();
 
@@ -17,9 +20,7 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
 
         context.RegisterCompilationStartAction(compilationContext => {
-            var projectContext = ProjectContext.From(
-                compilationContext.Compilation,
-                compilationContext.Options.AnalyzerConfigOptionsProvider);
+            var projectContext = new ProjectContext { ProjectType = ProjectType };
 
             foreach (var rule in RuleRegistry.All) {
                 rule.Register(compilationContext, projectContext);

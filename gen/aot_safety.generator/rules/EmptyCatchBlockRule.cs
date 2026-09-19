@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC3013: 禁止空 catch 块。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3013",
     Title = "代码规范: 禁止空 catch 块",
     Description = "空 catch 块会隐藏异常，导致难以调试的问题。catch 块必须至少写一行日志（如 _logger.LogWarning(ex, \"...\") 或 Console.WriteLine(\"...\")），绝不允许留空。即使异常可以忽略，也必须记录日志以便排查。唯一例外: catch(OperationCanceledException) 或 catch(TaskCanceledException) 允许留空。",

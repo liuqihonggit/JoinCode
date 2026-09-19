@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC3004: Process deadlock — RedirectStandardError is true but stderr is never read。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3004",
     Title = "Process deadlock: RedirectStandardError is true but stderr is never read",
     Description = "Process has RedirectStandardError=true but StandardError is never consumed. When the child process writes enough to stderr to fill the pipe buffer, it will block, potentially causing deadlock if the parent is waiting on WaitForExitAsync.",

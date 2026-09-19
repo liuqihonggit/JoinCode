@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC3003: Process deadlock — WaitForExitAsync before ReadToEndAsync。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3003",
     Title = "Process deadlock: WaitForExitAsync before ReadToEndAsync",
     Description = "Calling '{0}' after WaitForExitAsync may cause deadlock. When child process output exceeds pipe buffer size, WaitForExitAsync blocks waiting for process exit while the process blocks waiting for pipe read, forming a deadlock. Correct pattern: start ReadToEndAsync first, then await WaitForExitAsync.",

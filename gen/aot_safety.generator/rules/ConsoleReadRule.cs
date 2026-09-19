@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC2003: Console.Read() 必须包裹 IsInputRedirected 检查。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC2003",
     Title = "交互输入: Console.Read() 必须包裹 IsInputRedirected 检查",
     Description = "Console.Read() 在输入重定向环境（测试、CI）中可能阻塞。必须先检查 Console.IsInputRedirected，在非交互模式下使用替代路径。",

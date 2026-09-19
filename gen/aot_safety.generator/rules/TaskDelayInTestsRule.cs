@@ -6,6 +6,7 @@ namespace AotSafety.Generator.Rules;
 /// [AnalyzerRule] 标记主 Id (JCC3010),另外两个 descriptor 手动创建。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3010",
     Title = "测试性能: Task.Delay({0}ms) 真实等待",
     Description = "测试中 Task.Delay({0}ms) 真实等待。用 FakeTimeProvider.Advance() 推进时间，或 SemaphoreSlim 信号替代盲等。",

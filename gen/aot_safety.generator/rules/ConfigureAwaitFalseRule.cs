@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC3008: 库代码 await 必须使用 ConfigureAwait(false)。仅 Library 项目触发。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3008",
     Title = "异步规范: 库代码 await 必须使用 ConfigureAwait(false)",
     Description = "库代码（lib/ 和 subsystems/）中的 await 缺少 ConfigureAwait(false). 库代码不依赖 SynchronizationContext，省略 ConfigureAwait(false) 会导致不必要的上下文切换和潜在死锁.",

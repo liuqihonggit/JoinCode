@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC3009: 测试代码禁止 ConfigureAwait(false)。仅 Test 项目触发。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3009",
     Title = "异步规范: 测试代码禁止 ConfigureAwait(false)",
     Description = "测试代码中使用了 ConfigureAwait(false). 测试代码依赖 xUnit SynchronizationContext，ConfigureAwait(false) 会导致测试行为不一致. 测试代码中 await 默认即为 ConfigureAwait(true)，无需显式指定.",

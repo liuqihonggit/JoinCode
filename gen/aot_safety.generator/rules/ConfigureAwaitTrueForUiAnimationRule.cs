@@ -5,6 +5,7 @@ namespace AotSafety.Generator.Rules;
 /// UI 层省略 ConfigureAwait 让默认行为（true）生效,显式 ConfigureAwait(true) 冗余,ConfigureAwait(false) 破坏 UI 线程亲和性。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3014",
     Title = "异步规范: UI 层禁止 ConfigureAwait 调用",
     Description = "UI 层（Gui/Tui 项目）中使用了 ConfigureAwait 调用. UI 层异步操作后续通常操作 UI 控件，必须在 UI 线程继续执行；省略 ConfigureAwait 让默认行为（ConfigureAwait(true)）生效即可. 显式 ConfigureAwait(true) 冗余，ConfigureAwait(false) 破坏 UI 线程亲和性.",

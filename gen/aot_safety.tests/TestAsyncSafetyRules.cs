@@ -9,8 +9,9 @@ namespace AotSafety.Tests;
 public sealed class TestAsyncSafetyRules : DiagnosticAnalyzer {
     public static ProjectType ProjectType { get; set; } = ProjectType.Unknown;
 
+    private static readonly IReadOnlyList<IAnalyzerRule> Rules = RuleRegistry.GetListByAnalyzer("AsyncSafety");
     private static readonly IReadOnlyList<DiagnosticDescriptor> AllDescriptors =
-        RuleRegistry.All.SelectMany(r => r.Descriptors).ToArray();
+        Rules.SelectMany(r => r.Descriptors).ToArray();
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.CreateRange(AllDescriptors);
@@ -22,7 +23,7 @@ public sealed class TestAsyncSafetyRules : DiagnosticAnalyzer {
         context.RegisterCompilationStartAction(compilationContext => {
             var projectContext = new ProjectContext { ProjectType = ProjectType };
 
-            foreach (var rule in RuleRegistry.All) {
+            foreach (var rule in Rules) {
                 rule.Register(compilationContext, projectContext);
             }
         });

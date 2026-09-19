@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC3007: 循环中逐个 await 可考虑改为 Task.WhenAll 并发执行。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3007",
     Title = "异步性能: 循环中逐个 await 可考虑改为 Task.WhenAll 并发执行",
     Description = "循环体内逐个 await 异步操作是串行执行，可考虑收集 Task 后用 Task.WhenAll 并发执行. 串行 await 总耗时 = Σ每个操作耗时，并发 await 总耗时 ≈ Max(各操作耗时).",

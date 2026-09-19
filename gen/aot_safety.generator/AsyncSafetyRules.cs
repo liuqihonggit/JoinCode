@@ -1,13 +1,16 @@
 namespace AotSafety.Generator;
 
 /// <summary>
-/// 异步安全分析器主入口 — 从 RuleRegistry map 获取所有规则,收集 descriptors 并注册。
-/// 每个规则是独立类/文件,通过 [AnalyzerRule] 特性自动发现,无需手动逐个注册。
+/// 异步安全分析器主入口 — 从 RuleRegistry 获取 AnalyzerId="AsyncSafety" 的规则,收集 descriptors 并注册。
+/// 每个规则是独立类/文件,通过 [AnalyzerRule(AnalyzerId="AsyncSafety")] 特性自动发现。
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
+    private const string AnalyzerId = "AsyncSafety";
+
+    private static readonly IReadOnlyList<IAnalyzerRule> Rules = RuleRegistry.GetListByAnalyzer(AnalyzerId);
     private static readonly IReadOnlyList<DiagnosticDescriptor> AllDescriptors =
-        RuleRegistry.All.SelectMany(r => r.Descriptors).ToArray();
+        Rules.SelectMany(r => r.Descriptors).ToArray();
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.CreateRange(AllDescriptors);
@@ -21,7 +24,7 @@ public sealed class AsyncSafetyRules : DiagnosticAnalyzer {
                 compilationContext.Compilation,
                 compilationContext.Options.AnalyzerConfigOptionsProvider);
 
-            foreach (var rule in RuleRegistry.All) {
+            foreach (var rule in Rules) {
                 rule.Register(compilationContext, projectContext);
             }
         });

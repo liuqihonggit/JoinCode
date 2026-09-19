@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC3005: async void 方法异常无法被捕获。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3005",
     Title = "异步红线: async void 方法异常无法被捕获",
     Description = "async void 方法的异常会直接炸掉进程，调用者无法捕获。改为 async Task 返回类型。（UI 事件处理器除外）",

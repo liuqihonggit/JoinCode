@@ -4,6 +4,7 @@ namespace AotSafety.Generator.Rules;
 /// JCC3006: .Result/.Wait() 阻塞调用可能导致死锁。测试项目豁免。
 /// </summary>
 [AnalyzerRule(
+    AnalyzerId = "AsyncSafety",
     Id = "JCC3006",
     Title = "异步红线: .Result/.Wait() 阻塞调用可能导致死锁",
     Description = "在异步上下文中调用 '{0}' 会阻塞当前线程等待 Task 完成，极易导致死锁。使用 await 替代。",

@@ -110,7 +110,7 @@ csharp_prefer_braces = false:error
 csharp_prefer_simple_using_statement = true
 csharp_style_namespace_declarations = file_scoped:error
 csharp_style_prefer_method_group_conversion = true
-csharp_style_prefer_top_level_statements = true:error
+csharp_style_prefer_top_level_statements = true
 
 # 表达式级首选项
 csharp_prefer_simple_default_expression = true
